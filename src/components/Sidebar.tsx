@@ -1,0 +1,282 @@
+import { useEffect, useRef, useState } from 'react'
+import { ItemInfo } from './ItemInfo'
+
+import { TILE_CHARS, TILE_COLORS, WATER_BORDER } from '@/engine/constants'
+import { getDefinition } from '@/engine/items'
+import { TileType } from '@/engine/types'
+import { fToC, mphToKph } from '@/engine/weather'
+import type { ItemInfoHandle } from './ItemInfo'
+import type { CharMetrics } from '@/engine/renderer'
+import type { GameState } from '@/engine/types'
+import type { GameEvent } from '@/hooks/useEventLog'
+import type { Panel } from '@/hooks/useKeyboard'
+
+const countTiles = (state: GameState, type: TileType): number => {
+  let count = 0
+  for (let y = 0; y < state.mapHeight; y++) {
+    for (let x = 0; x < state.mapWidth; x++) {
+      if (state.map[y][x].type === type) count++
+    }
+  }
+  return count
+}
+
+const SKY_LABEL = {
+  sun: 'sunny',
+  cloudy: 'cloudy',
+  rain: 'rain',
+} as const
+
+interface SidebarProps {
+  state: GameState
+  activePanel: Panel
+  setActivePanel: (panel: Panel) => void
+  itemInfoRef: React.RefObject<ItemInfoHandle | null>
+  eventLog: GameEvent[]
+  metricsRef: React.RefObject<CharMetrics | null>
+}
+
+export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, eventLog, metricsRef }: SidebarProps) => {
+  const [metric, setMetric] = useState(false)
+  const [cursorTile, setCursorTile] = useState<{ x: number; y: number } | null>(null)
+  const cursorRef = useRef<{ x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      // Hide when mouse is visually over the sidebar or inventory panel
+      // (sidebar is pointer-events-none so e.target is still the canvas)
+      const sidebarWidth = 192 // w-48
+      const sidebarLeft = window.innerWidth - sidebarWidth
+      const overSidebar = e.clientX >= sidebarLeft
+
+      const target = e.target as HTMLElement
+      if (target.tagName !== 'CANVAS' || overSidebar) {
+        if (cursorRef.current !== null) {
+          cursorRef.current = null
+          setCursorTile(null)
+        }
+        return
+      }
+      const metrics = metricsRef.current
+      if (!metrics) return
+      const rect = target.getBoundingClientRect()
+      const mx = Math.floor((e.clientX - rect.left) / metrics.charWidth) + state.camera.x
+      const my = Math.floor((e.clientY - rect.top) / metrics.charHeight) + state.camera.y
+      if (cursorRef.current?.x === mx && cursorRef.current?.y === my) return
+      cursorRef.current = { x: mx, y: my }
+      setCursorTile({ x: mx, y: my })
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+    }
+  }, [metricsRef, state.camera.x, state.camera.y])
+
+  const total = state.mapWidth * state.mapHeight
+  const cloverCount = countTiles(state, TileType.Clover)
+  const sandCount = countTiles(state, TileType.Sand)
+  const dirtCount = total - cloverCount - sandCount
+  const { weather } = state
+
+  const currentTile = state.map[state.player.y][state.player.x]
+
+  const temp = metric ? `${String(fToC(weather.temperatureF))}°C` : `${String(weather.temperatureF)}°F`
+  const wind = metric
+    ? `${String(mphToKph(weather.windSpeed))} kph ${weather.windDirection}`
+    : `${String(weather.windSpeed)} mph ${weather.windDirection}`
+
+  return (
+    <div
+      data-panel="sidebar"
+      className="text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
+    >
+      <div className="flex flex-col gap-4">
+        <div className="border-border-dim text-text border-b pb-3 text-sm">revery prairie</div>
+
+        {cursorTile && (
+          <div>
+            <div className="border-border-dim text-muted mb-3 border-b pb-2">cursor</div>
+            <table className="w-full">
+              <tbody>
+                <tr>
+                  <td className="text-muted py-0.5">position</td>
+                  <td className="py-0.5 text-right">
+                    {cursorTile.x - WATER_BORDER}, {cursorTile.y - WATER_BORDER}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="text-muted py-0.5">contents</td>
+                  <td className="py-0.5 text-right">
+                    {(() => {
+                      const cx = cursorTile.x
+                      const cy = cursorTile.y
+                      if (cx < 0 || cx >= state.mapWidth || cy < 0 || cy >= state.mapHeight) return 'void'
+                      if (cx === state.player.x && cy === state.player.y) return state.stewardName.toLowerCase()
+                      const bee = state.bees.find(b => b.pos.x === cx && b.pos.y === cy)
+                      if (bee) return 'bee'
+                      const gi = state.groundItems.find(g => g.pos.x === cx && g.pos.y === cy)
+                      if (gi) return getDefinition(gi.definitionId).name.toLowerCase()
+                      return state.map[cy]?.[cx]?.type ?? 'void'
+                    })()}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {activePanel === 'inventory' && <ItemInfo ref={itemInfoRef} />}
+      </div>
+
+      <div className="flex flex-col gap-4">
+        {eventLog.length > 0 && (
+          <div>
+            <div className="border-border-dim text-muted mb-2 border-b pb-2">log</div>
+            <div className="flex flex-col gap-1">
+              {eventLog.slice(0, 8).map(entry => (
+                <span key={entry.id}>
+                  <span style={{ color: entry.iconColor }}>{entry.icon}</span> {entry.text}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <div className="border-border-dim text-muted mb-3 border-b pb-2">stats</div>
+          <table className="w-full">
+            <tbody>
+              <tr>
+                <td className="text-muted py-0.5">steward</td>
+                <td className="py-0.5 text-right">{state.stewardName}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">total land</td>
+                <td className="py-0.5 text-right">{total.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">clover</td>
+                <td className="text-clover py-0.5 text-right">{cloverCount.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">dirt</td>
+                <td className="py-0.5 text-right">{dirtCount.toLocaleString()}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">sand</td>
+                <td className="py-0.5 text-right" style={{ color: TILE_COLORS[TileType.Sand] }}>
+                  {sandCount.toLocaleString()}
+                </td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">
+                  bees <span className="text-bee">*</span>
+                </td>
+                <td className="text-bee py-0.5 text-right">{state.bees.length}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">prairie</td>
+                <td className="py-0.5 text-right">{state.bees.length > 0 ? 'yes' : 'no'}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div className="border-border-dim text-muted mb-3 border-b pb-2">tile</div>
+          <table className="w-full">
+            <tbody>
+              <tr>
+                <td className="text-muted py-0.5">position</td>
+                <td className="py-0.5 text-right">
+                  {state.player.x - WATER_BORDER}, {state.player.y - WATER_BORDER}
+                </td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">type</td>
+                <td className="py-0.5 text-right">{currentTile.type}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">char</td>
+                <td className="py-0.5 text-right" style={{ color: TILE_COLORS[currentTile.type] }}>
+                  {TILE_CHARS[currentTile.type]}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div className="border-border-dim text-muted mb-3 border-b pb-2">weather</div>
+          <table className="w-full">
+            <tbody>
+              <tr>
+                <td className="text-muted py-0.5">season</td>
+                <td className="py-0.5 text-right">{weather.season}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">sky</td>
+                <td className="py-0.5 text-right">{SKY_LABEL[weather.sky]}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">temp</td>
+                <td className="py-0.5 text-right">{temp}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">wind</td>
+                <td className="py-0.5 text-right">{wind}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">humidity</td>
+                <td className="py-0.5 text-right">{weather.humidity}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div>
+          <div className="border-border-dim text-muted mb-2 border-b pb-2">units</div>
+          <button
+            type="button"
+            className="text-dim hover:text-text pointer-events-auto text-left"
+            onClick={() => {
+              setMetric(prev => !prev)
+            }}
+          >
+            {metric ? 'metric' : 'imperial'}
+          </button>
+        </div>
+
+        <div>
+          <div className="border-border-dim text-muted mb-2 border-b pb-2">controls</div>
+          <div className="flex flex-col gap-1">
+            <span>[wasd] move</span>
+            <button
+              type="button"
+              className="text-dim hover:text-text pointer-events-auto text-left"
+              onClick={() => {
+                setActivePanel(activePanel === 'inventory' ? null : 'inventory')
+              }}
+            >
+              [i]nventory
+            </button>
+            <button
+              type="button"
+              className="text-dim hover:text-text pointer-events-auto text-left"
+              onClick={() => {
+                if (activePanel === 'menu') {
+                  setActivePanel(null)
+                } else {
+                  setActivePanel('menu')
+                }
+              }}
+            >
+              [esc] menu
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
