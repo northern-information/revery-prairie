@@ -1,0 +1,265 @@
+import { createRef } from 'react'
+import { Sidebar } from '../Sidebar'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { vi } from 'vitest'
+
+import { combineBeeAndClover } from '@/engine/actions'
+import { createGameState } from '@/engine/state'
+import { TileType } from '@/engine/types'
+import type { ItemInfoHandle } from '../ItemInfo'
+
+const defaultInfoRef = createRef<ItemInfoHandle>()
+const noop = vi.fn()
+
+describe('Sidebar', () => {
+  it('renders steward name', () => {
+    const state = createGameState('Willow', 80, 40)
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    expect(screen.getByText('Willow')).toBeInTheDocument()
+  })
+
+  it('renders player position offset by water border', () => {
+    const state = createGameState('Test', 80, 40)
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    const expectedX = state.player.x - 10
+    const expectedY = state.player.y - 10
+    expect(screen.getByText(`${String(expectedX)}, ${String(expectedY)}`)).toBeInTheDocument()
+  })
+
+  it('renders total land count', () => {
+    const state = createGameState('Test', 80, 40)
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    expect(screen.getByText('16,150')).toBeInTheDocument()
+  })
+
+  it('shows prairie as no initially', () => {
+    const state = createGameState('Test', 80, 40)
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    expect(screen.getByText('no')).toBeInTheDocument()
+  })
+
+  it('shows prairie as yes after combining', () => {
+    const state = createGameState('Test', 80, 40)
+    combineBeeAndClover(state)
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    expect(screen.getByText('yes')).toBeInTheDocument()
+  })
+
+  it('shows clover count after combining', () => {
+    const state = createGameState('Test', 20, 20)
+    // Ensure 3x3 around player is dirt
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
+      }
+    }
+    combineBeeAndClover(state)
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    expect(screen.getByText('9')).toBeInTheDocument()
+  })
+
+  it('shows bee count after combining', () => {
+    const state = createGameState('Test', 20, 20)
+    combineBeeAndClover(state)
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    const ones = screen.getAllByText('1')
+    expect(ones.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('renders current tile info', () => {
+    const state = createGameState('Test', 20, 20)
+    // Ensure player tile is dirt
+    state.map[state.player.y][state.player.x] = { type: TileType.Dirt }
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    // "dirt" appears in both stats (dirt count label) and tile (type)
+    const dirts = screen.getAllByText('dirt')
+    expect(dirts.length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText('.')).toBeInTheDocument()
+  })
+
+  it('shows clover tile when standing on clover', () => {
+    const state = createGameState('Test', 20, 20)
+    // Ensure 3x3 around player is dirt so clover can grow
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
+      }
+    }
+    combineBeeAndClover(state)
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    // "clover" appears in both stats (clover count label) and tile (type)
+    const clovers = screen.getAllByText('clover')
+    expect(clovers.length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText('%')).toBeInTheDocument()
+  })
+
+  it('renders control hints', () => {
+    const state = createGameState('Test', 80, 40)
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    expect(screen.getByText('[wasd] move')).toBeInTheDocument()
+    expect(screen.getByText('[i]nventory')).toBeInTheDocument()
+    expect(screen.getByText('[esc] menu')).toBeInTheDocument()
+  })
+
+  it('renders weather section in imperial by default', () => {
+    const state = createGameState('Test', 80, 40)
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    expect(screen.getByText('spring')).toBeInTheDocument()
+    expect(screen.getByText(/°F/)).toBeInTheDocument()
+    expect(screen.getByText(/mph/)).toBeInTheDocument()
+    expect(screen.getByText(/%/)).toBeInTheDocument()
+    expect(screen.getByText('imperial')).toBeInTheDocument()
+  })
+
+  it('toggles to metric units', async () => {
+    const state = createGameState('Test', 80, 40)
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    await userEvent.click(screen.getByText('imperial'))
+
+    expect(screen.getByText(/°C/)).toBeInTheDocument()
+    expect(screen.getByText(/kph/)).toBeInTheDocument()
+    expect(screen.getByText('metric')).toBeInTheDocument()
+  })
+
+  it('toggles back to imperial', async () => {
+    const state = createGameState('Test', 80, 40)
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    await userEvent.click(screen.getByText('imperial'))
+    await userEvent.click(screen.getByText('metric'))
+
+    expect(screen.getByText(/°F/)).toBeInTheDocument()
+    expect(screen.getByText(/mph/)).toBeInTheDocument()
+    expect(screen.getByText('imperial')).toBeInTheDocument()
+  })
+})
