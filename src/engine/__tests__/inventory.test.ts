@@ -346,12 +346,12 @@ describe('autoSort', () => {
   it('places larger items first', () => {
     const container = createContainer('test', 'Test', 4, 6)
     placeItem(container, 'bee', Rotation.R0, 0, 0)
-    placeItem(container, 'soil_sampler', Rotation.R0, 1, 0)
+    placeItem(container, 'permacomputer', Rotation.R0, 1, 0)
 
     autoSort(container)
 
-    // Soil sampler (1x2) should be placed before bee (1x1)
-    const sampler = container.items.find(i => i.definitionId === 'soil_sampler')
+    // Permacomputer (2x1) should be placed before bee (1x1)
+    const sampler = container.items.find(i => i.definitionId === 'permacomputer')
     expect(sampler?.gridX).toBe(0)
     expect(sampler?.gridY).toBe(0)
   })

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 
+import { groundOmniboxBlockedSet } from '@/engine/actions'
 import { screenToTile } from '@/engine/coordinates'
 import { findPath } from '@/engine/pathfinding'
 import { TileType } from '@/engine/types'
@@ -33,7 +34,8 @@ export const useMouse = ({ canvasRef, state, metricsRef, activePanel }: UseMouse
 
       state.pendingAction = null
       state.previewFn = null
-      state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, tile)
+      const blocked = groundOmniboxBlockedSet(state)
+      state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, tile, blocked)
     }
 
     canvas.addEventListener('click', handleClick)

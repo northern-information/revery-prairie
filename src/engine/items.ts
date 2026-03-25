@@ -1,41 +1,69 @@
-import { ItemCategory, Rotation } from './types'
+import { ItemCategory } from './types'
 
-import type { Container, ItemDefinition } from './types'
+import type { Container, ItemCategory as ItemCategoryType, ItemDefinition } from './types'
 
-type ItemEntry = Omit<ItemDefinition, 'id'>
+interface ItemEntry {
+  name: string
+  description: string
+  glyph: string
+  glyphColor: string
+  weight: number
+  category: ItemCategoryType
+  shape: string[]
+}
+
+const parseShape = (rows: string[]): boolean[][] => rows.map(row => Array.from(row, ch => ch === '#'))
 
 const ITEMS = {
   bee: {
     name: 'Bee',
     description: 'a single bee',
-    icon: '*',
-    iconColor: '#FFD700',
+    glyph: '*',
+    glyphColor: '#FFD700',
     weight: 1,
-    category: ItemCategory.Critter,
-    shape: [[true]],
+    category: ItemCategory.Fauna,
+    shape: ['#'],
   },
   clover: {
     name: 'Clover',
     description: 'a single clover',
-    icon: '%',
-    iconColor: '#50C878',
+    glyph: '%',
+    glyphColor: '#50C878',
     weight: 1,
     category: ItemCategory.Flora,
-    shape: [[true]],
+    shape: ['#'],
   },
-  soil_sampler: {
-    name: 'Soil Sampler',
-    description: 'tool for testing soil composition',
-    icon: '☷',
-    iconColor: '#8B7355',
+  meteorite: {
+    name: 'Meteorite',
+    description: 'a fallen star',
+    glyph: '\u2726',
+    glyphColor: '#FFE4B5',
+    weight: 2,
+    category: ItemCategory.CelestialDebris,
+    shape: ['#'],
+  },
+  permacomputer: {
+    name: 'Permacomputer',
+    description: 'standard issue fabrication omnitool',
+    glyph: '⚙',
+    glyphColor: '#8B7355',
     weight: 3,
-    category: ItemCategory.Tool,
-    shape: [[true], [true]],
+    category: ItemCategory.Gizmo,
+    shape: ['##'],
+  },
+  omnibox: {
+    name: 'Omnibox',
+    description: 'a portable container',
+    glyph: '\u25A1',
+    glyphColor: '#C0C0C0',
+    weight: 4,
+    category: ItemCategory.Gizmo,
+    shape: ['##', '##'],
   },
 } as const satisfies Record<string, ItemEntry>
 
 export const ITEM_DEFINITIONS: Record<string, ItemDefinition> = Object.fromEntries(
-  Object.entries(ITEMS).map(([key, entry]) => [key, { ...entry, id: key }])
+  Object.entries(ITEMS).map(([key, entry]) => [key, { ...entry, id: key, shape: parseShape(entry.shape) }])
 )
 
 export const getDefinition = (id: string): ItemDefinition => {
@@ -64,5 +92,3 @@ export const createContainer = (id: string, name: string, width: number, height:
   height,
   items: [],
 })
-
-export const DEFAULT_ROTATION = Rotation.R0

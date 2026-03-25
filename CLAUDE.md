@@ -19,7 +19,7 @@ game state is a mutable singleton (`src/hooks/useGameEngine.ts`) held outside Re
 
 player cannot walk on water. clover cannot grow on water or sand.
 
-displayed coordinates are offset by `WATER_BORDER` so the land starts at (0, 0).
+displayed coordinates are offset by `SPACE_BORDER` so the land starts at (0, 0).
 
 ## tile types
 
@@ -28,7 +28,13 @@ defined in `src/engine/types.ts` as a const object (not an enum — `erasableSyn
 - `dirt` — empty ground (`.`, tan)
 - `clover` — planted clover field (`%`, green)
 - `sand` — shoreline (`:`, tan-gold)
-- `water` — surrounding ocean (`~`, blue)
+- `space` — surrounding void (twinkling stars on black)
+
+## color conventions
+
+hot pink (`#ff69b4`) is reserved for user actions: cursor highlight, path dots, combine/drop previews (`#`), combine toast UI, inventory drop targets. do not use this color for world entities, terrain, or NPC behavior.
+
+cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_COLOR` text. the renderer uses a two-phase resolve-then-draw pattern — first determine `char`/`color`/`cursorable`, then apply cursor inversion at the end if applicable.
 
 ## key files
 
@@ -79,7 +85,7 @@ tetris-style spatial inventory. items have shapes (`boolean[][]`) that must phys
 
 key types: `ItemDefinition` (template), `ItemInstance` (placed in container), `Container` (grid), `Rotation` (0/1/2/3).
 
-categories: `Critter`, `Flora`, `Tool` — expand as needed, don't add speculatively.
+categories: `Fauna`, `Flora`, `Tool`, `CelestialDebris`, `Gizmo` — expand as needed, don't add speculatively.
 
 ## recipes
 
@@ -87,8 +93,11 @@ recipes combine two items via drag-and-drop. defined in `src/engine/recipes.ts`.
 
 - `kind`: `macro` (map effects, shows `!` on grid) or `craft` (creates items, shows result icon)
 - `resultName`: displayed in toast header (`bee + clover = prairie`)
+- `preserveIngredient`: optional definitionId of an ingredient that should NOT be consumed. the combine handler checks both dragged and target items against this field.
 - `preview`: optional function returning `{ pos, char, color }[]` for map visualization. called every frame via `state.previewFn` so it follows the player.
 - `discoveredRecipes: Set<string>` on GameState tracks which recipes the player has used. undiscovered recipes show `?` on grid cells and `???` in toast.
+
+the permacomputer is never consumed by recipes. it is a tool that persists. the omnibox recipe uses `preserveIngredient: 'permacomputer'` to enforce this.
 
 ## keybindings
 
@@ -96,6 +105,7 @@ recipes combine two items via drag-and-drop. defined in `src/engine/recipes.ts`.
 - `i` — toggle inventory
 - `x` — drop hovered item (changed from `d` to avoid WASD conflict)
 - `r` — rotate hovered item in place, or rotate during drag
+- `g` — grab adjacent ground omnibox into backpack
 - `esc` — close panel / open menu
 - during drag: `r` rotates ghost, `esc` cancels (captured by drag hook)
 - `isDraggingRef` blocks `x`/`r` in keyboard hook while drag is active, but allows movement through
@@ -103,7 +113,19 @@ recipes combine two items via drag-and-drop. defined in `src/engine/recipes.ts`.
 ## entities
 
 - **bees** — spawn when bee+clover are combined, or when a bee item is dropped. wander randomly — prefer adjacent clover tiles, otherwise walk any non-Space tile. rendered as `*` in gold. tracked in `state.bees[]`. walking over a bee captures it into backpack.
-- **ground items** — items dropped on the map. rendered with their icon/color. walking over them auto-picks up if backpack has room.
+- **ground items** — items dropped on the map. rendered with their glyph/color. walking over them auto-picks up if backpack has room.
+- **ground omniboxes** — omniboxes dropped on the map. tracked in `state.groundOmniboxes[]` (separate from groundItems). walking over one auto-OPENS it (does not auto-pickup). the player must explicitly drag it to their backpack from the inventory UI.
+
+## omniboxes
+
+portable 5x5 containers (2x2 inventory footprint). created by combining meteorite + permacomputer (craft recipe). inspired by diablo's horadric cube.
+
+- **container registry**: `state.omniboxContainers: Map<string, Container>` keyed by `ItemInstance.uid`. each omnibox item links to its container data through this map.
+- **numbering**: `state.nextOmniboxNumber` increments on creation. container names are `omnibox #1`, `omnibox #2`, etc.
+- **multiple open**: `state.openContainers: Container[]` replaces the old `openContainer: Container | null`. multiple omniboxes can be open simultaneously. rendered below backpack in inventory panel.
+- **ground behavior**: dropped omniboxes go to `state.groundOmniboxes[]` (not `groundItems`). ground omniboxes are solid — they block `movePlayer()` and `findPath()`. adjacent omniboxes auto-open; walking away auto-closes. press `g` to grab an adjacent ground omnibox into backpack.
+- **nesting**: omniboxes can be placed inside other omniboxes.
+- **renaming**: deferred — not yet implemented.
 
 ## pending actions
 
@@ -134,6 +156,8 @@ every feature must have tests. engine tests live in `src/engine/__tests__/`, com
 if a feature cannot be tested (e.g. canvas rendering), flag it for the user to review how to proceed before skipping.
 
 tests that depend on terrain must account for the randomized coastline — use `clearAroundPlayer()` or manually set tiles to dirt before testing movement/combine mechanics.
+
+`createGameState` seeds shooting stars and other entities. tests that assert exact counts on `state.shootingStars`, `state.meteorites`, etc. must reset these arrays (e.g. `state.meteorites = []`) before the test logic.
 
 ## conventions
 

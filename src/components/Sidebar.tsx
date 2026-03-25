@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ItemInfo } from './ItemInfo'
 
-import { TILE_CHARS, TILE_COLORS, WATER_BORDER } from '@/engine/constants'
+import { SPACE_BORDER, TILE_CHARS, TILE_COLORS } from '@/engine/constants'
 import { getDefinition } from '@/engine/items'
 import { TileType } from '@/engine/types'
 import { fToC, mphToKph } from '@/engine/weather'
@@ -53,6 +53,7 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
       if (target.tagName !== 'CANVAS' || overSidebar) {
         if (cursorRef.current !== null) {
           cursorRef.current = null
+          state.cursorTile = null
           setCursorTile(null)
         }
         return
@@ -64,6 +65,7 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
       const my = Math.floor((e.clientY - rect.top) / metrics.charHeight) + state.camera.y
       if (cursorRef.current?.x === mx && cursorRef.current?.y === my) return
       cursorRef.current = { x: mx, y: my }
+      state.cursorTile = { x: mx, y: my }
       setCursorTile({ x: mx, y: my })
     }
 
@@ -71,6 +73,8 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
     }
+    // state is a mutable singleton — we depend on camera coords, not the ref itself
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metricsRef, state.camera.x, state.camera.y])
 
   const total = state.mapWidth * state.mapHeight
@@ -102,7 +106,7 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
                 <tr>
                   <td className="text-muted py-0.5">position</td>
                   <td className="py-0.5 text-right">
-                    {cursorTile.x - WATER_BORDER}, {cursorTile.y - WATER_BORDER}
+                    {cursorTile.x - SPACE_BORDER}, {cursorTile.y - SPACE_BORDER}
                   </td>
                 </tr>
                 <tr>
@@ -115,6 +119,13 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
                       if (cx === state.player.x && cy === state.player.y) return state.stewardName.toLowerCase()
                       const bee = state.bees.find(b => b.pos.x === cx && b.pos.y === cy)
                       if (bee) return 'bee'
+                      const meteorite = state.meteorites.find(m => m.pos.x === cx && m.pos.y === cy)
+                      if (meteorite) return 'meteorite'
+                      const omnibox = state.groundOmniboxes.find(o => o.pos.x === cx && o.pos.y === cy)
+                      if (omnibox) {
+                        const oc = state.omniboxContainers.get(omnibox.uid)
+                        return oc?.name.toLowerCase() ?? 'omnibox'
+                      }
                       const gi = state.groundItems.find(g => g.pos.x === cx && g.pos.y === cy)
                       if (gi) return getDefinition(gi.definitionId).name.toLowerCase()
                       return state.map[cy]?.[cx]?.type ?? 'void'
@@ -176,6 +187,10 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
                 <td className="text-bee py-0.5 text-right">{state.bees.length}</td>
               </tr>
               <tr>
+                <td className="text-muted py-0.5">meteorites ✦</td>
+                <td className="text-meteorite py-0.5 text-right">{state.meteorites.length}</td>
+              </tr>
+              <tr>
                 <td className="text-muted py-0.5">prairie</td>
                 <td className="py-0.5 text-right">{state.bees.length > 0 ? 'yes' : 'no'}</td>
               </tr>
@@ -190,7 +205,7 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
               <tr>
                 <td className="text-muted py-0.5">position</td>
                 <td className="py-0.5 text-right">
-                  {state.player.x - WATER_BORDER}, {state.player.y - WATER_BORDER}
+                  {state.player.x - SPACE_BORDER}, {state.player.y - SPACE_BORDER}
                 </td>
               </tr>
               <tr>
@@ -261,6 +276,19 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
             >
               [i]nventory
             </button>
+            <span
+              className={
+                state.groundOmniboxes.some(go => {
+                  const dx = Math.abs(go.pos.x - state.player.x)
+                  const dy = Math.abs(go.pos.y - state.player.y)
+                  return (dx === 1 && dy === 0) || (dx === 0 && dy === 1)
+                })
+                  ? 'text-text'
+                  : 'text-dim'
+              }
+            >
+              [g]rab
+            </span>
             <button
               type="button"
               className="text-dim hover:text-text pointer-events-auto text-left"

@@ -53,11 +53,13 @@ export const findPath = (
   mapWidth: number,
   mapHeight: number,
   from: Position,
-  to: Position
+  to: Position,
+  blockedPositions?: Set<string>
 ): Position[] | null => {
   // Reject out-of-bounds or unwalkable destination
   if (to.x < 0 || to.x >= mapWidth || to.y < 0 || to.y >= mapHeight) return null
   if (map[to.y][to.x].type === TileType.Space) return null
+  if (blockedPositions?.has(`${String(to.x)},${String(to.y)}`)) return null
 
   // Same position — no path needed
   if (from.x === to.x && from.y === to.y) return null
@@ -107,6 +109,7 @@ export const findPath = (
       const ny = cy + d.y
       if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) continue
       if (map[ny][nx].type === TileType.Space) continue
+      if (blockedPositions?.has(`${String(nx)},${String(ny)}`)) continue
 
       const nIdx = ny * mapWidth + nx
       if (visited[nIdx]) continue

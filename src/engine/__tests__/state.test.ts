@@ -28,12 +28,12 @@ describe('createGameState', () => {
     expect(state.backpack.items).toHaveLength(7)
     expect(containerHasItem(state.backpack, 'bee')).toBe(true)
     expect(containerHasItem(state.backpack, 'clover')).toBe(true)
-    expect(containerHasItem(state.backpack, 'soil_sampler')).toBe(true)
+    expect(containerHasItem(state.backpack, 'permacomputer')).toBe(true)
   })
 
-  it('starts with no open container', () => {
+  it('starts with no open containers', () => {
     const state = createGameState('Willow', 80, 40)
-    expect(state.openContainer).toBeNull()
+    expect(state.openContainers).toHaveLength(0)
   })
 
   it('starts with no bees', () => {

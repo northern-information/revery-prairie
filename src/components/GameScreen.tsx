@@ -18,6 +18,8 @@ interface GameScreenProps {
 }
 
 export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
+  // uiVersion is destructured to subscribe GameScreen to the useState counter.
+  // refreshUI() increments it, triggering re-renders when engine state mutates.
   const { state, refreshUI, uiVersion } = useGameEngine(stewardName, 80, 40)
   void uiVersion
   const itemInfoRef = useRef<ItemInfoHandle>(null)
@@ -35,7 +37,7 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
   const onDrop = useCallback(
     (definitionId: string, worldX: number, worldY: number) => {
       const def = getDefinition(definitionId)
-      addEvent('drop', `dropped ${def.name.toLowerCase()}`, def.icon, def.iconColor, worldX, worldY)
+      addEvent('drop', `dropped ${def.name.toLowerCase()}`, def.glyph, def.glyphColor, worldX, worldY)
     },
     [addEvent]
   )
