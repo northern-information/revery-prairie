@@ -1,4 +1,5 @@
 import { findPath } from '../pathfinding'
+import { posKey } from '../position'
 import { TileType } from '../types'
 import { describe, expect, it } from 'vitest'
 
@@ -119,6 +120,34 @@ describe('findPath', () => {
   it('walks through sand tiles', () => {
     const map = makeGrid(3, 1)
     map[0][1] = { type: TileType.Sand }
+    const path = findPath(map, 3, 1, { x: 0, y: 0 }, { x: 2, y: 0 })
+    expect(path).toEqual([
+      { x: 1, y: 0 },
+      { x: 2, y: 0 },
+    ])
+  })
+
+  it('routes around blocked positions', () => {
+    const map = makeGrid(5, 3)
+    const blocked = new Set(['2,0', '2,1'])
+    const path = findPath(map, 5, 3, { x: 0, y: 0 }, { x: 4, y: 0 }, blocked)
+    expect(path).not.toBeNull()
+    if (!path) return
+    for (const p of path) {
+      expect(blocked.has(posKey(p.x, p.y))).toBe(false)
+    }
+    expect(path[path.length - 1]).toEqual({ x: 4, y: 0 })
+  })
+
+  it('rejects blocked destination', () => {
+    const map = makeGrid(5, 5)
+    const blocked = new Set(['3,3'])
+    const path = findPath(map, 5, 5, { x: 0, y: 0 }, { x: 3, y: 3 }, blocked)
+    expect(path).toBeNull()
+  })
+
+  it('works with undefined blockedPositions (backward compat)', () => {
+    const map = makeGrid(3, 1)
     const path = findPath(map, 3, 1, { x: 0, y: 0 }, { x: 2, y: 0 })
     expect(path).toEqual([
       { x: 1, y: 0 },

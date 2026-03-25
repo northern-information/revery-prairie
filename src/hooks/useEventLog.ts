@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface GameEvent {
   id: string
-  kind: 'pickup' | 'drop' | 'combine'
+  kind: 'pickup' | 'drop' | 'combine' | 'dialog'
   text: string
   icon: string
   iconColor: string
@@ -24,7 +24,9 @@ export const useEventLog = () => {
     (kind: GameEvent['kind'], text: string, icon: string, iconColor: string, worldX: number, worldY: number) => {
       const id = String(counterRef.current++)
       const event: GameEvent = { id, kind, text, icon, iconColor, timestamp: Date.now(), worldX, worldY }
-      setToasts(prev => [...prev, event])
+      if (kind !== 'dialog') {
+        setToasts(prev => [...prev, event])
+      }
       setLog(prev => [event, ...prev].slice(0, 50))
     },
     []

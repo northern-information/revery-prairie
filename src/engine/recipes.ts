@@ -1,4 +1,5 @@
 import { createOmniboxContainer, findFitPosition, placeItem } from './inventory'
+import { isInBounds } from './position'
 import { TileType } from './types'
 
 import type { GameState, Position } from './types'
@@ -48,7 +49,7 @@ export const RECIPES: Recipe[] = [
         for (let dx = -1; dx <= 1; dx++) {
           const tx = state.player.x + dx
           const ty = state.player.y + dy
-          if (tx >= 0 && tx < state.mapWidth && ty >= 0 && ty < state.mapHeight) {
+          if (isInBounds(tx, ty, state.mapWidth, state.mapHeight)) {
             const tile = state.map[ty][tx]
             if (tile.type !== TileType.Sand && tile.type !== TileType.Space) {
               tiles.push({ pos: { x: tx, y: ty }, char: '#', color: '#ff69b4' })
@@ -66,7 +67,7 @@ export const RECIPES: Recipe[] = [
         for (let dx = -1; dx <= 1; dx++) {
           const tx = state.player.x + dx
           const ty = state.player.y + dy
-          if (tx >= 0 && tx < state.mapWidth && ty >= 0 && ty < state.mapHeight) {
+          if (isInBounds(tx, ty, state.mapWidth, state.mapHeight)) {
             const tile = state.map[ty][tx]
             if (tile.type !== TileType.Sand && tile.type !== TileType.Space) {
               state.map[ty][tx] = { type: TileType.Clover }
@@ -85,7 +86,7 @@ export const RECIPES: Recipe[] = [
     resultName: 'omnibox',
     resultIcon: '\u25A1',
     preserveIngredient: 'permacomputer',
-    description: 'the permacomputer consumes the meteorite, folding space into a portable container.',
+    description: 'folded space within a portable container.',
     execute: state => {
       const uid = crypto.randomUUID()
       createOmniboxContainer(state, uid)

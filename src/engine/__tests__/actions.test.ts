@@ -1,27 +1,22 @@
-import { combineBeeAndClover, dropItem, movePlayer, pickUpGroundItems, tickBees, tickPath } from '../actions'
-import { containerHasItem, findItemByDefinition, removeItem } from '../inventory'
-import { createGameState } from '../state'
-import { TileType } from '../types'
+import {
+  advanceDialog,
+  combineBeeAndClover,
+  dropItem,
+  getAdjacentCharacter,
+  interactWithCharacter,
+  movePlayer,
+  pickUpGroundItems,
+  tickBees,
+  tickPath,
+} from '../actions'
+import { containerHasItem, placeItem } from '../inventory'
+import { Rotation, TileType } from '../types'
+import { clearArea, clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
-
-import type { GameState } from '../types'
-
-// Ensure tiles around the player are dirt so movement tests aren't affected by random coastline
-const clearAroundPlayer = (state: GameState) => {
-  for (let dy = -2; dy <= 2; dy++) {
-    for (let dx = -2; dx <= 2; dx++) {
-      const ny = state.player.y + dy
-      const nx = state.player.x + dx
-      if (ny >= 0 && ny < state.mapHeight && nx >= 0 && nx < state.mapWidth) {
-        state.map[ny][nx] = { type: TileType.Dirt }
-      }
-    }
-  }
-}
 
 describe('movePlayer', () => {
   it('moves the player up', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const startY = state.player.y
     expect(movePlayer(state, 'up')).toBe(true)
@@ -29,7 +24,7 @@ describe('movePlayer', () => {
   })
 
   it('moves the player down', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const startY = state.player.y
     expect(movePlayer(state, 'down')).toBe(true)
@@ -37,7 +32,7 @@ describe('movePlayer', () => {
   })
 
   it('moves the player left', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const startX = state.player.x
     expect(movePlayer(state, 'left')).toBe(true)
@@ -45,7 +40,7 @@ describe('movePlayer', () => {
   })
 
   it('moves the player right', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const startX = state.player.x
     expect(movePlayer(state, 'right')).toBe(true)
@@ -53,7 +48,7 @@ describe('movePlayer', () => {
   })
 
   it('does not move past the map edge', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     state.player.x = 0
     state.player.y = 0
     expect(movePlayer(state, 'left')).toBe(false)
@@ -63,7 +58,7 @@ describe('movePlayer', () => {
   })
 
   it('updates the camera after moving', () => {
-    const state = createGameState('Test', 10, 10)
+    const state = createTestState({ viewportWidth: 10, viewportHeight: 10 })
     clearAroundPlayer(state)
     const camBefore = { ...state.camera }
     movePlayer(state, 'right')
@@ -73,21 +68,17 @@ describe('movePlayer', () => {
 
 describe('combineBeeAndClover', () => {
   it('returns true and plants clover on dirt tiles in 3x3 area', () => {
-    const state = createGameState('Test', 20, 20)
-    const px = state.player.x
-    const py = state.player.y
-
-    // Ensure the 3x3 area around the player is all dirt
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        state.map[py + dy][px + dx] = { type: TileType.Dirt }
-      }
-    }
+    const state = createTestState()
+    placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
+    placeItem(state.backpack, 'clover', Rotation.R0, 1, 0)
+    clearAroundPlayer(state, 1)
 
     const result = combineBeeAndClover(state)
 
     expect(result).toBe(true)
 
+    const px = state.player.x
+    const py = state.player.y
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         expect(state.map[py + dy][px + dx].type).toBe(TileType.Clover)
@@ -96,15 +87,22 @@ describe('combineBeeAndClover', () => {
   })
 
   it('returns false when standing on sand', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
+    placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
+    placeItem(state.backpack, 'clover', Rotation.R0, 1, 0)
     state.map[state.player.y][state.player.x] = { type: TileType.Sand }
     const result = combineBeeAndClover(state)
     expect(result).toBe(false)
-    expect(state.backpack.items).toHaveLength(7)
+    // Items should not be consumed
+    expect(containerHasItem(state.backpack, 'bee')).toBe(true)
+    expect(containerHasItem(state.backpack, 'clover')).toBe(true)
   })
 
   it('does not plant clover on sand tiles', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
+    placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
+    placeItem(state.backpack, 'clover', Rotation.R0, 1, 0)
+    clearAroundPlayer(state, 1)
     const px = state.player.x
     const py = state.player.y
 
@@ -118,18 +116,22 @@ describe('combineBeeAndClover', () => {
   })
 
   it('removes one bee and one clover from backpack', () => {
-    const state = createGameState('Test', 80, 40)
-    const beesBefore = state.backpack.items.filter(i => i.definitionId === 'bee').length
-    const cloversBefore = state.backpack.items.filter(i => i.definitionId === 'clover').length
+    const state = createTestState()
+    placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
+    placeItem(state.backpack, 'bee', Rotation.R0, 1, 0)
+    placeItem(state.backpack, 'clover', Rotation.R0, 2, 0)
+    placeItem(state.backpack, 'clover', Rotation.R0, 3, 0)
+    clearAroundPlayer(state, 1)
     combineBeeAndClover(state)
-    const beesAfter = state.backpack.items.filter(i => i.definitionId === 'bee').length
-    const cloversAfter = state.backpack.items.filter(i => i.definitionId === 'clover').length
-    expect(beesAfter).toBe(beesBefore - 1)
-    expect(cloversAfter).toBe(cloversBefore - 1)
+    expect(state.backpack.items.filter(i => i.definitionId === 'bee')).toHaveLength(1)
+    expect(state.backpack.items.filter(i => i.definitionId === 'clover')).toHaveLength(1)
   })
 
   it('spawns a bee entity', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState()
+    placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
+    placeItem(state.backpack, 'clover', Rotation.R0, 1, 0)
+    clearAroundPlayer(state, 1)
     combineBeeAndClover(state)
     expect(state.bees).toHaveLength(1)
     expect(state.bees[0].pos.x).toBe(state.player.x)
@@ -137,23 +139,15 @@ describe('combineBeeAndClover', () => {
   })
 
   it('returns false if no bees in backpack', () => {
-    const state = createGameState('Test', 80, 40)
-    // Remove all bees
-    const bees = state.backpack.items.filter(i => i.definitionId === 'bee')
-    for (const bee of bees) {
-      removeItem(state.backpack, bee.uid)
-    }
+    const state = createTestState()
+    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
     const result = combineBeeAndClover(state)
     expect(result).toBe(false)
   })
 
   it('returns false if no clovers in backpack', () => {
-    const state = createGameState('Test', 80, 40)
-    // Remove all clovers
-    const clovers = state.backpack.items.filter(i => i.definitionId === 'clover')
-    for (const clover of clovers) {
-      removeItem(state.backpack, clover.uid)
-    }
+    const state = createTestState()
+    placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
     const result = combineBeeAndClover(state)
     expect(result).toBe(false)
   })
@@ -161,7 +155,7 @@ describe('combineBeeAndClover', () => {
 
 describe('tickPath', () => {
   it('moves player one step along the path', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const startX = state.player.x
     const startY = state.player.y
@@ -177,7 +171,7 @@ describe('tickPath', () => {
   })
 
   it('sets path to null when last step is consumed', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const startX = state.player.x
     const startY = state.player.y
@@ -190,7 +184,7 @@ describe('tickPath', () => {
   })
 
   it('returns false and does nothing when path is null', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     state.path = null
     const startX = state.player.x
     expect(tickPath(state)).toBe(false)
@@ -199,7 +193,7 @@ describe('tickPath', () => {
   })
 
   it('returns false and does nothing when path is empty', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     state.path = []
     const startX = state.player.x
     expect(tickPath(state)).toBe(false)
@@ -208,7 +202,7 @@ describe('tickPath', () => {
   })
 
   it('cancels path when next step is blocked by water', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const startX = state.player.x
     const startY = state.player.y
@@ -226,7 +220,7 @@ describe('tickPath', () => {
   })
 
   it('cancels path when next step has invalid direction', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const startX = state.player.x
     const startY = state.player.y
@@ -243,19 +237,16 @@ describe('tickPath', () => {
 
 describe('tickBees', () => {
   it('does nothing when there are no bees', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState()
     tickBees(state)
     expect(state.bees).toHaveLength(0)
   })
 
   it('keeps bees on clover tiles', () => {
-    const state = createGameState('Test', 20, 20)
-    // Ensure 3x3 around player is dirt so clover can grow
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
-      }
-    }
+    const state = createTestState()
+    placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
+    placeItem(state.backpack, 'clover', Rotation.R0, 1, 0)
+    clearAroundPlayer(state, 1)
     combineBeeAndClover(state)
 
     for (let i = 0; i < 100; i++) {
@@ -269,7 +260,7 @@ describe('tickBees', () => {
   })
 
   it('bee stays in place when surrounded by space tiles', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     const bx = 50
     const by = 12
     state.map[by][bx] = { type: TileType.Clover }
@@ -297,15 +288,10 @@ describe('tickBees', () => {
   })
 
   it('bee wanders on walkable tiles when no clover nearby', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const bx = state.player.x + 5
     const by = state.player.y
-    // Ensure area is dirt
-    for (let dy = -2; dy <= 2; dy++) {
-      for (let dx = -2; dx <= 2; dx++) {
-        state.map[by + dy][bx + dx] = { type: TileType.Dirt }
-      }
-    }
+    clearArea(state, bx, by, 2)
     state.bees.push({ pos: { x: bx, y: by } })
 
     // Run many ticks — bee should eventually move
@@ -320,21 +306,21 @@ describe('tickBees', () => {
 
 describe('dropItem', () => {
   it('drops item to the north first', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
-    const cloversBefore = state.backpack.items.filter(i => i.definitionId === 'clover').length
+    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
     const result = dropItem(state, 'clover')
     expect(result).toBe(true)
     expect(state.groundItems).toHaveLength(1)
     expect(state.groundItems[0]?.pos.x).toBe(state.player.x)
     expect(state.groundItems[0]?.pos.y).toBe(state.player.y - 1)
-    const cloversAfter = state.backpack.items.filter(i => i.definitionId === 'clover').length
-    expect(cloversAfter).toBe(cloversBefore - 1)
+    expect(containerHasItem(state.backpack, 'clover')).toBe(false)
   })
 
   it('skips occupied ground tiles', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
+    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
     // Place a ground item to the north
     state.groundItems.push({
       definitionId: 'clover',
@@ -348,8 +334,9 @@ describe('dropItem', () => {
   })
 
   it('drops under the player as last resort', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
+    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
     // Fill all 8 surrounding tiles with ground items
     const deltas = [
       { x: 0, y: -1 },
@@ -374,8 +361,9 @@ describe('dropItem', () => {
   })
 
   it('returns false when all positions are occupied', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
+    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
     const deltas = [
       { x: 0, y: -1 },
       { x: 1, y: -1 },
@@ -399,15 +387,16 @@ describe('dropItem', () => {
   })
 
   it('returns false when item is not in inventory', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const result = dropItem(state, 'nonexistent')
     expect(result).toBe(false)
   })
 
   it('skips Space tiles', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
+    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
     state.map[state.player.y - 1][state.player.x] = { type: TileType.Space }
     const result = dropItem(state, 'clover')
     expect(result).toBe(true)
@@ -416,43 +405,36 @@ describe('dropItem', () => {
   })
 
   it('releases bee as world entity instead of ground item', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
-    const beesBefore = state.bees.length
+    placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
     const result = dropItem(state, 'bee')
     expect(result).toBe(true)
     expect(state.groundItems).toHaveLength(0)
-    expect(state.bees).toHaveLength(beesBefore + 1)
+    expect(state.bees).toHaveLength(1)
   })
 })
 
 describe('pickUpGroundItems', () => {
   it('picks up a ground item at the player position', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
-    const cloversBefore = state.backpack.items.filter(i => i.definitionId === 'clover').length
-    dropItem(state, 'clover')
-    expect(state.backpack.items.filter(i => i.definitionId === 'clover')).toHaveLength(cloversBefore - 1)
-    expect(state.groundItems).toHaveLength(1)
-    const itemPos = { ...state.groundItems[0]?.pos }
-    state.player.x = itemPos.x ?? 0
-    state.player.y = itemPos.y ?? 0
+    state.groundItems.push({
+      definitionId: 'clover',
+      pos: { x: state.player.x, y: state.player.y },
+    })
     pickUpGroundItems(state)
     expect(state.groundItems).toHaveLength(0)
-    expect(state.backpack.items.filter(i => i.definitionId === 'clover')).toHaveLength(cloversBefore)
+    expect(containerHasItem(state.backpack, 'clover')).toBe(true)
   })
 
   it('auto-picks up when walking over a ground item', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
-    // Place a ground item one tile to the right
     state.groundItems.push({
       definitionId: 'bee',
       pos: { x: state.player.x + 1, y: state.player.y },
     })
-    // Remove bee from backpack first so there's room and we can detect pickup
-    const bee = findItemByDefinition(state.backpack, 'bee')
-    if (bee) removeItem(state.backpack, bee.uid)
 
     movePlayer(state, 'right')
     pickUpGroundItems(state)
@@ -461,7 +443,7 @@ describe('pickUpGroundItems', () => {
   })
 
   it('does not pick up if backpack is full', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     // Fill the entire backpack
     state.backpack.items = []
@@ -485,7 +467,7 @@ describe('pickUpGroundItems', () => {
   })
 
   it('captures a bee at the player position', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     state.bees.push({ pos: { x: state.player.x, y: state.player.y } })
     const beeItemsBefore = state.backpack.items.filter(i => i.definitionId === 'bee').length
@@ -496,7 +478,7 @@ describe('pickUpGroundItems', () => {
   })
 
   it('does not capture bee if backpack is full', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     state.backpack.items = []
     for (let y = 0; y < state.backpack.height; y++) {
@@ -513,5 +495,94 @@ describe('pickUpGroundItems', () => {
     state.bees.push({ pos: { x: state.player.x, y: state.player.y } })
     pickUpGroundItems(state)
     expect(state.bees).toHaveLength(1)
+  })
+})
+
+describe('movePlayer blocked by character', () => {
+  it('cannot walk into a character tile', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    const startX = state.player.x
+    expect(movePlayer(state, 'right')).toBe(false)
+    expect(state.player.x).toBe(startX)
+  })
+})
+
+describe('getAdjacentCharacter', () => {
+  it('finds a character to the right', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    const char = getAdjacentCharacter(state)
+    expect(char).not.toBeNull()
+    expect(char?.definitionId).toBe('gron')
+  })
+
+  it('finds a character above', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x, y: state.player.y - 1 } }]
+    expect(getAdjacentCharacter(state)).not.toBeNull()
+  })
+
+  it('returns null when no character is adjacent', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 5, y: state.player.y } }]
+    expect(getAdjacentCharacter(state)).toBeNull()
+  })
+
+  it('does not detect diagonal characters', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y + 1 } }]
+    expect(getAdjacentCharacter(state)).toBeNull()
+  })
+})
+
+describe('interactWithCharacter', () => {
+  it('sets activeDialog when adjacent to a character', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    const result = interactWithCharacter(state)
+    expect(result).toBe(true)
+    expect(state.activeDialog).toEqual({ characterId: 'gron', lineIndex: 0 })
+  })
+
+  it('returns false when no character is adjacent', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = []
+    const result = interactWithCharacter(state)
+    expect(result).toBe(false)
+    expect(state.activeDialog).toBeNull()
+  })
+})
+
+describe('advanceDialog', () => {
+  it('increments lineIndex', () => {
+    const state = createTestState()
+    state.activeDialog = { characterId: 'gron', lineIndex: 0 }
+    const result = advanceDialog(state)
+    expect(result).toBe(true)
+    expect(state.activeDialog?.lineIndex).toBe(1)
+  })
+
+  it('clears dialog on last line', () => {
+    const state = createTestState()
+    // Gron has 3 dialog lines — index 2 is the last
+    state.activeDialog = { characterId: 'gron', lineIndex: 2 }
+    const result = advanceDialog(state)
+    expect(result).toBe(false)
+    expect(state.activeDialog).toBeNull()
+  })
+
+  it('returns false when no dialog is active', () => {
+    const state = createTestState()
+    state.activeDialog = null
+    const result = advanceDialog(state)
+    expect(result).toBe(false)
   })
 })

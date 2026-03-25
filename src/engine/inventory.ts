@@ -4,7 +4,8 @@ import { Rotation } from './types'
 
 import type { Container, GameState, ItemInstance } from './types'
 
-export const getActiveContainers = (state: GameState): Container[] => [state.backpack, ...state.openContainers]
+export const getActiveContainers = (state: GameState): Container[] =>
+  state.openContainer ? [state.backpack, state.openContainer] : [state.backpack]
 
 export const rotateShapeCW = (shape: boolean[][]): boolean[][] => {
   const rows = shape.length
@@ -186,7 +187,11 @@ export const autoSort = (container: Container): boolean => {
       container.items = items
       return false
     }
-    placeItem(container, item.definitionId, pos.rotation, pos.gridX, pos.gridY)
+    // Re-place the original item at the new position, preserving its uid
+    item.rotation = pos.rotation
+    item.gridX = pos.gridX
+    item.gridY = pos.gridY
+    container.items.push(item)
   }
 
   return true

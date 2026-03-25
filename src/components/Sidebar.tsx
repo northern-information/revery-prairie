@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ItemInfo } from './ItemInfo'
 
+import { getCharacterDefinition } from '@/engine/characters'
 import { SPACE_BORDER, TILE_CHARS, TILE_COLORS } from '@/engine/constants'
 import { getDefinition } from '@/engine/items'
 import { TileType } from '@/engine/types'
@@ -117,6 +118,8 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
                       const cy = cursorTile.y
                       if (cx < 0 || cx >= state.mapWidth || cy < 0 || cy >= state.mapHeight) return 'void'
                       if (cx === state.player.x && cy === state.player.y) return state.stewardName.toLowerCase()
+                      const character = state.characters.find(c => c.pos.x === cx && c.pos.y === cy)
+                      if (character) return getCharacterDefinition(character.definitionId).name.toLowerCase()
                       const bee = state.bees.find(b => b.pos.x === cx && b.pos.y === cy)
                       if (bee) return 'bee'
                       const meteorite = state.meteorites.find(m => m.pos.x === cx && m.pos.y === cy)
@@ -266,7 +269,7 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
         <div>
           <div className="border-border-dim text-muted mb-2 border-b pb-2">controls</div>
           <div className="flex flex-col gap-1">
-            <span>[wasd] move</span>
+            <span className="text-dim">[wasd] move</span>
             <button
               type="button"
               className="text-dim hover:text-text pointer-events-auto text-left"
@@ -274,21 +277,22 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
                 setActivePanel(activePanel === 'inventory' ? null : 'inventory')
               }}
             >
-              [i]nventory
+              invento[r]y
             </button>
-            <span
-              className={
-                state.groundOmniboxes.some(go => {
-                  const dx = Math.abs(go.pos.x - state.player.x)
-                  const dy = Math.abs(go.pos.y - state.player.y)
-                  return (dx === 1 && dy === 0) || (dx === 0 && dy === 1)
-                })
-                  ? 'text-text'
-                  : 'text-dim'
-              }
-            >
-              [g]rab
-            </span>
+            {(() => {
+              const adjacentCharacter = state.characters.some(c => {
+                const dx = Math.abs(c.pos.x - state.player.x)
+                const dy = Math.abs(c.pos.y - state.player.y)
+                return (dx === 1 && dy === 0) || (dx === 0 && dy === 1)
+              })
+              const adjacentOmnibox = state.groundOmniboxes.some(go => {
+                const dx = Math.abs(go.pos.x - state.player.x)
+                const dy = Math.abs(go.pos.y - state.player.y)
+                return (dx === 1 && dy === 0) || (dx === 0 && dy === 1)
+              })
+              const active = adjacentCharacter || adjacentOmnibox || state.openContainer !== null
+              return <span className={active ? 'text-text' : 'text-dim'}>int[e]ract</span>
+            })()}
             <button
               type="button"
               className="text-dim hover:text-text pointer-events-auto text-left"
@@ -300,7 +304,7 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
                 }
               }}
             >
-              [esc] menu
+              [esc] {activePanel || state.activeDialog ? 'close' : 'menu'}
             </button>
           </div>
         </div>
