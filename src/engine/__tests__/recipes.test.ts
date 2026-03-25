@@ -1,10 +1,9 @@
 import { combineIcon, findRecipe, recipeKey, RecipeKind, RECIPES } from '../recipes'
 import { TileType } from '../types'
+import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 import type { Recipe } from '../recipes'
-
-import { clearAroundPlayer, createTestState } from './helpers'
 
 describe('findRecipe', () => {
   it('finds bee+clover in natural order', () => {

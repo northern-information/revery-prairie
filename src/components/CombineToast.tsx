@@ -4,7 +4,7 @@ import type { DragState } from '@/hooks/useInventoryDrag'
 
 interface CombineToastData {
   header: string
-  description: string
+  description: string | null
 }
 
 interface LivePreview {
