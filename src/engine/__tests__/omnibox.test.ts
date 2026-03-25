@@ -1,35 +1,26 @@
 import {
   closeOmnibox,
+  dropItem,
   grabOmnibox,
   groundOmniboxBlockedSet,
+  pickUpGroundItems,
   movePlayer,
   openOmnibox,
-  pickUpGroundItems,
+  toggleFacingOmnibox,
+  toggleOmnibox,
+  updateFacingOmnibox,
 } from '../actions'
 import { OMNIBOX_HEIGHT, OMNIBOX_WIDTH } from '../constants'
 import { createOmniboxContainer, findFitPosition, placeItem } from '../inventory'
 import { findPath } from '../pathfinding'
-import { createGameState } from '../state'
 import { Rotation, TileType } from '../types'
 import { describe, expect, it } from 'vitest'
 
-import type { GameState } from '../types'
-
-const clearAroundPlayer = (state: GameState) => {
-  for (let dy = -3; dy <= 3; dy++) {
-    for (let dx = -3; dx <= 3; dx++) {
-      const ny = state.player.y + dy
-      const nx = state.player.x + dx
-      if (ny >= 0 && ny < state.mapHeight && nx >= 0 && nx < state.mapWidth) {
-        state.map[ny][nx] = { type: TileType.Dirt }
-      }
-    }
-  }
-}
+import { clearAroundPlayer, createTestState } from './helpers'
 
 describe('createOmniboxContainer', () => {
   it('creates a 5x5 container registered in omniboxContainers', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const uid = 'test-uid-1'
     const container = createOmniboxContainer(state, uid)
 
@@ -40,7 +31,7 @@ describe('createOmniboxContainer', () => {
   })
 
   it('increments numbering for each omnibox', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const c1 = createOmniboxContainer(state, 'uid-1')
     const c2 = createOmniboxContainer(state, 'uid-2')
     const c3 = createOmniboxContainer(state, 'uid-3')
@@ -52,7 +43,7 @@ describe('createOmniboxContainer', () => {
   })
 
   it('allows items to be placed inside', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const container = createOmniboxContainer(state, 'uid-1')
     const placed = placeItem(container, 'bee', Rotation.R0, 0, 0)
 
@@ -61,54 +52,82 @@ describe('createOmniboxContainer', () => {
   })
 })
 
-describe('openOmnibox / closeOmnibox', () => {
-  it('opens an omnibox by adding to openContainers', () => {
-    const state = createGameState('Test', 20, 20)
+describe('openOmnibox / closeOmnibox / toggleOmnibox', () => {
+  it('opens an omnibox as the open container', () => {
+    const state = createTestState()
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
 
     expect(openOmnibox(state, uid)).toBe(true)
-    expect(state.openContainers).toHaveLength(1)
-    expect(state.openContainers[0].id).toBe(uid)
+    expect(state.openContainer).not.toBeNull()
+    expect(state.openContainer?.id).toBe(uid)
   })
 
   it('does not open the same omnibox twice', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
 
     openOmnibox(state, uid)
     expect(openOmnibox(state, uid)).toBe(false)
-    expect(state.openContainers).toHaveLength(1)
+    expect(state.openContainer?.id).toBe(uid)
   })
 
-  it('closes an omnibox by removing from openContainers', () => {
-    const state = createGameState('Test', 20, 20)
+  it('closes the open omnibox', () => {
+    const state = createTestState()
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
     openOmnibox(state, uid)
 
-    closeOmnibox(state, uid)
-    expect(state.openContainers).toHaveLength(0)
+    closeOmnibox(state)
+    expect(state.openContainer).toBeNull()
   })
 
-  it('supports multiple omniboxes open simultaneously', () => {
-    const state = createGameState('Test', 20, 20)
+  it('opening a new omnibox closes the previous one', () => {
+    const state = createTestState()
     createOmniboxContainer(state, 'uid-1')
     createOmniboxContainer(state, 'uid-2')
-    createOmniboxContainer(state, 'uid-3')
 
     openOmnibox(state, 'uid-1')
-    openOmnibox(state, 'uid-2')
-    openOmnibox(state, 'uid-3')
+    expect(state.openContainer?.id).toBe('uid-1')
 
-    expect(state.openContainers).toHaveLength(3)
+    openOmnibox(state, 'uid-2')
+    expect(state.openContainer?.id).toBe('uid-2')
+  })
+
+  it('toggleOmnibox opens a closed omnibox', () => {
+    const state = createTestState()
+    const uid = 'uid-1'
+    createOmniboxContainer(state, uid)
+
+    toggleOmnibox(state, uid)
+    expect(state.openContainer?.id).toBe(uid)
+  })
+
+  it('toggleOmnibox closes an open omnibox', () => {
+    const state = createTestState()
+    const uid = 'uid-1'
+    createOmniboxContainer(state, uid)
+    openOmnibox(state, uid)
+
+    toggleOmnibox(state, uid)
+    expect(state.openContainer).toBeNull()
+  })
+
+  it('toggleOmnibox switches to a different omnibox', () => {
+    const state = createTestState()
+    createOmniboxContainer(state, 'uid-1')
+    createOmniboxContainer(state, 'uid-2')
+    openOmnibox(state, 'uid-1')
+
+    toggleOmnibox(state, 'uid-2')
+    expect(state.openContainer?.id).toBe('uid-2')
   })
 })
 
 describe('ground omnibox collision', () => {
   it('blocks movement onto a ground omnibox tile', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
@@ -119,11 +138,10 @@ describe('ground omnibox collision', () => {
   })
 
   it('pathfinding routes around ground omniboxes', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
-    // Place omnibox directly between player and target
     state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
     const blocked = groundOmniboxBlockedSet(state)
 
@@ -136,7 +154,6 @@ describe('ground omnibox collision', () => {
       blocked
     )
 
-    // Path should exist but route around
     expect(path).not.toBeNull()
     if (path) {
       const goesThrough = path.some(p => p.x === state.player.x + 1 && p.y === state.player.y)
@@ -146,7 +163,7 @@ describe('ground omnibox collision', () => {
   })
 
   it('pathfinding rejects blocked destination', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
@@ -166,73 +183,134 @@ describe('ground omnibox collision', () => {
   })
 })
 
-describe('ground omnibox adjacency', () => {
-  it('auto-opens when player is adjacent', () => {
-    const state = createGameState('Test', 20, 20)
+describe('facing omnibox', () => {
+  it('updateFacingOmnibox sets position when facing a ground omnibox', () => {
+    const state = createTestState()
     clearAroundPlayer(state)
-    const uid = 'uid-1'
-    createOmniboxContainer(state, uid)
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
+    createOmniboxContainer(state, 'uid-1')
+    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
+    state.playerFacing = 'right'
 
-    const result = pickUpGroundItems(state)
+    updateFacingOmnibox(state)
 
-    expect(result.pickedUp).not.toContain('omnibox')
-    expect(state.groundOmniboxes).toHaveLength(1)
-    expect(result.opened).toHaveLength(1)
-    expect(state.openContainers).toHaveLength(1)
-    expect(state.openContainers[0].id).toBe(uid)
+    expect(state.facingOmniboxPos).toEqual({ x: state.player.x + 1, y: state.player.y })
   })
 
-  it('does not open when player is far away', () => {
-    const state = createGameState('Test', 20, 20)
+  it('updateFacingOmnibox clears when no adjacent ground omnibox', () => {
+    const state = createTestState()
     clearAroundPlayer(state)
-    const uid = 'uid-1'
-    createOmniboxContainer(state, uid)
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 3, y: state.player.y } })
+    createOmniboxContainer(state, 'uid-1')
+    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 5, y: state.player.y } })
+    state.playerFacing = 'right'
 
-    const result = pickUpGroundItems(state)
+    updateFacingOmnibox(state)
 
-    expect(result.opened).toHaveLength(0)
-    expect(state.openContainers).toHaveLength(0)
+    expect(state.facingOmniboxPos).toBeNull()
   })
 
-  it('does not re-open an already open omnibox', () => {
-    const state = createGameState('Test', 20, 20)
+  it('updateFacingOmnibox falls back to adjacent omnibox when not facing one', () => {
+    const state = createTestState()
     clearAroundPlayer(state)
+    createOmniboxContainer(state, 'uid-1')
+    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
+    state.playerFacing = 'left'
+
+    updateFacingOmnibox(state)
+
+    expect(state.facingOmniboxPos).toEqual({ x: state.player.x + 1, y: state.player.y })
+  })
+
+  it('toggleFacingOmnibox opens the facing ground omnibox', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    createOmniboxContainer(state, 'uid-1')
+    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
+    state.playerFacing = 'right'
+    updateFacingOmnibox(state)
+
+    expect(toggleFacingOmnibox(state)).toBe(true)
+    expect(state.openContainer?.id).toBe('uid-1')
+  })
+
+  it('toggleFacingOmnibox closes an already open facing omnibox', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    createOmniboxContainer(state, 'uid-1')
+    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
+    state.playerFacing = 'right'
+    updateFacingOmnibox(state)
+    openOmnibox(state, 'uid-1')
+
+    expect(toggleFacingOmnibox(state)).toBe(true)
+    expect(state.openContainer).toBeNull()
+  })
+
+  it('toggleFacingOmnibox returns false when not facing an omnibox', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.playerFacing = 'right'
+    updateFacingOmnibox(state)
+
+    expect(toggleFacingOmnibox(state)).toBe(false)
+  })
+
+  it('movePlayer updates facingOmniboxPos', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    createOmniboxContainer(state, 'uid-1')
+    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 2, y: state.player.y } })
+
+    movePlayer(state, 'right')
+
+    expect(state.playerFacing).toBe('right')
+    expect(state.facingOmniboxPos).toEqual({ x: state.player.x + 1, y: state.player.y })
+  })
+})
+
+describe('auto-close on walk-away', () => {
+  it('closes ground omnibox when player walks away', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 5)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
+    // Place omnibox 2 tiles to the right so moving right once puts us adjacent
+    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 2, y: state.player.y } })
+
+    // Walk right to be adjacent, then open
+    movePlayer(state, 'right')
+    pickUpGroundItems(state)
     openOmnibox(state, uid)
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
+    expect(state.openContainer?.id).toBe(uid)
 
-    const result = pickUpGroundItems(state)
-
-    expect(result.opened).toHaveLength(0)
-    expect(state.openContainers).toHaveLength(1)
+    // Walk left — now 2 tiles away, still adjacent (dx=1)
+    // Actually we're back at start, dx=2, so it should close
+    movePlayer(state, 'left')
+    pickUpGroundItems(state)
+    expect(state.openContainer).toBeNull()
   })
 
-  it('auto-closes when player walks away', () => {
-    const state = createGameState('Test', 20, 20)
-    clearAroundPlayer(state)
+  it('does not close backpack omnibox when walking', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 5)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
-    // Place omnibox to the right, open it
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
-    pickUpGroundItems(state)
-    expect(state.openContainers).toHaveLength(1)
+    // Omnibox is in backpack, not on ground
+    openOmnibox(state, uid)
+    expect(state.openContainer?.id).toBe(uid)
 
-    // Walk away (left, then left again — now 3 tiles away)
     movePlayer(state, 'left')
     pickUpGroundItems(state)
     movePlayer(state, 'left')
     pickUpGroundItems(state)
 
-    expect(state.openContainers).toHaveLength(0)
+    // Still open — it's a backpack omnibox
+    expect(state.openContainer?.id).toBe(uid)
   })
 })
 
 describe('grabOmnibox', () => {
   it('picks up adjacent ground omnibox into backpack', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
@@ -245,22 +323,23 @@ describe('grabOmnibox', () => {
     expect(state.backpack.items.some(i => i.definitionId === 'omnibox' && i.uid === uid)).toBe(true)
   })
 
-  it('closes open container when grabbed', () => {
-    const state = createGameState('Test', 20, 20)
+  it('keeps open container when grabbed', () => {
+    const state = createTestState()
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
     state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
     openOmnibox(state, uid)
-    expect(state.openContainers).toHaveLength(1)
+    expect(state.openContainer?.id).toBe(uid)
 
     grabOmnibox(state)
 
-    expect(state.openContainers).toHaveLength(0)
+    // Omnibox stays open — it's now in the backpack but still accessible
+    expect(state.openContainer?.id).toBe(uid)
   })
 
   it('returns null when no adjacent ground omnibox', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
@@ -271,7 +350,7 @@ describe('grabOmnibox', () => {
   })
 
   it('returns null when backpack is full', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
@@ -296,7 +375,7 @@ describe('grabOmnibox', () => {
   })
 
   it('only grabs cardinally adjacent (not diagonal)', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
@@ -306,43 +385,27 @@ describe('grabOmnibox', () => {
   })
 })
 
-describe('drop auto-open', () => {
-  it('dropping an omnibox to the ground opens its container', () => {
-    const state = createGameState('Test', 20, 20)
+describe('no auto-open on drop', () => {
+  it('dropping an omnibox does not auto-open it', () => {
+    const state = createTestState()
     clearAroundPlayer(state)
     const uid = 'uid-1'
-    const container = createOmniboxContainer(state, uid)
+    createOmniboxContainer(state, uid)
+    placeItem(state.backpack, 'omnibox', Rotation.R0, 0, 0)
+    // Override uid to match the container
+    const item = state.backpack.items[0]
+    if (item) item.uid = uid
 
-    // Simulate dropping: add to groundOmniboxes and open
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
-    if (!state.openContainers.includes(container)) {
-      state.openContainers.push(container)
-    }
+    dropItem(state, 'omnibox')
 
-    expect(state.openContainers).toHaveLength(1)
-    expect(state.openContainers[0].id).toBe(uid)
-  })
-
-  it('does not duplicate open container if already open', () => {
-    const state = createGameState('Test', 20, 20)
-    clearAroundPlayer(state)
-    const uid = 'uid-1'
-    const container = createOmniboxContainer(state, uid)
-    openOmnibox(state, uid)
-
-    // Simulate drop logic: only push if not already open
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
-    if (!state.openContainers.includes(container)) {
-      state.openContainers.push(container)
-    }
-
-    expect(state.openContainers).toHaveLength(1)
+    expect(state.groundOmniboxes).toHaveLength(1)
+    expect(state.openContainer).toBeNull()
   })
 })
 
 describe('nesting', () => {
   it('can place an omnibox inside another omnibox', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const outer = createOmniboxContainer(state, 'outer')
     createOmniboxContainer(state, 'inner')
 

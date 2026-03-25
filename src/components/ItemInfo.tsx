@@ -4,27 +4,31 @@ import { getDefinition, ITEM_DEFINITIONS } from '@/engine/items'
 import type { ItemDefinition } from '@/engine/types'
 
 export interface ItemInfoHandle {
-  show: (definitionId: string) => void
+  show: (definitionId: string, uid?: string) => void
   clear: () => void
   setDragging: (isDragging: boolean) => void
   getCurrentId: () => string | null
+  getCurrentUid: () => string | null
 }
 
 export const ItemInfo = forwardRef<ItemInfoHandle>((_props, ref) => {
   const [item, setItem] = useState<ItemDefinition | null>(null)
   const currentIdRef = useRef<string | null>(null)
+  const currentUidRef = useRef<string | null>(null)
 
   useImperativeHandle(ref, () => ({
-    show: (definitionId: string) => {
-      if (definitionId === currentIdRef.current) return
+    show: (definitionId: string, uid?: string) => {
+      if (definitionId === currentIdRef.current && uid === currentUidRef.current) return
       currentIdRef.current = definitionId
+      currentUidRef.current = uid ?? null
       if (definitionId in ITEM_DEFINITIONS) {
         setItem(getDefinition(definitionId))
       }
     },
     clear: () => {
-      if (currentIdRef.current === null) return
+      if (currentIdRef.current === null && currentUidRef.current === null) return
       currentIdRef.current = null
+      currentUidRef.current = null
       setItem(null)
     },
     // no-op — callers still call it during drag lifecycle
@@ -32,6 +36,7 @@ export const ItemInfo = forwardRef<ItemInfoHandle>((_props, ref) => {
       // intentionally empty
     },
     getCurrentId: () => currentIdRef.current,
+    getCurrentUid: () => currentUidRef.current,
   }))
 
   return (

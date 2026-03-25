@@ -1,3 +1,4 @@
+import { CARDINAL, isInBounds, posKey } from './position'
 import { TileType } from './types'
 
 import type { Position, Tile } from './types'
@@ -41,13 +42,6 @@ const heapPop = (heap: HeapNode[]): HeapNode | undefined => {
   return top
 }
 
-const DIRECTIONS: Position[] = [
-  { x: 0, y: -1 },
-  { x: 0, y: 1 },
-  { x: -1, y: 0 },
-  { x: 1, y: 0 },
-]
-
 export const findPath = (
   map: Tile[][],
   mapWidth: number,
@@ -57,9 +51,9 @@ export const findPath = (
   blockedPositions?: Set<string>
 ): Position[] | null => {
   // Reject out-of-bounds or unwalkable destination
-  if (to.x < 0 || to.x >= mapWidth || to.y < 0 || to.y >= mapHeight) return null
+  if (!isInBounds(to.x, to.y, mapWidth, mapHeight)) return null
   if (map[to.y][to.x].type === TileType.Space) return null
-  if (blockedPositions?.has(`${String(to.x)},${String(to.y)}`)) return null
+  if (blockedPositions?.has(posKey(to.x, to.y))) return null
 
   // Same position — no path needed
   if (from.x === to.x && from.y === to.y) return null
@@ -104,12 +98,12 @@ export const findPath = (
     const cx = current.index % mapWidth
     const cy = Math.floor(current.index / mapWidth)
 
-    for (const d of DIRECTIONS) {
+    for (const d of CARDINAL) {
       const nx = cx + d.x
       const ny = cy + d.y
-      if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) continue
+      if (!isInBounds(nx, ny, mapWidth, mapHeight)) continue
       if (map[ny][nx].type === TileType.Space) continue
-      if (blockedPositions?.has(`${String(nx)},${String(ny)}`)) continue
+      if (blockedPositions?.has(posKey(nx, ny))) continue
 
       const nIdx = ny * mapWidth + nx
       if (visited[nIdx]) continue

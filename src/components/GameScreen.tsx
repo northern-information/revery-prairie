@@ -1,10 +1,13 @@
 import { useCallback, useRef } from 'react'
+import { DialogBox } from './DialogBox'
 import { GameCanvas } from './GameCanvas'
 import { InventoryPanel } from './InventoryPanel'
 import { Menu } from './Menu'
 import { PickupToasts } from './PickupToasts'
 import { Sidebar } from './Sidebar'
 
+import { advanceDialog } from '@/engine/actions'
+import { getCharacterDefinition } from '@/engine/characters'
 import { getDefinition } from '@/engine/items'
 import { useEventLog } from '@/hooks/useEventLog'
 import { useGameEngine } from '@/hooks/useGameEngine'
@@ -42,6 +45,13 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
     [addEvent]
   )
 
+  const onDialog = useCallback(
+    (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => {
+      addEvent('dialog', `talked to ${characterName.toLowerCase()}`, glyph, glyphColor, worldX, worldY)
+    },
+    [addEvent]
+  )
+
   const onCombineLog = useCallback(
     (text: string, worldX: number, worldY: number) => {
       addEvent('combine', text, '!', '#ff69b4', worldX, worldY)
@@ -55,6 +65,7 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
     itemInfoRef,
     onPickup,
     onDrop,
+    onDialog,
     isDraggingRef,
   })
 
@@ -64,7 +75,9 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
         state={state}
         refreshUI={refreshUI}
         activePanel={activePanel}
+        setActivePanel={setActivePanel}
         onPickup={onPickup}
+        onDialog={onDialog}
         metricsRef={metricsRef}
       />
       {activePanel === 'inventory' && (
@@ -81,6 +94,28 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
           }}
         />
       )}
+      {state.activeDialog &&
+        (() => {
+          const def = getCharacterDefinition(state.activeDialog.characterId)
+          const line = def.dialog[state.activeDialog.lineIndex]
+          const isLastLine = state.activeDialog.lineIndex >= def.dialog.length - 1
+          return (
+            <DialogBox
+              characterName={def.name}
+              portrait={def.portrait}
+              line={line}
+              isLastLine={isLastLine}
+              onNext={() => {
+                advanceDialog(state)
+                refreshUI()
+              }}
+              onClose={() => {
+                state.activeDialog = null
+                refreshUI()
+              }}
+            />
+          )
+        })()}
       {activePanel === 'menu' && (
         <Menu
           onResume={() => {

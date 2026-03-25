@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { buildOccupancyGrid, canPlace, getRotatedShape, moveItem, removeItem, transferItem } from '@/engine/inventory'
+import {
+  buildOccupancyGrid,
+  canPlace,
+  findFitPosition,
+  getRotatedShape,
+  moveItem,
+  placeItem,
+  removeItem,
+  transferItem,
+} from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
 import { findRecipe, recipeKey } from '@/engine/recipes'
 import { Rotation } from '@/engine/types'
@@ -16,6 +25,7 @@ export interface DragState {
   ghostY: number
   isValid: boolean
   combineTarget: { uid: string; recipe: Recipe; isDiscovered: boolean } | null
+  storeTarget: { omniboxUid: string } | null
   cannotCombine: boolean
 }
 
@@ -24,6 +34,8 @@ interface UseInventoryDragOptions {
   state: GameState
   onDrop: () => void
   onCombine: (recipe: Recipe) => void
+  onStore: (omniboxUid: string) => void
+  onStoreFail: () => void
 }
 
 const NEXT_ROTATION: Record<Rotation, Rotation> = {
@@ -42,7 +54,11 @@ const checkCombine = (
   sourceContainerId: string,
   containerId: string,
   discoveredRecipes: Set<string>
-): { uid: string; recipe: Recipe; isDiscovered: boolean } | 'no-recipe' | null => {
+):
+  | { kind: 'recipe'; uid: string; recipe: Recipe; isDiscovered: boolean }
+  | { kind: 'store'; omniboxUid: string }
+  | 'no-recipe'
+  | null => {
   const def = getDefinition(draggedItem.definitionId)
   const shape = getRotatedShape(def.shape, rotation)
 
@@ -73,14 +89,19 @@ const checkCombine = (
   const targetItem = container.items.find(i => i.uid === targetUid)
   if (!targetItem) return null
 
+  // Dragging onto an omnibox stores the item inside (takes priority over recipes)
+  if (targetItem.definitionId === 'omnibox' && draggedItem.uid !== targetItem.uid) {
+    return { kind: 'store', omniboxUid: targetItem.uid }
+  }
+
   const recipe = findRecipe(draggedItem.definitionId, targetItem.definitionId)
   if (!recipe) return 'no-recipe'
 
   const isDiscovered = discoveredRecipes.has(recipeKey(recipe))
-  return { uid: targetUid, recipe, isDiscovered }
+  return { kind: 'recipe', uid: targetUid, recipe, isDiscovered }
 }
 
-export const useInventoryDrag = ({ containers, state, onDrop, onCombine }: UseInventoryDragOptions) => {
+export const useInventoryDrag = ({ containers, state, onDrop, onCombine, onStore, onStoreFail }: UseInventoryDragOptions) => {
   const [dragState, setDragState] = useState<DragState | null>(null)
 
   const getContainer = useCallback((id: string) => containers.find(c => c.id === id)?.container ?? null, [containers])
@@ -95,6 +116,7 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine }: UseIn
       ghostY: item.gridY,
       isValid: true,
       combineTarget: null,
+      storeTarget: null,
       cannotCombine: false,
     })
   }, [])
@@ -106,16 +128,22 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine }: UseIn
         const container = getContainer(targetContainerId)
         if (!container) return prev
 
-        const valid = canPlace(
-          container,
-          prev.item.definitionId,
-          prev.rotation,
-          gridX,
-          gridY,
-          targetContainerId === prev.sourceContainerId ? prev.item.uid : undefined
-        )
+        // Prevent placing an omnibox inside its own container
+        const selfDrop = prev.item.definitionId === 'omnibox' && targetContainerId === prev.item.uid
+
+        const valid =
+          !selfDrop &&
+          canPlace(
+            container,
+            prev.item.definitionId,
+            prev.rotation,
+            gridX,
+            gridY,
+            targetContainerId === prev.sourceContainerId ? prev.item.uid : undefined
+          )
 
         let combineTarget: DragState['combineTarget'] = null
+        let storeTarget: DragState['storeTarget'] = null
         let cannotCombine = false
         if (!valid) {
           const result = checkCombine(
@@ -130,12 +158,23 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine }: UseIn
           )
           if (result === 'no-recipe') {
             cannotCombine = true
-          } else {
-            combineTarget = result
+          } else if (result && result !== 'no-recipe' && result.kind === 'store') {
+            storeTarget = { omniboxUid: result.omniboxUid }
+          } else if (result && result !== 'no-recipe' && result.kind === 'recipe') {
+            combineTarget = { uid: result.uid, recipe: result.recipe, isDiscovered: result.isDiscovered }
           }
         }
 
-        return { ...prev, targetContainerId, ghostX: gridX, ghostY: gridY, isValid: valid, combineTarget, cannotCombine }
+        return {
+          ...prev,
+          targetContainerId,
+          ghostX: gridX,
+          ghostY: gridY,
+          isValid: valid,
+          combineTarget,
+          storeTarget,
+          cannotCombine,
+        }
       })
     },
     [getContainer, state.discoveredRecipes]
@@ -144,6 +183,29 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine }: UseIn
   const drop = useCallback(
     (targetContainerId: string) => {
       if (!dragState) return
+
+      // Handle store-in-omnibox
+      if (dragState.storeTarget) {
+        const omniboxContainer = state.omniboxContainers.get(dragState.storeTarget.omniboxUid)
+        if (omniboxContainer) {
+          const fit = findFitPosition(omniboxContainer, dragState.item.definitionId)
+          if (fit) {
+            const sourceContainer = getContainer(dragState.sourceContainerId)
+            if (sourceContainer) {
+              removeItem(sourceContainer, dragState.item.uid)
+              placeItem(omniboxContainer, dragState.item.definitionId, fit.rotation, fit.gridX, fit.gridY)
+              onStore(dragState.storeTarget.omniboxUid)
+              setDragState(null)
+              onDrop()
+              return
+            }
+          } else {
+            onStoreFail()
+          }
+        }
+        setDragState(null)
+        return
+      }
 
       // Handle combine
       if (dragState.combineTarget) {
@@ -178,6 +240,12 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine }: UseIn
       const sourceContainer = getContainer(dragState.sourceContainerId)
       const targetContainer = getContainer(targetContainerId)
       if (!sourceContainer || !targetContainer) {
+        setDragState(null)
+        return
+      }
+
+      // Prevent placing an omnibox inside its own container
+      if (dragState.item.definitionId === 'omnibox' && targetContainerId === dragState.item.uid) {
         setDragState(null)
         return
       }
@@ -228,11 +296,12 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine }: UseIn
           ghostY: clampedY,
           isValid,
           combineTarget: null,
+          storeTarget: null,
           cannotCombine: false,
         }
       }
 
-      return { ...prev, rotation: newRotation, isValid, combineTarget: null, cannotCombine: false }
+      return { ...prev, rotation: newRotation, isValid, combineTarget: null, storeTarget: null, cannotCombine: false }
     })
   }, [containers])
 

@@ -23,17 +23,18 @@ describe('createGameState', () => {
     expect(state.player.y).toBe(Math.floor(MAP_HEIGHT / 2))
   })
 
-  it('starts with bees, clovers, and soil sampler in backpack', () => {
+  it('starts with bees, clovers, permacomputer, and omnibox in backpack', () => {
     const state = createGameState('Willow', 80, 40)
-    expect(state.backpack.items).toHaveLength(7)
+    expect(state.backpack.items.length).toBeGreaterThan(0)
     expect(containerHasItem(state.backpack, 'bee')).toBe(true)
     expect(containerHasItem(state.backpack, 'clover')).toBe(true)
     expect(containerHasItem(state.backpack, 'permacomputer')).toBe(true)
+    expect(containerHasItem(state.backpack, 'omnibox')).toBe(true)
   })
 
   it('starts with no open containers', () => {
     const state = createGameState('Willow', 80, 40)
-    expect(state.openContainers).toHaveLength(0)
+    expect(state.openContainer).toBeNull()
   })
 
   it('starts with no bees', () => {

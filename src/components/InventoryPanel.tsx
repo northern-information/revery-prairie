@@ -3,8 +3,8 @@ import { CombineToast } from './CombineToast'
 import { DragCursor } from './DragCursor'
 import { InventoryGrid } from './InventoryGrid'
 
-import { closeOmnibox } from '@/engine/actions'
-import { autoSort } from '@/engine/inventory'
+import { closeOmnibox, grabOmnibox, openOmnibox } from '@/engine/actions'
+import { autoSort, findFitPosition, placeItem, removeItem } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
 import { RecipeKind } from '@/engine/recipes'
 import { useCanvasDrop } from '@/hooks/useCanvasDrop'
@@ -53,11 +53,11 @@ export const InventoryPanel = ({
 
   const containers = useMemo(() => {
     const list = [{ id: state.backpack.id, container: state.backpack }]
-    for (const oc of state.openContainers) {
-      list.push({ id: oc.id, container: oc })
+    if (state.openContainer) {
+      list.push({ id: state.openContainer.id, container: state.openContainer })
     }
     return list
-  }, [state.backpack, state.openContainers.length])
+  }, [state.backpack, state.openContainer])
 
   const onDrop = useCallback(() => {
     refreshUI()
@@ -77,11 +77,26 @@ export const InventoryPanel = ({
     [scheduleFade, onCombineLog, state]
   )
 
+  const onStore = useCallback(
+    (omniboxUid: string) => {
+      openOmnibox(state, omniboxUid)
+      refreshUI()
+    },
+    [state, refreshUI]
+  )
+
+  const onStoreFail = useCallback(() => {
+    setCombineToast({ header: 'not enough capacity', description: null })
+    scheduleFade()
+  }, [scheduleFade])
+
   const { dragState, startDrag, updateGhost, drop, cancelDrag } = useInventoryDrag({
     containers,
     state,
     onDrop,
     onCombine,
+    onStore,
+    onStoreFail,
   })
 
   isDraggingRef.current = dragState !== null
@@ -116,10 +131,30 @@ export const InventoryPanel = ({
       const item = container.items.find(i => i.uid === uid)
       if (!item) return
       startDrag(item, containerId)
-      itemInfoRef.current?.show(item.definitionId)
+      itemInfoRef.current?.show(item.definitionId, item.uid)
       itemInfoRef.current?.setDragging(true)
     },
     [containers, startDrag, itemInfoRef]
+  )
+
+  const handleQuickTransfer = useCallback(
+    (uid: string, sourceContainerId: string) => {
+      if (!state.openContainer) return
+      const source = containers.find(c => c.id === sourceContainerId)?.container
+      if (!source) return
+      const item = source.items.find(i => i.uid === uid)
+      if (!item) return
+
+      // Determine target: backpack→omnibox or omnibox→backpack
+      const target = sourceContainerId === state.backpack.id ? state.openContainer : state.backpack
+      const fit = findFitPosition(target, item.definitionId)
+      if (!fit) return
+
+      removeItem(source, uid)
+      placeItem(target, item.definitionId, fit.rotation, fit.gridX, fit.gridY)
+      refreshUI()
+    },
+    [state, containers, refreshUI]
   )
 
   const handleMouseUp = useCallback(() => {
@@ -161,107 +196,161 @@ export const InventoryPanel = ({
         })()
       : null
 
+  // Player screen position for panel anchoring
+  const metrics = metricsRef.current
+  const playerScreenX = metrics ? (state.player.x - state.camera.x) * metrics.charWidth : 0
+  const playerScreenY = metrics ? (state.player.y - state.camera.y) * metrics.charHeight : 0
+
+  const panelGap = 16
+
   return (
-    <div
-      data-panel="inventory"
-      className="text-text pointer-events-auto fixed top-0 right-48 z-10 flex h-full flex-col gap-4 bg-black/70 px-4 py-4 font-mono text-xs"
-      onMouseUp={handleMouseUp}
-    >
-      <div className="border-border-dim flex items-baseline justify-between border-b pb-3 text-sm">
-        <span>inventory</span>
-        <button type="button" className="text-dim hover:text-text pointer-events-auto" onClick={onClose}>
-          x
-        </button>
-      </div>
-
-      <div>
-        <div className="border-border-dim text-muted mb-3 flex items-baseline justify-between border-b pb-2">
-          <span>backpack</span>
-          <span className="text-dim">{totalWeight}w</span>
-        </div>
-        <div className="relative inline-block">
-          <InventoryGrid
-            container={state.backpack}
-            containerId={state.backpack.id}
-            dragState={dragState}
-            onStartDrag={handleStartDrag}
-            onUpdateGhost={updateGhost}
-            onDrop={drop}
-            itemInfoRef={itemInfoRef}
-          />
-
-          <CombineToast
-            combineToast={combineToast}
-            livePreview={livePreview}
-            dragState={dragState}
-            state={state}
-            onClose={() => {
-              setCombineToast(null)
-              if (fadeTimer.current) clearTimeout(fadeTimer.current)
-            }}
-            onHoverStart={() => {
-              isHoveringToast.current = true
-              if (fadeTimer.current) clearTimeout(fadeTimer.current)
-            }}
-            onHoverEnd={() => {
-              isHoveringToast.current = false
-              if (combineToast) scheduleFade()
-            }}
-          />
-        </div>
-      </div>
-
-      {state.openContainers.map(oc => (
-        <div key={oc.id}>
-          <div className="border-border-dim text-muted mb-3 flex items-baseline justify-between border-b pb-2">
-            <span>{oc.name.toLowerCase()}</span>
-            <button
-              type="button"
-              className="text-dim hover:text-text pointer-events-auto"
-              onClick={() => {
-                closeOmnibox(state, oc.id)
-                refreshUI()
-              }}
-            >
-              x
-            </button>
-          </div>
-          <InventoryGrid
-            container={oc}
-            containerId={oc.id}
-            dragState={dragState}
-            onStartDrag={handleStartDrag}
-            onUpdateGhost={updateGhost}
-            onDrop={drop}
-            itemInfoRef={itemInfoRef}
-          />
-        </div>
-      ))}
-
-      <div className="text-dim flex flex-col gap-1">
-        <span>[x] drop</span>
-        <span>[r]otate</span>
-        <button
-          type="button"
-          className="text-dim hover:text-text pointer-events-auto text-left"
-          onClick={() => {
-            autoSort(state.backpack)
-            refreshUI()
+    <>
+      {/* Global mouseUp handler for drag cancellation */}
+      <div className="pointer-events-none fixed inset-0 z-10" onMouseUp={handleMouseUp}>
+        {/* Panels container — side by side, top-aligned, above the player */}
+        <div
+          className="absolute z-10 flex items-start"
+          style={{
+            left: playerScreenX + (metrics?.charWidth ?? 0) + panelGap,
+            bottom: window.innerHeight - playerScreenY + panelGap,
           }}
         >
-          sort
-        </button>
-      </div>
+          {/* Omnibox panel — left side */}
+          {state.openContainer && (
+            <div
+              data-panel="omnibox"
+              className="text-text pointer-events-auto flex flex-col gap-3 bg-black/70 px-4 py-4 font-mono text-xs"
+            >
+              <div className="border-border-dim flex items-baseline justify-between border-b pb-2">
+                <span>{state.openContainer.name.toLowerCase()}</span>
+                <button
+                  type="button"
+                  className="text-dim hover:text-text pointer-events-auto ml-4"
+                  onClick={() => {
+                    closeOmnibox(state)
+                    refreshUI()
+                  }}
+                >
+                  x
+                </button>
+              </div>
+              <InventoryGrid
+                container={state.openContainer}
+                containerId={state.openContainer.id}
+                dragState={dragState}
+                onStartDrag={handleStartDrag}
+                onUpdateGhost={updateGhost}
+                onDrop={drop}
+                onQuickTransfer={handleQuickTransfer}
+                itemInfoRef={itemInfoRef}
+              />
+              <div className="text-dim flex flex-col gap-1">
+                {state.groundOmniboxes.some(go => go.uid === state.openContainer?.id) && (
+                  <button
+                    type="button"
+                    className="text-dim hover:text-text pointer-events-auto text-left"
+                    onClick={() => {
+                      if (!state.openContainer) return
+                      const uid = grabOmnibox(state)
+                      if (uid) {
+                        closeOmnibox(state)
+                        refreshUI()
+                      }
+                    }}
+                  >
+                    pick up
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="text-dim hover:text-text pointer-events-auto text-left"
+                  onClick={() => {
+                    if (state.openContainer) {
+                      autoSort(state.openContainer)
+                      refreshUI()
+                    }
+                  }}
+                >
+                  sort
+                </button>
+              </div>
+            </div>
+          )}
 
-      {dragState && cursorPos && (
-        <DragCursor
-          dragState={dragState}
-          cursorPos={cursorPos}
-          cursorTarget={cursorTarget}
-          canvasRect={canvasRect}
-          metricsRef={metricsRef}
-        />
-      )}
-    </div>
+          {/* Backpack panel — right side */}
+          <div
+            data-panel="inventory"
+            className="text-text pointer-events-auto flex flex-col gap-3 bg-black/70 px-4 py-4 font-mono text-xs"
+          >
+            <div className="border-border-dim flex items-baseline justify-between border-b pb-2">
+              <span>backpack</span>
+              <span className="text-dim ml-4">{totalWeight}w</span>
+              <button type="button" className="text-dim hover:text-text pointer-events-auto ml-4" onClick={onClose}>
+                x
+              </button>
+            </div>
+
+            <div className="group">
+              <div className="relative inline-block">
+                <InventoryGrid
+                  container={state.backpack}
+                  containerId={state.backpack.id}
+                  dragState={dragState}
+                  onStartDrag={handleStartDrag}
+                  onUpdateGhost={updateGhost}
+                  onDrop={drop}
+                  onQuickTransfer={state.openContainer ? handleQuickTransfer : undefined}
+                  itemInfoRef={itemInfoRef}
+                />
+
+                <CombineToast
+                  combineToast={combineToast}
+                  livePreview={livePreview}
+                  dragState={dragState}
+                  state={state}
+                  onClose={() => {
+                    setCombineToast(null)
+                    if (fadeTimer.current) clearTimeout(fadeTimer.current)
+                  }}
+                  onHoverStart={() => {
+                    isHoveringToast.current = true
+                    if (fadeTimer.current) clearTimeout(fadeTimer.current)
+                  }}
+                  onHoverEnd={() => {
+                    isHoveringToast.current = false
+                    if (combineToast) scheduleFade()
+                  }}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <span className="text-dim invisible group-hover:visible">[x] drop</span>
+                <span className="text-dim invisible group-hover:visible">[r]otate</span>
+                <button
+                  type="button"
+                  className="text-dim hover:text-text pointer-events-auto text-left"
+                  onClick={() => {
+                    autoSort(state.backpack)
+                    refreshUI()
+                  }}
+                >
+                  sort
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {dragState && cursorPos && (
+          <DragCursor
+            dragState={dragState}
+            cursorPos={cursorPos}
+            cursorTarget={cursorTarget}
+            canvasRect={canvasRect}
+            metricsRef={metricsRef}
+          />
+        )}
+      </div>
+    </>
   )
 }

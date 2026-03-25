@@ -15,6 +15,7 @@ interface InventoryGridProps {
   onStartDrag: (uid: string, containerId: string) => void
   onUpdateGhost: (gridX: number, gridY: number, containerId: string) => void
   onDrop: (containerId: string) => void
+  onQuickTransfer?: (uid: string, containerId: string) => void
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
 }
 
@@ -25,6 +26,7 @@ export const InventoryGrid = ({
   onStartDrag,
   onUpdateGhost,
   onDrop,
+  onQuickTransfer,
   itemInfoRef,
 }: InventoryGridProps) => {
   const gridRef = useRef<HTMLDivElement>(null)
@@ -69,6 +71,21 @@ export const InventoryGrid = ({
     [getGridPos, onStartDrag, containerId]
   )
 
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.button !== 0) return
+      if (!onQuickTransfer) return
+      const pos = getGridPos(e)
+      if (!pos) return
+      const occ = buildOccupancyGrid(containerRef.current)
+      const uid = occ[pos.y]?.[pos.x]
+      if (uid) {
+        onQuickTransfer(uid, containerId)
+      }
+    },
+    [getGridPos, onQuickTransfer, containerId]
+  )
+
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
       const pos = getGridPos(e)
@@ -90,7 +107,7 @@ export const InventoryGrid = ({
       if (uid) {
         const item = containerRef.current.items.find(i => i.uid === uid)
         if (item) {
-          itemInfoRef.current?.show(item.definitionId)
+          itemInfoRef.current?.show(item.definitionId, item.uid)
         } else {
           itemInfoRef.current?.clear()
         }
@@ -105,7 +122,7 @@ export const InventoryGrid = ({
     (e: React.MouseEvent) => {
       if (e.button !== 0) return
       if (!dragStateRef.current) return
-      if (dragStateRef.current.isValid || dragStateRef.current.combineTarget) {
+      if (dragStateRef.current.isValid || dragStateRef.current.combineTarget || dragStateRef.current.storeTarget) {
         onDrop(containerId)
       }
     },
@@ -160,11 +177,13 @@ export const InventoryGrid = ({
 
       const isCombineTarget = dragState?.combineTarget?.uid === uid && uid !== undefined
       const isCombineGhost = isGhost && dragState?.combineTarget
+      const isStoreTarget = dragState?.storeTarget?.omniboxUid === uid && uid !== undefined
+      const isStoreGhost = isGhost && dragState?.storeTarget
       const isCannotCombine = isGhost && dragState?.cannotCombine && isOccupied
 
       let bgClass = 'bg-grid-empty'
       let bgStyle: React.CSSProperties | undefined
-      if (isCombineTarget || isCombineGhost || isCannotCombine) {
+      if (isCombineTarget || isCombineGhost || isStoreTarget || isStoreGhost || isCannotCombine) {
         bgClass = ''
         bgStyle = { backgroundColor: '#ff69b4' }
       } else if (isGhost) {
@@ -180,7 +199,11 @@ export const InventoryGrid = ({
           className={`border-grid-border flex items-center justify-center border font-mono text-xs ${bgClass}`}
           style={{ width: INVENTORY_CELL_SIZE, height: INVENTORY_CELL_SIZE, ...bgStyle }}
         >
-          {(isCombineTarget || isCombineGhost) && dragState?.combineTarget ? (
+          {(isStoreTarget || isStoreGhost) && dragState ? (
+            <span style={{ color: '#000' }}>
+              {getDefinition(dragState.item.definitionId).glyph}
+            </span>
+          ) : (isCombineTarget || isCombineGhost) && dragState?.combineTarget ? (
             <span style={{ color: '#000' }}>
               {combineIcon(dragState.combineTarget.recipe, dragState.combineTarget.isDiscovered)}
             </span>
@@ -209,6 +232,7 @@ export const InventoryGrid = ({
         gridTemplateColumns: `repeat(${String(container.width)}, ${String(INVENTORY_CELL_SIZE)}px)`,
       }}
       onMouseDown={handleMouseDown}
+      onDoubleClick={handleDoubleClick}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}

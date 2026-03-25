@@ -27,11 +27,21 @@ interface GameCanvasProps {
   state: GameState
   refreshUI: () => void
   activePanel: Panel
+  setActivePanel: (panel: Panel) => void
   onPickup: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
+  onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
   metricsRef: React.RefObject<CharMetrics | null>
 }
 
-export const GameCanvas = ({ state, refreshUI, activePanel, onPickup, metricsRef }: GameCanvasProps) => {
+export const GameCanvas = ({
+  state,
+  refreshUI,
+  activePanel,
+  setActivePanel,
+  onPickup,
+  onDialog,
+  metricsRef,
+}: GameCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef(0)
   const refreshUIRef = useRef(refreshUI)
@@ -39,7 +49,7 @@ export const GameCanvas = ({ state, refreshUI, activePanel, onPickup, metricsRef
   const onPickupRef = useRef(onPickup)
   onPickupRef.current = onPickup
 
-  useMouse({ canvasRef, state, metricsRef, activePanel })
+  useMouse({ canvasRef, state, metricsRef, activePanel, setActivePanel, refreshUI, onDialog })
 
   useEffect(() => {
     const canvas = canvasRef.current

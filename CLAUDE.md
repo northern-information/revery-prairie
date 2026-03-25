@@ -45,6 +45,7 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/coordinates.ts` — screen pixel to world tile coordinate transform.
 - `src/engine/weather.ts` — weather generation, tick drift, unit conversion.
 - `src/engine/terrain.ts` — map generation with randomized coastline.
+- `src/engine/position.ts` — shared position utilities: `posKey`, `isInBounds`, `removeByIndices`, direction deltas (`DIRECTIONS`, `CARDINAL`, `ORDINAL`).
 - `src/engine/constants.ts` — map size, tile chars/colors, font, border widths.
 - `src/components/GameCanvas.tsx` — canvas element, rAF loop, resize handling, HiDPI.
 - `src/engine/inventory.ts` — spatial grid operations (place, remove, move, rotate, transfer, auto-sort).
@@ -102,10 +103,10 @@ the permacomputer is never consumed by recipes. it is a tool that persists. the 
 ## keybindings
 
 - `wasd` — movement (works with inventory open, blocked in menu and during drag)
-- `i` — toggle inventory
-- `x` — drop hovered item (changed from `d` to avoid WASD conflict)
-- `r` — rotate hovered item in place, or rotate during drag
-- `g` — grab adjacent ground omnibox into backpack
+- `r` — toggle inventory (when not hovering item), rotate hovered item in place (when hovering)
+- `i` — toggle inventory (legacy, still works)
+- `x` — drop hovered item
+- `e` — context-dependent: pick up open ground omnibox / close open backpack omnibox / open hovered omnibox / open facing ground omnibox / talk to character / advance dialog
 - `esc` — close panel / open menu
 - during drag: `r` rotates ghost, `esc` cancels (captured by drag hook)
 - `isDraggingRef` blocks `x`/`r` in keyboard hook while drag is active, but allows movement through
@@ -122,8 +123,12 @@ portable 5x5 containers (2x2 inventory footprint). created by combining meteorit
 
 - **container registry**: `state.omniboxContainers: Map<string, Container>` keyed by `ItemInstance.uid`. each omnibox item links to its container data through this map.
 - **numbering**: `state.nextOmniboxNumber` increments on creation. container names are `omnibox #1`, `omnibox #2`, etc.
-- **multiple open**: `state.openContainers: Container[]` replaces the old `openContainer: Container | null`. multiple omniboxes can be open simultaneously. rendered below backpack in inventory panel.
-- **ground behavior**: dropped omniboxes go to `state.groundOmniboxes[]` (not `groundItems`). ground omniboxes are solid — they block `movePlayer()` and `findPath()`. adjacent omniboxes auto-open; walking away auto-closes. press `g` to grab an adjacent ground omnibox into backpack.
+- **single open**: `state.openContainer: Container | null`. only one omnibox can be open at a time. opening a new one closes the previous.
+- **explicit open/close only**: no auto-open on adjacency or drop. player must press `[e]` to toggle. omniboxes stay open until explicitly closed (no distance-based closing).
+- **facing highlight**: `state.playerFacing: Direction` tracks last move direction. `state.facingOmniboxPos: Position | null` is the ground omnibox tile the player faces. rendered with pink cursor inversion.
+- **ground behavior**: dropped omniboxes go to `state.groundOmniboxes[]` (not `groundItems`). ground omniboxes are solid — they block `movePlayer()` and `findPath()`. press `[e]` facing a ground omnibox to toggle it open/closed.
+- **drag-to-store**: dragging an item onto an omnibox item in any container stores the item inside and opens the omnibox. shows the dragged item's glyph as pink preview. shows "not enough capacity" toast if it doesn't fit.
+- **panel layout**: backpack panel renders above-right of the player. omnibox panel renders above-left of the player. positioned relative to player screen coordinates.
 - **nesting**: omniboxes can be placed inside other omniboxes.
 - **renaming**: deferred — not yet implemented.
 
@@ -171,3 +176,5 @@ tests that depend on terrain must account for the randomized coastline — use `
 - for event handlers that read mutable game state, use refs (`containerRef.current`, `dragStateRef.current`) instead of closure-captured values. this avoids stale closures and prevents `useEffect` re-registration on every state change.
 - when a `useEffect` only needs to know if something is truthy (not its full value), extract a boolean (`const isDragging = dragState !== null`) and use that in the dependency array to reduce churn.
 - `as const satisfies Record<string, T>` pattern for typed registries that derive IDs from keys.
+- any code that re-creates `ItemInstance` objects (autoSort, merge, stack, split) must preserve the original `uid`. omnibox containers are keyed by item uid in `state.omniboxContainers` — generating a new uid breaks the link.
+- when mutating state before delegating to another function, check that the delegate can fail. if it can, validate before mutating (e.g. check standing tile before removing recipe ingredients).

@@ -1,9 +1,10 @@
 import { combineIcon, findRecipe, recipeKey, RecipeKind, RECIPES } from '../recipes'
-import { createGameState } from '../state'
 import { TileType } from '../types'
 import { describe, expect, it } from 'vitest'
 
 import type { Recipe } from '../recipes'
+
+import { clearAroundPlayer, createTestState } from './helpers'
 
 describe('findRecipe', () => {
   it('finds bee+clover in natural order', () => {
@@ -77,15 +78,11 @@ describe('prairie recipe execute', () => {
   const prairieRecipe = RECIPES[0]
 
   it('plants clover in 3x3 area on dirt', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const px = state.player.x
     const py = state.player.y
 
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        state.map[py + dy][px + dx] = { type: TileType.Dirt }
-      }
-    }
+    clearAroundPlayer(state, 1)
 
     const result = prairieRecipe.execute(state)
     expect(result).toBe(true)
@@ -98,15 +95,11 @@ describe('prairie recipe execute', () => {
   })
 
   it('spawns a bee at the player position', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const px = state.player.x
     const py = state.player.y
 
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        state.map[py + dy][px + dx] = { type: TileType.Dirt }
-      }
-    }
+    clearAroundPlayer(state, 1)
 
     prairieRecipe.execute(state)
     expect(state.bees).toHaveLength(1)
@@ -115,7 +108,7 @@ describe('prairie recipe execute', () => {
   })
 
   it('returns false when standing on sand', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     state.map[state.player.y][state.player.x] = { type: TileType.Sand }
 
     const result = prairieRecipe.execute(state)
@@ -124,7 +117,7 @@ describe('prairie recipe execute', () => {
   })
 
   it('returns false when standing on space', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     state.map[state.player.y][state.player.x] = { type: TileType.Space }
 
     const result = prairieRecipe.execute(state)
@@ -133,15 +126,11 @@ describe('prairie recipe execute', () => {
   })
 
   it('does not overwrite sand tiles in the 3x3 area', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const px = state.player.x
     const py = state.player.y
 
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        state.map[py + dy][px + dx] = { type: TileType.Dirt }
-      }
-    }
+    clearAroundPlayer(state, 1)
     state.map[py - 1][px - 1] = { type: TileType.Sand }
 
     prairieRecipe.execute(state)
@@ -156,15 +145,8 @@ describe('prairie recipe preview', () => {
   if (!preview) throw new Error('prairie recipe must have a preview function')
 
   it('returns tiles for valid dirt positions', () => {
-    const state = createGameState('Test', 20, 20)
-    const px = state.player.x
-    const py = state.player.y
-
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        state.map[py + dy][px + dx] = { type: TileType.Dirt }
-      }
-    }
+    const state = createTestState()
+    clearAroundPlayer(state, 1)
 
     const tiles = preview(state)
     expect(tiles).toHaveLength(9)
@@ -175,7 +157,7 @@ describe('prairie recipe preview', () => {
   })
 
   it('returns tiles for clover positions', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const px = state.player.x
     const py = state.player.y
 
@@ -190,15 +172,11 @@ describe('prairie recipe preview', () => {
   })
 
   it('skips sand tiles', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const px = state.player.x
     const py = state.player.y
 
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        state.map[py + dy][px + dx] = { type: TileType.Dirt }
-      }
-    }
+    clearAroundPlayer(state, 1)
     state.map[py - 1][px - 1] = { type: TileType.Sand }
 
     const tiles = preview(state)
@@ -208,15 +186,11 @@ describe('prairie recipe preview', () => {
   })
 
   it('skips space tiles', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const px = state.player.x
     const py = state.player.y
 
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        state.map[py + dy][px + dx] = { type: TileType.Dirt }
-      }
-    }
+    clearAroundPlayer(state, 1)
     state.map[py][px + 1] = { type: TileType.Space }
 
     const tiles = preview(state)

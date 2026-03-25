@@ -199,13 +199,14 @@ describe('Sidebar', () => {
     )
 
     expect(screen.getByText('[wasd] move')).toBeInTheDocument()
-    expect(screen.getByText('[i]nventory')).toBeInTheDocument()
-    expect(screen.getByText('[g]rab')).toBeInTheDocument()
+    expect(screen.getByText('invento[r]y')).toBeInTheDocument()
+    expect(screen.getByText('int[e]ract')).toBeInTheDocument()
     expect(screen.getByText('[esc] menu')).toBeInTheDocument()
   })
 
-  it('renders [g]rab as dim when no adjacent ground omnibox', () => {
+  it('renders [e] as dim when nothing adjacent', () => {
     const state = createGameState('Test', 80, 40)
+    state.characters = []
     render(
       <Sidebar
         state={state}
@@ -217,12 +218,11 @@ describe('Sidebar', () => {
       />
     )
 
-    const grab = screen.getByText('[g]rab')
-    expect(grab.className).toContain('text-dim')
-    expect(grab.className).not.toContain('text-text')
+    const el = screen.getByText('int[e]ract')
+    expect(el.className).toContain('text-dim')
   })
 
-  it('renders [g]rab as highlighted when adjacent ground omnibox exists', () => {
+  it('renders [e] as highlighted when adjacent ground omnibox exists', () => {
     const state = createGameState('Test', 80, 40)
     createOmniboxContainer(state, 'uid-1')
     state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
@@ -237,9 +237,26 @@ describe('Sidebar', () => {
       />
     )
 
-    const grab = screen.getByText('[g]rab')
-    expect(grab.className).toContain('text-text')
-    expect(grab.className).not.toContain('text-dim')
+    const el = screen.getByText('int[e]ract')
+    expect(el.className).toContain('text-text')
+  })
+
+  it('renders [e] as highlighted when adjacent to character', () => {
+    const state = createGameState('Test', 80, 40)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    render(
+      <Sidebar
+        state={state}
+        activePanel={null}
+        setActivePanel={noop}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+      />
+    )
+
+    const el = screen.getByText('int[e]ract')
+    expect(el.className).toContain('text-text')
   })
 
   it('renders weather section in imperial by default', () => {

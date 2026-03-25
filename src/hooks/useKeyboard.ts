@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { dropItem, grabOmnibox, movePlayer, pickUpGroundItems } from '@/engine/actions'
+import {
+  advanceDialog,
+  closeOmnibox,
+  dropItem,
+  getAdjacentCharacter,
+  grabOmnibox,
+  interactWithCharacter,
+  movePlayer,
+  pickUpGroundItems,
+  toggleFacingOmnibox,
+  toggleOmnibox,
+  updateFacingOmnibox,
+} from '@/engine/actions'
+import { getCharacterDefinition } from '@/engine/characters'
 import { keyToDirection } from '@/engine/input'
 import { findItemByDefinition, moveItem } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
@@ -16,14 +29,23 @@ interface UseKeyboardOptions {
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
   onPickup: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   onDrop: (definitionId: string, worldX: number, worldY: number) => void
+  onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
   isDraggingRef: React.RefObject<boolean>
 }
 
-export const useKeyboard = ({ state, refreshUI, itemInfoRef, onPickup, onDrop, isDraggingRef }: UseKeyboardOptions) => {
-  const [activePanel, setActivePanel] = useState<Panel>('inventory')
+export const useKeyboard = ({
+  state,
+  refreshUI,
+  itemInfoRef,
+  onPickup,
+  onDrop,
+  onDialog,
+  isDraggingRef,
+}: UseKeyboardOptions) => {
+  const [activePanel, setActivePanel] = useState<Panel>(null)
 
   const handlePickups = useCallback(
-    (result: { pickedUp: string[]; opened: string[] }) => {
+    (result: { pickedUp: string[] }) => {
       for (const defId of result.pickedUp) {
         const def = getDefinition(defId)
         onPickup(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
@@ -34,8 +56,13 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, onPickup, onDrop, i
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      // Escape: close panel if open, otherwise open menu
+      // Escape: close dialog first, then panel, then open menu
       if (e.key === 'Escape') {
+        if (state.activeDialog) {
+          state.activeDialog = null
+          refreshUI()
+          return
+        }
         if (activePanel === 'menu') {
           setActivePanel(null)
           return
@@ -52,6 +79,59 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, onPickup, onDrop, i
       if (e.key === 'i' || e.key === 'I') {
         setActivePanel(prev => (prev === 'inventory' ? null : 'inventory'))
         return
+      }
+
+      // [e] — advance dialog / pick up or close open omnibox / open omnibox / talk
+      if (e.key === 'e' || e.key === 'E') {
+        if (state.activeDialog) {
+          advanceDialog(state)
+          refreshUI()
+          return
+        }
+        if (activePanel !== 'menu') {
+          // If an omnibox is open: pick up (ground) or close (backpack)
+          if (state.openContainer) {
+            const isGround = state.groundOmniboxes.some(go => go.uid === state.openContainer?.id)
+            if (isGround) {
+              const uid = grabOmnibox(state)
+              if (uid) {
+                const def = getDefinition('omnibox')
+                onPickup(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
+              }
+              closeOmnibox(state)
+            } else {
+              closeOmnibox(state)
+            }
+            refreshUI()
+            return
+          }
+          // Open hovered omnibox in inventory
+          if (activePanel === 'inventory') {
+            const hoveredId = itemInfoRef.current?.getCurrentId()
+            const hoveredUid = itemInfoRef.current?.getCurrentUid()
+            if (hoveredId === 'omnibox' && hoveredUid) {
+              toggleOmnibox(state, hoveredUid)
+              refreshUI()
+              return
+            }
+          }
+          // Open facing ground omnibox
+          if (toggleFacingOmnibox(state)) {
+            if (activePanel !== 'inventory') {
+              setActivePanel('inventory')
+            }
+            refreshUI()
+            return
+          }
+          // Interact with adjacent character
+          const adjacent = getAdjacentCharacter(state)
+          if (adjacent && interactWithCharacter(state)) {
+            const def = getCharacterDefinition(adjacent.definitionId)
+            onDialog(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
+            refreshUI()
+          }
+          return
+        }
       }
 
       // While dragging in inventory, only allow movement
@@ -78,6 +158,7 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, onPickup, onDrop, i
             const success = dropItem(state, hoveredId)
             if (success) {
               itemInfoRef.current?.clear()
+              updateFacingOmnibox(state)
               onDrop(hoveredId, state.player.x, state.player.y)
               refreshUI()
             }
@@ -86,7 +167,7 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, onPickup, onDrop, i
         }
       }
 
-      // Rotate hovered item in place
+      // Rotate hovered item, or toggle inventory
       if (e.key === 'r' || e.key === 'R') {
         if (activePanel === 'inventory') {
           const hoveredId = itemInfoRef.current?.getCurrentId()
@@ -99,25 +180,25 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, onPickup, onDrop, i
             }
             return
           }
-        }
-      }
-
-      // Grab adjacent ground omnibox
-      if (e.key === 'g' || e.key === 'G') {
-        if (activePanel !== 'menu') {
-          const uid = grabOmnibox(state)
-          if (uid) {
-            const def = getDefinition('omnibox')
-            onPickup(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
-            refreshUI()
-          }
+          // Not hovering — close inventory
+          setActivePanel(null)
           return
         }
+        // Inventory not open — open it
+        if (activePanel !== 'menu') {
+          setActivePanel('inventory')
+        }
+        return
       }
 
       // Movement (allowed with inventory open, blocked in menu)
       if (activePanel !== 'menu') {
         const dir = keyToDirection(e.key)
+        if (dir && state.activeDialog) {
+          state.activeDialog = null
+          refreshUI()
+          return
+        }
         if (dir) {
           e.preventDefault()
           state.path = null
@@ -131,7 +212,7 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, onPickup, onDrop, i
         }
       }
     },
-    [state, refreshUI, activePanel, itemInfoRef, handlePickups, onPickup, onDrop, isDraggingRef]
+    [state, refreshUI, activePanel, itemInfoRef, handlePickups, onPickup, onDrop, onDialog, isDraggingRef]
   )
 
   useEffect(() => {

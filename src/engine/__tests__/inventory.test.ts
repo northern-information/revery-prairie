@@ -355,6 +355,21 @@ describe('autoSort', () => {
     expect(sampler?.gridX).toBe(0)
     expect(sampler?.gridY).toBe(0)
   })
+
+  it('preserves item uids across sort', () => {
+    const container = createContainer('test', 'Test', 6, 4)
+    const a = placeItem(container, 'bee', Rotation.R0, 5, 3)
+    const b = placeItem(container, 'clover', Rotation.R0, 0, 3)
+
+    const uidA = a?.uid
+    const uidB = b?.uid
+
+    autoSort(container)
+
+    const uids = container.items.map(i => i.uid)
+    expect(uids).toContain(uidA)
+    expect(uids).toContain(uidB)
+  })
 })
 
 describe('transferItem', () => {

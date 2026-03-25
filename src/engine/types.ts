@@ -95,6 +95,20 @@ export interface GroundOmnibox {
   pos: Position
 }
 
+export interface CharacterDefinition {
+  id: string
+  name: string
+  glyph: string
+  glyphColor: string
+  portrait?: string
+  dialog: string[]
+}
+
+export interface Character {
+  definitionId: string
+  pos: Position
+}
+
 export interface GameState {
   stewardName: string
   map: Tile[][]
@@ -102,7 +116,9 @@ export interface GameState {
   mapHeight: number
   player: Position
   backpack: Container
-  openContainers: Container[]
+  openContainer: Container | null
+  playerFacing: Direction
+  facingOmniboxPos: Position | null
   camera: Position
   viewportWidth: number
   viewportHeight: number
@@ -112,6 +128,8 @@ export interface GameState {
   explosions: LandingExplosion[]
   groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
+  characters: Character[]
+  activeDialog: { characterId: string; lineIndex: number } | null
   omniboxContainers: Map<string, Container>
   nextOmniboxNumber: number
   discoveredRecipes: Set<string>
@@ -120,6 +138,7 @@ export interface GameState {
   path: Position[] | null
   pendingAction: (() => void) | null
   cursorTile: Position | null
+  rainSeed: number
 }
 
 export const Sky = {

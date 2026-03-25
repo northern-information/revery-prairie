@@ -1,4 +1,5 @@
 import { updateCamera } from './camera'
+import { getCharacterDefinition, isCharacterAt } from './characters'
 import {
   EXPLOSION_DURATION_MS,
   MAP_HEIGHT,
@@ -18,112 +19,96 @@ import {
   placeItem,
   removeItem,
 } from './inventory'
+import { CARDINAL, DIRECTIONS, isInBounds, ORDINAL, posKey, removeByIndices } from './position'
+import { RECIPES } from './recipes'
 import { TileType } from './types'
 
-import type { Direction, GameState, Position } from './types'
-
-const DELTAS: Record<Direction, Position> = {
-  up: { x: 0, y: -1 },
-  down: { x: 0, y: 1 },
-  left: { x: -1, y: 0 },
-  right: { x: 1, y: 0 },
-}
+import type { Character, Container, Direction, GameState, Position } from './types'
 
 export interface PickUpResult {
   pickedUp: string[]
-  opened: string[]
+}
+
+const captureEntitiesAtPlayer = (
+  entities: { pos: Position }[],
+  px: number,
+  py: number,
+  backpack: Container,
+  definitionId: string
+): { removed: number[]; captured: string[] } => {
+  const removed: number[] = []
+  const captured: string[] = []
+  for (let i = 0; i < entities.length; i++) {
+    const entity = entities[i]
+    if (entity?.pos.x === px && entity?.pos.y === py) {
+      const fit = findFitPosition(backpack, definitionId)
+      if (fit) {
+        placeItem(backpack, definitionId, fit.rotation, fit.gridX, fit.gridY)
+        removed.push(i)
+        captured.push(definitionId)
+      }
+    }
+  }
+  return { removed, captured }
 }
 
 export const pickUpGroundItems = (state: GameState): PickUpResult => {
   const px = state.player.x
   const py = state.player.y
-  const toRemove: number[] = []
   const pickedUp: string[] = []
-  const opened: string[] = []
 
+  // Ground items use their own definitionId
   for (let i = 0; i < state.groundItems.length; i++) {
     const gi = state.groundItems[i]
     if (gi?.pos.x === px && gi?.pos.y === py) {
       const fit = findFitPosition(state.backpack, gi.definitionId)
       if (fit) {
         placeItem(state.backpack, gi.definitionId, fit.rotation, fit.gridX, fit.gridY)
-        toRemove.push(i)
         pickedUp.push(gi.definitionId)
+        state.groundItems.splice(i, 1)
+        i--
       }
     }
   }
 
-  for (let i = toRemove.length - 1; i >= 0; i--) {
-    state.groundItems.splice(toRemove[i] ?? 0, 1)
-  }
+  const beeResult = captureEntitiesAtPlayer(state.bees, px, py, state.backpack, 'bee')
+  removeByIndices(state.bees, beeResult.removed)
+  pickedUp.push(...beeResult.captured)
 
-  // Capture bees at the player's position
-  const beesToRemove: number[] = []
-  for (let i = 0; i < state.bees.length; i++) {
-    const bee = state.bees[i]
-    if (bee?.pos.x === px && bee?.pos.y === py) {
-      const fit = findFitPosition(state.backpack, 'bee')
-      if (fit) {
-        placeItem(state.backpack, 'bee', fit.rotation, fit.gridX, fit.gridY)
-        beesToRemove.push(i)
-        pickedUp.push('bee')
+  const meteoriteResult = captureEntitiesAtPlayer(state.meteorites, px, py, state.backpack, 'meteorite')
+  removeByIndices(state.meteorites, meteoriteResult.removed)
+  pickedUp.push(...meteoriteResult.captured)
+
+  // Auto-close open ground omnibox when player walks away
+  if (state.openContainer) {
+    const go = state.groundOmniboxes.find(g => g.uid === state.openContainer?.id)
+    if (go) {
+      const dx = Math.abs(go.pos.x - px)
+      const dy = Math.abs(go.pos.y - py)
+      if (dx > 1 || dy > 1) {
+        state.openContainer = null
       }
     }
   }
 
-  for (let i = beesToRemove.length - 1; i >= 0; i--) {
-    state.bees.splice(beesToRemove[i] ?? 0, 1)
-  }
-
-  // Pick up meteorites at the player's position
-  const meteoritesToRemove: number[] = []
-  for (let i = 0; i < state.meteorites.length; i++) {
-    const m = state.meteorites[i]
-    if (m?.pos.x === px && m?.pos.y === py) {
-      const fit = findFitPosition(state.backpack, 'meteorite')
-      if (fit) {
-        placeItem(state.backpack, 'meteorite', fit.rotation, fit.gridX, fit.gridY)
-        meteoritesToRemove.push(i)
-        pickedUp.push('meteorite')
-      }
-    }
-  }
-
-  for (let i = meteoritesToRemove.length - 1; i >= 0; i--) {
-    state.meteorites.splice(meteoritesToRemove[i] ?? 0, 1)
-  }
-
-  // Auto-open adjacent ground omniboxes, auto-close distant ones
-  for (const go of state.groundOmniboxes) {
-    const dx = Math.abs(go.pos.x - px)
-    const dy = Math.abs(go.pos.y - py)
-    const isAdjacent = dx <= 1 && dy <= 1
-    const container = state.omniboxContainers.get(go.uid)
-    if (!container) continue
-
-    if (isAdjacent && !state.openContainers.includes(container)) {
-      state.openContainers.push(container)
-      opened.push(container.name)
-    } else if (!isAdjacent && state.openContainers.includes(container)) {
-      state.openContainers = state.openContainers.filter(c => c.id !== go.uid)
-    }
-  }
-
-  return { pickedUp, opened }
+  return { pickedUp }
 }
 
 export const movePlayer = (state: GameState, dir: Direction): boolean => {
-  const d = DELTAS[dir]
+  const d = DIRECTIONS[dir]
   const nx = state.player.x + d.x
   const ny = state.player.y + d.y
 
-  if (nx < 0 || nx >= state.mapWidth || ny < 0 || ny >= state.mapHeight) return false
+  if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) return false
   if (state.map[ny][nx].type === TileType.Space) return false
   if (state.groundOmniboxes.some(go => go.pos.x === nx && go.pos.y === ny)) return false
+  if (isCharacterAt(state.characters, nx, ny)) return false
 
   state.player.x = nx
   state.player.y = ny
+  state.playerFacing = dir
   updateCamera(state)
+  updateFacingOmnibox(state)
   return true
 }
 
@@ -141,9 +126,7 @@ const findAndRemoveItem = (state: GameState, definitionId: string): boolean => {
 
 const hasItemInAnyContainer = (state: GameState, definitionId: string): boolean => {
   if (containerHasItem(state.backpack, definitionId)) return true
-  for (const oc of state.openContainers) {
-    if (containerHasItem(oc, definitionId)) return true
-  }
+  if (state.openContainer && containerHasItem(state.openContainer, definitionId)) return true
   return false
 }
 
@@ -153,29 +136,17 @@ export const combineBeeAndClover = (state: GameState): boolean => {
 
   if (!hasBee || !hasClover) return false
 
+  // Check standing tile before consuming items — recipe.execute also checks,
+  // but we need to bail before removing ingredients
   const standingOn = state.map[state.player.y][state.player.x].type
   if (standingOn === TileType.Sand || standingOn === TileType.Space) return false
 
   findAndRemoveItem(state, 'bee')
   findAndRemoveItem(state, 'clover')
 
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const tx = state.player.x + dx
-      const ty = state.player.y + dy
-      if (tx >= 0 && tx < state.mapWidth && ty >= 0 && ty < state.mapHeight) {
-        const tile = state.map[ty][tx]
-        if (tile.type !== TileType.Sand && tile.type !== TileType.Space) {
-          state.map[ty][tx] = { type: TileType.Clover }
-        }
-      }
-    }
-  }
-
-  // Spawn a bee at the player's position
-  state.bees.push({ pos: { x: state.player.x, y: state.player.y } })
-
-  return true
+  const prairie = RECIPES.find(r => r.resultName === 'prairie')
+  if (!prairie) return false
+  return prairie.execute(state)
 }
 
 export const tickPath = (state: GameState): boolean => {
@@ -212,17 +183,6 @@ export const tickPath = (state: GameState): boolean => {
   return true
 }
 
-export const NEIGHBOR_DELTAS: Position[] = [
-  { x: 0, y: -1 },
-  { x: 0, y: 1 },
-  { x: -1, y: 0 },
-  { x: 1, y: 0 },
-  { x: -1, y: -1 },
-  { x: 1, y: -1 },
-  { x: -1, y: 1 },
-  { x: 1, y: 1 },
-]
-
 export const tickBees = (state: GameState): void => {
   for (const bee of state.bees) {
     // Only move sometimes — gives a lazy, buzzing feel
@@ -231,10 +191,10 @@ export const tickBees = (state: GameState): void => {
     // Collect neighboring clover tiles
     const cloverCandidates: Position[] = []
     const walkableCandidates: Position[] = []
-    for (const d of NEIGHBOR_DELTAS) {
+    for (const d of ORDINAL) {
       const nx = bee.pos.x + d.x
       const ny = bee.pos.y + d.y
-      if (nx >= 0 && nx < state.mapWidth && ny >= 0 && ny < state.mapHeight) {
+      if (isInBounds(nx, ny, state.mapWidth, state.mapHeight)) {
         const tile = state.map[ny][nx]
         if (tile.type === TileType.Clover) {
           cloverCandidates.push({ x: nx, y: ny })
@@ -268,7 +228,7 @@ const DROP_DELTAS: Position[] = [
 ]
 
 const canDropAt = (state: GameState, x: number, y: number): boolean => {
-  if (x < 0 || x >= state.mapWidth || y < 0 || y >= state.mapHeight) return false
+  if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
   if (state.map[y][x].type === TileType.Space) return false
   if (state.groundItems.some(g => g.pos.x === x && g.pos.y === y)) return false
   if (state.groundOmniboxes.some(g => g.pos.x === x && g.pos.y === y)) return false
@@ -304,7 +264,6 @@ export const dropItem = (state: GameState, definitionId: string): boolean => {
         state.bees.push({ pos: { x: tx, y: ty } })
       } else if (definitionId === 'omnibox') {
         state.groundOmniboxes.push({ uid: droppedUid, pos: { x: tx, y: ty } })
-        openOmnibox(state, droppedUid)
       } else {
         state.groundItems.push({ definitionId, pos: { x: tx, y: ty } })
       }
@@ -379,7 +338,7 @@ export const spawnShootingStarAtTarget = (
   // Trace backward from target to find the starting edge position
   let sx = target.x
   let sy = target.y
-  while (sx >= 0 && sx < MAP_WIDTH && sy >= 0 && sy < MAP_HEIGHT) {
+  while (isInBounds(sx, sy, MAP_WIDTH, MAP_HEIGHT)) {
     sx -= dx
     sy -= dy
   }
@@ -420,7 +379,7 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           toRemove.push(i)
           continue
         }
-      } else if (x >= 0 && x < MAP_WIDTH && y >= 0 && y < MAP_HEIGHT) {
+      } else if (isInBounds(x, y, MAP_WIDTH, MAP_HEIGHT)) {
         // Untargeted landing — land on first walkable tile
         const tile = state.map[y][x]
         if (tile.type === TileType.Dirt || tile.type === TileType.Clover) {
@@ -445,9 +404,7 @@ export const tickShootingStars = (state: GameState, time: number): void => {
     }
   }
 
-  for (let i = toRemove.length - 1; i >= 0; i--) {
-    state.shootingStars.splice(toRemove[i] ?? 0, 1)
-  }
+  removeByIndices(state.shootingStars, toRemove)
 
   // Clean up expired explosions
   state.explosions = state.explosions.filter(e => time - e.startTime <= EXPLOSION_DURATION_MS)
@@ -456,7 +413,7 @@ export const tickShootingStars = (state: GameState, time: number): void => {
 export const groundOmniboxBlockedSet = (state: GameState): Set<string> => {
   const set = new Set<string>()
   for (const go of state.groundOmniboxes) {
-    set.add(`${String(go.pos.x)},${String(go.pos.y)}`)
+    set.add(posKey(go.pos.x, go.pos.y))
   }
   return set
 }
@@ -464,13 +421,25 @@ export const groundOmniboxBlockedSet = (state: GameState): Set<string> => {
 export const openOmnibox = (state: GameState, uid: string): boolean => {
   const container = state.omniboxContainers.get(uid)
   if (!container) return false
-  if (state.openContainers.includes(container)) return false
-  state.openContainers.push(container)
+  if (state.openContainer === container) return false
+  // Close previous omnibox before opening new one
+  state.openContainer = container
   return true
 }
 
-export const closeOmnibox = (state: GameState, uid: string): void => {
-  state.openContainers = state.openContainers.filter(c => c.id !== uid)
+export const closeOmnibox = (state: GameState): void => {
+  state.openContainer = null
+}
+
+export const toggleOmnibox = (state: GameState, uid: string): boolean => {
+  const container = state.omniboxContainers.get(uid)
+  if (!container) return false
+  if (state.openContainer === container) {
+    state.openContainer = null
+    return true
+  }
+  state.openContainer = container
+  return true
 }
 
 export const grabOmnibox = (state: GameState): string | null => {
@@ -493,13 +462,84 @@ export const grabOmnibox = (state: GameState): string | null => {
       // Override the uid to match the omnibox's container mapping
       placed.uid = go.uid
 
-      // Remove from ground, close if open
+      // Remove from ground (keep open if it was open)
       state.groundOmniboxes.splice(i, 1)
-      state.openContainers = state.openContainers.filter(c => c.id !== go.uid)
+      updateFacingOmnibox(state)
 
       return go.uid
     }
   }
 
   return null
+}
+
+export const updateFacingOmnibox = (state: GameState): void => {
+  // Prefer the omnibox in the facing direction
+  const d = DIRECTIONS[state.playerFacing]
+  const fx = state.player.x + d.x
+  const fy = state.player.y + d.y
+  const facing = state.groundOmniboxes.find(go => go.pos.x === fx && go.pos.y === fy)
+  if (facing) {
+    state.facingOmniboxPos = { x: fx, y: fy }
+    return
+  }
+  // Fall back to any cardinally adjacent omnibox
+  for (const cd of CARDINAL) {
+    const nx = state.player.x + cd.x
+    const ny = state.player.y + cd.y
+    const adjacent = state.groundOmniboxes.find(go => go.pos.x === nx && go.pos.y === ny)
+    if (adjacent) {
+      state.facingOmniboxPos = { x: nx, y: ny }
+      return
+    }
+  }
+  state.facingOmniboxPos = null
+}
+
+export const toggleFacingOmnibox = (state: GameState): boolean => {
+  // Prefer the omnibox in the facing direction
+  if (state.facingOmniboxPos) {
+    const go = state.groundOmniboxes.find(
+      g => g.pos.x === state.facingOmniboxPos?.x && g.pos.y === state.facingOmniboxPos?.y
+    )
+    if (go) return toggleOmnibox(state, go.uid)
+  }
+  // Fall back to any cardinally adjacent omnibox
+  const px = state.player.x
+  const py = state.player.y
+  for (const d of CARDINAL) {
+    const go = state.groundOmniboxes.find(g => g.pos.x === px + d.x && g.pos.y === py + d.y)
+    if (go) return toggleOmnibox(state, go.uid)
+  }
+  return false
+}
+
+export const getAdjacentCharacter = (state: GameState): Character | null => {
+  const px = state.player.x
+  const py = state.player.y
+  for (const d of CARDINAL) {
+    const nx = px + d.x
+    const ny = py + d.y
+    const character = state.characters.find(c => c.pos.x === nx && c.pos.y === ny)
+    if (character) return character
+  }
+  return null
+}
+
+export const interactWithCharacter = (state: GameState): boolean => {
+  const character = getAdjacentCharacter(state)
+  if (!character) return false
+  state.activeDialog = { characterId: character.definitionId, lineIndex: 0 }
+  return true
+}
+
+export const advanceDialog = (state: GameState): boolean => {
+  if (!state.activeDialog) return false
+  const def = getCharacterDefinition(state.activeDialog.characterId)
+  if (state.activeDialog.lineIndex < def.dialog.length - 1) {
+    state.activeDialog.lineIndex++
+    return true
+  }
+  state.activeDialog = null
+  return false
 }
