@@ -323,7 +323,7 @@ export const InventoryPanel = ({
                 />
               </div>
 
-              <div className="flex flex-col gap-1">
+              <div className="mt-2 flex flex-col gap-1">
                 <span className="text-dim invisible group-hover:visible">[x] drop</span>
                 <span className="text-dim invisible group-hover:visible">[r]otate</span>
                 <button

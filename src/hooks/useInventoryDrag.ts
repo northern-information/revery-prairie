@@ -101,7 +101,14 @@ const checkCombine = (
   return { kind: 'recipe', uid: targetUid, recipe, isDiscovered }
 }
 
-export const useInventoryDrag = ({ containers, state, onDrop, onCombine, onStore, onStoreFail }: UseInventoryDragOptions) => {
+export const useInventoryDrag = ({
+  containers,
+  state,
+  onDrop,
+  onCombine,
+  onStore,
+  onStoreFail,
+}: UseInventoryDragOptions) => {
   const [dragState, setDragState] = useState<DragState | null>(null)
 
   const getContainer = useCallback((id: string) => containers.find(c => c.id === id)?.container ?? null, [containers])
@@ -158,9 +165,9 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine, onStore
           )
           if (result === 'no-recipe') {
             cannotCombine = true
-          } else if (result && result !== 'no-recipe' && result.kind === 'store') {
+          } else if (result?.kind === 'store') {
             storeTarget = { omniboxUid: result.omniboxUid }
-          } else if (result && result !== 'no-recipe' && result.kind === 'recipe') {
+          } else if (result?.kind === 'recipe') {
             combineTarget = { uid: result.uid, recipe: result.recipe, isDiscovered: result.isDiscovered }
           }
         }
@@ -266,7 +273,7 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine, onStore
       setDragState(null)
       onDrop()
     },
-    [dragState, getContainer, onDrop, onCombine, state]
+    [dragState, getContainer, onDrop, onCombine, onStore, onStoreFail, state]
   )
 
   const cancelDrag = useCallback(() => {

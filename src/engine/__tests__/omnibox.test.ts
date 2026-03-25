@@ -3,9 +3,9 @@ import {
   dropItem,
   grabOmnibox,
   groundOmniboxBlockedSet,
-  pickUpGroundItems,
   movePlayer,
   openOmnibox,
+  pickUpGroundItems,
   toggleFacingOmnibox,
   toggleOmnibox,
   updateFacingOmnibox,
@@ -13,10 +13,9 @@ import {
 import { OMNIBOX_HEIGHT, OMNIBOX_WIDTH } from '../constants'
 import { createOmniboxContainer, findFitPosition, placeItem } from '../inventory'
 import { findPath } from '../pathfinding'
-import { Rotation, TileType } from '../types'
-import { describe, expect, it } from 'vitest'
-
+import { Rotation } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 describe('createOmniboxContainer', () => {
   it('creates a 5x5 container registered in omniboxContainers', () => {

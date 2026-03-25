@@ -54,7 +54,7 @@ const ITEMS = {
   omnibox: {
     name: 'Omnibox',
     description: 'a portable container',
-    glyph: '\u25A1',
+    glyph: '\u229E',
     glyphColor: '#C0C0C0',
     weight: 4,
     category: ItemCategory.Gizmo,

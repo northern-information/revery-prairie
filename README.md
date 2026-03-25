@@ -18,11 +18,11 @@ npm run dev
 ## how to play
 
 1. enter your steward name
-2. move with WASD or arrow keys
-3. press `i` to open inventory
-4. press `c` to combine bee + clover — a 3x3 clover field grows at your position
-5. press `tab` to view stats
-6. press `esc` to close panels
+2. move with WASD or arrow keys, or click to pathfind
+3. press `i` or `r` to open inventory
+4. drag items onto each other in inventory to combine
+5. press `e` to interact (open omniboxes, talk to characters)
+6. press `esc` to close panels or open menu
 
 ## architecture
 
@@ -35,12 +35,14 @@ the canvas runs its own `requestAnimationFrame` loop reading game state by refer
 
 ## ascii
 
-| char | meaning | color |
-| ---- | ------- | ----- |
-| `@`  | player  | white |
-| `.`  | dirt    | tan   |
-| `%`  | clover  | green |
-| `*`  | bee     | gold  |
+| char | meaning | color    |
+| ---- | ------- | -------- |
+| `@`  | player  | white    |
+| `.`  | dirt    | tan      |
+| `%`  | clover  | green    |
+| `*`  | bee     | gold     |
+| `:`  | sand    | tan-gold |
+| ` `  | space   | black    |
 
 ## commands
 

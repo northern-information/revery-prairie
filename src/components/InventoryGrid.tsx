@@ -152,7 +152,7 @@ export const InventoryGrid = ({
 
   // Ghost shape cells — only in the container being hovered
   const ghostCells = new Set<string>()
-  if (dragState && dragState.targetContainerId === containerId) {
+  if (dragState?.targetContainerId === containerId) {
     const def = getDefinition(dragState.item.definitionId)
     const shape = getRotatedShape(def.shape, dragState.rotation)
     for (let sy = 0; sy < shape.length; sy++) {
@@ -200,9 +200,7 @@ export const InventoryGrid = ({
           style={{ width: INVENTORY_CELL_SIZE, height: INVENTORY_CELL_SIZE, ...bgStyle }}
         >
           {(isStoreTarget || isStoreGhost) && dragState ? (
-            <span style={{ color: '#000' }}>
-              {getDefinition(dragState.item.definitionId).glyph}
-            </span>
+            <span style={{ color: '#000' }}>{getDefinition(dragState.item.definitionId).glyph}</span>
           ) : (isCombineTarget || isCombineGhost) && dragState?.combineTarget ? (
             <span style={{ color: '#000' }}>
               {combineIcon(dragState.combineTarget.recipe, dragState.combineTarget.isDiscovered)}

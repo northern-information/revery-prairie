@@ -15,9 +15,9 @@ game state is a mutable singleton (`src/hooks/useGameEngine.ts`) held outside Re
 
 ## map
 
-100x25 tile grid. the land is a dirt island surrounded by water with a randomized coastline (smoothed noise, ±3 tiles variation). sand sits between water and dirt (2 tiles wide). viewport auto-fits to the browser window. camera centers on the player, clamped to map bounds.
+170x95 tile grid. the land is a dirt island surrounded by space (twinkling stars on black) with a randomized coastline (smoothed noise). sand sits between space and dirt (2 tiles wide). viewport auto-fits to the browser window. camera centers on the player, clamped to map bounds.
 
-player cannot walk on water. clover cannot grow on water or sand.
+player cannot walk on space. clover cannot grow on space or sand.
 
 displayed coordinates are offset by `SPACE_BORDER` so the land starts at (0, 0).
 
@@ -39,30 +39,43 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 ## key files
 
 - `src/engine/types.ts` — all game types. everything depends on this.
+- `src/engine/state.ts` — game state factory (`createGameState`), initializes all mutable state, terrain, backpack, weather.
 - `src/engine/renderer.ts` — canvas ASCII drawing. the file to replace for sprites.
 - `src/engine/actions.ts` — game mechanics (movement, combine, bee ticking, path-following).
 - `src/engine/pathfinding.ts` — A\* pathfinding (4-directional, manhattan heuristic, binary min-heap).
 - `src/engine/coordinates.ts` — screen pixel to world tile coordinate transform.
+- `src/engine/camera.ts` — camera positioning and viewport clamping.
 - `src/engine/weather.ts` — weather generation, tick drift, unit conversion.
 - `src/engine/terrain.ts` — map generation with randomized coastline.
+- `src/engine/characters.ts` — character definitions, dialog trees, interaction logic.
+- `src/engine/input.ts` — key-to-direction mapping for WASD and arrow keys.
 - `src/engine/position.ts` — shared position utilities: `posKey`, `isInBounds`, `removeByIndices`, direction deltas (`DIRECTIONS`, `CARDINAL`, `ORDINAL`).
 - `src/engine/constants.ts` — map size, tile chars/colors, font, border widths.
-- `src/components/GameCanvas.tsx` — canvas element, rAF loop, resize handling, HiDPI.
 - `src/engine/inventory.ts` — spatial grid operations (place, remove, move, rotate, transfer, auto-sort).
 - `src/engine/items.ts` — item definition registry, backpack/container factories.
 - `src/engine/recipes.ts` — recipe definitions, combine detection, preview functions.
+- `src/components/GameScreen.tsx` — main game container orchestrating canvas, sidebar, inventory, menu, dialogs, toasts.
+- `src/components/GameCanvas.tsx` — canvas element, rAF loop, resize handling, HiDPI.
 - `src/components/InventoryPanel.tsx` — inventory UI panel with grid, combine toast, drag-to-map.
 - `src/components/InventoryGrid.tsx` — single container grid renderer with drag-and-drop.
 - `src/components/ItemInfo.tsx` — imperative item info display (forwardRef).
 - `src/components/Sidebar.tsx` — always-visible right sidebar: item info, log, stats, tile, cursor, weather, units, controls.
+- `src/components/Menu.tsx` — in-game menu (resume, new game).
+- `src/components/DialogBox.tsx` — NPC dialog rendering.
+- `src/components/NamePrompt.tsx` — steward name entry screen.
+- `src/components/DragCursor.tsx` — visual cursor during inventory drag-and-drop.
+- `src/components/CombineToast.tsx` — combine result notification with live preview.
+- `src/components/PickupToasts.tsx` — item pickup notifications.
+- `src/hooks/useGameEngine.ts` — game state singleton, held outside React's render cycle.
 - `src/hooks/useKeyboard.ts` — all keybindings and panel toggling.
 - `src/hooks/useInventoryDrag.ts` — drag state, ghost, rotation, combine detection.
+- `src/hooks/useCanvasDrop.ts` — handles dropping dragged items from inventory onto the canvas map.
 - `src/hooks/useEventLog.ts` — event log + toast system (pickups, drops, combines).
 - `src/hooks/useMouse.ts` — click-to-move handler, called inside GameCanvas.
 
 ## mouse controls
 
-click-to-move via A\* pathfinding. click a walkable tile and the player walks there tile-by-tile (100ms per step via `tickPath()` in the rAF loop). path is stored as `state.path: Position[] | null`. keyboard input cancels the current path. path tiles render as `·` in `#666` for visual feedback.
+click-to-move via A\* pathfinding. click a walkable tile and the player walks there tile-by-tile (100ms per step via `tickPath()` in the rAF loop). path is stored as `state.path: Position[] | null`. keyboard input cancels the current path. path tiles render as `·` in `#ff69b4` (hot pink) for visual feedback.
 
 coordinate transform: `screenToTile()` converts `e.offsetX`/`e.offsetY` (CSS pixels) to world tile position using camera offset and char metrics. no DPR correction needed — `offsetX`/`offsetY` are already CSS-space.
 
@@ -115,7 +128,7 @@ the permacomputer is never consumed by recipes. it is a tool that persists. the 
 
 - **bees** — spawn when bee+clover are combined, or when a bee item is dropped. wander randomly — prefer adjacent clover tiles, otherwise walk any non-Space tile. rendered as `*` in gold. tracked in `state.bees[]`. walking over a bee captures it into backpack.
 - **ground items** — items dropped on the map. rendered with their glyph/color. walking over them auto-picks up if backpack has room.
-- **ground omniboxes** — omniboxes dropped on the map. tracked in `state.groundOmniboxes[]` (separate from groundItems). walking over one auto-OPENS it (does not auto-pickup). the player must explicitly drag it to their backpack from the inventory UI.
+- **ground omniboxes** — omniboxes dropped on the map. tracked in `state.groundOmniboxes[]` (separate from groundItems). player must press `[e]` facing one to open it. walking away (>1 tile) auto-closes it. the player must explicitly drag it to their backpack from the inventory UI.
 
 ## omniboxes
 
@@ -124,7 +137,7 @@ portable 5x5 containers (2x2 inventory footprint). created by combining meteorit
 - **container registry**: `state.omniboxContainers: Map<string, Container>` keyed by `ItemInstance.uid`. each omnibox item links to its container data through this map.
 - **numbering**: `state.nextOmniboxNumber` increments on creation. container names are `omnibox #1`, `omnibox #2`, etc.
 - **single open**: `state.openContainer: Container | null`. only one omnibox can be open at a time. opening a new one closes the previous.
-- **explicit open/close only**: no auto-open on adjacency or drop. player must press `[e]` to toggle. omniboxes stay open until explicitly closed (no distance-based closing).
+- **explicit open/close only**: no auto-open on adjacency or drop. player must press `[e]` to toggle. ground omniboxes auto-close when player walks >1 tile away.
 - **facing highlight**: `state.playerFacing: Direction` tracks last move direction. `state.facingOmniboxPos: Position | null` is the ground omnibox tile the player faces. rendered with pink cursor inversion.
 - **ground behavior**: dropped omniboxes go to `state.groundOmniboxes[]` (not `groundItems`). ground omniboxes are solid — they block `movePlayer()` and `findPath()`. press `[e]` facing a ground omnibox to toggle it open/closed.
 - **drag-to-store**: dragging an item onto an omnibox item in any container stores the item inside and opens the omnibox. shows the dragged item's glyph as pink preview. shows "not enough capacity" toast if it doesn't fit.
