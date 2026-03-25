@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 
-import { pickUpGroundItems, tickBees, tickPath } from '@/engine/actions'
+import { pickUpGroundItems, spawnShootingStar, tickBees, tickPath, tickShootingStars } from '@/engine/actions'
 import { updateCamera } from '@/engine/camera'
+import { SHOOTING_STAR_SPAWN_TICK_MS, SHOOTING_STAR_TICK_MS } from '@/engine/constants'
 import { getDefinition } from '@/engine/items'
 import { measureChar, render } from '@/engine/renderer'
 import { tickWeather } from '@/engine/weather'
@@ -75,6 +76,8 @@ export const GameCanvas = ({ state, refreshUI, activePanel, onPickup, metricsRef
     let lastBeeTick = 0
     let lastPathTick = 0
     let lastWeatherTick = 0
+    let lastShootingStarTick = 0
+    let lastShootingStarSpawnTick = 0
 
     const loop = (time: number) => {
       if (time - lastBeeTick >= BEE_TICK_MS) {
@@ -83,14 +86,22 @@ export const GameCanvas = ({ state, refreshUI, activePanel, onPickup, metricsRef
       }
       if (time - lastPathTick >= PATH_TICK_MS) {
         if (tickPath(state)) {
-          const pickedUp = pickUpGroundItems(state)
-          for (const defId of pickedUp) {
+          const result = pickUpGroundItems(state)
+          for (const defId of result.pickedUp) {
             const def = getDefinition(defId)
-            onPickupRef.current(def.name, def.icon, def.iconColor, state.player.x, state.player.y)
+            onPickupRef.current(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
           }
           refreshUIRef.current()
         }
         lastPathTick = time
+      }
+      if (time - lastShootingStarSpawnTick >= SHOOTING_STAR_SPAWN_TICK_MS) {
+        spawnShootingStar(state)
+        lastShootingStarSpawnTick = time
+      }
+      if (time - lastShootingStarTick >= SHOOTING_STAR_TICK_MS) {
+        tickShootingStars(state, time)
+        lastShootingStarTick = time
       }
       if (time - lastWeatherTick >= WEATHER_TICK_MS) {
         tickWeather(state.weather)

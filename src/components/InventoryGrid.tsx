@@ -119,23 +119,23 @@ export const InventoryGrid = ({
   }, [itemInfoRef])
 
   // Build a map of uid -> { definition, instance } for rendering icons
-  const itemMap = new Map<string, { icon: string; iconColor: string; topLeftX: number; topLeftY: number }>()
+  const itemMap = new Map<string, { glyph: string; glyphColor: string; topLeftX: number; topLeftY: number }>()
   for (const item of container.items) {
     if (dragState?.sourceContainerId === containerId && dragState.item.uid === item.uid) {
       continue // skip the dragged item
     }
     const def = getDefinition(item.definitionId)
     itemMap.set(item.uid, {
-      icon: def.icon,
-      iconColor: def.iconColor,
+      glyph: def.glyph,
+      glyphColor: def.glyphColor,
       topLeftX: item.gridX,
       topLeftY: item.gridY,
     })
   }
 
-  // Ghost shape cells
+  // Ghost shape cells — only in the container being hovered
   const ghostCells = new Set<string>()
-  if (dragState) {
+  if (dragState && dragState.targetContainerId === containerId) {
     const def = getDefinition(dragState.item.definitionId)
     const shape = getRotatedShape(def.shape, dragState.rotation)
     for (let sy = 0; sy < shape.length; sy++) {
@@ -171,7 +171,7 @@ export const InventoryGrid = ({
         bgClass = dragState?.isValid ? 'bg-grid-valid' : 'bg-grid-invalid'
       } else if (isOccupied && itemInfo) {
         bgClass = ''
-        bgStyle = { backgroundColor: itemInfo.iconColor }
+        bgStyle = { backgroundColor: itemInfo.glyphColor }
       }
 
       cells.push(
@@ -185,15 +185,15 @@ export const InventoryGrid = ({
               {combineIcon(dragState.combineTarget.recipe, dragState.combineTarget.isDiscovered)}
             </span>
           ) : isTopLeft && itemInfo ? (
-            <span style={{ color: '#000' }}>{itemInfo.icon}</span>
+            <span style={{ color: '#000' }}>{itemInfo.glyph}</span>
           ) : isGhost && dragState ? (
             <span
               style={{
-                color: getDefinition(dragState.item.definitionId).iconColor,
+                color: getDefinition(dragState.item.definitionId).glyphColor,
                 opacity: 0.6,
               }}
             >
-              {x === dragState.ghostX && y === dragState.ghostY ? getDefinition(dragState.item.definitionId).icon : ''}
+              {x === dragState.ghostX && y === dragState.ghostY ? getDefinition(dragState.item.definitionId).glyph : ''}
             </span>
           ) : null}
         </div>

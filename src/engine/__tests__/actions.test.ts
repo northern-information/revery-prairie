@@ -489,10 +489,10 @@ describe('pickUpGroundItems', () => {
     clearAroundPlayer(state)
     state.bees.push({ pos: { x: state.player.x, y: state.player.y } })
     const beeItemsBefore = state.backpack.items.filter(i => i.definitionId === 'bee').length
-    const pickedUp = pickUpGroundItems(state)
+    const result = pickUpGroundItems(state)
     expect(state.bees).toHaveLength(0)
     expect(state.backpack.items.filter(i => i.definitionId === 'bee')).toHaveLength(beeItemsBefore + 1)
-    expect(pickedUp).toContain('bee')
+    expect(result.pickedUp).toContain('bee')
   })
 
   it('does not capture bee if backpack is full', () => {

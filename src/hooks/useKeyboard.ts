@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { dropItem, movePlayer, pickUpGroundItems } from '@/engine/actions'
+import { dropItem, grabOmnibox, movePlayer, pickUpGroundItems } from '@/engine/actions'
 import { keyToDirection } from '@/engine/input'
 import { findItemByDefinition, moveItem } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
@@ -23,10 +23,10 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, onPickup, onDrop, i
   const [activePanel, setActivePanel] = useState<Panel>('inventory')
 
   const handlePickups = useCallback(
-    (pickedUp: string[]) => {
-      for (const defId of pickedUp) {
+    (result: { pickedUp: string[]; opened: string[] }) => {
+      for (const defId of result.pickedUp) {
         const def = getDefinition(defId)
-        onPickup(def.name, def.icon, def.iconColor, state.player.x, state.player.y)
+        onPickup(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
       }
     },
     [onPickup, state]
@@ -62,8 +62,8 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, onPickup, onDrop, i
           state.path = null
           state.pendingAction = null
           if (movePlayer(state, dir)) {
-            const pickedUp = pickUpGroundItems(state)
-            handlePickups(pickedUp)
+            const result = pickUpGroundItems(state)
+            handlePickups(result)
             refreshUI()
           }
         }
@@ -102,6 +102,19 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, onPickup, onDrop, i
         }
       }
 
+      // Grab adjacent ground omnibox
+      if (e.key === 'g' || e.key === 'G') {
+        if (activePanel !== 'menu') {
+          const uid = grabOmnibox(state)
+          if (uid) {
+            const def = getDefinition('omnibox')
+            onPickup(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
+            refreshUI()
+          }
+          return
+        }
+      }
+
       // Movement (allowed with inventory open, blocked in menu)
       if (activePanel !== 'menu') {
         const dir = keyToDirection(e.key)
@@ -111,14 +124,14 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, onPickup, onDrop, i
           state.pendingAction = null
           state.previewFn = null
           if (movePlayer(state, dir)) {
-            const pickedUp = pickUpGroundItems(state)
-            handlePickups(pickedUp)
+            const result = pickUpGroundItems(state)
+            handlePickups(result)
             refreshUI()
           }
         }
       }
     },
-    [state, refreshUI, activePanel, itemInfoRef, handlePickups, onDrop, isDraggingRef]
+    [state, refreshUI, activePanel, itemInfoRef, handlePickups, onPickup, onDrop, isDraggingRef]
   )
 
   useEffect(() => {

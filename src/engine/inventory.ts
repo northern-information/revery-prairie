@@ -1,10 +1,10 @@
+import { OMNIBOX_HEIGHT, OMNIBOX_WIDTH } from './constants'
 import { getDefinition } from './items'
 import { Rotation } from './types'
 
-import type { Container, GameState, ItemDefinition, ItemInstance } from './types'
+import type { Container, GameState, ItemInstance } from './types'
 
-export const getActiveContainers = (state: GameState): Container[] =>
-  [state.backpack, state.openContainer].filter((c): c is NonNullable<typeof c> => c !== null)
+export const getActiveContainers = (state: GameState): Container[] => [state.backpack, ...state.openContainers]
 
 export const rotateShapeCW = (shape: boolean[][]): boolean[][] => {
   const rows = shape.length
@@ -222,11 +222,18 @@ export const transferItem = (
 export const containerHasItem = (container: Container, definitionId: string): boolean =>
   container.items.some(i => i.definitionId === definitionId)
 
+export const createOmniboxContainer = (state: GameState, uid: string): Container => {
+  const num = state.nextOmniboxNumber++
+  const container: Container = {
+    id: uid,
+    name: `omnibox #${String(num)}`,
+    width: OMNIBOX_WIDTH,
+    height: OMNIBOX_HEIGHT,
+    items: [],
+  }
+  state.omniboxContainers.set(uid, container)
+  return container
+}
+
 export const findItemByDefinition = (container: Container, definitionId: string): ItemInstance | undefined =>
   container.items.find(i => i.definitionId === definitionId)
-
-export const getItemDefinitions = (container: Container): { instance: ItemInstance; definition: ItemDefinition }[] =>
-  container.items.map(instance => ({
-    instance,
-    definition: getDefinition(instance.definitionId),
-  }))

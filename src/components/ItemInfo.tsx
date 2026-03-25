@@ -39,13 +39,19 @@ export const ItemInfo = forwardRef<ItemInfoHandle>((_props, ref) => {
       {item ? (
         <>
           <div className="mb-1 flex items-baseline justify-between">
-            <span style={{ color: item.iconColor }}>
-              {item.icon} {item.name.toLowerCase()}
+            <span style={{ color: item.glyphColor }}>
+              {item.glyph} {item.name.toLowerCase()}
             </span>
-            <span className="text-dim">{item.weight}w</span>
           </div>
-          <div className="text-dim">{item.description}</div>
-          <div className="text-dim mt-1">{item.category}</div>
+          <div className="mb-1 flex items-baseline justify-between">
+            <span className="text-muted">weight</span>
+            <span>{item.weight}</span>
+          </div>
+          <div className="mb-1 flex items-baseline justify-between text-end">
+            <span className="text-muted">category</span>
+            <span className="">{item.category}</span>
+          </div>
+          <div className="mb-1 flex items-baseline justify-between">{item.description}</div>
         </>
       ) : null}
     </div>

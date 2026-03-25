@@ -3,6 +3,8 @@ import { InventoryPanel } from '../InventoryPanel'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { openOmnibox } from '@/engine/actions'
+import { createOmniboxContainer } from '@/engine/inventory'
 import { createGameState } from '@/engine/state'
 import type { ItemInfoHandle } from '../ItemInfo'
 
@@ -103,7 +105,7 @@ describe('InventoryPanel', () => {
 
     expect(screen.getAllByText('*')).toHaveLength(3)
     expect(screen.getAllByText('%')).toHaveLength(3)
-    expect(screen.getByText('☷')).toBeInTheDocument()
+    expect(screen.getByText('⚙')).toBeInTheDocument()
   })
 
   it('does not render open container when null', () => {
@@ -145,5 +147,58 @@ describe('InventoryPanel', () => {
     const closeButton = screen.getByText('x')
     await userEvent.click(closeButton)
     expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('renders open omnibox container with its grid', () => {
+    const state = createGameState('Test', 80, 40)
+    createOmniboxContainer(state, 'uid-1')
+    openOmnibox(state, 'uid-1')
+
+    render(
+      <InventoryPanel
+        state={state}
+        refreshUI={vi.fn()}
+        itemInfoRef={defaultInfoRef}
+        onCombineLog={vi.fn()}
+        onDropLog={vi.fn()}
+        metricsRef={createRef()}
+        isDraggingRef={{ current: false }}
+        onClose={vi.fn()}
+      />
+    )
+
+    // Should have backpack grid + omnibox grid
+    const grids = document.querySelectorAll('.inline-grid')
+    expect(grids).toHaveLength(2)
+    // omnibox #1 header
+    expect(screen.getByText('omnibox #1')).toBeInTheDocument()
+    // 5x5 = 25 cells for omnibox
+    expect(grids[1].children).toHaveLength(25)
+  })
+
+  it('renders multiple open omnibox containers', () => {
+    const state = createGameState('Test', 80, 40)
+    createOmniboxContainer(state, 'uid-1')
+    createOmniboxContainer(state, 'uid-2')
+    openOmnibox(state, 'uid-1')
+    openOmnibox(state, 'uid-2')
+
+    render(
+      <InventoryPanel
+        state={state}
+        refreshUI={vi.fn()}
+        itemInfoRef={defaultInfoRef}
+        onCombineLog={vi.fn()}
+        onDropLog={vi.fn()}
+        metricsRef={createRef()}
+        isDraggingRef={{ current: false }}
+        onClose={vi.fn()}
+      />
+    )
+
+    const grids = document.querySelectorAll('.inline-grid')
+    expect(grids).toHaveLength(3)
+    expect(screen.getByText('omnibox #1')).toBeInTheDocument()
+    expect(screen.getByText('omnibox #2')).toBeInTheDocument()
   })
 })

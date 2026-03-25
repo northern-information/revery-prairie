@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { NEIGHBOR_DELTAS } from '@/engine/actions'
+import { groundOmniboxBlockedSet, NEIGHBOR_DELTAS } from '@/engine/actions'
 import { removeItem } from '@/engine/inventory'
 import { findPath } from '@/engine/pathfinding'
 import { TileType } from '@/engine/types'
@@ -81,9 +81,16 @@ export const useCanvasDrop = ({
         const item = container.items.find(i => i.uid === itemUid)
         if (!item) return
         if (state.groundItems.some(g => g.pos.x === mx && g.pos.y === my)) return
+        if (state.groundOmniboxes.some(g => g.pos.x === mx && g.pos.y === my)) return
         removeItem(container, itemUid)
         if (defId === 'bee') {
           state.bees.push({ pos: { x: mx, y: my } })
+        } else if (defId === 'omnibox') {
+          state.groundOmniboxes.push({ uid: itemUid, pos: { x: mx, y: my } })
+          const omniboxContainer = state.omniboxContainers.get(itemUid)
+          if (omniboxContainer && !state.openContainers.includes(omniboxContainer)) {
+            state.openContainers.push(omniboxContainer)
+          }
         } else {
           state.groundItems.push({ definitionId: defId, pos: { x: mx, y: my } })
         }
@@ -103,13 +110,14 @@ export const useCanvasDrop = ({
       }
 
       // Find an adjacent walkable tile to pathfind to
+      const blocked = groundOmniboxBlockedSet(state)
       let bestPath: ReturnType<typeof findPath> = null
       for (const d of NEIGHBOR_DELTAS) {
         const ax = mx + d.x
         const ay = my + d.y
         if (ax < 0 || ax >= state.mapWidth || ay < 0 || ay >= state.mapHeight) continue
         if (state.map[ay]?.[ax]?.type === TileType.Space) continue
-        const p = findPath(state.map, state.mapWidth, state.mapHeight, state.player, { x: ax, y: ay })
+        const p = findPath(state.map, state.mapWidth, state.mapHeight, state.player, { x: ax, y: ay }, blocked)
         if (p && (!bestPath || p.length < bestPath.length)) {
           bestPath = p
         }

@@ -28,13 +28,13 @@ export const DragCursor = ({ dragState, cursorPos, cursorTarget, canvasRect, met
           top: snapY,
           width: metrics.charWidth,
           height: metrics.charHeight,
-          color: def.iconColor,
+          color: def.glyphColor,
           fontSize: 16,
           lineHeight: `${String(metrics.charHeight)}px`,
           textShadow: '0 0 4px #000, 0 0 4px #000',
         }}
       >
-        {def.icon}
+        {def.glyph}
       </div>
     )
   }
@@ -45,11 +45,11 @@ export const DragCursor = ({ dragState, cursorPos, cursorTarget, canvasRect, met
       style={{
         left: cursorPos.x + 16,
         top: cursorPos.y - 8,
-        color: def.iconColor,
+        color: def.glyphColor,
         textShadow: '0 0 4px #000, 0 0 4px #000',
       }}
     >
-      {def.icon}
+      {def.glyph}
     </div>
   )
 }

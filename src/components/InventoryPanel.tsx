@@ -3,6 +3,7 @@ import { CombineToast } from './CombineToast'
 import { DragCursor } from './DragCursor'
 import { InventoryGrid } from './InventoryGrid'
 
+import { closeOmnibox } from '@/engine/actions'
 import { autoSort } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
 import { RecipeKind } from '@/engine/recipes'
@@ -52,11 +53,11 @@ export const InventoryPanel = ({
 
   const containers = useMemo(() => {
     const list = [{ id: state.backpack.id, container: state.backpack }]
-    if (state.openContainer) {
-      list.push({ id: state.openContainer.id, container: state.openContainer })
+    for (const oc of state.openContainers) {
+      list.push({ id: oc.id, container: oc })
     }
     return list
-  }, [state.backpack, state.openContainer])
+  }, [state.backpack, state.openContainers.length])
 
   const onDrop = useCallback(() => {
     refreshUI()
@@ -210,14 +211,24 @@ export const InventoryPanel = ({
         </div>
       </div>
 
-      {state.openContainer && (
-        <div>
-          <div className="border-border-dim text-muted mb-3 border-b pb-2">
-            {state.openContainer.name.toLowerCase()}
+      {state.openContainers.map(oc => (
+        <div key={oc.id}>
+          <div className="border-border-dim text-muted mb-3 flex items-baseline justify-between border-b pb-2">
+            <span>{oc.name.toLowerCase()}</span>
+            <button
+              type="button"
+              className="text-dim hover:text-text pointer-events-auto"
+              onClick={() => {
+                closeOmnibox(state, oc.id)
+                refreshUI()
+              }}
+            >
+              x
+            </button>
           </div>
           <InventoryGrid
-            container={state.openContainer}
-            containerId={state.openContainer.id}
+            container={oc}
+            containerId={oc.id}
             dragState={dragState}
             onStartDrag={handleStartDrag}
             onUpdateGhost={updateGhost}
@@ -225,7 +236,7 @@ export const InventoryPanel = ({
             itemInfoRef={itemInfoRef}
           />
         </div>
-      )}
+      ))}
 
       <div className="text-dim flex flex-col gap-1">
         <span>[x] drop</span>

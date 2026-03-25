@@ -10,6 +10,7 @@ import type { Container, GameState, ItemInstance } from '@/engine/types'
 export interface DragState {
   item: ItemInstance
   sourceContainerId: string
+  targetContainerId: string
   rotation: Rotation
   ghostX: number
   ghostY: number
@@ -88,6 +89,7 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine }: UseIn
     setDragState({
       item,
       sourceContainerId: containerId,
+      targetContainerId: containerId,
       rotation: item.rotation,
       ghostX: item.gridX,
       ghostY: item.gridY,
@@ -133,7 +135,7 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine }: UseIn
           }
         }
 
-        return { ...prev, ghostX: gridX, ghostY: gridY, isValid: valid, combineTarget, cannotCombine }
+        return { ...prev, targetContainerId, ghostX: gridX, ghostY: gridY, isValid: valid, combineTarget, cannotCombine }
       })
     },
     [getContainer, state.discoveredRecipes]
@@ -152,11 +154,17 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine }: UseIn
           const success = recipe.execute(state)
           if (success) {
             state.discoveredRecipes.add(key)
-            const sourceContainer = getContainer(dragState.sourceContainerId)
-            if (sourceContainer) {
-              removeItem(sourceContainer, dragState.item.uid)
+            // Remove items unless preserved by recipe
+            if (dragState.item.definitionId !== recipe.preserveIngredient) {
+              const sourceContainer = getContainer(dragState.sourceContainerId)
+              if (sourceContainer) {
+                removeItem(sourceContainer, dragState.item.uid)
+              }
             }
-            removeItem(container, dragState.combineTarget.uid)
+            const targetItem = container.items.find(i => i.uid === dragState.combineTarget?.uid)
+            if (targetItem?.definitionId !== recipe.preserveIngredient) {
+              removeItem(container, dragState.combineTarget.uid)
+            }
             onCombine(recipe)
             setDragState(null)
             onDrop()

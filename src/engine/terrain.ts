@@ -1,4 +1,4 @@
-import { SAND_BORDER, WATER_BORDER } from './constants'
+import { SAND_BORDER, SPACE_BORDER } from './constants'
 import { TileType } from './types'
 
 import type { Tile } from './types'
@@ -27,7 +27,7 @@ const scatterSandbars = (map: Tile[][], width: number, height: number) => {
     let cx: number
     let cy: number
 
-    const margin = WATER_BORDER - 2
+    const margin = SPACE_BORDER - 2
     if (margin < 2) continue
 
     switch (edge) {
@@ -88,8 +88,8 @@ export const generateTerrain = (width: number, height: number): Tile[][] => {
   const leftInnerVariation = smoothNoise(height, 3, 8)
   const rightInnerVariation = smoothNoise(height, 3, 8)
 
-  const outerBorder = WATER_BORDER
-  const innerBorder = WATER_BORDER + SAND_BORDER
+  const outerBorder = SPACE_BORDER
+  const innerBorder = SPACE_BORDER + SAND_BORDER
 
   const map = Array.from({ length: height }, (_, y) =>
     Array.from({ length: width }, (_, x) => {

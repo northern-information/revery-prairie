@@ -1,3 +1,4 @@
+import { createOmniboxContainer, findFitPosition, placeItem } from './inventory'
 import { TileType } from './types'
 
 import type { GameState, Position } from './types'
@@ -21,6 +22,7 @@ export interface Recipe {
   resultName: string
   resultIcon?: string
   description: string
+  preserveIngredient?: string // definitionId of the ingredient to keep after combining
   preview?: (state: GameState) => PreviewTile[]
   execute: (state: GameState) => boolean
 }
@@ -74,6 +76,33 @@ export const RECIPES: Recipe[] = [
       }
 
       state.bees.push({ pos: { x: state.player.x, y: state.player.y } })
+      return true
+    },
+  },
+  {
+    ingredients: ['meteorite', 'permacomputer'],
+    kind: RecipeKind.Craft,
+    resultName: 'omnibox',
+    resultIcon: '\u25A1',
+    preserveIngredient: 'permacomputer',
+    description: 'the permacomputer consumes the meteorite, folding space into a portable container.',
+    execute: state => {
+      const uid = crypto.randomUUID()
+      createOmniboxContainer(state, uid)
+      const fit = findFitPosition(state.backpack, 'omnibox')
+      if (!fit) return false
+      placeItem(state.backpack, 'omnibox', fit.rotation, fit.gridX, fit.gridY)
+      // Link the newly placed item to the omnibox container by updating its uid
+      const placed = state.backpack.items[state.backpack.items.length - 1]
+      if (placed) {
+        // Replace the auto-generated uid with our pre-generated one
+        const container = state.omniboxContainers.get(uid)
+        if (container) {
+          state.omniboxContainers.delete(uid)
+          state.omniboxContainers.set(placed.uid, container)
+          container.id = placed.uid
+        }
+      }
       return true
     },
   },
