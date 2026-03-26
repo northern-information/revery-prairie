@@ -58,6 +58,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     shootingStars: [],
     meteorites: [],
     explosions: [],
+    meteoritePickupEffects: [],
     groundItems: [],
     groundOmniboxes: [],
     characters: [],

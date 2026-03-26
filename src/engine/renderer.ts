@@ -10,6 +10,12 @@ import {
   FONT,
   METEORITE_CHAR,
   METEORITE_COLOR,
+  PICKUP_EFFECT_BLOOM_MS,
+  PICKUP_EFFECT_CHARS_FILL,
+  PICKUP_EFFECT_CHARS_RING,
+  PICKUP_EFFECT_COLORS,
+  PICKUP_EFFECT_DURATION_MS,
+  PICKUP_EFFECT_RADIUS,
   PLAYER_CHAR,
   PLAYER_COLOR,
   SHOOTING_STAR_HEAD_CHAR,
@@ -170,6 +176,75 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
+  // Build a map of meteorite pickup effect pixels (starlight bloom)
+  const pickupEffectMap = new Map<string, { char: string; color: string }>()
+  for (const effect of state.meteoritePickupEffects) {
+    const elapsed = time - effect.startTime
+
+    if (elapsed <= PICKUP_EFFECT_BLOOM_MS) {
+      // Phase 1: expanding circular ring
+      const bloomProgress = elapsed / PICKUP_EFFECT_BLOOM_MS
+      const currentRadius = bloomProgress * PICKUP_EFFECT_RADIUS
+      const charIndex = Math.min(
+        Math.floor(bloomProgress * PICKUP_EFFECT_CHARS_RING.length),
+        PICKUP_EFFECT_CHARS_RING.length - 1
+      )
+      const colorIndex = Math.min(
+        Math.floor(bloomProgress * PICKUP_EFFECT_COLORS.length),
+        PICKUP_EFFECT_COLORS.length - 1
+      )
+      const char = PICKUP_EFFECT_CHARS_RING[charIndex]
+      const color = PICKUP_EFFECT_COLORS[colorIndex]
+      const r = Math.ceil(currentRadius)
+
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          if (Math.round(dist) !== Math.round(currentRadius)) continue
+          const ex = effect.pos.x + dx
+          const ey = effect.pos.y + dy
+          if (isInBounds(ex, ey, state.mapWidth, state.mapHeight)) {
+            pickupEffectMap.set(posKey(ex, ey), { char, color })
+          }
+        }
+      }
+    } else {
+      // Phase 2: shimmer fill + fading ring
+      const fadeElapsed = elapsed - PICKUP_EFFECT_BLOOM_MS
+      const fadeDuration = PICKUP_EFFECT_DURATION_MS - PICKUP_EFFECT_BLOOM_MS
+      const fadeProgress = fadeElapsed / fadeDuration
+      const colorIndex = Math.min(
+        Math.floor((0.5 + fadeProgress * 0.5) * PICKUP_EFFECT_COLORS.length),
+        PICKUP_EFFECT_COLORS.length - 1
+      )
+      const color = PICKUP_EFFECT_COLORS[colorIndex]
+
+      for (let dy = -PICKUP_EFFECT_RADIUS; dy <= PICKUP_EFFECT_RADIUS; dy++) {
+        for (let dx = -PICKUP_EFFECT_RADIUS; dx <= PICKUP_EFFECT_RADIUS; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          if (dist > PICKUP_EFFECT_RADIUS + 0.5) continue
+          const ex = effect.pos.x + dx
+          const ey = effect.pos.y + dy
+          if (!isInBounds(ex, ey, state.mapWidth, state.mapHeight)) continue
+
+          if (Math.round(dist) === PICKUP_EFFECT_RADIUS) {
+            // Outer ring fades with ·
+            pickupEffectMap.set(posKey(ex, ey), { char: '\u00b7', color })
+          } else {
+            // Interior shimmer: alternate chars based on position hash + time
+            const h = starHash(ex, ey)
+            const shimmerIndex =
+              (h + Math.floor(time * 0.01)) % PICKUP_EFFECT_CHARS_FILL.length
+            pickupEffectMap.set(posKey(ex, ey), {
+              char: PICKUP_EFFECT_CHARS_FILL[shimmerIndex],
+              color,
+            })
+          }
+        }
+      }
+    }
+  }
+
   for (let vy = 0; vy < viewportHeight; vy++) {
     for (let vx = 0; vx < viewportWidth; vx++) {
       const mx = camera.x + vx
@@ -236,6 +311,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const ep = explosionMap.get(tileKey)
         char = ep?.char ?? '*'
         color = ep?.color ?? '#FFD700'
+      } else if (pickupEffectMap.has(tileKey)) {
+        const pe = pickupEffectMap.get(tileKey)
+        char = pe?.char ?? '*'
+        color = pe?.color ?? '#C8C8FF'
       } else if (meteoritePositions.has(tileKey)) {
         char = METEORITE_CHAR
         color = METEORITE_COLOR

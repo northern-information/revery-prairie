@@ -4,6 +4,7 @@ import {
   EXPLOSION_DURATION_MS,
   MAP_HEIGHT,
   MAP_WIDTH,
+  PICKUP_EFFECT_DURATION_MS,
   SHOOTING_STAR_LAND_CHANCE,
   SHOOTING_STAR_MAX_ACTIVE,
   SHOOTING_STAR_MAX_AGE,
@@ -52,7 +53,7 @@ const captureEntitiesAtPlayer = (
   return { removed, captured }
 }
 
-export const pickUpGroundItems = (state: GameState): PickUpResult => {
+export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult => {
   const px = state.player.x
   const py = state.player.y
   const pickedUp: string[] = []
@@ -78,6 +79,10 @@ export const pickUpGroundItems = (state: GameState): PickUpResult => {
   const meteoriteResult = captureEntitiesAtPlayer(state.meteorites, px, py, state.backpack, 'meteorite')
   removeByIndices(state.meteorites, meteoriteResult.removed)
   pickedUp.push(...meteoriteResult.captured)
+
+  if (meteoriteResult.removed.length > 0 && time !== undefined) {
+    state.meteoritePickupEffects.push({ pos: { x: px, y: py }, startTime: time })
+  }
 
   // Auto-close open ground omnibox when player walks away
   if (state.openContainer) {
@@ -408,6 +413,11 @@ export const tickShootingStars = (state: GameState, time: number): void => {
 
   // Clean up expired explosions
   state.explosions = state.explosions.filter(e => time - e.startTime <= EXPLOSION_DURATION_MS)
+
+  // Clean up expired meteorite pickup effects
+  state.meteoritePickupEffects = state.meteoritePickupEffects.filter(
+    e => time - e.startTime <= PICKUP_EFFECT_DURATION_MS
+  )
 }
 
 export const groundOmniboxBlockedSet = (state: GameState): Set<string> => {

@@ -96,7 +96,7 @@ export const GameCanvas = ({
       }
       if (time - lastPathTick >= PATH_TICK_MS) {
         if (tickPath(state)) {
-          const result = pickUpGroundItems(state)
+          const result = pickUpGroundItems(state, time)
           for (const defId of result.pickedUp) {
             const def = getDefinition(defId)
             onPickupRef.current(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)

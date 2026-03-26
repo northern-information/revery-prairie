@@ -57,6 +57,14 @@ export const EXPLOSION_RADIUS = 3 // max radius in tiles
 export const EXPLOSION_CHARS = ['*', '+', '.', '\u00b7'] // particles shrink as they fade
 export const EXPLOSION_COLORS = ['#FFD700', '#FFC125', '#DAA520', '#B8860B', '#8B6914'] // gold → dark gold fade
 
+// meteorite pickup effect (starlight bloom)
+export const PICKUP_EFFECT_DURATION_MS = 700 // total effect lifetime
+export const PICKUP_EFFECT_BLOOM_MS = 400 // phase 1 (expanding ring) duration
+export const PICKUP_EFFECT_RADIUS = 3 // max diamond radius in tiles
+export const PICKUP_EFFECT_CHARS_RING = ['\u2726', '+', '.', '\u00b7'] // ✦ → + → . → · (ring shrinks)
+export const PICKUP_EFFECT_CHARS_FILL = ['.', '+'] // shimmer interior chars
+export const PICKUP_EFFECT_COLORS = ['#FFFFFF', '#E0E0FF', '#C8C8FF', '#B0B0EE', '#9999DD'] // white → soft lavender fade
+
 // omnibox
 export const OMNIBOX_WIDTH = 5
 export const OMNIBOX_HEIGHT = 5
