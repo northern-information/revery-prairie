@@ -41,13 +41,13 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/types.ts` — all game types. everything depends on this.
 - `src/engine/state.ts` — game state factory (`createGameState`), initializes all mutable state, terrain, backpack, weather.
 - `src/engine/renderer.ts` — canvas ASCII drawing. the file to replace for sprites.
-- `src/engine/actions.ts` — game mechanics (movement, combine, bee ticking, path-following).
+- `src/engine/actions.ts` — game mechanics (movement, combine, bee/ghost ticking, path-following, facing entity detection).
 - `src/engine/pathfinding.ts` — A\* pathfinding (4-directional, manhattan heuristic, binary min-heap).
 - `src/engine/coordinates.ts` — screen pixel to world tile coordinate transform.
 - `src/engine/camera.ts` — camera positioning and viewport clamping.
 - `src/engine/weather.ts` — weather generation, tick drift, unit conversion.
 - `src/engine/terrain.ts` — map generation with randomized coastline.
-- `src/engine/characters.ts` — character definitions, dialog trees, interaction logic.
+- `src/engine/characters.ts` — character definitions (including ghost factory), dialog trees, interaction logic.
 - `src/engine/input.ts` — key-to-direction mapping for WASD and arrow keys.
 - `src/engine/position.ts` — shared position utilities: `posKey`, `isInBounds`, `removeByIndices`, direction deltas (`DIRECTIONS`, `CARDINAL`, `ORDINAL`).
 - `src/engine/constants.ts` — map size, tile chars/colors, font, border widths.
@@ -129,6 +129,7 @@ the permacomputer is never consumed by recipes. it is a tool that persists. the 
 ## entities
 
 - **bees** — spawn when bee+clover are combined, or when a bee item is dropped. wander randomly — prefer adjacent clover tiles, otherwise walk any non-Space tile. rendered as `*` in gold. tracked in `state.bees[]`. walking over a bee captures it into backpack.
+- **ghosts** — 3 spawn at random walkable positions on game start. drift slowly (15% move chance per 500ms tick) using the shared `getBlockedPositions` set. rendered as `ö` in white. tracked in `state.ghosts[]` with corresponding entries in `state.characters[]`. block player movement and pathfinding. cannot be captured. freeze in place during dialog. each has a 3-line dialog tree.
 - **ground items** — items dropped on the map. rendered with their glyph/color. walking over them auto-picks up if backpack has room.
 - **ground omniboxes** — omniboxes dropped on the map. tracked in `state.groundOmniboxes[]` (separate from groundItems). player must press `[e]` facing one to open it. walking away (>1 tile) auto-closes it. the player must explicitly drag it to their backpack from the inventory UI.
 
@@ -140,12 +141,16 @@ portable 5x5 containers (2x2 inventory footprint). created by combining meteorit
 - **numbering**: `state.nextOmniboxNumber` increments on creation. container names are `omnibox #1`, `omnibox #2`, etc.
 - **single open**: `state.openContainer: Container | null`. only one omnibox can be open at a time. opening a new one closes the previous.
 - **explicit open/close only**: no auto-open on adjacency or drop. player must press `[e]` to toggle. ground omniboxes auto-close when player walks >1 tile away.
-- **facing highlight**: `state.playerFacing: Direction` tracks last move direction. `state.facingOmniboxPos: Position | null` is the ground omnibox tile the player faces. rendered with pink cursor inversion.
+- **facing highlight**: `state.playerFacing: Direction` tracks last move direction. `state.facingEntityPos: Position | null` is the nearest interactable tile the player faces (ground omnibox, character, or any future interactable). rendered with pink cursor inversion. `updateFacingEntity()` recalculates after every move. to add new interactable types, add a check to `isInteractableAt()` in `actions.ts`.
 - **ground behavior**: dropped omniboxes go to `state.groundOmniboxes[]` (not `groundItems`). ground omniboxes are solid — they block `movePlayer()` and `findPath()`. press `[e]` facing a ground omnibox to toggle it open/closed.
 - **drag-to-store**: dragging an item onto an omnibox item in any container stores the item inside and opens the omnibox. shows the dragged item's glyph as pink preview. shows "not enough capacity" toast if it doesn't fit.
 - **panel layout**: backpack panel renders above-right of the player. omnibox panel renders above-left of the player. positioned relative to player screen coordinates.
 - **nesting**: omniboxes can be placed inside other omniboxes.
 - **renaming**: deferred — not yet implemented.
+
+## movement blocking
+
+`getBlockedPositions(state)` in `actions.ts` returns a `Set<string>` of all tiles blocked by ground omniboxes, characters, and ghosts. used by `movePlayer`, `tickGhosts`, pathfinding, and click-to-move. to add new blocking entity types, add them to `getBlockedPositions`. this keeps all movement systems consistent automatically.
 
 ## pending actions
 
@@ -178,6 +183,37 @@ if a feature cannot be tested (e.g. canvas rendering), flag it for the user to r
 tests that depend on terrain must account for the randomized coastline — use `clearAroundPlayer()` or manually set tiles to dirt before testing movement/combine mechanics.
 
 `createGameState` seeds shooting stars and other entities. tests that assert exact counts on `state.shootingStars`, `state.meteorites`, etc. must reset these arrays (e.g. `state.meteorites = []`) before the test logic.
+
+## harness
+
+spec-driven development pipeline for building and maintaining game features through structured specs, plans, and automated verification.
+
+### workflow
+
+1. **spec** — write a YAML spec in `harness/specs/` describing behaviors, edge cases, failure conditions, and verification commands.
+2. **validate** — `npm run spec:validate` checks the spec against `harness/specs/spec-schema.json` (schema compliance, dependency existence, file references).
+3. **plan** — write a YAML plan in `harness/plans/` with ordered tasks. each task has narrow `context_files`, `output_files`, `depends_on`, `verification` commands, and a `repair` policy.
+4. **execute** — run the plan. each task gets only the spec sections and context files it needs. verification runs after each task; failures trigger repair attempts.
+5. **maintain** — run `/maintain-harness` periodically to check for spec-code drift.
+
+### spec format
+
+each spec requires: `id` (kebab-case), `name`, `status` (planned/partial/implemented), `priority`, `layer` (engine/component/integration), `source_files`, `behaviors` (with inputs/outputs/state_changes/determinism), `edge_cases`, `failure_conditions`, `verification` (test_file, test_pattern, command).
+
+### key directories
+
+- `harness/specs/` — feature specs (YAML).
+- `harness/plans/` — execution plans (YAML).
+- `harness/src/` — harness tooling: validator, plan parser, topo sort, checksum, prompt assembler, executor, logger.
+- `harness/__tests__/` — harness module tests.
+- `.claude/skills/` — local skill definitions for the harness workflow (`new-feature`, `change-request`, `bug-report`, `maintain-harness`).
+
+### harness commands
+
+```
+npm run spec:validate    # validate all specs against schema
+npm run harness:run      # execute a plan (--plan harness/plans/{id}.yaml)
+```
 
 ## conventions
 
