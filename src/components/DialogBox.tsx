@@ -25,7 +25,7 @@ export const DialogBox = ({
   left,
 }: DialogBoxProps) => (
   <div
-    className="border-border text-text relative fixed z-10 flex h-[340px] w-[448px] flex-col border bg-black/85 px-8 py-6 font-mono text-sm"
+    className="border-border text-text fixed z-10 flex h-[340px] w-[448px] flex-col border bg-black/85 px-8 py-6 font-mono text-sm"
     style={{ top, left }}
   >
     <CloseButton onClick={onClose} label="Close dialog" />
