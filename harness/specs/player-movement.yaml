@@ -1,0 +1,108 @@
+id: player-movement
+name: "Player movement"
+status: implemented
+priority: critical
+layer: engine
+source_files:
+  - src/engine/actions.ts
+  - src/engine/position.ts
+  - src/engine/camera.ts
+dependencies: []
+
+behaviors:
+  - id: cardinal-movement
+    description: >
+      movePlayer shifts player position by exactly 1 tile in the
+      specified cardinal direction and returns true
+    inputs:
+      - "GameState with player at walkable position"
+      - "Direction: 'up' | 'down' | 'left' | 'right'"
+    outputs:
+      - "boolean: true when move succeeds"
+    state_changes:
+      - field: player.x
+        effect: "changes by DIRECTIONS[dir].x"
+      - field: player.y
+        effect: "changes by DIRECTIONS[dir].y"
+      - field: playerFacing
+        effect: "set to the direction argument"
+      - field: camera.x
+        effect: "updated via updateCamera clamping"
+      - field: camera.y
+        effect: "updated via updateCamera clamping"
+    determinism: deterministic
+
+  - id: movement-blocked-by-space
+    description: >
+      movePlayer returns false and does not mutate position when the
+      target tile is Space
+    inputs:
+      - "GameState with player adjacent to a Space tile"
+      - "Direction toward the Space tile"
+    outputs:
+      - "boolean: false"
+    state_changes: []
+    determinism: deterministic
+
+  - id: movement-blocked-by-ground-omnibox
+    description: >
+      movePlayer returns false and does not mutate position when the
+      target tile contains a ground omnibox
+    inputs:
+      - "GameState with a ground omnibox adjacent to player"
+      - "Direction toward the omnibox tile"
+    outputs:
+      - "boolean: false"
+    state_changes: []
+    determinism: deterministic
+
+  - id: movement-blocked-by-character
+    description: >
+      movePlayer returns false and does not mutate position when the
+      target tile is occupied by a character
+    inputs:
+      - "GameState with a character adjacent to player"
+      - "Direction toward the character tile"
+    outputs:
+      - "boolean: false"
+    state_changes: []
+    determinism: deterministic
+
+  - id: facing-omnibox-update
+    description: >
+      after any move attempt (successful or not), playerFacing is set
+      to the direction argument and facingOmniboxPos is recalculated
+      via updateFacingOmnibox
+    inputs:
+      - "GameState"
+      - "Direction"
+    outputs: []
+    state_changes:
+      - field: playerFacing
+        effect: "set to dir"
+      - field: facingOmniboxPos
+        effect: "set to adjacent ground omnibox position in facing direction, or null"
+    determinism: deterministic
+
+edge_cases:
+  - id: map-boundary
+    description: "Player at (0,0) attempting up or left is rejected"
+    expected: "movePlayer returns false, position unchanged"
+  - id: out-of-bounds
+    description: "Player at max map boundary attempting to move further out is rejected by isInBounds check"
+    expected: "movePlayer returns false, position unchanged"
+
+failure_conditions:
+  - trigger: "Target tile is Space"
+    expected: "movePlayer returns false, no state mutation to player position"
+  - trigger: "Target position is out of map bounds"
+    expected: "movePlayer returns false, no state mutation to player position"
+  - trigger: "Target tile occupied by ground omnibox"
+    expected: "movePlayer returns false, no state mutation to player position"
+  - trigger: "Target tile occupied by character"
+    expected: "movePlayer returns false, no state mutation to player position"
+
+verification:
+  test_file: src/engine/__tests__/actions.test.ts
+  test_pattern: "movePlayer"
+  command: "npx vitest run src/engine/__tests__/actions.test.ts -t movePlayer"
