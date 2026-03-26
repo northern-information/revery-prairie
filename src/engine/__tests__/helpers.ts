@@ -31,6 +31,7 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   state.activeDialog = null
   state.previewFn = null
   state.path = null
+  state.pathWaypoints = []
   state.pendingAction = null
   return state
 }

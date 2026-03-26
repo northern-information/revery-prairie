@@ -77,6 +77,8 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 
 click-to-move via A\* pathfinding. click a walkable tile and the player walks there tile-by-tile (100ms per step via `tickPath()` in the rAF loop). path is stored as `state.path: Position[] | null`. keyboard input cancels the current path. path tiles render as `·` in `#ff69b4` (hot pink) for visual feedback.
 
+shift+click chains waypoints onto an existing path (RTS-style movement queuing). pathfinds from the end of the current chain to the clicked tile and appends. `state.pathWaypoints: Position[]` stores click targets — rendered as `+` in hot pink instead of `·`. every click marks its destination: normal click sets `pathWaypoints` to `[tile]`, shift+click appends. cleared whenever `state.path` is set to `null`. shift+click with no existing path falls through to normal click. shift+click on the same tile as the last waypoint is ignored. failed extension pathfinding leaves the existing path unmodified.
+
 coordinate transform: `screenToTile()` converts `e.offsetX`/`e.offsetY` (CSS pixels) to world tile position using camera offset and char metrics. no DPR correction needed — `offsetX`/`offsetY` are already CSS-space.
 
 future: entity click interaction (hit-test, walk-then-interact), drag-select for multi-tile operations.

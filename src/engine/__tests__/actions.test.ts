@@ -233,6 +233,99 @@ describe('tickPath', () => {
     expect(state.player.y).toBe(startY)
     expect(state.path).toBeNull()
   })
+
+  it('walks entire chained path to completion', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 5)
+    const startX = state.player.x
+    const startY = state.player.y
+    // Simulate a chained path: right 2, then down 2
+    state.path = [
+      { x: startX + 1, y: startY },
+      { x: startX + 2, y: startY },
+      { x: startX + 2, y: startY + 1 },
+      { x: startX + 2, y: startY + 2 },
+    ]
+    state.pathWaypoints = [
+      { x: startX + 2, y: startY },
+      { x: startX + 2, y: startY + 2 },
+    ]
+
+    while (state.path) {
+      tickPath(state)
+    }
+
+    expect(state.player.x).toBe(startX + 2)
+    expect(state.player.y).toBe(startY + 2)
+    expect(state.path).toBeNull()
+    expect(state.pathWaypoints).toEqual([])
+  })
+
+  it('fires pendingAction only after full chain is exhausted', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 5)
+    const startX = state.player.x
+    const startY = state.player.y
+    let actionFired = false
+    state.path = [
+      { x: startX + 1, y: startY },
+      { x: startX + 2, y: startY },
+    ]
+    state.pathWaypoints = [{ x: startX + 2, y: startY }]
+    state.pendingAction = () => {
+      actionFired = true
+    }
+
+    // Walk first step — action should not fire yet
+    tickPath(state)
+    expect(actionFired).toBe(false)
+
+    // Walk last step — action should fire
+    tickPath(state)
+    expect(actionFired).toBe(true)
+    expect(state.path).toBeNull()
+    expect(state.pathWaypoints).toEqual([])
+  })
+
+  it('clears pathWaypoints when path is blocked mid-chain', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 5)
+    const startX = state.player.x
+    const startY = state.player.y
+    // Block the second step
+    state.map[startY][startX + 2] = { type: TileType.Space }
+    state.path = [
+      { x: startX + 1, y: startY },
+      { x: startX + 2, y: startY },
+      { x: startX + 3, y: startY },
+    ]
+    state.pathWaypoints = [
+      { x: startX + 1, y: startY },
+      { x: startX + 3, y: startY },
+    ]
+
+    // First step succeeds
+    tickPath(state)
+    expect(state.player.x).toBe(startX + 1)
+
+    // Second step blocked — everything cancelled
+    tickPath(state)
+    expect(state.path).toBeNull()
+    expect(state.pathWaypoints).toEqual([])
+  })
+
+  it('clears pathWaypoints when path completes naturally', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startX = state.player.x
+    const startY = state.player.y
+    state.path = [{ x: startX + 1, y: startY }]
+    state.pathWaypoints = [{ x: startX + 1, y: startY }]
+
+    tickPath(state)
+    expect(state.path).toBeNull()
+    expect(state.pathWaypoints).toEqual([])
+  })
 })
 
 describe('tickBees', () => {

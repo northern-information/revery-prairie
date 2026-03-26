@@ -172,6 +172,7 @@ export const tickPath = (state: GameState): boolean => {
 
   if (!dir || !movePlayer(state, dir)) {
     state.path = null
+    state.pathWaypoints = []
     state.pendingAction = null
     state.previewFn = null
     return false
@@ -180,6 +181,7 @@ export const tickPath = (state: GameState): boolean => {
   state.path.shift()
   if (state.path.length === 0) {
     state.path = null
+    state.pathWaypoints = []
     if (state.pendingAction) {
       state.pendingAction()
       state.pendingAction = null

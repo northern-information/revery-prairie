@@ -253,6 +253,8 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
         <div>
           <div className="border-border-dim text-muted mb-2 border-b pb-2">controls</div>
           <div className="flex flex-col gap-1">
+            <span className="text-dim">[click] move to tile</span>
+            <span className="text-dim">[shift+click] chain moves</span>
             <span className="text-dim">[wasd] move</span>
             <button
               type="button"
