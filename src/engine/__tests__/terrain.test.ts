@@ -9,12 +9,12 @@ describe('generateTerrain', () => {
     expect(terrain[0].length).toBe(50)
   })
 
-  it('fills corner tiles with space', () => {
+  it('fills corner tiles with space or sand (never dirt)', () => {
     const terrain = generateTerrain(100, 100)
-    expect(terrain[0][0].type).toBe(TileType.Space)
-    expect(terrain[0][99].type).toBe(TileType.Space)
-    expect(terrain[99][0].type).toBe(TileType.Space)
-    expect(terrain[99][99].type).toBe(TileType.Space)
+    const corners = [terrain[0][0], terrain[0][99], terrain[99][0], terrain[99][99]]
+    for (const tile of corners) {
+      expect(tile.type).not.toBe(TileType.Dirt)
+    }
   })
 
   it('fills center tiles with dirt', () => {

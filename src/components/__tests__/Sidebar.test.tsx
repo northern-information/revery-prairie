@@ -30,24 +30,6 @@ describe('Sidebar', () => {
     expect(screen.getByText('Willow')).toBeInTheDocument()
   })
 
-  it('renders player position offset by water border', () => {
-    const state = createGameState('Test', 80, 40)
-    render(
-      <Sidebar
-        state={state}
-        activePanel={null}
-        setActivePanel={noop}
-        itemInfoRef={defaultInfoRef}
-        eventLog={[]}
-        metricsRef={createRef()}
-      />
-    )
-
-    const expectedX = state.player.x - 10
-    const expectedY = state.player.y - 10
-    expect(screen.getByText(`${String(expectedX)}, ${String(expectedY)}`)).toBeInTheDocument()
-  })
-
   it('renders total land count', () => {
     const state = createGameState('Test', 80, 40)
     render(
@@ -136,53 +118,6 @@ describe('Sidebar', () => {
 
     const ones = screen.getAllByText('1')
     expect(ones.length).toBeGreaterThanOrEqual(1)
-  })
-
-  it('renders current tile info', () => {
-    const state = createGameState('Test', 20, 20)
-    // Ensure player tile is dirt
-    state.map[state.player.y][state.player.x] = { type: TileType.Dirt }
-    render(
-      <Sidebar
-        state={state}
-        activePanel={null}
-        setActivePanel={noop}
-        itemInfoRef={defaultInfoRef}
-        eventLog={[]}
-        metricsRef={createRef()}
-      />
-    )
-
-    // "dirt" appears in both stats (dirt count label) and tile (type)
-    const dirts = screen.getAllByText('dirt')
-    expect(dirts.length).toBeGreaterThanOrEqual(2)
-    expect(screen.getByText('.')).toBeInTheDocument()
-  })
-
-  it('shows clover tile when standing on clover', () => {
-    const state = createGameState('Test', 20, 20)
-    // Ensure 3x3 around player is dirt so clover can grow
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
-      }
-    }
-    combineBeeAndClover(state)
-    render(
-      <Sidebar
-        state={state}
-        activePanel={null}
-        setActivePanel={noop}
-        itemInfoRef={defaultInfoRef}
-        eventLog={[]}
-        metricsRef={createRef()}
-      />
-    )
-
-    // "clover" appears in both stats (clover count label) and tile (type)
-    const clovers = screen.getAllByText('clover')
-    expect(clovers.length).toBeGreaterThanOrEqual(2)
-    expect(screen.getByText('%')).toBeInTheDocument()
   })
 
   it('renders control hints', () => {

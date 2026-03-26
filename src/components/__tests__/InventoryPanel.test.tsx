@@ -107,7 +107,7 @@ describe('InventoryPanel', () => {
     expect(screen.getAllByText('*').length).toBeGreaterThan(0) // bees
     expect(screen.getAllByText('%').length).toBeGreaterThan(0) // clovers
     expect(screen.getByText('⚙')).toBeInTheDocument() // permacomputer
-    expect(screen.getByText('□')).toBeInTheDocument() // omnibox
+    expect(screen.getByText('⊞')).toBeInTheDocument() // omnibox
   })
 
   it('does not render open container when null', () => {
