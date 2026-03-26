@@ -36,7 +36,6 @@ describe('replay: shooting stars', () => {
 
     const star = state.shootingStars[0]!
     const startX = star.pos.x
-    const startY = star.pos.y
 
     tickShootingStars(state, 0)
 
