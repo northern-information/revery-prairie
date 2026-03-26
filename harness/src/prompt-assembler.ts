@@ -21,7 +21,7 @@ const resolveSpecSections = (
 
   for (const section of specSections) {
     const [specId, sectionId] = section.split('/')
-    const spec = specMap.get(specId!)
+    const spec = specMap.get(specId)
     if (!spec) {
       lines.push(`[spec "${specId}" not found]`)
       continue

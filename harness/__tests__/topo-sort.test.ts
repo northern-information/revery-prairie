@@ -10,7 +10,7 @@ describe('topoSortTiers', () => {
 
     expect(result.cycleParticipants).toHaveLength(0)
     expect(result.tiers).toHaveLength(1)
-    expect(result.tiers[0]!.sort()).toEqual(['a', 'b', 'c'])
+    expect(result.tiers[0].sort()).toEqual(['a', 'b', 'c'])
   })
 
   it('sorts a linear chain into separate tiers', () => {
@@ -35,7 +35,7 @@ describe('topoSortTiers', () => {
     expect(result.cycleParticipants).toHaveLength(0)
     expect(result.tiers).toHaveLength(3)
     expect(result.tiers[0]).toEqual(['root'])
-    expect(result.tiers[1]!.sort()).toEqual(['left', 'right'])
+    expect(result.tiers[1].sort()).toEqual(['left', 'right'])
     expect(result.tiers[2]).toEqual(['final'])
   })
 

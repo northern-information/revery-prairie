@@ -2,6 +2,7 @@ import { mkdtempSync, writeFileSync, cpSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
+import { stringify } from 'yaml'
 import { validate } from '../src/validator.ts'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../..')
@@ -49,7 +50,6 @@ const minimalSpec = (overrides: Record<string, unknown> = {}) => ({
 })
 
 const writeSpec = (dir: string, filename: string, content: unknown) => {
-  const { stringify } = require('yaml') as { stringify: (v: unknown) => string }
   writeFileSync(join(dir, filename), stringify(content), 'utf-8')
 }
 

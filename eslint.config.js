@@ -14,7 +14,7 @@ export default defineConfig(globalIgnores(['dist', 'vite.config.ts', 'vitest.con
     ecmaVersion: 2020,
     globals: globals.browser,
     parserOptions: {
-      project: ['./tsconfig.app.json'],
+      project: ['./tsconfig.app.json', './harness/tsconfig.json'],
       tsconfigRootDir: import.meta.dirname,
     },
   },

@@ -56,7 +56,9 @@ describe('serialization round-trip', () => {
     const state = createSeededState()
     const json = serializeState(state)
 
-    expect(() => JSON.parse(json)).not.toThrow()
+    expect(() => {
+      JSON.parse(json) as unknown
+    }).not.toThrow()
   })
 
   it('two seeded states have the same structure (excluding UIDs)', () => {

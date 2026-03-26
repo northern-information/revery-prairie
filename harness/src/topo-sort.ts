@@ -23,7 +23,7 @@ export const topoSortTiers = (
     for (const dep of item.depends_on) {
       if (ids.has(dep)) {
         inDegree.set(item.id, (inDegree.get(item.id) ?? 0) + 1)
-        dependents.get(dep)!.push(item.id)
+        dependents.get(dep)?.push(item.id)
       }
     }
   }

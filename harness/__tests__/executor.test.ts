@@ -77,7 +77,7 @@ const writePlan = (plansDir: string, tasks: Record<string, unknown>[]) => {
 }
 
 const mockLlm = (response: string): LlmClient => ({
-  generate: async () => response,
+  generate: () => Promise.resolve(response),
 })
 
 describe('executePlan', () => {
@@ -108,7 +108,7 @@ describe('executePlan', () => {
     })
 
     expect(result.summary.skipped).toBe(1)
-    expect(result.tasks[0]!.status).toBe('skipped')
+    expect(result.tasks[0].status).toBe('skipped')
   })
 
   it('blocks tasks when dependencies fail', async () => {
@@ -152,8 +152,10 @@ describe('executePlan', () => {
       llm: mockLlm(''),
     })
 
-    expect(result.tasks.find((t) => t.task_id === 'parent')!.status).toBe('failed')
-    expect(result.tasks.find((t) => t.task_id === 'child')!.status).toBe('blocked')
+    const parentTask = result.tasks.find((t) => t.task_id === 'parent')
+    const childTask = result.tasks.find((t) => t.task_id === 'child')
+    expect(parentTask?.status).toBe('failed')
+    expect(childTask?.status).toBe('blocked')
     expect(result.summary.failed).toBe(1)
     expect(result.summary.blocked).toBe(1)
   })
@@ -189,9 +191,9 @@ describe('executePlan', () => {
       llm,
     })
 
-    expect(result.tasks[0]!.status).toBe('failed')
+    expect(result.tasks[0].status).toBe('failed')
     expect(
-      result.tasks[0]!.attempts[0]!.verification[0]!.stderr,
+      result.tasks[0].attempts[0].verification[0].stderr,
     ).toContain('outside output boundary')
   })
 
@@ -229,7 +231,7 @@ describe('executePlan', () => {
     })
 
     expect(result.summary.passed).toBe(1)
-    expect(result.tasks[0]!.status).toBe('passed')
+    expect(result.tasks[0].status).toBe('passed')
 
     // verify file was written
     const written = readFileSync(join(tmp, outFile), 'utf-8')
@@ -263,7 +265,7 @@ describe('executePlan', () => {
     })
 
     const runJson = join(logsDir, result.run_id, 'run.json')
-    const data = JSON.parse(readFileSync(runJson, 'utf-8'))
+    const data = JSON.parse(readFileSync(runJson, 'utf-8')) as { plan_id: string }
     expect(data.plan_id).toBe('test-plan')
   })
 })

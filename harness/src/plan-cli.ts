@@ -19,7 +19,7 @@ const printUsage = () => {
 // Replace with real implementation when integrating with an LLM API
 
 const stubLlm: LlmClient = {
-  generate: async (prompt: string) => {
+  generate: (prompt: string) => {
     console.log(
       '\n[stub LLM] received prompt (%d chars). returning empty response.',
       prompt.length,
@@ -27,7 +27,7 @@ const stubLlm: LlmClient = {
     console.log(
       '[stub LLM] replace this with a real LlmClient implementation.\n',
     )
-    return ''
+    return Promise.resolve('')
   },
 }
 
@@ -67,7 +67,7 @@ const runCommand = async () => {
     return
   }
 
-  const planPath = resolve(process.argv[planIdx + 1]!)
+  const planPath = resolve(process.argv[planIdx + 1])
   const force = process.argv.includes('--force')
 
   if (!existsSync(planPath)) {
@@ -79,8 +79,8 @@ const runCommand = async () => {
   const priorResults = force ? undefined : loadPriorResults(LOGS_ROOT)
 
   console.log(`plan: ${planPath}`)
-  console.log(`force: ${force}`)
-  console.log(`prior results: ${priorResults ? `${priorResults.size} tasks` : 'none'}`)
+  console.log(`force: ${String(force)}`)
+  console.log(`prior results: ${priorResults ? `${String(priorResults.size)} tasks` : 'none'}`)
   console.log()
 
   const result = await executePlan({
@@ -95,10 +95,10 @@ const runCommand = async () => {
 
   console.log('\n--- run summary ---')
   console.log(`run: ${result.run_id}`)
-  console.log(`passed: ${result.summary.passed}`)
-  console.log(`failed: ${result.summary.failed}`)
-  console.log(`skipped: ${result.summary.skipped}`)
-  console.log(`blocked: ${result.summary.blocked}`)
+  console.log(`passed: ${String(result.summary.passed)}`)
+  console.log(`failed: ${String(result.summary.failed)}`)
+  console.log(`skipped: ${String(result.summary.skipped)}`)
+  console.log(`blocked: ${String(result.summary.blocked)}`)
 
   if (result.summary.failed > 0 || result.summary.blocked > 0) {
     process.exitCode = 1
@@ -124,10 +124,10 @@ const statusCommand = () => {
     }
     console.log(`run: ${data.run_id}`)
     console.log(`plan: ${data.plan_id}`)
-    console.log(`passed: ${data.summary.passed}, failed: ${data.summary.failed}, skipped: ${data.summary.skipped}, blocked: ${data.summary.blocked}`)
+    console.log(`passed: ${String(data.summary.passed)}, failed: ${String(data.summary.failed)}, skipped: ${String(data.summary.skipped)}, blocked: ${String(data.summary.blocked)}`)
     console.log()
     for (const t of data.tasks) {
-      console.log(`  ${t.task_id}: ${t.status} (${t.attempts.length} attempts)`)
+      console.log(`  ${t.task_id}: ${t.status} (${String(t.attempts.length)} attempts)`)
     }
     return
   }
@@ -153,7 +153,7 @@ const statusCommand = () => {
         summary: { passed: number; failed: number }
       }
       console.log(
-        `  ${run}  plan=${data.plan_id}  passed=${data.summary.passed} failed=${data.summary.failed}`,
+        `  ${run}  plan=${data.plan_id}  passed=${String(data.summary.passed)} failed=${String(data.summary.failed)}`,
       )
     } else {
       console.log(`  ${run}  (incomplete)`)
@@ -165,7 +165,7 @@ const statusCommand = () => {
 
 switch (command) {
   case 'run':
-    runCommand()
+    void runCommand()
     break
   case 'status':
     statusCommand()

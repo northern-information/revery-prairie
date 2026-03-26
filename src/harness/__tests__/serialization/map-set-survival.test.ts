@@ -31,10 +31,11 @@ describe('Map and Set survival', () => {
 
       for (const [key, value] of state.omniboxContainers) {
         expect(restored.omniboxContainers.has(key)).toBe(true)
-        const restoredContainer = restored.omniboxContainers.get(key)!
-        expect(restoredContainer.name).toBe(value.name)
-        expect(restoredContainer.width).toBe(value.width)
-        expect(restoredContainer.height).toBe(value.height)
+        const restoredContainer = restored.omniboxContainers.get(key)
+        expect(restoredContainer).toBeDefined()
+        expect(restoredContainer?.name).toBe(value.name)
+        expect(restoredContainer?.width).toBe(value.width)
+        expect(restoredContainer?.height).toBe(value.height)
       }
     })
 
