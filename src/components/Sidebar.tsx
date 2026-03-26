@@ -40,7 +40,6 @@ interface SidebarProps {
 
 export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, eventLog, metricsRef }: SidebarProps) => {
   const [metric, setMetric] = useState(false)
-  const [cursorTile, setCursorTile] = useState<{ x: number; y: number } | null>(null)
   const cursorRef = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
@@ -55,29 +54,37 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
       if (target.tagName !== 'CANVAS' || overSidebar) {
         if (cursorRef.current !== null) {
           cursorRef.current = null
+          state.cursorScreenPos = null
           state.cursorTile = null
-          setCursorTile(null)
         }
         return
       }
       const metrics = metricsRef.current
       if (!metrics) return
       const rect = target.getBoundingClientRect()
-      const mx = Math.floor((e.clientX - rect.left) / metrics.charWidth) + state.camera.x
-      const my = Math.floor((e.clientY - rect.top) / metrics.charHeight) + state.camera.y
-      if (cursorRef.current?.x === mx && cursorRef.current?.y === my) return
-      cursorRef.current = { x: mx, y: my }
-      state.cursorTile = { x: mx, y: my }
-      setCursorTile({ x: mx, y: my })
+      const sx = e.clientX - rect.left
+      const sy = e.clientY - rect.top
+      if (cursorRef.current?.x === sx && cursorRef.current?.y === sy) return
+      cursorRef.current = { x: sx, y: sy }
+      state.cursorScreenPos = { x: sx, y: sy }
     }
 
     window.addEventListener('mousemove', handleMouseMove)
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
     }
-    // state is a mutable singleton — we depend on camera coords, not the ref itself
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metricsRef, state.camera.x, state.camera.y])
+  }, [metricsRef])
+
+  // Derive cursor world tile from screen position + current camera each render
+  const metrics = metricsRef.current
+  const cursorTile =
+    state.cursorScreenPos && metrics
+      ? {
+          x: Math.floor(state.cursorScreenPos.x / metrics.charWidth) + state.camera.x,
+          y: Math.floor(state.cursorScreenPos.y / metrics.charHeight) + state.camera.y,
+        }
+      : null
 
   const total = state.mapWidth * state.mapHeight
   const cloverCount = countTiles(state, TileType.Clover)

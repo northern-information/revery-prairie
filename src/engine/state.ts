@@ -71,6 +71,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     path: null,
     pendingAction: null,
     cursorTile: null,
+    cursorScreenPos: null,
     rainSeed: Math.floor(Math.random() * 2147483647),
   }
 
