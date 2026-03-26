@@ -1,3 +1,5 @@
+import { CloseButton, SectionHeader } from './PanelPrimitives'
+
 export const DIALOG_WIDTH = 448
 export const DIALOG_HEIGHT = 340
 
@@ -23,17 +25,10 @@ export const DialogBox = ({
   left,
 }: DialogBoxProps) => (
   <div
-    className="border-border text-text fixed z-10 flex h-[340px] w-[448px] flex-col border bg-black/85 px-8 py-6 font-mono text-sm"
+    className="border-border text-text relative fixed z-10 flex h-[340px] w-[448px] flex-col border bg-black/85 px-8 py-6 font-mono text-sm"
     style={{ top, left }}
   >
-    <button
-      type="button"
-      className="text-dim hover:text-text absolute top-0 right-0 px-4 py-3 text-sm"
-      onClick={onClose}
-      aria-label="Close dialog"
-    >
-      x
-    </button>
+    <CloseButton onClick={onClose} label="Close dialog" />
     {portrait && (
       <div className="mb-4 flex shrink-0 justify-center">
         <img
@@ -43,9 +38,7 @@ export const DialogBox = ({
         />
       </div>
     )}
-    <div className="border-border-dim text-muted mb-4 shrink-0 border-b pb-2">
-      {characterName.toLowerCase()}
-    </div>
+    <SectionHeader className="shrink-0">{characterName.toLowerCase()}</SectionHeader>
     <p className="min-h-0 flex-1 overflow-hidden leading-relaxed">{line}</p>
     <div className="text-dim mt-auto flex shrink-0 gap-4 text-xs">
       {isLastLine ? (

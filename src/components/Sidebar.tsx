@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { ItemInfo } from './ItemInfo'
+import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { getCharacterDefinition } from '@/engine/characters'
 import { SPACE_BORDER, TILE_COLORS } from '@/engine/constants'
@@ -104,11 +105,11 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
       className="text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
     >
       <div className="flex flex-col gap-4">
-        <div className="border-border-dim text-text border-b pb-3 text-sm">revery prairie</div>
+        <PanelTitle>revery prairie</PanelTitle>
 
         {cursorTile && (
           <div>
-            <div className="border-border-dim text-muted mb-3 border-b pb-2">cursor</div>
+            <SectionHeader>cursor</SectionHeader>
             <table className="w-full">
               <tbody>
                 <tr>
@@ -167,7 +168,7 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
       <div className="flex flex-col gap-4">
         {eventLog.length > 0 && (
           <div>
-            <div className="border-border-dim text-muted mb-2 border-b pb-2">log</div>
+            <SectionHeader>log</SectionHeader>
             <div className="flex flex-col gap-1">
               {eventLog.slice(0, 8).map(entry => (
                 <span key={entry.id}>
@@ -179,7 +180,7 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
         )}
 
         <div>
-          <div className="border-border-dim text-muted mb-3 border-b pb-2">stats</div>
+          <SectionHeader>stats</SectionHeader>
           <table className="w-full">
             <tbody>
               <tr>
@@ -223,7 +224,7 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
         </div>
 
         <div>
-          <div className="border-border-dim text-muted mb-3 border-b pb-2">weather</div>
+          <SectionHeader>weather</SectionHeader>
           <table className="w-full">
             <tbody>
               <tr>
@@ -251,7 +252,7 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
         </div>
 
         <div>
-          <div className="border-border-dim text-muted mb-2 border-b pb-2">controls</div>
+          <SectionHeader>controls</SectionHeader>
           <div className="flex flex-col gap-1">
             <span className="text-dim">[click] move to tile</span>
             <span className="text-dim">[shift+click] chain moves</span>
