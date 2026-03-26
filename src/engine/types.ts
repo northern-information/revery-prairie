@@ -112,6 +112,7 @@ export interface CharacterDefinition {
 export interface Character {
   definitionId: string
   pos: Position
+  aura?: string
 }
 
 export interface GameState {
