@@ -8,7 +8,7 @@ import {
   pickUpGroundItems,
   toggleFacingOmnibox,
   toggleOmnibox,
-  updateFacingOmnibox,
+  updateFacingEntity,
 } from '../actions'
 import { OMNIBOX_HEIGHT, OMNIBOX_WIDTH } from '../constants'
 import { createOmniboxContainer, findFitPosition, placeItem } from '../inventory'
@@ -190,9 +190,9 @@ describe('facing omnibox', () => {
     state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
     state.playerFacing = 'right'
 
-    updateFacingOmnibox(state)
+    updateFacingEntity(state)
 
-    expect(state.facingOmniboxPos).toEqual({ x: state.player.x + 1, y: state.player.y })
+    expect(state.facingEntityPos).toEqual({ x: state.player.x + 1, y: state.player.y })
   })
 
   it('updateFacingOmnibox clears when no adjacent ground omnibox', () => {
@@ -202,9 +202,9 @@ describe('facing omnibox', () => {
     state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 5, y: state.player.y } })
     state.playerFacing = 'right'
 
-    updateFacingOmnibox(state)
+    updateFacingEntity(state)
 
-    expect(state.facingOmniboxPos).toBeNull()
+    expect(state.facingEntityPos).toBeNull()
   })
 
   it('updateFacingOmnibox falls back to adjacent omnibox when not facing one', () => {
@@ -214,9 +214,9 @@ describe('facing omnibox', () => {
     state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
     state.playerFacing = 'left'
 
-    updateFacingOmnibox(state)
+    updateFacingEntity(state)
 
-    expect(state.facingOmniboxPos).toEqual({ x: state.player.x + 1, y: state.player.y })
+    expect(state.facingEntityPos).toEqual({ x: state.player.x + 1, y: state.player.y })
   })
 
   it('toggleFacingOmnibox opens the facing ground omnibox', () => {
@@ -225,7 +225,7 @@ describe('facing omnibox', () => {
     createOmniboxContainer(state, 'uid-1')
     state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
     state.playerFacing = 'right'
-    updateFacingOmnibox(state)
+    updateFacingEntity(state)
 
     expect(toggleFacingOmnibox(state)).toBe(true)
     expect(state.openContainer?.id).toBe('uid-1')
@@ -237,7 +237,7 @@ describe('facing omnibox', () => {
     createOmniboxContainer(state, 'uid-1')
     state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
     state.playerFacing = 'right'
-    updateFacingOmnibox(state)
+    updateFacingEntity(state)
     openOmnibox(state, 'uid-1')
 
     expect(toggleFacingOmnibox(state)).toBe(true)
@@ -248,12 +248,12 @@ describe('facing omnibox', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     state.playerFacing = 'right'
-    updateFacingOmnibox(state)
+    updateFacingEntity(state)
 
     expect(toggleFacingOmnibox(state)).toBe(false)
   })
 
-  it('movePlayer updates facingOmniboxPos', () => {
+  it('movePlayer updates facingEntityPos', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     createOmniboxContainer(state, 'uid-1')
@@ -262,7 +262,7 @@ describe('facing omnibox', () => {
     movePlayer(state, 'right')
 
     expect(state.playerFacing).toBe('right')
-    expect(state.facingOmniboxPos).toEqual({ x: state.player.x + 1, y: state.player.y })
+    expect(state.facingEntityPos).toEqual({ x: state.player.x + 1, y: state.player.y })
   })
 })
 
@@ -418,8 +418,8 @@ describe('adjacent omnibox switch', () => {
 
     // Face up toward uid-1
     state.playerFacing = 'up'
-    updateFacingOmnibox(state)
-    expect(state.facingOmniboxPos).toEqual({ x: px, y: py - 1 })
+    updateFacingEntity(state)
+    expect(state.facingEntityPos).toEqual({ x: px, y: py - 1 })
 
     // Open the first omnibox
     openOmnibox(state, 'uid-1')
@@ -428,7 +428,7 @@ describe('adjacent omnibox switch', () => {
     // Move right — still within 1 tile of O1, but now facing right toward O2
     movePlayer(state, 'right')
     expect(state.player.x).toBe(px + 1)
-    expect(state.facingOmniboxPos).toEqual({ x: px + 2, y: py })
+    expect(state.facingEntityPos).toEqual({ x: px + 2, y: py })
     expect(state.openContainer?.id).toBe('uid-2')
   })
 
@@ -438,13 +438,13 @@ describe('adjacent omnibox switch', () => {
     createOmniboxContainer(state, 'uid-1')
     state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
     state.playerFacing = 'right'
-    updateFacingOmnibox(state)
+    updateFacingEntity(state)
     openOmnibox(state, 'uid-1')
 
     // Move up then face right again — still same omnibox
     movePlayer(state, 'up')
     state.playerFacing = 'right'
-    updateFacingOmnibox(state)
+    updateFacingEntity(state)
 
     expect(state.openContainer?.id).toBe('uid-1')
   })
@@ -461,7 +461,7 @@ describe('adjacent omnibox switch', () => {
     state.groundOmniboxes.push({ uid: 'ground-uid', pos: { x: state.player.x + 1, y: state.player.y } })
     state.playerFacing = 'right'
 
-    updateFacingOmnibox(state)
+    updateFacingEntity(state)
 
     // Should NOT switch — the open container is a backpack omnibox
     expect(state.openContainer?.id).toBe('backpack-uid')

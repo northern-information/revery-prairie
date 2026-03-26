@@ -129,7 +129,7 @@ export interface GameState {
   backpack: Container
   openContainer: Container | null
   playerFacing: Direction
-  facingOmniboxPos: Position | null
+  facingEntityPos: Position | null
   camera: Position
   viewportWidth: number
   viewportHeight: number
