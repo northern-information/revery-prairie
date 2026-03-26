@@ -142,7 +142,7 @@ export const useKeyboard = ({
           state.path = null
           state.pendingAction = null
           if (movePlayer(state, dir)) {
-            const result = pickUpGroundItems(state)
+            const result = pickUpGroundItems(state, performance.now())
             handlePickups(result)
             refreshUI()
           }
@@ -205,7 +205,7 @@ export const useKeyboard = ({
           state.pendingAction = null
           state.previewFn = null
           if (movePlayer(state, dir)) {
-            const result = pickUpGroundItems(state)
+            const result = pickUpGroundItems(state, performance.now())
             handlePickups(result)
             refreshUI()
           }

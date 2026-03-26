@@ -90,6 +90,11 @@ export interface LandingExplosion {
   startTime: number // rAF timestamp when the explosion began
 }
 
+export interface MeteoritePickupEffect {
+  pos: Position // center of the bloom (where the meteorite was)
+  startTime: number // rAF timestamp when the effect began
+}
+
 export interface GroundOmnibox {
   uid: string // links to ItemInstance.uid and omniboxContainers key
   pos: Position
@@ -126,6 +131,7 @@ export interface GameState {
   shootingStars: ShootingStar[]
   meteorites: Meteorite[]
   explosions: LandingExplosion[]
+  meteoritePickupEffects: MeteoritePickupEffect[]
   groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
   characters: Character[]

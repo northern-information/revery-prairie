@@ -18,6 +18,7 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   state.shootingStars = []
   state.meteorites = []
   state.explosions = []
+  state.meteoritePickupEffects = []
   state.groundItems = []
   state.groundOmniboxes = []
   state.characters = []
