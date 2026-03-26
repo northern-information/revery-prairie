@@ -1,4 +1,5 @@
 import { getCharacterDefinition } from './characters'
+import { AURA_RADIUS } from './effects'
 import {
   BEE_CHAR,
   BEE_COLOR,
@@ -42,7 +43,6 @@ const starHash = (x: number, y: number): number => {
 // Rain around characters with the `rain` aura
 const RAIN_CHARS = ['|', ':', '.', ',']
 const RAIN_COLORS = ['#4466aa', '#335588', '#556699', '#445577']
-const RAIN_RADIUS = 6
 const RAIN_DENSITY = 3 // ~1 in 3 tiles has a visible raindrop
 const RAIN_SPEED = 0.008 // cycles per millisecond — fast falling feel
 
@@ -354,15 +354,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Rain overlay pass — draw animated rain near characters
+  // Rain overlay pass — draw animated rain near characters with rain aura
+  const rainRadius = AURA_RADIUS['rain'] ?? 0
   for (const c of state.characters) {
+    if (c.aura !== 'rain') continue
     const cx = c.pos.x
     const cy = c.pos.y
 
-    for (let dy = -RAIN_RADIUS; dy <= RAIN_RADIUS; dy++) {
-      for (let dx = -RAIN_RADIUS; dx <= RAIN_RADIUS; dx++) {
+    for (let dy = -rainRadius; dy <= rainRadius; dy++) {
+      for (let dx = -rainRadius; dx <= rainRadius; dx++) {
         // Circular radius check
-        if (dx * dx + dy * dy > RAIN_RADIUS * RAIN_RADIUS) continue
+        if (dx * dx + dy * dy > rainRadius * rainRadius) continue
 
         const wx = cx + dx
         const wy = cy + dy

@@ -78,11 +78,11 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
   const gronX = playerX + 5
   const gronY = playerY
   if (map[gronY][gronX].type === TileType.Dirt || map[gronY][gronX].type === TileType.Clover) {
-    state.characters.push({ definitionId: 'gron', pos: { x: gronX, y: gronY } })
+    state.characters.push({ definitionId: 'gron', pos: { x: gronX, y: gronY }, aura: 'rain' })
   } else {
     // Fallback: ensure tile is dirt then place
     map[gronY][gronX] = { type: TileType.Dirt }
-    state.characters.push({ definitionId: 'gron', pos: { x: gronX, y: gronY } })
+    state.characters.push({ definitionId: 'gron', pos: { x: gronX, y: gronY }, aura: 'rain' })
   }
 
   // Place an omnibox in the backpack

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { ItemInfo } from './ItemInfo'
 
 import { getCharacterDefinition } from '@/engine/characters'
-import { SPACE_BORDER, TILE_CHARS, TILE_COLORS } from '@/engine/constants'
+import { SPACE_BORDER, TILE_COLORS } from '@/engine/constants'
+import { getTileEffects } from '@/engine/effects'
 import { getDefinition } from '@/engine/items'
 import { TileType } from '@/engine/types'
 import { fToC, mphToKph } from '@/engine/weather'
@@ -84,7 +85,6 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
   const dirtCount = total - cloverCount - sandCount
   const { weather } = state
 
-  const currentTile = state.map[state.player.y][state.player.x]
 
   const temp = metric ? `${String(fToC(weather.temperatureF))}°C` : `${String(weather.temperatureF)}°F`
   const wind = metric
@@ -135,6 +135,20 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
                     })()}
                   </td>
                 </tr>
+                {(() => {
+                  const effects = getTileEffects(state, cursorTile.x, cursorTile.y)
+                  return (
+                    <tr>
+                      <td className="text-muted py-0.5">effects</td>
+                      <td
+                        className="text-muted py-0.5 text-right"
+                        style={effects.length > 0 ? { color: '#4466aa' } : undefined}
+                      >
+                        {effects.length > 0 ? effects.join(', ') : 'none'}
+                      </td>
+                    </tr>
+                  )
+                })()}
               </tbody>
             </table>
           </div>
@@ -196,30 +210,6 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
               <tr>
                 <td className="text-muted py-0.5">prairie</td>
                 <td className="py-0.5 text-right">{state.bees.length > 0 ? 'yes' : 'no'}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div>
-          <div className="border-border-dim text-muted mb-3 border-b pb-2">tile</div>
-          <table className="w-full">
-            <tbody>
-              <tr>
-                <td className="text-muted py-0.5">position</td>
-                <td className="py-0.5 text-right">
-                  {state.player.x - SPACE_BORDER}, {state.player.y - SPACE_BORDER}
-                </td>
-              </tr>
-              <tr>
-                <td className="text-muted py-0.5">type</td>
-                <td className="py-0.5 text-right">{currentTile.type}</td>
-              </tr>
-              <tr>
-                <td className="text-muted py-0.5">char</td>
-                <td className="py-0.5 text-right" style={{ color: TILE_COLORS[currentTile.type] }}>
-                  {TILE_CHARS[currentTile.type]}
-                </td>
               </tr>
             </tbody>
           </table>
