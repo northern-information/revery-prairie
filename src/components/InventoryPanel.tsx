@@ -91,6 +91,11 @@ export const InventoryPanel = ({
     scheduleFade()
   }, [scheduleFade])
 
+  const onCombineFail = useCallback(() => {
+    setCombineToast({ header: 'not enough room in backpack', description: null })
+    scheduleFade()
+  }, [scheduleFade])
+
   const { dragState, startDrag, updateGhost, drop, cancelDrag } = useInventoryDrag({
     containers,
     state,
@@ -98,6 +103,7 @@ export const InventoryPanel = ({
     onCombine,
     onStore,
     onStoreFail,
+    onCombineFail,
   })
 
   isDraggingRef.current = dragState !== null

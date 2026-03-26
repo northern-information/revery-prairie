@@ -88,10 +88,10 @@ export const RECIPES: Recipe[] = [
     preserveIngredient: 'permacomputer',
     description: 'folded space within a portable container.',
     execute: state => {
-      const uid = crypto.randomUUID()
-      createOmniboxContainer(state, uid)
       const fit = findFitPosition(state.backpack, 'omnibox')
       if (!fit) return false
+      const uid = crypto.randomUUID()
+      createOmniboxContainer(state, uid)
       placeItem(state.backpack, 'omnibox', fit.rotation, fit.gridX, fit.gridY)
       // Link the newly placed item to the omnibox container by updating its uid
       const placed = state.backpack.items[state.backpack.items.length - 1]
