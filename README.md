@@ -41,8 +41,18 @@ the canvas runs its own `requestAnimationFrame` loop reading game state by refer
 | `.`  | dirt    | tan      |
 | `%`  | clover  | green    |
 | `*`  | bee     | gold     |
+| `ö`  | ghost   | white    |
 | `:`  | sand    | tan-gold |
 | ` `  | space   | black    |
+
+## harness
+
+spec-driven development pipeline. features are specified as YAML, validated, then implemented via task plans with automated verification. see `CLAUDE.md` for details.
+
+```zsh
+npm run spec:validate    # validate specs
+npm run harness:run      # execute a plan
+```
 
 ## commands
 
