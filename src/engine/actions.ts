@@ -1,5 +1,5 @@
 import { updateCamera } from './camera'
-import { getCharacterDefinition, isCharacterAt } from './characters'
+import { getCharacterDefinition } from './characters'
 import {
   EXPLOSION_DURATION_MS,
   MAP_HEIGHT,
@@ -106,8 +106,8 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
 
   if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) return false
   if (state.map[ny][nx].type === TileType.Space) return false
-  if (state.groundOmniboxes.some(go => go.pos.x === nx && go.pos.y === ny)) return false
-  if (isCharacterAt(state.characters, nx, ny)) return false
+  const blocked = getBlockedPositions(state)
+  if (blocked.has(posKey(nx, ny))) return false
 
   state.player.x = nx
   state.player.y = ny
@@ -217,6 +217,49 @@ export const tickBees = (state: GameState): void => {
       const target = candidates[Math.floor(Math.random() * candidates.length)]
       bee.pos.x = target.x
       bee.pos.y = target.y
+    }
+  }
+}
+
+export const tickGhosts = (state: GameState): void => {
+  const blocked = getBlockedPositions(state)
+  // Also block the player position
+  blocked.add(posKey(state.player.x, state.player.y))
+
+  for (const ghost of state.ghosts) {
+    // Freeze ghost if player is talking to it
+    if (state.activeDialog?.characterId === `ghost-${String(ghost.number)}`) continue
+    // Ghosts drift slowly — 15% chance to move each tick
+    if (Math.random() > 0.15) continue
+
+    // Remove self from blocked set so we don't self-block
+    const selfKey = posKey(ghost.pos.x, ghost.pos.y)
+    blocked.delete(selfKey)
+
+    const candidates: Position[] = []
+    for (const d of ORDINAL) {
+      const nx = ghost.pos.x + d.x
+      const ny = ghost.pos.y + d.y
+      if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
+      if (state.map[ny][nx].type === TileType.Space) continue
+      if (blocked.has(posKey(nx, ny))) continue
+      candidates.push({ x: nx, y: ny })
+    }
+
+    if (candidates.length > 0) {
+      const target = candidates[Math.floor(Math.random() * candidates.length)]
+      blocked.add(posKey(target.x, target.y))
+      ghost.pos.x = target.x
+      ghost.pos.y = target.y
+      // Sync the corresponding character entry
+      const charEntry = state.characters.find(c => c.definitionId === `ghost-${String(ghost.number)}`)
+      if (charEntry) {
+        charEntry.pos.x = target.x
+        charEntry.pos.y = target.y
+      }
+    } else {
+      // Re-add self to blocked set since we didn't move
+      blocked.add(selfKey)
     }
   }
 }
@@ -426,6 +469,20 @@ export const groundOmniboxBlockedSet = (state: GameState): Set<string> => {
   const set = new Set<string>()
   for (const go of state.groundOmniboxes) {
     set.add(posKey(go.pos.x, go.pos.y))
+  }
+  return set
+}
+
+export const getBlockedPositions = (state: GameState): Set<string> => {
+  const set = new Set<string>()
+  for (const go of state.groundOmniboxes) {
+    set.add(posKey(go.pos.x, go.pos.y))
+  }
+  for (const c of state.characters) {
+    set.add(posKey(c.pos.x, c.pos.y))
+  }
+  for (const g of state.ghosts) {
+    set.add(posKey(g.pos.x, g.pos.y))
   }
   return set
 }

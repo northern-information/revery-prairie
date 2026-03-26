@@ -1,6 +1,6 @@
 import { posKey } from './position'
 
-import type { Character, CharacterDefinition } from './types'
+import type { Character, CharacterDefinition, Ghost } from './types'
 
 interface CharacterEntry {
   name: string
@@ -34,6 +34,21 @@ export const getCharacterDefinition = (id: string): CharacterDefinition => {
     throw new Error(`unknown character definition: ${id}`)
   }
   return def
+}
+
+export const createGhostDefinition = (n: number): CharacterDefinition => ({
+  id: `ghost-${String(n)}`,
+  name: `Ghost #${String(n)}`,
+  glyph: 'ö',
+  glyphColor: '#FFFFFF',
+  dialog: ['...', 'Oh... a steward...', '... I sure would love some clover tea.'],
+})
+
+export const registerGhosts = (ghosts: Ghost[]): void => {
+  for (const ghost of ghosts) {
+    const def = createGhostDefinition(ghost.number)
+    CHARACTER_DEFINITIONS[def.id] = def
+  }
 }
 
 export const isCharacterAt = (characters: Character[], x: number, y: number): boolean =>

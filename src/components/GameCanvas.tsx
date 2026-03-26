@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 
-import { pickUpGroundItems, spawnShootingStar, tickBees, tickPath, tickShootingStars } from '@/engine/actions'
+import { pickUpGroundItems, spawnShootingStar, tickBees, tickGhosts, tickPath, tickShootingStars } from '@/engine/actions'
 import { updateCamera } from '@/engine/camera'
-import { SHOOTING_STAR_SPAWN_TICK_MS, SHOOTING_STAR_TICK_MS } from '@/engine/constants'
+import { GHOST_TICK_MS, SHOOTING_STAR_SPAWN_TICK_MS, SHOOTING_STAR_TICK_MS } from '@/engine/constants'
 import { getDefinition } from '@/engine/items'
 import { measureChar, render } from '@/engine/renderer'
 import { tickWeather } from '@/engine/weather'
@@ -84,6 +84,7 @@ export const GameCanvas = ({
     window.addEventListener('resize', onResize)
 
     let lastBeeTick = 0
+    let lastGhostTick = 0
     let lastPathTick = 0
     let lastWeatherTick = 0
     let lastShootingStarTick = 0
@@ -93,6 +94,10 @@ export const GameCanvas = ({
       if (time - lastBeeTick >= BEE_TICK_MS) {
         tickBees(state)
         lastBeeTick = time
+      }
+      if (time - lastGhostTick >= GHOST_TICK_MS) {
+        tickGhosts(state)
+        lastGhostTick = time
       }
       if (time - lastPathTick >= PATH_TICK_MS) {
         if (tickPath(state)) {

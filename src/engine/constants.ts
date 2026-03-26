@@ -69,6 +69,11 @@ export const PICKUP_EFFECT_COLORS = ['#FFFFFF', '#E0E0FF', '#C8C8FF', '#B0B0EE',
 export const OMNIBOX_WIDTH = 5
 export const OMNIBOX_HEIGHT = 5
 
+// ghosts
+export const GHOST_CHAR = 'ö'
+export const GHOST_COLOR = '#FFFFFF'
+export const GHOST_TICK_MS = 500
+
 export const PLAYER_CHAR = '@'
 export const PLAYER_COLOR = '#FFFFFF'
 export const BEE_CHAR = '*'

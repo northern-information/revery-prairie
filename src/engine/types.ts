@@ -95,6 +95,11 @@ export interface MeteoritePickupEffect {
   startTime: number // rAF timestamp when the effect began
 }
 
+export interface Ghost {
+  pos: Position
+  number: number // spawn order (1, 2, 3, ...)
+}
+
 export interface GroundOmnibox {
   uid: string // links to ItemInstance.uid and omniboxContainers key
   pos: Position
@@ -135,6 +140,7 @@ export interface GameState {
   meteoritePickupEffects: MeteoritePickupEffect[]
   groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
+  ghosts: Ghost[]
   characters: Character[]
   activeDialog: { characterId: string; lineIndex: number } | null
   omniboxContainers: Map<string, Container>

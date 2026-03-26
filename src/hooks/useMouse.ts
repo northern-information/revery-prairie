@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 
-import { groundOmniboxBlockedSet, interactWithCharacter, openOmnibox, updateFacingOmnibox } from '@/engine/actions'
-import { characterBlockedSet, getCharacterDefinition } from '@/engine/characters'
+import { getBlockedPositions, interactWithCharacter, openOmnibox, updateFacingOmnibox } from '@/engine/actions'
+import { getCharacterDefinition } from '@/engine/characters'
 import { screenToTile } from '@/engine/coordinates'
 import { findPath } from '@/engine/pathfinding'
 import { posKey } from '@/engine/position'
@@ -53,9 +53,7 @@ export const useMouse = ({
       if (state.map[tile.y][tile.x].type === TileType.Space) return
       if (tile.x === state.player.x && tile.y === state.player.y) return
 
-      const charBlocked = characterBlockedSet(state.characters)
-      const omniboxBlocked = groundOmniboxBlockedSet(state)
-      const blocked = new Set([...charBlocked, ...omniboxBlocked])
+      const blocked = getBlockedPositions(state)
 
       const adjacentDeltas = [
         { x: 0, y: -1 },
