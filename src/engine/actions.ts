@@ -484,6 +484,17 @@ export const grabOmnibox = (state: GameState): string | null => {
 }
 
 export const updateFacingOmnibox = (state: GameState): void => {
+  const switchIfOpen = (go: { uid: string }) => {
+    if (
+      state.openContainer &&
+      state.groundOmniboxes.some(g => g.uid === state.openContainer?.id) &&
+      state.openContainer.id !== go.uid
+    ) {
+      const container = state.omniboxContainers.get(go.uid)
+      if (container) state.openContainer = container
+    }
+  }
+
   // Prefer the omnibox in the facing direction
   const d = DIRECTIONS[state.playerFacing]
   const fx = state.player.x + d.x
@@ -491,6 +502,7 @@ export const updateFacingOmnibox = (state: GameState): void => {
   const facing = state.groundOmniboxes.find(go => go.pos.x === fx && go.pos.y === fy)
   if (facing) {
     state.facingOmniboxPos = { x: fx, y: fy }
+    switchIfOpen(facing)
     return
   }
   // Fall back to any cardinally adjacent omnibox
@@ -500,6 +512,7 @@ export const updateFacingOmnibox = (state: GameState): void => {
     const adjacent = state.groundOmniboxes.find(go => go.pos.x === nx && go.pos.y === ny)
     if (adjacent) {
       state.facingOmniboxPos = { x: nx, y: ny }
+      switchIfOpen(adjacent)
       return
     }
   }
