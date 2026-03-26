@@ -43,7 +43,7 @@ export const CombineToast = ({
 
   return (
     <div
-      className="pointer-events-auto absolute right-full z-20 font-mono text-xs"
+      className="pointer-events-auto absolute left-full z-20 font-mono text-xs"
       style={{ top: toastTopPx }}
       onMouseEnter={onHoverStart}
       onMouseLeave={onHoverEnd}
