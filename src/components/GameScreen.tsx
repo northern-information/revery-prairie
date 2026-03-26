@@ -153,6 +153,11 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
             setActivePanel(null)
           }}
           onNewGame={onRestart}
+          metric={state.metric}
+          onToggleUnits={() => {
+            state.metric = !state.metric
+            refreshUI()
+          }}
         />
       )}
       <Sidebar

@@ -191,24 +191,26 @@ export const useKeyboard = ({
         return
       }
 
-      // Movement (allowed with inventory open, blocked in menu)
-      if (activePanel !== 'menu') {
-        const dir = keyToDirection(e.key)
-        if (dir && state.activeDialog) {
-          state.activeDialog = null
+      // Movement (allowed with inventory open; WASD closes menu)
+      const dir = keyToDirection(e.key)
+      if (dir && activePanel === 'menu') {
+        setActivePanel(null)
+        return
+      }
+      if (dir && state.activeDialog) {
+        state.activeDialog = null
+        refreshUI()
+        return
+      }
+      if (dir) {
+        e.preventDefault()
+        state.path = null
+        state.pendingAction = null
+        state.previewFn = null
+        if (movePlayer(state, dir)) {
+          const result = pickUpGroundItems(state, performance.now())
+          handlePickups(result)
           refreshUI()
-          return
-        }
-        if (dir) {
-          e.preventDefault()
-          state.path = null
-          state.pendingAction = null
-          state.previewFn = null
-          if (movePlayer(state, dir)) {
-            const result = pickUpGroundItems(state, performance.now())
-            handlePickups(result)
-            refreshUI()
-          }
         }
       }
     },

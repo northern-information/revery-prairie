@@ -147,6 +147,7 @@ export interface GameState {
   cursorTile: Position | null
   cursorScreenPos: { x: number; y: number } | null
   rainSeed: number
+  metric: boolean
 }
 
 export const Sky = {

@@ -73,6 +73,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     cursorTile: null,
     cursorScreenPos: null,
     rainSeed: Math.floor(Math.random() * 2147483647),
+    metric: true,
   }
 
   // Place Gron near the player
