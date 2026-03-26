@@ -68,6 +68,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const { camera, viewportWidth, viewportHeight, map, player, bees } = state
   const { charWidth, charHeight } = metrics
 
+  // Recompute cursor world tile from screen position every frame
+  // so the highlight tracks correctly when the camera moves via WASD
+  if (state.cursorScreenPos) {
+    state.cursorTile = {
+      x: Math.floor(state.cursorScreenPos.x / charWidth) + camera.x,
+      y: Math.floor(state.cursorScreenPos.y / charHeight) + camera.y,
+    }
+  } else {
+    state.cursorTile = null
+  }
+
   const pxWidth = viewportWidth * charWidth
   const pxHeight = viewportHeight * charHeight
   ctx.clearRect(0, 0, pxWidth, pxHeight)

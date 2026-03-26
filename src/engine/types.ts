@@ -145,6 +145,7 @@ export interface GameState {
   path: Position[] | null
   pendingAction: (() => void) | null
   cursorTile: Position | null
+  cursorScreenPos: { x: number; y: number } | null
   rainSeed: number
 }
 
