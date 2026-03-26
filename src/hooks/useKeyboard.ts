@@ -140,6 +140,7 @@ export const useKeyboard = ({
         if (dir && activePanel !== 'menu') {
           e.preventDefault()
           state.path = null
+          state.pathWaypoints = []
           state.pendingAction = null
           if (movePlayer(state, dir)) {
             const result = pickUpGroundItems(state, performance.now())
@@ -205,6 +206,7 @@ export const useKeyboard = ({
       if (dir) {
         e.preventDefault()
         state.path = null
+        state.pathWaypoints = []
         state.pendingAction = null
         state.previewFn = null
         if (movePlayer(state, dir)) {

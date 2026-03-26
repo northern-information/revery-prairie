@@ -116,6 +116,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
+  // Build a set of waypoint positions for distinct markers
+  const waypointPositions = new Set<string>()
+  for (const w of state.pathWaypoints) {
+    waypointPositions.add(posKey(w.x, w.y))
+  }
+
   // Build maps of shooting star pixels — targeted stars render over land, others only on space
   const shootingStarMap = new Map<string, { char: string; color: string }>()
   const targetedStarMap = new Map<string, { char: string; color: string }>()
@@ -345,7 +351,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           color = TILE_COLORS[tile.type]
         }
       } else if (pathPositions.has(tileKey)) {
-        char = '\u00b7'
+        char = waypointPositions.has(tileKey) ? '+' : '\u00b7'
         color = '#ff69b4'
       } else {
         const tile = map[my][mx]

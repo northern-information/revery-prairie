@@ -69,6 +69,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     previewFn: null,
     weather: generateWeather(),
     path: null,
+    pathWaypoints: [],
     pendingAction: null,
     cursorTile: null,
     cursorScreenPos: null,

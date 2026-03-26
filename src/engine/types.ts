@@ -143,6 +143,7 @@ export interface GameState {
   previewFn: ((state: GameState) => { pos: Position; char: string; color: string }[]) | null
   weather: Weather
   path: Position[] | null
+  pathWaypoints: Position[]
   pendingAction: (() => void) | null
   cursorTile: Position | null
   cursorScreenPos: { x: number; y: number } | null
