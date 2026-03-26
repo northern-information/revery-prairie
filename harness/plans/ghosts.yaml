@@ -1,0 +1,203 @@
+plan:
+  id: ghosts
+  title: "Add ghost entities with drift and dialog"
+  created: 2026-03-26
+  global_verification:
+    - "npm run build"
+    - "npm run test"
+    - "npm run lint"
+
+tasks:
+  - id: ghost-types
+    title: "Add Ghost type and GameState fields"
+    spec_id: ghosts
+    spec_sections:
+      - ghost-spawning
+      - ghost-character-definition
+    context_files:
+      - src/engine/types.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on: []
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, types]
+
+  - id: ghost-constants
+    title: "Add ghost glyph and color constants"
+    spec_id: ghosts
+    spec_sections:
+      - ghost-rendering
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, constants]
+
+  - id: ghost-character-definitions
+    title: "Add ghost character definitions and factory"
+    spec_id: ghosts
+    spec_sections:
+      - ghost-character-definition
+      - ghost-interaction
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on:
+      - ghost-types
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, characters]
+
+  - id: shared-blocked-set
+    title: "Extract shared blocked-position builder from movePlayer"
+    spec_id: ghosts
+    spec_sections:
+      - ghost-drift
+      - ghost-blocks-player
+    context_files:
+      - src/engine/actions.ts
+      - src/engine/characters.ts
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/actions.ts
+    depends_on:
+      - ghost-types
+    verification:
+      - "npx tsc -b --noEmit"
+      - "npx vitest run src/engine/__tests__/actions.test.ts"
+    repair: retry
+    tags: [engine, refactor]
+
+  - id: ghost-spawning
+    title: "Spawn 3 ghosts and their character entries in createGameState"
+    spec_id: ghosts
+    spec_sections:
+      - ghost-spawning
+    context_files:
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/characters.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - ghost-types
+      - ghost-constants
+      - ghost-character-definitions
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, state]
+
+  - id: ghost-drift
+    title: "Implement tickGhosts using shared blocked set"
+    spec_id: ghosts
+    spec_sections:
+      - ghost-drift
+    context_files:
+      - src/engine/actions.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/actions.ts
+    depends_on:
+      - shared-blocked-set
+      - ghost-spawning
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, actions]
+
+  - id: ghost-blocks-movement
+    title: "Add ghost blocking to movePlayer and pathfinding blocked set"
+    spec_id: ghosts
+    spec_sections:
+      - ghost-blocks-player
+    context_files:
+      - src/engine/actions.ts
+      - src/engine/pathfinding.ts
+      - src/engine/types.ts
+      - src/hooks/useMouse.ts
+    output_files:
+      - src/engine/actions.ts
+      - src/hooks/useMouse.ts
+    depends_on:
+      - shared-blocked-set
+    verification:
+      - "npx tsc -b --noEmit"
+      - "npx vitest run src/engine/__tests__/actions.test.ts"
+    repair: retry
+    tags: [engine, actions]
+
+  - id: ghost-rendering
+    title: "Render ghosts in the canvas renderer"
+    spec_id: ghosts
+    spec_sections:
+      - ghost-rendering
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - ghost-types
+      - ghost-constants
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, renderer]
+
+  - id: ghost-tick-integration
+    title: "Call tickGhosts from the rAF game loop"
+    spec_id: ghosts
+    spec_sections:
+      - ghost-drift
+    context_files:
+      - src/components/GameCanvas.tsx
+      - src/engine/actions.ts
+    output_files:
+      - src/components/GameCanvas.tsx
+    depends_on:
+      - ghost-drift
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [component, integration]
+
+  - id: ghost-tests
+    title: "Add ghost unit tests"
+    spec_id: ghosts
+    spec_sections:
+      - ghost-spawning
+      - ghost-drift
+      - ghost-blocks-player
+      - ghost-character-definition
+      - ghost-interaction
+    context_files:
+      - src/engine/actions.ts
+      - src/engine/state.ts
+      - src/engine/characters.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/actions.test.ts
+    output_files:
+      - src/engine/__tests__/ghosts.test.ts
+    depends_on:
+      - ghost-drift
+      - ghost-blocks-movement
+      - ghost-spawning
+      - ghost-character-definitions
+    verification:
+      - "npx vitest run src/engine/__tests__/ghosts.test.ts"
+    repair: retry
+    tags: [test]

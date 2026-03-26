@@ -1,0 +1,127 @@
+id: ghosts
+name: "Ghosts"
+status: planned
+priority: medium
+layer: engine
+source_files:
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/actions.ts
+  - src/engine/characters.ts
+  - src/engine/renderer.ts
+  - src/engine/constants.ts
+  - src/engine/pathfinding.ts
+dependencies:
+  - player-movement
+
+behaviors:
+  - id: ghost-spawning
+    description: >
+      createGameState places 3 ghosts at random walkable (non-Space,
+      non-Sand) positions on the map, each with a unique spawn-order
+      number (1, 2, 3). Ghost positions must not overlap each other,
+      the player, or existing characters.
+    inputs:
+      - "createGameState call"
+    outputs:
+      - "GameState with ghosts array of length 3"
+    state_changes:
+      - field: ghosts
+        effect: "populated with 3 Ghost objects at random dirt/clover positions"
+    determinism: probabilistic
+
+  - id: ghost-drift
+    description: >
+      tickGhosts moves each ghost with a low probability per tick
+      (slower than bees). Each ghost picks a random cardinal or
+      ordinal neighbor and moves there only if the tile is walkable
+      and not blocked. Uses the same blocked-position set as player
+      movement so that any future blocking entities are automatically
+      respected.
+    inputs:
+      - "GameState with ghosts array"
+    outputs: []
+    state_changes:
+      - field: "ghosts[i].pos"
+        effect: "moved to adjacent non-Space tile, or unchanged if no valid neighbor or random check fails"
+    determinism: probabilistic
+
+  - id: ghost-blocks-player
+    description: >
+      movePlayer returns false when the target tile is occupied by a
+      ghost. Ghost positions are included in the pathfinding blocked
+      set so A* routes around them.
+    inputs:
+      - "GameState with a ghost adjacent to player"
+      - "Direction toward the ghost tile"
+    outputs:
+      - "boolean: false"
+    state_changes: []
+    determinism: deterministic
+
+  - id: ghost-character-definition
+    description: >
+      Each ghost is a character for dialog purposes. Ghost definitions
+      have id 'ghost-N', name 'Ghost #N', glyph 'ö', white glyph
+      color, and a 3-line dialog: '...', 'Oh... a steward...',
+      '... I sure would love some clover tea.'
+    inputs:
+      - "Ghost spawn order number N"
+    outputs:
+      - "CharacterDefinition with id, name, glyph, color, dialog"
+    state_changes: []
+    determinism: deterministic
+
+  - id: ghost-interaction
+    description: >
+      Pressing [e] while facing a ghost initiates dialog using the
+      existing character dialog system. The ghost's character entry
+      in state.characters references its definition. Dialog advances
+      and closes identically to other characters.
+    inputs:
+      - "Player facing a ghost tile, [e] pressed"
+    outputs: []
+    state_changes:
+      - field: activeDialog
+        effect: "set to { characterId: 'ghost-N', lineIndex: 0 }"
+    determinism: deterministic
+
+  - id: ghost-rendering
+    description: >
+      Ghosts render as 'ö' in white at their world position. They
+      are rendered at the same z-level as characters in the renderer.
+    inputs:
+      - "GameState with ghosts in viewport"
+    outputs:
+      - "ö character drawn in white at each ghost position"
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: ghost-spawns-avoid-overlap
+    description: "Ghost spawn positions must not overlap each other, the player start position, or Gron's position"
+    expected: "All 3 ghosts at unique positions, none colliding with player or characters"
+  - id: ghost-drift-at-coastline
+    description: "Ghost adjacent to sand/space border has fewer valid neighbors but never enters Space"
+    expected: "Ghost stays on dirt/sand/clover tiles, never moves to Space"
+  - id: ghost-drift-blocked-by-entities
+    description: "Ghost surrounded by other blocking entities has no valid move"
+    expected: "Ghost stays in place, no error"
+  - id: ghost-dialog-complete-cycle
+    description: "Player advances through all 3 dialog lines and dialog closes"
+    expected: "activeDialog set to null after advancing past final line"
+
+failure_conditions:
+  - trigger: "Ghost moves onto a Space tile"
+    expected: "Ghost position unchanged, Space tile never entered"
+  - trigger: "Player walks onto a ghost tile"
+    expected: "movePlayer returns false, player position unchanged"
+  - trigger: "Pathfinding routes through a ghost tile"
+    expected: "A* treats ghost tiles as blocked, routes around them"
+  - trigger: "Fewer than 3 valid spawn positions exist"
+    expected: "Graceful handling — spawn as many as possible without crashing"
+
+verification:
+  test_file: src/engine/__tests__/ghosts.test.ts
+  test_pattern: "ghost"
+  command: "npx vitest run src/engine/__tests__/ghosts.test.ts"

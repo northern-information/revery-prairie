@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { groundOmniboxBlockedSet } from '@/engine/actions'
+import { getBlockedPositions } from '@/engine/actions'
 import { removeItem } from '@/engine/inventory'
 import { findPath } from '@/engine/pathfinding'
 import { ORDINAL } from '@/engine/position'
@@ -107,7 +107,7 @@ export const useCanvasDrop = ({
       }
 
       // Find an adjacent walkable tile to pathfind to
-      const blocked = groundOmniboxBlockedSet(state)
+      const blocked = getBlockedPositions(state)
       let bestPath: ReturnType<typeof findPath> = null
       for (const d of ORDINAL) {
         const ax = mx + d.x
