@@ -48,7 +48,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     backpack,
     openContainer: null,
     playerFacing: 'down',
-    facingOmniboxPos: null,
+    facingEntityPos: null,
     camera: {
       x: playerX - Math.floor(viewportWidth / 2),
       y: playerY - Math.floor(viewportHeight / 2),

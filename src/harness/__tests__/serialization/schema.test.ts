@@ -17,7 +17,7 @@ const EXPECTED_FIELDS = [
   'backpack',
   'openContainer',
   'playerFacing',
-  'facingOmniboxPos',
+  'facingEntityPos',
   'camera',
   'viewportWidth',
   'viewportHeight',

@@ -113,7 +113,7 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   state.player.y = ny
   state.playerFacing = dir
   updateCamera(state)
-  updateFacingOmnibox(state)
+  updateFacingEntity(state)
   return true
 }
 
@@ -533,7 +533,7 @@ export const grabOmnibox = (state: GameState): string | null => {
 
       // Remove from ground (keep open if it was open)
       state.groundOmniboxes.splice(i, 1)
-      updateFacingOmnibox(state)
+      updateFacingEntity(state)
 
       return go.uid
     }
@@ -542,9 +542,15 @@ export const grabOmnibox = (state: GameState): string | null => {
   return null
 }
 
-export const updateFacingOmnibox = (state: GameState): void => {
-  const switchIfOpen = (go: { uid: string }) => {
+const isInteractableAt = (state: GameState, x: number, y: number): boolean =>
+  state.groundOmniboxes.some(go => go.pos.x === x && go.pos.y === y) ||
+  state.characters.some(c => c.pos.x === x && c.pos.y === y)
+
+export const updateFacingEntity = (state: GameState): void => {
+  const switchIfOpen = (x: number, y: number) => {
+    const go = state.groundOmniboxes.find(g => g.pos.x === x && g.pos.y === y)
     if (
+      go &&
       state.openContainer &&
       state.groundOmniboxes.some(g => g.uid === state.openContainer?.id) &&
       state.openContainer.id !== go.uid
@@ -554,35 +560,35 @@ export const updateFacingOmnibox = (state: GameState): void => {
     }
   }
 
-  // Prefer the omnibox in the facing direction
+  // Prefer the interactable in the facing direction
   const d = DIRECTIONS[state.playerFacing]
   const fx = state.player.x + d.x
   const fy = state.player.y + d.y
-  const facing = state.groundOmniboxes.find(go => go.pos.x === fx && go.pos.y === fy)
-  if (facing) {
-    state.facingOmniboxPos = { x: fx, y: fy }
-    switchIfOpen(facing)
+  if (isInteractableAt(state, fx, fy)) {
+    state.facingEntityPos = { x: fx, y: fy }
+    switchIfOpen(fx, fy)
     return
   }
-  // Fall back to any cardinally adjacent omnibox
+  // Fall back to any cardinally adjacent interactable
   for (const cd of CARDINAL) {
     const nx = state.player.x + cd.x
     const ny = state.player.y + cd.y
-    const adjacent = state.groundOmniboxes.find(go => go.pos.x === nx && go.pos.y === ny)
-    if (adjacent) {
-      state.facingOmniboxPos = { x: nx, y: ny }
-      switchIfOpen(adjacent)
+    if (isInteractableAt(state, nx, ny)) {
+      state.facingEntityPos = { x: nx, y: ny }
+      switchIfOpen(nx, ny)
       return
     }
   }
-  state.facingOmniboxPos = null
+  state.facingEntityPos = null
 }
 
+/** @deprecated Use updateFacingEntity instead */
+export const updateFacingOmnibox = updateFacingEntity
+
 export const toggleFacingOmnibox = (state: GameState): boolean => {
-  // Prefer the omnibox in the facing direction
-  if (state.facingOmniboxPos) {
+  if (state.facingEntityPos) {
     const go = state.groundOmniboxes.find(
-      g => g.pos.x === state.facingOmniboxPos?.x && g.pos.y === state.facingOmniboxPos?.y
+      g => g.pos.x === state.facingEntityPos?.x && g.pos.y === state.facingEntityPos?.y
     )
     if (go) return toggleOmnibox(state, go.uid)
   }
@@ -599,9 +605,16 @@ export const toggleFacingOmnibox = (state: GameState): boolean => {
 export const getAdjacentCharacter = (state: GameState): Character | null => {
   const px = state.player.x
   const py = state.player.y
-  for (const d of CARDINAL) {
-    const nx = px + d.x
-    const ny = py + d.y
+  // Prefer the character in the facing direction
+  const d = DIRECTIONS[state.playerFacing]
+  const fx = px + d.x
+  const fy = py + d.y
+  const facing = state.characters.find(c => c.pos.x === fx && c.pos.y === fy)
+  if (facing) return facing
+  // Fall back to any cardinally adjacent character
+  for (const cd of CARDINAL) {
+    const nx = px + cd.x
+    const ny = py + cd.y
     const character = state.characters.find(c => c.pos.x === nx && c.pos.y === ny)
     if (character) return character
   }

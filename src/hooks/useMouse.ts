@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-import { getBlockedPositions, interactWithCharacter, openOmnibox, updateFacingOmnibox } from '@/engine/actions'
+import { getBlockedPositions, interactWithCharacter, openOmnibox, updateFacingEntity } from '@/engine/actions'
 import { getCharacterDefinition } from '@/engine/characters'
 import { screenToTile } from '@/engine/coordinates'
 import { findPath } from '@/engine/pathfinding'
@@ -99,7 +99,7 @@ export const useMouse = ({
           const omniboxUid = clickedOmnibox.uid
           action = () => {
             openOmnibox(state, omniboxUid)
-            updateFacingOmnibox(state)
+            updateFacingEntity(state)
             setActivePanel('inventory')
             refreshUI()
           }

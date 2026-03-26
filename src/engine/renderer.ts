@@ -292,7 +292,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
       const tileKey = posKey(mx, my)
       const isCursor = mx === state.cursorTile?.x && my === state.cursorTile?.y
-      const isFacingOmnibox = mx === state.facingOmniboxPos?.x && my === state.facingOmniboxPos?.y
+      const isFacingEntity = mx === state.facingEntityPos?.x && my === state.facingEntityPos?.y
 
       // Resolve what to draw at this tile — priority order determines z-index
       let char: string
@@ -360,7 +360,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
 
       // Draw with cursor/facing inversion if applicable
-      if ((isCursor && cursorable) || isFacingOmnibox) {
+      if ((isCursor && cursorable) || isFacingEntity) {
         ctx.fillStyle = '#ff69b4'
         ctx.fillRect(px, py, charWidth, charHeight)
         ctx.fillStyle = BG_COLOR

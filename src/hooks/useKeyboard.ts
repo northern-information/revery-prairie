@@ -11,7 +11,7 @@ import {
   pickUpGroundItems,
   toggleFacingOmnibox,
   toggleOmnibox,
-  updateFacingOmnibox,
+  updateFacingEntity,
 } from '@/engine/actions'
 import { getCharacterDefinition } from '@/engine/characters'
 import { keyToDirection } from '@/engine/input'
@@ -159,7 +159,7 @@ export const useKeyboard = ({
             const success = dropItem(state, hoveredId)
             if (success) {
               itemInfoRef.current?.clear()
-              updateFacingOmnibox(state)
+              updateFacingEntity(state)
               onDrop(hoveredId, state.player.x, state.player.y)
               refreshUI()
             }
