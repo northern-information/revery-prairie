@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CombineToast } from './CombineToast'
 import { DragCursor } from './DragCursor'
 import { InventoryGrid } from './InventoryGrid'
+import { CloseButton, PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { closeOmnibox, grabOmnibox, openOmnibox } from '@/engine/actions'
 import { autoSort, findFitPosition, placeItem, removeItem } from '@/engine/inventory'
@@ -219,21 +220,15 @@ export const InventoryPanel = ({
           {state.openContainer && (
             <div
               data-panel="omnibox"
-              className="text-text pointer-events-auto flex flex-col gap-3 bg-black/70 px-4 py-4 font-mono text-xs"
+              className="text-text pointer-events-auto relative flex flex-col gap-3 bg-black/70 px-4 py-4 font-mono text-xs"
             >
-              <div className="border-border-dim flex items-baseline justify-between border-b pb-2">
-                <span>{state.openContainer.name.toLowerCase()}</span>
-                <button
-                  type="button"
-                  className="text-dim hover:text-text pointer-events-auto ml-4"
-                  onClick={() => {
-                    closeOmnibox(state)
-                    refreshUI()
-                  }}
-                >
-                  x
-                </button>
-              </div>
+              <CloseButton
+                onClick={() => {
+                  closeOmnibox(state)
+                  refreshUI()
+                }}
+              />
+              <PanelTitle>{state.openContainer.name.toLowerCase()}</PanelTitle>
               <InventoryGrid
                 container={state.openContainer}
                 containerId={state.openContainer.id}
@@ -280,15 +275,13 @@ export const InventoryPanel = ({
           {/* Backpack panel — right side */}
           <div
             data-panel="inventory"
-            className="text-text pointer-events-auto flex flex-col gap-3 bg-black/70 px-4 py-4 font-mono text-xs"
+            className="text-text pointer-events-auto relative flex flex-col gap-3 bg-black/70 px-4 py-4 font-mono text-xs"
           >
-            <div className="border-border-dim flex items-baseline justify-between border-b pb-2">
+            <CloseButton onClick={onClose} />
+            <SectionHeader className="flex items-baseline justify-between">
               <span>backpack</span>
-              <span className="text-dim ml-4">{totalWeight}w</span>
-              <button type="button" className="text-dim hover:text-text pointer-events-auto ml-4" onClick={onClose}>
-                x
-              </button>
-            </div>
+              <span className="text-dim mr-8">{totalWeight}w</span>
+            </SectionHeader>
 
             <div className="group">
               <div className="relative inline-block">
