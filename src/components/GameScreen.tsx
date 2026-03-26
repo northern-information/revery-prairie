@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react'
-import { DialogBox } from './DialogBox'
+import { DialogBox, DIALOG_HEIGHT, DIALOG_WIDTH } from './DialogBox'
 import { GameCanvas } from './GameCanvas'
 import { InventoryPanel } from './InventoryPanel'
 import { Menu } from './Menu'
@@ -99,12 +99,43 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
           const def = getCharacterDefinition(state.activeDialog.characterId)
           const line = def.dialog[state.activeDialog.lineIndex]
           const isLastLine = state.activeDialog.lineIndex >= def.dialog.length - 1
+
+          const character = state.characters.find(
+            (c) => c.definitionId === state.activeDialog!.characterId,
+          )
+          const metrics = metricsRef.current
+          const GAP = 12
+          const EDGE = 8
+
+          let dTop: number
+          let dLeft: number
+
+          if (character && metrics) {
+            const sx = (character.pos.x - state.camera.x) * metrics.charWidth
+            const sy = (character.pos.y - state.camera.y) * metrics.charHeight
+
+            dTop = sy - DIALOG_HEIGHT - GAP
+            dLeft = sx + metrics.charWidth / 2 - DIALOG_WIDTH / 2
+
+            if (dTop < EDGE) {
+              dTop = sy + metrics.charHeight + GAP
+            }
+
+            dLeft = Math.max(EDGE, Math.min(dLeft, window.innerWidth - DIALOG_WIDTH - EDGE))
+            dTop = Math.max(EDGE, Math.min(dTop, window.innerHeight - DIALOG_HEIGHT - EDGE))
+          } else {
+            dTop = (window.innerHeight - DIALOG_HEIGHT) / 2
+            dLeft = (window.innerWidth - DIALOG_WIDTH) / 2
+          }
+
           return (
             <DialogBox
               characterName={def.name}
               portrait={def.portrait}
               line={line}
               isLastLine={isLastLine}
+              top={dTop}
+              left={dLeft}
               onNext={() => {
                 advanceDialog(state)
                 refreshUI()

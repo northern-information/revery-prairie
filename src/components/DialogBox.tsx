@@ -1,3 +1,6 @@
+export const DIALOG_WIDTH = 448
+export const DIALOG_HEIGHT = 340
+
 interface DialogBoxProps {
   characterName: string
   portrait?: string
@@ -5,10 +8,24 @@ interface DialogBoxProps {
   isLastLine: boolean
   onNext: () => void
   onClose: () => void
+  top: number
+  left: number
 }
 
-export const DialogBox = ({ characterName, portrait, line, isLastLine, onNext, onClose }: DialogBoxProps) => (
-  <div className="border-border text-text fixed top-1/2 left-1/2 z-10 max-w-md min-w-72 -translate-x-1/2 -translate-y-1/2 border bg-black/85 px-8 py-6 font-mono text-sm">
+export const DialogBox = ({
+  characterName,
+  portrait,
+  line,
+  isLastLine,
+  onNext,
+  onClose,
+  top,
+  left,
+}: DialogBoxProps) => (
+  <div
+    className="border-border text-text fixed z-10 flex h-[340px] w-[448px] flex-col border bg-black/85 px-8 py-6 font-mono text-sm"
+    style={{ top, left }}
+  >
     <button
       type="button"
       className="text-dim hover:text-text absolute top-0 right-0 px-4 py-3 text-sm"
@@ -18,7 +35,7 @@ export const DialogBox = ({ characterName, portrait, line, isLastLine, onNext, o
       x
     </button>
     {portrait && (
-      <div className="mb-4 flex justify-center">
+      <div className="mb-4 flex shrink-0 justify-center">
         <img
           src={portrait}
           alt={`portrait of ${characterName.toLowerCase()}`}
@@ -26,9 +43,11 @@ export const DialogBox = ({ characterName, portrait, line, isLastLine, onNext, o
         />
       </div>
     )}
-    <div className="border-border-dim text-muted mb-4 border-b pb-2">{characterName.toLowerCase()}</div>
-    <p className="mb-4 leading-relaxed">{line}</p>
-    <div className="text-dim flex gap-4 text-xs">
+    <div className="border-border-dim text-muted mb-4 shrink-0 border-b pb-2">
+      {characterName.toLowerCase()}
+    </div>
+    <p className="min-h-0 flex-1 overflow-hidden leading-relaxed">{line}</p>
+    <div className="text-dim mt-auto flex shrink-0 gap-4 text-xs">
       {isLastLine ? (
         <button type="button" className="hover:text-text" onClick={onClose}>
           [e] close
