@@ -7,21 +7,21 @@ const repoRoot = resolve(process.argv[3] ?? '.')
 const result = validate(specsDir, repoRoot)
 
 if (result.warnings.length > 0) {
-  console.log(`\n--- warnings (${result.warnings.length}) ---`)
+  console.log(`\n--- warnings (${String(result.warnings.length)}) ---`)
   for (const w of result.warnings) {
     console.log(`  [${w.code}] ${w.specId} > ${w.field}: ${w.message}`)
   }
 }
 
 if (result.errors.length > 0) {
-  console.log(`\n--- errors (${result.errors.length}) ---`)
+  console.log(`\n--- errors (${String(result.errors.length)}) ---`)
   for (const e of result.errors) {
     console.log(`  [${e.code}] ${e.specId} > ${e.field}: ${e.message}`)
   }
 }
 
 console.log(
-  `\n${result.specs.length} spec(s), ${result.errors.length} error(s), ${result.warnings.length} warning(s)`,
+  `\n${String(result.specs.length)} spec(s), ${String(result.errors.length)} error(s), ${String(result.warnings.length)} warning(s)`,
 )
 
 if (result.valid) {

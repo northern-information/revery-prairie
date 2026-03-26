@@ -1,7 +1,8 @@
 import { execSync } from 'node:child_process'
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
+import { resolve, dirname, join } from 'node:path'
 import { mkdirSync } from 'node:fs'
+import { parse } from 'yaml'
 import type {
   LlmClient,
   TaskDefinition,
@@ -50,10 +51,10 @@ const parseFileBlocks = (
   }
 
   for (const line of lines) {
-    const match = line.match(/^---\s+(.+?)\s+---$/)
+    const match = /^---\s+(.+?)\s+---$/.exec(line)
     if (match) {
       flush()
-      currentPath = match[1]!
+      currentPath = match[1] ?? ''
       currentLines = []
     } else if (currentPath) {
       currentLines.push(line)
@@ -159,10 +160,6 @@ const validateOutputBoundary = (
 // --- Load specs from directory ---
 
 const loadSpecs = (specsDir: string): FeatureSpec[] => {
-  const { readdirSync } = require('node:fs') as typeof import('node:fs')
-  const { parse } = require('yaml') as { parse: (s: string) => unknown }
-  const { join } = require('node:path') as typeof import('node:path')
-
   const files = readdirSync(specsDir).filter(
     (f: string) => f.endsWith('.yaml') || f.endsWith('.yml'),
   )
@@ -318,7 +315,8 @@ export const executePlan = async (
   for (const tier of tiers) {
     // tasks within a tier could run in parallel, but we run sequentially for now
     for (const taskId of tier) {
-      const task = taskMap.get(taskId)!
+      const task = taskMap.get(taskId)
+      if (!task) continue
 
       // skip flag
       if (task.skip) {
@@ -353,7 +351,7 @@ export const executePlan = async (
       // checksum cache check
       if (!force && priorResults) {
         const prior = priorResults.get(taskId)
-        if (prior && prior.status === TaskStatus.Passed) {
+        if (prior?.status === TaskStatus.Passed) {
           const currentInputs = hashFiles(
             task.context_files,
             repoRoot,

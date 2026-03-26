@@ -53,10 +53,10 @@ const parseRawPlan = (
   if (errors.length > 0) return { plan: null, errors }
 
   const plan: PlanDefinition = {
-    id: (planSection!.id as string) ?? '',
-    title: (planSection!.title as string) ?? '',
-    created: (planSection!.created as string) ?? '',
-    global_verification: (planSection!.global_verification as string[]) ?? [],
+    id: (planSection?.id as string) ?? '',
+    title: (planSection?.title as string) ?? '',
+    created: (planSection?.created as string) ?? '',
+    global_verification: (planSection?.global_verification as string[]) ?? [],
     tasks: (tasks as TaskDefinition[]) ?? [],
   }
 

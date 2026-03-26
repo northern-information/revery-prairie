@@ -50,7 +50,8 @@ describe('replay: bee behavior', () => {
       }
     })
 
-    const bee = state.bees[0]!
+    const bee = state.bees[0]
+    expect(bee).toBeDefined()
     const moved = bee.pos.x !== startX || bee.pos.y !== startY
     expect(moved).toBe(true)
   })

@@ -1,3 +1,4 @@
+import { stringify } from 'yaml'
 import { parsePlanYaml } from '../src/plan-parser.ts'
 
 const minimalTask = (overrides: Record<string, unknown> = {}) => ({
@@ -16,7 +17,6 @@ const minimalTask = (overrides: Record<string, unknown> = {}) => ({
 })
 
 const minimalPlan = (overrides: Record<string, unknown> = {}) => {
-  const { stringify } = require('yaml') as { stringify: (v: unknown) => string }
   return stringify({
     plan: {
       id: 'test-plan',
@@ -36,14 +36,13 @@ describe('parsePlanYaml', () => {
 
       expect(result.valid).toBe(true)
       expect(result.plan).not.toBeNull()
-      expect(result.plan!.id).toBe('test-plan')
-      expect(result.plan!.tasks).toHaveLength(1)
+      expect(result.plan?.id).toBe('test-plan')
+      expect(result.plan?.tasks).toHaveLength(1)
       expect(result.tiers).toEqual([['task-1']])
       expect(result.errors).toHaveLength(0)
     })
 
     it('sorts tasks into tiers by dependencies', () => {
-      const { stringify } = require('yaml') as { stringify: (v: unknown) => string }
       const raw = stringify({
         plan: { id: 'p', title: 'P', created: '2026-03-26', global_verification: [] },
         tasks: [
@@ -58,7 +57,7 @@ describe('parsePlanYaml', () => {
       expect(result.valid).toBe(true)
       expect(result.tiers).toHaveLength(2)
       expect(result.tiers[0]).toEqual(['a'])
-      expect(result.tiers[1]!.sort()).toEqual(['b', 'c'])
+      expect(result.tiers[1].sort()).toEqual(['b', 'c'])
     })
   })
 
@@ -73,7 +72,6 @@ describe('parsePlanYaml', () => {
 
   describe('structural errors', () => {
     it('reports missing plan key', () => {
-      const { stringify } = require('yaml') as { stringify: (v: unknown) => string }
       const raw = stringify({ tasks: [minimalTask()] })
 
       const result = parsePlanYaml(raw)
@@ -83,7 +81,6 @@ describe('parsePlanYaml', () => {
     })
 
     it('reports missing tasks key', () => {
-      const { stringify } = require('yaml') as { stringify: (v: unknown) => string }
       const raw = stringify({
         plan: { id: 'p', title: 'P', created: '2026-03-26' },
       })
@@ -95,7 +92,6 @@ describe('parsePlanYaml', () => {
     })
 
     it('reports missing plan id', () => {
-      const { stringify } = require('yaml') as { stringify: (v: unknown) => string }
       const raw = stringify({
         plan: { title: 'P', created: '2026-03-26' },
         tasks: [minimalTask()],
@@ -110,7 +106,6 @@ describe('parsePlanYaml', () => {
 
   describe('task validation', () => {
     it('reports duplicate task IDs', () => {
-      const { stringify } = require('yaml') as { stringify: (v: unknown) => string }
       const raw = stringify({
         plan: { id: 'p', title: 'P', created: '2026-03-26', global_verification: [] },
         tasks: [minimalTask({ id: 'dupe' }), minimalTask({ id: 'dupe' })],
@@ -123,7 +118,6 @@ describe('parsePlanYaml', () => {
     })
 
     it('reports missing dependency references', () => {
-      const { stringify } = require('yaml') as { stringify: (v: unknown) => string }
       const raw = stringify({
         plan: { id: 'p', title: 'P', created: '2026-03-26', global_verification: [] },
         tasks: [minimalTask({ depends_on: ['nonexistent'] })],
@@ -136,7 +130,6 @@ describe('parsePlanYaml', () => {
     })
 
     it('reports dependency cycles among tasks', () => {
-      const { stringify } = require('yaml') as { stringify: (v: unknown) => string }
       const raw = stringify({
         plan: { id: 'p', title: 'P', created: '2026-03-26', global_verification: [] },
         tasks: [

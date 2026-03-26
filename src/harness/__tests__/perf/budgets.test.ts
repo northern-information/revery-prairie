@@ -10,14 +10,14 @@ const SEED = 42
 
 // advisory budgets — warn at 1x, fail at 10x
 const budget = (name: string, budgetMs: number, fn: () => void) => {
-  it(`${name} completes within ${budgetMs}ms (hard limit: ${budgetMs * 10}ms)`, () => {
+  it(`${name} completes within ${String(budgetMs)}ms (hard limit: ${String(budgetMs * 10)}ms)`, () => {
     const start = performance.now()
     fn()
     const elapsed = performance.now() - start
 
     if (elapsed > budgetMs) {
       console.warn(
-        `[perf] ${name}: ${elapsed.toFixed(1)}ms (budget: ${budgetMs}ms)`,
+        `[perf] ${name}: ${elapsed.toFixed(1)}ms (budget: ${String(budgetMs)}ms)`,
       )
     }
 
@@ -56,7 +56,7 @@ describe('performance budgets', () => {
       const smallItems = ['bee', 'clover']
       for (let y = 0; y < 6; y++) {
         for (let x = 0; x < 4; x++) {
-          const itemId = smallItems[(x + y) % smallItems.length]!
+          const itemId = smallItems[(x + y) % smallItems.length] ?? 'bee'
           placeItem(backpack, itemId, Rotation.R0, x, y)
         }
       }

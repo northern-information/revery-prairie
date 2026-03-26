@@ -17,9 +17,10 @@ describe('asset references', () => {
   describe('character portraits', () => {
     for (const char of Object.values(CHARACTER_DEFINITIONS)) {
       if (char.portrait) {
-        it(`${char.id} portrait "${char.portrait}" exists in public/`, () => {
+        const portrait = char.portrait
+        it(`${char.id} portrait "${portrait}" exists in public/`, () => {
           // portrait paths start with "/" — strip it for filesystem check
-          const portraitPath = char.portrait!.replace(/^\//, '')
+          const portraitPath = portrait.replace(/^\//, '')
           expect(existsSync(resolve(PUBLIC_DIR, portraitPath))).toBe(true)
         })
       }

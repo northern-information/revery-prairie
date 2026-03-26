@@ -52,11 +52,11 @@ describe('createRunLogger', () => {
       expect(readFileSync(join(base, 'response.md'), 'utf-8')).toBe('LLM response text')
       expect(readFileSync(join(base, 'files', 'types.ts'), 'utf-8')).toBe('const x = 1')
 
-      const verResult = JSON.parse(readFileSync(join(base, 'verification', '0.json'), 'utf-8'))
+      const verResult = JSON.parse(readFileSync(join(base, 'verification', '0.json'), 'utf-8')) as { command: string; passed: boolean }
       expect(verResult.command).toBe('npx tsc')
       expect(verResult.passed).toBe(true)
 
-      const status = JSON.parse(readFileSync(join(base, 'status.json'), 'utf-8'))
+      const status = JSON.parse(readFileSync(join(base, 'status.json'), 'utf-8')) as { passed: boolean }
       expect(status.passed).toBe(true)
     })
   })
@@ -76,7 +76,7 @@ describe('createRunLogger', () => {
       logger.logTaskResult('task-1', result)
 
       const resultPath = join(logger.runDir, 'tasks', 'task-1', 'result.json')
-      const data = JSON.parse(readFileSync(resultPath, 'utf-8'))
+      const data = JSON.parse(readFileSync(resultPath, 'utf-8')) as { task_id: string; status: string }
       expect(data.task_id).toBe('task-1')
       expect(data.status).toBe('passed')
     })
@@ -113,7 +113,7 @@ describe('createRunLogger', () => {
 
       const runJson = JSON.parse(
         readFileSync(join(logger.runDir, 'run.json'), 'utf-8'),
-      )
+      ) as { plan_id: string; summary: { passed: number } }
       expect(runJson.plan_id).toBe('test-plan')
       expect(runJson.summary.passed).toBe(1)
 

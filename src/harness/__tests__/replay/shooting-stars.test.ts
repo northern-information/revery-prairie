@@ -34,7 +34,8 @@ describe('replay: shooting stars', () => {
     // ensure we have at least one shooting star
     if (state.shootingStars.length === 0) return
 
-    const star = state.shootingStars[0]!
+    const star = state.shootingStars[0]
+    expect(star).toBeDefined()
     const startX = star.pos.x
 
     tickShootingStars(state, 0)

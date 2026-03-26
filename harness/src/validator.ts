@@ -79,7 +79,7 @@ const validateSchema = (
   const check = ajv.compile(schema)
 
   for (const spec of specs) {
-    const valid = check(spec) as boolean
+    const valid = check(spec)
     if (!valid) {
       const specId = (spec as unknown as Record<string, unknown>).id as string | undefined
       for (const e of check.errors ?? []) {
@@ -118,7 +118,7 @@ const checkDuplicateIds = (specs: FeatureSpec[]): ValidationError[] => {
           ES.Error,
           id,
           'id',
-          `spec id "${id}" appears ${count} times`,
+          `spec id "${id}" appears ${String(count)} times`,
         ),
       )
     }
@@ -208,7 +208,7 @@ const topoSort = (
     for (const dep of spec.dependencies ?? []) {
       if (specIds.has(dep)) {
         inDegree.set(spec.id, (inDegree.get(spec.id) ?? 0) + 1)
-        dependents.get(dep)!.push(spec.id)
+        dependents.get(dep)?.push(spec.id)
       }
     }
   }
@@ -220,7 +220,8 @@ const topoSort = (
 
   const order: string[] = []
   while (queue.length > 0) {
-    const id = queue.shift()!
+    const id = queue.shift()
+    if (id === undefined) break
     order.push(id)
     for (const dep of dependents.get(id) ?? []) {
       const newDeg = (inDegree.get(dep) ?? 1) - 1

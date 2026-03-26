@@ -64,7 +64,7 @@ export const createRunLogger = (logsRoot: string, runId: string): RunLogger => {
     const verDir = join(attemptDir, 'verification')
     ensureDir(verDir)
     for (let i = 0; i < attempt.verification.length; i++) {
-      writeJson(join(verDir, `${i}.json`), attempt.verification[i])
+      writeJson(join(verDir, `${String(i)}.json`), attempt.verification[i])
     }
 
     // attempt status
@@ -99,17 +99,17 @@ const formatRunSummary = (result: PlanRunResult): string => {
 
   for (const task of result.tasks) {
     lines.push(
-      `| ${task.task_id} | ${task.status} | ${task.attempts.length} |`,
+      `| ${task.task_id} | ${task.status} | ${String(task.attempts.length)} |`,
     )
   }
 
   lines.push(
     '',
     `## Summary`,
-    `- passed: ${result.summary.passed}`,
-    `- failed: ${result.summary.failed}`,
-    `- skipped: ${result.summary.skipped}`,
-    `- blocked: ${result.summary.blocked}`,
+    `- passed: ${String(result.summary.passed)}`,
+    `- failed: ${String(result.summary.failed)}`,
+    `- skipped: ${String(result.summary.skipped)}`,
+    `- blocked: ${String(result.summary.blocked)}`,
   )
 
   return lines.join('\n')
