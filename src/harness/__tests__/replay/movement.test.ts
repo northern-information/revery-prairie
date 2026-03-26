@@ -60,7 +60,6 @@ describe('replay: movement sequences', () => {
   it('blocked moves do not change position', () => {
     const state = createSeededState()
     const startX = state.player.x
-    const startY = state.player.y
 
     // walk left until blocked (will eventually hit space border)
     let moved = true
