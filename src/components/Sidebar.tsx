@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { ItemInfo } from './ItemInfo'
 
 import { getCharacterDefinition } from '@/engine/characters'
@@ -39,7 +39,7 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, eventLog, metricsRef }: SidebarProps) => {
-  const [metric, setMetric] = useState(false)
+  const { metric } = state
   const cursorRef = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
@@ -248,19 +248,6 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
               </tr>
             </tbody>
           </table>
-        </div>
-
-        <div>
-          <div className="border-border-dim text-muted mb-2 border-b pb-2">units</div>
-          <button
-            type="button"
-            className="text-dim hover:text-text pointer-events-auto text-left"
-            onClick={() => {
-              setMetric(prev => !prev)
-            }}
-          >
-            {metric ? 'metric' : 'imperial'}
-          </button>
         </div>
 
         <div>

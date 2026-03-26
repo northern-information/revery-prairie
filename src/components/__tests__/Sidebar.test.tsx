@@ -1,7 +1,6 @@
 import { createRef } from 'react'
 import { Sidebar } from '../Sidebar'
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { vi } from 'vitest'
 
 import { combineBeeAndClover } from '@/engine/actions'
@@ -194,7 +193,7 @@ describe('Sidebar', () => {
     expect(el.className).toContain('text-text')
   })
 
-  it('renders weather section in imperial by default', () => {
+  it('renders weather section in metric by default', () => {
     const state = createGameState('Test', 80, 40)
     render(
       <Sidebar
@@ -208,34 +207,14 @@ describe('Sidebar', () => {
     )
 
     expect(screen.getByText('spring')).toBeInTheDocument()
-    expect(screen.getByText(/°F/)).toBeInTheDocument()
-    expect(screen.getByText(/mph/)).toBeInTheDocument()
-    expect(screen.getByText(/%/)).toBeInTheDocument()
-    expect(screen.getByText('imperial')).toBeInTheDocument()
-  })
-
-  it('toggles to metric units', async () => {
-    const state = createGameState('Test', 80, 40)
-    render(
-      <Sidebar
-        state={state}
-        activePanel={null}
-        setActivePanel={noop}
-        itemInfoRef={defaultInfoRef}
-        eventLog={[]}
-        metricsRef={createRef()}
-      />
-    )
-
-    await userEvent.click(screen.getByText('imperial'))
-
     expect(screen.getByText(/°C/)).toBeInTheDocument()
     expect(screen.getByText(/kph/)).toBeInTheDocument()
-    expect(screen.getByText('metric')).toBeInTheDocument()
+    expect(screen.getByText(/%/)).toBeInTheDocument()
   })
 
-  it('toggles back to imperial', async () => {
+  it('renders weather in imperial when metric is false', () => {
     const state = createGameState('Test', 80, 40)
+    state.metric = false
     render(
       <Sidebar
         state={state}
@@ -247,11 +226,7 @@ describe('Sidebar', () => {
       />
     )
 
-    await userEvent.click(screen.getByText('imperial'))
-    await userEvent.click(screen.getByText('metric'))
-
     expect(screen.getByText(/°F/)).toBeInTheDocument()
     expect(screen.getByText(/mph/)).toBeInTheDocument()
-    expect(screen.getByText('imperial')).toBeInTheDocument()
   })
 })
