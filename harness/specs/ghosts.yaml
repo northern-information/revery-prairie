@@ -44,6 +44,8 @@ behaviors:
     state_changes:
       - field: "ghosts[i].pos"
         effect: "moved to adjacent non-Space tile, or unchanged if no valid neighbor or random check fails"
+      - field: "characters[matching].pos"
+        effect: "synced to match ghosts[i].pos after each move"
     determinism: probabilistic
 
   - id: ghost-blocks-player

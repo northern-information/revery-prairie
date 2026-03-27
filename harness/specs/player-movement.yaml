@@ -41,7 +41,11 @@ behaviors:
       - "Direction toward the Space tile"
     outputs:
       - "boolean: false"
-    state_changes: []
+    state_changes:
+      - field: playerFacing
+        effect: "set to dir (see facing-entity-update)"
+      - field: facingEntityPos
+        effect: "recalculated (see facing-entity-update)"
     determinism: deterministic
 
   - id: movement-blocked-by-ground-omnibox
@@ -53,7 +57,11 @@ behaviors:
       - "Direction toward the omnibox tile"
     outputs:
       - "boolean: false"
-    state_changes: []
+    state_changes:
+      - field: playerFacing
+        effect: "set to dir (see facing-entity-update)"
+      - field: facingEntityPos
+        effect: "recalculated (see facing-entity-update)"
     determinism: deterministic
 
   - id: movement-blocked-by-character
@@ -65,7 +73,11 @@ behaviors:
       - "Direction toward the character tile"
     outputs:
       - "boolean: false"
-    state_changes: []
+    state_changes:
+      - field: playerFacing
+        effect: "set to dir (see facing-entity-update)"
+      - field: facingEntityPos
+        effect: "recalculated (see facing-entity-update)"
     determinism: deterministic
 
   - id: facing-entity-update
