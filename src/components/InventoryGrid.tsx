@@ -6,7 +6,7 @@ import { getDefinition } from '@/engine/items'
 import { combineIcon } from '@/engine/recipes'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { Container } from '@/engine/types'
-import type { DragState } from '@/hooks/useInventoryDrag'
+import type { DragState } from '@/engine/drag'
 
 interface InventoryGridProps {
   container: Container
