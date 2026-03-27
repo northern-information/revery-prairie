@@ -31,15 +31,18 @@ behaviors:
         effect: "updated via updateCamera clamping"
       - field: camera.y
         effect: "updated via updateCamera clamping"
+      - field: currentZone
+        effect: "may change via checkTransition if player steps on a CaveEntrance tile (zone swap between overworld and cave)"
     determinism: deterministic
 
-  - id: movement-blocked-by-space
+  - id: movement-blocked-by-non-walkable
     description: >
       movePlayer returns false and does not mutate position when the
-      target tile is Space
+      target tile is non-walkable. isWalkableTile rejects Space,
+      CaveWall, and CaveBreakableWall tile types.
     inputs:
-      - "GameState with player adjacent to a Space tile"
-      - "Direction toward the Space tile"
+      - "GameState with player adjacent to a non-walkable tile"
+      - "Direction toward the non-walkable tile"
     outputs:
       - "boolean: false"
     state_changes:
@@ -86,7 +89,7 @@ behaviors:
       after any move attempt (successful or not), playerFacing is set
       to the direction argument and facingEntityPos is recalculated
       via updateFacingEntity to highlight the nearest interactable
-      (ground omnibox, character, or future entity)
+      (ground omnibox, character, or cave breakable wall)
     inputs:
       - "GameState"
       - "Direction"
@@ -107,7 +110,7 @@ edge_cases:
     expected: "movePlayer returns false, position unchanged"
 
 failure_conditions:
-  - trigger: "Target tile is Space"
+  - trigger: "Target tile is non-walkable (Space, CaveWall, CaveBreakableWall)"
     expected: "movePlayer returns false, no state mutation to player position"
   - trigger: "Target position is out of map bounds"
     expected: "movePlayer returns false, no state mutation to player position"

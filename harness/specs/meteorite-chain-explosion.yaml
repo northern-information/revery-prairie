@@ -38,8 +38,8 @@ behaviors:
       placed on distinct walkable tiles within a radius of 3
       tiles from the pickup position. tiles must be in-bounds,
       walkable (dirt or clover), and not occupied by any entity
-      (meteorites, ground items, ground omniboxes, player,
-      characters, ghosts). a LandingExplosion is pushed for each
+      (meteorites, ground items, ground omniboxes, player, or
+      characters — which includes ghosts). a LandingExplosion is pushed for each
       spawned meteorite so the existing ring-expansion animation
       plays. if fewer than 3 valid tiles exist, only as many
       meteorites as there are valid tiles are spawned. spawned
@@ -81,7 +81,7 @@ edge_cases:
     expected: "spawns the available count, each with a LandingExplosion"
   - id: multiple-meteorites-same-tile
     description: "two meteorites at the same position picked up in one call — each rolls independently"
-    expected: "each meteorite has its own 1/3 chance, chain explosions stack"
+    expected: "each meteorite has its own 1/7 chance, chain explosions stack"
   - id: cave-zone
     description: "meteorite pickup in cave zone — chain explosion still applies if meteorites exist there"
     expected: "uses cave map tiles for walkability checks, spawns on caveFloor tiles"
@@ -89,7 +89,7 @@ edge_cases:
     description: "player tile is excluded from candidate spawn tiles since the player occupies it"
     expected: "no meteorite spawns on the player position"
   - id: occupied-tile-excluded
-    description: "a candidate tile is occupied by a ground item, ground omnibox, character, ghost, or existing meteorite"
+    description: "a candidate tile is occupied by a ground item, ground omnibox, character (including ghost), or existing meteorite"
     expected: "that tile is skipped, meteorite spawns on next valid candidate"
   - id: chain-children-cannot-explode
     description: "meteorites spawned by a chain explosion have fromChain: true and are skipped by the explosion roll"
@@ -100,7 +100,7 @@ failure_conditions:
     expected: "chain explosion does not trigger, pickup proceeds normally without roll"
   - trigger: "backpack is full and meteorite cannot be captured"
     expected: "chain explosion still rolls — if it triggers, the meteorite is consumed by the explosion. if not, the meteorite stays on the ground"
-  - trigger: "Math.random returns value >= 1/3"
+  - trigger: "Math.random returns value >= 1/7"
     expected: "no chain explosion, normal pickup behavior"
 
 verification:
