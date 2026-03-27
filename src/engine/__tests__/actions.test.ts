@@ -64,6 +64,28 @@ describe('movePlayer', () => {
     movePlayer(state, 'right')
     expect(state.camera.x).toBe(camBefore.x + 1)
   })
+
+  it('updates playerFacing even when move is blocked', () => {
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
+    state.player.x = 0
+    state.player.y = 0
+    state.playerFacing = 'down'
+    expect(movePlayer(state, 'left')).toBe(false)
+    expect(state.playerFacing).toBe('left')
+    expect(state.player.x).toBe(0)
+  })
+
+  it('updates facingEntityPos when blocked move faces an interactable', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.playerFacing = 'down'
+    // Place a character to the right
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    // Try to move right — blocked by character, but should face it
+    expect(movePlayer(state, 'right')).toBe(false)
+    expect(state.playerFacing).toBe('right')
+    expect(state.facingEntityPos).toEqual({ x: state.player.x + 1, y: state.player.y })
+  })
 })
 
 describe('combineBeeAndClover', () => {

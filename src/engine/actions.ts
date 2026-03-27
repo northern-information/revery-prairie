@@ -104,14 +104,26 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   const nx = state.player.x + d.x
   const ny = state.player.y + d.y
 
-  if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) return false
-  if (state.map[ny][nx].type === TileType.Space) return false
+  // Always update facing, even on failed moves — lets the player
+  // look toward walls, corners, and blocked entities.
+  state.playerFacing = dir
+
+  if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) {
+    updateFacingEntity(state)
+    return false
+  }
+  if (state.map[ny][nx].type === TileType.Space) {
+    updateFacingEntity(state)
+    return false
+  }
   const blocked = getBlockedPositions(state)
-  if (blocked.has(posKey(nx, ny))) return false
+  if (blocked.has(posKey(nx, ny))) {
+    updateFacingEntity(state)
+    return false
+  }
 
   state.player.x = nx
   state.player.y = ny
-  state.playerFacing = dir
   updateCamera(state)
   updateFacingEntity(state)
   return true
