@@ -86,7 +86,15 @@ shift+click chains waypoints onto an existing path (RTS-style movement queuing).
 
 coordinate transform: `screenToTile()` converts `e.offsetX`/`e.offsetY` (CSS pixels) to world tile position using camera offset and char metrics. no DPR correction needed — `offsetX`/`offsetY` are already CSS-space.
 
-future: entity click interaction (hit-test, walk-then-interact), drag-select for multi-tile operations.
+click-to-interact: clicking any interactable (character, ground omnibox, breakable wall, or any tile where `isInteractableAt` returns true) pathfinds to the closest adjacent walkable tile, then executes the interaction on arrival via `state.pendingAction`. `state.pendingInteractionTarget: Position | null` tracks the clicked interactable's position — the renderer highlights it with pink inversion during the walk. cleared on action completion, path cancellation, WASD interrupt, zone transition, or new non-interactable click.
+
+pathfinding blockers: click-to-move and hover preview use `getPathfindingBlockers(state, target?)` instead of `getBlockedPositions`. this extends the blocked set with cave entrance tiles so paths don't accidentally route through zone transitions. the `target` parameter excludes the destination from blocking so you can still pathfind TO an entrance or interactable.
+
+hover path preview: `state.hoverPath` / `state.hoverPathTarget` cache a preview path from the player to the cursor tile. computed in the renderer when `cursorTile` changes (not every frame). cleared when an active path exists or cursor leaves the canvas. rendered as the tile's own glyph in dark gray (`#555555`) — preserves tile identity (e.g. `O` for cave entrance) rather than replacing with dots.
+
+tile glyph preservation on paths: special tiles (cave entrance, interactables) render their own glyph on active path and hover overlays, never replaced by path dots (`·`) or waypoint markers (`+`). this is a general rendering convention — tile identity is always visible.
+
+future: drag-select for multi-tile operations.
 
 ## cursor
 
@@ -159,6 +167,8 @@ portable 5x5 containers (2x2 inventory footprint). created by combining meteorit
 
 tile walkability is centralized in `isWalkableTile(tileType)` in `position.ts`. non-walkable: `Space`, `CaveWall`, `CaveBreakableWall`. used by `movePlayer`, `findPath`, `tickBees`, `tickGhosts`, `canDropAt`.
 
+`getPathfindingBlockers(state, target?)` in `actions.ts` extends `getBlockedPositions` with soft blockers (cave entrances) that should be avoided as intermediate waypoints but allowed as destinations. used by click-to-move (`useMouse`) and hover path preview (`renderer`). `movePlayer` and `tickPath` still use `getBlockedPositions` directly — they handle frame-by-frame movement, not route planning.
+
 ## cave
 
 separate 40x25 interior map accessed via a `CaveEntrance` tile on the overworld. uses a **map context swap** pattern: `enterCave(state)` snapshots all overworld-specific fields (map, entities, path, etc.), swaps in cave data, and clears entities. `exitCave(state)` restores the snapshot. the renderer, camera, pathfinding, and movement code require no branching — they read `state.map`/`state.mapWidth`/`state.mapHeight` which point to whichever zone is active.
@@ -174,7 +184,9 @@ separate 40x25 interior map accessed via a `CaveEntrance` tile on the overworld.
 
 ## pending actions
 
-`state.pendingAction` is a nullable callback fired when `tickPath` completes a path. used for walk-then-drop. cleared on path failure, WASD interruption, or click-to-move override. `state.previewFn` provides visual indicators (blinking `#`) during transit.
+`state.pendingAction` is a nullable callback fired when `tickPath` completes a path. used for walk-then-drop and click-to-interact. cleared on path failure, WASD interruption, or click-to-move override. `state.previewFn` provides visual indicators (blinking `#`) during transit. `state.pendingInteractionTarget` tracks the clicked interactable's position for pink highlight during the walk — cleared alongside `pendingAction`.
+
+**caveat**: `movePlayer` inside `tickPath` can trigger a zone transition (`checkTransition`) which sets `state.path = null`. `tickPath` must null-check `state.path` after `movePlayer` returns before calling `shift()`.
 
 ## weather
 
