@@ -51,6 +51,8 @@ export const GameCanvas = ({
   refreshUIRef.current = refreshUI
   const onPickupRef = useRef(onPickup)
   onPickupRef.current = onPickup
+  const onDiscoveryRef = useRef(onDiscovery)
+  onDiscoveryRef.current = onDiscovery
 
   useMouse({ canvasRef, state, metricsRef, activePanel, setActivePanel, refreshUI, onDialog, onDiscovery })
 
@@ -109,6 +111,9 @@ export const GameCanvas = ({
           for (const defId of result.pickedUp) {
             const def = getDefinition(defId)
             onPickupRef.current(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
+          }
+          if (result.chainExplosions > 0) {
+            onDiscoveryRef.current('oh my!', state.player.x, state.player.y)
           }
           refreshUIRef.current()
         }

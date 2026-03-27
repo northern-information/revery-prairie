@@ -270,8 +270,11 @@ const executeTask = async (
   }
 
   const passed = attempts.some((a) => a.passed)
+  const specIds = new Set(
+    task.spec_sections.map((s) => (s.includes('/') ? s.split('/')[0] : task.spec_id)),
+  )
   const inputChecksums = hashFiles(
-    [...task.context_files, ...task.spec_sections.map((s) => `harness/specs/${s.split('/')[0]}.yaml`)],
+    [...task.context_files, ...[...specIds].map((id) => `harness/specs/${id}.yaml`)],
     repoRoot,
   )
   const outputChecksums = hashFiles(task.output_files, repoRoot)

@@ -65,10 +65,17 @@ describe('meteoritePickupEffect', () => {
     clearAroundPlayer(state)
     state.meteorites = [{ pos: { x: state.player.x, y: state.player.y } }]
 
-    const result = pickUpGroundItems(state, 5000)
+    // Prevent chain explosion from spawning extra meteorites
+    const orig = Math.random
+    Math.random = () => 0.9
+    try {
+      const result = pickUpGroundItems(state, 5000)
 
-    expect(result.pickedUp).toContain('meteorite')
-    expect(state.meteorites).toHaveLength(0)
-    expect(state.backpack.items.some(i => i.definitionId === 'meteorite')).toBe(true)
+      expect(result.pickedUp).toContain('meteorite')
+      expect(state.meteorites).toHaveLength(0)
+      expect(state.backpack.items.some(i => i.definitionId === 'meteorite')).toBe(true)
+    } finally {
+      Math.random = orig
+    }
   })
 })
