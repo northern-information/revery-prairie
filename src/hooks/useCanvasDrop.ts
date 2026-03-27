@@ -5,7 +5,7 @@ import { removeItem } from '@/engine/inventory'
 import { findPath } from '@/engine/pathfinding'
 import { ORDINAL } from '@/engine/position'
 import { TileType } from '@/engine/types'
-import type { DragState } from './useInventoryDrag'
+import type { DragState } from '@/engine/drag'
 import type { CharMetrics } from '@/engine/renderer'
 import type { Container, GameState } from '@/engine/types'
 
