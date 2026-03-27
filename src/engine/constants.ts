@@ -7,11 +7,18 @@ export const FONT = '16px monospace'
 
 export const SAND_BORDER = 2
 
+export const CAVE_WIDTH = 40
+export const CAVE_HEIGHT = 25
+
 export const TILE_CHARS: Record<TileType, string> = {
   [TileType.Space]: ' ',
   [TileType.Dirt]: '.',
   [TileType.Clover]: '%',
   [TileType.Sand]: ':',
+  [TileType.CaveFloor]: '.',
+  [TileType.CaveWall]: '#',
+  [TileType.CaveBreakableWall]: '#',
+  [TileType.CaveEntrance]: 'O',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -19,6 +26,10 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.Dirt]: '#8B7355',
   [TileType.Clover]: '#50C878',
   [TileType.Sand]: '#C2B280',
+  [TileType.CaveFloor]: '#666666',
+  [TileType.CaveWall]: '#444444',
+  [TileType.CaveBreakableWall]: '#997755',
+  [TileType.CaveEntrance]: '#AAAAAA',
 }
 
 // shooting stars
@@ -73,6 +84,11 @@ export const OMNIBOX_HEIGHT = 5
 export const GHOST_CHAR = 'ö'
 export const GHOST_COLOR = '#FFFFFF'
 export const GHOST_TICK_MS = 500
+
+// crumble effect (breakable wall)
+export const CRUMBLE_DURATION_MS = 600
+export const CRUMBLE_CHARS = ['#', '+', '.', '\u00b7']
+export const CRUMBLE_COLORS = ['#997755', '#887744', '#665522', '#554411', '#332200']
 
 export const PLAYER_CHAR = '@'
 export const PLAYER_COLOR = '#FFFFFF'

@@ -6,7 +6,7 @@ import { getCharacterDefinition } from '@/engine/characters'
 import { SPACE_BORDER, TILE_COLORS } from '@/engine/constants'
 import { getTileEffects } from '@/engine/effects'
 import { getDefinition } from '@/engine/items'
-import { TileType } from '@/engine/types'
+import { TileType, Zone } from '@/engine/types'
 import { fToC, mphToKph } from '@/engine/weather'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { CharMetrics } from '@/engine/renderer'
@@ -115,7 +115,9 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
                 <tr>
                   <td className="text-muted py-0.5">position</td>
                   <td className="py-0.5 text-right">
-                    {cursorTile.x - SPACE_BORDER}, {cursorTile.y - SPACE_BORDER}
+                    {state.currentZone === Zone.Cave
+                      ? `${String(cursorTile.x)}, ${String(cursorTile.y)}`
+                      : `${String(cursorTile.x - SPACE_BORDER)}, ${String(cursorTile.y - SPACE_BORDER)}`}
                   </td>
                 </tr>
                 <tr>
@@ -186,6 +188,10 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
               <tr>
                 <td className="text-muted py-0.5">steward</td>
                 <td className="py-0.5 text-right">{state.stewardName}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">location</td>
+                <td className="py-0.5 text-right">{state.currentZone}</td>
               </tr>
               <tr>
                 <td className="text-muted py-0.5">total land</td>

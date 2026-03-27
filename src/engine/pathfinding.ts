@@ -1,5 +1,4 @@
-import { CARDINAL, isInBounds, posKey } from './position'
-import { TileType } from './types'
+import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
 
 import type { Position, Tile } from './types'
 
@@ -52,7 +51,7 @@ export const findPath = (
 ): Position[] | null => {
   // Reject out-of-bounds or unwalkable destination
   if (!isInBounds(to.x, to.y, mapWidth, mapHeight)) return null
-  if (map[to.y][to.x].type === TileType.Space) return null
+  if (!isWalkableTile(map[to.y][to.x].type)) return null
   if (blockedPositions?.has(posKey(to.x, to.y))) return null
 
   // Same position — no path needed
@@ -102,7 +101,7 @@ export const findPath = (
       const nx = cx + d.x
       const ny = cy + d.y
       if (!isInBounds(nx, ny, mapWidth, mapHeight)) continue
-      if (map[ny][nx].type === TileType.Space) continue
+      if (!isWalkableTile(map[ny][nx].type)) continue
       if (blockedPositions?.has(posKey(nx, ny))) continue
 
       const nIdx = ny * mapWidth + nx

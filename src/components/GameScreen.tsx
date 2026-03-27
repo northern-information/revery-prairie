@@ -59,6 +59,13 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
     [addEvent]
   )
 
+  const onDiscovery = useCallback(
+    (text: string, worldX: number, worldY: number) => {
+      addEvent('discovery', text, '!', '#ff69b4', worldX, worldY)
+    },
+    [addEvent]
+  )
+
   const { activePanel, setActivePanel } = useKeyboard({
     state,
     refreshUI,
@@ -66,6 +73,7 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
     onPickup,
     onDrop,
     onDialog,
+    onDiscovery,
     isDraggingRef,
   })
 
@@ -78,6 +86,7 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
         setActivePanel={setActivePanel}
         onPickup={onPickup}
         onDialog={onDialog}
+        onDiscovery={onDiscovery}
         metricsRef={metricsRef}
       />
       {activePanel === 'inventory' && (

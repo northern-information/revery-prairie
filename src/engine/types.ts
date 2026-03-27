@@ -3,6 +3,10 @@ export const TileType = {
   Dirt: 'dirt',
   Clover: 'clover',
   Sand: 'sand',
+  CaveFloor: 'caveFloor',
+  CaveWall: 'caveWall',
+  CaveBreakableWall: 'caveBreakableWall',
+  CaveEntrance: 'caveEntrance',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
@@ -151,10 +155,29 @@ export interface GameState {
   path: Position[] | null
   pathWaypoints: Position[]
   pendingAction: (() => void) | null
+  pendingInteractionTarget: Position | null
   cursorTile: Position | null
   cursorScreenPos: { x: number; y: number } | null
+  hoverPath: Position[] | null
+  hoverPathTarget: Position | null
   rainSeed: number
   metric: boolean
+  currentZone: Zone
+  overworldSnapshot: OverworldSnapshot | null
+  caveMap: Tile[][]
+  caveMapWidth: number
+  caveMapHeight: number
+  caveEntranceOverworld: Position
+  caveEntranceInterior: Position
+  caveRevealed: boolean
+  caveHiddenPositions: Set<string>
+  caveBreakableWallPositions: Position[]
+  crumbleEffects: CrumbleEffect[]
+}
+
+export interface CrumbleEffect {
+  positions: Position[]
+  startTime: number
 }
 
 export const Sky = {
@@ -197,3 +220,31 @@ export interface Weather {
 }
 
 export type Direction = 'up' | 'down' | 'left' | 'right'
+
+export const Zone = {
+  Overworld: 'overworld',
+  Cave: 'cave',
+} as const
+
+export type Zone = (typeof Zone)[keyof typeof Zone]
+
+export interface OverworldSnapshot {
+  map: Tile[][]
+  mapWidth: number
+  mapHeight: number
+  player: Position
+  bees: Bee[]
+  ghosts: Ghost[]
+  characters: Character[]
+  groundItems: GroundItem[]
+  groundOmniboxes: GroundOmnibox[]
+  meteorites: Meteorite[]
+  shootingStars: ShootingStar[]
+  explosions: LandingExplosion[]
+  meteoritePickupEffects: MeteoritePickupEffect[]
+  path: Position[] | null
+  pathWaypoints: Position[]
+  pendingAction: (() => void) | null
+  previewFn: ((state: GameState) => { pos: Position; char: string; color: string }[]) | null
+  facingEntityPos: Position | null
+}

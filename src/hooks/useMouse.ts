@@ -1,8 +1,16 @@
 import { useEffect, useRef } from 'react'
 
-import { getBlockedPositions, interactWithCharacter, openOmnibox, updateFacingEntity } from '@/engine/actions'
+import {
+  breakWall,
+  getPathfindingBlockers,
+  interactWithCharacter,
+  isInteractableAt,
+  openOmnibox,
+  updateFacingEntity,
+} from '@/engine/actions'
 import { getCharacterDefinition } from '@/engine/characters'
 import { screenToTile } from '@/engine/coordinates'
+import { isWalkableTile } from '@/engine/position'
 import { findPath } from '@/engine/pathfinding'
 import { posKey } from '@/engine/position'
 import { TileType } from '@/engine/types'
@@ -18,6 +26,7 @@ interface UseMouseOptions {
   setActivePanel: (panel: Panel) => void
   refreshUI: () => void
   onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
+  onDiscovery: (text: string, worldX: number, worldY: number) => void
 }
 
 export const useMouse = ({
@@ -28,6 +37,7 @@ export const useMouse = ({
   setActivePanel,
   refreshUI,
   onDialog,
+  onDiscovery,
 }: UseMouseOptions) => {
   const activePanelRef = useRef(activePanel)
   activePanelRef.current = activePanel
@@ -50,10 +60,10 @@ export const useMouse = ({
 
       if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return
 
-      if (state.map[tile.y][tile.x].type === TileType.Space) return
+      if (!isWalkableTile(state.map[tile.y][tile.x].type) && !isInteractableAt(state, tile.x, tile.y)) return
       if (tile.x === state.player.x && tile.y === state.player.y) return
 
-      const blocked = getBlockedPositions(state)
+      const blocked = getPathfindingBlockers(state, tile)
 
       const adjacentDeltas = [
         { x: 0, y: -1 },
@@ -68,8 +78,10 @@ export const useMouse = ({
 
       const clickedCharacter = state.characters.find(c => c.pos.x === tile.x && c.pos.y === tile.y)
       const clickedOmnibox = state.groundOmniboxes.find(go => go.pos.x === tile.x && go.pos.y === tile.y)
+      const clickedInteractableTile =
+        !clickedCharacter && !clickedOmnibox && isInteractableAt(state, tile.x, tile.y)
 
-      if (clickedCharacter || clickedOmnibox) {
+      if (clickedCharacter || clickedOmnibox || clickedInteractableTile) {
         // Find closest adjacent walkable tile to the entity
         let bestTarget: { x: number; y: number } | null = null
         let bestDist = Infinity
@@ -77,7 +89,7 @@ export const useMouse = ({
           const ax = tile.x + d.x
           const ay = tile.y + d.y
           if (ax < 0 || ax >= state.mapWidth || ay < 0 || ay >= state.mapHeight) continue
-          if (state.map[ay][ax].type === TileType.Space) continue
+          if (!isWalkableTile(state.map[ay][ax].type)) continue
           if (blocked.has(posKey(ax, ay))) continue
           const dist = Math.abs(ax - state.player.x) + Math.abs(ay - state.player.y)
           if (dist < bestDist) {
@@ -88,9 +100,13 @@ export const useMouse = ({
         if (!bestTarget) return
         walkTarget = bestTarget
 
+        // Track the interactable target for highlight rendering during walk
+        state.pendingInteractionTarget = { x: tile.x, y: tile.y }
+
         if (clickedCharacter) {
           const charDef = getCharacterDefinition(clickedCharacter.definitionId)
           action = () => {
+            state.pendingInteractionTarget = null
             interactWithCharacter(state)
             onDialog(charDef.name, charDef.glyph, charDef.glyphColor, state.player.x, state.player.y)
             refreshUI()
@@ -98,9 +114,31 @@ export const useMouse = ({
         } else if (clickedOmnibox) {
           const omniboxUid = clickedOmnibox.uid
           action = () => {
+            state.pendingInteractionTarget = null
             openOmnibox(state, omniboxUid)
             updateFacingEntity(state)
             setActivePanel('inventory')
+            refreshUI()
+          }
+        } else if (clickedInteractableTile) {
+          const targetX = tile.x
+          const targetY = tile.y
+          action = () => {
+            state.pendingInteractionTarget = null
+            // Face toward the interactable tile
+            const dx = targetX - state.player.x
+            const dy = targetY - state.player.y
+            if (dx === 1) state.playerFacing = 'right'
+            else if (dx === -1) state.playerFacing = 'left'
+            else if (dy === -1) state.playerFacing = 'up'
+            else if (dy === 1) state.playerFacing = 'down'
+            updateFacingEntity(state)
+            // Try breakable wall
+            if (state.map[targetY]?.[targetX]?.type === TileType.CaveBreakableWall) {
+              if (breakWall(state, performance.now())) {
+                onDiscovery('discovered hidden room!', state.player.x, state.player.y)
+              }
+            }
             refreshUI()
           }
         }
@@ -128,6 +166,7 @@ export const useMouse = ({
 
       // Normal click: new path
       state.pendingAction = action
+      if (!action) state.pendingInteractionTarget = null
       state.previewFn = null
       state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, walkTarget, blocked)
       state.pathWaypoints = state.path ? [walkTarget] : []
@@ -137,5 +176,5 @@ export const useMouse = ({
     return () => {
       canvas.removeEventListener('click', handleClick)
     }
-  }, [canvasRef, state, metricsRef, setActivePanel, refreshUI, onDialog])
+  }, [canvasRef, state, metricsRef, setActivePanel, refreshUI, onDialog, onDiscovery])
 }

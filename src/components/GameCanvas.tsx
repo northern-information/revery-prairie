@@ -2,11 +2,12 @@ import { useEffect, useRef } from 'react'
 
 import { pickUpGroundItems, spawnShootingStar, tickBees, tickGhosts, tickPath, tickShootingStars } from '@/engine/actions'
 import { updateCamera } from '@/engine/camera'
-import { GHOST_TICK_MS, SHOOTING_STAR_SPAWN_TICK_MS, SHOOTING_STAR_TICK_MS } from '@/engine/constants'
+import { CRUMBLE_DURATION_MS, GHOST_TICK_MS, SHOOTING_STAR_SPAWN_TICK_MS, SHOOTING_STAR_TICK_MS } from '@/engine/constants'
 import { getDefinition } from '@/engine/items'
 import { measureChar, render } from '@/engine/renderer'
 import { tickWeather } from '@/engine/weather'
 import { useMouse } from '@/hooks/useMouse'
+import { Zone } from '@/engine/types'
 import type { CharMetrics } from '@/engine/renderer'
 import type { GameState } from '@/engine/types'
 import type { Panel } from '@/hooks/useKeyboard'
@@ -30,6 +31,7 @@ interface GameCanvasProps {
   setActivePanel: (panel: Panel) => void
   onPickup: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
+  onDiscovery: (text: string, worldX: number, worldY: number) => void
   metricsRef: React.RefObject<CharMetrics | null>
 }
 
@@ -40,6 +42,7 @@ export const GameCanvas = ({
   setActivePanel,
   onPickup,
   onDialog,
+  onDiscovery,
   metricsRef,
 }: GameCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -49,7 +52,7 @@ export const GameCanvas = ({
   const onPickupRef = useRef(onPickup)
   onPickupRef.current = onPickup
 
-  useMouse({ canvasRef, state, metricsRef, activePanel, setActivePanel, refreshUI, onDialog })
+  useMouse({ canvasRef, state, metricsRef, activePanel, setActivePanel, refreshUI, onDialog, onDiscovery })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -91,11 +94,12 @@ export const GameCanvas = ({
     let lastShootingStarSpawnTick = 0
 
     const loop = (time: number) => {
-      if (time - lastBeeTick >= BEE_TICK_MS) {
+      const isOverworld = state.currentZone === Zone.Overworld
+      if (isOverworld && time - lastBeeTick >= BEE_TICK_MS) {
         tickBees(state)
         lastBeeTick = time
       }
-      if (time - lastGhostTick >= GHOST_TICK_MS) {
+      if (isOverworld && time - lastGhostTick >= GHOST_TICK_MS) {
         tickGhosts(state)
         lastGhostTick = time
       }
@@ -110,20 +114,24 @@ export const GameCanvas = ({
         }
         lastPathTick = time
       }
-      if (time - lastShootingStarSpawnTick >= SHOOTING_STAR_SPAWN_TICK_MS) {
+      if (isOverworld && time - lastShootingStarSpawnTick >= SHOOTING_STAR_SPAWN_TICK_MS) {
         spawnShootingStar(state)
         lastShootingStarSpawnTick = time
       }
-      if (time - lastShootingStarTick >= SHOOTING_STAR_TICK_MS) {
+      if (isOverworld && time - lastShootingStarTick >= SHOOTING_STAR_TICK_MS) {
         tickShootingStars(state, time)
         lastShootingStarTick = time
       }
-      if (time - lastWeatherTick >= WEATHER_TICK_MS) {
+      if (isOverworld && time - lastWeatherTick >= WEATHER_TICK_MS) {
         tickWeather(state.weather)
         lastWeatherTick = time
       }
       if (metricsRef.current) {
         render(ctx, state, metricsRef.current, time)
+      }
+      // Clean up expired crumble effects
+      if (state.crumbleEffects.length > 0) {
+        state.crumbleEffects = state.crumbleEffects.filter(e => time - e.startTime <= CRUMBLE_DURATION_MS)
       }
       rafRef.current = requestAnimationFrame(loop)
     }

@@ -137,6 +137,19 @@ describe('prairie recipe execute', () => {
     expect(state.map[py - 1][px - 1].type).toBe(TileType.Sand)
     expect(state.map[py][px].type).toBe(TileType.Clover)
   })
+
+  it('does not overwrite CaveEntrance tiles in the 3x3 area', () => {
+    const state = createTestState()
+    const px = state.player.x
+    const py = state.player.y
+
+    clearAroundPlayer(state, 1)
+    state.map[py - 1][px] = { type: TileType.CaveEntrance }
+
+    prairieRecipe.execute(state)
+    expect(state.map[py - 1][px].type).toBe(TileType.CaveEntrance)
+    expect(state.map[py][px].type).toBe(TileType.Clover)
+  })
 })
 
 describe('prairie recipe preview', () => {
@@ -182,6 +195,20 @@ describe('prairie recipe preview', () => {
     const tiles = preview(state)
     expect(tiles).toHaveLength(8)
     const skippedPos = tiles.find(t => t.pos.x === px - 1 && t.pos.y === py - 1)
+    expect(skippedPos).toBeUndefined()
+  })
+
+  it('skips CaveEntrance tiles', () => {
+    const state = createTestState()
+    const px = state.player.x
+    const py = state.player.y
+
+    clearAroundPlayer(state, 1)
+    state.map[py - 1][px] = { type: TileType.CaveEntrance }
+
+    const tiles = preview(state)
+    expect(tiles).toHaveLength(8)
+    const skippedPos = tiles.find(t => t.pos.x === px && t.pos.y === py - 1)
     expect(skippedPos).toBeUndefined()
   })
 

@@ -1,3 +1,5 @@
+import { TileType } from './types'
+
 import type { Direction, Position } from './types'
 
 export const posKey = (x: number, y: number): string => `${String(x)},${String(y)}`
@@ -38,3 +40,8 @@ export const ORDINAL: Position[] = [
   { x: -1, y: 1 },
   { x: 1, y: 1 },
 ]
+
+export const isWalkableTile = (tileType: TileType): boolean =>
+  tileType !== TileType.Space &&
+  tileType !== TileType.CaveWall &&
+  tileType !== TileType.CaveBreakableWall

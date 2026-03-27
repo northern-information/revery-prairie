@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface GameEvent {
   id: string
-  kind: 'pickup' | 'drop' | 'combine' | 'dialog'
+  kind: 'pickup' | 'drop' | 'combine' | 'dialog' | 'discovery'
   text: string
   icon: string
   iconColor: string
