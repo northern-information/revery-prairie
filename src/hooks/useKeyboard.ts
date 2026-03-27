@@ -6,6 +6,7 @@ import {
   closeOmnibox,
   dropItem,
   getAdjacentCharacter,
+  giveMoabGift,
   grabOmnibox,
   interactWithCharacter,
   movePlayer,
@@ -32,6 +33,7 @@ interface UseKeyboardOptions {
   onDrop: (definitionId: string, worldX: number, worldY: number) => void
   onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
   onDiscovery: (text: string, worldX: number, worldY: number) => void
+  onGift: (text: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   isDraggingRef: React.RefObject<boolean>
 }
 
@@ -43,6 +45,7 @@ export const useKeyboard = ({
   onDrop,
   onDialog,
   onDiscovery,
+  onGift,
   isDraggingRef,
 }: UseKeyboardOptions) => {
   const [activePanel, setActivePanel] = useState<Panel>(null)
@@ -90,7 +93,14 @@ export const useKeyboard = ({
       // [e] — advance dialog / pick up or close open omnibox / open omnibox / talk
       if (e.key === 'e' || e.key === 'E') {
         if (state.activeDialog) {
-          advanceDialog(state)
+          const dialogCharId = state.activeDialog.characterId
+          const dialogContinues = advanceDialog(state)
+          if (!dialogContinues && dialogCharId === 'moab' && !state.moabGiftGiven) {
+            if (giveMoabGift(state)) {
+              const def = getDefinition('omnibox')
+              onGift('given an omnibox', def.glyph, def.glyphColor, state.player.x, state.player.y)
+            }
+          }
           refreshUI()
           return
         }
@@ -232,7 +242,7 @@ export const useKeyboard = ({
         }
       }
     },
-    [state, refreshUI, activePanel, itemInfoRef, handlePickups, onPickup, onDrop, onDialog, onDiscovery, isDraggingRef]
+    [state, refreshUI, activePanel, itemInfoRef, handlePickups, onPickup, onDrop, onDialog, onDiscovery, onGift, isDraggingRef]
   )
 
   useEffect(() => {

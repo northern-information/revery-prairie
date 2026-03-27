@@ -7,6 +7,8 @@ interface DialogBoxProps {
   characterName: string
   portrait?: string
   line: string
+  typingIndex: number
+  typingDone: boolean
   isLastLine: boolean
   onNext: () => void
   onClose: () => void
@@ -18,6 +20,8 @@ export const DialogBox = ({
   characterName,
   portrait,
   line,
+  typingIndex,
+  typingDone,
   isLastLine,
   onNext,
   onClose,
@@ -39,9 +43,13 @@ export const DialogBox = ({
       </div>
     )}
     <SectionHeader className="shrink-0">{characterName.toLowerCase()}</SectionHeader>
-    <p className="min-h-0 flex-1 overflow-hidden leading-relaxed">{line}</p>
+    <p className="min-h-0 flex-1 overflow-hidden leading-relaxed">{line.slice(0, typingIndex)}</p>
     <div className="text-dim mt-auto flex shrink-0 gap-4 text-xs">
-      {isLastLine ? (
+      {!typingDone ? (
+        <button type="button" className="hover:text-text" onClick={onNext}>
+          [e] skip
+        </button>
+      ) : isLastLine ? (
         <button type="button" className="hover:text-text" onClick={onClose}>
           [e] close
         </button>

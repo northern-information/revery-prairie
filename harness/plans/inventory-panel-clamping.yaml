@@ -1,0 +1,48 @@
+plan:
+  id: inventory-panel-clamping
+  title: "Inventory panel viewport clamping"
+  created: 2026-03-27
+  global_verification:
+    - "npm run build"
+    - "npm run test"
+    - "npm run lint"
+
+tasks:
+  - id: extract-clamping-logic
+    title: "Add panel position clamping function to InventoryPanel"
+    spec_id: inventory-panel-clamping
+    spec_sections:
+      - panel-quadrant-selection
+      - panel-edge-clamping
+      - omnibox-panel-included
+    context_files:
+      - src/components/InventoryPanel.tsx
+      - src/components/GameScreen.tsx
+      - src/engine/constants.ts
+    output_files:
+      - src/components/InventoryPanel.tsx
+    depends_on: []
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [component]
+
+  - id: clamping-regression-tests
+    title: "Add regression tests for panel viewport clamping"
+    spec_id: inventory-panel-clamping
+    spec_sections:
+      - panel-quadrant-selection
+      - panel-edge-clamping
+      - omnibox-panel-included
+    context_files:
+      - src/components/InventoryPanel.tsx
+      - src/engine/constants.ts
+      - src/engine/items.ts
+    output_files:
+      - src/components/__tests__/inventoryPanelClamping.test.ts
+    depends_on:
+      - extract-clamping-logic
+    verification:
+      - "npx vitest run src/components/__tests__/inventoryPanelClamping.test.ts"
+    repair: retry
+    tags: [test]

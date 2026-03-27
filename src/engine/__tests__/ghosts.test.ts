@@ -4,6 +4,7 @@ import {
   getBlockedPositions,
   interactWithCharacter,
   movePlayer,
+  tickDialogTransition,
   tickGhosts,
 } from '../actions'
 import { createGhostDefinition, getCharacterDefinition, registerGhosts } from '../characters'
@@ -169,7 +170,7 @@ describe('tickGhosts', () => {
     const state = makeState()
     state.ghosts = [{ pos: { x: state.player.x + 5, y: state.player.y }, number: 1 }]
     state.characters = [{ definitionId: 'ghost-1', pos: { x: state.player.x + 5, y: state.player.y } }]
-    state.activeDialog = { characterId: 'ghost-1', lineIndex: 0 }
+    state.activeDialog = { characterId: 'ghost-1', lineIndex: 0, typingIndex: 0, typingDone: false, transitioning: false, transitionStartTime: 0 }
 
     const origX = state.ghosts[0].pos.x
     const origY = state.ghosts[0].pos.y
@@ -209,7 +210,9 @@ describe('ghost dialog', () => {
 
     const result = interactWithCharacter(state)
     expect(result).toBe(true)
-    expect(state.activeDialog).toEqual({ characterId: 'ghost-1', lineIndex: 0 })
+    expect(state.activeDialog?.characterId).toBe('ghost-1')
+    expect(state.activeDialog?.lineIndex).toBe(0)
+    expect(state.activeDialog?.typingDone).toBe(false)
   })
 
   it('advances through all 3 dialog lines then closes', () => {
@@ -220,15 +223,28 @@ describe('ghost dialog', () => {
 
     interactWithCharacter(state)
 
-    // Line 0 -> 1
-    expect(advanceDialog(state)).toBe(true)
-    expect(state.activeDialog?.lineIndex).toBe(1)
+    const dialog = () => {
+      if (!state.activeDialog) throw new Error('no active dialog')
+      return state.activeDialog
+    }
 
-    // Line 1 -> 2
+    // Mark typing done, advance starts transition for line 0 -> 1
+    dialog().typingDone = true
     expect(advanceDialog(state)).toBe(true)
-    expect(state.activeDialog?.lineIndex).toBe(2)
+    expect(dialog().transitioning).toBe(true)
+    // Simulate transition completing
+    tickDialogTransition(state, dialog().transitionStartTime + 500)
+    expect(dialog().lineIndex).toBe(1)
 
-    // Line 2 -> close
+    // Mark typing done, advance starts transition for line 1 -> 2
+    dialog().typingDone = true
+    expect(advanceDialog(state)).toBe(true)
+    expect(dialog().transitioning).toBe(true)
+    tickDialogTransition(state, dialog().transitionStartTime + 500)
+    expect(dialog().lineIndex).toBe(2)
+
+    // Mark typing done, advance closes on last line
+    dialog().typingDone = true
     expect(advanceDialog(state)).toBe(false)
     expect(state.activeDialog).toBeNull()
   })

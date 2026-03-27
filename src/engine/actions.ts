@@ -14,6 +14,7 @@ import {
 } from './constants'
 import {
   containerHasItem,
+  createOmniboxContainer,
   findFitPosition,
   findItemByDefinition,
   getActiveContainers,
@@ -23,7 +24,7 @@ import {
 import { checkTransition } from './cave'
 import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, ORDINAL, posKey, removeByIndices } from './position'
 import { RECIPES } from './recipes'
-import { TileType, Zone } from './types'
+import { Rotation, TileType, Zone } from './types'
 
 import type { Character, Container, Direction, GameState, Position } from './types'
 
@@ -748,19 +749,95 @@ export const getAdjacentCharacter = (state: GameState): Character | null => {
 export const interactWithCharacter = (state: GameState): boolean => {
   const character = getAdjacentCharacter(state)
   if (!character) return false
-  state.activeDialog = { characterId: character.definitionId, lineIndex: 0 }
+  state.activeDialog = {
+    characterId: character.definitionId,
+    lineIndex: 0,
+    typingIndex: 0,
+    typingDone: false,
+    transitioning: false,
+    transitionStartTime: 0,
+  }
   return true
 }
 
 export const advanceDialog = (state: GameState): boolean => {
   if (!state.activeDialog) return false
+
+  // If still typing, reveal the full line instantly
+  if (!state.activeDialog.typingDone) {
+    const def = getCharacterDefinition(state.activeDialog.characterId)
+    const line = def.dialog[state.activeDialog.lineIndex]
+    state.activeDialog.typingIndex = line.length
+    state.activeDialog.typingDone = true
+    return true
+  }
+
+  // If transitioning between lines, ignore
+  if (state.activeDialog.transitioning) return true
+
   const def = getCharacterDefinition(state.activeDialog.characterId)
   if (state.activeDialog.lineIndex < def.dialog.length - 1) {
-    state.activeDialog.lineIndex++
+    state.activeDialog.transitioning = true
+    state.activeDialog.transitionStartTime = performance.now()
     return true
   }
   state.activeDialog = null
   return false
+}
+
+const DIALOG_TRANSITION_MS = 300
+
+export const tickDialogTransition = (state: GameState, now: number): void => {
+  if (!state.activeDialog?.transitioning) return
+  if (now - state.activeDialog.transitionStartTime < DIALOG_TRANSITION_MS) return
+  state.activeDialog.lineIndex++
+  state.activeDialog.typingIndex = 0
+  state.activeDialog.typingDone = false
+  state.activeDialog.transitioning = false
+}
+
+const DIALOG_TYPING_MS = 40
+
+export const tickDialogTyping = (state: GameState, lastTypingTime: number, now: number): number => {
+  if (!state.activeDialog || state.activeDialog.typingDone || state.activeDialog.transitioning) return lastTypingTime
+  if (now - lastTypingTime < DIALOG_TYPING_MS) return lastTypingTime
+
+  const def = getCharacterDefinition(state.activeDialog.characterId)
+  const line = def.dialog[state.activeDialog.lineIndex]
+  state.activeDialog.typingIndex++
+  if (state.activeDialog.typingIndex >= line.length) {
+    state.activeDialog.typingDone = true
+  }
+  return now
+}
+
+export { DIALOG_TRANSITION_MS }
+
+export const giveMoabGift = (state: GameState): boolean => {
+  if (state.moabGiftGiven) return false
+
+  const fit = findFitPosition(state.backpack, 'omnibox')
+  if (!fit) return false
+
+  const omniboxItem = placeItem(state.backpack, 'omnibox', fit.rotation, fit.gridX, fit.gridY)
+  if (!omniboxItem) return false
+
+  const container = createOmniboxContainer(state, omniboxItem.uid)
+
+  // Fill the omnibox with bees
+  for (let y = 0; y < container.height; y++) {
+    for (let x = 0; x < container.width; x++) {
+      placeItem(container, 'bee', Rotation.R0, x, y)
+    }
+  }
+
+  state.moabGiftGiven = true
+
+  // Switch Moab's dialog to post-gift single line
+  const def = getCharacterDefinition('moab')
+  def.dialog = ['...']
+
+  return true
 }
 
 export const breakWall = (state: GameState, time: number): boolean => {

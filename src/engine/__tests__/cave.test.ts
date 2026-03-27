@@ -174,7 +174,8 @@ describe('enterCave', () => {
     enterCave(state)
     expect(state.bees).toHaveLength(0)
     expect(state.ghosts).toHaveLength(0)
-    expect(state.characters).toHaveLength(0)
+    expect(state.characters).toHaveLength(1)
+    expect(state.characters[0].definitionId).toBe('moab')
   })
 
   it('places player adjacent to cave entrance interior, not on it', () => {

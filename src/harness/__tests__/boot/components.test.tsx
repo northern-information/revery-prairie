@@ -34,6 +34,8 @@ describe('boot: component smoke tests', () => {
           <DialogBox
             characterName="Gron"
             line="Hello there."
+            typingIndex={12}
+            typingDone={true}
             isLastLine={false}
             onNext={vi.fn()}
             onClose={vi.fn()}

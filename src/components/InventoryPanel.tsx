@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { CombineToast } from './CombineToast'
 import { DragCursor } from './DragCursor'
 import { InventoryGrid } from './InventoryGrid'
 import { CloseButton, PanelTitle, SectionHeader } from './PanelPrimitives'
+import { clampPanelPosition } from './panelPosition'
 
 import { closeOmnibox, grabOmnibox, openOmnibox } from '@/engine/actions'
 import { autoSort, findFitPosition, placeItem, removeItem } from '@/engine/inventory'
@@ -208,18 +209,44 @@ export const InventoryPanel = ({
   const playerScreenX = metrics ? (state.player.x - state.camera.x) * metrics.charWidth : 0
   const playerScreenY = metrics ? (state.player.y - state.camera.y) * metrics.charHeight : 0
 
-  const panelGap = 16
+  // Measure panel container to clamp within viewport
+  const panelContainerRef = useRef<HTMLDivElement | null>(null)
+  const [panelSize, setPanelSize] = useState({ w: 0, h: 0 })
+
+  const hasOmnibox = state.openContainer !== null
+  useLayoutEffect(() => {
+    const el = panelContainerRef.current
+    if (!el) return
+    const { offsetWidth, offsetHeight } = el
+    setPanelSize(prev =>
+      prev.w === offsetWidth && prev.h === offsetHeight ? prev : { w: offsetWidth, h: offsetHeight },
+    )
+  }, [hasOmnibox])
+
+  const panelPos = metrics
+    ? clampPanelPosition(
+        playerScreenX,
+        playerScreenY,
+        metrics.charWidth,
+        metrics.charHeight,
+        panelSize.w,
+        panelSize.h,
+        window.innerWidth,
+        window.innerHeight,
+      )
+    : { left: window.innerWidth / 2, top: window.innerHeight / 2 }
 
   return (
     <>
       {/* Global mouseUp handler for drag cancellation */}
       <div className="pointer-events-none fixed inset-0 z-10" onMouseUp={handleMouseUp}>
-        {/* Panels container — side by side, top-aligned, above the player */}
+        {/* Panels container — side by side, top-aligned, clamped to viewport */}
         <div
+          ref={panelContainerRef}
           className="absolute z-10 flex items-start"
           style={{
-            left: playerScreenX + (metrics?.charWidth ?? 0) + panelGap,
-            bottom: window.innerHeight - playerScreenY + panelGap,
+            left: panelPos.left,
+            top: panelPos.top,
           }}
         >
           {/* Omnibox panel — left side */}

@@ -66,6 +66,13 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
     [addEvent]
   )
 
+  const onGift = useCallback(
+    (text: string, icon: string, iconColor: string, worldX: number, worldY: number) => {
+      addEvent('pickup', text, icon, iconColor, worldX, worldY)
+    },
+    [addEvent]
+  )
+
   const { activePanel, setActivePanel } = useKeyboard({
     state,
     refreshUI,
@@ -74,6 +81,7 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
     onDrop,
     onDialog,
     onDiscovery,
+    onGift,
     isDraggingRef,
   })
 
@@ -106,7 +114,9 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
       {state.activeDialog &&
         (() => {
           const def = getCharacterDefinition(state.activeDialog.characterId)
-          const line = def.dialog[state.activeDialog.lineIndex]
+          const line = state.activeDialog.transitioning
+            ? ''
+            : def.dialog[state.activeDialog.lineIndex]
           const isLastLine = state.activeDialog.lineIndex >= def.dialog.length - 1
 
           const dialog = state.activeDialog
@@ -143,6 +153,8 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
               characterName={def.name}
               portrait={def.portrait}
               line={line}
+              typingIndex={state.activeDialog.typingIndex}
+              typingDone={state.activeDialog.typingDone}
               isLastLine={isLastLine}
               top={dTop}
               left={dLeft}
