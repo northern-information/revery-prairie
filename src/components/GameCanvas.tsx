@@ -1,20 +1,12 @@
 import { useEffect, useRef } from 'react'
 
-import { pickUpGroundItems, spawnShootingStar, tickBees, tickDialogTransition, tickDialogTyping, tickGhosts, tickPath, tickShootingStars } from '@/engine/actions'
 import { updateCamera } from '@/engine/camera'
-import { CRUMBLE_DURATION_MS, GHOST_TICK_MS, SHOOTING_STAR_SPAWN_TICK_MS, SHOOTING_STAR_TICK_MS } from '@/engine/constants'
-import { getDefinition } from '@/engine/items'
+import { createGameLoop } from '@/engine/gameLoop'
 import { measureChar, render } from '@/engine/renderer'
-import { tickWeather } from '@/engine/weather'
 import { useMouse } from '@/hooks/useMouse'
-import { Zone } from '@/engine/types'
 import type { CharMetrics } from '@/engine/renderer'
 import type { GameState } from '@/engine/types'
 import type { Panel } from '@/hooks/useKeyboard'
-
-const BEE_TICK_MS = 200
-const PATH_TICK_MS = 100
-const WEATHER_TICK_MS = 5000
 
 const resizeState = (state: GameState, charWidth: number, charHeight: number) => {
   const vw = Math.floor(window.innerWidth / charWidth)
@@ -46,7 +38,6 @@ export const GameCanvas = ({
   metricsRef,
 }: GameCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const rafRef = useRef(0)
   const refreshUIRef = useRef(refreshUI)
   refreshUIRef.current = refreshUI
   const onPickupRef = useRef(onPickup)
@@ -88,77 +79,27 @@ export const GameCanvas = ({
     }
     window.addEventListener('resize', onResize)
 
-    let lastBeeTick = 0
-    let lastGhostTick = 0
-    let lastPathTick = 0
-    let lastWeatherTick = 0
-    let lastShootingStarTick = 0
-    let lastShootingStarSpawnTick = 0
-    let lastDialogTypingTick = 0
-
-    const loop = (time: number) => {
-      const isOverworld = state.currentZone === Zone.Overworld
-      if (isOverworld && time - lastBeeTick >= BEE_TICK_MS) {
-        tickBees(state)
-        lastBeeTick = time
-      }
-      if (isOverworld && time - lastGhostTick >= GHOST_TICK_MS) {
-        tickGhosts(state)
-        lastGhostTick = time
-      }
-      if (time - lastPathTick >= PATH_TICK_MS) {
-        if (tickPath(state)) {
-          const result = pickUpGroundItems(state, time)
-          for (const defId of result.pickedUp) {
-            const def = getDefinition(defId)
-            onPickupRef.current(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
-          }
-          if (result.chainExplosions > 0) {
-            onDiscoveryRef.current('oh my!', state.player.x, state.player.y)
-          }
-          refreshUIRef.current()
+    const gameLoop = createGameLoop(state, {
+      onRefreshUI: () => {
+        refreshUIRef.current()
+      },
+      onPickup: (name, icon, color, wx, wy) => {
+        onPickupRef.current(name, icon, color, wx, wy)
+      },
+      onDiscovery: (text, wx, wy) => {
+        onDiscoveryRef.current(text, wx, wy)
+      },
+      onFrame: (time) => {
+        if (metricsRef.current) {
+          render(ctx, state, metricsRef.current, time)
         }
-        lastPathTick = time
-      }
-      if (isOverworld && time - lastShootingStarSpawnTick >= SHOOTING_STAR_SPAWN_TICK_MS) {
-        spawnShootingStar(state)
-        lastShootingStarSpawnTick = time
-      }
-      if (isOverworld && time - lastShootingStarTick >= SHOOTING_STAR_TICK_MS) {
-        tickShootingStars(state, time)
-        lastShootingStarTick = time
-      }
-      if (isOverworld && time - lastWeatherTick >= WEATHER_TICK_MS) {
-        tickWeather(state.weather)
-        lastWeatherTick = time
-      }
-      // Dialog typewriter and transition ticks
-      if (state.activeDialog) {
-        const prevTypingIndex = state.activeDialog.typingIndex
-        const prevTransitioning = state.activeDialog.transitioning
-        lastDialogTypingTick = tickDialogTyping(state, lastDialogTypingTick, time)
-        tickDialogTransition(state, time)
-        if (
-          state.activeDialog.typingIndex !== prevTypingIndex ||
-          state.activeDialog.transitioning !== prevTransitioning
-        ) {
-          refreshUIRef.current()
-        }
-      }
-      if (metricsRef.current) {
-        render(ctx, state, metricsRef.current, time)
-      }
-      // Clean up expired crumble effects
-      if (state.crumbleEffects.length > 0) {
-        state.crumbleEffects = state.crumbleEffects.filter(e => time - e.startTime <= CRUMBLE_DURATION_MS)
-      }
-      rafRef.current = requestAnimationFrame(loop)
-    }
-    rafRef.current = requestAnimationFrame(loop)
+      },
+    })
+    gameLoop.start()
 
     return () => {
       window.removeEventListener('resize', onResize)
-      cancelAnimationFrame(rafRef.current)
+      gameLoop.stop()
     }
   }, [state, metricsRef])
 

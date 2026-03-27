@@ -80,6 +80,11 @@ export const PICKUP_EFFECT_COLORS = ['#FFFFFF', '#E0E0FF', '#C8C8FF', '#B0B0EE',
 export const OMNIBOX_WIDTH = 5
 export const OMNIBOX_HEIGHT = 5
 
+// tick intervals
+export const BEE_TICK_MS = 200
+export const PATH_TICK_MS = 100
+export const WEATHER_TICK_MS = 5000
+
 // ghosts
 export const GHOST_CHAR = 'ö'
 export const GHOST_COLOR = '#FFFFFF'

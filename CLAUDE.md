@@ -45,6 +45,7 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/types.ts` — all game types. everything depends on this.
 - `src/engine/state.ts` — game state factory (`createGameState`), initializes all mutable state, terrain, backpack, weather.
 - `src/engine/renderer.ts` — canvas ASCII drawing. the file to replace for sprites.
+- `src/engine/gameLoop.ts` — tick system registry and game loop. `TickSystem` interface for entity tick definitions. `createGameLoop` returns start/stop/pause/resume + register/unregister. `tick(time)` is the testable simulation step.
 - `src/engine/actions.ts` — game mechanics (movement, combine, bee/ghost ticking, path-following, facing entity detection).
 - `src/engine/pathfinding.ts` — A\* pathfinding (4-directional, manhattan heuristic, binary min-heap).
 - `src/engine/coordinates.ts` — screen pixel to world tile coordinate transform.
@@ -60,7 +61,7 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/items.ts` — item definition registry, backpack/container factories.
 - `src/engine/recipes.ts` — recipe definitions, combine detection, preview functions.
 - `src/components/GameScreen.tsx` — main game container orchestrating canvas, sidebar, inventory, menu, dialogs, toasts.
-- `src/components/GameCanvas.tsx` — canvas element, rAF loop, resize handling, HiDPI.
+- `src/components/GameCanvas.tsx` — canvas element, rAF render via game loop, resize handling, HiDPI.
 - `src/components/InventoryPanel.tsx` — inventory UI panel with grid, combine toast, drag-to-map.
 - `src/components/InventoryGrid.tsx` — single container grid renderer with drag-and-drop.
 - `src/components/ItemInfo.tsx` — imperative item info display (forwardRef).

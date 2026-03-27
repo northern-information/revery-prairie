@@ -1,0 +1,262 @@
+import {
+  pickUpGroundItems,
+  spawnShootingStar,
+  tickBees,
+  tickDialogTransition,
+  tickDialogTyping,
+  tickGhosts,
+  tickPath,
+  tickShootingStars,
+} from './actions'
+import {
+  BEE_TICK_MS,
+  CRUMBLE_DURATION_MS,
+  GHOST_TICK_MS,
+  PATH_TICK_MS,
+  SHOOTING_STAR_SPAWN_TICK_MS,
+  SHOOTING_STAR_TICK_MS,
+  WEATHER_TICK_MS,
+} from './constants'
+import { getDefinition } from './items'
+import { Zone } from './types'
+import { tickWeather } from './weather'
+
+import type { GameState } from './types'
+
+export interface TickSystem {
+  id: string
+  intervalMs: number
+  zone: 'overworld' | 'cave' | 'always'
+  priority?: number
+  fn: (state: GameState, time: number) => void
+}
+
+export interface GameLoopCallbacks {
+  onRefreshUI?: () => void
+  onPickup?: (
+    name: string,
+    icon: string,
+    iconColor: string,
+    worldX: number,
+    worldY: number,
+  ) => void
+  onDiscovery?: (text: string, worldX: number, worldY: number) => void
+  onFrame?: (time: number) => void
+}
+
+export interface GameLoop {
+  tick: (time: number) => void
+  start: () => void
+  stop: () => void
+  pause: () => void
+  resume: () => void
+  register: (system: TickSystem) => void
+  unregister: (id: string) => void
+  readonly running: boolean
+  readonly paused: boolean
+}
+
+interface TickEntry {
+  system: TickSystem
+  lastTick: number
+}
+
+const createDefaultSystems = (
+  callbacks: GameLoopCallbacks,
+): TickSystem[] => {
+  let lastDialogTypingTick = 0
+
+  return [
+    {
+      id: 'path',
+      intervalMs: PATH_TICK_MS,
+      zone: 'always',
+      priority: -10,
+      fn: (state, time) => {
+        if (tickPath(state)) {
+          const result = pickUpGroundItems(state, time)
+          for (const defId of result.pickedUp) {
+            const def = getDefinition(defId)
+            callbacks.onPickup?.(
+              def.name,
+              def.glyph,
+              def.glyphColor,
+              state.player.x,
+              state.player.y,
+            )
+          }
+          if (result.chainExplosions > 0) {
+            callbacks.onDiscovery?.(
+              'oh my!',
+              state.player.x,
+              state.player.y,
+            )
+          }
+          callbacks.onRefreshUI?.()
+        }
+      },
+    },
+    {
+      id: 'bee',
+      intervalMs: BEE_TICK_MS,
+      zone: 'overworld',
+      fn: (state) => {
+        tickBees(state)
+      },
+    },
+    {
+      id: 'ghost',
+      intervalMs: GHOST_TICK_MS,
+      zone: 'overworld',
+      fn: (state) => {
+        tickGhosts(state)
+      },
+    },
+    {
+      id: 'shooting-star-spawn',
+      intervalMs: SHOOTING_STAR_SPAWN_TICK_MS,
+      zone: 'overworld',
+      fn: (state) => {
+        spawnShootingStar(state)
+      },
+    },
+    {
+      id: 'shooting-star-tick',
+      intervalMs: SHOOTING_STAR_TICK_MS,
+      zone: 'overworld',
+      fn: (state, time) => {
+        tickShootingStars(state, time)
+      },
+    },
+    {
+      id: 'weather',
+      intervalMs: WEATHER_TICK_MS,
+      zone: 'overworld',
+      fn: (state) => {
+        tickWeather(state.weather)
+      },
+    },
+    {
+      id: 'dialog',
+      intervalMs: 0,
+      zone: 'always',
+      fn: (state, time) => {
+        if (!state.activeDialog) return
+        const prevTypingIndex = state.activeDialog.typingIndex
+        const prevTransitioning = state.activeDialog.transitioning
+        lastDialogTypingTick = tickDialogTyping(
+          state,
+          lastDialogTypingTick,
+          time,
+        )
+        tickDialogTransition(state, time)
+        if (
+          state.activeDialog.typingIndex !== prevTypingIndex ||
+          state.activeDialog.transitioning !== prevTransitioning
+        ) {
+          callbacks.onRefreshUI?.()
+        }
+      },
+    },
+    {
+      id: 'crumble-cleanup',
+      intervalMs: 0,
+      zone: 'always',
+      priority: 100,
+      fn: (state, time) => {
+        if (state.crumbleEffects.length > 0) {
+          state.crumbleEffects = state.crumbleEffects.filter(
+            (e) => time - e.startTime <= CRUMBLE_DURATION_MS,
+          )
+        }
+      },
+    },
+  ]
+}
+
+const sortEntries = (entries: TickEntry[]): void => {
+  entries.sort((a, b) => (a.system.priority ?? 0) - (b.system.priority ?? 0))
+}
+
+export const createGameLoop = (
+  state: GameState,
+  callbacks: GameLoopCallbacks,
+): GameLoop => {
+  const entries: TickEntry[] = []
+  let rafId = 0
+  let running = false
+  let paused = false
+
+  const register = (system: TickSystem): void => {
+    const existing = entries.findIndex((e) => e.system.id === system.id)
+    if (existing !== -1) {
+      entries[existing] = { system, lastTick: 0 }
+    } else {
+      entries.push({ system, lastTick: 0 })
+    }
+    sortEntries(entries)
+  }
+
+  const unregister = (id: string): void => {
+    const idx = entries.findIndex((e) => e.system.id === id)
+    if (idx !== -1) {
+      entries.splice(idx, 1)
+    }
+  }
+
+  // Register default systems
+  for (const system of createDefaultSystems(callbacks)) {
+    register(system)
+  }
+
+  const tick = (time: number): void => {
+    const zone =
+      state.currentZone === Zone.Overworld ? 'overworld' : 'cave'
+    for (const entry of entries) {
+      if (entry.system.zone !== 'always' && entry.system.zone !== zone)
+        continue
+      if (
+        entry.system.intervalMs === 0 ||
+        time - entry.lastTick >= entry.system.intervalMs
+      ) {
+        entry.system.fn(state, time)
+        entry.lastTick = time
+      }
+    }
+  }
+
+  const loop = (time: number): void => {
+    if (!paused) {
+      tick(time)
+    }
+    callbacks.onFrame?.(time)
+    rafId = requestAnimationFrame(loop)
+  }
+
+  return {
+    tick,
+    start: () => {
+      running = true
+      paused = false
+      rafId = requestAnimationFrame(loop)
+    },
+    stop: () => {
+      running = false
+      cancelAnimationFrame(rafId)
+    },
+    pause: () => {
+      paused = true
+    },
+    resume: () => {
+      paused = false
+    },
+    register,
+    unregister,
+    get running() {
+      return running
+    },
+    get paused() {
+      return paused
+    },
+  }
+}
