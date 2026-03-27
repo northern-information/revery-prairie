@@ -43,6 +43,20 @@ const EXPECTED_FIELDS = [
   'cursorScreenPos',
   'rainSeed',
   'metric',
+  'currentZone',
+  'overworldSnapshot',
+  'caveMap',
+  'caveMapWidth',
+  'caveMapHeight',
+  'caveEntranceOverworld',
+  'caveEntranceInterior',
+  'caveRevealed',
+  'caveHiddenPositions',
+  'caveBreakableWallPositions',
+  'crumbleEffects',
+  'hoverPath',
+  'hoverPathTarget',
+  'pendingInteractionTarget',
 ].sort()
 
 describe('GameState schema', () => {

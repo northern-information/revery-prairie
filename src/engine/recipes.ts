@@ -51,7 +51,11 @@ export const RECIPES: Recipe[] = [
           const ty = state.player.y + dy
           if (isInBounds(tx, ty, state.mapWidth, state.mapHeight)) {
             const tile = state.map[ty][tx]
-            if (tile.type !== TileType.Sand && tile.type !== TileType.Space) {
+            if (
+              tile.type !== TileType.Sand &&
+              tile.type !== TileType.Space &&
+              tile.type !== TileType.CaveEntrance
+            ) {
               tiles.push({ pos: { x: tx, y: ty }, char: '#', color: '#ff69b4' })
             }
           }
@@ -69,7 +73,11 @@ export const RECIPES: Recipe[] = [
           const ty = state.player.y + dy
           if (isInBounds(tx, ty, state.mapWidth, state.mapHeight)) {
             const tile = state.map[ty][tx]
-            if (tile.type !== TileType.Sand && tile.type !== TileType.Space) {
+            if (
+              tile.type !== TileType.Sand &&
+              tile.type !== TileType.Space &&
+              tile.type !== TileType.CaveEntrance
+            ) {
               state.map[ty][tx] = { type: TileType.Clover }
             }
           }

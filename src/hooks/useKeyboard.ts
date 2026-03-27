@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import {
   advanceDialog,
+  breakWall,
   closeOmnibox,
   dropItem,
   getAdjacentCharacter,
@@ -17,7 +18,7 @@ import { getCharacterDefinition } from '@/engine/characters'
 import { keyToDirection } from '@/engine/input'
 import { findItemByDefinition, moveItem } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
-import { Rotation } from '@/engine/types'
+import { Rotation, Zone } from '@/engine/types'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
@@ -30,6 +31,7 @@ interface UseKeyboardOptions {
   onPickup: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   onDrop: (definitionId: string, worldX: number, worldY: number) => void
   onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
+  onDiscovery: (text: string, worldX: number, worldY: number) => void
   isDraggingRef: React.RefObject<boolean>
 }
 
@@ -40,6 +42,7 @@ export const useKeyboard = ({
   onPickup,
   onDrop,
   onDialog,
+  onDiscovery,
   isDraggingRef,
 }: UseKeyboardOptions) => {
   const [activePanel, setActivePanel] = useState<Panel>(null)
@@ -123,6 +126,14 @@ export const useKeyboard = ({
             refreshUI()
             return
           }
+          // Break facing breakable wall
+          if (state.currentZone === Zone.Cave && !state.caveRevealed) {
+            if (breakWall(state, performance.now())) {
+              onDiscovery('discovered hidden room!', state.player.x, state.player.y)
+              refreshUI()
+              return
+            }
+          }
           // Interact with adjacent character
           const adjacent = getAdjacentCharacter(state)
           if (adjacent && interactWithCharacter(state)) {
@@ -142,6 +153,7 @@ export const useKeyboard = ({
           state.path = null
           state.pathWaypoints = []
           state.pendingAction = null
+          state.pendingInteractionTarget = null
           if (movePlayer(state, dir)) {
             const result = pickUpGroundItems(state, performance.now())
             handlePickups(result)
@@ -208,6 +220,7 @@ export const useKeyboard = ({
         state.path = null
         state.pathWaypoints = []
         state.pendingAction = null
+        state.pendingInteractionTarget = null
         state.previewFn = null
         if (movePlayer(state, dir)) {
           const result = pickUpGroundItems(state, performance.now())
@@ -216,7 +229,7 @@ export const useKeyboard = ({
         }
       }
     },
-    [state, refreshUI, activePanel, itemInfoRef, handlePickups, onPickup, onDrop, onDialog, isDraggingRef]
+    [state, refreshUI, activePanel, itemInfoRef, handlePickups, onPickup, onDrop, onDialog, onDiscovery, isDraggingRef]
   )
 
   useEffect(() => {

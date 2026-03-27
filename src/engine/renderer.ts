@@ -4,6 +4,9 @@ import {
   BEE_CHAR,
   BEE_COLOR,
   BG_COLOR,
+  CRUMBLE_CHARS,
+  CRUMBLE_COLORS,
+  CRUMBLE_DURATION_MS,
   EXPLOSION_CHARS,
   EXPLOSION_COLORS,
   EXPLOSION_DURATION_MS,
@@ -26,9 +29,11 @@ import {
   TILE_CHARS,
   TILE_COLORS,
 } from './constants'
+import { getPathfindingBlockers } from './actions'
 import { getDefinition } from './items'
-import { isInBounds, posKey } from './position'
-import { TileType } from './types'
+import { findPath } from './pathfinding'
+import { isInBounds, isWalkableTile, posKey } from './position'
+import { TileType, Zone } from './types'
 
 import type { GameState } from './types'
 
@@ -79,6 +84,30 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     state.cursorTile = null
   }
 
+  // Recompute hover path when cursor tile changes
+  const ct = state.cursorTile
+  const ht = state.hoverPathTarget
+  if (
+    ct &&
+    (ct.x !== ht?.x || ct.y !== ht?.y) &&
+    (ct.x !== player.x || ct.y !== player.y) &&
+    !state.path
+  ) {
+    state.hoverPathTarget = { x: ct.x, y: ct.y }
+    if (
+      isInBounds(ct.x, ct.y, state.mapWidth, state.mapHeight) &&
+      isWalkableTile(state.map[ct.y][ct.x].type)
+    ) {
+      const hoverBlocked = getPathfindingBlockers(state, ct)
+      state.hoverPath = findPath(state.map, state.mapWidth, state.mapHeight, player, ct, hoverBlocked)
+    } else {
+      state.hoverPath = null
+    }
+  } else if (!ct || state.path) {
+    state.hoverPath = null
+    state.hoverPathTarget = null
+  }
+
   const pxWidth = viewportWidth * charWidth
   const pxHeight = viewportHeight * charHeight
   ctx.clearRect(0, 0, pxWidth, pxHeight)
@@ -120,6 +149,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const waypointPositions = new Set<string>()
   for (const w of state.pathWaypoints) {
     waypointPositions.add(posKey(w.x, w.y))
+  }
+
+  // Build a set of hover path positions for preview rendering
+  const hoverPathPositions = new Set<string>()
+  if (state.hoverPath) {
+    for (const p of state.hoverPath) {
+      hoverPathPositions.add(posKey(p.x, p.y))
+    }
   }
 
   // Build maps of shooting star pixels — targeted stars render over land, others only on space
@@ -262,6 +299,20 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
+  // Build a map of crumble effect pixels (breakable wall)
+  const crumbleMap = new Map<string, { char: string; color: string }>()
+  for (const effect of state.crumbleEffects) {
+    const elapsed = time - effect.startTime
+    const progress = Math.min(elapsed / CRUMBLE_DURATION_MS, 1)
+    const charIndex = Math.min(Math.floor(progress * CRUMBLE_CHARS.length), CRUMBLE_CHARS.length - 1)
+    const colorIndex = Math.min(Math.floor(progress * CRUMBLE_COLORS.length), CRUMBLE_COLORS.length - 1)
+    const crChar = CRUMBLE_CHARS[charIndex]
+    const crColor = CRUMBLE_COLORS[colorIndex]
+    for (const pos of effect.positions) {
+      crumbleMap.set(posKey(pos.x, pos.y), { char: crChar, color: crColor })
+    }
+  }
+
   for (let vy = 0; vy < viewportHeight; vy++) {
     for (let vx = 0; vx < viewportWidth; vx++) {
       const mx = camera.x + vx
@@ -270,9 +321,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const px = vx * charWidth
       const py = vy * charHeight
 
-      // Out-of-bounds and Space tiles render as twinkling stars
+      // Out-of-bounds and Space tiles render as twinkling stars (overworld) or dark void (cave)
       const isOutOfBounds = !isInBounds(mx, my, state.mapWidth, state.mapHeight)
       if (isOutOfBounds || map[my][mx].type === TileType.Space) {
+        if (state.currentZone === Zone.Cave) {
+          // Cave: just leave the dark background
+          continue
+        }
         const spaceKey = posKey(mx, my)
         const shootingStar = shootingStarMap.get(spaceKey) ?? targetedStarMap.get(spaceKey)
         if (shootingStar) {
@@ -293,6 +348,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const tileKey = posKey(mx, my)
       const isCursor = mx === state.cursorTile?.x && my === state.cursorTile?.y
       const isFacingEntity = mx === state.facingEntityPos?.x && my === state.facingEntityPos?.y
+      const isPendingTarget =
+        mx === state.pendingInteractionTarget?.x && my === state.pendingInteractionTarget?.y
 
       // Resolve what to draw at this tile — priority order determines z-index
       let char: string
@@ -332,6 +389,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const pe = pickupEffectMap.get(tileKey)
         char = pe?.char ?? '*'
         color = pe?.color ?? '#C8C8FF'
+      } else if (crumbleMap.has(tileKey)) {
+        const cr = crumbleMap.get(tileKey)
+        char = cr?.char ?? '#'
+        color = cr?.color ?? '#997755'
       } else if (meteoritePositions.has(tileKey)) {
         char = METEORITE_CHAR
         color = METEORITE_COLOR
@@ -351,16 +412,32 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           color = TILE_COLORS[tile.type]
         }
       } else if (pathPositions.has(tileKey)) {
-        char = waypointPositions.has(tileKey) ? '+' : '\u00b7'
-        color = '#ff69b4'
+        const pathTile = map[my][mx]
+        if (pathTile.type === TileType.CaveEntrance) {
+          char = TILE_CHARS[TileType.CaveEntrance]
+          color = '#ff69b4'
+        } else {
+          char = waypointPositions.has(tileKey) ? '+' : '\u00b7'
+          color = '#ff69b4'
+        }
+      } else if (hoverPathPositions.has(tileKey)) {
+        const hoverTile = map[my][mx]
+        char = TILE_CHARS[hoverTile.type]
+        color = '#555555'
       } else {
-        const tile = map[my][mx]
-        char = TILE_CHARS[tile.type]
-        color = TILE_COLORS[tile.type]
+        // Mask hidden chamber tiles as CaveWall until revealed
+        if (!state.caveRevealed && state.caveHiddenPositions.has(tileKey)) {
+          char = TILE_CHARS[TileType.CaveWall]
+          color = TILE_COLORS[TileType.CaveWall]
+        } else {
+          const tile = map[my][mx]
+          char = TILE_CHARS[tile.type]
+          color = TILE_COLORS[tile.type]
+        }
       }
 
       // Draw with cursor/facing inversion if applicable
-      if ((isCursor && cursorable) || isFacingEntity) {
+      if ((isCursor && cursorable) || isFacingEntity || isPendingTarget) {
         ctx.fillStyle = '#ff69b4'
         ctx.fillRect(px, py, charWidth, charHeight)
         ctx.fillStyle = BG_COLOR

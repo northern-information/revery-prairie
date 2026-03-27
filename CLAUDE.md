@@ -29,6 +29,10 @@ defined in `src/engine/types.ts` as a const object (not an enum — `erasableSyn
 - `clover` — planted clover field (`%`, green)
 - `sand` — shoreline (`:`, tan-gold)
 - `space` — surrounding void (twinkling stars on black)
+- `caveFloor` — walkable cave ground (`.`, dark gray)
+- `caveWall` — impassable cave wall (`#`, darker gray)
+- `caveBreakableWall` — breakable wall (`#`, warm brown `#997755` — same char as cave wall but distinct color) — press `[e]` to break, reveals hidden chamber
+- `caveEntrance` — transition tile (`O`, light gray) — triggers zone swap on walk-over
 
 ## color conventions
 
@@ -47,6 +51,7 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/camera.ts` — camera positioning and viewport clamping.
 - `src/engine/weather.ts` — weather generation, tick drift, unit conversion.
 - `src/engine/terrain.ts` — map generation with randomized coastline.
+- `src/engine/cave.ts` — cave generation (semi-random layout with breakable wall and hidden chamber), zone transition functions (`enterCave`, `exitCave`, `checkTransition`).
 - `src/engine/characters.ts` — character definitions (including ghost factory), dialog trees, interaction logic.
 - `src/engine/input.ts` — key-to-direction mapping for WASD and arrow keys.
 - `src/engine/position.ts` — shared position utilities: `posKey`, `isInBounds`, `removeByIndices`, direction deltas (`DIRECTIONS`, `CARDINAL`, `ORDINAL`).
@@ -151,6 +156,21 @@ portable 5x5 containers (2x2 inventory footprint). created by combining meteorit
 ## movement blocking
 
 `getBlockedPositions(state)` in `actions.ts` returns a `Set<string>` of all tiles blocked by ground omniboxes, characters, and ghosts. used by `movePlayer`, `tickGhosts`, pathfinding, and click-to-move. to add new blocking entity types, add them to `getBlockedPositions`. this keeps all movement systems consistent automatically.
+
+tile walkability is centralized in `isWalkableTile(tileType)` in `position.ts`. non-walkable: `Space`, `CaveWall`, `CaveBreakableWall`. used by `movePlayer`, `findPath`, `tickBees`, `tickGhosts`, `canDropAt`.
+
+## cave
+
+separate 40x25 interior map accessed via a `CaveEntrance` tile on the overworld. uses a **map context swap** pattern: `enterCave(state)` snapshots all overworld-specific fields (map, entities, path, etc.), swaps in cave data, and clears entities. `exitCave(state)` restores the snapshot. the renderer, camera, pathfinding, and movement code require no branching — they read `state.map`/`state.mapWidth`/`state.mapHeight` which point to whichever zone is active.
+
+- **generation**: `generateCave()` in `cave.ts`. semi-random layout: CaveWall fill, CaveEntrance at bottom center, random-walk corridors upward, small chamber at the end, breakable wall row, hidden chamber behind it.
+- **transition**: `checkTransition(state)` fires after every successful `movePlayer`. if the player is on a `CaveEntrance` tile, it calls `enterCave` or `exitCave` based on `state.currentZone`. on exit, the player is placed one tile south of the overworld entrance to avoid re-entry loop.
+- **zone**: `state.currentZone` is `'overworld'` or `'cave'`. `state.overworldSnapshot` holds saved state while in cave.
+- **rendering**: out-of-bounds tiles render as dark void (no stars) in cave zone. cave tile chars/colors are in `TILE_CHARS`/`TILE_COLORS`.
+- **ticks**: bee, ghost, shooting star, and weather ticks are suppressed in cave (`GameCanvas.tsx` guards on `currentZone`).
+- **breakable wall**: player presses `[e]` facing a `CaveBreakableWall` tile to break it. highlights pink via the interactable system (`isInteractableAt` / `facingEntityPos`). `breakWall()` in `actions.ts` converts all wall tiles to `CaveFloor`, sets `caveRevealed = true`, and spawns a `CrumbleEffect` (600ms animation: `#` → `+` → `.` → `·` with fading brown tones). one-time permanent event.
+- **hidden chamber masking**: when `!state.caveRevealed`, tiles in `state.caveHiddenPositions` render as `CaveWall` in the renderer — the player cannot see behind the breakable wall until it is broken. `caveHiddenPositions` is a `Set<string>` of posKeys built from `generateCave`'s `hiddenChamberPositions`.
+- **cave entrance protection**: the `CaveEntrance` tile is indestructible — the prairie recipe (and any future tile-overwriting mechanics) must exclude `TileType.CaveEntrance`.
 
 ## pending actions
 

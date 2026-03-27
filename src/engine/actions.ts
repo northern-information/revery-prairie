@@ -20,9 +20,10 @@ import {
   placeItem,
   removeItem,
 } from './inventory'
-import { CARDINAL, DIRECTIONS, isInBounds, ORDINAL, posKey, removeByIndices } from './position'
+import { checkTransition } from './cave'
+import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, ORDINAL, posKey, removeByIndices } from './position'
 import { RECIPES } from './recipes'
-import { TileType } from './types'
+import { TileType, Zone } from './types'
 
 import type { Character, Container, Direction, GameState, Position } from './types'
 
@@ -112,7 +113,7 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
     updateFacingEntity(state)
     return false
   }
-  if (state.map[ny][nx].type === TileType.Space) {
+  if (!isWalkableTile(state.map[ny][nx].type)) {
     updateFacingEntity(state)
     return false
   }
@@ -126,6 +127,13 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   state.player.y = ny
   updateCamera(state)
   updateFacingEntity(state)
+
+  // Check for zone transitions (cave entrance/exit)
+  if (checkTransition(state)) {
+    updateCamera(state)
+    return true
+  }
+
   return true
 }
 
@@ -156,7 +164,7 @@ export const combineBeeAndClover = (state: GameState): boolean => {
   // Check standing tile before consuming items — recipe.execute also checks,
   // but we need to bail before removing ingredients
   const standingOn = state.map[state.player.y][state.player.x].type
-  if (standingOn === TileType.Sand || standingOn === TileType.Space) return false
+  if (standingOn === TileType.Sand || !isWalkableTile(standingOn)) return false
 
   findAndRemoveItem(state, 'bee')
   findAndRemoveItem(state, 'clover')
@@ -186,9 +194,13 @@ export const tickPath = (state: GameState): boolean => {
     state.path = null
     state.pathWaypoints = []
     state.pendingAction = null
+    state.pendingInteractionTarget = null
     state.previewFn = null
     return false
   }
+
+  // movePlayer may have triggered a zone transition which clears the path
+  if (!state.path) return true
 
   state.path.shift()
   if (state.path.length === 0) {
@@ -217,7 +229,7 @@ export const tickBees = (state: GameState): void => {
         const tile = state.map[ny][nx]
         if (tile.type === TileType.Clover) {
           cloverCandidates.push({ x: nx, y: ny })
-        } else if (tile.type !== TileType.Space) {
+        } else if (isWalkableTile(tile.type)) {
           walkableCandidates.push({ x: nx, y: ny })
         }
       }
@@ -253,7 +265,7 @@ export const tickGhosts = (state: GameState): void => {
       const nx = ghost.pos.x + d.x
       const ny = ghost.pos.y + d.y
       if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
-      if (state.map[ny][nx].type === TileType.Space) continue
+      if (!isWalkableTile(state.map[ny][nx].type)) continue
       if (blocked.has(posKey(nx, ny))) continue
       candidates.push({ x: nx, y: ny })
     }
@@ -291,7 +303,7 @@ const DROP_DELTAS: Position[] = [
 
 const canDropAt = (state: GameState, x: number, y: number): boolean => {
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
-  if (state.map[y][x].type === TileType.Space) return false
+  if (!isWalkableTile(state.map[y][x].type)) return false
   if (state.groundItems.some(g => g.pos.x === x && g.pos.y === y)) return false
   if (state.groundOmniboxes.some(g => g.pos.x === x && g.pos.y === y)) return false
   return true
@@ -499,6 +511,29 @@ export const getBlockedPositions = (state: GameState): Set<string> => {
   return set
 }
 
+// Extended blockers for click-to-move pathfinding — avoids cave entrances
+// unless they are the target. Prevents accidental zone transitions when
+// clicking past the entrance.
+export const getPathfindingBlockers = (state: GameState, target?: Position): Set<string> => {
+  const set = getBlockedPositions(state)
+  const targetKey = target ? posKey(target.x, target.y) : null
+
+  // Block cave entrance so paths don't route through it
+  if (state.currentZone === Zone.Overworld) {
+    const key = posKey(state.caveEntranceOverworld.x, state.caveEntranceOverworld.y)
+    if (key !== targetKey) {
+      set.add(key)
+    }
+  } else if (state.currentZone === Zone.Cave) {
+    const key = posKey(state.caveEntranceInterior.x, state.caveEntranceInterior.y)
+    if (key !== targetKey) {
+      set.add(key)
+    }
+  }
+
+  return set
+}
+
 export const openOmnibox = (state: GameState, uid: string): boolean => {
   const container = state.omniboxContainers.get(uid)
   if (!container) return false
@@ -554,9 +589,19 @@ export const grabOmnibox = (state: GameState): string | null => {
   return null
 }
 
-const isInteractableAt = (state: GameState, x: number, y: number): boolean =>
-  state.groundOmniboxes.some(go => go.pos.x === x && go.pos.y === y) ||
-  state.characters.some(c => c.pos.x === x && c.pos.y === y)
+export const isInteractableAt = (state: GameState, x: number, y: number): boolean => {
+  if (state.groundOmniboxes.some(go => go.pos.x === x && go.pos.y === y)) return true
+  if (state.characters.some(c => c.pos.x === x && c.pos.y === y)) return true
+  if (
+    state.currentZone === Zone.Cave &&
+    !state.caveRevealed &&
+    isInBounds(x, y, state.mapWidth, state.mapHeight) &&
+    state.map[y][x].type === TileType.CaveBreakableWall
+  ) {
+    return true
+  }
+  return false
+}
 
 export const updateFacingEntity = (state: GameState): void => {
   const switchIfOpen = (x: number, y: number) => {
@@ -649,4 +694,34 @@ export const advanceDialog = (state: GameState): boolean => {
   }
   state.activeDialog = null
   return false
+}
+
+export const breakWall = (state: GameState, time: number): boolean => {
+  if (state.caveRevealed) return false
+  if (state.currentZone !== Zone.Cave) return false
+
+  const d = DIRECTIONS[state.playerFacing]
+  const fx = state.player.x + d.x
+  const fy = state.player.y + d.y
+  if (!isInBounds(fx, fy, state.mapWidth, state.mapHeight)) return false
+  if (state.map[fy][fx].type !== TileType.CaveBreakableWall) return false
+
+  // Start crumble animation
+  state.crumbleEffects.push({
+    positions: [...state.caveBreakableWallPositions],
+    startTime: time,
+  })
+
+  // Convert breakable wall tiles to CaveFloor
+  for (const pos of state.caveBreakableWallPositions) {
+    if (isInBounds(pos.x, pos.y, state.mapWidth, state.mapHeight)) {
+      state.map[pos.y][pos.x] = { type: TileType.CaveFloor }
+    }
+  }
+
+  // Reveal hidden chamber
+  state.caveRevealed = true
+
+  updateFacingEntity(state)
+  return true
 }

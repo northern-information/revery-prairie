@@ -1,11 +1,13 @@
 import { spawnShootingStarAtTarget } from './actions'
+import { generateCave } from './cave'
 import { registerGhosts } from './characters'
-import { MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER } from './constants'
+import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER } from './constants'
+import { AURA_RADIUS } from './effects'
 import { autoSort, createOmniboxContainer, findFitPosition, placeItem } from './inventory'
 import { createBackpack } from './items'
 import { posKey } from './position'
 import { generateTerrain } from './terrain'
-import { Rotation, TileType } from './types'
+import { Rotation, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 
 import type { GameState, Ghost, Position } from './types'
@@ -29,6 +31,34 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     usedKeys.add(key)
     landingTargets.push({ x: mx, y: my })
   }
+
+  // Gron position (used for cave entrance placement and character spawn)
+  const gronX = playerX + 5
+  const gronY = playerY
+
+  // Generate cave
+  const cave = generateCave(CAVE_WIDTH, CAVE_HEIGHT)
+
+  // Place cave entrance just outside Gron's rain aura
+  const rainRadius = AURA_RADIUS.rain ?? 6
+  const minCaveDist = rainRadius + 1 // just outside the rain
+  const maxCaveDist = rainRadius + 4 // but not too far
+  let caveEntranceOverworld: Position = { x: gronX + minCaveDist, y: gronY }
+  let caveAttempts = 0
+  while (caveAttempts < 500) {
+    caveAttempts++
+    // Pick random angle, random distance in [minCaveDist, maxCaveDist]
+    const angle = Math.random() * Math.PI * 2
+    const dist = minCaveDist + Math.random() * (maxCaveDist - minCaveDist)
+    const cx = gronX + Math.round(Math.cos(angle) * dist)
+    const cy = gronY + Math.round(Math.sin(angle) * dist)
+    if (cx < SPACE_BORDER || cx >= MAP_WIDTH - SPACE_BORDER) continue
+    if (cy < SPACE_BORDER || cy >= MAP_HEIGHT - SPACE_BORDER) continue
+    if (map[cy][cx].type !== TileType.Dirt) continue
+    caveEntranceOverworld = { x: cx, y: cy }
+    break
+  }
+  map[caveEntranceOverworld.y][caveEntranceOverworld.x] = { type: TileType.CaveEntrance }
 
   const backpack = createBackpack()
   placeItem(backpack, 'bee', Rotation.R0, 0, 0)
@@ -73,15 +103,27 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     path: null,
     pathWaypoints: [],
     pendingAction: null,
+    pendingInteractionTarget: null,
     cursorTile: null,
     cursorScreenPos: null,
+    hoverPath: null,
+    hoverPathTarget: null,
     rainSeed: Math.floor(Math.random() * 2147483647),
     metric: true,
+    currentZone: Zone.Overworld,
+    overworldSnapshot: null,
+    caveMap: cave.map,
+    caveMapWidth: CAVE_WIDTH,
+    caveMapHeight: CAVE_HEIGHT,
+    caveEntranceOverworld,
+    caveEntranceInterior: cave.entrance,
+    caveRevealed: false,
+    caveHiddenPositions: new Set(cave.hiddenChamberPositions.map(p => posKey(p.x, p.y))),
+    caveBreakableWallPositions: cave.breakableWallPositions,
+    crumbleEffects: [],
   }
 
   // Place Gron near the player
-  const gronX = playerX + 5
-  const gronY = playerY
   if (map[gronY][gronX].type === TileType.Dirt || map[gronY][gronX].type === TileType.Clover) {
     state.characters.push({ definitionId: 'gron', pos: { x: gronX, y: gronY }, aura: 'rain' })
   } else {
