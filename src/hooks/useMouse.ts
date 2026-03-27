@@ -115,7 +115,7 @@ export const useMouse = ({
       // Shift+click: chain waypoints onto existing path
       if (e.shiftKey && state.path && state.path.length > 0) {
         const lastWaypoint = state.pathWaypoints[state.pathWaypoints.length - 1]
-        if (lastWaypoint && lastWaypoint.x === walkTarget.x && lastWaypoint.y === walkTarget.y) return
+        if (lastWaypoint?.x === walkTarget.x && lastWaypoint?.y === walkTarget.y) return
         const chainFrom = state.path[state.path.length - 1]
         const extension = findPath(state.map, state.mapWidth, state.mapHeight, chainFrom, walkTarget, blocked)
         if (!extension || extension.length === 0) return

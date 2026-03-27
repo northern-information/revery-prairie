@@ -30,7 +30,7 @@ describe('getTileEffects', () => {
 
   it('includes position at exact boundary (dx²+dy² = r²)', () => {
     const state = makeState()
-    const r = AURA_RADIUS['rain']!
+    const r = AURA_RADIUS.rain ?? 0
     const gron: Character = { definitionId: 'gron', pos: { x: 50, y: 50 }, aura: 'rain' }
     state.characters.push(gron)
 
