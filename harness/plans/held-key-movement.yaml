@@ -1,0 +1,92 @@
+plan:
+  id: held-key-movement
+  title: "Fix held-key movement pause by adding tick-based continuous movement"
+  created: 2026-03-27
+  global_verification:
+    - "npm run build"
+    - "npm run test"
+    - "npm run lint"
+
+tasks:
+  - id: add-held-direction-state
+    title: "Add heldDirection field to GameState and createGameState"
+    spec_id: held-key-movement
+    spec_sections:
+      - immediate-first-move
+      - continuous-held-move
+      - stop-on-release
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    depends_on: []
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, types]
+
+  - id: add-keyboard-move-tick
+    title: "Register keyboard-move tick system in gameLoop that moves player while heldDirection is set"
+    spec_id: held-key-movement
+    spec_sections:
+      - continuous-held-move
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/movement.ts
+      - src/engine/entities.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+      - src/engine/constants.ts
+    depends_on:
+      - add-held-direction-state
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, gameloop]
+
+  - id: wire-keyboard-held-keys
+    title: "Track held keys in useKeyboard via keydown/keyup and set state.heldDirection"
+    spec_id: held-key-movement
+    spec_sections:
+      - immediate-first-move
+      - stop-on-release
+      - direction-change
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/engine/input.ts
+      - src/engine/movement.ts
+      - src/engine/types.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - add-held-direction-state
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [hooks, input]
+
+  - id: held-key-tests
+    title: "Add regression tests for held-key continuous movement"
+    spec_id: held-key-movement
+    spec_sections:
+      - continuous-held-move
+      - stop-on-release
+      - direction-change
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/movement.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/gameLoop.test.ts
+    output_files:
+      - src/engine/__tests__/gameLoop.test.ts
+    depends_on:
+      - add-keyboard-move-tick
+    verification:
+      - "npx vitest run src/engine/__tests__/gameLoop.test.ts"
+    repair: retry
+    tags: [test]

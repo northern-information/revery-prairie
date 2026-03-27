@@ -152,14 +152,17 @@ export const useKeyboard = ({
         const dir = keyToDirection(e.key)
         if (dir && activePanel !== 'menu') {
           e.preventDefault()
-          state.path = null
-          state.pathWaypoints = []
-          state.pendingAction = null
-          state.pendingInteractionTarget = null
-          if (movePlayer(state, dir)) {
-            const result = pickUpGroundItems(state, performance.now())
-            handlePickups(result)
-            refreshUI()
+          state.heldDirection = dir
+          if (!e.repeat) {
+            state.path = null
+            state.pathWaypoints = []
+            state.pendingAction = null
+            state.pendingInteractionTarget = null
+            if (movePlayer(state, dir)) {
+              const result = pickUpGroundItems(state, performance.now())
+              handlePickups(result)
+              refreshUI()
+            }
           }
         }
         return
@@ -209,37 +212,54 @@ export const useKeyboard = ({
       // Movement (allowed with inventory open; WASD closes menu)
       const dir = keyToDirection(e.key)
       if (dir && activePanel === 'menu') {
+        state.heldDirection = null
         setActivePanel(null)
         return
       }
       if (dir && state.activeDialog) {
+        state.heldDirection = null
         state.activeDialog = null
         refreshUI()
         return
       }
       if (dir) {
         e.preventDefault()
-        state.path = null
-        state.pathWaypoints = []
-        state.pendingAction = null
-        state.pendingInteractionTarget = null
-        state.previewFn = null
-        if (movePlayer(state, dir)) {
-          const result = pickUpGroundItems(state, performance.now())
-          handlePickups(result)
-          refreshUI()
+        state.heldDirection = dir
+        if (!e.repeat) {
+          state.path = null
+          state.pathWaypoints = []
+          state.pendingAction = null
+          state.pendingInteractionTarget = null
+          state.previewFn = null
+          if (movePlayer(state, dir)) {
+            const result = pickUpGroundItems(state, performance.now())
+            handlePickups(result)
+            refreshUI()
+          }
         }
       }
     },
     [state, refreshUI, activePanel, itemInfoRef, handlePickups, onPickup, onDrop, onDialog, onDiscovery, onGift, isDraggingRef]
   )
 
+  const handleKeyUp = useCallback(
+    (e: KeyboardEvent) => {
+      const dir = keyToDirection(e.key)
+      if (dir && dir === state.heldDirection) {
+        state.heldDirection = null
+      }
+    },
+    [state]
+  )
+
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [handleKeyDown])
+  }, [handleKeyDown, handleKeyUp])
 
   return { activePanel, setActivePanel }
 }

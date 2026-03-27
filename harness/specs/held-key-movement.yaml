@@ -1,0 +1,101 @@
+id: held-key-movement
+name: Continuous movement while holding direction keys
+status: partial
+priority: high
+layer: integration
+source_files:
+  - src/hooks/useKeyboard.ts
+  - src/engine/types.ts
+  - src/engine/gameLoop.ts
+  - src/engine/movement.ts
+  - src/engine/entities.ts
+  - src/components/GameCanvas.tsx
+
+dependencies: []
+
+behaviors:
+  - id: immediate-first-move
+    description: Pressing a direction key moves the player one tile immediately without waiting for a tick
+    inputs:
+      - keydown event for w/a/s/d or arrow keys
+    outputs:
+      - player moves one tile in the pressed direction
+    state_changes:
+      - field: player
+        effect: position changes by one tile in the pressed direction
+      - field: heldDirection
+        effect: set to the pressed direction
+    determinism: deterministic
+
+  - id: continuous-held-move
+    description: While a direction key is held, the player moves one tile per tick interval (100ms) without any initial pause
+    inputs:
+      - heldDirection is set on GameState
+      - tick fires at 100ms intervals
+    outputs:
+      - player moves one tile per tick in the held direction
+    state_changes:
+      - field: player
+        effect: position advances one tile per tick in heldDirection
+    determinism: time-based
+
+  - id: stop-on-release
+    description: Releasing the held direction key stops continuous movement immediately
+    inputs:
+      - keyup event for the currently held direction key
+    outputs:
+      - movement stops
+    state_changes:
+      - field: heldDirection
+        effect: set to null
+    determinism: deterministic
+
+  - id: direction-change
+    description: Pressing a different direction key while one is held switches to the new direction immediately with one instant move
+    inputs:
+      - keydown event for a different direction while heldDirection is set
+    outputs:
+      - player moves one tile in the new direction immediately
+    state_changes:
+      - field: heldDirection
+        effect: updated to the new direction
+      - field: player
+        effect: position changes by one tile in the new direction
+    determinism: deterministic
+
+edge_cases:
+  - id: release-wrong-key
+    description: Releasing a key that is not the currently held direction does not stop movement
+    expected: heldDirection remains unchanged, movement continues
+
+  - id: blocked-tile-held
+    description: Holding a direction into an impassable tile does not move the player but heldDirection remains set
+    expected: player stays in place, movement resumes if direction changes to a walkable tile
+
+  - id: dialog-blocks-held
+    description: Opening a dialog while holding a direction clears heldDirection so the player does not walk through conversations
+    expected: heldDirection is cleared, no movement ticks fire during dialog
+
+  - id: menu-blocks-held
+    description: Opening the menu while holding a direction clears heldDirection
+    expected: heldDirection is cleared, no movement ticks fire while menu is open
+
+  - id: path-cleared-on-hold
+    description: Holding a direction key cancels any active click-to-move path
+    expected: state.path is set to null, pathWaypoints cleared, pendingAction cleared
+
+  - id: held-during-drag
+    description: Movement while dragging an inventory item still works via held keys
+    expected: player moves continuously while dragging, same as non-drag movement
+
+failure_conditions:
+  - trigger: player holds a direction key and there is a 300-500ms pause after the first move before continuous movement begins
+    expected: movement is smooth and continuous from the first move with no perceivable pause — subsequent moves fire at 100ms intervals driven by the game loop tick, not OS key repeat
+
+  - trigger: player rapidly taps a direction key
+    expected: each tap moves exactly one tile, no extra movement from stale heldDirection
+
+verification:
+  test_file: src/engine/__tests__/gameLoop.test.ts
+  test_pattern: held key movement
+  command: npx vitest run src/engine/__tests__/gameLoop.test.ts
