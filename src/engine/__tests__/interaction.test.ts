@@ -1,0 +1,92 @@
+import { advanceDialog, getAdjacentCharacter, interactWithCharacter } from '../interaction'
+import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
+
+describe('getAdjacentCharacter', () => {
+  it('finds a character to the right', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    const char = getAdjacentCharacter(state)
+    expect(char).not.toBeNull()
+    expect(char?.definitionId).toBe('gron')
+  })
+
+  it('finds a character above', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x, y: state.player.y - 1 } }]
+    expect(getAdjacentCharacter(state)).not.toBeNull()
+  })
+
+  it('returns null when no character is adjacent', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 5, y: state.player.y } }]
+    expect(getAdjacentCharacter(state)).toBeNull()
+  })
+
+  it('does not detect diagonal characters', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y + 1 } }]
+    expect(getAdjacentCharacter(state)).toBeNull()
+  })
+})
+
+describe('interactWithCharacter', () => {
+  it('sets activeDialog when adjacent to a character', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    const result = interactWithCharacter(state)
+    expect(result).toBe(true)
+    expect(state.activeDialog?.characterId).toBe('gron')
+    expect(state.activeDialog?.lineIndex).toBe(0)
+    expect(state.activeDialog?.typingDone).toBe(false)
+  })
+
+  it('returns false when no character is adjacent', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = []
+    const result = interactWithCharacter(state)
+    expect(result).toBe(false)
+    expect(state.activeDialog).toBeNull()
+  })
+})
+
+describe('advanceDialog', () => {
+  it('reveals full line on first press when typing', () => {
+    const state = createTestState()
+    state.activeDialog = { characterId: 'gron', lineIndex: 0, typingIndex: 5, typingDone: false, transitioning: false, transitionStartTime: 0 }
+    const result = advanceDialog(state)
+    expect(result).toBe(true)
+    expect(state.activeDialog?.typingDone).toBe(true)
+    expect(state.activeDialog?.lineIndex).toBe(0)
+  })
+
+  it('starts transition on second press when typing is done', () => {
+    const state = createTestState()
+    state.activeDialog = { characterId: 'gron', lineIndex: 0, typingIndex: 100, typingDone: true, transitioning: false, transitionStartTime: 0 }
+    const result = advanceDialog(state)
+    expect(result).toBe(true)
+    expect(state.activeDialog?.transitioning).toBe(true)
+  })
+
+  it('clears dialog on last line', () => {
+    const state = createTestState()
+    // Gron has 3 dialog lines — index 2 is the last
+    state.activeDialog = { characterId: 'gron', lineIndex: 2, typingIndex: 100, typingDone: true, transitioning: false, transitionStartTime: 0 }
+    const result = advanceDialog(state)
+    expect(result).toBe(false)
+    expect(state.activeDialog).toBeNull()
+  })
+
+  it('returns false when no dialog is active', () => {
+    const state = createTestState()
+    state.activeDialog = null
+    const result = advanceDialog(state)
+    expect(result).toBe(false)
+  })
+})

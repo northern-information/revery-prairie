@@ -4,7 +4,8 @@ status: implemented
 priority: medium
 layer: engine
 source_files:
-  - src/engine/actions.ts
+  - src/engine/celestial.ts
+  - src/engine/entities.ts
   - src/engine/types.ts
 dependencies:
   - player-movement

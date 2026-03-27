@@ -6,7 +6,7 @@ import { Menu } from './Menu'
 import { PickupToasts } from './PickupToasts'
 import { Sidebar } from './Sidebar'
 
-import { advanceDialog } from '@/engine/actions'
+import { advanceDialog } from '@/engine/interaction'
 import { getCharacterDefinition } from '@/engine/characters'
 import { getDefinition } from '@/engine/items'
 import { useEventLog } from '@/hooks/useEventLog'

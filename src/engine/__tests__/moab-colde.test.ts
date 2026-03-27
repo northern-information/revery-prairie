@@ -1,12 +1,6 @@
 import { createGameState } from '../state'
-import {
-  advanceDialog,
-  getBlockedPositions,
-  giveMoabGift,
-  interactWithCharacter,
-  movePlayer,
-  tickDialogTransition,
-} from '../actions'
+import { advanceDialog, giveMoabGift, interactWithCharacter, tickDialogTransition } from '../interaction'
+import { getBlockedPositions, movePlayer } from '../movement'
 import { getCharacterDefinition } from '../characters'
 import { enterCave } from '../cave'
 import { posKey } from '../position'

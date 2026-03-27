@@ -1,4 +1,5 @@
-import { pickUpGroundItems, spawnChainMeteorites } from '../actions'
+import { spawnChainMeteorites } from '../celestial'
+import { pickUpGroundItems } from '../entities'
 import { placeItem } from '../inventory'
 import { TileType } from '../types'
 

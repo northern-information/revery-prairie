@@ -1,9 +1,11 @@
-import { buildOccupancyGrid, getRotatedShape } from './inventory'
+import { buildOccupancyGrid, containerHasItem, findItemByDefinition, getActiveContainers, getRotatedShape, removeItem } from './inventory'
 import { getDefinition } from './items'
-import { findRecipe, recipeKey } from './recipes'
+import { isWalkableTile } from './position'
+import { findRecipe, recipeKey, RECIPES } from './recipes'
+import { TileType } from './types'
 
 import type { Recipe } from './recipes'
-import type { Container, ItemInstance, Rotation } from './types'
+import type { Container, GameState, ItemInstance, Rotation } from './types'
 
 export type CheckCombineResult =
   | { kind: 'recipe'; uid: string; recipe: Recipe; isDiscovered: boolean }
@@ -61,4 +63,41 @@ export const checkCombine = (
 
   const isDiscovered = discoveredRecipes.has(recipeKey(recipe))
   return { kind: 'recipe', uid: targetUid, recipe, isDiscovered }
+}
+
+const findAndRemoveItem = (state: GameState, definitionId: string): boolean => {
+  const containers = getActiveContainers(state)
+  for (const container of containers) {
+    const item = findItemByDefinition(container, definitionId)
+    if (item) {
+      removeItem(container, item.uid)
+      return true
+    }
+  }
+  return false
+}
+
+const hasItemInAnyContainer = (state: GameState, definitionId: string): boolean => {
+  if (containerHasItem(state.backpack, definitionId)) return true
+  if (state.openContainer && containerHasItem(state.openContainer, definitionId)) return true
+  return false
+}
+
+export const combineBeeAndClover = (state: GameState): boolean => {
+  const hasBee = hasItemInAnyContainer(state, 'bee')
+  const hasClover = hasItemInAnyContainer(state, 'clover')
+
+  if (!hasBee || !hasClover) return false
+
+  // Check standing tile before consuming items — recipe.execute also checks,
+  // but we need to bail before removing ingredients
+  const standingOn = state.map[state.player.y][state.player.x].type
+  if (standingOn === TileType.Sand || !isWalkableTile(standingOn)) return false
+
+  findAndRemoveItem(state, 'bee')
+  findAndRemoveItem(state, 'clover')
+
+  const prairie = RECIPES.find(r => r.resultName === 'prairie')
+  if (!prairie) return false
+  return prairie.execute(state)
 }

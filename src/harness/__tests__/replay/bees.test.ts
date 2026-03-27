@@ -1,6 +1,6 @@
 import { withSeededRandom } from '@/harness/prng'
 import { createGameState } from '@/engine/state'
-import { tickBees } from '@/engine/actions'
+import { tickBees } from '@/engine/entities'
 import type { GameState } from '@/engine/types'
 
 const SEED = 42

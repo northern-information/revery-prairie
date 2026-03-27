@@ -3,7 +3,7 @@ import { Sidebar } from '../Sidebar'
 import { render, screen } from '@testing-library/react'
 import { vi } from 'vitest'
 
-import { combineBeeAndClover } from '@/engine/actions'
+import { combineBeeAndClover } from '@/engine/combine'
 import { createOmniboxContainer } from '@/engine/inventory'
 import { createGameState } from '@/engine/state'
 import { TileType } from '@/engine/types'

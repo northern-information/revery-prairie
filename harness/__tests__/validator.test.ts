@@ -21,7 +21,7 @@ const minimalSpec = (overrides: Record<string, unknown> = {}) => ({
   status: 'implemented',
   priority: 'medium',
   layer: 'engine',
-  source_files: ['src/engine/actions.ts'],
+  source_files: ['src/engine/movement.ts'],
   dependencies: [],
   behaviors: [
     {
@@ -42,9 +42,9 @@ const minimalSpec = (overrides: Record<string, unknown> = {}) => ({
   ],
   failure_conditions: [{ trigger: 'bad input', expected: 'returns false' }],
   verification: {
-    test_file: 'src/engine/__tests__/actions.test.ts',
+    test_file: 'src/engine/__tests__/movement.test.ts',
     test_pattern: 'movePlayer',
-    command: 'npx vitest run src/engine/__tests__/actions.test.ts',
+    command: 'npx vitest run src/engine/__tests__/movement.test.ts',
   },
   ...overrides,
 })

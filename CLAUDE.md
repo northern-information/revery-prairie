@@ -46,7 +46,12 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/state.ts` — game state factory (`createGameState`), initializes all mutable state, terrain, backpack, weather.
 - `src/engine/renderer.ts` — canvas ASCII drawing. the file to replace for sprites.
 - `src/engine/gameLoop.ts` — tick system registry and game loop. `TickSystem` interface for entity tick definitions. `createGameLoop` returns start/stop/pause/resume + register/unregister. `tick(time)` is the testable simulation step.
-- `src/engine/actions.ts` — game mechanics (movement, combine, bee/ghost ticking, path-following, facing entity detection).
+- `src/engine/movement.ts` — `movePlayer`, `tickPath`, `getBlockedPositions`, `getPathfindingBlockers`.
+- `src/engine/entities.ts` — `tickBees`, `tickGhosts`, `pickUpGroundItems`, `dropItem`.
+- `src/engine/celestial.ts` — `spawnShootingStar`, `spawnShootingStarAtTarget`, `tickShootingStars`, `spawnChainMeteorites`.
+- `src/engine/interaction.ts` — `interactWithCharacter`, `advanceDialog`, `updateFacingEntity`, `isInteractableAt`, dialog tick, `giveMoabGift`, `breakWall`.
+- `src/engine/omnibox.ts` — `openOmnibox`, `closeOmnibox`, `toggleOmnibox`, `grabOmnibox`, `toggleFacingOmnibox`.
+- `src/engine/combine.ts` — drag-drop combine detection (`checkCombine`) and `combineBeeAndClover`.
 - `src/engine/pathfinding.ts` — A\* pathfinding (4-directional, manhattan heuristic, binary min-heap).
 - `src/engine/coordinates.ts` — screen pixel to world tile coordinate transform.
 - `src/engine/camera.ts` — camera positioning and viewport clamping.

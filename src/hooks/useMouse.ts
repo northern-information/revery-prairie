@@ -1,13 +1,8 @@
 import { useEffect, useRef } from 'react'
 
-import {
-  breakWall,
-  getPathfindingBlockers,
-  interactWithCharacter,
-  isInteractableAt,
-  openOmnibox,
-  updateFacingEntity,
-} from '@/engine/actions'
+import { breakWall, interactWithCharacter, isInteractableAt, updateFacingEntity } from '@/engine/interaction'
+import { getPathfindingBlockers } from '@/engine/movement'
+import { openOmnibox } from '@/engine/omnibox'
 import { getCharacterDefinition } from '@/engine/characters'
 import { screenToTile } from '@/engine/coordinates'
 import { isWalkableTile } from '@/engine/position'

@@ -1,13 +1,7 @@
-import {
-  pickUpGroundItems,
-  spawnShootingStar,
-  tickBees,
-  tickDialogTransition,
-  tickDialogTyping,
-  tickGhosts,
-  tickPath,
-  tickShootingStars,
-} from './actions'
+import { spawnShootingStar, tickShootingStars } from './celestial'
+import { pickUpGroundItems, tickBees, tickGhosts } from './entities'
+import { tickDialogTransition, tickDialogTyping } from './interaction'
+import { tickPath } from './movement'
 import {
   BEE_TICK_MS,
   CRUMBLE_DURATION_MS,

@@ -1,12 +1,7 @@
 import { createGameState } from '../state'
-import {
-  advanceDialog,
-  getBlockedPositions,
-  interactWithCharacter,
-  movePlayer,
-  tickDialogTransition,
-  tickGhosts,
-} from '../actions'
+import { tickGhosts } from '../entities'
+import { advanceDialog, interactWithCharacter, tickDialogTransition } from '../interaction'
+import { getBlockedPositions, movePlayer } from '../movement'
 import { createGhostDefinition, getCharacterDefinition, registerGhosts } from '../characters'
 import { TileType } from '../types'
 import { posKey } from '../position'

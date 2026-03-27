@@ -1,6 +1,6 @@
 import { withSeededRandom } from '@/harness/prng'
 import { createGameState } from '@/engine/state'
-import { movePlayer } from '@/engine/actions'
+import { movePlayer } from '@/engine/movement'
 import type { Direction } from '@/engine/types'
 
 const SEED = 42

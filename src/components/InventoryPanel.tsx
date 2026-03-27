@@ -5,7 +5,7 @@ import { InventoryGrid } from './InventoryGrid'
 import { CloseButton, PanelTitle, SectionHeader } from './PanelPrimitives'
 import { clampPanelPosition } from './panelPosition'
 
-import { closeOmnibox, grabOmnibox, openOmnibox } from '@/engine/actions'
+import { closeOmnibox, grabOmnibox, openOmnibox } from '@/engine/omnibox'
 import { autoSort, findFitPosition, placeItem, removeItem } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
 import { RecipeKind } from '@/engine/recipes'

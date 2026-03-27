@@ -1,4 +1,5 @@
-import { pickUpGroundItems, tickShootingStars } from '../actions'
+import { tickShootingStars } from '../celestial'
+import { pickUpGroundItems } from '../entities'
 import { PICKUP_EFFECT_DURATION_MS } from '../constants'
 
 import { clearAroundPlayer, createTestState } from './helpers'
