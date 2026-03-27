@@ -207,7 +207,7 @@ export const enterCave = (state: GameState): void => {
   // Clear entities for cave
   state.bees = []
   state.ghosts = []
-  state.characters = []
+  state.characters = [{ definitionId: 'moab', pos: { ...state.caveNpcSpot } }]
   state.groundItems = []
   state.groundOmniboxes = []
   state.meteorites = []

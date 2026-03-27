@@ -22,6 +22,12 @@ const CHARACTERS = {
       'this land was quiet before you came.',
     ],
   },
+  moab: {
+    name: 'Moab Coldë',
+    glyph: 'M',
+    glyphColor: '#FFFFFF',
+    dialog: ['...', '...', '...fine.'],
+  },
 } as const satisfies Record<string, CharacterEntry>
 
 export const CHARACTER_DEFINITIONS: Record<string, CharacterDefinition> = Object.fromEntries(

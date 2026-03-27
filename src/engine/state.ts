@@ -118,9 +118,11 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     caveEntranceOverworld,
     caveEntranceInterior: cave.entrance,
     caveRevealed: false,
+    caveNpcSpot: cave.npcSpot,
     caveHiddenPositions: new Set(cave.hiddenChamberPositions.map(p => posKey(p.x, p.y))),
     caveBreakableWallPositions: cave.breakableWallPositions,
     crumbleEffects: [],
+    moabGiftGiven: false,
   }
 
   // Place Gron near the player

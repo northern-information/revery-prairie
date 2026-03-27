@@ -146,7 +146,14 @@ export interface GameState {
   groundOmniboxes: GroundOmnibox[]
   ghosts: Ghost[]
   characters: Character[]
-  activeDialog: { characterId: string; lineIndex: number } | null
+  activeDialog: {
+    characterId: string
+    lineIndex: number
+    typingIndex: number
+    typingDone: boolean
+    transitioning: boolean
+    transitionStartTime: number
+  } | null
   omniboxContainers: Map<string, Container>
   nextOmniboxNumber: number
   discoveredRecipes: Set<string>
@@ -171,8 +178,10 @@ export interface GameState {
   caveEntranceInterior: Position
   caveRevealed: boolean
   caveHiddenPositions: Set<string>
+  caveNpcSpot: Position
   caveBreakableWallPositions: Position[]
   crumbleEffects: CrumbleEffect[]
+  moabGiftGiven: boolean
 }
 
 export interface CrumbleEffect {

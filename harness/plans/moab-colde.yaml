@@ -1,0 +1,155 @@
+plan:
+  id: moab-colde
+  title: "Add Moab Coldë NPC to hidden cave chamber with bee omnibox gift"
+  created: 2026-03-27
+  global_verification:
+    - "npm run build"
+    - "npm run test"
+    - "npm run lint"
+
+tasks:
+  - id: moab-state-fields
+    title: "Add moabGiftGiven and caveNpcSpot fields to GameState"
+    spec_id: moab-colde
+    spec_sections:
+      - moab-gift-delivery
+      - moab-cave-placement
+    context_files:
+      - src/engine/types.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on: []
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, types]
+
+  - id: moab-character-definition
+    title: "Define Moab Coldë in the character registry"
+    spec_id: moab-colde
+    spec_sections:
+      - moab-character-definition
+      - moab-subsequent-interaction
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on: []
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, characters]
+
+  - id: moab-state-init
+    title: "Store caveNpcSpot and moabGiftGiven in createGameState"
+    spec_id: moab-colde
+    spec_sections:
+      - moab-cave-placement
+      - moab-gift-delivery
+    context_files:
+      - src/engine/state.ts
+      - src/engine/cave.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - moab-state-fields
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, state]
+
+  - id: moab-cave-spawn
+    title: "Spawn Moab at caveNpcSpot in enterCave"
+    spec_id: moab-colde
+    spec_sections:
+      - moab-cave-placement
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/types.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/cave.ts
+    depends_on:
+      - moab-state-fields
+      - moab-character-definition
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, cave]
+
+  - id: moab-gift-engine
+    title: "Add giveMoabGift function to actions.ts"
+    spec_id: moab-colde
+    spec_sections:
+      - moab-gift-delivery
+      - moab-first-interaction-dialog
+      - moab-subsequent-interaction
+    context_files:
+      - src/engine/actions.ts
+      - src/engine/inventory.ts
+      - src/engine/items.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/actions.ts
+    depends_on:
+      - moab-state-fields
+      - moab-character-definition
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, actions]
+
+  - id: moab-gift-integration
+    title: "Wire gift delivery and toast into useKeyboard dialog completion"
+    spec_id: moab-colde
+    spec_sections:
+      - moab-gift-delivery
+      - moab-first-interaction-dialog
+      - moab-subsequent-interaction
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/hooks/useEventLog.ts
+      - src/components/GameScreen.tsx
+      - src/engine/actions.ts
+      - src/engine/types.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - moab-gift-engine
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [hooks, integration]
+
+  - id: moab-tests
+    title: "Add Moab Coldë unit tests"
+    spec_id: moab-colde
+    spec_sections:
+      - moab-character-definition
+      - moab-cave-placement
+      - moab-first-interaction-dialog
+      - moab-gift-delivery
+      - moab-subsequent-interaction
+      - moab-blocks-player
+      - moab-rendering
+    context_files:
+      - src/engine/actions.ts
+      - src/engine/state.ts
+      - src/engine/cave.ts
+      - src/engine/characters.ts
+      - src/engine/inventory.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/ghosts.test.ts
+    output_files:
+      - src/engine/__tests__/moab-colde.test.ts
+    depends_on:
+      - moab-gift-engine
+      - moab-cave-spawn
+      - moab-state-init
+    verification:
+      - "npx vitest run src/engine/__tests__/moab-colde.test.ts"
+    repair: retry
+    tags: [test]

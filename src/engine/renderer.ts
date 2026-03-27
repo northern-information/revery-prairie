@@ -197,8 +197,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Build a map of character positions for rendering
   const characterMap = new Map<string, { glyph: string; color: string }>()
   for (const c of state.characters) {
+    const key = posKey(c.pos.x, c.pos.y)
+    // Hide characters in masked hidden chamber until wall is broken
+    if (!state.caveRevealed && state.caveHiddenPositions.has(key)) continue
     const def = getCharacterDefinition(c.definitionId)
-    characterMap.set(posKey(c.pos.x, c.pos.y), { glyph: def.glyph, color: def.glyphColor })
+    characterMap.set(key, { glyph: def.glyph, color: def.glyphColor })
   }
 
   // Build a map of explosion pixels

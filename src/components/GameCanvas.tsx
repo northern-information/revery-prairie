@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-import { pickUpGroundItems, spawnShootingStar, tickBees, tickGhosts, tickPath, tickShootingStars } from '@/engine/actions'
+import { pickUpGroundItems, spawnShootingStar, tickBees, tickDialogTransition, tickDialogTyping, tickGhosts, tickPath, tickShootingStars } from '@/engine/actions'
 import { updateCamera } from '@/engine/camera'
 import { CRUMBLE_DURATION_MS, GHOST_TICK_MS, SHOOTING_STAR_SPAWN_TICK_MS, SHOOTING_STAR_TICK_MS } from '@/engine/constants'
 import { getDefinition } from '@/engine/items'
@@ -94,6 +94,7 @@ export const GameCanvas = ({
     let lastWeatherTick = 0
     let lastShootingStarTick = 0
     let lastShootingStarSpawnTick = 0
+    let lastDialogTypingTick = 0
 
     const loop = (time: number) => {
       const isOverworld = state.currentZone === Zone.Overworld
@@ -130,6 +131,19 @@ export const GameCanvas = ({
       if (isOverworld && time - lastWeatherTick >= WEATHER_TICK_MS) {
         tickWeather(state.weather)
         lastWeatherTick = time
+      }
+      // Dialog typewriter and transition ticks
+      if (state.activeDialog) {
+        const prevTypingIndex = state.activeDialog.typingIndex
+        const prevTransitioning = state.activeDialog.transitioning
+        lastDialogTypingTick = tickDialogTyping(state, lastDialogTypingTick, time)
+        tickDialogTransition(state, time)
+        if (
+          state.activeDialog.typingIndex !== prevTypingIndex ||
+          state.activeDialog.transitioning !== prevTransitioning
+        ) {
+          refreshUIRef.current()
+        }
       }
       if (metricsRef.current) {
         render(ctx, state, metricsRef.current, time)
