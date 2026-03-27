@@ -1,10 +1,14 @@
 # revery prairie
 
-> To make a prairie it takes a clover and one bee,
-> One clover, and a bee.
-> And revery.
-> The revery alone will do,
-> If bees are few.
+```txt
+To make a prairie it takes a clover and one bee,
+One clover, and a bee.
+And revery.
+The revery alone will do,
+If bees are few.
+
+— Emily Dickinson, 01755 A.D.
+```
 
 a browser-based game about tending a prairie. ASCII on canvas now, isometric sprites later.
 
