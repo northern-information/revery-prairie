@@ -218,6 +218,7 @@ export const enterCave = (state: GameState): void => {
   state.pathWaypoints = []
   state.pendingAction = null
   state.pendingInteractionTarget = null
+  state.heldDirection = null
   state.previewFn = null
   state.facingEntityPos = null
   state.activeDialog = null
@@ -253,6 +254,7 @@ export const exitCave = (state: GameState): void => {
   state.pathWaypoints = []
   state.pendingAction = null
   state.pendingInteractionTarget = null
+  state.heldDirection = null
   state.previewFn = null
   state.facingEntityPos = null
   state.activeDialog = null

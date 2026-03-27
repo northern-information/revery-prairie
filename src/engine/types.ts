@@ -167,6 +167,7 @@ export interface GameState {
   pathWaypoints: Position[]
   pendingAction: (() => void) | null
   pendingInteractionTarget: Position | null
+  heldDirection: Direction | null
   cursorTile: Position | null
   cursorScreenPos: { x: number; y: number } | null
   hoverPath: Position[] | null

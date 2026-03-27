@@ -1,11 +1,12 @@
 import { spawnShootingStar, tickShootingStars } from './celestial'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
-import { tickPath } from './movement'
+import { movePlayer, tickPath } from './movement'
 import {
   BEE_TICK_MS,
   CRUMBLE_DURATION_MS,
   GHOST_TICK_MS,
+  KEYBOARD_MOVE_TICK_MS,
   PATH_TICK_MS,
   SHOOTING_STAR_SPAWN_TICK_MS,
   SHOOTING_STAR_TICK_MS,
@@ -68,6 +69,38 @@ const createDefaultSystems = (
       priority: -10,
       fn: (state, time) => {
         if (tickPath(state)) {
+          const result = pickUpGroundItems(state, time)
+          for (const defId of result.pickedUp) {
+            const def = getDefinition(defId)
+            callbacks.onPickup?.(
+              def.name,
+              def.glyph,
+              def.glyphColor,
+              state.player.x,
+              state.player.y,
+            )
+          }
+          if (result.chainExplosions > 0) {
+            callbacks.onDiscovery?.(
+              'oh my!',
+              state.player.x,
+              state.player.y,
+            )
+          }
+          callbacks.onRefreshUI?.()
+        }
+      },
+    },
+    {
+      id: 'keyboard-move',
+      intervalMs: KEYBOARD_MOVE_TICK_MS,
+      zone: 'always',
+      priority: -5,
+      fn: (state, time) => {
+        if (!state.heldDirection) return
+        if (state.activeDialog) return
+        if (state.path) return
+        if (movePlayer(state, state.heldDirection)) {
           const result = pickUpGroundItems(state, time)
           for (const defId of result.pickedUp) {
             const def = getDefinition(defId)

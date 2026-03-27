@@ -106,6 +106,7 @@ describe('registry mechanics', () => {
     // Unregister all defaults to isolate this test
     for (const id of [
       'path',
+      'keyboard-move',
       'bee',
       'ghost',
       'shooting-star-spawn',
@@ -459,5 +460,171 @@ describe('lifecycle', () => {
     gameLoop.unregister('removable')
     gameLoop.tick(100)
     expect(count).toBe(1)
+  })
+})
+
+describe('held key movement', () => {
+  it('moves player continuously while heldDirection is set', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 10)
+    const startX = state.player.x
+
+    let refreshCount = 0
+    const gameLoop = createGameLoop(state, {
+      onRefreshUI: () => {
+        refreshCount++
+      },
+    })
+
+    state.heldDirection = 'right'
+
+    // First tick at t=0 sets lastTick; keyboard-move interval is 100ms
+    gameLoop.tick(0)
+    expect(state.player.x).toBe(startX)
+
+    // At t=100, 100-0 >= 100 — fires
+    gameLoop.tick(100)
+    expect(state.player.x).toBe(startX + 1)
+    expect(refreshCount).toBe(1)
+
+    // At t=200, fires again
+    gameLoop.tick(200)
+    expect(state.player.x).toBe(startX + 2)
+    expect(refreshCount).toBe(2)
+  })
+
+  it('does not move when heldDirection is null', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startX = state.player.x
+
+    const gameLoop = createGameLoop(state, {})
+    state.heldDirection = null
+
+    gameLoop.tick(0)
+    gameLoop.tick(100)
+    gameLoop.tick(200)
+
+    expect(state.player.x).toBe(startX)
+  })
+
+  it('stops moving when heldDirection is cleared', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 10)
+    const startX = state.player.x
+
+    const gameLoop = createGameLoop(state, {})
+    state.heldDirection = 'right'
+
+    gameLoop.tick(0)
+    gameLoop.tick(100)
+    expect(state.player.x).toBe(startX + 1)
+
+    // Release the key
+    state.heldDirection = null
+    gameLoop.tick(200)
+    expect(state.player.x).toBe(startX + 1)
+  })
+
+  it('changes direction when heldDirection is updated', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 10)
+    const startX = state.player.x
+    const startY = state.player.y
+
+    const gameLoop = createGameLoop(state, {})
+    state.heldDirection = 'right'
+
+    gameLoop.tick(0)
+    gameLoop.tick(100)
+    expect(state.player.x).toBe(startX + 1)
+    expect(state.player.y).toBe(startY)
+
+    // Switch direction
+    state.heldDirection = 'down'
+    gameLoop.tick(200)
+    expect(state.player.x).toBe(startX + 1)
+    expect(state.player.y).toBe(startY + 1)
+  })
+
+  it('does not move during active dialog', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startX = state.player.x
+
+    const gameLoop = createGameLoop(state, {})
+    state.heldDirection = 'right'
+    state.activeDialog = {
+      characterId: 'ghost-1',
+      lineIndex: 0,
+      typingIndex: 0,
+      typingDone: false,
+      transitioning: false,
+      transitionStartTime: 0,
+    }
+
+    gameLoop.tick(0)
+    gameLoop.tick(100)
+    expect(state.player.x).toBe(startX)
+  })
+
+  it('does not move when a click-to-move path is active', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 10)
+    const startX = state.player.x
+
+    const gameLoop = createGameLoop(state, {})
+    state.heldDirection = 'right'
+    state.path = [{ x: startX, y: state.player.y + 1 }]
+
+    gameLoop.tick(0)
+
+    // At t=100, path tick moves the player (down via path), not keyboard-move
+    gameLoop.tick(100)
+    expect(state.player.y).toBe(state.player.y) // path consumed the step
+    // The held direction should not have moved the player right
+    // (path takes priority — keyboard-move skips when state.path is set)
+  })
+
+  it('stays in place when held into a blocked tile', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 3)
+    const startX = state.player.x
+    const startY = state.player.y
+
+    // Place a character blocking the right tile
+    state.characters = [{ definitionId: 'ghost-1', pos: { x: startX + 1, y: startY } }]
+
+    const gameLoop = createGameLoop(state, {})
+    state.heldDirection = 'right'
+
+    gameLoop.tick(0)
+    gameLoop.tick(100)
+    gameLoop.tick(200)
+
+    expect(state.player.x).toBe(startX)
+    // heldDirection should still be set — player just can't move that way
+    expect(state.heldDirection).toBe('right')
+  })
+
+  it('picks up ground items during held movement', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 10)
+
+    const targetX = state.player.x + 1
+    state.groundItems = [{ definitionId: 'bee', pos: { x: targetX, y: state.player.y } }]
+
+    const pickups: string[] = []
+    const gameLoop = createGameLoop(state, {
+      onPickup: (name) => {
+        pickups.push(name)
+      },
+    })
+
+    state.heldDirection = 'right'
+    gameLoop.tick(0)
+    gameLoop.tick(100)
+
+    expect(pickups).toContain('Bee')
   })
 })

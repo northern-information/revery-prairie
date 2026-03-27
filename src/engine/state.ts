@@ -103,6 +103,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     pathWaypoints: [],
     pendingAction: null,
     pendingInteractionTarget: null,
+    heldDirection: null,
     cursorTile: null,
     cursorScreenPos: null,
     hoverPath: null,

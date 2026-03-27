@@ -83,6 +83,7 @@ export const OMNIBOX_HEIGHT = 5
 // tick intervals
 export const BEE_TICK_MS = 200
 export const PATH_TICK_MS = 100
+export const KEYBOARD_MOVE_TICK_MS = 100
 export const WEATHER_TICK_MS = 5000
 
 // ghosts
