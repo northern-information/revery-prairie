@@ -170,10 +170,14 @@ describe('enterCave', () => {
   it('clears entities in cave', () => {
     const state = createTestState()
     state.bees = [{ pos: { x: 10, y: 10 } }]
-    state.ghosts = [{ pos: { x: 15, y: 15 }, number: 1 }]
+    state.characters.push({
+      definitionId: 'ghost-99',
+      pos: { x: 15, y: 15 },
+      behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
+    })
+    expect(state.characters).toHaveLength(1)
     enterCave(state)
     expect(state.bees).toHaveLength(0)
-    expect(state.ghosts).toHaveLength(0)
     expect(state.characters).toHaveLength(1)
     expect(state.characters[0].definitionId).toBe('moab')
   })
@@ -215,12 +219,17 @@ describe('exitCave', () => {
   it('restores entities', () => {
     const state = createTestState()
     state.bees = [{ pos: { x: 10, y: 10 } }]
-    state.ghosts = [{ pos: { x: 15, y: 15 }, number: 1 }]
+    state.characters.push({
+      definitionId: 'ghost-99',
+      pos: { x: 15, y: 15 },
+      behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
+    })
+    const overworldCharCount = state.characters.length
     enterCave(state)
     expect(state.bees).toHaveLength(0)
     exitCave(state)
     expect(state.bees).toHaveLength(1)
-    expect(state.ghosts).toHaveLength(1)
+    expect(state.characters).toHaveLength(overworldCharCount)
   })
 
   it('places player one tile south of cave entrance to avoid re-entry', () => {

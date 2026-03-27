@@ -47,7 +47,7 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/renderer.ts` — canvas ASCII drawing. the file to replace for sprites.
 - `src/engine/gameLoop.ts` — tick system registry and game loop. `TickSystem` interface for entity tick definitions. `createGameLoop` returns start/stop/pause/resume + register/unregister. `tick(time)` is the testable simulation step.
 - `src/engine/movement.ts` — `movePlayer`, `tickPath`, `getBlockedPositions`, `getPathfindingBlockers`.
-- `src/engine/entities.ts` — `tickBees`, `tickGhosts`, `pickUpGroundItems`, `dropItem`.
+- `src/engine/entities.ts` — `tickBees`, `tickCharacterBehaviors`, `pickUpGroundItems`, `dropItem`.
 - `src/engine/celestial.ts` — `spawnShootingStar`, `spawnShootingStarAtTarget`, `tickShootingStars`, `spawnChainMeteorites`.
 - `src/engine/interaction.ts` — `interactWithCharacter`, `advanceDialog`, `updateFacingEntity`, `isInteractableAt`, dialog tick, `giveMoabGift`, `breakWall`.
 - `src/engine/omnibox.ts` — `openOmnibox`, `closeOmnibox`, `toggleOmnibox`, `grabOmnibox`, `toggleFacingOmnibox`.
@@ -148,7 +148,7 @@ the permacomputer is never consumed by recipes. it is a tool that persists. the 
 ## entities
 
 - **bees** — spawn when bee+clover are combined, or when a bee item is dropped. wander randomly — prefer adjacent clover tiles, otherwise walk any non-Space tile. rendered as `*` in gold. tracked in `state.bees[]`. walking over a bee captures it into backpack.
-- **ghosts** — 3 spawn at random walkable positions on game start. drift slowly (15% move chance per 500ms tick) using the shared `getBlockedPositions` set. rendered as `ö` in white. tracked in `state.ghosts[]` with corresponding entries in `state.characters[]`. block player movement and pathfinding. cannot be captured. freeze in place during dialog. each has a 3-line dialog tree.
+- **ghosts** — 3 spawn at random walkable positions on game start. drift slowly (15% move chance per 500ms tick) using the shared `getBlockedPositions` set. rendered as `ö` in white. tracked in `state.characters[]` with `behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true }`. block player movement and pathfinding. cannot be captured. freeze in place during dialog. each has a 3-line dialog tree.
 - **ground items** — items dropped on the map. rendered with their glyph/color. walking over them auto-picks up if backpack has room.
 - **ground omniboxes** — omniboxes dropped on the map. tracked in `state.groundOmniboxes[]` (separate from groundItems). player must press `[e]` facing one to open it. walking away (>1 tile) auto-closes it. the player must explicitly drag it to their backpack from the inventory UI.
 
@@ -169,11 +169,11 @@ portable 5x5 containers (2x2 inventory footprint). created by combining meteorit
 
 ## movement blocking
 
-`getBlockedPositions(state)` in `actions.ts` returns a `Set<string>` of all tiles blocked by ground omniboxes, characters, and ghosts. used by `movePlayer`, `tickGhosts`, pathfinding, and click-to-move. to add new blocking entity types, add them to `getBlockedPositions`. this keeps all movement systems consistent automatically.
+`getBlockedPositions(state)` in `movement.ts` returns a `Set<string>` of all tiles blocked by ground omniboxes and characters. used by `movePlayer`, `tickCharacterBehaviors`, pathfinding, and click-to-move. to add new blocking entity types, add them to `getBlockedPositions`. this keeps all movement systems consistent automatically.
 
-tile walkability is centralized in `isWalkableTile(tileType)` in `position.ts`. non-walkable: `Space`, `CaveWall`, `CaveBreakableWall`. used by `movePlayer`, `findPath`, `tickBees`, `tickGhosts`, `canDropAt`.
+tile walkability is centralized in `isWalkableTile(tileType)` in `position.ts`. non-walkable: `Space`, `CaveWall`, `CaveBreakableWall`. used by `movePlayer`, `findPath`, `tickBees`, `tickCharacterBehaviors`, `canDropAt`.
 
-`getPathfindingBlockers(state, target?)` in `actions.ts` extends `getBlockedPositions` with soft blockers (cave entrances) that should be avoided as intermediate waypoints but allowed as destinations. used by click-to-move (`useMouse`) and hover path preview (`renderer`). `movePlayer` and `tickPath` still use `getBlockedPositions` directly — they handle frame-by-frame movement, not route planning.
+`getPathfindingBlockers(state, target?)` in `movement.ts` extends `getBlockedPositions` with soft blockers (cave entrances) that should be avoided as intermediate waypoints but allowed as destinations. used by click-to-move (`useMouse`) and hover path preview (`renderer`). `movePlayer` and `tickPath` still use `getBlockedPositions` directly — they handle frame-by-frame movement, not route planning.
 
 ## cave
 
