@@ -100,8 +100,9 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
           const line = def.dialog[state.activeDialog.lineIndex]
           const isLastLine = state.activeDialog.lineIndex >= def.dialog.length - 1
 
+          const dialog = state.activeDialog
           const character = state.characters.find(
-            (c) => c.definitionId === state.activeDialog!.characterId,
+            (c) => c.definitionId === dialog.characterId,
           )
           const metrics = metricsRef.current
           const GAP = 12

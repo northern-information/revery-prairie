@@ -74,8 +74,9 @@ describe('Menu', () => {
     render(<Menu onResume={onResume} onNewGame={vi.fn()} metric={true} onToggleUnits={vi.fn()} />)
 
     // Click the backdrop (the outer fixed div wrapping the menu)
-    const backdrop = screen.getByText('resume').closest('[class*="fixed inset-0"]')!
-    await userEvent.click(backdrop)
+    const backdrop = screen.getByText('resume').closest('[class*="fixed inset-0"]')
+    expect(backdrop).toBeTruthy()
+    await userEvent.click(backdrop as HTMLElement)
 
     expect(onResume).toHaveBeenCalledOnce()
   })

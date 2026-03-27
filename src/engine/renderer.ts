@@ -372,7 +372,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   }
 
   // Rain overlay pass — draw animated rain near characters with rain aura
-  const rainRadius = AURA_RADIUS['rain'] ?? 0
+  const rainRadius = AURA_RADIUS.rain ?? 0
   for (const c of state.characters) {
     if (c.aura !== 'rain') continue
     const cx = c.pos.x
