@@ -206,7 +206,7 @@ each spec requires: `id` (kebab-case), `name`, `status` (planned/partial/impleme
 - `harness/plans/` — execution plans (YAML).
 - `harness/src/` — harness tooling: validator, plan parser, topo sort, checksum, prompt assembler, executor, logger.
 - `harness/__tests__/` — harness module tests.
-- `.claude/skills/` — local skill definitions for the harness workflow (`new-feature`, `change-request`, `bug-report`, `maintain-harness`).
+- `.claude/skills/` — local skill definitions as `{skill-name}/SKILL.md` (`new-feature`, `change-request`, `bug-report`, `maintain-harness`).
 
 ### harness commands
 
