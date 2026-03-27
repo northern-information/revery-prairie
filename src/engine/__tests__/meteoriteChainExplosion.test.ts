@@ -201,7 +201,11 @@ describe('chain explosion', () => {
       state.map[py - 1][px] = { type: TileType.Dirt }
       state.map[py + 1][px] = { type: TileType.Dirt }
 
-      state.ghosts.push({ pos: { x: px, y: py - 1 }, number: 1 })
+      state.characters.push({
+        definitionId: 'ghost-99',
+        pos: { x: px, y: py - 1 },
+        behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
+      })
 
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 

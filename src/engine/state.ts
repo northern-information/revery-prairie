@@ -1,6 +1,6 @@
 import { spawnShootingStarAtTarget } from './celestial'
 import { generateCave } from './cave'
-import { registerGhosts } from './characters'
+import { registerGhostDefinitions } from './characters'
 import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER } from './constants'
 import { AURA_RADIUS } from './effects'
 import { autoSort, createOmniboxContainer, findFitPosition, placeItem } from './inventory'
@@ -10,7 +10,7 @@ import { generateTerrain } from './terrain'
 import { Rotation, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 
-import type { GameState, Ghost, Position } from './types'
+import type { GameState, Position } from './types'
 
 export const createGameState = (stewardName: string, viewportWidth: number, viewportHeight: number): GameState => {
   const map = generateTerrain(MAP_WIDTH, MAP_HEIGHT)
@@ -85,7 +85,6 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     },
     viewportWidth,
     viewportHeight,
-    ghosts: [],
     bees: [],
     shootingStars: [],
     meteorites: [],
@@ -140,9 +139,9 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     posKey(playerX, playerY),
     posKey(gronX, gronY),
   ])
-  const ghosts: Ghost[] = []
+  const ghostNumbers: number[] = []
   let attempts = 0
-  while (ghosts.length < ghostCount && attempts < 500) {
+  while (ghostNumbers.length < ghostCount && attempts < 500) {
     attempts++
     const gx = SPACE_BORDER + Math.floor(Math.random() * (MAP_WIDTH - SPACE_BORDER * 2))
     const gy = SPACE_BORDER + Math.floor(Math.random() * (MAP_HEIGHT - SPACE_BORDER * 2))
@@ -151,12 +150,15 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     const tile = map[gy][gx]
     if (tile.type === TileType.Space || tile.type === TileType.Sand) continue
     ghostUsedKeys.add(key)
-    const ghostNumber = ghosts.length + 1
-    ghosts.push({ pos: { x: gx, y: gy }, number: ghostNumber })
-    state.characters.push({ definitionId: `ghost-${String(ghostNumber)}`, pos: { x: gx, y: gy } })
+    const ghostNumber = ghostNumbers.length + 1
+    ghostNumbers.push(ghostNumber)
+    state.characters.push({
+      definitionId: `ghost-${String(ghostNumber)}`,
+      pos: { x: gx, y: gy },
+      behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
+    })
   }
-  state.ghosts = ghosts
-  registerGhosts(ghosts)
+  registerGhostDefinitions(ghostNumbers)
 
   // Place an omnibox in the backpack
   const omniboxFit = findFitPosition(backpack, 'omnibox')

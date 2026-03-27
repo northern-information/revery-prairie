@@ -26,7 +26,6 @@ const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
   if (state.groundItems.some((g) => g.pos.x === x && g.pos.y === y)) return true
   if (state.groundOmniboxes.some((g) => g.pos.x === x && g.pos.y === y)) return true
   if (state.characters.some((c) => posKey(c.pos.x, c.pos.y) === key)) return true
-  if (state.ghosts.some((g) => posKey(g.pos.x, g.pos.y) === key)) return true
   return false
 }
 

@@ -1,6 +1,6 @@
 import { posKey } from './position'
 
-import type { Character, CharacterDefinition, Ghost } from './types'
+import type { Character, CharacterDefinition } from './types'
 
 interface CharacterEntry {
   name: string
@@ -50,9 +50,9 @@ export const createGhostDefinition = (n: number): CharacterDefinition => ({
   dialog: ['...', 'Oh... a steward...', '... I sure would love some clover tea.'],
 })
 
-export const registerGhosts = (ghosts: Ghost[]): void => {
-  for (const ghost of ghosts) {
-    const def = createGhostDefinition(ghost.number)
+export const registerGhostDefinitions = (numbers: number[]): void => {
+  for (const n of numbers) {
+    const def = createGhostDefinition(n)
     CHARACTER_DEFINITIONS[def.id] = def
   }
 }

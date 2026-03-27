@@ -14,9 +14,6 @@ export const getBlockedPositions = (state: GameState): Set<string> => {
   for (const c of state.characters) {
     set.add(posKey(c.pos.x, c.pos.y))
   }
-  for (const g of state.ghosts) {
-    set.add(posKey(g.pos.x, g.pos.y))
-  }
   return set
 }
 

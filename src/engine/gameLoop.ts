@@ -1,5 +1,5 @@
 import { spawnShootingStar, tickShootingStars } from './celestial'
-import { pickUpGroundItems, tickBees, tickGhosts } from './entities'
+import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { tickPath } from './movement'
 import {
@@ -99,11 +99,11 @@ const createDefaultSystems = (
       },
     },
     {
-      id: 'ghost',
+      id: 'character-behaviors',
       intervalMs: GHOST_TICK_MS,
       zone: 'overworld',
       fn: (state) => {
-        tickGhosts(state)
+        tickCharacterBehaviors(state)
       },
     },
     {

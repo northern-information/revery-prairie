@@ -100,10 +100,13 @@ export interface MeteoritePickupEffect {
   startTime: number // rAF timestamp when the effect began
 }
 
-export interface Ghost {
-  pos: Position
-  number: number // spawn order (1, 2, 3, ...)
+export interface DriftBehavior {
+  type: 'drift'
+  speed: number // probability per tick (0.15 for ghosts)
+  freezeOnDialog: boolean
 }
+
+export type CharacterBehavior = DriftBehavior
 
 export interface GroundOmnibox {
   uid: string // links to ItemInstance.uid and omniboxContainers key
@@ -123,6 +126,7 @@ export interface Character {
   definitionId: string
   pos: Position
   aura?: string
+  behavior?: CharacterBehavior
 }
 
 export interface GameState {
@@ -145,7 +149,6 @@ export interface GameState {
   meteoritePickupEffects: MeteoritePickupEffect[]
   groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
-  ghosts: Ghost[]
   characters: Character[]
   activeDialog: {
     characterId: string
@@ -244,7 +247,6 @@ export interface OverworldSnapshot {
   mapHeight: number
   player: Position
   bees: Bee[]
-  ghosts: Ghost[]
   characters: Character[]
   groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
