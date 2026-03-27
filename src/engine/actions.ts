@@ -29,6 +29,7 @@ import type { Character, Container, Direction, GameState, Position } from './typ
 
 export interface PickUpResult {
   pickedUp: string[]
+  chainExplosions: number
 }
 
 const captureEntitiesAtPlayer = (
@@ -54,6 +55,55 @@ const captureEntitiesAtPlayer = (
   return { removed, captured }
 }
 
+const CHAIN_EXPLOSION_CHANCE = 1 / 7
+const CHAIN_EXPLOSION_RADIUS = 3
+const CHAIN_EXPLOSION_COUNT = 3
+
+const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
+  const key = posKey(x, y)
+  if (state.player.x === x && state.player.y === y) return true
+  if (state.meteorites.some((m) => m.pos.x === x && m.pos.y === y)) return true
+  if (state.groundItems.some((g) => g.pos.x === x && g.pos.y === y)) return true
+  if (state.groundOmniboxes.some((g) => g.pos.x === x && g.pos.y === y)) return true
+  if (state.characters.some((c) => posKey(c.pos.x, c.pos.y) === key)) return true
+  if (state.ghosts.some((g) => posKey(g.pos.x, g.pos.y) === key)) return true
+  return false
+}
+
+export const spawnChainMeteorites = (
+  state: GameState,
+  origin: Position,
+  time: number
+): number => {
+  const candidates: Position[] = []
+  for (let dy = -CHAIN_EXPLOSION_RADIUS; dy <= CHAIN_EXPLOSION_RADIUS; dy++) {
+    for (let dx = -CHAIN_EXPLOSION_RADIUS; dx <= CHAIN_EXPLOSION_RADIUS; dx++) {
+      if (dx === 0 && dy === 0) continue
+      const x = origin.x + dx
+      const y = origin.y + dy
+      if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
+      if (!isWalkableTile(state.map[y][x].type)) continue
+      if (isTileOccupied(state, x, y)) continue
+      candidates.push({ x, y })
+    }
+  }
+
+  // Shuffle and take up to CHAIN_EXPLOSION_COUNT
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[candidates[i], candidates[j]] = [candidates[j], candidates[i]]
+  }
+
+  const spawned = Math.min(CHAIN_EXPLOSION_COUNT, candidates.length)
+  for (let i = 0; i < spawned; i++) {
+    const pos = candidates[i]
+    state.meteorites.push({ pos })
+    state.explosions.push({ pos, startTime: time })
+  }
+
+  return spawned
+}
+
 export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult => {
   const px = state.player.x
   const py = state.player.y
@@ -77,6 +127,23 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   removeByIndices(state.bees, beeResult.removed)
   pickedUp.push(...beeResult.captured)
 
+  // Chain explosion: roll first, then capture survivors.
+  // Exploded meteorites are consumed (removed, not picked up).
+  let chainExplosions = 0
+  const explodedIndices: number[] = []
+  if (time !== undefined) {
+    for (let i = 0; i < state.meteorites.length; i++) {
+      const m = state.meteorites[i]
+      if (m.pos.x === px && m.pos.y === py && Math.random() < CHAIN_EXPLOSION_CHANCE) {
+        explodedIndices.push(i)
+        chainExplosions += spawnChainMeteorites(state, { x: px, y: py }, time)
+      }
+    }
+  }
+  if (explodedIndices.length > 0) {
+    removeByIndices(state.meteorites, explodedIndices)
+  }
+
   const meteoriteResult = captureEntitiesAtPlayer(state.meteorites, px, py, state.backpack, 'meteorite')
   removeByIndices(state.meteorites, meteoriteResult.removed)
   pickedUp.push(...meteoriteResult.captured)
@@ -97,7 +164,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     }
   }
 
-  return { pickedUp }
+  return { pickedUp, chainExplosions }
 }
 
 export const movePlayer = (state: GameState, dir: Direction): boolean => {

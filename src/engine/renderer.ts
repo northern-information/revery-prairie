@@ -395,7 +395,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         color = cr?.color ?? '#997755'
       } else if (meteoritePositions.has(tileKey)) {
         char = METEORITE_CHAR
-        color = METEORITE_COLOR
+        if (pathPositions.has(tileKey)) {
+          color = '#ff69b4'
+        } else if (hoverPathPositions.has(tileKey)) {
+          color = '#555555'
+        } else {
+          color = METEORITE_COLOR
+        }
       } else if (groundOmniboxMap.has(tileKey)) {
         const omniboxDef = getDefinition('omnibox')
         char = omniboxDef.glyph

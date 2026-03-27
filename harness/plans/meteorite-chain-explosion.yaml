@@ -1,0 +1,89 @@
+plan:
+  id: meteorite-chain-explosion
+  title: "Meteorite chain explosion on pickup"
+  created: 2026-03-27
+  global_verification:
+    - "npm run build"
+    - "npm run test"
+    - "npm run lint"
+
+tasks:
+  - id: pickup-result-type
+    title: "Add chainExplosions field to PickUpResult"
+    spec_id: meteorite-chain-explosion
+    spec_sections:
+      - chain-explosion-roll
+      - chain-explosion-toast
+    context_files:
+      - src/engine/actions.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/actions.ts
+    depends_on: []
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, types]
+
+  - id: chain-explosion-logic
+    title: "Implement chain explosion roll and spawn in pickUpGroundItems"
+    spec_id: meteorite-chain-explosion
+    spec_sections:
+      - chain-explosion-roll
+      - spawn-nearby-meteorites
+    context_files:
+      - src/engine/actions.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/actions.ts
+    depends_on:
+      - pickup-result-type
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine, actions]
+
+  - id: chain-explosion-toast
+    title: "Wire chainExplosions to 'oh my!' toast in GameCanvas and GameScreen"
+    spec_id: meteorite-chain-explosion
+    spec_sections:
+      - chain-explosion-toast
+    context_files:
+      - src/components/GameCanvas.tsx
+      - src/components/GameScreen.tsx
+      - src/hooks/useKeyboard.ts
+      - src/hooks/useEventLog.ts
+      - src/engine/items.ts
+    output_files:
+      - src/components/GameCanvas.tsx
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - chain-explosion-logic
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [component, integration]
+
+  - id: chain-explosion-tests
+    title: "Add unit tests for chain explosion"
+    spec_id: meteorite-chain-explosion
+    spec_sections:
+      - chain-explosion-roll
+      - spawn-nearby-meteorites
+      - chain-explosion-toast
+    context_files:
+      - src/engine/actions.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/actions.test.ts
+    output_files:
+      - src/engine/__tests__/meteoriteChainExplosion.test.ts
+    depends_on:
+      - chain-explosion-logic
+    verification:
+      - "npx vitest run src/engine/__tests__/meteoriteChainExplosion.test.ts"
+    repair: retry
+    tags: [test]

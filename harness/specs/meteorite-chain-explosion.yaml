@@ -1,0 +1,103 @@
+id: meteorite-chain-explosion
+name: "Meteorite chain explosion on pickup"
+status: implemented
+priority: medium
+layer: engine
+source_files:
+  - src/engine/actions.ts
+  - src/engine/types.ts
+dependencies:
+  - player-movement
+
+behaviors:
+  - id: chain-explosion-roll
+    description: >
+      when the player walks over a meteorite, there is a
+      1-in-7 chance that a chain explosion triggers. if it
+      triggers, the meteorite is consumed by the explosion
+      (removed from the world, not added to backpack). if
+      it does not trigger, normal pickup proceeds. rolls
+      once per meteorite at the player position. requires
+      time parameter to be defined.
+    inputs:
+      - "GameState with meteorite at player position"
+      - "time: number (rAF timestamp)"
+    outputs:
+      - "PickUpResult with chainExplosions count for toast"
+    state_changes:
+      - field: meteorites
+        effect: "up to 3 new Meteorite entities appended at nearby walkable tiles"
+      - field: explosions
+        effect: "one LandingExplosion appended per spawned meteorite"
+    determinism: probabilistic
+
+  - id: spawn-nearby-meteorites
+    description: >
+      when a chain explosion triggers, 3 new meteorites are
+      placed on distinct walkable tiles within a radius of 3
+      tiles from the pickup position. tiles must be in-bounds,
+      walkable (dirt or clover), and not occupied by any entity
+      (meteorites, ground items, ground omniboxes, player,
+      characters, ghosts). a LandingExplosion is pushed for each
+      spawned meteorite so the existing ring-expansion animation
+      plays. if fewer than 3 valid tiles exist, only as many
+      meteorites as there are valid tiles are spawned.
+    inputs:
+      - "GameState"
+      - "pickup position: Position"
+      - "time: number"
+    outputs:
+      - "number of meteorites actually spawned (0-3)"
+    state_changes:
+      - field: meteorites
+        effect: "0-3 new entries appended"
+      - field: explosions
+        effect: "0-3 new LandingExplosion entries appended"
+    determinism: probabilistic
+
+  - id: chain-explosion-toast
+    description: >
+      when a chain explosion triggers, the PickUpResult
+      includes a chainExplosions count > 0 and the meteorite
+      is NOT in pickedUp (no pickup toast). the UI layer
+      uses chainExplosions to fire an addEvent toast with
+      the text 'oh my!' using the meteorite glyph and color.
+    inputs:
+      - "PickUpResult with chainExplosions > 0"
+    outputs:
+      - "toast event: kind 'discovery', text 'oh my!', icon meteorite glyph, color meteorite color"
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: no-valid-tiles
+    description: "all tiles within radius 3 are non-walkable or occupied — chain explosion triggers but 0 meteorites spawn"
+    expected: "chainExplosions count is 0, no meteorites or explosions added, no toast"
+  - id: fewer-than-three-tiles
+    description: "only 1-2 valid tiles within radius — spawns only as many meteorites as tiles allow"
+    expected: "spawns the available count, each with a LandingExplosion"
+  - id: multiple-meteorites-same-tile
+    description: "two meteorites at the same position picked up in one call — each rolls independently"
+    expected: "each meteorite has its own 1/3 chance, chain explosions stack"
+  - id: cave-zone
+    description: "meteorite pickup in cave zone — chain explosion still applies if meteorites exist there"
+    expected: "uses cave map tiles for walkability checks, spawns on caveFloor tiles"
+  - id: chain-meteorite-on-player
+    description: "player tile is excluded from candidate spawn tiles since the player occupies it"
+    expected: "no meteorite spawns on the player position"
+  - id: occupied-tile-excluded
+    description: "a candidate tile is occupied by a ground item, ground omnibox, character, ghost, or existing meteorite"
+    expected: "that tile is skipped, meteorite spawns on next valid candidate"
+
+failure_conditions:
+  - trigger: "time parameter is undefined (no rAF timestamp)"
+    expected: "chain explosion does not trigger, pickup proceeds normally without roll"
+  - trigger: "backpack is full and meteorite cannot be captured"
+    expected: "chain explosion still rolls — if it triggers, the meteorite is consumed by the explosion. if not, the meteorite stays on the ground"
+  - trigger: "Math.random returns value >= 1/3"
+    expected: "no chain explosion, normal pickup behavior"
+
+verification:
+  test_file: src/engine/__tests__/meteoriteChainExplosion.test.ts
+  test_pattern: "chain explosion"
+  command: "npx vitest run src/engine/__tests__/meteoriteChainExplosion.test.ts"

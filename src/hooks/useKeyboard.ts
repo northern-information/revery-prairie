@@ -48,13 +48,16 @@ export const useKeyboard = ({
   const [activePanel, setActivePanel] = useState<Panel>(null)
 
   const handlePickups = useCallback(
-    (result: { pickedUp: string[] }) => {
+    (result: { pickedUp: string[]; chainExplosions: number }) => {
       for (const defId of result.pickedUp) {
         const def = getDefinition(defId)
         onPickup(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
       }
+      if (result.chainExplosions > 0) {
+        onDiscovery('oh my!', state.player.x, state.player.y)
+      }
     },
-    [onPickup, state]
+    [onPickup, onDiscovery, state]
   )
 
   const handleKeyDown = useCallback(

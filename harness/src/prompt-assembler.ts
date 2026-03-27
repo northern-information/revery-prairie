@@ -10,17 +10,38 @@ export interface PromptInput {
 }
 
 // --- Resolve spec sections ---
-// spec_sections are formatted as "spec-id/behavior-id" or "spec-id/edge-case-id"
+// spec_sections are formatted as:
+//   "spec-id/behavior-id" — qualified (explicit spec)
+//   "spec-id"             — whole spec
+//   "behavior-id"         — bare (resolved via defaultSpecId from task.spec_id)
 
 const resolveSpecSections = (
   specSections: string[],
   specs: FeatureSpec[],
+  defaultSpecId?: string,
 ): string => {
   const specMap = new Map(specs.map((s) => [s.id, s]))
   const lines: string[] = []
 
   for (const section of specSections) {
-    const [specId, sectionId] = section.split('/')
+    let specId: string
+    let sectionId: string | undefined
+
+    if (section.includes('/')) {
+      ;[specId, sectionId] = section.split('/')
+    } else if (specMap.has(section)) {
+      // exact spec name — include whole spec
+      specId = section
+      sectionId = undefined
+    } else if (defaultSpecId) {
+      // bare behavior/edge-case ID — resolve via task's spec_id
+      specId = defaultSpecId
+      sectionId = section
+    } else {
+      specId = section
+      sectionId = undefined
+    }
+
     const spec = specMap.get(specId)
     if (!spec) {
       lines.push(`[spec "${specId}" not found]`)
@@ -125,7 +146,7 @@ export const assemblePrompt = (input: PromptInput): string => {
   )
 
   // specification
-  const specContent = resolveSpecSections(task.spec_sections, specs)
+  const specContent = resolveSpecSections(task.spec_sections, specs, task.spec_id)
   if (specContent) {
     sections.push(`=== SPECIFICATION ===\n${specContent}`)
   }

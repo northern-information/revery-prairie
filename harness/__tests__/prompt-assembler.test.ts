@@ -103,6 +103,28 @@ describe('assemblePrompt', () => {
     expect(prompt).toContain('boundary condition')
   })
 
+  it('resolves bare behavior ID via task spec_id', () => {
+    const prompt = assemblePrompt({
+      task: makeTask({ spec_id: 'test-spec', spec_sections: ['test-behavior'] }),
+      specs: [makeSpec()],
+      repoRoot: '/tmp',
+    })
+
+    expect(prompt).toContain('Behavior: test-behavior')
+    expect(prompt).toContain('does the thing')
+  })
+
+  it('resolves bare edge case ID via task spec_id', () => {
+    const prompt = assemblePrompt({
+      task: makeTask({ spec_id: 'test-spec', spec_sections: ['test-edge'] }),
+      specs: [makeSpec()],
+      repoRoot: '/tmp',
+    })
+
+    expect(prompt).toContain('Edge case: test-edge')
+    expect(prompt).toContain('boundary condition')
+  })
+
   it('handles missing spec gracefully', () => {
     const prompt = assemblePrompt({
       task: makeTask({ spec_sections: ['nonexistent/foo'] }),
