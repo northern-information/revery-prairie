@@ -6,7 +6,7 @@ import { findPath } from '@/engine/pathfinding'
 import { ORDINAL } from '@/engine/position'
 import { TileType } from '@/engine/types'
 import type { DragState } from '@/engine/drag'
-import type { CharMetrics } from '@/engine/renderer'
+import type { CharMetrics } from '@/engine/types'
 import type { Container, GameState } from '@/engine/types'
 
 interface UseCanvasDropOptions {

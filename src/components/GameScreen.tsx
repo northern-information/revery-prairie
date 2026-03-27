@@ -13,7 +13,7 @@ import { useEventLog } from '@/hooks/useEventLog'
 import { useGameEngine } from '@/hooks/useGameEngine'
 import { useKeyboard } from '@/hooks/useKeyboard'
 import type { ItemInfoHandle } from './ItemInfo'
-import type { CharMetrics } from '@/engine/renderer'
+import type { CharMetrics } from '@/engine/types'
 
 interface GameScreenProps {
   stewardName: string

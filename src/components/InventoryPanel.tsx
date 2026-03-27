@@ -14,7 +14,7 @@ import { useInventoryDrag } from '@/hooks/useInventoryDrag'
 import type { CombineToastData, LivePreview } from './CombineToast'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { Recipe } from '@/engine/recipes'
-import type { CharMetrics } from '@/engine/renderer'
+import type { CharMetrics } from '@/engine/types'
 import type { GameState } from '@/engine/types'
 
 const COMBINE_TOAST_DURATION = 8000

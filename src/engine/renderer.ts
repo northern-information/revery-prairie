@@ -29,13 +29,11 @@ import {
   TILE_CHARS,
   TILE_COLORS,
 } from './constants'
-import { getPathfindingBlockers } from './movement'
 import { getDefinition } from './items'
-import { findPath } from './pathfinding'
-import { isInBounds, isWalkableTile, posKey } from './position'
+import { isInBounds, posKey } from './position'
 import { TileType, Zone } from './types'
 
-import type { GameState } from './types'
+import type { CharMetrics, GameState } from './types'
 
 // Simple hash for deterministic star placement based on world coordinates
 const starHash = (x: number, y: number): number => {
@@ -56,10 +54,7 @@ const STAR_COLORS = ['#333', '#555', '#777', '#999', '#bbb', '#999', '#777', '#5
 const STAR_DENSITY = 12 // ~1 in 12 tiles gets a star
 const TWINKLE_SPEED = 0.0015 // cycles per millisecond
 
-export interface CharMetrics {
-  charWidth: number
-  charHeight: number
-}
+export { type CharMetrics } from './types'
 
 export const measureChar = (ctx: CanvasRenderingContext2D): CharMetrics => {
   ctx.font = FONT
@@ -72,41 +67,6 @@ export const measureChar = (ctx: CanvasRenderingContext2D): CharMetrics => {
 export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   const { camera, viewportWidth, viewportHeight, map, player, bees } = state
   const { charWidth, charHeight } = metrics
-
-  // Recompute cursor world tile from screen position every frame
-  // so the highlight tracks correctly when the camera moves via WASD
-  if (state.cursorScreenPos) {
-    state.cursorTile = {
-      x: Math.floor(state.cursorScreenPos.x / charWidth) + camera.x,
-      y: Math.floor(state.cursorScreenPos.y / charHeight) + camera.y,
-    }
-  } else {
-    state.cursorTile = null
-  }
-
-  // Recompute hover path when cursor tile changes
-  const ct = state.cursorTile
-  const ht = state.hoverPathTarget
-  if (
-    ct &&
-    (ct.x !== ht?.x || ct.y !== ht?.y) &&
-    (ct.x !== player.x || ct.y !== player.y) &&
-    !state.path
-  ) {
-    state.hoverPathTarget = { x: ct.x, y: ct.y }
-    if (
-      isInBounds(ct.x, ct.y, state.mapWidth, state.mapHeight) &&
-      isWalkableTile(state.map[ct.y][ct.x].type)
-    ) {
-      const hoverBlocked = getPathfindingBlockers(state, ct)
-      state.hoverPath = findPath(state.map, state.mapWidth, state.mapHeight, player, ct, hoverBlocked)
-    } else {
-      state.hoverPath = null
-    }
-  } else if (!ct || state.path) {
-    state.hoverPath = null
-    state.hoverPathTarget = null
-  }
 
   const pxWidth = viewportWidth * charWidth
   const pxHeight = viewportHeight * charHeight

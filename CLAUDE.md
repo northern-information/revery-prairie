@@ -44,7 +44,8 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 
 - `src/engine/types.ts` — all game types. everything depends on this.
 - `src/engine/state.ts` — game state factory (`createGameState`), initializes all mutable state, terrain, backpack, weather.
-- `src/engine/renderer.ts` — canvas ASCII drawing. the file to replace for sprites.
+- `src/engine/renderer.ts` — canvas ASCII drawing (pure draw, no state mutation). the file to replace for sprites.
+- `src/engine/cursor.ts` — `updateCursorState`: derives `cursorTile`, `hoverPath`, `hoverPathTarget` from `cursorScreenPos` each frame. called before `render()` in the game loop.
 - `src/engine/gameLoop.ts` — tick system registry and game loop. `TickSystem` interface for entity tick definitions. `createGameLoop` returns start/stop/pause/resume + register/unregister. `tick(time)` is the testable simulation step.
 - `src/engine/movement.ts` — `movePlayer`, `tickPath`, `getBlockedPositions`, `getPathfindingBlockers`.
 - `src/engine/entities.ts` — `tickBees`, `tickCharacterBehaviors`, `pickUpGroundItems`, `dropItem`.
