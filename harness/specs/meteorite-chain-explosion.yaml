@@ -41,7 +41,9 @@ behaviors:
       characters, ghosts). a LandingExplosion is pushed for each
       spawned meteorite so the existing ring-expansion animation
       plays. if fewer than 3 valid tiles exist, only as many
-      meteorites as there are valid tiles are spawned.
+      meteorites as there are valid tiles are spawned. spawned
+      meteorites are marked with fromChain: true so they cannot
+      trigger further chain explosions on pickup.
     inputs:
       - "GameState"
       - "pickup position: Position"
@@ -50,7 +52,7 @@ behaviors:
       - "number of meteorites actually spawned (0-3)"
     state_changes:
       - field: meteorites
-        effect: "0-3 new entries appended"
+        effect: "0-3 new entries appended with fromChain: true"
       - field: explosions
         effect: "0-3 new LandingExplosion entries appended"
     determinism: probabilistic
@@ -88,6 +90,9 @@ edge_cases:
   - id: occupied-tile-excluded
     description: "a candidate tile is occupied by a ground item, ground omnibox, character, ghost, or existing meteorite"
     expected: "that tile is skipped, meteorite spawns on next valid candidate"
+  - id: chain-children-cannot-explode
+    description: "meteorites spawned by a chain explosion have fromChain: true and are skipped by the explosion roll"
+    expected: "walking over a fromChain meteorite picks it up normally, never triggers a chain explosion"
 
 failure_conditions:
   - trigger: "time parameter is undefined (no rAF timestamp)"
