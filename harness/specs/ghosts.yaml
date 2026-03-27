@@ -6,7 +6,9 @@ layer: engine
 source_files:
   - src/engine/types.ts
   - src/engine/state.ts
-  - src/engine/actions.ts
+  - src/engine/entities.ts
+  - src/engine/movement.ts
+  - src/engine/interaction.ts
   - src/engine/characters.ts
   - src/engine/renderer.ts
   - src/engine/constants.ts

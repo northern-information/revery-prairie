@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { getBlockedPositions } from '@/engine/actions'
+import { getBlockedPositions } from '@/engine/movement'
 import { removeItem } from '@/engine/inventory'
 import { findPath } from '@/engine/pathfinding'
 import { ORDINAL } from '@/engine/position'

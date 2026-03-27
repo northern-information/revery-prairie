@@ -1,6 +1,6 @@
 import { withSeededRandom } from '@/harness/prng'
 import { createGameState } from '@/engine/state'
-import { tickShootingStars } from '@/engine/actions'
+import { tickShootingStars } from '@/engine/celestial'
 
 const SEED = 42
 

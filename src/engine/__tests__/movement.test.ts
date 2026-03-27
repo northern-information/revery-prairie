@@ -1,0 +1,264 @@
+import { movePlayer, tickPath } from '../movement'
+import { TileType } from '../types'
+import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
+
+describe('movePlayer', () => {
+  it('moves the player up', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startY = state.player.y
+    expect(movePlayer(state, 'up')).toBe(true)
+    expect(state.player.y).toBe(startY - 1)
+  })
+
+  it('moves the player down', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startY = state.player.y
+    expect(movePlayer(state, 'down')).toBe(true)
+    expect(state.player.y).toBe(startY + 1)
+  })
+
+  it('moves the player left', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startX = state.player.x
+    expect(movePlayer(state, 'left')).toBe(true)
+    expect(state.player.x).toBe(startX - 1)
+  })
+
+  it('moves the player right', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startX = state.player.x
+    expect(movePlayer(state, 'right')).toBe(true)
+    expect(state.player.x).toBe(startX + 1)
+  })
+
+  it('does not move past the map edge', () => {
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
+    state.player.x = 0
+    state.player.y = 0
+    expect(movePlayer(state, 'left')).toBe(false)
+    expect(movePlayer(state, 'up')).toBe(false)
+    expect(state.player.x).toBe(0)
+    expect(state.player.y).toBe(0)
+  })
+
+  it('updates the camera after moving', () => {
+    const state = createTestState({ viewportWidth: 10, viewportHeight: 10 })
+    clearAroundPlayer(state)
+    const camBefore = { ...state.camera }
+    movePlayer(state, 'right')
+    expect(state.camera.x).toBe(camBefore.x + 1)
+  })
+
+  it('updates playerFacing even when move is blocked', () => {
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
+    state.player.x = 0
+    state.player.y = 0
+    state.playerFacing = 'down'
+    expect(movePlayer(state, 'left')).toBe(false)
+    expect(state.playerFacing).toBe('left')
+    expect(state.player.x).toBe(0)
+  })
+
+  it('updates facingEntityPos when blocked move faces an interactable', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.playerFacing = 'down'
+    // Place a character to the right
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    // Try to move right — blocked by character, but should face it
+    expect(movePlayer(state, 'right')).toBe(false)
+    expect(state.playerFacing).toBe('right')
+    expect(state.facingEntityPos).toEqual({ x: state.player.x + 1, y: state.player.y })
+  })
+})
+
+describe('movePlayer blocked by character', () => {
+  it('cannot walk into a character tile', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    const startX = state.player.x
+    expect(movePlayer(state, 'right')).toBe(false)
+    expect(state.player.x).toBe(startX)
+  })
+})
+
+describe('tickPath', () => {
+  it('moves player one step along the path', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startX = state.player.x
+    const startY = state.player.y
+    state.path = [
+      { x: startX + 1, y: startY },
+      { x: startX + 2, y: startY },
+    ]
+
+    const result = tickPath(state)
+    expect(result).toBe(true)
+    expect(state.player.x).toBe(startX + 1)
+    expect(state.path).toEqual([{ x: startX + 2, y: startY }])
+  })
+
+  it('sets path to null when last step is consumed', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startX = state.player.x
+    const startY = state.player.y
+    state.path = [{ x: startX + 1, y: startY }]
+
+    const result = tickPath(state)
+    expect(result).toBe(true)
+    expect(state.player.x).toBe(startX + 1)
+    expect(state.path).toBeNull()
+  })
+
+  it('returns false and does nothing when path is null', () => {
+    const state = createTestState()
+    state.path = null
+    const startX = state.player.x
+    expect(tickPath(state)).toBe(false)
+    expect(state.player.x).toBe(startX)
+    expect(state.path).toBeNull()
+  })
+
+  it('returns false and does nothing when path is empty', () => {
+    const state = createTestState()
+    state.path = []
+    const startX = state.player.x
+    expect(tickPath(state)).toBe(false)
+    expect(state.player.x).toBe(startX)
+    expect(state.path).toBeNull()
+  })
+
+  it('cancels path when next step is blocked by water', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startX = state.player.x
+    const startY = state.player.y
+    // Place water at the next step
+    state.map[startY][startX + 1] = { type: TileType.Space }
+    state.path = [
+      { x: startX + 1, y: startY },
+      { x: startX + 2, y: startY },
+    ]
+
+    const result = tickPath(state)
+    expect(result).toBe(false)
+    expect(state.player.x).toBe(startX)
+    expect(state.path).toBeNull()
+  })
+
+  it('cancels path when next step has invalid direction', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startX = state.player.x
+    const startY = state.player.y
+    // Diagonal step — not a valid direction
+    state.path = [{ x: startX + 1, y: startY + 1 }]
+
+    const result = tickPath(state)
+    expect(result).toBe(false)
+    expect(state.player.x).toBe(startX)
+    expect(state.player.y).toBe(startY)
+    expect(state.path).toBeNull()
+  })
+
+  it('walks entire chained path to completion', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 5)
+    const startX = state.player.x
+    const startY = state.player.y
+    // Simulate a chained path: right 2, then down 2
+    state.path = [
+      { x: startX + 1, y: startY },
+      { x: startX + 2, y: startY },
+      { x: startX + 2, y: startY + 1 },
+      { x: startX + 2, y: startY + 2 },
+    ]
+    state.pathWaypoints = [
+      { x: startX + 2, y: startY },
+      { x: startX + 2, y: startY + 2 },
+    ]
+
+    while (state.path) {
+      tickPath(state)
+    }
+
+    expect(state.player.x).toBe(startX + 2)
+    expect(state.player.y).toBe(startY + 2)
+    expect(state.path).toBeNull()
+    expect(state.pathWaypoints).toEqual([])
+  })
+
+  it('fires pendingAction only after full chain is exhausted', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 5)
+    const startX = state.player.x
+    const startY = state.player.y
+    let actionFired = false
+    state.path = [
+      { x: startX + 1, y: startY },
+      { x: startX + 2, y: startY },
+    ]
+    state.pathWaypoints = [{ x: startX + 2, y: startY }]
+    state.pendingAction = () => {
+      actionFired = true
+    }
+
+    // Walk first step — action should not fire yet
+    tickPath(state)
+    expect(actionFired).toBe(false)
+
+    // Walk last step — action should fire
+    tickPath(state)
+    expect(actionFired).toBe(true)
+    expect(state.path).toBeNull()
+    expect(state.pathWaypoints).toEqual([])
+  })
+
+  it('clears pathWaypoints when path is blocked mid-chain', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 5)
+    const startX = state.player.x
+    const startY = state.player.y
+    // Block the second step
+    state.map[startY][startX + 2] = { type: TileType.Space }
+    state.path = [
+      { x: startX + 1, y: startY },
+      { x: startX + 2, y: startY },
+      { x: startX + 3, y: startY },
+    ]
+    state.pathWaypoints = [
+      { x: startX + 1, y: startY },
+      { x: startX + 3, y: startY },
+    ]
+
+    // First step succeeds
+    tickPath(state)
+    expect(state.player.x).toBe(startX + 1)
+
+    // Second step blocked — everything cancelled
+    tickPath(state)
+    expect(state.path).toBeNull()
+    expect(state.pathWaypoints).toEqual([])
+  })
+
+  it('clears pathWaypoints when path completes naturally', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startX = state.player.x
+    const startY = state.player.y
+    state.path = [{ x: startX + 1, y: startY }]
+    state.pathWaypoints = [{ x: startX + 1, y: startY }]
+
+    tickPath(state)
+    expect(state.path).toBeNull()
+    expect(state.pathWaypoints).toEqual([])
+  })
+})

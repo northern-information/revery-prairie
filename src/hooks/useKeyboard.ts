@@ -1,20 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import {
-  advanceDialog,
-  breakWall,
-  closeOmnibox,
-  dropItem,
-  getAdjacentCharacter,
-  giveMoabGift,
-  grabOmnibox,
-  interactWithCharacter,
-  movePlayer,
-  pickUpGroundItems,
-  toggleFacingOmnibox,
-  toggleOmnibox,
-  updateFacingEntity,
-} from '@/engine/actions'
+import { dropItem, pickUpGroundItems } from '@/engine/entities'
+import { advanceDialog, breakWall, getAdjacentCharacter, giveMoabGift, interactWithCharacter, updateFacingEntity } from '@/engine/interaction'
+import { movePlayer } from '@/engine/movement'
+import { closeOmnibox, grabOmnibox, toggleFacingOmnibox, toggleOmnibox } from '@/engine/omnibox'
 import { getCharacterDefinition } from '@/engine/characters'
 import { keyToDirection } from '@/engine/input'
 import { findItemByDefinition, moveItem } from '@/engine/inventory'

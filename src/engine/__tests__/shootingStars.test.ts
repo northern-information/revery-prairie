@@ -1,4 +1,5 @@
-import { pickUpGroundItems, spawnShootingStar, spawnShootingStarAtTarget, tickShootingStars } from '../actions'
+import { spawnShootingStar, spawnShootingStarAtTarget, tickShootingStars } from '../celestial'
+import { pickUpGroundItems } from '../entities'
 import {
   EXPLOSION_DURATION_MS,
   MAP_HEIGHT,

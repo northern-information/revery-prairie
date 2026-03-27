@@ -1,15 +1,7 @@
-import {
-  closeOmnibox,
-  dropItem,
-  grabOmnibox,
-  groundOmniboxBlockedSet,
-  movePlayer,
-  openOmnibox,
-  pickUpGroundItems,
-  toggleFacingOmnibox,
-  toggleOmnibox,
-  updateFacingEntity,
-} from '../actions'
+import { dropItem, pickUpGroundItems } from '../entities'
+import { updateFacingEntity } from '../interaction'
+import { movePlayer } from '../movement'
+import { closeOmnibox, grabOmnibox, groundOmniboxBlockedSet, openOmnibox, toggleFacingOmnibox, toggleOmnibox } from '../omnibox'
 import { OMNIBOX_HEIGHT, OMNIBOX_WIDTH } from '../constants'
 import { createOmniboxContainer, findFitPosition, placeItem } from '../inventory'
 import { findPath } from '../pathfinding'

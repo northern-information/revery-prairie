@@ -4,7 +4,8 @@ status: implemented
 priority: critical
 layer: engine
 source_files:
-  - src/engine/actions.ts
+  - src/engine/movement.ts
+  - src/engine/interaction.ts
   - src/engine/position.ts
   - src/engine/camera.ts
 dependencies: []
@@ -116,6 +117,6 @@ failure_conditions:
     expected: "movePlayer returns false, no state mutation to player position"
 
 verification:
-  test_file: src/engine/__tests__/actions.test.ts
+  test_file: src/engine/__tests__/movement.test.ts
   test_pattern: "movePlayer"
-  command: "npx vitest run src/engine/__tests__/actions.test.ts -t movePlayer"
+  command: "npx vitest run src/engine/__tests__/movement.test.ts -t movePlayer"

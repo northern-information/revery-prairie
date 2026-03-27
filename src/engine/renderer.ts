@@ -29,7 +29,7 @@ import {
   TILE_CHARS,
   TILE_COLORS,
 } from './constants'
-import { getPathfindingBlockers } from './actions'
+import { getPathfindingBlockers } from './movement'
 import { getDefinition } from './items'
 import { findPath } from './pathfinding'
 import { isInBounds, isWalkableTile, posKey } from './position'

@@ -6,7 +6,7 @@ layer: engine
 source_files:
   - src/engine/types.ts
   - src/engine/state.ts
-  - src/engine/actions.ts
+  - src/engine/interaction.ts
   - src/engine/characters.ts
   - src/engine/cave.ts
   - src/engine/inventory.ts

@@ -1,4 +1,4 @@
-import { breakWall, updateFacingEntity } from '../actions'
+import { breakWall, updateFacingEntity } from '../interaction'
 import { checkTransition, enterCave, exitCave, generateCave } from '../cave'
 import { CAVE_HEIGHT, CAVE_WIDTH } from '../constants'
 import { findPath } from '../pathfinding'
