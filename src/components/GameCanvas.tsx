@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
 
 import { updateCamera } from '@/engine/camera'
+import { updateCursorState } from '@/engine/cursor'
 import { createGameLoop } from '@/engine/gameLoop'
 import { measureChar, render } from '@/engine/renderer'
 import { useMouse } from '@/hooks/useMouse'
-import type { CharMetrics } from '@/engine/renderer'
+import type { CharMetrics } from '@/engine/types'
 import type { GameState } from '@/engine/types'
 import type { Panel } from '@/hooks/useKeyboard'
 
@@ -91,6 +92,7 @@ export const GameCanvas = ({
       },
       onFrame: (time) => {
         if (metricsRef.current) {
+          updateCursorState(state, metricsRef.current)
           render(ctx, state, metricsRef.current, time)
         }
       },

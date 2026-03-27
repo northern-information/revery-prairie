@@ -241,6 +241,11 @@ export const Zone = {
 
 export type Zone = (typeof Zone)[keyof typeof Zone]
 
+export interface CharMetrics {
+  charWidth: number
+  charHeight: number
+}
+
 export interface OverworldSnapshot {
   map: Tile[][]
   mapWidth: number

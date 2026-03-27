@@ -10,7 +10,7 @@ import { findPath } from '@/engine/pathfinding'
 import { posKey } from '@/engine/position'
 import { TileType } from '@/engine/types'
 import type { Panel } from './useKeyboard'
-import type { CharMetrics } from '@/engine/renderer'
+import type { CharMetrics } from '@/engine/types'
 import type { GameState } from '@/engine/types'
 
 interface UseMouseOptions {

@@ -1,5 +1,5 @@
 import { getDefinition } from '@/engine/items'
-import type { CharMetrics } from '@/engine/renderer'
+import type { CharMetrics } from '@/engine/types'
 import type { DragState } from '@/engine/drag'
 
 interface DragCursorProps {
