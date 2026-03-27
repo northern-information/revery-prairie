@@ -18,6 +18,18 @@ describe('chain explosion', () => {
       expect(state.explosions).toHaveLength(3)
     })
 
+    it('marks spawned meteorites with fromChain: true', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 5)
+      const origin = { x: state.player.x, y: state.player.y }
+
+      spawnChainMeteorites(state, origin, 1000)
+
+      for (const m of state.meteorites) {
+        expect(m.fromChain).toBe(true)
+      }
+    })
+
     it('creates a LandingExplosion for each spawned meteorite', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
@@ -351,6 +363,22 @@ describe('chain explosion', () => {
         expect(result.chainExplosions).toBeGreaterThan(3)
         // Both consumed by explosion, not picked up
         expect(result.pickedUp).not.toContain('meteorite')
+      } finally {
+        Math.random = orig
+      }
+    })
+
+    it('does not roll chain explosion for fromChain meteorites', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 5)
+      state.meteorites.push({ pos: { x: state.player.x, y: state.player.y }, fromChain: true })
+
+      const orig = Math.random
+      Math.random = () => 0.0 // would always trigger if checked
+      try {
+        const result = pickUpGroundItems(state, 1000)
+        expect(result.chainExplosions).toBe(0)
+        expect(result.pickedUp).toContain('meteorite')
       } finally {
         Math.random = orig
       }

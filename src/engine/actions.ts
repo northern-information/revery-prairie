@@ -98,7 +98,7 @@ export const spawnChainMeteorites = (
   const spawned = Math.min(CHAIN_EXPLOSION_COUNT, candidates.length)
   for (let i = 0; i < spawned; i++) {
     const pos = candidates[i]
-    state.meteorites.push({ pos })
+    state.meteorites.push({ pos, fromChain: true })
     state.explosions.push({ pos, startTime: time })
   }
 
@@ -135,7 +135,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   if (time !== undefined) {
     for (let i = 0; i < state.meteorites.length; i++) {
       const m = state.meteorites[i]
-      if (m.pos.x === px && m.pos.y === py && Math.random() < CHAIN_EXPLOSION_CHANCE) {
+      if (m.pos.x === px && m.pos.y === py && !m.fromChain && Math.random() < CHAIN_EXPLOSION_CHANCE) {
         explodedIndices.push(i)
         chainExplosions += spawnChainMeteorites(state, { x: px, y: py }, time)
       }

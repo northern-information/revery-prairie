@@ -87,6 +87,7 @@ export interface ShootingStar {
 
 export interface Meteorite {
   pos: Position
+  fromChain?: boolean
 }
 
 export interface LandingExplosion {
