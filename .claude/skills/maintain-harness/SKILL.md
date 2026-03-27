@@ -19,12 +19,14 @@ Read all specs in `harness/specs/` with `status: implemented`.
 ### 2. Check each spec against source code
 
 For each implemented spec:
+
 1. Read every file in `source_files`
 2. Compare actual function signatures, parameters, return types, and state mutations against the spec's `behaviors`
 3. Check that `edge_cases` still make sense given the current code
 4. Check that `failure_conditions` still apply
 
 Flag drift:
+
 - **Behavior in code but not in spec** — function or state mutation exists in source that has no corresponding behavior entry
 - **Spec behavior that no longer matches code** — described behavior doesn't match what the function actually does (signature changed, state mutation changed, return value changed)
 - **New GameState fields without spec coverage** — compare `Object.keys(createGameState(...))` against fields referenced across all specs
@@ -38,6 +40,7 @@ Flag drift:
 ### 4. Draft spec updates
 
 For any drift found, draft updated spec YAML:
+
 - Update changed behaviors with correct descriptions, state_changes, etc.
 - Add new behaviors for undocumented code paths
 - Remove or mark obsolete behaviors
@@ -49,6 +52,7 @@ Run `npm run spec:validate` on the updated specs. Fix and re-validate until clea
 ### 6. Present drift report
 
 Show the user a summary:
+
 - **Drift found**: list of specs with mismatches, what changed
 - **Harness health**: validation status, stale specs, missing test coverage
 - **Proposed patches**: the spec updates, presented as diffs
