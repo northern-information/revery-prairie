@@ -17,14 +17,22 @@ export const PickupToasts = ({ toasts, state, metricsRef }: PickupToastsProps) =
   const now = Date.now()
   const fadeDuration = TOAST_DURATION - TOAST_FADE_START
 
+  const sortedToasts = [...toasts].sort((a, b) => a.timestamp - b.timestamp)
+
   return (
     <div className="pointer-events-none fixed top-0 left-0 z-20">
-      {toasts.map(toast => {
+      {sortedToasts.map((toast, i) => {
         const age = now - toast.timestamp
         const opacity = age > TOAST_FADE_START ? Math.max(0, (TOAST_DURATION - age) / fadeDuration) : 1
+        const progress = age / TOAST_DURATION
+        const stackOffset = (sortedToasts.length - 1 - i) * 18
 
         const screenX = (toast.worldX - state.camera.x) * metrics.charWidth
-        const screenY = (toast.worldY - state.camera.y) * metrics.charHeight - 16
+        const screenY =
+          (toast.worldY - state.camera.y) * metrics.charHeight -
+          2.5 * metrics.charHeight -
+          progress * metrics.charHeight -
+          stackOffset
 
         return (
           <div
