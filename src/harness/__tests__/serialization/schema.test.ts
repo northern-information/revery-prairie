@@ -59,6 +59,7 @@ const EXPECTED_FIELDS = [
   'hoverPathTarget',
   'pendingInteractionTarget',
   'heldDirection',
+  'musicEnabled',
 ].sort()
 
 describe('GameState schema', () => {

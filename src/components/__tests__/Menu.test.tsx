@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 
 describe('Menu', () => {
   it('renders title and options', () => {
-    render(<Menu onResume={vi.fn()} onNewGame={vi.fn()} metric={true} onToggleUnits={vi.fn()} />)
+    render(<Menu onResume={vi.fn()} onNewGame={vi.fn()} metric={true} onToggleUnits={vi.fn()} musicEnabled={true} onToggleMusic={vi.fn()} />)
 
     expect(screen.getByText('revery prairie')).toBeInTheDocument()
     expect(screen.getByText('resume')).toBeInTheDocument()
@@ -15,7 +15,7 @@ describe('Menu', () => {
 
   it('calls onResume when resume is clicked', async () => {
     const onResume = vi.fn()
-    render(<Menu onResume={onResume} onNewGame={vi.fn()} metric={true} onToggleUnits={vi.fn()} />)
+    render(<Menu onResume={onResume} onNewGame={vi.fn()} metric={true} onToggleUnits={vi.fn()} musicEnabled={true} onToggleMusic={vi.fn()} />)
 
     await userEvent.click(screen.getByText('resume'))
 
@@ -24,7 +24,7 @@ describe('Menu', () => {
 
   it('shows confirmation before starting new game', async () => {
     const onNewGame = vi.fn()
-    render(<Menu onResume={vi.fn()} onNewGame={onNewGame} metric={true} onToggleUnits={vi.fn()} />)
+    render(<Menu onResume={vi.fn()} onNewGame={onNewGame} metric={true} onToggleUnits={vi.fn()} musicEnabled={true} onToggleMusic={vi.fn()} />)
 
     await userEvent.click(screen.getByText('new game'))
 
@@ -35,7 +35,7 @@ describe('Menu', () => {
 
   it('calls onNewGame when confirmed', async () => {
     const onNewGame = vi.fn()
-    render(<Menu onResume={vi.fn()} onNewGame={onNewGame} metric={true} onToggleUnits={vi.fn()} />)
+    render(<Menu onResume={vi.fn()} onNewGame={onNewGame} metric={true} onToggleUnits={vi.fn()} musicEnabled={true} onToggleMusic={vi.fn()} />)
 
     await userEvent.click(screen.getByText('new game'))
     await userEvent.click(screen.getByText('confirm?'))
@@ -45,7 +45,7 @@ describe('Menu', () => {
 
   it('cancels new game confirmation', async () => {
     const onNewGame = vi.fn()
-    render(<Menu onResume={vi.fn()} onNewGame={onNewGame} metric={true} onToggleUnits={vi.fn()} />)
+    render(<Menu onResume={vi.fn()} onNewGame={onNewGame} metric={true} onToggleUnits={vi.fn()} musicEnabled={true} onToggleMusic={vi.fn()} />)
 
     await userEvent.click(screen.getByText('new game'))
     await userEvent.click(screen.getByText('cancel'))
@@ -55,23 +55,44 @@ describe('Menu', () => {
   })
 
   it('shows imperial when metric is false', () => {
-    render(<Menu onResume={vi.fn()} onNewGame={vi.fn()} metric={false} onToggleUnits={vi.fn()} />)
+    render(<Menu onResume={vi.fn()} onNewGame={vi.fn()} metric={false} onToggleUnits={vi.fn()} musicEnabled={true} onToggleMusic={vi.fn()} />)
 
     expect(screen.getByText('units: imperial')).toBeInTheDocument()
   })
 
   it('calls onToggleUnits when units button is clicked', async () => {
     const onToggleUnits = vi.fn()
-    render(<Menu onResume={vi.fn()} onNewGame={vi.fn()} metric={true} onToggleUnits={onToggleUnits} />)
+    render(<Menu onResume={vi.fn()} onNewGame={vi.fn()} metric={true} onToggleUnits={onToggleUnits} musicEnabled={true} onToggleMusic={vi.fn()} />)
 
     await userEvent.click(screen.getByText('units: metric'))
 
     expect(onToggleUnits).toHaveBeenCalledOnce()
   })
 
+  it('shows music: on when musicEnabled is true', () => {
+    render(<Menu onResume={vi.fn()} onNewGame={vi.fn()} metric={true} onToggleUnits={vi.fn()} musicEnabled={true} onToggleMusic={vi.fn()} />)
+
+    expect(screen.getByText('music: on')).toBeInTheDocument()
+  })
+
+  it('shows music: off when musicEnabled is false', () => {
+    render(<Menu onResume={vi.fn()} onNewGame={vi.fn()} metric={true} onToggleUnits={vi.fn()} musicEnabled={false} onToggleMusic={vi.fn()} />)
+
+    expect(screen.getByText('music: off')).toBeInTheDocument()
+  })
+
+  it('calls onToggleMusic when music button is clicked', async () => {
+    const onToggleMusic = vi.fn()
+    render(<Menu onResume={vi.fn()} onNewGame={vi.fn()} metric={true} onToggleUnits={vi.fn()} musicEnabled={true} onToggleMusic={onToggleMusic} />)
+
+    await userEvent.click(screen.getByText('music: on'))
+
+    expect(onToggleMusic).toHaveBeenCalledOnce()
+  })
+
   it('calls onResume when clicking outside the menu', async () => {
     const onResume = vi.fn()
-    render(<Menu onResume={onResume} onNewGame={vi.fn()} metric={true} onToggleUnits={vi.fn()} />)
+    render(<Menu onResume={onResume} onNewGame={vi.fn()} metric={true} onToggleUnits={vi.fn()} musicEnabled={true} onToggleMusic={vi.fn()} />)
 
     // Click the backdrop (the outer fixed div wrapping the menu)
     const backdrop = screen.getByText('resume').closest('[class*="fixed inset-0"]')

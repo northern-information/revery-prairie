@@ -120,6 +120,7 @@ export interface CharacterDefinition {
   glyphColor: string
   portrait?: string
   dialog: string[]
+  music?: string
 }
 
 export interface Character {
@@ -174,6 +175,7 @@ export interface GameState {
   hoverPathTarget: Position | null
   rainSeed: number
   metric: boolean
+  musicEnabled: boolean
   currentZone: Zone
   overworldSnapshot: OverworldSnapshot | null
   caveMap: Tile[][]

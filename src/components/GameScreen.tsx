@@ -7,11 +7,13 @@ import { PickupToasts } from './PickupToasts'
 import { Sidebar } from './Sidebar'
 
 import { advanceDialog } from '@/engine/interaction'
+import { stopAll, setMusicEnabled } from '@/engine/audio'
 import { getCharacterDefinition } from '@/engine/characters'
 import { getDefinition } from '@/engine/items'
 import { useEventLog } from '@/hooks/useEventLog'
 import { useGameEngine } from '@/hooks/useGameEngine'
 import { useKeyboard } from '@/hooks/useKeyboard'
+import { useMusic } from '@/hooks/useMusic'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { CharMetrics } from '@/engine/types'
 
@@ -72,6 +74,8 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
     },
     [addEvent]
   )
+
+  useMusic(state)
 
   const { activePanel, setActivePanel } = useKeyboard({
     state,
@@ -174,10 +178,19 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
           onResume={() => {
             setActivePanel(null)
           }}
-          onNewGame={onRestart}
+          onNewGame={() => {
+            stopAll()
+            onRestart()
+          }}
           metric={state.metric}
           onToggleUnits={() => {
             state.metric = !state.metric
+            refreshUI()
+          }}
+          musicEnabled={state.musicEnabled}
+          onToggleMusic={() => {
+            state.musicEnabled = !state.musicEnabled
+            setMusicEnabled(state.musicEnabled)
             refreshUI()
           }}
         />

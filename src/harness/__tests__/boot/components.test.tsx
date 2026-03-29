@@ -21,6 +21,8 @@ describe('boot: component smoke tests', () => {
             onNewGame={vi.fn()}
             metric={true}
             onToggleUnits={vi.fn()}
+            musicEnabled={true}
+            onToggleMusic={vi.fn()}
           />,
         )
       }).not.toThrow()
