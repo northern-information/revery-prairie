@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { ComponentType } from '@/engine/ecs'
+import { ComponentType } from '@/engine/ecs/types'
 import { getBlockedPositions } from '@/engine/movement'
 import { removeItem } from '@/engine/inventory'
 import { createGroundOmniboxEntity } from '@/engine/omnibox'

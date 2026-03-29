@@ -1,9 +1,9 @@
-import { ComponentType } from './ecs'
+import { ComponentType } from './ecs/types'
 import { updateFacingEntity } from './interaction'
 import { findFitPosition, placeItem } from './inventory'
 import { CARDINAL } from './position'
 
-import type { Entity } from './ecs'
+import type { Entity } from './ecs/types'
 import type { GameState } from './types'
 
 export const createGroundOmniboxEntity = (

@@ -1,4 +1,4 @@
-import type { World } from './ecs'
+import type { World } from './ecs/world'
 
 export const TileType = {
   Space: 'space',

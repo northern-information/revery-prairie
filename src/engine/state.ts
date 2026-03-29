@@ -1,5 +1,5 @@
 import { spawnShootingStarAtTarget } from './celestial'
-import { createWorld } from './ecs'
+import { createWorld } from './ecs/world'
 import { generateCave } from './cave'
 import { registerGhostDefinitions } from './characters'
 import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER } from './constants'

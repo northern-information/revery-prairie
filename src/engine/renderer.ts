@@ -1,5 +1,5 @@
 import { getCharacterDefinition } from './characters'
-import { ComponentType } from './ecs'
+import { ComponentType } from './ecs/types'
 import {
   BEE_CHAR,
   BEE_COLOR,

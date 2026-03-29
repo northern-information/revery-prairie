@@ -1,5 +1,5 @@
 import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
-import { ComponentType } from '../ecs'
+import { ComponentType } from '../ecs/types'
 import { containerHasItem } from '../inventory'
 import { createGameState } from '../state'
 import { describe, expect, it } from 'vitest'

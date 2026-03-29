@@ -10,7 +10,7 @@ import {
   SHOOTING_STAR_MIN_LENGTH,
   SHOOTING_STAR_SPAWN_CHANCE,
 } from './constants'
-import { ComponentType } from './ecs'
+import { ComponentType } from './ecs/types'
 import { isInBounds, isWalkableTile } from './position'
 import { TileType } from './types'
 

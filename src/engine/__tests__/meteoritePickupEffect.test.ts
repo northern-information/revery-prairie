@@ -1,5 +1,5 @@
 import { tickShootingStars } from '../celestial'
-import { ComponentType } from '../ecs'
+import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
 import { PICKUP_EFFECT_DURATION_MS } from '../constants'
 

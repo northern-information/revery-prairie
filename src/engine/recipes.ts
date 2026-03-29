@@ -1,4 +1,4 @@
-import { ComponentType } from './ecs'
+import { ComponentType } from './ecs/types'
 import { createOmniboxContainer, findFitPosition, placeItem } from './inventory'
 import { isInBounds } from './position'
 import { TileType } from './types'

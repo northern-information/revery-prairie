@@ -1,6 +1,6 @@
 import { updateCamera } from './camera'
 import { checkTransition } from './cave'
-import { ComponentType } from './ecs'
+import { ComponentType } from './ecs/types'
 import { updateFacingEntity } from './interaction'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { Zone } from './types'

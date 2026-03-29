@@ -1,5 +1,5 @@
 import { spawnChainMeteorites } from '../celestial'
-import { ComponentType } from '../ecs'
+import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
 import { placeItem } from '../inventory'
 import { TileType } from '../types'

@@ -1,5 +1,5 @@
 import { createGameLoop } from '../gameLoop'
-import { ComponentType } from '../ecs'
+import { ComponentType } from '../ecs/types'
 import { Zone } from '../types'
 import { clearAroundPlayer, createBeeEntity, createCharacterTestEntity, createGroundItemEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'

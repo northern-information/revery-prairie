@@ -1,5 +1,5 @@
 import { getCharacterDefinition } from './characters'
-import { ComponentType } from './ecs'
+import { ComponentType } from './ecs/types'
 import { createOmniboxContainer, findFitPosition, placeItem } from './inventory'
 import { CARDINAL, DIRECTIONS, isInBounds } from './position'
 import { Rotation, TileType, Zone } from './types'

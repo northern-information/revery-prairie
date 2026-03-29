@@ -1,5 +1,5 @@
 import { spawnShootingStar, tickShootingStars } from './celestial'
-import { ComponentType } from './ecs'
+import { ComponentType } from './ecs/types'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { movePlayer, tickPath } from './movement'

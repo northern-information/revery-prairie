@@ -1,4 +1,4 @@
-import { ComponentType } from './ecs'
+import { ComponentType } from './ecs/types'
 
 import type { GameState } from './types'
 

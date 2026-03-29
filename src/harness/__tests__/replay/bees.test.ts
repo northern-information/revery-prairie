@@ -1,5 +1,5 @@
 import { withSeededRandom } from '@/harness/prng'
-import { ComponentType } from '@/engine/ecs'
+import { ComponentType } from '@/engine/ecs/types'
 import { createGameState } from '@/engine/state'
 import { tickBees } from '@/engine/entities'
 import type { GameState } from '@/engine/types'

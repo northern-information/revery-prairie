@@ -1,5 +1,5 @@
 import { spawnShootingStar, spawnShootingStarAtTarget, tickShootingStars } from '../celestial'
-import { ComponentType } from '../ecs'
+import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
 import {
   EXPLOSION_DURATION_MS,
@@ -12,7 +12,7 @@ import { createGameState } from '../state'
 import { TileType } from '../types'
 import { describe, expect, it } from 'vitest'
 
-import type { Entity } from '../ecs'
+import type { Entity } from '../ecs/types'
 import type { GameState, Position } from '../types'
 
 const createStarEntity = (

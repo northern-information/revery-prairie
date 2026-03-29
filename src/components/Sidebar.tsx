@@ -4,7 +4,7 @@ import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { getCharacterDefinition } from '@/engine/characters'
 import { SPACE_BORDER, TILE_COLORS } from '@/engine/constants'
-import { ComponentType } from '@/engine/ecs'
+import { ComponentType } from '@/engine/ecs/types'
 import { getTileEffects } from '@/engine/effects'
 import { getDefinition } from '@/engine/items'
 import { TileType, Zone } from '@/engine/types'

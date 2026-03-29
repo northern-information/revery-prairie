@@ -1,4 +1,4 @@
-import { ComponentType } from '../ecs'
+import { ComponentType } from '../ecs/types'
 import { createCharacterEntity } from '../entities'
 import { createGroundOmniboxEntity } from '../omnibox'
 import { isInBounds } from '../position'
@@ -6,7 +6,7 @@ import { createGameState } from '../state'
 import { TileType } from '../types'
 
 import type { CharacterBehavior } from '../types'
-import type { Entity } from '../ecs'
+import type { Entity } from '../ecs/types'
 import type { GameState } from '../types'
 
 /**

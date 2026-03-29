@@ -1,5 +1,5 @@
 import { checkCombine, combineBeeAndClover } from '../combine'
-import { ComponentType } from '../ecs'
+import { ComponentType } from '../ecs/types'
 import { containerHasItem, placeItem } from '../inventory'
 import { Rotation, TileType } from '../types'
 import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'

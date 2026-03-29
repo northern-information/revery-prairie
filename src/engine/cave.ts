@@ -1,4 +1,4 @@
-import { ComponentType } from './ecs'
+import { ComponentType } from './ecs/types'
 import { createCharacterEntity } from './entities'
 import { createGroundOmniboxEntity } from './omnibox'
 import { TileType, Zone } from './types'

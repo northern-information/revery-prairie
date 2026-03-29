@@ -4,7 +4,7 @@ import { breakWall, interactWithCharacter, isInteractableAt, updateFacingEntity 
 import { getPathfindingBlockers } from '@/engine/movement'
 import { openOmnibox } from '@/engine/omnibox'
 import { getCharacterDefinition } from '@/engine/characters'
-import { ComponentType } from '@/engine/ecs'
+import { ComponentType } from '@/engine/ecs/types'
 import { screenToTile } from '@/engine/coordinates'
 import { isWalkableTile } from '@/engine/position'
 import { findPath } from '@/engine/pathfinding'

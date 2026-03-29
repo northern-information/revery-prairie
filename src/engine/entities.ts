@@ -1,5 +1,5 @@
 import { CHAIN_EXPLOSION_CHANCE, spawnChainMeteorites } from './celestial'
-import { ComponentType } from './ecs'
+import { ComponentType } from './ecs/types'
 import { AURA_RADIUS } from './effects'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
 import { getBlockedPositions } from './movement'
@@ -7,7 +7,7 @@ import { createGroundOmniboxEntity } from './omnibox'
 import { isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 import { TileType } from './types'
 
-import type { Entity } from './ecs'
+import type { Entity } from './ecs/types'
 import type { CharacterBehavior, DriftBehavior, GameState, Position } from './types'
 
 export const createCharacterEntity = (

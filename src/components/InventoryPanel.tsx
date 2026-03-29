@@ -5,7 +5,7 @@ import { InventoryGrid } from './InventoryGrid'
 import { CloseButton, PanelTitle, SectionHeader } from './PanelPrimitives'
 import { clampPanelPosition } from './panelPosition'
 
-import { ComponentType } from '@/engine/ecs'
+import { ComponentType } from '@/engine/ecs/types'
 import { closeOmnibox, grabOmnibox, openOmnibox } from '@/engine/omnibox'
 import { autoSort, findFitPosition, placeItem, removeItem } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'

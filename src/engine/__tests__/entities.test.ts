@@ -1,6 +1,6 @@
 import { dropItem, pickUpGroundItems, tickBees } from '../entities'
 import { combineBeeAndClover } from '../combine'
-import { ComponentType } from '../ecs'
+import { ComponentType } from '../ecs/types'
 import { movePlayer } from '../movement'
 import { containerHasItem, placeItem } from '../inventory'
 import { Rotation, TileType } from '../types'

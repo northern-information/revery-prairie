@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { dropItem, pickUpGroundItems } from '@/engine/entities'
-import { ComponentType } from '@/engine/ecs'
+import { ComponentType } from '@/engine/ecs/types'
 import { advanceDialog, breakWall, getAdjacentCharacter, giveMoabGift, interactWithCharacter, updateFacingEntity } from '@/engine/interaction'
 import { movePlayer } from '@/engine/movement'
 import { closeOmnibox, grabOmnibox, toggleFacingOmnibox, toggleOmnibox } from '@/engine/omnibox'

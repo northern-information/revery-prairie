@@ -1,7 +1,7 @@
 import { withSeededRandom } from '@/harness/prng'
 import { createGameState } from '@/engine/state'
 import { tickShootingStars } from '@/engine/celestial'
-import { ComponentType } from '@/engine/ecs'
+import { ComponentType } from '@/engine/ecs/types'
 
 import type { GameState } from '@/engine/types'
 
