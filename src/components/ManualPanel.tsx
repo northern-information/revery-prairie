@@ -130,7 +130,7 @@ const EntryCard = ({
         ) : (
           <>
             <span style={{ color: entry.glyphColor }}>{entry.glyph}</span>
-            <span className={`text-sm ${discovered ? 'text-text' : 'text-dim'}`}>{entry.name}</span>
+            <span className="text-text text-sm">{entry.name}</span>
           </>
         )}
       </div>
