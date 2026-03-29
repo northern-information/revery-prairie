@@ -7,12 +7,12 @@ import { Rotation } from '@/engine/types'
 
 import type { Container, GameState, ItemInstance } from '@/engine/types'
 import type { Recipe } from '@/engine/recipes'
-import type { GhostPlacement, CombineResult, StoreResult } from '@/engine/drag'
+import type { PlacementPreview, CombineResult, StoreResult } from '@/engine/drag'
 
 // --- mocks ---
 
 vi.mock('@/engine/drag', () => ({
-  computeGhostPlacement: vi.fn(),
+  computePlacementPreview: vi.fn(),
   computeRotation: vi.fn(),
   executeCombine: vi.fn(),
   executeStoreInOmnibox: vi.fn(),
@@ -29,7 +29,7 @@ vi.mock('@/engine/inventory', async (importOriginal) => {
 })
 
 import {
-  computeGhostPlacement,
+  computePlacementPreview,
   computeRotation,
   executeCombine,
   executeStoreInOmnibox,
@@ -56,7 +56,7 @@ const fakeRecipe: Recipe = {
   execute: vi.fn(() => true),
 }
 
-const defaultPlacement: GhostPlacement = {
+const defaultPlacement: PlacementPreview = {
   isValid: true,
   combineTarget: null,
   storeTarget: null,
@@ -102,7 +102,7 @@ beforeEach(() => {
   onStore = vi.fn()
   onStoreFail = vi.fn()
   onCombineFail = vi.fn()
-  vi.mocked(computeGhostPlacement).mockReturnValue(defaultPlacement)
+  vi.mocked(computePlacementPreview).mockReturnValue(defaultPlacement)
 })
 
 // --- tests ---
@@ -122,8 +122,8 @@ describe('useInventoryDrag', () => {
         sourceContainerId: state.backpack.id,
         targetContainerId: state.backpack.id,
         rotation: Rotation.R90,
-        ghostX: 2,
-        ghostY: 3,
+        previewX: 2,
+        previewY: 3,
         isValid: true,
         combineTarget: null,
         storeTarget: null,
@@ -132,23 +132,23 @@ describe('useInventoryDrag', () => {
     })
   })
 
-  describe('updateGhost', () => {
-    it('calls computeGhostPlacement and merges result', () => {
+  describe('updatePreview', () => {
+    it('calls computePlacementPreview and merges result', () => {
       const item = makeItem()
-      const placement: GhostPlacement = {
+      const placement: PlacementPreview = {
         isValid: false,
         combineTarget: { uid: 'target-1', recipe: fakeRecipe, isDiscovered: true },
         storeTarget: null,
         cannotCombine: false,
       }
-      vi.mocked(computeGhostPlacement).mockReturnValue(placement)
+      vi.mocked(computePlacementPreview).mockReturnValue(placement)
 
       const { result } = renderDragHook()
 
       act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updateGhost(3, 4, state.backpack.id); })
+      act(() => { result.current.updatePreview(3, 4, state.backpack.id); })
 
-      expect(computeGhostPlacement).toHaveBeenCalledWith(
+      expect(computePlacementPreview).toHaveBeenCalledWith(
         state.backpack,
         item,
         Rotation.R0,
@@ -158,8 +158,8 @@ describe('useInventoryDrag', () => {
         state.backpack.id,
         state.discoveredRecipes,
       )
-      expect(result.current.dragState?.ghostX).toBe(3)
-      expect(result.current.dragState?.ghostY).toBe(4)
+      expect(result.current.dragState?.previewX).toBe(3)
+      expect(result.current.dragState?.previewY).toBe(4)
       expect(result.current.dragState?.isValid).toBe(false)
       expect(result.current.dragState?.combineTarget).toEqual(placement.combineTarget)
     })
@@ -169,20 +169,20 @@ describe('useInventoryDrag', () => {
       const { result } = renderDragHook()
 
       act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updateGhost(3, 4, 'nonexistent-id'); })
+      act(() => { result.current.updatePreview(3, 4, 'nonexistent-id'); })
 
-      // ghostX/ghostY stay at initial values
-      expect(result.current.dragState?.ghostX).toBe(0)
-      expect(result.current.dragState?.ghostY).toBe(0)
+      // previewX/previewY stay at initial values
+      expect(result.current.dragState?.previewX).toBe(0)
+      expect(result.current.dragState?.previewY).toBe(0)
     })
 
     it('is a no-op when no drag is active', () => {
       const { result } = renderDragHook()
 
-      act(() => { result.current.updateGhost(3, 4, state.backpack.id); })
+      act(() => { result.current.updatePreview(3, 4, state.backpack.id); })
 
       expect(result.current.dragState).toBeNull()
-      expect(computeGhostPlacement).not.toHaveBeenCalled()
+      expect(computePlacementPreview).not.toHaveBeenCalled()
     })
   })
 
@@ -204,7 +204,7 @@ describe('useInventoryDrag', () => {
       const item = makeItem()
       const storeResult: StoreResult = { outcome: 'stored', omniboxUid: 'omni-1' }
       vi.mocked(executeStoreInOmnibox).mockReturnValue(storeResult)
-      vi.mocked(computeGhostPlacement).mockReturnValue({
+      vi.mocked(computePlacementPreview).mockReturnValue({
         ...defaultPlacement,
         storeTarget: { omniboxUid: 'omni-1' },
       })
@@ -212,7 +212,7 @@ describe('useInventoryDrag', () => {
       const { result } = renderDragHook()
 
       act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updateGhost(0, 0, state.backpack.id); })
+      act(() => { result.current.updatePreview(0, 0, state.backpack.id); })
       act(() => { result.current.drop(state.backpack.id); })
 
       expect(executeStoreInOmnibox).toHaveBeenCalledWith(
@@ -229,7 +229,7 @@ describe('useInventoryDrag', () => {
     it('calls onStoreFail on no-room', () => {
       const item = makeItem()
       vi.mocked(executeStoreInOmnibox).mockReturnValue({ outcome: 'no-room' })
-      vi.mocked(computeGhostPlacement).mockReturnValue({
+      vi.mocked(computePlacementPreview).mockReturnValue({
         ...defaultPlacement,
         storeTarget: { omniboxUid: 'omni-1' },
       })
@@ -237,7 +237,7 @@ describe('useInventoryDrag', () => {
       const { result } = renderDragHook()
 
       act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updateGhost(0, 0, state.backpack.id); })
+      act(() => { result.current.updatePreview(0, 0, state.backpack.id); })
       act(() => { result.current.drop(state.backpack.id); })
 
       expect(onStoreFail).toHaveBeenCalledOnce()
@@ -252,7 +252,7 @@ describe('useInventoryDrag', () => {
       const item = makeItem()
       const combineResult: CombineResult = { outcome: 'success' }
       vi.mocked(executeCombine).mockReturnValue(combineResult)
-      vi.mocked(computeGhostPlacement).mockReturnValue({
+      vi.mocked(computePlacementPreview).mockReturnValue({
         ...defaultPlacement,
         combineTarget: { uid: 'target-1', recipe: fakeRecipe, isDiscovered: false },
       })
@@ -260,7 +260,7 @@ describe('useInventoryDrag', () => {
       const { result } = renderDragHook()
 
       act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updateGhost(0, 0, state.backpack.id); })
+      act(() => { result.current.updatePreview(0, 0, state.backpack.id); })
       act(() => { result.current.drop(state.backpack.id); })
 
       expect(executeCombine).toHaveBeenCalledWith(
@@ -278,7 +278,7 @@ describe('useInventoryDrag', () => {
     it('calls onCombineFail on failure', () => {
       const item = makeItem()
       vi.mocked(executeCombine).mockReturnValue({ outcome: 'failed' })
-      vi.mocked(computeGhostPlacement).mockReturnValue({
+      vi.mocked(computePlacementPreview).mockReturnValue({
         ...defaultPlacement,
         combineTarget: { uid: 'target-1', recipe: fakeRecipe, isDiscovered: false },
       })
@@ -286,7 +286,7 @@ describe('useInventoryDrag', () => {
       const { result } = renderDragHook()
 
       act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updateGhost(0, 0, state.backpack.id); })
+      act(() => { result.current.updatePreview(0, 0, state.backpack.id); })
       act(() => { result.current.drop(state.backpack.id); })
 
       expect(onCombineFail).toHaveBeenCalledOnce()
@@ -298,7 +298,7 @@ describe('useInventoryDrag', () => {
   describe('drop — normal placement', () => {
     it('calls moveItem for same-container drag', () => {
       const item = makeItem({ uid: 'item-1' })
-      vi.mocked(computeGhostPlacement).mockReturnValue({
+      vi.mocked(computePlacementPreview).mockReturnValue({
         ...defaultPlacement,
         isValid: true,
       })
@@ -306,7 +306,7 @@ describe('useInventoryDrag', () => {
       const { result } = renderDragHook()
 
       act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updateGhost(2, 3, state.backpack.id); })
+      act(() => { result.current.updatePreview(2, 3, state.backpack.id); })
       act(() => { result.current.drop(state.backpack.id); })
 
       expect(moveItem).toHaveBeenCalledWith(state.backpack, 'item-1', 2, 3, Rotation.R0)
@@ -324,7 +324,7 @@ describe('useInventoryDrag', () => {
         height: 5,
         items: [],
       }
-      vi.mocked(computeGhostPlacement).mockReturnValue({
+      vi.mocked(computePlacementPreview).mockReturnValue({
         ...defaultPlacement,
         isValid: true,
       })
@@ -332,7 +332,7 @@ describe('useInventoryDrag', () => {
       const { result } = renderDragHook(withOmnibox(omnibox))
 
       act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updateGhost(1, 1, omnibox.id); })
+      act(() => { result.current.updatePreview(1, 1, omnibox.id); })
       act(() => { result.current.drop(omnibox.id); })
 
       expect(transferItem).toHaveBeenCalledWith(
@@ -354,7 +354,7 @@ describe('useInventoryDrag', () => {
       const { result } = renderDragHook()
 
       act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updateGhost(0, 0, state.backpack.id); })
+      act(() => { result.current.updatePreview(0, 0, state.backpack.id); })
       act(() => { result.current.drop(state.backpack.id); })
 
       expect(moveItem).not.toHaveBeenCalled()
@@ -382,7 +382,7 @@ describe('useInventoryDrag', () => {
       const { result } = renderDragHook()
 
       act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updateGhost(0, 0, state.backpack.id); })
+      act(() => { result.current.updatePreview(0, 0, state.backpack.id); })
       act(() => { result.current.drop('nonexistent-container'); })
 
       expect(moveItem).not.toHaveBeenCalled()
@@ -397,12 +397,12 @@ describe('useInventoryDrag', () => {
       )
     }
 
-    it('R key rotates drag ghost', () => {
+    it('R key rotates drag preview', () => {
       const item = makeItem()
       vi.mocked(computeRotation).mockReturnValue({
         rotation: Rotation.R90,
-        ghostX: 1,
-        ghostY: 2,
+        previewX: 1,
+        previewY: 2,
         isValid: true,
       })
 

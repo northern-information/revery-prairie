@@ -97,7 +97,7 @@ export const InventoryPanel = ({
     scheduleFade()
   }, [scheduleFade])
 
-  const { dragState, startDrag, updateGhost, drop, cancelDrag } = useInventoryDrag({
+  const { dragState, startDrag, updatePreview, drop, cancelDrag } = useInventoryDrag({
     containers,
     state,
     onDrop,
@@ -267,7 +267,7 @@ export const InventoryPanel = ({
                 containerId={state.openContainer.id}
                 dragState={dragState}
                 onStartDrag={handleStartDrag}
-                onUpdateGhost={updateGhost}
+                onUpdatePreview={updatePreview}
                 onDrop={drop}
                 onQuickTransfer={handleQuickTransfer}
                 itemInfoRef={itemInfoRef}
@@ -323,7 +323,7 @@ export const InventoryPanel = ({
                   containerId={state.backpack.id}
                   dragState={dragState}
                   onStartDrag={handleStartDrag}
-                  onUpdateGhost={updateGhost}
+                  onUpdatePreview={updatePreview}
                   onDrop={drop}
                   onQuickTransfer={state.openContainer ? handleQuickTransfer : undefined}
                   itemInfoRef={itemInfoRef}
