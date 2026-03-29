@@ -254,8 +254,8 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
   return (
     <div className="fixed inset-0 z-10" onClick={onClose}>
       <div
-        className="border-border text-text fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border bg-black/85 px-8 py-6 font-mono text-xs"
-        style={{ width: 560, maxHeight: '80vh' }}
+        className="border-border text-text fixed top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col border bg-black/85 px-8 py-6 font-mono text-xs"
+        style={{ width: 560, height: '80vh' }}
         onClick={(e) => { e.stopPropagation() }}
       >
         <CloseButton onClick={onClose} label="Close manual" />
@@ -299,8 +299,7 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
 
         {/* Scrollable content */}
         <div
-          className="scrollbar-custom overflow-y-auto pr-2"
-          style={{ maxHeight: 'calc(80vh - 180px)' }}
+          className="scrollbar-custom min-h-0 flex-1 overflow-y-auto pr-2"
         >
           {visibleCategories.map((cat) => {
             const catEntries = filtered.filter((e) => e.category === cat)
