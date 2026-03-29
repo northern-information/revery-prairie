@@ -138,7 +138,7 @@ const EntryCard = ({
 
       {/* Summary/lore — hidden for undiscovered recipes unless result spoiler is revealed */}
       {(!isRecipe || discovered || manualState.revealedHints.has(recipeResultKey)) && (
-        <div className="text-dim mt-1 text-xs">{entry.lore}</div>
+        <div className="text-dim mt-1 whitespace-pre-line text-xs">{entry.lore}</div>
       )}
 
       {/* Properties */}
