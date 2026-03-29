@@ -28,9 +28,9 @@ behaviors:
       - field: playerFacing
         effect: "set to the direction argument"
       - field: camera.x
-        effect: "updated via updateCamera clamping"
+        effect: "updated via updateCamera: player-centered with clamping, or map-centered when map is smaller than viewport"
       - field: camera.y
-        effect: "updated via updateCamera clamping"
+        effect: "updated via updateCamera: player-centered with clamping, or map-centered when map is smaller than viewport"
       - field: currentZone
         effect: "may change via checkTransition if player steps on a CaveEntrance tile (zone swap between overworld and cave)"
     determinism: deterministic
@@ -108,6 +108,9 @@ edge_cases:
   - id: out-of-bounds
     description: "Player at max map boundary attempting to move further out is rejected by isInBounds check"
     expected: "movePlayer returns false, position unchanged"
+  - id: small-map-camera-centering
+    description: "When map dimensions are smaller than viewport (e.g. cave zone), camera centers the map in the viewport using negative offset"
+    expected: "camera.x = -floor((viewportWidth - mapWidth) / 2) when mapWidth < viewportWidth, same for y axis"
 
 failure_conditions:
   - trigger: "Target tile is non-walkable (Space, CaveWall, CaveBreakableWall)"
