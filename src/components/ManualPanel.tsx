@@ -99,14 +99,12 @@ const EntryCard = ({
   manualState,
   showCategory,
   onToggleHint,
-  onNavigate,
 }: {
   entry: ManualEntry
   discoveries: Set<string>
   manualState: ManualState
   showCategory: boolean
   onToggleHint: (key: string) => void
-  onNavigate: (entryId: string) => void
 }) => {
   const discovered = isDiscovered(discoveries, entry)
   const isRecipe = entry.sourceKind === 'recipe'
@@ -148,26 +146,6 @@ const EntryCard = ({
         <div className="text-dim mt-1 text-xs">category: {entry.category}</div>
       )}
 
-      {/* Cross-refs */}
-      {entry.crossRefs.length > 0 && (
-        <div className="text-dim mt-3 text-xs">
-          {entry.crossRefs
-            .filter((ref) => MANUAL_ENTRIES[ref])
-            .map((ref, i) => (
-              <span key={ref}>
-                {i > 0 && ', '}
-                <button
-                  type="button"
-                  className="text-dim hover:text-pink underline"
-                  onClick={() => { onNavigate(ref) }}
-                >
-                  {MANUAL_ENTRIES[ref].name}
-                </button>
-              </span>
-            ))}
-        </div>
-      )}
-
       {/* Hints */}
       {entry.hints.map((hint, i) => {
         const hintKey = `${entry.id}:${String(i)}`
@@ -206,22 +184,6 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
         manualState.revealedHints.add(key)
       }
       forceRender((n) => n + 1)
-    },
-    [manualState],
-  )
-
-  const navigateToEntry = useCallback(
-    (entryId: string) => {
-      const entry = MANUAL_ENTRIES[entryId]
-      if (!entry) return
-      manualState.activeCategory = entry.category
-      manualState.searchQuery = ''
-      setActiveCategoryLocal(entry.category)
-      setSearchQueryLocal('')
-      setTimeout(() => {
-        const el = document.getElementById(`manual-entry-${entryId}`)
-        el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 0)
     },
     [manualState],
   )
@@ -310,7 +272,6 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
                       manualState={manualState}
                       showCategory={activeCategory === null}
                       onToggleHint={toggleHint}
-                      onNavigate={navigateToEntry}
                     />
                   </div>
                 ))}
