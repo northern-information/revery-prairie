@@ -45,6 +45,8 @@ const EXPECTED_FIELDS = [
   'caveHiddenPositions',
   'caveNpcSpot',
   'caveBreakableWallPositions',
+  'manualDiscoveries',
+  'manualState',
   'moabGiftGiven',
   'hoverPath',
   'hoverPathTarget',

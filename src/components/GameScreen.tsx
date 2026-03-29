@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react'
 import { DialogBox, DIALOG_HEIGHT, DIALOG_WIDTH } from './DialogBox'
 import { GameCanvas } from './GameCanvas'
 import { InventoryPanel } from './InventoryPanel'
+import { ManualPanel } from './ManualPanel'
 import { Menu } from './Menu'
 import { PickupToasts } from './PickupToasts'
 import { Sidebar } from './Sidebar'
@@ -181,6 +182,14 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
             />
           )
         })()}
+      {activePanel === 'manual' && (
+        <ManualPanel
+          state={state}
+          onClose={() => {
+            setActivePanel(null)
+          }}
+        />
+      )}
       {activePanel === 'menu' && (
         <Menu
           onResume={() => {

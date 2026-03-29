@@ -2,6 +2,7 @@ import { CHAIN_EXPLOSION_CHANCE, spawnChainMeteorites } from './celestial'
 import { ComponentType } from './ecs/types'
 import { AURA_RADIUS } from './effects'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
+import { recordDiscovery } from './manual'
 import { getBlockedPositions } from './movement'
 import { createGroundOmniboxEntity } from './omnibox'
 import { isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
@@ -51,6 +52,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     const fit = findFitPosition(state.backpack, itemDrop.definitionId)
     if (fit) {
       placeItem(state.backpack, itemDrop.definitionId, fit.rotation, fit.gridX, fit.gridY)
+      recordDiscovery(state, `item:${itemDrop.definitionId}`)
       pickedUp.push(itemDrop.definitionId)
       state.world.destroyEntity(eid)
     }
@@ -64,6 +66,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     if (fit) {
       placeItem(state.backpack, 'bee', fit.rotation, fit.gridX, fit.gridY)
       state.world.destroyEntity(eid)
+      recordDiscovery(state, 'item:bee')
       pickedUp.push('bee')
     }
   }
@@ -94,6 +97,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     if (fit) {
       placeItem(state.backpack, 'meteorite', fit.rotation, fit.gridX, fit.gridY)
       state.world.destroyEntity(eid)
+      recordDiscovery(state, 'item:meteorite')
       pickedUp.push('meteorite')
       meteoritesCaptured++
     }

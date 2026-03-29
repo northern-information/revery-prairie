@@ -11,6 +11,7 @@ import {
   SHOOTING_STAR_SPAWN_CHANCE,
 } from './constants'
 import { ComponentType } from './ecs/types'
+import { recordDiscovery } from './manual'
 import { isInBounds, isWalkableTile } from './position'
 import { TileType } from './types'
 
@@ -51,6 +52,7 @@ export const spawnChainMeteorites = (
   }
 
   const spawned = Math.min(CHAIN_EXPLOSION_COUNT, candidates.length)
+  if (spawned > 0) recordDiscovery(state, 'event:chain-explosion')
   for (let i = 0; i < spawned; i++) {
     const pos = candidates[i]
     const me = state.world.createEntity()

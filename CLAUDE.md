@@ -68,8 +68,10 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/inventory.ts` — spatial grid operations (place, remove, move, rotate, transfer, auto-sort).
 - `src/engine/items.ts` — item definition registry, backpack/container factories.
 - `src/engine/recipes.ts` — recipe definitions, combine detection, preview functions.
+- `src/engine/manual.ts` — prairie manual entry types, `MANUAL_ENTRIES` registry, `MANUAL_LORE` table, builder functions, `recordDiscovery`, `filterManualEntries`, `isDiscovered`.
 - `src/engine/audio.ts` — two-layer audio manager singleton. `setAmbient`, `startDialogMusic`, `stopDialogMusic`, `stopAll`, `setMusicEnabled`. manages ambient (zone) and dialog (character) HTMLAudioElements with rAF crossfading.
-- `src/components/GameScreen.tsx` — main game container orchestrating canvas, sidebar, inventory, menu, dialogs, toasts.
+- `src/components/GameScreen.tsx` — main game container orchestrating canvas, sidebar, inventory, menu, manual, dialogs, toasts.
+- `src/components/ManualPanel.tsx` — prairie manual panel with category tabs, search, entry cards, spoiler hints, cross-ref navigation.
 - `src/components/GameCanvas.tsx` — canvas element, rAF render via game loop, resize handling, HiDPI.
 - `src/components/InventoryPanel.tsx` — inventory UI panel with grid, combine toast, drag-to-map.
 - `src/components/InventoryGrid.tsx` — single container grid renderer with drag-and-drop.
@@ -146,9 +148,43 @@ the permacomputer is never consumed by recipes. it is a tool that persists. the 
 - `i` — toggle inventory (legacy, still works)
 - `x` — drop hovered item
 - `e` — context-dependent: pick up open ground omnibox / close open backpack omnibox / open hovered omnibox / open facing ground omnibox / talk to character / advance dialog
+- `tab` — toggle prairie manual
 - `esc` — close panel / open menu
 - during drag: `r` rotates preview, `esc` cancels (captured by drag hook)
 - `isDraggingRef` blocks `x`/`r` in keyboard hook while drag is active, but allows movement through
+
+## prairie manual
+
+in-game encyclopedia cataloging all game content. fullscreen overlay panel toggled with `[tab]`. movement remains active while open.
+
+- **`src/engine/manual.ts`** — entry types (`ManualEntry`, `ManualHint`), builder functions, `MANUAL_ENTRIES` registry, `MANUAL_LORE` table, discovery helpers, search/filter, category ordering.
+- **`src/components/ManualPanel.tsx`** — React panel with category tabs, search, entry cards, spoiler hint blocks, cross-ref navigation.
+
+### auto-generation
+
+entries are derived at runtime from existing registries:
+- items from `ITEM_DEFINITIONS` (id, name, glyph, color, category, summary from description)
+- recipes from `RECIPES` array (adding a recipe auto-creates a manual entry)
+- characters from `CHARACTER_DEFINITIONS` (excludes ghost variants — ghosts get one collective entry)
+- manual-only entries for zones (`overworld`, `cave`) and events (`shooting-star`, `chain-explosion`)
+
+cross-refs are auto-derived by scanning recipes for shared ingredients.
+
+### discovery tracking
+
+`manualDiscoveries: Set<string>` on `GameState`. structured keys: `item:<id>`, `recipe:<key>`, `character:<id>`, `zone:cave`, `event:chain-explosion`, `event:wall-break`, `event:moab-gift`. `recordDiscovery(state, key)` is called at existing mutation points in `entities.ts`, `interaction.ts`, `drag.ts`, `cave.ts`, `celestial.ts`.
+
+### visibility
+
+the manual is open from the start — all entries are browsable. undiscovered recipe results are behind a spoiler block (`???` with `[+]` toggle). once discovered via crafting, the result shows openly. discovery markers are visual (dim vs full-color glyphs), not gates.
+
+### persisted state
+
+`manualState` on `GameState` tracks `activeCategory`, `searchQuery`, and `revealedHints: Set<string>`. survives save/load via existing `Set` serialization.
+
+### lore authoring
+
+hand-authored content goes in the `MANUAL_LORE` table in `manual.ts`. entries without lore use their auto-derived summary. run `/maintain-manual` to audit for gaps and scaffold stubs.
 
 ## entities
 
@@ -208,6 +244,8 @@ mutable game state has no access control — any function with a `GameState` ref
 - `facingEntityPos` — `interaction.ts` (`updateFacingEntity`). `cave.ts` nulls on zone transition.
 - `cursorScreenPos` — `Sidebar.tsx` (set on mousemove, null on mouseleave).
 - `musicEnabled` — `GameScreen.tsx` (Menu toggle). `useMusic.ts` reads. `state.ts` initializes to `true`.
+- `manualDiscoveries` — **multi-spawner, single lifecycle.** multiple engine modules call `recordDiscovery()` in `manual.ts` to add entries. no module removes entries (discoveries are permanent). `state.ts` initializes with starting item keys.
+- `manualState` — **single-owner.** `ManualPanel.tsx` reads and writes via local React state synced to the mutable object. `state.ts` initializes.
 
 **owner + clearers** (one module writes meaningful values, others only null/reset):
 - `cursorTile` — `cursor.ts` derives from `cursorScreenPos`. `Sidebar.tsx` nulls on mouseleave.
@@ -301,7 +339,7 @@ each spec requires: `id` (kebab-case), `name`, `status` (planned/partial/impleme
 - `harness/plans/` — execution plans (YAML).
 - `harness/src/` — harness tooling: validator, plan parser, topo sort, checksum, prompt assembler, executor, logger.
 - `harness/__tests__/` — harness module tests.
-- `.claude/skills/` — local skill definitions as `{skill-name}/SKILL.md` (`new-feature`, `change-request`, `bug-report`, `maintain-harness`).
+- `.claude/skills/` — local skill definitions as `{skill-name}/SKILL.md` (`new-feature`, `change-request`, `bug-report`, `maintain-harness`, `maintain-manual`).
 
 ### harness commands
 

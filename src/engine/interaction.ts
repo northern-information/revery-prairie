@@ -1,6 +1,7 @@
 import { getCharacterDefinition } from './characters'
 import { ComponentType } from './ecs/types'
 import { createOmniboxContainer, findFitPosition, placeItem } from './inventory'
+import { recordDiscovery } from './manual'
 import { CARDINAL, DIRECTIONS, isInBounds } from './position'
 import { Rotation, TileType, Zone } from './types'
 
@@ -110,6 +111,7 @@ export const getAdjacentCharacter = (
 export const interactWithCharacter = (state: GameState): boolean => {
   const character = getAdjacentCharacter(state)
   if (!character) return false
+  recordDiscovery(state, `character:${character.definitionId}`)
   state.activeDialog = {
     characterId: character.definitionId,
     lineIndex: 0,
@@ -193,6 +195,8 @@ export const giveMoabGift = (state: GameState): boolean => {
   }
 
   state.moabGiftGiven = true
+  recordDiscovery(state, 'event:moab-gift')
+  recordDiscovery(state, 'item:omnibox')
 
   // Switch Moab's dialog to post-gift single line
   const def = getCharacterDefinition('moab')
@@ -231,6 +235,7 @@ export const breakWall = (state: GameState, time: number): boolean => {
 
   // Reveal hidden chamber
   state.caveRevealed = true
+  recordDiscovery(state, 'event:wall-break')
 
   updateFacingEntity(state)
   return true

@@ -13,7 +13,7 @@ import { Rotation, Zone } from '@/engine/types'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
-export type Panel = 'inventory' | 'menu' | null
+export type Panel = 'inventory' | 'menu' | 'manual' | null
 
 interface UseKeyboardOptions {
   state: GameState
@@ -207,6 +207,14 @@ export const useKeyboard = ({
         if (activePanel !== 'menu') {
           setActivePanel('inventory')
         }
+        return
+      }
+
+      // Toggle manual
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        if (activePanel === 'menu') return
+        setActivePanel(activePanel === 'manual' ? null : 'manual')
         return
       }
 

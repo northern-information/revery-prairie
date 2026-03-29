@@ -137,6 +137,14 @@ export interface GameState {
   caveBreakableWallPositions: Position[]
   moabGiftGiven: boolean
   world: World
+  manualDiscoveries: Set<string>
+  manualState: ManualState
+}
+
+export interface ManualState {
+  activeCategory: string | null
+  searchQuery: string
+  revealedHints: Set<string>
 }
 
 export const Sky = {
