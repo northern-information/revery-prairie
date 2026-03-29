@@ -6,9 +6,11 @@ interface MenuProps {
   onNewGame: () => void
   metric: boolean
   onToggleUnits: () => void
+  musicEnabled: boolean
+  onToggleMusic: () => void
 }
 
-export const Menu = ({ onResume, onNewGame, metric, onToggleUnits }: MenuProps) => {
+export const Menu = ({ onResume, onNewGame, metric, onToggleUnits, musicEnabled, onToggleMusic }: MenuProps) => {
   const [confirming, setConfirming] = useState(false)
 
   return (
@@ -54,6 +56,9 @@ export const Menu = ({ onResume, onNewGame, metric, onToggleUnits }: MenuProps) 
           )}
           <button type="button" className="text-text hover:text-pink text-left" onClick={onToggleUnits}>
             units: {metric ? 'metric' : 'imperial'}
+          </button>
+          <button type="button" className="text-text hover:text-pink text-left" onClick={onToggleMusic}>
+            music: {musicEnabled ? 'on' : 'off'}
           </button>
         </div>
       </div>

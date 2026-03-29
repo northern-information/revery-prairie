@@ -68,13 +68,14 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/inventory.ts` — spatial grid operations (place, remove, move, rotate, transfer, auto-sort).
 - `src/engine/items.ts` — item definition registry, backpack/container factories.
 - `src/engine/recipes.ts` — recipe definitions, combine detection, preview functions.
+- `src/engine/audio.ts` — two-layer audio manager singleton. `setAmbient`, `startDialogMusic`, `stopDialogMusic`, `stopAll`, `setMusicEnabled`. manages ambient (zone) and dialog (character) HTMLAudioElements with rAF crossfading.
 - `src/components/GameScreen.tsx` — main game container orchestrating canvas, sidebar, inventory, menu, dialogs, toasts.
 - `src/components/GameCanvas.tsx` — canvas element, rAF render via game loop, resize handling, HiDPI.
 - `src/components/InventoryPanel.tsx` — inventory UI panel with grid, combine toast, drag-to-map.
 - `src/components/InventoryGrid.tsx` — single container grid renderer with drag-and-drop.
 - `src/components/ItemInfo.tsx` — imperative item info display (forwardRef).
 - `src/components/Sidebar.tsx` — always-visible right sidebar: item info, log, stats, tile, cursor, weather, units, controls.
-- `src/components/Menu.tsx` — in-game menu (resume, new game).
+- `src/components/Menu.tsx` — in-game menu (resume, new game, units toggle, music toggle).
 - `src/components/DialogBox.tsx` — NPC dialog rendering.
 - `src/components/NamePrompt.tsx` — steward name entry screen.
 - `src/components/DragCursor.tsx` — visual cursor during inventory drag-and-drop.
@@ -86,6 +87,7 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/hooks/useCanvasDrop.ts` — handles dropping dragged items from inventory onto the canvas map.
 - `src/hooks/useEventLog.ts` — event log + toast system (pickups, drops, combines).
 - `src/hooks/useMouse.ts` — click-to-move handler, called inside GameCanvas.
+- `src/hooks/useMusic.ts` — bridges game state (zone, dialog) to audio manager. watches `currentZone` for ambient crossfade and `activeDialog` for character music crossfade.
 
 ## mouse controls
 
@@ -205,6 +207,7 @@ mutable game state has no access control — any function with a `GameState` ref
 - `weather.*` — `weather.ts` (`tickWeather`). read everywhere, mutated nowhere else.
 - `facingEntityPos` — `interaction.ts` (`updateFacingEntity`). `cave.ts` nulls on zone transition.
 - `cursorScreenPos` — `Sidebar.tsx` (set on mousemove, null on mouseleave).
+- `musicEnabled` — `GameScreen.tsx` (Menu toggle). `useMusic.ts` reads. `state.ts` initializes to `true`.
 
 **owner + clearers** (one module writes meaningful values, others only null/reset):
 - `cursorTile` — `cursor.ts` derives from `cursorScreenPos`. `Sidebar.tsx` nulls on mouseleave.
@@ -244,6 +247,15 @@ field ownership drift (a new writer appearing without updating this section) can
 midwest illinois spring conditions. temperature 35-72°F, wind 3-25 mph, humidity 45-85%. sky condition (sunny/cloudy/rain) is weighted by humidity. weather drifts every 5 seconds. season is hardcoded to "spring" for now.
 
 imperial/metric toggle in the sidebar controls section. `fToC()` and `mphToKph()` are in `src/engine/weather.ts`.
+
+## music
+
+two-layer audio system using HTMLAudioElement with rAF-driven crossfading.
+
+- **ambient layer** — zone music that loops continuously. overworld and cave each have their own track (`ZONE_MUSIC` in `audio.ts`). crossfades on zone transition (~300ms). stays loaded (volume 0) during character dialog so it resumes seamlessly.
+- **dialog layer** — character-specific music. triggered when `activeDialog` opens for a character with a `music` field on their `CharacterDefinition`. crossfades with ambient (~300ms): ambient fades down, dialog music fades in. reversed on dialog close.
+- **toggle** — `musicEnabled: boolean` on GameState. on/off button in ESC menu. `setMusicEnabled()` toggles `.muted` on both elements — preserves playback position for instant toggle.
+- **assets** — MP3 files in `public/music/`. referenced by path in `ZONE_MUSIC` and `CharacterDefinition.music`. MP3s are gitignored to avoid repo bloat — `public/music/MANIFEST.md` lists expected files with MD5 checksums. the files must be placed manually after cloning.
 
 ## commands
 

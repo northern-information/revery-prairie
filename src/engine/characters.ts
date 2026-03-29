@@ -8,6 +8,7 @@ interface CharacterEntry {
   glyphColor: string
   portrait?: string
   dialog: string[]
+  music?: string
 }
 
 const CHARACTERS = {
@@ -21,6 +22,7 @@ const CHARACTERS = {
       'bees remember every flower they visit.',
       'this land was quiet before you came.',
     ],
+    music: '/music/gron.mp3',
   },
   moab: {
     name: 'Moab Coldë',

@@ -110,6 +110,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     hoverPathTarget: null,
     rainSeed: Math.floor(Math.random() * 2147483647),
     metric: true,
+    musicEnabled: true,
     currentZone: Zone.Overworld,
     overworldSnapshot: null,
     caveMap: cave.map,
