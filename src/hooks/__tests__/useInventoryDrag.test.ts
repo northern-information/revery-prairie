@@ -52,6 +52,7 @@ const fakeRecipe: Recipe = {
   ingredients: ['bee', 'clover'],
   kind: 'macro',
   resultName: 'prairie',
+  description: 'test recipe',
   execute: vi.fn(() => true),
 }
 

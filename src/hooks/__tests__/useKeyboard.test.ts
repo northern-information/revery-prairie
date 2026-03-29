@@ -59,7 +59,7 @@ vi.mock('@/engine/inventory', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/engine/inventory')>()
   return {
     ...actual,
-    findItemByDefinition: vi.fn(() => null),
+    findItemByDefinition: vi.fn(() => undefined),
     moveItem: vi.fn(),
   }
 })
@@ -185,7 +185,7 @@ beforeEach(() => {
   vi.mocked(grabOmnibox).mockReturnValue(null)
   vi.mocked(toggleFacingOmnibox).mockReturnValue(false)
   vi.mocked(toggleOmnibox).mockReturnValue(false)
-  vi.mocked(findItemByDefinition).mockReturnValue(null)
+  vi.mocked(findItemByDefinition).mockReturnValue(undefined)
 })
 
 // --- tests ---
