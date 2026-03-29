@@ -53,6 +53,8 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/interaction.ts` — `interactWithCharacter`, `advanceDialog`, `updateFacingEntity`, `isInteractableAt`, dialog tick, `giveMoabGift`, `breakWall`.
 - `src/engine/omnibox.ts` — `openOmnibox`, `closeOmnibox`, `toggleOmnibox`, `grabOmnibox`, `toggleFacingOmnibox`.
 - `src/engine/combine.ts` — drag-drop combine detection (`checkCombine`) and `combineBeeAndClover`.
+- `src/engine/drag.ts` — `DragState` type, `computeGhostPlacement`, `executeCombine`, `executeStoreInOmnibox`, `computeRotation`. pure drag-and-drop logic (no React).
+- `src/engine/effects.ts` — `getTileEffects`, `AURA_RADIUS`. character aura system (e.g. Gron's rain aura).
 - `src/engine/pathfinding.ts` — A\* pathfinding (4-directional, manhattan heuristic, binary min-heap).
 - `src/engine/coordinates.ts` — screen pixel to world tile coordinate transform.
 - `src/engine/camera.ts` — camera positioning and viewport clamping.
@@ -97,7 +99,7 @@ click-to-interact: clicking any interactable (character, ground omnibox, breakab
 
 pathfinding blockers: click-to-move and hover preview use `getPathfindingBlockers(state, target?)` instead of `getBlockedPositions`. this extends the blocked set with cave entrance tiles so paths don't accidentally route through zone transitions. the `target` parameter excludes the destination from blocking so you can still pathfind TO an entrance or interactable.
 
-hover path preview: `state.hoverPath` / `state.hoverPathTarget` cache a preview path from the player to the cursor tile. computed in the renderer when `cursorTile` changes (not every frame). cleared when an active path exists or cursor leaves the canvas. rendered as the tile's own glyph in dark gray (`#555555`) — preserves tile identity (e.g. `O` for cave entrance) rather than replacing with dots.
+hover path preview: `state.hoverPath` / `state.hoverPathTarget` cache a preview path from the player to the cursor tile. computed in `cursor.ts` (`updateCursorState`) when `cursorTile` changes (not every frame). cleared when an active path exists or cursor leaves the canvas. rendered as the tile's own glyph in dark gray (`#555555`) — preserves tile identity (e.g. `O` for cave entrance) rather than replacing with dots.
 
 tile glyph preservation on paths: special tiles (cave entrance, interactables) render their own glyph on active path and hover overlays, never replaced by path dots (`·`) or waypoint markers (`+`). this is a general rendering convention — tile identity is always visible.
 
@@ -161,7 +163,7 @@ portable 5x5 containers (2x2 inventory footprint). created by combining meteorit
 - **numbering**: `state.nextOmniboxNumber` increments on creation. container names are `omnibox #1`, `omnibox #2`, etc.
 - **single open**: `state.openContainer: Container | null`. only one omnibox can be open at a time. opening a new one closes the previous.
 - **explicit open/close only**: no auto-open on adjacency or drop. player must press `[e]` to toggle. ground omniboxes auto-close when player walks >1 tile away.
-- **facing highlight**: `state.playerFacing: Direction` tracks last move direction. `state.facingEntityPos: Position | null` is the nearest interactable tile the player faces (ground omnibox, character, or any future interactable). rendered with pink cursor inversion. `updateFacingEntity()` recalculates after every move. to add new interactable types, add a check to `isInteractableAt()` in `actions.ts`.
+- **facing highlight**: `state.playerFacing: Direction` tracks last move direction. `state.facingEntityPos: Position | null` is the nearest interactable tile the player faces (ground omnibox, character, or any future interactable). rendered with pink cursor inversion. `updateFacingEntity()` recalculates after every move. to add new interactable types, add a check to `isInteractableAt()` in `interaction.ts`.
 - **ground behavior**: dropped omniboxes go to `state.groundOmniboxes[]` (not `groundItems`). ground omniboxes are solid — they block `movePlayer()` and `findPath()`. press `[e]` facing a ground omnibox to toggle it open/closed.
 - **drag-to-store**: dragging an item onto an omnibox item in any container stores the item inside and opens the omnibox. shows the dragged item's glyph as pink preview. shows "not enough capacity" toast if it doesn't fit.
 - **panel layout**: backpack panel renders above-right of the player. omnibox panel renders above-left of the player. positioned relative to player screen coordinates.
@@ -185,7 +187,7 @@ separate 40x25 interior map accessed via a `CaveEntrance` tile on the overworld.
 - **zone**: `state.currentZone` is `'overworld'` or `'cave'`. `state.overworldSnapshot` holds saved state while in cave.
 - **rendering**: out-of-bounds tiles render as dark void (no stars) in cave zone. cave tile chars/colors are in `TILE_CHARS`/`TILE_COLORS`.
 - **ticks**: bee, ghost, shooting star, and weather ticks are suppressed in cave (`GameCanvas.tsx` guards on `currentZone`).
-- **breakable wall**: player presses `[e]` facing a `CaveBreakableWall` tile to break it. highlights pink via the interactable system (`isInteractableAt` / `facingEntityPos`). `breakWall()` in `actions.ts` converts all wall tiles to `CaveFloor`, sets `caveRevealed = true`, and spawns a `CrumbleEffect` (600ms animation: `#` → `+` → `.` → `·` with fading brown tones). one-time permanent event.
+- **breakable wall**: player presses `[e]` facing a `CaveBreakableWall` tile to break it. highlights pink via the interactable system (`isInteractableAt` / `facingEntityPos`). `breakWall()` in `interaction.ts` converts all wall tiles to `CaveFloor`, sets `caveRevealed = true`, and spawns a `CrumbleEffect` (600ms animation: `#` → `+` → `.` → `·` with fading brown tones). one-time permanent event.
 - **hidden chamber masking**: when `!state.caveRevealed`, tiles in `state.caveHiddenPositions` render as `CaveWall` in the renderer — the player cannot see behind the breakable wall until it is broken. `caveHiddenPositions` is a `Set<string>` of posKeys built from `generateCave`'s `hiddenChamberPositions`.
 - **cave entrance protection**: the `CaveEntrance` tile is indestructible — the prairie recipe (and any future tile-overwriting mechanics) must exclude `TileType.CaveEntrance`.
 
@@ -194,6 +196,48 @@ separate 40x25 interior map accessed via a `CaveEntrance` tile on the overworld.
 `state.pendingAction` is a nullable callback fired when `tickPath` completes a path. used for walk-then-drop and click-to-interact. cleared on path failure, WASD interruption, or click-to-move override. `state.previewFn` provides visual indicators (blinking `#`) during transit. `state.pendingInteractionTarget` tracks the clicked interactable's position for pink highlight during the walk — cleared alongside `pendingAction`.
 
 **caveat**: `movePlayer` inside `tickPath` can trigger a zone transition (`checkTransition`) which sets `state.path = null`. `tickPath` must null-check `state.path` after `movePlayer` returns before calling `shift()`.
+
+## field ownership
+
+mutable game state has no access control — any function with a `GameState` reference can write any field. these conventions document the current write patterns to prepare for eventual module boundaries. fields are categorized by mutation pattern. aspirational notes mark fields where consolidation would improve clarity — they're signals for when you're already touching that area, not tech debt tickets.
+
+**single-owner** (only one module writes meaningful values, init in `state.ts`):
+- `weather.*` — `weather.ts` (`tickWeather`). read everywhere, mutated nowhere else.
+- `facingEntityPos` — `interaction.ts` (`updateFacingEntity`). `cave.ts` nulls on zone transition.
+- `cursorScreenPos` — `Sidebar.tsx` (set on mousemove, null on mouseleave).
+
+**owner + clearers** (one module writes meaningful values, others only null/reset):
+- `cursorTile` — `cursor.ts` derives from `cursorScreenPos`. `Sidebar.tsx` nulls on mouseleave.
+- `pendingAction`, `pendingInteractionTarget` — `useMouse.ts` and `useCanvasDrop.ts` set. `movement.ts` clears on completion/failure. `useKeyboard.ts` cancels on WASD. `cave.ts` resets on zone transition.
+- `previewFn` — `useMouse.ts`, `useCanvasDrop.ts`, `InventoryPanel.tsx` set. `movement.ts` clears on arrival. `useKeyboard.ts` cancels. `cave.ts` resets.
+
+**multi-spawner, single lifecycle** (multiple modules create entries, one owns tick/removal):
+- `bees[]` — `entities.ts` owns tick + pickup. `recipes.ts` and `useCanvasDrop.ts` spawn. `cave.ts` snapshots/restores. *aspirational: route all spawns through a single `spawnBee()` in entities.ts.*
+- `characters[]` — `entities.ts` owns tick (position mutation). `state.ts` initializes. `cave.ts` swaps on zone transition.
+- `groundItems`, `groundOmniboxes` — `entities.ts` owns pickup/drop lifecycle. `useCanvasDrop.ts` spawns via canvas drop. `cave.ts` snapshots/restores. *aspirational: centralize spawning into entities.ts.*
+
+**shared writers** (multiple modules write meaningful non-null values):
+- `path`, `pathWaypoints` — `useMouse.ts` sets (click-to-move). `useCanvasDrop.ts` sets (walk-then-drop). `movement.ts` consumes/advances. `useKeyboard.ts` cancels on WASD. `cave.ts` resets. *aspirational: introduce a `setPath()` accessor in movement.ts that all callers use.*
+- `playerFacing` — `movement.ts` sets on WASD move. `useMouse.ts` sets toward clicked interactable. *aspirational: unify into movement.ts if mouse-facing can route through movePlayer.*
+
+**convention for new fields**: prefer single-owner. if multiple modules must write, use the owner+clearers or multi-spawner pattern — never ad-hoc writes from arbitrary locations. document the owner in this section when adding new mutable state.
+
+### maintaining this section
+
+- adding a new mutable field to `GameState` → document its owner and pattern here.
+- adding a new writer to an existing field → update the field's entry. if it changes pattern category (e.g. single-owner becomes owner+clearers), recategorize it.
+- consolidating writers (fulfilling an aspirational note) → update the entry and remove the aspirational note.
+- removing a field → remove its entry.
+
+aspirational notes are not prescriptive. when working on a feature that touches a shared-writer field, check if the consolidation is natural to include. if so, do it and update the docs. if not, leave it. once all aspirational notes on a field are resolved, it should cleanly fit into single-owner or owner+clearers.
+
+### eventual module boundaries
+
+the four patterns map to future access control: single-owner fields become private to their module with read-only exports. owner+clearers fields get a `clear()` accessor. multi-spawner fields get a `spawn()` entry point. shared-writer fields need an accessor function before boundaries can be drawn.
+
+the `path`/`pathWaypoints` aspirational note (introduce `setPath()` in movement.ts) is the highest-priority consolidation — it's the most-written shared field and the natural first candidate for an accessor.
+
+field ownership drift (a new writer appearing without updating this section) can be caught during `/maintain-harness` runs by grepping for `state.<field> =` assignments and comparing against the documented owners.
 
 ## weather
 
