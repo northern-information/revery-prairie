@@ -38,7 +38,9 @@ const resumePending = (): void => {
   if (pendingPlay) {
     const el = pendingPlay
     pendingPlay = null
-    el.play().catch(() => {})
+    el.play().catch(() => {
+      // still blocked — give up silently
+    })
   }
   document.removeEventListener('click', resumePending)
   document.removeEventListener('keydown', resumePending)
