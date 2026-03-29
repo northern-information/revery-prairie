@@ -4,7 +4,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { useEventLog, TOAST_DURATION } from '../useEventLog'
 
 describe('useEventLog', () => {
-  let rafCallbacks: Array<FrameRequestCallback>
+  let rafCallbacks: FrameRequestCallback[]
   let rafIdCounter: number
 
   beforeEach(() => {
@@ -14,7 +14,7 @@ describe('useEventLog', () => {
       rafCallbacks.push(cb)
       return ++rafIdCounter
     })
-    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {})
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined)
   })
 
   afterEach(() => {
