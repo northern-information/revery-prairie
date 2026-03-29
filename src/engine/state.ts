@@ -89,8 +89,6 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     bees: [],
     shootingStars: [],
     meteorites: [],
-    explosions: [],
-    meteoritePickupEffects: [],
     groundItems: [],
     groundOmniboxes: [],
     characters: [],
@@ -123,7 +121,6 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     caveNpcSpot: cave.npcSpot,
     caveHiddenPositions: new Set(cave.hiddenChamberPositions.map(p => posKey(p.x, p.y))),
     caveBreakableWallPositions: cave.breakableWallPositions,
-    crumbleEffects: [],
     moabGiftGiven: false,
     world: createWorld(),
   }

@@ -1,4 +1,5 @@
 import { spawnShootingStar, spawnShootingStarAtTarget, tickShootingStars } from '../celestial'
+import { ComponentType } from '../ecs'
 import { pickUpGroundItems } from '../entities'
 import {
   EXPLOSION_DURATION_MS,
@@ -102,7 +103,6 @@ describe('tickShootingStars', () => {
 
   it('creates a LandingExplosion when a star lands', () => {
     const state = createGameState('Test', 20, 20)
-    state.explosions = []
     const targetX = Math.floor(MAP_WIDTH / 2)
     const targetY = Math.floor(MAP_HEIGHT / 2)
     state.map[targetY][targetX] = { type: TileType.Dirt }
@@ -118,19 +118,28 @@ describe('tickShootingStars', () => {
 
     tickShootingStars(state, 5000)
 
-    expect(state.explosions).toHaveLength(1)
-    expect(state.explosions[0].pos.x).toBe(targetX)
-    expect(state.explosions[0].pos.y).toBe(targetY)
-    expect(state.explosions[0].startTime).toBe(5000)
+    const explosions = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
+    expect(explosions).toHaveLength(1)
+    const pos = state.world.getComponent(explosions[0], ComponentType.Position)
+    const effect = state.world.getComponent(explosions[0], ComponentType.TimedEffect)
+    expect(pos?.x).toBe(targetX)
+    expect(pos?.y).toBe(targetY)
+    expect(effect?.startTime).toBe(5000)
   })
 
   it('cleans up expired explosions', () => {
     const state = createGameState('Test', 20, 20)
-    state.explosions.push({ pos: { x: 50, y: 50 }, startTime: 1000 })
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.Position, { x: 50, y: 50 })
+    state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: 1000 })
+    state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
 
     tickShootingStars(state, 1000 + EXPLOSION_DURATION_MS + 1)
 
-    expect(state.explosions).toHaveLength(0)
+    const explosions = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
+    expect(explosions).toHaveLength(0)
   })
 
   it('targeted star passes over walkable tiles until reaching its exact target', () => {

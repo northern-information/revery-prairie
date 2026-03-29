@@ -1,4 +1,5 @@
 import { spawnShootingStar, tickShootingStars } from './celestial'
+import { ComponentType } from './ecs'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { movePlayer, tickPath } from './movement'
@@ -191,10 +192,13 @@ const createDefaultSystems = (
       zone: 'always',
       priority: 100,
       fn: (state, time) => {
-        if (state.crumbleEffects.length > 0) {
-          state.crumbleEffects = state.crumbleEffects.filter(
-            (e) => time - e.startTime <= CRUMBLE_DURATION_MS,
-          )
+        for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+          const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+          if (tag !== 'crumble') continue
+          const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+          if (effect && time - effect.startTime > CRUMBLE_DURATION_MS) {
+            state.world.destroyEntity(eid)
+          }
         }
       },
     },

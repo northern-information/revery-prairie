@@ -1,4 +1,5 @@
 import { CHAIN_EXPLOSION_CHANCE, spawnChainMeteorites } from './celestial'
+import { ComponentType } from './ecs'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
 import { getBlockedPositions } from './movement'
 import { isInBounds, isWalkableTile, ORDINAL, posKey, removeByIndices } from './position'
@@ -79,7 +80,10 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   pickedUp.push(...meteoriteResult.captured)
 
   if (meteoriteResult.removed.length > 0 && time !== undefined) {
-    state.meteoritePickupEffects.push({ pos: { x: px, y: py }, startTime: time })
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.Position, { x: px, y: py })
+    state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pickupBloom', startTime: time })
+    state.world.addComponent(e, ComponentType.EntityTag, 'pickupBloom')
   }
 
   // Auto-close open ground omnibox when player walks away

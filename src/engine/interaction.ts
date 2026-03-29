@@ -1,4 +1,5 @@
 import { getCharacterDefinition } from './characters'
+import { ComponentType } from './ecs'
 import { createOmniboxContainer, findFitPosition, placeItem } from './inventory'
 import { CARDINAL, DIRECTIONS, isInBounds } from './position'
 import { Rotation, TileType, Zone } from './types'
@@ -182,10 +183,15 @@ export const breakWall = (state: GameState, time: number): boolean => {
   if (state.map[fy][fx].type !== TileType.CaveBreakableWall) return false
 
   // Start crumble animation
-  state.crumbleEffects.push({
+  const crumbleEntity = state.world.createEntity()
+  state.world.addComponent(crumbleEntity, ComponentType.MultiPosition, {
     positions: [...state.caveBreakableWallPositions],
+  })
+  state.world.addComponent(crumbleEntity, ComponentType.TimedEffect, {
+    kind: 'crumble',
     startTime: time,
   })
+  state.world.addComponent(crumbleEntity, ComponentType.EntityTag, 'crumble')
 
   // Convert breakable wall tiles to CaveFloor
   for (const pos of state.caveBreakableWallPositions) {

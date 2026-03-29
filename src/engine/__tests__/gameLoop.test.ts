@@ -1,4 +1,5 @@
 import { createGameLoop } from '../gameLoop'
+import { ComponentType } from '../ecs'
 import { Zone } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
@@ -347,19 +348,23 @@ describe('default systems', () => {
 
   it('crumble effects are cleaned up after duration', () => {
     const state = createTestState()
-    state.crumbleEffects = [
-      { positions: [{ x: 5, y: 5 }], startTime: 0 },
-    ]
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.MultiPosition, { positions: [{ x: 5, y: 5 }] })
+    state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'crumble', startTime: 0 })
+    state.world.addComponent(e, ComponentType.EntityTag, 'crumble')
+
+    const queryCrumbles = () => state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'crumble')
 
     const gameLoop = createGameLoop(state, {})
 
     // At t=500, still within CRUMBLE_DURATION_MS (600)
     gameLoop.tick(500)
-    expect(state.crumbleEffects).toHaveLength(1)
+    expect(queryCrumbles()).toHaveLength(1)
 
     // At t=601, expired
     gameLoop.tick(601)
-    expect(state.crumbleEffects).toHaveLength(0)
+    expect(queryCrumbles()).toHaveLength(0)
   })
 
   it('weather ticks at 5000ms in overworld', () => {

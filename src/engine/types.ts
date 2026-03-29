@@ -92,16 +92,6 @@ export interface Meteorite {
   fromChain?: boolean
 }
 
-export interface LandingExplosion {
-  pos: Position // center of the explosion (where the star landed)
-  startTime: number // rAF timestamp when the explosion began
-}
-
-export interface MeteoritePickupEffect {
-  pos: Position // center of the bloom (where the meteorite was)
-  startTime: number // rAF timestamp when the effect began
-}
-
 export interface DriftBehavior {
   type: 'drift'
   speed: number // probability per tick (0.15 for ghosts)
@@ -148,8 +138,6 @@ export interface GameState {
   bees: Bee[]
   shootingStars: ShootingStar[]
   meteorites: Meteorite[]
-  explosions: LandingExplosion[]
-  meteoritePickupEffects: MeteoritePickupEffect[]
   groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
   characters: Character[]
@@ -189,14 +177,8 @@ export interface GameState {
   caveHiddenPositions: Set<string>
   caveNpcSpot: Position
   caveBreakableWallPositions: Position[]
-  crumbleEffects: CrumbleEffect[]
   moabGiftGiven: boolean
   world: World
-}
-
-export interface CrumbleEffect {
-  positions: Position[]
-  startTime: number
 }
 
 export const Sky = {
@@ -263,8 +245,6 @@ export interface OverworldSnapshot {
   groundOmniboxes: GroundOmnibox[]
   meteorites: Meteorite[]
   shootingStars: ShootingStar[]
-  explosions: LandingExplosion[]
-  meteoritePickupEffects: MeteoritePickupEffect[]
   path: Position[] | null
   pathWaypoints: Position[]
   pendingAction: (() => void) | null

@@ -10,6 +10,7 @@ import {
   SHOOTING_STAR_MIN_LENGTH,
   SHOOTING_STAR_SPAWN_CHANCE,
 } from './constants'
+import { ComponentType } from './ecs'
 import { isInBounds, isWalkableTile, posKey, removeByIndices } from './position'
 import { TileType } from './types'
 
@@ -57,7 +58,10 @@ export const spawnChainMeteorites = (
   for (let i = 0; i < spawned; i++) {
     const pos = candidates[i]
     state.meteorites.push({ pos, fromChain: true })
-    state.explosions.push({ pos, startTime: time })
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
+    state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
+    state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
   }
 
   return spawned
@@ -166,7 +170,10 @@ export const tickShootingStars = (state: GameState, time: number): void => {
         // Targeted landing — only land on the exact target tile
         if (x === star.landingTarget.x && y === star.landingTarget.y) {
           state.meteorites.push({ pos: { x, y } })
-          state.explosions.push({ pos: { x, y }, startTime: time })
+          const e = state.world.createEntity()
+          state.world.addComponent(e, ComponentType.Position, { x, y })
+          state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
+          state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
           toRemove.push(i)
           continue
         }
@@ -175,7 +182,10 @@ export const tickShootingStars = (state: GameState, time: number): void => {
         const tile = state.map[y][x]
         if (tile.type === TileType.Dirt || tile.type === TileType.Clover) {
           state.meteorites.push({ pos: { x, y } })
-          state.explosions.push({ pos: { x, y }, startTime: time })
+          const e = state.world.createEntity()
+          state.world.addComponent(e, ComponentType.Position, { x, y })
+          state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
+          state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
           toRemove.push(i)
           continue
         }
@@ -197,11 +207,15 @@ export const tickShootingStars = (state: GameState, time: number): void => {
 
   removeByIndices(state.shootingStars, toRemove)
 
-  // Clean up expired explosions
-  state.explosions = state.explosions.filter(e => time - e.startTime <= EXPLOSION_DURATION_MS)
-
-  // Clean up expired meteorite pickup effects
-  state.meteoritePickupEffects = state.meteoritePickupEffects.filter(
-    e => time - e.startTime <= PICKUP_EFFECT_DURATION_MS
-  )
+  // Clean up expired timed effects (explosions and pickup blooms)
+  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+    if (!effect) continue
+    if (tag === 'explosion' && time - effect.startTime > EXPLOSION_DURATION_MS) {
+      state.world.destroyEntity(eid)
+    } else if (tag === 'pickupBloom' && time - effect.startTime > PICKUP_EFFECT_DURATION_MS) {
+      state.world.destroyEntity(eid)
+    }
+  }
 }

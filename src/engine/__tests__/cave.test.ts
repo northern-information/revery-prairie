@@ -1,6 +1,7 @@
 import { breakWall, updateFacingEntity } from '../interaction'
 import { checkTransition, enterCave, exitCave, generateCave } from '../cave'
 import { CAVE_HEIGHT, CAVE_WIDTH } from '../constants'
+import { ComponentType } from '../ecs'
 import { findPath } from '../pathfinding'
 import { isWalkableTile } from '../position'
 import { TileType, Zone } from '../types'
@@ -323,9 +324,13 @@ describe('breakWall', () => {
     state.map[state.player.y][state.player.x] = { type: TileType.CaveFloor }
 
     breakWall(state, 1000)
-    expect(state.crumbleEffects).toHaveLength(1)
-    expect(state.crumbleEffects[0].startTime).toBe(1000)
-    expect(state.crumbleEffects[0].positions.length).toBe(state.caveBreakableWallPositions.length)
+    const crumbles = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'crumble')
+    expect(crumbles).toHaveLength(1)
+    const effect = state.world.getComponent(crumbles[0], ComponentType.TimedEffect)
+    const multiPos = state.world.getComponent(crumbles[0], ComponentType.MultiPosition)
+    expect(effect?.startTime).toBe(1000)
+    expect(multiPos?.positions.length).toBe(state.caveBreakableWallPositions.length)
   })
 
   it('returns false when already revealed', () => {

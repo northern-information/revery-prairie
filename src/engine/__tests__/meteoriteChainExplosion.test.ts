@@ -1,4 +1,5 @@
 import { spawnChainMeteorites } from '../celestial'
+import { ComponentType } from '../ecs'
 import { pickUpGroundItems } from '../entities'
 import { placeItem } from '../inventory'
 import { TileType } from '../types'
@@ -16,7 +17,9 @@ describe('chain explosion', () => {
 
       expect(spawned).toBe(3)
       expect(state.meteorites).toHaveLength(3)
-      expect(state.explosions).toHaveLength(3)
+      const explosions = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+        .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
+      expect(explosions).toHaveLength(3)
     })
 
     it('marks spawned meteorites with fromChain: true', () => {
@@ -38,13 +41,20 @@ describe('chain explosion', () => {
 
       spawnChainMeteorites(state, origin, 5000)
 
-      for (const explosion of state.explosions) {
-        expect(explosion.startTime).toBe(5000)
+      const explosionEids = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+        .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
+      for (const eid of explosionEids) {
+        const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+        expect(effect?.startTime).toBe(5000)
       }
       // Each explosion position matches a meteorite position
       const meteoriteKeys = new Set(state.meteorites.map((m) => `${String(m.pos.x)},${String(m.pos.y)}`))
-      for (const explosion of state.explosions) {
-        expect(meteoriteKeys.has(`${String(explosion.pos.x)},${String(explosion.pos.y)}`)).toBe(true)
+      for (const eid of explosionEids) {
+        const pos = state.world.getComponent(eid, ComponentType.Position)
+        expect(pos).toBeDefined()
+        if (pos) {
+          expect(meteoriteKeys.has(`${String(pos.x)},${String(pos.y)}`)).toBe(true)
+        }
       }
     })
 
@@ -230,7 +240,9 @@ describe('chain explosion', () => {
 
       expect(spawned).toBe(0)
       expect(state.meteorites).toHaveLength(0)
-      expect(state.explosions).toHaveLength(0)
+      const explosions = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+        .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
+      expect(explosions).toHaveLength(0)
     })
 
     it('spawns fewer than 3 when only 1-2 valid tiles', () => {

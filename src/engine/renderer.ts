@@ -1,4 +1,5 @@
 import { getCharacterDefinition } from './characters'
+import { ComponentType } from './ecs'
 import { AURA_RADIUS } from './effects'
 import {
   BEE_CHAR,
@@ -164,10 +165,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     characterMap.set(key, { glyph: def.glyph, color: def.glyphColor })
   }
 
-  // Build a map of explosion pixels
+  // Build a map of explosion pixels (from ECS)
   const explosionMap = new Map<string, { char: string; color: string }>()
-  for (const explosion of state.explosions) {
-    const elapsed = time - explosion.startTime
+  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'explosion') continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+    if (!pos || !effect) continue
+
+    const elapsed = time - effect.startTime
     const progress = Math.min(elapsed / EXPLOSION_DURATION_MS, 1)
     const currentRadius = Math.floor(progress * EXPLOSION_RADIUS)
     const charIndex = Math.min(Math.floor(progress * EXPLOSION_CHARS.length), EXPLOSION_CHARS.length - 1)
@@ -177,14 +184,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
     // Generate particles in a ring at the current radius
     if (currentRadius === 0) {
-      explosionMap.set(posKey(explosion.pos.x, explosion.pos.y), { char, color })
+      explosionMap.set(posKey(pos.x, pos.y), { char, color })
     } else {
       for (let dy = -currentRadius; dy <= currentRadius; dy++) {
         for (let dx = -currentRadius; dx <= currentRadius; dx++) {
           // Only ring positions (not filled circle)
           if (Math.abs(dx) !== currentRadius && Math.abs(dy) !== currentRadius) continue
-          const ex = explosion.pos.x + dx
-          const ey = explosion.pos.y + dy
+          const ex = pos.x + dx
+          const ey = pos.y + dy
           if (isInBounds(ex, ey, state.mapWidth, state.mapHeight)) {
             explosionMap.set(posKey(ex, ey), { char, color })
           }
@@ -193,9 +200,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a map of meteorite pickup effect pixels (starlight bloom)
+  // Build a map of meteorite pickup effect pixels (starlight bloom, from ECS)
   const pickupEffectMap = new Map<string, { char: string; color: string }>()
-  for (const effect of state.meteoritePickupEffects) {
+  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'pickupBloom') continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+    if (!pos || !effect) continue
+
     const elapsed = time - effect.startTime
 
     if (elapsed <= PICKUP_EFFECT_BLOOM_MS) {
@@ -204,11 +217,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const currentRadius = bloomProgress * PICKUP_EFFECT_RADIUS
       const charIndex = Math.min(
         Math.floor(bloomProgress * PICKUP_EFFECT_CHARS_RING.length),
-        PICKUP_EFFECT_CHARS_RING.length - 1
+        PICKUP_EFFECT_CHARS_RING.length - 1,
       )
       const colorIndex = Math.min(
         Math.floor(bloomProgress * PICKUP_EFFECT_COLORS.length),
-        PICKUP_EFFECT_COLORS.length - 1
+        PICKUP_EFFECT_COLORS.length - 1,
       )
       const char = PICKUP_EFFECT_CHARS_RING[charIndex]
       const color = PICKUP_EFFECT_COLORS[colorIndex]
@@ -218,8 +231,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         for (let dx = -r; dx <= r; dx++) {
           const dist = Math.sqrt(dx * dx + dy * dy)
           if (Math.round(dist) !== Math.round(currentRadius)) continue
-          const ex = effect.pos.x + dx
-          const ey = effect.pos.y + dy
+          const ex = pos.x + dx
+          const ey = pos.y + dy
           if (isInBounds(ex, ey, state.mapWidth, state.mapHeight)) {
             pickupEffectMap.set(posKey(ex, ey), { char, color })
           }
@@ -232,7 +245,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const fadeProgress = fadeElapsed / fadeDuration
       const colorIndex = Math.min(
         Math.floor((0.5 + fadeProgress * 0.5) * PICKUP_EFFECT_COLORS.length),
-        PICKUP_EFFECT_COLORS.length - 1
+        PICKUP_EFFECT_COLORS.length - 1,
       )
       const color = PICKUP_EFFECT_COLORS[colorIndex]
 
@@ -240,8 +253,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         for (let dx = -PICKUP_EFFECT_RADIUS; dx <= PICKUP_EFFECT_RADIUS; dx++) {
           const dist = Math.sqrt(dx * dx + dy * dy)
           if (dist > PICKUP_EFFECT_RADIUS + 0.5) continue
-          const ex = effect.pos.x + dx
-          const ey = effect.pos.y + dy
+          const ex = pos.x + dx
+          const ey = pos.y + dy
           if (!isInBounds(ex, ey, state.mapWidth, state.mapHeight)) continue
 
           if (Math.round(dist) === PICKUP_EFFECT_RADIUS) {
@@ -262,16 +275,22 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a map of crumble effect pixels (breakable wall)
+  // Build a map of crumble effect pixels (breakable wall, from ECS)
   const crumbleMap = new Map<string, { char: string; color: string }>()
-  for (const effect of state.crumbleEffects) {
+  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'crumble') continue
+    const multiPos = state.world.getComponent(eid, ComponentType.MultiPosition)
+    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+    if (!multiPos || !effect) continue
+
     const elapsed = time - effect.startTime
     const progress = Math.min(elapsed / CRUMBLE_DURATION_MS, 1)
     const charIndex = Math.min(Math.floor(progress * CRUMBLE_CHARS.length), CRUMBLE_CHARS.length - 1)
     const colorIndex = Math.min(Math.floor(progress * CRUMBLE_COLORS.length), CRUMBLE_COLORS.length - 1)
     const crChar = CRUMBLE_CHARS[charIndex]
     const crColor = CRUMBLE_COLORS[colorIndex]
-    for (const pos of effect.positions) {
+    for (const pos of multiPos.positions) {
       crumbleMap.set(posKey(pos.x, pos.y), { char: crChar, color: crColor })
     }
   }
