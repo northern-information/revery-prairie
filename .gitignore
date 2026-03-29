@@ -5,3 +5,4 @@ dist
 !.claude/skills/
 .vite
 harness/logs/
+public/music/*.mp3
