@@ -120,6 +120,12 @@ edge_cases:
   - id: ghost-dialog-complete-cycle
     description: "Player advances through all 3 dialog lines and dialog closes"
     expected: "activeDialog set to null after advancing past final line"
+  - id: ghost-drift-probability-bounds
+    description: "Ghost drift speed is 0.15 — over many ticks, each ghost moves roughly 15% of the time. In a 1000-tick window a ghost should move between 100 and 200 times (within ~3σ of the expected 150)."
+    expected: "Move count per ghost falls within statistical bounds; no ghost is permanently frozen or moving every tick"
+  - id: ghost-spawn-position-distribution
+    description: "Ghost spawn positions are uniformly drawn from all walkable non-Sand tiles. Over many game inits, spawn positions should cover a wide range of the map rather than clustering in one area."
+    expected: "Spawns are spread across the walkable region; the retry loop (max 500 attempts) terminates well before the cap on normal maps"
 
 failure_conditions:
   - trigger: "Ghost moves onto a Space tile"

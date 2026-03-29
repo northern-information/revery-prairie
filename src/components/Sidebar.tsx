@@ -33,13 +33,12 @@ const SKY_LABEL = {
 interface SidebarProps {
   state: GameState
   activePanel: Panel
-  setActivePanel: (panel: Panel) => void
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
   eventLog: GameEvent[]
   metricsRef: React.RefObject<CharMetrics | null>
 }
 
-export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, eventLog, metricsRef }: SidebarProps) => {
+export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef }: SidebarProps) => {
   const { metric } = state
   const cursorRef = useRef<{ x: number; y: number } | null>(null)
 
@@ -257,50 +256,6 @@ export const Sidebar = ({ state, activePanel, setActivePanel, itemInfoRef, event
           </table>
         </div>
 
-        <div>
-          <SectionHeader>controls</SectionHeader>
-          <div className="flex flex-col gap-1">
-            <span className="text-dim">[click] move to tile</span>
-            <span className="text-dim">[shift+click] chain moves</span>
-            <span className="text-dim">[wasd] move</span>
-            <button
-              type="button"
-              className="text-dim hover:text-text pointer-events-auto text-left"
-              onClick={() => {
-                setActivePanel(activePanel === 'inventory' ? null : 'inventory')
-              }}
-            >
-              invento[r]y
-            </button>
-            {(() => {
-              const adjacentCharacter = state.characters.some(c => {
-                const dx = Math.abs(c.pos.x - state.player.x)
-                const dy = Math.abs(c.pos.y - state.player.y)
-                return (dx === 1 && dy === 0) || (dx === 0 && dy === 1)
-              })
-              const adjacentOmnibox = state.groundOmniboxes.some(go => {
-                const dx = Math.abs(go.pos.x - state.player.x)
-                const dy = Math.abs(go.pos.y - state.player.y)
-                return (dx === 1 && dy === 0) || (dx === 0 && dy === 1)
-              })
-              const active = adjacentCharacter || adjacentOmnibox || state.openContainer !== null
-              return <span className={active ? 'text-text' : 'text-dim'}>int[e]ract</span>
-            })()}
-            <button
-              type="button"
-              className="text-dim hover:text-text pointer-events-auto text-left"
-              onClick={() => {
-                if (activePanel === 'menu') {
-                  setActivePanel(null)
-                } else {
-                  setActivePanel('menu')
-                }
-              }}
-            >
-              [esc] {activePanel || state.activeDialog ? 'close' : 'menu'}
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   )

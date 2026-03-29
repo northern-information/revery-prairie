@@ -53,7 +53,7 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/interaction.ts` — `interactWithCharacter`, `advanceDialog`, `updateFacingEntity`, `isInteractableAt`, dialog tick, `giveMoabGift`, `breakWall`.
 - `src/engine/omnibox.ts` — `openOmnibox`, `closeOmnibox`, `toggleOmnibox`, `grabOmnibox`, `toggleFacingOmnibox`.
 - `src/engine/combine.ts` — drag-drop combine detection (`checkCombine`) and `combineBeeAndClover`.
-- `src/engine/drag.ts` — `DragState` type, `computeGhostPlacement`, `executeCombine`, `executeStoreInOmnibox`, `computeRotation`. pure drag-and-drop logic (no React).
+- `src/engine/drag.ts` — `DragState` type, `computePlacementPreview`, `executeCombine`, `executeStoreInOmnibox`, `computeRotation`. pure drag-and-drop logic (no React).
 - `src/engine/effects.ts` — `getTileEffects`, `AURA_RADIUS`. character aura system (e.g. Gron's rain aura).
 - `src/engine/pathfinding.ts` — A\* pathfinding (4-directional, manhattan heuristic, binary min-heap).
 - `src/engine/coordinates.ts` — screen pixel to world tile coordinate transform.
@@ -82,7 +82,7 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/components/PickupToasts.tsx` — item pickup notifications.
 - `src/hooks/useGameEngine.ts` — game state singleton, held outside React's render cycle.
 - `src/hooks/useKeyboard.ts` — all keybindings and panel toggling.
-- `src/hooks/useInventoryDrag.ts` — drag state, ghost, rotation, combine detection.
+- `src/hooks/useInventoryDrag.ts` — drag state, placement preview, rotation, combine detection.
 - `src/hooks/useCanvasDrop.ts` — handles dropping dragged items from inventory onto the canvas map.
 - `src/hooks/useEventLog.ts` — event log + toast system (pickups, drops, combines).
 - `src/hooks/useMouse.ts` — click-to-move handler, called inside GameCanvas.
@@ -119,7 +119,7 @@ tetris-style spatial inventory. items have shapes (`boolean[][]`) that must phys
 - **`src/components/InventoryPanel.tsx`** — docked left of sidebar. backpack grid, controls, combine toast.
 - **`src/components/InventoryGrid.tsx`** — CSS grid with 28px cells, drag-and-drop, combine detection.
 - **`src/components/ItemInfo.tsx`** — imperative (`forwardRef`/`useImperativeHandle`) item info display in sidebar. uses refs to avoid re-render cascades from hover.
-- **`src/hooks/useInventoryDrag.ts`** — drag state, ghost rendering, rotation, combine detection.
+- **`src/hooks/useInventoryDrag.ts`** — drag state, placement preview, rotation, combine detection.
 
 key types: `ItemDefinition` (template), `ItemInstance` (placed in container), `Container` (grid), `Rotation` (0/1/2/3).
 
@@ -145,7 +145,7 @@ the permacomputer is never consumed by recipes. it is a tool that persists. the 
 - `x` — drop hovered item
 - `e` — context-dependent: pick up open ground omnibox / close open backpack omnibox / open hovered omnibox / open facing ground omnibox / talk to character / advance dialog
 - `esc` — close panel / open menu
-- during drag: `r` rotates ghost, `esc` cancels (captured by drag hook)
+- during drag: `r` rotates preview, `esc` cancels (captured by drag hook)
 - `isDraggingRef` blocks `x`/`r` in keyboard hook while drag is active, but allows movement through
 
 ## entities
@@ -312,3 +312,4 @@ npm run harness:run      # execute a plan (--plan harness/plans/{id}.yaml)
 - `as const satisfies Record<string, T>` pattern for typed registries that derive IDs from keys.
 - any code that re-creates `ItemInstance` objects (autoSort, merge, stack, split) must preserve the original `uid`. omnibox containers are keyed by item uid in `state.omniboxContainers` — generating a new uid breaks the link.
 - when mutating state before delegating to another function, check that the delegate can fail. if it can, validate before mutating (e.g. check standing tile before removing recipe ingredients).
+- avoid naming collisions between game concepts and source concepts. if a game entity and a code mechanism share a name (e.g. "ghost" for both NPC spirits and drag-preview phantoms), rename the code mechanism. overlapping terminology makes human understanding difficult.

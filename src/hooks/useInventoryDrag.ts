@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import {
-  computeGhostPlacement,
+  computePlacementPreview,
   computeRotation,
   executeCombine,
   executeStoreInOmnibox,
@@ -47,8 +47,8 @@ export const useInventoryDrag = ({
       sourceContainerId: containerId,
       targetContainerId: containerId,
       rotation: item.rotation,
-      ghostX: item.gridX,
-      ghostY: item.gridY,
+      previewX: item.gridX,
+      previewY: item.gridY,
       isValid: true,
       combineTarget: null,
       storeTarget: null,
@@ -56,14 +56,14 @@ export const useInventoryDrag = ({
     })
   }, [])
 
-  const updateGhost = useCallback(
+  const updatePreview = useCallback(
     (gridX: number, gridY: number, targetContainerId: string) => {
       setDragState((prev) => {
         if (!prev) return null
         const container = getContainer(targetContainerId)
         if (!container) return prev
 
-        const placement = computeGhostPlacement(
+        const placement = computePlacementPreview(
           container,
           prev.item,
           prev.rotation,
@@ -77,8 +77,8 @@ export const useInventoryDrag = ({
         return {
           ...prev,
           targetContainerId,
-          ghostX: gridX,
-          ghostY: gridY,
+          previewX: gridX,
+          previewY: gridY,
           ...placement,
         }
       })
@@ -151,14 +151,14 @@ export const useInventoryDrag = ({
       }
 
       if (dragState.sourceContainerId === targetContainerId) {
-        moveItem(sourceContainer, dragState.item.uid, dragState.ghostX, dragState.ghostY, dragState.rotation)
+        moveItem(sourceContainer, dragState.item.uid, dragState.previewX, dragState.previewY, dragState.rotation)
       } else {
         transferItem(
           sourceContainer,
           targetContainer,
           dragState.item.uid,
-          dragState.ghostX,
-          dragState.ghostY,
+          dragState.previewX,
+          dragState.previewY,
           dragState.rotation,
         )
       }
@@ -177,13 +177,13 @@ export const useInventoryDrag = ({
     setDragState((prev) => {
       if (!prev) return null
       const container = containers.find((c) => c.id === prev.sourceContainerId)?.container ?? null
-      const result = computeRotation(container, prev.item, prev.rotation, prev.ghostX, prev.ghostY)
+      const result = computeRotation(container, prev.item, prev.rotation, prev.previewX, prev.previewY)
 
       return {
         ...prev,
         rotation: result.rotation,
-        ghostX: result.ghostX,
-        ghostY: result.ghostY,
+        previewX: result.previewX,
+        previewY: result.previewY,
         isValid: result.isValid,
         combineTarget: null,
         storeTarget: null,
@@ -216,7 +216,7 @@ export const useInventoryDrag = ({
   return {
     dragState,
     startDrag,
-    updateGhost,
+    updatePreview,
     drop,
     cancelDrag,
   }

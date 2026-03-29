@@ -12,8 +12,8 @@ export interface DragState {
   sourceContainerId: string
   targetContainerId: string
   rotation: Rotation
-  ghostX: number
-  ghostY: number
+  previewX: number
+  previewY: number
   isValid: boolean
   combineTarget: { uid: string; recipe: Recipe; isDiscovered: boolean } | null
   storeTarget: { omniboxUid: string } | null
@@ -30,14 +30,14 @@ export const NEXT_ROTATION: Record<Rotation, Rotation> = {
 export const isOmniboxSelfDrop = (item: ItemInstance, targetContainerId: string): boolean =>
   item.definitionId === 'omnibox' && targetContainerId === item.uid
 
-export interface GhostPlacement {
+export interface PlacementPreview {
   isValid: boolean
   combineTarget: DragState['combineTarget']
   storeTarget: DragState['storeTarget']
   cannotCombine: boolean
 }
 
-export const computeGhostPlacement = (
+export const computePlacementPreview = (
   container: Container,
   item: ItemInstance,
   rotation: Rotation,
@@ -46,7 +46,7 @@ export const computeGhostPlacement = (
   sourceContainerId: string,
   targetContainerId: string,
   discoveredRecipes: Set<string>,
-): GhostPlacement => {
+): PlacementPreview => {
   const selfDrop = isOmniboxSelfDrop(item, targetContainerId)
 
   const isValid =
@@ -142,8 +142,8 @@ export const executeCombine = (
 
 export interface RotationResult {
   rotation: Rotation
-  ghostX: number
-  ghostY: number
+  previewX: number
+  previewY: number
   isValid: boolean
 }
 
@@ -151,8 +151,8 @@ export const computeRotation = (
   container: Container | null,
   item: ItemInstance,
   currentRotation: Rotation,
-  ghostX: number,
-  ghostY: number,
+  previewX: number,
+  previewY: number,
 ): RotationResult => {
   const newRotation = NEXT_ROTATION[currentRotation]
   const def = getDefinition(item.definitionId)
@@ -161,12 +161,12 @@ export const computeRotation = (
   const sh = shape.length
 
   if (!container) {
-    return { rotation: newRotation, ghostX, ghostY, isValid: false }
+    return { rotation: newRotation, previewX, previewY, isValid: false }
   }
 
-  const clampedX = Math.min(ghostX, Math.max(0, container.width - sw))
-  const clampedY = Math.min(ghostY, Math.max(0, container.height - sh))
+  const clampedX = Math.min(previewX, Math.max(0, container.width - sw))
+  const clampedY = Math.min(previewY, Math.max(0, container.height - sh))
   const isValid = canPlace(container, item.definitionId, newRotation, clampedX, clampedY, item.uid)
 
-  return { rotation: newRotation, ghostX: clampedX, ghostY: clampedY, isValid }
+  return { rotation: newRotation, previewX: clampedX, previewY: clampedY, isValid }
 }

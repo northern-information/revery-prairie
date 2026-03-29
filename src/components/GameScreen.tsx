@@ -185,7 +185,6 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
       <Sidebar
         state={state}
         activePanel={activePanel}
-        setActivePanel={setActivePanel}
         itemInfoRef={itemInfoRef}
         eventLog={log}
         metricsRef={metricsRef}

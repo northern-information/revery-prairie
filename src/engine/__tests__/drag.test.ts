@@ -1,5 +1,5 @@
 import {
-  computeGhostPlacement,
+  computePlacementPreview,
   computeRotation,
   executeCombine,
   executeStoreInOmnibox,
@@ -59,12 +59,12 @@ describe('isOmniboxSelfDrop', () => {
   })
 })
 
-describe('computeGhostPlacement', () => {
+describe('computePlacementPreview', () => {
   it('returns valid placement on empty space', () => {
     const state = createTestState()
     const item = makeItem('meteorite')
 
-    const result = computeGhostPlacement(
+    const result = computePlacementPreview(
       state.backpack,
       item,
       Rotation.R0,
@@ -86,7 +86,7 @@ describe('computeGhostPlacement', () => {
     placeItem(state.backpack, 'permacomputer', Rotation.R0, 0, 0)
     const meteorite = makeItem('meteorite')
 
-    const result = computeGhostPlacement(
+    const result = computePlacementPreview(
       state.backpack,
       meteorite,
       Rotation.R0,
@@ -109,7 +109,7 @@ describe('computeGhostPlacement', () => {
     placeItem(state.backpack, 'omnibox', Rotation.R0, 0, 0)
     const meteorite = makeItem('meteorite')
 
-    const result = computeGhostPlacement(
+    const result = computePlacementPreview(
       state.backpack,
       meteorite,
       Rotation.R0,
@@ -130,7 +130,7 @@ describe('computeGhostPlacement', () => {
     placeItem(state.backpack, 'meteorite', Rotation.R0, 0, 0)
     const meteorite2 = makeItem('meteorite')
 
-    const result = computeGhostPlacement(
+    const result = computePlacementPreview(
       state.backpack,
       meteorite2,
       Rotation.R0,
@@ -153,7 +153,7 @@ describe('computeGhostPlacement', () => {
 
     const container: Container = { id: 'omni-1', name: 'omnibox #1', width: 5, height: 5, items: [] }
 
-    const result = computeGhostPlacement(
+    const result = computePlacementPreview(
       container,
       omnibox,
       Rotation.R0,
@@ -172,7 +172,7 @@ describe('computeGhostPlacement', () => {
     placeItem(state.backpack, 'meteorite', Rotation.R0, 0, 0)
     const placed = defined(state.backpack.items[0])
 
-    const result = computeGhostPlacement(
+    const result = computePlacementPreview(
       state.backpack,
       placed,
       Rotation.R0,
@@ -343,7 +343,7 @@ describe('computeRotation', () => {
     const smallContainer: Container = { id: 'small', name: 'small', width: 2, height: 1, items: [] }
 
     // At R0 it's 2x1 which fits in 2x1, at R90 it's 1x2 which needs height 2
-    // ghostY=0 should clamp to max(0, 1-2)=0 (already clamped)
+    // previewY=0 should clamp to max(0, 1-2)=0 (already clamped)
     const result = computeRotation(smallContainer, item, Rotation.R0, 1, 0)
     expect(result.rotation).toBe(Rotation.R90)
     // But canPlace will fail because shape height (2) > container height (1)
@@ -357,8 +357,8 @@ describe('computeRotation', () => {
     // Place at far right of backpack, rotating should clamp leftward
     const result = computeRotation(state.backpack, item, Rotation.R0, state.backpack.width - 1, 0)
     expect(result.rotation).toBe(Rotation.R90)
-    // 1x2 at R90 — ghostX should clamp to fit
-    expect(result.ghostX).toBeLessThanOrEqual(state.backpack.width - 1)
+    // 1x2 at R90 — previewX should clamp to fit
+    expect(result.previewX).toBeLessThanOrEqual(state.backpack.width - 1)
     expect(result.isValid).toBe(true)
   })
 
@@ -366,8 +366,8 @@ describe('computeRotation', () => {
     const item = makeItem('meteorite')
     const result = computeRotation(null, item, Rotation.R0, 3, 4)
     expect(result.rotation).toBe(Rotation.R90)
-    expect(result.ghostX).toBe(3)
-    expect(result.ghostY).toBe(4)
+    expect(result.previewX).toBe(3)
+    expect(result.previewY).toBe(4)
     expect(result.isValid).toBe(false)
   })
 })

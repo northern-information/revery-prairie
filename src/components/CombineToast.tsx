@@ -37,7 +37,7 @@ export const CombineToast = ({
   let toastTopPx = 0
   if (dragState?.combineTarget) {
     const targetItem = state.backpack.items.find(i => i.uid === dragState.combineTarget?.uid)
-    const minY = Math.min(dragState.ghostY, targetItem?.gridY ?? dragState.ghostY)
+    const minY = Math.min(dragState.previewY, targetItem?.gridY ?? dragState.previewY)
     toastTopPx = minY * INVENTORY_CELL_SIZE
   }
 
