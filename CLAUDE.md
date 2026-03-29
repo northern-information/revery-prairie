@@ -255,7 +255,7 @@ two-layer audio system using HTMLAudioElement with rAF-driven crossfading.
 - **ambient layer** — zone music that loops continuously. overworld and cave each have their own track (`ZONE_MUSIC` in `audio.ts`). crossfades on zone transition (~300ms). stays loaded (volume 0) during character dialog so it resumes seamlessly.
 - **dialog layer** — character-specific music. triggered when `activeDialog` opens for a character with a `music` field on their `CharacterDefinition`. crossfades with ambient (~300ms): ambient fades down, dialog music fades in. reversed on dialog close.
 - **toggle** — `musicEnabled: boolean` on GameState. on/off button in ESC menu. `setMusicEnabled()` toggles `.muted` on both elements — preserves playback position for instant toggle.
-- **assets** — MP3 files in `public/music/`. referenced by path in `ZONE_MUSIC` and `CharacterDefinition.music`.
+- **assets** — MP3 files in `public/music/`. referenced by path in `ZONE_MUSIC` and `CharacterDefinition.music`. MP3s are gitignored to avoid repo bloat — `public/music/MANIFEST.md` lists expected files with MD5 checksums. the files must be placed manually after cloning.
 
 ## commands
 
