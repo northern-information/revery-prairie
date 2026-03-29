@@ -213,7 +213,7 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
               </tr>
               <tr>
                 <td className="text-muted py-0.5">location</td>
-                <td className="py-0.5 text-right">{state.currentZone}</td>
+                <td className="py-0.5 text-right">{state.currentZone === 'overworld' ? 'prairie' : state.currentZone}</td>
               </tr>
               <tr>
                 <td className="text-muted py-0.5">total land</td>
