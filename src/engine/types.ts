@@ -1,3 +1,5 @@
+import type { World } from './ecs/world'
+
 export const TileType = {
   Space: 'space',
   Dirt: 'dirt',
@@ -66,40 +68,6 @@ export interface Container {
   items: ItemInstance[]
 }
 
-export interface GroundItem {
-  definitionId: string
-  pos: Position
-}
-
-export interface Bee {
-  pos: Position
-}
-
-export interface ShootingStar {
-  pos: Position
-  dx: number // -1, 0, or 1
-  dy: number // -1, 0, or 1
-  length: number // trail length (3–6 tiles)
-  age: number // ticks alive (for max-age cleanup)
-  willLand: boolean // if true, converts to meteorite when hitting land
-  landingTarget: Position | null // exact tile to land on (null = land on first walkable)
-}
-
-export interface Meteorite {
-  pos: Position
-  fromChain?: boolean
-}
-
-export interface LandingExplosion {
-  pos: Position // center of the explosion (where the star landed)
-  startTime: number // rAF timestamp when the explosion began
-}
-
-export interface MeteoritePickupEffect {
-  pos: Position // center of the bloom (where the meteorite was)
-  startTime: number // rAF timestamp when the effect began
-}
-
 export interface DriftBehavior {
   type: 'drift'
   speed: number // probability per tick (0.15 for ghosts)
@@ -107,11 +75,6 @@ export interface DriftBehavior {
 }
 
 export type CharacterBehavior = DriftBehavior
-
-export interface GroundOmnibox {
-  uid: string // links to ItemInstance.uid and omniboxContainers key
-  pos: Position
-}
 
 export interface CharacterDefinition {
   id: string
@@ -121,13 +84,6 @@ export interface CharacterDefinition {
   portrait?: string
   dialog: string[]
   music?: string
-}
-
-export interface Character {
-  definitionId: string
-  pos: Position
-  aura?: string
-  behavior?: CharacterBehavior
 }
 
 export interface GameState {
@@ -143,14 +99,6 @@ export interface GameState {
   camera: Position
   viewportWidth: number
   viewportHeight: number
-  bees: Bee[]
-  shootingStars: ShootingStar[]
-  meteorites: Meteorite[]
-  explosions: LandingExplosion[]
-  meteoritePickupEffects: MeteoritePickupEffect[]
-  groundItems: GroundItem[]
-  groundOmniboxes: GroundOmnibox[]
-  characters: Character[]
   activeDialog: {
     characterId: string
     lineIndex: number
@@ -187,13 +135,8 @@ export interface GameState {
   caveHiddenPositions: Set<string>
   caveNpcSpot: Position
   caveBreakableWallPositions: Position[]
-  crumbleEffects: CrumbleEffect[]
   moabGiftGiven: boolean
-}
-
-export interface CrumbleEffect {
-  positions: Position[]
-  startTime: number
+  world: World
 }
 
 export const Sky = {
@@ -249,19 +192,25 @@ export interface CharMetrics {
   charHeight: number
 }
 
+export interface CharacterEntitySnapshot {
+  definitionId: string
+  pos: Position
+  aura?: string
+  behavior?: CharacterBehavior
+}
+
+export interface GroundOmniboxSnapshot {
+  uid: string
+  pos: Position
+}
+
 export interface OverworldSnapshot {
   map: Tile[][]
   mapWidth: number
   mapHeight: number
   player: Position
-  bees: Bee[]
-  characters: Character[]
-  groundItems: GroundItem[]
-  groundOmniboxes: GroundOmnibox[]
-  meteorites: Meteorite[]
-  shootingStars: ShootingStar[]
-  explosions: LandingExplosion[]
-  meteoritePickupEffects: MeteoritePickupEffect[]
+  characterSnapshots: CharacterEntitySnapshot[]
+  groundOmniboxSnapshots: GroundOmniboxSnapshot[]
   path: Position[] | null
   pathWaypoints: Position[]
   pendingAction: (() => void) | null

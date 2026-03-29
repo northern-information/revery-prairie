@@ -2,9 +2,10 @@ import { createGameState } from '../state'
 import { advanceDialog, giveMoabGift, interactWithCharacter, tickDialogTransition } from '../interaction'
 import { getBlockedPositions, movePlayer } from '../movement'
 import { getCharacterDefinition } from '../characters'
-import { enterCave } from '../cave'
+import { enterCave, exitCave } from '../cave'
 import { posKey } from '../position'
 import { Zone } from '../types'
+import { getCharacterEntities } from './helpers'
 
 import type { GameState } from '../types'
 
@@ -37,15 +38,15 @@ describe('moab character definition', () => {
 })
 
 describe('moab cave placement', () => {
-  it('spawns moab in characters on enterCave', () => {
+  it('spawns moab as ECS entity on enterCave', () => {
     const state = makeCaveState()
-    const moab = state.characters.find(c => c.definitionId === 'moab')
+    const moab = getCharacterEntities(state).find(c => c.definitionId === 'moab')
     expect(moab).toBeDefined()
   })
 
   it('places moab at caveNpcSpot', () => {
     const state = makeCaveState()
-    const moab = state.characters.find(c => c.definitionId === 'moab')
+    const moab = getCharacterEntities(state).find(c => c.definitionId === 'moab')
     expect(moab?.pos.x).toBe(state.caveNpcSpot.x)
     expect(moab?.pos.y).toBe(state.caveNpcSpot.y)
   })
@@ -58,17 +59,13 @@ describe('moab cave placement', () => {
   it('re-spawns moab on subsequent enterCave calls', () => {
     const state = makeState()
     enterCave(state)
-    expect(state.characters.find(c => c.definitionId === 'moab')).toBeDefined()
+    expect(getCharacterEntities(state).find(c => c.definitionId === 'moab')).toBeDefined()
 
-    // Exit and re-enter by restoring overworld then entering again
-    // Simulate exit by restoring snapshot
-    const snapshot = state.overworldSnapshot
-    if (snapshot) {
-      state.characters = snapshot.characters
-      state.currentZone = Zone.Overworld
-    }
+    // Exit and re-enter
+    exitCave(state)
+    expect(state.currentZone).toBe(Zone.Overworld)
     enterCave(state)
-    expect(state.characters.find(c => c.definitionId === 'moab')).toBeDefined()
+    expect(getCharacterEntities(state).find(c => c.definitionId === 'moab')).toBeDefined()
   })
 })
 

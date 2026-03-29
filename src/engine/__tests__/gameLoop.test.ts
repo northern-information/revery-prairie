@@ -1,6 +1,7 @@
 import { createGameLoop } from '../gameLoop'
+import { ComponentType } from '../ecs/types'
 import { Zone } from '../types'
-import { clearAroundPlayer, createTestState } from './helpers'
+import { clearAroundPlayer, createBeeEntity, createCharacterTestEntity, createGroundItemEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('registry mechanics', () => {
@@ -260,11 +261,12 @@ describe('zone gating', () => {
     const state = createTestState()
     state.currentZone = Zone.Cave
     // Place a bee to observe whether tickBees runs
-    state.bees = [{ pos: { x: state.player.x + 3, y: state.player.y } }]
+    const beeEid = createBeeEntity(state, state.player.x + 3, state.player.y)
     clearAroundPlayer(state, 5)
 
     const gameLoop = createGameLoop(state, {})
-    const posBefore = { ...state.bees[0].pos }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const posBefore = { ...state.world.getComponent(beeEid, ComponentType.Position)! }
 
     // Tick many times at the bee interval — bees move randomly (30% chance),
     // so run many ticks to ensure at least one move if tickBees were running
@@ -273,7 +275,9 @@ describe('zone gating', () => {
     }
 
     // In cave zone, bees should not have been ticked at all
-    expect(state.bees[0].pos).toEqual(posBefore)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const posAfter = state.world.getComponent(beeEid, ComponentType.Position)!
+    expect(posAfter).toEqual(posBefore)
   })
 })
 
@@ -331,7 +335,7 @@ describe('default systems', () => {
     const targetX = state.player.x + 1
     const targetY = state.player.y
     state.path = [{ x: targetX, y: targetY }]
-    state.groundItems = [{ definitionId: 'bee', pos: { x: targetX, y: targetY } }]
+    createGroundItemEntity(state, 'bee', targetX, targetY)
 
     const pickups: string[] = []
     const gameLoop = createGameLoop(state, {
@@ -347,19 +351,23 @@ describe('default systems', () => {
 
   it('crumble effects are cleaned up after duration', () => {
     const state = createTestState()
-    state.crumbleEffects = [
-      { positions: [{ x: 5, y: 5 }], startTime: 0 },
-    ]
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.MultiPosition, { positions: [{ x: 5, y: 5 }] })
+    state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'crumble', startTime: 0 })
+    state.world.addComponent(e, ComponentType.EntityTag, 'crumble')
+
+    const queryCrumbles = () => state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'crumble')
 
     const gameLoop = createGameLoop(state, {})
 
     // At t=500, still within CRUMBLE_DURATION_MS (600)
     gameLoop.tick(500)
-    expect(state.crumbleEffects).toHaveLength(1)
+    expect(queryCrumbles()).toHaveLength(1)
 
     // At t=601, expired
     gameLoop.tick(601)
-    expect(state.crumbleEffects).toHaveLength(0)
+    expect(queryCrumbles()).toHaveLength(0)
   })
 
   it('weather ticks at 5000ms in overworld', () => {
@@ -593,7 +601,7 @@ describe('held key movement', () => {
     const startY = state.player.y
 
     // Place a character blocking the right tile
-    state.characters = [{ definitionId: 'ghost-1', pos: { x: startX + 1, y: startY } }]
+    createCharacterTestEntity(state, 'ghost-1', startX + 1, startY)
 
     const gameLoop = createGameLoop(state, {})
     state.heldDirection = 'right'
@@ -612,7 +620,7 @@ describe('held key movement', () => {
     clearAroundPlayer(state, 10)
 
     const targetX = state.player.x + 1
-    state.groundItems = [{ definitionId: 'bee', pos: { x: targetX, y: state.player.y } }]
+    createGroundItemEntity(state, 'bee', targetX, state.player.y)
 
     const pickups: string[] = []
     const gameLoop = createGameLoop(state, {

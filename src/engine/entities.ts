@@ -1,37 +1,39 @@
 import { CHAIN_EXPLOSION_CHANCE, spawnChainMeteorites } from './celestial'
+import { ComponentType } from './ecs/types'
+import { AURA_RADIUS } from './effects'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
 import { getBlockedPositions } from './movement'
-import { isInBounds, isWalkableTile, ORDINAL, posKey, removeByIndices } from './position'
+import { createGroundOmniboxEntity } from './omnibox'
+import { isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 import { TileType } from './types'
 
-import type { Character, Container, DriftBehavior, GameState, Position } from './types'
+import type { Entity } from './ecs/types'
+import type { CharacterBehavior, DriftBehavior, GameState, Position } from './types'
+
+export const createCharacterEntity = (
+  state: GameState,
+  definitionId: string,
+  pos: Position,
+  opts?: { aura?: string; behavior?: CharacterBehavior },
+): Entity => {
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
+  state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId })
+  state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
+  state.world.addComponent(e, ComponentType.EntityTag, 'character')
+  if (opts?.aura) {
+    const radius = AURA_RADIUS[opts.aura] ?? 6
+    state.world.addComponent(e, ComponentType.Aura, { kind: opts.aura, radius })
+  }
+  if (opts?.behavior) {
+    state.world.addComponent(e, ComponentType.Behavior, opts.behavior)
+  }
+  return e
+}
 
 export interface PickUpResult {
   pickedUp: string[]
   chainExplosions: number
-}
-
-const captureEntitiesAtPlayer = (
-  entities: { pos: Position }[],
-  px: number,
-  py: number,
-  backpack: Container,
-  definitionId: string
-): { removed: number[]; captured: string[] } => {
-  const removed: number[] = []
-  const captured: string[] = []
-  for (let i = 0; i < entities.length; i++) {
-    const entity = entities[i]
-    if (entity?.pos.x === px && entity?.pos.y === py) {
-      const fit = findFitPosition(backpack, definitionId)
-      if (fit) {
-        placeItem(backpack, definitionId, fit.rotation, fit.gridX, fit.gridY)
-        removed.push(i)
-        captured.push(definitionId)
-      }
-    }
-  }
-  return { removed, captured }
 }
 
 export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult => {
@@ -39,58 +41,91 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   const py = state.player.y
   const pickedUp: string[] = []
 
-  // Ground items use their own definitionId
-  for (let i = 0; i < state.groundItems.length; i++) {
-    const gi = state.groundItems[i]
-    if (gi?.pos.x === px && gi?.pos.y === py) {
-      const fit = findFitPosition(state.backpack, gi.definitionId)
-      if (fit) {
-        placeItem(state.backpack, gi.definitionId, fit.rotation, fit.gridX, fit.gridY)
-        pickedUp.push(gi.definitionId)
-        state.groundItems.splice(i, 1)
-        i--
-      }
+  // Ground items (ECS entities with 'groundItem' tag)
+  const groundItemsAtPlayer = state.world.spatial
+    .at(px, py)
+    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
+  for (const eid of groundItemsAtPlayer) {
+    const itemDrop = state.world.getComponent(eid, ComponentType.ItemDrop)
+    if (!itemDrop) continue
+    const fit = findFitPosition(state.backpack, itemDrop.definitionId)
+    if (fit) {
+      placeItem(state.backpack, itemDrop.definitionId, fit.rotation, fit.gridX, fit.gridY)
+      pickedUp.push(itemDrop.definitionId)
+      state.world.destroyEntity(eid)
     }
   }
 
-  const beeResult = captureEntitiesAtPlayer(state.bees, px, py, state.backpack, 'bee')
-  removeByIndices(state.bees, beeResult.removed)
-  pickedUp.push(...beeResult.captured)
+  const beesAtPlayer = state.world.spatial
+    .at(px, py)
+    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+  for (const eid of beesAtPlayer) {
+    const fit = findFitPosition(state.backpack, 'bee')
+    if (fit) {
+      placeItem(state.backpack, 'bee', fit.rotation, fit.gridX, fit.gridY)
+      state.world.destroyEntity(eid)
+      pickedUp.push('bee')
+    }
+  }
 
   // Chain explosion: roll first, then capture survivors.
   // Exploded meteorites are consumed (removed, not picked up).
   let chainExplosions = 0
-  const explodedIndices: number[] = []
   if (time !== undefined) {
-    for (let i = 0; i < state.meteorites.length; i++) {
-      const m = state.meteorites[i]
-      if (m.pos.x === px && m.pos.y === py && !m.fromChain && Math.random() < CHAIN_EXPLOSION_CHANCE) {
-        explodedIndices.push(i)
+    const meteoritesAtPlayer = state.world.spatial
+      .at(px, py)
+      .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+    for (const eid of meteoritesAtPlayer) {
+      const chain = state.world.getComponent(eid, ComponentType.ChainSource)
+      if (!chain?.fromChain && Math.random() < CHAIN_EXPLOSION_CHANCE) {
+        state.world.destroyEntity(eid)
         chainExplosions += spawnChainMeteorites(state, { x: px, y: py }, time)
       }
     }
   }
-  if (explodedIndices.length > 0) {
-    removeByIndices(state.meteorites, explodedIndices)
+
+  // Capture surviving meteorites at player position
+  const remainingMeteoritesAtPlayer = state.world.spatial
+    .at(px, py)
+    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+  let meteoritesCaptured = 0
+  for (const eid of remainingMeteoritesAtPlayer) {
+    const fit = findFitPosition(state.backpack, 'meteorite')
+    if (fit) {
+      placeItem(state.backpack, 'meteorite', fit.rotation, fit.gridX, fit.gridY)
+      state.world.destroyEntity(eid)
+      pickedUp.push('meteorite')
+      meteoritesCaptured++
+    }
   }
 
-  const meteoriteResult = captureEntitiesAtPlayer(state.meteorites, px, py, state.backpack, 'meteorite')
-  removeByIndices(state.meteorites, meteoriteResult.removed)
-  pickedUp.push(...meteoriteResult.captured)
-
-  if (meteoriteResult.removed.length > 0 && time !== undefined) {
-    state.meteoritePickupEffects.push({ pos: { x: px, y: py }, startTime: time })
+  if (meteoritesCaptured > 0 && time !== undefined) {
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.Position, { x: px, y: py })
+    state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pickupBloom', startTime: time })
+    state.world.addComponent(e, ComponentType.EntityTag, 'pickupBloom')
   }
 
   // Auto-close open ground omnibox when player walks away
   if (state.openContainer) {
-    const go = state.groundOmniboxes.find(g => g.uid === state.openContainer?.id)
-    if (go) {
-      const dx = Math.abs(go.pos.x - px)
-      const dy = Math.abs(go.pos.y - py)
+    const openId = state.openContainer.id
+    let isGroundOmnibox = false
+    for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.Position)) {
+      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+      const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
+      if (link?.uid !== openId) continue
+      const goPos = state.world.getComponent(eid, ComponentType.Position)
+      if (!goPos) continue
+      isGroundOmnibox = true
+      const dx = Math.abs(goPos.x - px)
+      const dy = Math.abs(goPos.y - py)
       if (dx > 1 || dy > 1) {
         state.openContainer = null
       }
+      break
+    }
+    if (!isGroundOmnibox) {
+      // Not a ground omnibox — leave it open (backpack omnibox)
     }
   }
 
@@ -98,7 +133,11 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
 }
 
 export const tickBees = (state: GameState): void => {
-  for (const bee of state.bees) {
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (!pos) continue
+
     // Only move sometimes — gives a lazy, buzzing feel
     if (Math.random() > 0.3) continue
 
@@ -106,8 +145,8 @@ export const tickBees = (state: GameState): void => {
     const cloverCandidates: Position[] = []
     const walkableCandidates: Position[] = []
     for (const d of ORDINAL) {
-      const nx = bee.pos.x + d.x
-      const ny = bee.pos.y + d.y
+      const nx = pos.x + d.x
+      const ny = pos.y + d.y
       if (isInBounds(nx, ny, state.mapWidth, state.mapHeight)) {
         const tile = state.map[ny][nx]
         if (tile.type === TileType.Clover) {
@@ -122,29 +161,32 @@ export const tickBees = (state: GameState): void => {
     const candidates = cloverCandidates.length > 0 ? cloverCandidates : walkableCandidates
     if (candidates.length > 0) {
       const target = candidates[Math.floor(Math.random() * candidates.length)]
-      bee.pos.x = target.x
-      bee.pos.y = target.y
+      state.world.moveEntity(eid, target.x, target.y)
     }
   }
 }
 
 const tickDrift = (
   state: GameState,
-  char: Character,
+  eid: Entity,
+  definitionId: string,
   behavior: DriftBehavior,
   blocked: Set<string>,
 ): void => {
-  if (behavior.freezeOnDialog && state.activeDialog?.characterId === char.definitionId) return
+  if (behavior.freezeOnDialog && state.activeDialog?.characterId === definitionId) return
   if (Math.random() > behavior.speed) return
 
+  const pos = state.world.getComponent(eid, ComponentType.Position)
+  if (!pos) return
+
   // Remove self from blocked set so we don't self-block
-  const selfKey = posKey(char.pos.x, char.pos.y)
+  const selfKey = posKey(pos.x, pos.y)
   blocked.delete(selfKey)
 
   const candidates: Position[] = []
   for (const d of ORDINAL) {
-    const nx = char.pos.x + d.x
-    const ny = char.pos.y + d.y
+    const nx = pos.x + d.x
+    const ny = pos.y + d.y
     if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
     if (!isWalkableTile(state.map[ny][nx].type)) continue
     if (blocked.has(posKey(nx, ny))) continue
@@ -154,8 +196,7 @@ const tickDrift = (
   if (candidates.length > 0) {
     const target = candidates[Math.floor(Math.random() * candidates.length)]
     blocked.add(posKey(target.x, target.y))
-    char.pos.x = target.x
-    char.pos.y = target.y
+    state.world.moveEntity(eid, target.x, target.y)
   } else {
     // Re-add self to blocked set since we didn't move
     blocked.add(selfKey)
@@ -166,11 +207,14 @@ export const tickCharacterBehaviors = (state: GameState): void => {
   const blocked = getBlockedPositions(state)
   blocked.add(posKey(state.player.x, state.player.y))
 
-  for (const char of state.characters) {
-    if (!char.behavior) continue
+  for (const eid of state.world.query(ComponentType.Behavior, ComponentType.CharacterIdentity, ComponentType.Position)) {
+    const behavior = state.world.getComponent(eid, ComponentType.Behavior)
+    if (!behavior) continue
+    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    if (!identity) continue
 
-    if (char.behavior.type === 'drift') {
-      tickDrift(state, char, char.behavior, blocked)
+    if (behavior.type === 'drift') {
+      tickDrift(state, eid, identity.definitionId, behavior, blocked)
     }
   }
 }
@@ -191,8 +235,15 @@ const DROP_DELTAS: Position[] = [
 const canDropAt = (state: GameState, x: number, y: number): boolean => {
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
   if (!isWalkableTile(state.map[y][x].type)) return false
-  if (state.groundItems.some(g => g.pos.x === x && g.pos.y === y)) return false
-  if (state.groundOmniboxes.some(g => g.pos.x === x && g.pos.y === y)) return false
+  if (
+    state.world.spatial
+      .at(x, y)
+      .some((eid) => {
+        const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+        return tag === 'groundItem' || tag === 'groundOmnibox'
+      })
+  )
+    return false
   return true
 }
 
@@ -222,11 +273,16 @@ export const dropItem = (state: GameState, definitionId: string): boolean => {
       removeItem(sourceContainer, droppedUid)
       // Bees are released as world entities instead of ground items
       if (definitionId === 'bee') {
-        state.bees.push({ pos: { x: tx, y: ty } })
+        const e = state.world.createEntity()
+        state.world.addComponent(e, ComponentType.Position, { x: tx, y: ty })
+        state.world.addComponent(e, ComponentType.EntityTag, 'bee')
       } else if (definitionId === 'omnibox') {
-        state.groundOmniboxes.push({ uid: droppedUid, pos: { x: tx, y: ty } })
+        createGroundOmniboxEntity(state, droppedUid, tx, ty)
       } else {
-        state.groundItems.push({ definitionId, pos: { x: tx, y: ty } })
+        const ge = state.world.createEntity()
+        state.world.addComponent(ge, ComponentType.Position, { x: tx, y: ty })
+        state.world.addComponent(ge, ComponentType.ItemDrop, { definitionId })
+        state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
       }
       return true
     }

@@ -4,6 +4,7 @@ import { breakWall, interactWithCharacter, isInteractableAt, updateFacingEntity 
 import { getPathfindingBlockers } from '@/engine/movement'
 import { openOmnibox } from '@/engine/omnibox'
 import { getCharacterDefinition } from '@/engine/characters'
+import { ComponentType } from '@/engine/ecs/types'
 import { screenToTile } from '@/engine/coordinates'
 import { isWalkableTile } from '@/engine/position'
 import { findPath } from '@/engine/pathfinding'
@@ -71,12 +72,22 @@ export const useMouse = ({
       let walkTarget = tile
       let action: (() => void) | null = null
 
-      const clickedCharacter = state.characters.find(c => c.pos.x === tile.x && c.pos.y === tile.y)
-      const clickedOmnibox = state.groundOmniboxes.find(go => go.pos.x === tile.x && go.pos.y === tile.y)
+      const clickedCharacterEid = state.world.spatial
+        .at(tile.x, tile.y)
+        .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'character')
+      const clickedCharacterIdentity = clickedCharacterEid !== undefined
+        ? state.world.getComponent(clickedCharacterEid, ComponentType.CharacterIdentity)
+        : null
+      const clickedOmniboxEid = state.world.spatial
+        .at(tile.x, tile.y)
+        .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox')
+      const clickedOmniboxLink = clickedOmniboxEid !== undefined
+        ? state.world.getComponent(clickedOmniboxEid, ComponentType.OmniboxLink)
+        : null
       const clickedInteractableTile =
-        !clickedCharacter && !clickedOmnibox && isInteractableAt(state, tile.x, tile.y)
+        !clickedCharacterIdentity && !clickedOmniboxLink && isInteractableAt(state, tile.x, tile.y)
 
-      if (clickedCharacter || clickedOmnibox || clickedInteractableTile) {
+      if (clickedCharacterIdentity || clickedOmniboxLink || clickedInteractableTile) {
         // Find closest adjacent walkable tile to the entity
         let bestTarget: { x: number; y: number } | null = null
         let bestDist = Infinity
@@ -98,16 +109,16 @@ export const useMouse = ({
         // Track the interactable target for highlight rendering during walk
         state.pendingInteractionTarget = { x: tile.x, y: tile.y }
 
-        if (clickedCharacter) {
-          const charDef = getCharacterDefinition(clickedCharacter.definitionId)
+        if (clickedCharacterIdentity) {
+          const charDef = getCharacterDefinition(clickedCharacterIdentity.definitionId)
           action = () => {
             state.pendingInteractionTarget = null
             interactWithCharacter(state)
             onDialog(charDef.name, charDef.glyph, charDef.glyphColor, state.player.x, state.player.y)
             refreshUI()
           }
-        } else if (clickedOmnibox) {
-          const omniboxUid = clickedOmnibox.uid
+        } else if (clickedOmniboxLink) {
+          const omniboxUid = clickedOmniboxLink.uid
           action = () => {
             state.pendingInteractionTarget = null
             openOmnibox(state, omniboxUid)

@@ -1,14 +1,19 @@
 import { tickShootingStars } from '../celestial'
+import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
 import { PICKUP_EFFECT_DURATION_MS } from '../constants'
 
-import { clearAroundPlayer, createTestState } from './helpers'
+import { clearAroundPlayer, createMeteoriteEntity, createTestState, getMeteoriteEntities } from './helpers'
+
+const queryPickupBlooms = (state: ReturnType<typeof createTestState>) =>
+  state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'pickupBloom')
 
 describe('meteoritePickupEffect', () => {
   it('creates a pickup effect when a meteorite is picked up with time', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.meteorites = [{ pos: { x: state.player.x, y: state.player.y } }]
+    createMeteoriteEntity(state, state.player.x, state.player.y)
 
     // Prevent chain explosion from consuming the meteorite before pickup
     const orig = Math.random
@@ -16,12 +21,15 @@ describe('meteoritePickupEffect', () => {
     try {
       pickUpGroundItems(state, 5000)
 
-      expect(state.meteoritePickupEffects).toHaveLength(1)
-      expect(state.meteoritePickupEffects[0].pos).toEqual({
+      const blooms = queryPickupBlooms(state)
+      expect(blooms).toHaveLength(1)
+      const pos = state.world.getComponent(blooms[0], ComponentType.Position)
+      const effect = state.world.getComponent(blooms[0], ComponentType.TimedEffect)
+      expect(pos).toEqual({
         x: state.player.x,
         y: state.player.y,
       })
-      expect(state.meteoritePickupEffects[0].startTime).toBe(5000)
+      expect(effect?.startTime).toBe(5000)
     } finally {
       Math.random = orig
     }
@@ -33,45 +41,47 @@ describe('meteoritePickupEffect', () => {
 
     pickUpGroundItems(state, 5000)
 
-    expect(state.meteoritePickupEffects).toHaveLength(0)
+    expect(queryPickupBlooms(state)).toHaveLength(0)
   })
 
   it('does not create an effect when time is omitted', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.meteorites = [{ pos: { x: state.player.x, y: state.player.y } }]
+    createMeteoriteEntity(state, state.player.x, state.player.y)
 
     pickUpGroundItems(state)
 
-    expect(state.meteoritePickupEffects).toHaveLength(0)
+    expect(queryPickupBlooms(state)).toHaveLength(0)
   })
 
   it('cleans up expired effects in tickShootingStars', () => {
     const state = createTestState()
-    state.meteoritePickupEffects = [
-      { pos: { x: 10, y: 10 }, startTime: 1000 },
-    ]
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.Position, { x: 10, y: 10 })
+    state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pickupBloom', startTime: 1000 })
+    state.world.addComponent(e, ComponentType.EntityTag, 'pickupBloom')
 
     tickShootingStars(state, 1000 + PICKUP_EFFECT_DURATION_MS + 1)
 
-    expect(state.meteoritePickupEffects).toHaveLength(0)
+    expect(queryPickupBlooms(state)).toHaveLength(0)
   })
 
   it('retains non-expired effects in tickShootingStars', () => {
     const state = createTestState()
-    state.meteoritePickupEffects = [
-      { pos: { x: 10, y: 10 }, startTime: 1000 },
-    ]
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.Position, { x: 10, y: 10 })
+    state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pickupBloom', startTime: 1000 })
+    state.world.addComponent(e, ComponentType.EntityTag, 'pickupBloom')
 
     tickShootingStars(state, 1000 + PICKUP_EFFECT_DURATION_MS - 100)
 
-    expect(state.meteoritePickupEffects).toHaveLength(1)
+    expect(queryPickupBlooms(state)).toHaveLength(1)
   })
 
   it('still picks up the meteorite normally', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.meteorites = [{ pos: { x: state.player.x, y: state.player.y } }]
+    createMeteoriteEntity(state, state.player.x, state.player.y)
 
     // Prevent chain explosion from spawning extra meteorites
     const orig = Math.random
@@ -80,7 +90,7 @@ describe('meteoritePickupEffect', () => {
       const result = pickUpGroundItems(state, 5000)
 
       expect(result.pickedUp).toContain('meteorite')
-      expect(state.meteorites).toHaveLength(0)
+      expect(getMeteoriteEntities(state)).toHaveLength(0)
       expect(state.backpack.items.some(i => i.definitionId === 'meteorite')).toBe(true)
     } finally {
       Math.random = orig

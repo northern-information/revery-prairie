@@ -1,6 +1,4 @@
-import { posKey } from './position'
-
-import type { Character, CharacterDefinition } from './types'
+import type { CharacterDefinition } from './types'
 
 interface CharacterEntry {
   name: string
@@ -59,13 +57,3 @@ export const registerGhostDefinitions = (numbers: number[]): void => {
   }
 }
 
-export const isCharacterAt = (characters: Character[], x: number, y: number): boolean =>
-  characters.some(c => c.pos.x === x && c.pos.y === y)
-
-export const characterBlockedSet = (characters: Character[]): Set<string> => {
-  const set = new Set<string>()
-  for (const c of characters) {
-    set.add(posKey(c.pos.x, c.pos.y))
-  }
-  return set
-}

@@ -1,10 +1,11 @@
 import { breakWall, updateFacingEntity } from '../interaction'
 import { checkTransition, enterCave, exitCave, generateCave } from '../cave'
 import { CAVE_HEIGHT, CAVE_WIDTH } from '../constants'
+import { ComponentType } from '../ecs/types'
 import { findPath } from '../pathfinding'
 import { isWalkableTile } from '../position'
 import { TileType, Zone } from '../types'
-import { createTestState } from './helpers'
+import { createBeeEntity, createCharacterTestEntity, createTestState, getBeeEntities, getCharacterEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('generateCave', () => {
@@ -160,26 +161,27 @@ describe('enterCave', () => {
   it('snapshots overworld state', () => {
     const state = createTestState()
     const overworldPlayer = { ...state.player }
-    state.bees = [{ pos: { x: 10, y: 10 } }]
+    createBeeEntity(state, 10, 10)
     enterCave(state)
     expect(state.overworldSnapshot).not.toBeNull()
     expect(state.overworldSnapshot?.player).toEqual(overworldPlayer)
-    expect(state.overworldSnapshot?.bees).toHaveLength(1)
   })
 
-  it('clears entities in cave', () => {
+  it('replaces overworld character entities with cave characters', () => {
     const state = createTestState()
-    state.bees = [{ pos: { x: 10, y: 10 } }]
-    state.characters.push({
-      definitionId: 'ghost-99',
-      pos: { x: 15, y: 15 },
+    createBeeEntity(state, 10, 10)
+    createCharacterTestEntity(state, 'ghost-99', 15, 15, {
       behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
     })
-    expect(state.characters).toHaveLength(1)
+    const charsBefore = getCharacterEntities(state)
+    expect(charsBefore).toHaveLength(1)
     enterCave(state)
-    expect(state.bees).toHaveLength(0)
-    expect(state.characters).toHaveLength(1)
-    expect(state.characters[0].definitionId).toBe('moab')
+    // Bees are ECS entities and persist across zone transitions
+    expect(getBeeEntities(state)).toHaveLength(1)
+    // Overworld ghost is gone, Moab is created
+    const charsAfter = getCharacterEntities(state)
+    expect(charsAfter).toHaveLength(1)
+    expect(charsAfter[0].definitionId).toBe('moab')
   })
 
   it('places player adjacent to cave entrance interior, not on it', () => {
@@ -207,7 +209,7 @@ describe('exitCave', () => {
     const overworldMap = state.map
     const overworldWidth = state.mapWidth
     const overworldHeight = state.mapHeight
-    state.bees = [{ pos: { x: 10, y: 10 } }]
+    createBeeEntity(state, 10, 10)
     enterCave(state)
     exitCave(state)
     expect(state.currentZone).toBe(Zone.Overworld)
@@ -216,20 +218,18 @@ describe('exitCave', () => {
     expect(state.mapHeight).toBe(overworldHeight)
   })
 
-  it('restores entities', () => {
+  it('restores overworld character entities (bees persist)', () => {
     const state = createTestState()
-    state.bees = [{ pos: { x: 10, y: 10 } }]
-    state.characters.push({
-      definitionId: 'ghost-99',
-      pos: { x: 15, y: 15 },
+    createBeeEntity(state, 10, 10)
+    createCharacterTestEntity(state, 'ghost-99', 15, 15, {
       behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
     })
-    const overworldCharCount = state.characters.length
+    const overworldCharCount = getCharacterEntities(state).length
     enterCave(state)
-    expect(state.bees).toHaveLength(0)
     exitCave(state)
-    expect(state.bees).toHaveLength(1)
-    expect(state.characters).toHaveLength(overworldCharCount)
+    // Bees are ECS entities and persist across zone transitions
+    expect(getBeeEntities(state)).toHaveLength(1)
+    expect(getCharacterEntities(state)).toHaveLength(overworldCharCount)
   })
 
   it('places player one tile south of cave entrance to avoid re-entry', () => {
@@ -323,9 +323,13 @@ describe('breakWall', () => {
     state.map[state.player.y][state.player.x] = { type: TileType.CaveFloor }
 
     breakWall(state, 1000)
-    expect(state.crumbleEffects).toHaveLength(1)
-    expect(state.crumbleEffects[0].startTime).toBe(1000)
-    expect(state.crumbleEffects[0].positions.length).toBe(state.caveBreakableWallPositions.length)
+    const crumbles = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'crumble')
+    expect(crumbles).toHaveLength(1)
+    const effect = state.world.getComponent(crumbles[0], ComponentType.TimedEffect)
+    const multiPos = state.world.getComponent(crumbles[0], ComponentType.MultiPosition)
+    expect(effect?.startTime).toBe(1000)
+    expect(multiPos?.positions.length).toBe(state.caveBreakableWallPositions.length)
   })
 
   it('returns false when already revealed', () => {

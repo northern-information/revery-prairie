@@ -1,12 +1,12 @@
 import { advanceDialog, getAdjacentCharacter, interactWithCharacter } from '../interaction'
-import { clearAroundPlayer, createTestState } from './helpers'
+import { clearAroundPlayer, createCharacterTestEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('getAdjacentCharacter', () => {
   it('finds a character to the right', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    createCharacterTestEntity(state, 'gron', state.player.x + 1, state.player.y)
     const char = getAdjacentCharacter(state)
     expect(char).not.toBeNull()
     expect(char?.definitionId).toBe('gron')
@@ -15,21 +15,21 @@ describe('getAdjacentCharacter', () => {
   it('finds a character above', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x, y: state.player.y - 1 } }]
+    createCharacterTestEntity(state, 'gron', state.player.x, state.player.y - 1)
     expect(getAdjacentCharacter(state)).not.toBeNull()
   })
 
   it('returns null when no character is adjacent', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 5, y: state.player.y } }]
+    createCharacterTestEntity(state, 'gron', state.player.x + 5, state.player.y)
     expect(getAdjacentCharacter(state)).toBeNull()
   })
 
   it('does not detect diagonal characters', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y + 1 } }]
+    createCharacterTestEntity(state, 'gron', state.player.x + 1, state.player.y + 1)
     expect(getAdjacentCharacter(state)).toBeNull()
   })
 })
@@ -38,7 +38,7 @@ describe('interactWithCharacter', () => {
   it('sets activeDialog when adjacent to a character', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    createCharacterTestEntity(state, 'gron', state.player.x + 1, state.player.y)
     const result = interactWithCharacter(state)
     expect(result).toBe(true)
     expect(state.activeDialog?.characterId).toBe('gron')
@@ -49,7 +49,6 @@ describe('interactWithCharacter', () => {
   it('returns false when no character is adjacent', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.characters = []
     const result = interactWithCharacter(state)
     expect(result).toBe(false)
     expect(state.activeDialog).toBeNull()

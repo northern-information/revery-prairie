@@ -1,8 +1,10 @@
 import { spawnShootingStarAtTarget } from './celestial'
+import { createWorld } from './ecs/world'
 import { generateCave } from './cave'
 import { registerGhostDefinitions } from './characters'
 import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER } from './constants'
 import { AURA_RADIUS } from './effects'
+import { createCharacterEntity } from './entities'
 import { autoSort, createOmniboxContainer, findFitPosition, placeItem } from './inventory'
 import { createBackpack } from './items'
 import { posKey } from './position'
@@ -85,14 +87,6 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     },
     viewportWidth,
     viewportHeight,
-    bees: [],
-    shootingStars: [],
-    meteorites: [],
-    explosions: [],
-    meteoritePickupEffects: [],
-    groundItems: [],
-    groundOmniboxes: [],
-    characters: [],
     activeDialog: null,
     omniboxContainers: new Map(),
     nextOmniboxNumber: 1,
@@ -122,18 +116,16 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     caveNpcSpot: cave.npcSpot,
     caveHiddenPositions: new Set(cave.hiddenChamberPositions.map(p => posKey(p.x, p.y))),
     caveBreakableWallPositions: cave.breakableWallPositions,
-    crumbleEffects: [],
     moabGiftGiven: false,
+    world: createWorld(),
   }
 
   // Place Gron near the player
-  if (map[gronY][gronX].type === TileType.Dirt || map[gronY][gronX].type === TileType.Clover) {
-    state.characters.push({ definitionId: 'gron', pos: { x: gronX, y: gronY }, aura: 'rain' })
-  } else {
+  if (map[gronY][gronX].type !== TileType.Dirt && map[gronY][gronX].type !== TileType.Clover) {
     // Fallback: ensure tile is dirt then place
     map[gronY][gronX] = { type: TileType.Dirt }
-    state.characters.push({ definitionId: 'gron', pos: { x: gronX, y: gronY }, aura: 'rain' })
   }
+  createCharacterEntity(state, 'gron', { x: gronX, y: gronY }, { aura: 'rain' })
 
   // Spawn 3 ghosts at random walkable positions
   const ghostCount = 3
@@ -154,9 +146,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     ghostUsedKeys.add(key)
     const ghostNumber = ghostNumbers.length + 1
     ghostNumbers.push(ghostNumber)
-    state.characters.push({
-      definitionId: `ghost-${String(ghostNumber)}`,
-      pos: { x: gx, y: gy },
+    createCharacterEntity(state, `ghost-${String(ghostNumber)}`, { x: gx, y: gy }, {
       behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
     })
   }

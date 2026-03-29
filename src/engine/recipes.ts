@@ -1,3 +1,4 @@
+import { ComponentType } from './ecs/types'
 import { createOmniboxContainer, findFitPosition, placeItem } from './inventory'
 import { isInBounds } from './position'
 import { TileType } from './types'
@@ -84,7 +85,9 @@ export const RECIPES: Recipe[] = [
         }
       }
 
-      state.bees.push({ pos: { x: state.player.x, y: state.player.y } })
+      const beeEntity = state.world.createEntity()
+      state.world.addComponent(beeEntity, ComponentType.Position, { x: state.player.x, y: state.player.y })
+      state.world.addComponent(beeEntity, ComponentType.EntityTag, 'bee')
       return true
     },
   },

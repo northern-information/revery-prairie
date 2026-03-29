@@ -1,6 +1,6 @@
 import { movePlayer, tickPath } from '../movement'
 import { TileType } from '../types'
-import { clearAroundPlayer, createTestState } from './helpers'
+import { clearAroundPlayer, createCharacterTestEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('movePlayer', () => {
@@ -69,7 +69,7 @@ describe('movePlayer', () => {
     clearAroundPlayer(state)
     state.playerFacing = 'down'
     // Place a character to the right
-    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    createCharacterTestEntity(state, 'gron', state.player.x + 1, state.player.y)
     // Try to move right — blocked by character, but should face it
     expect(movePlayer(state, 'right')).toBe(false)
     expect(state.playerFacing).toBe('right')
@@ -81,7 +81,7 @@ describe('movePlayer blocked by character', () => {
   it('cannot walk into a character tile', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
+    createCharacterTestEntity(state, 'gron', state.player.x + 1, state.player.y)
     const startX = state.player.x
     expect(movePlayer(state, 'right')).toBe(false)
     expect(state.player.x).toBe(startX)

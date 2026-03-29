@@ -6,13 +6,6 @@ export const posKey = (x: number, y: number): string => `${String(x)},${String(y
 
 export const isInBounds = (x: number, y: number, w: number, h: number): boolean => x >= 0 && x < w && y >= 0 && y < h
 
-export const removeByIndices = (arr: unknown[], indices: number[]): void => {
-  for (let i = indices.length - 1; i >= 0; i--) {
-    const idx = indices[i]
-    if (idx !== undefined) arr.splice(idx, 1)
-  }
-}
-
 // 4-directional movement deltas, keyed by direction name (for WASD)
 export const DIRECTIONS: Record<Direction, Position> = {
   up: { x: 0, y: -1 },

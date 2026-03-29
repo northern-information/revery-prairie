@@ -48,7 +48,23 @@ describe('serialization round-trip', () => {
     const restored = deserializeState(json)
 
     for (const key of FUNCTION_FIELDS) {
-      expect(restored[key]).toBeNull()
+      const val = restored[key]
+      // Pure function fields become null; object-of-functions (like world)
+      // become an object with null-valued keys — both are non-functional.
+      if (val !== null && typeof val === 'object') {
+        for (const v of Object.values(val as Record<string, unknown>)) {
+          if (v !== null && typeof v === 'object') {
+            // Nested object-of-functions (e.g. world.spatial)
+            for (const nv of Object.values(v as Record<string, unknown>)) {
+              expect(nv).toBeNull()
+            }
+          } else {
+            expect(v).toBeNull()
+          }
+        }
+      } else {
+        expect(val).toBeNull()
+      }
     }
   })
 

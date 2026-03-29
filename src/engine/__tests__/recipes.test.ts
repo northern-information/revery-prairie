@@ -1,7 +1,8 @@
 import { combineIcon, findRecipe, recipeKey, RecipeKind, RECIPES } from '../recipes'
+import { ComponentType } from '../ecs/types'
 import { placeItem } from '../inventory'
 import { Rotation, TileType } from '../types'
-import { clearAroundPlayer, createTestState } from './helpers'
+import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 import type { Recipe } from '../recipes'
@@ -102,9 +103,12 @@ describe('prairie recipe execute', () => {
     clearAroundPlayer(state, 1)
 
     prairieRecipe.execute(state)
-    expect(state.bees).toHaveLength(1)
-    expect(state.bees[0].pos.x).toBe(px)
-    expect(state.bees[0].pos.y).toBe(py)
+    const bees = getBeeEntities(state)
+    expect(bees).toHaveLength(1)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const beePos = state.world.getComponent(bees[0], ComponentType.Position)!
+    expect(beePos.x).toBe(px)
+    expect(beePos.y).toBe(py)
   })
 
   it('returns false when standing on sand', () => {
@@ -113,7 +117,7 @@ describe('prairie recipe execute', () => {
 
     const result = prairieRecipe.execute(state)
     expect(result).toBe(false)
-    expect(state.bees).toHaveLength(0)
+    expect(getBeeEntities(state)).toHaveLength(0)
   })
 
   it('returns false when standing on space', () => {
@@ -122,7 +126,7 @@ describe('prairie recipe execute', () => {
 
     const result = prairieRecipe.execute(state)
     expect(result).toBe(false)
-    expect(state.bees).toHaveLength(0)
+    expect(getBeeEntities(state)).toHaveLength(0)
   })
 
   it('does not overwrite sand tiles in the 3x3 area', () => {

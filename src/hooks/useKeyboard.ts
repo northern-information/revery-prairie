@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { dropItem, pickUpGroundItems } from '@/engine/entities'
+import { ComponentType } from '@/engine/ecs/types'
 import { advanceDialog, breakWall, getAdjacentCharacter, giveMoabGift, interactWithCharacter, updateFacingEntity } from '@/engine/interaction'
 import { movePlayer } from '@/engine/movement'
 import { closeOmnibox, grabOmnibox, toggleFacingOmnibox, toggleOmnibox } from '@/engine/omnibox'
@@ -90,7 +91,13 @@ export const useKeyboard = ({
         if (activePanel !== 'menu') {
           // If an omnibox is open: pick up (ground) or close (backpack)
           if (state.openContainer) {
-            const isGround = state.groundOmniboxes.some(go => go.uid === state.openContainer?.id)
+            const openId = state.openContainer.id
+            let isGround = false
+            for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)) {
+              if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+              const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
+              if (link?.uid === openId) { isGround = true; break }
+            }
             if (isGround) {
               const uid = grabOmnibox(state)
               if (uid) {

@@ -9,6 +9,7 @@ import { Sidebar } from './Sidebar'
 import { advanceDialog } from '@/engine/interaction'
 import { stopAll, setMusicEnabled } from '@/engine/audio'
 import { getCharacterDefinition } from '@/engine/characters'
+import { ComponentType } from '@/engine/ecs/types'
 import { getDefinition } from '@/engine/items'
 import { useEventLog } from '@/hooks/useEventLog'
 import { useGameEngine } from '@/hooks/useGameEngine'
@@ -124,9 +125,16 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
           const isLastLine = state.activeDialog.lineIndex >= def.dialog.length - 1
 
           const dialog = state.activeDialog
-          const character = state.characters.find(
-            (c) => c.definitionId === dialog.characterId,
-          )
+          // Find the character entity's position for dialog box placement
+          const charPos = (() => {
+            for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
+              const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+              if (identity?.definitionId === dialog.characterId) {
+                return state.world.getComponent(eid, ComponentType.Position)
+              }
+            }
+            return null
+          })()
           const metrics = metricsRef.current
           const GAP = 12
           const EDGE = 8
@@ -134,9 +142,9 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
           let dTop: number
           let dLeft: number
 
-          if (character && metrics) {
-            const sx = (character.pos.x - state.camera.x) * metrics.charWidth
-            const sy = (character.pos.y - state.camera.y) * metrics.charHeight
+          if (charPos && metrics) {
+            const sx = (charPos.x - state.camera.x) * metrics.charWidth
+            const sy = (charPos.y - state.camera.y) * metrics.charHeight
 
             dTop = sy - DIALOG_HEIGHT - GAP
             dLeft = sx + metrics.charWidth / 2 - DIALOG_WIDTH / 2

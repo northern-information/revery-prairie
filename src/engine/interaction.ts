@@ -1,13 +1,22 @@
 import { getCharacterDefinition } from './characters'
+import { ComponentType } from './ecs/types'
 import { createOmniboxContainer, findFitPosition, placeItem } from './inventory'
 import { CARDINAL, DIRECTIONS, isInBounds } from './position'
 import { Rotation, TileType, Zone } from './types'
 
-import type { Character, GameState } from './types'
+import type { GameState } from './types'
 
 export const isInteractableAt = (state: GameState, x: number, y: number): boolean => {
-  if (state.groundOmniboxes.some(go => go.pos.x === x && go.pos.y === y)) return true
-  if (state.characters.some(c => c.pos.x === x && c.pos.y === y)) return true
+  if (
+    state.world.spatial
+      .at(x, y)
+      .some((eid) => {
+        const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+        return tag === 'groundOmnibox' || tag === 'character'
+      })
+  ) {
+    return true
+  }
   if (
     state.currentZone === Zone.Cave &&
     !state.caveRevealed &&
@@ -21,16 +30,28 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
 
 export const updateFacingEntity = (state: GameState): void => {
   const switchIfOpen = (x: number, y: number) => {
-    const go = state.groundOmniboxes.find(g => g.pos.x === x && g.pos.y === y)
-    if (
-      go &&
-      state.openContainer &&
-      state.groundOmniboxes.some(g => g.uid === state.openContainer?.id) &&
-      state.openContainer.id !== go.uid
-    ) {
-      const container = state.omniboxContainers.get(go.uid)
-      if (container) state.openContainer = container
+    // Find ground omnibox at this position
+    let goUid: string | null = null
+    for (const eid of state.world.spatial.at(x, y)) {
+      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+      const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
+      if (link) goUid = link.uid
+      break
     }
+    if (!goUid || !state.openContainer) return
+    // Only switch if the open container is also a ground omnibox
+    let openIsGround = false
+    for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)) {
+      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+      const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
+      if (link?.uid === state.openContainer.id) {
+        openIsGround = true
+        break
+      }
+    }
+    if (!openIsGround || state.openContainer.id === goUid) return
+    const container = state.omniboxContainers.get(goUid)
+    if (container) state.openContainer = container
   }
 
   // Prefer the interactable in the facing direction
@@ -58,20 +79,29 @@ export const updateFacingEntity = (state: GameState): void => {
 /** @deprecated Use updateFacingEntity instead */
 export const updateFacingOmnibox = updateFacingEntity
 
-export const getAdjacentCharacter = (state: GameState): Character | null => {
+export const getAdjacentCharacter = (
+  state: GameState,
+): { definitionId: string; pos: { x: number; y: number } } | null => {
   const px = state.player.x
   const py = state.player.y
+
+  const findCharAt = (x: number, y: number): { definitionId: string; pos: { x: number; y: number } } | null => {
+    for (const eid of state.world.spatial.at(x, y)) {
+      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'character') continue
+      const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+      const pos = state.world.getComponent(eid, ComponentType.Position)
+      if (identity && pos) return { definitionId: identity.definitionId, pos: { x: pos.x, y: pos.y } }
+    }
+    return null
+  }
+
   // Prefer the character in the facing direction
   const d = DIRECTIONS[state.playerFacing]
-  const fx = px + d.x
-  const fy = py + d.y
-  const facing = state.characters.find(c => c.pos.x === fx && c.pos.y === fy)
+  const facing = findCharAt(px + d.x, py + d.y)
   if (facing) return facing
   // Fall back to any cardinally adjacent character
   for (const cd of CARDINAL) {
-    const nx = px + cd.x
-    const ny = py + cd.y
-    const character = state.characters.find(c => c.pos.x === nx && c.pos.y === ny)
+    const character = findCharAt(px + cd.x, py + cd.y)
     if (character) return character
   }
   return null
@@ -182,10 +212,15 @@ export const breakWall = (state: GameState, time: number): boolean => {
   if (state.map[fy][fx].type !== TileType.CaveBreakableWall) return false
 
   // Start crumble animation
-  state.crumbleEffects.push({
+  const crumbleEntity = state.world.createEntity()
+  state.world.addComponent(crumbleEntity, ComponentType.MultiPosition, {
     positions: [...state.caveBreakableWallPositions],
+  })
+  state.world.addComponent(crumbleEntity, ComponentType.TimedEffect, {
+    kind: 'crumble',
     startTime: time,
   })
+  state.world.addComponent(crumbleEntity, ComponentType.EntityTag, 'crumble')
 
   // Convert breakable wall tiles to CaveFloor
   for (const pos of state.caveBreakableWallPositions) {

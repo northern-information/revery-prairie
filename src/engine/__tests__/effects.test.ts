@@ -2,28 +2,29 @@ import { describe, expect, it } from 'vitest'
 
 import { AURA_RADIUS, getTileEffects } from '../effects'
 import { createGameState } from '../state'
-
-import type { Character } from '../types'
+import { createCharacterEntity } from '../entities'
+import { ComponentType } from '../ecs/types'
 
 const makeState = () => {
   const state = createGameState('test', 80, 40)
-  state.characters = []
+  // Destroy all character entities (ghosts, gron, etc.)
+  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
+    state.world.destroyEntity(eid)
+  }
   return state
 }
 
 describe('getTileEffects', () => {
   it('returns rain when position is within rain aura radius', () => {
     const state = makeState()
-    const gron: Character = { definitionId: 'gron', pos: { x: 50, y: 50 }, aura: 'rain' }
-    state.characters.push(gron)
+    createCharacterEntity(state, 'gron', { x: 50, y: 50 }, { aura: 'rain' })
 
     expect(getTileEffects(state, 53, 50)).toEqual(['rain'])
   })
 
   it('returns empty when position is outside rain aura radius', () => {
     const state = makeState()
-    const gron: Character = { definitionId: 'gron', pos: { x: 50, y: 50 }, aura: 'rain' }
-    state.characters.push(gron)
+    createCharacterEntity(state, 'gron', { x: 50, y: 50 }, { aura: 'rain' })
 
     expect(getTileEffects(state, 60, 50)).toEqual([])
   })
@@ -31,8 +32,7 @@ describe('getTileEffects', () => {
   it('includes position at exact boundary (dx²+dy² = r²)', () => {
     const state = makeState()
     const r = AURA_RADIUS.rain ?? 0
-    const gron: Character = { definitionId: 'gron', pos: { x: 50, y: 50 }, aura: 'rain' }
-    state.characters.push(gron)
+    createCharacterEntity(state, 'gron', { x: 50, y: 50 }, { aura: 'rain' })
 
     // Place at exactly r tiles east — dx²+dy² = r²
     expect(getTileEffects(state, 50 + r, 50)).toEqual(['rain'])
@@ -40,24 +40,22 @@ describe('getTileEffects', () => {
 
   it('returns rain when position is on the character tile (distance 0)', () => {
     const state = makeState()
-    const gron: Character = { definitionId: 'gron', pos: { x: 50, y: 50 }, aura: 'rain' }
-    state.characters.push(gron)
+    createCharacterEntity(state, 'gron', { x: 50, y: 50 }, { aura: 'rain' })
 
     expect(getTileEffects(state, 50, 50)).toEqual(['rain'])
   })
 
   it('returns empty when character has no aura', () => {
     const state = makeState()
-    const npc: Character = { definitionId: 'gron', pos: { x: 50, y: 50 } }
-    state.characters.push(npc)
+    createCharacterEntity(state, 'gron', { x: 50, y: 50 })
 
     expect(getTileEffects(state, 50, 50)).toEqual([])
   })
 
   it('deduplicates overlapping same-type auras', () => {
     const state = makeState()
-    state.characters.push({ definitionId: 'gron', pos: { x: 50, y: 50 }, aura: 'rain' })
-    state.characters.push({ definitionId: 'gron', pos: { x: 52, y: 50 }, aura: 'rain' })
+    createCharacterEntity(state, 'gron', { x: 50, y: 50 }, { aura: 'rain' })
+    createCharacterEntity(state, 'gron', { x: 52, y: 50 }, { aura: 'rain' })
 
     // Position 51,50 is within radius of both
     const effects = getTileEffects(state, 51, 50)

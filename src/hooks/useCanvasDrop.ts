@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { ComponentType } from '@/engine/ecs/types'
 import { getBlockedPositions } from '@/engine/movement'
 import { removeItem } from '@/engine/inventory'
+import { createGroundOmniboxEntity } from '@/engine/omnibox'
 import { findPath } from '@/engine/pathfinding'
 import { ORDINAL } from '@/engine/position'
 import { TileType } from '@/engine/types'
@@ -81,15 +83,27 @@ export const useCanvasDrop = ({
       const executeDrop = () => {
         const item = container.items.find(i => i.uid === itemUid)
         if (!item) return
-        if (state.groundItems.some(g => g.pos.x === mx && g.pos.y === my)) return
-        if (state.groundOmniboxes.some(g => g.pos.x === mx && g.pos.y === my)) return
+        if (
+          state.world.spatial
+            .at(mx, my)
+            .some((eid) => {
+              const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+              return tag === 'groundItem' || tag === 'groundOmnibox'
+            })
+        )
+          return
         removeItem(container, itemUid)
         if (defId === 'bee') {
-          state.bees.push({ pos: { x: mx, y: my } })
+          const beeEntity = state.world.createEntity()
+          state.world.addComponent(beeEntity, ComponentType.Position, { x: mx, y: my })
+          state.world.addComponent(beeEntity, ComponentType.EntityTag, 'bee')
         } else if (defId === 'omnibox') {
-          state.groundOmniboxes.push({ uid: itemUid, pos: { x: mx, y: my } })
+          createGroundOmniboxEntity(state, itemUid, mx, my)
         } else {
-          state.groundItems.push({ definitionId: defId, pos: { x: mx, y: my } })
+          const ge = state.world.createEntity()
+          state.world.addComponent(ge, ComponentType.Position, { x: mx, y: my })
+          state.world.addComponent(ge, ComponentType.ItemDrop, { definitionId: defId })
+          state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
         }
         onDropLog(defId, mx, my)
         refreshUI()

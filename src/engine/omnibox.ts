@@ -1,15 +1,23 @@
+import { ComponentType } from './ecs/types'
 import { updateFacingEntity } from './interaction'
 import { findFitPosition, placeItem } from './inventory'
-import { CARDINAL, posKey } from './position'
+import { CARDINAL } from './position'
 
+import type { Entity } from './ecs/types'
 import type { GameState } from './types'
 
-export const groundOmniboxBlockedSet = (state: GameState): Set<string> => {
-  const set = new Set<string>()
-  for (const go of state.groundOmniboxes) {
-    set.add(posKey(go.pos.x, go.pos.y))
-  }
-  return set
+export const createGroundOmniboxEntity = (
+  state: GameState,
+  uid: string,
+  x: number,
+  y: number,
+): Entity => {
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x, y })
+  state.world.addComponent(e, ComponentType.OmniboxLink, { uid })
+  state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
+  state.world.addComponent(e, ComponentType.EntityTag, 'groundOmnibox')
+  return e
 }
 
 export const openOmnibox = (state: GameState, uid: string): boolean => {
@@ -40,12 +48,15 @@ export const grabOmnibox = (state: GameState): string | null => {
   const px = state.player.x
   const py = state.player.y
 
-  // Find adjacent ground omnibox (4-directional)
-  for (let i = 0; i < state.groundOmniboxes.length; i++) {
-    const go = state.groundOmniboxes[i]
-    const dx = Math.abs(go.pos.x - px)
-    const dy = Math.abs(go.pos.y - py)
-    if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+  // Find adjacent ground omnibox ECS entity (4-directional)
+  for (const d of CARDINAL) {
+    const ax = px + d.x
+    const ay = py + d.y
+    for (const eid of state.world.spatial.at(ax, ay)) {
+      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+      const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
+      if (!link) continue
+
       // Try to fit in backpack
       const fit = findFitPosition(state.backpack, 'omnibox')
       if (!fit) return null
@@ -54,13 +65,13 @@ export const grabOmnibox = (state: GameState): string | null => {
       if (!placed) return null
 
       // Override the uid to match the omnibox's container mapping
-      placed.uid = go.uid
+      placed.uid = link.uid
 
       // Remove from ground (keep open if it was open)
-      state.groundOmniboxes.splice(i, 1)
+      state.world.destroyEntity(eid)
       updateFacingEntity(state)
 
-      return go.uid
+      return link.uid
     }
   }
 
@@ -69,17 +80,23 @@ export const grabOmnibox = (state: GameState): string | null => {
 
 export const toggleFacingOmnibox = (state: GameState): boolean => {
   if (state.facingEntityPos) {
-    const go = state.groundOmniboxes.find(
-      g => g.pos.x === state.facingEntityPos?.x && g.pos.y === state.facingEntityPos?.y
-    )
-    if (go) return toggleOmnibox(state, go.uid)
+    const eids = state.world.spatial.at(state.facingEntityPos.x, state.facingEntityPos.y)
+    for (const eid of eids) {
+      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+      const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
+      if (link) return toggleOmnibox(state, link.uid)
+    }
   }
   // Fall back to any cardinally adjacent omnibox
   const px = state.player.x
   const py = state.player.y
   for (const d of CARDINAL) {
-    const go = state.groundOmniboxes.find(g => g.pos.x === px + d.x && g.pos.y === py + d.y)
-    if (go) return toggleOmnibox(state, go.uid)
+    const eids = state.world.spatial.at(px + d.x, py + d.y)
+    for (const eid of eids) {
+      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+      const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
+      if (link) return toggleOmnibox(state, link.uid)
+    }
   }
   return false
 }

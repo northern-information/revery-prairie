@@ -3,10 +3,12 @@ import { tickCharacterBehaviors } from '../entities'
 import { advanceDialog, interactWithCharacter, tickDialogTransition } from '../interaction'
 import { getBlockedPositions, movePlayer } from '../movement'
 import { createGhostDefinition, getCharacterDefinition, registerGhostDefinitions } from '../characters'
+import { ComponentType } from '../ecs/types'
 import { TileType } from '../types'
 import { posKey } from '../position'
+import { createCharacterTestEntity, destroyAllCharacterEntities, getCharacterEntities } from './helpers'
 
-import type { Character, GameState } from '../types'
+import type { GameState } from '../types'
 
 const DRIFT_BEHAVIOR = { type: 'drift' as const, speed: 0.15, freezeOnDialog: true }
 
@@ -29,8 +31,8 @@ const makeState = (): GameState => {
   return state
 }
 
-const getGhostCharacters = (state: GameState): Character[] =>
-  state.characters.filter((c) => c.behavior?.type === 'drift')
+const getGhostCharacters = (state: GameState) =>
+  getCharacterEntities(state).filter((c) => c.behavior?.type === 'drift')
 
 describe('ghost spawning', () => {
   it('spawns 3 ghosts on game start', () => {
@@ -103,11 +105,9 @@ describe('ghost character definitions', () => {
 describe('ghost blocks player', () => {
   it('movePlayer returns false when target has a ghost', () => {
     const state = makeState()
-    // Replace ghosts with a single ghost to the right of player
-    state.characters = state.characters.filter((c) => !c.definitionId.startsWith('ghost-'))
-    state.characters.push({
-      definitionId: 'ghost-99',
-      pos: { x: state.player.x + 1, y: state.player.y },
+    // Remove all ghosts and create a single ghost to the right of player
+    destroyAllCharacterEntities(state)
+    createCharacterTestEntity(state, 'ghost-99', state.player.x + 1, state.player.y, {
       behavior: DRIFT_BEHAVIOR,
     })
     registerGhostDefinitions([99])
@@ -128,58 +128,62 @@ describe('ghost blocks player', () => {
 describe('tickCharacterBehaviors', () => {
   it('ghosts never move onto Space', () => {
     const state = makeState()
-    const ghost = getGhostCharacters(state)[0]
+    const ghosts = getGhostCharacters(state)
+    const ghost = ghosts[0]
     if (!ghost) return
-    // Place ghost away from player
-    ghost.pos.x = state.player.x + 5
-    ghost.pos.y = state.player.y
+    // Move ghost away from player
+    state.world.moveEntity(ghost.eid, state.player.x + 5, state.player.y)
     // Set adjacent tile to Space
-    state.map[ghost.pos.y][ghost.pos.x - 1] = { type: TileType.Space }
+    const gpos = state.world.getComponent(ghost.eid, ComponentType.Position)
+    expect(gpos).toBeDefined()
+    if (!gpos) return
+    state.map[gpos.y][gpos.x - 1] = { type: TileType.Space }
 
     for (let i = 0; i < 200; i++) {
       tickCharacterBehaviors(state)
-      const tile = state.map[ghost.pos.y][ghost.pos.x]
+      const pos = state.world.getComponent(ghost.eid, ComponentType.Position)
+      expect(pos).toBeDefined()
+      if (!pos) return
+      const tile = state.map[pos.y][pos.x]
       expect(tile.type).not.toBe(TileType.Space)
     }
   })
 
   it('ghost stays in place when surrounded by blocked tiles', () => {
     const state = makeState()
-    state.characters = [
-      {
-        definitionId: 'ghost-1',
-        pos: { x: state.player.x + 3, y: state.player.y + 3 },
-        behavior: DRIFT_BEHAVIOR,
-      },
-    ]
-    const ghost = state.characters[0]
+    destroyAllCharacterEntities(state)
+    const eid = createCharacterTestEntity(state, 'ghost-1', state.player.x + 3, state.player.y + 3, {
+      behavior: DRIFT_BEHAVIOR,
+    })
+    const gpos = state.world.getComponent(eid, ComponentType.Position)
+    expect(gpos).toBeDefined()
+    if (!gpos) return
 
     // Surround ghost with Space
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         if (dx === 0 && dy === 0) continue
-        state.map[ghost.pos.y + dy][ghost.pos.x + dx] = { type: TileType.Space }
+        state.map[gpos.y + dy][gpos.x + dx] = { type: TileType.Space }
       }
     }
 
-    const origX = ghost.pos.x
-    const origY = ghost.pos.y
+    const origX = gpos.x
+    const origY = gpos.y
     for (let i = 0; i < 100; i++) {
       tickCharacterBehaviors(state)
     }
-    expect(ghost.pos.x).toBe(origX)
-    expect(ghost.pos.y).toBe(origY)
+    const posAfter = state.world.getComponent(eid, ComponentType.Position)
+    expect(posAfter).toBeDefined()
+    expect(posAfter?.x).toBe(origX)
+    expect(posAfter?.y).toBe(origY)
   })
 
   it('ghost does not drift while player is talking to it', () => {
     const state = makeState()
-    state.characters = [
-      {
-        definitionId: 'ghost-1',
-        pos: { x: state.player.x + 5, y: state.player.y },
-        behavior: DRIFT_BEHAVIOR,
-      },
-    ]
+    destroyAllCharacterEntities(state)
+    const eid = createCharacterTestEntity(state, 'ghost-1', state.player.x + 5, state.player.y, {
+      behavior: DRIFT_BEHAVIOR,
+    })
     state.activeDialog = {
       characterId: 'ghost-1',
       lineIndex: 0,
@@ -189,36 +193,43 @@ describe('tickCharacterBehaviors', () => {
       transitionStartTime: 0,
     }
 
-    const origX = state.characters[0].pos.x
-    const origY = state.characters[0].pos.y
+    const posBefore = state.world.getComponent(eid, ComponentType.Position)
+    expect(posBefore).toBeDefined()
+    if (!posBefore) return
+    const origX = posBefore.x
+    const origY = posBefore.y
     for (let i = 0; i < 200; i++) {
       tickCharacterBehaviors(state)
     }
-    expect(state.characters[0].pos.x).toBe(origX)
-    expect(state.characters[0].pos.y).toBe(origY)
+    const posAfter = state.world.getComponent(eid, ComponentType.Position)
+    expect(posAfter).toBeDefined()
+    expect(posAfter?.x).toBe(origX)
+    expect(posAfter?.y).toBe(origY)
   })
 
   it('drift behavior moves character position', () => {
     const state = makeState()
-    state.characters = [
-      {
-        definitionId: 'ghost-1',
-        pos: { x: state.player.x + 5, y: state.player.y },
-        behavior: DRIFT_BEHAVIOR,
-      },
-    ]
+    destroyAllCharacterEntities(state)
+    const eid = createCharacterTestEntity(state, 'ghost-1', state.player.x + 5, state.player.y, {
+      behavior: DRIFT_BEHAVIOR,
+    })
     registerGhostDefinitions([1])
 
-    const origX = state.characters[0].pos.x
-    const origY = state.characters[0].pos.y
+    const posBefore = state.world.getComponent(eid, ComponentType.Position)
+    expect(posBefore).toBeDefined()
+    if (!posBefore) return
+    const origX = posBefore.x
+    const origY = posBefore.y
 
     // Tick many times to ensure movement happens
     for (let i = 0; i < 200; i++) {
       tickCharacterBehaviors(state)
     }
 
-    const ghost = state.characters[0]
-    const moved = ghost.pos.x !== origX || ghost.pos.y !== origY
+    const posAfter = state.world.getComponent(eid, ComponentType.Position)
+    expect(posAfter).toBeDefined()
+    if (!posAfter) return
+    const moved = posAfter.x !== origX || posAfter.y !== origY
     expect(moved).toBe(true)
   })
 })
@@ -227,13 +238,10 @@ describe('ghost dialog', () => {
   it('interactWithCharacter works with ghost', () => {
     const state = makeState()
     // Place ghost adjacent to player
-    state.characters = [
-      {
-        definitionId: 'ghost-1',
-        pos: { x: state.player.x + 1, y: state.player.y },
-        behavior: DRIFT_BEHAVIOR,
-      },
-    ]
+    destroyAllCharacterEntities(state)
+    createCharacterTestEntity(state, 'ghost-1', state.player.x + 1, state.player.y, {
+      behavior: DRIFT_BEHAVIOR,
+    })
     registerGhostDefinitions([1])
     state.playerFacing = 'right'
 
@@ -246,13 +254,10 @@ describe('ghost dialog', () => {
 
   it('advances through all 3 dialog lines then closes', () => {
     const state = makeState()
-    state.characters = [
-      {
-        definitionId: 'ghost-1',
-        pos: { x: state.player.x + 1, y: state.player.y },
-        behavior: DRIFT_BEHAVIOR,
-      },
-    ]
+    destroyAllCharacterEntities(state)
+    createCharacterTestEntity(state, 'ghost-1', state.player.x + 1, state.player.y, {
+      behavior: DRIFT_BEHAVIOR,
+    })
     registerGhostDefinitions([1])
 
     interactWithCharacter(state)

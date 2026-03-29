@@ -4,6 +4,7 @@ import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { getCharacterDefinition } from '@/engine/characters'
 import { SPACE_BORDER, TILE_COLORS } from '@/engine/constants'
+import { ComponentType } from '@/engine/ecs/types'
 import { getTileEffects } from '@/engine/effects'
 import { getDefinition } from '@/engine/items'
 import { TileType, Zone } from '@/engine/types'
@@ -127,19 +128,41 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
                       const cy = cursorTile.y
                       if (cx < 0 || cx >= state.mapWidth || cy < 0 || cy >= state.mapHeight) return 'void'
                       if (cx === state.player.x && cy === state.player.y) return state.stewardName.toLowerCase()
-                      const character = state.characters.find(c => c.pos.x === cx && c.pos.y === cy)
-                      if (character) return getCharacterDefinition(character.definitionId).name.toLowerCase()
-                      const bee = state.bees.find(b => b.pos.x === cx && b.pos.y === cy)
-                      if (bee) return 'bee'
-                      const meteorite = state.meteorites.find(m => m.pos.x === cx && m.pos.y === cy)
-                      if (meteorite) return 'meteorite'
-                      const omnibox = state.groundOmniboxes.find(o => o.pos.x === cx && o.pos.y === cy)
-                      if (omnibox) {
-                        const oc = state.omniboxContainers.get(omnibox.uid)
-                        return oc?.name.toLowerCase() ?? 'omnibox'
+                      const charEid = state.world.spatial
+                        .at(cx, cy)
+                        .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'character')
+                      if (charEid !== undefined) {
+                        const identity = state.world.getComponent(charEid, ComponentType.CharacterIdentity)
+                        if (identity) return getCharacterDefinition(identity.definitionId).name.toLowerCase()
                       }
-                      const gi = state.groundItems.find(g => g.pos.x === cx && g.pos.y === cy)
-                      if (gi) return getDefinition(gi.definitionId).name.toLowerCase()
+                      const hasBeeEcs = state.world.spatial
+                        .at(cx, cy)
+                        .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+                      if (hasBeeEcs) return 'bee'
+                      const hasMeteoriteEcs = state.world.spatial
+                        .at(cx, cy)
+                        .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+                      if (hasMeteoriteEcs) return 'meteorite'
+                      const omniboxEid = state.world.spatial
+                        .at(cx, cy)
+                        .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox')
+                      if (omniboxEid !== undefined) {
+                        const link = state.world.getComponent(omniboxEid, ComponentType.OmniboxLink)
+                        if (link) {
+                          const oc = state.omniboxContainers.get(link.uid)
+                          return oc?.name.toLowerCase() ?? 'omnibox'
+                        }
+                      }
+                      const groundItemEid = state.world.spatial
+                        .at(cx, cy)
+                        .find(
+                          (eid) =>
+                            state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem',
+                        )
+                      if (groundItemEid !== undefined) {
+                        const drop = state.world.getComponent(groundItemEid, ComponentType.ItemDrop)
+                        if (drop) return getDefinition(drop.definitionId).name.toLowerCase()
+                      }
                       return state.map[cy]?.[cx]?.type ?? 'void'
                     })()}
                   </td>
@@ -214,15 +237,21 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
                 <td className="text-muted py-0.5">
                   bees <span className="text-bee">*</span>
                 </td>
-                <td className="text-bee py-0.5 text-right">{state.bees.length}</td>
+                <td className="text-bee py-0.5 text-right">
+                  {state.world.query(ComponentType.EntityTag).filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee').length}
+                </td>
               </tr>
               <tr>
                 <td className="text-muted py-0.5">meteorites ✦</td>
-                <td className="text-meteorite py-0.5 text-right">{state.meteorites.length}</td>
+                <td className="text-meteorite py-0.5 text-right">
+                  {state.world.query(ComponentType.EntityTag).filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite').length}
+                </td>
               </tr>
               <tr>
                 <td className="text-muted py-0.5">prairie</td>
-                <td className="py-0.5 text-right">{state.bees.length > 0 ? 'yes' : 'no'}</td>
+                <td className="py-0.5 text-right">
+                  {state.world.query(ComponentType.EntityTag).some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee') ? 'yes' : 'no'}
+                </td>
               </tr>
             </tbody>
           </table>

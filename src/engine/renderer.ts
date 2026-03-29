@@ -1,5 +1,5 @@
 import { getCharacterDefinition } from './characters'
-import { AURA_RADIUS } from './effects'
+import { ComponentType } from './ecs/types'
 import {
   BEE_CHAR,
   BEE_COLOR,
@@ -65,7 +65,7 @@ export const measureChar = (ctx: CanvasRenderingContext2D): CharMetrics => {
 }
 
 export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
-  const { camera, viewportWidth, viewportHeight, map, player, bees } = state
+  const { camera, viewportWidth, viewportHeight, map, player } = state
   const { charWidth, charHeight } = metrics
 
   const pxWidth = viewportWidth * charWidth
@@ -77,16 +77,21 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   ctx.font = FONT
   ctx.textBaseline = 'top'
 
-  // Build a set of bee positions for fast lookup
+  // Build a set of bee positions for fast lookup (from ECS)
   const beePositions = new Set<string>()
-  for (const bee of bees) {
-    beePositions.add(posKey(bee.pos.x, bee.pos.y))
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
+    const bpos = state.world.getComponent(eid, ComponentType.Position)
+    if (bpos) beePositions.add(posKey(bpos.x, bpos.y))
   }
 
-  // Build a map of ground item positions for rendering
+  // Build a map of ground item positions for rendering (from ECS)
   const groundItemMap = new Map<string, string>()
-  for (const gi of state.groundItems) {
-    groundItemMap.set(posKey(gi.pos.x, gi.pos.y), gi.definitionId)
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position, ComponentType.ItemDrop)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundItem') continue
+    const gpos = state.world.getComponent(eid, ComponentType.Position)
+    const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
+    if (gpos && drop) groundItemMap.set(posKey(gpos.x, gpos.y), drop.definitionId)
   }
 
   // Build a map of preview tile positions for macro recipe previews
@@ -122,18 +127,22 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Build maps of shooting star pixels — targeted stars render over land, others only on space
   const shootingStarMap = new Map<string, { char: string; color: string }>()
   const targetedStarMap = new Map<string, { char: string; color: string }>()
-  for (const star of state.shootingStars) {
-    const map = star.landingTarget ? targetedStarMap : shootingStarMap
+  for (const eid of state.world.query(ComponentType.ShootingStarData, ComponentType.Position, ComponentType.Velocity)) {
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const vel = state.world.getComponent(eid, ComponentType.Velocity)
+    const data = state.world.getComponent(eid, ComponentType.ShootingStarData)
+    if (!pos || !vel || !data) continue
+    const map = data.landingTarget ? targetedStarMap : shootingStarMap
     // Head
-    map.set(posKey(star.pos.x, star.pos.y), {
+    map.set(posKey(pos.x, pos.y), {
       char: SHOOTING_STAR_HEAD_CHAR,
       color: SHOOTING_STAR_HEAD_COLOR,
     })
     // Trail — step backward along negated velocity
-    const trailChar = SHOOTING_STAR_TRAIL_CHARS[posKey(star.dx, star.dy)] ?? '-'
-    for (let t = 1; t <= star.length; t++) {
-      const tx = star.pos.x - star.dx * t
-      const ty = star.pos.y - star.dy * t
+    const trailChar = SHOOTING_STAR_TRAIL_CHARS[posKey(vel.dx, vel.dy)] ?? '-'
+    for (let t = 1; t <= data.length; t++) {
+      const tx = pos.x - vel.dx * t
+      const ty = pos.y - vel.dy * t
       const colorIndex = Math.min(t - 1, SHOOTING_STAR_TRAIL_COLORS.length - 1)
       map.set(posKey(tx, ty), {
         char: trailChar,
@@ -142,32 +151,46 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a set of meteorite positions
+  // Build a set of meteorite positions (from ECS)
   const meteoritePositions = new Set<string>()
-  for (const m of state.meteorites) {
-    meteoritePositions.add(posKey(m.pos.x, m.pos.y))
+  for (const eid of state.world.query(ComponentType.EntityTag)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'meteorite') continue
+    const mpos = state.world.getComponent(eid, ComponentType.Position)
+    if (mpos) meteoritePositions.add(posKey(mpos.x, mpos.y))
   }
 
-  // Build a map of ground omnibox positions for rendering
+  // Build a map of ground omnibox positions for rendering (from ECS)
   const groundOmniboxMap = new Map<string, string>()
-  for (const go of state.groundOmniboxes) {
-    groundOmniboxMap.set(posKey(go.pos.x, go.pos.y), go.uid)
+  for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+    const goPos = state.world.getComponent(eid, ComponentType.Position)
+    const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
+    if (goPos && link) groundOmniboxMap.set(posKey(goPos.x, goPos.y), link.uid)
   }
 
-  // Build a map of character positions for rendering
+  // Build a map of character positions for rendering (from ECS)
   const characterMap = new Map<string, { glyph: string; color: string }>()
-  for (const c of state.characters) {
-    const key = posKey(c.pos.x, c.pos.y)
+  for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    if (!pos || !identity) continue
+    const key = posKey(pos.x, pos.y)
     // Hide characters in masked hidden chamber until wall is broken
     if (!state.caveRevealed && state.caveHiddenPositions.has(key)) continue
-    const def = getCharacterDefinition(c.definitionId)
+    const def = getCharacterDefinition(identity.definitionId)
     characterMap.set(key, { glyph: def.glyph, color: def.glyphColor })
   }
 
-  // Build a map of explosion pixels
+  // Build a map of explosion pixels (from ECS)
   const explosionMap = new Map<string, { char: string; color: string }>()
-  for (const explosion of state.explosions) {
-    const elapsed = time - explosion.startTime
+  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'explosion') continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+    if (!pos || !effect) continue
+
+    const elapsed = time - effect.startTime
     const progress = Math.min(elapsed / EXPLOSION_DURATION_MS, 1)
     const currentRadius = Math.floor(progress * EXPLOSION_RADIUS)
     const charIndex = Math.min(Math.floor(progress * EXPLOSION_CHARS.length), EXPLOSION_CHARS.length - 1)
@@ -177,14 +200,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
     // Generate particles in a ring at the current radius
     if (currentRadius === 0) {
-      explosionMap.set(posKey(explosion.pos.x, explosion.pos.y), { char, color })
+      explosionMap.set(posKey(pos.x, pos.y), { char, color })
     } else {
       for (let dy = -currentRadius; dy <= currentRadius; dy++) {
         for (let dx = -currentRadius; dx <= currentRadius; dx++) {
           // Only ring positions (not filled circle)
           if (Math.abs(dx) !== currentRadius && Math.abs(dy) !== currentRadius) continue
-          const ex = explosion.pos.x + dx
-          const ey = explosion.pos.y + dy
+          const ex = pos.x + dx
+          const ey = pos.y + dy
           if (isInBounds(ex, ey, state.mapWidth, state.mapHeight)) {
             explosionMap.set(posKey(ex, ey), { char, color })
           }
@@ -193,9 +216,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a map of meteorite pickup effect pixels (starlight bloom)
+  // Build a map of meteorite pickup effect pixels (starlight bloom, from ECS)
   const pickupEffectMap = new Map<string, { char: string; color: string }>()
-  for (const effect of state.meteoritePickupEffects) {
+  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'pickupBloom') continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+    if (!pos || !effect) continue
+
     const elapsed = time - effect.startTime
 
     if (elapsed <= PICKUP_EFFECT_BLOOM_MS) {
@@ -204,11 +233,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const currentRadius = bloomProgress * PICKUP_EFFECT_RADIUS
       const charIndex = Math.min(
         Math.floor(bloomProgress * PICKUP_EFFECT_CHARS_RING.length),
-        PICKUP_EFFECT_CHARS_RING.length - 1
+        PICKUP_EFFECT_CHARS_RING.length - 1,
       )
       const colorIndex = Math.min(
         Math.floor(bloomProgress * PICKUP_EFFECT_COLORS.length),
-        PICKUP_EFFECT_COLORS.length - 1
+        PICKUP_EFFECT_COLORS.length - 1,
       )
       const char = PICKUP_EFFECT_CHARS_RING[charIndex]
       const color = PICKUP_EFFECT_COLORS[colorIndex]
@@ -218,8 +247,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         for (let dx = -r; dx <= r; dx++) {
           const dist = Math.sqrt(dx * dx + dy * dy)
           if (Math.round(dist) !== Math.round(currentRadius)) continue
-          const ex = effect.pos.x + dx
-          const ey = effect.pos.y + dy
+          const ex = pos.x + dx
+          const ey = pos.y + dy
           if (isInBounds(ex, ey, state.mapWidth, state.mapHeight)) {
             pickupEffectMap.set(posKey(ex, ey), { char, color })
           }
@@ -232,7 +261,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const fadeProgress = fadeElapsed / fadeDuration
       const colorIndex = Math.min(
         Math.floor((0.5 + fadeProgress * 0.5) * PICKUP_EFFECT_COLORS.length),
-        PICKUP_EFFECT_COLORS.length - 1
+        PICKUP_EFFECT_COLORS.length - 1,
       )
       const color = PICKUP_EFFECT_COLORS[colorIndex]
 
@@ -240,8 +269,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         for (let dx = -PICKUP_EFFECT_RADIUS; dx <= PICKUP_EFFECT_RADIUS; dx++) {
           const dist = Math.sqrt(dx * dx + dy * dy)
           if (dist > PICKUP_EFFECT_RADIUS + 0.5) continue
-          const ex = effect.pos.x + dx
-          const ey = effect.pos.y + dy
+          const ex = pos.x + dx
+          const ey = pos.y + dy
           if (!isInBounds(ex, ey, state.mapWidth, state.mapHeight)) continue
 
           if (Math.round(dist) === PICKUP_EFFECT_RADIUS) {
@@ -262,16 +291,22 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a map of crumble effect pixels (breakable wall)
+  // Build a map of crumble effect pixels (breakable wall, from ECS)
   const crumbleMap = new Map<string, { char: string; color: string }>()
-  for (const effect of state.crumbleEffects) {
+  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'crumble') continue
+    const multiPos = state.world.getComponent(eid, ComponentType.MultiPosition)
+    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+    if (!multiPos || !effect) continue
+
     const elapsed = time - effect.startTime
     const progress = Math.min(elapsed / CRUMBLE_DURATION_MS, 1)
     const charIndex = Math.min(Math.floor(progress * CRUMBLE_CHARS.length), CRUMBLE_CHARS.length - 1)
     const colorIndex = Math.min(Math.floor(progress * CRUMBLE_COLORS.length), CRUMBLE_COLORS.length - 1)
     const crChar = CRUMBLE_CHARS[charIndex]
     const crColor = CRUMBLE_COLORS[colorIndex]
-    for (const pos of effect.positions) {
+    for (const pos of multiPos.positions) {
       crumbleMap.set(posKey(pos.x, pos.y), { char: crChar, color: crColor })
     }
   }
@@ -417,12 +452,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Rain overlay pass — draw animated rain near characters with rain aura
-  const rainRadius = AURA_RADIUS.rain ?? 0
-  for (const c of state.characters) {
-    if (c.aura !== 'rain') continue
-    const cx = c.pos.x
-    const cy = c.pos.y
+  // Rain overlay pass — draw animated rain near entities with rain aura (from ECS)
+  for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
+    const aura = state.world.getComponent(eid, ComponentType.Aura)
+    if (aura?.kind !== 'rain') continue
+    const auraPos = state.world.getComponent(eid, ComponentType.Position)
+    if (!auraPos) continue
+    const cx = auraPos.x
+    const cy = auraPos.y
+    const rainRadius = aura.radius
 
     for (let dy = -rainRadius; dy <= rainRadius; dy++) {
       for (let dx = -rainRadius; dx <= rainRadius; dx++) {
