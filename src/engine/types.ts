@@ -76,11 +76,6 @@ export interface DriftBehavior {
 
 export type CharacterBehavior = DriftBehavior
 
-export interface GroundOmnibox {
-  uid: string // links to ItemInstance.uid and omniboxContainers key
-  pos: Position
-}
-
 export interface CharacterDefinition {
   id: string
   name: string
@@ -89,13 +84,6 @@ export interface CharacterDefinition {
   portrait?: string
   dialog: string[]
   music?: string
-}
-
-export interface Character {
-  definitionId: string
-  pos: Position
-  aura?: string
-  behavior?: CharacterBehavior
 }
 
 export interface GameState {
