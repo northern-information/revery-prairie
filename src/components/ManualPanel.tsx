@@ -144,15 +144,9 @@ const EntryCard = ({
       )}
 
       {/* Properties */}
-      <div className="text-dim mt-1 text-xs">
-        {!isRecipe && (
-          <>
-            glyph: <span style={{ color: entry.glyphColor }}>{entry.glyph}</span>
-            {'  '}
-          </>
-        )}
-        {showCategory && <>category: {entry.category}</>}
-      </div>
+      {showCategory && (
+        <div className="text-dim mt-1 text-xs">category: {entry.category}</div>
+      )}
 
       {/* Cross-refs */}
       {entry.crossRefs.length > 0 && (
