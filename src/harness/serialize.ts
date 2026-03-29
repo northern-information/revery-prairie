@@ -64,4 +64,5 @@ export const deserializeState = (json: string): GameState =>
 export const FUNCTION_FIELDS: (keyof GameState)[] = [
   'previewFn',
   'pendingAction',
+  'world',
 ]

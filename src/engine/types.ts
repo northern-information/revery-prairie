@@ -1,3 +1,5 @@
+import type { World } from './ecs'
+
 export const TileType = {
   Space: 'space',
   Dirt: 'dirt',
@@ -189,6 +191,7 @@ export interface GameState {
   caveBreakableWallPositions: Position[]
   crumbleEffects: CrumbleEffect[]
   moabGiftGiven: boolean
+  world: World
 }
 
 export interface CrumbleEffect {

@@ -60,6 +60,7 @@ const EXPECTED_FIELDS = [
   'pendingInteractionTarget',
   'heldDirection',
   'musicEnabled',
+  'world',
 ].sort()
 
 describe('GameState schema', () => {

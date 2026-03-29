@@ -1,4 +1,5 @@
 import { spawnShootingStarAtTarget } from './celestial'
+import { createWorld } from './ecs'
 import { generateCave } from './cave'
 import { registerGhostDefinitions } from './characters'
 import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER } from './constants'
@@ -124,6 +125,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     caveBreakableWallPositions: cave.breakableWallPositions,
     crumbleEffects: [],
     moabGiftGiven: false,
+    world: createWorld(),
   }
 
   // Place Gron near the player
