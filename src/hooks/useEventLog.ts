@@ -17,6 +17,7 @@ export const TOAST_FADE_START = 2000
 export const useEventLog = () => {
   const [toasts, setToasts] = useState<GameEvent[]>([])
   const [log, setLog] = useState<GameEvent[]>([])
+  const [, setTick] = useState(0)
   const counterRef = useRef(0)
   const rafRef = useRef(0)
 
@@ -42,6 +43,7 @@ export const useEventLog = () => {
         if (filtered.length !== prev.length) return filtered
         return prev
       })
+      setTick(t => t + 1)
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
