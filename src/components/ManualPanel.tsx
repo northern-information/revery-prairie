@@ -290,7 +290,7 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
 
         {/* Scrollable content */}
         <div
-          className="overflow-y-auto pr-2"
+          className="scrollbar-custom overflow-y-auto pr-2"
           style={{ maxHeight: 'calc(80vh - 180px)' }}
         >
           {visibleCategories.map((cat) => {
