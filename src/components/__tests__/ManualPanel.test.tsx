@@ -91,16 +91,12 @@ describe('ManualPanel', () => {
     expect(screen.getAllByText('prairie').length).toBeGreaterThan(0)
   })
 
-  it('renders entry glyphs with color based on discovery', () => {
+  it('renders entry glyphs in their real color regardless of discovery', () => {
     const state = createTestState()
-    state.manualDiscoveries.add('item:bee')
     const { container } = render(<ManualPanel state={state} onClose={vi.fn()} />)
-    // The bee glyph should be gold (#FFD700)
+    // The bee glyph should always be gold (#FFD700), even when undiscovered
     const goldSpans = container.querySelectorAll('span[style*="rgb(255, 215, 0)"]')
     expect(goldSpans.length).toBeGreaterThan(0)
-    // Undiscovered entries should be dim (#666)
-    const dimSpans = container.querySelectorAll('span[style*="rgb(102, 102, 102)"]')
-    expect(dimSpans.length).toBeGreaterThan(0)
   })
 
   it('toggles hint blocks on click', async () => {

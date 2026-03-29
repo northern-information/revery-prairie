@@ -186,6 +186,8 @@ the manual is open from the start — all entries are browsable. undiscovered re
 
 hand-authored content goes in the `MANUAL_LORE` table in `manual.ts`. entries without lore use their auto-derived summary. run `/maintain-manual` to audit for gaps and scaffold stubs.
 
+**when adding new game content**: items, recipes, and characters auto-generate manual entries from their registries — no extra work needed. new entity types that don't fit existing registries (spells, quests, biomes, etc.) must be added as manual-only entries in the `MANUAL_ONLY_ENTRIES` array in `manual.ts`, with a corresponding `recordDiscovery` call at the appropriate mutation point.
+
 ## entities
 
 - **bees** — spawn when bee+clover are combined, or when a bee item is dropped. wander randomly — prefer adjacent clover tiles, otherwise walk any non-Space tile. rendered as `*` in gold. tracked in `state.bees[]`. walking over a bee captures it into backpack.

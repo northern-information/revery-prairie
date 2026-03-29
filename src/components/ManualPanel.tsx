@@ -114,7 +114,6 @@ const EntryCard = ({
     <div className="mb-4">
       {/* Header: glyph + name */}
       <div className="flex items-baseline gap-2">
-        <span style={{ color: discovered ? entry.glyphColor : '#666' }}>{entry.glyph}</span>
         {isRecipe ? (
           <span className="text-text text-sm">
             {entry.crossRefs.slice(0, 2).join(' + ')} ={' '}
@@ -127,7 +126,10 @@ const EntryCard = ({
             />
           </span>
         ) : (
-          <span className={`text-sm ${discovered ? 'text-text' : 'text-dim'}`}>{entry.name}</span>
+          <>
+            <span style={{ color: entry.glyphColor }}>{entry.glyph}</span>
+            <span className={`text-sm ${discovered ? 'text-text' : 'text-dim'}`}>{entry.name}</span>
+          </>
         )}
       </div>
 
@@ -141,8 +143,13 @@ const EntryCard = ({
 
       {/* Properties */}
       <div className="text-dim mt-1 text-xs">
-        glyph: <span style={{ color: entry.glyphColor }}>{entry.glyph}</span>
-        {'  '}category: {entry.category}
+        {!isRecipe && (
+          <>
+            glyph: <span style={{ color: entry.glyphColor }}>{entry.glyph}</span>
+            {'  '}
+          </>
+        )}
+        category: {entry.category}
       </div>
 
       {/* Cross-refs */}
