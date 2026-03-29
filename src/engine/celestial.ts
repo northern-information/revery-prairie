@@ -11,7 +11,7 @@ import {
   SHOOTING_STAR_SPAWN_CHANCE,
 } from './constants'
 import { ComponentType } from './ecs'
-import { isInBounds, isWalkableTile, posKey } from './position'
+import { isInBounds, isWalkableTile } from './position'
 import { TileType } from './types'
 
 import type { GameState, Position } from './types'
@@ -21,7 +21,6 @@ const CHAIN_EXPLOSION_RADIUS = 3
 const CHAIN_EXPLOSION_COUNT = 3
 
 const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
-  const key = posKey(x, y)
   if (state.player.x === x && state.player.y === y) return true
   if (
     state.world.spatial
@@ -36,7 +35,12 @@ const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
   )
     return true
   if (state.groundOmniboxes.some((g) => g.pos.x === x && g.pos.y === y)) return true
-  if (state.characters.some((c) => posKey(c.pos.x, c.pos.y) === key)) return true
+  if (
+    state.world.spatial
+      .at(x, y)
+      .some((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'character')
+  )
+    return true
   return false
 }
 

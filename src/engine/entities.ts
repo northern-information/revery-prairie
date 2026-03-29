@@ -1,11 +1,34 @@
 import { CHAIN_EXPLOSION_CHANCE, spawnChainMeteorites } from './celestial'
 import { ComponentType } from './ecs'
+import { AURA_RADIUS } from './effects'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
 import { getBlockedPositions } from './movement'
 import { isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 import { TileType } from './types'
 
-import type { Character, DriftBehavior, GameState, Position } from './types'
+import type { Entity } from './ecs'
+import type { CharacterBehavior, DriftBehavior, GameState, Position } from './types'
+
+export const createCharacterEntity = (
+  state: GameState,
+  definitionId: string,
+  pos: Position,
+  opts?: { aura?: string; behavior?: CharacterBehavior },
+): Entity => {
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
+  state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId })
+  state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
+  state.world.addComponent(e, ComponentType.EntityTag, 'character')
+  if (opts?.aura) {
+    const radius = AURA_RADIUS[opts.aura] ?? 6
+    state.world.addComponent(e, ComponentType.Aura, { kind: opts.aura, radius })
+  }
+  if (opts?.behavior) {
+    state.world.addComponent(e, ComponentType.Behavior, opts.behavior)
+  }
+  return e
+}
 
 export interface PickUpResult {
   pickedUp: string[]
@@ -133,21 +156,25 @@ export const tickBees = (state: GameState): void => {
 
 const tickDrift = (
   state: GameState,
-  char: Character,
+  eid: Entity,
+  definitionId: string,
   behavior: DriftBehavior,
   blocked: Set<string>,
 ): void => {
-  if (behavior.freezeOnDialog && state.activeDialog?.characterId === char.definitionId) return
+  if (behavior.freezeOnDialog && state.activeDialog?.characterId === definitionId) return
   if (Math.random() > behavior.speed) return
 
+  const pos = state.world.getComponent(eid, ComponentType.Position)
+  if (!pos) return
+
   // Remove self from blocked set so we don't self-block
-  const selfKey = posKey(char.pos.x, char.pos.y)
+  const selfKey = posKey(pos.x, pos.y)
   blocked.delete(selfKey)
 
   const candidates: Position[] = []
   for (const d of ORDINAL) {
-    const nx = char.pos.x + d.x
-    const ny = char.pos.y + d.y
+    const nx = pos.x + d.x
+    const ny = pos.y + d.y
     if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
     if (!isWalkableTile(state.map[ny][nx].type)) continue
     if (blocked.has(posKey(nx, ny))) continue
@@ -157,8 +184,7 @@ const tickDrift = (
   if (candidates.length > 0) {
     const target = candidates[Math.floor(Math.random() * candidates.length)]
     blocked.add(posKey(target.x, target.y))
-    char.pos.x = target.x
-    char.pos.y = target.y
+    state.world.moveEntity(eid, target.x, target.y)
   } else {
     // Re-add self to blocked set since we didn't move
     blocked.add(selfKey)
@@ -169,11 +195,14 @@ export const tickCharacterBehaviors = (state: GameState): void => {
   const blocked = getBlockedPositions(state)
   blocked.add(posKey(state.player.x, state.player.y))
 
-  for (const char of state.characters) {
-    if (!char.behavior) continue
+  for (const eid of state.world.query(ComponentType.Behavior, ComponentType.CharacterIdentity, ComponentType.Position)) {
+    const behavior = state.world.getComponent(eid, ComponentType.Behavior)
+    if (!behavior) continue
+    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    if (!identity) continue
 
-    if (char.behavior.type === 'drift') {
-      tickDrift(state, char, char.behavior, blocked)
+    if (behavior.type === 'drift') {
+      tickDrift(state, eid, identity.definitionId, behavior, blocked)
     }
   }
 }

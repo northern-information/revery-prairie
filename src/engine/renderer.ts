@@ -1,6 +1,5 @@
 import { getCharacterDefinition } from './characters'
 import { ComponentType } from './ecs'
-import { AURA_RADIUS } from './effects'
 import {
   BEE_CHAR,
   BEE_COLOR,
@@ -166,13 +165,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     groundOmniboxMap.set(posKey(go.pos.x, go.pos.y), go.uid)
   }
 
-  // Build a map of character positions for rendering
+  // Build a map of character positions for rendering (from ECS)
   const characterMap = new Map<string, { glyph: string; color: string }>()
-  for (const c of state.characters) {
-    const key = posKey(c.pos.x, c.pos.y)
+  for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    if (!pos || !identity) continue
+    const key = posKey(pos.x, pos.y)
     // Hide characters in masked hidden chamber until wall is broken
     if (!state.caveRevealed && state.caveHiddenPositions.has(key)) continue
-    const def = getCharacterDefinition(c.definitionId)
+    const def = getCharacterDefinition(identity.definitionId)
     characterMap.set(key, { glyph: def.glyph, color: def.glyphColor })
   }
 
@@ -447,12 +449,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Rain overlay pass — draw animated rain near characters with rain aura
-  const rainRadius = AURA_RADIUS.rain ?? 0
-  for (const c of state.characters) {
-    if (c.aura !== 'rain') continue
-    const cx = c.pos.x
-    const cy = c.pos.y
+  // Rain overlay pass — draw animated rain near entities with rain aura (from ECS)
+  for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
+    const aura = state.world.getComponent(eid, ComponentType.Aura)
+    if (aura?.kind !== 'rain') continue
+    const auraPos = state.world.getComponent(eid, ComponentType.Position)
+    if (!auraPos) continue
+    const cx = auraPos.x
+    const cy = auraPos.y
+    const rainRadius = aura.radius
 
     for (let dy = -rainRadius; dy <= rainRadius; dy++) {
       for (let dx = -rainRadius; dx <= rainRadius; dx++) {

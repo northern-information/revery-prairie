@@ -4,7 +4,7 @@ import { pickUpGroundItems } from '../entities'
 import { placeItem } from '../inventory'
 import { TileType } from '../types'
 
-import { clearAroundPlayer, createGroundItemEntity, createMeteoriteEntity, createTestState, getMeteoriteEntities } from './helpers'
+import { clearAroundPlayer, createCharacterTestEntity, createGroundItemEntity, createMeteoriteEntity, createTestState, getMeteoriteEntities } from './helpers'
 
 describe('chain explosion', () => {
   describe('spawnChainMeteorites', () => {
@@ -206,10 +206,7 @@ describe('chain explosion', () => {
       state.map[py - 1][px] = { type: TileType.Dirt }
       state.map[py + 1][px] = { type: TileType.Dirt }
 
-      state.characters.push({
-        definitionId: 'test-char',
-        pos: { x: px, y: py - 1 },
-      })
+      createCharacterTestEntity(state, 'test-char', px, py - 1)
 
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 
@@ -233,9 +230,7 @@ describe('chain explosion', () => {
       state.map[py - 1][px] = { type: TileType.Dirt }
       state.map[py + 1][px] = { type: TileType.Dirt }
 
-      state.characters.push({
-        definitionId: 'ghost-99',
-        pos: { x: px, y: py - 1 },
+      createCharacterTestEntity(state, 'ghost-99', px, py - 1, {
         behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
       })
 

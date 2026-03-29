@@ -1,7 +1,7 @@
 import { createGameLoop } from '../gameLoop'
 import { ComponentType } from '../ecs'
 import { Zone } from '../types'
-import { clearAroundPlayer, createBeeEntity, createGroundItemEntity, createTestState } from './helpers'
+import { clearAroundPlayer, createBeeEntity, createCharacterTestEntity, createGroundItemEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('registry mechanics', () => {
@@ -601,7 +601,7 @@ describe('held key movement', () => {
     const startY = state.player.y
 
     // Place a character blocking the right tile
-    state.characters = [{ definitionId: 'ghost-1', pos: { x: startX + 1, y: startY } }]
+    createCharacterTestEntity(state, 'ghost-1', startX + 1, startY)
 
     const gameLoop = createGameLoop(state, {})
     state.heldDirection = 'right'

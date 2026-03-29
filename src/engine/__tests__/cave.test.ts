@@ -5,7 +5,7 @@ import { ComponentType } from '../ecs'
 import { findPath } from '../pathfinding'
 import { isWalkableTile } from '../position'
 import { TileType, Zone } from '../types'
-import { createBeeEntity, createTestState, getBeeEntities } from './helpers'
+import { createBeeEntity, createCharacterTestEntity, createTestState, getBeeEntities, getCharacterEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('generateCave', () => {
@@ -167,20 +167,21 @@ describe('enterCave', () => {
     expect(state.overworldSnapshot?.player).toEqual(overworldPlayer)
   })
 
-  it('clears characters in cave (bees are ECS-managed)', () => {
+  it('replaces overworld character entities with cave characters', () => {
     const state = createTestState()
     createBeeEntity(state, 10, 10)
-    state.characters.push({
-      definitionId: 'ghost-99',
-      pos: { x: 15, y: 15 },
+    createCharacterTestEntity(state, 'ghost-99', 15, 15, {
       behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
     })
-    expect(state.characters).toHaveLength(1)
+    const charsBefore = getCharacterEntities(state)
+    expect(charsBefore).toHaveLength(1)
     enterCave(state)
     // Bees are ECS entities and persist across zone transitions
     expect(getBeeEntities(state)).toHaveLength(1)
-    expect(state.characters).toHaveLength(1)
-    expect(state.characters[0].definitionId).toBe('moab')
+    // Overworld ghost is gone, Moab is created
+    const charsAfter = getCharacterEntities(state)
+    expect(charsAfter).toHaveLength(1)
+    expect(charsAfter[0].definitionId).toBe('moab')
   })
 
   it('places player adjacent to cave entrance interior, not on it', () => {
@@ -217,20 +218,18 @@ describe('exitCave', () => {
     expect(state.mapHeight).toBe(overworldHeight)
   })
 
-  it('restores characters (bees are ECS-managed)', () => {
+  it('restores overworld character entities (bees persist)', () => {
     const state = createTestState()
     createBeeEntity(state, 10, 10)
-    state.characters.push({
-      definitionId: 'ghost-99',
-      pos: { x: 15, y: 15 },
+    createCharacterTestEntity(state, 'ghost-99', 15, 15, {
       behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
     })
-    const overworldCharCount = state.characters.length
+    const overworldCharCount = getCharacterEntities(state).length
     enterCave(state)
     exitCave(state)
     // Bees are ECS entities and persist across zone transitions
     expect(getBeeEntities(state)).toHaveLength(1)
-    expect(state.characters).toHaveLength(overworldCharCount)
+    expect(getCharacterEntities(state)).toHaveLength(overworldCharCount)
   })
 
   it('places player one tile south of cave entrance to avoid re-entry', () => {

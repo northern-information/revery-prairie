@@ -10,10 +10,14 @@ import type { ItemInfoHandle } from '@/components/ItemInfo'
 
 // --- mocks ---
 
-vi.mock('@/engine/entities', () => ({
-  dropItem: vi.fn(() => false),
-  pickUpGroundItems: vi.fn(() => ({ pickedUp: [], chainExplosions: 0 })),
-}))
+vi.mock('@/engine/entities', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/engine/entities')>()
+  return {
+    ...actual,
+    dropItem: vi.fn(() => false),
+    pickUpGroundItems: vi.fn(() => ({ pickedUp: [], chainExplosions: 0 })),
+  }
+})
 
 vi.mock('@/engine/movement', () => ({
   movePlayer: vi.fn(() => true),

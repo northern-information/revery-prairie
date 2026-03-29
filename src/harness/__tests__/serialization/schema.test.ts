@@ -22,7 +22,6 @@ const EXPECTED_FIELDS = [
   'viewportWidth',
   'viewportHeight',
   'groundOmniboxes',
-  'characters',
   'activeDialog',
   'omniboxContainers',
   'nextOmniboxNumber',

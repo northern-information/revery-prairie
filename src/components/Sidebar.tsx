@@ -128,8 +128,13 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
                       const cy = cursorTile.y
                       if (cx < 0 || cx >= state.mapWidth || cy < 0 || cy >= state.mapHeight) return 'void'
                       if (cx === state.player.x && cy === state.player.y) return state.stewardName.toLowerCase()
-                      const character = state.characters.find(c => c.pos.x === cx && c.pos.y === cy)
-                      if (character) return getCharacterDefinition(character.definitionId).name.toLowerCase()
+                      const charEid = state.world.spatial
+                        .at(cx, cy)
+                        .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'character')
+                      if (charEid !== undefined) {
+                        const identity = state.world.getComponent(charEid, ComponentType.CharacterIdentity)
+                        if (identity) return getCharacterDefinition(identity.definitionId).name.toLowerCase()
+                      }
                       const hasBeeEcs = state.world.spatial
                         .at(cx, cy)
                         .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')

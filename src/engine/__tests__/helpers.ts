@@ -1,8 +1,10 @@
 import { ComponentType } from '../ecs'
+import { createCharacterEntity } from '../entities'
 import { isInBounds } from '../position'
 import { createGameState } from '../state'
 import { TileType } from '../types'
 
+import type { CharacterBehavior } from '../types'
 import type { Entity } from '../ecs'
 import type { GameState } from '../types'
 
@@ -17,7 +19,10 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   const state = createGameState('Test', opts?.viewportWidth ?? 20, opts?.viewportHeight ?? 20)
   state.backpack.items = []
   state.groundOmniboxes = []
-  state.characters = []
+  // Destroy all character ECS entities (ghosts, gron, etc.)
+  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
+    state.world.destroyEntity(eid)
+  }
   state.openContainer = null
   state.playerFacing = 'down'
   state.facingEntityPos = null
@@ -126,3 +131,45 @@ export const getGroundItemEntities = (state: GameState): Entity[] =>
   state.world
     .query(ComponentType.EntityTag)
     .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
+
+/**
+ * Creates a character ECS entity at the given position.
+ * Returns the entity id.
+ */
+export const createCharacterTestEntity = (
+  state: GameState,
+  definitionId: string,
+  x: number,
+  y: number,
+  opts?: { aura?: string; behavior?: CharacterBehavior },
+): Entity => createCharacterEntity(state, definitionId, { x, y }, opts)
+
+/**
+ * Queries all character ECS entities in the world.
+ * Returns an array of { eid, definitionId, pos, behavior?, aura? }.
+ */
+export const getCharacterEntities = (state: GameState) =>
+  state.world
+    .query(ComponentType.CharacterIdentity, ComponentType.Position)
+    .map((eid) => {
+      const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+      const pos = state.world.getComponent(eid, ComponentType.Position)
+      const behavior = state.world.getComponent(eid, ComponentType.Behavior)
+      const aura = state.world.getComponent(eid, ComponentType.Aura)
+      return {
+        eid,
+        definitionId: identity?.definitionId ?? '',
+        pos: pos ? { x: pos.x, y: pos.y } : { x: 0, y: 0 },
+        behavior: behavior ?? undefined,
+        aura: aura ?? undefined,
+      }
+    })
+
+/**
+ * Destroys all character ECS entities in the world.
+ */
+export const destroyAllCharacterEntities = (state: GameState): void => {
+  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
+    state.world.destroyEntity(eid)
+  }
+}
