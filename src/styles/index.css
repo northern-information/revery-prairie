@@ -48,3 +48,25 @@ body,
   align-items: center;
   justify-content: center;
 }
+
+.scrollbar-custom::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+.scrollbar-custom {
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}

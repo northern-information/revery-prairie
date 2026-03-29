@@ -118,6 +118,12 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     caveBreakableWallPositions: cave.breakableWallPositions,
     moabGiftGiven: false,
     world: createWorld(),
+    manualDiscoveries: new Set<string>(['item:bee', 'item:clover', 'item:permacomputer', 'item:omnibox']),
+    manualState: {
+      activeCategory: null,
+      searchQuery: '',
+      revealedHints: new Set<string>(),
+    },
   }
 
   // Place Gron near the player

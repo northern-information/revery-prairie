@@ -1,6 +1,7 @@
 import { checkCombine } from './combine'
 import { canPlace, findFitPosition, getRotatedShape, placeItem, removeItem } from './inventory'
 import { getDefinition } from './items'
+import { recordDiscovery } from './manual'
 import { recipeKey } from './recipes'
 import { Rotation } from './types'
 
@@ -128,6 +129,7 @@ export const executeCombine = (
   if (!success) return { outcome: 'failed' }
 
   state.discoveredRecipes.add(key)
+  recordDiscovery(state, `recipe:${key}`)
 
   if (draggedItem.definitionId !== recipe.preserveIngredient) {
     removeItem(sourceContainer, draggedItem.uid)

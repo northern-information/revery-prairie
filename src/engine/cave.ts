@@ -1,5 +1,6 @@
 import { ComponentType } from './ecs/types'
 import { createCharacterEntity } from './entities'
+import { recordDiscovery } from './manual'
 import { createGroundOmniboxEntity } from './omnibox'
 import { TileType, Zone } from './types'
 
@@ -253,6 +254,7 @@ export const enterCave = (state: GameState): void => {
     y: state.caveEntranceInterior.y - 1,
   }
   state.currentZone = Zone.Cave
+  recordDiscovery(state, 'zone:cave')
 
   // Create Moab as ECS entity in cave
   createCharacterEntity(state, 'moab', { ...state.caveNpcSpot })
