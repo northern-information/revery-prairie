@@ -78,11 +78,16 @@ export const useMouse = ({
       const clickedCharacterIdentity = clickedCharacterEid !== undefined
         ? state.world.getComponent(clickedCharacterEid, ComponentType.CharacterIdentity)
         : null
-      const clickedOmnibox = state.groundOmniboxes.find(go => go.pos.x === tile.x && go.pos.y === tile.y)
+      const clickedOmniboxEid = state.world.spatial
+        .at(tile.x, tile.y)
+        .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox')
+      const clickedOmniboxLink = clickedOmniboxEid !== undefined
+        ? state.world.getComponent(clickedOmniboxEid, ComponentType.OmniboxLink)
+        : null
       const clickedInteractableTile =
-        !clickedCharacterIdentity && !clickedOmnibox && isInteractableAt(state, tile.x, tile.y)
+        !clickedCharacterIdentity && !clickedOmniboxLink && isInteractableAt(state, tile.x, tile.y)
 
-      if (clickedCharacterIdentity || clickedOmnibox || clickedInteractableTile) {
+      if (clickedCharacterIdentity || clickedOmniboxLink || clickedInteractableTile) {
         // Find closest adjacent walkable tile to the entity
         let bestTarget: { x: number; y: number } | null = null
         let bestDist = Infinity
@@ -112,8 +117,8 @@ export const useMouse = ({
             onDialog(charDef.name, charDef.glyph, charDef.glyphColor, state.player.x, state.player.y)
             refreshUI()
           }
-        } else if (clickedOmnibox) {
-          const omniboxUid = clickedOmnibox.uid
+        } else if (clickedOmniboxLink) {
+          const omniboxUid = clickedOmniboxLink.uid
           action = () => {
             state.pendingInteractionTarget = null
             openOmnibox(state, omniboxUid)

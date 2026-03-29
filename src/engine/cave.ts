@@ -1,8 +1,9 @@
 import { ComponentType } from './ecs'
 import { createCharacterEntity } from './entities'
+import { createGroundOmniboxEntity } from './omnibox'
 import { TileType, Zone } from './types'
 
-import type { CharacterEntitySnapshot, GameState, Position, Tile } from './types'
+import type { CharacterEntitySnapshot, GameState, GroundOmniboxSnapshot, Position, Tile } from './types'
 
 export interface CaveResult {
   map: Tile[][]
@@ -201,9 +202,31 @@ const restoreCharacterEntities = (state: GameState, snapshots: CharacterEntitySn
   }
 }
 
+const snapshotAndDestroyGroundOmniboxes = (state: GameState): GroundOmniboxSnapshot[] => {
+  const snapshots: GroundOmniboxSnapshot[] = []
+  for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+    const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (!link || !pos) continue
+    snapshots.push({ uid: link.uid, pos: { x: pos.x, y: pos.y } })
+    state.world.destroyEntity(eid)
+  }
+  return snapshots
+}
+
+const restoreGroundOmniboxEntities = (state: GameState, snapshots: GroundOmniboxSnapshot[]): void => {
+  for (const snap of snapshots) {
+    createGroundOmniboxEntity(state, snap.uid, snap.pos.x, snap.pos.y)
+  }
+}
+
 export const enterCave = (state: GameState): void => {
   // Snapshot overworld character entities
   const characterSnapshots = snapshotAndDestroyCharacters(state)
+
+  // Snapshot overworld ground omnibox entities
+  const groundOmniboxSnapshots = snapshotAndDestroyGroundOmniboxes(state)
 
   // Snapshot overworld state
   state.overworldSnapshot = {
@@ -212,7 +235,7 @@ export const enterCave = (state: GameState): void => {
     mapHeight: state.mapHeight,
     player: { ...state.player },
     characterSnapshots,
-    groundOmniboxes: state.groundOmniboxes,
+    groundOmniboxSnapshots,
     path: state.path,
     pathWaypoints: state.pathWaypoints,
     pendingAction: state.pendingAction,
@@ -233,7 +256,6 @@ export const enterCave = (state: GameState): void => {
 
   // Create Moab as ECS entity in cave
   createCharacterEntity(state, 'moab', { ...state.caveNpcSpot })
-  state.groundOmniboxes = []
   // Clear navigation state
   state.path = null
   state.pathWaypoints = []
@@ -254,13 +276,21 @@ export const exitCave = (state: GameState): void => {
     state.world.destroyEntity(eid)
   }
 
+  // Destroy any cave ground omnibox entities (shouldn't exist, but be safe)
+  for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox') {
+      state.world.destroyEntity(eid)
+    }
+  }
+
   // Restore overworld state
   state.map = snapshot.map
   state.mapWidth = snapshot.mapWidth
   state.mapHeight = snapshot.mapHeight
   // Restore overworld character entities from snapshot
   restoreCharacterEntities(state, snapshot.characterSnapshots)
-  state.groundOmniboxes = snapshot.groundOmniboxes
+  // Restore overworld ground omnibox entities from snapshot
+  restoreGroundOmniboxEntities(state, snapshot.groundOmniboxSnapshots)
   state.currentZone = Zone.Overworld
 
   // Place player one tile south of the cave entrance to avoid re-entry loop

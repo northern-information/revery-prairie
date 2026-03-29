@@ -87,7 +87,6 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     },
     viewportWidth,
     viewportHeight,
-    groundOmniboxes: [],
     activeDialog: null,
     omniboxContainers: new Map(),
     nextOmniboxNumber: 1,

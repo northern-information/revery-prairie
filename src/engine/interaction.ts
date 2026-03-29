@@ -7,11 +7,13 @@ import { Rotation, TileType, Zone } from './types'
 import type { GameState } from './types'
 
 export const isInteractableAt = (state: GameState, x: number, y: number): boolean => {
-  if (state.groundOmniboxes.some(go => go.pos.x === x && go.pos.y === y)) return true
   if (
     state.world.spatial
       .at(x, y)
-      .some((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'character')
+      .some((eid) => {
+        const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+        return tag === 'groundOmnibox' || tag === 'character'
+      })
   ) {
     return true
   }
@@ -28,16 +30,28 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
 
 export const updateFacingEntity = (state: GameState): void => {
   const switchIfOpen = (x: number, y: number) => {
-    const go = state.groundOmniboxes.find(g => g.pos.x === x && g.pos.y === y)
-    if (
-      go &&
-      state.openContainer &&
-      state.groundOmniboxes.some(g => g.uid === state.openContainer?.id) &&
-      state.openContainer.id !== go.uid
-    ) {
-      const container = state.omniboxContainers.get(go.uid)
-      if (container) state.openContainer = container
+    // Find ground omnibox at this position
+    let goUid: string | null = null
+    for (const eid of state.world.spatial.at(x, y)) {
+      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+      const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
+      if (link) goUid = link.uid
+      break
     }
+    if (!goUid || !state.openContainer) return
+    // Only switch if the open container is also a ground omnibox
+    let openIsGround = false
+    for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)) {
+      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+      const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
+      if (link?.uid === state.openContainer.id) {
+        openIsGround = true
+        break
+      }
+    }
+    if (!openIsGround || state.openContainer.id === goUid) return
+    const container = state.omniboxContainers.get(goUid)
+    if (container) state.openContainer = container
   }
 
   // Prefer the interactable in the facing direction

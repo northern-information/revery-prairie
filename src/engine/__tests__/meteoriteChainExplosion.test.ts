@@ -4,7 +4,7 @@ import { pickUpGroundItems } from '../entities'
 import { placeItem } from '../inventory'
 import { TileType } from '../types'
 
-import { clearAroundPlayer, createCharacterTestEntity, createGroundItemEntity, createMeteoriteEntity, createTestState, getMeteoriteEntities } from './helpers'
+import { clearAroundPlayer, createCharacterTestEntity, createGroundItemEntity, createGroundOmniboxTestEntity, createMeteoriteEntity, createTestState, getMeteoriteEntities } from './helpers'
 
 describe('chain explosion', () => {
   describe('spawnChainMeteorites', () => {
@@ -182,7 +182,7 @@ describe('chain explosion', () => {
       state.map[py - 1][px] = { type: TileType.Dirt }
       state.map[py + 1][px] = { type: TileType.Dirt }
 
-      state.groundOmniboxes.push({ uid: 'test-uid', pos: { x: px, y: py - 1 } })
+      createGroundOmniboxTestEntity(state, 'test-uid', px, py - 1)
 
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 

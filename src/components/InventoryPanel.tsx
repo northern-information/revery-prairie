@@ -5,6 +5,7 @@ import { InventoryGrid } from './InventoryGrid'
 import { CloseButton, PanelTitle, SectionHeader } from './PanelPrimitives'
 import { clampPanelPosition } from './panelPosition'
 
+import { ComponentType } from '@/engine/ecs'
 import { closeOmnibox, grabOmnibox, openOmnibox } from '@/engine/omnibox'
 import { autoSort, findFitPosition, placeItem, removeItem } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
@@ -273,7 +274,9 @@ export const InventoryPanel = ({
                 itemInfoRef={itemInfoRef}
               />
               <div className="text-dim flex flex-col gap-1">
-                {state.groundOmniboxes.some(go => go.uid === state.openContainer?.id) && (
+                {state.openContainer && state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)
+                  .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox' &&
+                    state.world.getComponent(eid, ComponentType.OmniboxLink)?.uid === state.openContainer?.id) && (
                   <button
                     type="button"
                     className="text-dim hover:text-text pointer-events-auto text-left"

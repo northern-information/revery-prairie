@@ -22,25 +22,7 @@ const CHAIN_EXPLOSION_COUNT = 3
 
 const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
   if (state.player.x === x && state.player.y === y) return true
-  if (
-    state.world.spatial
-      .at(x, y)
-      .some((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
-  )
-    return true
-  if (
-    state.world.spatial
-      .at(x, y)
-      .some((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
-  )
-    return true
-  if (state.groundOmniboxes.some((g) => g.pos.x === x && g.pos.y === y)) return true
-  if (
-    state.world.spatial
-      .at(x, y)
-      .some((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'character')
-  )
-    return true
+  if (state.world.spatial.at(x, y).length > 0) return true
   return false
 }
 

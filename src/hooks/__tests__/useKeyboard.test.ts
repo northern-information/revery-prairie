@@ -2,7 +2,7 @@ import { renderHook, act } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { useKeyboard } from '../useKeyboard'
-import { createTestState } from '@/engine/__tests__/helpers'
+import { createGroundOmniboxTestEntity, createTestState } from '@/engine/__tests__/helpers'
 import { Zone } from '@/engine/types'
 
 import type { GameState } from '@/engine/types'
@@ -32,12 +32,16 @@ vi.mock('@/engine/interaction', () => ({
   updateFacingEntity: vi.fn(),
 }))
 
-vi.mock('@/engine/omnibox', () => ({
-  closeOmnibox: vi.fn(),
-  grabOmnibox: vi.fn(() => null),
-  toggleFacingOmnibox: vi.fn(() => false),
-  toggleOmnibox: vi.fn(() => false),
-}))
+vi.mock('@/engine/omnibox', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/engine/omnibox')>()
+  return {
+    ...actual,
+    closeOmnibox: vi.fn(),
+    grabOmnibox: vi.fn(() => null),
+    toggleFacingOmnibox: vi.fn(() => false),
+    toggleOmnibox: vi.fn(() => false),
+  }
+})
 
 vi.mock('@/engine/input', () => ({
   keyToDirection: vi.fn((key: string) => {
@@ -295,7 +299,7 @@ describe('useKeyboard', () => {
     it('grabs ground omnibox and closes container', () => {
       const container = { id: 'omni-uid', name: 'omnibox #1', width: 5, height: 5, items: [] }
       state.openContainer = container
-      state.groundOmniboxes = [{ uid: 'omni-uid', pos: { x: state.player.x + 1, y: state.player.y } }]
+      createGroundOmniboxTestEntity(state, 'omni-uid', state.player.x + 1, state.player.y)
       vi.mocked(grabOmnibox).mockReturnValue('omni-uid')
       renderKeyboardHook()
 
@@ -316,8 +320,7 @@ describe('useKeyboard', () => {
     it('closes non-ground omnibox container without grabbing', () => {
       const container = { id: 'backpack-omni', name: 'omnibox #2', width: 5, height: 5, items: [] }
       state.openContainer = container
-      // Not in groundOmniboxes
-      state.groundOmniboxes = []
+      // Not a ground omnibox ECS entity — no groundOmnibox entities in world
       renderKeyboardHook()
 
       act(() => { fireKey('e'); })

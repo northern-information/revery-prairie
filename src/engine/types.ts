@@ -111,7 +111,6 @@ export interface GameState {
   camera: Position
   viewportWidth: number
   viewportHeight: number
-  groundOmniboxes: GroundOmnibox[]
   activeDialog: {
     characterId: string
     lineIndex: number
@@ -212,13 +211,18 @@ export interface CharacterEntitySnapshot {
   behavior?: CharacterBehavior
 }
 
+export interface GroundOmniboxSnapshot {
+  uid: string
+  pos: Position
+}
+
 export interface OverworldSnapshot {
   map: Tile[][]
   mapWidth: number
   mapHeight: number
   player: Position
   characterSnapshots: CharacterEntitySnapshot[]
-  groundOmniboxes: GroundOmnibox[]
+  groundOmniboxSnapshots: GroundOmniboxSnapshot[]
   path: Position[] | null
   pathWaypoints: Position[]
   pendingAction: (() => void) | null

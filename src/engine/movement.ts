@@ -9,16 +9,10 @@ import type { Direction, GameState, Position } from './types'
 
 export const getBlockedPositions = (state: GameState): Set<string> => {
   const set = new Set<string>()
-  for (const go of state.groundOmniboxes) {
-    set.add(posKey(go.pos.x, go.pos.y))
-  }
   for (const eid of state.world.query(ComponentType.Blocking, ComponentType.Position)) {
-    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-    if (tag === 'character') {
-      const pos = state.world.getComponent(eid, ComponentType.Position)
-      if (pos) {
-        set.add(posKey(pos.x, pos.y))
-      }
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (pos) {
+      set.add(posKey(pos.x, pos.y))
     }
   }
   return set

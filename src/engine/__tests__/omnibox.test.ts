@@ -1,12 +1,13 @@
 import { dropItem, pickUpGroundItems } from '../entities'
 import { updateFacingEntity } from '../interaction'
 import { movePlayer } from '../movement'
-import { closeOmnibox, grabOmnibox, groundOmniboxBlockedSet, openOmnibox, toggleFacingOmnibox, toggleOmnibox } from '../omnibox'
+import { closeOmnibox, grabOmnibox, openOmnibox, toggleFacingOmnibox, toggleOmnibox } from '../omnibox'
 import { OMNIBOX_HEIGHT, OMNIBOX_WIDTH } from '../constants'
 import { createOmniboxContainer, findFitPosition, placeItem } from '../inventory'
 import { findPath } from '../pathfinding'
+import { getBlockedPositions } from '../movement'
 import { Rotation } from '../types'
-import { clearAroundPlayer, createTestState } from './helpers'
+import { clearAroundPlayer, createGroundOmniboxTestEntity, createTestState, getGroundOmniboxEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('createOmniboxContainer', () => {
@@ -122,7 +123,7 @@ describe('ground omnibox collision', () => {
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, uid, state.player.x + 1, state.player.y)
 
     const moved = movePlayer(state, 'right')
     expect(moved).toBe(false)
@@ -133,8 +134,8 @@ describe('ground omnibox collision', () => {
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
-    const blocked = groundOmniboxBlockedSet(state)
+    createGroundOmniboxTestEntity(state, uid, state.player.x + 1, state.player.y)
+    const blocked = getBlockedPositions(state)
 
     const path = findPath(
       state.map,
@@ -158,8 +159,8 @@ describe('ground omnibox collision', () => {
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
-    const blocked = groundOmniboxBlockedSet(state)
+    createGroundOmniboxTestEntity(state, uid, state.player.x + 1, state.player.y)
+    const blocked = getBlockedPositions(state)
 
     const path = findPath(
       state.map,
@@ -179,7 +180,7 @@ describe('facing omnibox', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     createOmniboxContainer(state, 'uid-1')
-    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, 'uid-1', state.player.x + 1, state.player.y)
     state.playerFacing = 'right'
 
     updateFacingEntity(state)
@@ -191,7 +192,7 @@ describe('facing omnibox', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     createOmniboxContainer(state, 'uid-1')
-    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 5, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, 'uid-1', state.player.x + 5, state.player.y)
     state.playerFacing = 'right'
 
     updateFacingEntity(state)
@@ -203,7 +204,7 @@ describe('facing omnibox', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     createOmniboxContainer(state, 'uid-1')
-    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, 'uid-1', state.player.x + 1, state.player.y)
     state.playerFacing = 'left'
 
     updateFacingEntity(state)
@@ -215,7 +216,7 @@ describe('facing omnibox', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     createOmniboxContainer(state, 'uid-1')
-    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, 'uid-1', state.player.x + 1, state.player.y)
     state.playerFacing = 'right'
     updateFacingEntity(state)
 
@@ -227,7 +228,7 @@ describe('facing omnibox', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     createOmniboxContainer(state, 'uid-1')
-    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, 'uid-1', state.player.x + 1, state.player.y)
     state.playerFacing = 'right'
     updateFacingEntity(state)
     openOmnibox(state, 'uid-1')
@@ -249,7 +250,7 @@ describe('facing omnibox', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     createOmniboxContainer(state, 'uid-1')
-    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 2, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, 'uid-1', state.player.x + 2, state.player.y)
 
     movePlayer(state, 'right')
 
@@ -265,7 +266,7 @@ describe('auto-close on walk-away', () => {
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
     // Place omnibox 2 tiles to the right so moving right once puts us adjacent
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 2, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, uid, state.player.x + 2, state.player.y)
 
     // Walk right to be adjacent, then open
     movePlayer(state, 'right')
@@ -305,12 +306,12 @@ describe('grabOmnibox', () => {
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, uid, state.player.x + 1, state.player.y)
 
     const result = grabOmnibox(state)
 
     expect(result).toBe(uid)
-    expect(state.groundOmniboxes).toHaveLength(0)
+    expect(getGroundOmniboxEntities(state)).toHaveLength(0)
     expect(state.backpack.items.some(i => i.definitionId === 'omnibox' && i.uid === uid)).toBe(true)
   })
 
@@ -319,7 +320,7 @@ describe('grabOmnibox', () => {
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, uid, state.player.x + 1, state.player.y)
     openOmnibox(state, uid)
     expect(state.openContainer?.id).toBe(uid)
 
@@ -334,10 +335,10 @@ describe('grabOmnibox', () => {
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 3, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, uid, state.player.x + 3, state.player.y)
 
     expect(grabOmnibox(state)).toBeNull()
-    expect(state.groundOmniboxes).toHaveLength(1)
+    expect(getGroundOmniboxEntities(state)).toHaveLength(1)
   })
 
   it('returns null when backpack is full', () => {
@@ -345,7 +346,7 @@ describe('grabOmnibox', () => {
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, uid, state.player.x + 1, state.player.y)
 
     // Fill backpack
     state.backpack.items = []
@@ -362,7 +363,7 @@ describe('grabOmnibox', () => {
     }
 
     expect(grabOmnibox(state)).toBeNull()
-    expect(state.groundOmniboxes).toHaveLength(1)
+    expect(getGroundOmniboxEntities(state)).toHaveLength(1)
   })
 
   it('only grabs cardinally adjacent (not diagonal)', () => {
@@ -370,7 +371,7 @@ describe('grabOmnibox', () => {
     clearAroundPlayer(state)
     const uid = 'uid-1'
     createOmniboxContainer(state, uid)
-    state.groundOmniboxes.push({ uid, pos: { x: state.player.x + 1, y: state.player.y + 1 } })
+    createGroundOmniboxTestEntity(state, uid, state.player.x + 1, state.player.y + 1)
 
     expect(grabOmnibox(state)).toBeNull()
   })
@@ -389,7 +390,7 @@ describe('no auto-open on drop', () => {
 
     dropItem(state, 'omnibox')
 
-    expect(state.groundOmniboxes).toHaveLength(1)
+    expect(getGroundOmniboxEntities(state)).toHaveLength(1)
     expect(state.openContainer).toBeNull()
   })
 })
@@ -405,8 +406,8 @@ describe('adjacent omnibox switch', () => {
     const py = state.player.y
     createOmniboxContainer(state, 'uid-1')
     createOmniboxContainer(state, 'uid-2')
-    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: px, y: py - 1 } })
-    state.groundOmniboxes.push({ uid: 'uid-2', pos: { x: px + 2, y: py } })
+    createGroundOmniboxTestEntity(state, 'uid-1', px, py - 1)
+    createGroundOmniboxTestEntity(state, 'uid-2', px + 2, py)
 
     // Face up toward uid-1
     state.playerFacing = 'up'
@@ -428,7 +429,7 @@ describe('adjacent omnibox switch', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     createOmniboxContainer(state, 'uid-1')
-    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, 'uid-1', state.player.x + 1, state.player.y)
     state.playerFacing = 'right'
     updateFacingEntity(state)
     openOmnibox(state, 'uid-1')
@@ -450,7 +451,7 @@ describe('adjacent omnibox switch', () => {
 
     // Place a ground omnibox nearby
     createOmniboxContainer(state, 'ground-uid')
-    state.groundOmniboxes.push({ uid: 'ground-uid', pos: { x: state.player.x + 1, y: state.player.y } })
+    createGroundOmniboxTestEntity(state, 'ground-uid', state.player.x + 1, state.player.y)
     state.playerFacing = 'right'
 
     updateFacingEntity(state)

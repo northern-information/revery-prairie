@@ -143,10 +143,15 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
                         .at(cx, cy)
                         .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
                       if (hasMeteoriteEcs) return 'meteorite'
-                      const omnibox = state.groundOmniboxes.find(o => o.pos.x === cx && o.pos.y === cy)
-                      if (omnibox) {
-                        const oc = state.omniboxContainers.get(omnibox.uid)
-                        return oc?.name.toLowerCase() ?? 'omnibox'
+                      const omniboxEid = state.world.spatial
+                        .at(cx, cy)
+                        .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox')
+                      if (omniboxEid !== undefined) {
+                        const link = state.world.getComponent(omniboxEid, ComponentType.OmniboxLink)
+                        if (link) {
+                          const oc = state.omniboxContainers.get(link.uid)
+                          return oc?.name.toLowerCase() ?? 'omnibox'
+                        }
                       }
                       const groundItemEid = state.world.spatial
                         .at(cx, cy)

@@ -159,10 +159,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (mpos) meteoritePositions.add(posKey(mpos.x, mpos.y))
   }
 
-  // Build a map of ground omnibox positions for rendering
+  // Build a map of ground omnibox positions for rendering (from ECS)
   const groundOmniboxMap = new Map<string, string>()
-  for (const go of state.groundOmniboxes) {
-    groundOmniboxMap.set(posKey(go.pos.x, go.pos.y), go.uid)
+  for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+    const goPos = state.world.getComponent(eid, ComponentType.Position)
+    const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
+    if (goPos && link) groundOmniboxMap.set(posKey(goPos.x, goPos.y), link.uid)
   }
 
   // Build a map of character positions for rendering (from ECS)

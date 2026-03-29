@@ -1,5 +1,6 @@
 import { ComponentType } from '../ecs'
 import { createCharacterEntity } from '../entities'
+import { createGroundOmniboxEntity } from '../omnibox'
 import { isInBounds } from '../position'
 import { createGameState } from '../state'
 import { TileType } from '../types'
@@ -18,7 +19,12 @@ import type { GameState } from '../types'
 export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?: number }): GameState => {
   const state = createGameState('Test', opts?.viewportWidth ?? 20, opts?.viewportHeight ?? 20)
   state.backpack.items = []
-  state.groundOmniboxes = []
+  // Destroy all ground omnibox ECS entities
+  for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox') {
+      state.world.destroyEntity(eid)
+    }
+  }
   // Destroy all character ECS entities (ghosts, gron, etc.)
   for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
     state.world.destroyEntity(eid)
@@ -173,3 +179,21 @@ export const destroyAllCharacterEntities = (state: GameState): void => {
     state.world.destroyEntity(eid)
   }
 }
+
+/**
+ * Creates a ground omnibox ECS entity at the given position.
+ */
+export const createGroundOmniboxTestEntity = (
+  state: GameState,
+  uid: string,
+  x: number,
+  y: number,
+): Entity => createGroundOmniboxEntity(state, uid, x, y)
+
+/**
+ * Queries all ground omnibox ECS entities in the world.
+ */
+export const getGroundOmniboxEntities = (state: GameState): Entity[] =>
+  state.world
+    .query(ComponentType.OmniboxLink, ComponentType.EntityTag)
+    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox')
