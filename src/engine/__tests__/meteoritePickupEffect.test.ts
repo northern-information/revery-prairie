@@ -3,7 +3,7 @@ import { ComponentType } from '../ecs'
 import { pickUpGroundItems } from '../entities'
 import { PICKUP_EFFECT_DURATION_MS } from '../constants'
 
-import { clearAroundPlayer, createTestState } from './helpers'
+import { clearAroundPlayer, createMeteoriteEntity, createTestState, getMeteoriteEntities } from './helpers'
 
 const queryPickupBlooms = (state: ReturnType<typeof createTestState>) =>
   state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
@@ -13,7 +13,7 @@ describe('meteoritePickupEffect', () => {
   it('creates a pickup effect when a meteorite is picked up with time', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.meteorites = [{ pos: { x: state.player.x, y: state.player.y } }]
+    createMeteoriteEntity(state, state.player.x, state.player.y)
 
     // Prevent chain explosion from consuming the meteorite before pickup
     const orig = Math.random
@@ -47,7 +47,7 @@ describe('meteoritePickupEffect', () => {
   it('does not create an effect when time is omitted', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.meteorites = [{ pos: { x: state.player.x, y: state.player.y } }]
+    createMeteoriteEntity(state, state.player.x, state.player.y)
 
     pickUpGroundItems(state)
 
@@ -81,7 +81,7 @@ describe('meteoritePickupEffect', () => {
   it('still picks up the meteorite normally', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.meteorites = [{ pos: { x: state.player.x, y: state.player.y } }]
+    createMeteoriteEntity(state, state.player.x, state.player.y)
 
     // Prevent chain explosion from spawning extra meteorites
     const orig = Math.random
@@ -90,7 +90,7 @@ describe('meteoritePickupEffect', () => {
       const result = pickUpGroundItems(state, 5000)
 
       expect(result.pickedUp).toContain('meteorite')
-      expect(state.meteorites).toHaveLength(0)
+      expect(getMeteoriteEntities(state)).toHaveLength(0)
       expect(state.backpack.items.some(i => i.definitionId === 'meteorite')).toBe(true)
     } finally {
       Math.random = orig

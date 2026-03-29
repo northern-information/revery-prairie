@@ -22,7 +22,6 @@ const EXPECTED_FIELDS = [
   'viewportWidth',
   'viewportHeight',
   'bees',
-  'meteorites',
   'groundItems',
   'groundOmniboxes',
   'characters',

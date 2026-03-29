@@ -61,25 +61,35 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   // Chain explosion: roll first, then capture survivors.
   // Exploded meteorites are consumed (removed, not picked up).
   let chainExplosions = 0
-  const explodedIndices: number[] = []
   if (time !== undefined) {
-    for (let i = 0; i < state.meteorites.length; i++) {
-      const m = state.meteorites[i]
-      if (m.pos.x === px && m.pos.y === py && !m.fromChain && Math.random() < CHAIN_EXPLOSION_CHANCE) {
-        explodedIndices.push(i)
+    const meteoritesAtPlayer = state.world.spatial
+      .at(px, py)
+      .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+    for (const eid of meteoritesAtPlayer) {
+      const chain = state.world.getComponent(eid, ComponentType.ChainSource)
+      if (!chain?.fromChain && Math.random() < CHAIN_EXPLOSION_CHANCE) {
+        state.world.destroyEntity(eid)
         chainExplosions += spawnChainMeteorites(state, { x: px, y: py }, time)
       }
     }
   }
-  if (explodedIndices.length > 0) {
-    removeByIndices(state.meteorites, explodedIndices)
+
+  // Capture surviving meteorites at player position
+  const remainingMeteoritesAtPlayer = state.world.spatial
+    .at(px, py)
+    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+  let meteoritesCaptured = 0
+  for (const eid of remainingMeteoritesAtPlayer) {
+    const fit = findFitPosition(state.backpack, 'meteorite')
+    if (fit) {
+      placeItem(state.backpack, 'meteorite', fit.rotation, fit.gridX, fit.gridY)
+      state.world.destroyEntity(eid)
+      pickedUp.push('meteorite')
+      meteoritesCaptured++
+    }
   }
 
-  const meteoriteResult = captureEntitiesAtPlayer(state.meteorites, px, py, state.backpack, 'meteorite')
-  removeByIndices(state.meteorites, meteoriteResult.removed)
-  pickedUp.push(...meteoriteResult.captured)
-
-  if (meteoriteResult.removed.length > 0 && time !== undefined) {
+  if (meteoritesCaptured > 0 && time !== undefined) {
     const e = state.world.createEntity()
     state.world.addComponent(e, ComponentType.Position, { x: px, y: py })
     state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pickupBloom', startTime: time })

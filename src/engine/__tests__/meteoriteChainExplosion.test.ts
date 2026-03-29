@@ -4,7 +4,7 @@ import { pickUpGroundItems } from '../entities'
 import { placeItem } from '../inventory'
 import { TileType } from '../types'
 
-import { clearAroundPlayer, createTestState } from './helpers'
+import { clearAroundPlayer, createMeteoriteEntity, createTestState, getMeteoriteEntities } from './helpers'
 
 describe('chain explosion', () => {
   describe('spawnChainMeteorites', () => {
@@ -16,7 +16,7 @@ describe('chain explosion', () => {
       const spawned = spawnChainMeteorites(state, origin, 1000)
 
       expect(spawned).toBe(3)
-      expect(state.meteorites).toHaveLength(3)
+      expect(getMeteoriteEntities(state)).toHaveLength(3)
       const explosions = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
         .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
       expect(explosions).toHaveLength(3)
@@ -29,8 +29,9 @@ describe('chain explosion', () => {
 
       spawnChainMeteorites(state, origin, 1000)
 
-      for (const m of state.meteorites) {
-        expect(m.fromChain).toBe(true)
+      for (const eid of getMeteoriteEntities(state)) {
+        const chain = state.world.getComponent(eid, ComponentType.ChainSource)
+        expect(chain?.fromChain).toBe(true)
       }
     })
 
@@ -48,7 +49,12 @@ describe('chain explosion', () => {
         expect(effect?.startTime).toBe(5000)
       }
       // Each explosion position matches a meteorite position
-      const meteoriteKeys = new Set(state.meteorites.map((m) => `${String(m.pos.x)},${String(m.pos.y)}`))
+      const meteoriteKeys = new Set(
+        getMeteoriteEntities(state).map((eid) => {
+          const pos = state.world.getComponent(eid, ComponentType.Position)
+          return `${String(pos?.x)},${String(pos?.y)}`
+        }),
+      )
       for (const eid of explosionEids) {
         const pos = state.world.getComponent(eid, ComponentType.Position)
         expect(pos).toBeDefined()
@@ -65,7 +71,10 @@ describe('chain explosion', () => {
 
       spawnChainMeteorites(state, origin, 1000)
 
-      const keys = state.meteorites.map((m) => `${String(m.pos.x)},${String(m.pos.y)}`)
+      const keys = getMeteoriteEntities(state).map((eid) => {
+        const pos = state.world.getComponent(eid, ComponentType.Position)
+        return `${String(pos?.x)},${String(pos?.y)}`
+      })
       expect(new Set(keys).size).toBe(keys.length)
     })
 
@@ -86,7 +95,10 @@ describe('chain explosion', () => {
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 
       expect(spawned).toBe(1)
-      expect(state.meteorites[0].pos).toEqual({ x: px, y: py - 1 })
+      const meteorites = getMeteoriteEntities(state)
+      expect(meteorites).toHaveLength(1)
+      const pos = state.world.getComponent(meteorites[0], ComponentType.Position)
+      expect(pos).toEqual({ x: px, y: py - 1 })
     })
 
     it('does not spawn on the player tile', () => {
@@ -96,8 +108,9 @@ describe('chain explosion', () => {
 
       spawnChainMeteorites(state, origin, 1000)
 
-      for (const m of state.meteorites) {
-        expect(m.pos.x === origin.x && m.pos.y === origin.y).toBe(false)
+      for (const eid of getMeteoriteEntities(state)) {
+        const pos = state.world.getComponent(eid, ComponentType.Position)
+        expect(pos?.x === origin.x && pos?.y === origin.y).toBe(false)
       }
     })
 
@@ -118,14 +131,17 @@ describe('chain explosion', () => {
       state.map[py][px + 1] = { type: TileType.Dirt }
       state.map[py][px - 1] = { type: TileType.Dirt }
 
-      state.meteorites.push({ pos: { x: px, y: py - 1 } })
-      state.meteorites.push({ pos: { x: px + 1, y: py } })
-      state.meteorites.push({ pos: { x: px - 1, y: py } })
+      createMeteoriteEntity(state, px, py - 1)
+      createMeteoriteEntity(state, px + 1, py)
+      createMeteoriteEntity(state, px - 1, py)
 
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 
       expect(spawned).toBe(1)
-      expect(state.meteorites[state.meteorites.length - 1].pos).toEqual({ x: px, y: py + 1 })
+      // The newly spawned meteorite should be at the only remaining open tile
+      const allMeteors = getMeteoriteEntities(state)
+      const lastPos = state.world.getComponent(allMeteors[allMeteors.length - 1], ComponentType.Position)
+      expect(lastPos).toEqual({ x: px, y: py + 1 })
     })
 
     it('does not spawn on tiles occupied by ground items', () => {
@@ -147,7 +163,9 @@ describe('chain explosion', () => {
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 
       expect(spawned).toBe(1)
-      expect(state.meteorites[0].pos).toEqual({ x: px, y: py + 1 })
+      const meteorites = getMeteoriteEntities(state)
+      const pos = state.world.getComponent(meteorites[0], ComponentType.Position)
+      expect(pos).toEqual({ x: px, y: py + 1 })
     })
 
     it('does not spawn on tiles occupied by ground omniboxes', () => {
@@ -169,7 +187,9 @@ describe('chain explosion', () => {
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 
       expect(spawned).toBe(1)
-      expect(state.meteorites[0].pos).toEqual({ x: px, y: py + 1 })
+      const meteorites = getMeteoriteEntities(state)
+      const pos = state.world.getComponent(meteorites[0], ComponentType.Position)
+      expect(pos).toEqual({ x: px, y: py + 1 })
     })
 
     it('does not spawn on tiles occupied by characters', () => {
@@ -194,7 +214,9 @@ describe('chain explosion', () => {
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 
       expect(spawned).toBe(1)
-      expect(state.meteorites[0].pos).toEqual({ x: px, y: py + 1 })
+      const meteorites = getMeteoriteEntities(state)
+      const pos = state.world.getComponent(meteorites[0], ComponentType.Position)
+      expect(pos).toEqual({ x: px, y: py + 1 })
     })
 
     it('does not spawn on tiles occupied by ghosts', () => {
@@ -220,7 +242,9 @@ describe('chain explosion', () => {
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 
       expect(spawned).toBe(1)
-      expect(state.meteorites[0].pos).toEqual({ x: px, y: py + 1 })
+      const meteorites = getMeteoriteEntities(state)
+      const pos = state.world.getComponent(meteorites[0], ComponentType.Position)
+      expect(pos).toEqual({ x: px, y: py + 1 })
     })
 
     it('returns 0 when no valid tiles exist', () => {
@@ -239,7 +263,7 @@ describe('chain explosion', () => {
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 
       expect(spawned).toBe(0)
-      expect(state.meteorites).toHaveLength(0)
+      expect(getMeteoriteEntities(state)).toHaveLength(0)
       const explosions = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
         .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
       expect(explosions).toHaveLength(0)
@@ -262,7 +286,7 @@ describe('chain explosion', () => {
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 
       expect(spawned).toBe(2)
-      expect(state.meteorites).toHaveLength(2)
+      expect(getMeteoriteEntities(state)).toHaveLength(2)
     })
 
     it('works in cave zone with caveFloor tiles', () => {
@@ -291,7 +315,7 @@ describe('chain explosion', () => {
     it('returns chainExplosions > 0 when roll succeeds', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
-      state.meteorites.push({ pos: { x: state.player.x, y: state.player.y } })
+      createMeteoriteEntity(state, state.player.x, state.player.y)
 
       // Force Math.random to always trigger (< 1/7)
       const orig = Math.random
@@ -309,7 +333,7 @@ describe('chain explosion', () => {
     it('returns chainExplosions 0 when roll fails', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
-      state.meteorites.push({ pos: { x: state.player.x, y: state.player.y } })
+      createMeteoriteEntity(state, state.player.x, state.player.y)
 
       const orig = Math.random
       Math.random = () => 0.9
@@ -325,7 +349,7 @@ describe('chain explosion', () => {
     it('does not roll when time is undefined', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
-      state.meteorites.push({ pos: { x: state.player.x, y: state.player.y } })
+      createMeteoriteEntity(state, state.player.x, state.player.y)
 
       const orig = Math.random
       Math.random = () => 0.1
@@ -340,7 +364,7 @@ describe('chain explosion', () => {
     it('still rolls when backpack is full', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
-      state.meteorites.push({ pos: { x: state.player.x, y: state.player.y } })
+      createMeteoriteEntity(state, state.player.x, state.player.y)
 
       // Fill backpack completely (4x6 = 24 slots, clover is 1x1)
       for (let y = 0; y < state.backpack.height; y++) {
@@ -357,10 +381,11 @@ describe('chain explosion', () => {
         expect(result.pickedUp).not.toContain('meteorite')
         // Chain explosion fires
         expect(result.chainExplosions).toBe(3)
-        // Original meteorite consumed — only the 3 spawned ones remain
-        expect(
-          state.meteorites.filter((m) => m.pos.x === state.player.x && m.pos.y === state.player.y)
-        ).toHaveLength(0)
+        // Original meteorite consumed — no meteorites at player position
+        const meteoritesAtPlayer = state.world.spatial
+          .at(state.player.x, state.player.y)
+          .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+        expect(meteoritesAtPlayer).toHaveLength(0)
       } finally {
         Math.random = orig
       }
@@ -369,8 +394,8 @@ describe('chain explosion', () => {
     it('rolls independently for multiple meteorites at same position', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
-      state.meteorites.push({ pos: { x: state.player.x, y: state.player.y } })
-      state.meteorites.push({ pos: { x: state.player.x, y: state.player.y } })
+      createMeteoriteEntity(state, state.player.x, state.player.y)
+      createMeteoriteEntity(state, state.player.x, state.player.y)
 
       const orig = Math.random
       Math.random = () => 0.1
@@ -388,7 +413,7 @@ describe('chain explosion', () => {
     it('does not roll chain explosion for fromChain meteorites', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
-      state.meteorites.push({ pos: { x: state.player.x, y: state.player.y }, fromChain: true })
+      createMeteoriteEntity(state, state.player.x, state.player.y, true)
 
       const orig = Math.random
       Math.random = () => 0.0 // would always trigger if checked

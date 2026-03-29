@@ -87,7 +87,6 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     viewportWidth,
     viewportHeight,
     bees: [],
-    meteorites: [],
     groundItems: [],
     groundOmniboxes: [],
     characters: [],

@@ -181,7 +181,6 @@ export const enterCave = (state: GameState): void => {
     characters: state.characters,
     groundItems: state.groundItems,
     groundOmniboxes: state.groundOmniboxes,
-    meteorites: state.meteorites,
     path: state.path,
     pathWaypoints: state.pathWaypoints,
     pendingAction: state.pendingAction,
@@ -205,8 +204,6 @@ export const enterCave = (state: GameState): void => {
   state.characters = [{ definitionId: 'moab', pos: { ...state.caveNpcSpot } }]
   state.groundItems = []
   state.groundOmniboxes = []
-  state.meteorites = []
-
   // Clear navigation state
   state.path = null
   state.pathWaypoints = []
@@ -230,7 +227,6 @@ export const exitCave = (state: GameState): void => {
   state.characters = snapshot.characters
   state.groundItems = snapshot.groundItems
   state.groundOmniboxes = snapshot.groundOmniboxes
-  state.meteorites = snapshot.meteorites
   state.currentZone = Zone.Overworld
 
   // Place player one tile south of the cave entrance to avoid re-entry loop

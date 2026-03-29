@@ -1,7 +1,9 @@
+import { ComponentType } from '../ecs'
 import { isInBounds } from '../position'
 import { createGameState } from '../state'
 import { TileType } from '../types'
 
+import type { Entity } from '../ecs'
 import type { GameState } from '../types'
 
 /**
@@ -15,7 +17,6 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   const state = createGameState('Test', opts?.viewportWidth ?? 20, opts?.viewportHeight ?? 20)
   state.backpack.items = []
   state.bees = []
-  state.meteorites = []
   state.groundItems = []
   state.groundOmniboxes = []
   state.characters = []
@@ -54,3 +55,30 @@ export const clearArea = (state: GameState, cx: number, cy: number, radius: numb
 export const clearAroundPlayer = (state: GameState, radius = 2): void => {
   clearArea(state, state.player.x, state.player.y, radius)
 }
+
+/**
+ * Creates a meteorite ECS entity at the given position.
+ */
+export const createMeteoriteEntity = (
+  state: GameState,
+  x: number,
+  y: number,
+  fromChain = false,
+): Entity => {
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x, y })
+  state.world.addComponent(e, ComponentType.Pickupable, { definitionId: 'meteorite' })
+  state.world.addComponent(e, ComponentType.EntityTag, 'meteorite')
+  if (fromChain) {
+    state.world.addComponent(e, ComponentType.ChainSource, { fromChain: true })
+  }
+  return e
+}
+
+/**
+ * Queries all meteorite ECS entities in the world.
+ */
+export const getMeteoriteEntities = (state: GameState): Entity[] =>
+  state.world
+    .query(ComponentType.EntityTag)
+    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')

@@ -77,11 +77,6 @@ export interface Bee {
   pos: Position
 }
 
-export interface Meteorite {
-  pos: Position
-  fromChain?: boolean
-}
-
 export interface DriftBehavior {
   type: 'drift'
   speed: number // probability per tick (0.15 for ghosts)
@@ -126,7 +121,6 @@ export interface GameState {
   viewportWidth: number
   viewportHeight: number
   bees: Bee[]
-  meteorites: Meteorite[]
   groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
   characters: Character[]
@@ -232,7 +226,6 @@ export interface OverworldSnapshot {
   characters: Character[]
   groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
-  meteorites: Meteorite[]
   path: Position[] | null
   pathWaypoints: Position[]
   pendingAction: (() => void) | null

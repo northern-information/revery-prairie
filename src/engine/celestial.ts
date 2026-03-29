@@ -23,7 +23,12 @@ const CHAIN_EXPLOSION_COUNT = 3
 const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
   const key = posKey(x, y)
   if (state.player.x === x && state.player.y === y) return true
-  if (state.meteorites.some((m) => m.pos.x === x && m.pos.y === y)) return true
+  if (
+    state.world.spatial
+      .at(x, y)
+      .some((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+  )
+    return true
   if (state.groundItems.some((g) => g.pos.x === x && g.pos.y === y)) return true
   if (state.groundOmniboxes.some((g) => g.pos.x === x && g.pos.y === y)) return true
   if (state.characters.some((c) => posKey(c.pos.x, c.pos.y) === key)) return true
@@ -57,7 +62,11 @@ export const spawnChainMeteorites = (
   const spawned = Math.min(CHAIN_EXPLOSION_COUNT, candidates.length)
   for (let i = 0; i < spawned; i++) {
     const pos = candidates[i]
-    state.meteorites.push({ pos, fromChain: true })
+    const me = state.world.createEntity()
+    state.world.addComponent(me, ComponentType.Position, { x: pos.x, y: pos.y })
+    state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
+    state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
+    state.world.addComponent(me, ComponentType.ChainSource, { fromChain: true })
     const e = state.world.createEntity()
     state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
     state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
@@ -181,7 +190,10 @@ export const tickShootingStars = (state: GameState, time: number): void => {
       if (data.landingTarget) {
         // Targeted landing — only land on the exact target tile
         if (x === data.landingTarget.x && y === data.landingTarget.y) {
-          state.meteorites.push({ pos: { x, y } })
+          const me = state.world.createEntity()
+          state.world.addComponent(me, ComponentType.Position, { x, y })
+          state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
+          state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
@@ -193,7 +205,10 @@ export const tickShootingStars = (state: GameState, time: number): void => {
         // Untargeted landing — land on first walkable tile
         const tile = state.map[y][x]
         if (tile.type === TileType.Dirt || tile.type === TileType.Clover) {
-          state.meteorites.push({ pos: { x, y } })
+          const me = state.world.createEntity()
+          state.world.addComponent(me, ComponentType.Position, { x, y })
+          state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
+          state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })

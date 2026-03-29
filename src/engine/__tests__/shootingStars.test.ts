@@ -53,6 +53,17 @@ const destroyAllStars = (state: GameState): void => {
   }
 }
 
+const getMeteoriteEntities = (state: GameState): Entity[] =>
+  state.world
+    .query(ComponentType.EntityTag)
+    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+
+const destroyAllMeteorites = (state: GameState): void => {
+  for (const eid of getMeteoriteEntities(state)) {
+    state.world.destroyEntity(eid)
+  }
+}
+
 const clearAroundPlayer = (state: GameState) => {
   for (let dy = -2; dy <= 2; dy++) {
     for (let dx = -2; dx <= 2; dx++) {
@@ -63,6 +74,18 @@ const clearAroundPlayer = (state: GameState) => {
       }
     }
   }
+}
+
+const createMeteoriteEntity = (
+  state: GameState,
+  x: number,
+  y: number,
+): Entity => {
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x, y })
+  state.world.addComponent(e, ComponentType.Pickupable, { definitionId: 'meteorite' })
+  state.world.addComponent(e, ComponentType.EntityTag, 'meteorite')
+  return e
 }
 
 describe('tickShootingStars', () => {
@@ -114,7 +137,7 @@ describe('tickShootingStars', () => {
   it('converts willLand star to meteorite when it hits a walkable tile', () => {
     const state = createGameState('Test', 20, 20)
     destroyAllStars(state)
-    state.meteorites = []
+    destroyAllMeteorites(state)
     const targetX = Math.floor(MAP_WIDTH / 2)
     const targetY = Math.floor(MAP_HEIGHT / 2)
     state.map[targetY][targetX] = { type: TileType.Dirt }
@@ -129,9 +152,11 @@ describe('tickShootingStars', () => {
     tickShootingStars(state, 5000)
 
     expect(getStarCount(state)).toBe(0)
-    expect(state.meteorites).toHaveLength(1)
-    expect(state.meteorites[0].pos.x).toBe(targetX)
-    expect(state.meteorites[0].pos.y).toBe(targetY)
+    const meteorites = getMeteoriteEntities(state)
+    expect(meteorites).toHaveLength(1)
+    const pos = state.world.getComponent(meteorites[0], ComponentType.Position)
+    expect(pos?.x).toBe(targetX)
+    expect(pos?.y).toBe(targetY)
   })
 
   it('creates a LandingExplosion when a star lands', () => {
@@ -180,7 +205,7 @@ describe('tickShootingStars', () => {
   it('targeted star passes over walkable tiles until reaching its exact target', () => {
     const state = createGameState('Test', 20, 20)
     destroyAllStars(state)
-    state.meteorites = []
+    destroyAllMeteorites(state)
     const targetX = Math.floor(MAP_WIDTH / 2)
     const targetY = Math.floor(MAP_HEIGHT / 2)
 
@@ -203,23 +228,25 @@ describe('tickShootingStars', () => {
       tickShootingStars(state, 1000 + t * 80)
     }
     expect(getStarCount(state)).toBe(1)
-    expect(state.meteorites).toHaveLength(0)
+    expect(getMeteoriteEntities(state)).toHaveLength(0)
 
     // One more tick — star reaches the target
     tickShootingStars(state, 1000 + 4 * 80)
     expect(getStarCount(state)).toBe(0)
-    expect(state.meteorites).toHaveLength(1)
-    expect(state.meteorites[0].pos.x).toBe(targetX)
-    expect(state.meteorites[0].pos.y).toBe(targetY)
+    const meteorites = getMeteoriteEntities(state)
+    expect(meteorites).toHaveLength(1)
+    const pos = state.world.getComponent(meteorites[0], ComponentType.Position)
+    expect(pos?.x).toBe(targetX)
+    expect(pos?.y).toBe(targetY)
   })
 
   it('no-ops on empty world', () => {
     const state = createGameState('Test', 20, 20)
     destroyAllStars(state)
-    state.meteorites = []
+    destroyAllMeteorites(state)
     tickShootingStars(state, 1000)
     expect(getStarCount(state)).toBe(0)
-    expect(state.meteorites).toHaveLength(0)
+    expect(getMeteoriteEntities(state)).toHaveLength(0)
   })
 })
 
@@ -294,27 +321,27 @@ describe('pickupMeteorite', () => {
   it('returns false (empty array) when no meteorite at player position', () => {
     const state = createGameState('Test', 20, 20)
     clearAroundPlayer(state)
-    state.meteorites = [{ pos: { x: 0, y: 0 } }]
+    createMeteoriteEntity(state, 0, 0)
 
     const result = pickUpGroundItems(state)
     expect(result.pickedUp).not.toContain('meteorite')
-    expect(state.meteorites).toHaveLength(1)
+    expect(getMeteoriteEntities(state)).toHaveLength(1)
   })
 
-  it('removes meteorite from array on pickup', () => {
+  it('removes meteorite from world on pickup', () => {
     const state = createGameState('Test', 20, 20)
     clearAroundPlayer(state)
-    state.meteorites = [{ pos: { x: state.player.x, y: state.player.y } }]
+    createMeteoriteEntity(state, state.player.x, state.player.y)
 
     const result = pickUpGroundItems(state)
     expect(result.pickedUp).toContain('meteorite')
-    expect(state.meteorites).toHaveLength(0)
+    expect(getMeteoriteEntities(state)).toHaveLength(0)
   })
 
   it('adds meteorite item to backpack', () => {
     const state = createGameState('Test', 20, 20)
     clearAroundPlayer(state)
-    state.meteorites = [{ pos: { x: state.player.x, y: state.player.y } }]
+    createMeteoriteEntity(state, state.player.x, state.player.y)
 
     pickUpGroundItems(state)
 

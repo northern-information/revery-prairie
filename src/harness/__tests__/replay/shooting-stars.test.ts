@@ -3,10 +3,17 @@ import { createGameState } from '@/engine/state'
 import { tickShootingStars } from '@/engine/celestial'
 import { ComponentType } from '@/engine/ecs'
 
+import type { GameState } from '@/engine/types'
+
 const SEED = 42
 
 const createSeededState = () =>
   withSeededRandom(SEED, () => createGameState('test', 40, 30))
+
+const getMeteoriteEntities = (state: GameState) =>
+  state.world
+    .query(ComponentType.EntityTag)
+    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
 
 describe('replay: shooting stars', () => {
   it('produces identical meteorite positions after ticking to completion', () => {
@@ -18,8 +25,12 @@ describe('replay: shooting stars', () => {
         tickShootingStars(state, time)
         time += 100
       }
+      const meteorites = getMeteoriteEntities(state).map((eid) => {
+        const pos = state.world.getComponent(eid, ComponentType.Position)
+        return { x: pos?.x, y: pos?.y }
+      })
       return {
-        meteorites: state.meteorites.map((m) => ({ x: m.pos.x, y: m.pos.y })),
+        meteorites,
         starsRemaining: state.world.query(ComponentType.ShootingStarData).length,
       }
     }
@@ -54,7 +65,7 @@ describe('replay: shooting stars', () => {
 
   it('meteorites accumulate as stars land', () => {
     const state = createSeededState()
-    const initialMeteoriteCount = state.meteorites.length
+    const initialMeteoriteCount = getMeteoriteEntities(state).length
 
     let time = 0
     for (let i = 0; i < 500; i++) {
@@ -63,6 +74,6 @@ describe('replay: shooting stars', () => {
     }
 
     // the 7 spawned shooting stars should have produced meteorites
-    expect(state.meteorites.length).toBeGreaterThan(initialMeteoriteCount)
+    expect(getMeteoriteEntities(state).length).toBeGreaterThan(initialMeteoriteCount)
   })
 })
