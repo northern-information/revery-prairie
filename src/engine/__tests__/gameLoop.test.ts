@@ -1,7 +1,7 @@
 import { createGameLoop } from '../gameLoop'
 import { ComponentType } from '../ecs'
 import { Zone } from '../types'
-import { clearAroundPlayer, createBeeEntity, createTestState } from './helpers'
+import { clearAroundPlayer, createBeeEntity, createGroundItemEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('registry mechanics', () => {
@@ -335,7 +335,7 @@ describe('default systems', () => {
     const targetX = state.player.x + 1
     const targetY = state.player.y
     state.path = [{ x: targetX, y: targetY }]
-    state.groundItems = [{ definitionId: 'bee', pos: { x: targetX, y: targetY } }]
+    createGroundItemEntity(state, 'bee', targetX, targetY)
 
     const pickups: string[] = []
     const gameLoop = createGameLoop(state, {
@@ -620,7 +620,7 @@ describe('held key movement', () => {
     clearAroundPlayer(state, 10)
 
     const targetX = state.player.x + 1
-    state.groundItems = [{ definitionId: 'bee', pos: { x: targetX, y: state.player.y } }]
+    createGroundItemEntity(state, 'bee', targetX, state.player.y)
 
     const pickups: string[] = []
     const gameLoop = createGameLoop(state, {

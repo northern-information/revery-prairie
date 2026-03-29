@@ -82,7 +82,12 @@ export const useCanvasDrop = ({
       const executeDrop = () => {
         const item = container.items.find(i => i.uid === itemUid)
         if (!item) return
-        if (state.groundItems.some(g => g.pos.x === mx && g.pos.y === my)) return
+        if (
+          state.world.spatial
+            .at(mx, my)
+            .some((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
+        )
+          return
         if (state.groundOmniboxes.some(g => g.pos.x === mx && g.pos.y === my)) return
         removeItem(container, itemUid)
         if (defId === 'bee') {
@@ -92,7 +97,10 @@ export const useCanvasDrop = ({
         } else if (defId === 'omnibox') {
           state.groundOmniboxes.push({ uid: itemUid, pos: { x: mx, y: my } })
         } else {
-          state.groundItems.push({ definitionId: defId, pos: { x: mx, y: my } })
+          const ge = state.world.createEntity()
+          state.world.addComponent(ge, ComponentType.Position, { x: mx, y: my })
+          state.world.addComponent(ge, ComponentType.ItemDrop, { definitionId: defId })
+          state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
         }
         onDropLog(defId, mx, my)
         refreshUI()

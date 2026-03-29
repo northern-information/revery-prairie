@@ -178,7 +178,6 @@ export const enterCave = (state: GameState): void => {
     mapHeight: state.mapHeight,
     player: { ...state.player },
     characters: state.characters,
-    groundItems: state.groundItems,
     groundOmniboxes: state.groundOmniboxes,
     path: state.path,
     pathWaypoints: state.pathWaypoints,
@@ -200,7 +199,6 @@ export const enterCave = (state: GameState): void => {
 
   // Clear entities for cave
   state.characters = [{ definitionId: 'moab', pos: { ...state.caveNpcSpot } }]
-  state.groundItems = []
   state.groundOmniboxes = []
   // Clear navigation state
   state.path = null
@@ -222,7 +220,6 @@ export const exitCave = (state: GameState): void => {
   state.mapWidth = snapshot.mapWidth
   state.mapHeight = snapshot.mapHeight
   state.characters = snapshot.characters
-  state.groundItems = snapshot.groundItems
   state.groundOmniboxes = snapshot.groundOmniboxes
   state.currentZone = Zone.Overworld
 

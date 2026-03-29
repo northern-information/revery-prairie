@@ -86,10 +86,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (bpos) beePositions.add(posKey(bpos.x, bpos.y))
   }
 
-  // Build a map of ground item positions for rendering
+  // Build a map of ground item positions for rendering (from ECS)
   const groundItemMap = new Map<string, string>()
-  for (const gi of state.groundItems) {
-    groundItemMap.set(posKey(gi.pos.x, gi.pos.y), gi.definitionId)
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position, ComponentType.ItemDrop)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundItem') continue
+    const gpos = state.world.getComponent(eid, ComponentType.Position)
+    const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
+    if (gpos && drop) groundItemMap.set(posKey(gpos.x, gpos.y), drop.definitionId)
   }
 
   // Build a map of preview tile positions for macro recipe previews

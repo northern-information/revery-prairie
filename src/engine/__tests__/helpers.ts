@@ -16,7 +16,6 @@ import type { GameState } from '../types'
 export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?: number }): GameState => {
   const state = createGameState('Test', opts?.viewportWidth ?? 20, opts?.viewportHeight ?? 20)
   state.backpack.items = []
-  state.groundItems = []
   state.groundOmniboxes = []
   state.characters = []
   state.openContainer = null
@@ -103,3 +102,27 @@ export const getBeeEntities = (state: GameState): Entity[] =>
   state.world
     .query(ComponentType.EntityTag)
     .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+
+/**
+ * Creates a ground item ECS entity at the given position.
+ */
+export const createGroundItemEntity = (
+  state: GameState,
+  definitionId: string,
+  x: number,
+  y: number,
+): Entity => {
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x, y })
+  state.world.addComponent(e, ComponentType.ItemDrop, { definitionId })
+  state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
+  return e
+}
+
+/**
+ * Queries all ground item ECS entities in the world.
+ */
+export const getGroundItemEntities = (state: GameState): Entity[] =>
+  state.world
+    .query(ComponentType.EntityTag)
+    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')

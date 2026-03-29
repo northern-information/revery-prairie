@@ -86,7 +86,6 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     },
     viewportWidth,
     viewportHeight,
-    groundItems: [],
     groundOmniboxes: [],
     characters: [],
     activeDialog: null,

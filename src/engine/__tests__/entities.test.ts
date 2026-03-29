@@ -4,7 +4,15 @@ import { ComponentType } from '../ecs'
 import { movePlayer } from '../movement'
 import { containerHasItem, placeItem } from '../inventory'
 import { Rotation, TileType } from '../types'
-import { clearArea, clearAroundPlayer, createBeeEntity, createTestState, getBeeEntities } from './helpers'
+import {
+  clearArea,
+  clearAroundPlayer,
+  createBeeEntity,
+  createGroundItemEntity,
+  createTestState,
+  getBeeEntities,
+  getGroundItemEntities,
+} from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('tickBees', () => {
@@ -89,9 +97,11 @@ describe('dropItem', () => {
     placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
     const result = dropItem(state, 'clover')
     expect(result).toBe(true)
-    expect(state.groundItems).toHaveLength(1)
-    expect(state.groundItems[0]?.pos.x).toBe(state.player.x)
-    expect(state.groundItems[0]?.pos.y).toBe(state.player.y - 1)
+    const items = getGroundItemEntities(state)
+    expect(items).toHaveLength(1)
+    const pos = state.world.getComponent(items[0], ComponentType.Position)
+    expect(pos?.x).toBe(state.player.x)
+    expect(pos?.y).toBe(state.player.y - 1)
     expect(containerHasItem(state.backpack, 'clover')).toBe(false)
   })
 
@@ -100,15 +110,18 @@ describe('dropItem', () => {
     clearAroundPlayer(state)
     placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
     // Place a ground item to the north
-    state.groundItems.push({
-      definitionId: 'clover',
-      pos: { x: state.player.x, y: state.player.y - 1 },
-    })
+    createGroundItemEntity(state, 'clover', state.player.x, state.player.y - 1)
     const result = dropItem(state, 'clover')
     expect(result).toBe(true)
     // Should drop NE since N is taken
-    expect(state.groundItems[1]?.pos.x).toBe(state.player.x + 1)
-    expect(state.groundItems[1]?.pos.y).toBe(state.player.y - 1)
+    const items = getGroundItemEntities(state)
+    expect(items).toHaveLength(2)
+    // Find the newly dropped item (not the one at N)
+    const newItem = items.find((eid) => {
+      const pos = state.world.getComponent(eid, ComponentType.Position)
+      return pos?.x === state.player.x + 1 && pos?.y === state.player.y - 1
+    })
+    expect(newItem).toBeDefined()
   })
 
   it('drops under the player as last resort', () => {
@@ -127,15 +140,18 @@ describe('dropItem', () => {
       { x: -1, y: -1 },
     ]
     for (const d of deltas) {
-      state.groundItems.push({
-        definitionId: 'clover',
-        pos: { x: state.player.x + d.x, y: state.player.y + d.y },
-      })
+      createGroundItemEntity(state, 'clover', state.player.x + d.x, state.player.y + d.y)
     }
     const result = dropItem(state, 'clover')
     expect(result).toBe(true)
-    expect(state.groundItems[8]?.pos.x).toBe(state.player.x)
-    expect(state.groundItems[8]?.pos.y).toBe(state.player.y)
+    const items = getGroundItemEntities(state)
+    expect(items).toHaveLength(9)
+    // The last dropped item should be under the player
+    const underPlayer = items.find((eid) => {
+      const pos = state.world.getComponent(eid, ComponentType.Position)
+      return pos?.x === state.player.x && pos?.y === state.player.y
+    })
+    expect(underPlayer).toBeDefined()
   })
 
   it('returns false when all positions are occupied', () => {
@@ -154,10 +170,7 @@ describe('dropItem', () => {
       { x: 0, y: 0 },
     ]
     for (const d of deltas) {
-      state.groundItems.push({
-        definitionId: 'clover',
-        pos: { x: state.player.x + d.x, y: state.player.y + d.y },
-      })
+      createGroundItemEntity(state, 'clover', state.player.x + d.x, state.player.y + d.y)
     }
     const result = dropItem(state, 'clover')
     expect(result).toBe(false)
@@ -178,8 +191,11 @@ describe('dropItem', () => {
     state.map[state.player.y - 1][state.player.x] = { type: TileType.Space }
     const result = dropItem(state, 'clover')
     expect(result).toBe(true)
-    expect(state.groundItems[0]?.pos.x).toBe(state.player.x + 1)
-    expect(state.groundItems[0]?.pos.y).toBe(state.player.y - 1)
+    const items = getGroundItemEntities(state)
+    expect(items).toHaveLength(1)
+    const pos = state.world.getComponent(items[0], ComponentType.Position)
+    expect(pos?.x).toBe(state.player.x + 1)
+    expect(pos?.y).toBe(state.player.y - 1)
   })
 
   it('releases bee as world entity instead of ground item', () => {
@@ -188,7 +204,7 @@ describe('dropItem', () => {
     placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
     const result = dropItem(state, 'bee')
     expect(result).toBe(true)
-    expect(state.groundItems).toHaveLength(0)
+    expect(getGroundItemEntities(state)).toHaveLength(0)
     expect(getBeeEntities(state)).toHaveLength(1)
   })
 })
@@ -197,26 +213,20 @@ describe('pickUpGroundItems', () => {
   it('picks up a ground item at the player position', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.groundItems.push({
-      definitionId: 'clover',
-      pos: { x: state.player.x, y: state.player.y },
-    })
+    createGroundItemEntity(state, 'clover', state.player.x, state.player.y)
     pickUpGroundItems(state)
-    expect(state.groundItems).toHaveLength(0)
+    expect(getGroundItemEntities(state)).toHaveLength(0)
     expect(containerHasItem(state.backpack, 'clover')).toBe(true)
   })
 
   it('auto-picks up when walking over a ground item', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.groundItems.push({
-      definitionId: 'bee',
-      pos: { x: state.player.x + 1, y: state.player.y },
-    })
+    createGroundItemEntity(state, 'bee', state.player.x + 1, state.player.y)
 
     movePlayer(state, 'right')
     pickUpGroundItems(state)
-    expect(state.groundItems).toHaveLength(0)
+    expect(getGroundItemEntities(state)).toHaveLength(0)
     expect(containerHasItem(state.backpack, 'bee')).toBe(true)
   })
 
@@ -236,12 +246,9 @@ describe('pickUpGroundItems', () => {
         })
       }
     }
-    state.groundItems.push({
-      definitionId: 'bee',
-      pos: { x: state.player.x, y: state.player.y },
-    })
+    createGroundItemEntity(state, 'bee', state.player.x, state.player.y)
     pickUpGroundItems(state)
-    expect(state.groundItems).toHaveLength(1)
+    expect(getGroundItemEntities(state)).toHaveLength(1)
   })
 
   it('captures a bee at the player position', () => {

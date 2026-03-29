@@ -17,17 +17,18 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   const py = state.player.y
   const pickedUp: string[] = []
 
-  // Ground items use their own definitionId
-  for (let i = 0; i < state.groundItems.length; i++) {
-    const gi = state.groundItems[i]
-    if (gi?.pos.x === px && gi?.pos.y === py) {
-      const fit = findFitPosition(state.backpack, gi.definitionId)
-      if (fit) {
-        placeItem(state.backpack, gi.definitionId, fit.rotation, fit.gridX, fit.gridY)
-        pickedUp.push(gi.definitionId)
-        state.groundItems.splice(i, 1)
-        i--
-      }
+  // Ground items (ECS entities with 'groundItem' tag)
+  const groundItemsAtPlayer = state.world.spatial
+    .at(px, py)
+    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
+  for (const eid of groundItemsAtPlayer) {
+    const itemDrop = state.world.getComponent(eid, ComponentType.ItemDrop)
+    if (!itemDrop) continue
+    const fit = findFitPosition(state.backpack, itemDrop.definitionId)
+    if (fit) {
+      placeItem(state.backpack, itemDrop.definitionId, fit.rotation, fit.gridX, fit.gridY)
+      pickedUp.push(itemDrop.definitionId)
+      state.world.destroyEntity(eid)
     }
   }
 
@@ -193,7 +194,12 @@ const DROP_DELTAS: Position[] = [
 const canDropAt = (state: GameState, x: number, y: number): boolean => {
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
   if (!isWalkableTile(state.map[y][x].type)) return false
-  if (state.groundItems.some(g => g.pos.x === x && g.pos.y === y)) return false
+  if (
+    state.world.spatial
+      .at(x, y)
+      .some((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
+  )
+    return false
   if (state.groundOmniboxes.some(g => g.pos.x === x && g.pos.y === y)) return false
   return true
 }
@@ -230,7 +236,10 @@ export const dropItem = (state: GameState, definitionId: string): boolean => {
       } else if (definitionId === 'omnibox') {
         state.groundOmniboxes.push({ uid: droppedUid, pos: { x: tx, y: ty } })
       } else {
-        state.groundItems.push({ definitionId, pos: { x: tx, y: ty } })
+        const ge = state.world.createEntity()
+        state.world.addComponent(ge, ComponentType.Position, { x: tx, y: ty })
+        state.world.addComponent(ge, ComponentType.ItemDrop, { definitionId })
+        state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
       }
       return true
     }

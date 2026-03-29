@@ -4,7 +4,7 @@ import { pickUpGroundItems } from '../entities'
 import { placeItem } from '../inventory'
 import { TileType } from '../types'
 
-import { clearAroundPlayer, createMeteoriteEntity, createTestState, getMeteoriteEntities } from './helpers'
+import { clearAroundPlayer, createGroundItemEntity, createMeteoriteEntity, createTestState, getMeteoriteEntities } from './helpers'
 
 describe('chain explosion', () => {
   describe('spawnChainMeteorites', () => {
@@ -158,7 +158,7 @@ describe('chain explosion', () => {
       state.map[py - 1][px] = { type: TileType.Dirt }
       state.map[py + 1][px] = { type: TileType.Dirt }
 
-      state.groundItems.push({ definitionId: 'clover', pos: { x: px, y: py - 1 } })
+      createGroundItemEntity(state, 'clover', px, py - 1)
 
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 

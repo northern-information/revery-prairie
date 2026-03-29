@@ -68,11 +68,6 @@ export interface Container {
   items: ItemInstance[]
 }
 
-export interface GroundItem {
-  definitionId: string
-  pos: Position
-}
-
 export interface DriftBehavior {
   type: 'drift'
   speed: number // probability per tick (0.15 for ghosts)
@@ -116,7 +111,6 @@ export interface GameState {
   camera: Position
   viewportWidth: number
   viewportHeight: number
-  groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
   characters: Character[]
   activeDialog: {
@@ -218,7 +212,6 @@ export interface OverworldSnapshot {
   mapHeight: number
   player: Position
   characters: Character[]
-  groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
   path: Position[] | null
   pathWaypoints: Position[]

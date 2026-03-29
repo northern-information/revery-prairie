@@ -21,7 +21,6 @@ const EXPECTED_FIELDS = [
   'camera',
   'viewportWidth',
   'viewportHeight',
-  'groundItems',
   'groundOmniboxes',
   'characters',
   'activeDialog',

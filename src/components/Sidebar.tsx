@@ -143,8 +143,16 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
                         const oc = state.omniboxContainers.get(omnibox.uid)
                         return oc?.name.toLowerCase() ?? 'omnibox'
                       }
-                      const gi = state.groundItems.find(g => g.pos.x === cx && g.pos.y === cy)
-                      if (gi) return getDefinition(gi.definitionId).name.toLowerCase()
+                      const groundItemEid = state.world.spatial
+                        .at(cx, cy)
+                        .find(
+                          (eid) =>
+                            state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem',
+                        )
+                      if (groundItemEid !== undefined) {
+                        const drop = state.world.getComponent(groundItemEid, ComponentType.ItemDrop)
+                        if (drop) return getDefinition(drop.definitionId).name.toLowerCase()
+                      }
                       return state.map[cy]?.[cx]?.type ?? 'void'
                     })()}
                   </td>
