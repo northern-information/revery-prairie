@@ -151,7 +151,6 @@ const EntryCard = ({
       {/* Cross-refs */}
       {entry.crossRefs.length > 0 && (
         <div className="text-dim mt-3 text-xs">
-          see also:{' '}
           {entry.crossRefs
             .filter((ref) => MANUAL_ENTRIES[ref])
             .map((ref, i) => (
