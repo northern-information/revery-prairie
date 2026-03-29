@@ -46,8 +46,10 @@ export interface ManualEntry {
 const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }>> = {
   // Items — lore will be filled in by the user via /maintain-manual
   // Recipes — auto-use recipe description as lore
-  // Characters — auto-use first dialog line as summary
   // Manual-only entries have lore inline below
+  gron: { lore: 'TODO' },
+  moab: { lore: 'TODO' },
+  ghosts: { lore: 'TODO' },
 }
 
 // --- Category mapping ---
@@ -142,8 +144,8 @@ const buildCharacterEntries = (): ManualEntry[] => {
       category: ManualCategory.Person,
       glyph: def.glyph,
       glyphColor: def.glyphColor,
-      summary: def.dialog[0] ?? '',
-      lore: loreData?.lore ?? def.dialog.join(' '),
+      summary: loreData?.lore ?? def.name,
+      lore: loreData?.lore ?? def.name,
       hints: loreData?.hints ?? [],
       crossRefs,
       unlockKey: `character:${def.id}`,
