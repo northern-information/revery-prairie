@@ -97,12 +97,14 @@ const EntryCard = ({
   entry,
   discoveries,
   manualState,
+  showCategory,
   onToggleHint,
   onNavigate,
 }: {
   entry: ManualEntry
   discoveries: Set<string>
   manualState: ManualState
+  showCategory: boolean
   onToggleHint: (key: string) => void
   onNavigate: (entryId: string) => void
 }) => {
@@ -149,12 +151,12 @@ const EntryCard = ({
             {'  '}
           </>
         )}
-        category: {entry.category}
+        {showCategory && <>category: {entry.category}</>}
       </div>
 
       {/* Cross-refs */}
       {entry.crossRefs.length > 0 && (
-        <div className="text-dim mt-1 text-xs">
+        <div className="text-dim mt-3 text-xs">
           see also:{' '}
           {entry.crossRefs
             .filter((ref) => MANUAL_ENTRIES[ref])
@@ -313,6 +315,7 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
                       entry={entry}
                       discoveries={manualDiscoveries}
                       manualState={manualState}
+                      showCategory={activeCategory === null}
                       onToggleHint={toggleHint}
                       onNavigate={navigateToEntry}
                     />
