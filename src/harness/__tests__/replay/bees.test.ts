@@ -1,4 +1,5 @@
 import { withSeededRandom } from '@/harness/prng'
+import { ComponentType } from '@/engine/ecs'
 import { createGameState } from '@/engine/state'
 import { tickBees } from '@/engine/entities'
 import type { GameState } from '@/engine/types'
@@ -10,16 +11,21 @@ const createSeededState = () =>
   withSeededRandom(SEED, () => createGameState('test', 40, 30))
 
 const addBee = (state: GameState, x: number, y: number) => {
-  state.bees.push({
-    pos: { x, y },
-  })
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x, y })
+  state.world.addComponent(e, ComponentType.EntityTag, 'bee')
+  return e
 }
+
+const getBees = (state: GameState) =>
+  state.world
+    .query(ComponentType.EntityTag, ComponentType.Position)
+    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
 
 describe('replay: bee behavior', () => {
   it('produces identical bee positions for the same tick sequence', () => {
     const run = () => {
       const state = createSeededState()
-      state.bees = []
       addBee(state, state.player.x + 3, state.player.y + 3)
       addBee(state, state.player.x + 5, state.player.y + 5)
 
@@ -30,7 +36,11 @@ describe('replay: bee behavior', () => {
         }
       })
 
-      return state.bees.map((b) => ({ x: b.pos.x, y: b.pos.y }))
+      return getBees(state).map((eid) => {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const pos = state.world.getComponent(eid, ComponentType.Position)!
+        return { x: pos.x, y: pos.y }
+      })
     }
 
     expect(run()).toEqual(run())
@@ -38,10 +48,9 @@ describe('replay: bee behavior', () => {
 
   it('bees move over multiple ticks', () => {
     const state = createSeededState()
-    state.bees = []
     const startX = state.player.x + 3
     const startY = state.player.y + 3
-    addBee(state, startX, startY)
+    const beeEid = addBee(state, startX, startY)
 
     // tick enough times that movement is very likely (30% chance per tick)
     withSeededRandom(TICK_SEED, () => {
@@ -50,15 +59,15 @@ describe('replay: bee behavior', () => {
       }
     })
 
-    const bee = state.bees[0]
-    expect(bee).toBeDefined()
-    const moved = bee.pos.x !== startX || bee.pos.y !== startY
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const pos = state.world.getComponent(beeEid, ComponentType.Position)!
+    expect(pos).toBeDefined()
+    const moved = pos.x !== startX || pos.y !== startY
     expect(moved).toBe(true)
   })
 
   it('bee count stays constant when no capture or spawn happens', () => {
     const state = createSeededState()
-    state.bees = []
     addBee(state, state.player.x + 10, state.player.y + 10)
     addBee(state, state.player.x + 12, state.player.y + 12)
 
@@ -68,6 +77,6 @@ describe('replay: bee behavior', () => {
       }
     })
 
-    expect(state.bees).toHaveLength(2)
+    expect(getBees(state)).toHaveLength(2)
   })
 })

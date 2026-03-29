@@ -1,7 +1,7 @@
 import { createGameLoop } from '../gameLoop'
 import { ComponentType } from '../ecs'
 import { Zone } from '../types'
-import { clearAroundPlayer, createTestState } from './helpers'
+import { clearAroundPlayer, createBeeEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('registry mechanics', () => {
@@ -261,11 +261,12 @@ describe('zone gating', () => {
     const state = createTestState()
     state.currentZone = Zone.Cave
     // Place a bee to observe whether tickBees runs
-    state.bees = [{ pos: { x: state.player.x + 3, y: state.player.y } }]
+    const beeEid = createBeeEntity(state, state.player.x + 3, state.player.y)
     clearAroundPlayer(state, 5)
 
     const gameLoop = createGameLoop(state, {})
-    const posBefore = { ...state.bees[0].pos }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const posBefore = { ...state.world.getComponent(beeEid, ComponentType.Position)! }
 
     // Tick many times at the bee interval — bees move randomly (30% chance),
     // so run many ticks to ensure at least one move if tickBees were running
@@ -274,7 +275,9 @@ describe('zone gating', () => {
     }
 
     // In cave zone, bees should not have been ticked at all
-    expect(state.bees[0].pos).toEqual(posBefore)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const posAfter = state.world.getComponent(beeEid, ComponentType.Position)!
+    expect(posAfter).toEqual(posBefore)
   })
 })
 

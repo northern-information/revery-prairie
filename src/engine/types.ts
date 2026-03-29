@@ -73,10 +73,6 @@ export interface GroundItem {
   pos: Position
 }
 
-export interface Bee {
-  pos: Position
-}
-
 export interface DriftBehavior {
   type: 'drift'
   speed: number // probability per tick (0.15 for ghosts)
@@ -120,7 +116,6 @@ export interface GameState {
   camera: Position
   viewportWidth: number
   viewportHeight: number
-  bees: Bee[]
   groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
   characters: Character[]
@@ -222,7 +217,6 @@ export interface OverworldSnapshot {
   mapWidth: number
   mapHeight: number
   player: Position
-  bees: Bee[]
   characters: Character[]
   groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]

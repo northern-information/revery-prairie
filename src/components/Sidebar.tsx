@@ -130,8 +130,10 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
                       if (cx === state.player.x && cy === state.player.y) return state.stewardName.toLowerCase()
                       const character = state.characters.find(c => c.pos.x === cx && c.pos.y === cy)
                       if (character) return getCharacterDefinition(character.definitionId).name.toLowerCase()
-                      const bee = state.bees.find(b => b.pos.x === cx && b.pos.y === cy)
-                      if (bee) return 'bee'
+                      const hasBeeEcs = state.world.spatial
+                        .at(cx, cy)
+                        .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+                      if (hasBeeEcs) return 'bee'
                       const hasMeteoriteEcs = state.world.spatial
                         .at(cx, cy)
                         .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
@@ -217,7 +219,9 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
                 <td className="text-muted py-0.5">
                   bees <span className="text-bee">*</span>
                 </td>
-                <td className="text-bee py-0.5 text-right">{state.bees.length}</td>
+                <td className="text-bee py-0.5 text-right">
+                  {state.world.query(ComponentType.EntityTag).filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee').length}
+                </td>
               </tr>
               <tr>
                 <td className="text-muted py-0.5">meteorites ✦</td>
@@ -227,7 +231,9 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
               </tr>
               <tr>
                 <td className="text-muted py-0.5">prairie</td>
-                <td className="py-0.5 text-right">{state.bees.length > 0 ? 'yes' : 'no'}</td>
+                <td className="py-0.5 text-right">
+                  {state.world.query(ComponentType.EntityTag).some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee') ? 'yes' : 'no'}
+                </td>
               </tr>
             </tbody>
           </table>

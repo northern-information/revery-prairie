@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { ComponentType } from '@/engine/ecs'
 import { getBlockedPositions } from '@/engine/movement'
 import { removeItem } from '@/engine/inventory'
 import { findPath } from '@/engine/pathfinding'
@@ -85,7 +86,9 @@ export const useCanvasDrop = ({
         if (state.groundOmniboxes.some(g => g.pos.x === mx && g.pos.y === my)) return
         removeItem(container, itemUid)
         if (defId === 'bee') {
-          state.bees.push({ pos: { x: mx, y: my } })
+          const beeEntity = state.world.createEntity()
+          state.world.addComponent(beeEntity, ComponentType.Position, { x: mx, y: my })
+          state.world.addComponent(beeEntity, ComponentType.EntityTag, 'bee')
         } else if (defId === 'omnibox') {
           state.groundOmniboxes.push({ uid: itemUid, pos: { x: mx, y: my } })
         } else {

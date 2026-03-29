@@ -177,7 +177,6 @@ export const enterCave = (state: GameState): void => {
     mapWidth: state.mapWidth,
     mapHeight: state.mapHeight,
     player: { ...state.player },
-    bees: state.bees,
     characters: state.characters,
     groundItems: state.groundItems,
     groundOmniboxes: state.groundOmniboxes,
@@ -200,7 +199,6 @@ export const enterCave = (state: GameState): void => {
   state.currentZone = Zone.Cave
 
   // Clear entities for cave
-  state.bees = []
   state.characters = [{ definitionId: 'moab', pos: { ...state.caveNpcSpot } }]
   state.groundItems = []
   state.groundOmniboxes = []
@@ -223,7 +221,6 @@ export const exitCave = (state: GameState): void => {
   state.map = snapshot.map
   state.mapWidth = snapshot.mapWidth
   state.mapHeight = snapshot.mapHeight
-  state.bees = snapshot.bees
   state.characters = snapshot.characters
   state.groundItems = snapshot.groundItems
   state.groundOmniboxes = snapshot.groundOmniboxes

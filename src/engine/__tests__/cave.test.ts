@@ -5,7 +5,7 @@ import { ComponentType } from '../ecs'
 import { findPath } from '../pathfinding'
 import { isWalkableTile } from '../position'
 import { TileType, Zone } from '../types'
-import { createTestState } from './helpers'
+import { createBeeEntity, createTestState, getBeeEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('generateCave', () => {
@@ -161,16 +161,15 @@ describe('enterCave', () => {
   it('snapshots overworld state', () => {
     const state = createTestState()
     const overworldPlayer = { ...state.player }
-    state.bees = [{ pos: { x: 10, y: 10 } }]
+    createBeeEntity(state, 10, 10)
     enterCave(state)
     expect(state.overworldSnapshot).not.toBeNull()
     expect(state.overworldSnapshot?.player).toEqual(overworldPlayer)
-    expect(state.overworldSnapshot?.bees).toHaveLength(1)
   })
 
-  it('clears entities in cave', () => {
+  it('clears characters in cave (bees are ECS-managed)', () => {
     const state = createTestState()
-    state.bees = [{ pos: { x: 10, y: 10 } }]
+    createBeeEntity(state, 10, 10)
     state.characters.push({
       definitionId: 'ghost-99',
       pos: { x: 15, y: 15 },
@@ -178,7 +177,8 @@ describe('enterCave', () => {
     })
     expect(state.characters).toHaveLength(1)
     enterCave(state)
-    expect(state.bees).toHaveLength(0)
+    // Bees are ECS entities and persist across zone transitions
+    expect(getBeeEntities(state)).toHaveLength(1)
     expect(state.characters).toHaveLength(1)
     expect(state.characters[0].definitionId).toBe('moab')
   })
@@ -208,7 +208,7 @@ describe('exitCave', () => {
     const overworldMap = state.map
     const overworldWidth = state.mapWidth
     const overworldHeight = state.mapHeight
-    state.bees = [{ pos: { x: 10, y: 10 } }]
+    createBeeEntity(state, 10, 10)
     enterCave(state)
     exitCave(state)
     expect(state.currentZone).toBe(Zone.Overworld)
@@ -217,9 +217,9 @@ describe('exitCave', () => {
     expect(state.mapHeight).toBe(overworldHeight)
   })
 
-  it('restores entities', () => {
+  it('restores characters (bees are ECS-managed)', () => {
     const state = createTestState()
-    state.bees = [{ pos: { x: 10, y: 10 } }]
+    createBeeEntity(state, 10, 10)
     state.characters.push({
       definitionId: 'ghost-99',
       pos: { x: 15, y: 15 },
@@ -227,9 +227,9 @@ describe('exitCave', () => {
     })
     const overworldCharCount = state.characters.length
     enterCave(state)
-    expect(state.bees).toHaveLength(0)
     exitCave(state)
-    expect(state.bees).toHaveLength(1)
+    // Bees are ECS entities and persist across zone transitions
+    expect(getBeeEntities(state)).toHaveLength(1)
     expect(state.characters).toHaveLength(overworldCharCount)
   })
 

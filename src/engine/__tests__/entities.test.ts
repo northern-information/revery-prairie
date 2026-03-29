@@ -1,16 +1,17 @@
 import { dropItem, pickUpGroundItems, tickBees } from '../entities'
 import { combineBeeAndClover } from '../combine'
+import { ComponentType } from '../ecs'
 import { movePlayer } from '../movement'
 import { containerHasItem, placeItem } from '../inventory'
 import { Rotation, TileType } from '../types'
-import { clearArea, clearAroundPlayer, createTestState } from './helpers'
+import { clearArea, clearAroundPlayer, createBeeEntity, createTestState, getBeeEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('tickBees', () => {
   it('does nothing when there are no bees', () => {
     const state = createTestState()
     tickBees(state)
-    expect(state.bees).toHaveLength(0)
+    expect(getBeeEntities(state)).toHaveLength(0)
   })
 
   it('keeps bees on clover tiles', () => {
@@ -24,8 +25,10 @@ describe('tickBees', () => {
       tickBees(state)
     }
 
-    for (const bee of state.bees) {
-      const tile = state.map[bee.pos.y][bee.pos.x]
+    for (const eid of getBeeEntities(state)) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const pos = state.world.getComponent(eid, ComponentType.Position)!
+      const tile = state.map[pos.y][pos.x]
       expect(tile.type).toBe(TileType.Clover)
     }
   })
@@ -48,14 +51,16 @@ describe('tickBees', () => {
     ]) {
       state.map[by + d[1]][bx + d[0]] = { type: TileType.Space }
     }
-    state.bees.push({ pos: { x: bx, y: by } })
+    const beeEid = createBeeEntity(state, bx, by)
 
     for (let i = 0; i < 50; i++) {
       tickBees(state)
     }
 
-    expect(state.bees[0].pos.x).toBe(bx)
-    expect(state.bees[0].pos.y).toBe(by)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const pos = state.world.getComponent(beeEid, ComponentType.Position)!
+    expect(pos.x).toBe(bx)
+    expect(pos.y).toBe(by)
   })
 
   it('bee wanders on walkable tiles when no clover nearby', () => {
@@ -63,14 +68,16 @@ describe('tickBees', () => {
     const bx = state.player.x + 5
     const by = state.player.y
     clearArea(state, bx, by, 2)
-    state.bees.push({ pos: { x: bx, y: by } })
+    const beeEid = createBeeEntity(state, bx, by)
 
     // Run many ticks — bee should eventually move
     for (let i = 0; i < 200; i++) {
       tickBees(state)
     }
 
-    const moved = state.bees[0].pos.x !== bx || state.bees[0].pos.y !== by
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const pos = state.world.getComponent(beeEid, ComponentType.Position)!
+    const moved = pos.x !== bx || pos.y !== by
     expect(moved).toBe(true)
   })
 })
@@ -182,7 +189,7 @@ describe('dropItem', () => {
     const result = dropItem(state, 'bee')
     expect(result).toBe(true)
     expect(state.groundItems).toHaveLength(0)
-    expect(state.bees).toHaveLength(1)
+    expect(getBeeEntities(state)).toHaveLength(1)
   })
 })
 
@@ -240,10 +247,10 @@ describe('pickUpGroundItems', () => {
   it('captures a bee at the player position', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    state.bees.push({ pos: { x: state.player.x, y: state.player.y } })
+    createBeeEntity(state, state.player.x, state.player.y)
     const beeItemsBefore = state.backpack.items.filter(i => i.definitionId === 'bee').length
     const result = pickUpGroundItems(state)
-    expect(state.bees).toHaveLength(0)
+    expect(getBeeEntities(state)).toHaveLength(0)
     expect(state.backpack.items.filter(i => i.definitionId === 'bee')).toHaveLength(beeItemsBefore + 1)
     expect(result.pickedUp).toContain('bee')
   })
@@ -263,8 +270,8 @@ describe('pickUpGroundItems', () => {
         })
       }
     }
-    state.bees.push({ pos: { x: state.player.x, y: state.player.y } })
+    createBeeEntity(state, state.player.x, state.player.y)
     pickUpGroundItems(state)
-    expect(state.bees).toHaveLength(1)
+    expect(getBeeEntities(state)).toHaveLength(1)
   })
 })

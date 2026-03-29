@@ -1,7 +1,8 @@
 import { checkCombine, combineBeeAndClover } from '../combine'
+import { ComponentType } from '../ecs'
 import { containerHasItem, placeItem } from '../inventory'
 import { Rotation, TileType } from '../types'
-import { clearAroundPlayer, createTestState } from './helpers'
+import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 import type { Container, ItemInstance } from '../types'
@@ -188,9 +189,12 @@ describe('combineBeeAndClover', () => {
     placeItem(state.backpack, 'clover', Rotation.R0, 1, 0)
     clearAroundPlayer(state, 1)
     combineBeeAndClover(state)
-    expect(state.bees).toHaveLength(1)
-    expect(state.bees[0].pos.x).toBe(state.player.x)
-    expect(state.bees[0].pos.y).toBe(state.player.y)
+    const bees = getBeeEntities(state)
+    expect(bees).toHaveLength(1)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const beePos = state.world.getComponent(bees[0], ComponentType.Position)!
+    expect(beePos.x).toBe(state.player.x)
+    expect(beePos.y).toBe(state.player.y)
   })
 
   it('returns false if no bees in backpack', () => {

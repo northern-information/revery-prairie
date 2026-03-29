@@ -66,7 +66,7 @@ export const measureChar = (ctx: CanvasRenderingContext2D): CharMetrics => {
 }
 
 export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
-  const { camera, viewportWidth, viewportHeight, map, player, bees } = state
+  const { camera, viewportWidth, viewportHeight, map, player } = state
   const { charWidth, charHeight } = metrics
 
   const pxWidth = viewportWidth * charWidth
@@ -78,10 +78,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   ctx.font = FONT
   ctx.textBaseline = 'top'
 
-  // Build a set of bee positions for fast lookup
+  // Build a set of bee positions for fast lookup (from ECS)
   const beePositions = new Set<string>()
-  for (const bee of bees) {
-    beePositions.add(posKey(bee.pos.x, bee.pos.y))
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
+    const bpos = state.world.getComponent(eid, ComponentType.Position)
+    if (bpos) beePositions.add(posKey(bpos.x, bpos.y))
   }
 
   // Build a map of ground item positions for rendering

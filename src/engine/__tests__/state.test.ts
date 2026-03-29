@@ -1,4 +1,5 @@
 import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
+import { ComponentType } from '../ecs'
 import { containerHasItem } from '../inventory'
 import { createGameState } from '../state'
 import { describe, expect, it } from 'vitest'
@@ -37,9 +38,12 @@ describe('createGameState', () => {
     expect(state.openContainer).toBeNull()
   })
 
-  it('starts with no bees', () => {
+  it('starts with no bee entities', () => {
     const state = createGameState('Willow', 80, 40)
-    expect(state.bees).toHaveLength(0)
+    const bees = state.world
+      .query(ComponentType.EntityTag)
+      .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+    expect(bees).toHaveLength(0)
   })
 
   it('sets viewport dimensions from arguments', () => {

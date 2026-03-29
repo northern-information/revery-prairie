@@ -16,7 +16,6 @@ import type { GameState } from '../types'
 export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?: number }): GameState => {
   const state = createGameState('Test', opts?.viewportWidth ?? 20, opts?.viewportHeight ?? 20)
   state.backpack.items = []
-  state.bees = []
   state.groundItems = []
   state.groundOmniboxes = []
   state.characters = []
@@ -82,3 +81,25 @@ export const getMeteoriteEntities = (state: GameState): Entity[] =>
   state.world
     .query(ComponentType.EntityTag)
     .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+
+/**
+ * Creates a bee ECS entity at the given position.
+ */
+export const createBeeEntity = (
+  state: GameState,
+  x: number,
+  y: number,
+): Entity => {
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x, y })
+  state.world.addComponent(e, ComponentType.EntityTag, 'bee')
+  return e
+}
+
+/**
+ * Queries all bee ECS entities in the world.
+ */
+export const getBeeEntities = (state: GameState): Entity[] =>
+  state.world
+    .query(ComponentType.EntityTag)
+    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
