@@ -11,7 +11,7 @@ import {
   SHOOTING_STAR_SPAWN_CHANCE,
 } from './constants'
 import { ComponentType } from './ecs'
-import { isInBounds, isWalkableTile, posKey, removeByIndices } from './position'
+import { isInBounds, isWalkableTile, posKey } from './position'
 import { TileType } from './types'
 
 import type { GameState, Position } from './types'
@@ -70,7 +70,7 @@ export const spawnChainMeteorites = (
 export { CHAIN_EXPLOSION_CHANCE }
 
 export const spawnShootingStar = (state: GameState): void => {
-  if (state.shootingStars.length >= SHOOTING_STAR_MAX_ACTIVE) return
+  if (state.world.query(ComponentType.ShootingStarData).length >= SHOOTING_STAR_MAX_ACTIVE) return
   if (Math.random() >= SHOOTING_STAR_SPAWN_CHANCE) return
 
   // Pick a random edge: 0=top, 1=bottom, 2=left, 3=right
@@ -119,13 +119,22 @@ export const spawnShootingStar = (state: GameState): void => {
     SHOOTING_STAR_MIN_LENGTH + Math.floor(Math.random() * (SHOOTING_STAR_MAX_LENGTH - SHOOTING_STAR_MIN_LENGTH + 1))
   const willLand = Math.random() < SHOOTING_STAR_LAND_CHANCE
 
-  state.shootingStars.push({ pos: { x, y }, dx, dy, length, age: 0, willLand, landingTarget: null })
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x, y })
+  state.world.addComponent(e, ComponentType.Velocity, { dx, dy })
+  state.world.addComponent(e, ComponentType.ShootingStarData, {
+    length,
+    age: 0,
+    willLand,
+    landingTarget: null,
+  })
+  state.world.addComponent(e, ComponentType.EntityTag, 'shootingStar')
 }
 
 export const spawnShootingStarAtTarget = (
   state: GameState,
   target: Position,
-  direction?: { dx: number; dy: number }
+  direction?: { dx: number; dy: number },
 ): void => {
   const dx = direction?.dx ?? (Math.random() < 0.5 ? 1 : -1)
   const dy = direction?.dy ?? (Math.random() < 0.5 ? 1 : -1)
@@ -141,40 +150,43 @@ export const spawnShootingStarAtTarget = (
   const length =
     SHOOTING_STAR_MIN_LENGTH + Math.floor(Math.random() * (SHOOTING_STAR_MAX_LENGTH - SHOOTING_STAR_MIN_LENGTH + 1))
 
-  state.shootingStars.push({
-    pos: { x: sx, y: sy },
-    dx,
-    dy,
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x: sx, y: sy })
+  state.world.addComponent(e, ComponentType.Velocity, { dx, dy })
+  state.world.addComponent(e, ComponentType.ShootingStarData, {
     length,
     age: 0,
     willLand: true,
     landingTarget: target,
   })
+  state.world.addComponent(e, ComponentType.EntityTag, 'shootingStar')
 }
 
 export const tickShootingStars = (state: GameState, time: number): void => {
-  const toRemove: number[] = []
+  const starEntities = state.world.query(ComponentType.ShootingStarData, ComponentType.Position, ComponentType.Velocity)
 
-  for (let i = 0; i < state.shootingStars.length; i++) {
-    const star = state.shootingStars[i]
-    if (!star) continue
+  for (const eid of starEntities) {
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const vel = state.world.getComponent(eid, ComponentType.Velocity)
+    const data = state.world.getComponent(eid, ComponentType.ShootingStarData)
+    if (!pos || !vel || !data) continue
 
-    star.pos.x += star.dx
-    star.pos.y += star.dy
-    star.age++
+    // Advance position
+    state.world.moveEntity(eid, pos.x + vel.dx, pos.y + vel.dy)
+    data.age++
 
     // Check if the star should land
-    if (star.willLand) {
-      const { x, y } = star.pos
-      if (star.landingTarget) {
+    if (data.willLand) {
+      const { x, y } = pos
+      if (data.landingTarget) {
         // Targeted landing — only land on the exact target tile
-        if (x === star.landingTarget.x && y === star.landingTarget.y) {
+        if (x === data.landingTarget.x && y === data.landingTarget.y) {
           state.meteorites.push({ pos: { x, y } })
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
           state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
-          toRemove.push(i)
+          state.world.destroyEntity(eid)
           continue
         }
       } else if (isInBounds(x, y, MAP_WIDTH, MAP_HEIGHT)) {
@@ -186,26 +198,24 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
           state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
-          toRemove.push(i)
+          state.world.destroyEntity(eid)
           continue
         }
       }
     }
 
     // Remove if off-map (beyond bounds + trail length buffer) or too old
-    const buffer = star.length + 1
+    const buffer = data.length + 1
     if (
-      star.pos.x < -buffer ||
-      star.pos.x >= MAP_WIDTH + buffer ||
-      star.pos.y < -buffer ||
-      star.pos.y >= MAP_HEIGHT + buffer ||
-      star.age > SHOOTING_STAR_MAX_AGE
+      pos.x < -buffer ||
+      pos.x >= MAP_WIDTH + buffer ||
+      pos.y < -buffer ||
+      pos.y >= MAP_HEIGHT + buffer ||
+      data.age > SHOOTING_STAR_MAX_AGE
     ) {
-      toRemove.push(i)
+      state.world.destroyEntity(eid)
     }
   }
-
-  removeByIndices(state.shootingStars, toRemove)
 
   // Clean up expired timed effects (explosions and pickup blooms)
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {

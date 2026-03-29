@@ -1,6 +1,7 @@
 import { withSeededRandom } from '@/harness/prng'
 import { createGameState } from '@/engine/state'
 import { tickShootingStars } from '@/engine/celestial'
+import { ComponentType } from '@/engine/ecs'
 
 const SEED = 42
 
@@ -19,7 +20,7 @@ describe('replay: shooting stars', () => {
       }
       return {
         meteorites: state.meteorites.map((m) => ({ x: m.pos.x, y: m.pos.y })),
-        starsRemaining: state.shootingStars.length,
+        starsRemaining: state.world.query(ComponentType.ShootingStarData).length,
       }
     }
 
@@ -32,16 +33,23 @@ describe('replay: shooting stars', () => {
   it('shooting stars move each tick', () => {
     const state = createSeededState()
     // ensure we have at least one shooting star
-    if (state.shootingStars.length === 0) return
+    const stars = state.world.query(ComponentType.ShootingStarData, ComponentType.Position)
+    if (stars.length === 0) return
 
-    const star = state.shootingStars[0]
-    expect(star).toBeDefined()
-    const startX = star.pos.x
+    const eid = stars[0]
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (!pos) return
+    const startX = pos.x
 
     tickShootingStars(state, 0)
 
-    // star should have moved by its dx/dy
-    expect(star.pos.x).not.toBe(startX)
+    // star should have moved by its dx/dy (entity may be destroyed if it landed,
+    // so only check if still alive)
+    if (state.world.isAlive(eid)) {
+      const newPos = state.world.getComponent(eid, ComponentType.Position)
+      expect(newPos).toBeDefined()
+      expect(newPos?.x).not.toBe(startX)
+    }
   })
 
   it('meteorites accumulate as stars land', () => {

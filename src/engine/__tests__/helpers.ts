@@ -15,7 +15,6 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   const state = createGameState('Test', opts?.viewportWidth ?? 20, opts?.viewportHeight ?? 20)
   state.backpack.items = []
   state.bees = []
-  state.shootingStars = []
   state.meteorites = []
   state.groundItems = []
   state.groundOmniboxes = []

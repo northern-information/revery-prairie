@@ -77,16 +77,6 @@ export interface Bee {
   pos: Position
 }
 
-export interface ShootingStar {
-  pos: Position
-  dx: number // -1, 0, or 1
-  dy: number // -1, 0, or 1
-  length: number // trail length (3–6 tiles)
-  age: number // ticks alive (for max-age cleanup)
-  willLand: boolean // if true, converts to meteorite when hitting land
-  landingTarget: Position | null // exact tile to land on (null = land on first walkable)
-}
-
 export interface Meteorite {
   pos: Position
   fromChain?: boolean
@@ -136,7 +126,6 @@ export interface GameState {
   viewportWidth: number
   viewportHeight: number
   bees: Bee[]
-  shootingStars: ShootingStar[]
   meteorites: Meteorite[]
   groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
@@ -244,7 +233,6 @@ export interface OverworldSnapshot {
   groundItems: GroundItem[]
   groundOmniboxes: GroundOmnibox[]
   meteorites: Meteorite[]
-  shootingStars: ShootingStar[]
   path: Position[] | null
   pathWaypoints: Position[]
   pendingAction: (() => void) | null

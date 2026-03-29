@@ -182,7 +182,6 @@ export const enterCave = (state: GameState): void => {
     groundItems: state.groundItems,
     groundOmniboxes: state.groundOmniboxes,
     meteorites: state.meteorites,
-    shootingStars: state.shootingStars,
     path: state.path,
     pathWaypoints: state.pathWaypoints,
     pendingAction: state.pendingAction,
@@ -207,7 +206,6 @@ export const enterCave = (state: GameState): void => {
   state.groundItems = []
   state.groundOmniboxes = []
   state.meteorites = []
-  state.shootingStars = []
 
   // Clear navigation state
   state.path = null
@@ -233,7 +231,6 @@ export const exitCave = (state: GameState): void => {
   state.groundItems = snapshot.groundItems
   state.groundOmniboxes = snapshot.groundOmniboxes
   state.meteorites = snapshot.meteorites
-  state.shootingStars = snapshot.shootingStars
   state.currentZone = Zone.Overworld
 
   // Place player one tile south of the cave entrance to avoid re-entry loop

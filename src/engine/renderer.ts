@@ -123,18 +123,22 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Build maps of shooting star pixels — targeted stars render over land, others only on space
   const shootingStarMap = new Map<string, { char: string; color: string }>()
   const targetedStarMap = new Map<string, { char: string; color: string }>()
-  for (const star of state.shootingStars) {
-    const map = star.landingTarget ? targetedStarMap : shootingStarMap
+  for (const eid of state.world.query(ComponentType.ShootingStarData, ComponentType.Position, ComponentType.Velocity)) {
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const vel = state.world.getComponent(eid, ComponentType.Velocity)
+    const data = state.world.getComponent(eid, ComponentType.ShootingStarData)
+    if (!pos || !vel || !data) continue
+    const map = data.landingTarget ? targetedStarMap : shootingStarMap
     // Head
-    map.set(posKey(star.pos.x, star.pos.y), {
+    map.set(posKey(pos.x, pos.y), {
       char: SHOOTING_STAR_HEAD_CHAR,
       color: SHOOTING_STAR_HEAD_COLOR,
     })
     // Trail — step backward along negated velocity
-    const trailChar = SHOOTING_STAR_TRAIL_CHARS[posKey(star.dx, star.dy)] ?? '-'
-    for (let t = 1; t <= star.length; t++) {
-      const tx = star.pos.x - star.dx * t
-      const ty = star.pos.y - star.dy * t
+    const trailChar = SHOOTING_STAR_TRAIL_CHARS[posKey(vel.dx, vel.dy)] ?? '-'
+    for (let t = 1; t <= data.length; t++) {
+      const tx = pos.x - vel.dx * t
+      const ty = pos.y - vel.dy * t
       const colorIndex = Math.min(t - 1, SHOOTING_STAR_TRAIL_COLORS.length - 1)
       map.set(posKey(tx, ty), {
         char: trailChar,
