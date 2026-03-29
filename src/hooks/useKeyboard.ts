@@ -73,12 +73,6 @@ export const useKeyboard = ({
         return
       }
 
-      // Toggle inventory
-      if (e.key === 'i' || e.key === 'I') {
-        setActivePanel(prev => (prev === 'inventory' ? null : 'inventory'))
-        return
-      }
-
       // [e] — advance dialog / pick up or close open omnibox / open omnibox / talk
       if (e.key === 'e' || e.key === 'E') {
         if (state.activeDialog) {

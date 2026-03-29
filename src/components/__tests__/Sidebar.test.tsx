@@ -1,16 +1,13 @@
 import { createRef } from 'react'
 import { Sidebar } from '../Sidebar'
 import { render, screen } from '@testing-library/react'
-import { vi } from 'vitest'
-
 import { combineBeeAndClover } from '@/engine/combine'
-import { createOmniboxContainer } from '@/engine/inventory'
 import { createGameState } from '@/engine/state'
 import { TileType } from '@/engine/types'
 import type { ItemInfoHandle } from '../ItemInfo'
 
 const defaultInfoRef = createRef<ItemInfoHandle>()
-const noop = vi.fn()
+
 
 describe('Sidebar', () => {
   it('renders steward name', () => {
@@ -19,7 +16,7 @@ describe('Sidebar', () => {
       <Sidebar
         state={state}
         activePanel={null}
-        setActivePanel={noop}
+
         itemInfoRef={defaultInfoRef}
         eventLog={[]}
         metricsRef={createRef()}
@@ -35,7 +32,7 @@ describe('Sidebar', () => {
       <Sidebar
         state={state}
         activePanel={null}
-        setActivePanel={noop}
+
         itemInfoRef={defaultInfoRef}
         eventLog={[]}
         metricsRef={createRef()}
@@ -51,7 +48,7 @@ describe('Sidebar', () => {
       <Sidebar
         state={state}
         activePanel={null}
-        setActivePanel={noop}
+
         itemInfoRef={defaultInfoRef}
         eventLog={[]}
         metricsRef={createRef()}
@@ -68,7 +65,7 @@ describe('Sidebar', () => {
       <Sidebar
         state={state}
         activePanel={null}
-        setActivePanel={noop}
+
         itemInfoRef={defaultInfoRef}
         eventLog={[]}
         metricsRef={createRef()}
@@ -91,7 +88,7 @@ describe('Sidebar', () => {
       <Sidebar
         state={state}
         activePanel={null}
-        setActivePanel={noop}
+
         itemInfoRef={defaultInfoRef}
         eventLog={[]}
         metricsRef={createRef()}
@@ -108,7 +105,7 @@ describe('Sidebar', () => {
       <Sidebar
         state={state}
         activePanel={null}
-        setActivePanel={noop}
+
         itemInfoRef={defaultInfoRef}
         eventLog={[]}
         metricsRef={createRef()}
@@ -119,87 +116,13 @@ describe('Sidebar', () => {
     expect(ones.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renders control hints', () => {
-    const state = createGameState('Test', 80, 40)
-    render(
-      <Sidebar
-        state={state}
-        activePanel={null}
-        setActivePanel={noop}
-        itemInfoRef={defaultInfoRef}
-        eventLog={[]}
-        metricsRef={createRef()}
-      />
-    )
-
-    expect(screen.getByText('[wasd] move')).toBeInTheDocument()
-    expect(screen.getByText('invento[r]y')).toBeInTheDocument()
-    expect(screen.getByText('int[e]ract')).toBeInTheDocument()
-    expect(screen.getByText('[esc] menu')).toBeInTheDocument()
-  })
-
-  it('renders [e] as dim when nothing adjacent', () => {
-    const state = createGameState('Test', 80, 40)
-    state.characters = []
-    render(
-      <Sidebar
-        state={state}
-        activePanel={null}
-        setActivePanel={noop}
-        itemInfoRef={defaultInfoRef}
-        eventLog={[]}
-        metricsRef={createRef()}
-      />
-    )
-
-    const el = screen.getByText('int[e]ract')
-    expect(el.className).toContain('text-dim')
-  })
-
-  it('renders [e] as highlighted when adjacent ground omnibox exists', () => {
-    const state = createGameState('Test', 80, 40)
-    createOmniboxContainer(state, 'uid-1')
-    state.groundOmniboxes.push({ uid: 'uid-1', pos: { x: state.player.x + 1, y: state.player.y } })
-    render(
-      <Sidebar
-        state={state}
-        activePanel={null}
-        setActivePanel={noop}
-        itemInfoRef={defaultInfoRef}
-        eventLog={[]}
-        metricsRef={createRef()}
-      />
-    )
-
-    const el = screen.getByText('int[e]ract')
-    expect(el.className).toContain('text-text')
-  })
-
-  it('renders [e] as highlighted when adjacent to character', () => {
-    const state = createGameState('Test', 80, 40)
-    state.characters = [{ definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }]
-    render(
-      <Sidebar
-        state={state}
-        activePanel={null}
-        setActivePanel={noop}
-        itemInfoRef={defaultInfoRef}
-        eventLog={[]}
-        metricsRef={createRef()}
-      />
-    )
-
-    const el = screen.getByText('int[e]ract')
-    expect(el.className).toContain('text-text')
-  })
-
   it('renders weather section in metric by default', () => {
     const state = createGameState('Test', 80, 40)
     render(
       <Sidebar
         state={state}
         activePanel={null}
-        setActivePanel={noop}
+
         itemInfoRef={defaultInfoRef}
         eventLog={[]}
         metricsRef={createRef()}
@@ -219,7 +142,7 @@ describe('Sidebar', () => {
       <Sidebar
         state={state}
         activePanel={null}
-        setActivePanel={noop}
+
         itemInfoRef={defaultInfoRef}
         eventLog={[]}
         metricsRef={createRef()}
