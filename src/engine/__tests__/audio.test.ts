@@ -167,6 +167,40 @@ describe('audio manager', () => {
       expect(_getState().dialogAudio).toBeNull()
       expect(_getState().ambientUrl).toBeNull()
     })
+
+    it('clears pendingPlay so destroyed elements are never resumed', () => {
+      // Simulate autoplay block: play() rejects
+      const rejectPlay = vi.fn().mockRejectedValue(new DOMException('NotAllowedError'))
+      vi.stubGlobal('Audio', class extends MockAudio {
+        override play = rejectPlay
+      })
+
+      setAmbient('/music/overworld.mp3', 0)
+
+      // Let the rejected promise resolve and set pendingPlay
+      return Promise.resolve().then(() => {
+        expect(_getState().pendingPlay).not.toBeNull()
+
+        stopAll()
+
+        expect(_getState().pendingPlay).toBeNull()
+      })
+    })
+
+    it('allows setAmbient to re-establish audio after stopAll', () => {
+      setAmbient('/music/overworld.mp3', 0)
+      completeFade()
+
+      stopAll()
+
+      // Simulates what happens on StrictMode remount
+      setAmbient('/music/overworld.mp3', 0)
+
+      const { ambientAudio, ambientUrl } = _getState()
+      expect(ambientAudio).not.toBeNull()
+      expect(ambientUrl).toBe('/music/overworld.mp3')
+      expect((ambientAudio as unknown as MockAudio).play).toHaveBeenCalled()
+    })
   })
 
   describe('setMusicEnabled', () => {

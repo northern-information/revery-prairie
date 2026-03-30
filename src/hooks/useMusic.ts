@@ -62,10 +62,13 @@ export const useMusic = (state: GameState): void => {
     prevZoneRef.current ??= zone
   })
 
-  // Cleanup on unmount
+  // Cleanup on unmount (and StrictMode simulated unmount).
+  // Reset refs so the remount treats the zone as fresh and re-calls setAmbient.
   useEffect(
     () => () => {
       stopAll()
+      prevZoneRef.current = null
+      prevCharIdRef.current = null
     },
     [],
   )

@@ -1,0 +1,59 @@
+plan:
+  id: overworld-music-init
+  title: "Fix overworld ambient music not starting on game init"
+  created: 2026-03-30
+  global_verification:
+    - "npm run build"
+    - "npm run test"
+    - "npm run lint"
+
+tasks:
+  - id: reset-refs-in-cleanup
+    title: "Reset useMusic tracking refs in cleanup effect"
+    spec_id: overworld-music-init
+    spec_sections:
+      - ambient-starts-on-mount
+      - cleanup-resets-refs
+    context_files:
+      - src/hooks/useMusic.ts
+      - src/engine/audio.ts
+    output_files:
+      - src/hooks/useMusic.ts
+    depends_on: []
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [hook]
+
+  - id: clear-pending-in-stopall
+    title: "Clear pendingPlay and stale listeners in stopAll"
+    spec_id: overworld-music-init
+    spec_sections:
+      - stopall-clears-pending
+    context_files:
+      - src/engine/audio.ts
+    output_files:
+      - src/engine/audio.ts
+    depends_on: []
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine]
+
+  - id: regression-tests
+    title: "Add regression tests for stopAll clearing pendingPlay"
+    spec_id: overworld-music-init
+    spec_sections:
+      - stopall-clears-pending
+      - ambient-starts-on-mount
+    context_files:
+      - src/engine/__tests__/audio.test.ts
+      - src/engine/audio.ts
+    output_files:
+      - src/engine/__tests__/audio.test.ts
+    depends_on:
+      - clear-pending-in-stopall
+    verification:
+      - "npx vitest run src/engine/__tests__/audio.test.ts"
+    repair: retry
+    tags: [test]
