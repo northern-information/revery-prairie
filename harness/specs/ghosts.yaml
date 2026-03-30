@@ -19,11 +19,12 @@ dependencies:
 behaviors:
   - id: ghost-spawning
     description: >
-      createGameState places 3 ghosts as Character entries in
-      state.characters at random walkable (non-Space, non-Sand)
+      createGameState places 3 ghosts as ECS entities in state.world
+      via createCharacterEntity at random walkable (non-Space, non-Sand)
       positions on the map. each ghost has definitionId 'ghost-N',
-      a unique spawn-order number (1, 2, 3), and a drift behavior
-      ({ type: 'drift', speed: 0.15, freezeOnDialog: true }). ghost
+      a unique spawn-order number (1, 2, 3), and ECS components:
+      CharacterIdentity, Position, Blocking, Behavior (drift),
+      EntityTag ('character'), and EntityZone (overworld). ghost
       positions must not overlap each other, the player, or existing
       characters. registerGhostDefinitions is called to register
       CharacterDefinitions for each ghost.
@@ -32,35 +33,39 @@ behaviors:
     outputs:
       - "GameState with 3 ghost entries in state.characters"
     state_changes:
-      - field: characters
-        effect: "3 ghost Character entries appended with definitionId 'ghost-N' and drift behavior"
+      - field: world
+        effect: "3 ghost ECS entities created with CharacterIdentity({ definitionId: 'ghost-N' }), Position, Blocking, Behavior({ type: 'drift', speed: 0.15, freezeOnDialog: true }), EntityTag('character'), EntityZone({ zone: 'overworld' }) components"
     determinism: probabilistic
 
   - id: ghost-drift
     description: >
-      tickCharacterBehaviors iterates state.characters and delegates
-      to tickDrift for characters with behavior.type === 'drift'.
-      tickDrift moves the character with a low probability per tick
-      (speed 0.15, slower than bees). each ghost picks a random
-      8-directional neighbor (cardinal + diagonal, via ORDINAL) and moves there only if the tile
-      is walkable and not blocked. uses the same blocked-position set
-      as player movement (getBlockedPositions + player position) so
-      any future blocking entities are automatically respected. the
-      ghost removes itself from the blocked set before checking
-      candidates and re-adds its new position after moving.
+      tickCharacterBehaviors queries state.world for entities with
+      Behavior, CharacterIdentity, and Position components, filtered
+      by EntityZone matching the active zone. For entities with
+      behavior.type === 'drift', it delegates to tickDrift. tickDrift
+      moves the character with a low probability per tick (speed 0.15,
+      slower than bees). each ghost picks a random 8-directional
+      neighbor (cardinal + diagonal, via ORDINAL) and moves there
+      only if the tile is walkable and not blocked. uses the same
+      blocked-position set as player movement (getBlockedPositions
+      + player position) so any future blocking entities are
+      automatically respected. the ghost removes itself from the
+      blocked set before checking candidates and re-adds its new
+      position after moving.
     inputs:
       - "GameState with ghost characters in state.characters"
     outputs: []
     state_changes:
-      - field: "characters[i].pos (ghost entries)"
-        effect: "moved to adjacent walkable tile, or unchanged if no valid neighbor or random check fails"
+      - field: "world (ghost entity Position component)"
+        effect: "moved to adjacent walkable tile via state.world.moveEntity, or unchanged if no valid neighbor or random check fails"
     determinism: probabilistic
 
   - id: ghost-blocks-player
     description: >
       movePlayer returns false when the target tile is occupied by a
-      ghost. Ghost positions are included in the pathfinding blocked
-      set so A* routes around them.
+      ghost. Ghost entities have a Blocking component, so they are
+      included in getBlockedPositions via ECS query. A* also treats
+      ghost tiles as blocked and routes around them.
     inputs:
       - "GameState with a ghost adjacent to player"
       - "Direction toward the ghost tile"

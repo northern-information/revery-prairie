@@ -26,10 +26,10 @@ behaviors:
     outputs:
       - "PickUpResult with chainExplosions count for toast"
     state_changes:
-      - field: meteorites
-        effect: "up to 3 new Meteorite entities appended at nearby walkable tiles"
-      - field: explosions
-        effect: "one LandingExplosion appended per spawned meteorite"
+      - field: world
+        effect: "up to 3 new meteorite ECS entities created with Position, Pickupable({ definitionId: 'meteorite' }), EntityTag('meteorite'), ChainSource({ fromChain: true }), EntityZone({ zone: 'overworld' }) components"
+      - field: world
+        effect: "one explosion ECS entity created per spawned meteorite with Position, TimedEffect({ kind: 'explosion', startTime: time }), EntityTag('explosion'), EntityZone({ zone: 'overworld' }) components"
     determinism: probabilistic
 
   - id: spawn-nearby-meteorites
@@ -38,8 +38,8 @@ behaviors:
       placed on distinct walkable tiles within a radius of 3
       tiles from the pickup position. tiles must be in-bounds,
       walkable (dirt or clover), and not occupied by any entity
-      (meteorites, ground items, ground omniboxes, player, or
-      characters — which includes ghosts). a LandingExplosion is pushed for each
+      (checked via state.world.spatial index — catches all entity
+      types at a position) or the player. a LandingExplosion is pushed for each
       spawned meteorite so the existing ring-expansion animation
       plays. if fewer than 3 valid tiles exist, only as many
       meteorites as there are valid tiles are spawned. spawned
@@ -52,10 +52,10 @@ behaviors:
     outputs:
       - "number of meteorites actually spawned (0-3)"
     state_changes:
-      - field: meteorites
-        effect: "0-3 new entries appended with fromChain: true"
-      - field: explosions
-        effect: "0-3 new LandingExplosion entries appended"
+      - field: world
+        effect: "0-3 new meteorite ECS entities created with Position, Pickupable({ definitionId: 'meteorite' }), EntityTag('meteorite'), ChainSource({ fromChain: true }), EntityZone({ zone: 'overworld' }) components"
+      - field: world
+        effect: "0-3 new explosion ECS entities created with Position, TimedEffect({ kind: 'explosion', startTime: time }), EntityTag('explosion'), EntityZone({ zone: 'overworld' }) components"
     determinism: probabilistic
 
   - id: chain-explosion-toast
