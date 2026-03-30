@@ -36,7 +36,7 @@ export interface ManualEntry {
   summary: string
   lore: string
   hints: ManualHint[]
-  crossRefs: string[]
+  crossRefs?: string[]
   unlockKey: string
   sourceKind: 'item' | 'recipe' | 'character' | 'zone' | 'event' | 'manual-only'
 }
@@ -70,21 +70,6 @@ const itemCategoryToManualCategory = (cat: ItemCategory): ManualCategory => {
   }
 }
 
-// --- Cross-ref derivation ---
-
-const deriveItemCrossRefs = (itemId: string): string[] => {
-  const refs: string[] = []
-  for (const recipe of RECIPES) {
-    if (!recipe.ingredients.includes(itemId)) continue
-    const rId = `recipe:${recipeKey(recipe)}`
-    refs.push(rId)
-    for (const ing of recipe.ingredients) {
-      if (ing !== itemId) refs.push(ing)
-    }
-  }
-  return [...new Set(refs)]
-}
-
 // --- Builder functions ---
 
 const buildItemEntries = (): ManualEntry[] =>
@@ -99,7 +84,6 @@ const buildItemEntries = (): ManualEntry[] =>
       summary: def.description,
       lore: loreData?.lore ?? def.description,
       hints: loreData?.hints ?? [],
-      crossRefs: deriveItemCrossRefs(def.id),
       unlockKey: `item:${def.id}`,
       sourceKind: 'item',
     }
@@ -134,9 +118,6 @@ const buildCharacterEntries = (): ManualEntry[] => {
     if (def.id.startsWith('ghost-')) continue
 
     const loreData = MANUAL_LORE[def.id]
-    const crossRefs: string[] = []
-    if (def.id === 'moab') crossRefs.push('cave')
-    if (def.id === 'gron') crossRefs.push('overworld')
 
     entries.push({
       id: def.id,
@@ -147,7 +128,6 @@ const buildCharacterEntries = (): ManualEntry[] => {
       summary: loreData?.lore ?? def.name,
       lore: loreData?.lore ?? def.name,
       hints: loreData?.hints ?? [],
-      crossRefs,
       unlockKey: `character:${def.id}`,
       sourceKind: 'character',
     })
@@ -168,7 +148,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     summary: 'wandering spirits on the prairie',
     lore: MANUAL_LORE.ghosts?.lore ?? 'three ghosts drift across the land. they move slowly and unpredictably. each has something to say if you stop to listen.',
     hints: MANUAL_LORE.ghosts?.hints ?? [],
-    crossRefs: ['overworld'],
     unlockKey: 'character:ghost-1',
     sourceKind: 'character',
   },
@@ -181,7 +160,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     summary: 'a dirt island surrounded by stars',
     lore: MANUAL_LORE.overworld?.lore ?? 'a dirt island surrounded by stars. the land responds to care.',
     hints: MANUAL_LORE.overworld?.hints ?? [],
-    crossRefs: ['bee', 'clover', 'recipe:bee+clover', 'gron', 'ghosts'],
     unlockKey: 'always',
     sourceKind: 'zone',
   },
@@ -194,7 +172,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     summary: 'a dark passage beneath the land',
     lore: MANUAL_LORE.cave?.lore ?? 'a winding cave accessible through an entrance on the surface. corridors lead upward to a chamber.',
     hints: MANUAL_LORE.cave?.hints ?? [],
-    crossRefs: ['overworld', 'moab'],
     unlockKey: 'zone:cave',
     sourceKind: 'zone',
   },
@@ -207,7 +184,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     summary: 'a streak of light across the sky',
     lore: MANUAL_LORE['shooting-star']?.lore ?? 'shooting stars appear randomly in the space around the prairie. most pass harmlessly, but some land as meteorites.',
     hints: MANUAL_LORE['shooting-star']?.hints ?? [],
-    crossRefs: ['meteorite', 'chain-explosion'],
     unlockKey: 'always',
     sourceKind: 'event',
   },
@@ -220,7 +196,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     summary: 'a cascade of meteorite impacts',
     lore: MANUAL_LORE['chain-explosion']?.lore ?? 'when a meteorite is picked up, there is a chance it detonates, scattering more meteorites nearby. chain meteorites cannot trigger further chains.',
     hints: MANUAL_LORE['chain-explosion']?.hints ?? [],
-    crossRefs: ['meteorite', 'shooting-star'],
     unlockKey: 'event:chain-explosion',
     sourceKind: 'event',
   },
@@ -254,14 +229,6 @@ export const isDiscovered = (discoveries: Set<string>, entry: ManualEntry): bool
 
 export const getEntriesByCategory = (category: ManualCategory): ManualEntry[] =>
   Object.values(MANUAL_ENTRIES).filter((e) => e.category === category)
-
-export const getRelatedEntries = (entryId: string): ManualEntry[] => {
-  const entry = MANUAL_ENTRIES[entryId]
-  if (!entry) return []
-  return entry.crossRefs
-    .map((ref) => MANUAL_ENTRIES[ref])
-    .filter((e): e is ManualEntry => e !== undefined)
-}
 
 // --- Search ---
 

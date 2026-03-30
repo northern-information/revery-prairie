@@ -19,44 +19,52 @@ npm install
 npm run dev
 ```
 
-## how to play
+## how development works
 
-1. enter your steward name
-2. move with WASD or arrow keys, or click to pathfind
-3. press `i` or `r` to open inventory
-4. drag items onto each other in inventory to combine
-5. press `e` to interact (open omniboxes, talk to characters)
-6. press `esc` to close panels or open menu
+all game features flow through a spec-driven harness. the human decides what to build and gates every transition. the AI investigates, drafts, codes, and verifies.
 
-## architecture
+### roles
 
-two layers:
+**human:**
+- describes what to build, change, or fix
+- reviews and approves specs before planning begins
+- reviews and approves plans before execution begins
+- approves or rejects each pipeline transition — nothing auto-advances
+- playtests in the browser (the AI cannot)
+- updates CLAUDE.md when game systems change
 
-- **`src/engine/`** — pure typescript, zero react imports. game state, rendering, input, camera. this is the layer that gets swapped when moving to sprites.
-- **`src/components/` + `src/hooks/`** — react UI overlays and the bridge to the engine.
+**AI:**
+- investigates the codebase to understand the problem
+- drafts specs and plans from the human's description
+- runs `npm run spec:validate` and fixes errors
+- writes code and tests during plan execution
+- runs verification commands (`build`, `test`, `lint`) and repairs failures
+- detects spec-code drift via `/maintain-harness`
 
-the canvas runs its own `requestAnimationFrame` loop reading game state by reference. react does not re-render on every frame — only when UI panels open/close.
+### entry points
 
-## ascii
+slash commands start the pipeline. each is conversational — the AI gathers requirements, then drives spec → plan → execute with human approval at each gate.
 
-| char | meaning | color    |
-| ---- | ------- | -------- |
-| `@`  | player  | white    |
-| `.`  | dirt    | tan      |
-| `%`  | clover  | green    |
-| `*`  | bee     | gold     |
-| `ö`  | ghost   | white    |
-| `:`  | sand    | tan-gold |
-| ` `  | space   | black    |
+- `/new-feature <description>` — add a new feature
+- `/change-request <description>` — modify existing behavior
+- `/bug-report <description>` — investigate and fix a bug
+- `/maintain-harness` — check for spec-code drift
+- `/maintain-manual` — audit prairie manual for gaps
 
-## harness
+### the pipeline
 
-spec-driven development pipeline. features are specified as YAML, validated, then implemented via task plans with automated verification. see `CLAUDE.md` for details.
+1. **spec** — AI drafts a YAML spec in `harness/specs/{id}.yaml`. human reviews and approves.
+2. **validate** — AI runs `npm run spec:validate`, fixes errors, repeats until clean.
+3. **plan** — AI drafts a YAML plan in `harness/plans/{id}.yaml`. human reviews and approves.
+4. **execute** — AI runs `npm run harness:run --plan harness/plans/{id}.yaml`. verification runs after each task; failures trigger repair.
+5. **maintain** — AI runs `/maintain-harness` to detect drift. human decides which updates to accept.
 
-```zsh
-npm run spec:validate    # validate specs
-npm run harness:run      # execute a plan
-```
+### key directories
+
+- `harness/specs/` — feature specs (YAML)
+- `harness/plans/` — execution plans (YAML)
+- `harness/src/` — harness tooling
+- `.claude/skills/` — slash command definitions
 
 ## commands
 
