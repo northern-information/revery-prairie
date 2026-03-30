@@ -125,7 +125,9 @@ export interface GameState {
   metric: boolean
   musicEnabled: boolean
   currentZone: Zone
-  overworldSnapshot: OverworldSnapshot | null
+  overworldMap: Tile[][]
+  overworldMapWidth: number
+  overworldMapHeight: number
   caveMap: Tile[][]
   caveMapWidth: number
   caveMapHeight: number
@@ -200,28 +202,3 @@ export interface CharMetrics {
   charHeight: number
 }
 
-export interface CharacterEntitySnapshot {
-  definitionId: string
-  pos: Position
-  aura?: string
-  behavior?: CharacterBehavior
-}
-
-export interface GroundOmniboxSnapshot {
-  uid: string
-  pos: Position
-}
-
-export interface OverworldSnapshot {
-  map: Tile[][]
-  mapWidth: number
-  mapHeight: number
-  player: Position
-  characterSnapshots: CharacterEntitySnapshot[]
-  groundOmniboxSnapshots: GroundOmniboxSnapshot[]
-  path: Position[] | null
-  pathWaypoints: Position[]
-  pendingAction: (() => void) | null
-  previewFn: ((state: GameState) => { pos: Position; char: string; color: string }[]) | null
-  facingEntityPos: Position | null
-}

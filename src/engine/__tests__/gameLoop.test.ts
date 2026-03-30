@@ -198,42 +198,49 @@ describe('tick scheduling', () => {
 })
 
 describe('zone gating', () => {
-  it('skips overworld-only systems in cave zone', () => {
+  it('runs overworld systems in cave zone with overworld map context', () => {
     const state = createTestState()
     state.currentZone = Zone.Cave
-    let called = false
+    state.map = state.caveMap
+    state.mapWidth = state.caveMapWidth
+    state.mapHeight = state.caveMapHeight
+    let capturedMap: unknown = null
     const gameLoop = createGameLoop(state, {})
 
     gameLoop.register({
       id: 'overworld-only',
       intervalMs: 0,
       zone: 'overworld',
-      fn: () => {
-        called = true
+      fn: (s) => {
+        capturedMap = s.map
       },
     })
 
     gameLoop.tick(0)
-    expect(called).toBe(false)
+    // System ran with overworld map, then map was restored to cave
+    expect(capturedMap).toBe(state.overworldMap)
+    expect(state.map).toBe(state.caveMap)
   })
 
-  it('skips cave-only systems in overworld zone', () => {
+  it('runs cave systems in overworld zone with cave map context', () => {
     const state = createTestState()
     state.currentZone = Zone.Overworld
-    let called = false
+    let capturedMap: unknown = null
     const gameLoop = createGameLoop(state, {})
 
     gameLoop.register({
       id: 'cave-only',
       intervalMs: 0,
       zone: 'cave',
-      fn: () => {
-        called = true
+      fn: (s) => {
+        capturedMap = s.map
       },
     })
 
     gameLoop.tick(0)
-    expect(called).toBe(false)
+    // System ran with cave map, then map was restored to overworld
+    expect(capturedMap).toBe(state.caveMap)
+    expect(state.map).toBe(state.overworldMap)
   })
 
   it('runs always systems in both zones', () => {
@@ -257,27 +264,32 @@ describe('zone gating', () => {
     expect(count).toBe(2)
   })
 
-  it('default overworld systems do not tick in cave', () => {
+  it('cave bees tick in cave zone', () => {
     const state = createTestState()
     state.currentZone = Zone.Cave
-    // Place a bee to observe whether tickBees runs
-    const beeEid = createBeeEntity(state, state.player.x + 3, state.player.y)
+    state.map = state.caveMap
+    state.mapWidth = state.caveMapWidth
+    state.mapHeight = state.caveMapHeight
+    // Position player inside cave bounds
+    state.player = { x: 20, y: 15 }
     clearAroundPlayer(state, 5)
+    // Place a cave bee on walkable cave floor
+    const beeEid = createBeeEntity(state, state.player.x + 3, state.player.y)
 
     const gameLoop = createGameLoop(state, {})
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const posBefore = { ...state.world.getComponent(beeEid, ComponentType.Position)! }
 
-    // Tick many times at the bee interval — bees move randomly (30% chance),
-    // so run many ticks to ensure at least one move if tickBees were running
+    // Tick many times — bees move randomly (30% chance),
+    // so run many ticks to ensure at least one move
     for (let t = 0; t <= 10000; t += 200) {
       gameLoop.tick(t)
     }
 
-    // In cave zone, bees should not have been ticked at all
+    // Cave bees should tick and move
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const posAfter = state.world.getComponent(beeEid, ComponentType.Position)!
-    expect(posAfter).toEqual(posBefore)
+    expect(posAfter).not.toEqual(posBefore)
   })
 })
 

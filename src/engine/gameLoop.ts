@@ -129,7 +129,15 @@ const createDefaultSystems = (
       intervalMs: BEE_TICK_MS,
       zone: 'overworld',
       fn: (state) => {
-        tickBees(state)
+        tickBees(state, Zone.Overworld)
+      },
+    },
+    {
+      id: 'bee-cave',
+      intervalMs: BEE_TICK_MS,
+      zone: 'cave',
+      fn: (state) => {
+        tickBees(state, Zone.Cave)
       },
     },
     {
@@ -137,7 +145,7 @@ const createDefaultSystems = (
       intervalMs: GHOST_TICK_MS,
       zone: 'overworld',
       fn: (state) => {
-        tickCharacterBehaviors(state)
+        tickCharacterBehaviors(state, Zone.Overworld)
       },
     },
     {
@@ -241,16 +249,40 @@ export const createGameLoop = (
   }
 
   const tick = (time: number): void => {
-    const zone =
-      state.currentZone === Zone.Overworld ? 'overworld' : 'cave'
     for (const entry of entries) {
-      if (entry.system.zone !== 'always' && entry.system.zone !== zone)
-        continue
       if (
         entry.system.intervalMs === 0 ||
         time - entry.lastTick >= entry.system.intervalMs
       ) {
-        entry.system.fn(state, time)
+        // For zone-specific systems, temporarily swap state.map to that
+        // zone's map so tick functions read the correct terrain.
+        // 'always' systems use the current zone's map as-is.
+        const needsSwap =
+          entry.system.zone !== 'always' &&
+          ((entry.system.zone === 'overworld' && state.currentZone !== Zone.Overworld) ||
+            (entry.system.zone === 'cave' && state.currentZone !== Zone.Cave))
+
+        if (needsSwap) {
+          const savedMap = state.map
+          const savedWidth = state.mapWidth
+          const savedHeight = state.mapHeight
+          if (entry.system.zone === 'overworld') {
+            state.map = state.overworldMap
+            state.mapWidth = state.overworldMapWidth
+            state.mapHeight = state.overworldMapHeight
+          } else {
+            state.map = state.caveMap
+            state.mapWidth = state.caveMapWidth
+            state.mapHeight = state.caveMapHeight
+          }
+          entry.system.fn(state, time)
+          state.map = savedMap
+          state.mapWidth = savedWidth
+          state.mapHeight = savedHeight
+        } else {
+          entry.system.fn(state, time)
+        }
+
         entry.lastTick = time
       }
     }

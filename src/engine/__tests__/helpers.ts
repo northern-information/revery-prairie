@@ -5,7 +5,7 @@ import { isInBounds } from '../position'
 import { createGameState } from '../state'
 import { TileType } from '../types'
 
-import type { CharacterBehavior } from '../types'
+import type { CharacterBehavior, Zone } from '../types'
 import type { Entity } from '../ecs/types'
 import type { GameState } from '../types'
 
@@ -80,6 +80,7 @@ export const createMeteoriteEntity = (
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.Pickupable, { definitionId: 'meteorite' })
   state.world.addComponent(e, ComponentType.EntityTag, 'meteorite')
+  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   if (fromChain) {
     state.world.addComponent(e, ComponentType.ChainSource, { fromChain: true })
   }
@@ -101,10 +102,12 @@ export const createBeeEntity = (
   state: GameState,
   x: number,
   y: number,
+  zone?: Zone,
 ): Entity => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.EntityTag, 'bee')
+  state.world.addComponent(e, ComponentType.EntityZone, { zone: zone ?? state.currentZone })
   return e
 }
 
@@ -129,6 +132,7 @@ export const createGroundItemEntity = (
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.ItemDrop, { definitionId })
   state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
+  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   return e
 }
 

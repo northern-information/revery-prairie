@@ -77,10 +77,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   ctx.font = FONT
   ctx.textBaseline = 'top'
 
+  // Zone filter helper — only render entities in the current zone
+  const zone = state.currentZone
+  const inZone = (eid: number): boolean =>
+    state.world.getComponent(eid, ComponentType.EntityZone)?.zone === zone
+
   // Build a set of bee positions for fast lookup (from ECS)
   const beePositions = new Set<string>()
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
+    if (!inZone(eid)) continue
     const bpos = state.world.getComponent(eid, ComponentType.Position)
     if (bpos) beePositions.add(posKey(bpos.x, bpos.y))
   }
@@ -89,6 +95,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const groundItemMap = new Map<string, string>()
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position, ComponentType.ItemDrop)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundItem') continue
+    if (!inZone(eid)) continue
     const gpos = state.world.getComponent(eid, ComponentType.Position)
     const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
     if (gpos && drop) groundItemMap.set(posKey(gpos.x, gpos.y), drop.definitionId)
@@ -128,6 +135,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const shootingStarMap = new Map<string, { char: string; color: string }>()
   const targetedStarMap = new Map<string, { char: string; color: string }>()
   for (const eid of state.world.query(ComponentType.ShootingStarData, ComponentType.Position, ComponentType.Velocity)) {
+    if (!inZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     const vel = state.world.getComponent(eid, ComponentType.Velocity)
     const data = state.world.getComponent(eid, ComponentType.ShootingStarData)
@@ -155,6 +163,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const meteoritePositions = new Set<string>()
   for (const eid of state.world.query(ComponentType.EntityTag)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'meteorite') continue
+    if (!inZone(eid)) continue
     const mpos = state.world.getComponent(eid, ComponentType.Position)
     if (mpos) meteoritePositions.add(posKey(mpos.x, mpos.y))
   }
@@ -163,6 +172,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const groundOmniboxMap = new Map<string, string>()
   for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+    if (!inZone(eid)) continue
     const goPos = state.world.getComponent(eid, ComponentType.Position)
     const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
     if (goPos && link) groundOmniboxMap.set(posKey(goPos.x, goPos.y), link.uid)
@@ -171,6 +181,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Build a map of character positions for rendering (from ECS)
   const characterMap = new Map<string, { glyph: string; color: string }>()
   for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
+    if (!inZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
     if (!pos || !identity) continue
@@ -184,6 +195,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Build a map of explosion pixels (from ECS)
   const explosionMap = new Map<string, { char: string; color: string }>()
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'explosion') continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -219,6 +231,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Build a map of meteorite pickup effect pixels (starlight bloom, from ECS)
   const pickupEffectMap = new Map<string, { char: string; color: string }>()
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'pickupBloom') continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -294,6 +307,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Build a map of crumble effect pixels (breakable wall, from ECS)
   const crumbleMap = new Map<string, { char: string; color: string }>()
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'crumble') continue
     const multiPos = state.world.getComponent(eid, ComponentType.MultiPosition)
@@ -454,6 +468,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Rain overlay pass — draw animated rain near entities with rain aura (from ECS)
   for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
+    if (!inZone(eid)) continue
     const aura = state.world.getComponent(eid, ComponentType.Aura)
     if (aura?.kind !== 'rain') continue
     const auraPos = state.world.getComponent(eid, ComponentType.Position)

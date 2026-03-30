@@ -17,6 +17,7 @@ export const createGroundOmniboxEntity = (
   state.world.addComponent(e, ComponentType.OmniboxLink, { uid })
   state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
   state.world.addComponent(e, ComponentType.EntityTag, 'groundOmnibox')
+  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   return e
 }
 

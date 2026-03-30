@@ -44,6 +44,7 @@ export const updateFacingEntity = (state: GameState): void => {
     let openIsGround = false
     for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)) {
       if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+      if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== state.currentZone) continue
       const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
       if (link?.uid === state.openContainer.id) {
         openIsGround = true
@@ -225,6 +226,7 @@ export const breakWall = (state: GameState, time: number): boolean => {
     startTime: time,
   })
   state.world.addComponent(crumbleEntity, ComponentType.EntityTag, 'crumble')
+  state.world.addComponent(crumbleEntity, ComponentType.EntityZone, { zone: state.currentZone })
 
   // Convert breakable wall tiles to CaveFloor
   for (const pos of state.caveBreakableWallPositions) {

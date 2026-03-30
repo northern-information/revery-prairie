@@ -8,7 +8,9 @@ export const AURA_RADIUS: Record<string, number> = {
 
 export const getTileEffects = (state: GameState, x: number, y: number): string[] => {
   const seen = new Set<string>()
+  const zone = state.currentZone
   for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== zone) continue
     const aura = state.world.getComponent(eid, ComponentType.Aura)
     if (!aura) continue
     const r = aura.radius

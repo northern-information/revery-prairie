@@ -95,6 +95,7 @@ export const useKeyboard = ({
             let isGround = false
             for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)) {
               if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+              if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== state.currentZone) continue
               const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
               if (link?.uid === openId) { isGround = true; break }
             }
