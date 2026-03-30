@@ -22,6 +22,12 @@ export interface Position {
   y: number
 }
 
+export interface TrailPoint {
+  x: number
+  y: number
+  time: number
+}
+
 export const ItemCategory = {
   Fauna: 'fauna',
   Flora: 'flora',
@@ -117,6 +123,8 @@ export interface GameState {
   pendingAction: (() => void) | null
   pendingInteractionTarget: Position | null
   heldDirection: Direction | null
+  sprinting: boolean
+  trail: TrailPoint[]
   cursorTile: Position | null
   cursorScreenPos: { x: number; y: number } | null
   hoverPath: Position[] | null

@@ -197,6 +197,7 @@ export const enterCave = (state: GameState): void => {
   state.previewFn = null
   state.facingEntityPos = null
   state.activeDialog = null
+  state.trail = []
 }
 
 export const exitCave = (state: GameState): void => {
@@ -221,6 +222,7 @@ export const exitCave = (state: GameState): void => {
   state.previewFn = null
   state.facingEntityPos = null
   state.activeDialog = null
+  state.trail = []
 }
 
 export const checkTransition = (state: GameState): boolean => {

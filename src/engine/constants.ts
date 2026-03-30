@@ -98,6 +98,8 @@ export const CRUMBLE_COLORS = ['#997755', '#887744', '#665522', '#554411', '#332
 
 export const PLAYER_CHAR = '@'
 export const PLAYER_COLOR = '#FFFFFF'
+export const TRAIL_DURATION_MS = 1000
+export const TRAIL_MAX_LENGTH = 20
 export const BEE_CHAR = '*'
 export const BEE_COLOR = '#FFD700'
 export const BG_COLOR = '#1a1a1a'

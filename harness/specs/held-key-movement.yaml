@@ -14,17 +14,25 @@ source_files:
 dependencies: []
 
 behaviors:
-  - id: immediate-first-move
-    description: Pressing a direction key moves the player one tile immediately without waiting for a tick
+  - id: set-held-direction
+    description: Pressing a direction key sets heldDirection so the game loop moves the player on the next tick
     inputs:
       - keydown event for w/a/s/d or arrow keys
     outputs:
-      - player moves one tile in the pressed direction
+      - heldDirection is set, game loop moves the player within one tick interval
     state_changes:
-      - field: player
-        effect: position changes by one tile in the pressed direction
       - field: heldDirection
         effect: set to the pressed direction
+      - field: path
+        effect: set to null (cancels click-to-move)
+      - field: pathWaypoints
+        effect: cleared
+      - field: pendingAction
+        effect: set to null
+      - field: pendingInteractionTarget
+        effect: set to null
+      - field: previewFn
+        effect: set to null
     determinism: deterministic
 
   - id: continuous-held-move
@@ -51,16 +59,14 @@ behaviors:
     determinism: deterministic
 
   - id: direction-change
-    description: Pressing a different direction key while one is held switches to the new direction immediately with one instant move
+    description: Pressing a different direction key while one is held switches heldDirection so the game loop moves in the new direction on the next tick
     inputs:
       - keydown event for a different direction while heldDirection is set
     outputs:
-      - player moves one tile in the new direction immediately
+      - game loop moves the player in the new direction on the next tick
     state_changes:
       - field: heldDirection
         effect: updated to the new direction
-      - field: player
-        effect: position changes by one tile in the new direction
     determinism: deterministic
 
 edge_cases:
@@ -81,7 +87,7 @@ edge_cases:
     expected: heldDirection is cleared, no movement ticks fire while menu is open
 
   - id: path-cleared-on-hold
-    description: Holding a direction key cancels any active click-to-move path
+    description: Pressing a direction key cancels any active click-to-move path (handled in keydown, not game loop)
     expected: state.path is set to null, pathWaypoints cleared, pendingAction cleared
 
   - id: held-during-drag
@@ -89,8 +95,8 @@ edge_cases:
     expected: player moves continuously while dragging, same as non-drag movement
 
 failure_conditions:
-  - trigger: player holds a direction key and there is a 300-500ms pause after the first move before continuous movement begins
-    expected: movement is smooth and continuous from the first move with no perceivable pause — subsequent moves fire at 100ms intervals driven by the game loop tick, not OS key repeat
+  - trigger: player presses a direction key and movement does not start within one tick interval
+    expected: game loop fires the first move within 100ms of keydown — tick lastTick is initialized to 0 so the first eligible tick fires immediately
 
   - trigger: player rapidly taps a direction key
     expected: each tap moves exactly one tile, no extra movement from stale heldDirection

@@ -58,10 +58,13 @@ describe('manual', () => {
         expect(entry.id).toBeTruthy()
         expect(entry.name).toBeTruthy()
         expect(entry.category).toBeTruthy()
-        expect(entry.glyph).toBeTruthy()
+        // Control entries have no glyph or summary (context-dependent)
+        if (entry.category !== ManualCategory.Control) {
+          expect(entry.glyph).toBeTruthy()
+          expect(entry.summary).toBeTruthy()
+          expect(entry.lore).toBeTruthy()
+        }
         expect(entry.glyphColor).toBeTruthy()
-        expect(entry.summary).toBeTruthy()
-        expect(entry.lore).toBeTruthy()
         expect(entry.unlockKey).toBeTruthy()
         expect(entry.sourceKind).toBeTruthy()
         expect(Array.isArray(entry.hints)).toBe(true)

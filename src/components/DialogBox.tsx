@@ -47,15 +47,15 @@ export const DialogBox = ({
     <div className="text-dim mt-auto flex shrink-0 gap-4 text-xs">
       {!typingDone ? (
         <button type="button" className="hover:text-text" onClick={onNext}>
-          [e] skip
+          skip
         </button>
       ) : isLastLine ? (
         <button type="button" className="hover:text-text" onClick={onClose}>
-          [e] close
+          close
         </button>
       ) : (
         <button type="button" className="hover:text-text" onClick={onNext}>
-          [e] next
+          next
         </button>
       )}
     </div>

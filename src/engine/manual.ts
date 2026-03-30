@@ -1,5 +1,6 @@
 import { CHARACTER_DEFINITIONS } from './characters'
 import { TILE_CHARS, TILE_COLORS } from './constants'
+import { KEYBINDINGS } from './input'
 import { ITEM_DEFINITIONS } from './items'
 import { RECIPES, recipeKey } from './recipes'
 import { ItemCategory, TileType } from './types'
@@ -16,6 +17,7 @@ export const ManualCategory = {
   Person: 'person',
   Zone: 'zone',
   Recipe: 'recipe',
+  Control: 'control',
 } as const
 
 export type ManualCategory = (typeof ManualCategory)[keyof typeof ManualCategory]
@@ -136,6 +138,22 @@ const buildCharacterEntries = (): ManualEntry[] => {
   return entries
 }
 
+// --- Control entries (auto-derived from keybinding registry) ---
+
+const buildControlEntries = (): ManualEntry[] =>
+  KEYBINDINGS.map((kb) => ({
+    id: `control:${kb.key}`,
+    name: `[${kb.key}] ${kb.action}`,
+    category: ManualCategory.Control,
+    glyph: '',
+    glyphColor: '#ff69b4',
+    summary: kb.context ?? '',
+    lore: kb.context ?? '',
+    hints: [],
+    unlockKey: 'always',
+    sourceKind: 'manual-only' as const,
+  }))
+
 // --- Manual-only entries (zones, events) ---
 
 const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
@@ -208,6 +226,7 @@ export const MANUAL_ENTRIES: Record<string, ManualEntry> = Object.fromEntries(
     ...buildItemEntries(),
     ...buildRecipeEntries(),
     ...buildCharacterEntries(),
+    ...buildControlEntries(),
     ...MANUAL_ONLY_ENTRIES,
   ].map((entry) => [entry.id, entry]),
 )
@@ -260,4 +279,5 @@ export const CATEGORY_ORDER: ManualCategory[] = [
   ManualCategory.Person,
   ManualCategory.Zone,
   ManualCategory.Recipe,
+  ManualCategory.Control,
 ]
