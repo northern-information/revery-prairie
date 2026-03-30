@@ -116,7 +116,7 @@ const EntryCard = ({
       <div className="flex items-baseline gap-2">
         {isRecipe ? (
           <span className="text-text text-sm">
-            {entry.crossRefs.slice(0, 2).join(' + ')} ={' '}
+            {entry.crossRefs?.slice(0, 2).join(' + ')} ={' '}
             <RecipeResultSpoiler
               entry={entry}
               discovered={discovered}

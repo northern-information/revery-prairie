@@ -7,7 +7,6 @@ import {
   ManualCategory,
   filterManualEntries,
   getEntriesByCategory,
-  getRelatedEntries,
   isDiscovered,
   recordDiscovery,
 } from '../manual'
@@ -66,7 +65,6 @@ describe('manual', () => {
         expect(entry.unlockKey).toBeTruthy()
         expect(entry.sourceKind).toBeTruthy()
         expect(Array.isArray(entry.hints)).toBe(true)
-        expect(Array.isArray(entry.crossRefs)).toBe(true)
       }
     })
 
@@ -87,14 +85,15 @@ describe('manual', () => {
   })
 
   describe('cross-refs', () => {
-    it('items that share a recipe cross-ref each other', () => {
-      const beeEntry = MANUAL_ENTRIES.bee
-      expect(beeEntry.crossRefs).toContain('clover')
-      expect(beeEntry.crossRefs).toContain('recipe:bee+clover')
-
-      const cloverEntry = MANUAL_ENTRIES.clover
-      expect(cloverEntry.crossRefs).toContain('bee')
-      expect(cloverEntry.crossRefs).toContain('recipe:bee+clover')
+    it('only recipe entries have cross-refs', () => {
+      for (const entry of Object.values(MANUAL_ENTRIES)) {
+        if (entry.sourceKind === 'recipe') {
+          expect(entry.crossRefs).toBeDefined()
+          expect(entry.crossRefs!.length).toBeGreaterThan(0)
+        } else {
+          expect(entry.crossRefs).toBeUndefined()
+        }
+      }
     })
 
     it('recipe entries cross-ref their ingredients', () => {
@@ -105,7 +104,7 @@ describe('manual', () => {
 
     it('all cross-refs point to valid entry IDs', () => {
       for (const entry of Object.values(MANUAL_ENTRIES)) {
-        for (const ref of entry.crossRefs) {
+        for (const ref of entry.crossRefs ?? []) {
           expect(MANUAL_ENTRIES[ref]).toBeDefined()
         }
       }
@@ -169,26 +168,6 @@ describe('manual', () => {
     it('returns recipes when filtering by Recipe category', () => {
       const recipes = getEntriesByCategory(ManualCategory.Recipe)
       expect(recipes.length).toBe(RECIPES.length)
-    })
-  })
-
-  describe('getRelatedEntries', () => {
-    it('returns entries matching cross-refs', () => {
-      const related = getRelatedEntries('bee')
-      const relatedIds = related.map((e) => e.id)
-      expect(relatedIds).toContain('clover')
-    })
-
-    it('returns empty array for unknown entry', () => {
-      expect(getRelatedEntries('nonexistent')).toEqual([])
-    })
-
-    it('filters out invalid cross-refs', () => {
-      // All entries should have valid cross-refs so this returns the same count
-      for (const entry of Object.values(MANUAL_ENTRIES)) {
-        const related = getRelatedEntries(entry.id)
-        expect(related.length).toBe(entry.crossRefs.filter((r) => MANUAL_ENTRIES[r]).length)
-      }
     })
   })
 
