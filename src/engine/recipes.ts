@@ -51,12 +51,8 @@ export const RECIPES: Recipe[] = [
           const tx = state.player.x + dx
           const ty = state.player.y + dy
           if (isInBounds(tx, ty, state.mapWidth, state.mapHeight)) {
-            const tile = state.map[ty][tx]
-            if (
-              tile.type !== TileType.Sand &&
-              tile.type !== TileType.Space &&
-              tile.type !== TileType.CaveEntrance
-            ) {
+            const t = state.map[ty][tx].type
+            if (t === TileType.Dirt || t === TileType.Clover || t === TileType.CaveFloor) {
               tiles.push({ pos: { x: tx, y: ty }, char: '#', color: '#ff69b4' })
             }
           }
@@ -66,19 +62,15 @@ export const RECIPES: Recipe[] = [
     },
     execute: state => {
       const standingOn = state.map[state.player.y][state.player.x].type
-      if (standingOn === TileType.Sand || standingOn === TileType.Space) return false
+      if (standingOn !== TileType.Dirt && standingOn !== TileType.Clover && standingOn !== TileType.CaveFloor) return false
 
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
           const tx = state.player.x + dx
           const ty = state.player.y + dy
           if (isInBounds(tx, ty, state.mapWidth, state.mapHeight)) {
-            const tile = state.map[ty][tx]
-            if (
-              tile.type !== TileType.Sand &&
-              tile.type !== TileType.Space &&
-              tile.type !== TileType.CaveEntrance
-            ) {
+            const t = state.map[ty][tx].type
+            if (t === TileType.Dirt || t === TileType.Clover || t === TileType.CaveFloor) {
               state.map[ty][tx] = { type: TileType.Clover }
             }
           }

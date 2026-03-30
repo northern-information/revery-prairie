@@ -133,6 +133,14 @@ const createDefaultSystems = (
       },
     },
     {
+      id: 'bee-cave',
+      intervalMs: BEE_TICK_MS,
+      zone: 'cave',
+      fn: (state) => {
+        tickBees(state, Zone.Cave)
+      },
+    },
+    {
       id: 'character-behaviors',
       intervalMs: GHOST_TICK_MS,
       zone: 'overworld',

@@ -264,27 +264,32 @@ describe('zone gating', () => {
     expect(count).toBe(2)
   })
 
-  it('default overworld systems do not tick in cave', () => {
+  it('cave bees tick in cave zone', () => {
     const state = createTestState()
     state.currentZone = Zone.Cave
-    // Place a bee to observe whether tickBees runs
-    const beeEid = createBeeEntity(state, state.player.x + 3, state.player.y)
+    state.map = state.caveMap
+    state.mapWidth = state.caveMapWidth
+    state.mapHeight = state.caveMapHeight
+    // Position player inside cave bounds
+    state.player = { x: 20, y: 15 }
     clearAroundPlayer(state, 5)
+    // Place a cave bee on walkable cave floor
+    const beeEid = createBeeEntity(state, state.player.x + 3, state.player.y)
 
     const gameLoop = createGameLoop(state, {})
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const posBefore = { ...state.world.getComponent(beeEid, ComponentType.Position)! }
 
-    // Tick many times at the bee interval — bees move randomly (30% chance),
-    // so run many ticks to ensure at least one move if tickBees were running
+    // Tick many times — bees move randomly (30% chance),
+    // so run many ticks to ensure at least one move
     for (let t = 0; t <= 10000; t += 200) {
       gameLoop.tick(t)
     }
 
-    // In cave zone, bees should not have been ticked at all
+    // Cave bees should tick and move
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const posAfter = state.world.getComponent(beeEid, ComponentType.Position)!
-    expect(posAfter).toEqual(posBefore)
+    expect(posAfter).not.toEqual(posBefore)
   })
 })
 
