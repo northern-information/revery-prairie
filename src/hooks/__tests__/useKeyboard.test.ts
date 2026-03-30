@@ -43,25 +43,29 @@ vi.mock('@/engine/omnibox', async (importOriginal) => {
   }
 })
 
-vi.mock('@/engine/input', () => ({
-  keyToDirection: vi.fn((key: string) => {
-    const map: Record<string, string> = {
-      w: 'up',
-      W: 'up',
-      a: 'left',
-      A: 'left',
-      s: 'down',
-      S: 'down',
-      d: 'right',
-      D: 'right',
-      ArrowUp: 'up',
-      ArrowDown: 'down',
-      ArrowLeft: 'left',
-      ArrowRight: 'right',
-    }
-    return map[key] ?? null
-  }),
-}))
+vi.mock('@/engine/input', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/engine/input')>()
+  return {
+    ...actual,
+    keyToDirection: vi.fn((key: string) => {
+      const map: Record<string, string> = {
+        w: 'up',
+        W: 'up',
+        a: 'left',
+        A: 'left',
+        s: 'down',
+        S: 'down',
+        d: 'right',
+        D: 'right',
+        ArrowUp: 'up',
+        ArrowDown: 'down',
+        ArrowLeft: 'left',
+        ArrowRight: 'right',
+      }
+      return map[key] ?? null
+    }),
+  }
+})
 
 vi.mock('@/engine/inventory', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/engine/inventory')>()
@@ -442,17 +446,7 @@ describe('useKeyboard', () => {
   })
 
   describe('WASD — movement', () => {
-    it('calls movePlayer and pickUpGroundItems on W', () => {
-      renderKeyboardHook()
-
-      act(() => { fireKey('w'); })
-
-      expect(movePlayer).toHaveBeenCalledWith(state, 'up')
-      expect(pickUpGroundItems).toHaveBeenCalledWith(state, expect.any(Number))
-      expect(refreshUI).toHaveBeenCalled()
-    })
-
-    it('sets heldDirection', () => {
+    it('sets heldDirection on keydown', () => {
       renderKeyboardHook()
 
       act(() => { fireKey('d'); })
@@ -478,32 +472,12 @@ describe('useKeyboard', () => {
       expect(state.previewFn).toBeNull()
     })
 
-    it('does not call pickUpGroundItems when movePlayer returns false', () => {
-      vi.mocked(movePlayer).mockReturnValue(false)
+    it('does not call movePlayer directly — game loop handles movement', () => {
       renderKeyboardHook()
 
       act(() => { fireKey('w'); })
 
-      expect(pickUpGroundItems).not.toHaveBeenCalled()
-      expect(refreshUI).not.toHaveBeenCalled()
-    })
-
-    it('fires onPickup for each picked-up item', () => {
-      vi.mocked(pickUpGroundItems).mockReturnValue({ pickedUp: ['bee', 'meteorite'], chainExplosions: 0 })
-      renderKeyboardHook()
-
-      act(() => { fireKey('w'); })
-
-      expect(onPickup).toHaveBeenCalledTimes(2)
-    })
-
-    it('fires onDiscovery for chain explosions', () => {
-      vi.mocked(pickUpGroundItems).mockReturnValue({ pickedUp: [], chainExplosions: 1 })
-      renderKeyboardHook()
-
-      act(() => { fireKey('w'); })
-
-      expect(onDiscovery).toHaveBeenCalledWith('oh my!', state.player.x, state.player.y)
+      expect(movePlayer).not.toHaveBeenCalled()
     })
   })
 
@@ -598,42 +572,15 @@ describe('useKeyboard', () => {
       expect(refreshUI).toHaveBeenCalled()
     })
 
-    it('closes inventory when not hovering', () => {
-      itemInfoRef = makeItemInfoRef(() => null)
-      const { result } = renderKeyboardHook()
-
-      act(() => { result.current.setActivePanel('inventory'); })
-      act(() => { fireKey('r'); })
-
-      expect(result.current.activePanel).toBeNull()
-    })
-
-    it('opens inventory when closed and not in menu', () => {
-      const { result } = renderKeyboardHook()
-
-      act(() => { fireKey('r'); })
-
-      expect(result.current.activePanel).toBe('inventory')
-    })
-
-    it('does nothing when menu is open', () => {
-      const { result } = renderKeyboardHook()
-
-      act(() => { result.current.setActivePanel('menu'); })
-      act(() => { fireKey('r'); })
-
-      expect(result.current.activePanel).toBe('menu')
-    })
   })
 
   describe('WASD during drag', () => {
-    it('allows movement while dragging', () => {
+    it('sets heldDirection while dragging', () => {
       isDraggingRef = { current: true }
       renderKeyboardHook()
 
       act(() => { fireKey('w'); })
 
-      expect(movePlayer).toHaveBeenCalledWith(state, 'up')
       expect(state.heldDirection).toBe('up')
     })
 

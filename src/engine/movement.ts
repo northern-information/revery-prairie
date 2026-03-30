@@ -1,5 +1,6 @@
 import { updateCamera } from './camera'
 import { checkTransition } from './cave'
+import { TRAIL_MAX_LENGTH } from './constants'
 import { ComponentType } from './ecs/types'
 import { updateFacingEntity } from './interaction'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
@@ -66,6 +67,10 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
     return false
   }
 
+  state.trail.push({ x: state.player.x, y: state.player.y, time: performance.now() })
+  if (state.trail.length > TRAIL_MAX_LENGTH) {
+    state.trail.shift()
+  }
   state.player.x = nx
   state.player.y = ny
   updateCamera(state)

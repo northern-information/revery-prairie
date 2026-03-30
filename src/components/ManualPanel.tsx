@@ -18,6 +18,16 @@ interface ManualPanelProps {
   onClose: () => void
 }
 
+const ControlName = ({ name }: { name: string }) => {
+  const match = /^(\[.*?\])\s*(.*)$/.exec(name)
+  if (!match) return <span className="text-text text-sm">{name}</span>
+  return (
+    <span className="text-text text-sm">
+      <span className="text-pink">{match[1]}</span> {match[2]}
+    </span>
+  )
+}
+
 const CATEGORY_LABELS: Record<ManualCategory, string> = {
   [ManualCategory.Flora]: 'FLORA',
   [ManualCategory.Fauna]: 'FAUNA',
@@ -26,6 +36,7 @@ const CATEGORY_LABELS: Record<ManualCategory, string> = {
   [ManualCategory.Person]: 'PEOPLE',
   [ManualCategory.Zone]: 'ZONES',
   [ManualCategory.Recipe]: 'RECIPES',
+  [ManualCategory.Control]: 'CONTROLS',
 }
 
 const HintBlock = ({
@@ -125,6 +136,8 @@ const EntryCard = ({
               onToggle={onToggleHint}
             />
           </span>
+        ) : entry.category === ManualCategory.Control ? (
+          <ControlName name={entry.name} />
         ) : (
           <>
             <span style={{ color: entry.glyphColor }}>{entry.glyph}</span>

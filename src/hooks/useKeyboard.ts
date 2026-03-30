@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { dropItem, pickUpGroundItems } from '@/engine/entities'
+import { dropItem } from '@/engine/entities'
 import { ComponentType } from '@/engine/ecs/types'
 import { advanceDialog, breakWall, getAdjacentCharacter, giveMoabGift, interactWithCharacter, updateFacingEntity } from '@/engine/interaction'
-import { movePlayer } from '@/engine/movement'
 import { closeOmnibox, grabOmnibox, toggleFacingOmnibox, toggleOmnibox } from '@/engine/omnibox'
 import { getCharacterDefinition } from '@/engine/characters'
 import { keyToDirection } from '@/engine/input'
@@ -40,21 +39,13 @@ export const useKeyboard = ({
 }: UseKeyboardOptions) => {
   const [activePanel, setActivePanel] = useState<Panel>(null)
 
-  const handlePickups = useCallback(
-    (result: { pickedUp: string[]; chainExplosions: number }) => {
-      for (const defId of result.pickedUp) {
-        const def = getDefinition(defId)
-        onPickup(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
-      }
-      if (result.chainExplosions > 0) {
-        onDiscovery('oh my!', state.player.x, state.player.y)
-      }
-    },
-    [onPickup, onDiscovery, state]
-  )
-
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      if (e.key === 'Shift') {
+        state.sprinting = !state.sprinting
+        return
+      }
+
       // Escape: close dialog first, then panel, then open menu
       if (e.key === 'Escape') {
         if (state.activeDialog) {
@@ -160,11 +151,6 @@ export const useKeyboard = ({
             state.pathWaypoints = []
             state.pendingAction = null
             state.pendingInteractionTarget = null
-            if (movePlayer(state, dir)) {
-              const result = pickUpGroundItems(state, performance.now())
-              handlePickups(result)
-              refreshUI()
-            }
           }
         }
         return
@@ -187,7 +173,7 @@ export const useKeyboard = ({
         }
       }
 
-      // Rotate hovered item, or toggle inventory
+      // Rotate hovered item in inventory
       if (e.key === 'r' || e.key === 'R') {
         if (activePanel === 'inventory') {
           const hoveredId = itemInfoRef.current?.getCurrentId()
@@ -198,22 +184,21 @@ export const useKeyboard = ({
               moveItem(state.backpack, item.uid, item.gridX, item.gridY, nextRotation)
               refreshUI()
             }
-            return
           }
-          // Not hovering — close inventory
-          setActivePanel(null)
-          return
-        }
-        // Inventory not open — open it
-        if (activePanel !== 'menu') {
-          setActivePanel('inventory')
         }
         return
       }
 
-      // Toggle manual
+      // Toggle inventory
       if (e.key === 'Tab') {
         e.preventDefault()
+        if (activePanel === 'menu') return
+        setActivePanel(activePanel === 'inventory' ? null : 'inventory')
+        return
+      }
+
+      // Toggle manual
+      if (e.key === 'q' || e.key === 'Q') {
         if (activePanel === 'menu') return
         setActivePanel(activePanel === 'manual' ? null : 'manual')
         return
@@ -241,15 +226,10 @@ export const useKeyboard = ({
           state.pendingAction = null
           state.pendingInteractionTarget = null
           state.previewFn = null
-          if (movePlayer(state, dir)) {
-            const result = pickUpGroundItems(state, performance.now())
-            handlePickups(result)
-            refreshUI()
-          }
         }
       }
     },
-    [state, refreshUI, activePanel, itemInfoRef, handlePickups, onPickup, onDrop, onDialog, onDiscovery, onGift, isDraggingRef]
+    [state, refreshUI, activePanel, itemInfoRef, onPickup, onDrop, onDialog, onDiscovery, onGift, isDraggingRef]
   )
 
   const handleKeyUp = useCallback(

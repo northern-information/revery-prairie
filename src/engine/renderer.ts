@@ -28,6 +28,7 @@ import {
   SHOOTING_STAR_TRAIL_COLORS,
   TILE_CHARS,
   TILE_COLORS,
+  TRAIL_DURATION_MS,
 } from './constants'
 import { getDefinition } from './items'
 import { isInBounds, posKey } from './position'
@@ -191,6 +192,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const def = getCharacterDefinition(identity.definitionId)
     characterMap.set(key, { glyph: def.glyph, color: def.glyphColor })
   }
+
+  // Prune expired trail points and build a map with opacity
+  const trailMap = new Map<string, number>()
+  const activeTrail = state.trail.filter((tp) => {
+    const age = time - tp.time
+    if (age >= TRAIL_DURATION_MS) return false
+    trailMap.set(posKey(tp.x, tp.y), 1 - age / TRAIL_DURATION_MS)
+    return true
+  })
+  state.trail = activeTrail
 
   // Build a map of explosion pixels (from ECS)
   const explosionMap = new Map<string, { char: string; color: string }>()
@@ -442,6 +453,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const hoverTile = map[my][mx]
         char = TILE_CHARS[hoverTile.type]
         color = '#555555'
+      } else if (trailMap.has(tileKey)) {
+        const tile = map[my][mx]
+        char = TILE_CHARS[tile.type]
+        const opacity = trailMap.get(tileKey) ?? 0
+        const brightness = String(Math.round(opacity * 255))
+        color = `rgb(${brightness}, ${brightness}, ${brightness})`
       } else {
         // Mask hidden chamber tiles as CaveWall until revealed
         if (!state.caveRevealed && state.caveHiddenPositions.has(tileKey)) {

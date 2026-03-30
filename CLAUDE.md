@@ -143,19 +143,31 @@ the permacomputer is never consumed by recipes. it is a tool that persists. the 
 
 ## keybindings
 
+left-hand keyboard layout (modern roguelike standard). WASD movement + surrounding keys.
+
 - `wasd` — movement (works with inventory open, blocked in menu and during drag)
-- `r` — toggle inventory (when not hovering item), rotate hovered item in place (when hovering)
-- `i` — toggle inventory (legacy, still works)
-- `x` — drop hovered item
 - `e` — context-dependent: pick up open ground omnibox / close open backpack omnibox / open hovered omnibox / open facing ground omnibox / talk to character / advance dialog
-- `tab` — toggle prairie manual
+- `r` — rotate hovered item in place (inventory must be open, item must be hovered)
+- `x` — drop hovered item
+- `tab` — toggle inventory
+- `q` — toggle prairie manual
 - `esc` — close panel / open menu
+- `shift` — toggle sprint (double movement speed, works with WASD and click-to-move)
+- `shift+click` — queue waypoints onto existing path (RTS-style)
 - during drag: `r` rotates preview, `esc` cancels (captured by drag hook)
 - `isDraggingRef` blocks `x`/`r` in keyboard hook while drag is active, but allows movement through
 
+### reserved keys (not yet implemented)
+
+- `1-4` — hotbar slots (press number to use item directly)
+- `f` — TBD (prime ergonomic real estate)
+- `space` — TBD
+- `left click+drag` — TBD (future RTS-style multi-select)
+- `right click` — TBD
+
 ## prairie manual
 
-in-game encyclopedia cataloging all game content. fullscreen overlay panel toggled with `[tab]`. movement remains active while open.
+in-game encyclopedia cataloging all game content. fullscreen overlay panel toggled with `[q]`. movement remains active while open.
 
 - **`src/engine/manual.ts`** — entry types (`ManualEntry`, `ManualHint`), builder functions, `MANUAL_ENTRIES` registry, `MANUAL_LORE` table, discovery helpers, search/filter, category ordering.
 - **`src/components/ManualPanel.tsx`** — React panel with category tabs, search, entry cards, spoiler hint blocks, cross-ref navigation.

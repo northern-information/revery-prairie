@@ -54,6 +54,8 @@ const EXPECTED_FIELDS = [
   'hoverPathTarget',
   'pendingInteractionTarget',
   'heldDirection',
+  'sprinting',
+  'trail',
   'musicEnabled',
   'world',
 ].sort()

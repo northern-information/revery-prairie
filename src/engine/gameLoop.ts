@@ -69,25 +69,33 @@ const createDefaultSystems = (
       zone: 'always',
       priority: -10,
       fn: (state, time) => {
-        if (tickPath(state)) {
-          const result = pickUpGroundItems(state, time)
-          for (const defId of result.pickedUp) {
-            const def = getDefinition(defId)
-            callbacks.onPickup?.(
-              def.name,
-              def.glyph,
-              def.glyphColor,
-              state.player.x,
-              state.player.y,
-            )
+        const moves = state.sprinting ? 2 : 1
+        let moved = false
+        for (let i = 0; i < moves; i++) {
+          if (!state.path) break
+          if (tickPath(state)) {
+            moved = true
+            const result = pickUpGroundItems(state, time)
+            for (const defId of result.pickedUp) {
+              const def = getDefinition(defId)
+              callbacks.onPickup?.(
+                def.name,
+                def.glyph,
+                def.glyphColor,
+                state.player.x,
+                state.player.y,
+              )
+            }
+            if (result.chainExplosions > 0) {
+              callbacks.onDiscovery?.(
+                'oh my!',
+                state.player.x,
+                state.player.y,
+              )
+            }
           }
-          if (result.chainExplosions > 0) {
-            callbacks.onDiscovery?.(
-              'oh my!',
-              state.player.x,
-              state.player.y,
-            )
-          }
+        }
+        if (moved) {
           callbacks.onRefreshUI?.()
         }
       },
@@ -101,25 +109,33 @@ const createDefaultSystems = (
         if (!state.heldDirection) return
         if (state.activeDialog) return
         if (state.path) return
-        if (movePlayer(state, state.heldDirection)) {
-          const result = pickUpGroundItems(state, time)
-          for (const defId of result.pickedUp) {
-            const def = getDefinition(defId)
-            callbacks.onPickup?.(
-              def.name,
-              def.glyph,
-              def.glyphColor,
-              state.player.x,
-              state.player.y,
-            )
+        const moves = state.sprinting ? 2 : 1
+        let moved = false
+        for (let i = 0; i < moves; i++) {
+          if (!state.heldDirection) break
+          if (movePlayer(state, state.heldDirection)) {
+            moved = true
+            const result = pickUpGroundItems(state, time)
+            for (const defId of result.pickedUp) {
+              const def = getDefinition(defId)
+              callbacks.onPickup?.(
+                def.name,
+                def.glyph,
+                def.glyphColor,
+                state.player.x,
+                state.player.y,
+              )
+            }
+            if (result.chainExplosions > 0) {
+              callbacks.onDiscovery?.(
+                'oh my!',
+                state.player.x,
+                state.player.y,
+              )
+            }
           }
-          if (result.chainExplosions > 0) {
-            callbacks.onDiscovery?.(
-              'oh my!',
-              state.player.x,
-              state.player.y,
-            )
-          }
+        }
+        if (moved) {
           callbacks.onRefreshUI?.()
         }
       },

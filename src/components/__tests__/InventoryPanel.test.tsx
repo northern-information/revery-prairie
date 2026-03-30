@@ -63,8 +63,6 @@ describe('InventoryPanel', () => {
       />
     )
 
-    expect(screen.getByText('[x] drop')).toBeInTheDocument()
-    expect(screen.getByText('[r]otate')).toBeInTheDocument()
     expect(screen.getByText('sort')).toBeInTheDocument()
   })
 
