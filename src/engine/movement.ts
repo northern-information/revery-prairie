@@ -7,9 +7,11 @@ import { Zone } from './types'
 
 import type { Direction, GameState, Position } from './types'
 
-export const getBlockedPositions = (state: GameState): Set<string> => {
+export const getBlockedPositions = (state: GameState, zone?: Zone): Set<string> => {
+  const z = zone ?? state.currentZone
   const set = new Set<string>()
   for (const eid of state.world.query(ComponentType.Blocking, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== z) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (pos) {
       set.add(posKey(pos.x, pos.y))

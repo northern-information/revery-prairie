@@ -2,8 +2,10 @@ import { breakWall, updateFacingEntity } from '../interaction'
 import { checkTransition, enterCave, exitCave, generateCave } from '../cave'
 import { CAVE_HEIGHT, CAVE_WIDTH } from '../constants'
 import { ComponentType } from '../ecs/types'
+import { getBlockedPositions } from '../movement'
 import { findPath } from '../pathfinding'
 import { isWalkableTile } from '../position'
+import { createGameState } from '../state'
 import { TileType, Zone } from '../types'
 import { createBeeEntity, createCharacterTestEntity, createTestState, getBeeEntities, getCharacterEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
@@ -158,30 +160,18 @@ describe('enterCave', () => {
     expect(state.map).not.toBe(overworldMap)
   })
 
-  it('snapshots overworld state', () => {
-    const state = createTestState()
-    const overworldPlayer = { ...state.player }
-    createBeeEntity(state, 10, 10)
-    enterCave(state)
-    expect(state.overworldSnapshot).not.toBeNull()
-    expect(state.overworldSnapshot?.player).toEqual(overworldPlayer)
-  })
-
-  it('replaces overworld character entities with cave characters', () => {
+  it('preserves all entities across zone transition', () => {
     const state = createTestState()
     createBeeEntity(state, 10, 10)
     createCharacterTestEntity(state, 'ghost-99', 15, 15, {
       behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
     })
-    const charsBefore = getCharacterEntities(state)
-    expect(charsBefore).toHaveLength(1)
+    const beesBefore = getBeeEntities(state).length
+    const charsBefore = getCharacterEntities(state).length
     enterCave(state)
-    // Bees are ECS entities and persist across zone transitions
-    expect(getBeeEntities(state)).toHaveLength(1)
-    // Overworld ghost is gone, Moab is created
-    const charsAfter = getCharacterEntities(state)
-    expect(charsAfter).toHaveLength(1)
-    expect(charsAfter[0].definitionId).toBe('moab')
+    // All entities persist — no snapshot/destroy
+    expect(getBeeEntities(state)).toHaveLength(beesBefore)
+    expect(getCharacterEntities(state)).toHaveLength(charsBefore)
   })
 
   it('places player adjacent to cave entrance interior, not on it', () => {
@@ -204,32 +194,28 @@ describe('enterCave', () => {
 })
 
 describe('exitCave', () => {
-  it('restores overworld state', () => {
+  it('restores overworld map', () => {
     const state = createTestState()
-    const overworldMap = state.map
-    const overworldWidth = state.mapWidth
-    const overworldHeight = state.mapHeight
-    createBeeEntity(state, 10, 10)
     enterCave(state)
     exitCave(state)
     expect(state.currentZone).toBe(Zone.Overworld)
-    expect(state.map).toBe(overworldMap)
-    expect(state.mapWidth).toBe(overworldWidth)
-    expect(state.mapHeight).toBe(overworldHeight)
+    expect(state.map).toBe(state.overworldMap)
+    expect(state.mapWidth).toBe(state.overworldMapWidth)
+    expect(state.mapHeight).toBe(state.overworldMapHeight)
   })
 
-  it('restores overworld character entities (bees persist)', () => {
+  it('preserves all entities across round-trip', () => {
     const state = createTestState()
     createBeeEntity(state, 10, 10)
     createCharacterTestEntity(state, 'ghost-99', 15, 15, {
       behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
     })
-    const overworldCharCount = getCharacterEntities(state).length
+    const beesBefore = getBeeEntities(state).length
+    const charsBefore = getCharacterEntities(state).length
     enterCave(state)
     exitCave(state)
-    // Bees are ECS entities and persist across zone transitions
-    expect(getBeeEntities(state)).toHaveLength(1)
-    expect(getCharacterEntities(state)).toHaveLength(overworldCharCount)
+    expect(getBeeEntities(state)).toHaveLength(beesBefore)
+    expect(getCharacterEntities(state)).toHaveLength(charsBefore)
   })
 
   it('places player one tile south of cave entrance to avoid re-entry', () => {
@@ -240,18 +226,11 @@ describe('exitCave', () => {
     expect(state.player.y).toBe(state.caveEntranceOverworld.y + 1)
   })
 
-  it('clears the snapshot', () => {
+  it('is a no-op when already on overworld', () => {
     const state = createTestState()
-    enterCave(state)
     exitCave(state)
-    expect(state.overworldSnapshot).toBeNull()
-  })
-
-  it('does nothing without a snapshot', () => {
-    const state = createTestState()
-    const playerBefore = { ...state.player }
-    exitCave(state)
-    expect(state.player).toEqual(playerBefore)
+    // exitCave still runs (swaps map to overworld, which is already active)
+    // but player gets repositioned to cave entrance south
     expect(state.currentZone).toBe(Zone.Overworld)
   })
 })
@@ -377,5 +356,58 @@ describe('breakable wall interactable', () => {
     // but even if the tile type somehow persisted, revealed=true should skip
     updateFacingEntity(state)
     expect(state.facingEntityPos).toBeNull()
+  })
+})
+
+describe('persistent dual-zone', () => {
+  it('overworld entities are zone-tagged', () => {
+    const state = createTestState()
+    createBeeEntity(state, 10, 10)
+    const bees = getBeeEntities(state)
+    expect(bees).toHaveLength(1)
+    const zone = state.world.getComponent(bees[0], ComponentType.EntityZone)
+    expect(zone?.zone).toBe(Zone.Overworld)
+  })
+
+  it('overworld meteorites do not appear in cave queries filtered by zone', () => {
+    const state = createTestState()
+    // Create meteorite in overworld
+    const eid = state.world.createEntity()
+    state.world.addComponent(eid, ComponentType.Position, { x: 5, y: 5 })
+    state.world.addComponent(eid, ComponentType.EntityTag, 'meteorite')
+    state.world.addComponent(eid, ComponentType.EntityZone, { zone: Zone.Overworld })
+
+    enterCave(state)
+
+    // Query meteorites filtered by current zone (cave) — should find none
+    const caveMeteorites = state.world.query(ComponentType.EntityTag)
+      .filter(e => state.world.getComponent(e, ComponentType.EntityTag) === 'meteorite')
+      .filter(e => state.world.getComponent(e, ComponentType.EntityZone)?.zone === state.currentZone)
+    expect(caveMeteorites).toHaveLength(0)
+  })
+
+  it('overworld blockers do not affect cave movement', () => {
+    const state = createTestState()
+    // Create a blocking entity in overworld at coords that overlap with cave
+    createCharacterTestEntity(state, 'ghost-99', 5, 5, {
+      behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
+    })
+    enterCave(state)
+
+    // getBlockedPositions in cave should not include the overworld ghost
+    const blocked = getBlockedPositions(state)
+    expect(blocked.has('5,5')).toBe(false)
+  })
+
+  it('Moab exists as a cave-zone entity from game init', () => {
+    const state = createGameState('Test', 20, 20)
+    const moab = getCharacterEntities(state).find(c => c.definitionId === 'moab')
+    expect(moab).toBeDefined()
+    const moabEid = state.world.query(ComponentType.CharacterIdentity)
+      .find(eid => state.world.getComponent(eid, ComponentType.CharacterIdentity)?.definitionId === 'moab')
+    expect(moabEid).toBeDefined()
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const zone = state.world.getComponent(moabEid!, ComponentType.EntityZone)
+    expect(zone?.zone).toBe(Zone.Cave)
   })
 })

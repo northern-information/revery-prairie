@@ -106,7 +106,9 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     metric: true,
     musicEnabled: true,
     currentZone: Zone.Overworld,
-    overworldSnapshot: null,
+    overworldMap: map,
+    overworldMapWidth: MAP_WIDTH,
+    overworldMapHeight: MAP_HEIGHT,
     caveMap: cave.map,
     caveMapWidth: CAVE_WIDTH,
     caveMapHeight: CAVE_HEIGHT,
@@ -157,6 +159,9 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     })
   }
   registerGhostDefinitions(ghostNumbers)
+
+  // Create Moab in the cave (persists permanently, tagged as cave zone)
+  createCharacterEntity(state, 'moab', { ...cave.npcSpot }, { zone: Zone.Cave })
 
   // Place an omnibox in the backpack
   const omniboxFit = findFitPosition(backpack, 'omnibox')

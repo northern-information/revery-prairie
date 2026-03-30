@@ -1,4 +1,4 @@
-import type { CharacterBehavior, Position } from '../types'
+import type { CharacterBehavior, Position, Zone } from '../types'
 
 export type Entity = number
 
@@ -18,6 +18,7 @@ export const ComponentType = {
   ItemDrop: 'itemDrop',
   ChainSource: 'chainSource',
   EntityTag: 'entityTag',
+  EntityZone: 'entityZone',
 } as const
 
 export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType]
@@ -46,4 +47,5 @@ export interface ComponentDataMap {
   [ComponentType.ItemDrop]: { definitionId: string }
   [ComponentType.ChainSource]: { fromChain: boolean }
   [ComponentType.EntityTag]: string
+  [ComponentType.EntityZone]: { zone: Zone }
 }

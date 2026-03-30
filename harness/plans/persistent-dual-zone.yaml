@@ -1,0 +1,167 @@
+plan:
+  id: persistent-dual-zone
+  title: "Persistent dual-zone simulation with concurrent ticking"
+  created: 2026-03-30
+  global_verification:
+    - "npm run build"
+    - "npm run test"
+    - "npm run lint"
+
+tasks:
+  - id: add-zone-component
+    title: "Add EntityZone component to ECS type system"
+    spec_id: persistent-dual-zone
+    spec_sections:
+      - zone-component
+    context_files:
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/ecs/types.ts
+    depends_on: []
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine]
+
+  - id: persistent-maps
+    title: "Add overworldMap fields to GameState, remove OverworldSnapshot"
+    spec_id: persistent-dual-zone
+    spec_sections:
+      - persistent-maps
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    depends_on:
+      - add-zone-component
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine]
+
+  - id: tag-entity-creation
+    title: "Tag all entity creation points with EntityZone component"
+    spec_id: persistent-dual-zone
+    spec_sections:
+      - zone-component
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/celestial.ts
+      - src/engine/omnibox.ts
+      - src/engine/interaction.ts
+      - src/engine/recipes.ts
+      - src/engine/state.ts
+      - src/hooks/useCanvasDrop.ts
+    output_files:
+      - src/engine/entities.ts
+      - src/engine/celestial.ts
+      - src/engine/omnibox.ts
+      - src/engine/interaction.ts
+      - src/engine/recipes.ts
+      - src/engine/state.ts
+      - src/hooks/useCanvasDrop.ts
+    depends_on:
+      - add-zone-component
+      - persistent-maps
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine]
+
+  - id: game-loop-concurrent-ticks
+    title: "Game loop always runs zone systems with map context swap"
+    spec_id: persistent-dual-zone
+    spec_sections:
+      - concurrent-zone-ticks
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - persistent-maps
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine]
+
+  - id: zone-filtered-queries
+    title: "Add zone filtering to renderer, movement, entities, interaction, effects, keyboard"
+    spec_id: persistent-dual-zone
+    spec_sections:
+      - zone-filtered-queries
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/movement.ts
+      - src/engine/entities.ts
+      - src/engine/interaction.ts
+      - src/engine/effects.ts
+      - src/hooks/useKeyboard.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/renderer.ts
+      - src/engine/movement.ts
+      - src/engine/entities.ts
+      - src/engine/interaction.ts
+      - src/engine/effects.ts
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - tag-entity-creation
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine]
+
+  - id: simplify-zone-transition
+    title: "Simplify enterCave/exitCave to map-pointer swap, create Moab in state init"
+    spec_id: persistent-dual-zone
+    spec_sections:
+      - simplified-zone-transition
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/cave.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+    depends_on:
+      - zone-filtered-queries
+      - game-loop-concurrent-ticks
+    verification:
+      - "npx tsc -b --noEmit"
+    repair: retry
+    tags: [engine]
+
+  - id: update-tests
+    title: "Update cave tests and add dual-zone regression tests"
+    spec_id: persistent-dual-zone
+    spec_sections:
+      - concurrent-zone-ticks
+      - zone-filtered-queries
+      - simplified-zone-transition
+    context_files:
+      - src/engine/__tests__/cave.test.ts
+      - src/engine/__tests__/gameLoop.test.ts
+      - src/engine/__tests__/entities.test.ts
+      - src/engine/__tests__/movement.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/cave.ts
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/__tests__/cave.test.ts
+      - src/engine/__tests__/gameLoop.test.ts
+      - src/engine/__tests__/helpers.ts
+    depends_on:
+      - simplify-zone-transition
+    verification:
+      - "npx vitest run src/engine/__tests__/cave.test.ts"
+      - "npx vitest run src/engine/__tests__/gameLoop.test.ts"
+      - "npm run test"
+    repair: retry
+    tags: [test]

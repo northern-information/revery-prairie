@@ -13,7 +13,7 @@ import {
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { isInBounds, isWalkableTile } from './position'
-import { TileType } from './types'
+import { TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'
 
@@ -60,10 +60,12 @@ export const spawnChainMeteorites = (
     state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
     state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
     state.world.addComponent(me, ComponentType.ChainSource, { fromChain: true })
+    state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
     const e = state.world.createEntity()
     state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
     state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
     state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
+    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
   }
 
   return spawned
@@ -131,6 +133,7 @@ export const spawnShootingStar = (state: GameState): void => {
     landingTarget: null,
   })
   state.world.addComponent(e, ComponentType.EntityTag, 'shootingStar')
+  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 }
 
 export const spawnShootingStarAtTarget = (
@@ -162,6 +165,7 @@ export const spawnShootingStarAtTarget = (
     landingTarget: target,
   })
   state.world.addComponent(e, ComponentType.EntityTag, 'shootingStar')
+  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 }
 
 export const tickShootingStars = (state: GameState, time: number): void => {
@@ -187,10 +191,12 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           state.world.addComponent(me, ComponentType.Position, { x, y })
           state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
           state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
+          state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
           state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
+          state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
           state.world.destroyEntity(eid)
           continue
         }
@@ -202,10 +208,12 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           state.world.addComponent(me, ComponentType.Position, { x, y })
           state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
           state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
+          state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
           state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
+          state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
           state.world.destroyEntity(eid)
           continue
         }

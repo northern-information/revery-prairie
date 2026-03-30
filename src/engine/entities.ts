@@ -6,7 +6,7 @@ import { recordDiscovery } from './manual'
 import { getBlockedPositions } from './movement'
 import { createGroundOmniboxEntity } from './omnibox'
 import { isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
-import { TileType } from './types'
+import { TileType, Zone } from './types'
 
 import type { Entity } from './ecs/types'
 import type { CharacterBehavior, DriftBehavior, GameState, Position } from './types'
@@ -15,13 +15,14 @@ export const createCharacterEntity = (
   state: GameState,
   definitionId: string,
   pos: Position,
-  opts?: { aura?: string; behavior?: CharacterBehavior },
+  opts?: { aura?: string; behavior?: CharacterBehavior; zone?: Zone },
 ): Entity => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
   state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId })
   state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
   state.world.addComponent(e, ComponentType.EntityTag, 'character')
+  state.world.addComponent(e, ComponentType.EntityZone, { zone: opts?.zone ?? state.currentZone })
   if (opts?.aura) {
     const radius = AURA_RADIUS[opts.aura] ?? 6
     state.world.addComponent(e, ComponentType.Aura, { kind: opts.aura, radius })
@@ -108,6 +109,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     state.world.addComponent(e, ComponentType.Position, { x: px, y: py })
     state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pickupBloom', startTime: time })
     state.world.addComponent(e, ComponentType.EntityTag, 'pickupBloom')
+    state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   }
 
   // Auto-close open ground omnibox when player walks away
@@ -116,6 +118,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     let isGroundOmnibox = false
     for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.Position)) {
       if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
+      if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== state.currentZone) continue
       const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
       if (link?.uid !== openId) continue
       const goPos = state.world.getComponent(eid, ComponentType.Position)
@@ -136,9 +139,11 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   return { pickedUp, chainExplosions }
 }
 
-export const tickBees = (state: GameState): void => {
+export const tickBees = (state: GameState, zone?: Zone): void => {
+  const z = zone ?? state.currentZone
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
+    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== z) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!pos) continue
 
@@ -207,11 +212,13 @@ const tickDrift = (
   }
 }
 
-export const tickCharacterBehaviors = (state: GameState): void => {
-  const blocked = getBlockedPositions(state)
+export const tickCharacterBehaviors = (state: GameState, zone?: Zone): void => {
+  const z = zone ?? state.currentZone
+  const blocked = getBlockedPositions(state, z)
   blocked.add(posKey(state.player.x, state.player.y))
 
   for (const eid of state.world.query(ComponentType.Behavior, ComponentType.CharacterIdentity, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== z) continue
     const behavior = state.world.getComponent(eid, ComponentType.Behavior)
     if (!behavior) continue
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
@@ -280,6 +287,7 @@ export const dropItem = (state: GameState, definitionId: string): boolean => {
         const e = state.world.createEntity()
         state.world.addComponent(e, ComponentType.Position, { x: tx, y: ty })
         state.world.addComponent(e, ComponentType.EntityTag, 'bee')
+        state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
       } else if (definitionId === 'omnibox') {
         createGroundOmniboxEntity(state, droppedUid, tx, ty)
       } else {
@@ -287,6 +295,7 @@ export const dropItem = (state: GameState, definitionId: string): boolean => {
         state.world.addComponent(ge, ComponentType.Position, { x: tx, y: ty })
         state.world.addComponent(ge, ComponentType.ItemDrop, { definitionId })
         state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
+        state.world.addComponent(ge, ComponentType.EntityZone, { zone: state.currentZone })
       }
       return true
     }

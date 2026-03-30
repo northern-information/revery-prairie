@@ -198,42 +198,49 @@ describe('tick scheduling', () => {
 })
 
 describe('zone gating', () => {
-  it('skips overworld-only systems in cave zone', () => {
+  it('runs overworld systems in cave zone with overworld map context', () => {
     const state = createTestState()
     state.currentZone = Zone.Cave
-    let called = false
+    state.map = state.caveMap
+    state.mapWidth = state.caveMapWidth
+    state.mapHeight = state.caveMapHeight
+    let capturedMap: unknown = null
     const gameLoop = createGameLoop(state, {})
 
     gameLoop.register({
       id: 'overworld-only',
       intervalMs: 0,
       zone: 'overworld',
-      fn: () => {
-        called = true
+      fn: (s) => {
+        capturedMap = s.map
       },
     })
 
     gameLoop.tick(0)
-    expect(called).toBe(false)
+    // System ran with overworld map, then map was restored to cave
+    expect(capturedMap).toBe(state.overworldMap)
+    expect(state.map).toBe(state.caveMap)
   })
 
-  it('skips cave-only systems in overworld zone', () => {
+  it('runs cave systems in overworld zone with cave map context', () => {
     const state = createTestState()
     state.currentZone = Zone.Overworld
-    let called = false
+    let capturedMap: unknown = null
     const gameLoop = createGameLoop(state, {})
 
     gameLoop.register({
       id: 'cave-only',
       intervalMs: 0,
       zone: 'cave',
-      fn: () => {
-        called = true
+      fn: (s) => {
+        capturedMap = s.map
       },
     })
 
     gameLoop.tick(0)
-    expect(called).toBe(false)
+    // System ran with cave map, then map was restored to overworld
+    expect(capturedMap).toBe(state.caveMap)
+    expect(state.map).toBe(state.overworldMap)
   })
 
   it('runs always systems in both zones', () => {

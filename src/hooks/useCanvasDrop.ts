@@ -97,6 +97,7 @@ export const useCanvasDrop = ({
           const beeEntity = state.world.createEntity()
           state.world.addComponent(beeEntity, ComponentType.Position, { x: mx, y: my })
           state.world.addComponent(beeEntity, ComponentType.EntityTag, 'bee')
+          state.world.addComponent(beeEntity, ComponentType.EntityZone, { zone: state.currentZone })
         } else if (defId === 'omnibox') {
           createGroundOmniboxEntity(state, itemUid, mx, my)
         } else {
@@ -104,6 +105,7 @@ export const useCanvasDrop = ({
           state.world.addComponent(ge, ComponentType.Position, { x: mx, y: my })
           state.world.addComponent(ge, ComponentType.ItemDrop, { definitionId: defId })
           state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
+          state.world.addComponent(ge, ComponentType.EntityZone, { zone: state.currentZone })
         }
         onDropLog(defId, mx, my)
         refreshUI()

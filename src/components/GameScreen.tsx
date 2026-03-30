@@ -129,6 +129,7 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
           // Find the character entity's position for dialog box placement
           const charPos = (() => {
             for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
+              if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== state.currentZone) continue
               const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
               if (identity?.definitionId === dialog.characterId) {
                 return state.world.getComponent(eid, ComponentType.Position)
