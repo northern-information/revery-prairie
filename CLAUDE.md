@@ -321,27 +321,52 @@ tests that depend on terrain must account for the randomized coastline — use `
 
 ## harness
 
-spec-driven development pipeline for building and maintaining game features through structured specs, plans, and automated verification.
+spec-driven development pipeline. see README.md for the workflow, roles, and entry points.
 
-### workflow
+### writing a spec
 
-1. **spec** — write a YAML spec in `harness/specs/` describing behaviors, edge cases, failure conditions, and verification commands.
-2. **validate** — `npm run spec:validate` checks the spec against `harness/specs/spec-schema.json` (schema compliance, dependency existence, file references).
-3. **plan** — write a YAML plan in `harness/plans/` with ordered tasks. each task has narrow `context_files`, `output_files`, `depends_on`, `verification` commands, and a `repair` policy.
-4. **execute** — run the plan. each task gets only the spec sections and context files it needs. verification runs after each task; failures trigger repair attempts.
-5. **maintain** — run `/maintain-harness` periodically to check for spec-code drift.
+file: `harness/specs/{id}.yaml`. schema: `harness/specs/spec-schema.json`.
 
-### spec format
+required top-level fields:
+- `id` — kebab-case, unique
+- `name` — human-readable title
+- `status` — `planned`, `partial`, or `implemented`
+- `priority` — `critical`, `high`, `medium`, `low`
+- `layer` — `engine`, `component`, or `integration`
+- `source_files` — array of file paths this feature touches
+- `dependencies` — (optional) array of other spec ids
+- `behaviors` — array, at least one. each behavior has:
+  - `id` — kebab-case
+  - `description` — what happens (min 10 chars)
+  - `inputs` — array of triggering conditions
+  - `outputs` — array of observable results
+  - `state_changes` — array of `{ field, effect }` pairs
+  - `determinism` — `deterministic`, `probabilistic`, or `time-based`
+- `edge_cases` — array of `{ id, description, expected }`
+- `failure_conditions` — array of `{ trigger, expected }`
+- `verification` — `{ test_file, test_pattern, command }`
 
-each spec requires: `id` (kebab-case), `name`, `status` (planned/partial/implemented), `priority`, `layer` (engine/component/integration), `source_files`, `behaviors` (with inputs/outputs/state_changes/determinism), `edge_cases`, `failure_conditions`, `verification` (test_file, test_pattern, command).
+### writing a plan
 
-### key directories
+file: `harness/plans/{id}.yaml`.
 
-- `harness/specs/` — feature specs (YAML).
-- `harness/plans/` — execution plans (YAML).
-- `harness/src/` — harness tooling: validator, plan parser, topo sort, checksum, prompt assembler, executor, logger.
-- `harness/__tests__/` — harness module tests.
-- `.claude/skills/` — local skill definitions as `{skill-name}/SKILL.md` (`new-feature`, `change-request`, `bug-report`, `maintain-harness`, `maintain-manual`).
+top-level:
+- `plan.id` — matches the spec id
+- `plan.title` — what the plan accomplishes
+- `plan.created` — date (YYYY-MM-DD)
+- `plan.global_verification` — array of commands run after all tasks (e.g. `npm run build`, `npm run test`, `npm run lint`)
+
+each task in `tasks[]`:
+- `id` — kebab-case
+- `title` — what the task does
+- `spec_id` — which spec this implements
+- `spec_sections` — array of behavior ids from the spec (scopes context)
+- `context_files` — files the task needs to read
+- `output_files` — files the task will modify
+- `depends_on` — array of task ids that must complete first
+- `verification` — array of commands to confirm the task worked
+- `repair` — `retry` or `skip`
+- `tags` — optional array (e.g. `[engine]`, `[test]`, `[hook]`)
 
 ### harness commands
 
