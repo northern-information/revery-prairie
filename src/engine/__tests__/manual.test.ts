@@ -89,7 +89,7 @@ describe('manual', () => {
       for (const entry of Object.values(MANUAL_ENTRIES)) {
         if (entry.sourceKind === 'recipe') {
           expect(entry.crossRefs).toBeDefined()
-          expect(entry.crossRefs!.length).toBeGreaterThan(0)
+          expect(entry.crossRefs?.length).toBeGreaterThan(0)
         } else {
           expect(entry.crossRefs).toBeUndefined()
         }
