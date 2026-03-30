@@ -152,6 +152,11 @@ export const stopDialogMusic = (fadeMs: number = FADE_MS): void => {
 export const stopAll = (): void => {
   cancelFade()
 
+  // Clear pending autoplay retry so a destroyed element is never resumed
+  pendingPlay = null
+  document.removeEventListener('click', resumePending)
+  document.removeEventListener('keydown', resumePending)
+
   if (ambientAudio) {
     ambientAudio.pause()
     ambientAudio.src = ''
@@ -186,7 +191,8 @@ export const _getState = (): {
   dialogAudio: HTMLAudioElement | null
   fadeRafId: number | null
   enabled: boolean
-} => ({ ambientAudio, ambientUrl, dialogAudio, fadeRafId, enabled })
+  pendingPlay: HTMLAudioElement | null
+} => ({ ambientAudio, ambientUrl, dialogAudio, fadeRafId, enabled, pendingPlay })
 
 export const _reset = (): void => {
   stopAll()
