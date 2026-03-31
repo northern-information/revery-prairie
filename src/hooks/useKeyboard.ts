@@ -21,7 +21,7 @@ interface UseKeyboardOptions {
   onPickup: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   onDrop: (definitionId: string, worldX: number, worldY: number) => void
   onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
-  onDiscovery: (text: string, worldX: number, worldY: number) => void
+  onDiscovery: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
   onGift: (text: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   isDraggingRef: React.RefObject<boolean>
 }

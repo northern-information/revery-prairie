@@ -64,8 +64,8 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
   )
 
   const onDiscovery = useCallback(
-    (text: string, worldX: number, worldY: number) => {
-      addEvent('discovery', text, '!', '#ff69b4', worldX, worldY)
+    (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => {
+      addEvent('discovery', text, icon ?? '!', iconColor ?? '#ff69b4', worldX, worldY)
     },
     [addEvent]
   )

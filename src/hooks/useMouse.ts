@@ -22,7 +22,7 @@ interface UseMouseOptions {
   setActivePanel: (panel: Panel) => void
   refreshUI: () => void
   onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
-  onDiscovery: (text: string, worldX: number, worldY: number) => void
+  onDiscovery: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
 }
 
 export const useMouse = ({
