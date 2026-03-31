@@ -1,9 +1,12 @@
 import { getCharacterDefinition } from './characters'
-import { ComponentType } from './ecs/types'
 import {
   BEE_CHAR,
   BEE_COLOR,
+  BEEHIVE_CHAR,
+  BEEHIVE_COLOR,
   BG_COLOR,
+  CLOVER_PREVIEW_BLINK_SPEED,
+  CLOVER_PREVIEW_COLORS,
   CRUMBLE_CHARS,
   CRUMBLE_COLORS,
   CRUMBLE_DURATION_MS,
@@ -30,6 +33,7 @@ import {
   TILE_COLORS,
   TRAIL_DURATION_MS,
 } from './constants'
+import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
 import { isInBounds, posKey } from './position'
 import { TileType, Zone } from './types'
@@ -80,8 +84,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Zone filter helper — only render entities in the current zone
   const zone = state.currentZone
-  const inZone = (eid: number): boolean =>
-    state.world.getComponent(eid, ComponentType.EntityZone)?.zone === zone
+  const inZone = (eid: number): boolean => state.world.getComponent(eid, ComponentType.EntityZone)?.zone === zone
 
   // Build a set of bee positions for fast lookup (from ECS)
   const beePositions = new Set<string>()
@@ -179,6 +182,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (goPos && link) groundOmniboxMap.set(posKey(goPos.x, goPos.y), link.uid)
   }
 
+  // Build a set of beehive positions for rendering (from ECS)
+  const beehivePositions = new Set<string>()
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'beehive') continue
+    if (!inZone(eid)) continue
+    const hpos = state.world.getComponent(eid, ComponentType.Position)
+    if (hpos) beehivePositions.add(posKey(hpos.x, hpos.y))
+  }
+
   // Build a map of character positions for rendering (from ECS)
   const characterMap = new Map<string, { glyph: string; color: string }>()
   for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
@@ -195,7 +207,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Prune expired trail points and build a map with opacity
   const trailMap = new Map<string, number>()
-  const activeTrail = state.trail.filter((tp) => {
+  const activeTrail = state.trail.filter(tp => {
     const age = time - tp.time
     if (age >= TRAIL_DURATION_MS) return false
     trailMap.set(posKey(tp.x, tp.y), 1 - age / TRAIL_DURATION_MS)
@@ -257,11 +269,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const currentRadius = bloomProgress * PICKUP_EFFECT_RADIUS
       const charIndex = Math.min(
         Math.floor(bloomProgress * PICKUP_EFFECT_CHARS_RING.length),
-        PICKUP_EFFECT_CHARS_RING.length - 1,
+        PICKUP_EFFECT_CHARS_RING.length - 1
       )
       const colorIndex = Math.min(
         Math.floor(bloomProgress * PICKUP_EFFECT_COLORS.length),
-        PICKUP_EFFECT_COLORS.length - 1,
+        PICKUP_EFFECT_COLORS.length - 1
       )
       const char = PICKUP_EFFECT_CHARS_RING[charIndex]
       const color = PICKUP_EFFECT_COLORS[colorIndex]
@@ -285,7 +297,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const fadeProgress = fadeElapsed / fadeDuration
       const colorIndex = Math.min(
         Math.floor((0.5 + fadeProgress * 0.5) * PICKUP_EFFECT_COLORS.length),
-        PICKUP_EFFECT_COLORS.length - 1,
+        PICKUP_EFFECT_COLORS.length - 1
       )
       const color = PICKUP_EFFECT_COLORS[colorIndex]
 
@@ -303,8 +315,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           } else {
             // Interior shimmer: alternate chars based on position hash + time
             const h = starHash(ex, ey)
-            const shimmerIndex =
-              (h + Math.floor(time * 0.01)) % PICKUP_EFFECT_CHARS_FILL.length
+            const shimmerIndex = (h + Math.floor(time * 0.01)) % PICKUP_EFFECT_CHARS_FILL.length
             pickupEffectMap.set(posKey(ex, ey), {
               char: PICKUP_EFFECT_CHARS_FILL[shimmerIndex],
               color,
@@ -371,8 +382,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const tileKey = posKey(mx, my)
       const isCursor = mx === state.cursorTile?.x && my === state.cursorTile?.y
       const isFacingEntity = mx === state.facingEntityPos?.x && my === state.facingEntityPos?.y
-      const isPendingTarget =
-        mx === state.pendingInteractionTarget?.x && my === state.pendingInteractionTarget?.y
+      const isPendingTarget = mx === state.pendingInteractionTarget?.x && my === state.pendingInteractionTarget?.y
 
       // Resolve what to draw at this tile — priority order determines z-index
       let char: string
@@ -394,6 +404,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const ch = characterMap.get(tileKey)
         char = ch?.glyph ?? 'G'
         color = ch?.color ?? '#FFFFFF'
+      } else if (beehivePositions.has(tileKey)) {
+        char = BEEHIVE_CHAR
+        color = BEEHIVE_COLOR
       } else if (shootingStarOnLand) {
         char = shootingStarOnLand.char
         color = shootingStarOnLand.color
@@ -440,6 +453,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           char = TILE_CHARS[tile.type]
           color = TILE_COLORS[tile.type]
         }
+      } else if (state.cloverGrowthPreviews.has(tileKey)) {
+        const h = starHash(mx, my)
+        const phase = (h >> 8) % CLOVER_PREVIEW_COLORS.length
+        const colorIndex = (phase + Math.floor(time * CLOVER_PREVIEW_BLINK_SPEED)) % CLOVER_PREVIEW_COLORS.length
+        char = TILE_CHARS[TileType.Clover]
+        color = CLOVER_PREVIEW_COLORS[colorIndex]
       } else if (pathPositions.has(tileKey)) {
         const pathTile = map[my][mx]
         if (pathTile.type === TileType.CaveEntrance) {

@@ -1,8 +1,8 @@
-import { spawnShootingStarAtTarget } from './celestial'
-import { createWorld } from './ecs/world'
 import { generateCave } from './cave'
+import { spawnShootingStarAtTarget } from './celestial'
 import { registerGhostDefinitions } from './characters'
 import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER } from './constants'
+import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
 import { createCharacterEntity } from './entities'
 import { autoSort, createOmniboxContainer, findFitPosition, placeItem } from './inventory'
@@ -122,6 +122,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     caveBreakableWallPositions: cave.breakableWallPositions,
     moabGiftGiven: false,
     world: createWorld(),
+    cloverGrowthPreviews: new Set<string>(),
     manualDiscoveries: new Set<string>(['item:bee', 'item:clover', 'item:permacomputer', 'item:omnibox']),
     manualState: {
       activeCategory: null,
@@ -139,10 +140,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
 
   // Spawn 3 ghosts at random walkable positions
   const ghostCount = 3
-  const ghostUsedKeys = new Set<string>([
-    posKey(playerX, playerY),
-    posKey(gronX, gronY),
-  ])
+  const ghostUsedKeys = new Set<string>([posKey(playerX, playerY), posKey(gronX, gronY)])
   const ghostNumbers: number[] = []
   let attempts = 0
   while (ghostNumbers.length < ghostCount && attempts < 500) {
@@ -156,9 +154,14 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     ghostUsedKeys.add(key)
     const ghostNumber = ghostNumbers.length + 1
     ghostNumbers.push(ghostNumber)
-    createCharacterEntity(state, `ghost-${String(ghostNumber)}`, { x: gx, y: gy }, {
-      behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
-    })
+    createCharacterEntity(
+      state,
+      `ghost-${String(ghostNumber)}`,
+      { x: gx, y: gy },
+      {
+        behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
+      }
+    )
   }
   registerGhostDefinitions(ghostNumbers)
 

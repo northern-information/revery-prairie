@@ -96,6 +96,20 @@ export const CRUMBLE_DURATION_MS = 600
 export const CRUMBLE_CHARS = ['#', '+', '.', '\u00b7']
 export const CRUMBLE_COLORS = ['#997755', '#887744', '#665522', '#554411', '#332200']
 
+// clover ecosystem
+export const CLOVER_GROWTH_TICK_MS = 2000
+export const CLOVER_HIVE_TICK_MS = 10000
+export const CLOVER_BASE_GROWTH_CHANCE = 0.05
+export const CLOVER_BEE_GROWTH_BONUS = 0.08
+export const CLOVER_MAX_GROWTH_PER_TICK = 3
+export const CLOVER_HIVE_RATIO = 27
+export const CLOVER_HONEY_BASE_CHANCE = 0.15
+export const CLOVER_HONEY_BEE_BONUS = 0.03
+export const BEEHIVE_CHAR = '\u2302' // ⌂
+export const BEEHIVE_COLOR = '#DAA520'
+export const CLOVER_PREVIEW_COLORS = ['#90EE90', '#78CC78', '#60AA60', '#78CC78']
+export const CLOVER_PREVIEW_BLINK_SPEED = 0.003
+
 export const PLAYER_CHAR = '@'
 export const PLAYER_COLOR = '#FFFFFF'
 export const TRAIL_DURATION_MS = 1000

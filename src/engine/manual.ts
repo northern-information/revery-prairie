@@ -2,8 +2,9 @@ import { CHARACTER_DEFINITIONS } from './characters'
 import { TILE_CHARS, TILE_COLORS } from './constants'
 import { KEYBINDINGS } from './input'
 import { ITEM_DEFINITIONS } from './items'
-import { RECIPES, recipeKey } from './recipes'
+import { recipeKey, RECIPES } from './recipes'
 import { ItemCategory, TileType } from './types'
+import { WORLD_ENTITY_DEFINITIONS } from './worldEntities'
 
 import type { GameState } from './types'
 
@@ -75,7 +76,7 @@ const itemCategoryToManualCategory = (cat: ItemCategory): ManualCategory => {
 // --- Builder functions ---
 
 const buildItemEntries = (): ManualEntry[] =>
-  Object.values(ITEM_DEFINITIONS).map((def) => {
+  Object.values(ITEM_DEFINITIONS).map(def => {
     const loreData = MANUAL_LORE[def.id]
     return {
       id: def.id,
@@ -92,7 +93,7 @@ const buildItemEntries = (): ManualEntry[] =>
   })
 
 const buildRecipeEntries = (): ManualEntry[] =>
-  RECIPES.map((recipe) => {
+  RECIPES.map(recipe => {
     const key = recipeKey(recipe)
     const id = `recipe:${key}`
     const loreData = MANUAL_LORE[id]
@@ -138,10 +139,29 @@ const buildCharacterEntries = (): ManualEntry[] => {
   return entries
 }
 
+// --- World entity entries (auto-derived from world entity registry) ---
+
+const buildWorldEntityEntries = (): ManualEntry[] =>
+  Object.values(WORLD_ENTITY_DEFINITIONS).map(def => {
+    const loreData = MANUAL_LORE[def.id]
+    return {
+      id: def.id,
+      name: def.name,
+      category: def.category as ManualCategory,
+      glyph: def.glyph,
+      glyphColor: def.glyphColor,
+      summary: def.summary,
+      lore: loreData?.lore ?? def.summary,
+      hints: loreData?.hints ?? [],
+      unlockKey: def.unlockKey,
+      sourceKind: 'manual-only' as const,
+    }
+  })
+
 // --- Control entries (auto-derived from keybinding registry) ---
 
 const buildControlEntries = (): ManualEntry[] =>
-  KEYBINDINGS.map((kb) => ({
+  KEYBINDINGS.map(kb => ({
     id: `control:${kb.key}`,
     name: `[${kb.key}] ${kb.action}`,
     category: ManualCategory.Control,
@@ -164,7 +184,9 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyph: 'ö',
     glyphColor: '#FFFFFF',
     summary: 'wandering spirits on the prairie',
-    lore: MANUAL_LORE.ghosts?.lore ?? 'three ghosts drift across the land. they move slowly and unpredictably. each has something to say if you stop to listen.',
+    lore:
+      MANUAL_LORE.ghosts?.lore ??
+      'three ghosts drift across the land. they move slowly and unpredictably. each has something to say if you stop to listen.',
     hints: MANUAL_LORE.ghosts?.hints ?? [],
     unlockKey: 'character:ghost-1',
     sourceKind: 'character',
@@ -188,7 +210,9 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyph: TILE_CHARS[TileType.CaveEntrance],
     glyphColor: TILE_COLORS[TileType.CaveEntrance],
     summary: 'a dark passage beneath the land',
-    lore: MANUAL_LORE.cave?.lore ?? 'a winding cave accessible through an entrance on the surface. corridors lead upward to a chamber.',
+    lore:
+      MANUAL_LORE.cave?.lore ??
+      'a winding cave accessible through an entrance on the surface. corridors lead upward to a chamber.',
     hints: MANUAL_LORE.cave?.hints ?? [],
     unlockKey: 'zone:cave',
     sourceKind: 'zone',
@@ -200,7 +224,9 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyph: '*',
     glyphColor: '#FFFFFF',
     summary: 'a streak of light across the sky',
-    lore: MANUAL_LORE['shooting-star']?.lore ?? 'shooting stars appear randomly in the space around the prairie. most pass harmlessly, but some land as meteorites.',
+    lore:
+      MANUAL_LORE['shooting-star']?.lore ??
+      'shooting stars appear randomly in the space around the prairie. most pass harmlessly, but some land as meteorites.',
     hints: MANUAL_LORE['shooting-star']?.hints ?? [],
     unlockKey: 'always',
     sourceKind: 'event',
@@ -212,9 +238,25 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyph: '+',
     glyphColor: '#FFD700',
     summary: 'a cascade of meteorite impacts',
-    lore: MANUAL_LORE['chain-explosion']?.lore ?? 'when a meteorite is picked up, there is a chance it detonates, scattering more meteorites nearby. chain meteorites cannot trigger further chains.',
+    lore:
+      MANUAL_LORE['chain-explosion']?.lore ??
+      'when a meteorite is picked up, there is a chance it detonates, scattering more meteorites nearby. chain meteorites cannot trigger further chains.',
     hints: MANUAL_LORE['chain-explosion']?.hints ?? [],
     unlockKey: 'event:chain-explosion',
+    sourceKind: 'event',
+  },
+  {
+    id: 'clover-growth',
+    name: 'Clover Growth',
+    category: ManualCategory.Flora,
+    glyph: '%',
+    glyphColor: '#90EE90',
+    summary: 'clover spreads across the prairie',
+    lore:
+      MANUAL_LORE['clover-growth']?.lore ??
+      'when bees settle on a clover patch, the clover begins to grow in spiraling patterns across the dirt. the more bees tend a patch, the faster it spreads.',
+    hints: MANUAL_LORE['clover-growth']?.hints ?? [],
+    unlockKey: 'event:clover-growth',
     sourceKind: 'event',
   },
 ]
@@ -226,9 +268,10 @@ export const MANUAL_ENTRIES: Record<string, ManualEntry> = Object.fromEntries(
     ...buildItemEntries(),
     ...buildRecipeEntries(),
     ...buildCharacterEntries(),
+    ...buildWorldEntityEntries(),
     ...buildControlEntries(),
     ...MANUAL_ONLY_ENTRIES,
-  ].map((entry) => [entry.id, entry]),
+  ].map(entry => [entry.id, entry])
 )
 
 // --- Discovery helpers ---
@@ -247,17 +290,14 @@ export const isDiscovered = (discoveries: Set<string>, entry: ManualEntry): bool
 // --- Query functions ---
 
 export const getEntriesByCategory = (category: ManualCategory): ManualEntry[] =>
-  Object.values(MANUAL_ENTRIES).filter((e) => e.category === category)
+  Object.values(MANUAL_ENTRIES).filter(e => e.category === category)
 
 // --- Search ---
 
-export const filterManualEntries = (
-  entries: ManualEntry[],
-  query: string,
-): ManualEntry[] => {
+export const filterManualEntries = (entries: ManualEntry[], query: string): ManualEntry[] => {
   if (!query.trim()) return entries
   const q = query.toLowerCase()
-  return entries.filter((e) => {
+  return entries.filter(e => {
     if (e.name.toLowerCase().includes(q)) return true
     if (e.summary.toLowerCase().includes(q)) return true
     if (e.lore.toLowerCase().includes(q)) return true
