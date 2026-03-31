@@ -148,6 +148,7 @@ export interface GameState {
   moabGiftGiven: boolean
   world: World
   cloverGrowthPreviews: Set<string>
+  meteorShower: MeteorShowerState
   manualDiscoveries: Set<string>
   manualState: ManualState
 }
@@ -205,6 +206,16 @@ export const Zone = {
 } as const
 
 export type Zone = (typeof Zone)[keyof typeof Zone]
+
+export interface MeteorShowerState {
+  active: boolean
+  nextShowerTime: number
+  remainingStars: number
+  lastSpawnTime: number
+  spawnIntervalMs: number
+  radiantDx: number
+  radiantDy: number
+}
 
 export interface CharMetrics {
   charWidth: number

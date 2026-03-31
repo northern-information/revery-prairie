@@ -1,4 +1,4 @@
-import { spawnShootingStar, tickShootingStars } from './celestial'
+import { spawnShootingStar, tickMeteorShower, tickShootingStars } from './celestial'
 import { tickCloverGrowth, tickCloverHives } from './clover'
 import {
   BEE_TICK_MS,
@@ -6,6 +6,7 @@ import {
   CLOVER_HIVE_TICK_MS,
   CRUMBLE_DURATION_MS,
   GHOST_TICK_MS,
+  METEOR_SHOWER_TICK_MS,
   KEYBOARD_MOVE_TICK_MS,
   PATH_TICK_MS,
   SHOOTING_STAR_SPAWN_TICK_MS,
@@ -173,6 +174,18 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'overworld',
       fn: (state, time) => {
         tickShootingStars(state, time)
+      },
+    },
+    {
+      id: 'meteor-shower',
+      intervalMs: METEOR_SHOWER_TICK_MS,
+      zone: 'overworld',
+      fn: (state, time) => {
+        const wasActive = state.meteorShower.active
+        tickMeteorShower(state, time)
+        if (!wasActive && state.meteorShower.active) {
+          callbacks.onDiscovery?.('meteor shower!', state.player.x, state.player.y, '*', '#FFD700')
+        }
       },
     },
     {

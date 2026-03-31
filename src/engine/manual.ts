@@ -246,6 +246,20 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     sourceKind: 'event',
   },
   {
+    id: 'meteor-shower',
+    name: 'Meteor Shower',
+    category: ManualCategory.Celestial,
+    glyph: '*',
+    glyphColor: '#FFD700',
+    summary: 'a burst of shooting stars raining down on the prairie',
+    lore:
+      MANUAL_LORE['meteor-shower']?.lore ??
+      'occasionally the sky erupts with shooting stars, all streaking from the same direction. most land as meteorites scattered across the prairie.',
+    hints: MANUAL_LORE['meteor-shower']?.hints ?? [],
+    unlockKey: 'event:meteor-shower',
+    sourceKind: 'event',
+  },
+  {
     id: 'clover-growth',
     name: 'Clover Growth',
     category: ManualCategory.Flora,
