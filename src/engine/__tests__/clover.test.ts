@@ -21,6 +21,14 @@ import {
 } from './helpers'
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import type { CloverPatch } from '../clover'
+
+const findPatchAt = (patches: CloverPatch[], x: number, y: number): CloverPatch => {
+  const patch = patches.find(p => p.tiles.has(posKey(x, y)))
+  if (!patch) throw new Error(`no patch at ${String(x)},${String(y)}`)
+  return patch
+}
+
 const placeCloverRect = (
   state: ReturnType<typeof createTestState>,
   cx: number,
@@ -89,27 +97,15 @@ describe('floodFillCloverPatches', () => {
     for (let i = 0; i < 26; i++) {
       state.map[50][30 + i] = { type: TileType.Clover }
     }
-    let patches = floodFillCloverPatches(state)
-    let line = patches.find(p => p.tiles.size === 26)
-    expect(line).toBeDefined()
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    expect(line!.maxHives).toBe(0)
+    expect(findPatchAt(floodFillCloverPatches(state), 30, 50).maxHives).toBe(0)
 
     // 27 tiles = 1 hive
     state.map[50][56] = { type: TileType.Clover }
-    patches = floodFillCloverPatches(state)
-    line = patches.find(p => p.tiles.size === 27)
-    expect(line).toBeDefined()
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    expect(line!.maxHives).toBe(1)
+    expect(findPatchAt(floodFillCloverPatches(state), 30, 50).maxHives).toBe(1)
 
     // 28 tiles = 2 hives
     state.map[50][57] = { type: TileType.Clover }
-    patches = floodFillCloverPatches(state)
-    line = patches.find(p => p.tiles.size === 28)
-    expect(line).toBeDefined()
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    expect(line!.maxHives).toBe(2)
+    expect(findPatchAt(floodFillCloverPatches(state), 30, 50).maxHives).toBe(2)
   })
 })
 
@@ -120,8 +116,7 @@ describe('computeGrowthFront', () => {
     state.map[50][50] = { type: TileType.Clover }
 
     const patches = floodFillCloverPatches(state)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const patch = patches.find(p => p.tiles.has(posKey(50, 50)))!
+    const patch = findPatchAt(patches, 50, 50)
     const front = computeGrowthFront(patch, state)
 
     expect(front).toHaveLength(4)
@@ -140,8 +135,7 @@ describe('computeGrowthFront', () => {
     state.map[51][50] = { type: TileType.Space }
 
     const patches = floodFillCloverPatches(state)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const patch = patches.find(p => p.tiles.has(posKey(50, 50)))!
+    const patch = findPatchAt(patches, 50, 50)
     const front = computeGrowthFront(patch, state)
 
     const keys = new Set(front.map(p => posKey(p.x, p.y)))
@@ -163,8 +157,7 @@ describe('countBeesOnPatch', () => {
     createBeeEntity(state, 30, 30)
 
     const patches = floodFillCloverPatches(state)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const patch = patches.find(p => p.tiles.has(posKey(50, 50)))!
+    const patch = findPatchAt(patches, 50, 50)
     expect(countBeesOnPatch(patch, state)).toBe(2)
   })
 })
@@ -180,8 +173,7 @@ describe('selectSpiralGrowth', () => {
     placeCloverRect(state, 50, 50, 1, 1)
 
     const patches = floodFillCloverPatches(state)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const patch = patches.find(p => p.tiles.has(posKey(50, 50)))!
+    const patch = findPatchAt(patches, 50, 50)
     patch.beeCount = 0
     const candidates = computeGrowthFront(patch, state)
     const selected = selectSpiralGrowth(patch, candidates)
@@ -194,8 +186,7 @@ describe('selectSpiralGrowth', () => {
     placeCloverRect(state, 50, 50, 3, 3)
 
     const patches = floodFillCloverPatches(state)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const patch = patches.find(p => p.tiles.has(posKey(50, 50)))!
+    const patch = findPatchAt(patches, 50, 50)
     const candidates = computeGrowthFront(patch, state)
 
     let totalSelected = 0
@@ -215,8 +206,7 @@ describe('selectSpiralGrowth', () => {
     placeCloverRect(state, 50, 50, 5, 5)
 
     const patches = floodFillCloverPatches(state)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const patch = patches.find(p => p.tiles.has(posKey(50, 50)))!
+    const patch = findPatchAt(patches, 50, 50)
     patch.beeCount = 100
     const candidates = computeGrowthFront(patch, state)
 
