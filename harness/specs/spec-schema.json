@@ -54,14 +54,7 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": [
-          "id",
-          "description",
-          "inputs",
-          "outputs",
-          "state_changes",
-          "determinism"
-        ],
+        "required": ["id", "description", "inputs", "outputs", "state_changes", "determinism"],
         "additionalProperties": false,
         "properties": {
           "id": {

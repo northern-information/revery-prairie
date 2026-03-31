@@ -1,23 +1,23 @@
 import { execSync } from 'node:child_process'
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs'
-import { resolve, dirname, join } from 'node:path'
-import { mkdirSync } from 'node:fs'
-import { parse } from 'yaml'
-import type {
-  LlmClient,
-  TaskDefinition,
-  TaskResult,
-  PlanRunResult,
-  PlanRunSummary,
-  AttemptRecord,
-  VerificationResult,
-  FeatureSpec,
-} from './types.ts'
-import { TaskStatus } from './types.ts'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { checksumsMatch, hashFiles } from './checksum.ts'
+import { createRunLogger, generateRunId } from './logger.ts'
 import { parsePlan } from './plan-parser.ts'
 import { assemblePrompt } from './prompt-assembler.ts'
-import { hashFiles, checksumsMatch } from './checksum.ts'
-import { createRunLogger, generateRunId } from './logger.ts'
+import { TaskStatus } from './types.ts'
+import { parse } from 'yaml'
+
+import type {
+  AttemptRecord,
+  FeatureSpec,
+  LlmClient,
+  PlanRunResult,
+  PlanRunSummary,
+  TaskDefinition,
+  TaskResult,
+  VerificationResult,
+} from './types.ts'
 
 export interface ExecutorOptions {
   planPath: string
@@ -36,9 +36,7 @@ export interface ExecutorOptions {
 // --- path/to/other.ts ---
 // <file contents>
 
-const parseFileBlocks = (
-  response: string,
-): Map<string, string> => {
+const parseFileBlocks = (response: string): Map<string, string> => {
   const files = new Map<string, string>()
   const lines = response.split('\n')
   let currentPath: string | null = null
@@ -72,10 +70,7 @@ const parseFileBlocks = (
 
 // --- Run a verification command ---
 
-const runVerification = (
-  command: string,
-  repoRoot: string,
-): VerificationResult => {
+const runVerification = (command: string, repoRoot: string): VerificationResult => {
   try {
     const stdout = execSync(command, {
       cwd: repoRoot,
@@ -98,10 +93,7 @@ const runVerification = (
 
 // --- Snapshot and restore for rollback-and-retry ---
 
-const snapshotFiles = (
-  files: string[],
-  repoRoot: string,
-): Map<string, Buffer | null> => {
+const snapshotFiles = (files: string[], repoRoot: string): Map<string, Buffer | null> => {
   const snapshots = new Map<string, Buffer | null>()
   for (const file of files) {
     const fullPath = resolve(repoRoot, file)
@@ -114,10 +106,7 @@ const snapshotFiles = (
   return snapshots
 }
 
-const restoreFiles = (
-  snapshots: Map<string, Buffer | null>,
-  repoRoot: string,
-): void => {
+const restoreFiles = (snapshots: Map<string, Buffer | null>, repoRoot: string): void => {
   for (const [file, contents] of snapshots) {
     const fullPath = resolve(repoRoot, file)
     if (contents === null) {
@@ -130,10 +119,7 @@ const restoreFiles = (
 
 // --- Write parsed files to disk ---
 
-const writeFiles = (
-  files: Map<string, string>,
-  repoRoot: string,
-): void => {
+const writeFiles = (files: Map<string, string>, repoRoot: string): void => {
   for (const [filePath, contents] of files) {
     const fullPath = resolve(repoRoot, filePath)
     mkdirSync(dirname(fullPath), { recursive: true })
@@ -143,10 +129,7 @@ const writeFiles = (
 
 // --- Validate output boundary ---
 
-const validateOutputBoundary = (
-  produced: Map<string, string>,
-  allowed: string[],
-): string[] => {
+const validateOutputBoundary = (produced: Map<string, string>, allowed: string[]): string[] => {
   const allowedSet = new Set(allowed)
   const violations: string[] = []
   for (const path of produced.keys()) {
@@ -160,9 +143,7 @@ const validateOutputBoundary = (
 // --- Load specs from directory ---
 
 const loadSpecs = (specsDir: string): FeatureSpec[] => {
-  const files = readdirSync(specsDir).filter(
-    (f: string) => f.endsWith('.yaml') || f.endsWith('.yml'),
-  )
+  const files = readdirSync(specsDir).filter((f: string) => f.endsWith('.yaml') || f.endsWith('.yml'))
 
   return files.map((f: string) => {
     const raw = readFileSync(join(specsDir, f), 'utf-8')
@@ -176,17 +157,14 @@ const executeTask = async (
   task: TaskDefinition,
   specs: FeatureSpec[],
   opts: ExecutorOptions,
-  logger: ReturnType<typeof createRunLogger>,
+  logger: ReturnType<typeof createRunLogger>
 ): Promise<TaskResult> => {
   const { repoRoot, llm } = opts
   const attempts: AttemptRecord[] = []
   const maxAttempts = task.repair.strategy === 'skip' ? 1 : task.repair.max_retries + 1
 
   // snapshot for rollback-and-retry
-  const snapshots =
-    task.repair.strategy === 'rollback-and-retry'
-      ? snapshotFiles(task.output_files, repoRoot)
-      : null
+  const snapshots = task.repair.strategy === 'rollback-and-retry' ? snapshotFiles(task.output_files, repoRoot) : null
 
   let repairStderr: string | undefined
 
@@ -269,13 +247,11 @@ const executeTask = async (
     }
   }
 
-  const passed = attempts.some((a) => a.passed)
-  const specIds = new Set(
-    task.spec_sections.map((s) => (s.includes('/') ? s.split('/')[0] : task.spec_id)),
-  )
+  const passed = attempts.some(a => a.passed)
+  const specIds = new Set(task.spec_sections.map(s => (s.includes('/') ? s.split('/')[0] : task.spec_id)))
   const inputChecksums = hashFiles(
-    [...task.context_files, ...[...specIds].map((id) => `harness/specs/${id}.yaml`)],
-    repoRoot,
+    [...task.context_files, ...[...specIds].map(id => `harness/specs/${id}.yaml`)],
+    repoRoot
   )
   const outputChecksums = hashFiles(task.output_files, repoRoot)
 
@@ -293,16 +269,12 @@ const executeTask = async (
 
 // --- Main executor ---
 
-export const executePlan = async (
-  opts: ExecutorOptions,
-): Promise<PlanRunResult> => {
+export const executePlan = async (opts: ExecutorOptions): Promise<PlanRunResult> => {
   const { planPath, specsDir, repoRoot, logsRoot, force, priorResults } = opts
 
   const parseResult = parsePlan(planPath)
   if (!parseResult.valid || !parseResult.plan) {
-    throw new Error(
-      `Plan validation failed:\n${parseResult.errors.map((e) => `  ${e.field}: ${e.message}`).join('\n')}`,
-    )
+    throw new Error(`Plan validation failed:\n${parseResult.errors.map(e => `  ${e.field}: ${e.message}`).join('\n')}`)
   }
 
   const { plan, tiers } = parseResult
@@ -310,7 +282,7 @@ export const executePlan = async (
   const runId = generateRunId()
   const logger = createRunLogger(logsRoot, runId)
 
-  const taskMap = new Map(plan.tasks.map((t) => [t.id, t]))
+  const taskMap = new Map(plan.tasks.map(t => [t.id, t]))
   const results = new Map<string, TaskResult>()
   const failedTasks = new Set<string>()
 
@@ -336,7 +308,7 @@ export const executePlan = async (
       }
 
       // blocked check — any dependency failed?
-      const blocked = task.depends_on.some((dep) => failedTasks.has(dep))
+      const blocked = task.depends_on.some(dep => failedTasks.has(dep))
       if (blocked) {
         const result: TaskResult = {
           task_id: taskId,
@@ -355,14 +327,8 @@ export const executePlan = async (
       if (!force && priorResults) {
         const prior = priorResults.get(taskId)
         if (prior?.status === TaskStatus.Passed) {
-          const currentInputs = hashFiles(
-            task.context_files,
-            repoRoot,
-          ) as Record<string, string>
-          const currentOutputs = hashFiles(
-            task.output_files,
-            repoRoot,
-          ) as Record<string, string>
+          const currentInputs = hashFiles(task.context_files, repoRoot) as Record<string, string>
+          const currentOutputs = hashFiles(task.output_files, repoRoot) as Record<string, string>
 
           if (
             checksumsMatch(prior.input_checksums, currentInputs) &&
@@ -401,10 +367,10 @@ export const executePlan = async (
   // build summary
   const allResults = [...results.values()]
   const summary: PlanRunSummary = {
-    passed: allResults.filter((r) => r.status === TaskStatus.Passed).length,
-    failed: allResults.filter((r) => r.status === TaskStatus.Failed).length,
-    skipped: allResults.filter((r) => r.status === TaskStatus.Skipped).length,
-    blocked: allResults.filter((r) => r.status === TaskStatus.Blocked).length,
+    passed: allResults.filter(r => r.status === TaskStatus.Passed).length,
+    failed: allResults.filter(r => r.status === TaskStatus.Failed).length,
+    skipped: allResults.filter(r => r.status === TaskStatus.Skipped).length,
+    blocked: allResults.filter(r => r.status === TaskStatus.Blocked).length,
   }
 
   const runResult: PlanRunResult = {

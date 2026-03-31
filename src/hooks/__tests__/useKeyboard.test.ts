@@ -1,16 +1,27 @@
-import { renderHook, act } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-
 import { useKeyboard } from '../useKeyboard'
-import { createGroundOmniboxTestEntity, createTestState } from '@/engine/__tests__/helpers'
-import { Zone } from '@/engine/types'
+import { act, renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { GameState } from '@/engine/types'
+import { createGroundOmniboxTestEntity, createTestState } from '@/engine/__tests__/helpers'
+import { dropItem, pickUpGroundItems } from '@/engine/entities'
+import {
+  advanceDialog,
+  breakWall,
+  getAdjacentCharacter,
+  giveMoabGift,
+  interactWithCharacter,
+  updateFacingEntity,
+} from '@/engine/interaction'
+import { findItemByDefinition, moveItem } from '@/engine/inventory'
+import { movePlayer } from '@/engine/movement'
+import { closeOmnibox, grabOmnibox, toggleFacingOmnibox, toggleOmnibox } from '@/engine/omnibox'
+import { Zone } from '@/engine/types'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
+import type { GameState } from '@/engine/types'
 
 // --- mocks ---
 
-vi.mock('@/engine/entities', async (importOriginal) => {
+vi.mock('@/engine/entities', async importOriginal => {
   const actual = await importOriginal<typeof import('@/engine/entities')>()
   return {
     ...actual,
@@ -32,7 +43,7 @@ vi.mock('@/engine/interaction', () => ({
   updateFacingEntity: vi.fn(),
 }))
 
-vi.mock('@/engine/omnibox', async (importOriginal) => {
+vi.mock('@/engine/omnibox', async importOriginal => {
   const actual = await importOriginal<typeof import('@/engine/omnibox')>()
   return {
     ...actual,
@@ -43,7 +54,7 @@ vi.mock('@/engine/omnibox', async (importOriginal) => {
   }
 })
 
-vi.mock('@/engine/input', async (importOriginal) => {
+vi.mock('@/engine/input', async importOriginal => {
   const actual = await importOriginal<typeof import('@/engine/input')>()
   return {
     ...actual,
@@ -67,7 +78,7 @@ vi.mock('@/engine/input', async (importOriginal) => {
   }
 })
 
-vi.mock('@/engine/inventory', async (importOriginal) => {
+vi.mock('@/engine/inventory', async importOriginal => {
   const actual = await importOriginal<typeof import('@/engine/inventory')>()
   return {
     ...actual,
@@ -76,7 +87,7 @@ vi.mock('@/engine/inventory', async (importOriginal) => {
   }
 })
 
-vi.mock('@/engine/items', async (importOriginal) => {
+vi.mock('@/engine/items', async importOriginal => {
   const actual = await importOriginal<typeof import('@/engine/items')>()
   return {
     ...actual,
@@ -92,7 +103,7 @@ vi.mock('@/engine/items', async (importOriginal) => {
   }
 })
 
-vi.mock('@/engine/characters', async (importOriginal) => {
+vi.mock('@/engine/characters', async importOriginal => {
   const actual = await importOriginal<typeof import('@/engine/characters')>()
   return {
     ...actual,
@@ -104,36 +115,14 @@ vi.mock('@/engine/characters', async (importOriginal) => {
   }
 })
 
-import { dropItem, pickUpGroundItems } from '@/engine/entities'
-import { movePlayer } from '@/engine/movement'
-import {
-  advanceDialog,
-  breakWall,
-  getAdjacentCharacter,
-  giveMoabGift,
-  interactWithCharacter,
-  updateFacingEntity,
-} from '@/engine/interaction'
-import {
-  closeOmnibox,
-  grabOmnibox,
-  toggleFacingOmnibox,
-  toggleOmnibox,
-} from '@/engine/omnibox'
-import { findItemByDefinition, moveItem } from '@/engine/inventory'
-
 // --- helpers ---
 
 const fireKey = (key: string, opts?: Partial<KeyboardEventInit>) => {
-  window.dispatchEvent(
-    new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...opts }),
-  )
+  window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...opts }))
 }
 
 const fireKeyUp = (key: string) => {
-  window.dispatchEvent(
-    new KeyboardEvent('keyup', { key, bubbles: true, cancelable: true }),
-  )
+  window.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true, cancelable: true }))
 }
 
 // --- setup ---
@@ -170,7 +159,7 @@ const renderKeyboardHook = () =>
       onDiscovery,
       onGift,
       isDraggingRef,
-    }),
+    })
   )
 
 beforeEach(() => {
@@ -208,7 +197,9 @@ describe('useKeyboard', () => {
       state.activeDialog = { characterId: 'gron', lineIndex: 0 } as GameState['activeDialog']
       const { result } = renderKeyboardHook()
 
-      act(() => { fireKey('Escape'); })
+      act(() => {
+        fireKey('Escape')
+      })
 
       expect(state.activeDialog).toBeNull()
       expect(refreshUI).toHaveBeenCalledOnce()
@@ -220,18 +211,26 @@ describe('useKeyboard', () => {
       const { result } = renderKeyboardHook()
 
       // Open menu first
-      act(() => { result.current.setActivePanel('menu'); })
+      act(() => {
+        result.current.setActivePanel('menu')
+      })
       expect(result.current.activePanel).toBe('menu')
 
-      act(() => { fireKey('Escape'); })
+      act(() => {
+        fireKey('Escape')
+      })
       expect(result.current.activePanel).toBeNull()
     })
 
     it('closes inventory panel when no dialog', () => {
       const { result } = renderKeyboardHook()
 
-      act(() => { result.current.setActivePanel('inventory'); })
-      act(() => { fireKey('Escape'); })
+      act(() => {
+        result.current.setActivePanel('inventory')
+      })
+      act(() => {
+        fireKey('Escape')
+      })
 
       expect(result.current.activePanel).toBeNull()
     })
@@ -239,7 +238,9 @@ describe('useKeyboard', () => {
     it('opens menu when nothing is open', () => {
       const { result } = renderKeyboardHook()
 
-      act(() => { fireKey('Escape'); })
+      act(() => {
+        fireKey('Escape')
+      })
 
       expect(result.current.activePanel).toBe('menu')
     })
@@ -251,7 +252,9 @@ describe('useKeyboard', () => {
       vi.mocked(advanceDialog).mockReturnValue(true)
       renderKeyboardHook()
 
-      act(() => { fireKey('e'); })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(advanceDialog).toHaveBeenCalledWith(state)
       expect(refreshUI).toHaveBeenCalledOnce()
@@ -264,7 +267,9 @@ describe('useKeyboard', () => {
       vi.mocked(giveMoabGift).mockReturnValue(true)
       renderKeyboardHook()
 
-      act(() => { fireKey('e'); })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(giveMoabGift).toHaveBeenCalledWith(state)
       expect(onGift).toHaveBeenCalledWith(
@@ -272,7 +277,7 @@ describe('useKeyboard', () => {
         expect.any(String),
         expect.any(String),
         state.player.x,
-        state.player.y,
+        state.player.y
       )
     })
 
@@ -282,7 +287,9 @@ describe('useKeyboard', () => {
       vi.mocked(advanceDialog).mockReturnValue(false)
       renderKeyboardHook()
 
-      act(() => { fireKey('e'); })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(giveMoabGift).not.toHaveBeenCalled()
       expect(onGift).not.toHaveBeenCalled()
@@ -293,7 +300,9 @@ describe('useKeyboard', () => {
       vi.mocked(advanceDialog).mockReturnValue(false)
       renderKeyboardHook()
 
-      act(() => { fireKey('e'); })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(giveMoabGift).not.toHaveBeenCalled()
     })
@@ -307,7 +316,9 @@ describe('useKeyboard', () => {
       vi.mocked(grabOmnibox).mockReturnValue('omni-uid')
       renderKeyboardHook()
 
-      act(() => { fireKey('e'); })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(grabOmnibox).toHaveBeenCalledWith(state)
       expect(onPickup).toHaveBeenCalledWith(
@@ -315,7 +326,7 @@ describe('useKeyboard', () => {
         expect.any(String),
         expect.any(String),
         state.player.x,
-        state.player.y,
+        state.player.y
       )
       expect(closeOmnibox).toHaveBeenCalledWith(state)
       expect(refreshUI).toHaveBeenCalled()
@@ -327,7 +338,9 @@ describe('useKeyboard', () => {
       // Not a ground omnibox ECS entity — no groundOmnibox entities in world
       renderKeyboardHook()
 
-      act(() => { fireKey('e'); })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(grabOmnibox).not.toHaveBeenCalled()
       expect(closeOmnibox).toHaveBeenCalledWith(state)
@@ -337,12 +350,19 @@ describe('useKeyboard', () => {
 
   describe('E key — inventory omnibox hover', () => {
     it('toggles omnibox when hovering omnibox in inventory', () => {
-      itemInfoRef = makeItemInfoRef(() => 'omnibox', () => 'omni-uid-1')
+      itemInfoRef = makeItemInfoRef(
+        () => 'omnibox',
+        () => 'omni-uid-1'
+      )
       vi.mocked(toggleOmnibox).mockReturnValue(true)
       const { result } = renderKeyboardHook()
 
-      act(() => { result.current.setActivePanel('inventory'); })
-      act(() => { fireKey('e'); })
+      act(() => {
+        result.current.setActivePanel('inventory')
+      })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(toggleOmnibox).toHaveBeenCalledWith(state, 'omni-uid-1')
       expect(refreshUI).toHaveBeenCalled()
@@ -354,7 +374,9 @@ describe('useKeyboard', () => {
       vi.mocked(toggleFacingOmnibox).mockReturnValue(true)
       const { result } = renderKeyboardHook()
 
-      act(() => { fireKey('e'); })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(toggleFacingOmnibox).toHaveBeenCalledWith(state)
       expect(result.current.activePanel).toBe('inventory')
@@ -365,8 +387,12 @@ describe('useKeyboard', () => {
       vi.mocked(toggleFacingOmnibox).mockReturnValue(true)
       const { result } = renderKeyboardHook()
 
-      act(() => { result.current.setActivePanel('inventory'); })
-      act(() => { fireKey('e'); })
+      act(() => {
+        result.current.setActivePanel('inventory')
+      })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(result.current.activePanel).toBe('inventory')
     })
@@ -379,14 +405,12 @@ describe('useKeyboard', () => {
       vi.mocked(breakWall).mockReturnValue(true)
       renderKeyboardHook()
 
-      act(() => { fireKey('e'); })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(breakWall).toHaveBeenCalledWith(state, expect.any(Number))
-      expect(onDiscovery).toHaveBeenCalledWith(
-        'discovered hidden room!',
-        state.player.x,
-        state.player.y,
-      )
+      expect(onDiscovery).toHaveBeenCalledWith('discovered hidden room!', state.player.x, state.player.y)
       expect(refreshUI).toHaveBeenCalled()
     })
 
@@ -395,7 +419,9 @@ describe('useKeyboard', () => {
       state.caveRevealed = true
       renderKeyboardHook()
 
-      act(() => { fireKey('e'); })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(breakWall).not.toHaveBeenCalled()
     })
@@ -408,16 +434,12 @@ describe('useKeyboard', () => {
       vi.mocked(interactWithCharacter).mockReturnValue(true)
       renderKeyboardHook()
 
-      act(() => { fireKey('e'); })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(interactWithCharacter).toHaveBeenCalledWith(state)
-      expect(onDialog).toHaveBeenCalledWith(
-        'Test Ghost',
-        'ö',
-        '#fff',
-        state.player.x,
-        state.player.y,
-      )
+      expect(onDialog).toHaveBeenCalledWith('Test Ghost', 'ö', '#fff', state.player.x, state.player.y)
       expect(refreshUI).toHaveBeenCalled()
     })
 
@@ -425,7 +447,9 @@ describe('useKeyboard', () => {
       vi.mocked(getAdjacentCharacter).mockReturnValue(null)
       renderKeyboardHook()
 
-      act(() => { fireKey('e'); })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(interactWithCharacter).not.toHaveBeenCalled()
       expect(onDialog).not.toHaveBeenCalled()
@@ -436,8 +460,12 @@ describe('useKeyboard', () => {
     it('does nothing when menu is open', () => {
       const { result } = renderKeyboardHook()
 
-      act(() => { result.current.setActivePanel('menu'); })
-      act(() => { fireKey('e'); })
+      act(() => {
+        result.current.setActivePanel('menu')
+      })
+      act(() => {
+        fireKey('e')
+      })
 
       expect(advanceDialog).not.toHaveBeenCalled()
       expect(interactWithCharacter).not.toHaveBeenCalled()
@@ -449,7 +477,9 @@ describe('useKeyboard', () => {
     it('sets heldDirection on keydown', () => {
       renderKeyboardHook()
 
-      act(() => { fireKey('d'); })
+      act(() => {
+        fireKey('d')
+      })
 
       expect(state.heldDirection).toBe('right')
     })
@@ -463,7 +493,9 @@ describe('useKeyboard', () => {
       state.previewFn = () => []
       renderKeyboardHook()
 
-      act(() => { fireKey('w'); })
+      act(() => {
+        fireKey('w')
+      })
 
       expect(state.path).toBeNull()
       expect(state.pathWaypoints).toEqual([])
@@ -475,7 +507,9 @@ describe('useKeyboard', () => {
     it('does not call movePlayer directly — game loop handles movement', () => {
       renderKeyboardHook()
 
-      act(() => { fireKey('w'); })
+      act(() => {
+        fireKey('w')
+      })
 
       expect(movePlayer).not.toHaveBeenCalled()
     })
@@ -485,7 +519,9 @@ describe('useKeyboard', () => {
     it('sets heldDirection but does not call movePlayer', () => {
       renderKeyboardHook()
 
-      act(() => { fireKey('w', { repeat: true }); })
+      act(() => {
+        fireKey('w', { repeat: true })
+      })
 
       expect(state.heldDirection).toBe('up')
       expect(movePlayer).not.toHaveBeenCalled()
@@ -496,8 +532,12 @@ describe('useKeyboard', () => {
     it('closes menu on movement key without moving', () => {
       const { result } = renderKeyboardHook()
 
-      act(() => { result.current.setActivePanel('menu'); })
-      act(() => { fireKey('w'); })
+      act(() => {
+        result.current.setActivePanel('menu')
+      })
+      act(() => {
+        fireKey('w')
+      })
 
       expect(result.current.activePanel).toBeNull()
       expect(state.heldDirection).toBeNull()
@@ -508,7 +548,9 @@ describe('useKeyboard', () => {
       state.activeDialog = { characterId: 'gron', lineIndex: 0 } as GameState['activeDialog']
       renderKeyboardHook()
 
-      act(() => { fireKey('w'); })
+      act(() => {
+        fireKey('w')
+      })
 
       expect(state.activeDialog).toBeNull()
       expect(state.heldDirection).toBeNull()
@@ -523,8 +565,12 @@ describe('useKeyboard', () => {
       vi.mocked(dropItem).mockReturnValue(true)
       const { result } = renderKeyboardHook()
 
-      act(() => { result.current.setActivePanel('inventory'); })
-      act(() => { fireKey('x'); })
+      act(() => {
+        result.current.setActivePanel('inventory')
+      })
+      act(() => {
+        fireKey('x')
+      })
 
       expect(dropItem).toHaveBeenCalledWith(state, 'bee')
       expect((itemInfoRef.current as unknown as { clear: ReturnType<typeof vi.fn> }).clear).toHaveBeenCalled()
@@ -537,8 +583,12 @@ describe('useKeyboard', () => {
       itemInfoRef = makeItemInfoRef(() => null)
       const { result } = renderKeyboardHook()
 
-      act(() => { result.current.setActivePanel('inventory'); })
-      act(() => { fireKey('x'); })
+      act(() => {
+        result.current.setActivePanel('inventory')
+      })
+      act(() => {
+        fireKey('x')
+      })
 
       expect(dropItem).not.toHaveBeenCalled()
     })
@@ -547,7 +597,9 @@ describe('useKeyboard', () => {
       itemInfoRef = makeItemInfoRef(() => 'bee')
       renderKeyboardHook()
 
-      act(() => { fireKey('x'); })
+      act(() => {
+        fireKey('x')
+      })
 
       expect(dropItem).not.toHaveBeenCalled()
     })
@@ -565,13 +617,16 @@ describe('useKeyboard', () => {
       })
       const { result } = renderKeyboardHook()
 
-      act(() => { result.current.setActivePanel('inventory'); })
-      act(() => { fireKey('r'); })
+      act(() => {
+        result.current.setActivePanel('inventory')
+      })
+      act(() => {
+        fireKey('r')
+      })
 
       expect(moveItem).toHaveBeenCalledWith(state.backpack, 'u1', 0, 0, 1)
       expect(refreshUI).toHaveBeenCalled()
     })
-
   })
 
   describe('WASD during drag', () => {
@@ -579,7 +634,9 @@ describe('useKeyboard', () => {
       isDraggingRef = { current: true }
       renderKeyboardHook()
 
-      act(() => { fireKey('w'); })
+      act(() => {
+        fireKey('w')
+      })
 
       expect(state.heldDirection).toBe('up')
     })
@@ -590,13 +647,19 @@ describe('useKeyboard', () => {
       vi.mocked(dropItem).mockReturnValue(true)
       const { result } = renderKeyboardHook()
 
-      act(() => { result.current.setActivePanel('inventory'); })
+      act(() => {
+        result.current.setActivePanel('inventory')
+      })
       // x should be blocked
-      act(() => { fireKey('x'); })
+      act(() => {
+        fireKey('x')
+      })
       expect(dropItem).not.toHaveBeenCalled()
 
       // e should be blocked
-      act(() => { fireKey('e'); })
+      act(() => {
+        fireKey('e')
+      })
       expect(interactWithCharacter).not.toHaveBeenCalled()
     })
   })
@@ -605,20 +668,28 @@ describe('useKeyboard', () => {
     it('clears heldDirection when matching', () => {
       renderKeyboardHook()
 
-      act(() => { fireKey('w'); })
+      act(() => {
+        fireKey('w')
+      })
       expect(state.heldDirection).toBe('up')
 
-      act(() => { fireKeyUp('w'); })
+      act(() => {
+        fireKeyUp('w')
+      })
       expect(state.heldDirection).toBeNull()
     })
 
     it('does not clear heldDirection for non-matching key', () => {
       renderKeyboardHook()
 
-      act(() => { fireKey('w'); })
+      act(() => {
+        fireKey('w')
+      })
       expect(state.heldDirection).toBe('up')
 
-      act(() => { fireKeyUp('a'); })
+      act(() => {
+        fireKeyUp('a')
+      })
       expect(state.heldDirection).toBe('up')
     })
   })

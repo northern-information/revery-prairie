@@ -5,8 +5,8 @@ import { buildOccupancyGrid, getRotatedShape } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
 import { combineIcon } from '@/engine/recipes'
 import type { ItemInfoHandle } from './ItemInfo'
-import type { Container } from '@/engine/types'
 import type { DragState } from '@/engine/drag'
+import type { Container } from '@/engine/types'
 
 interface InventoryGridProps {
   container: Container
@@ -214,7 +214,9 @@ export const InventoryGrid = ({
                 opacity: 0.6,
               }}
             >
-              {x === dragState.previewX && y === dragState.previewY ? getDefinition(dragState.item.definitionId).glyph : ''}
+              {x === dragState.previewX && y === dragState.previewY
+                ? getDefinition(dragState.item.definitionId).glyph
+                : ''}
             </span>
           ) : null}
         </div>

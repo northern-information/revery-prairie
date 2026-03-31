@@ -62,7 +62,7 @@ const fadeBoth = (
   fadeOut: HTMLAudioElement | null,
   fadeOutTarget: number,
   durationMs: number,
-  onComplete?: () => void,
+  onComplete?: () => void
 ): void => {
   cancelFade()
 

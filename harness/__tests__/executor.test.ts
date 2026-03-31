@@ -1,8 +1,9 @@
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, cpSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { stringify } from 'yaml'
+import { join, resolve } from 'node:path'
 import { executePlan } from '../src/executor.ts'
+import { stringify } from 'yaml'
+
 import type { LlmClient } from '../src/types.ts'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../..')
@@ -71,7 +72,7 @@ const writePlan = (plansDir: string, tasks: Record<string, unknown>[]) => {
       },
       tasks,
     }),
-    'utf-8',
+    'utf-8'
   )
   return planPath
 }
@@ -152,8 +153,8 @@ describe('executePlan', () => {
       llm: mockLlm(''),
     })
 
-    const parentTask = result.tasks.find((t) => t.task_id === 'parent')
-    const childTask = result.tasks.find((t) => t.task_id === 'child')
+    const parentTask = result.tasks.find(t => t.task_id === 'parent')
+    const childTask = result.tasks.find(t => t.task_id === 'child')
     expect(parentTask?.status).toBe('failed')
     expect(childTask?.status).toBe('blocked')
     expect(result.summary.failed).toBe(1)
@@ -179,9 +180,7 @@ describe('executePlan', () => {
     ])
 
     // LLM produces a file not in output_files
-    const llm = mockLlm(
-      '--- not-allowed.ts ---\nconst x = 1',
-    )
+    const llm = mockLlm('--- not-allowed.ts ---\nconst x = 1')
 
     const result = await executePlan({
       planPath,
@@ -192,9 +191,7 @@ describe('executePlan', () => {
     })
 
     expect(result.tasks[0].status).toBe('failed')
-    expect(
-      result.tasks[0].attempts[0].verification[0].stderr,
-    ).toContain('outside output boundary')
+    expect(result.tasks[0].attempts[0].verification[0].stderr).toContain('outside output boundary')
   })
 
   it('passes when LLM produces valid files and verification succeeds', async () => {

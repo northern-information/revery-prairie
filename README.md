@@ -26,6 +26,7 @@ all game features flow through a spec-driven harness. the human decides what to 
 ### roles
 
 **human:**
+
 - describes what to build, change, or fix
 - reviews and approves specs before planning begins
 - reviews and approves plans before execution begins
@@ -34,6 +35,7 @@ all game features flow through a spec-driven harness. the human decides what to 
 - updates CLAUDE.md when game systems change
 
 **AI:**
+
 - investigates the codebase to understand the problem
 - drafts specs and plans from the human's description
 - runs `npm run spec:validate` and fixes errors

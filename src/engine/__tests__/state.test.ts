@@ -42,7 +42,7 @@ describe('createGameState', () => {
     const state = createGameState('Willow', 80, 40)
     const bees = state.world
       .query(ComponentType.EntityTag)
-      .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
     expect(bees).toHaveLength(0)
   })
 

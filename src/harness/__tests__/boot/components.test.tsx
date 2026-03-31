@@ -1,7 +1,8 @@
 import { render } from '@testing-library/react'
-import { NamePrompt } from '@/components/NamePrompt'
-import { Menu } from '@/components/Menu'
+
 import { DialogBox } from '@/components/DialogBox'
+import { Menu } from '@/components/Menu'
+import { NamePrompt } from '@/components/NamePrompt'
 
 describe('boot: component smoke tests', () => {
   describe('NamePrompt', () => {
@@ -23,7 +24,7 @@ describe('boot: component smoke tests', () => {
             onToggleUnits={vi.fn()}
             musicEnabled={true}
             onToggleMusic={vi.fn()}
-          />,
+          />
         )
       }).not.toThrow()
     })
@@ -43,7 +44,7 @@ describe('boot: component smoke tests', () => {
             onClose={vi.fn()}
             top={100}
             left={100}
-          />,
+          />
         )
       }).not.toThrow()
     })

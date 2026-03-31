@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { ComponentType } from '@/engine/ecs/types'
-import { getBlockedPositions } from '@/engine/movement'
 import { removeItem } from '@/engine/inventory'
+import { getBlockedPositions } from '@/engine/movement'
 import { createGroundOmniboxEntity } from '@/engine/omnibox'
 import { findPath } from '@/engine/pathfinding'
 import { ORDINAL } from '@/engine/position'
 import { TileType } from '@/engine/types'
 import type { DragState } from '@/engine/drag'
-import type { CharMetrics } from '@/engine/types'
-import type { Container, GameState } from '@/engine/types'
+import type { CharMetrics, Container, GameState } from '@/engine/types'
 
 interface UseCanvasDropOptions {
   dragState: DragState | null
@@ -84,12 +83,10 @@ export const useCanvasDrop = ({
         const item = container.items.find(i => i.uid === itemUid)
         if (!item) return
         if (
-          state.world.spatial
-            .at(mx, my)
-            .some((eid) => {
-              const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-              return tag === 'groundItem' || tag === 'groundOmnibox'
-            })
+          state.world.spatial.at(mx, my).some(eid => {
+            const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+            return tag === 'groundItem' || tag === 'groundOmnibox'
+          })
         )
           return
         removeItem(container, itemUid)

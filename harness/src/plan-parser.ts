@@ -1,7 +1,8 @@
-import { parse } from 'yaml'
 import { readFileSync } from 'node:fs'
-import type { PlanDefinition, TaskDefinition } from './types.ts'
 import { topoSortTiers } from './topo-sort.ts'
+import { parse } from 'yaml'
+
+import type { PlanDefinition, TaskDefinition } from './types.ts'
 
 export interface PlanParseError {
   field: string
@@ -22,21 +23,14 @@ const error = (field: string, message: string): PlanParseError => ({
 
 // --- Parse raw YAML into PlanDefinition ---
 
-const parseRawPlan = (
-  raw: string,
-): { plan: PlanDefinition | null; errors: PlanParseError[] } => {
+const parseRawPlan = (raw: string): { plan: PlanDefinition | null; errors: PlanParseError[] } => {
   let doc: Record<string, unknown>
   try {
     doc = parse(raw) as Record<string, unknown>
   } catch (e) {
     return {
       plan: null,
-      errors: [
-        error(
-          '',
-          `YAML parse error: ${e instanceof Error ? e.message : String(e)}`,
-        ),
-      ],
+      errors: [error('', `YAML parse error: ${e instanceof Error ? e.message : String(e)}`)],
     }
   }
 
@@ -62,8 +56,7 @@ const parseRawPlan = (
 
   if (!plan.id) errors.push(error('plan.id', 'plan id is required'))
   if (!plan.title) errors.push(error('plan.title', 'plan title is required'))
-  if (plan.tasks.length === 0)
-    errors.push(error('tasks', 'plan must have at least one task'))
+  if (plan.tasks.length === 0) errors.push(error('tasks', 'plan must have at least one task'))
 
   return { plan: errors.length > 0 ? null : plan, errors }
 }
@@ -72,7 +65,7 @@ const parseRawPlan = (
 
 const validateTasks = (plan: PlanDefinition): PlanParseError[] => {
   const errors: PlanParseError[] = []
-  const taskIds = new Set(plan.tasks.map((t) => t.id))
+  const taskIds = new Set(plan.tasks.map(t => t.id))
 
   // check for duplicate task IDs
   const seen = new Map<string, number>()
@@ -87,26 +80,14 @@ const validateTasks = (plan: PlanDefinition): PlanParseError[] => {
 
   // check task fields and dependency references
   for (const task of plan.tasks) {
-    if (!task.id)
-      errors.push(error('tasks.?.id', 'task is missing an id'))
-    if (!task.title)
-      errors.push(error(`tasks.${task.id}.title`, 'task is missing a title'))
+    if (!task.id) errors.push(error('tasks.?.id', 'task is missing an id'))
+    if (!task.title) errors.push(error(`tasks.${task.id}.title`, 'task is missing a title'))
     if (!task.output_files || task.output_files.length === 0)
-      errors.push(
-        error(
-          `tasks.${task.id}.output_files`,
-          'task must specify at least one output file',
-        ),
-      )
+      errors.push(error(`tasks.${task.id}.output_files`, 'task must specify at least one output file'))
 
     for (const dep of task.depends_on ?? []) {
       if (!taskIds.has(dep)) {
-        errors.push(
-          error(
-            `tasks.${task.id}.depends_on`,
-            `dependency "${dep}" not found among task IDs`,
-          ),
-        )
+        errors.push(error(`tasks.${task.id}.depends_on`, `dependency "${dep}" not found among task IDs`))
       }
     }
   }
@@ -139,12 +120,7 @@ export const parsePlanYaml = (raw: string): PlanParseResult => {
   const { tiers, cycleParticipants } = topoSortTiers(plan.tasks)
 
   if (cycleParticipants.length > 0) {
-    allErrors.push(
-      error(
-        'tasks',
-        `dependency cycle among tasks: ${cycleParticipants.join(', ')}`,
-      ),
-    )
+    allErrors.push(error('tasks', `dependency cycle among tasks: ${cycleParticipants.join(', ')}`))
     return { valid: false, plan, tiers: [], errors: allErrors }
   }
 

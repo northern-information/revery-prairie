@@ -1,11 +1,11 @@
-import { createGameState } from '../state'
+import { createGhostDefinition, getCharacterDefinition, registerGhostDefinitions } from '../characters'
+import { ComponentType } from '../ecs/types'
 import { tickCharacterBehaviors } from '../entities'
 import { advanceDialog, interactWithCharacter, tickDialogTransition } from '../interaction'
 import { getBlockedPositions, movePlayer } from '../movement'
-import { createGhostDefinition, getCharacterDefinition, registerGhostDefinitions } from '../characters'
-import { ComponentType } from '../ecs/types'
-import { TileType } from '../types'
 import { posKey } from '../position'
+import { createGameState } from '../state'
+import { TileType } from '../types'
 import { createCharacterTestEntity, destroyAllCharacterEntities, getCharacterEntities } from './helpers'
 
 import type { GameState } from '../types'
@@ -31,8 +31,7 @@ const makeState = (): GameState => {
   return state
 }
 
-const getGhostCharacters = (state: GameState) =>
-  getCharacterEntities(state).filter((c) => c.behavior?.type === 'drift')
+const getGhostCharacters = (state: GameState) => getCharacterEntities(state).filter(c => c.behavior?.type === 'drift')
 
 describe('ghost spawning', () => {
   it('spawns 3 ghosts on game start', () => {
@@ -43,7 +42,7 @@ describe('ghost spawning', () => {
   it('ghosts have sequential definitionIds ghost-1, ghost-2, ghost-3', () => {
     const state = makeState()
     const ids = getGhostCharacters(state)
-      .map((c) => c.definitionId)
+      .map(c => c.definitionId)
       .sort()
     expect(ids).toEqual(['ghost-1', 'ghost-2', 'ghost-3'])
   })

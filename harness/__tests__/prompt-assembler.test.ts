@@ -1,8 +1,9 @@
 import { mkdtempSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { assemblePrompt } from '../src/prompt-assembler.ts'
-import type { TaskDefinition, FeatureSpec } from '../src/types.ts'
+
+import type { FeatureSpec, TaskDefinition } from '../src/types.ts'
 
 const makeTask = (overrides: Partial<TaskDefinition> = {}): TaskDefinition => ({
   id: 'test-task',

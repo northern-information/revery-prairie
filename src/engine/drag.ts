@@ -46,7 +46,7 @@ export const computePlacementPreview = (
   gridY: number,
   sourceContainerId: string,
   targetContainerId: string,
-  discoveredRecipes: Set<string>,
+  discoveredRecipes: Set<string>
 ): PlacementPreview => {
   const selfDrop = isOmniboxSelfDrop(item, targetContainerId)
 
@@ -58,7 +58,7 @@ export const computePlacementPreview = (
       rotation,
       gridX,
       gridY,
-      targetContainerId === sourceContainerId ? item.uid : undefined,
+      targetContainerId === sourceContainerId ? item.uid : undefined
     )
 
   let combineTarget: DragState['combineTarget'] = null
@@ -74,7 +74,7 @@ export const computePlacementPreview = (
       gridY,
       sourceContainerId,
       targetContainerId,
-      discoveredRecipes,
+      discoveredRecipes
     )
     if (result === 'no-recipe') {
       cannotCombine = true
@@ -101,7 +101,7 @@ export const executeStoreInOmnibox = (
   sourceContainer: Container,
   item: ItemInstance,
   omniboxUid: string,
-  omniboxContainers: Map<string, Container>,
+  omniboxContainers: Map<string, Container>
 ): StoreResult => {
   const omniboxContainer = omniboxContainers.get(omniboxUid)
   if (!omniboxContainer) return { outcome: 'no-container' }
@@ -121,7 +121,7 @@ export const executeCombine = (
   sourceContainer: Container,
   targetContainer: Container,
   draggedItem: ItemInstance,
-  combineTarget: { uid: string; recipe: Recipe },
+  combineTarget: { uid: string; recipe: Recipe }
 ): CombineResult => {
   const recipe = combineTarget.recipe
   const key = recipeKey(recipe)
@@ -134,7 +134,7 @@ export const executeCombine = (
   if (draggedItem.definitionId !== recipe.preserveIngredient) {
     removeItem(sourceContainer, draggedItem.uid)
   }
-  const targetItem = targetContainer.items.find((i) => i.uid === combineTarget.uid)
+  const targetItem = targetContainer.items.find(i => i.uid === combineTarget.uid)
   if (targetItem?.definitionId !== recipe.preserveIngredient) {
     removeItem(targetContainer, combineTarget.uid)
   }
@@ -154,7 +154,7 @@ export const computeRotation = (
   item: ItemInstance,
   currentRotation: Rotation,
   previewX: number,
-  previewY: number,
+  previewY: number
 ): RotationResult => {
   const newRotation = NEXT_ROTATION[currentRotation]
   const def = getDefinition(item.definitionId)

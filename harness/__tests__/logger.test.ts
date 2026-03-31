@@ -1,8 +1,9 @@
-import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createRunLogger, generateRunId } from '../src/logger.ts'
-import type { AttemptRecord, TaskResult, PlanRunResult } from '../src/types.ts'
+
+import type { AttemptRecord, PlanRunResult, TaskResult } from '../src/types.ts'
 
 const makeLogger = () => {
   const dir = mkdtempSync(join(tmpdir(), 'logger-test-'))
@@ -38,9 +39,7 @@ describe('createRunLogger', () => {
         attempt: 1,
         response: 'LLM response text',
         files_written: ['src/types.ts'],
-        verification: [
-          { command: 'npx tsc', exit_code: 0, stdout: 'ok', stderr: '', passed: true },
-        ],
+        verification: [{ command: 'npx tsc', exit_code: 0, stdout: 'ok', stderr: '', passed: true }],
         passed: true,
       }
 
@@ -52,7 +51,10 @@ describe('createRunLogger', () => {
       expect(readFileSync(join(base, 'response.md'), 'utf-8')).toBe('LLM response text')
       expect(readFileSync(join(base, 'files', 'types.ts'), 'utf-8')).toBe('const x = 1')
 
-      const verResult = JSON.parse(readFileSync(join(base, 'verification', '0.json'), 'utf-8')) as { command: string; passed: boolean }
+      const verResult = JSON.parse(readFileSync(join(base, 'verification', '0.json'), 'utf-8')) as {
+        command: string
+        passed: boolean
+      }
       expect(verResult.command).toBe('npx tsc')
       expect(verResult.passed).toBe(true)
 
@@ -111,9 +113,10 @@ describe('createRunLogger', () => {
 
       logger.logRunResult(result)
 
-      const runJson = JSON.parse(
-        readFileSync(join(logger.runDir, 'run.json'), 'utf-8'),
-      ) as { plan_id: string; summary: { passed: number } }
+      const runJson = JSON.parse(readFileSync(join(logger.runDir, 'run.json'), 'utf-8')) as {
+        plan_id: string
+        summary: { passed: number }
+      }
       expect(runJson.plan_id).toBe('test-plan')
       expect(runJson.summary.passed).toBe(1)
 

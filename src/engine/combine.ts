@@ -1,4 +1,11 @@
-import { buildOccupancyGrid, containerHasItem, findItemByDefinition, getActiveContainers, getRotatedShape, removeItem } from './inventory'
+import {
+  buildOccupancyGrid,
+  containerHasItem,
+  findItemByDefinition,
+  getActiveContainers,
+  getRotatedShape,
+  removeItem,
+} from './inventory'
 import { getDefinition } from './items'
 import { isWalkableTile } from './position'
 import { findRecipe, recipeKey, RECIPES } from './recipes'

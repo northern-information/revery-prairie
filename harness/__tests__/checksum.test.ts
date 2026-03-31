@@ -1,8 +1,8 @@
-import { mkdtempSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
-import { hashFile, hashFiles, checksumsMatch } from '../src/checksum.ts'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { checksumsMatch, hashFile, hashFiles } from '../src/checksum.ts'
 
 describe('hashFile', () => {
   it('returns SHA-256 hex for an existing file', () => {

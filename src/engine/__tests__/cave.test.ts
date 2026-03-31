@@ -1,13 +1,19 @@
-import { breakWall, updateFacingEntity } from '../interaction'
 import { checkTransition, enterCave, exitCave, generateCave } from '../cave'
 import { CAVE_HEIGHT, CAVE_WIDTH } from '../constants'
 import { ComponentType } from '../ecs/types'
+import { breakWall, updateFacingEntity } from '../interaction'
 import { getBlockedPositions } from '../movement'
 import { findPath } from '../pathfinding'
 import { isWalkableTile } from '../position'
 import { createGameState } from '../state'
 import { TileType, Zone } from '../types'
-import { createBeeEntity, createCharacterTestEntity, createTestState, getBeeEntities, getCharacterEntities } from './helpers'
+import {
+  createBeeEntity,
+  createCharacterTestEntity,
+  createTestState,
+  getBeeEntities,
+  getCharacterEntities,
+} from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('generateCave', () => {
@@ -302,7 +308,8 @@ describe('breakWall', () => {
     state.map[state.player.y][state.player.x] = { type: TileType.CaveFloor }
 
     breakWall(state, 1000)
-    const crumbles = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+    const crumbles = state.world
+      .query(ComponentType.TimedEffect, ComponentType.EntityTag)
       .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'crumble')
     expect(crumbles).toHaveLength(1)
     const effect = state.world.getComponent(crumbles[0], ComponentType.TimedEffect)
@@ -380,7 +387,8 @@ describe('persistent dual-zone', () => {
     enterCave(state)
 
     // Query meteorites filtered by current zone (cave) — should find none
-    const caveMeteorites = state.world.query(ComponentType.EntityTag)
+    const caveMeteorites = state.world
+      .query(ComponentType.EntityTag)
       .filter(e => state.world.getComponent(e, ComponentType.EntityTag) === 'meteorite')
       .filter(e => state.world.getComponent(e, ComponentType.EntityZone)?.zone === state.currentZone)
     expect(caveMeteorites).toHaveLength(0)
@@ -403,7 +411,8 @@ describe('persistent dual-zone', () => {
     const state = createGameState('Test', 20, 20)
     const moab = getCharacterEntities(state).find(c => c.definitionId === 'moab')
     expect(moab).toBeDefined()
-    const moabEid = state.world.query(ComponentType.CharacterIdentity)
+    const moabEid = state.world
+      .query(ComponentType.CharacterIdentity)
       .find(eid => state.world.getComponent(eid, ComponentType.CharacterIdentity)?.definitionId === 'moab')
     expect(moabEid).toBeDefined()
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

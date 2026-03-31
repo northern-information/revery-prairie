@@ -33,11 +33,7 @@ const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
   return false
 }
 
-export const spawnChainMeteorites = (
-  state: GameState,
-  origin: Position,
-  time: number
-): number => {
+export const spawnChainMeteorites = (state: GameState, origin: Position, time: number): number => {
   const candidates: Position[] = []
   for (let dy = -CHAIN_EXPLOSION_RADIUS; dy <= CHAIN_EXPLOSION_RADIUS; dy++) {
     for (let dx = -CHAIN_EXPLOSION_RADIUS; dx <= CHAIN_EXPLOSION_RADIUS; dx++) {
@@ -146,7 +142,7 @@ export const spawnShootingStar = (state: GameState): void => {
 export const spawnShootingStarAtTarget = (
   state: GameState,
   target: Position,
-  direction?: { dx: number; dy: number },
+  direction?: { dx: number; dy: number }
 ): void => {
   const dx = direction?.dx ?? (Math.random() < 0.5 ? 1 : -1)
   const dy = direction?.dy ?? (Math.random() < 0.5 ? 1 : -1)

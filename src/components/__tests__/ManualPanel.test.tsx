@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 
 import { createTestState } from '@/engine/__tests__/helpers'
 import { MANUAL_ENTRIES } from '@/engine/manual'
-import { RECIPES, recipeKey } from '@/engine/recipes'
+import { recipeKey, RECIPES } from '@/engine/recipes'
 
 const renderManual = (overrides?: Partial<ReturnType<typeof createTestState>>) => {
   const state = { ...createTestState(), ...overrides }
@@ -23,7 +23,7 @@ describe('ManualPanel', () => {
     renderManual()
     // All tabs are buttons
     const buttons = screen.getAllByRole('button')
-    const tabLabels = buttons.map((b) => b.textContent?.trim())
+    const tabLabels = buttons.map(b => b.textContent?.trim())
     expect(tabLabels).toContain('ALL')
     expect(tabLabels).toContain('FLORA')
     expect(tabLabels).toContain('FAUNA')
@@ -60,7 +60,7 @@ describe('ManualPanel', () => {
     const { state } = renderManual()
     // Find the FAUNA button (tab)
     const buttons = screen.getAllByRole('button')
-    const faunaTab = buttons.find((b) => b.textContent?.trim() === 'FAUNA')
+    const faunaTab = buttons.find(b => b.textContent?.trim() === 'FAUNA')
     expect(faunaTab).toBeTruthy()
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted above
     await userEvent.click(faunaTab!)

@@ -15,7 +15,7 @@ export const createCharacterEntity = (
   state: GameState,
   definitionId: string,
   pos: Position,
-  opts?: { aura?: string; behavior?: CharacterBehavior; zone?: Zone },
+  opts?: { aura?: string; behavior?: CharacterBehavior; zone?: Zone }
 ): Entity => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
@@ -46,7 +46,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   // Ground items (ECS entities with 'groundItem' tag)
   const groundItemsAtPlayer = state.world.spatial
     .at(px, py)
-    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
   for (const eid of groundItemsAtPlayer) {
     const itemDrop = state.world.getComponent(eid, ComponentType.ItemDrop)
     if (!itemDrop) continue
@@ -61,7 +61,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
 
   const beesAtPlayer = state.world.spatial
     .at(px, py)
-    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
   for (const eid of beesAtPlayer) {
     const fit = findFitPosition(state.backpack, 'bee')
     if (fit) {
@@ -78,7 +78,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   if (time !== undefined) {
     const meteoritesAtPlayer = state.world.spatial
       .at(px, py)
-      .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
     for (const eid of meteoritesAtPlayer) {
       const chain = state.world.getComponent(eid, ComponentType.ChainSource)
       if (!chain?.fromChain && Math.random() < CHAIN_EXPLOSION_CHANCE) {
@@ -91,7 +91,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   // Capture surviving meteorites at player position
   const remainingMeteoritesAtPlayer = state.world.spatial
     .at(px, py)
-    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
   let meteoritesCaptured = 0
   for (const eid of remainingMeteoritesAtPlayer) {
     const fit = findFitPosition(state.backpack, 'meteorite')
@@ -180,7 +180,7 @@ const tickDrift = (
   eid: Entity,
   definitionId: string,
   behavior: DriftBehavior,
-  blocked: Set<string>,
+  blocked: Set<string>
 ): void => {
   if (behavior.freezeOnDialog && state.activeDialog?.characterId === definitionId) return
   if (Math.random() > behavior.speed) return
@@ -217,7 +217,11 @@ export const tickCharacterBehaviors = (state: GameState, zone?: Zone): void => {
   const blocked = getBlockedPositions(state, z)
   blocked.add(posKey(state.player.x, state.player.y))
 
-  for (const eid of state.world.query(ComponentType.Behavior, ComponentType.CharacterIdentity, ComponentType.Position)) {
+  for (const eid of state.world.query(
+    ComponentType.Behavior,
+    ComponentType.CharacterIdentity,
+    ComponentType.Position
+  )) {
     if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== z) continue
     const behavior = state.world.getComponent(eid, ComponentType.Behavior)
     if (!behavior) continue
@@ -247,12 +251,10 @@ const canDropAt = (state: GameState, x: number, y: number): boolean => {
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
   if (!isWalkableTile(state.map[y][x].type)) return false
   if (
-    state.world.spatial
-      .at(x, y)
-      .some((eid) => {
-        const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-        return tag === 'groundItem' || tag === 'groundOmnibox'
-      })
+    state.world.spatial.at(x, y).some(eid => {
+      const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+      return tag === 'groundItem' || tag === 'groundOmnibox'
+    })
   )
     return false
   return true

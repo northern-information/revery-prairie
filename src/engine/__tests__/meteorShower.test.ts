@@ -1,10 +1,4 @@
-import {
-  findShowerTargets,
-  pickRadiantDirection,
-  spawnShootingStar,
-  tickMeteorShower,
-} from '../celestial'
-import { ComponentType } from '../ecs/types'
+import { findShowerTargets, pickRadiantDirection, spawnShootingStar, tickMeteorShower } from '../celestial'
 import {
   METEOR_SHOWER_MAX_INTERVAL_MS,
   METEOR_SHOWER_MIN_INTERVAL_MS,
@@ -12,6 +6,7 @@ import {
   METEOR_SHOWER_STAR_COUNT_MAX,
   METEOR_SHOWER_STAR_COUNT_MIN,
 } from '../constants'
+import { ComponentType } from '../ecs/types'
 import { createGameState } from '../state'
 import { TileType } from '../types'
 
@@ -26,8 +21,7 @@ const createTestState = (): GameState => {
   return state
 }
 
-const getStarCount = (state: GameState): number =>
-  state.world.query(ComponentType.ShootingStarData).length
+const getStarCount = (state: GameState): number => state.world.query(ComponentType.ShootingStarData).length
 
 describe('meteor shower', () => {
   describe('scheduling', () => {

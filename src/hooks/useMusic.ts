@@ -1,15 +1,7 @@
 import { useEffect, useRef } from 'react'
 
+import { setAmbient, setMusicEnabled, startDialogMusic, stopAll, stopDialogMusic, ZONE_MUSIC } from '@/engine/audio'
 import { getCharacterDefinition } from '@/engine/characters'
-import {
-  ZONE_MUSIC,
-  setAmbient,
-  startDialogMusic,
-  stopDialogMusic,
-  stopAll,
-  setMusicEnabled,
-} from '@/engine/audio'
-
 import type { GameState, Zone } from '@/engine/types'
 
 export const useMusic = (state: GameState): void => {
@@ -70,6 +62,6 @@ export const useMusic = (state: GameState): void => {
       prevZoneRef.current = null
       prevCharIdRef.current = null
     },
-    [],
+    []
   )
 }

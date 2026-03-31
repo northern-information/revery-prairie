@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
 import { clampPanelPosition } from '../panelPosition'
+import { describe, expect, it } from 'vitest'
 
 // Common test constants
 const CHAR_W = 10

@@ -1,5 +1,5 @@
 id: moab-colde
-name: "Moab Coldë"
+name: 'Moab Coldë'
 status: planned
 priority: medium
 layer: engine
@@ -34,12 +34,12 @@ behaviors:
       state.characters so the existing renderer, interaction, and
       blocking systems handle him automatically.
     inputs:
-      - "enterCave(state)"
+      - 'enterCave(state)'
     outputs:
-      - "state.characters includes Moab at caveNpcSpot position"
+      - 'state.characters includes Moab at caveNpcSpot position'
     state_changes:
       - field: characters
-        effect: "Moab character entry appended"
+        effect: 'Moab character entry appended'
     determinism: deterministic
 
   - id: moab-blocks-player
@@ -49,7 +49,7 @@ behaviors:
     inputs:
       - "Player attempts to move onto Moab's tile"
     outputs:
-      - "movePlayer returns false"
+      - 'movePlayer returns false'
     state_changes: []
     determinism: deterministic
 
@@ -59,9 +59,9 @@ behaviors:
       him), dialog advances through '...', '...', '...fine.' — 3 lines
       using the standard dialog system.
     inputs:
-      - "Player facing Moab, [e] pressed, moabGiftGiven is false"
+      - 'Player facing Moab, [e] pressed, moabGiftGiven is false'
     outputs:
-      - "activeDialog cycles through 3 lines"
+      - 'activeDialog cycles through 3 lines'
     state_changes:
       - field: activeDialog
         effect: "set to { characterId: 'moab', lineIndex: 0 }"
@@ -77,19 +77,19 @@ behaviors:
       'Gifted an omnibox' is fired via addEvent. This is a one-time
       event.
     inputs:
-      - "Dialog with Moab completes for the first time"
+      - 'Dialog with Moab completes for the first time'
     outputs:
-      - "Omnibox item in backpack containing 25 bees"
+      - 'Omnibox item in backpack containing 25 bees'
       - "Toast/log message: 'Gifted an omnibox'"
     state_changes:
       - field: backpack
-        effect: "omnibox item placed"
+        effect: 'omnibox item placed'
       - field: omniboxContainers
-        effect: "new container registered, filled with 25 bees"
+        effect: 'new container registered, filled with 25 bees'
       - field: nextOmniboxNumber
-        effect: "incremented by 1"
+        effect: 'incremented by 1'
       - field: moabGiftGiven
-        effect: "set to true"
+        effect: 'set to true'
     determinism: deterministic
 
   - id: moab-subsequent-interaction
@@ -97,7 +97,7 @@ behaviors:
       After moabGiftGiven is true, talking to Moab shows only a single
       line: '...'. Dialog opens and closes with just that one line.
     inputs:
-      - "Player facing Moab, [e] pressed, moabGiftGiven is true"
+      - 'Player facing Moab, [e] pressed, moabGiftGiven is true'
     outputs:
       - "activeDialog with single '...' line"
     state_changes:
@@ -113,7 +113,7 @@ behaviors:
       hidden chamber masking system, so he is not visible until the
       breakable wall is broken.
     inputs:
-      - "GameState in cave zone with caveRevealed true"
+      - 'GameState in cave zone with caveRevealed true'
     outputs:
       - "'M' drawn in white at npcSpot position"
     state_changes: []
@@ -121,27 +121,27 @@ behaviors:
 
 edge_cases:
   - id: moab-gift-backpack-full
-    description: "Backpack has no room for the 2x2 omnibox when dialog completes"
-    expected: "Gift is not given. moabGiftGiven remains false. Next interaction replays the full 3-line dialog and re-attempts gift delivery."
+    description: 'Backpack has no room for the 2x2 omnibox when dialog completes'
+    expected: 'Gift is not given. moabGiftGiven remains false. Next interaction replays the full 3-line dialog and re-attempts gift delivery.'
   - id: moab-hidden-before-reveal
-    description: "Player enters cave before breaking the wall"
-    expected: "Moab is placed at npcSpot but his tile is masked as CaveWall by caveHiddenPositions. Player cannot see or reach him."
+    description: 'Player enters cave before breaking the wall'
+    expected: 'Moab is placed at npcSpot but his tile is masked as CaveWall by caveHiddenPositions. Player cannot see or reach him.'
   - id: moab-persists-across-cave-visits
-    description: "Player leaves cave and re-enters"
-    expected: "Moab is re-spawned at npcSpot on each enterCave call. moabGiftGiven persists on GameState so the gift is only given once."
+    description: 'Player leaves cave and re-enters'
+    expected: 'Moab is re-spawned at npcSpot on each enterCave call. moabGiftGiven persists on GameState so the gift is only given once.'
   - id: moab-gift-omnibox-numbering
     description: "Moab's omnibox follows the standard nextOmniboxNumber sequence"
     expected: "Omnibox is named 'omnibox #N' where N is the current nextOmniboxNumber value"
 
 failure_conditions:
-  - trigger: "Player talks to Moab twice before breaking the wall (impossible but defensive)"
-    expected: "No crash. moabGiftGiven prevents double gift."
-  - trigger: "enterCave called when moab definition is not registered"
-    expected: "Character definition is registered at module load time in CHARACTERS const. No runtime registration needed."
-  - trigger: "Omnibox creation fails (e.g. placeItem returns null)"
-    expected: "moabGiftGiven stays false. Gift re-attempted on next full dialog completion."
+  - trigger: 'Player talks to Moab twice before breaking the wall (impossible but defensive)'
+    expected: 'No crash. moabGiftGiven prevents double gift.'
+  - trigger: 'enterCave called when moab definition is not registered'
+    expected: 'Character definition is registered at module load time in CHARACTERS const. No runtime registration needed.'
+  - trigger: 'Omnibox creation fails (e.g. placeItem returns null)'
+    expected: 'moabGiftGiven stays false. Gift re-attempted on next full dialog completion.'
 
 verification:
   test_file: src/engine/__tests__/moab-colde.test.ts
-  test_pattern: "moab"
-  command: "npx vitest run src/engine/__tests__/moab-colde.test.ts"
+  test_pattern: 'moab'
+  command: 'npx vitest run src/engine/__tests__/moab-colde.test.ts'
