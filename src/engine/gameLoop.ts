@@ -1,13 +1,15 @@
 import { spawnShootingStar, tickMeteorShower, tickShootingStars } from './celestial'
 import { tickCloverGrowth, tickCloverHives } from './clover'
+import { tickCloverLifecycle } from './cloverLifecycle'
 import {
   BEE_TICK_MS,
   CLOVER_GROWTH_TICK_MS,
   CLOVER_HIVE_TICK_MS,
+  CLOVER_LIFECYCLE_TICK_MS,
   CRUMBLE_DURATION_MS,
   GHOST_TICK_MS,
-  METEOR_SHOWER_TICK_MS,
   KEYBOARD_MOVE_TICK_MS,
+  METEOR_SHOWER_TICK_MS,
   PATH_TICK_MS,
   SHOOTING_STAR_SPAWN_TICK_MS,
   SHOOTING_STAR_TICK_MS,
@@ -33,13 +35,7 @@ export interface TickSystem {
 
 export interface GameLoopCallbacks {
   onRefreshUI?: () => void
-  onPickup?: (
-    name: string,
-    icon: string,
-    iconColor: string,
-    worldX: number,
-    worldY: number,
-  ) => void
+  onPickup?: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   onDiscovery?: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
   onFrame?: (time: number) => void
 }
@@ -89,7 +85,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
                 state.player.x,
                 state.player.y,
                 meteoriteDef.glyph,
-                meteoriteDef.glyphColor,
+                meteoriteDef.glyphColor
               )
             }
           }
@@ -126,7 +122,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
                 state.player.x,
                 state.player.y,
                 meteoriteDef.glyph,
-                meteoriteDef.glyphColor,
+                meteoriteDef.glyphColor
               )
             }
           }
@@ -212,6 +208,24 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       priority: 55,
       fn: state => {
         tickCloverHives(state)
+      },
+    },
+    {
+      id: 'clover-lifecycle-overworld',
+      intervalMs: CLOVER_LIFECYCLE_TICK_MS,
+      zone: 'overworld',
+      priority: 52,
+      fn: (state, time) => {
+        tickCloverLifecycle(state, Zone.Overworld, time)
+      },
+    },
+    {
+      id: 'clover-lifecycle-cave',
+      intervalMs: CLOVER_LIFECYCLE_TICK_MS,
+      zone: 'cave',
+      priority: 52,
+      fn: (state, time) => {
+        tickCloverLifecycle(state, Zone.Cave, time)
       },
     },
     {

@@ -232,6 +232,7 @@ export const tickCloverGrowth = (state: GameState): void => {
     const y = Number(yStr)
     if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Dirt) {
       state.map[y][x] = { type: TileType.Clover }
+      state.cloverLifecycle.delete(key)
     }
   }
 

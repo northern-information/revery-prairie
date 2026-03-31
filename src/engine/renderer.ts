@@ -5,6 +5,11 @@ import {
   BEEHIVE_CHAR,
   BEEHIVE_COLOR,
   BG_COLOR,
+  CLOVER_BLACK_COLOR,
+  CLOVER_BLINK_RED_COLORS,
+  CLOVER_BLINK_RED_SPEED,
+  CLOVER_BROWN_COLOR,
+  CLOVER_DECOMPOSE_COLOR,
   CLOVER_PREVIEW_BLINK_SPEED,
   CLOVER_PREVIEW_COLORS,
   CRUMBLE_CHARS,
@@ -36,7 +41,7 @@ import {
 import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
 import { isInBounds, posKey } from './position'
-import { TileType, Zone } from './types'
+import { CloverStage, TileType, Zone } from './types'
 
 import type { CharMetrics, GameState } from './types'
 
@@ -486,7 +491,32 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         } else {
           const tile = map[my][mx]
           char = TILE_CHARS[tile.type]
-          color = TILE_COLORS[tile.type]
+          // Dying clover: override color based on lifecycle stage
+          const lifecycle = tile.type === TileType.Clover ? state.cloverLifecycle.get(tileKey) : undefined
+          if (lifecycle && lifecycle.stage !== CloverStage.Healthy) {
+            switch (lifecycle.stage) {
+              case CloverStage.Brown:
+                color = CLOVER_BROWN_COLOR
+                break
+              case CloverStage.BlinkingRed: {
+                const h = starHash(mx, my)
+                const phase = (h >> 8) % CLOVER_BLINK_RED_COLORS.length
+                const blinkIdx = (phase + Math.floor(time * CLOVER_BLINK_RED_SPEED)) % CLOVER_BLINK_RED_COLORS.length
+                color = CLOVER_BLINK_RED_COLORS[blinkIdx]
+                break
+              }
+              case CloverStage.Black:
+                color = CLOVER_BLACK_COLOR
+                break
+              case CloverStage.Decomposing:
+                color = CLOVER_DECOMPOSE_COLOR
+                break
+              default:
+                color = TILE_COLORS[tile.type]
+            }
+          } else {
+            color = TILE_COLORS[tile.type]
+          }
         }
       }
 

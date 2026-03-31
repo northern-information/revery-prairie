@@ -116,6 +116,8 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
       radiantDy: 0,
     },
     cloverGrowthPreviews: new Set<string>(),
+    cloverLifecycle: new Map(),
+    soilHealth: new Map(),
     manualDiscoveries: new Set<string>(['item:bee', 'item:clover', 'item:permacomputer', 'item:omnibox']),
     manualState: {
       activeCategory: null,

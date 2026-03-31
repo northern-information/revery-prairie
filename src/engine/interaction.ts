@@ -9,12 +9,10 @@ import type { GameState } from './types'
 
 export const isInteractableAt = (state: GameState, x: number, y: number): boolean => {
   if (
-    state.world.spatial
-      .at(x, y)
-      .some((eid) => {
-        const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-        return tag === 'groundOmnibox' || tag === 'character'
-      })
+    state.world.spatial.at(x, y).some(eid => {
+      const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+      return tag === 'groundOmnibox' || tag === 'character'
+    })
   ) {
     return true
   }
@@ -24,6 +22,9 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
     isInBounds(x, y, state.mapWidth, state.mapHeight) &&
     state.map[y][x].type === TileType.CaveBreakableWall
   ) {
+    return true
+  }
+  if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Clover) {
     return true
   }
   return false
@@ -82,7 +83,7 @@ export const updateFacingEntity = (state: GameState): void => {
 export const updateFacingOmnibox = updateFacingEntity
 
 export const getAdjacentCharacter = (
-  state: GameState,
+  state: GameState
 ): { definitionId: string; pos: { x: number; y: number } } | null => {
   const px = state.player.x
   const py = state.player.y

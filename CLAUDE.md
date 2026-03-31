@@ -50,6 +50,7 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/movement.ts` — `movePlayer`, `tickPath`, `getBlockedPositions`, `getPathfindingBlockers`.
 - `src/engine/entities.ts` — `tickBees`, `tickCharacterBehaviors`, `pickUpGroundItems`, `dropItem`.
 - `src/engine/celestial.ts` — `spawnShootingStar`, `spawnShootingStarAtTarget`, `tickShootingStars`, `spawnChainMeteorites`.
+- `src/engine/cloverLifecycle.ts` — `tickCloverLifecycle`, `harvestClover`, `cutClover`, `getCloverStage`. clover death stages, water meter, soil health enrichment.
 - `src/engine/interaction.ts` — `interactWithCharacter`, `advanceDialog`, `updateFacingEntity`, `isInteractableAt`, dialog tick, `giveMoabGift`, `breakWall`.
 - `src/engine/omnibox.ts` — `openOmnibox`, `closeOmnibox`, `toggleOmnibox`, `grabOmnibox`, `toggleFacingOmnibox`.
 - `src/engine/combine.ts` — drag-drop combine detection (`checkCombine`) and `combineBeeAndClover`.
@@ -148,7 +149,8 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 - `wasd` — movement (works with inventory open, blocked in menu and during drag)
 - `e` — context-dependent: pick up open ground omnibox / close open backpack omnibox / open hovered omnibox / open facing ground omnibox / talk to character / advance dialog
 - `r` — rotate hovered item in place (inventory must be open, item must be hovered)
-- `x` — drop hovered item
+- `f` — harvest facing clover tile (tile → dirt, clover item to backpack, no soil enrichment)
+- `x` — drop hovered item; also cuts facing clover when no item is hovered (tile → dirt, soil enrichment, no item)
 - `tab` — toggle inventory
 - `q` — toggle prairie manual
 - `esc` — close panel / open menu
@@ -160,7 +162,6 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 ### reserved keys (not yet implemented)
 
 - `1-4` — hotbar slots (press number to use item directly)
-- `f` — TBD (prime ergonomic real estate)
 - `space` — TBD
 - `left click+drag` — TBD (future RTS-style multi-select)
 - `right click` — TBD
@@ -175,6 +176,7 @@ in-game encyclopedia cataloging all game content. fullscreen overlay panel toggl
 ### auto-generation
 
 entries are derived at runtime from existing registries:
+
 - items from `ITEM_DEFINITIONS` (id, name, glyph, color, category, summary from description)
 - recipes from `RECIPES` array (adding a recipe auto-creates a manual entry)
 - characters from `CHARACTER_DEFINITIONS` (excludes ghost variants — ghosts get one collective entry)
@@ -184,7 +186,7 @@ cross-refs are auto-derived by scanning recipes for shared ingredients.
 
 ### discovery tracking
 
-`manualDiscoveries: Set<string>` on `GameState`. structured keys: `item:<id>`, `recipe:<key>`, `character:<id>`, `zone:cave`, `event:chain-explosion`, `event:wall-break`, `event:moab-gift`. `recordDiscovery(state, key)` is called at existing mutation points in `entities.ts`, `interaction.ts`, `drag.ts`, `cave.ts`, `celestial.ts`.
+`manualDiscoveries: Set<string>` on `GameState`. structured keys: `item:<id>`, `recipe:<key>`, `character:<id>`, `zone:cave`, `event:chain-explosion`, `event:wall-break`, `event:moab-gift`, `event:clover-death`, `event:clover-harvest`, `event:clover-cut`. `recordDiscovery(state, key)` is called at existing mutation points in `entities.ts`, `interaction.ts`, `drag.ts`, `cave.ts`, `celestial.ts`, `cloverLifecycle.ts`.
 
 ### visibility
 
@@ -254,6 +256,7 @@ separate 40x25 interior map accessed via a `CaveEntrance` tile on the overworld.
 mutable game state has no access control — any function with a `GameState` reference can write any field. these conventions document the current write patterns to prepare for eventual module boundaries. fields are categorized by mutation pattern. aspirational notes mark fields where consolidation would improve clarity — they're signals for when you're already touching that area, not tech debt tickets.
 
 **single-owner** (only one module writes meaningful values, init in `state.ts`):
+
 - `weather.*` — `weather.ts` (`tickWeather`). read everywhere, mutated nowhere else.
 - `facingEntityPos` — `interaction.ts` (`updateFacingEntity`). `cave.ts` nulls on zone transition.
 - `cursorScreenPos` — `Sidebar.tsx` (set on mousemove, null on mouseleave).
@@ -261,20 +264,25 @@ mutable game state has no access control — any function with a `GameState` ref
 - `manualDiscoveries` — **multi-spawner, single lifecycle.** multiple engine modules call `recordDiscovery()` in `manual.ts` to add entries. no module removes entries (discoveries are permanent). `state.ts` initializes with starting item keys.
 - `meteorShower` — `celestial.ts` (`tickMeteorShower`). read by `spawnShootingStar` for suppression. `state.ts` initializes.
 - `manualState` — **single-owner.** `ManualPanel.tsx` reads and writes via local React state synced to the mutable object. `state.ts` initializes.
+- `cloverLifecycle` — **owner + clearers.** `cloverLifecycle.ts` (`tickCloverLifecycle`) owns tick/stage progression. `cloverLifecycle.ts` (`harvestClover`, `cutClover`) deletes entries. `recipes.ts` and `clover.ts` delete entries when placing new clover.
+- `soilHealth` — **single-owner.** `cloverLifecycle.ts` writes via `addSoilHealth`. read by `Sidebar.tsx`.
 
 **owner + clearers** (one module writes meaningful values, others only null/reset):
+
 - `cursorTile` — `cursor.ts` derives from `cursorScreenPos`. `Sidebar.tsx` nulls on mouseleave.
 - `pendingAction`, `pendingInteractionTarget` — `useMouse.ts` and `useCanvasDrop.ts` set. `movement.ts` clears on completion/failure. `useKeyboard.ts` cancels on WASD. `cave.ts` resets on zone transition.
 - `previewFn` — `useMouse.ts`, `useCanvasDrop.ts`, `InventoryPanel.tsx` set. `movement.ts` clears on arrival. `useKeyboard.ts` cancels. `cave.ts` resets.
 
 **multi-spawner, single lifecycle** (multiple modules create entries, one owns tick/removal):
-- `bees[]` — `entities.ts` owns tick + pickup. `recipes.ts` and `useCanvasDrop.ts` spawn. `cave.ts` snapshots/restores. *aspirational: route all spawns through a single `spawnBee()` in entities.ts.*
+
+- `bees[]` — `entities.ts` owns tick + pickup. `recipes.ts` and `useCanvasDrop.ts` spawn. `cave.ts` snapshots/restores. _aspirational: route all spawns through a single `spawnBee()` in entities.ts._
 - `characters[]` — `entities.ts` owns tick (position mutation). `state.ts` initializes. `cave.ts` swaps on zone transition.
-- `groundItems`, `groundOmniboxes` — `entities.ts` owns pickup/drop lifecycle. `useCanvasDrop.ts` spawns via canvas drop. `cave.ts` snapshots/restores. *aspirational: centralize spawning into entities.ts.*
+- `groundItems`, `groundOmniboxes` — `entities.ts` owns pickup/drop lifecycle. `useCanvasDrop.ts` spawns via canvas drop. `cave.ts` snapshots/restores. _aspirational: centralize spawning into entities.ts._
 
 **shared writers** (multiple modules write meaningful non-null values):
-- `path`, `pathWaypoints` — `useMouse.ts` sets (click-to-move). `useCanvasDrop.ts` sets (walk-then-drop). `movement.ts` consumes/advances. `useKeyboard.ts` cancels on WASD. `cave.ts` resets. *aspirational: introduce a `setPath()` accessor in movement.ts that all callers use.*
-- `playerFacing` — `movement.ts` sets on WASD move. `useMouse.ts` sets toward clicked interactable. *aspirational: unify into movement.ts if mouse-facing can route through movePlayer.*
+
+- `path`, `pathWaypoints` — `useMouse.ts` sets (click-to-move). `useCanvasDrop.ts` sets (walk-then-drop). `movement.ts` consumes/advances. `useKeyboard.ts` cancels on WASD. `cave.ts` resets. _aspirational: introduce a `setPath()` accessor in movement.ts that all callers use._
+- `playerFacing` — `movement.ts` sets on WASD move. `useMouse.ts` sets toward clicked interactable. _aspirational: unify into movement.ts if mouse-facing can route through movePlayer._
 
 **convention for new fields**: prefer single-owner. if multiple modules must write, use the owner+clearers or multi-spawner pattern — never ad-hoc writes from arbitrary locations. document the owner in this section when adding new mutable state.
 
@@ -300,6 +308,22 @@ field ownership drift (a new writer appearing without updating this section) can
 midwest illinois spring conditions. temperature 35-72°F, wind 3-25 mph, humidity 45-85%. sky condition (sunny/cloudy/rain) is weighted by humidity. weather drifts every 5 seconds. season is hardcoded to "spring" for now.
 
 imperial/metric toggle in the sidebar controls section. `fToC()` and `mphToKph()` are in `src/engine/weather.ts`.
+
+## clover lifecycle
+
+clover needs light and water to survive. without either, it slowly dies through visual stages: healthy (green) → brown → blinking red → black → decomposing → dirt.
+
+- **light**: overworld = has light. cave = no light.
+- **water**: per-tile meter (0–100). rain refills overworld clover (`CLOVER_WATER_RAIN_FILL` per lifecycle tick). drains `CLOVER_WATER_DRAIN_RATE` per tick otherwise. cave clover gets no water.
+- **recovery**: brown stage recovers if conditions improve. blinkingRed and beyond = terminal.
+- **death enrichment**: when clover decomposes to dirt, soil health increases by `SOIL_HEALTH_CLOVER_DEATH_BONUS`.
+- **harvest** (`[f]`): facing tile → dirt, clover item to backpack. no soil enrichment.
+- **cut** (`[x]`): facing tile → dirt when no inventory item hovered. soil enrichment (`SOIL_HEALTH_CUT_BONUS`). no item.
+- **tick systems**: `clover-lifecycle-overworld` (priority 52) and `clover-lifecycle-cave` (priority 52) in `gameLoop.ts`.
+
+## soil health
+
+`soilHealth: Map<string, number>` on GameState, keyed by posKey. default value for absent keys is `SOIL_HEALTH_DEFAULT` (50). max is `SOIL_HEALTH_MAX` (100). enriched by natural clover death and cutting. not enriched by harvesting. visible in sidebar when hovering clover or dirt tiles. single number for now — future: mycelium density, worms.
 
 ## music
 
@@ -341,6 +365,7 @@ spec-driven development pipeline. see README.md for the workflow, roles, and ent
 file: `harness/specs/{id}.yaml`. schema: `harness/specs/spec-schema.json`.
 
 required top-level fields:
+
 - `id` — kebab-case, unique
 - `name` — human-readable title
 - `status` — `planned`, `partial`, or `implemented`
@@ -364,12 +389,14 @@ required top-level fields:
 file: `harness/plans/{id}.yaml`.
 
 top-level:
+
 - `plan.id` — matches the spec id
 - `plan.title` — what the plan accomplishes
 - `plan.created` — date (YYYY-MM-DD)
 - `plan.global_verification` — array of commands run after all tasks (e.g. `npm run build`, `npm run test`, `npm run lint`)
 
 each task in `tasks[]`:
+
 - `id` — kebab-case
 - `title` — what the task does
 - `spec_id` — which spec this implements

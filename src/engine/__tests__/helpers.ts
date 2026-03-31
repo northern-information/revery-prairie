@@ -42,6 +42,8 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   state.pathWaypoints = []
   state.pendingAction = null
   state.cloverGrowthPreviews = new Set()
+  state.cloverLifecycle = new Map()
+  state.soilHealth = new Map()
   return state
 }
 
