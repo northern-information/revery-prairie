@@ -18,7 +18,7 @@ const carveRect = (
   y: number,
   w: number,
   h: number,
-  tileType: TileType = TileType.CaveFloor,
+  tileType: TileType = TileType.CaveFloor
 ): void => {
   for (let dy = 0; dy < h; dy++) {
     for (let dx = 0; dx < w; dx++) {
@@ -31,12 +31,7 @@ const carveRect = (
 }
 
 // Carve a corridor between two points (L-shaped: horizontal then vertical)
-const carveCorridor = (
-  map: Tile[][],
-  from: Position,
-  to: Position,
-  width: number,
-): void => {
+const carveCorridor = (map: Tile[][], from: Position, to: Position, width: number): void => {
   const halfW = Math.floor(width / 2)
 
   // Horizontal segment
@@ -64,14 +59,10 @@ const carveCorridor = (
   }
 }
 
-export const generateCave = (
-  width: number,
-  height: number,
-  rng: () => number = Math.random,
-): CaveResult => {
+export const generateCave = (width: number, height: number, rng: () => number = Math.random): CaveResult => {
   // Fill with CaveWall
   const map: Tile[][] = Array.from({ length: height }, () =>
-    Array.from({ length: width }, () => ({ type: TileType.CaveWall })),
+    Array.from({ length: width }, () => ({ type: TileType.CaveWall }))
   )
 
   // Entrance at bottom center
@@ -198,6 +189,7 @@ export const enterCave = (state: GameState): void => {
   state.facingEntityPos = null
   state.activeDialog = null
   state.trail = []
+  state.cloverGrowthPreviews = new Set<string>()
 }
 
 export const exitCave = (state: GameState): void => {
@@ -223,6 +215,7 @@ export const exitCave = (state: GameState): void => {
   state.facingEntityPos = null
   state.activeDialog = null
   state.trail = []
+  state.cloverGrowthPreviews = new Set<string>()
 }
 
 export const checkTransition = (state: GameState): boolean => {

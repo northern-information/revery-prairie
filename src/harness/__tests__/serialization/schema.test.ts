@@ -1,4 +1,5 @@
 import { withSeededRandom } from '@/harness/prng'
+
 import { createGameState } from '@/engine/state'
 
 const SEED = 42
@@ -47,6 +48,7 @@ const EXPECTED_FIELDS = [
   'caveHiddenPositions',
   'caveNpcSpot',
   'caveBreakableWallPositions',
+  'cloverGrowthPreviews',
   'manualDiscoveries',
   'manualState',
   'moabGiftGiven',
@@ -62,18 +64,14 @@ const EXPECTED_FIELDS = [
 
 describe('GameState schema', () => {
   it('has exactly the expected fields', () => {
-    const state = withSeededRandom(SEED, () =>
-      createGameState('test', 40, 30),
-    )
+    const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
     const actualFields = Object.keys(state).sort()
 
     expect(actualFields).toEqual(EXPECTED_FIELDS)
   })
 
   it('field count matches', () => {
-    const state = withSeededRandom(SEED, () =>
-      createGameState('test', 40, 30),
-    )
+    const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
 
     expect(Object.keys(state)).toHaveLength(EXPECTED_FIELDS.length)
   })

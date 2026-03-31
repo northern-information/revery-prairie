@@ -147,6 +147,7 @@ export interface GameState {
   caveBreakableWallPositions: Position[]
   moabGiftGiven: boolean
   world: World
+  cloverGrowthPreviews: Set<string>
   manualDiscoveries: Set<string>
   manualState: ManualState
 }
@@ -209,4 +210,3 @@ export interface CharMetrics {
   charWidth: number
   charHeight: number
 }
-

@@ -5,9 +5,8 @@ import { isInBounds } from '../position'
 import { createGameState } from '../state'
 import { TileType } from '../types'
 
-import type { CharacterBehavior, Zone } from '../types'
 import type { Entity } from '../ecs/types'
-import type { GameState } from '../types'
+import type { CharacterBehavior, GameState, Zone } from '../types'
 
 /**
  * Creates a minimal game state for testing — empty backpack, no entities,
@@ -42,6 +41,7 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   state.path = null
   state.pathWaypoints = []
   state.pendingAction = null
+  state.cloverGrowthPreviews = new Set()
   return state
 }
 
@@ -70,12 +70,7 @@ export const clearAroundPlayer = (state: GameState, radius = 2): void => {
 /**
  * Creates a meteorite ECS entity at the given position.
  */
-export const createMeteoriteEntity = (
-  state: GameState,
-  x: number,
-  y: number,
-  fromChain = false,
-): Entity => {
+export const createMeteoriteEntity = (state: GameState, x: number, y: number, fromChain = false): Entity => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.Pickupable, { definitionId: 'meteorite' })
@@ -93,17 +88,12 @@ export const createMeteoriteEntity = (
 export const getMeteoriteEntities = (state: GameState): Entity[] =>
   state.world
     .query(ComponentType.EntityTag)
-    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
 
 /**
  * Creates a bee ECS entity at the given position.
  */
-export const createBeeEntity = (
-  state: GameState,
-  x: number,
-  y: number,
-  zone?: Zone,
-): Entity => {
+export const createBeeEntity = (state: GameState, x: number, y: number, zone?: Zone): Entity => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.EntityTag, 'bee')
@@ -117,17 +107,12 @@ export const createBeeEntity = (
 export const getBeeEntities = (state: GameState): Entity[] =>
   state.world
     .query(ComponentType.EntityTag)
-    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
 
 /**
  * Creates a ground item ECS entity at the given position.
  */
-export const createGroundItemEntity = (
-  state: GameState,
-  definitionId: string,
-  x: number,
-  y: number,
-): Entity => {
+export const createGroundItemEntity = (state: GameState, definitionId: string, x: number, y: number): Entity => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.ItemDrop, { definitionId })
@@ -142,7 +127,7 @@ export const createGroundItemEntity = (
 export const getGroundItemEntities = (state: GameState): Entity[] =>
   state.world
     .query(ComponentType.EntityTag)
-    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
 
 /**
  * Creates a character ECS entity at the given position.
@@ -153,7 +138,7 @@ export const createCharacterTestEntity = (
   definitionId: string,
   x: number,
   y: number,
-  opts?: { aura?: string; behavior?: CharacterBehavior },
+  opts?: { aura?: string; behavior?: CharacterBehavior }
 ): Entity => createCharacterEntity(state, definitionId, { x, y }, opts)
 
 /**
@@ -161,21 +146,19 @@ export const createCharacterTestEntity = (
  * Returns an array of { eid, definitionId, pos, behavior?, aura? }.
  */
 export const getCharacterEntities = (state: GameState) =>
-  state.world
-    .query(ComponentType.CharacterIdentity, ComponentType.Position)
-    .map((eid) => {
-      const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-      const pos = state.world.getComponent(eid, ComponentType.Position)
-      const behavior = state.world.getComponent(eid, ComponentType.Behavior)
-      const aura = state.world.getComponent(eid, ComponentType.Aura)
-      return {
-        eid,
-        definitionId: identity?.definitionId ?? '',
-        pos: pos ? { x: pos.x, y: pos.y } : { x: 0, y: 0 },
-        behavior: behavior ?? undefined,
-        aura: aura ?? undefined,
-      }
-    })
+  state.world.query(ComponentType.CharacterIdentity, ComponentType.Position).map(eid => {
+    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const behavior = state.world.getComponent(eid, ComponentType.Behavior)
+    const aura = state.world.getComponent(eid, ComponentType.Aura)
+    return {
+      eid,
+      definitionId: identity?.definitionId ?? '',
+      pos: pos ? { x: pos.x, y: pos.y } : { x: 0, y: 0 },
+      behavior: behavior ?? undefined,
+      aura: aura ?? undefined,
+    }
+  })
 
 /**
  * Destroys all character ECS entities in the world.
@@ -189,12 +172,8 @@ export const destroyAllCharacterEntities = (state: GameState): void => {
 /**
  * Creates a ground omnibox ECS entity at the given position.
  */
-export const createGroundOmniboxTestEntity = (
-  state: GameState,
-  uid: string,
-  x: number,
-  y: number,
-): Entity => createGroundOmniboxEntity(state, uid, x, y)
+export const createGroundOmniboxTestEntity = (state: GameState, uid: string, x: number, y: number): Entity =>
+  createGroundOmniboxEntity(state, uid, x, y)
 
 /**
  * Queries all ground omnibox ECS entities in the world.
@@ -202,4 +181,24 @@ export const createGroundOmniboxTestEntity = (
 export const getGroundOmniboxEntities = (state: GameState): Entity[] =>
   state.world
     .query(ComponentType.OmniboxLink, ComponentType.EntityTag)
-    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox')
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox')
+
+/**
+ * Creates a beehive ECS entity at the given position.
+ */
+export const createBeehiveEntity = (state: GameState, x: number, y: number): Entity => {
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x, y })
+  state.world.addComponent(e, ComponentType.EntityTag, 'beehive')
+  state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
+  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
+  return e
+}
+
+/**
+ * Queries all beehive ECS entities in the world.
+ */
+export const getBeehiveEntities = (state: GameState): Entity[] =>
+  state.world
+    .query(ComponentType.EntityTag)
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'beehive')

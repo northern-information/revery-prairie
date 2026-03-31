@@ -60,6 +60,15 @@ const ITEMS = {
     category: ItemCategory.Gizmo,
     shape: ['##', '##'],
   },
+  honey: {
+    name: 'Honey',
+    description: 'golden nectar from the hive',
+    glyph: '~',
+    glyphColor: '#DAA520',
+    weight: 1,
+    category: ItemCategory.Flora,
+    shape: ['#'],
+  },
 } as const satisfies Record<string, ItemEntry>
 
 export const ITEM_DEFINITIONS: Record<string, ItemDefinition> = Object.fromEntries(

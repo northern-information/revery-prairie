@@ -1,10 +1,9 @@
 import { spawnShootingStar, tickShootingStars } from './celestial'
-import { ComponentType } from './ecs/types'
-import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
-import { tickDialogTransition, tickDialogTyping } from './interaction'
-import { movePlayer, tickPath } from './movement'
+import { tickCloverGrowth, tickCloverHives } from './clover'
 import {
   BEE_TICK_MS,
+  CLOVER_GROWTH_TICK_MS,
+  CLOVER_HIVE_TICK_MS,
   CRUMBLE_DURATION_MS,
   GHOST_TICK_MS,
   KEYBOARD_MOVE_TICK_MS,
@@ -13,7 +12,11 @@ import {
   SHOOTING_STAR_TICK_MS,
   WEATHER_TICK_MS,
 } from './constants'
+import { ComponentType } from './ecs/types'
+import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
+import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { getDefinition } from './items'
+import { movePlayer, tickPath } from './movement'
 import { Zone } from './types'
 import { tickWeather } from './weather'
 
@@ -57,9 +60,7 @@ interface TickEntry {
   lastTick: number
 }
 
-const createDefaultSystems = (
-  callbacks: GameLoopCallbacks,
-): TickSystem[] => {
+const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
   let lastDialogTypingTick = 0
 
   return [
@@ -78,13 +79,7 @@ const createDefaultSystems = (
             const result = pickUpGroundItems(state, time)
             for (const defId of result.pickedUp) {
               const def = getDefinition(defId)
-              callbacks.onPickup?.(
-                def.name,
-                def.glyph,
-                def.glyphColor,
-                state.player.x,
-                state.player.y,
-              )
+              callbacks.onPickup?.(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
             }
             if (result.chainExplosions > 0) {
               const meteoriteDef = getDefinition('meteorite')
@@ -121,13 +116,7 @@ const createDefaultSystems = (
             const result = pickUpGroundItems(state, time)
             for (const defId of result.pickedUp) {
               const def = getDefinition(defId)
-              callbacks.onPickup?.(
-                def.name,
-                def.glyph,
-                def.glyphColor,
-                state.player.x,
-                state.player.y,
-              )
+              callbacks.onPickup?.(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
             }
             if (result.chainExplosions > 0) {
               const meteoriteDef = getDefinition('meteorite')
@@ -150,7 +139,7 @@ const createDefaultSystems = (
       id: 'bee',
       intervalMs: BEE_TICK_MS,
       zone: 'overworld',
-      fn: (state) => {
+      fn: state => {
         tickBees(state, Zone.Overworld)
       },
     },
@@ -158,7 +147,7 @@ const createDefaultSystems = (
       id: 'bee-cave',
       intervalMs: BEE_TICK_MS,
       zone: 'cave',
-      fn: (state) => {
+      fn: state => {
         tickBees(state, Zone.Cave)
       },
     },
@@ -166,7 +155,7 @@ const createDefaultSystems = (
       id: 'character-behaviors',
       intervalMs: GHOST_TICK_MS,
       zone: 'overworld',
-      fn: (state) => {
+      fn: state => {
         tickCharacterBehaviors(state, Zone.Overworld)
       },
     },
@@ -174,7 +163,7 @@ const createDefaultSystems = (
       id: 'shooting-star-spawn',
       intervalMs: SHOOTING_STAR_SPAWN_TICK_MS,
       zone: 'overworld',
-      fn: (state) => {
+      fn: state => {
         spawnShootingStar(state)
       },
     },
@@ -190,8 +179,26 @@ const createDefaultSystems = (
       id: 'weather',
       intervalMs: WEATHER_TICK_MS,
       zone: 'overworld',
-      fn: (state) => {
+      fn: state => {
         tickWeather(state.weather)
+      },
+    },
+    {
+      id: 'clover-growth',
+      intervalMs: CLOVER_GROWTH_TICK_MS,
+      zone: 'overworld',
+      priority: 50,
+      fn: state => {
+        tickCloverGrowth(state)
+      },
+    },
+    {
+      id: 'clover-hive',
+      intervalMs: CLOVER_HIVE_TICK_MS,
+      zone: 'overworld',
+      priority: 55,
+      fn: state => {
+        tickCloverHives(state)
       },
     },
     {
@@ -202,11 +209,7 @@ const createDefaultSystems = (
         if (!state.activeDialog) return
         const prevTypingIndex = state.activeDialog.typingIndex
         const prevTransitioning = state.activeDialog.transitioning
-        lastDialogTypingTick = tickDialogTyping(
-          state,
-          lastDialogTypingTick,
-          time,
-        )
+        lastDialogTypingTick = tickDialogTyping(state, lastDialogTypingTick, time)
         tickDialogTransition(state, time)
         if (
           state.activeDialog.typingIndex !== prevTypingIndex ||
@@ -239,17 +242,14 @@ const sortEntries = (entries: TickEntry[]): void => {
   entries.sort((a, b) => (a.system.priority ?? 0) - (b.system.priority ?? 0))
 }
 
-export const createGameLoop = (
-  state: GameState,
-  callbacks: GameLoopCallbacks,
-): GameLoop => {
+export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): GameLoop => {
   const entries: TickEntry[] = []
   let rafId = 0
   let running = false
   let paused = false
 
   const register = (system: TickSystem): void => {
-    const existing = entries.findIndex((e) => e.system.id === system.id)
+    const existing = entries.findIndex(e => e.system.id === system.id)
     if (existing !== -1) {
       entries[existing] = { system, lastTick: 0 }
     } else {
@@ -259,7 +259,7 @@ export const createGameLoop = (
   }
 
   const unregister = (id: string): void => {
-    const idx = entries.findIndex((e) => e.system.id === id)
+    const idx = entries.findIndex(e => e.system.id === id)
     if (idx !== -1) {
       entries.splice(idx, 1)
     }
@@ -272,10 +272,7 @@ export const createGameLoop = (
 
   const tick = (time: number): void => {
     for (const entry of entries) {
-      if (
-        entry.system.intervalMs === 0 ||
-        time - entry.lastTick >= entry.system.intervalMs
-      ) {
+      if (entry.system.intervalMs === 0 || time - entry.lastTick >= entry.system.intervalMs) {
         // For zone-specific systems, temporarily swap state.map to that
         // zone's map so tick functions read the correct terrain.
         // 'always' systems use the current zone's map as-is.
