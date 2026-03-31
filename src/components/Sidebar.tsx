@@ -1,17 +1,17 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ItemInfo } from './ItemInfo'
 import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { getCharacterDefinition } from '@/engine/characters'
-import { SPACE_BORDER, TILE_COLORS } from '@/engine/constants'
+import { CLOVER_WATER_MAX, SOIL_HEALTH_DEFAULT, SPACE_BORDER, TILE_COLORS } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { getTileEffects } from '@/engine/effects'
 import { getDefinition } from '@/engine/items'
-import { TileType, Zone } from '@/engine/types'
+import { isInBounds, posKey } from '@/engine/position'
+import { CloverStage, TileType, Zone } from '@/engine/types'
 import { fToC, mphToKph } from '@/engine/weather'
 import type { ItemInfoHandle } from './ItemInfo'
-import type { CharMetrics } from '@/engine/types'
-import type { GameState } from '@/engine/types'
+import type { CharMetrics, GameState } from '@/engine/types'
 import type { GameEvent } from '@/hooks/useEventLog'
 import type { Panel } from '@/hooks/useKeyboard'
 
@@ -42,6 +42,7 @@ interface SidebarProps {
 export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef }: SidebarProps) => {
   const { metric } = state
   const cursorRef = useRef<{ x: number; y: number } | null>(null)
+  const [, setCursorVersion] = useState(0)
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -57,6 +58,7 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
           cursorRef.current = null
           state.cursorScreenPos = null
           state.cursorTile = null
+          setCursorVersion(v => v + 1)
         }
         return
       }
@@ -68,6 +70,7 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
       if (cursorRef.current?.x === sx && cursorRef.current?.y === sy) return
       cursorRef.current = { x: sx, y: sy }
       state.cursorScreenPos = { x: sx, y: sy }
+      setCursorVersion(v => v + 1)
     }
 
     window.addEventListener('mousemove', handleMouseMove)
@@ -92,7 +95,6 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
   const sandCount = countTiles(state, TileType.Sand)
   const dirtCount = total - cloverCount - sandCount
   const { weather } = state
-
 
   const temp = metric ? `${String(fToC(weather.temperatureF))}°C` : `${String(weather.temperatureF)}°F`
   const wind = metric
@@ -155,10 +157,7 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
                       }
                       const groundItemEid = state.world.spatial
                         .at(cx, cy)
-                        .find(
-                          (eid) =>
-                            state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem',
-                        )
+                        .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
                       if (groundItemEid !== undefined) {
                         const drop = state.world.getComponent(groundItemEid, ComponentType.ItemDrop)
                         if (drop) return getDefinition(drop.definitionId).name.toLowerCase()
@@ -180,6 +179,62 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
                       </td>
                     </tr>
                   )
+                })()}
+                {(() => {
+                  const cx = cursorTile.x
+                  const cy = cursorTile.y
+                  if (!isInBounds(cx, cy, state.mapWidth, state.mapHeight)) return null
+                  const tile = state.map[cy][cx]
+                  const key = posKey(cx, cy)
+                  const soilHealth = state.soilHealth.get(key) ?? SOIL_HEALTH_DEFAULT
+                  const lifecycle = state.cloverLifecycle.get(key)
+
+                  if (tile.type === TileType.Clover) {
+                    const water = lifecycle?.water ?? CLOVER_WATER_MAX
+                    const stage = lifecycle?.stage ?? CloverStage.Healthy
+                    const statusLabel =
+                      stage === CloverStage.Healthy
+                        ? 'healthy'
+                        : stage === CloverStage.Brown
+                          ? 'wilting'
+                          : stage === CloverStage.BlinkingRed
+                            ? 'dying'
+                            : stage === CloverStage.Black
+                              ? 'dead'
+                              : 'decomposing'
+                    const statusColor = stage === CloverStage.Healthy ? '#50C878' : '#8B0000'
+                    return (
+                      <>
+                        <tr>
+                          <td className="text-muted py-0.5">water</td>
+                          <td className="py-0.5 text-right">
+                            {water}/{CLOVER_WATER_MAX}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="text-muted py-0.5">soil</td>
+                          <td className="py-0.5 text-right">{soilHealth}</td>
+                        </tr>
+                        <tr>
+                          <td className="text-muted py-0.5">status</td>
+                          <td className="py-0.5 text-right" style={{ color: statusColor }}>
+                            {statusLabel}
+                          </td>
+                        </tr>
+                      </>
+                    )
+                  }
+
+                  if (tile.type === TileType.Dirt) {
+                    return (
+                      <tr>
+                        <td className="text-muted py-0.5">soil</td>
+                        <td className="py-0.5 text-right">{soilHealth}</td>
+                      </tr>
+                    )
+                  }
+
+                  return null
                 })()}
               </tbody>
             </table>
@@ -213,7 +268,9 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
               </tr>
               <tr>
                 <td className="text-muted py-0.5">location</td>
-                <td className="py-0.5 text-right">{state.currentZone === 'overworld' ? 'prairie' : state.currentZone}</td>
+                <td className="py-0.5 text-right">
+                  {state.currentZone === 'overworld' ? 'prairie' : state.currentZone}
+                </td>
               </tr>
               <tr>
                 <td className="text-muted py-0.5">total land</td>
@@ -238,19 +295,31 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
                   bees <span className="text-bee">*</span>
                 </td>
                 <td className="text-bee py-0.5 text-right">
-                  {state.world.query(ComponentType.EntityTag).filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee').length}
+                  {
+                    state.world
+                      .query(ComponentType.EntityTag)
+                      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee').length
+                  }
                 </td>
               </tr>
               <tr>
                 <td className="text-muted py-0.5">meteorites ✦</td>
                 <td className="text-meteorite py-0.5 text-right">
-                  {state.world.query(ComponentType.EntityTag).filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite').length}
+                  {
+                    state.world
+                      .query(ComponentType.EntityTag)
+                      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite').length
+                  }
                 </td>
               </tr>
               <tr>
                 <td className="text-muted py-0.5">prairie</td>
                 <td className="py-0.5 text-right">
-                  {state.world.query(ComponentType.EntityTag).some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee') ? 'yes' : 'no'}
+                  {state.world
+                    .query(ComponentType.EntityTag)
+                    .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+                    ? 'yes'
+                    : 'no'}
                 </td>
               </tr>
             </tbody>
@@ -284,7 +353,6 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
             </tbody>
           </table>
         </div>
-
       </div>
     </div>
   )

@@ -3,8 +3,15 @@ import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
 import { placeItem } from '../inventory'
 import { TileType } from '../types'
-
-import { clearAroundPlayer, createCharacterTestEntity, createGroundItemEntity, createGroundOmniboxTestEntity, createMeteoriteEntity, createTestState, getMeteoriteEntities } from './helpers'
+import {
+  clearAroundPlayer,
+  createCharacterTestEntity,
+  createGroundItemEntity,
+  createGroundOmniboxTestEntity,
+  createMeteoriteEntity,
+  createTestState,
+  getMeteoriteEntities,
+} from './helpers'
 
 describe('chain explosion', () => {
   describe('spawnChainMeteorites', () => {
@@ -17,7 +24,8 @@ describe('chain explosion', () => {
 
       expect(spawned).toBe(3)
       expect(getMeteoriteEntities(state)).toHaveLength(3)
-      const explosions = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+      const explosions = state.world
+        .query(ComponentType.TimedEffect, ComponentType.EntityTag)
         .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
       expect(explosions).toHaveLength(3)
     })
@@ -42,7 +50,8 @@ describe('chain explosion', () => {
 
       spawnChainMeteorites(state, origin, 5000)
 
-      const explosionEids = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+      const explosionEids = state.world
+        .query(ComponentType.TimedEffect, ComponentType.EntityTag)
         .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
       for (const eid of explosionEids) {
         const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
@@ -50,10 +59,10 @@ describe('chain explosion', () => {
       }
       // Each explosion position matches a meteorite position
       const meteoriteKeys = new Set(
-        getMeteoriteEntities(state).map((eid) => {
+        getMeteoriteEntities(state).map(eid => {
           const pos = state.world.getComponent(eid, ComponentType.Position)
           return `${String(pos?.x)},${String(pos?.y)}`
-        }),
+        })
       )
       for (const eid of explosionEids) {
         const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -71,7 +80,7 @@ describe('chain explosion', () => {
 
       spawnChainMeteorites(state, origin, 1000)
 
-      const keys = getMeteoriteEntities(state).map((eid) => {
+      const keys = getMeteoriteEntities(state).map(eid => {
         const pos = state.world.getComponent(eid, ComponentType.Position)
         return `${String(pos?.x)},${String(pos?.y)}`
       })
@@ -259,7 +268,8 @@ describe('chain explosion', () => {
 
       expect(spawned).toBe(0)
       expect(getMeteoriteEntities(state)).toHaveLength(0)
-      const explosions = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+      const explosions = state.world
+        .query(ComponentType.TimedEffect, ComponentType.EntityTag)
         .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
       expect(explosions).toHaveLength(0)
     })
@@ -379,7 +389,7 @@ describe('chain explosion', () => {
         // Original meteorite consumed — no meteorites at player position
         const meteoritesAtPlayer = state.world.spatial
           .at(state.player.x, state.player.y)
-          .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+          .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
         expect(meteoritesAtPlayer).toHaveLength(0)
       } finally {
         Math.random = orig

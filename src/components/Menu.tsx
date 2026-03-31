@@ -17,7 +17,7 @@ export const Menu = ({ onResume, onNewGame, metric, onToggleUnits, musicEnabled,
     <div className="fixed inset-0 z-10" onClick={onResume}>
       <div
         className="border-border text-text fixed top-1/2 left-1/2 min-w-56 -translate-x-1/2 -translate-y-1/2 border bg-black/85 px-8 py-6 font-mono text-sm"
-        onClick={(e) => {
+        onClick={e => {
           e.stopPropagation()
         }}
       >

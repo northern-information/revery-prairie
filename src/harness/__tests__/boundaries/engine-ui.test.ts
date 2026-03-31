@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs'
-import { resolve, join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../../../..')
 const ENGINE_DIR = resolve(REPO_ROOT, 'src/engine')

@@ -1,9 +1,8 @@
-import { mkdtempSync, writeFileSync, cpSync } from 'node:fs'
-import { join } from 'node:path'
+import { cpSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { resolve } from 'node:path'
-import { stringify } from 'yaml'
+import { join, resolve } from 'node:path'
 import { validate } from '../src/validator.ts'
+import { stringify } from 'yaml'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../..')
 const SCHEMA_SRC = resolve(REPO_ROOT, 'harness/specs/spec-schema.json')
@@ -96,7 +95,7 @@ describe('validator', () => {
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.code === 'YAML_PARSE_ERROR')).toBe(true)
+      expect(result.errors.some(e => e.code === 'YAML_PARSE_ERROR')).toBe(true)
     })
   })
 
@@ -110,7 +109,7 @@ describe('validator', () => {
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.code === 'SCHEMA_VALIDATION')).toBe(true)
+      expect(result.errors.some(e => e.code === 'SCHEMA_VALIDATION')).toBe(true)
     })
 
     it('reports invalid id format (not kebab-case)', () => {
@@ -120,11 +119,7 @@ describe('validator', () => {
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      expect(
-        result.errors.some(
-          (e) => e.code === 'SCHEMA_VALIDATION' && e.field.includes('id'),
-        ),
-      ).toBe(true)
+      expect(result.errors.some(e => e.code === 'SCHEMA_VALIDATION' && e.field.includes('id'))).toBe(true)
     })
 
     it('reports invalid status value', () => {
@@ -134,7 +129,7 @@ describe('validator', () => {
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.code === 'SCHEMA_VALIDATION')).toBe(true)
+      expect(result.errors.some(e => e.code === 'SCHEMA_VALIDATION')).toBe(true)
     })
   })
 
@@ -149,7 +144,7 @@ describe('validator', () => {
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.code === 'DUPLICATE_SPEC_ID')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DUPLICATE_SPEC_ID')).toBe(true)
     })
 
     it('reports duplicate behavior IDs within a spec', () => {
@@ -179,7 +174,7 @@ describe('validator', () => {
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.code === 'DUPLICATE_BEHAVIOR_ID')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DUPLICATE_BEHAVIOR_ID')).toBe(true)
     })
 
     it('reports duplicate edge case IDs within a spec', () => {
@@ -203,7 +198,7 @@ describe('validator', () => {
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.code === 'DUPLICATE_EDGE_CASE_ID')).toBe(true)
+      expect(result.errors.some(e => e.code === 'DUPLICATE_EDGE_CASE_ID')).toBe(true)
     })
   })
 
@@ -217,7 +212,7 @@ describe('validator', () => {
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.code === 'MISSING_DEPENDENCY')).toBe(true)
+      expect(result.errors.some(e => e.code === 'MISSING_DEPENDENCY')).toBe(true)
     })
 
     it('accepts valid dependency references', () => {
@@ -227,7 +222,7 @@ describe('validator', () => {
 
       const result = validate(dir, REPO_ROOT)
 
-      expect(result.errors.filter((e) => e.code === 'MISSING_DEPENDENCY')).toHaveLength(0)
+      expect(result.errors.filter(e => e.code === 'MISSING_DEPENDENCY')).toHaveLength(0)
     })
   })
 
@@ -242,9 +237,9 @@ describe('validator', () => {
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      const cycleErrors = result.errors.filter((e) => e.code === 'DEPENDENCY_CYCLE')
+      const cycleErrors = result.errors.filter(e => e.code === 'DEPENDENCY_CYCLE')
       expect(cycleErrors).toHaveLength(2)
-      expect(cycleErrors.map((e) => e.specId).sort()).toEqual(['cycle-a', 'cycle-b'])
+      expect(cycleErrors.map(e => e.specId).sort()).toEqual(['cycle-a', 'cycle-b'])
     })
 
     it('reports 3-node dependency cycles', () => {
@@ -256,7 +251,7 @@ describe('validator', () => {
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      const cycleErrors = result.errors.filter((e) => e.code === 'DEPENDENCY_CYCLE')
+      const cycleErrors = result.errors.filter(e => e.code === 'DEPENDENCY_CYCLE')
       expect(cycleErrors).toHaveLength(3)
     })
   })
@@ -266,20 +261,12 @@ describe('validator', () => {
   describe('file existence', () => {
     it('reports missing source files as errors for implemented specs', () => {
       const dir = makeSpecDir()
-      writeSpec(
-        dir,
-        'test.yaml',
-        minimalSpec({ source_files: ['src/engine/nonexistent.ts'] }),
-      )
+      writeSpec(dir, 'test.yaml', minimalSpec({ source_files: ['src/engine/nonexistent.ts'] }))
 
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      expect(
-        result.errors.some(
-          (e) => e.code === 'FILE_NOT_FOUND' && e.field === 'source_files',
-        ),
-      ).toBe(true)
+      expect(result.errors.some(e => e.code === 'FILE_NOT_FOUND' && e.field === 'source_files')).toBe(true)
     })
 
     it('reports missing source files as warnings for planned specs', () => {
@@ -295,14 +282,14 @@ describe('validator', () => {
             test_pattern: 'future',
             command: 'npx vitest run src/engine/__tests__/future.test.ts',
           },
-        }),
+        })
       )
 
       const result = validate(dir, REPO_ROOT)
 
       // no errors, only warnings
-      expect(result.errors.filter((e) => e.code === 'FILE_NOT_FOUND')).toHaveLength(0)
-      expect(result.warnings.filter((e) => e.code === 'FILE_NOT_FOUND').length).toBeGreaterThan(0)
+      expect(result.errors.filter(e => e.code === 'FILE_NOT_FOUND')).toHaveLength(0)
+      expect(result.warnings.filter(e => e.code === 'FILE_NOT_FOUND').length).toBeGreaterThan(0)
     })
 
     it('reports missing test file', () => {
@@ -316,17 +303,13 @@ describe('validator', () => {
             test_pattern: 'foo',
             command: 'npx vitest run src/engine/__tests__/nonexistent.test.ts',
           },
-        }),
+        })
       )
 
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      expect(
-        result.errors.some(
-          (e) => e.code === 'FILE_NOT_FOUND' && e.field === 'verification.test_file',
-        ),
-      ).toBe(true)
+      expect(result.errors.some(e => e.code === 'FILE_NOT_FOUND' && e.field === 'verification.test_file')).toBe(true)
     })
   })
 
@@ -344,18 +327,14 @@ describe('validator', () => {
             test_pattern: 'movePlayer',
             command: 'jest --runInBand',
           },
-        }),
+        })
       )
 
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
       expect(
-        result.errors.some(
-          (e) =>
-            e.code === 'INVALID_VERIFICATION_COMMAND' &&
-            e.message.includes('must start with'),
-        ),
+        result.errors.some(e => e.code === 'INVALID_VERIFICATION_COMMAND' && e.message.includes('must start with'))
       ).toBe(true)
     })
 
@@ -370,7 +349,7 @@ describe('validator', () => {
             test_pattern: 'movePlayer',
             command: 'npx vitest run foo && rm -rf /',
           },
-        }),
+        })
       )
 
       const result = validate(dir, REPO_ROOT)
@@ -378,10 +357,8 @@ describe('validator', () => {
       expect(result.valid).toBe(false)
       expect(
         result.errors.some(
-          (e) =>
-            e.code === 'INVALID_VERIFICATION_COMMAND' &&
-            e.message.includes('disallowed shell characters'),
-        ),
+          e => e.code === 'INVALID_VERIFICATION_COMMAND' && e.message.includes('disallowed shell characters')
+        )
       ).toBe(true)
     })
 
@@ -391,9 +368,7 @@ describe('validator', () => {
 
       const result = validate(dir, REPO_ROOT)
 
-      expect(
-        result.errors.filter((e) => e.code === 'INVALID_VERIFICATION_COMMAND'),
-      ).toHaveLength(0)
+      expect(result.errors.filter(e => e.code === 'INVALID_VERIFICATION_COMMAND')).toHaveLength(0)
     })
   })
 
@@ -426,17 +401,13 @@ describe('validator', () => {
                 determinism: 'deterministic',
               },
             ],
-          }),
+          })
         )
 
         const result = validate(dir, REPO_ROOT)
 
         expect(result.valid).toBe(false)
-        expect(
-          result.errors.some(
-            (e) => e.code === 'VAGUE_DESCRIPTION' && e.message.includes(phrase),
-          ),
-        ).toBe(true)
+        expect(result.errors.some(e => e.code === 'VAGUE_DESCRIPTION' && e.message.includes(phrase))).toBe(true)
       })
     }
 
@@ -453,13 +424,13 @@ describe('validator', () => {
               expected: 'no crash',
             },
           ],
-        }),
+        })
       )
 
       const result = validate(dir, REPO_ROOT)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.code === 'VAGUE_DESCRIPTION')).toBe(true)
+      expect(result.errors.some(e => e.code === 'VAGUE_DESCRIPTION')).toBe(true)
     })
   })
 
@@ -482,14 +453,12 @@ describe('validator', () => {
               determinism: 'probabilistic',
             },
           ],
-        }),
+        })
       )
 
       const result = validate(dir, REPO_ROOT)
 
-      expect(
-        result.warnings.some((e) => e.code === 'DETERMINISM_INCONSISTENCY'),
-      ).toBe(true)
+      expect(result.warnings.some(e => e.code === 'DETERMINISM_INCONSISTENCY')).toBe(true)
     })
 
     it('does not warn when probabilistic behaviors have statistical edge cases', () => {
@@ -515,14 +484,12 @@ describe('validator', () => {
               expected: 'chi-squared test passes at p > 0.01 over 10000 trials',
             },
           ],
-        }),
+        })
       )
 
       const result = validate(dir, REPO_ROOT)
 
-      expect(
-        result.warnings.filter((e) => e.code === 'DETERMINISM_INCONSISTENCY'),
-      ).toHaveLength(0)
+      expect(result.warnings.filter(e => e.code === 'DETERMINISM_INCONSISTENCY')).toHaveLength(0)
     })
 
     it('does not warn for deterministic-only specs', () => {
@@ -531,9 +498,7 @@ describe('validator', () => {
 
       const result = validate(dir, REPO_ROOT)
 
-      expect(
-        result.warnings.filter((e) => e.code === 'DETERMINISM_INCONSISTENCY'),
-      ).toHaveLength(0)
+      expect(result.warnings.filter(e => e.code === 'DETERMINISM_INCONSISTENCY')).toHaveLength(0)
     })
   })
 })

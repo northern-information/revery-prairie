@@ -1,9 +1,8 @@
-import { describe, expect, it } from 'vitest'
-
-import { AURA_RADIUS, getTileEffects } from '../effects'
-import { createGameState } from '../state'
-import { createCharacterEntity } from '../entities'
 import { ComponentType } from '../ecs/types'
+import { AURA_RADIUS, getTileEffects } from '../effects'
+import { createCharacterEntity } from '../entities'
+import { createGameState } from '../state'
+import { describe, expect, it } from 'vitest'
 
 const makeState = () => {
   const state = createGameState('test', 80, 40)

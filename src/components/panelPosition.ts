@@ -18,7 +18,7 @@ export const clampPanelPosition = (
   panelWidth: number,
   panelHeight: number,
   viewportWidth: number,
-  viewportHeight: number,
+  viewportHeight: number
 ): PanelPosition => {
   // Candidate positions for each axis
   const rightX = playerScreenX + charWidth + PANEL_GAP

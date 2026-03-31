@@ -7,9 +7,9 @@
  * - cycleParticipants: IDs that could not be sorted (involved in a cycle)
  */
 export const topoSortTiers = (
-  items: { id: string; depends_on: string[] }[],
+  items: { id: string; depends_on: string[] }[]
 ): { tiers: string[][]; cycleParticipants: string[] } => {
-  const ids = new Set(items.map((t) => t.id))
+  const ids = new Set(items.map(t => t.id))
 
   const inDegree = new Map<string, number>()
   const dependents = new Map<string, string[]>()
@@ -51,7 +51,7 @@ export const topoSortTiers = (
   }
 
   const sorted = new Set(tiers.flat())
-  const cycleParticipants = [...ids].filter((id) => !sorted.has(id))
+  const cycleParticipants = [...ids].filter(id => !sorted.has(id))
 
   return { tiers, cycleParticipants }
 }

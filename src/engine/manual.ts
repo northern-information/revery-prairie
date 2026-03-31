@@ -273,6 +273,48 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     unlockKey: 'event:clover-growth',
     sourceKind: 'event',
   },
+  {
+    id: 'clover-death',
+    name: 'Clover Death',
+    category: ManualCategory.Flora,
+    glyph: '%',
+    glyphColor: '#8B6914',
+    summary: 'clover withers without light and water',
+    lore:
+      MANUAL_LORE['clover-death']?.lore ??
+      'clover needs both light and water to survive. without them it slowly browns, then blinks red in distress, turns black, and finally decomposes back into the earth — enriching the soil as it goes.',
+    hints: MANUAL_LORE['clover-death']?.hints ?? [],
+    unlockKey: 'event:clover-death',
+    sourceKind: 'event',
+  },
+  {
+    id: 'clover-harvest',
+    name: 'Clover Harvest',
+    category: ManualCategory.Flora,
+    glyph: '%',
+    glyphColor: '#50C878',
+    summary: 'harvesting clover with [f]',
+    lore:
+      MANUAL_LORE['clover-harvest']?.lore ??
+      'pressing [f] while facing clover harvests it into your backpack. the tile returns to bare dirt. harvested clover does not enrich the soil.',
+    hints: MANUAL_LORE['clover-harvest']?.hints ?? [],
+    unlockKey: 'event:clover-harvest',
+    sourceKind: 'event',
+  },
+  {
+    id: 'clover-cut',
+    name: 'Clover Cut',
+    category: ManualCategory.Flora,
+    glyph: '%',
+    glyphColor: '#50C878',
+    summary: 'cutting clover with [x]',
+    lore:
+      MANUAL_LORE['clover-cut']?.lore ??
+      'pressing [x] while facing clover cuts it down to bare dirt. unlike harvesting, cutting returns nutrients to the earth, enriching the soil.',
+    hints: MANUAL_LORE['clover-cut']?.hints ?? [],
+    unlockKey: 'event:clover-cut',
+    sourceKind: 'event',
+  },
 ]
 
 // --- Registry assembly ---

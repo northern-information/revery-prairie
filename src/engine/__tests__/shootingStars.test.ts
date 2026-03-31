@@ -1,6 +1,4 @@
 import { spawnShootingStar, spawnShootingStarAtTarget, tickShootingStars } from '../celestial'
-import { ComponentType } from '../ecs/types'
-import { pickUpGroundItems } from '../entities'
 import {
   EXPLOSION_DURATION_MS,
   MAP_HEIGHT,
@@ -8,6 +6,8 @@ import {
   SHOOTING_STAR_MAX_ACTIVE,
   SHOOTING_STAR_MAX_AGE,
 } from '../constants'
+import { ComponentType } from '../ecs/types'
+import { pickUpGroundItems } from '../entities'
 import { createGameState } from '../state'
 import { TileType } from '../types'
 import { describe, expect, it } from 'vitest'
@@ -25,7 +25,7 @@ const createStarEntity = (
     age: number
     willLand: boolean
     landingTarget: Position | null
-  }> = {},
+  }> = {}
 ): Entity => {
   const e = state.world.createEntity()
   const pos = overrides.pos ?? { x: 50, y: 50 }
@@ -44,8 +44,7 @@ const createStarEntity = (
   return e
 }
 
-const getStarCount = (state: GameState): number =>
-  state.world.query(ComponentType.ShootingStarData).length
+const getStarCount = (state: GameState): number => state.world.query(ComponentType.ShootingStarData).length
 
 const destroyAllStars = (state: GameState): void => {
   for (const eid of state.world.query(ComponentType.ShootingStarData)) {
@@ -56,7 +55,7 @@ const destroyAllStars = (state: GameState): void => {
 const getMeteoriteEntities = (state: GameState): Entity[] =>
   state.world
     .query(ComponentType.EntityTag)
-    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
 
 const destroyAllMeteorites = (state: GameState): void => {
   for (const eid of getMeteoriteEntities(state)) {
@@ -76,11 +75,7 @@ const clearAroundPlayer = (state: GameState) => {
   }
 }
 
-const createMeteoriteEntity = (
-  state: GameState,
-  x: number,
-  y: number,
-): Entity => {
+const createMeteoriteEntity = (state: GameState, x: number, y: number): Entity => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.Pickupable, { definitionId: 'meteorite' })
@@ -177,7 +172,7 @@ describe('tickShootingStars', () => {
 
     const explosions = state.world
       .query(ComponentType.TimedEffect, ComponentType.EntityTag)
-      .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
     expect(explosions).toHaveLength(1)
     const pos = state.world.getComponent(explosions[0], ComponentType.Position)
     const effect = state.world.getComponent(explosions[0], ComponentType.TimedEffect)
@@ -198,7 +193,7 @@ describe('tickShootingStars', () => {
 
     const explosions = state.world
       .query(ComponentType.TimedEffect, ComponentType.EntityTag)
-      .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
     expect(explosions).toHaveLength(0)
   })
 
@@ -291,8 +286,7 @@ describe('spawnShootingStar', () => {
         const pos = state.world.getComponent(stars[0], ComponentType.Position)
         expect(pos).toBeDefined()
         if (pos) {
-          const onEdge =
-            pos.x === 0 || pos.x === MAP_WIDTH - 1 || pos.y === 0 || pos.y === MAP_HEIGHT - 1
+          const onEdge = pos.x === 0 || pos.x === MAP_WIDTH - 1 || pos.y === 0 || pos.y === MAP_HEIGHT - 1
           expect(onEdge).toBe(true)
         }
       }
@@ -345,7 +339,7 @@ describe('pickupMeteorite', () => {
 
     pickUpGroundItems(state)
 
-    const hasMeteorite = state.backpack.items.some((item) => item.definitionId === 'meteorite')
+    const hasMeteorite = state.backpack.items.some(item => item.definitionId === 'meteorite')
     expect(hasMeteorite).toBe(true)
   })
 })

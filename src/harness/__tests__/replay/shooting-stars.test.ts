@@ -1,19 +1,18 @@
 import { withSeededRandom } from '@/harness/prng'
-import { createGameState } from '@/engine/state'
+
 import { spawnShootingStarAtTarget, tickMeteorShower, tickShootingStars } from '@/engine/celestial'
 import { ComponentType } from '@/engine/ecs/types'
-
+import { createGameState } from '@/engine/state'
 import type { GameState } from '@/engine/types'
 
 const SEED = 42
 
-const createSeededState = () =>
-  withSeededRandom(SEED, () => createGameState('test', 40, 30))
+const createSeededState = () => withSeededRandom(SEED, () => createGameState('test', 40, 30))
 
 const getMeteoriteEntities = (state: GameState) =>
   state.world
     .query(ComponentType.EntityTag)
-    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
 
 /** Trigger the opening meteor shower and spawn all its stars */
 const spawnOpeningShower = (state: GameState): number => {
@@ -42,7 +41,7 @@ describe('replay: shooting stars', () => {
           tickShootingStars(state, time)
           time += 100
         }
-        const meteorites = getMeteoriteEntities(state).map((eid) => {
+        const meteorites = getMeteoriteEntities(state).map(eid => {
           const pos = state.world.getComponent(eid, ComponentType.Position)
           return { x: pos?.x, y: pos?.y }
         })

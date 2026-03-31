@@ -5,8 +5,7 @@ import { updateCursorState } from '@/engine/cursor'
 import { createGameLoop } from '@/engine/gameLoop'
 import { measureChar, render } from '@/engine/renderer'
 import { useMouse } from '@/hooks/useMouse'
-import type { CharMetrics } from '@/engine/types'
-import type { GameState } from '@/engine/types'
+import type { CharMetrics, GameState } from '@/engine/types'
 import type { Panel } from '@/hooks/useKeyboard'
 
 const resizeState = (state: GameState, charWidth: number, charHeight: number) => {
@@ -90,7 +89,7 @@ export const GameCanvas = ({
       onDiscovery: (text, wx, wy, icon, iconColor) => {
         onDiscoveryRef.current(text, wx, wy, icon, iconColor)
       },
-      onFrame: (time) => {
+      onFrame: time => {
         if (metricsRef.current) {
           updateCursorState(state, metricsRef.current)
           render(ctx, state, metricsRef.current, time)

@@ -1,4 +1,4 @@
-import { _getState, _reset, setAmbient, startDialogMusic, stopDialogMusic, stopAll, setMusicEnabled } from '../audio'
+import { _getState, _reset, setAmbient, setMusicEnabled, startDialogMusic, stopAll, stopDialogMusic } from '../audio'
 
 // Mock HTMLAudioElement
 class MockAudio {
@@ -171,9 +171,12 @@ describe('audio manager', () => {
     it('clears pendingPlay so destroyed elements are never resumed', () => {
       // Simulate autoplay block: play() rejects
       const rejectPlay = vi.fn().mockRejectedValue(new DOMException('NotAllowedError'))
-      vi.stubGlobal('Audio', class extends MockAudio {
-        override play = rejectPlay
-      })
+      vi.stubGlobal(
+        'Audio',
+        class extends MockAudio {
+          override play = rejectPlay
+        }
+      )
 
       setAmbient('/music/overworld.mp3', 0)
 

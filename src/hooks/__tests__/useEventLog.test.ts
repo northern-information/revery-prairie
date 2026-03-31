@@ -1,7 +1,6 @@
-import { renderHook, act } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-
-import { useEventLog, TOAST_DURATION } from '../useEventLog'
+import { TOAST_DURATION, useEventLog } from '../useEventLog'
+import { act, renderHook } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 describe('useEventLog', () => {
   let rafCallbacks: FrameRequestCallback[]
@@ -10,7 +9,7 @@ describe('useEventLog', () => {
   beforeEach(() => {
     rafCallbacks = []
     rafIdCounter = 0
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(cb => {
       rafCallbacks.push(cb)
       return ++rafIdCounter
     })
@@ -24,7 +23,7 @@ describe('useEventLog', () => {
   const flushOneRafFrame = () => {
     const cbs = [...rafCallbacks]
     rafCallbacks = []
-    cbs.forEach((cb) => {
+    cbs.forEach(cb => {
       cb(performance.now())
     })
   }

@@ -35,6 +35,4 @@ export const ORDINAL: Position[] = [
 ]
 
 export const isWalkableTile = (tileType: TileType): boolean =>
-  tileType !== TileType.Space &&
-  tileType !== TileType.CaveWall &&
-  tileType !== TileType.CaveBreakableWall
+  tileType !== TileType.Space && tileType !== TileType.CaveWall && tileType !== TileType.CaveBreakableWall

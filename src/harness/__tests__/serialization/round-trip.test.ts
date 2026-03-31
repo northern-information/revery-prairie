@@ -1,16 +1,12 @@
 import { withSeededRandom } from '@/harness/prng'
-import {
-  serializeState,
-  deserializeState,
-  FUNCTION_FIELDS,
-} from '@/harness/serialize'
+import { deserializeState, FUNCTION_FIELDS, serializeState } from '@/harness/serialize'
+
 import { createGameState } from '@/engine/state'
 import type { GameState } from '@/engine/types'
 
 const SEED = 42
 
-const createSeededState = () =>
-  withSeededRandom(SEED, () => createGameState('test', 40, 30))
+const createSeededState = () => withSeededRandom(SEED, () => createGameState('test', 40, 30))
 
 describe('serialization round-trip', () => {
   it('persistent fields survive serialize/deserialize', () => {
@@ -18,9 +14,7 @@ describe('serialization round-trip', () => {
     const json = serializeState(original)
     const restored = deserializeState(json)
 
-    const persistentKeys = (Object.keys(original) as (keyof GameState)[]).filter(
-      (k) => !FUNCTION_FIELDS.includes(k),
-    )
+    const persistentKeys = (Object.keys(original) as (keyof GameState)[]).filter(k => !FUNCTION_FIELDS.includes(k))
 
     for (const key of persistentKeys) {
       const origVal = original[key]
@@ -28,14 +22,10 @@ describe('serialization round-trip', () => {
 
       if (origVal instanceof Map) {
         expect(restoredVal).toBeInstanceOf(Map)
-        expect([...(restoredVal as Map<string, unknown>).entries()]).toEqual(
-          [...origVal.entries()],
-        )
+        expect([...(restoredVal as Map<string, unknown>).entries()]).toEqual([...origVal.entries()])
       } else if (origVal instanceof Set) {
         expect(restoredVal).toBeInstanceOf(Set)
-        expect([...(restoredVal as Set<unknown>).values()]).toEqual(
-          [...origVal.values()],
-        )
+        expect([...(restoredVal as Set<unknown>).values()]).toEqual([...origVal.values()])
       } else {
         expect(restoredVal).toEqual(origVal)
       }
@@ -85,8 +75,8 @@ describe('serialization round-trip', () => {
     expect(a.backpack.items).toHaveLength(b.backpack.items.length)
 
     // same item definition IDs in same order
-    const aIds = a.backpack.items.map((i) => i.definitionId)
-    const bIds = b.backpack.items.map((i) => i.definitionId)
+    const aIds = a.backpack.items.map(i => i.definitionId)
+    const bIds = b.backpack.items.map(i => i.definitionId)
     expect(aIds).toEqual(bIds)
 
     // same map dimensions and player position

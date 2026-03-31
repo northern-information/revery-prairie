@@ -21,7 +21,7 @@ if (result.errors.length > 0) {
 }
 
 console.log(
-  `\n${String(result.specs.length)} spec(s), ${String(result.errors.length)} error(s), ${String(result.warnings.length)} warning(s)`,
+  `\n${String(result.specs.length)} spec(s), ${String(result.errors.length)} error(s), ${String(result.warnings.length)} warning(s)`
 )
 
 if (result.valid) {

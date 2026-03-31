@@ -1,12 +1,12 @@
 import { withSeededRandom } from '@/harness/prng'
+
 import { createGameState } from '@/engine/state'
 import { tickWeather } from '@/engine/weather'
 
 const SEED = 42
 const TICK_SEED = 77
 
-const createSeededState = () =>
-  withSeededRandom(SEED, () => createGameState('test', 40, 30))
+const createSeededState = () => withSeededRandom(SEED, () => createGameState('test', 40, 30))
 
 describe('replay: weather drift', () => {
   it('produces identical weather after the same tick sequence', () => {

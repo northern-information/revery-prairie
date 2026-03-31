@@ -1,11 +1,11 @@
 import { withSeededRandom } from '@/harness/prng'
-import { serializeState, deserializeState } from '@/harness/serialize'
+import { deserializeState, serializeState } from '@/harness/serialize'
+
 import { createGameState } from '@/engine/state'
 
 const SEED = 42
 
-const createSeededState = () =>
-  withSeededRandom(SEED, () => createGameState('test', 40, 30))
+const createSeededState = () => withSeededRandom(SEED, () => createGameState('test', 40, 30))
 
 describe('Map and Set survival', () => {
   describe('omniboxContainers (Map)', () => {

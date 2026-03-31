@@ -1,6 +1,7 @@
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { executePlan } from './executor.ts'
+
 import type { LlmClient, TaskResult } from './types.ts'
 
 const REPO_ROOT = resolve('.')
@@ -20,22 +21,15 @@ const printUsage = () => {
 
 const stubLlm: LlmClient = {
   generate: (prompt: string) => {
-    console.log(
-      '\n[stub LLM] received prompt (%d chars). returning empty response.',
-      prompt.length,
-    )
-    console.log(
-      '[stub LLM] replace this with a real LlmClient implementation.\n',
-    )
+    console.log('\n[stub LLM] received prompt (%d chars). returning empty response.', prompt.length)
+    console.log('[stub LLM] replace this with a real LlmClient implementation.\n')
     return Promise.resolve('')
   },
 }
 
 // --- Load prior results for incremental rebuilds ---
 
-const loadPriorResults = (
-  logsRoot: string,
-): Map<string, TaskResult> | undefined => {
+const loadPriorResults = (logsRoot: string): Map<string, TaskResult> | undefined => {
   if (!existsSync(logsRoot)) return undefined
 
   const runs = readdirSync(logsRoot).sort().reverse()
@@ -124,7 +118,9 @@ const statusCommand = () => {
     }
     console.log(`run: ${data.run_id}`)
     console.log(`plan: ${data.plan_id}`)
-    console.log(`passed: ${String(data.summary.passed)}, failed: ${String(data.summary.failed)}, skipped: ${String(data.summary.skipped)}, blocked: ${String(data.summary.blocked)}`)
+    console.log(
+      `passed: ${String(data.summary.passed)}, failed: ${String(data.summary.failed)}, skipped: ${String(data.summary.skipped)}, blocked: ${String(data.summary.blocked)}`
+    )
     console.log()
     for (const t of data.tasks) {
       console.log(`  ${t.task_id}: ${t.status} (${String(t.attempts.length)} attempts)`)
@@ -153,7 +149,7 @@ const statusCommand = () => {
         summary: { passed: number; failed: number }
       }
       console.log(
-        `  ${run}  plan=${data.plan_id}  passed=${String(data.summary.passed)} failed=${String(data.summary.failed)}`,
+        `  ${run}  plan=${data.plan_id}  passed=${String(data.summary.passed)} failed=${String(data.summary.failed)}`
       )
     } else {
       console.log(`  ${run}  (incomplete)`)

@@ -71,8 +71,7 @@ export const RepairStrategy = {
   Skip: 'skip',
 } as const
 
-export type RepairStrategy =
-  (typeof RepairStrategy)[keyof typeof RepairStrategy]
+export type RepairStrategy = (typeof RepairStrategy)[keyof typeof RepairStrategy]
 
 export const TaskTag = {
   Runtime: 'runtime',

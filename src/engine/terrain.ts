@@ -1,4 +1,5 @@
-import { SAND_BORDER, SPACE_BORDER } from './constants'
+import { SAND_BORDER, SOIL_HEALTH_MAX, SPACE_BORDER } from './constants'
+import { posKey } from './position'
 import { TileType } from './types'
 
 import type { Tile } from './types'
@@ -116,4 +117,31 @@ export const generateTerrain = (width: number, height: number): Tile[][] => {
   scatterSandbars(map, width, height)
 
   return map
+}
+
+/**
+ * Generate topographic soil health using layered smooth noise.
+ * Produces gradual slopes between healthier and less healthy areas.
+ * Only generates values for dirt tiles (non-dirt tiles are excluded).
+ */
+export const generateSoilHealth = (map: Tile[][], width: number, height: number): Map<string, number> => {
+  const soilHealth = new Map<string, number>()
+
+  // Generate 2D noise by combining horizontal and vertical smooth noise bands
+  // at different wavelengths for natural-looking topography
+  const hNoise1 = smoothNoise(width, 20, 12)
+  const vNoise1 = smoothNoise(height, 20, 12)
+  const hNoise2 = smoothNoise(width, 10, 25)
+  const vNoise2 = smoothNoise(height, 10, 25)
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (map[y][x].type !== TileType.Dirt) continue
+      const raw = 50 + hNoise1[x] + vNoise1[y] + hNoise2[x] + vNoise2[y]
+      const clamped = Math.max(10, Math.min(raw, SOIL_HEALTH_MAX))
+      soilHealth.set(posKey(x, y), clamped)
+    }
+  }
+
+  return soilHealth
 }

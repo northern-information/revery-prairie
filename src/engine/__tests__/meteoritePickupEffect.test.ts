@@ -1,12 +1,12 @@
 import { tickShootingStars } from '../celestial'
+import { PICKUP_EFFECT_DURATION_MS } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
-import { PICKUP_EFFECT_DURATION_MS } from '../constants'
-
 import { clearAroundPlayer, createMeteoriteEntity, createTestState, getMeteoriteEntities } from './helpers'
 
 const queryPickupBlooms = (state: ReturnType<typeof createTestState>) =>
-  state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
+  state.world
+    .query(ComponentType.TimedEffect, ComponentType.EntityTag)
     .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'pickupBloom')
 
 describe('meteoritePickupEffect', () => {

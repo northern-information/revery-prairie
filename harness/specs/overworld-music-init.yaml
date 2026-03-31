@@ -1,5 +1,5 @@
 id: overworld-music-init
-name: "Overworld ambient music starts on game init"
+name: 'Overworld ambient music starts on game init'
 status: partial
 priority: high
 layer: integration
@@ -20,14 +20,14 @@ behaviors:
       the ambient audio that was destroyed by stopAll().
     inputs:
       - "GameScreen mounts with state.currentZone = 'overworld'"
-      - "state.musicEnabled = true"
+      - 'state.musicEnabled = true'
     outputs:
-      - "ambientAudio is a playing HTMLAudioElement with the overworld URL"
-      - "ambientUrl is set to the overworld music path"
+      - 'ambientAudio is a playing HTMLAudioElement with the overworld URL'
+      - 'ambientUrl is set to the overworld music path'
     state_changes:
-      - field: "audio module ambientAudio"
-        effect: "set to a new HTMLAudioElement playing the overworld track"
-      - field: "audio module ambientUrl"
+      - field: 'audio module ambientAudio'
+        effect: 'set to a new HTMLAudioElement playing the overworld track'
+      - field: 'audio module ambientUrl'
         effect: "set to ZONE_MUSIC['overworld']"
     determinism: deterministic
 
@@ -40,16 +40,16 @@ behaviors:
       GameScreen after New Game) treats the zone as fresh and
       calls setAmbient again.
     inputs:
-      - "Component unmounts (real or StrictMode simulated)"
+      - 'Component unmounts (real or StrictMode simulated)'
     outputs:
-      - "prevZoneRef.current is null"
-      - "prevCharIdRef.current is null"
-      - "All audio stopped via stopAll()"
+      - 'prevZoneRef.current is null'
+      - 'prevCharIdRef.current is null'
+      - 'All audio stopped via stopAll()'
     state_changes:
-      - field: "prevZoneRef.current"
-        effect: "reset to null"
-      - field: "prevCharIdRef.current"
-        effect: "reset to null"
+      - field: 'prevZoneRef.current'
+        effect: 'reset to null'
+      - field: 'prevCharIdRef.current'
+        effect: 'reset to null'
     determinism: deterministic
 
   - id: stopall-clears-pending
@@ -59,13 +59,13 @@ behaviors:
       safePlay. This prevents a destroyed audio element from
       being resumed after cleanup.
     inputs:
-      - "stopAll() is called"
+      - 'stopAll() is called'
     outputs:
-      - "pendingPlay is null"
-      - "No stale event listeners on document"
+      - 'pendingPlay is null'
+      - 'No stale event listeners on document'
     state_changes:
-      - field: "audio module pendingPlay"
-        effect: "set to null"
+      - field: 'audio module pendingPlay'
+        effect: 'set to null'
     determinism: deterministic
 
 edge_cases:
@@ -76,7 +76,7 @@ edge_cases:
       destroys it, and the remount must re-create it. Without
       ref reset, the remount sees prevZoneRef === currentZone
       and skips setAmbient.
-    expected: "Overworld ambient audio is playing after StrictMode double-mount completes"
+    expected: 'Overworld ambient audio is playing after StrictMode double-mount completes'
 
   - id: new-game-remount
     description: >
@@ -84,14 +84,14 @@ edge_cases:
       GameScreen unmounts, new GameScreen mounts with fresh
       key. StrictMode double-mounts the new instance. The
       ambient must start playing.
-    expected: "Overworld ambient audio is playing after New Game flow"
+    expected: 'Overworld ambient audio is playing after New Game flow'
 
   - id: pending-play-cleanup
     description: >
       If autoplay was blocked and safePlay set pendingPlay,
       then stopAll() is called before the user interacts,
       the destroyed element must not be resumed later.
-    expected: "pendingPlay is null after stopAll, no stale resume listeners"
+    expected: 'pendingPlay is null after stopAll, no stale resume listeners'
 
 failure_conditions:
   - trigger: >
@@ -99,15 +99,15 @@ failure_conditions:
       creates ambient audio; cleanup destroys it; remount
       skips setAmbient because prevZoneRef still equals
       currentZone
-    expected: "Ambient audio is re-created on remount because cleanup resets prevZoneRef to null"
+    expected: 'Ambient audio is re-created on remount because cleanup resets prevZoneRef to null'
 
   - trigger: >
       stopAll() is called while pendingPlay references an
       audio element; user later clicks triggering resumePending
       which calls play() on the destroyed element
-    expected: "pendingPlay is cleared by stopAll so resumePending is a no-op"
+    expected: 'pendingPlay is cleared by stopAll so resumePending is a no-op'
 
 verification:
   test_file: src/engine/__tests__/audio.test.ts
-  test_pattern: "stopAll clears pendingPlay"
-  command: "npx vitest run src/engine/__tests__/audio.test.ts"
+  test_pattern: 'stopAll clears pendingPlay'
+  command: 'npx vitest run src/engine/__tests__/audio.test.ts'

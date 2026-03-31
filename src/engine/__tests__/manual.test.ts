@@ -1,19 +1,17 @@
-import { describe, expect, it } from 'vitest'
-
+import { CHARACTER_DEFINITIONS } from '../characters'
 import { ITEM_DEFINITIONS } from '../items'
 import {
   CATEGORY_ORDER,
-  MANUAL_ENTRIES,
-  ManualCategory,
   filterManualEntries,
   getEntriesByCategory,
   isDiscovered,
+  MANUAL_ENTRIES,
+  ManualCategory,
   recordDiscovery,
 } from '../manual'
-import { RECIPES, recipeKey } from '../recipes'
-import { CHARACTER_DEFINITIONS } from '../characters'
-
+import { recipeKey, RECIPES } from '../recipes'
 import { createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 describe('manual', () => {
   describe('MANUAL_ENTRIES registry', () => {
@@ -184,7 +182,7 @@ describe('manual', () => {
 
     it('filters by name', () => {
       const results = filterManualEntries(allEntries, 'bee')
-      expect(results.some((e) => e.id === 'bee')).toBe(true)
+      expect(results.some(e => e.id === 'bee')).toBe(true)
     })
 
     it('is case-insensitive', () => {
@@ -195,7 +193,7 @@ describe('manual', () => {
 
     it('searches in summary', () => {
       const results = filterManualEntries(allEntries, 'fallen star')
-      expect(results.some((e) => e.id === 'meteorite')).toBe(true)
+      expect(results.some(e => e.id === 'meteorite')).toBe(true)
     })
 
     it('searches in lore', () => {

@@ -1,8 +1,7 @@
-import { describe, expect, it } from 'vitest'
-
 import { updateCursorState } from '../cursor'
 import { TileType } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { CharMetrics } from '../types'
 

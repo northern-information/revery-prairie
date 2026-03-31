@@ -1,8 +1,8 @@
-import { dropItem, pickUpGroundItems, tickBees } from '../entities'
 import { combineBeeAndClover } from '../combine'
 import { ComponentType } from '../ecs/types'
-import { movePlayer } from '../movement'
+import { dropItem, pickUpGroundItems, tickBees } from '../entities'
 import { containerHasItem, placeItem } from '../inventory'
+import { movePlayer } from '../movement'
 import { Rotation, TileType } from '../types'
 import {
   clearArea,
@@ -117,7 +117,7 @@ describe('dropItem', () => {
     const items = getGroundItemEntities(state)
     expect(items).toHaveLength(2)
     // Find the newly dropped item (not the one at N)
-    const newItem = items.find((eid) => {
+    const newItem = items.find(eid => {
       const pos = state.world.getComponent(eid, ComponentType.Position)
       return pos?.x === state.player.x + 1 && pos?.y === state.player.y - 1
     })
@@ -147,7 +147,7 @@ describe('dropItem', () => {
     const items = getGroundItemEntities(state)
     expect(items).toHaveLength(9)
     // The last dropped item should be under the player
-    const underPlayer = items.find((eid) => {
+    const underPlayer = items.find(eid => {
       const pos = state.world.getComponent(eid, ComponentType.Position)
       return pos?.x === state.player.x && pos?.y === state.player.y
     })

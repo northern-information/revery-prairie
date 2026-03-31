@@ -1,18 +1,28 @@
 import { withSeededRandom } from '@/harness/prng'
-import { createGameState } from '@/engine/state'
+
 import { movePlayer } from '@/engine/movement'
+import { createGameState } from '@/engine/state'
 import type { Direction } from '@/engine/types'
 
 const SEED = 42
 
-const createSeededState = () =>
-  withSeededRandom(SEED, () => createGameState('test', 40, 30))
+const createSeededState = () => withSeededRandom(SEED, () => createGameState('test', 40, 30))
 
 describe('replay: movement sequences', () => {
   it('produces identical final position for the same move sequence', () => {
     const sequence: Direction[] = [
-      'right', 'right', 'down', 'down', 'left', 'up',
-      'right', 'right', 'right', 'down', 'down', 'down',
+      'right',
+      'right',
+      'down',
+      'down',
+      'left',
+      'up',
+      'right',
+      'right',
+      'right',
+      'down',
+      'down',
+      'down',
     ]
 
     // run the sequence twice with fresh state each time
@@ -42,8 +52,9 @@ describe('replay: movement sequences', () => {
   })
 
   it('camera tracks player position deterministically', () => {
-    const sequence: Direction[] = Array.from({ length: 20 }, (_, i) =>
-      (['right', 'down', 'right', 'down'] as const)[i % 4],
+    const sequence: Direction[] = Array.from(
+      { length: 20 },
+      (_, i) => (['right', 'down', 'right', 'down'] as const)[i % 4]
     )
 
     const run = () => {

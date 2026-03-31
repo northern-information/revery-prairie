@@ -1,6 +1,7 @@
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import type { TaskDefinition, FeatureSpec, Behavior, EdgeCase } from './types.ts'
+
+import type { Behavior, EdgeCase, FeatureSpec, TaskDefinition } from './types.ts'
 
 export interface PromptInput {
   task: TaskDefinition
@@ -15,12 +16,8 @@ export interface PromptInput {
 //   "spec-id"             — whole spec
 //   "behavior-id"         — bare (resolved via defaultSpecId from task.spec_id)
 
-const resolveSpecSections = (
-  specSections: string[],
-  specs: FeatureSpec[],
-  defaultSpecId?: string,
-): string => {
-  const specMap = new Map(specs.map((s) => [s.id, s]))
+const resolveSpecSections = (specSections: string[], specs: FeatureSpec[], defaultSpecId?: string): string => {
+  const specMap = new Map(specs.map(s => [s.id, s]))
   const lines: string[] = []
 
   for (const section of specSections) {
@@ -54,13 +51,13 @@ const resolveSpecSections = (
       continue
     }
 
-    const behavior = spec.behaviors.find((b) => b.id === sectionId)
+    const behavior = spec.behaviors.find(b => b.id === sectionId)
     if (behavior) {
       lines.push(formatBehavior(behavior))
       continue
     }
 
-    const edgeCase = spec.edge_cases.find((ec) => ec.id === sectionId)
+    const edgeCase = spec.edge_cases.find(ec => ec.id === sectionId)
     if (edgeCase) {
       lines.push(formatEdgeCase(edgeCase))
       continue
@@ -79,7 +76,7 @@ const formatBehavior = (b: Behavior): string =>
     b.inputs.length > 0 ? `  Inputs: ${b.inputs.join(', ')}` : null,
     b.outputs.length > 0 ? `  Outputs: ${b.outputs.join(', ')}` : null,
     b.state_changes.length > 0
-      ? `  State changes:\n${b.state_changes.map((sc) => `    - ${sc.field}: ${sc.effect}`).join('\n')}`
+      ? `  State changes:\n${b.state_changes.map(sc => `    - ${sc.field}: ${sc.effect}`).join('\n')}`
       : null,
     `  Determinism: ${b.determinism}`,
   ]
@@ -87,9 +84,7 @@ const formatBehavior = (b: Behavior): string =>
     .join('\n')
 
 const formatEdgeCase = (ec: EdgeCase): string =>
-  [`Edge case: ${ec.id}`, `  ${ec.description}`, `  Expected: ${ec.expected}`].join(
-    '\n',
-  )
+  [`Edge case: ${ec.id}`, `  ${ec.description}`, `  Expected: ${ec.expected}`].join('\n')
 
 const formatSpec = (spec: FeatureSpec): string => {
   const parts: string[] = [`Spec: ${spec.id} — ${spec.name}`]
@@ -109,10 +104,7 @@ const formatSpec = (spec: FeatureSpec): string => {
 
 // --- Read context files ---
 
-const readContextFiles = (
-  contextFiles: string[],
-  repoRoot: string,
-): string => {
+const readContextFiles = (contextFiles: string[], repoRoot: string): string => {
   const sections: string[] = []
 
   for (const filePath of contextFiles) {
@@ -142,7 +134,7 @@ export const assemblePrompt = (input: PromptInput): string => {
       'You are implementing a feature for a browser-based ASCII game.',
       'Conventions: no enums, ES6 arrows, engine must not import React.',
       `You MUST only modify: ${task.output_files.join(', ')}`,
-    ].join('\n'),
+    ].join('\n')
   )
 
   // specification
@@ -158,9 +150,7 @@ export const assemblePrompt = (input: PromptInput): string => {
   }
 
   // task
-  sections.push(
-    `=== TASK ===\n${task.title}. Produce complete contents per output file.`,
-  )
+  sections.push(`=== TASK ===\n${task.title}. Produce complete contents per output file.`)
 
   // repair (retries only)
   if (repairStderr) {

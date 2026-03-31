@@ -30,8 +30,8 @@ const defined = <T>(value: T | undefined | null): T => {
   return value as T
 }
 
-const prairieRecipe = defined(RECIPES.find((r) => r.resultName === 'prairie'))
-const omniboxRecipe = defined(RECIPES.find((r) => r.resultName === 'omnibox'))
+const prairieRecipe = defined(RECIPES.find(r => r.resultName === 'prairie'))
+const omniboxRecipe = defined(RECIPES.find(r => r.resultName === 'omnibox'))
 
 describe('NEXT_ROTATION', () => {
   it('cycles through all four rotations', () => {
@@ -72,7 +72,7 @@ describe('computePlacementPreview', () => {
       0,
       state.backpack.id,
       state.backpack.id,
-      state.discoveredRecipes,
+      state.discoveredRecipes
     )
 
     expect(result.isValid).toBe(true)
@@ -94,7 +94,7 @@ describe('computePlacementPreview', () => {
       0,
       state.backpack.id,
       state.backpack.id,
-      state.discoveredRecipes,
+      state.discoveredRecipes
     )
 
     expect(result.isValid).toBe(false)
@@ -117,7 +117,7 @@ describe('computePlacementPreview', () => {
       0,
       state.backpack.id,
       state.backpack.id,
-      state.discoveredRecipes,
+      state.discoveredRecipes
     )
 
     expect(result.isValid).toBe(false)
@@ -138,7 +138,7 @@ describe('computePlacementPreview', () => {
       0,
       state.backpack.id,
       state.backpack.id,
-      state.discoveredRecipes,
+      state.discoveredRecipes
     )
 
     expect(result.isValid).toBe(false)
@@ -161,7 +161,7 @@ describe('computePlacementPreview', () => {
       0,
       state.backpack.id,
       'omni-1',
-      state.discoveredRecipes,
+      state.discoveredRecipes
     )
 
     expect(result.isValid).toBe(false)
@@ -180,7 +180,7 @@ describe('computePlacementPreview', () => {
       0,
       state.backpack.id,
       state.backpack.id,
-      state.discoveredRecipes,
+      state.discoveredRecipes
     )
 
     // Same item at same position in same container — should be valid (excludes self)
@@ -244,8 +244,8 @@ describe('executeCombine', () => {
     clearAroundPlayer(state, 1)
     placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
     placeItem(state.backpack, 'clover', Rotation.R0, 1, 0)
-    const bee = defined(state.backpack.items.find((i) => i.definitionId === 'bee'))
-    const clover = defined(state.backpack.items.find((i) => i.definitionId === 'clover'))
+    const bee = defined(state.backpack.items.find(i => i.definitionId === 'bee'))
+    const clover = defined(state.backpack.items.find(i => i.definitionId === 'clover'))
 
     const result = executeCombine(state, state.backpack, state.backpack, bee, {
       uid: clover.uid,
@@ -255,16 +255,16 @@ describe('executeCombine', () => {
     expect(result.outcome).toBe('success')
     expect(state.discoveredRecipes.has(recipeKey(prairieRecipe))).toBe(true)
     // Both ingredients consumed (no preserveIngredient on prairie recipe)
-    expect(state.backpack.items.filter((i) => i.definitionId === 'bee')).toHaveLength(0)
-    expect(state.backpack.items.filter((i) => i.definitionId === 'clover')).toHaveLength(0)
+    expect(state.backpack.items.filter(i => i.definitionId === 'bee')).toHaveLength(0)
+    expect(state.backpack.items.filter(i => i.definitionId === 'clover')).toHaveLength(0)
   })
 
   it('preserves ingredient when recipe specifies preserveIngredient', () => {
     const state = createTestState()
     placeItem(state.backpack, 'permacomputer', Rotation.R0, 0, 0)
     placeItem(state.backpack, 'meteorite', Rotation.R0, 2, 0)
-    const permacomputer = defined(state.backpack.items.find((i) => i.definitionId === 'permacomputer'))
-    const meteorite = defined(state.backpack.items.find((i) => i.definitionId === 'meteorite'))
+    const permacomputer = defined(state.backpack.items.find(i => i.definitionId === 'permacomputer'))
+    const meteorite = defined(state.backpack.items.find(i => i.definitionId === 'meteorite'))
 
     // Drag meteorite onto permacomputer
     const result = executeCombine(state, state.backpack, state.backpack, meteorite, {
@@ -274,8 +274,8 @@ describe('executeCombine', () => {
 
     expect(result.outcome).toBe('success')
     // Permacomputer preserved, meteorite consumed
-    expect(state.backpack.items.some((i) => i.definitionId === 'permacomputer')).toBe(true)
-    expect(state.backpack.items.some((i) => i.definitionId === 'meteorite')).toBe(false)
+    expect(state.backpack.items.some(i => i.definitionId === 'permacomputer')).toBe(true)
+    expect(state.backpack.items.some(i => i.definitionId === 'meteorite')).toBe(false)
   })
 
   it('returns failed when recipe execution fails', () => {
@@ -315,8 +315,8 @@ describe('executeCombine', () => {
 
     placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
     placeItem(omniboxContainer, 'clover', Rotation.R0, 0, 0)
-    const bee = defined(state.backpack.items.find((i) => i.definitionId === 'bee'))
-    const clover = defined(omniboxContainer.items.find((i) => i.definitionId === 'clover'))
+    const bee = defined(state.backpack.items.find(i => i.definitionId === 'bee'))
+    const clover = defined(omniboxContainer.items.find(i => i.definitionId === 'clover'))
 
     const result = executeCombine(state, state.backpack, omniboxContainer, bee, {
       uid: clover.uid,
@@ -324,8 +324,8 @@ describe('executeCombine', () => {
     })
 
     expect(result.outcome).toBe('success')
-    expect(state.backpack.items.filter((i) => i.definitionId === 'bee')).toHaveLength(0)
-    expect(omniboxContainer.items.filter((i) => i.definitionId === 'clover')).toHaveLength(0)
+    expect(state.backpack.items.filter(i => i.definitionId === 'bee')).toHaveLength(0)
+    expect(omniboxContainer.items.filter(i => i.definitionId === 'clover')).toHaveLength(0)
   })
 })
 

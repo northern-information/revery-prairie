@@ -1,15 +1,14 @@
 import { useCallback, useState } from 'react'
-
 import { CloseButton, PanelTitle, SectionHeader } from './PanelPrimitives'
+
 import {
   CATEGORY_ORDER,
-  MANUAL_ENTRIES,
-  ManualCategory,
   filterManualEntries,
   getEntriesByCategory,
   isDiscovered,
+  MANUAL_ENTRIES,
+  ManualCategory,
 } from '@/engine/manual'
-
 import type { ManualEntry, ManualHint } from '@/engine/manual'
 import type { GameState, ManualState } from '@/engine/types'
 
@@ -54,7 +53,9 @@ const HintBlock = ({
     <button
       type="button"
       className="text-dim hover:text-text text-left text-xs"
-      onClick={() => { onToggle(hintKey) }}
+      onClick={() => {
+        onToggle(hintKey)
+      }}
     >
       <span className="text-dim">&gt; {hint.prompt}</span>
       <span className="text-pink ml-2">{revealed ? '[-]' : '[+]'}</span>
@@ -86,7 +87,9 @@ const RecipeResultSpoiler = ({
         <button
           type="button"
           className="text-pink ml-2 text-xs"
-          onClick={() => { onToggle(hintKey) }}
+          onClick={() => {
+            onToggle(hintKey)
+          }}
         >
           [-]
         </button>
@@ -97,7 +100,9 @@ const RecipeResultSpoiler = ({
     <button
       type="button"
       className="text-dim hover:text-text text-xs"
-      onClick={() => { onToggle(hintKey) }}
+      onClick={() => {
+        onToggle(hintKey)
+      }}
     >
       ??? <span className="text-pink">[+]</span>
     </button>
@@ -151,13 +156,11 @@ const EntryCard = ({
 
       {/* Summary/lore — hidden for undiscovered recipes unless result spoiler is revealed */}
       {(!isRecipe || discovered || manualState.revealedHints.has(recipeResultKey)) && (
-        <div className="text-dim mt-1 whitespace-pre-line text-xs">{entry.lore}</div>
+        <div className="text-dim mt-1 text-xs whitespace-pre-line">{entry.lore}</div>
       )}
 
       {/* Properties */}
-      {showCategory && (
-        <div className="text-dim mt-1 text-xs">category: {entry.category}</div>
-      )}
+      {showCategory && <div className="text-dim mt-1 text-xs">category: {entry.category}</div>}
 
       {/* Hints */}
       {entry.hints.map((hint, i) => {
@@ -185,9 +188,7 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
   const [, forceRender] = useState(0)
 
   const allEntries = Object.values(MANUAL_ENTRIES)
-  const filtered = searchQuery
-    ? filterManualEntries(allEntries, searchQuery)
-    : allEntries
+  const filtered = searchQuery ? filterManualEntries(allEntries, searchQuery) : allEntries
 
   const toggleHint = useCallback(
     (key: string) => {
@@ -196,9 +197,9 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
       } else {
         manualState.revealedHints.add(key)
       }
-      forceRender((n) => n + 1)
+      forceRender(n => n + 1)
     },
-    [manualState],
+    [manualState]
   )
 
   const setCategory = useCallback(
@@ -206,7 +207,7 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
       manualState.activeCategory = cat
       setActiveCategoryLocal(cat)
     },
-    [manualState],
+    [manualState]
   )
 
   const setSearch = useCallback(
@@ -214,19 +215,19 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
       manualState.searchQuery = query
       setSearchQueryLocal(query)
     },
-    [manualState],
+    [manualState]
   )
 
-  const visibleCategories = activeCategory
-    ? [activeCategory as ManualCategory]
-    : CATEGORY_ORDER
+  const visibleCategories = activeCategory ? [activeCategory as ManualCategory] : CATEGORY_ORDER
 
   return (
     <div className="fixed inset-0 z-10" onClick={onClose}>
       <div
         className="border-border text-text fixed top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col border bg-black/85 px-8 py-6 font-mono text-xs"
         style={{ width: 560, height: '80vh' }}
-        onClick={(e) => { e.stopPropagation() }}
+        onClick={e => {
+          e.stopPropagation()
+        }}
       >
         <CloseButton onClick={onClose} label="Close manual" />
         <PanelTitle>prairie manual</PanelTitle>
@@ -235,9 +236,11 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
         <input
           type="text"
           value={searchQuery}
-          onChange={(e) => { setSearch(e.target.value) }}
+          onChange={e => {
+            setSearch(e.target.value)
+          }}
           placeholder="search..."
-          className="text-text placeholder-dim border-border mb-3 w-full border bg-black/50 px-2 py-1 font-mono text-xs outline-none focus:border-pink"
+          className="text-text placeholder-dim border-border focus:border-pink mb-3 w-full border bg-black/50 px-2 py-1 font-mono text-xs outline-none"
         />
 
         {/* Category tabs */}
@@ -245,11 +248,13 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
           <button
             type="button"
             className={`text-xs ${activeCategory === null ? 'text-pink' : 'text-dim hover:text-text'}`}
-            onClick={() => { setCategory(null) }}
+            onClick={() => {
+              setCategory(null)
+            }}
           >
             ALL
           </button>
-          {CATEGORY_ORDER.map((cat) => {
+          {CATEGORY_ORDER.map(cat => {
             const count = searchQuery
               ? filterManualEntries(getEntriesByCategory(cat), searchQuery).length
               : getEntriesByCategory(cat).length
@@ -258,7 +263,9 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
                 key={cat}
                 type="button"
                 className={`text-xs ${activeCategory === cat ? 'text-pink' : 'text-dim hover:text-text'}`}
-                onClick={() => { setCategory(cat) }}
+                onClick={() => {
+                  setCategory(cat)
+                }}
               >
                 {CATEGORY_LABELS[cat]}
                 {searchQuery && ` (${String(count)})`}
@@ -268,16 +275,14 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
         </div>
 
         {/* Scrollable content */}
-        <div
-          className="scrollbar-custom min-h-0 flex-1 overflow-y-auto pr-2"
-        >
-          {visibleCategories.map((cat) => {
-            const catEntries = filtered.filter((e) => e.category === cat)
+        <div className="scrollbar-custom min-h-0 flex-1 overflow-y-auto pr-2">
+          {visibleCategories.map(cat => {
+            const catEntries = filtered.filter(e => e.category === cat)
             if (catEntries.length === 0) return null
             return (
               <div key={cat}>
                 <SectionHeader>{CATEGORY_LABELS[cat]}</SectionHeader>
-                {catEntries.map((entry) => (
+                {catEntries.map(entry => (
                   <div key={entry.id} id={`manual-entry-${entry.id}`}>
                     <EntryCard
                       entry={entry}

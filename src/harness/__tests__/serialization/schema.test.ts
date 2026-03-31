@@ -50,6 +50,8 @@ const EXPECTED_FIELDS = [
   'caveBreakableWallPositions',
   'meteorShower',
   'cloverGrowthPreviews',
+  'cloverLifecycle',
+  'soilHealth',
   'manualDiscoveries',
   'manualState',
   'moabGiftGiven',

@@ -1,9 +1,10 @@
 import { withSeededRandom } from '@/harness/prng'
-import { findPath } from '@/engine/pathfinding'
-import { generateTerrain } from '@/engine/terrain'
+
+import { MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER } from '@/engine/constants'
 import { autoSort, placeItem } from '@/engine/inventory'
 import { createBackpack } from '@/engine/items'
-import { MAP_WIDTH, MAP_HEIGHT, SPACE_BORDER } from '@/engine/constants'
+import { findPath } from '@/engine/pathfinding'
+import { generateTerrain } from '@/engine/terrain'
 import { Rotation } from '@/engine/types'
 
 const SEED = 42
@@ -16,9 +17,7 @@ const budget = (name: string, budgetMs: number, fn: () => void) => {
     const elapsed = performance.now() - start
 
     if (elapsed > budgetMs) {
-      console.warn(
-        `[perf] ${name}: ${elapsed.toFixed(1)}ms (budget: ${String(budgetMs)}ms)`,
-      )
+      console.warn(`[perf] ${name}: ${elapsed.toFixed(1)}ms (budget: ${String(budgetMs)}ms)`)
     }
 
     // hard fail at 10x budget
@@ -28,9 +27,7 @@ const budget = (name: string, budgetMs: number, fn: () => void) => {
 
 describe('performance budgets', () => {
   budget('findPath across full map', 50, () => {
-    const map = withSeededRandom(SEED, () =>
-      generateTerrain(MAP_WIDTH, MAP_HEIGHT),
-    )
+    const map = withSeededRandom(SEED, () => generateTerrain(MAP_WIDTH, MAP_HEIGHT))
 
     // path from near top-left land to near bottom-right land
     const from = { x: SPACE_BORDER + 5, y: SPACE_BORDER + 5 }

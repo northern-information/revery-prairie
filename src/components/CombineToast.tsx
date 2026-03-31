@@ -1,6 +1,6 @@
 import { INVENTORY_CELL_SIZE } from '@/engine/constants'
-import type { GameState } from '@/engine/types'
 import type { DragState } from '@/engine/drag'
+import type { GameState } from '@/engine/types'
 
 interface CombineToastData {
   header: string

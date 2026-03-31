@@ -1,6 +1,5 @@
 import { TOAST_DURATION, TOAST_FADE_START } from '@/hooks/useEventLog'
-import type { CharMetrics } from '@/engine/types'
-import type { GameState } from '@/engine/types'
+import type { CharMetrics, GameState } from '@/engine/types'
 import type { GameEvent } from '@/hooks/useEventLog'
 
 interface PickupToastsProps {
