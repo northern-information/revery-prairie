@@ -192,6 +192,17 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
                   if (tile.type === TileType.Clover) {
                     const water = lifecycle?.water ?? CLOVER_WATER_MAX
                     const stage = lifecycle?.stage ?? CloverStage.Healthy
+                    const statusLabel =
+                      stage === CloverStage.Healthy
+                        ? 'healthy'
+                        : stage === CloverStage.Brown
+                          ? 'wilting'
+                          : stage === CloverStage.BlinkingRed
+                            ? 'dying'
+                            : stage === CloverStage.Black
+                              ? 'dead'
+                              : 'decomposing'
+                    const statusColor = stage === CloverStage.Healthy ? '#50C878' : '#8B0000'
                     return (
                       <>
                         <tr>
@@ -204,14 +215,12 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
                           <td className="text-muted py-0.5">soil</td>
                           <td className="py-0.5 text-right">{soilHealth}</td>
                         </tr>
-                        {stage !== CloverStage.Healthy && (
-                          <tr>
-                            <td className="text-muted py-0.5">status</td>
-                            <td className="py-0.5 text-right" style={{ color: '#8B0000' }}>
-                              {stage}
-                            </td>
-                          </tr>
-                        )}
+                        <tr>
+                          <td className="text-muted py-0.5">status</td>
+                          <td className="py-0.5 text-right" style={{ color: statusColor }}>
+                            {statusLabel}
+                          </td>
+                        </tr>
                       </>
                     )
                   }
