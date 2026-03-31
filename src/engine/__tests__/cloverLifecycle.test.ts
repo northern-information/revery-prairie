@@ -36,7 +36,9 @@ const placeClover = (x: number, y: number) => {
 
 const facingPos = () => {
   // player faces down by default in test state
-  return { x: px(), y: py() + 1 }
+  const pos = { x: px(), y: py() + 1 }
+  state.facingEntityPos = pos
+  return pos
 }
 
 describe('tickCloverLifecycle', () => {
@@ -256,20 +258,34 @@ describe('harvestClover', () => {
     expect(state.soilHealth.has(key)).toBe(false)
   })
 
-  it('removes lifecycle entry', () => {
+  it('removes lifecycle entry on healthy harvest', () => {
     const fp = facingPos()
     placeClover(fp.x, fp.y)
     const key = posKey(fp.x, fp.y)
     state.cloverLifecycle.set(key, {
-      stage: CloverStage.Brown,
+      stage: CloverStage.Healthy,
       stageStartTime: 0,
-      water: 0,
+      water: 80,
       hasLight: true,
     })
 
     harvestClover(state)
 
     expect(state.cloverLifecycle.has(key)).toBe(false)
+  })
+
+  it('rejects dying clover', () => {
+    const fp = facingPos()
+    placeClover(fp.x, fp.y)
+    state.cloverLifecycle.set(posKey(fp.x, fp.y), {
+      stage: CloverStage.Brown,
+      stageStartTime: 0,
+      water: 0,
+      hasLight: true,
+    })
+
+    expect(harvestClover(state)).toBe(HarvestResult.Dying)
+    expect(state.map[fp.y][fp.x].type).toBe(TileType.Clover)
   })
 
   it('fails when backpack is full', () => {

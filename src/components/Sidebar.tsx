@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ItemInfo } from './ItemInfo'
 import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
@@ -42,6 +42,7 @@ interface SidebarProps {
 export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef }: SidebarProps) => {
   const { metric } = state
   const cursorRef = useRef<{ x: number; y: number } | null>(null)
+  const [, setCursorVersion] = useState(0)
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -57,6 +58,7 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
           cursorRef.current = null
           state.cursorScreenPos = null
           state.cursorTile = null
+          setCursorVersion(v => v + 1)
         }
         return
       }
@@ -68,6 +70,7 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
       if (cursorRef.current?.x === sx && cursorRef.current?.y === sy) return
       cursorRef.current = { x: sx, y: sy }
       state.cursorScreenPos = { x: sx, y: sy }
+      setCursorVersion(v => v + 1)
     }
 
     window.addEventListener('mousemove', handleMouseMove)

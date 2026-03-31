@@ -179,6 +179,8 @@ export const useKeyboard = ({
           refreshUI()
         } else if (harvestResult === HarvestResult.BackpackFull) {
           onDiscovery('backpack full', state.player.x, state.player.y)
+        } else if (harvestResult === HarvestResult.Dying) {
+          onDiscovery('too withered to harvest', state.player.x, state.player.y)
         }
         return
       }

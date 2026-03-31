@@ -7,7 +7,7 @@ import { createCharacterEntity } from './entities'
 import { autoSort, createOmniboxContainer, findFitPosition, placeItem } from './inventory'
 import { createBackpack } from './items'
 import { posKey } from './position'
-import { generateTerrain } from './terrain'
+import { generateSoilHealth, generateTerrain } from './terrain'
 import { Rotation, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 
@@ -117,7 +117,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     },
     cloverGrowthPreviews: new Set<string>(),
     cloverLifecycle: new Map(),
-    soilHealth: new Map(),
+    soilHealth: generateSoilHealth(map, MAP_WIDTH, MAP_HEIGHT),
     manualDiscoveries: new Set<string>(['item:bee', 'item:clover', 'item:permacomputer', 'item:omnibox']),
     manualState: {
       activeCategory: null,
