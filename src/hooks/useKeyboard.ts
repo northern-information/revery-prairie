@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { getCharacterDefinition } from '@/engine/characters'
-import { cutClover, harvestClover } from '@/engine/cloverLifecycle'
+import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
 import { ComponentType } from '@/engine/ecs/types'
 import { dropItem } from '@/engine/entities'
 import { keyToDirection } from '@/engine/input'
@@ -171,11 +171,14 @@ export const useKeyboard = ({
       if (e.key === 'f' || e.key === 'F') {
         if (state.activeDialog) return
         if (activePanel === 'menu') return
-        if (harvestClover(state)) {
+        const harvestResult = harvestClover(state)
+        if (harvestResult === HarvestResult.Success) {
           const def = getDefinition('clover')
           onPickup(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
           updateFacingEntity(state)
           refreshUI()
+        } else if (harvestResult === HarvestResult.BackpackFull) {
+          onDiscovery('backpack full', state.player.x, state.player.y)
         }
         return
       }

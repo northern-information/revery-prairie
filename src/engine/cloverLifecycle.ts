@@ -144,18 +144,26 @@ const getFacingCloverPos = (state: GameState): { x: number; y: number } | null =
   return { x: fx, y: fy }
 }
 
-export const harvestClover = (state: GameState): boolean => {
+export const HarvestResult = {
+  Success: 'success',
+  NoClover: 'no-clover',
+  BackpackFull: 'backpack-full',
+} as const
+
+export type HarvestResult = (typeof HarvestResult)[keyof typeof HarvestResult]
+
+export const harvestClover = (state: GameState): HarvestResult => {
   const pos = getFacingCloverPos(state)
-  if (!pos) return false
+  if (!pos) return HarvestResult.NoClover
 
   const fit = findFitPosition(state.backpack, 'clover')
-  if (!fit) return false
+  if (!fit) return HarvestResult.BackpackFull
 
   state.map[pos.y][pos.x] = { type: TileType.Dirt }
   placeItem(state.backpack, 'clover', fit.rotation, fit.gridX, fit.gridY)
   state.cloverLifecycle.delete(posKey(pos.x, pos.y))
   recordDiscovery(state, 'event:clover-harvest')
-  return true
+  return HarvestResult.Success
 }
 
 export const cutClover = (state: GameState): boolean => {

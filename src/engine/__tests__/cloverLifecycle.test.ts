@@ -1,4 +1,4 @@
-import { cutClover, harvestClover, tickCloverLifecycle } from '../cloverLifecycle'
+import { cutClover, harvestClover, HarvestResult, tickCloverLifecycle } from '../cloverLifecycle'
 import {
   CLOVER_BLACK_DURATION_MS,
   CLOVER_BLINK_RED_DURATION_MS,
@@ -241,7 +241,7 @@ describe('harvestClover', () => {
 
     const result = harvestClover(state)
 
-    expect(result).toBe(true)
+    expect(result).toBe(HarvestResult.Success)
     expect(state.map[fp.y][fp.x].type).toBe(TileType.Dirt)
     expect(state.backpack.items.some(i => i.definitionId === 'clover')).toBe(true)
   })
@@ -284,12 +284,12 @@ describe('harvestClover', () => {
     }
 
     const result = harvestClover(state)
-    expect(result).toBe(false)
+    expect(result).toBe(HarvestResult.BackpackFull)
     expect(state.map[fp.y][fp.x].type).toBe(TileType.Clover)
   })
 
-  it('returns false when facing non-clover tile', () => {
-    expect(harvestClover(state)).toBe(false)
+  it('returns no-clover when facing non-clover tile', () => {
+    expect(harvestClover(state)).toBe(HarvestResult.NoClover)
   })
 })
 
