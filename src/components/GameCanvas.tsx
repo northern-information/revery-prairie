@@ -24,7 +24,7 @@ interface GameCanvasProps {
   setActivePanel: (panel: Panel) => void
   onPickup: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
-  onDiscovery: (text: string, worldX: number, worldY: number) => void
+  onDiscovery: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
   metricsRef: React.RefObject<CharMetrics | null>
 }
 
@@ -87,8 +87,8 @@ export const GameCanvas = ({
       onPickup: (name, icon, color, wx, wy) => {
         onPickupRef.current(name, icon, color, wx, wy)
       },
-      onDiscovery: (text, wx, wy) => {
-        onDiscoveryRef.current(text, wx, wy)
+      onDiscovery: (text, wx, wy, icon, iconColor) => {
+        onDiscoveryRef.current(text, wx, wy, icon, iconColor)
       },
       onFrame: (time) => {
         if (metricsRef.current) {

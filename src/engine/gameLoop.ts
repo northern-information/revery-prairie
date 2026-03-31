@@ -36,7 +36,7 @@ export interface GameLoopCallbacks {
     worldX: number,
     worldY: number,
   ) => void
-  onDiscovery?: (text: string, worldX: number, worldY: number) => void
+  onDiscovery?: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
   onFrame?: (time: number) => void
 }
 
@@ -87,10 +87,13 @@ const createDefaultSystems = (
               )
             }
             if (result.chainExplosions > 0) {
+              const meteoriteDef = getDefinition('meteorite')
               callbacks.onDiscovery?.(
                 'oh my!',
                 state.player.x,
                 state.player.y,
+                meteoriteDef.glyph,
+                meteoriteDef.glyphColor,
               )
             }
           }
@@ -127,10 +130,13 @@ const createDefaultSystems = (
               )
             }
             if (result.chainExplosions > 0) {
+              const meteoriteDef = getDefinition('meteorite')
               callbacks.onDiscovery?.(
                 'oh my!',
                 state.player.x,
                 state.player.y,
+                meteoriteDef.glyph,
+                meteoriteDef.glyphColor,
               )
             }
           }
