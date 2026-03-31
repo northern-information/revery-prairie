@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { CombineToast } from './CombineToast'
 import { DragCursor } from './DragCursor'
 import { InventoryGrid } from './InventoryGrid'
 import { CloseButton, PanelTitle, SectionHeader } from './PanelPrimitives'
@@ -12,13 +11,10 @@ import { getDefinition } from '@/engine/items'
 import { RecipeKind } from '@/engine/recipes'
 import { useCanvasDrop } from '@/hooks/useCanvasDrop'
 import { useInventoryDrag } from '@/hooks/useInventoryDrag'
-import type { CombineToastData, LivePreview } from './CombineToast'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { Recipe } from '@/engine/recipes'
 import type { CharMetrics } from '@/engine/types'
 import type { GameState } from '@/engine/types'
-
-const COMBINE_TOAST_DURATION = 8000
 
 interface InventoryPanelProps {
   state: GameState
@@ -41,19 +37,6 @@ export const InventoryPanel = ({
   isDraggingRef,
   onClose,
 }: InventoryPanelProps) => {
-  const [combineToast, setCombineToast] = useState<CombineToastData | null>(null)
-  const isHoveringToast = useRef(false)
-  const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const scheduleFade = useCallback(() => {
-    if (fadeTimer.current) clearTimeout(fadeTimer.current)
-    fadeTimer.current = setTimeout(() => {
-      if (!isHoveringToast.current) {
-        setCombineToast(null)
-      }
-    }, COMBINE_TOAST_DURATION)
-  }, [])
-
   const containers = useMemo(() => {
     const list = [{ id: state.backpack.id, container: state.backpack }]
     if (state.openContainer) {
@@ -73,11 +56,9 @@ export const InventoryPanel = ({
       const nameA = getDefinition(a).name.toLowerCase()
       const nameB = getDefinition(b).name.toLowerCase()
       const header = `${nameA} + ${nameB} = ${recipe.resultName}`
-      setCombineToast({ header, description: recipe.description })
-      scheduleFade()
       onCombineLog(header, state.player.x, state.player.y)
     },
-    [scheduleFade, onCombineLog, state]
+    [onCombineLog, state]
   )
 
   const onStore = useCallback(
@@ -88,24 +69,12 @@ export const InventoryPanel = ({
     [state, refreshUI]
   )
 
-  const onStoreFail = useCallback(() => {
-    setCombineToast({ header: 'not enough capacity', description: null })
-    scheduleFade()
-  }, [scheduleFade])
-
-  const onCombineFail = useCallback(() => {
-    setCombineToast({ header: 'not enough room in backpack', description: null })
-    scheduleFade()
-  }, [scheduleFade])
-
   const { dragState, startDrag, updatePreview, drop, cancelDrag } = useInventoryDrag({
     containers,
     state,
     onDrop,
     onCombine,
     onStore,
-    onStoreFail,
-    onCombineFail,
   })
 
   isDraggingRef.current = dragState !== null
@@ -188,22 +157,6 @@ export const InventoryPanel = ({
     const def = getDefinition(item.definitionId)
     return sum + def.weight
   }, 0)
-
-  const livePreview: LivePreview | null = dragState?.cannotCombine
-    ? { header: 'cannot combine', description: null }
-    : dragState?.combineTarget
-      ? (() => {
-          const recipe = dragState.combineTarget.recipe
-          const [a, b] = recipe.ingredients
-          const nameA = getDefinition(a).name.toLowerCase()
-          const nameB = getDefinition(b).name.toLowerCase()
-          const result = dragState.combineTarget.isDiscovered ? recipe.resultName : '???'
-          return {
-            header: `${nameA} + ${nameB} = ${result}`,
-            description: dragState.combineTarget.isDiscovered ? recipe.description : null,
-          }
-        })()
-      : null
 
   // Player screen position for panel anchoring
   const metrics = metricsRef.current
@@ -320,37 +273,16 @@ export const InventoryPanel = ({
             </SectionHeader>
 
             <div className="group">
-              <div className="relative inline-block">
-                <InventoryGrid
-                  container={state.backpack}
-                  containerId={state.backpack.id}
-                  dragState={dragState}
-                  onStartDrag={handleStartDrag}
-                  onUpdatePreview={updatePreview}
-                  onDrop={drop}
-                  onQuickTransfer={state.openContainer ? handleQuickTransfer : undefined}
-                  itemInfoRef={itemInfoRef}
-                />
-
-                <CombineToast
-                  combineToast={combineToast}
-                  livePreview={livePreview}
-                  dragState={dragState}
-                  state={state}
-                  onClose={() => {
-                    setCombineToast(null)
-                    if (fadeTimer.current) clearTimeout(fadeTimer.current)
-                  }}
-                  onHoverStart={() => {
-                    isHoveringToast.current = true
-                    if (fadeTimer.current) clearTimeout(fadeTimer.current)
-                  }}
-                  onHoverEnd={() => {
-                    isHoveringToast.current = false
-                    if (combineToast) scheduleFade()
-                  }}
-                />
-              </div>
+              <InventoryGrid
+                container={state.backpack}
+                containerId={state.backpack.id}
+                dragState={dragState}
+                onStartDrag={handleStartDrag}
+                onUpdatePreview={updatePreview}
+                onDrop={drop}
+                onQuickTransfer={state.openContainer ? handleQuickTransfer : undefined}
+                itemInfoRef={itemInfoRef}
+              />
 
               <div className="mt-2 flex flex-col gap-1">
                 <button
