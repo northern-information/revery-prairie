@@ -259,6 +259,7 @@ mutable game state has no access control — any function with a `GameState` ref
 - `cursorScreenPos` — `Sidebar.tsx` (set on mousemove, null on mouseleave).
 - `musicEnabled` — `GameScreen.tsx` (Menu toggle). `useMusic.ts` reads. `state.ts` initializes to `true`.
 - `manualDiscoveries` — **multi-spawner, single lifecycle.** multiple engine modules call `recordDiscovery()` in `manual.ts` to add entries. no module removes entries (discoveries are permanent). `state.ts` initializes with starting item keys.
+- `meteorShower` — `celestial.ts` (`tickMeteorShower`). read by `spawnShootingStar` for suppression. `state.ts` initializes.
 - `manualState` — **single-owner.** `ManualPanel.tsx` reads and writes via local React state synced to the mutable object. `state.ts` initializes.
 
 **owner + clearers** (one module writes meaningful values, others only null/reset):

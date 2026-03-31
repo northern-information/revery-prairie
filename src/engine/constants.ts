@@ -58,6 +58,14 @@ export const SHOOTING_STAR_TRAIL_CHARS: Record<string, string> = {
   '0,-1': '|',
 }
 
+// meteor showers
+export const METEOR_SHOWER_TICK_MS = 200
+export const METEOR_SHOWER_MIN_INTERVAL_MS = 120_000
+export const METEOR_SHOWER_MAX_INTERVAL_MS = 240_000
+export const METEOR_SHOWER_STAR_COUNT_MIN = 8
+export const METEOR_SHOWER_STAR_COUNT_MAX = 12
+export const METEOR_SHOWER_SPAWN_WINDOW_MS = 4000
+
 // meteorites
 export const METEORITE_CHAR = '\u2726' // ✦ black four-pointed star
 export const METEORITE_COLOR = '#FFE4B5' // moccasin — warm pale gold

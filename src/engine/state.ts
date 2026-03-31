@@ -1,5 +1,4 @@
 import { generateCave } from './cave'
-import { spawnShootingStarAtTarget } from './celestial'
 import { registerGhostDefinitions } from './characters'
 import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER } from './constants'
 import { createWorld } from './ecs/world'
@@ -18,21 +17,6 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
   const map = generateTerrain(MAP_WIDTH, MAP_HEIGHT)
   const playerX = Math.floor(MAP_WIDTH / 2)
   const playerY = Math.floor(MAP_HEIGHT / 2)
-
-  // Pick 7 random dirt tiles to be meteorite landing targets
-  const landingTargets: Position[] = []
-  const usedKeys = new Set<string>()
-  const minDist = 8
-  while (landingTargets.length < 7) {
-    const mx = SPACE_BORDER + Math.floor(Math.random() * (MAP_WIDTH - SPACE_BORDER * 2))
-    const my = SPACE_BORDER + Math.floor(Math.random() * (MAP_HEIGHT - SPACE_BORDER * 2))
-    const key = posKey(mx, my)
-    if (usedKeys.has(key)) continue
-    if (map[my][mx].type !== TileType.Dirt) continue
-    if (Math.abs(mx - playerX) + Math.abs(my - playerY) < minDist) continue
-    usedKeys.add(key)
-    landingTargets.push({ x: mx, y: my })
-  }
 
   // Gron position (used for cave entrance placement and character spawn)
   const gronX = playerX + 5
@@ -122,6 +106,15 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     caveBreakableWallPositions: cave.breakableWallPositions,
     moabGiftGiven: false,
     world: createWorld(),
+    meteorShower: {
+      active: false,
+      nextShowerTime: 1,
+      remainingStars: 0,
+      lastSpawnTime: 0,
+      spawnIntervalMs: 0,
+      radiantDx: 0,
+      radiantDy: 0,
+    },
     cloverGrowthPreviews: new Set<string>(),
     manualDiscoveries: new Set<string>(['item:bee', 'item:clover', 'item:permacomputer', 'item:omnibox']),
     manualState: {
@@ -177,11 +170,6 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     }
   }
   autoSort(backpack)
-
-  // Spawn 7 shooting stars from the top-right aimed at dirt tiles
-  for (const target of landingTargets) {
-    spawnShootingStarAtTarget(state, target, { dx: -1, dy: 1 })
-  }
 
   return state
 }

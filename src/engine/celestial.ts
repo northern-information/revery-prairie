@@ -2,6 +2,11 @@ import {
   EXPLOSION_DURATION_MS,
   MAP_HEIGHT,
   MAP_WIDTH,
+  METEOR_SHOWER_MAX_INTERVAL_MS,
+  METEOR_SHOWER_MIN_INTERVAL_MS,
+  METEOR_SHOWER_SPAWN_WINDOW_MS,
+  METEOR_SHOWER_STAR_COUNT_MAX,
+  METEOR_SHOWER_STAR_COUNT_MIN,
   PICKUP_EFFECT_DURATION_MS,
   SHOOTING_STAR_LAND_CHANCE,
   SHOOTING_STAR_MAX_ACTIVE,
@@ -9,6 +14,7 @@ import {
   SHOOTING_STAR_MAX_LENGTH,
   SHOOTING_STAR_MIN_LENGTH,
   SHOOTING_STAR_SPAWN_CHANCE,
+  SPACE_BORDER,
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
@@ -74,6 +80,7 @@ export const spawnChainMeteorites = (
 export { CHAIN_EXPLOSION_CHANCE }
 
 export const spawnShootingStar = (state: GameState): void => {
+  if (state.meteorShower.active) return
   if (state.world.query(ComponentType.ShootingStarData).length >= SHOOTING_STAR_MAX_ACTIVE) return
   if (Math.random() >= SHOOTING_STAR_SPAWN_CHANCE) return
 
@@ -243,5 +250,104 @@ export const tickShootingStars = (state: GameState, time: number): void => {
     } else if (tag === 'pickupBloom' && time - effect.startTime > PICKUP_EFFECT_DURATION_MS) {
       state.world.destroyEntity(eid)
     }
+  }
+}
+
+// --- Meteor Showers ---
+
+const RADIANT_DIRECTIONS: { dx: number; dy: number }[] = [
+  { dx: 1, dy: 1 },
+  { dx: 1, dy: -1 },
+  { dx: -1, dy: 1 },
+  { dx: -1, dy: -1 },
+  { dx: 1, dy: 0 },
+  { dx: -1, dy: 0 },
+  { dx: 0, dy: 1 },
+  { dx: 0, dy: -1 },
+]
+
+export const pickRadiantDirection = (): { dx: number; dy: number } =>
+  RADIANT_DIRECTIONS[Math.floor(Math.random() * RADIANT_DIRECTIONS.length)]
+
+export const findShowerTargets = (state: GameState, count: number): Position[] => {
+  const targets: Position[] = []
+  const maxAttempts = count * 50
+  let attempts = 0
+
+  while (targets.length < count && attempts < maxAttempts) {
+    attempts++
+    const x = SPACE_BORDER + Math.floor(Math.random() * (state.mapWidth - SPACE_BORDER * 2))
+    const y = SPACE_BORDER + Math.floor(Math.random() * (state.mapHeight - SPACE_BORDER * 2))
+    if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
+    const tile = state.map[y][x].type
+    if (tile !== TileType.Dirt && tile !== TileType.Clover) continue
+    if (isTileOccupied(state, x, y)) continue
+
+    // Minimum 5-tile manhattan distance between targets
+    let tooClose = false
+    for (const t of targets) {
+      if (Math.abs(x - t.x) + Math.abs(y - t.y) < 5) {
+        tooClose = true
+        break
+      }
+    }
+    if (tooClose) continue
+
+    targets.push({ x, y })
+  }
+
+  return targets
+}
+
+export const tickMeteorShower = (state: GameState, time: number): void => {
+  const shower = state.meteorShower
+
+  // First tick: schedule the first shower
+  if (shower.nextShowerTime === 0) {
+    shower.nextShowerTime =
+      time +
+      METEOR_SHOWER_MIN_INTERVAL_MS +
+      Math.random() * (METEOR_SHOWER_MAX_INTERVAL_MS - METEOR_SHOWER_MIN_INTERVAL_MS)
+    return
+  }
+
+  // Idle: waiting for next shower
+  if (!shower.active && time < shower.nextShowerTime) return
+
+  // Start shower
+  if (!shower.active) {
+    const count =
+      METEOR_SHOWER_STAR_COUNT_MIN +
+      Math.floor(Math.random() * (METEOR_SHOWER_STAR_COUNT_MAX - METEOR_SHOWER_STAR_COUNT_MIN + 1))
+    const radiant = pickRadiantDirection()
+    shower.active = true
+    shower.remainingStars = count
+    shower.spawnIntervalMs = METEOR_SHOWER_SPAWN_WINDOW_MS / count
+    shower.lastSpawnTime = 0
+    shower.radiantDx = radiant.dx
+    shower.radiantDy = radiant.dy
+    recordDiscovery(state, 'event:meteor-shower')
+    return
+  }
+
+  // Active: stagger star spawns
+  if (shower.remainingStars > 0) {
+    if (shower.lastSpawnTime === 0 || time - shower.lastSpawnTime >= shower.spawnIntervalMs) {
+      const targets = findShowerTargets(state, 1)
+      if (targets.length > 0) {
+        spawnShootingStarAtTarget(state, targets[0], { dx: shower.radiantDx, dy: shower.radiantDy })
+      }
+      shower.remainingStars--
+      shower.lastSpawnTime = time
+    }
+  }
+
+  // Complete: schedule next shower
+  if (shower.remainingStars <= 0) {
+    shower.active = false
+    shower.nextShowerTime =
+      time +
+      METEOR_SHOWER_MIN_INTERVAL_MS +
+      Math.random() * (METEOR_SHOWER_MAX_INTERVAL_MS - METEOR_SHOWER_MIN_INTERVAL_MS)
   }
 }
