@@ -92,6 +92,7 @@ describe('floodFillCloverPatches', () => {
     let patches = floodFillCloverPatches(state)
     let line = patches.find(p => p.tiles.size === 26)
     expect(line).toBeDefined()
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(line!.maxHives).toBe(0)
 
     // 27 tiles = 1 hive
@@ -99,6 +100,7 @@ describe('floodFillCloverPatches', () => {
     patches = floodFillCloverPatches(state)
     line = patches.find(p => p.tiles.size === 27)
     expect(line).toBeDefined()
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(line!.maxHives).toBe(1)
 
     // 28 tiles = 2 hives
@@ -106,6 +108,7 @@ describe('floodFillCloverPatches', () => {
     patches = floodFillCloverPatches(state)
     line = patches.find(p => p.tiles.size === 28)
     expect(line).toBeDefined()
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(line!.maxHives).toBe(2)
   })
 })
@@ -117,6 +120,7 @@ describe('computeGrowthFront', () => {
     state.map[50][50] = { type: TileType.Clover }
 
     const patches = floodFillCloverPatches(state)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const patch = patches.find(p => p.tiles.has(posKey(50, 50)))!
     const front = computeGrowthFront(patch, state)
 
@@ -136,6 +140,7 @@ describe('computeGrowthFront', () => {
     state.map[51][50] = { type: TileType.Space }
 
     const patches = floodFillCloverPatches(state)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const patch = patches.find(p => p.tiles.has(posKey(50, 50)))!
     const front = computeGrowthFront(patch, state)
 
@@ -158,6 +163,7 @@ describe('countBeesOnPatch', () => {
     createBeeEntity(state, 30, 30)
 
     const patches = floodFillCloverPatches(state)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const patch = patches.find(p => p.tiles.has(posKey(50, 50)))!
     expect(countBeesOnPatch(patch, state)).toBe(2)
   })
@@ -174,6 +180,7 @@ describe('selectSpiralGrowth', () => {
     placeCloverRect(state, 50, 50, 1, 1)
 
     const patches = floodFillCloverPatches(state)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const patch = patches.find(p => p.tiles.has(posKey(50, 50)))!
     patch.beeCount = 0
     const candidates = computeGrowthFront(patch, state)
@@ -187,6 +194,7 @@ describe('selectSpiralGrowth', () => {
     placeCloverRect(state, 50, 50, 3, 3)
 
     const patches = floodFillCloverPatches(state)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const patch = patches.find(p => p.tiles.has(posKey(50, 50)))!
     const candidates = computeGrowthFront(patch, state)
 
@@ -207,6 +215,7 @@ describe('selectSpiralGrowth', () => {
     placeCloverRect(state, 50, 50, 5, 5)
 
     const patches = floodFillCloverPatches(state)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const patch = patches.find(p => p.tiles.has(posKey(50, 50)))!
     patch.beeCount = 100
     const candidates = computeGrowthFront(patch, state)
