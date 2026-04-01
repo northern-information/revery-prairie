@@ -20,8 +20,8 @@ interface UseInventoryDragOptions {
   onDrop: () => void
   onCombine: (recipe: Recipe) => void
   onStore: (omniboxUid: string) => void
-  onStoreFail: () => void
-  onCombineFail: () => void
+  onStoreFail?: () => void
+  onCombineFail?: () => void
 }
 
 export const useInventoryDrag = ({
@@ -103,7 +103,7 @@ export const useInventoryDrag = ({
             return
           }
           if (result.outcome === 'no-room') {
-            onStoreFail()
+            onStoreFail?.()
           }
         }
         setDragState(null)
@@ -128,7 +128,7 @@ export const useInventoryDrag = ({
             onDrop()
             return
           }
-          onCombineFail()
+          onCombineFail?.()
         }
         setDragState(null)
         return

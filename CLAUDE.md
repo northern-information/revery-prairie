@@ -36,7 +36,7 @@ defined in `src/engine/types.ts` as a const object (not an enum — `erasableSyn
 
 ## color conventions
 
-hot pink (`#ff69b4`) is reserved for user actions: cursor highlight, path dots, combine/drop previews (`#`), combine toast UI, inventory drop targets. do not use this color for world entities, terrain, or NPC behavior.
+hot pink (`#ff69b4`) is reserved for user actions: cursor highlight, path dots, combine/drop previews (`#`), inventory drop targets. do not use this color for world entities, terrain, or NPC behavior.
 
 cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_COLOR` text. the renderer uses a two-phase resolve-then-draw pattern — first determine `char`/`color`/`cursorable`, then apply cursor inversion at the end if applicable.
 
@@ -74,7 +74,7 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/components/GameScreen.tsx` — main game container orchestrating canvas, sidebar, inventory, menu, manual, dialogs, toasts.
 - `src/components/ManualPanel.tsx` — prairie manual panel with category tabs, search, entry cards, spoiler hints, cross-ref navigation.
 - `src/components/GameCanvas.tsx` — canvas element, rAF render via game loop, resize handling, HiDPI.
-- `src/components/InventoryPanel.tsx` — inventory UI panel with grid, combine toast, drag-to-map.
+- `src/components/InventoryPanel.tsx` — inventory UI panel with grid, drag-to-map.
 - `src/components/InventoryGrid.tsx` — single container grid renderer with drag-and-drop.
 - `src/components/ItemInfo.tsx` — imperative item info display (forwardRef).
 - `src/components/Sidebar.tsx` — always-visible right sidebar: item info, log, stats, tile, cursor, weather, units, controls.
@@ -82,7 +82,6 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/components/DialogBox.tsx` — NPC dialog rendering.
 - `src/components/NamePrompt.tsx` — steward name entry screen.
 - `src/components/DragCursor.tsx` — visual cursor during inventory drag-and-drop.
-- `src/components/CombineToast.tsx` — combine result notification with live preview.
 - `src/components/PickupToasts.tsx` — item pickup notifications.
 - `src/hooks/useGameEngine.ts` — game state singleton, held outside React's render cycle.
 - `src/hooks/useKeyboard.ts` — all keybindings and panel toggling.
@@ -121,7 +120,7 @@ tetris-style spatial inventory. items have shapes (`boolean[][]`) that must phys
 - **`src/engine/items.ts`** — item registry. items defined without `id` field in a `const ITEMS = { ... } as const satisfies Record<string, ItemEntry>` map; `ITEM_DEFINITIONS` built via `Object.fromEntries` injecting the key as `id`.
 - **`src/engine/inventory.ts`** — pure grid operations: placement, rotation, occupancy, transfer, auto-sort.
 - **`src/engine/recipes.ts`** — recipe system for combining items via drag-and-drop.
-- **`src/components/InventoryPanel.tsx`** — docked left of sidebar. backpack grid, controls, combine toast.
+- **`src/components/InventoryPanel.tsx`** — docked left of sidebar. backpack grid, controls.
 - **`src/components/InventoryGrid.tsx`** — CSS grid with 28px cells, drag-and-drop, combine detection.
 - **`src/components/ItemInfo.tsx`** — imperative (`forwardRef`/`useImperativeHandle`) item info display in sidebar. uses refs to avoid re-render cascades from hover.
 - **`src/hooks/useInventoryDrag.ts`** — drag state, placement preview, rotation, combine detection.
@@ -135,10 +134,10 @@ categories: `Fauna`, `Flora`, `Tool`, `CelestialDebris`, `Gizmo` — expand as n
 recipes combine two items via drag-and-drop. defined in `src/engine/recipes.ts`.
 
 - `kind`: `macro` (map effects, shows `!` on grid) or `craft` (creates items, shows result icon)
-- `resultName`: displayed in toast header (`bee + clover = prairie`)
+- `resultName`: displayed in event log (`bee + clover = prairie`)
 - `preserveIngredient`: optional definitionId of an ingredient that should NOT be consumed. the combine handler checks both dragged and target items against this field.
 - `preview`: optional function returning `{ pos, char, color }[]` for map visualization. called every frame via `state.previewFn` so it follows the player.
-- `discoveredRecipes: Set<string>` on GameState tracks which recipes the player has used. undiscovered recipes show `?` on grid cells and `???` in toast.
+- `discoveredRecipes: Set<string>` on GameState tracks which recipes the player has used. undiscovered recipes show `?` on grid cells.
 
 the permacomputer is never consumed by recipes. it is a tool that persists. the omnibox recipe uses `preserveIngredient: 'permacomputer'` to enforce this.
 
@@ -219,7 +218,7 @@ portable 5x5 containers (2x2 inventory footprint). created by combining meteorit
 - **explicit open/close only**: no auto-open on adjacency or drop. player must press `[e]` to toggle. ground omniboxes auto-close when player walks >1 tile away.
 - **facing highlight**: `state.playerFacing: Direction` tracks last move direction. `state.facingEntityPos: Position | null` is the nearest interactable tile the player faces (ground omnibox, character, or any future interactable). rendered with pink cursor inversion. `updateFacingEntity()` recalculates after every move. to add new interactable types, add a check to `isInteractableAt()` in `interaction.ts`.
 - **ground behavior**: dropped omniboxes go to `state.groundOmniboxes[]` (not `groundItems`). ground omniboxes are solid — they block `movePlayer()` and `findPath()`. press `[e]` facing a ground omnibox to toggle it open/closed.
-- **drag-to-store**: dragging an item onto an omnibox item in any container stores the item inside and opens the omnibox. shows the dragged item's glyph as pink preview. shows "not enough capacity" toast if it doesn't fit.
+- **drag-to-store**: dragging an item onto an omnibox item in any container stores the item inside and opens the omnibox. shows the dragged item's glyph as pink preview.
 - **panel layout**: backpack panel renders above-right of the player. omnibox panel renders above-left of the player. positioned relative to player screen coordinates.
 - **nesting**: omniboxes can be placed inside other omniboxes.
 - **renaming**: deferred — not yet implemented.
@@ -423,7 +422,7 @@ npm run harness:run      # execute a plan (--plan harness/plans/{id}.yaml)
 - Tailwind for styling. custom theme tokens defined in `src/styles/index.css`.
 - `@/` path alias maps to `src/`.
 - prettier config matches shop-item-detail-frontend (single quotes, no semis, trailing commas, import sorting, tailwind class sorting).
-- eslint uses `strictTypeChecked` + `stylisticTypeChecked` from typescript-eslint.
+- eslint uses `strictTypeChecked` + `stylisticTypeChecked` from typescript-eslint. never add `eslint-disable` comments — fix the underlying code instead.
 - for event handlers that read mutable game state, use refs (`containerRef.current`, `dragStateRef.current`) instead of closure-captured values. this avoids stale closures and prevents `useEffect` re-registration on every state change.
 - when a `useEffect` only needs to know if something is truthy (not its full value), extract a boolean (`const isDragging = dragState !== null`) and use that in the dependency array to reduce churn.
 - `as const satisfies Record<string, T>` pattern for typed registries that derive IDs from keys.
