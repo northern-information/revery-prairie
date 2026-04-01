@@ -1,6 +1,6 @@
 import { ComponentType } from './ecs/types'
 import { createOmniboxContainer, findFitPosition, placeItem } from './inventory'
-import { isInBounds } from './position'
+import { isInBounds, posKey } from './position'
 import { TileType } from './types'
 
 import type { GameState, Position } from './types'
@@ -62,7 +62,8 @@ export const RECIPES: Recipe[] = [
     },
     execute: state => {
       const standingOn = state.map[state.player.y][state.player.x].type
-      if (standingOn !== TileType.Dirt && standingOn !== TileType.Clover && standingOn !== TileType.CaveFloor) return false
+      if (standingOn !== TileType.Dirt && standingOn !== TileType.Clover && standingOn !== TileType.CaveFloor)
+        return false
 
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
@@ -72,6 +73,7 @@ export const RECIPES: Recipe[] = [
             const t = state.map[ty][tx].type
             if (t === TileType.Dirt || t === TileType.Clover || t === TileType.CaveFloor) {
               state.map[ty][tx] = { type: TileType.Clover }
+              state.cloverLifecycle.delete(posKey(tx, ty))
             }
           }
         }

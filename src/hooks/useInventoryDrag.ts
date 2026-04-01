@@ -8,12 +8,11 @@ import {
   isOmniboxSelfDrop,
 } from '@/engine/drag'
 import { moveItem, transferItem } from '@/engine/inventory'
+import type { DragState } from '@/engine/drag'
 import type { Recipe } from '@/engine/recipes'
 import type { Container, GameState, ItemInstance } from '@/engine/types'
 
 export type { DragState } from '@/engine/drag'
-
-import type { DragState } from '@/engine/drag'
 
 interface UseInventoryDragOptions {
   containers: { id: string; container: Container }[]
@@ -36,10 +35,7 @@ export const useInventoryDrag = ({
 }: UseInventoryDragOptions) => {
   const [dragState, setDragState] = useState<DragState | null>(null)
 
-  const getContainer = useCallback(
-    (id: string) => containers.find((c) => c.id === id)?.container ?? null,
-    [containers],
-  )
+  const getContainer = useCallback((id: string) => containers.find(c => c.id === id)?.container ?? null, [containers])
 
   const startDrag = useCallback((item: ItemInstance, containerId: string) => {
     setDragState({
@@ -58,7 +54,7 @@ export const useInventoryDrag = ({
 
   const updatePreview = useCallback(
     (gridX: number, gridY: number, targetContainerId: string) => {
-      setDragState((prev) => {
+      setDragState(prev => {
         if (!prev) return null
         const container = getContainer(targetContainerId)
         if (!container) return prev
@@ -71,7 +67,7 @@ export const useInventoryDrag = ({
           gridY,
           prev.sourceContainerId,
           targetContainerId,
-          state.discoveredRecipes,
+          state.discoveredRecipes
         )
 
         return {
@@ -83,7 +79,7 @@ export const useInventoryDrag = ({
         }
       })
     },
-    [getContainer, state.discoveredRecipes],
+    [getContainer, state.discoveredRecipes]
   )
 
   const drop = useCallback(
@@ -98,7 +94,7 @@ export const useInventoryDrag = ({
             sourceContainer,
             dragState.item,
             dragState.storeTarget.omniboxUid,
-            state.omniboxContainers,
+            state.omniboxContainers
           )
           if (result.outcome === 'stored') {
             onStore(result.omniboxUid)
@@ -124,7 +120,7 @@ export const useInventoryDrag = ({
             sourceContainer,
             targetContainer,
             dragState.item,
-            dragState.combineTarget,
+            dragState.combineTarget
           )
           if (result.outcome === 'success') {
             onCombine(dragState.combineTarget.recipe)
@@ -159,14 +155,14 @@ export const useInventoryDrag = ({
           dragState.item.uid,
           dragState.previewX,
           dragState.previewY,
-          dragState.rotation,
+          dragState.rotation
         )
       }
 
       setDragState(null)
       onDrop()
     },
-    [dragState, getContainer, onDrop, onCombine, onCombineFail, onStore, onStoreFail, state],
+    [dragState, getContainer, onDrop, onCombine, onCombineFail, onStore, onStoreFail, state]
   )
 
   const cancelDrag = useCallback(() => {
@@ -174,9 +170,9 @@ export const useInventoryDrag = ({
   }, [])
 
   const rotateDrag = useCallback(() => {
-    setDragState((prev) => {
+    setDragState(prev => {
       if (!prev) return null
-      const container = containers.find((c) => c.id === prev.sourceContainerId)?.container ?? null
+      const container = containers.find(c => c.id === prev.sourceContainerId)?.container ?? null
       const result = computeRotation(container, prev.item, prev.rotation, prev.previewX, prev.previewY)
 
       return {

@@ -1,5 +1,5 @@
 id: meteorite-chain-explosion
-name: "Meteorite chain explosion on pickup"
+name: 'Meteorite chain explosion on pickup'
 status: implemented
 priority: medium
 layer: engine
@@ -21,10 +21,10 @@ behaviors:
       once per meteorite at the player position. requires
       time parameter to be defined.
     inputs:
-      - "GameState with meteorite at player position"
-      - "time: number (rAF timestamp)"
+      - 'GameState with meteorite at player position'
+      - 'time: number (rAF timestamp)'
     outputs:
-      - "PickUpResult with chainExplosions count for toast"
+      - 'PickUpResult with chainExplosions count for toast'
     state_changes:
       - field: world
         effect: "up to 3 new meteorite ECS entities created with Position, Pickupable({ definitionId: 'meteorite' }), EntityTag('meteorite'), ChainSource({ fromChain: true }), EntityZone({ zone: 'overworld' }) components"
@@ -46,11 +46,11 @@ behaviors:
       meteorites are marked with fromChain: true so they cannot
       trigger further chain explosions on pickup.
     inputs:
-      - "GameState"
-      - "pickup position: Position"
-      - "time: number"
+      - 'GameState'
+      - 'pickup position: Position'
+      - 'time: number'
     outputs:
-      - "number of meteorites actually spawned (0-3)"
+      - 'number of meteorites actually spawned (0-3)'
     state_changes:
       - field: world
         effect: "0-3 new meteorite ECS entities created with Position, Pickupable({ definitionId: 'meteorite' }), EntityTag('meteorite'), ChainSource({ fromChain: true }), EntityZone({ zone: 'overworld' }) components"
@@ -66,7 +66,7 @@ behaviors:
       uses chainExplosions to fire an addEvent toast with
       the text 'oh my!' using the meteorite glyph and color.
     inputs:
-      - "PickUpResult with chainExplosions > 0"
+      - 'PickUpResult with chainExplosions > 0'
     outputs:
       - "toast event: kind 'discovery', text 'oh my!', icon meteorite glyph, color meteorite color"
     state_changes: []
@@ -74,36 +74,36 @@ behaviors:
 
 edge_cases:
   - id: no-valid-tiles
-    description: "all tiles within radius 3 are non-walkable or occupied — chain explosion triggers but 0 meteorites spawn"
-    expected: "chainExplosions count is 0, no meteorites or explosions added, no toast"
+    description: 'all tiles within radius 3 are non-walkable or occupied — chain explosion triggers but 0 meteorites spawn'
+    expected: 'chainExplosions count is 0, no meteorites or explosions added, no toast'
   - id: fewer-than-three-tiles
-    description: "only 1-2 valid tiles within radius — spawns only as many meteorites as tiles allow"
-    expected: "spawns the available count, each with a LandingExplosion"
+    description: 'only 1-2 valid tiles within radius — spawns only as many meteorites as tiles allow'
+    expected: 'spawns the available count, each with a LandingExplosion'
   - id: multiple-meteorites-same-tile
-    description: "two meteorites at the same position picked up in one call — each rolls independently"
-    expected: "each meteorite has its own 1/7 chance, chain explosions stack"
+    description: 'two meteorites at the same position picked up in one call — each rolls independently'
+    expected: 'each meteorite has its own 1/7 chance, chain explosions stack'
   - id: cave-zone
-    description: "meteorite pickup in cave zone — chain explosion still applies if meteorites exist there"
-    expected: "uses cave map tiles for walkability checks, spawns on caveFloor tiles"
+    description: 'meteorite pickup in cave zone — chain explosion still applies if meteorites exist there'
+    expected: 'uses cave map tiles for walkability checks, spawns on caveFloor tiles'
   - id: chain-meteorite-on-player
-    description: "player tile is excluded from candidate spawn tiles since the player occupies it"
-    expected: "no meteorite spawns on the player position"
+    description: 'player tile is excluded from candidate spawn tiles since the player occupies it'
+    expected: 'no meteorite spawns on the player position'
   - id: occupied-tile-excluded
-    description: "a candidate tile is occupied by a ground item, ground omnibox, character (including ghost), or existing meteorite"
-    expected: "that tile is skipped, meteorite spawns on next valid candidate"
+    description: 'a candidate tile is occupied by a ground item, ground omnibox, character (including ghost), or existing meteorite'
+    expected: 'that tile is skipped, meteorite spawns on next valid candidate'
   - id: chain-children-cannot-explode
-    description: "meteorites spawned by a chain explosion have fromChain: true and are skipped by the explosion roll"
-    expected: "walking over a fromChain meteorite picks it up normally, never triggers a chain explosion"
+    description: 'meteorites spawned by a chain explosion have fromChain: true and are skipped by the explosion roll'
+    expected: 'walking over a fromChain meteorite picks it up normally, never triggers a chain explosion'
 
 failure_conditions:
-  - trigger: "time parameter is undefined (no rAF timestamp)"
-    expected: "chain explosion does not trigger, pickup proceeds normally without roll"
-  - trigger: "backpack is full and meteorite cannot be captured"
-    expected: "chain explosion still rolls — if it triggers, the meteorite is consumed by the explosion. if not, the meteorite stays on the ground"
-  - trigger: "Math.random returns value >= 1/7"
-    expected: "no chain explosion, normal pickup behavior"
+  - trigger: 'time parameter is undefined (no rAF timestamp)'
+    expected: 'chain explosion does not trigger, pickup proceeds normally without roll'
+  - trigger: 'backpack is full and meteorite cannot be captured'
+    expected: 'chain explosion still rolls — if it triggers, the meteorite is consumed by the explosion. if not, the meteorite stays on the ground'
+  - trigger: 'Math.random returns value >= 1/7'
+    expected: 'no chain explosion, normal pickup behavior'
 
 verification:
   test_file: src/engine/__tests__/meteoriteChainExplosion.test.ts
-  test_pattern: "chain explosion"
-  command: "npx vitest run src/engine/__tests__/meteoriteChainExplosion.test.ts"
+  test_pattern: 'chain explosion'
+  command: 'npx vitest run src/engine/__tests__/meteoriteChainExplosion.test.ts'

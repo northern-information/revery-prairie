@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react'
-import { DialogBox, DIALOG_HEIGHT, DIALOG_WIDTH } from './DialogBox'
+import { DIALOG_HEIGHT, DIALOG_WIDTH, DialogBox } from './DialogBox'
 import { GameCanvas } from './GameCanvas'
 import { InventoryPanel } from './InventoryPanel'
 import { ManualPanel } from './ManualPanel'
@@ -7,10 +7,10 @@ import { Menu } from './Menu'
 import { PickupToasts } from './PickupToasts'
 import { Sidebar } from './Sidebar'
 
-import { advanceDialog } from '@/engine/interaction'
-import { stopAll, setMusicEnabled } from '@/engine/audio'
+import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition } from '@/engine/characters'
 import { ComponentType } from '@/engine/ecs/types'
+import { advanceDialog } from '@/engine/interaction'
 import { getDefinition } from '@/engine/items'
 import { useEventLog } from '@/hooks/useEventLog'
 import { useGameEngine } from '@/hooks/useGameEngine'
@@ -120,9 +120,7 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
       {state.activeDialog &&
         (() => {
           const def = getCharacterDefinition(state.activeDialog.characterId)
-          const line = state.activeDialog.transitioning
-            ? ''
-            : def.dialog[state.activeDialog.lineIndex]
+          const line = state.activeDialog.transitioning ? '' : def.dialog[state.activeDialog.lineIndex]
           const isLastLine = state.activeDialog.lineIndex >= def.dialog.length - 1
 
           const dialog = state.activeDialog

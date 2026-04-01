@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+
 import { CHARACTER_DEFINITIONS } from '@/engine/characters'
 
 const REPO_ROOT = resolve(import.meta.dirname, '../../../..')

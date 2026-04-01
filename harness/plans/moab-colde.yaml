@@ -1,15 +1,15 @@
 plan:
   id: moab-colde
-  title: "Add Moab Coldë NPC to hidden cave chamber with bee omnibox gift"
+  title: 'Add Moab Coldë NPC to hidden cave chamber with bee omnibox gift'
   created: 2026-03-27
   global_verification:
-    - "npm run build"
-    - "npm run test"
-    - "npm run lint"
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
 
 tasks:
   - id: moab-state-fields
-    title: "Add moabGiftGiven and caveNpcSpot fields to GameState"
+    title: 'Add moabGiftGiven and caveNpcSpot fields to GameState'
     spec_id: moab-colde
     spec_sections:
       - moab-gift-delivery
@@ -20,12 +20,12 @@ tasks:
       - src/engine/types.ts
     depends_on: []
     verification:
-      - "npx tsc -b --noEmit"
+      - 'npx tsc -b --noEmit'
     repair: retry
     tags: [engine, types]
 
   - id: moab-character-definition
-    title: "Define Moab Coldë in the character registry"
+    title: 'Define Moab Coldë in the character registry'
     spec_id: moab-colde
     spec_sections:
       - moab-character-definition
@@ -37,12 +37,12 @@ tasks:
       - src/engine/characters.ts
     depends_on: []
     verification:
-      - "npx tsc -b --noEmit"
+      - 'npx tsc -b --noEmit'
     repair: retry
     tags: [engine, characters]
 
   - id: moab-state-init
-    title: "Store caveNpcSpot and moabGiftGiven in createGameState"
+    title: 'Store caveNpcSpot and moabGiftGiven in createGameState'
     spec_id: moab-colde
     spec_sections:
       - moab-cave-placement
@@ -56,12 +56,12 @@ tasks:
     depends_on:
       - moab-state-fields
     verification:
-      - "npx tsc -b --noEmit"
+      - 'npx tsc -b --noEmit'
     repair: retry
     tags: [engine, state]
 
   - id: moab-cave-spawn
-    title: "Spawn Moab at caveNpcSpot in enterCave"
+    title: 'Spawn Moab at caveNpcSpot in enterCave'
     spec_id: moab-colde
     spec_sections:
       - moab-cave-placement
@@ -75,12 +75,12 @@ tasks:
       - moab-state-fields
       - moab-character-definition
     verification:
-      - "npx tsc -b --noEmit"
+      - 'npx tsc -b --noEmit'
     repair: retry
     tags: [engine, cave]
 
   - id: moab-gift-engine
-    title: "Add giveMoabGift function to actions.ts"
+    title: 'Add giveMoabGift function to actions.ts'
     spec_id: moab-colde
     spec_sections:
       - moab-gift-delivery
@@ -98,12 +98,12 @@ tasks:
       - moab-state-fields
       - moab-character-definition
     verification:
-      - "npx tsc -b --noEmit"
+      - 'npx tsc -b --noEmit'
     repair: retry
     tags: [engine, actions]
 
   - id: moab-gift-integration
-    title: "Wire gift delivery and toast into useKeyboard dialog completion"
+    title: 'Wire gift delivery and toast into useKeyboard dialog completion'
     spec_id: moab-colde
     spec_sections:
       - moab-gift-delivery
@@ -120,12 +120,12 @@ tasks:
     depends_on:
       - moab-gift-engine
     verification:
-      - "npx tsc -b --noEmit"
+      - 'npx tsc -b --noEmit'
     repair: retry
     tags: [hooks, integration]
 
   - id: moab-tests
-    title: "Add Moab Coldë unit tests"
+    title: 'Add Moab Coldë unit tests'
     spec_id: moab-colde
     spec_sections:
       - moab-character-definition
@@ -150,6 +150,6 @@ tasks:
       - moab-cave-spawn
       - moab-state-init
     verification:
-      - "npx vitest run src/engine/__tests__/moab-colde.test.ts"
+      - 'npx vitest run src/engine/__tests__/moab-colde.test.ts'
     repair: retry
     tags: [test]

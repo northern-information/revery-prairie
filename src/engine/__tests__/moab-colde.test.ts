@@ -1,9 +1,9 @@
-import { createGameState } from '../state'
+import { enterCave, exitCave } from '../cave'
+import { getCharacterDefinition } from '../characters'
 import { advanceDialog, giveMoabGift, interactWithCharacter, tickDialogTransition } from '../interaction'
 import { getBlockedPositions, movePlayer } from '../movement'
-import { getCharacterDefinition } from '../characters'
-import { enterCave, exitCave } from '../cave'
 import { posKey } from '../position'
+import { createGameState } from '../state'
 import { Zone } from '../types'
 import { getCharacterEntities } from './helpers'
 
@@ -145,9 +145,7 @@ describe('moab gift delivery', () => {
     // Find the new omnibox (not any pre-existing ones)
     const omniboxesAfter = state.backpack.items.filter(i => i.definitionId === 'omnibox')
     expect(omniboxesAfter.length).toBe(omniboxesBefore.length + 1)
-    const newOmnibox = omniboxesAfter.find(
-      o => !omniboxesBefore.some(b => b.uid === o.uid)
-    )
+    const newOmnibox = omniboxesAfter.find(o => !omniboxesBefore.some(b => b.uid === o.uid))
     if (!newOmnibox) throw new Error('new omnibox not found')
 
     // Check the container has 25 bees

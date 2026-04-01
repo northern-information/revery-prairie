@@ -1,5 +1,5 @@
-import { stringify } from 'yaml'
 import { parsePlanYaml } from '../src/plan-parser.ts'
+import { stringify } from 'yaml'
 
 const minimalTask = (overrides: Record<string, unknown> = {}) => ({
   id: 'task-1',
@@ -77,7 +77,7 @@ describe('parsePlanYaml', () => {
       const result = parsePlanYaml(raw)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.field === 'plan')).toBe(true)
+      expect(result.errors.some(e => e.field === 'plan')).toBe(true)
     })
 
     it('reports missing tasks key', () => {
@@ -88,7 +88,7 @@ describe('parsePlanYaml', () => {
       const result = parsePlanYaml(raw)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.field === 'tasks')).toBe(true)
+      expect(result.errors.some(e => e.field === 'tasks')).toBe(true)
     })
 
     it('reports missing plan id', () => {
@@ -100,7 +100,7 @@ describe('parsePlanYaml', () => {
       const result = parsePlanYaml(raw)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.field === 'plan.id')).toBe(true)
+      expect(result.errors.some(e => e.field === 'plan.id')).toBe(true)
     })
   })
 
@@ -114,7 +114,7 @@ describe('parsePlanYaml', () => {
       const result = parsePlanYaml(raw)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.message.includes('duplicate'))).toBe(true)
+      expect(result.errors.some(e => e.message.includes('duplicate'))).toBe(true)
     })
 
     it('reports missing dependency references', () => {
@@ -126,22 +126,19 @@ describe('parsePlanYaml', () => {
       const result = parsePlanYaml(raw)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.message.includes('not found'))).toBe(true)
+      expect(result.errors.some(e => e.message.includes('not found'))).toBe(true)
     })
 
     it('reports dependency cycles among tasks', () => {
       const raw = stringify({
         plan: { id: 'p', title: 'P', created: '2026-03-26', global_verification: [] },
-        tasks: [
-          minimalTask({ id: 'a', depends_on: ['b'] }),
-          minimalTask({ id: 'b', depends_on: ['a'] }),
-        ],
+        tasks: [minimalTask({ id: 'a', depends_on: ['b'] }), minimalTask({ id: 'b', depends_on: ['a'] })],
       })
 
       const result = parsePlanYaml(raw)
 
       expect(result.valid).toBe(false)
-      expect(result.errors.some((e) => e.message.includes('cycle'))).toBe(true)
+      expect(result.errors.some(e => e.message.includes('cycle'))).toBe(true)
     })
   })
 })

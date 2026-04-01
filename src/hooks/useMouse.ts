@@ -1,18 +1,16 @@
 import { useEffect, useRef } from 'react'
 
+import { getCharacterDefinition } from '@/engine/characters'
+import { screenToTile } from '@/engine/coordinates'
+import { ComponentType } from '@/engine/ecs/types'
 import { breakWall, interactWithCharacter, isInteractableAt, updateFacingEntity } from '@/engine/interaction'
 import { getPathfindingBlockers } from '@/engine/movement'
 import { openOmnibox } from '@/engine/omnibox'
-import { getCharacterDefinition } from '@/engine/characters'
-import { ComponentType } from '@/engine/ecs/types'
-import { screenToTile } from '@/engine/coordinates'
-import { isWalkableTile } from '@/engine/position'
 import { findPath } from '@/engine/pathfinding'
-import { posKey } from '@/engine/position'
+import { isWalkableTile, posKey } from '@/engine/position'
 import { TileType } from '@/engine/types'
 import type { Panel } from './useKeyboard'
-import type { CharMetrics } from '@/engine/types'
-import type { GameState } from '@/engine/types'
+import type { CharMetrics, GameState } from '@/engine/types'
 
 interface UseMouseOptions {
   canvasRef: React.RefObject<HTMLCanvasElement | null>
@@ -75,15 +73,15 @@ export const useMouse = ({
       const clickedCharacterEid = state.world.spatial
         .at(tile.x, tile.y)
         .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'character')
-      const clickedCharacterIdentity = clickedCharacterEid !== undefined
-        ? state.world.getComponent(clickedCharacterEid, ComponentType.CharacterIdentity)
-        : null
+      const clickedCharacterIdentity =
+        clickedCharacterEid !== undefined
+          ? state.world.getComponent(clickedCharacterEid, ComponentType.CharacterIdentity)
+          : null
       const clickedOmniboxEid = state.world.spatial
         .at(tile.x, tile.y)
         .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox')
-      const clickedOmniboxLink = clickedOmniboxEid !== undefined
-        ? state.world.getComponent(clickedOmniboxEid, ComponentType.OmniboxLink)
-        : null
+      const clickedOmniboxLink =
+        clickedOmniboxEid !== undefined ? state.world.getComponent(clickedOmniboxEid, ComponentType.OmniboxLink) : null
       const clickedInteractableTile =
         !clickedCharacterIdentity && !clickedOmniboxLink && isInteractableAt(state, tile.x, tile.y)
 

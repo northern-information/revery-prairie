@@ -5,13 +5,7 @@ import type { Entity } from './types'
 export interface SpatialIndex {
   insert: (entity: Entity, x: number, y: number) => void
   remove: (entity: Entity, x: number, y: number) => void
-  move: (
-    entity: Entity,
-    fromX: number,
-    fromY: number,
-    toX: number,
-    toY: number,
-  ) => void
+  move: (entity: Entity, fromX: number, fromY: number, toX: number, toY: number) => void
   at: (x: number, y: number) => Entity[]
   inRadius: (cx: number, cy: number, r: number) => Entity[]
   inRect: (x: number, y: number, w: number, h: number) => Entity[]
@@ -40,13 +34,7 @@ export const createSpatialIndex = (): SpatialIndex => {
     }
   }
 
-  const move = (
-    entity: Entity,
-    fromX: number,
-    fromY: number,
-    toX: number,
-    toY: number,
-  ): void => {
+  const move = (entity: Entity, fromX: number, fromY: number, toX: number, toY: number): void => {
     remove(entity, fromX, fromY)
     insert(entity, toX, toY)
   }

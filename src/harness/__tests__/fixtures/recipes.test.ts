@@ -1,5 +1,5 @@
-import { RECIPES } from '@/engine/recipes'
 import { ITEM_DEFINITIONS } from '@/engine/items'
+import { RECIPES } from '@/engine/recipes'
 
 const itemIds = new Set(Object.keys(ITEM_DEFINITIONS))
 

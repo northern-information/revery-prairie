@@ -6,12 +6,7 @@ import { CARDINAL } from './position'
 import type { Entity } from './ecs/types'
 import type { GameState } from './types'
 
-export const createGroundOmniboxEntity = (
-  state: GameState,
-  uid: string,
-  x: number,
-  y: number,
-): Entity => {
+export const createGroundOmniboxEntity = (state: GameState, uid: string, x: number, y: number): Entity => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.OmniboxLink, { uid })

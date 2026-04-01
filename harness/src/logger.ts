@@ -1,11 +1,8 @@
 import { createHash } from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { join, basename } from 'node:path'
-import type {
-  TaskResult,
-  PlanRunResult,
-  AttemptRecord,
-} from './types.ts'
+import { basename, join } from 'node:path'
+
+import type { AttemptRecord, PlanRunResult, TaskResult } from './types.ts'
 
 export interface RunLogger {
   runDir: string
@@ -40,11 +37,7 @@ export const createRunLogger = (logsRoot: string, runId: string): RunLogger => {
     writeFileSync(join(dir, 'prompt.sha256'), hash, 'utf-8')
   }
 
-  const logAttempt = (
-    taskId: string,
-    attempt: AttemptRecord,
-    files: Map<string, string>,
-  ): void => {
+  const logAttempt = (taskId: string, attempt: AttemptRecord, files: Map<string, string>): void => {
     const dir = taskDir(taskId)
     const attemptDir = join(dir, 'attempts', String(attempt.attempt))
     ensureDir(attemptDir)
@@ -98,9 +91,7 @@ const formatRunSummary = (result: PlanRunResult): string => {
   ]
 
   for (const task of result.tasks) {
-    lines.push(
-      `| ${task.task_id} | ${task.status} | ${String(task.attempts.length)} |`,
-    )
+    lines.push(`| ${task.task_id} | ${task.status} | ${String(task.attempts.length)} |`)
   }
 
   lines.push(
@@ -109,7 +100,7 @@ const formatRunSummary = (result: PlanRunResult): string => {
     `- passed: ${String(result.summary.passed)}`,
     `- failed: ${String(result.summary.failed)}`,
     `- skipped: ${String(result.summary.skipped)}`,
-    `- blocked: ${String(result.summary.blocked)}`,
+    `- blocked: ${String(result.summary.blocked)}`
   )
 
   return lines.join('\n')

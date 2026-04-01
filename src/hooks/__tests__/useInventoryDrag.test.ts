@@ -1,13 +1,20 @@
-import { renderHook, act } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-
 import { useInventoryDrag } from '../useInventoryDrag'
-import { createTestState } from '@/engine/__tests__/helpers'
-import { Rotation } from '@/engine/types'
+import { act, renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { Container, GameState, ItemInstance } from '@/engine/types'
+import { createTestState } from '@/engine/__tests__/helpers'
+import {
+  computePlacementPreview,
+  computeRotation,
+  executeCombine,
+  executeStoreInOmnibox,
+  isOmniboxSelfDrop,
+} from '@/engine/drag'
+import { moveItem, transferItem } from '@/engine/inventory'
+import { Rotation } from '@/engine/types'
+import type { CombineResult, PlacementPreview, StoreResult } from '@/engine/drag'
 import type { Recipe } from '@/engine/recipes'
-import type { PlacementPreview, CombineResult, StoreResult } from '@/engine/drag'
+import type { Container, GameState, ItemInstance } from '@/engine/types'
 
 // --- mocks ---
 
@@ -19,7 +26,7 @@ vi.mock('@/engine/drag', () => ({
   isOmniboxSelfDrop: vi.fn(() => false),
 }))
 
-vi.mock('@/engine/inventory', async (importOriginal) => {
+vi.mock('@/engine/inventory', async importOriginal => {
   const actual = await importOriginal<typeof import('@/engine/inventory')>()
   return {
     ...actual,
@@ -27,15 +34,6 @@ vi.mock('@/engine/inventory', async (importOriginal) => {
     transferItem: vi.fn(),
   }
 })
-
-import {
-  computePlacementPreview,
-  computeRotation,
-  executeCombine,
-  executeStoreInOmnibox,
-  isOmniboxSelfDrop,
-} from '@/engine/drag'
-import { moveItem, transferItem } from '@/engine/inventory'
 
 // --- helpers ---
 
@@ -72,9 +70,7 @@ let onStore: ReturnType<typeof vi.fn>
 let onStoreFail: ReturnType<typeof vi.fn>
 let onCombineFail: ReturnType<typeof vi.fn>
 
-const backpackContainers = () => [
-  { id: state.backpack.id, container: state.backpack },
-]
+const backpackContainers = () => [{ id: state.backpack.id, container: state.backpack }]
 
 const withOmnibox = (omniboxContainer: Container) => [
   { id: state.backpack.id, container: state.backpack },
@@ -91,7 +87,7 @@ const renderDragHook = (containers?: { id: string; container: Container }[]) =>
       onStore,
       onStoreFail,
       onCombineFail,
-    }),
+    })
   )
 
 beforeEach(() => {
@@ -145,8 +141,12 @@ describe('useInventoryDrag', () => {
 
       const { result } = renderDragHook()
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updatePreview(3, 4, state.backpack.id); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
+      act(() => {
+        result.current.updatePreview(3, 4, state.backpack.id)
+      })
 
       expect(computePlacementPreview).toHaveBeenCalledWith(
         state.backpack,
@@ -156,7 +156,7 @@ describe('useInventoryDrag', () => {
         4,
         state.backpack.id,
         state.backpack.id,
-        state.discoveredRecipes,
+        state.discoveredRecipes
       )
       expect(result.current.dragState?.previewX).toBe(3)
       expect(result.current.dragState?.previewY).toBe(4)
@@ -168,8 +168,12 @@ describe('useInventoryDrag', () => {
       const item = makeItem()
       const { result } = renderDragHook()
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updatePreview(3, 4, 'nonexistent-id'); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
+      act(() => {
+        result.current.updatePreview(3, 4, 'nonexistent-id')
+      })
 
       // previewX/previewY stay at initial values
       expect(result.current.dragState?.previewX).toBe(0)
@@ -179,7 +183,9 @@ describe('useInventoryDrag', () => {
     it('is a no-op when no drag is active', () => {
       const { result } = renderDragHook()
 
-      act(() => { result.current.updatePreview(3, 4, state.backpack.id); })
+      act(() => {
+        result.current.updatePreview(3, 4, state.backpack.id)
+      })
 
       expect(result.current.dragState).toBeNull()
       expect(computePlacementPreview).not.toHaveBeenCalled()
@@ -191,10 +197,14 @@ describe('useInventoryDrag', () => {
       const item = makeItem()
       const { result } = renderDragHook()
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
       expect(result.current.dragState).not.toBeNull()
 
-      act(() => { result.current.cancelDrag(); })
+      act(() => {
+        result.current.cancelDrag()
+      })
       expect(result.current.dragState).toBeNull()
     })
   })
@@ -211,16 +221,17 @@ describe('useInventoryDrag', () => {
 
       const { result } = renderDragHook()
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updatePreview(0, 0, state.backpack.id); })
-      act(() => { result.current.drop(state.backpack.id); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
+      act(() => {
+        result.current.updatePreview(0, 0, state.backpack.id)
+      })
+      act(() => {
+        result.current.drop(state.backpack.id)
+      })
 
-      expect(executeStoreInOmnibox).toHaveBeenCalledWith(
-        state.backpack,
-        item,
-        'omni-1',
-        state.omniboxContainers,
-      )
+      expect(executeStoreInOmnibox).toHaveBeenCalledWith(state.backpack, item, 'omni-1', state.omniboxContainers)
       expect(onStore).toHaveBeenCalledWith('omni-1')
       expect(onDrop).toHaveBeenCalledOnce()
       expect(result.current.dragState).toBeNull()
@@ -236,9 +247,15 @@ describe('useInventoryDrag', () => {
 
       const { result } = renderDragHook()
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updatePreview(0, 0, state.backpack.id); })
-      act(() => { result.current.drop(state.backpack.id); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
+      act(() => {
+        result.current.updatePreview(0, 0, state.backpack.id)
+      })
+      act(() => {
+        result.current.drop(state.backpack.id)
+      })
 
       expect(onStoreFail).toHaveBeenCalledOnce()
       expect(onStore).not.toHaveBeenCalled()
@@ -259,17 +276,21 @@ describe('useInventoryDrag', () => {
 
       const { result } = renderDragHook()
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updatePreview(0, 0, state.backpack.id); })
-      act(() => { result.current.drop(state.backpack.id); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
+      act(() => {
+        result.current.updatePreview(0, 0, state.backpack.id)
+      })
+      act(() => {
+        result.current.drop(state.backpack.id)
+      })
 
-      expect(executeCombine).toHaveBeenCalledWith(
-        state,
-        state.backpack,
-        state.backpack,
-        item,
-        { uid: 'target-1', recipe: fakeRecipe, isDiscovered: false },
-      )
+      expect(executeCombine).toHaveBeenCalledWith(state, state.backpack, state.backpack, item, {
+        uid: 'target-1',
+        recipe: fakeRecipe,
+        isDiscovered: false,
+      })
       expect(onCombine).toHaveBeenCalledWith(fakeRecipe)
       expect(onDrop).toHaveBeenCalledOnce()
       expect(result.current.dragState).toBeNull()
@@ -285,9 +306,15 @@ describe('useInventoryDrag', () => {
 
       const { result } = renderDragHook()
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updatePreview(0, 0, state.backpack.id); })
-      act(() => { result.current.drop(state.backpack.id); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
+      act(() => {
+        result.current.updatePreview(0, 0, state.backpack.id)
+      })
+      act(() => {
+        result.current.drop(state.backpack.id)
+      })
 
       expect(onCombineFail).toHaveBeenCalledOnce()
       expect(onCombine).not.toHaveBeenCalled()
@@ -305,9 +332,15 @@ describe('useInventoryDrag', () => {
 
       const { result } = renderDragHook()
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updatePreview(2, 3, state.backpack.id); })
-      act(() => { result.current.drop(state.backpack.id); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
+      act(() => {
+        result.current.updatePreview(2, 3, state.backpack.id)
+      })
+      act(() => {
+        result.current.drop(state.backpack.id)
+      })
 
       expect(moveItem).toHaveBeenCalledWith(state.backpack, 'item-1', 2, 3, Rotation.R0)
       expect(transferItem).not.toHaveBeenCalled()
@@ -331,18 +364,17 @@ describe('useInventoryDrag', () => {
 
       const { result } = renderDragHook(withOmnibox(omnibox))
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updatePreview(1, 1, omnibox.id); })
-      act(() => { result.current.drop(omnibox.id); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
+      act(() => {
+        result.current.updatePreview(1, 1, omnibox.id)
+      })
+      act(() => {
+        result.current.drop(omnibox.id)
+      })
 
-      expect(transferItem).toHaveBeenCalledWith(
-        state.backpack,
-        omnibox,
-        'item-1',
-        1,
-        1,
-        Rotation.R0,
-      )
+      expect(transferItem).toHaveBeenCalledWith(state.backpack, omnibox, 'item-1', 1, 1, Rotation.R0)
       expect(moveItem).not.toHaveBeenCalled()
       expect(onDrop).toHaveBeenCalledOnce()
     })
@@ -353,9 +385,15 @@ describe('useInventoryDrag', () => {
 
       const { result } = renderDragHook()
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updatePreview(0, 0, state.backpack.id); })
-      act(() => { result.current.drop(state.backpack.id); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
+      act(() => {
+        result.current.updatePreview(0, 0, state.backpack.id)
+      })
+      act(() => {
+        result.current.drop(state.backpack.id)
+      })
 
       expect(moveItem).not.toHaveBeenCalled()
       expect(transferItem).not.toHaveBeenCalled()
@@ -368,7 +406,9 @@ describe('useInventoryDrag', () => {
     it('is a no-op when no drag is active', () => {
       const { result } = renderDragHook()
 
-      act(() => { result.current.drop(state.backpack.id); })
+      act(() => {
+        result.current.drop(state.backpack.id)
+      })
 
       expect(moveItem).not.toHaveBeenCalled()
       expect(transferItem).not.toHaveBeenCalled()
@@ -381,9 +421,15 @@ describe('useInventoryDrag', () => {
       const item = makeItem()
       const { result } = renderDragHook()
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { result.current.updatePreview(0, 0, state.backpack.id); })
-      act(() => { result.current.drop('nonexistent-container'); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
+      act(() => {
+        result.current.updatePreview(0, 0, state.backpack.id)
+      })
+      act(() => {
+        result.current.drop('nonexistent-container')
+      })
 
       expect(moveItem).not.toHaveBeenCalled()
       expect(result.current.dragState).toBeNull()
@@ -392,9 +438,7 @@ describe('useInventoryDrag', () => {
 
   describe('keyboard during drag', () => {
     const fireKey = (key: string) => {
-      window.dispatchEvent(
-        new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }),
-      )
+      window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
     }
 
     it('R key rotates drag preview', () => {
@@ -408,16 +452,14 @@ describe('useInventoryDrag', () => {
 
       const { result } = renderDragHook()
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { fireKey('r'); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
+      act(() => {
+        fireKey('r')
+      })
 
-      expect(computeRotation).toHaveBeenCalledWith(
-        state.backpack,
-        item,
-        Rotation.R0,
-        0,
-        0,
-      )
+      expect(computeRotation).toHaveBeenCalledWith(state.backpack, item, Rotation.R0, 0, 0)
       expect(result.current.dragState?.rotation).toBe(Rotation.R90)
       expect(result.current.dragState?.combineTarget).toBeNull()
       expect(result.current.dragState?.storeTarget).toBeNull()
@@ -428,8 +470,12 @@ describe('useInventoryDrag', () => {
       const item = makeItem()
       const { result } = renderDragHook()
 
-      act(() => { result.current.startDrag(item, state.backpack.id); })
-      act(() => { fireKey('Escape'); })
+      act(() => {
+        result.current.startDrag(item, state.backpack.id)
+      })
+      act(() => {
+        fireKey('Escape')
+      })
 
       expect(result.current.dragState).toBeNull()
     })
@@ -437,8 +483,12 @@ describe('useInventoryDrag', () => {
     it('R and Escape are no-ops when no drag is active', () => {
       const { result } = renderDragHook()
 
-      act(() => { fireKey('r'); })
-      act(() => { fireKey('Escape'); })
+      act(() => {
+        fireKey('r')
+      })
+      act(() => {
+        fireKey('Escape')
+      })
 
       expect(result.current.dragState).toBeNull()
       expect(computeRotation).not.toHaveBeenCalled()

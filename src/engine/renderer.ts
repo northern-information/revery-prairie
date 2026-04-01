@@ -5,6 +5,12 @@ import {
   BEEHIVE_CHAR,
   BEEHIVE_COLOR,
   BG_COLOR,
+  CLOVER_BLACK_COLOR,
+  CLOVER_BROWN_COLOR,
+  CLOVER_DECOMPOSE_COLOR,
+  CLOVER_DYING_COLOR_FROM,
+  CLOVER_DYING_COLOR_TO,
+  CLOVER_DYING_OSCILLATION_SPEED,
   CLOVER_PREVIEW_BLINK_SPEED,
   CLOVER_PREVIEW_COLORS,
   CRUMBLE_CHARS,
@@ -36,7 +42,7 @@ import {
 import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
 import { isInBounds, posKey } from './position'
-import { TileType, Zone } from './types'
+import { CloverStage, TileType, Zone } from './types'
 
 import type { CharMetrics, GameState } from './types'
 
@@ -486,7 +492,41 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         } else {
           const tile = map[my][mx]
           char = TILE_CHARS[tile.type]
-          color = TILE_COLORS[tile.type]
+          // Dying clover: override color based on lifecycle stage
+          const lifecycle = tile.type === TileType.Clover ? state.cloverLifecycle.get(tileKey) : undefined
+          if (lifecycle && lifecycle.stage !== CloverStage.Healthy) {
+            switch (lifecycle.stage) {
+              case CloverStage.Brown:
+                color = CLOVER_BROWN_COLOR
+                break
+              case CloverStage.BlinkingRed: {
+                const h = starHash(mx, my)
+                const phase = (h % 628) / 100
+                const t = (Math.sin(time * CLOVER_DYING_OSCILLATION_SPEED + phase) + 1) / 2
+                const r = Math.round(
+                  CLOVER_DYING_COLOR_FROM[0] + (CLOVER_DYING_COLOR_TO[0] - CLOVER_DYING_COLOR_FROM[0]) * t
+                )
+                const g = Math.round(
+                  CLOVER_DYING_COLOR_FROM[1] + (CLOVER_DYING_COLOR_TO[1] - CLOVER_DYING_COLOR_FROM[1]) * t
+                )
+                const b = Math.round(
+                  CLOVER_DYING_COLOR_FROM[2] + (CLOVER_DYING_COLOR_TO[2] - CLOVER_DYING_COLOR_FROM[2]) * t
+                )
+                color = `rgb(${String(r)},${String(g)},${String(b)})`
+                break
+              }
+              case CloverStage.Black:
+                color = CLOVER_BLACK_COLOR
+                break
+              case CloverStage.Decomposing:
+                color = CLOVER_DECOMPOSE_COLOR
+                break
+              default:
+                color = TILE_COLORS[tile.type]
+            }
+          } else {
+            color = TILE_COLORS[tile.type]
+          }
         }
       }
 

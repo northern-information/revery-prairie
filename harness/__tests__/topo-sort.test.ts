@@ -71,9 +71,7 @@ describe('topoSortTiers', () => {
   })
 
   it('ignores dependencies on unknown IDs', () => {
-    const result = topoSortTiers([
-      { id: 'a', depends_on: ['nonexistent'] },
-    ])
+    const result = topoSortTiers([{ id: 'a', depends_on: ['nonexistent'] }])
 
     expect(result.cycleParticipants).toHaveLength(0)
     expect(result.tiers).toEqual([['a']])

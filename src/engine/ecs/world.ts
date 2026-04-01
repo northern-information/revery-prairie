@@ -8,16 +8,9 @@ export interface World {
   createEntity: () => Entity
   destroyEntity: (entity: Entity) => void
   isAlive: (entity: Entity) => boolean
-  addComponent: <K extends ComponentType>(
-    entity: Entity,
-    type: K,
-    data: ComponentDataMap[K],
-  ) => void
+  addComponent: <K extends ComponentType>(entity: Entity, type: K, data: ComponentDataMap[K]) => void
   removeComponent: (entity: Entity, type: ComponentType) => void
-  getComponent: <K extends ComponentType>(
-    entity: Entity,
-    type: K,
-  ) => ComponentDataMap[K] | undefined
+  getComponent: <K extends ComponentType>(entity: Entity, type: K) => ComponentDataMap[K] | undefined
   hasComponent: (entity: Entity, type: ComponentType) => boolean
   query: (...types: ComponentType[]) => Entity[]
   moveEntity: (entity: Entity, newX: number, newY: number) => void
@@ -50,9 +43,7 @@ export const createWorld = (): World => {
     // Clean up spatial index if entity has a position
     const posStore = stores.get(ComponentType.Position)
     if (posStore) {
-      const pos = posStore.get(entity) as
-        | ComponentDataMap[typeof ComponentType.Position]
-        | undefined
+      const pos = posStore.get(entity) as ComponentDataMap[typeof ComponentType.Position] | undefined
       if (pos) {
         spatial.remove(entity, pos.x, pos.y)
       }
@@ -66,19 +57,13 @@ export const createWorld = (): World => {
 
   const isAlive = (entity: Entity): boolean => alive.has(entity)
 
-  const addComponent = <K extends ComponentType>(
-    entity: Entity,
-    type: K,
-    data: ComponentDataMap[K],
-  ): void => {
+  const addComponent = <K extends ComponentType>(entity: Entity, type: K, data: ComponentDataMap[K]): void => {
     if (!alive.has(entity)) return
     const store = getStore(type)
 
     // If replacing an existing position, remove old from spatial
     if (type === ComponentType.Position) {
-      const existing = store.get(entity) as
-        | ComponentDataMap[typeof ComponentType.Position]
-        | undefined
+      const existing = store.get(entity) as ComponentDataMap[typeof ComponentType.Position] | undefined
       if (existing) {
         spatial.remove(entity, existing.x, existing.y)
       }
@@ -94,9 +79,7 @@ export const createWorld = (): World => {
     if (!store) return
 
     if (type === ComponentType.Position) {
-      const pos = store.get(entity) as
-        | ComponentDataMap[typeof ComponentType.Position]
-        | undefined
+      const pos = store.get(entity) as ComponentDataMap[typeof ComponentType.Position] | undefined
       if (pos) {
         spatial.remove(entity, pos.x, pos.y)
       }
@@ -105,10 +88,7 @@ export const createWorld = (): World => {
     store.delete(entity)
   }
 
-  const getComponent = <K extends ComponentType>(
-    entity: Entity,
-    type: K,
-  ): ComponentDataMap[K] | undefined => {
+  const getComponent = <K extends ComponentType>(entity: Entity, type: K): ComponentDataMap[K] | undefined => {
     const store = stores.get(type)
     if (!store) return undefined
     return store.get(entity) as ComponentDataMap[K] | undefined
@@ -155,9 +135,7 @@ export const createWorld = (): World => {
   const moveEntity = (entity: Entity, newX: number, newY: number): void => {
     const store = stores.get(ComponentType.Position)
     if (!store) return
-    const pos = store.get(entity) as
-      | ComponentDataMap[typeof ComponentType.Position]
-      | undefined
+    const pos = store.get(entity) as ComponentDataMap[typeof ComponentType.Position] | undefined
     if (!pos) return
     spatial.move(entity, pos.x, pos.y, newX, newY)
     pos.x = newX

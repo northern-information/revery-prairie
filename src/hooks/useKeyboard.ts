@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { dropItem } from '@/engine/entities'
-import { ComponentType } from '@/engine/ecs/types'
-import { advanceDialog, breakWall, getAdjacentCharacter, giveMoabGift, interactWithCharacter, updateFacingEntity } from '@/engine/interaction'
-import { closeOmnibox, grabOmnibox, toggleFacingOmnibox, toggleOmnibox } from '@/engine/omnibox'
 import { getCharacterDefinition } from '@/engine/characters'
+import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
+import { ComponentType } from '@/engine/ecs/types'
+import { dropItem } from '@/engine/entities'
 import { keyToDirection } from '@/engine/input'
+import {
+  advanceDialog,
+  breakWall,
+  getAdjacentCharacter,
+  giveMoabGift,
+  interactWithCharacter,
+  updateFacingEntity,
+} from '@/engine/interaction'
 import { findItemByDefinition, moveItem } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
+import { closeOmnibox, grabOmnibox, toggleFacingOmnibox, toggleOmnibox } from '@/engine/omnibox'
 import { Rotation, Zone } from '@/engine/types'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
@@ -88,7 +96,10 @@ export const useKeyboard = ({
               if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
               if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== state.currentZone) continue
               const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
-              if (link?.uid === openId) { isGround = true; break }
+              if (link?.uid === openId) {
+                isGround = true
+                break
+              }
             }
             if (isGround) {
               const uid = grabOmnibox(state)
@@ -156,7 +167,25 @@ export const useKeyboard = ({
         return
       }
 
-      // Drop item from inventory (only when hovering an item)
+      // [f] — harvest facing clover
+      if (e.key === 'f' || e.key === 'F') {
+        if (state.activeDialog) return
+        if (activePanel === 'menu') return
+        const harvestResult = harvestClover(state)
+        if (harvestResult === HarvestResult.Success) {
+          const def = getDefinition('clover')
+          onPickup(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
+          updateFacingEntity(state)
+          refreshUI()
+        } else if (harvestResult === HarvestResult.BackpackFull) {
+          onDiscovery('backpack full', state.player.x, state.player.y)
+        } else if (harvestResult === HarvestResult.Dying) {
+          onDiscovery('too withered to harvest', state.player.x, state.player.y)
+        }
+        return
+      }
+
+      // [x] — drop item from inventory (only when hovering an item), or cut facing clover
       if (e.key === 'x' || e.key === 'X') {
         if (activePanel === 'inventory') {
           const hoveredId = itemInfoRef.current?.getCurrentId()
@@ -171,6 +200,15 @@ export const useKeyboard = ({
             return
           }
         }
+        // Cut facing clover when no inventory item is hovered
+        if (activePanel !== 'menu' && !state.activeDialog) {
+          if (cutClover(state)) {
+            onDiscovery('clover trimmed', state.player.x, state.player.y, '%', '#50C878')
+            updateFacingEntity(state)
+            refreshUI()
+          }
+        }
+        return
       }
 
       // Rotate hovered item in inventory

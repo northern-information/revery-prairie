@@ -105,7 +105,7 @@ export const CRUMBLE_CHARS = ['#', '+', '.', '\u00b7']
 export const CRUMBLE_COLORS = ['#997755', '#887744', '#665522', '#554411', '#332200']
 
 // clover ecosystem
-export const CLOVER_GROWTH_TICK_MS = 2000
+export const CLOVER_GROWTH_TICK_MS = 4000
 export const CLOVER_HIVE_TICK_MS = 10000
 export const CLOVER_BASE_GROWTH_CHANCE = 0.05
 export const CLOVER_BEE_GROWTH_BONUS = 0.08
@@ -117,6 +117,28 @@ export const BEEHIVE_CHAR = '\u2302' // ⌂
 export const BEEHIVE_COLOR = '#DAA520'
 export const CLOVER_PREVIEW_COLORS = ['#90EE90', '#78CC78', '#60AA60', '#78CC78']
 export const CLOVER_PREVIEW_BLINK_SPEED = 0.003
+
+// clover lifecycle
+export const CLOVER_LIFECYCLE_TICK_MS = 3000
+export const CLOVER_BROWN_DURATION_MS = 20_000
+export const CLOVER_BLINK_RED_DURATION_MS = 15_000
+export const CLOVER_BLACK_DURATION_MS = 10_000
+export const CLOVER_DECOMPOSE_DURATION_MS = 30_000
+export const CLOVER_WATER_MAX = 100
+export const CLOVER_WATER_DRAIN_RATE = 2
+export const CLOVER_WATER_RAIN_FILL = 15
+export const CLOVER_BROWN_COLOR = '#8B6914'
+export const CLOVER_DYING_COLOR_FROM = [0x8b, 0x69, 0x14] // brown (#8B6914)
+export const CLOVER_DYING_COLOR_TO = [0x8b, 0x00, 0x00] // dark red (#8B0000)
+export const CLOVER_DYING_OSCILLATION_SPEED = 0.002
+export const CLOVER_BLACK_COLOR = '#222222'
+export const CLOVER_DECOMPOSE_COLOR = '#4A3728'
+
+// soil health
+export const SOIL_HEALTH_DEFAULT = 50
+export const SOIL_HEALTH_MAX = 100
+export const SOIL_HEALTH_CLOVER_DEATH_BONUS = 15
+export const SOIL_HEALTH_CUT_BONUS = 10
 
 export const PLAYER_CHAR = '@'
 export const PLAYER_COLOR = '#FFFFFF'

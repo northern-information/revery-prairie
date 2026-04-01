@@ -1,7 +1,6 @@
-import { describe, expect, it } from 'vitest'
-
 import { ComponentType } from '../types'
 import { createWorld } from '../world'
+import { describe, expect, it } from 'vitest'
 
 describe('World', () => {
   it('creates entities with incrementing IDs', () => {

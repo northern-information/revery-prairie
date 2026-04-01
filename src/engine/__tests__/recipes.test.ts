@@ -1,6 +1,6 @@
-import { combineIcon, findRecipe, recipeKey, RecipeKind, RECIPES } from '../recipes'
 import { ComponentType } from '../ecs/types'
 import { placeItem } from '../inventory'
+import { combineIcon, findRecipe, recipeKey, RecipeKind, RECIPES } from '../recipes'
 import { Rotation, TileType } from '../types'
 import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'
 import { describe, expect, it } from 'vitest'

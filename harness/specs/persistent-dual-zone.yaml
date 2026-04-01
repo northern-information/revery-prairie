@@ -1,5 +1,5 @@
 id: persistent-dual-zone
-name: "Persistent dual-zone simulation"
+name: 'Persistent dual-zone simulation'
 status: partial
 priority: high
 layer: engine
@@ -28,14 +28,14 @@ behaviors:
       (overworld or cave). The component stores the Zone value from
       types.ts. Every entity creation point adds this component.
     inputs:
-      - "Entity creation call"
+      - 'Entity creation call'
     outputs:
-      - "Entity has EntityZone component set to the appropriate zone"
+      - 'Entity has EntityZone component set to the appropriate zone'
     state_changes:
-      - field: "ComponentType"
-        effect: "new EntityZone entry added"
-      - field: "ComponentDataMap"
-        effect: "EntityZone maps to { zone: Zone }"
+      - field: 'ComponentType'
+        effect: 'new EntityZone entry added'
+      - field: 'ComponentDataMap'
+        effect: 'EntityZone maps to { zone: Zone }'
     determinism: deterministic
 
   - id: persistent-maps
@@ -46,14 +46,14 @@ behaviors:
       reference to the current zone's map. OverworldSnapshot type
       and state.overworldSnapshot field are removed entirely.
     inputs:
-      - "createGameState call"
+      - 'createGameState call'
     outputs:
-      - "state.overworldMap is the overworld terrain"
-      - "state.caveMap is the cave terrain"
-      - "state.map points to state.overworldMap initially"
+      - 'state.overworldMap is the overworld terrain'
+      - 'state.caveMap is the cave terrain'
+      - 'state.map points to state.overworldMap initially'
     state_changes:
-      - field: "GameState"
-        effect: "overworldMap/Width/Height added, overworldSnapshot removed"
+      - field: 'GameState'
+        effect: 'overworldMap/Width/Height added, overworldSnapshot removed'
     determinism: deterministic
 
   - id: concurrent-zone-ticks
@@ -67,13 +67,13 @@ behaviors:
       the current zone's map. 'always' systems use the current
       zone's map as before.
     inputs:
-      - "Game loop tick with any currentZone"
+      - 'Game loop tick with any currentZone'
     outputs:
-      - "All tick systems run every frame"
+      - 'All tick systems run every frame'
       - "Each system sees state.map pointing to its own zone's map"
     state_changes:
-      - field: "state.map/mapWidth/mapHeight"
-        effect: "temporarily swapped per-system, restored after each call"
+      - field: 'state.map/mapWidth/mapHeight'
+        effect: 'temporarily swapped per-system, restored after each call'
     determinism: deterministic
 
   - id: zone-filtered-queries
@@ -88,9 +88,9 @@ behaviors:
       includes ComponentType.EntityZone and checks zone matches
       the system's active zone.
     inputs:
-      - "ECS query in any zone-sensitive function"
+      - 'ECS query in any zone-sensitive function'
     outputs:
-      - "Only entities matching the active zone are returned"
+      - 'Only entities matching the active zone are returned'
     state_changes: []
     determinism: deterministic
 
@@ -106,19 +106,19 @@ behaviors:
       once during createGameState (tagged with Zone.Cave) and
       persists permanently.
     inputs:
-      - "Player steps on CaveEntrance tile"
+      - 'Player steps on CaveEntrance tile'
     outputs:
       - "state.map points to the destination zone's map"
-      - "state.currentZone updated"
-      - "Player positioned at destination entrance"
-      - "All entities from both zones still exist in state.world"
+      - 'state.currentZone updated'
+      - 'Player positioned at destination entrance'
+      - 'All entities from both zones still exist in state.world'
     state_changes:
-      - field: "state.map"
+      - field: 'state.map'
         effect: "swapped to destination zone's map"
-      - field: "state.currentZone"
-        effect: "set to destination zone"
-      - field: "state.player"
-        effect: "moved to destination entrance position"
+      - field: 'state.currentZone'
+        effect: 'set to destination zone'
+      - field: 'state.player'
+        effect: 'moved to destination entrance position'
     determinism: deterministic
 
 edge_cases:
@@ -129,7 +129,7 @@ edge_cases:
       lands, creates a meteorite entity (tagged overworld). The
       meteorite does not render in the cave. When the player
       exits, the meteorite is visible on the overworld.
-    expected: "Meteorite exists on overworld map, invisible in cave, visible on exit"
+    expected: 'Meteorite exists on overworld map, invisible in cave, visible on exit'
 
   - id: overworld-entities-with-cave-coordinates
     description: >
@@ -137,21 +137,21 @@ edge_cases:
       the player is in the cave (40x25 grid). The coordinates
       overlap with valid cave tiles but the renderer filters by
       zone so the meteorite does not appear.
-    expected: "Meteorite is not rendered in cave despite overlapping coordinates"
+    expected: 'Meteorite is not rendered in cave despite overlapping coordinates'
 
   - id: ghost-drifts-while-in-cave
     description: >
       Ghosts continue drifting in the overworld while the player
       explores the cave. On exit, ghosts have moved from their
       positions at the time of cave entry.
-    expected: "Ghost positions differ between cave entry and exit"
+    expected: 'Ghost positions differ between cave entry and exit'
 
   - id: cave-crumble-not-in-overworld
     description: >
       Player breaks cave wall creating crumble effects (tagged
       cave zone). Immediately exits cave. Crumble effects do not
       render on the overworld.
-    expected: "Crumble effects invisible on overworld"
+    expected: 'Crumble effects invisible on overworld'
 
   - id: blocked-positions-zone-isolation
     description: >
@@ -159,25 +159,25 @@ edge_cases:
       player can walk on the same coordinates because
       getBlockedPositions only returns blockers for the current
       zone.
-    expected: "Overworld blockers do not affect cave movement"
+    expected: 'Overworld blockers do not affect cave movement'
 
 failure_conditions:
   - trigger: >
       Overworld meteorite entity has coordinates within the cave
       grid range and the renderer does not filter by zone
-    expected: "Renderer checks EntityZone and skips entities from other zones"
+    expected: 'Renderer checks EntityZone and skips entities from other zones'
 
   - trigger: >
       Player enters cave while shooting stars are active, exits
       after 30 seconds, and shooting stars are in same position
-    expected: "Overworld tick systems ran while player was in cave, stars have moved or landed"
+    expected: 'Overworld tick systems ran while player was in cave, stars have moved or landed'
 
   - trigger: >
       getBlockedPositions returns overworld ground omnibox
       positions while player is in cave, blocking cave movement
-    expected: "getBlockedPositions filters by current zone"
+    expected: 'getBlockedPositions filters by current zone'
 
 verification:
   test_file: src/engine/__tests__/cave.test.ts
-  test_pattern: "persistent dual-zone"
-  command: "npx vitest run src/engine/__tests__/cave.test.ts"
+  test_pattern: 'persistent dual-zone'
+  command: 'npx vitest run src/engine/__tests__/cave.test.ts'

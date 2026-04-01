@@ -1,7 +1,13 @@
-import { createGameLoop } from '../gameLoop'
 import { ComponentType } from '../ecs/types'
+import { createGameLoop } from '../gameLoop'
 import { Zone } from '../types'
-import { clearAroundPlayer, createBeeEntity, createCharacterTestEntity, createGroundItemEntity, createTestState } from './helpers'
+import {
+  clearAroundPlayer,
+  createBeeEntity,
+  createCharacterTestEntity,
+  createGroundItemEntity,
+  createTestState,
+} from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('registry mechanics', () => {
@@ -211,7 +217,7 @@ describe('zone gating', () => {
       id: 'overworld-only',
       intervalMs: 0,
       zone: 'overworld',
-      fn: (s) => {
+      fn: s => {
         capturedMap = s.map
       },
     })
@@ -232,7 +238,7 @@ describe('zone gating', () => {
       id: 'cave-only',
       intervalMs: 0,
       zone: 'cave',
-      fn: (s) => {
+      fn: s => {
         capturedMap = s.map
       },
     })
@@ -351,7 +357,7 @@ describe('default systems', () => {
 
     const pickups: string[] = []
     const gameLoop = createGameLoop(state, {
-      onPickup: (name) => {
+      onPickup: name => {
         pickups.push(name)
       },
     })
@@ -368,8 +374,10 @@ describe('default systems', () => {
     state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'crumble', startTime: 0 })
     state.world.addComponent(e, ComponentType.EntityTag, 'crumble')
 
-    const queryCrumbles = () => state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)
-      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'crumble')
+    const queryCrumbles = () =>
+      state.world
+        .query(ComponentType.TimedEffect, ComponentType.EntityTag)
+        .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'crumble')
 
     const gameLoop = createGameLoop(state, {})
 
@@ -636,7 +644,7 @@ describe('held key movement', () => {
 
     const pickups: string[] = []
     const gameLoop = createGameLoop(state, {
-      onPickup: (name) => {
+      onPickup: name => {
         pickups.push(name)
       },
     })

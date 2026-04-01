@@ -1,5 +1,5 @@
 id: inventory-panel-clamping
-name: "Inventory panel viewport clamping"
+name: 'Inventory panel viewport clamping'
 status: partial
 priority: high
 layer: component
@@ -20,11 +20,11 @@ behaviors:
       independently so the panel can be e.g. above-left if only
       the right edge clips.
     inputs:
-      - "player screen position (x, y in CSS pixels)"
-      - "panel container dimensions (width, height in CSS pixels)"
-      - "viewport dimensions (window.innerWidth, window.innerHeight)"
+      - 'player screen position (x, y in CSS pixels)'
+      - 'panel container dimensions (width, height in CSS pixels)'
+      - 'viewport dimensions (window.innerWidth, window.innerHeight)'
     outputs:
-      - "panel container left and top style values fully within viewport"
+      - 'panel container left and top style values fully within viewport'
     state_changes: []
     determinism: deterministic
 
@@ -36,12 +36,12 @@ behaviors:
       chrome even if the quadrant logic places them close to
       an edge.
     inputs:
-      - "unclamped panel position from quadrant selection"
-      - "panel container dimensions"
-      - "viewport dimensions"
-      - "edge margin constant (8px)"
+      - 'unclamped panel position from quadrant selection'
+      - 'panel container dimensions'
+      - 'viewport dimensions'
+      - 'edge margin constant (8px)'
     outputs:
-      - "final clamped left and top values"
+      - 'final clamped left and top values'
     state_changes: []
     determinism: deterministic
 
@@ -52,38 +52,38 @@ behaviors:
       clamping logic uses the full container width (both panels
       combined) so neither panel clips off-screen.
     inputs:
-      - "panel container with omnibox panel + backpack panel"
+      - 'panel container with omnibox panel + backpack panel'
     outputs:
-      - "both panels fully visible within viewport"
+      - 'both panels fully visible within viewport'
     state_changes: []
     determinism: deterministic
 
 edge_cases:
   - id: player-top-right-corner
-    description: "player is in the top-right corner of the map — preferred above-right quadrant clips both top and right edges"
-    expected: "panel flips to below-left of player, fully visible"
+    description: 'player is in the top-right corner of the map — preferred above-right quadrant clips both top and right edges'
+    expected: 'panel flips to below-left of player, fully visible'
   - id: player-bottom-left-corner
-    description: "player is in the bottom-left corner — below-left clips, above-right also clips left"
-    expected: "panel is placed in the best available quadrant with edge clamping"
+    description: 'player is in the bottom-left corner — below-left clips, above-right also clips left'
+    expected: 'panel is placed in the best available quadrant with edge clamping'
   - id: very-small-viewport
-    description: "viewport is smaller than the panel container (e.g. narrow mobile or resized browser)"
-    expected: "panel is clamped to top-left with edge margin, may overflow but starts on-screen"
+    description: 'viewport is smaller than the panel container (e.g. narrow mobile or resized browser)'
+    expected: 'panel is clamped to top-left with edge margin, may overflow but starts on-screen'
   - id: omnibox-open-near-edge
-    description: "omnibox is open making the container wider, player near right edge"
-    expected: "combined width is accounted for, panels flip left of player"
+    description: 'omnibox is open making the container wider, player near right edge'
+    expected: 'combined width is accounted for, panels flip left of player'
   - id: player-moves-while-open
-    description: "player walks with inventory open, crossing from a safe quadrant into an edge"
-    expected: "panel repositions on each render to stay on-screen"
+    description: 'player walks with inventory open, crossing from a safe quadrant into an edge'
+    expected: 'panel repositions on each render to stay on-screen'
 
 failure_conditions:
-  - trigger: "panel left + panel width exceeds window.innerWidth"
-    expected: "panel flips horizontally to appear left of the player"
-  - trigger: "panel top is negative (above viewport)"
-    expected: "panel flips vertically to appear below the player"
-  - trigger: "metricsRef.current is null (no canvas metrics yet)"
-    expected: "panel falls back to centered position, does not crash"
+  - trigger: 'panel left + panel width exceeds window.innerWidth'
+    expected: 'panel flips horizontally to appear left of the player'
+  - trigger: 'panel top is negative (above viewport)'
+    expected: 'panel flips vertically to appear below the player'
+  - trigger: 'metricsRef.current is null (no canvas metrics yet)'
+    expected: 'panel falls back to centered position, does not crash'
 
 verification:
   test_file: src/components/__tests__/inventoryPanelClamping.test.ts
-  test_pattern: "inventory panel clamping"
-  command: "npx vitest run src/components/__tests__/inventoryPanelClamping.test.ts"
+  test_pattern: 'inventory panel clamping'
+  command: 'npx vitest run src/components/__tests__/inventoryPanelClamping.test.ts'

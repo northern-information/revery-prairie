@@ -1,20 +1,19 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { DragCursor } from './DragCursor'
 import { InventoryGrid } from './InventoryGrid'
-import { CloseButton, PanelTitle, SectionHeader } from './PanelPrimitives'
 import { clampPanelPosition } from './panelPosition'
+import { CloseButton, PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { ComponentType } from '@/engine/ecs/types'
-import { closeOmnibox, grabOmnibox, openOmnibox } from '@/engine/omnibox'
 import { autoSort, findFitPosition, placeItem, removeItem } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
+import { closeOmnibox, grabOmnibox, openOmnibox } from '@/engine/omnibox'
 import { RecipeKind } from '@/engine/recipes'
 import { useCanvasDrop } from '@/hooks/useCanvasDrop'
 import { useInventoryDrag } from '@/hooks/useInventoryDrag'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { Recipe } from '@/engine/recipes'
-import type { CharMetrics } from '@/engine/types'
-import type { GameState } from '@/engine/types'
+import type { CharMetrics, GameState } from '@/engine/types'
 
 interface InventoryPanelProps {
   state: GameState
@@ -173,7 +172,7 @@ export const InventoryPanel = ({
     if (!el) return
     const { offsetWidth, offsetHeight } = el
     setPanelSize(prev =>
-      prev.w === offsetWidth && prev.h === offsetHeight ? prev : { w: offsetWidth, h: offsetHeight },
+      prev.w === offsetWidth && prev.h === offsetHeight ? prev : { w: offsetWidth, h: offsetHeight }
     )
   }, [hasOmnibox])
 
@@ -186,7 +185,7 @@ export const InventoryPanel = ({
         panelSize.w,
         panelSize.h,
         window.innerWidth,
-        window.innerHeight,
+        window.innerHeight
       )
     : { left: window.innerWidth / 2, top: window.innerHeight / 2 }
 
@@ -227,24 +226,29 @@ export const InventoryPanel = ({
                 itemInfoRef={itemInfoRef}
               />
               <div className="text-dim flex flex-col gap-1">
-                {state.openContainer && state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)
-                  .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox' &&
-                    state.world.getComponent(eid, ComponentType.OmniboxLink)?.uid === state.openContainer?.id) && (
-                  <button
-                    type="button"
-                    className="text-dim hover:text-text pointer-events-auto text-left"
-                    onClick={() => {
-                      if (!state.openContainer) return
-                      const uid = grabOmnibox(state)
-                      if (uid) {
-                        closeOmnibox(state)
-                        refreshUI()
-                      }
-                    }}
-                  >
-                    pick up
-                  </button>
-                )}
+                {state.openContainer &&
+                  state.world
+                    .query(ComponentType.OmniboxLink, ComponentType.EntityTag)
+                    .some(
+                      eid =>
+                        state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox' &&
+                        state.world.getComponent(eid, ComponentType.OmniboxLink)?.uid === state.openContainer?.id
+                    ) && (
+                    <button
+                      type="button"
+                      className="text-dim hover:text-text pointer-events-auto text-left"
+                      onClick={() => {
+                        if (!state.openContainer) return
+                        const uid = grabOmnibox(state)
+                        if (uid) {
+                          closeOmnibox(state)
+                          refreshUI()
+                        }
+                      }}
+                    >
+                      pick up
+                    </button>
+                  )}
                 <button
                   type="button"
                   className="text-dim hover:text-text pointer-events-auto text-left"

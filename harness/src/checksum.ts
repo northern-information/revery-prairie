@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 /**
@@ -16,10 +16,7 @@ export const hashFile = (filePath: string): string | null => {
  * Returns a record of relative path -> SHA-256 hex string.
  * Missing files are included with a null value.
  */
-export const hashFiles = (
-  relativePaths: string[],
-  repoRoot: string,
-): Record<string, string | null> => {
+export const hashFiles = (relativePaths: string[], repoRoot: string): Record<string, string | null> => {
   const result: Record<string, string | null> = {}
   for (const rel of relativePaths) {
     result[rel] = hashFile(resolve(repoRoot, rel))
@@ -33,7 +30,7 @@ export const hashFiles = (
  */
 export const checksumsMatch = (
   previous: Record<string, string | null>,
-  current: Record<string, string | null>,
+  current: Record<string, string | null>
 ): boolean => {
   const prevKeys = Object.keys(previous)
   const currKeys = Object.keys(current)

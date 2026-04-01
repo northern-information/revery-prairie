@@ -1,15 +1,15 @@
 import { withSeededRandom } from '@/harness/prng'
+
 import { ComponentType } from '@/engine/ecs/types'
-import { createGameState } from '@/engine/state'
 import { tickBees } from '@/engine/entities'
+import { createGameState } from '@/engine/state'
 import { Zone } from '@/engine/types'
 import type { GameState } from '@/engine/types'
 
 const SEED = 42
 const TICK_SEED = 99
 
-const createSeededState = () =>
-  withSeededRandom(SEED, () => createGameState('test', 40, 30))
+const createSeededState = () => withSeededRandom(SEED, () => createGameState('test', 40, 30))
 
 const addBee = (state: GameState, x: number, y: number) => {
   const e = state.world.createEntity()
@@ -22,7 +22,7 @@ const addBee = (state: GameState, x: number, y: number) => {
 const getBees = (state: GameState) =>
   state.world
     .query(ComponentType.EntityTag, ComponentType.Position)
-    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
 
 describe('replay: bee behavior', () => {
   it('produces identical bee positions for the same tick sequence', () => {
@@ -38,7 +38,7 @@ describe('replay: bee behavior', () => {
         }
       })
 
-      return getBees(state).map((eid) => {
+      return getBees(state).map(eid => {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const pos = state.world.getComponent(eid, ComponentType.Position)!
         return { x: pos.x, y: pos.y }

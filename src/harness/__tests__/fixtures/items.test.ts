@@ -41,7 +41,7 @@ describe('fixture: item definitions', () => {
       })
 
       it('has at least one true cell in shape', () => {
-        const hasTrue = item.shape.some((row) => row.some((cell) => cell))
+        const hasTrue = item.shape.some(row => row.some(cell => cell))
         expect(hasTrue).toBe(true)
       })
     })

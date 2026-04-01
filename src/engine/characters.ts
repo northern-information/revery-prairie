@@ -56,4 +56,3 @@ export const registerGhostDefinitions = (numbers: number[]): void => {
     CHARACTER_DEFINITIONS[def.id] = def
   }
 }
-

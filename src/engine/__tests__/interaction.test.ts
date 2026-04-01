@@ -58,7 +58,14 @@ describe('interactWithCharacter', () => {
 describe('advanceDialog', () => {
   it('reveals full line on first press when typing', () => {
     const state = createTestState()
-    state.activeDialog = { characterId: 'gron', lineIndex: 0, typingIndex: 5, typingDone: false, transitioning: false, transitionStartTime: 0 }
+    state.activeDialog = {
+      characterId: 'gron',
+      lineIndex: 0,
+      typingIndex: 5,
+      typingDone: false,
+      transitioning: false,
+      transitionStartTime: 0,
+    }
     const result = advanceDialog(state)
     expect(result).toBe(true)
     expect(state.activeDialog?.typingDone).toBe(true)
@@ -67,7 +74,14 @@ describe('advanceDialog', () => {
 
   it('starts transition on second press when typing is done', () => {
     const state = createTestState()
-    state.activeDialog = { characterId: 'gron', lineIndex: 0, typingIndex: 100, typingDone: true, transitioning: false, transitionStartTime: 0 }
+    state.activeDialog = {
+      characterId: 'gron',
+      lineIndex: 0,
+      typingIndex: 100,
+      typingDone: true,
+      transitioning: false,
+      transitionStartTime: 0,
+    }
     const result = advanceDialog(state)
     expect(result).toBe(true)
     expect(state.activeDialog?.transitioning).toBe(true)
@@ -76,7 +90,14 @@ describe('advanceDialog', () => {
   it('clears dialog on last line', () => {
     const state = createTestState()
     // Gron has 3 dialog lines — index 2 is the last
-    state.activeDialog = { characterId: 'gron', lineIndex: 2, typingIndex: 100, typingDone: true, transitioning: false, transitionStartTime: 0 }
+    state.activeDialog = {
+      characterId: 'gron',
+      lineIndex: 2,
+      typingIndex: 100,
+      typingDone: true,
+      transitioning: false,
+      transitionStartTime: 0,
+    }
     const result = advanceDialog(state)
     expect(result).toBe(false)
     expect(state.activeDialog).toBeNull()

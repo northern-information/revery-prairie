@@ -3,8 +3,8 @@ import { InventoryPanel } from '../InventoryPanel'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { openOmnibox } from '@/engine/omnibox'
 import { createOmniboxContainer } from '@/engine/inventory'
+import { openOmnibox } from '@/engine/omnibox'
 import { createGameState } from '@/engine/state'
 import type { ItemInfoHandle } from '../ItemInfo'
 

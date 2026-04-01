@@ -14,6 +14,7 @@ Conversational skill for adding new game features through the spec-driven harnes
 ### 1. Gather requirements
 
 Ask the user 2-3 clarifying questions:
+
 - What systems does this touch? (engine, components, hooks)
 - What should the player see or experience?
 - Any edge cases or failure modes you already know about?
@@ -23,6 +24,7 @@ Wait for answers before proceeding.
 ### 2. Draft the spec
 
 Create `harness/specs/{feature-id}.yaml` following the spec format:
+
 - `id`: kebab-case, descriptive
 - `status`: `planned` for new features
 - `layer`: `engine`, `component`, or `integration`
@@ -46,11 +48,13 @@ Show the user the complete spec. Iterate on feedback. Do not proceed until the u
 ### 5. Draft the plan
 
 Create `harness/plans/{feature-id}.yaml` with:
+
 - `plan.id`, `plan.title`, `plan.created` (today's date)
 - `plan.global_verification`: `["npm run build", "npm run test", "npm run lint"]`
 - `tasks`: ordered list with `id`, `title`, `spec_id`, `output_files`, `depends_on`, `spec_sections`, `context_files`, `verification` commands, `repair` policy, `tags`
 
 Each task should:
+
 - Have narrow `context_files` (only what the LLM needs to read)
 - Have narrow `output_files` (only what the LLM should modify)
 - Include `npx tsc -b --noEmit` in verification
@@ -59,6 +63,7 @@ Each task should:
 ### 6. Validate plan references
 
 Verify that:
+
 - All `spec_id` values reference existing specs
 - All `context_files` exist on disk
 - Task dependency graph is acyclic

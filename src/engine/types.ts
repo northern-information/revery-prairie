@@ -148,9 +148,28 @@ export interface GameState {
   moabGiftGiven: boolean
   world: World
   cloverGrowthPreviews: Set<string>
+  cloverLifecycle: Map<string, CloverLifecycleState>
+  soilHealth: Map<string, number>
   meteorShower: MeteorShowerState
   manualDiscoveries: Set<string>
   manualState: ManualState
+}
+
+export const CloverStage = {
+  Healthy: 'healthy',
+  Brown: 'brown',
+  BlinkingRed: 'blinkingRed',
+  Black: 'black',
+  Decomposing: 'decomposing',
+} as const
+
+export type CloverStage = (typeof CloverStage)[keyof typeof CloverStage]
+
+export interface CloverLifecycleState {
+  stage: CloverStage
+  stageStartTime: number
+  water: number
+  hasLight: boolean
 }
 
 export interface ManualState {

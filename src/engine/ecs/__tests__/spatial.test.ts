@@ -1,6 +1,5 @@
-import { describe, expect, it } from 'vitest'
-
 import { createSpatialIndex } from '../spatial'
+import { describe, expect, it } from 'vitest'
 
 describe('SpatialIndex', () => {
   it('inserts and retrieves entities at a position', () => {
