@@ -64,12 +64,12 @@ const EXPECTED_FIELDS = [
   'musicEnabled',
   'world',
   'lastDialogTypingTick',
-].sort()
+].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {
   it('has exactly the expected fields', () => {
     const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
-    const actualFields = Object.keys(state).sort()
+    const actualFields = Object.keys(state).sort((a, b) => a.localeCompare(b))
 
     expect(actualFields).toEqual(EXPECTED_FIELDS)
   })

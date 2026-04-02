@@ -10,7 +10,7 @@ describe('topoSortTiers', () => {
 
     expect(result.cycleParticipants).toHaveLength(0)
     expect(result.tiers).toHaveLength(1)
-    expect(result.tiers[0].sort()).toEqual(['a', 'b', 'c'])
+    expect(result.tiers[0].sort((a, b) => a.localeCompare(b))).toEqual(['a', 'b', 'c'])
   })
 
   it('sorts a linear chain into separate tiers', () => {
@@ -35,7 +35,7 @@ describe('topoSortTiers', () => {
     expect(result.cycleParticipants).toHaveLength(0)
     expect(result.tiers).toHaveLength(3)
     expect(result.tiers[0]).toEqual(['root'])
-    expect(result.tiers[1].sort()).toEqual(['left', 'right'])
+    expect(result.tiers[1].sort((a, b) => a.localeCompare(b))).toEqual(['left', 'right'])
     expect(result.tiers[2]).toEqual(['final'])
   })
 
@@ -45,7 +45,7 @@ describe('topoSortTiers', () => {
       { id: 'b', depends_on: ['a'] },
     ])
 
-    expect(result.cycleParticipants.sort()).toEqual(['a', 'b'])
+    expect(result.cycleParticipants.sort((a, b) => a.localeCompare(b))).toEqual(['a', 'b'])
     expect(result.tiers).toHaveLength(0)
   })
 
@@ -56,7 +56,7 @@ describe('topoSortTiers', () => {
       { id: 'c', depends_on: ['b'] },
     ])
 
-    expect(result.cycleParticipants.sort()).toEqual(['a', 'b', 'c'])
+    expect(result.cycleParticipants.sort((a, b) => a.localeCompare(b))).toEqual(['a', 'b', 'c'])
   })
 
   it('sorts non-cycle nodes and reports cycle participants separately', () => {
@@ -67,7 +67,7 @@ describe('topoSortTiers', () => {
     ])
 
     expect(result.tiers).toEqual([['ok']])
-    expect(result.cycleParticipants.sort()).toEqual(['a', 'b'])
+    expect(result.cycleParticipants.sort((a, b) => a.localeCompare(b))).toEqual(['a', 'b'])
   })
 
   it('ignores dependencies on unknown IDs', () => {
