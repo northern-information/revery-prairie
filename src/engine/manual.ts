@@ -315,6 +315,23 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     unlockKey: 'event:clover-cut',
     sourceKind: 'event',
   },
+  {
+    id: 'hexagram-cast',
+    name: 'Hexagram Casting',
+    category: ManualCategory.Object,
+    glyph: '¤',
+    glyphColor: '#C9B037',
+    summary: 'divination with three coins',
+    lore:
+      MANUAL_LORE['hexagram-cast']?.lore ??
+      'three ancient coins, tossed six times. each toss builds a line — solid or broken, stable or changing. the hexagram that forms speaks in the language of the prairie. listen closely.',
+    hints: MANUAL_LORE['hexagram-cast']?.hints ?? [
+      { prompt: 'how to cast', answer: 'collect 3 glinting coins and press [c] on the overworld.' },
+      { prompt: 'changing lines', answer: 'old yin (6) and old yang (9) are changing lines. they transform the hexagram into a second reading.' },
+    ],
+    unlockKey: 'event:hexagram-cast',
+    sourceKind: 'event',
+  },
 ]
 
 // --- Registry assembly ---

@@ -1,6 +1,7 @@
 import { generateCave } from './cave'
 import { registerGhostDefinitions } from './characters'
 import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER } from './constants'
+import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
 import { createCharacterEntity } from './entities'
@@ -125,6 +126,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
       revealedHints: new Set<string>(),
     },
     lastDialogTypingTick: 0,
+    glintingCoins: new Set<string>(),
   }
 
   // Place Gron near the player
@@ -160,6 +162,27 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     )
   }
   registerGhostDefinitions(ghostNumbers)
+
+  // Spawn 3 coins at random walkable dirt tiles
+  const coinUsedKeys = new Set<string>(ghostUsedKeys)
+  let coinCount = 0
+  let coinAttempts = 0
+  while (coinCount < 3 && coinAttempts < 500) {
+    coinAttempts++
+    const cx = SPACE_BORDER + Math.floor(Math.random() * (MAP_WIDTH - SPACE_BORDER * 2))
+    const cy = SPACE_BORDER + Math.floor(Math.random() * (MAP_HEIGHT - SPACE_BORDER * 2))
+    const key = posKey(cx, cy)
+    if (coinUsedKeys.has(key)) continue
+    const tile = map[cy][cx]
+    if (tile.type !== TileType.Dirt) continue
+    coinUsedKeys.add(key)
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.Position, { x: cx, y: cy })
+    state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: 'coin' })
+    state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
+    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
+    coinCount++
+  }
 
   // Create Moab in the cave (persists permanently, tagged as cave zone)
   createCharacterEntity(state, 'moab', { ...cave.npcSpot }, { zone: Zone.Cave })

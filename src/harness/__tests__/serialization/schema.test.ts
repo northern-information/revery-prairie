@@ -64,6 +64,7 @@ const EXPECTED_FIELDS = [
   'musicEnabled',
   'world',
   'lastDialogTypingTick',
+  'glintingCoins',
 ].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {

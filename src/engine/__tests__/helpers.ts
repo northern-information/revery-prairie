@@ -28,6 +28,13 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
     state.world.destroyEntity(eid)
   }
+  // Destroy all ground item ECS entities (coins, etc.)
+  for (const eid of state.world.query(ComponentType.EntityTag)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem') {
+      state.world.destroyEntity(eid)
+    }
+  }
+  state.glintingCoins = new Set()
   state.openContainer = null
   state.playerFacing = 'down'
   state.facingEntityPos = null

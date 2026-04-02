@@ -1,0 +1,218 @@
+id: hexagram-casting
+name: 'I Ching hexagram casting'
+status: implemented
+priority: medium
+layer: integration
+source_files:
+  - src/engine/items.ts
+  - src/engine/state.ts
+  - src/engine/types.ts
+  - src/engine/hexagram.ts
+  - src/engine/manual.ts
+  - src/hooks/useKeyboard.ts
+  - src/components/HexagramPanel.tsx
+  - src/components/GameScreen.tsx
+dependencies: []
+
+behaviors:
+  - id: coin-item-definition
+    description: >
+      A 'coin' item exists in the item registry. 1x1 shape, glyph '¤',
+      color '#C9B037' (antique gold), category Tool, weight 1.
+      Description: 'an ancient divination coin'.
+    inputs:
+      - 'ITEM_DEFINITIONS registry'
+    outputs:
+      - 'ItemDefinition with id "coin"'
+    state_changes: []
+    determinism: deterministic
+
+  - id: coin-ground-spawn
+    description: >
+      Three coins spawn as ground items at random walkable dirt tiles
+      on game start. Uses the same random placement pattern as ghost
+      spawning — avoids player position, Gron position, ghost positions,
+      and previously placed coins. Coins are overworld-only. Each
+      spawned coin's uid is added to glintingCoins so it starts glinting.
+    inputs:
+      - 'createGameState initialization'
+    outputs:
+      - '3 ECS groundItem entities with definitionId "coin"'
+    state_changes:
+      - field: world
+        effect: '3 entities created with Position, ItemDrop, EntityTag("groundItem"), EntityZone(overworld) components'
+      - field: glintingCoins
+        effect: '3 coin uids added to the set'
+    determinism: probabilistic
+
+  - id: coin-glinting-state
+    description: >
+      glintingCoins: Set<string> on GameState tracks which coin item
+      instances are currently glinting, keyed by ItemInstance uid.
+      Coins spawn glinting. Casting sets all 3 used coins to
+      not-glinting (removes their uids from the set). The mechanism
+      to restore glinting status is deferred to a future feature.
+      Non-glinting coins render with a dimmer color (#8B7D3C instead
+      of #C9B037) to visually indicate they cannot be used for casting.
+    inputs:
+      - 'GameState.glintingCoins set'
+    outputs:
+      - 'Boolean glinting status per coin uid'
+    state_changes:
+      - field: glintingCoins
+        effect: 'uids added on spawn, removed on cast completion'
+    determinism: deterministic
+
+  - id: coin-pickup-and-inventory
+    description: >
+      Coins are picked up by walking over them (standard ground item
+      behavior). They occupy 1x1 inventory cells. The coin's glinting
+      status (tracked by uid in glintingCoins) persists through pickup.
+    inputs:
+      - 'Player walks onto a tile containing a coin ground item'
+    outputs:
+      - 'Coin added to backpack if space available'
+      - 'Discovery recorded: item:coin'
+    state_changes:
+      - field: backpack.items
+        effect: 'coin ItemInstance added'
+      - field: manualDiscoveries
+        effect: 'item:coin added'
+    determinism: deterministic
+
+  - id: cast-keybind
+    description: >
+      Pressing 'c' opens the hexagram casting panel when the player
+      has 3 or more glinting coins (definitionId "coin" with uid in
+      glintingCoins) in their backpack. If fewer than 3 glinting coins
+      are present, nothing happens. Blocked during dialog, menu, drag,
+      and while in cave zone. Pressing 'c' again or 'esc' closes the
+      panel.
+    inputs:
+      - 'Key "c" pressed'
+      - 'Player backpack contains >= 3 glinting coin items'
+      - 'No dialog, menu, or drag active'
+    outputs:
+      - 'Hexagram panel opens (activePanel set to "hexagram")'
+    state_changes:
+      - field: activePanel
+        effect: 'set to "hexagram"'
+    determinism: deterministic
+
+  - id: hexagram-toss-sequence
+    description: >
+      The casting panel shows a 6-step toss sequence. Each step, the
+      player presses a key (space or enter) to "toss" the 3 coins.
+      Each toss randomly generates heads (3) or tails (2) for each coin,
+      summing to 6, 7, 8, or 9. The line type is determined: 6 = old yin
+      (broken, changing), 7 = young yang (solid), 8 = young yin (broken),
+      9 = old yang (solid, changing). Lines build from bottom to top.
+      After 6 tosses the hexagram is complete.
+    inputs:
+      - 'Player presses space/enter in the hexagram panel during toss phase'
+    outputs:
+      - 'One hexagram line added to the current cast'
+      - 'Visual: coin toss animation, line drawn in the hexagram display'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: hexagram-result-display
+    description: >
+      After 6 tosses, the panel shows the completed hexagram: its
+      number (1-64), name, symbol (the 6-line figure rendered in ASCII),
+      and a custom prairie-themed meaning text. If changing lines exist,
+      a second (transformed) hexagram is also shown with its meaning.
+      The player can dismiss the result to return to gameplay.
+    inputs:
+      - '6 tosses completed'
+    outputs:
+      - 'Hexagram number, name, symbol, and meaning displayed'
+      - 'If changing lines: second hexagram also displayed'
+      - 'Discovery recorded: event:hexagram-cast'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'event:hexagram-cast added on first cast'
+    determinism: deterministic
+
+  - id: coins-dimmed-after-cast
+    description: >
+      Upon completing a cast (all 6 tosses + dismissing the result),
+      the 3 glinting coins used are removed from glintingCoins. Their
+      inventory glyph color dims to #8B7D3C. The coins remain in the
+      backpack but cannot be used for another cast until re-glinted
+      (future feature).
+    inputs:
+      - 'Hexagram casting completes (result dismissed)'
+    outputs:
+      - 'All 3 coins remain in backpack'
+      - '3 coin uids removed from glintingCoins'
+    state_changes:
+      - field: glintingCoins
+        effect: '3 uids removed'
+    determinism: deterministic
+
+  - id: hexagram-data
+    description: >
+      All 64 hexagrams are defined in src/engine/hexagram.ts with
+      id (1-64), traditional name, line pattern (6 booleans, true=yang,
+      false=yin), and a custom prairie-themed meaning string. The line
+      pattern encodes bottom-to-top.
+    inputs:
+      - 'HEXAGRAMS registry'
+    outputs:
+      - '64 hexagram definitions'
+    state_changes: []
+    determinism: deterministic
+
+  - id: hexagram-manual-entry
+    description: >
+      A manual entry for hexagram casting is auto-generated in the
+      manual system. Discovered after the player's first cast.
+      Category could be a new "Ritual" or existing "Gizmo" — TBD.
+    inputs:
+      - 'Manual entry generation'
+    outputs:
+      - 'Manual entry for hexagram casting'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: fewer-than-3-glinting-coins
+    description: 'Player presses c with 3 coins but only 2 are glinting'
+    expected: 'Nothing happens — need 3 glinting coins, not just 3 coins'
+
+  - id: coins-in-omnibox-not-counted
+    description: 'Player has glinting coins stored in an omnibox, not the backpack'
+    expected: 'Coins in omniboxes do not count toward the 3-coin requirement. Only backpack coins qualify.'
+
+  - id: panel-close-mid-toss
+    description: 'Player presses esc during the toss sequence (before completing 6 tosses)'
+    expected: 'Panel closes, partial cast is discarded, coins remain glinting (not consumed). Next cast starts fresh.'
+
+  - id: movement-while-panel-open
+    description: 'Player presses WASD while the hexagram panel is open'
+    expected: 'Movement is allowed (consistent with manual panel behavior)'
+
+  - id: cast-in-cave
+    description: 'Player presses c while in the cave zone'
+    expected: 'Casting is blocked — hexagrams are an overworld ritual only (for now)'
+
+  - id: no-glinting-coins-remain
+    description: 'Player has cast once, all 3 coins are dimmed, presses c again'
+    expected: 'Nothing happens — no glinting coins available. Player must wait for future re-glinting mechanic.'
+
+  - id: drop-and-repickup-preserves-glint
+    description: 'Player drops a glinting coin and picks it back up'
+    expected: 'Glinting status is preserved — tracked by uid, not by inventory position'
+
+failure_conditions:
+  - trigger: 'No walkable dirt tiles available for coin spawn'
+    expected: 'Coins that cannot be placed are silently skipped (should never happen given map size)'
+
+  - trigger: 'Backpack is full when walking over a coin'
+    expected: 'Coin stays on ground (standard ground item pickup behavior)'
+
+verification:
+  test_file: src/engine/__tests__/hexagram.test.ts
+  test_pattern: 'hexagram'
+  command: npx vitest run src/engine/__tests__/hexagram.test.ts

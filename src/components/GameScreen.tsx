@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react'
 import { DIALOG_HEIGHT, DIALOG_WIDTH, DialogBox } from './DialogBox'
 import { GameCanvas } from './GameCanvas'
 import { InventoryPanel } from './InventoryPanel'
+import { HexagramPanel } from './HexagramPanel'
 import { ManualPanel } from './ManualPanel'
 import { Menu } from './Menu'
 import { PickupToasts } from './PickupToasts'
@@ -187,6 +188,15 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
           onClose={() => {
             setActivePanel(null)
           }}
+        />
+      )}
+      {activePanel === 'hexagram' && (
+        <HexagramPanel
+          state={state}
+          onClose={() => {
+            setActivePanel(null)
+          }}
+          refreshUI={refreshUI}
         />
       )}
       {activePanel === 'menu' && (

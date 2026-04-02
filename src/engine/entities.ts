@@ -52,7 +52,10 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     if (!itemDrop) continue
     const fit = findFitPosition(state.backpack, itemDrop.definitionId)
     if (fit) {
-      placeItem(state.backpack, itemDrop.definitionId, fit.rotation, fit.gridX, fit.gridY)
+      const placed = placeItem(state.backpack, itemDrop.definitionId, fit.rotation, fit.gridX, fit.gridY)
+      if (placed && itemDrop.definitionId === 'coin' && itemDrop.glinting !== false) {
+        state.glintingCoins.add(placed.uid)
+      }
       recordDiscovery(state, `item:${itemDrop.definitionId}`)
       pickedUp.push(itemDrop.definitionId)
       state.world.destroyEntity(eid)
@@ -295,7 +298,12 @@ export const dropItem = (state: GameState, definitionId: string): boolean => {
       } else {
         const ge = state.world.createEntity()
         state.world.addComponent(ge, ComponentType.Position, { x: tx, y: ty })
-        state.world.addComponent(ge, ComponentType.ItemDrop, { definitionId })
+        const dropData: { definitionId: string; glinting?: boolean } = { definitionId }
+        if (definitionId === 'coin') {
+          dropData.glinting = state.glintingCoins.has(droppedUid)
+          state.glintingCoins.delete(droppedUid)
+        }
+        state.world.addComponent(ge, ComponentType.ItemDrop, dropData)
         state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
         state.world.addComponent(ge, ComponentType.EntityZone, { zone: state.currentZone })
       }

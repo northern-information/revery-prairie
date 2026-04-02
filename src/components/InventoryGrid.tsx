@@ -17,6 +17,7 @@ interface InventoryGridProps {
   onDrop: (containerId: string) => void
   onQuickTransfer?: (uid: string, containerId: string) => void
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
+  glintingCoins?: Set<string>
 }
 
 export const InventoryGrid = ({
@@ -28,6 +29,7 @@ export const InventoryGrid = ({
   onDrop,
   onQuickTransfer,
   itemInfoRef,
+  glintingCoins,
 }: InventoryGridProps) => {
   const gridRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef(container)
@@ -142,9 +144,10 @@ export const InventoryGrid = ({
       continue // skip the dragged item
     }
     const def = getDefinition(item.definitionId)
+    const isDimCoin = item.definitionId === 'coin' && glintingCoins && !glintingCoins.has(item.uid)
     itemMap.set(item.uid, {
       glyph: def.glyph,
-      glyphColor: def.glyphColor,
+      glyphColor: isDimCoin ? '#8B7D3C' : def.glyphColor,
       topLeftX: item.gridX,
       topLeftY: item.gridY,
     })

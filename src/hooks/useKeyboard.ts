@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { getCharacterDefinition } from '@/engine/characters'
+import { canCast } from '@/engine/hexagram'
 import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
 import { ComponentType } from '@/engine/ecs/types'
 import { dropItem } from '@/engine/entities'
@@ -20,7 +21,7 @@ import { Rotation, Zone } from '@/engine/types'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
-export type Panel = 'inventory' | 'menu' | 'manual' | null
+export type Panel = 'inventory' | 'menu' | 'manual' | 'hexagram' | null
 
 interface UseKeyboardOptions {
   state: GameState
@@ -239,6 +240,21 @@ export const useKeyboard = ({
       if (e.key === 'q' || e.key === 'Q') {
         if (activePanel === 'menu') return
         setActivePanel(activePanel === 'manual' ? null : 'manual')
+        return
+      }
+
+      // Toggle hexagram casting
+      if (e.key === 'c' || e.key === 'C') {
+        if (state.activeDialog) return
+        if (activePanel === 'menu') return
+        if (state.currentZone !== Zone.Overworld) return
+        if (activePanel === 'hexagram') {
+          setActivePanel(null)
+          return
+        }
+        if (canCast(state)) {
+          setActivePanel('hexagram')
+        }
         return
       }
 
