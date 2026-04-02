@@ -1,3 +1,4 @@
+import { ACTION_COLOR } from './constants'
 import { ComponentType } from './ecs/types'
 import { createOmniboxContainer, findFitPosition, placeItem } from './inventory'
 import { isInBounds, posKey } from './position'
@@ -53,7 +54,7 @@ export const RECIPES: Recipe[] = [
           if (isInBounds(tx, ty, state.mapWidth, state.mapHeight)) {
             const t = state.map[ty][tx].type
             if (t === TileType.Dirt || t === TileType.Clover || t === TileType.CaveFloor) {
-              tiles.push({ pos: { x: tx, y: ty }, char: '#', color: '#ff69b4' })
+              tiles.push({ pos: { x: tx, y: ty }, char: '#', color: ACTION_COLOR })
             }
           }
         }
@@ -116,7 +117,7 @@ export const RECIPES: Recipe[] = [
 ]
 
 export const recipeKey = (recipe: Recipe): string => {
-  const sorted = [...recipe.ingredients].sort()
+  const sorted = [...recipe.ingredients].sort((a, b) => a.localeCompare(b))
   return sorted.join('+')
 }
 

@@ -1,5 +1,6 @@
 import { getCharacterDefinition } from './characters'
 import {
+  ACTION_COLOR,
   BEE_CHAR,
   BEE_COLOR,
   BEEHIVE_CHAR,
@@ -38,6 +39,7 @@ import {
   TILE_CHARS,
   TILE_COLORS,
   TRAIL_DURATION_MS,
+  HOVER_PATH_COLOR,
   type VelocityKey,
 } from './constants'
 import { ComponentType } from './ecs/types'
@@ -433,9 +435,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       } else if (meteoritePositions.has(tileKey)) {
         char = METEORITE_CHAR
         if (pathPositions.has(tileKey)) {
-          color = '#ff69b4'
+          color = ACTION_COLOR
         } else if (hoverPathPositions.has(tileKey)) {
-          color = '#555555'
+          color = HOVER_PATH_COLOR
         } else {
           color = METEORITE_COLOR
         }
@@ -464,15 +466,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const pathTile = map[my][mx]
         if (pathTile.type === TileType.CaveEntrance) {
           char = TILE_CHARS[TileType.CaveEntrance]
-          color = '#ff69b4'
+          color = ACTION_COLOR
         } else {
           char = waypointPositions.has(tileKey) ? '+' : '\u00b7'
-          color = '#ff69b4'
+          color = ACTION_COLOR
         }
       } else if (hoverPathPositions.has(tileKey)) {
         const hoverTile = map[my][mx]
         char = TILE_CHARS[hoverTile.type]
-        color = '#555555'
+        color = HOVER_PATH_COLOR
       } else if (trailMap.has(tileKey)) {
         const tile = map[my][mx]
         char = TILE_CHARS[tile.type]
@@ -527,7 +529,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
       // Draw with cursor/facing inversion if applicable
       if ((isCursor && cursorable) || isFacingEntity || isPendingTarget) {
-        ctx.fillStyle = '#ff69b4'
+        ctx.fillStyle = ACTION_COLOR
         ctx.fillRect(px, py, charWidth, charHeight)
         ctx.fillStyle = BG_COLOR
       } else {
