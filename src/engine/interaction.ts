@@ -163,9 +163,9 @@ export const tickDialogTransition = (state: GameState, now: number): void => {
 
 const DIALOG_TYPING_MS = 40
 
-export const tickDialogTyping = (state: GameState, lastTypingTime: number, now: number): number => {
-  if (!state.activeDialog || state.activeDialog.typingDone || state.activeDialog.transitioning) return lastTypingTime
-  if (now - lastTypingTime < DIALOG_TYPING_MS) return lastTypingTime
+export const tickDialogTyping = (state: GameState, now: number): void => {
+  if (!state.activeDialog || state.activeDialog.typingDone || state.activeDialog.transitioning) return
+  if (now - state.lastDialogTypingTick < DIALOG_TYPING_MS) return
 
   const def = getCharacterDefinition(state.activeDialog.characterId)
   const line = def.dialog[state.activeDialog.lineIndex]
@@ -173,7 +173,7 @@ export const tickDialogTyping = (state: GameState, lastTypingTime: number, now: 
   if (state.activeDialog.typingIndex >= line.length) {
     state.activeDialog.typingDone = true
   }
-  return now
+  state.lastDialogTypingTick = now
 }
 
 export { DIALOG_TRANSITION_MS }

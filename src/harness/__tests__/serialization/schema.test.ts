@@ -63,6 +63,7 @@ const EXPECTED_FIELDS = [
   'trail',
   'musicEnabled',
   'world',
+  'lastDialogTypingTick',
 ].sort()
 
 describe('GameState schema', () => {

@@ -58,8 +58,6 @@ interface TickEntry {
 }
 
 const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
-  let lastDialogTypingTick = 0
-
   return [
     {
       id: 'path',
@@ -236,7 +234,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         if (!state.activeDialog) return
         const prevTypingIndex = state.activeDialog.typingIndex
         const prevTransitioning = state.activeDialog.transitioning
-        lastDialogTypingTick = tickDialogTyping(state, lastDialogTypingTick, time)
+        tickDialogTyping(state, time)
         tickDialogTransition(state, time)
         if (
           state.activeDialog.typingIndex !== prevTypingIndex ||

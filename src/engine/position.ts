@@ -34,5 +34,12 @@ export const ORDINAL: Position[] = [
   { x: 1, y: 1 },
 ]
 
+export const tileHash = (x: number, y: number): number => {
+  let h = x * 374761393 + y * 668265263
+  h = (h ^ (h >> 13)) * 1274126177
+  h = h ^ (h >> 16)
+  return h >>> 0
+}
+
 export const isWalkableTile = (tileType: TileType): boolean =>
   tileType !== TileType.Space && tileType !== TileType.CaveWall && tileType !== TileType.CaveBreakableWall

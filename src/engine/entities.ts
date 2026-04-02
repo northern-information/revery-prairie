@@ -183,7 +183,7 @@ const tickDrift = (
   blocked: Set<string>
 ): void => {
   if (behavior.freezeOnDialog && state.activeDialog?.characterId === definitionId) return
-  if (Math.random() > behavior.speed) return
+  if (Math.random() > behavior.moveChance) return
 
   const pos = state.world.getComponent(eid, ComponentType.Position)
   if (!pos) return

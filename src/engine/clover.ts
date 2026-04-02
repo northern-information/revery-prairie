@@ -8,7 +8,7 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
-import { CARDINAL, isInBounds, posKey } from './position'
+import { CARDINAL, isInBounds, posKey, tileHash } from './position'
 import { TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'
@@ -31,13 +31,6 @@ export interface CloverPatch {
 // Module-scoped spiral state keyed by patch seed (smallest posKey)
 const spiralState = new Map<string, GrowthFront>()
 
-// Simple hash for deterministic seeding (same as renderer's starHash)
-const seedHash = (x: number, y: number): number => {
-  let h = x * 374761393 + y * 668265263
-  h = (h ^ (h >> 13)) * 1274126177
-  h = h ^ (h >> 16)
-  return h >>> 0
-}
 
 // --- Flood-fill patch detection ---
 
@@ -181,7 +174,7 @@ const getOrCreateSpiralState = (seed: string): GrowthFront => {
   if (existing) return existing
 
   const [xStr, yStr] = seed.split(',')
-  const h = seedHash(Number(xStr), Number(yStr))
+  const h = tileHash(Number(xStr), Number(yStr))
 
   const front: GrowthFront = {
     angle: ((h >> 8) % 628) / 100,

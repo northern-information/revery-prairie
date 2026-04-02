@@ -38,21 +38,15 @@ import {
   TILE_CHARS,
   TILE_COLORS,
   TRAIL_DURATION_MS,
+  type VelocityKey,
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
-import { isInBounds, posKey } from './position'
+import { isInBounds, posKey, tileHash } from './position'
 import { CloverStage, TileType, Zone } from './types'
 
 import type { CharMetrics, GameState } from './types'
 
-// Simple hash for deterministic star placement based on world coordinates
-const starHash = (x: number, y: number): number => {
-  let h = x * 374761393 + y * 668265263
-  h = (h ^ (h >> 13)) * 1274126177
-  h = h ^ (h >> 16)
-  return h >>> 0
-}
 
 // Rain around characters with the `rain` aura
 const RAIN_CHARS = ['|', ':', '.', ',']
@@ -157,7 +151,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       color: SHOOTING_STAR_HEAD_COLOR,
     })
     // Trail — step backward along negated velocity
-    const trailChar = SHOOTING_STAR_TRAIL_CHARS[posKey(vel.dx, vel.dy)] ?? '-'
+    const velKey = posKey(vel.dx, vel.dy) as VelocityKey
+    const trailChar = SHOOTING_STAR_TRAIL_CHARS[velKey] ?? '-'
     for (let t = 1; t <= data.length; t++) {
       const tx = pos.x - vel.dx * t
       const ty = pos.y - vel.dy * t
@@ -320,7 +315,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             pickupEffectMap.set(posKey(ex, ey), { char: '\u00b7', color })
           } else {
             // Interior shimmer: alternate chars based on position hash + time
-            const h = starHash(ex, ey)
+            const h = tileHash(ex, ey)
             const shimmerIndex = (h + Math.floor(time * 0.01)) % PICKUP_EFFECT_CHARS_FILL.length
             pickupEffectMap.set(posKey(ex, ey), {
               char: PICKUP_EFFECT_CHARS_FILL[shimmerIndex],
@@ -374,7 +369,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           ctx.fillStyle = shootingStar.color
           ctx.fillText(shootingStar.char, px, py)
         } else {
-          const h = starHash(mx, my)
+          const h = tileHash(mx, my)
           if (h % STAR_DENSITY === 0) {
             const phase = (h >> 8) % STAR_COLORS.length
             const colorIndex = (phase + Math.floor(time * TWINKLE_SPEED)) % STAR_COLORS.length
@@ -460,7 +455,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           color = TILE_COLORS[tile.type]
         }
       } else if (state.cloverGrowthPreviews.has(tileKey)) {
-        const h = starHash(mx, my)
+        const h = tileHash(mx, my)
         const phase = (h >> 8) % CLOVER_PREVIEW_COLORS.length
         const colorIndex = (phase + Math.floor(time * CLOVER_PREVIEW_BLINK_SPEED)) % CLOVER_PREVIEW_COLORS.length
         char = TILE_CHARS[TileType.Clover]
@@ -500,7 +495,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
                 color = CLOVER_BROWN_COLOR
                 break
               case CloverStage.BlinkingRed: {
-                const h = starHash(mx, my)
+                const h = tileHash(mx, my)
                 const phase = (h % 628) / 100
                 const t = (Math.sin(time * CLOVER_DYING_OSCILLATION_SPEED + phase) + 1) / 2
                 const r = Math.round(
@@ -571,7 +566,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (wx === player.x && wy === player.y) continue
 
         // Per-tile seed mixed with rainSeed so pattern varies per game load
-        const h = starHash(wx + state.rainSeed, wy)
+        const h = tileHash(wx + state.rainSeed, wy)
         if (h % RAIN_DENSITY !== 0) continue
 
         // Animate: offset by time so drops appear to fall

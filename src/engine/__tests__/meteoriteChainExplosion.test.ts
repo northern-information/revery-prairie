@@ -240,7 +240,7 @@ describe('chain explosion', () => {
       state.map[py + 1][px] = { type: TileType.Dirt }
 
       createCharacterTestEntity(state, 'ghost-99', px, py - 1, {
-        behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
+        behavior: { type: 'drift', moveChance: 0.15, freezeOnDialog: true },
       })
 
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
