@@ -241,7 +241,7 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
           </div>
         )}
 
-        {activePanel === 'inventory' && <ItemInfo ref={itemInfoRef} />}
+        {activePanel === 'inventory' && <ItemInfo ref={itemInfoRef} glintingCoins={state.glintingCoins} />}
       </div>
 
       <div className="flex flex-col gap-4">

@@ -197,6 +197,9 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
             setActivePanel(null)
           }}
           refreshUI={refreshUI}
+          onCastLog={(text, worldX, worldY) => {
+            addEvent('discovery', text, '¤', '#C9B037', worldX, worldY)
+          }}
         />
       )}
       {activePanel === 'menu' && (

@@ -11,7 +11,11 @@ export interface ItemInfoHandle {
   getCurrentUid: () => string | null
 }
 
-export const ItemInfo = forwardRef<ItemInfoHandle>((_props, ref) => {
+interface ItemInfoProps {
+  glintingCoins?: Set<string>
+}
+
+export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoins }, ref) => {
   const [item, setItem] = useState<ItemDefinition | null>(null)
   const currentIdRef = useRef<string | null>(null)
   const currentUidRef = useRef<string | null>(null)
@@ -39,12 +43,16 @@ export const ItemInfo = forwardRef<ItemInfoHandle>((_props, ref) => {
     getCurrentUid: () => currentUidRef.current,
   }))
 
+  const isCoin = item?.id === 'coin'
+  const uid = currentUidRef.current
+  const isGlinting = isCoin && uid !== null && glintingCoins?.has(uid) === true
+
   return (
     <div>
       {item ? (
         <>
           <div className="mb-1 flex items-baseline justify-between">
-            <span style={{ color: item.glyphColor }}>
+            <span style={{ color: isCoin && !isGlinting ? '#8B7D3C' : item.glyphColor }}>
               {item.glyph} {item.name.toLowerCase()}
             </span>
           </div>
@@ -57,6 +65,11 @@ export const ItemInfo = forwardRef<ItemInfoHandle>((_props, ref) => {
             <span className="">{item.category}</span>
           </div>
           <div className="mb-1 flex items-baseline justify-between">{item.description}</div>
+          {isCoin && (
+            <div className="mt-1" style={{ color: isGlinting ? '#C9B037' : '#8B7D3C' }}>
+              {isGlinting ? 'it glints in the light.' : 'the shine has faded.'}
+            </div>
+          )}
         </>
       ) : null}
     </div>
