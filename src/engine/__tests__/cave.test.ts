@@ -170,7 +170,7 @@ describe('enterCave', () => {
     const state = createTestState()
     createBeeEntity(state, 10, 10)
     createCharacterTestEntity(state, 'ghost-99', 15, 15, {
-      behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
+      behavior: { type: 'drift', moveChance: 0.15, freezeOnDialog: true },
     })
     const beesBefore = getBeeEntities(state).length
     const charsBefore = getCharacterEntities(state).length
@@ -214,7 +214,7 @@ describe('exitCave', () => {
     const state = createTestState()
     createBeeEntity(state, 10, 10)
     createCharacterTestEntity(state, 'ghost-99', 15, 15, {
-      behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
+      behavior: { type: 'drift', moveChance: 0.15, freezeOnDialog: true },
     })
     const beesBefore = getBeeEntities(state).length
     const charsBefore = getCharacterEntities(state).length
@@ -398,7 +398,7 @@ describe('persistent dual-zone', () => {
     const state = createTestState()
     // Create a blocking entity in overworld at coords that overlap with cave
     createCharacterTestEntity(state, 'ghost-99', 5, 5, {
-      behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
+      behavior: { type: 'drift', moveChance: 0.15, freezeOnDialog: true },
     })
     enterCave(state)
 

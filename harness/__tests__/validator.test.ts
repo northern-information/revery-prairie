@@ -239,7 +239,7 @@ describe('validator', () => {
       expect(result.valid).toBe(false)
       const cycleErrors = result.errors.filter(e => e.code === 'DEPENDENCY_CYCLE')
       expect(cycleErrors).toHaveLength(2)
-      expect(cycleErrors.map(e => e.specId).sort()).toEqual(['cycle-a', 'cycle-b'])
+      expect(cycleErrors.map(e => e.specId).sort((a, b) => a.localeCompare(b))).toEqual(['cycle-a', 'cycle-b'])
     })
 
     it('reports 3-node dependency cycles', () => {

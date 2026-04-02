@@ -46,8 +46,10 @@ export const SHOOTING_STAR_HEAD_CHAR = '*'
 export const SHOOTING_STAR_HEAD_COLOR = '#FFFFFF'
 export const SHOOTING_STAR_TRAIL_COLORS = ['#CCC', '#999', '#666', '#444', '#222']
 
-// direction → trail character
-export const SHOOTING_STAR_TRAIL_CHARS: Record<string, string> = {
+// direction → trail character (keys are "dx,dy" velocity strings)
+export type VelocityKey = '1,1' | '-1,-1' | '1,-1' | '-1,1' | '1,0' | '-1,0' | '0,1' | '0,-1'
+
+export const SHOOTING_STAR_TRAIL_CHARS: Record<VelocityKey, string> = {
   '1,1': '\\',
   '-1,-1': '\\',
   '1,-1': '/',
@@ -147,4 +149,6 @@ export const TRAIL_MAX_LENGTH = 20
 export const BEE_CHAR = '*'
 export const BEE_COLOR = '#FFD700'
 export const BG_COLOR = '#1a1a1a'
+export const ACTION_COLOR = '#ff69b4'
+export const HOVER_PATH_COLOR = '#555555'
 export const INVENTORY_CELL_SIZE = 28

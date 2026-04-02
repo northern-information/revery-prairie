@@ -17,8 +17,8 @@ import type { Container, GameState, ItemInstance, Rotation } from './types'
 export type CheckCombineResult =
   | { kind: 'recipe'; uid: string; recipe: Recipe; isDiscovered: boolean }
   | { kind: 'store'; omniboxUid: string }
-  | 'no-recipe'
-  | null
+  | { kind: 'no-recipe' }
+  | { kind: 'none' }
 
 export const checkCombine = (
   container: Container,
@@ -52,13 +52,13 @@ export const checkCombine = (
     }
   }
 
-  if (overlappedUids.size !== 1) return null
+  if (overlappedUids.size !== 1) return { kind: 'none' }
 
   const targetUid = [...overlappedUids][0]
-  if (!targetUid) return null
+  if (!targetUid) return { kind: 'none' }
 
   const targetItem = container.items.find(i => i.uid === targetUid)
-  if (!targetItem) return null
+  if (!targetItem) return { kind: 'none' }
 
   // Dragging onto an omnibox stores the item inside (takes priority over recipes)
   if (targetItem.definitionId === 'omnibox' && draggedItem.uid !== targetItem.uid) {
@@ -66,7 +66,7 @@ export const checkCombine = (
   }
 
   const recipe = findRecipe(draggedItem.definitionId, targetItem.definitionId)
-  if (!recipe) return 'no-recipe'
+  if (!recipe) return { kind: 'no-recipe' }
 
   const isDiscovered = discoveredRecipes.has(recipeKey(recipe))
   return { kind: 'recipe', uid: targetUid, recipe, isDiscovered }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
+import { ACTION_COLOR } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { removeItem } from '@/engine/inventory'
 import { getBlockedPositions } from '@/engine/movement'
@@ -135,7 +136,7 @@ export const useCanvasDrop = ({
 
       if (bestPath && bestPath.length > 0) {
         state.previewFn = () =>
-          Math.floor(Date.now() / 500) % 2 === 0 ? [{ pos: { x: mx, y: my }, char: '#', color: '#ff69b4' }] : []
+          Math.floor(Date.now() / 500) % 2 === 0 ? [{ pos: { x: mx, y: my }, char: '#', color: ACTION_COLOR }] : []
         state.path = bestPath
         state.pendingAction = () => {
           executeDrop()

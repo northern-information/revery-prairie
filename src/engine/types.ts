@@ -76,7 +76,7 @@ export interface Container {
 
 export interface DriftBehavior {
   type: 'drift'
-  speed: number // probability per tick (0.15 for ghosts)
+  moveChance: number // probability per tick (0.15 for ghosts)
   freezeOnDialog: boolean
 }
 
@@ -153,6 +153,7 @@ export interface GameState {
   meteorShower: MeteorShowerState
   manualDiscoveries: Set<string>
   manualState: ManualState
+  lastDialogTypingTick: number
 }
 
 export const CloverStage = {

@@ -124,6 +124,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
       searchQuery: '',
       revealedHints: new Set<string>(),
     },
+    lastDialogTypingTick: 0,
   }
 
   // Place Gron near the player
@@ -154,7 +155,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
       `ghost-${String(ghostNumber)}`,
       { x: gx, y: gy },
       {
-        behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true },
+        behavior: { type: 'drift', moveChance: 0.15, freezeOnDialog: true },
       }
     )
   }

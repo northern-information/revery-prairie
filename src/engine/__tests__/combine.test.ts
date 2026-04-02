@@ -44,10 +44,8 @@ describe('checkCombine', () => {
       state.discoveredRecipes
     )
 
-    expect(result).not.toBeNull()
-    expect(result).not.toBe('no-recipe')
-    expect(typeof result === 'object' && result !== null && result.kind === 'recipe').toBe(true)
-    if (typeof result === 'object' && result !== null && 'recipe' in result) {
+    expect(result.kind).toBe('recipe')
+    if (result.kind === 'recipe') {
       expect(result.recipe.resultName).toBe('omnibox')
     }
   })
@@ -71,9 +69,7 @@ describe('checkCombine', () => {
       state.discoveredRecipes
     )
 
-    expect(result).not.toBeNull()
-    expect(result).not.toBe('no-recipe')
-    expect(typeof result === 'object' && result !== null && result.kind === 'recipe').toBe(true)
+    expect(result.kind).toBe('recipe')
   })
 
   it('store takes priority over recipe for omnibox targets', () => {
@@ -96,7 +92,7 @@ describe('checkCombine', () => {
     )
 
     expect(result).not.toBeNull()
-    expect(typeof result === 'object' && result !== null && result.kind === 'store').toBe(true)
+    expect(result.kind).toBe('store')
   })
 
   it('returns no-recipe for incompatible items', () => {
@@ -118,7 +114,7 @@ describe('checkCombine', () => {
       state.discoveredRecipes
     )
 
-    expect(result).toBe('no-recipe')
+    expect(result.kind).toBe('no-recipe')
   })
 })
 

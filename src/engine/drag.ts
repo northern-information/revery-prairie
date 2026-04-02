@@ -76,11 +76,11 @@ export const computePlacementPreview = (
       targetContainerId,
       discoveredRecipes
     )
-    if (result === 'no-recipe') {
+    if (result.kind === 'no-recipe') {
       cannotCombine = true
-    } else if (result?.kind === 'store') {
+    } else if (result.kind === 'store') {
       storeTarget = { omniboxUid: result.omniboxUid }
-    } else if (result?.kind === 'recipe') {
+    } else if (result.kind === 'recipe') {
       combineTarget = {
         uid: result.uid,
         recipe: result.recipe,

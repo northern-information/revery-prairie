@@ -10,7 +10,7 @@ import { createCharacterTestEntity, destroyAllCharacterEntities, getCharacterEnt
 
 import type { GameState } from '../types'
 
-const DRIFT_BEHAVIOR = { type: 'drift' as const, speed: 0.15, freezeOnDialog: true }
+const DRIFT_BEHAVIOR = { type: 'drift' as const, moveChance: 0.15, freezeOnDialog: true }
 
 const clearAroundPlayer = (state: GameState) => {
   const { player, map } = state
@@ -43,7 +43,7 @@ describe('ghost spawning', () => {
     const state = makeState()
     const ids = getGhostCharacters(state)
       .map(c => c.definitionId)
-      .sort()
+      .sort((a, b) => a.localeCompare(b))
     expect(ids).toEqual(['ghost-1', 'ghost-2', 'ghost-3'])
   })
 

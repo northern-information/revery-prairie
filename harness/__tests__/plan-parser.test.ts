@@ -57,7 +57,7 @@ describe('parsePlanYaml', () => {
       expect(result.valid).toBe(true)
       expect(result.tiers).toHaveLength(2)
       expect(result.tiers[0]).toEqual(['a'])
-      expect(result.tiers[1].sort()).toEqual(['b', 'c'])
+      expect(result.tiers[1].sort((a, b) => a.localeCompare(b))).toEqual(['b', 'c'])
     })
   })
 
