@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react'
 
-import { INVENTORY_CELL_SIZE } from '@/engine/constants'
+import { COIN_DULL_COLOR, INVENTORY_CELL_SIZE } from '@/engine/constants'
 import { buildOccupancyGrid, getRotatedShape } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
 import { combineIcon } from '@/engine/recipes'
@@ -147,7 +147,7 @@ export const InventoryGrid = ({
     const isDimCoin = item.definitionId === 'coin' && glintingCoins && !glintingCoins.has(item.uid)
     itemMap.set(item.uid, {
       glyph: def.glyph,
-      glyphColor: isDimCoin ? '#8B7D3C' : def.glyphColor,
+      glyphColor: isDimCoin ? COIN_DULL_COLOR : def.glyphColor,
       topLeftX: item.gridX,
       topLeftY: item.gridY,
     })

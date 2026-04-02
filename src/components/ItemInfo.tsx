@@ -1,5 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 
+import { COIN_DULL_COLOR, COIN_GLINTING_COLOR } from '@/engine/constants'
 import { getDefinition, ITEM_DEFINITIONS } from '@/engine/items'
 import type { ItemDefinition } from '@/engine/types'
 
@@ -52,7 +53,7 @@ export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoi
       {item ? (
         <>
           <div className="mb-1 flex items-baseline justify-between">
-            <span style={{ color: isCoin && !isGlinting ? '#8B7D3C' : item.glyphColor }}>
+            <span style={{ color: isCoin && !isGlinting ? COIN_DULL_COLOR : item.glyphColor }}>
               {item.glyph} {item.name.toLowerCase()}
             </span>
           </div>
@@ -66,7 +67,7 @@ export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoi
           </div>
           <div className="mb-1 flex items-baseline justify-between">{item.description}</div>
           {isCoin && (
-            <div className="mt-1" style={{ color: isGlinting ? '#C9B037' : '#8B7D3C' }}>
+            <div className="mt-1" style={{ color: isGlinting ? COIN_GLINTING_COLOR : COIN_DULL_COLOR }}>
               {isGlinting ? 'it glints in the light.' : 'the shine has faded.'}
             </div>
           )}

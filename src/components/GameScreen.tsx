@@ -9,6 +9,7 @@ import { PickupToasts } from './PickupToasts'
 import { Sidebar } from './Sidebar'
 
 import { setMusicEnabled, stopAll } from '@/engine/audio'
+import { COIN_GLINTING_COLOR } from '@/engine/constants'
 import { getCharacterDefinition } from '@/engine/characters'
 import { ComponentType } from '@/engine/ecs/types'
 import { advanceDialog } from '@/engine/interaction'
@@ -198,7 +199,7 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
           }}
           refreshUI={refreshUI}
           onCastLog={(text, worldX, worldY) => {
-            addEvent('discovery', text, '¤', '#C9B037', worldX, worldY)
+            addEvent('discovery', text, '¤', COIN_GLINTING_COLOR, worldX, worldY)
           }}
         />
       )}

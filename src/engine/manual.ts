@@ -1,5 +1,5 @@
 import { CHARACTER_DEFINITIONS } from './characters'
-import { TILE_CHARS, TILE_COLORS } from './constants'
+import { COIN_GLINTING_COLOR, TILE_CHARS, TILE_COLORS } from './constants'
 import { KEYBINDINGS } from './input'
 import { ITEM_DEFINITIONS } from './items'
 import { recipeKey, RECIPES } from './recipes'
@@ -320,7 +320,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     name: 'Hexagram Casting',
     category: ManualCategory.Object,
     glyph: '¤',
-    glyphColor: '#C9B037',
+    glyphColor: COIN_GLINTING_COLOR,
     summary: 'divination with three coins',
     lore:
       MANUAL_LORE['hexagram-cast']?.lore ??

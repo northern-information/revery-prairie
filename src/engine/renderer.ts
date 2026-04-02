@@ -6,6 +6,7 @@ import {
   BEEHIVE_CHAR,
   BEEHIVE_COLOR,
   BG_COLOR,
+  COIN_DULL_COLOR,
   CLOVER_BLACK_COLOR,
   CLOVER_BROWN_COLOR,
   CLOVER_DECOMPOSE_COLOR,
@@ -451,7 +452,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           const def = getDefinition(groundEntry.definitionId)
           char = def.glyph
           color = groundEntry.definitionId === 'coin' && groundEntry.glinting === false
-            ? '#8B7D3C'
+            ? COIN_DULL_COLOR
             : def.glyphColor
         } else {
           const tile = map[my][mx]

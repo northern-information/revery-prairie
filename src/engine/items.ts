@@ -1,3 +1,4 @@
+import { COIN_GLINTING_COLOR } from './constants'
 import { ItemCategory } from './types'
 
 import type { Container, ItemCategory as ItemCategoryType, ItemDefinition } from './types'
@@ -73,7 +74,7 @@ const ITEMS = {
     name: 'Coin',
     description: 'an ancient divination coin',
     glyph: '¤',
-    glyphColor: '#C9B037',
+    glyphColor: COIN_GLINTING_COLOR,
     weight: 1,
     category: ItemCategory.Tool,
     shape: ['#'],

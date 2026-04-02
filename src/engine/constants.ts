@@ -151,4 +151,6 @@ export const BEE_COLOR = '#FFD700'
 export const BG_COLOR = '#1a1a1a'
 export const ACTION_COLOR = '#ff69b4'
 export const HOVER_PATH_COLOR = '#555555'
+export const COIN_GLINTING_COLOR = '#C9B037'
+export const COIN_DULL_COLOR = '#8B7D3C'
 export const INVENTORY_CELL_SIZE = 28

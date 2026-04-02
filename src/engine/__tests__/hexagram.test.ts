@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { COIN_GLINTING_COLOR } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
 import {
@@ -26,7 +27,7 @@ describe('coin item definition', () => {
     expect(coin).toBeDefined()
     expect(coin.id).toBe('coin')
     expect(coin.glyph).toBe('¤')
-    expect(coin.glyphColor).toBe('#C9B037')
+    expect(coin.glyphColor).toBe(COIN_GLINTING_COLOR)
     expect(coin.category).toBe('tool')
     expect(coin.shape).toEqual([[true]])
   })
