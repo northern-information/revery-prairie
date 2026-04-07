@@ -25,7 +25,6 @@ interface GameCanvasProps {
   onPickup: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
   onDiscovery: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
-  onGift: (text: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   metricsRef: React.RefObject<CharMetrics | null>
 }
 
@@ -37,7 +36,6 @@ export const GameCanvas = ({
   onPickup,
   onDialog,
   onDiscovery,
-  onGift,
   metricsRef,
 }: GameCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -48,7 +46,7 @@ export const GameCanvas = ({
   const onDiscoveryRef = useRef(onDiscovery)
   onDiscoveryRef.current = onDiscovery
 
-  useMouse({ canvasRef, state, metricsRef, activePanel, setActivePanel, refreshUI, onDialog, onDiscovery, onGift })
+  useMouse({ canvasRef, state, metricsRef, activePanel, setActivePanel, refreshUI, onDialog, onDiscovery })
 
   useEffect(() => {
     const canvas = canvasRef.current
