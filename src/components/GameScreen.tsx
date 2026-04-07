@@ -231,6 +231,7 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
         itemInfoRef={itemInfoRef}
         eventLog={log}
         metricsRef={metricsRef}
+        refreshUI={refreshUI}
       />
       <PickupToasts toasts={toasts} state={state} metricsRef={metricsRef} />
     </>

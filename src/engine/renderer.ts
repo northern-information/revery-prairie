@@ -22,7 +22,7 @@ import {
   EXPLOSION_COLORS,
   EXPLOSION_DURATION_MS,
   EXPLOSION_RADIUS,
-  FONT,
+  BASE_FONT_SIZE,
   METEORITE_CHAR,
   METEORITE_COLOR,
   PICKUP_EFFECT_BLOOM_MS,
@@ -64,12 +64,13 @@ const TWINKLE_SPEED = 0.0015 // cycles per millisecond
 
 export { type CharMetrics } from './types'
 
-export const measureChar = (ctx: CanvasRenderingContext2D): CharMetrics => {
-  ctx.font = FONT
+export const measureChar = (ctx: CanvasRenderingContext2D, zoom = 1): CharMetrics => {
+  const font = `${String(Math.round(BASE_FONT_SIZE * zoom))}px monospace`
+  ctx.font = font
   const metrics = ctx.measureText('M')
   const charWidth = metrics.width
   const charHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent + 2
-  return { charWidth, charHeight }
+  return { charWidth, charHeight, font }
 }
 
 export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
@@ -82,7 +83,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   ctx.fillStyle = BG_COLOR
   ctx.fillRect(0, 0, pxWidth, pxHeight)
 
-  ctx.font = FONT
+  ctx.font = metrics.font
   ctx.textBaseline = 'top'
 
   // Zone filter helper — only render entities in the current zone

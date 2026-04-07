@@ -1,6 +1,6 @@
 import { generateCave } from './cave'
 import { registerGhostDefinitions } from './characters'
-import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER } from './constants'
+import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, ZOOM_DEFAULT } from './constants'
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
@@ -92,6 +92,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     rainSeed: Math.floor(Math.random() * 2147483647),
     metric: true,
     musicEnabled: true,
+    zoom: ZOOM_DEFAULT,
     currentZone: Zone.Overworld,
     overworldMap: map,
     overworldMapWidth: MAP_WIDTH,

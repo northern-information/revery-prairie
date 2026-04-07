@@ -132,6 +132,7 @@ export interface GameState {
   rainSeed: number
   metric: boolean
   musicEnabled: boolean
+  zoom: number
   currentZone: Zone
   overworldMap: Tile[][]
   overworldMapWidth: number
@@ -241,4 +242,5 @@ export interface MeteorShowerState {
 export interface CharMetrics {
   charWidth: number
   charHeight: number
+  font: string
 }
