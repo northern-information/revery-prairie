@@ -3,7 +3,7 @@ import { ItemInfo } from './ItemInfo'
 import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { getCharacterDefinition } from '@/engine/characters'
-import { CLOVER_WATER_MAX, SOIL_HEALTH_DEFAULT, SPACE_BORDER, TILE_COLORS } from '@/engine/constants'
+import { CLOVER_WATER_MAX, SOIL_HEALTH_DEFAULT, SPACE_BORDER, TILE_COLORS, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { getTileEffects } from '@/engine/effects'
 import { getDefinition } from '@/engine/items'
@@ -37,9 +37,10 @@ interface SidebarProps {
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
   eventLog: GameEvent[]
   metricsRef: React.RefObject<CharMetrics | null>
+  refreshUI: () => void
 }
 
-export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef }: SidebarProps) => {
+export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef, refreshUI }: SidebarProps) => {
   const { metric } = state
   const cursorRef = useRef<{ x: number; y: number } | null>(null)
   const [, setCursorVersion] = useState(0)
@@ -352,6 +353,26 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef 
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div>
+          <SectionHeader>view</SectionHeader>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="text-muted">zoom</span>
+            <input
+              type="range"
+              min={ZOOM_MIN}
+              max={ZOOM_MAX}
+              step={ZOOM_STEP}
+              value={state.zoom}
+              onChange={e => {
+                state.zoom = parseFloat(e.target.value)
+                refreshUI()
+              }}
+              className="pointer-events-auto h-1 min-w-0 flex-1 appearance-none rounded bg-white/20 accent-white"
+            />
+            <span className="w-8 shrink-0 text-right">{Math.round((state.zoom / ZOOM_DEFAULT) * 100)}%</span>
+          </div>
         </div>
       </div>
     </div>

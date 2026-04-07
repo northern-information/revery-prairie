@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 import { updateCamera } from '@/engine/camera'
+import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '@/engine/constants'
 import { updateCursorState } from '@/engine/cursor'
 import { createGameLoop } from '@/engine/gameLoop'
 import { measureChar, render } from '@/engine/renderer'
@@ -54,8 +55,10 @@ export const GameCanvas = ({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    let lastZoom = state.zoom
+
     const updateSize = () => {
-      metricsRef.current ??= measureChar(ctx)
+      metricsRef.current ??= measureChar(ctx, state.zoom)
 
       const { charWidth, charHeight } = metricsRef.current
       const dpr = window.devicePixelRatio || 1
@@ -79,6 +82,19 @@ export const GameCanvas = ({
     }
     window.addEventListener('resize', onResize)
 
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const direction = e.deltaY > 0 ? -1 : 1
+      const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, state.zoom + direction * ZOOM_STEP))
+      if (newZoom === state.zoom) return
+      state.zoom = newZoom
+      lastZoom = newZoom
+      metricsRef.current = null
+      updateSize()
+      refreshUIRef.current()
+    }
+    canvas.addEventListener('wheel', handleWheel, { passive: false })
+
     const gameLoop = createGameLoop(state, {
       onRefreshUI: () => {
         refreshUIRef.current()
@@ -90,6 +106,11 @@ export const GameCanvas = ({
         onDiscoveryRef.current(text, wx, wy, icon, iconColor)
       },
       onFrame: time => {
+        if (state.zoom !== lastZoom) {
+          lastZoom = state.zoom
+          metricsRef.current = null
+          updateSize()
+        }
         if (metricsRef.current) {
           updateCursorState(state, metricsRef.current)
           render(ctx, state, metricsRef.current, time)
@@ -100,6 +121,7 @@ export const GameCanvas = ({
 
     return () => {
       window.removeEventListener('resize', onResize)
+      canvas.removeEventListener('wheel', handleWheel)
       gameLoop.stop()
     }
   }, [state, metricsRef])

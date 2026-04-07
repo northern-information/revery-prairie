@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { CharMetrics } from '../types'
 
-const metrics: CharMetrics = { charWidth: 10, charHeight: 16 }
+const metrics: CharMetrics = { charWidth: 10, charHeight: 16, font: '16px monospace' }
 
 describe('updateCursorState', () => {
   it('sets cursorTile from cursorScreenPos using camera + metrics', () => {

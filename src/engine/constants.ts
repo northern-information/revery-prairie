@@ -4,6 +4,11 @@ export const MAP_WIDTH = 170
 export const MAP_HEIGHT = 95
 export const SPACE_BORDER = 10
 export const FONT = '16px monospace'
+export const BASE_FONT_SIZE = 16
+export const ZOOM_MIN = 0.5
+export const ZOOM_MAX = 3.0
+export const ZOOM_STEP = 0.125
+export const ZOOM_DEFAULT = 2.0
 
 export const SAND_BORDER = 2
 
