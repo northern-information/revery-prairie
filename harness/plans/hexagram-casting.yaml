@@ -1,0 +1,199 @@
+plan:
+  id: hexagram-casting
+  title: 'Add I Ching hexagram casting with coins and glinting cooldown'
+  created: 2026-04-01
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: coin-item-and-glinting-state
+    title: 'Add coin item definition, glintingCoins Set to GameState'
+    spec_id: hexagram-casting
+    spec_sections:
+      - coin-item-definition
+      - coin-glinting-state
+    context_files:
+      - src/engine/items.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/items.ts
+      - src/engine/types.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, types]
+
+  - id: coin-ground-spawn
+    title: 'Spawn 3 glinting coins at random dirt tiles in createGameState'
+    spec_id: hexagram-casting
+    spec_sections:
+      - coin-ground-spawn
+    context_files:
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/items.ts
+      - src/engine/entities.ts
+      - src/engine/position.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - coin-item-and-glinting-state
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, state]
+
+  - id: hexagram-data
+    title: 'Define all 64 hexagrams with names, line patterns, and prairie meanings'
+    spec_id: hexagram-casting
+    spec_sections:
+      - hexagram-data
+    context_files:
+      - src/engine/types.ts
+    output_files:
+      - src/engine/hexagram.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, data]
+
+  - id: hexagram-casting-logic
+    title: 'Implement coin toss, line generation, hexagram lookup, and glint removal'
+    spec_id: hexagram-casting
+    spec_sections:
+      - hexagram-toss-sequence
+      - hexagram-result-display
+      - coins-dimmed-after-cast
+      - coin-glinting-state
+    context_files:
+      - src/engine/hexagram.ts
+      - src/engine/types.ts
+      - src/engine/inventory.ts
+    output_files:
+      - src/engine/hexagram.ts
+    depends_on:
+      - hexagram-data
+      - coin-item-and-glinting-state
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: hexagram-panel
+    title: 'Create HexagramPanel component with toss UI and result display'
+    spec_id: hexagram-casting
+    spec_sections:
+      - hexagram-toss-sequence
+      - hexagram-result-display
+      - coins-dimmed-after-cast
+    context_files:
+      - src/engine/hexagram.ts
+      - src/engine/types.ts
+      - src/components/ManualPanel.tsx
+      - src/components/DialogBox.tsx
+      - src/components/GameScreen.tsx
+      - src/styles/index.css
+    output_files:
+      - src/components/HexagramPanel.tsx
+    depends_on:
+      - hexagram-casting-logic
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: keybind-and-integration
+    title: 'Add c keybind, hexagram panel type, wire into GameScreen'
+    spec_id: hexagram-casting
+    spec_sections:
+      - cast-keybind
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/components/GameScreen.tsx
+      - src/components/HexagramPanel.tsx
+      - src/engine/types.ts
+      - src/engine/hexagram.ts
+      - src/engine/inventory.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+      - src/components/GameScreen.tsx
+    depends_on:
+      - hexagram-panel
+      - coin-ground-spawn
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [hook, component, integration]
+
+  - id: coin-glint-rendering
+    title: 'Render coins with dim color when not glinting in inventory and on ground'
+    spec_id: hexagram-casting
+    spec_sections:
+      - coin-glinting-state
+      - coins-dimmed-after-cast
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+      - src/engine/items.ts
+      - src/components/InventoryGrid.tsx
+    output_files:
+      - src/engine/renderer.ts
+      - src/components/InventoryGrid.tsx
+    depends_on:
+      - coin-item-and-glinting-state
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, component]
+
+  - id: hexagram-manual-entry
+    title: 'Add hexagram casting manual entry and discovery tracking'
+    spec_id: hexagram-casting
+    spec_sections:
+      - hexagram-manual-entry
+      - hexagram-result-display
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/hexagram.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - hexagram-data
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: hexagram-tests
+    title: 'Add unit tests for hexagram casting, coin glinting, toss logic'
+    spec_id: hexagram-casting
+    spec_sections:
+      - coin-item-definition
+      - coin-ground-spawn
+      - coin-glinting-state
+      - cast-keybind
+      - hexagram-toss-sequence
+      - hexagram-result-display
+      - coins-dimmed-after-cast
+    context_files:
+      - src/engine/hexagram.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/items.ts
+      - src/engine/inventory.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/hexagram.test.ts
+    depends_on:
+      - hexagram-casting-logic
+      - coin-ground-spawn
+    verification:
+      - 'npx vitest run src/engine/__tests__/hexagram.test.ts'
+    repair: retry
+    tags: [test]

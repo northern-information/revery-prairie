@@ -44,7 +44,7 @@ export interface ComponentDataMap {
   [ComponentType.MultiPosition]: { positions: Position[] }
   [ComponentType.OmniboxLink]: { uid: string }
   [ComponentType.CharacterIdentity]: { definitionId: string }
-  [ComponentType.ItemDrop]: { definitionId: string }
+  [ComponentType.ItemDrop]: { definitionId: string; glinting?: boolean }
   [ComponentType.ChainSource]: { fromChain: boolean }
   [ComponentType.EntityTag]: string
   [ComponentType.EntityZone]: { zone: Zone }

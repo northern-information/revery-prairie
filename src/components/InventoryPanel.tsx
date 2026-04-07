@@ -224,6 +224,7 @@ export const InventoryPanel = ({
                 onDrop={drop}
                 onQuickTransfer={handleQuickTransfer}
                 itemInfoRef={itemInfoRef}
+                glintingCoins={state.glintingCoins}
               />
               <div className="text-dim flex flex-col gap-1">
                 {state.openContainer &&
@@ -286,6 +287,7 @@ export const InventoryPanel = ({
                 onDrop={drop}
                 onQuickTransfer={state.openContainer ? handleQuickTransfer : undefined}
                 itemInfoRef={itemInfoRef}
+                glintingCoins={state.glintingCoins}
               />
 
               <div className="mt-2 flex flex-col gap-1">

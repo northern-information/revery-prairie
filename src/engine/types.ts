@@ -154,6 +154,7 @@ export interface GameState {
   manualDiscoveries: Set<string>
   manualState: ManualState
   lastDialogTypingTick: number
+  glintingCoins: Set<string>
 }
 
 export const CloverStage = {

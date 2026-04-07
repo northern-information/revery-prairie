@@ -1,3 +1,4 @@
+import { COIN_GLINTING_COLOR } from './constants'
 import { ItemCategory } from './types'
 
 import type { Container, ItemCategory as ItemCategoryType, ItemDefinition } from './types'
@@ -67,6 +68,15 @@ const ITEMS = {
     glyphColor: '#DAA520',
     weight: 1,
     category: ItemCategory.Flora,
+    shape: ['#'],
+  },
+  coin: {
+    name: 'Coin',
+    description: 'an ancient divination coin',
+    glyph: '¤',
+    glyphColor: COIN_GLINTING_COLOR,
+    weight: 1,
+    category: ItemCategory.Tool,
     shape: ['#'],
   },
 } as const satisfies Record<string, ItemEntry>

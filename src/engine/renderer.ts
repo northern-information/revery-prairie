@@ -6,6 +6,7 @@ import {
   BEEHIVE_CHAR,
   BEEHIVE_COLOR,
   BG_COLOR,
+  COIN_DULL_COLOR,
   CLOVER_BLACK_COLOR,
   CLOVER_BROWN_COLOR,
   CLOVER_DECOMPOSE_COLOR,
@@ -98,13 +99,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   }
 
   // Build a map of ground item positions for rendering (from ECS)
-  const groundItemMap = new Map<string, string>()
+  const groundItemMap = new Map<string, { definitionId: string; glinting?: boolean }>()
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position, ComponentType.ItemDrop)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundItem') continue
     if (!inZone(eid)) continue
     const gpos = state.world.getComponent(eid, ComponentType.Position)
     const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
-    if (gpos && drop) groundItemMap.set(posKey(gpos.x, gpos.y), drop.definitionId)
+    if (gpos && drop) groundItemMap.set(posKey(gpos.x, gpos.y), { definitionId: drop.definitionId, glinting: drop.glinting })
   }
 
   // Build a map of preview tile positions for macro recipe previews
@@ -446,11 +447,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         char = omniboxDef.glyph
         color = omniboxDef.glyphColor
       } else if (groundItemMap.has(tileKey)) {
-        const defId = groundItemMap.get(tileKey)
-        if (defId) {
-          const def = getDefinition(defId)
+        const groundEntry = groundItemMap.get(tileKey)
+        if (groundEntry) {
+          const def = getDefinition(groundEntry.definitionId)
           char = def.glyph
-          color = def.glyphColor
+          color = groundEntry.definitionId === 'coin' && groundEntry.glinting === false
+            ? COIN_DULL_COLOR
+            : def.glyphColor
         } else {
           const tile = map[my][mx]
           char = TILE_CHARS[tile.type]

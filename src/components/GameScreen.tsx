@@ -2,12 +2,14 @@ import { useCallback, useRef } from 'react'
 import { DIALOG_HEIGHT, DIALOG_WIDTH, DialogBox } from './DialogBox'
 import { GameCanvas } from './GameCanvas'
 import { InventoryPanel } from './InventoryPanel'
+import { HexagramPanel } from './HexagramPanel'
 import { ManualPanel } from './ManualPanel'
 import { Menu } from './Menu'
 import { PickupToasts } from './PickupToasts'
 import { Sidebar } from './Sidebar'
 
 import { setMusicEnabled, stopAll } from '@/engine/audio'
+import { COIN_GLINTING_COLOR } from '@/engine/constants'
 import { getCharacterDefinition } from '@/engine/characters'
 import { ComponentType } from '@/engine/ecs/types'
 import { advanceDialog } from '@/engine/interaction'
@@ -186,6 +188,18 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
           state={state}
           onClose={() => {
             setActivePanel(null)
+          }}
+        />
+      )}
+      {activePanel === 'hexagram' && (
+        <HexagramPanel
+          state={state}
+          onClose={() => {
+            setActivePanel(null)
+          }}
+          refreshUI={refreshUI}
+          onCastLog={(text, worldX, worldY) => {
+            addEvent('discovery', text, '¤', COIN_GLINTING_COLOR, worldX, worldY)
           }}
         />
       )}

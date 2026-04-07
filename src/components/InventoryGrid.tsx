@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react'
 
-import { INVENTORY_CELL_SIZE } from '@/engine/constants'
+import { COIN_DULL_COLOR, INVENTORY_CELL_SIZE } from '@/engine/constants'
 import { buildOccupancyGrid, getRotatedShape } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
 import { combineIcon } from '@/engine/recipes'
@@ -17,6 +17,7 @@ interface InventoryGridProps {
   onDrop: (containerId: string) => void
   onQuickTransfer?: (uid: string, containerId: string) => void
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
+  glintingCoins?: Set<string>
 }
 
 export const InventoryGrid = ({
@@ -28,6 +29,7 @@ export const InventoryGrid = ({
   onDrop,
   onQuickTransfer,
   itemInfoRef,
+  glintingCoins,
 }: InventoryGridProps) => {
   const gridRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef(container)
@@ -142,9 +144,10 @@ export const InventoryGrid = ({
       continue // skip the dragged item
     }
     const def = getDefinition(item.definitionId)
+    const isDimCoin = item.definitionId === 'coin' && glintingCoins && !glintingCoins.has(item.uid)
     itemMap.set(item.uid, {
       glyph: def.glyph,
-      glyphColor: def.glyphColor,
+      glyphColor: isDimCoin ? COIN_DULL_COLOR : def.glyphColor,
       topLeftX: item.gridX,
       topLeftY: item.gridY,
     })
