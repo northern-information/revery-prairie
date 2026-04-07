@@ -17,6 +17,7 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
+import { getReveryDefinition } from './reveries'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { getDefinition } from './items'
 import { movePlayer, tickPath } from './movement'
@@ -255,6 +256,24 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           if (tag !== 'crumble') continue
           const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
           if (effect && time - effect.startTime > CRUMBLE_DURATION_MS) {
+            state.world.destroyEntity(eid)
+          }
+        }
+      },
+    },
+    {
+      id: 'revery-cast-cleanup',
+      intervalMs: 0,
+      zone: 'always',
+      priority: 100,
+      fn: (state, time) => {
+        for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+          const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+          if (tag !== 'reveryCast') continue
+          const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+          if (!effect?.reveryId) continue
+          const def = getReveryDefinition(effect.reveryId)
+          if (time - effect.startTime > def.castDurationMs) {
             state.world.destroyEntity(eid)
           }
         }

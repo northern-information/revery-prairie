@@ -4,6 +4,7 @@ export const TileType = {
   Space: 'space',
   Dirt: 'dirt',
   Clover: 'clover',
+  BurntClover: 'burntClover',
   Sand: 'sand',
   CaveFloor: 'caveFloor',
   CaveWall: 'caveWall',
@@ -90,6 +91,27 @@ export interface CharacterDefinition {
   portrait?: string
   dialog: string[]
   music?: string
+  gift?: { kind: 'revery' | 'item'; id: string }
+  postGiftDialog?: string[]
+}
+
+export interface ReveryDefinition {
+  id: string
+  name: string
+  description: string
+  glyphs: string[]
+  glyphColor: string
+  cooldownMs: number
+  castDurationMs: number
+  castStyle: 'tile' | 'rain'
+  castPattern: Position[]
+}
+
+export interface ActionBarSlot {
+  kind: 'revery' | 'item'
+  id: string
+  cooldownEndTime: number
+  cooldownDurationMs: number
 }
 
 export interface GameState {
@@ -123,6 +145,7 @@ export interface GameState {
   pendingAction: (() => void) | null
   pendingInteractionTarget: Position | null
   heldDirection: Direction | null
+  heldActionSlot: number | null
   sprinting: boolean
   trail: TrailPoint[]
   cursorTile: Position | null
@@ -146,7 +169,9 @@ export interface GameState {
   caveHiddenPositions: Set<string>
   caveNpcSpot: Position
   caveBreakableWallPositions: Position[]
-  moabGiftGiven: boolean
+  reveries: string[]
+  actionBar: (ActionBarSlot | null)[]
+  giftsReceived: Set<string>
   world: World
   cloverGrowthPreviews: Set<string>
   cloverLifecycle: Map<string, CloverLifecycleState>

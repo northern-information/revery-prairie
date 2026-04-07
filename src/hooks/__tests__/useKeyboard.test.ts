@@ -8,7 +8,6 @@ import {
   advanceDialog,
   breakWall,
   getAdjacentCharacter,
-  giveMoabGift,
   interactWithCharacter,
   updateFacingEntity,
 } from '@/engine/interaction'
@@ -20,6 +19,10 @@ import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
 // --- mocks ---
+
+vi.mock('@/engine/actionBar', () => ({
+  activateActionBarSlot: vi.fn(() => false),
+}))
 
 vi.mock('@/engine/entities', async importOriginal => {
   const actual = await importOriginal<typeof import('@/engine/entities')>()
@@ -38,8 +41,8 @@ vi.mock('@/engine/interaction', () => ({
   advanceDialog: vi.fn(() => false),
   breakWall: vi.fn(() => false),
   getAdjacentCharacter: vi.fn(() => null),
-  giveMoabGift: vi.fn(() => false),
-  interactWithCharacter: vi.fn(() => false),
+  giveCharacterGift: vi.fn(() => null),
+  interactWithCharacter: vi.fn(() => ({ opened: false, gift: null })),
   updateFacingEntity: vi.fn(),
 }))
 
@@ -180,8 +183,7 @@ beforeEach(() => {
   vi.mocked(advanceDialog).mockReturnValue(false)
   vi.mocked(breakWall).mockReturnValue(false)
   vi.mocked(getAdjacentCharacter).mockReturnValue(null)
-  vi.mocked(giveMoabGift).mockReturnValue(false)
-  vi.mocked(interactWithCharacter).mockReturnValue(false)
+  vi.mocked(interactWithCharacter).mockReturnValue({ opened: false, gift: null })
   vi.mocked(dropItem).mockReturnValue(false)
   vi.mocked(grabOmnibox).mockReturnValue(null)
   vi.mocked(toggleFacingOmnibox).mockReturnValue(false)
@@ -260,30 +262,8 @@ describe('useKeyboard', () => {
       expect(refreshUI).toHaveBeenCalledOnce()
     })
 
-    it('gives moab gift when dialog ends with moab and gift not given', () => {
+    it('simply advances dialog without gift check', () => {
       state.activeDialog = { characterId: 'moab', lineIndex: 0 } as GameState['activeDialog']
-      state.moabGiftGiven = false
-      vi.mocked(advanceDialog).mockReturnValue(false)
-      vi.mocked(giveMoabGift).mockReturnValue(true)
-      renderKeyboardHook()
-
-      act(() => {
-        fireKey('e')
-      })
-
-      expect(giveMoabGift).toHaveBeenCalledWith(state)
-      expect(onGift).toHaveBeenCalledWith(
-        'given an omnibox',
-        expect.any(String),
-        expect.any(String),
-        state.player.x,
-        state.player.y
-      )
-    })
-
-    it('skips gift if moabGiftGiven is true', () => {
-      state.activeDialog = { characterId: 'moab', lineIndex: 0 } as GameState['activeDialog']
-      state.moabGiftGiven = true
       vi.mocked(advanceDialog).mockReturnValue(false)
       renderKeyboardHook()
 
@@ -291,20 +271,8 @@ describe('useKeyboard', () => {
         fireKey('e')
       })
 
-      expect(giveMoabGift).not.toHaveBeenCalled()
-      expect(onGift).not.toHaveBeenCalled()
-    })
-
-    it('skips gift for non-moab character dialog ending', () => {
-      state.activeDialog = { characterId: 'gron', lineIndex: 0 } as GameState['activeDialog']
-      vi.mocked(advanceDialog).mockReturnValue(false)
-      renderKeyboardHook()
-
-      act(() => {
-        fireKey('e')
-      })
-
-      expect(giveMoabGift).not.toHaveBeenCalled()
+      expect(advanceDialog).toHaveBeenCalledWith(state)
+      expect(refreshUI).toHaveBeenCalled()
     })
   })
 
@@ -431,7 +399,7 @@ describe('useKeyboard', () => {
     it('calls interactWithCharacter and fires onDialog', () => {
       const character = { definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }
       vi.mocked(getAdjacentCharacter).mockReturnValue(character)
-      vi.mocked(interactWithCharacter).mockReturnValue(true)
+      vi.mocked(interactWithCharacter).mockReturnValue({ opened: true, gift: null })
       renderKeyboardHook()
 
       act(() => {

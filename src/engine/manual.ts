@@ -3,6 +3,7 @@ import { COIN_GLINTING_COLOR, TILE_CHARS, TILE_COLORS } from './constants'
 import { KEYBINDINGS } from './input'
 import { ITEM_DEFINITIONS } from './items'
 import { recipeKey, RECIPES } from './recipes'
+import { REVERY_DEFINITIONS } from './reveries'
 import { ItemCategory, TileType } from './types'
 import { WORLD_ENTITY_DEFINITIONS } from './worldEntities'
 
@@ -16,6 +17,7 @@ export const ManualCategory = {
   Celestial: 'celestial',
   Object: 'object',
   Person: 'person',
+  Revery: 'revery',
   Zone: 'zone',
   Recipe: 'recipe',
   Control: 'control',
@@ -41,7 +43,7 @@ export interface ManualEntry {
   hints: ManualHint[]
   crossRefs?: string[]
   unlockKey: string
-  sourceKind: 'item' | 'recipe' | 'character' | 'zone' | 'event' | 'manual-only'
+  sourceKind: 'item' | 'recipe' | 'character' | 'revery' | 'zone' | 'event' | 'manual-only'
 }
 
 // --- Hand-authored lore ---
@@ -89,6 +91,23 @@ const buildItemEntries = (): ManualEntry[] =>
       hints: loreData?.hints ?? [],
       unlockKey: `item:${def.id}`,
       sourceKind: 'item',
+    }
+  })
+
+const buildReveryEntries = (): ManualEntry[] =>
+  Object.values(REVERY_DEFINITIONS).map(def => {
+    const loreData = MANUAL_LORE[def.id]
+    return {
+      id: `revery:${def.id}`,
+      name: def.name,
+      category: ManualCategory.Revery,
+      glyph: def.glyphs[0],
+      glyphColor: def.glyphColor,
+      summary: def.description,
+      lore: loreData?.lore ?? def.description,
+      hints: loreData?.hints ?? [],
+      unlockKey: `revery:${def.id}`,
+      sourceKind: 'revery' as const,
     }
   })
 
@@ -339,6 +358,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
 export const MANUAL_ENTRIES: Record<string, ManualEntry> = Object.fromEntries(
   [
     ...buildItemEntries(),
+    ...buildReveryEntries(),
     ...buildRecipeEntries(),
     ...buildCharacterEntries(),
     ...buildWorldEntityEntries(),
@@ -390,6 +410,7 @@ export const CATEGORY_ORDER: ManualCategory[] = [
   ManualCategory.Celestial,
   ManualCategory.Object,
   ManualCategory.Person,
+  ManualCategory.Revery,
   ManualCategory.Zone,
   ManualCategory.Recipe,
   ManualCategory.Control,

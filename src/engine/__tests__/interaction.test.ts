@@ -40,17 +40,17 @@ describe('interactWithCharacter', () => {
     clearAroundPlayer(state)
     createCharacterTestEntity(state, 'gron', state.player.x + 1, state.player.y)
     const result = interactWithCharacter(state)
-    expect(result).toBe(true)
+    expect(result.opened).toBe(true)
     expect(state.activeDialog?.characterId).toBe('gron')
     expect(state.activeDialog?.lineIndex).toBe(0)
     expect(state.activeDialog?.typingDone).toBe(false)
   })
 
-  it('returns false when no character is adjacent', () => {
+  it('returns opened false when no character is adjacent', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     const result = interactWithCharacter(state)
-    expect(result).toBe(false)
+    expect(result.opened).toBe(false)
     expect(state.activeDialog).toBeNull()
   })
 })
@@ -74,8 +74,9 @@ describe('advanceDialog', () => {
 
   it('starts transition on second press when typing is done', () => {
     const state = createTestState()
+    // Ghost has 3 dialog lines — can transition from line 0 to 1
     state.activeDialog = {
-      characterId: 'gron',
+      characterId: 'ghost-1',
       lineIndex: 0,
       typingIndex: 100,
       typingDone: true,
@@ -89,9 +90,9 @@ describe('advanceDialog', () => {
 
   it('clears dialog on last line', () => {
     const state = createTestState()
-    // Gron has 3 dialog lines — index 2 is the last
+    // Ghost has 3 dialog lines — index 2 is the last
     state.activeDialog = {
-      characterId: 'gron',
+      characterId: 'ghost-1',
       lineIndex: 2,
       typingIndex: 100,
       typingDone: true,

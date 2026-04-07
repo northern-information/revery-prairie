@@ -18,6 +18,7 @@ export interface DragState {
   isValid: boolean
   combineTarget: { uid: string; recipe: Recipe; isDiscovered: boolean } | null
   storeTarget: { omniboxUid: string } | null
+  actionBarTarget: { slotIndex: number } | null
   cannotCombine: boolean
 }
 

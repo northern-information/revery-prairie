@@ -5,7 +5,7 @@ import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
 import { createCharacterEntity } from './entities'
-import { autoSort, createOmniboxContainer, findFitPosition, placeItem } from './inventory'
+import { autoSort, placeItem } from './inventory'
 import { createBackpack } from './items'
 import { posKey } from './position'
 import { generateSoilHealth, generateTerrain } from './terrain'
@@ -83,6 +83,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     pendingAction: null,
     pendingInteractionTarget: null,
     heldDirection: null,
+    heldActionSlot: null,
     sprinting: false,
     trail: [],
     cursorTile: null,
@@ -106,7 +107,9 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     caveNpcSpot: cave.npcSpot,
     caveHiddenPositions: new Set(cave.hiddenChamberPositions.map(p => posKey(p.x, p.y))),
     caveBreakableWallPositions: cave.breakableWallPositions,
-    moabGiftGiven: false,
+    reveries: [],
+    actionBar: [null, null, null, null],
+    giftsReceived: new Set<string>(),
     world: createWorld(),
     meteorShower: {
       active: false,
@@ -120,7 +123,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     cloverGrowthPreviews: new Set<string>(),
     cloverLifecycle: new Map(),
     soilHealth: generateSoilHealth(map, MAP_WIDTH, MAP_HEIGHT),
-    manualDiscoveries: new Set<string>(['item:bee', 'item:clover', 'item:permacomputer', 'item:omnibox']),
+    manualDiscoveries: new Set<string>(['item:bee', 'item:clover', 'item:permacomputer']),
     manualState: {
       activeCategory: null,
       searchQuery: '',
@@ -188,14 +191,6 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
   // Create Moab in the cave (persists permanently, tagged as cave zone)
   createCharacterEntity(state, 'moab', { ...cave.npcSpot }, { zone: Zone.Cave })
 
-  // Place an omnibox in the backpack
-  const omniboxFit = findFitPosition(backpack, 'omnibox')
-  if (omniboxFit) {
-    const omniboxItem = placeItem(backpack, 'omnibox', omniboxFit.rotation, omniboxFit.gridX, omniboxFit.gridY)
-    if (omniboxItem) {
-      createOmniboxContainer(state, omniboxItem.uid)
-    }
-  }
   autoSort(backpack)
 
   return state

@@ -105,7 +105,6 @@ describe('InventoryPanel', () => {
     expect(screen.getAllByText('*').length).toBeGreaterThan(0) // bees
     expect(screen.getAllByText('%').length).toBeGreaterThan(0) // clovers
     expect(screen.getByText('⚙')).toBeInTheDocument() // permacomputer
-    expect(screen.getByText('⊞')).toBeInTheDocument() // omnibox
   })
 
   it('does not render open container when null', () => {
@@ -170,8 +169,8 @@ describe('InventoryPanel', () => {
     // Should have omnibox grid + backpack grid (omnibox is on the left)
     const grids = document.querySelectorAll('.inline-grid')
     expect(grids).toHaveLength(2)
-    // omnibox #2 header (state starts with omnibox #1 in backpack)
-    expect(screen.getByText('omnibox #2')).toBeInTheDocument()
+    // omnibox #1 header
+    expect(screen.getByText('omnibox #1')).toBeInTheDocument()
     // 5x5 = 25 cells for omnibox (first grid, left side)
     expect(grids[0].children).toHaveLength(25)
   })
@@ -200,6 +199,6 @@ describe('InventoryPanel', () => {
     const grids = document.querySelectorAll('.inline-grid')
     expect(grids).toHaveLength(2)
     // Second omnibox replaced the first
-    expect(screen.getByText('omnibox #3')).toBeInTheDocument()
+    expect(screen.getByText('omnibox #2')).toBeInTheDocument()
   })
 })

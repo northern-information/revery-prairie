@@ -3,7 +3,13 @@ import { useEffect, useRef } from 'react'
 import { getCharacterDefinition } from '@/engine/characters'
 import { screenToTile } from '@/engine/coordinates'
 import { ComponentType } from '@/engine/ecs/types'
-import { breakWall, interactWithCharacter, isInteractableAt, updateFacingEntity } from '@/engine/interaction'
+import {
+  advanceDialog,
+  breakWall,
+  interactWithCharacter,
+  isInteractableAt,
+  updateFacingEntity,
+} from '@/engine/interaction'
 import { getPathfindingBlockers } from '@/engine/movement'
 import { openOmnibox } from '@/engine/omnibox'
 import { findPath } from '@/engine/pathfinding'
@@ -21,6 +27,7 @@ interface UseMouseOptions {
   refreshUI: () => void
   onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
   onDiscovery: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
+  onGift: (text: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
 }
 
 export const useMouse = ({
@@ -32,6 +39,7 @@ export const useMouse = ({
   refreshUI,
   onDialog,
   onDiscovery,
+  onGift,
 }: UseMouseOptions) => {
   const activePanelRef = useRef(activePanel)
   activePanelRef.current = activePanel
@@ -43,7 +51,7 @@ export const useMouse = ({
     const handleClick = (e: MouseEvent) => {
       if (activePanelRef.current === 'menu') return
       if (state.activeDialog) {
-        state.activeDialog = null
+        advanceDialog(state)
         refreshUI()
         return
       }
@@ -111,8 +119,13 @@ export const useMouse = ({
           const charDef = getCharacterDefinition(clickedCharacterIdentity.definitionId)
           action = () => {
             state.pendingInteractionTarget = null
-            interactWithCharacter(state)
-            onDialog(charDef.name, charDef.glyph, charDef.glyphColor, state.player.x, state.player.y)
+            const result = interactWithCharacter(state)
+            if (result.opened) {
+              onDialog(charDef.name, charDef.glyph, charDef.glyphColor, state.player.x, state.player.y)
+              if (result.gift) {
+                onGift(`received ${result.gift.name.toLowerCase()}`, result.gift.glyphs[0], result.gift.glyphColor, state.player.x, state.player.y)
+              }
+            }
             refreshUI()
           }
         } else if (clickedOmniboxLink) {
@@ -180,5 +193,5 @@ export const useMouse = ({
     return () => {
       canvas.removeEventListener('click', handleClick)
     }
-  }, [canvasRef, state, metricsRef, setActivePanel, refreshUI, onDialog, onDiscovery])
+  }, [canvasRef, state, metricsRef, setActivePanel, refreshUI, onDialog, onDiscovery, onGift])
 }

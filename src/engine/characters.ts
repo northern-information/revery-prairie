@@ -1,4 +1,4 @@
-import type { CharacterDefinition } from './types'
+import type { CharacterDefinition, GameState } from './types'
 
 interface CharacterEntry {
   name: string
@@ -7,6 +7,8 @@ interface CharacterEntry {
   portrait?: string
   dialog: string[]
   music?: string
+  gift?: { kind: 'revery' | 'item'; id: string }
+  postGiftDialog?: string[]
 }
 
 const CHARACTERS = {
@@ -15,18 +17,18 @@ const CHARACTERS = {
     glyph: 'G',
     glyphColor: '#FFFFFF',
     portrait: '/gron.gif',
-    dialog: [
-      'the wind carries seeds further than you think.',
-      'bees remember every flower they visit.',
-      'this land was quiet before you came.',
-    ],
+    dialog: ['...'],
     music: '/music/gron.mp3',
+    gift: { kind: 'revery' as const, id: 'water' },
+    postGiftDialog: ['...'],
   },
   moab: {
     name: 'Moab Coldë',
     glyph: 'M',
     glyphColor: '#FFFFFF',
-    dialog: ['...', '...', '...fine.'],
+    dialog: ['...'],
+    gift: { kind: 'revery' as const, id: 'fire' },
+    postGiftDialog: ['...'],
   },
 } as const satisfies Record<string, CharacterEntry>
 
@@ -55,4 +57,12 @@ export const registerGhostDefinitions = (numbers: number[]): void => {
     const def = createGhostDefinition(n)
     CHARACTER_DEFINITIONS[def.id] = def
   }
+}
+
+export const getCharacterDialog = (state: GameState, characterId: string): string[] => {
+  const def = getCharacterDefinition(characterId)
+  if (def.postGiftDialog && state.giftsReceived.has(characterId)) {
+    return def.postGiftDialog
+  }
+  return def.dialog
 }

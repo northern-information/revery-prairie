@@ -24,13 +24,19 @@ describe('createGameState', () => {
     expect(state.player.y).toBe(Math.floor(MAP_HEIGHT / 2))
   })
 
-  it('starts with bees, clovers, permacomputer, and omnibox in backpack', () => {
+  it('starts with bees, clovers, and permacomputer in backpack', () => {
     const state = createGameState('Willow', 80, 40)
     expect(state.backpack.items.length).toBeGreaterThan(0)
     expect(containerHasItem(state.backpack, 'bee')).toBe(true)
     expect(containerHasItem(state.backpack, 'clover')).toBe(true)
     expect(containerHasItem(state.backpack, 'permacomputer')).toBe(true)
-    expect(containerHasItem(state.backpack, 'omnibox')).toBe(true)
+  })
+
+  it('starts with empty reveries and action bar', () => {
+    const state = createGameState('Willow', 80, 40)
+    expect(state.reveries).toEqual([])
+    expect(state.actionBar).toEqual([null, null, null, null])
+    expect(state.giftsReceived.size).toBe(0)
   })
 
   it('starts with no open containers', () => {

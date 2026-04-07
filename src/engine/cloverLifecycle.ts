@@ -37,7 +37,7 @@ const isInRainAura = (state: GameState, zone: ZoneType, x: number, y: number): b
 
 const getSoilHealth = (state: GameState, key: string): number => state.soilHealth.get(key) ?? SOIL_HEALTH_DEFAULT
 
-const addSoilHealth = (state: GameState, key: string, bonus: number): void => {
+export const addSoilHealth = (state: GameState, key: string, bonus: number): void => {
   const current = getSoilHealth(state, key)
   state.soilHealth.set(key, Math.min(current + bonus, SOIL_HEALTH_MAX))
 }

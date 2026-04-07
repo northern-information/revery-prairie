@@ -245,7 +245,7 @@ describe('ghost dialog', () => {
     state.playerFacing = 'right'
 
     const result = interactWithCharacter(state)
-    expect(result).toBe(true)
+    expect(result.opened).toBe(true)
     expect(state.activeDialog?.characterId).toBe('ghost-1')
     expect(state.activeDialog?.lineIndex).toBe(0)
     expect(state.activeDialog?.typingDone).toBe(false)

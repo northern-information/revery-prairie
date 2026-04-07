@@ -19,6 +19,7 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.Space]: ' ',
   [TileType.Dirt]: '.',
   [TileType.Clover]: '%',
+  [TileType.BurntClover]: '%',
   [TileType.Sand]: ':',
   [TileType.CaveFloor]: '.',
   [TileType.CaveWall]: '#',
@@ -30,6 +31,7 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.Space]: '#000',
   [TileType.Dirt]: '#8B7355',
   [TileType.Clover]: '#50C878',
+  [TileType.BurntClover]: '#3D2B1F',
   [TileType.Sand]: '#C2B280',
   [TileType.CaveFloor]: '#666666',
   [TileType.CaveWall]: '#444444',
@@ -146,6 +148,9 @@ export const SOIL_HEALTH_DEFAULT = 50
 export const SOIL_HEALTH_MAX = 100
 export const SOIL_HEALTH_CLOVER_DEATH_BONUS = 15
 export const SOIL_HEALTH_CUT_BONUS = 10
+export const SOIL_HEALTH_WATER_REVERY_BONUS = 10
+export const SOIL_HEALTH_FIRE_REVERY_BONUS = 25
+export const CLOVER_WATER_REVERY_FILL = 50
 
 export const PLAYER_CHAR = '@'
 export const PLAYER_COLOR = '#FFFFFF'

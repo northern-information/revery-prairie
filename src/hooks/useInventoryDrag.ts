@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { assignActionBarSlot } from '@/engine/actionBar'
 import {
   computePlacementPreview,
   computeRotation,
@@ -48,6 +49,7 @@ export const useInventoryDrag = ({
       isValid: true,
       combineTarget: null,
       storeTarget: null,
+      actionBarTarget: null,
       cannotCombine: false,
     })
   }, [])
@@ -85,6 +87,14 @@ export const useInventoryDrag = ({
   const drop = useCallback(
     (targetContainerId: string) => {
       if (!dragState) return
+
+      // Handle action bar assignment (item stays in inventory — bar is a shortcut)
+      if (dragState.actionBarTarget) {
+        assignActionBarSlot(state, dragState.actionBarTarget.slotIndex, 'item', dragState.item.definitionId)
+        setDragState(null)
+        onDrop()
+        return
+      }
 
       // Handle store-in-omnibox
       if (dragState.storeTarget) {
@@ -183,6 +193,7 @@ export const useInventoryDrag = ({
         isValid: result.isValid,
         combineTarget: null,
         storeTarget: null,
+        actionBarTarget: null,
         cannotCombine: false,
       }
     })
