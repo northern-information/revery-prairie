@@ -243,26 +243,6 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef,
         )}
 
         {activePanel === 'inventory' && <ItemInfo ref={itemInfoRef} glintingCoins={state.glintingCoins} />}
-
-        <div>
-          <SectionHeader>view</SectionHeader>
-          <div className="flex items-center gap-2">
-            <span className="text-muted">zoom</span>
-            <input
-              type="range"
-              min={ZOOM_MIN}
-              max={ZOOM_MAX}
-              step={ZOOM_STEP}
-              value={state.zoom}
-              onChange={e => {
-                state.zoom = parseFloat(e.target.value)
-                refreshUI()
-              }}
-              className="pointer-events-auto h-1 flex-1 appearance-none rounded bg-white/20 accent-white"
-            />
-            <span className="w-8 text-right">{Math.round(state.zoom * 100)}%</span>
-          </div>
-        </div>
       </div>
 
       <div className="flex flex-col gap-4">
@@ -373,6 +353,26 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef,
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <div>
+          <SectionHeader>view</SectionHeader>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="text-muted">zoom</span>
+            <input
+              type="range"
+              min={ZOOM_MIN}
+              max={ZOOM_MAX}
+              step={ZOOM_STEP}
+              value={state.zoom}
+              onChange={e => {
+                state.zoom = parseFloat(e.target.value)
+                refreshUI()
+              }}
+              className="pointer-events-auto h-1 min-w-0 flex-1 appearance-none rounded bg-white/20 accent-white"
+            />
+            <span className="w-8 shrink-0 text-right">{Math.round(state.zoom * 100)}%</span>
+          </div>
         </div>
       </div>
     </div>

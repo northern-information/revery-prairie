@@ -91,6 +91,7 @@ export const GameCanvas = ({
       lastZoom = newZoom
       metricsRef.current = null
       updateSize()
+      refreshUIRef.current()
     }
     canvas.addEventListener('wheel', handleWheel, { passive: false })
 
