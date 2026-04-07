@@ -3,7 +3,7 @@ import { ItemInfo } from './ItemInfo'
 import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { getCharacterDefinition } from '@/engine/characters'
-import { CLOVER_WATER_MAX, SOIL_HEALTH_DEFAULT, SPACE_BORDER, TILE_COLORS, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '@/engine/constants'
+import { CLOVER_WATER_MAX, SOIL_HEALTH_DEFAULT, SPACE_BORDER, TILE_COLORS, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { getTileEffects } from '@/engine/effects'
 import { getDefinition } from '@/engine/items'
@@ -371,7 +371,7 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef,
               }}
               className="pointer-events-auto h-1 min-w-0 flex-1 appearance-none rounded bg-white/20 accent-white"
             />
-            <span className="w-8 shrink-0 text-right">{Math.round(state.zoom * 100)}%</span>
+            <span className="w-8 shrink-0 text-right">{Math.round((state.zoom / ZOOM_DEFAULT) * 100)}%</span>
           </div>
         </div>
       </div>

@@ -103,6 +103,7 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
         onPickup={onPickup}
         onDialog={onDialog}
         onDiscovery={onDiscovery}
+        onGift={onGift}
         metricsRef={metricsRef}
       />
       {activePanel === 'inventory' && (

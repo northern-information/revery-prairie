@@ -8,7 +8,7 @@ export const BASE_FONT_SIZE = 16
 export const ZOOM_MIN = 0.5
 export const ZOOM_MAX = 3.0
 export const ZOOM_STEP = 0.125
-export const ZOOM_DEFAULT = 1.0
+export const ZOOM_DEFAULT = 2.0
 
 export const SAND_BORDER = 2
 
