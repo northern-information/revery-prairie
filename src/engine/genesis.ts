@@ -155,19 +155,41 @@ const BUILDING_CHARS = ['▓', '▒', '░', '█', '#', '+', 'H', 'T', '=']
 const CIV_COLORS = ['#666', '#777', '#888', '#999', '#AAA']
 
 // Genesis rendering constants
+const ROCK_COLORS = ['#696969', '#6B4226', '#808080', '#7B6B55']
 const DIRT_COLORS = ['#8B7355', '#7B6B55', '#806B50']
 const BURN_SCAR_COLORS = ['#3D2B1F', '#4A3728', '#352418']
 const GREEN_COLORS = ['#2E8B57', '#3CB371', '#50C878']
 const BRIGHT_GREEN_COLORS = ['#3CB371', '#50C878', '#66EE88']
 const GRON_RAIN_RADIUS = 6
 
-// Shared rendering for lowland water (elevation-based, used from firstWater onward)
+// Shared rendering for space tiles (stars — no water in space, it's not ocean)
+const renderSpace = (
+  sim: GenesisSimState,
+  key: string,
+  h: number,
+  time: number
+): GenesisTileRender[] | null => {
+  if (sim.landMask.has(key)) return null
+  if (sim.coastlineTiles.has(key)) return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
+  if (h % 5 === 0) {
+    const starChars = ['.', '*', '+', '·']
+    const starColors = ['#FFFFFF', '#DDDDFF', '#FFDDDD', '#FFFFDD', '#AAAACC']
+    const phase = (time * 0.0015 + h * 0.001) % 1
+    const ci = Math.floor((h + Math.floor(phase * 4)) % starChars.length)
+    const si = h % starColors.length
+    return [{ char: starChars[ci], color: starColors[si], dx: 0, dy: 0 }]
+  }
+  return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
+}
+
+// Shared rendering for lowland water (elevation-based, land tiles only)
 const renderLowlandWater = (
   sim: GenesisSimState,
   key: string,
   h: number,
   time: number
 ): GenesisTileRender[] | null => {
+  if (!sim.landMask.has(key)) return null
   const elev = sim.elevation.get(key) ?? 50
   const scatter = ((h % 25) - 12) + (((h >>> 8) % 15) - 7)
   if (elev + scatter < 40) {
@@ -480,18 +502,17 @@ const crustCooling: GenesisEpoch = {
       return [{ char: rockChars[ci], color: `rgb(${String(r)},${String(g)},${String(b)})`, dx: 0, dy: 0 }]
     }
 
-    // Cooled — earth tones
+    // Cooled — dark rock (no dirt yet, that comes with life)
     const rockChars = ['.', '#', '=']
-    const rockColors = ['#8B7355', '#696969', '#808080', '#6B4226']
     const ci = h % rockChars.length
-    const ri = h % rockColors.length
+    const ri = h % ROCK_COLORS.length
 
     // Occasional volcanic flare-back
     if (heat > 80 && Math.sin(time * 0.006 + h) > 0.9) {
       return [{ char: '^', color: '#FF4500', dx: 0, dy: 0 }]
     }
 
-    return [{ char: rockChars[ci], color: rockColors[ri], dx: 0, dy: 0 }]
+    return [{ char: rockChars[ci], color: ROCK_COLORS[ri], dx: 0, dy: 0 }]
   },
 }
 
@@ -568,10 +589,8 @@ const firstWater: GenesisEpoch = {
       return [{ char: waterChars[ci], color: waterColors[wi], dx: 0, dy: 0 }]
     }
 
-    // Land — earth tones
-    const rockColors = ['#8B7355', '#696969', '#7B6B55']
-    const ri = h % rockColors.length
-    return [{ char: '.', color: rockColors[ri], dx: 0, dy: 0 }]
+    // Land — dark rock (dirt only appears after life emerges)
+    return [{ char: '.', color: ROCK_COLORS[h % ROCK_COLORS.length], dx: 0, dy: 0 }]
   },
 }
 
@@ -598,18 +617,8 @@ const emergenceOfLife: GenesisEpoch = {
     const key = posKey(x, y)
     const h = tileHash(x, y)
 
-    if (!sim.landMask.has(key)) {
-      if (sim.coastlineTiles.has(key)) {
-        return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
-      }
-      // Space — water/stars
-      if (h % 3 === 0) {
-        const waterChars = ['~', '=']
-        const ci = (h + Math.floor(time * 0.003)) % waterChars.length
-        return [{ char: waterChars[ci], color: '#4466AA', dx: 0, dy: 0 }]
-      }
-      return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-    }
+    const space = renderSpace(sim, key, h, time)
+    if (space) return space
 
     // Lowland water persists from first water epoch — life grows around it
     const water = renderLowlandWater(sim, key, h, time)
@@ -625,7 +634,11 @@ const emergenceOfLife: GenesisEpoch = {
       return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
 
-    // Bare land
+    // Bare land transitions from dark rock to dirt as life spreads
+    const rockToDirt = clamp(progress * 1.5, 0, 1)
+    if (rockToDirt < 1) {
+      return [{ char: '.', color: ROCK_COLORS[h % ROCK_COLORS.length], dx: 0, dy: 0 }]
+    }
     return [{ char: '.', color: DIRT_COLORS[h % DIRT_COLORS.length], dx: 0, dy: 0 }]
   },
 }
@@ -796,11 +809,8 @@ const fireSeason: GenesisEpoch = {
       }
     }
 
-    if (!sim.landMask.has(key)) {
-      if (sim.coastlineTiles.has(key)) return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
-      if (h % 3 === 0) return [{ char: '~', color: '#4466AA', dx: 0, dy: 0 }]
-      return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-    }
+    const space = renderSpace(sim, key, h, time)
+    if (space) return space
 
     // Lowland water persists
     const water = renderLowlandWater(sim, key, h, time)
@@ -859,11 +869,8 @@ const regrowth: GenesisEpoch = {
     const key = posKey(x, y)
     const h = tileHash(x, y)
 
-    if (!sim.landMask.has(key)) {
-      if (sim.coastlineTiles.has(key)) return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
-      if (h % 3 === 0) return [{ char: '~', color: '#4466AA', dx: 0, dy: 0 }]
-      return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-    }
+    const space = renderSpace(sim, key, h, time)
+    if (space) return space
 
     // Lowland water persists
     const water = renderLowlandWater(sim, key, h, time)
@@ -990,11 +997,8 @@ const iceAge: GenesisEpoch = {
     const key = posKey(x, y)
     const h = tileHash(x, y)
 
-    if (!sim.landMask.has(key)) {
-      if (sim.coastlineTiles.has(key)) return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
-      if (h % 3 === 0) return [{ char: '~', color: '#4466AA', dx: 0, dy: 0 }]
-      return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-    }
+    const space = renderSpace(sim, key, h, time)
+    if (space) return space
 
     const isGlacial = sim.glacialPaths.has(key)
 
@@ -1096,11 +1100,8 @@ const postGlacialDieOff: GenesisEpoch = {
     const key = posKey(x, y)
     const h = tileHash(x, y)
 
-    if (!sim.landMask.has(key)) {
-      if (sim.coastlineTiles.has(key)) return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
-      if (h % 3 === 0) return [{ char: '~', color: '#4466AA', dx: 0, dy: 0 }]
-      return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-    }
+    const space = renderSpace(sim, key, h, time)
+    if (space) return space
 
     // Glaciers persist through the extinction — animated to match ice age
     if (sim.glacialPaths.has(key)) {
@@ -1381,11 +1382,8 @@ const warmPeriod: GenesisEpoch = {
     const key = posKey(x, y)
     const h = tileHash(x, y)
 
-    if (!sim.landMask.has(key)) {
-      if (sim.coastlineTiles.has(key)) return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
-      if (h % 3 === 0) return [{ char: '~', color: '#4466AA', dx: 0, dy: 0 }]
-      return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-    }
+    const space = renderSpace(sim, key, h, time)
+    if (space) return space
 
     // Glaciers melt from equator-facing side first — same animation as ice age advance, reversed
     if (sim.glacialPaths.has(key)) {
@@ -1709,11 +1707,8 @@ const riseOfCivilizations: GenesisEpoch = {
     const key = posKey(x, y)
     const h = tileHash(x, y)
 
-    if (!sim.landMask.has(key)) {
-      if (sim.coastlineTiles.has(key)) return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
-      if (h % 3 === 0) return [{ char: '~', color: '#4466AA', dx: 0, dy: 0 }]
-      return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-    }
+    const space = renderSpace(sim, key, h, time)
+    if (space) return space
 
     // Check if this tile is part of a civilization
     const tileInfo = sim.tileData.get(key)
@@ -1870,11 +1865,8 @@ const fallOfCivilizations: GenesisEpoch = {
     const key = posKey(x, y)
     const h = tileHash(x, y)
 
-    if (!sim.landMask.has(key)) {
-      if (sim.coastlineTiles.has(key)) return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
-      if (h % 3 === 0) return [{ char: '~', color: '#4466AA', dx: 0, dy: 0 }]
-      return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-    }
+    const space = renderSpace(sim, key, h, time)
+    if (space) return space
 
     const tileInfo = sim.tileData.get(key)
     const aqueductChar = sim.aqueductNetwork.get(key)
