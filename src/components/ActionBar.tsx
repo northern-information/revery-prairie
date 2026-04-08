@@ -152,7 +152,7 @@ export const ActionBar = ({ state, refreshUI, dragState, onSetActionBarTarget, o
   const hasDrag = dragState !== null
 
   return (
-    <div className="pointer-events-auto fixed bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1">
+    <div className="pointer-events-auto fixed bottom-4 left-1/2 z-10 flex -translate-x-1/2 animate-fade-in items-center gap-1">
       {state.reveries.length > 0 && (
         <button
           className="mr-1 flex items-center justify-center rounded border border-[--color-border]/50 bg-black/70 font-mono text-xs text-[--color-dim] transition-colors hover:border-[--color-border] hover:text-[--color-text]"

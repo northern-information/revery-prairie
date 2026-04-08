@@ -105,7 +105,7 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef,
   return (
     <div
       data-panel="sidebar"
-      className="text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
+      className="text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 animate-fade-in flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
     >
       <div className="flex flex-col gap-4">
         <PanelTitle>revery prairie</PanelTitle>
