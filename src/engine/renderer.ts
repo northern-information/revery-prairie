@@ -394,8 +394,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a map of earth scan pixels (scan-style revery)
-  const earthScanMap = new Map<string, { char: string; color: string; opacity: number }>()
+  // Build a map of earth scan background colors (scan-style revery)
+  // This is a background layer — tiles get a colored fillRect, then normal content draws on top
+  const earthScanBgMap = new Map<string, { color: string; opacity: number }>()
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
     if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
@@ -417,7 +418,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
     // During fade, the wave front progresses from center outward
     const fadeElapsed = isFading ? elapsed - EARTH_SCAN_EXPAND_MS - EARTH_SCAN_HOLD_MS : 0
-    // Wave front radius: 0 at fade start → EARTH_SCAN_RADIUS at fade end
     const fadeWaveRadius = isFading ? (fadeElapsed / EARTH_SCAN_FADE_MS) * EARTH_SCAN_RADIUS : 0
 
     for (let vy = 0; vy < viewportHeight; vy++) {
@@ -431,19 +431,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             tileType === TileType.CaveBreakableWall) continue
 
         const key = posKey(mx, my)
-        if (mx === player.x && my === player.y) continue
-        if (characterMap.has(key)) continue
-        if (groundItemMap.has(key)) continue
-        if (groundOmniboxMap.has(key)) continue
-        if (meteoritePositions.has(key)) continue
-        if (beePositions.has(key)) continue
-        if (beehivePositions.has(key)) continue
 
         const dx = mx - origin.x
         const dy = my - origin.y
         const dist = Math.sqrt(dx * dx + dy * dy)
 
-        // During expansion, only show tiles within the expanding radius
         if (isExpanding) {
           const expandRadius = (elapsed / EARTH_SCAN_EXPAND_MS) * EARTH_SCAN_RADIUS
           if (dist > expandRadius) continue
@@ -451,26 +443,19 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           continue
         }
 
-        // During fade, compute per-tile opacity based on radial wave position
         let tileOpacity = 1
         if (isFading) {
-          // Tiles behind the wave front have faded; tiles ahead are still visible
-          // Smooth fade over a 3-tile band around the wave front
           const fadeEdge = fadeWaveRadius
           if (dist < fadeEdge - 3) {
-            // Fully faded — behind the wave
             continue
           } else if (dist < fadeEdge) {
-            // In the fade band
             tileOpacity = (dist - (fadeEdge - 3)) / 3
           }
-          // else: ahead of wave, still fully visible (opacity = 1)
         }
 
         const health = state.soilHealth.get(key) ?? SOIL_HEALTH_DEFAULT
 
-        earthScanMap.set(key, {
-          char: '\u2588',
+        earthScanBgMap.set(key, {
           color: soilHealthColor(health),
           opacity: tileOpacity,
         })
@@ -581,23 +566,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const rc = reveryCastMap.get(tileKey)
         char = rc?.char ?? '^'
         color = rc?.color ?? '#FF4500'
-      } else if (earthScanMap.has(tileKey)) {
-        const es = earthScanMap.get(tileKey)
-        if (es) {
-          if (es.opacity >= 1) {
-            char = es.char
-            color = es.color
-          } else {
-            const tile = map[my][mx]
-            char = es.opacity > 0.5 ? es.char : TILE_CHARS[tile.type]
-            const baseColor = TILE_COLORS[tile.type]
-            color = lerpColor(es.color, baseColor, 1 - es.opacity)
-          }
-        } else {
-          const tile = map[my][mx]
-          char = TILE_CHARS[tile.type]
-          color = TILE_COLORS[tile.type]
-        }
       } else if (crumbleMap.has(tileKey)) {
         const cr = crumbleMap.get(tileKey)
         char = cr?.char ?? '#'
@@ -697,6 +665,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             color = TILE_COLORS[tile.type]
           }
         }
+      }
+
+      // Earth scan background layer — draw colored block behind everything
+      const scanBg = earthScanBgMap.get(tileKey)
+      if (scanBg) {
+        if (scanBg.opacity >= 1) {
+          ctx.fillStyle = scanBg.color
+        } else {
+          ctx.fillStyle = lerpColor(scanBg.color, BG_COLOR, 1 - scanBg.opacity)
+        }
+        ctx.fillRect(px, py, charWidth, charHeight)
       }
 
       // Draw with cursor/facing inversion if applicable
