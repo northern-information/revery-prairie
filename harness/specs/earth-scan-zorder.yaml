@@ -1,0 +1,34 @@
+id: earth-scan-zorder
+name: Earth scan background renders behind glyphs
+status: implemented
+priority: medium
+layer: engine
+source_files:
+  - src/engine/renderer.ts
+dependencies: []
+behaviors:
+  - id: scan-bg-prepass
+    description: Earth scan soil health backgrounds are drawn in a separate pass before all character glyphs, preventing south-row backgrounds from clipping north-row glyphs
+    inputs:
+      - Earth revery scan is active (earthScanBgMap.size > 0)
+    outputs:
+      - All earth scan fillRect calls complete before any fillText calls
+      - Player glyph and other characters remain fully visible during scan
+    state_changes:
+      - field: canvas
+        effect: Earth scan backgrounds drawn in pre-pass, removed from main glyph loop
+    determinism: deterministic
+edge_cases:
+  - id: scan-with-cursor-inversion
+    description: Cursor inversion fillRect still draws correctly on top of earth scan backgrounds in the main loop
+    expected: Cursor highlight covers earth scan background and glyph draws on top
+  - id: no-scan-active
+    description: When no earth scan is active, the pre-pass is skipped entirely
+    expected: Zero performance impact when earthScanBgMap is empty
+failure_conditions:
+  - trigger: South-row earth scan background drawn after north-row glyph in same pass
+    expected: Pre-pass ensures all backgrounds precede all glyphs — no cross-row clipping
+verification:
+  test_file: src/engine/__tests__/reveries.test.ts
+  test_pattern: earth
+  command: npx vitest run src/engine/__tests__/reveries.test.ts
