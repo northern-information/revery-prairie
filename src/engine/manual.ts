@@ -53,9 +53,8 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   // Items — lore will be filled in by the user via /maintain-manual
   // Recipes — auto-use recipe description as lore
   // Manual-only entries have lore inline below
-  gron: { lore: 'TODO' },
-  moab: { lore: 'TODO' },
-  ghosts: { lore: 'TODO' },
+  // Reveries
+  earth: { lore: 'a memory of the land beneath. the scan reveals soil health as color — red earth is exhausted, violet earth is thriving.' },
 }
 
 // --- Category mapping ---

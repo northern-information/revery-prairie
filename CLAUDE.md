@@ -120,7 +120,9 @@ hand-authored lore goes in `MANUAL_LORE` table in `manual.ts`. run `/maintain-ma
 
 key items that don't occupy inventory grid space. stored as `state.reveries: string[]`. given as gifts by characters on dialog completion.
 
-registry in `src/engine/reveries.ts`. current reveries: `fire` (from Moab) and `water` (from Gron). mechanics deferred — pressing the action bar slot plays cooldown sweep as a dry fire.
+registry in `src/engine/reveries.ts`. current reveries: `earth` (starting revery), `fire` (from Moab), and `water` (from Gron).
+
+`earth` uses `castStyle: 'scan'` — radiates a 20-tile radius soil health visualization from the player position. tiles colored ROYGBIV (red = unhealthy, violet = healthiest). three phases: radial expansion (1.5s), hold (2.5s), crossfade back (1s). purely diagnostic — no gameplay effects.
 
 ## character gifts
 

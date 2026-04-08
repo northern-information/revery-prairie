@@ -3,14 +3,16 @@ import { describe, expect, it } from 'vitest'
 import { getReveryDefinition, REVERY_DEFINITIONS } from '../reveries'
 
 describe('revery registry', () => {
-  it('defines fire and water reveries', () => {
+  it('defines fire, water, and earth reveries', () => {
     expect(REVERY_DEFINITIONS.fire).toBeDefined()
     expect(REVERY_DEFINITIONS.water).toBeDefined()
+    expect(REVERY_DEFINITIONS.earth).toBeDefined()
   })
 
   it('injects id from key', () => {
     expect(REVERY_DEFINITIONS.fire.id).toBe('fire')
     expect(REVERY_DEFINITIONS.water.id).toBe('water')
+    expect(REVERY_DEFINITIONS.earth.id).toBe('earth')
   })
 
   it('fire revery has correct fields', () => {
@@ -27,6 +29,16 @@ describe('revery registry', () => {
     expect(water.glyphs.length).toBeGreaterThan(0)
     expect(water.glyphColor).toBe('#4488CC')
     expect(water.cooldownMs).toBeGreaterThan(0)
+  })
+
+  it('earth revery has correct fields', () => {
+    const earth = REVERY_DEFINITIONS.earth
+    expect(earth.name).toBe('Earth Revery')
+    expect(earth.description).toBe('a memory of the land beneath')
+    expect(earth.castStyle).toBe('scan')
+    expect(earth.castDurationMs).toBe(5000)
+    expect(earth.castPattern).toEqual([])
+    expect(earth.cooldownMs).toBe(12000)
   })
 })
 

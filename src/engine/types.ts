@@ -104,7 +104,7 @@ export interface ReveryDefinition {
   glyphColor: string
   cooldownMs: number
   castDurationMs: number
-  castStyle: 'tile' | 'rain'
+  castStyle: 'tile' | 'rain' | 'scan'
   castPattern: Position[]
 }
 

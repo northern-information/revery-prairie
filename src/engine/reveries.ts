@@ -7,7 +7,7 @@ interface ReveryEntry {
   glyphColor: string
   cooldownMs: number
   castDurationMs: number
-  castStyle: 'tile' | 'rain'
+  castStyle: 'tile' | 'rain' | 'scan'
   castPattern: Position[]
 }
 
@@ -42,6 +42,16 @@ const REVERIES = {
     castDurationMs: 10000,
     castStyle: 'rain' as const,
     castPattern: CROSS_PATTERN,
+  },
+  earth: {
+    name: 'Earth Revery',
+    description: 'a memory of the land beneath',
+    glyphs: ['\u25CF'],
+    glyphColor: '#FFFFFF',
+    cooldownMs: 12000,
+    castDurationMs: 5000,
+    castStyle: 'scan' as const,
+    castPattern: [],
   },
 } as const satisfies Record<string, ReveryEntry>
 

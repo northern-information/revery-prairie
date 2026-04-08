@@ -152,6 +152,22 @@ export const SOIL_HEALTH_WATER_REVERY_BONUS = 10
 export const SOIL_HEALTH_FIRE_REVERY_BONUS = 25
 export const CLOVER_WATER_REVERY_FILL = 50
 
+// earth revery (soil scan)
+export const EARTH_SCAN_EXPAND_MS = 1500
+export const EARTH_SCAN_HOLD_MS = 2500
+export const EARTH_SCAN_FADE_MS = 1000
+export const EARTH_SCAN_RADIUS = 20
+export const EARTH_SCAN_COLORS = [
+  '#FF0000', // red    (0-14)  — poorest
+  '#FF7F00', // orange (15-28)
+  '#FFFF00', // yellow (29-42)
+  '#00FF00', // green  (43-57)
+  '#0000FF', // blue   (58-71)
+  '#4B0082', // indigo (72-85)
+  '#8B00FF', // violet (86-100) — healthiest
+]
+export const EARTH_SCAN_CHAR = '\u25CF'
+
 export const PLAYER_CHAR = '@'
 export const PLAYER_COLOR = '#FFFFFF'
 export const TRAIL_DURATION_MS = 1000

@@ -74,8 +74,10 @@ export const getActionBarPreview = (
   if (slot?.kind !== 'revery') return []
   if (performance.now() < slot.cooldownEndTime) return []
 
-  const target = getFacingTile(state)
   const def = getReveryDefinition(slot.id)
+  if (def.castStyle === 'scan') return []
+
+  const target = getFacingTile(state)
   const positions = getCastPositions(state, target, def.castPattern)
   if (positions.length === 0) return []
 
@@ -114,8 +116,28 @@ export const activateActionBarSlot = (state: GameState, slotIndex: number, now: 
   if (now < slot.cooldownEndTime) return false
 
   if (slot.kind === 'revery') {
-    const target = getFacingTile(state)
     const def = getReveryDefinition(slot.id)
+
+    if (def.castStyle === 'scan') {
+      // Scan-style: radiate from player position, no facing tile
+      slot.cooldownEndTime = now + def.cooldownMs
+      slot.cooldownDurationMs = def.cooldownMs
+
+      const eid = state.world.createEntity()
+      state.world.addComponent(eid, ComponentType.Position, { x: state.player.x, y: state.player.y })
+      state.world.addComponent(eid, ComponentType.TimedEffect, {
+        kind: 'reveryCast',
+        startTime: now,
+        reveryId: slot.id,
+      })
+      state.world.addComponent(eid, ComponentType.EntityTag, 'reveryCast')
+      state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
+
+      recordDiscovery(state, 'event:earth-revery')
+      return true
+    }
+
+    const target = getFacingTile(state)
     const positions = getCastPositions(state, target, def.castPattern)
     if (positions.length === 0) return false
 
