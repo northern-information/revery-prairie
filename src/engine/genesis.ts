@@ -1703,10 +1703,20 @@ const riseOfCivilizations: GenesisEpoch = {
       return [{ char: ['~', '=', '-'][ci], color: '#6688BB', dx: 0, dy: 0 }]
     }
 
-    // Vegetation
+    // Ponds
+    if (sim.ponds.has(key)) {
+      const waterChars = ['~', '=']
+      const ci = (h + Math.floor(time * 0.003)) % waterChars.length
+      return [{ char: waterChars[ci], color: '#5577AA', dx: 0, dy: 0 }]
+    }
+
+    // Vegetation — use same varied greens as warm period
     const veg = sim.vegetationMap.get(key) ?? 0
     if (veg > 20) {
-      return [{ char: '%', color: '#2E8B57', dx: 0, dy: 0 }]
+      const nearRiver = sim.riverPaths.has(posKey(x + 1, y)) || sim.riverPaths.has(posKey(x - 1, y))
+      const greenColors = nearRiver ? ['#3CB371', '#50C878', '#66EE88'] : ['#2E8B57', '#3CB371', '#50C878']
+      const gi = h % greenColors.length
+      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
 
     return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
@@ -1822,10 +1832,20 @@ const fallOfCivilizations: GenesisEpoch = {
       return [{ char: ['~', '=', '-'][ci], color: '#6688BB', dx: 0, dy: 0 }]
     }
 
-    // Vegetation
+    // Ponds
+    if (sim.ponds.has(key)) {
+      const waterChars = ['~', '=']
+      const ci = (h + Math.floor(time * 0.003)) % waterChars.length
+      return [{ char: waterChars[ci], color: '#5577AA', dx: 0, dy: 0 }]
+    }
+
+    // Vegetation — use same varied greens as warm period
     const veg = sim.vegetationMap.get(key) ?? 0
     if (veg > 20) {
-      return [{ char: '%', color: '#2E8B57', dx: 0, dy: 0 }]
+      const nearRiver = sim.riverPaths.has(posKey(x + 1, y)) || sim.riverPaths.has(posKey(x - 1, y))
+      const greenColors = nearRiver ? ['#3CB371', '#50C878', '#66EE88'] : ['#2E8B57', '#3CB371', '#50C878']
+      const gi = h % greenColors.length
+      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
 
     return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
