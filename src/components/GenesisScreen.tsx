@@ -19,12 +19,15 @@ interface GenesisScreenProps {
   onComplete: (result: GenesisResult) => void
 }
 
+const GENESIS_ZOOM = 1.0 // 50% of ZOOM_DEFAULT — zoomed out to show the whole map
+
 export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const simRef = useRef(createGenesisState(MAP_WIDTH, MAP_HEIGHT, nameToSeed(stewardName)))
   const completedRef = useRef(false)
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
+  const currentZoomRef = useRef(GENESIS_ZOOM)
 
   const finishSimulation = useCallback(() => {
     if (completedRef.current) return
@@ -67,7 +70,7 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
     let metricsCache: CharMetrics | null = null
 
     const updateSize = () => {
-      metricsCache = measureChar(ctx, ZOOM_DEFAULT)
+      metricsCache = measureChar(ctx, currentZoomRef.current)
       const { charWidth, charHeight } = metricsCache
 
       const vw = Math.floor(window.innerWidth / charWidth)
@@ -103,6 +106,16 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
       if (done) {
         finishSimulation()
         return
+      }
+
+      // Animate zoom-in during the final epoch ("the prairie awakens...")
+      const isLastEpoch = sim.epochIndex === GENESIS_EPOCHS.length - 1
+      if (isLastEpoch && sim.epochStartTime > 0) {
+        const elapsed = time - sim.epochStartTime
+        const progress = Math.min(elapsed / GENESIS_EPOCHS[sim.epochIndex].durationMs, 1)
+        const eased = 1 - (1 - progress) ** 2
+        currentZoomRef.current = GENESIS_ZOOM + (ZOOM_DEFAULT - GENESIS_ZOOM) * eased
+        viewport = updateSize()
       }
 
       if (metricsCache) {
