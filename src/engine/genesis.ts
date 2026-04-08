@@ -1018,6 +1018,27 @@ const iceAge: GenesisEpoch = {
       return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
     }
 
+    // Lowland water freezes as glaciers advance
+    const lowWater = renderLowlandWater(sim, key, h, time)
+    if (lowWater) {
+      // Check if glaciers are close enough to freeze this water
+      const [, yStr] = key.split(',')
+      const ty = Number(yStr)
+      const glacialDepth = Math.floor(sim.height * 0.2)
+      const topDist = ty - SPACE_BORDER
+      const bottomDist = (sim.height - SPACE_BORDER) - ty
+      const minDist = Math.min(topDist, bottomDist)
+      const freezeThreshold = clamp(minDist / (glacialDepth * 1.5), 0, 1)
+      if (progress > freezeThreshold) {
+        const iceChars = ['#', '=', '.']
+        const iceColors = ['#B0C4DE', '#E0E8F0', '#ADD8E6']
+        const ci = (h + Math.floor(time * 0.002)) % iceChars.length
+        const ii = h % iceColors.length
+        return [{ char: iceChars[ci], color: iceColors[ii], dx: 0, dy: 0 }]
+      }
+      return lowWater
+    }
+
     // Non-glacial tiles show pre-glacial vegetation (snapshot from before mutate wiped it)
     const preVeg = sim.preGlacialVegetation.get(key) ?? 0
     if (preVeg > 20) {
@@ -1987,11 +2008,13 @@ const secondExtinction: GenesisEpoch = {
 
     const veg = sim.vegetationMap.get(key) ?? 0
 
-    // Dead vegetation — wilt animation radiating outward from edges toward Gron
+    // Dead vegetation — wilt animation radiating from edges toward Gron
+    // Per-tile scatter breaks the smooth donut into organic patches
     if (veg <= 0) {
-      // Tiles far from Gron wilt first, closer tiles wilt later
       const maxDist = Math.max(sim.width, sim.height) * 0.5
-      const wiltDelay = clamp(1 - dToGron / maxDist, 0, 0.8)
+      const scatter = ((h % 30) - 15) + (((h >>> 8) % 20) - 10)
+      const effectiveDist = dToGron + scatter
+      const wiltDelay = clamp(1 - effectiveDist / maxDist, 0, 0.85)
 
       if (progress > wiltDelay) {
         const wiltProgress = clamp((progress - wiltDelay) / 0.4, 0, 1)
@@ -2068,7 +2091,7 @@ const presentDay: GenesisEpoch = {
       }
     }
   },
-  renderTile: (sim, x, y, _progress, time) => {
+  renderTile: (sim, x, y, progress, time) => {
     const h = tileHash(x, y)
     const tile = sim.grid[y]?.[x]
 
@@ -2087,6 +2110,31 @@ const presentDay: GenesisEpoch = {
 
     if (tile.type === TileType.Sand) {
       return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
+    }
+
+    const key = posKey(x, y)
+
+    // Rivers
+    if (sim.riverPaths.has(key)) {
+      const ci = (h + Math.floor(time * 0.004)) % 3
+      return [{ char: ['~', '=', '-'][ci], color: '#6688BB', dx: 0, dy: 0 }]
+    }
+
+    // Ponds
+    if (sim.ponds.has(key)) {
+      const waterChars = ['~', '=']
+      const ci = (h + Math.floor(time * 0.003)) % waterChars.length
+      return [{ char: waterChars[ci], color: '#5577AA', dx: 0, dy: 0 }]
+    }
+
+    // Clover (Gron's aura) — fades in over the epoch for smooth transition
+    if (tile.type === TileType.Clover) {
+      const fadeIn = clamp(progress / 0.3, 0, 1)
+      if (fadeIn > (h % 100) / 100) {
+        const greenColors = ['#2E8B57', '#3CB371', '#50C878']
+        const gi = h % greenColors.length
+        return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
+      }
     }
 
     return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
