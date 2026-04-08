@@ -1,5 +1,6 @@
 import { CHARACTER_DEFINITIONS } from './characters'
 import { COIN_GLINTING_COLOR, TILE_CHARS, TILE_COLORS } from './constants'
+import { GENESIS_EPOCHS } from './genesis'
 import { KEYBINDINGS } from './input'
 import { ITEM_DEFINITIONS } from './items'
 import { recipeKey, RECIPES } from './recipes'
@@ -193,6 +194,37 @@ const buildControlEntries = (): ManualEntry[] =>
     sourceKind: 'manual-only' as const,
   }))
 
+// --- Genesis entry (auto-derived from epoch registry) ---
+
+const buildGenesisEntry = (): ManualEntry => {
+  const epochList = GENESIS_EPOCHS.map(e => e.commentary.replace(/\.\.\.$/, '')).join(', ')
+  return {
+    id: 'genesis',
+    name: 'Genesis',
+    category: ManualCategory.Zone,
+    glyph: '~',
+    glyphColor: '#FF4500',
+    summary: 'the geological history that shaped this land',
+    lore:
+      MANUAL_LORE.genesis?.lore ??
+      `before the prairie was a prairie, it was magma — and before that, void. ` +
+      `a billion years of geological history flash before you each time a new world is born: ${epochList}. ` +
+      `every patch of soil remembers what happened to it. volcanic hotspots left minerals behind. ` +
+      `glaciers scraped the highlands bare. rivers carved alluvial deltas rich with sediment. ` +
+      `ancient civilizations rose and fell, their aqueducts buried deep beneath the dirt. ` +
+      `the soil health you see today is the sum of all these forces.`,
+    hints: MANUAL_LORE.genesis?.hints ?? [
+      { prompt: 'how it works', answer: 'genesis runs between the name prompt and gameplay. it simulates 14 geological epochs in ~25 seconds.' },
+      { prompt: 'skip', answer: 'press any key during the genesis sequence to skip ahead.' },
+      { prompt: 'determinism', answer: 'the same steward name always produces the same world.' },
+      { prompt: 'soil', answer: 'volcanic regions, river deltas, and civilization ruins have richer soil. glacial paths and barren highlands have poorer soil.' },
+      { prompt: 'ruins', answer: 'civilization ruins are buried underground. their aqueducts once connected great cities.' },
+    ],
+    unlockKey: 'always',
+    sourceKind: 'event',
+  }
+}
+
 // --- Manual-only entries (zones, events) ---
 
 const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
@@ -364,6 +396,7 @@ export const MANUAL_ENTRIES: Record<string, ManualEntry> = Object.fromEntries(
     ...buildWorldEntityEntries(),
     ...buildControlEntries(),
     ...MANUAL_ONLY_ENTRIES,
+    buildGenesisEntry(),
   ].map(entry => [entry.id, entry])
 )
 
