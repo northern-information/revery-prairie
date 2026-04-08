@@ -154,6 +154,41 @@ const BOX_DOUBLE_V = '║'
 const BUILDING_CHARS = ['▓', '▒', '░', '█', '#', '+', 'H', 'T', '=']
 const CIV_COLORS = ['#666', '#777', '#888', '#999', '#AAA']
 
+// Shared rendering for lowland water (elevation-based, used from firstWater onward)
+const renderLowlandWater = (
+  sim: GenesisSimState,
+  key: string,
+  h: number,
+  time: number
+): GenesisTileRender[] | null => {
+  const elev = sim.elevation.get(key) ?? 50
+  const scatter = ((h % 25) - 12) + (((h >>> 8) % 15) - 7)
+  if (elev + scatter < 40) {
+    const waterChars = ['~', '=', '-']
+    const waterColors = ['#4466AA', '#335588', '#556699']
+    const ci = (h + Math.floor(time * 0.003)) % waterChars.length
+    const wi = h % waterColors.length
+    return [{ char: waterChars[ci], color: waterColors[wi], dx: 0, dy: 0 }]
+  }
+  return null
+}
+
+// Shared rendering for vegetation (consistent palette across all epochs)
+const renderVegetation = (
+  sim: GenesisSimState,
+  x: number,
+  _y: number,
+  h: number
+): GenesisTileRender[] | null => {
+  const key = posKey(x, _y)
+  const veg = sim.vegetationMap.get(key) ?? 0
+  if (veg <= 20) return null
+  const nearRiver = sim.riverPaths.has(posKey(x + 1, _y)) || sim.riverPaths.has(posKey(x - 1, _y))
+  const greenColors = nearRiver ? ['#3CB371', '#50C878', '#66EE88'] : ['#2E8B57', '#3CB371', '#50C878']
+  const gi = h % greenColors.length
+  return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
+}
+
 // ---------------------------------------------------------------------------
 // Epoch: Cosmic Formation
 // ---------------------------------------------------------------------------
@@ -555,18 +590,18 @@ const emergenceOfLife: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
-    const veg = sim.vegetationMap.get(key) ?? 0
+    // Lowland water persists from first water epoch — life grows around it
+    const water = renderLowlandWater(sim, key, h, time)
+    if (water) return water
 
-    // Green spreads from lowlands outward — per-tile hash breaks grid contours
+    // Green spreads from lowlands outward — life emerges near water first
     const elev = sim.elevation.get(key) ?? 50
     const scatter = ((h % 25) - 12) + (((h >>> 8) % 15) - 7)
-    const greenThreshold = clamp((elev + scatter) / 120, 0, 0.9)
-    if (progress > greenThreshold && veg > 20) {
-      const greenChars = ['%', '.', ',']
+    const greenThreshold = clamp((elev + scatter - 40) / 60, 0, 0.9)
+    if (progress > greenThreshold && (sim.vegetationMap.get(key) ?? 0) > 20) {
       const greenColors = ['#2E8B57', '#3CB371', '#50C878']
-      const ci = h % greenChars.length
       const gi = h % greenColors.length
-      return [{ char: greenChars[ci], color: greenColors[gi], dx: 0, dy: 0 }]
+      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
 
     // Bare land
@@ -746,6 +781,10 @@ const fireSeason: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
+    // Lowland water persists
+    const water = renderLowlandWater(sim, key, h, time)
+    if (water) return water
+
     // Fire visuals start after meteor shower phase (30% into epoch)
     const isBurned = sim.burnScars.has(key)
     const burnDelay = 0.3 + (h % 100) / 100 * 0.3
@@ -774,12 +813,8 @@ const fireSeason: GenesisEpoch = {
     }
 
     // Unburned — show vegetation
-    const veg = sim.vegetationMap.get(key) ?? 0
-    if (veg > 20) {
-      const greenColors = ['#2E8B57', '#3CB371', '#50C878']
-      const gi = h % greenColors.length
-      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
-    }
+    const veg = renderVegetation(sim, x, y, h)
+    if (veg) return veg
 
     return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
   },
@@ -799,7 +834,7 @@ const regrowth: GenesisEpoch = {
       sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 5)
     }
   },
-  renderTile: (sim, x, y, _progress, _time) => {
+  renderTile: (sim, x, y, _progress, time) => {
     const key = posKey(x, y)
     const h = tileHash(x, y)
 
@@ -809,17 +844,18 @@ const regrowth: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
+    // Lowland water persists
+    const water = renderLowlandWater(sim, key, h, time)
+    if (water) return water
+
     // Burned tiles stay charred
     if (sim.burnScars.has(key)) {
       return [{ char: '.', color: '#3D2B1F', dx: 0, dy: 0 }]
     }
 
     // Surviving vegetation
-    if ((sim.vegetationMap.get(key) ?? 0) > 20) {
-      const greenColors = ['#2E8B57', '#3CB371', '#50C878']
-      const gi = h % greenColors.length
-      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
-    }
+    const veg = renderVegetation(sim, x, y, h)
+    if (veg) return veg
 
     return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
   },
@@ -1708,14 +1744,20 @@ const riseOfCivilizations: GenesisEpoch = {
       return [{ char: waterChars[ci], color: '#5577AA', dx: 0, dy: 0 }]
     }
 
-    // Vegetation — use same varied greens as warm period
-    const veg = sim.vegetationMap.get(key) ?? 0
-    if (veg > 20) {
-      const nearRiver = sim.riverPaths.has(posKey(x + 1, y)) || sim.riverPaths.has(posKey(x - 1, y))
-      const greenColors = nearRiver ? ['#3CB371', '#50C878', '#66EE88'] : ['#2E8B57', '#3CB371', '#50C878']
-      const gi = h % greenColors.length
-      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
+    // Meltwater pools
+    if (sim.meltPools.has(key)) {
+      const waterChars = ['~', '=', '-']
+      const ci = (h + Math.floor(time * 0.004)) % waterChars.length
+      return [{ char: waterChars[ci], color: '#6688BB', dx: 0, dy: 0 }]
     }
+
+    // Lowland water
+    const lowWater = renderLowlandWater(sim, key, h, time)
+    if (lowWater) return lowWater
+
+    // Vegetation
+    const veg = renderVegetation(sim, x, y, h)
+    if (veg) return veg
 
     return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
   },
@@ -1837,14 +1879,20 @@ const fallOfCivilizations: GenesisEpoch = {
       return [{ char: waterChars[ci], color: '#5577AA', dx: 0, dy: 0 }]
     }
 
-    // Vegetation — use same varied greens as warm period
-    const veg = sim.vegetationMap.get(key) ?? 0
-    if (veg > 20) {
-      const nearRiver = sim.riverPaths.has(posKey(x + 1, y)) || sim.riverPaths.has(posKey(x - 1, y))
-      const greenColors = nearRiver ? ['#3CB371', '#50C878', '#66EE88'] : ['#2E8B57', '#3CB371', '#50C878']
-      const gi = h % greenColors.length
-      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
+    // Meltwater pools
+    if (sim.meltPools.has(key)) {
+      const waterChars = ['~', '=', '-']
+      const ci = (h + Math.floor(time * 0.004)) % waterChars.length
+      return [{ char: waterChars[ci], color: '#6688BB', dx: 0, dy: 0 }]
     }
+
+    // Lowland water
+    const lowWater = renderLowlandWater(sim, key, h, time)
+    if (lowWater) return lowWater
+
+    // Vegetation
+    const veg = renderVegetation(sim, x, y, h)
+    if (veg) return veg
 
     return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
   },
@@ -2006,6 +2054,17 @@ const presentDay: GenesisEpoch = {
     for (const key of sim.landMask) {
       if (!sim.elevation.has(key)) {
         sim.elevation.set(key, 50)
+      }
+    }
+
+    // Plant clover tiles where vegetation survived (Gron's rain aura)
+    for (const key of sim.landMask) {
+      const veg = sim.vegetationMap.get(key) ?? 0
+      if (veg > 20) {
+        const [xStr, yStr] = key.split(',')
+        const gx = Number(xStr)
+        const gy = Number(yStr)
+        sim.grid[gy][gx] = { type: TileType.Clover }
       }
     }
   },

@@ -80,14 +80,16 @@ describe('runAllMutations', () => {
     }
   })
 
-  it('produces Dirt tiles in the center', () => {
+  it('produces land tiles in the center', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
     runAllMutations(sim, GENESIS_EPOCHS)
     const result = extractGenesisResult(sim)
 
     const centerX = Math.floor(MAP_WIDTH / 2)
     const centerY = Math.floor(MAP_HEIGHT / 2)
-    expect(result.terrain[centerY][centerX].type).toBe(TileType.Dirt)
+    // Center is within Gron's rain aura — may be clover or dirt
+    const centerType = result.terrain[centerY][centerX].type
+    expect(centerType === TileType.Dirt || centerType === TileType.Clover).toBe(true)
   })
 
   it('produces Space tiles at corners', () => {
