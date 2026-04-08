@@ -484,6 +484,25 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
+  // Pre-pass: earth scan backgrounds — drawn before all glyphs so south-row
+  // backgrounds never clip north-row characters.
+  if (earthScanBgMap.size > 0) {
+    for (let vy = 0; vy < viewportHeight; vy++) {
+      for (let vx = 0; vx < viewportWidth; vx++) {
+        const key = posKey(camera.x + vx, camera.y + vy)
+        const scanBg = earthScanBgMap.get(key)
+        if (scanBg) {
+          if (scanBg.opacity >= 1) {
+            ctx.fillStyle = scanBg.color
+          } else {
+            ctx.fillStyle = lerpColor(scanBg.color, BG_COLOR, 1 - scanBg.opacity)
+          }
+          ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
+        }
+      }
+    }
+  }
+
   for (let vy = 0; vy < viewportHeight; vy++) {
     for (let vx = 0; vx < viewportWidth; vx++) {
       const mx = camera.x + vx
@@ -665,17 +684,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             color = TILE_COLORS[tile.type]
           }
         }
-      }
-
-      // Earth scan background layer — draw colored block behind everything
-      const scanBg = earthScanBgMap.get(tileKey)
-      if (scanBg) {
-        if (scanBg.opacity >= 1) {
-          ctx.fillStyle = scanBg.color
-        } else {
-          ctx.fillStyle = lerpColor(scanBg.color, BG_COLOR, 1 - scanBg.opacity)
-        }
-        ctx.fillRect(px, py, charWidth, charHeight)
       }
 
       // Draw with cursor/facing inversion if applicable
