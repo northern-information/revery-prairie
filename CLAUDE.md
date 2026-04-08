@@ -41,81 +41,15 @@ hot pink (`#ff69b4`) is reserved for user actions: cursor highlight, path dots, 
 
 cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_COLOR` text. the renderer uses a two-phase resolve-then-draw pattern — first determine `char`/`color`/`cursorable`, then apply cursor inversion at the end if applicable.
 
-## key files
-
-- `src/engine/types.ts` — all game types. everything depends on this.
-- `src/engine/state.ts` — game state factory (`createGameState`), initializes all mutable state, terrain, backpack, weather.
-- `src/engine/renderer.ts` — canvas ASCII drawing (pure draw, no state mutation). the file to replace for sprites.
-- `src/engine/cursor.ts` — `updateCursorState`: derives `cursorTile`, `hoverPath`, `hoverPathTarget` from `cursorScreenPos` each frame. called before `render()` in the game loop.
-- `src/engine/gameLoop.ts` — tick system registry and game loop. `TickSystem` interface for entity tick definitions. `createGameLoop` returns start/stop/pause/resume + register/unregister. `tick(time)` is the testable simulation step.
-- `src/engine/movement.ts` — `movePlayer`, `tickPath`, `getBlockedPositions`, `getPathfindingBlockers`.
-- `src/engine/entities.ts` — `tickBees`, `tickCharacterBehaviors`, `pickUpGroundItems`, `dropItem`.
-- `src/engine/celestial.ts` — `spawnShootingStar`, `spawnShootingStarAtTarget`, `tickShootingStars`, `spawnChainMeteorites`.
-- `src/engine/cloverLifecycle.ts` — `tickCloverLifecycle`, `harvestClover`, `cutClover`, `getCloverStage`. clover death stages, water meter, soil health enrichment.
-- `src/engine/interaction.ts` — `interactWithCharacter`, `advanceDialog`, `updateFacingEntity`, `isInteractableAt`, dialog tick, `giveCharacterGift`, `breakWall`.
-- `src/engine/reveries.ts` — revery definition registry (`REVERY_DEFINITIONS`), `getReveryDefinition`. fire and water reveries.
-- `src/engine/actionBar.ts` — action bar slot operations: `assignActionBarSlot`, `clearActionBarSlot`, `activateActionBarSlot`, `getSlotCooldownFraction`, `autoAssignRevery`.
-- `src/engine/omnibox.ts` — `openOmnibox`, `closeOmnibox`, `toggleOmnibox`, `grabOmnibox`, `toggleFacingOmnibox`.
-- `src/engine/combine.ts` — drag-drop combine detection (`checkCombine`) and `combineBeeAndClover`.
-- `src/engine/drag.ts` — `DragState` type, `computePlacementPreview`, `executeCombine`, `executeStoreInOmnibox`, `computeRotation`. pure drag-and-drop logic (no React).
-- `src/engine/effects.ts` — `getTileEffects`, `AURA_RADIUS`. character aura system (e.g. Gron's rain aura).
-- `src/engine/pathfinding.ts` — A\* pathfinding (4-directional, manhattan heuristic, binary min-heap).
-- `src/engine/coordinates.ts` — screen pixel to world tile coordinate transform.
-- `src/engine/camera.ts` — camera positioning and viewport clamping.
-- `src/engine/weather.ts` — weather generation, tick drift, unit conversion.
-- `src/engine/terrain.ts` — map generation with randomized coastline. exports `smoothNoiseSeeded` for reuse by genesis.
-- `src/engine/genesis.ts` — geological genesis simulation. 14-epoch state machine, terrain mutations, soil accumulation, civilization ruin generation, per-epoch rendering. `createGenesisState`, `tickGenesis`, `extractGenesisResult`, `runAllMutations`, `nameToSeed`.
-- `src/engine/genesisTypes.ts` — genesis type definitions: `GenesisEpoch`, `GenesisSimState`, `CivilizationRuin`, `GenesisResult`, `GenesisTileRender`.
-- `src/engine/genesisRenderer.ts` — canvas rendering for the genesis simulation. commentary overlay, skip hint. `renderGenesis`.
-- `src/engine/cave.ts` — cave generation (semi-random layout with breakable wall and hidden chamber), zone transition functions (`enterCave`, `exitCave`, `checkTransition`).
-- `src/engine/characters.ts` — character definitions (including ghost factory), dialog trees, interaction logic.
-- `src/engine/input.ts` — key-to-direction mapping for WASD and arrow keys.
-- `src/engine/position.ts` — shared position utilities: `posKey`, `isInBounds`, `removeByIndices`, direction deltas (`DIRECTIONS`, `CARDINAL`, `ORDINAL`).
-- `src/engine/constants.ts` — map size, tile chars/colors, font, border widths.
-- `src/engine/inventory.ts` — spatial grid operations (place, remove, move, rotate, transfer, auto-sort).
-- `src/engine/items.ts` — item definition registry, backpack/container factories.
-- `src/engine/recipes.ts` — recipe definitions, combine detection, preview functions.
-- `src/engine/manual.ts` — prairie manual entry types, `MANUAL_ENTRIES` registry, `MANUAL_LORE` table, builder functions, `recordDiscovery`, `filterManualEntries`, `isDiscovered`.
-- `src/engine/audio.ts` — two-layer audio manager singleton. `setAmbient`, `startDialogMusic`, `stopDialogMusic`, `stopAll`, `setMusicEnabled`. manages ambient (zone) and dialog (character) HTMLAudioElements with rAF crossfading.
-- `src/components/ActionBar.tsx` — bottom-center action bar with 4 slots, animated glyphs, cooldown sweep overlay, drag-to-assign.
-- `src/components/GenesisScreen.tsx` — genesis simulation screen. mounts canvas, runs own rAF loop, skip-on-keypress, calls `onComplete` with `GenesisResult`.
-- `src/components/GameScreen.tsx` — main game container orchestrating canvas, sidebar, inventory, menu, manual, dialogs, toasts, action bar.
-- `src/components/ManualPanel.tsx` — prairie manual panel with category tabs, search, entry cards, spoiler hints, cross-ref navigation.
-- `src/components/GameCanvas.tsx` — canvas element, rAF render via game loop, resize handling, HiDPI.
-- `src/components/InventoryPanel.tsx` — inventory UI panel with grid, drag-to-map.
-- `src/components/InventoryGrid.tsx` — single container grid renderer with drag-and-drop.
-- `src/components/ItemInfo.tsx` — imperative item info display (forwardRef).
-- `src/components/Sidebar.tsx` — always-visible right sidebar: item info, log, stats, tile, cursor, weather, units, controls.
-- `src/components/Menu.tsx` — in-game menu (resume, new game, units toggle, music toggle).
-- `src/components/DialogBox.tsx` — NPC dialog rendering.
-- `src/components/NamePrompt.tsx` — steward name entry screen.
-- `src/components/DragCursor.tsx` — visual cursor during inventory drag-and-drop.
-- `src/components/PickupToasts.tsx` — item pickup notifications.
-- `src/hooks/useGameEngine.ts` — game state singleton, held outside React's render cycle.
-- `src/hooks/useKeyboard.ts` — all keybindings and panel toggling.
-- `src/hooks/useInventoryDrag.ts` — drag state, placement preview, rotation, combine detection.
-- `src/hooks/useCanvasDrop.ts` — handles dropping dragged items from inventory onto the canvas map.
-- `src/hooks/useEventLog.ts` — event log + toast system (pickups, drops, combines).
-- `src/hooks/useMouse.ts` — click-to-move handler, called inside GameCanvas.
-- `src/hooks/useMusic.ts` — bridges game state (zone, dialog) to audio manager. watches `currentZone` for ambient crossfade and `activeDialog` for character music crossfade.
-
 ## mouse controls
 
-click-to-move via A\* pathfinding. click a walkable tile and the player walks there tile-by-tile (100ms per step via `tickPath()` in the rAF loop). path is stored as `state.path: Position[] | null`. keyboard input cancels the current path. path tiles render as `·` in `#ff69b4` (hot pink) for visual feedback.
+click-to-move via A* pathfinding. click a walkable tile → player walks there tile-by-tile (100ms per step via `tickPath()`). path stored as `state.path: Position[] | null`. keyboard input cancels the current path.
 
-shift+click chains waypoints onto an existing path (RTS-style movement queuing). pathfinds from the end of the current chain to the clicked tile and appends. `state.pathWaypoints: Position[]` stores click targets — rendered as `+` in hot pink instead of `·`. every click marks its destination: normal click sets `pathWaypoints` to `[tile]`, shift+click appends. cleared whenever `state.path` is set to `null`. shift+click with no existing path falls through to normal click. shift+click on the same tile as the last waypoint is ignored. failed extension pathfinding leaves the existing path unmodified.
+shift+click chains waypoints onto an existing path (RTS-style). pathfinds from end of current chain to clicked tile and appends. `state.pathWaypoints` stores click targets.
 
-coordinate transform: `screenToTile()` converts `e.offsetX`/`e.offsetY` (CSS pixels) to world tile position using camera offset and char metrics. no DPR correction needed — `offsetX`/`offsetY` are already CSS-space.
+click-to-interact: clicking any interactable pathfinds to closest adjacent walkable tile, then executes interaction on arrival via `state.pendingAction`. `state.pendingInteractionTarget` highlights the target during the walk.
 
-click-to-interact: clicking any interactable (character, ground omnibox, breakable wall, or any tile where `isInteractableAt` returns true) pathfinds to the closest adjacent walkable tile, then executes the interaction on arrival via `state.pendingAction`. `state.pendingInteractionTarget: Position | null` tracks the clicked interactable's position — the renderer highlights it with pink inversion during the walk. cleared on action completion, path cancellation, WASD interrupt, zone transition, or new non-interactable click.
-
-pathfinding blockers: click-to-move and hover preview use `getPathfindingBlockers(state, target?)` instead of `getBlockedPositions`. this extends the blocked set with cave entrance tiles so paths don't accidentally route through zone transitions. the `target` parameter excludes the destination from blocking so you can still pathfind TO an entrance or interactable.
-
-hover path preview: `state.hoverPath` / `state.hoverPathTarget` cache a preview path from the player to the cursor tile. computed in `cursor.ts` (`updateCursorState`) when `cursorTile` changes (not every frame). cleared when an active path exists or cursor leaves the canvas. rendered as the tile's own glyph in dark gray (`#555555`) — preserves tile identity (e.g. `O` for cave entrance) rather than replacing with dots.
-
-tile glyph preservation on paths: special tiles (cave entrance, interactables) render their own glyph on active path and hover overlays, never replaced by path dots (`·`) or waypoint markers (`+`). this is a general rendering convention — tile identity is always visible.
-
-future: drag-select for multi-tile operations.
+coordinate transform: `screenToTile()` converts CSS pixels to world tile position. no DPR correction needed — `offsetX`/`offsetY` are already CSS-space.
 
 ## cursor
 
@@ -124,14 +58,6 @@ custom cursor from `public/cursor.cur` (diablo II style). set globally via CSS o
 ## inventory
 
 tetris-style spatial inventory. items have shapes (`boolean[][]`) that must physically fit in a container grid.
-
-- **`src/engine/items.ts`** — item registry. items defined without `id` field in a `const ITEMS = { ... } as const satisfies Record<string, ItemEntry>` map; `ITEM_DEFINITIONS` built via `Object.fromEntries` injecting the key as `id`.
-- **`src/engine/inventory.ts`** — pure grid operations: placement, rotation, occupancy, transfer, auto-sort.
-- **`src/engine/recipes.ts`** — recipe system for combining items via drag-and-drop.
-- **`src/components/InventoryPanel.tsx`** — docked left of sidebar. backpack grid, controls.
-- **`src/components/InventoryGrid.tsx`** — CSS grid with 28px cells, drag-and-drop, combine detection.
-- **`src/components/ItemInfo.tsx`** — imperative (`forwardRef`/`useImperativeHandle`) item info display in sidebar. uses refs to avoid re-render cascades from hover.
-- **`src/hooks/useInventoryDrag.ts`** — drag state, placement preview, rotation, combine detection.
 
 key types: `ItemDefinition` (template), `ItemInstance` (placed in container), `Container` (grid), `Rotation` (0/1/2/3).
 
@@ -142,12 +68,10 @@ categories: `Fauna`, `Flora`, `Tool`, `CelestialDebris`, `Gizmo` — expand as n
 recipes combine two items via drag-and-drop. defined in `src/engine/recipes.ts`.
 
 - `kind`: `macro` (map effects, shows `!` on grid) or `craft` (creates items, shows result icon)
-- `resultName`: displayed in event log (`bee + clover = prairie`)
-- `preserveIngredient`: optional definitionId of an ingredient that should NOT be consumed. the combine handler checks both dragged and target items against this field.
-- `preview`: optional function returning `{ pos, char, color }[]` for map visualization. called every frame via `state.previewFn` so it follows the player.
+- `preserveIngredient`: optional definitionId of an ingredient that should NOT be consumed.
 - `discoveredRecipes: Set<string>` on GameState tracks which recipes the player has used. undiscovered recipes show `?` on grid cells.
 
-the permacomputer is never consumed by recipes. it is a tool that persists. the omnibox recipe uses `preserveIngredient: 'permacomputer'` to enforce this.
+the permacomputer is never consumed by recipes. the omnibox recipe uses `preserveIngredient: 'permacomputer'` to enforce this.
 
 ## keybindings
 
@@ -175,250 +99,119 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 
 ## prairie manual
 
-in-game encyclopedia cataloging all game content. fullscreen overlay panel toggled with `[q]`. movement remains active while open.
+in-game encyclopedia toggled with `[q]`. movement remains active while open.
 
-- **`src/engine/manual.ts`** — entry types (`ManualEntry`, `ManualHint`), builder functions, `MANUAL_ENTRIES` registry, `MANUAL_LORE` table, discovery helpers, search/filter, category ordering.
-- **`src/components/ManualPanel.tsx`** — React panel with category tabs, search, entry cards, spoiler hint blocks, cross-ref navigation.
+entries are auto-derived at runtime from `ITEM_DEFINITIONS`, `RECIPES`, and `CHARACTER_DEFINITIONS`. manual-only entries for zones and events live in `MANUAL_ONLY_ENTRIES` in `manual.ts`.
 
-### auto-generation
+discovery tracking: `manualDiscoveries: Set<string>` on GameState. structured keys: `item:<id>`, `recipe:<key>`, `character:<id>`, `zone:cave`, `event:<name>`. `recordDiscovery(state, key)` called at mutation points. undiscovered recipe results are behind spoiler blocks.
 
-entries are derived at runtime from existing registries:
+hand-authored lore goes in `MANUAL_LORE` table in `manual.ts`. run `/maintain-manual` to audit for gaps.
 
-- items from `ITEM_DEFINITIONS` (id, name, glyph, color, category, summary from description)
-- recipes from `RECIPES` array (adding a recipe auto-creates a manual entry)
-- characters from `CHARACTER_DEFINITIONS` (excludes ghost variants — ghosts get one collective entry)
-- manual-only entries for zones (`overworld`, `cave`) and events (`shooting-star`, `chain-explosion`)
-
-cross-refs are auto-derived by scanning recipes for shared ingredients.
-
-### discovery tracking
-
-`manualDiscoveries: Set<string>` on `GameState`. structured keys: `item:<id>`, `recipe:<key>`, `character:<id>`, `zone:cave`, `event:chain-explosion`, `event:wall-break`, `event:moab-gift`, `event:clover-death`, `event:clover-harvest`, `event:clover-cut`. `recordDiscovery(state, key)` is called at existing mutation points in `entities.ts`, `interaction.ts`, `drag.ts`, `cave.ts`, `celestial.ts`, `cloverLifecycle.ts`.
-
-### visibility
-
-the manual is open from the start — all entries are browsable. undiscovered recipe results are behind a spoiler block (`???` with `[+]` toggle). once discovered via crafting, the result shows openly. discovery markers are visual (dim vs full-color glyphs), not gates.
-
-### persisted state
-
-`manualState` on `GameState` tracks `activeCategory`, `searchQuery`, and `revealedHints: Set<string>`. survives save/load via existing `Set` serialization.
-
-### lore authoring
-
-hand-authored content goes in the `MANUAL_LORE` table in `manual.ts`. entries without lore use their auto-derived summary. run `/maintain-manual` to audit for gaps and scaffold stubs.
-
-**when adding new game content**: items, recipes, and characters auto-generate manual entries from their registries — no extra work needed. new entity types that don't fit existing registries (spells, quests, biomes, etc.) must be added as manual-only entries in the `MANUAL_ONLY_ENTRIES` array in `manual.ts`, with a corresponding `recordDiscovery` call at the appropriate mutation point.
+**when adding new game content**: items, recipes, and characters auto-generate manual entries — no extra work. new entity types that don't fit existing registries must be added to `MANUAL_ONLY_ENTRIES` with a corresponding `recordDiscovery` call.
 
 ## entities
 
-- **bees** — spawn when bee+clover are combined, or when a bee item is dropped. wander randomly — prefer adjacent clover tiles, otherwise walk any non-Space tile. rendered as `*` in gold. tracked in `state.bees[]`. walking over a bee captures it into backpack.
-- **ghosts** — 3 spawn at random walkable positions on game start. drift slowly (15% move chance per 500ms tick) using the shared `getBlockedPositions` set. rendered as `ö` in white. tracked in `state.characters[]` with `behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true }`. block player movement and pathfinding. cannot be captured. freeze in place during dialog. each has a 3-line dialog tree.
-- **ground items** — items dropped on the map. rendered with their glyph/color. walking over them auto-picks up if backpack has room.
-- **ground omniboxes** — omniboxes dropped on the map. tracked in `state.groundOmniboxes[]` (separate from groundItems). player must press `[e]` facing one to open it. walking away (>1 tile) auto-closes it. the player must explicitly drag it to their backpack from the inventory UI.
+- **bees** — spawn on bee+clover combine or bee item drop. wander randomly preferring clover. rendered as `*` in gold. walking over captures to backpack.
+- **ghosts** — 3 spawn at random positions on game start. drift slowly (15% move chance per 500ms). block movement/pathfinding. freeze during dialog. each has a 3-line dialog tree.
+- **ground items** — dropped items on map. auto-pickup on walk-over if backpack has room.
+- **ground omniboxes** — tracked separately in `state.groundOmniboxes[]`. press `[e]` to open. auto-close when player walks >1 tile away.
 
 ## reveries
 
-key items that don't occupy inventory grid space. stored as `state.reveries: string[]` (revery definition IDs). given as gifts by characters on dialog completion.
+key items that don't occupy inventory grid space. stored as `state.reveries: string[]`. given as gifts by characters on dialog completion.
 
-- **registry**: `src/engine/reveries.ts`. `REVERY_DEFINITIONS` follows the `as const satisfies Record<string, T>` pattern. each revery has `glyphs: string[]` (animated frames), `glyphColor`, `cooldownMs`.
-- **current reveries**: `fire` (from Moab, `^`/`~`/`*` in orange-red), `water` (from Gron, `~`/`≈`/`~` in blue).
-- **mechanics**: deferred. pressing a revery's action bar slot plays the cooldown sweep animation as a dry fire.
+registry in `src/engine/reveries.ts`. current reveries: `fire` (from Moab) and `water` (from Gron). mechanics deferred — pressing the action bar slot plays cooldown sweep as a dry fire.
 
 ## character gifts
 
-generic gift system replacing the old hardcoded `giveMoabGift()`. characters have optional `gift` and `postGiftDialog` fields on `CharacterDefinition`.
-
-- `giveCharacterGift(state, characterId)` in `interaction.ts` — checks `state.giftsReceived: Set<string>`, delivers the gift, records discovery, returns the `ReveryDefinition` for toast display.
-- `getCharacterDialog(state, characterId)` in `characters.ts` — returns `postGiftDialog` if gift has been given, else `dialog`. replaces all direct `def.dialog` reads.
-- gifts are one-time per character. `state.giftsReceived` tracks which characters have given their gift.
+characters have optional `gift` and `postGiftDialog` fields. gifts are one-time per character, tracked in `state.giftsReceived: Set<string>`. `getCharacterDialog` returns `postGiftDialog` if gift has been given.
 
 ## action bar
 
-bottom-center UI with 4 slots for reveries or items. positioned `fixed bottom-4 left-1/2 -translate-x-1/2`.
-
-- **engine**: `src/engine/actionBar.ts`. `assignActionBarSlot`, `clearActionBarSlot`, `activateActionBarSlot`, `getSlotCooldownFraction`, `autoAssignRevery`.
-- **component**: `src/components/ActionBar.tsx`. always visible. each slot is 48x48px.
-- **animated glyphs**: revery slots cycle through `glyphs[]` at ~400ms per frame via rAF.
-- **cooldown sweep**: CSS `conic-gradient` overlay, sweeps clockwise from 12 o'clock. driven by rAF reading `performance.now()` against `slot.cooldownEndTime`.
-- **drag-to-assign**: items can be dragged from inventory onto slots. `DragState.actionBarTarget` tracks the hovered slot. compatible slots highlight with pink border during drag.
-- **auto-assign**: new reveries auto-fill the first empty slot via `autoAssignRevery`.
-- **keybinds**: `1-4` activate the corresponding slot (blocked during dialog and menu).
-- **state**: `GameState.actionBar: (ActionBarSlot | null)[]` — always length 4. `ActionBarSlot` has `kind`, `id`, `cooldownEndTime`, `cooldownDurationMs`.
+bottom-center UI with 4 slots for reveries or items. `1-4` keybinds. new reveries auto-fill first empty slot. items can be dragged from inventory onto slots.
 
 ## omniboxes
 
-portable 5x5 containers (2x2 inventory footprint). created by combining meteorite + permacomputer (craft recipe). inspired by diablo's horadric cube.
+portable 5x5 containers (2x2 inventory footprint). created by combining meteorite + permacomputer. inspired by diablo's horadric cube.
 
-- **container registry**: `state.omniboxContainers: Map<string, Container>` keyed by `ItemInstance.uid`. each omnibox item links to its container data through this map.
-- **numbering**: `state.nextOmniboxNumber` increments on creation. container names are `omnibox #1`, `omnibox #2`, etc.
-- **single open**: `state.openContainer: Container | null`. only one omnibox can be open at a time. opening a new one closes the previous.
-- **explicit open/close only**: no auto-open on adjacency or drop. player must press `[e]` to toggle. ground omniboxes auto-close when player walks >1 tile away.
-- **facing highlight**: `state.playerFacing: Direction` tracks last move direction. `state.facingEntityPos: Position | null` is the nearest interactable tile the player faces (ground omnibox, character, or any future interactable). rendered with pink cursor inversion. `updateFacingEntity()` recalculates after every move. to add new interactable types, add a check to `isInteractableAt()` in `interaction.ts`.
-- **ground behavior**: dropped omniboxes go to `state.groundOmniboxes[]` (not `groundItems`). ground omniboxes are solid — they block `movePlayer()` and `findPath()`. press `[e]` facing a ground omnibox to toggle it open/closed.
-- **drag-to-store**: dragging an item onto an omnibox item in any container stores the item inside and opens the omnibox. shows the dragged item's glyph as pink preview.
-- **panel layout**: backpack panel renders above-right of the player. omnibox panel renders above-left of the player. positioned relative to player screen coordinates.
-- **nesting**: omniboxes can be placed inside other omniboxes.
-- **renaming**: deferred — not yet implemented.
+- container data keyed by `ItemInstance.uid` in `state.omniboxContainers: Map<string, Container>`.
+- only one open at a time (`state.openContainer`). explicit `[e]` to toggle — no auto-open.
+- ground omniboxes are solid (block movement and pathfinding).
+- dragging an item onto an omnibox stores it inside and opens the omnibox.
+- omniboxes can be nested inside other omniboxes.
 
 ## movement blocking
 
-`getBlockedPositions(state)` in `movement.ts` returns a `Set<string>` of all tiles blocked by ground omniboxes and characters. used by `movePlayer`, `tickCharacterBehaviors`, pathfinding, and click-to-move. to add new blocking entity types, add them to `getBlockedPositions`. this keeps all movement systems consistent automatically.
+`getBlockedPositions(state)` returns all tiles blocked by ground omniboxes and characters. to add new blocking types, add them here — all movement systems use it automatically.
 
-tile walkability is centralized in `isWalkableTile(tileType)` in `position.ts`. non-walkable: `Space`, `CaveWall`, `CaveBreakableWall`. used by `movePlayer`, `findPath`, `tickBees`, `tickCharacterBehaviors`, `canDropAt`.
+`isWalkableTile(tileType)` in `position.ts` centralizes tile walkability. non-walkable: `Space`, `CaveWall`, `CaveBreakableWall`.
 
-`getPathfindingBlockers(state, target?)` in `movement.ts` extends `getBlockedPositions` with soft blockers (cave entrances) that should be avoided as intermediate waypoints but allowed as destinations. used by click-to-move (`useMouse`) and hover path preview (`renderer`). `movePlayer` and `tickPath` still use `getBlockedPositions` directly — they handle frame-by-frame movement, not route planning.
+`getPathfindingBlockers(state, target?)` extends blocked set with soft blockers (cave entrances) that should be avoided as waypoints but allowed as destinations. used by click-to-move and hover preview.
 
 ## cave
 
-separate 40x25 interior map accessed via a `CaveEntrance` tile on the overworld. uses a **map context swap** pattern: `enterCave(state)` snapshots all overworld-specific fields (map, entities, path, etc.), swaps in cave data, and clears entities. `exitCave(state)` restores the snapshot. the renderer, camera, pathfinding, and movement code require no branching — they read `state.map`/`state.mapWidth`/`state.mapHeight` which point to whichever zone is active.
+separate 40x25 interior map accessed via `CaveEntrance` tile. uses a **map context swap** pattern: `enterCave` snapshots overworld state, swaps in cave data. `exitCave` restores. renderer/camera/pathfinding/movement require no branching — they read `state.map`/`state.mapWidth`/`state.mapHeight`.
 
-- **generation**: `generateCave()` in `cave.ts`. semi-random layout: CaveWall fill, CaveEntrance at bottom center, random-walk corridors upward, small chamber at the end, breakable wall row, hidden chamber behind it.
-- **transition**: `checkTransition(state)` fires after every successful `movePlayer`. if the player is on a `CaveEntrance` tile, it calls `enterCave` or `exitCave` based on `state.currentZone`. on exit, the player is placed one tile south of the overworld entrance to avoid re-entry loop.
-- **zone**: `state.currentZone` is `'overworld'` or `'cave'`. `state.overworldSnapshot` holds saved state while in cave.
-- **rendering**: out-of-bounds tiles render as dark void (no stars) in cave zone. cave tile chars/colors are in `TILE_CHARS`/`TILE_COLORS`.
-- **ticks**: bee, ghost, shooting star, and weather ticks are suppressed in cave (`GameCanvas.tsx` guards on `currentZone`).
-- **breakable wall**: player presses `[e]` facing a `CaveBreakableWall` tile to break it. highlights pink via the interactable system (`isInteractableAt` / `facingEntityPos`). `breakWall()` in `interaction.ts` converts all wall tiles to `CaveFloor`, sets `caveRevealed = true`, and spawns a `CrumbleEffect` (600ms animation: `#` → `+` → `.` → `·` with fading brown tones). one-time permanent event.
-- **hidden chamber masking**: when `!state.caveRevealed`, tiles in `state.caveHiddenPositions` render as `CaveWall` in the renderer — the player cannot see behind the breakable wall until it is broken. `caveHiddenPositions` is a `Set<string>` of posKeys built from `generateCave`'s `hiddenChamberPositions`.
-- **cave entrance protection**: the `CaveEntrance` tile is indestructible — the prairie recipe (and any future tile-overwriting mechanics) must exclude `TileType.CaveEntrance`.
+transition fires after every `movePlayer`. on exit, player placed one tile south of entrance to avoid re-entry loop. bee/ghost/shooting star/weather ticks suppressed in cave.
+
+breakable wall: `[e]` to break, converts to `CaveFloor`, sets `caveRevealed = true`, spawns crumble effect. hidden chamber masked until revealed. **cave entrance is indestructible** — tile-overwriting mechanics must exclude `TileType.CaveEntrance`.
 
 ## pending actions
 
-`state.pendingAction` is a nullable callback fired when `tickPath` completes a path. used for walk-then-drop and click-to-interact. cleared on path failure, WASD interruption, or click-to-move override. `state.previewFn` provides visual indicators (blinking `#`) during transit. `state.pendingInteractionTarget` tracks the clicked interactable's position for pink highlight during the walk — cleared alongside `pendingAction`.
+`state.pendingAction` is a nullable callback fired when `tickPath` completes a path. used for walk-then-drop and click-to-interact. cleared on path failure, WASD interruption, or click-to-move override.
 
-**caveat**: `movePlayer` inside `tickPath` can trigger a zone transition (`checkTransition`) which sets `state.path = null`. `tickPath` must null-check `state.path` after `movePlayer` returns before calling `shift()`.
+**caveat**: `movePlayer` inside `tickPath` can trigger a zone transition which sets `state.path = null`. `tickPath` must null-check `state.path` after `movePlayer` returns before calling `shift()`.
 
 ## field ownership
 
-mutable game state has no access control — any function with a `GameState` reference can write any field. these conventions document the current write patterns to prepare for eventual module boundaries. fields are categorized by mutation pattern. aspirational notes mark fields where consolidation would improve clarity — they're signals for when you're already touching that area, not tech debt tickets.
+mutable game state has no access control. these conventions document write patterns to prepare for eventual module boundaries:
 
-**single-owner** (only one module writes meaningful values, init in `state.ts`):
+- **single-owner**: one module writes meaningful values, others only read. most fields follow this.
+- **owner + clearers**: one module writes, others only null/reset (e.g. `pendingAction`, `previewFn`, `cursorTile`).
+- **multi-spawner, single lifecycle**: multiple modules create entries, one owns tick/removal (e.g. `bees[]`, `groundItems`, `groundOmniboxes`).
+- **shared writers**: multiple modules write meaningful values. currently only `path`/`pathWaypoints` and `playerFacing`. _aspirational: introduce `setPath()` accessor in movement.ts._
 
-- `weather.*` — `weather.ts` (`tickWeather`). read everywhere, mutated nowhere else.
-- `facingEntityPos` — `interaction.ts` (`updateFacingEntity`). `cave.ts` nulls on zone transition.
-- `cursorScreenPos` — `Sidebar.tsx` (set on mousemove, null on mouseleave).
-- `musicEnabled` — `GameScreen.tsx` (Menu toggle). `useMusic.ts` reads. `state.ts` initializes to `true`.
-- `manualDiscoveries` — **multi-spawner, single lifecycle.** multiple engine modules call `recordDiscovery()` in `manual.ts` to add entries. no module removes entries (discoveries are permanent). `state.ts` initializes with starting item keys.
-- `meteorShower` — `celestial.ts` (`tickMeteorShower`). read by `spawnShootingStar` for suppression. `state.ts` initializes.
-- `manualState` — **single-owner.** `ManualPanel.tsx` reads and writes via local React state synced to the mutable object. `state.ts` initializes.
-- `cloverLifecycle` — **owner + clearers.** `cloverLifecycle.ts` (`tickCloverLifecycle`) owns tick/stage progression. `cloverLifecycle.ts` (`harvestClover`, `cutClover`) deletes entries. `recipes.ts` and `clover.ts` delete entries when placing new clover.
-- `soilHealth` — **single-owner.** `cloverLifecycle.ts` writes via `addSoilHealth`. read by `Sidebar.tsx`.
-- `reveries` — **single-owner.** `interaction.ts` (`giveCharacterGift`) appends. read by `ActionBar.tsx`.
-- `actionBar` — **owner + clearers.** `actionBar.ts` owns assign/clear/activate. `interaction.ts` calls `autoAssignRevery` on gift delivery. `ActionBar.tsx` reads.
-- `giftsReceived` — **single-owner.** `interaction.ts` (`giveCharacterGift`) adds entries. read by `characters.ts` (`getCharacterDialog`).
-
-**owner + clearers** (one module writes meaningful values, others only null/reset):
-
-- `cursorTile` — `cursor.ts` derives from `cursorScreenPos`. `Sidebar.tsx` nulls on mouseleave.
-- `pendingAction`, `pendingInteractionTarget` — `useMouse.ts` and `useCanvasDrop.ts` set. `movement.ts` clears on completion/failure. `useKeyboard.ts` cancels on WASD. `cave.ts` resets on zone transition.
-- `previewFn` — `useMouse.ts`, `useCanvasDrop.ts`, `InventoryPanel.tsx` set. `movement.ts` clears on arrival. `useKeyboard.ts` cancels. `cave.ts` resets.
-
-**multi-spawner, single lifecycle** (multiple modules create entries, one owns tick/removal):
-
-- `bees[]` — `entities.ts` owns tick + pickup. `recipes.ts` and `useCanvasDrop.ts` spawn. `cave.ts` snapshots/restores. _aspirational: route all spawns through a single `spawnBee()` in entities.ts._
-- `characters[]` — `entities.ts` owns tick (position mutation). `state.ts` initializes. `cave.ts` swaps on zone transition.
-- `groundItems`, `groundOmniboxes` — `entities.ts` owns pickup/drop lifecycle. `useCanvasDrop.ts` spawns via canvas drop. `cave.ts` snapshots/restores. _aspirational: centralize spawning into entities.ts._
-
-**shared writers** (multiple modules write meaningful non-null values):
-
-- `path`, `pathWaypoints` — `useMouse.ts` sets (click-to-move). `useCanvasDrop.ts` sets (walk-then-drop). `movement.ts` consumes/advances. `useKeyboard.ts` cancels on WASD. `cave.ts` resets. _aspirational: introduce a `setPath()` accessor in movement.ts that all callers use._
-- `playerFacing` — `movement.ts` sets on WASD move. `useMouse.ts` sets toward clicked interactable. _aspirational: unify into movement.ts if mouse-facing can route through movePlayer._
-
-**convention for new fields**: prefer single-owner. if multiple modules must write, use the owner+clearers or multi-spawner pattern — never ad-hoc writes from arbitrary locations. document the owner in this section when adding new mutable state.
-
-### maintaining this section
-
-- adding a new mutable field to `GameState` → document its owner and pattern here.
-- adding a new writer to an existing field → update the field's entry. if it changes pattern category (e.g. single-owner becomes owner+clearers), recategorize it.
-- consolidating writers (fulfilling an aspirational note) → update the entry and remove the aspirational note.
-- removing a field → remove its entry.
-
-aspirational notes are not prescriptive. when working on a feature that touches a shared-writer field, check if the consolidation is natural to include. if so, do it and update the docs. if not, leave it. once all aspirational notes on a field are resolved, it should cleanly fit into single-owner or owner+clearers.
-
-### eventual module boundaries
-
-the four patterns map to future access control: single-owner fields become private to their module with read-only exports. owner+clearers fields get a `clear()` accessor. multi-spawner fields get a `spawn()` entry point. shared-writer fields need an accessor function before boundaries can be drawn.
-
-the `path`/`pathWaypoints` aspirational note (introduce `setPath()` in movement.ts) is the highest-priority consolidation — it's the most-written shared field and the natural first candidate for an accessor.
-
-field ownership drift (a new writer appearing without updating this section) can be caught during `/maintain-harness` runs by grepping for `state.<field> =` assignments and comparing against the documented owners.
+**convention for new fields**: prefer single-owner. if multiple modules must write, use owner+clearers or multi-spawner — never ad-hoc writes from arbitrary locations.
 
 ## weather
 
-midwest illinois spring conditions. temperature 35-72°F, wind 3-25 mph, humidity 45-85%. sky condition (sunny/cloudy/rain) is weighted by humidity. weather drifts every 5 seconds. season is hardcoded to "spring" for now.
-
-imperial/metric toggle in the sidebar controls section. `fToC()` and `mphToKph()` are in `src/engine/weather.ts`.
+midwest illinois spring conditions. temperature 35-72°F, wind 3-25 mph, humidity 45-85%. weather drifts every 5 seconds. season hardcoded to "spring". imperial/metric toggle in sidebar.
 
 ## clover lifecycle
 
-clover needs light and water to survive. without either, it slowly dies through visual stages: healthy (green) → brown → blinking red → black → decomposing → dirt.
+clover needs light and water to survive. without either, it dies through stages: healthy → brown → blinkingRed → black → decomposing → dirt.
 
-- **light**: overworld = has light. cave = no light.
-- **water**: per-tile meter (0–100). rain refills overworld clover (`CLOVER_WATER_RAIN_FILL` per lifecycle tick). drains `CLOVER_WATER_DRAIN_RATE` per tick otherwise. cave clover gets no water.
-- **recovery**: brown stage recovers if conditions improve. blinkingRed and beyond = terminal.
-- **death enrichment**: when clover decomposes to dirt, soil health increases by `SOIL_HEALTH_CLOVER_DEATH_BONUS`.
-- **harvest** (`[f]`): facing tile → dirt, clover item to backpack. no soil enrichment.
-- **cut** (`[x]`): facing tile → dirt when no inventory item hovered. soil enrichment (`SOIL_HEALTH_CUT_BONUS`). no item.
-- **tick systems**: `clover-lifecycle-overworld` (priority 52) and `clover-lifecycle-cave` (priority 52) in `gameLoop.ts`.
+- overworld = light + rain water. cave = no light, no water.
+- brown stage recovers if conditions improve. blinkingRed and beyond = terminal.
+- death enriches soil. harvest (`[f]`) does not enrich. cut (`[x]`) enriches but gives no item.
 
 ## genesis
 
-geological simulation that runs between name entry and gameplay. compresses a billion years of planetary history into ~25 seconds. the simulation generates the terrain, soil health map, and civilization ruin data — replacing the old static `generateTerrain`/`generateSoilHealth` pipeline.
+geological simulation between name entry and gameplay. compresses a billion years into ~25 seconds. generates terrain, soil health, and civilization ruin data.
 
-### app flow
+app flow: `NamePrompt → GenesisScreen → GameScreen`. genesis runs its own rAF loop (no ECS/tick systems). passes `GenesisResult` to `createGameState`.
 
-`NamePrompt → GenesisScreen → GameScreen`. the `GenesisScreen` runs its own `requestAnimationFrame` loop (separate from the game loop — no ECS, no tick systems). on completion it passes a `GenesisResult` (terrain, soil health, ruins) to `GameScreen`, which forwards it to `createGameState`.
+`nameToSeed(stewardName)` hashes name to a seed for `mulberry32` PRNG. same name = same world.
 
-### deterministic seeding
+14 epochs defined in `GENESIS_EPOCHS` in `genesis.ts` — each has `id`, `durationMs`, `commentary`, `mutate`, `renderTile`. adding/removing/reordering epochs auto-updates the manual entry.
 
-`nameToSeed(stewardName)` hashes the name to a seed for `mulberry32` PRNG. same name = same world. the seeded RNG drives all terrain noise, volcanic placement, glacial paths, river walks, ruin sites, and fire spread.
-
-### epochs (14 total)
-
-each epoch has `id`, `durationMs`, `commentary`, `mutate(sim)`, and `renderTile(sim, x, y, progress, time)`. the epoch array is `GENESIS_EPOCHS` in `genesis.ts`. adding/removing/reordering epochs automatically updates the manual entry.
-
-1. **cosmic formation** (1.5s) — stars expand from center
-2. **planetary accretion** (1.5s) — matter coalesces into mass
-3. **magma era** (2s) — molten surface, volcanic hotspots generated, soil +20 at hotspots
-4. **crust cooling** (2s) — edge-inward cooling, volcanic flare-backs
-5. **first water** (2s) — oceans form, ancient seabeds marked, soil +20 near coast
-6. **emergence of life** (2s) — green spreads from water's edge, vegetation map seeded, soil +5
-7. **fire season** (1.5s) — wildfire via cellular automaton, ash enrichment soil +10, edge effect +3
-8. **regrowth** (1.5s) — post-fire recovery, brighter green on burn scars, soil +5
-9. **ice age** (2.5s) — glaciers advance/recede from top/bottom, soil -15 in glacial paths
-10. **post-glacial die-off** (1.5s) — mass vegetation death, decomposition soil +8
-11. **warm period** (2s) — rivers carved via random walk, deltas soil +25, adjacency +10, all dirt +5, optional 2nd fire (30%)
-12. **rise of civilizations** (2s) — 3-5 ruin sites at strategic locations, aqueduct networks with box drawing chars (`─│┬┴├┤┼═║`), multi-glyph layered buildings (`▓▒░█`), soil +15
-13. **fall of civilizations** (2s) — staged decay (3 layers → 2 → 1 → gone), aqueducts last to disappear, soil +5
-14. **present day** (1s) — finalize terrain, scatter sandbars, clamp soil to [10, 100]
-
-### civilization ruins
-
-`GameState.civilizationRuins: CivilizationRuin[]` — data-only, read after genesis. each ruin has `position`, `name`, `radius`, `age`, `aqueductPaths`, `buildingFootprints`. aqueduct junctions inform cave entrance placement. extension point for future underground exploration.
-
-multi-glyph rendering: during rise/fall epochs, ruin tiles render 2-3 characters at sub-pixel offsets to create a dense, messy palimpsest. the `renderTile` return type is `GenesisTileRender[]` (array of `{ char, color, dx, dy }`). all ruin colors are grays (`#666`-`#AAA`).
+`civilizationRuins: CivilizationRuin[]` on GameState — data-only, set once from genesis result. aqueduct junctions inform cave entrance placement.
 
 ### skip mechanism
 
-- press any key during genesis → fast-forward (run remaining mutations synchronously, call `onComplete`)
-- dev auto-skip: `?skipGenesis=true` URL param in dev mode → instant skip
-- tests: never run the visual simulation. use `runAllMutations()` for synchronous result, or skip genesis entirely (the `genesisResult` parameter on `createGameState` is optional — omitting it falls back to the old `generateTerrain`/`generateSoilHealth`).
-
-### field ownership
-
-- `civilizationRuins` — **single-owner.** set once during `createGameState` from `GenesisResult.ruins`. read-only after init.
+- press any key → fast-forward (run remaining mutations synchronously)
+- dev auto-skip: `?skipGenesis=true` URL param
+- tests: use `runAllMutations()` for synchronous result, or omit `genesisResult` from `createGameState` to fall back to old terrain generation.
 
 ## soil health
 
-`soilHealth: Map<string, number>` on GameState, keyed by posKey. default value for absent keys is `SOIL_HEALTH_DEFAULT` (50). max is `SOIL_HEALTH_MAX` (100). when genesis runs, soil health is geologically derived (base 30, accumulated through 14 epochs, clamped to [10, 100]). without genesis, the old layered noise generation is used. enriched at runtime by natural clover death and cutting. not enriched by harvesting. visible in sidebar when hovering clover or dirt tiles. single number for now — future: mycelium density, worms.
+`soilHealth: Map<string, number>` keyed by posKey. default `SOIL_HEALTH_DEFAULT` (50), max `SOIL_HEALTH_MAX` (100). geologically derived when genesis runs (base 30, accumulated through epochs, clamped [10, 100]). enriched by natural clover death and cutting. not enriched by harvesting.
 
 ## music
 
-two-layer audio system using HTMLAudioElement with rAF-driven crossfading.
+two-layer audio system: ambient (zone) and dialog (character). crossfade on zone/dialog transitions (~300ms). `musicEnabled` toggle in ESC menu preserves playback position.
 
-- **ambient layer** — zone music that loops continuously. overworld and cave each have their own track (`ZONE_MUSIC` in `audio.ts`). crossfades on zone transition (~300ms). stays loaded (volume 0) during character dialog so it resumes seamlessly.
-- **dialog layer** — character-specific music. triggered when `activeDialog` opens for a character with a `music` field on their `CharacterDefinition`. crossfades with ambient (~300ms): ambient fades down, dialog music fades in. reversed on dialog close.
-- **toggle** — `musicEnabled: boolean` on GameState. on/off button in ESC menu. `setMusicEnabled()` toggles `.muted` on both elements — preserves playback position for instant toggle.
-- **assets** — MP3 files in `public/music/`. referenced by path in `ZONE_MUSIC` and `CharacterDefinition.music`. MP3s are gitignored to avoid repo bloat — `public/music/MANIFEST.md` lists expected files with MD5 checksums. the files must be placed manually after cloning.
+MP3s in `public/music/`, gitignored. `public/music/MANIFEST.md` lists expected files. must be placed manually after cloning.
 
 ## commands
 
@@ -434,7 +227,7 @@ npm run test:watch   # run tests in watch mode
 
 ## testing
 
-every feature must have tests. engine tests live in `src/engine/__tests__/`, component tests in `src/components/__tests__/`. engine code is pure TypeScript with no DOM deps. component tests use `@testing-library/react` + `jsdom`.
+every feature must have tests. engine tests in `src/engine/__tests__/`, component tests in `src/components/__tests__/`. engine code is pure TypeScript with no DOM deps. component tests use `@testing-library/react` + `jsdom`.
 
 if a feature cannot be tested (e.g. canvas rendering), flag it for the user to review how to proceed before skipping.
 
