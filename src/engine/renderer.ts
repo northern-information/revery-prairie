@@ -470,7 +470,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const health = state.soilHealth.get(key) ?? SOIL_HEALTH_DEFAULT
 
         earthScanMap.set(key, {
-          char: TILE_CHARS[tileType],
+          char: '\u2588',
           color: soilHealthColor(health),
           opacity: tileOpacity,
         })
@@ -584,11 +584,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       } else if (earthScanMap.has(tileKey)) {
         const es = earthScanMap.get(tileKey)
         if (es) {
-          char = es.char
           if (es.opacity >= 1) {
+            char = es.char
             color = es.color
           } else {
-            const baseColor = TILE_COLORS[map[my][mx].type]
+            const tile = map[my][mx]
+            char = es.opacity > 0.5 ? es.char : TILE_CHARS[tile.type]
+            const baseColor = TILE_COLORS[tile.type]
             color = lerpColor(es.color, baseColor, 1 - es.opacity)
           }
         } else {
