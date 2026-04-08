@@ -1,0 +1,144 @@
+id: clover-lifecycle
+name: 'Clover lifecycle system'
+status: implemented
+priority: high
+layer: engine
+source_files:
+  - src/engine/cloverLifecycle.ts
+  - src/engine/types.ts
+  - src/engine/constants.ts
+dependencies:
+  - weather
+
+behaviors:
+  - id: clover-water-drain
+    description: >
+      each tick, clover tiles lose CLOVER_WATER_DRAIN_RATE (2) units
+      of water. water is clamped to [0, CLOVER_WATER_MAX (100)]. when
+      water reaches 0 and clover is in Healthy stage, it transitions
+      to Brown.
+    inputs:
+      - 'tickCloverLifecycle called with clover tiles on map'
+    outputs: []
+    state_changes:
+      - field: cloverLifecycle
+        effect: 'water decremented by CLOVER_WATER_DRAIN_RATE per tick, clamped to 0'
+    determinism: time-based
+
+  - id: clover-rain-fill
+    description: >
+      when it is raining (global rain or within rain aura) in the
+      overworld, clover tiles gain CLOVER_WATER_RAIN_FILL (15) units
+      per tick. cave clover gets no rain fill. water is capped at
+      CLOVER_WATER_MAX (100).
+    inputs:
+      - 'rain condition active in overworld'
+    outputs: []
+    state_changes:
+      - field: cloverLifecycle
+        effect: 'water incremented by CLOVER_WATER_RAIN_FILL per rain tick, capped at 100'
+    determinism: deterministic
+
+  - id: clover-death-stages
+    description: >
+      clover without water or light progresses through death stages:
+      Healthy -> Brown (immediate on stress) -> BlinkingRed (after
+      CLOVER_BROWN_DURATION_MS = 20s) -> Black (after
+      CLOVER_BLINK_RED_DURATION_MS = 15s) -> Decomposing (after
+      CLOVER_BLACK_DURATION_MS = 10s) -> dirt tile (after
+      CLOVER_DECOMPOSE_DURATION_MS = 30s). Brown can recover if
+      conditions improve. BlinkingRed and beyond are terminal.
+    inputs:
+      - 'clover tile with no water or no light'
+    outputs: []
+    state_changes:
+      - field: cloverLifecycle
+        effect: 'stage advances through death sequence on time thresholds'
+      - field: map
+        effect: 'tile converted to Dirt when Decomposing stage expires'
+      - field: soilHealth
+        effect: 'SOIL_HEALTH_CLOVER_DEATH_BONUS (15) added when clover dies to dirt'
+      - field: manualDiscoveries
+        effect: 'event:clover-death recorded on first natural death'
+    determinism: time-based
+
+  - id: clover-recovery
+    description: >
+      Brown stage clover can recover to Healthy if water > 0 and
+      hasLight is true. stage is reset to Healthy and stageStartTime
+      updated. BlinkingRed, Black, and Decomposing stages are terminal
+      and cannot recover.
+    inputs:
+      - 'Brown stage clover with water > 0 and light'
+    outputs: []
+    state_changes:
+      - field: cloverLifecycle
+        effect: 'stage reset to Healthy'
+    determinism: deterministic
+
+  - id: harvest-clover
+    description: >
+      harvestClover (triggered by [f] key) converts the facing clover
+      tile to dirt and places a clover item in the backpack. only works
+      on Healthy stage clover. returns a HarvestResult enum. no soil
+      enrichment on harvest.
+    inputs:
+      - 'player facing a Healthy clover tile, [f] pressed'
+    outputs:
+      - "HarvestResult: 'success', 'no-clover', 'dying', or 'backpack-full'"
+    state_changes:
+      - field: map
+        effect: 'facing tile set to Dirt'
+      - field: backpack
+        effect: 'clover item placed'
+      - field: cloverLifecycle
+        effect: 'entry deleted for facing tile'
+      - field: manualDiscoveries
+        effect: 'event:clover-harvest recorded'
+    determinism: deterministic
+
+  - id: cut-clover
+    description: >
+      cutClover (triggered by [x] key when no inventory item hovered)
+      destroys the facing clover tile (any stage). converts to dirt,
+      enriches soil by SOIL_HEALTH_CUT_BONUS (10). does not create
+      an item.
+    inputs:
+      - 'player facing a clover tile, [x] pressed, no inventory item hovered'
+    outputs:
+      - 'boolean: true if clover was cut'
+    state_changes:
+      - field: map
+        effect: 'facing tile set to Dirt'
+      - field: soilHealth
+        effect: 'SOIL_HEALTH_CUT_BONUS (10) added at facing position'
+      - field: cloverLifecycle
+        effect: 'entry deleted for facing tile'
+      - field: manualDiscoveries
+        effect: 'event:clover-cut recorded'
+    determinism: deterministic
+
+edge_cases:
+  - id: cave-clover-no-light
+    description: 'clover placed in cave has no light, immediately starts dying'
+    expected: 'stage transitions to Brown on first tick, proceeds through death stages'
+  - id: harvest-dying-clover
+    description: 'player tries to harvest clover in Brown or worse stage'
+    expected: "harvestClover returns 'dying', tile unchanged"
+  - id: cut-any-stage
+    description: 'player cuts clover in any death stage'
+    expected: 'cutClover succeeds regardless of stage, tile becomes dirt with soil enrichment'
+  - id: water-overflow
+    description: 'rain fills clover already at max water'
+    expected: 'water stays at CLOVER_WATER_MAX (100)'
+
+failure_conditions:
+  - trigger: 'Backpack full when harvesting'
+    expected: "harvestClover returns 'backpack-full', tile unchanged"
+  - trigger: 'Player not facing clover tile'
+    expected: "harvestClover returns 'no-clover'"
+
+verification:
+  test_file: src/engine/__tests__/cloverLifecycle.test.ts
+  test_pattern: 'clover lifecycle'
+  command: 'npx vitest run src/engine/__tests__/cloverLifecycle.test.ts'
