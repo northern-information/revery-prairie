@@ -458,14 +458,15 @@ const firstWater: GenesisEpoch = {
       const [xStr, yStr] = key.split(',')
       const x = Number(xStr)
       const y = Number(yStr)
-      // Check if close to any coastline tile
-      for (let dy = -3; dy <= 3; dy++) {
-        for (let dx = -3; dx <= 3; dx++) {
+      let nearCoast = false
+      for (let dy = -3; dy <= 3 && !nearCoast; dy++) {
+        for (let dx = -3; dx <= 3 && !nearCoast; dx++) {
           if (sim.coastlineTiles.has(posKey(x + dx, y + dy))) {
-            sim.ancientSeabeds.add(key)
+            nearCoast = true
           }
         }
       }
+      if (nearCoast) sim.ancientSeabeds.add(key)
     }
 
     // Ancient seabeds get soil enrichment
@@ -498,11 +499,10 @@ const firstWater: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
-    // Water gathers in lowlands — low-elevation land tiles show water first
+    // Water gathers in lowlands — per-tile hash noise breaks grid-aligned contours
     const elev = sim.elevation.get(key) ?? 50
-    // Per-tile noise breaks up the smooth gaussian look into blotchy pools
-    const tileNoise = ((h % 20) - 10)
-    const effectiveElev = elev + tileNoise
+    const scatter = ((h % 25) - 12) + (((h >>> 8) % 15) - 7)
+    const effectiveElev = elev + scatter
     const waterThreshold = clamp(effectiveElev / 100, 0, 1)
     if (progress > waterThreshold && effectiveElev < 40) {
       const waterChars = ['~', '=', '-']
@@ -557,10 +557,10 @@ const emergenceOfLife: GenesisEpoch = {
 
     const veg = sim.vegetationMap.get(key) ?? 0
 
-    // Green spreads from lowlands outward — lower elevation appears first
+    // Green spreads from lowlands outward — per-tile hash breaks grid contours
     const elev = sim.elevation.get(key) ?? 50
-    // Normalize: low elevation (0) → appears early, high (100) → appears late
-    const greenThreshold = clamp(elev / 100, 0, 0.9)
+    const scatter = ((h % 25) - 12) + (((h >>> 8) % 15) - 7)
+    const greenThreshold = clamp((elev + scatter) / 120, 0, 0.9)
     if (progress > greenThreshold && veg > 20) {
       const greenChars = ['%', '.', ',']
       const greenColors = ['#2E8B57', '#3CB371', '#50C878']
@@ -1344,18 +1344,14 @@ const warmPeriod: GenesisEpoch = {
       return [{ char: '.', color: '#696969', dx: 0, dy: 0 }]
     }
 
-    // Progressive river reveal — each river grows from source to lowlands
-    for (const riverPath of sim.riverPathsOrdered) {
-      if (riverPath.length === 0) continue
-      // Rivers reveal over the first 60% of the epoch
-      const revealProgress = clamp(progress / 0.6, 0, 1)
-      const visibleTiles = Math.floor(revealProgress * riverPath.length)
-      for (let i = 0; i < visibleTiles && i < riverPath.length; i++) {
-        if (riverPath[i].x === x && riverPath[i].y === y) {
-          const waterChars = ['~', '=', '-']
-          const ci = (h + Math.floor(time * 0.004)) % waterChars.length
-          return [{ char: waterChars[ci], color: '#6688BB', dx: 0, dy: 0 }]
-        }
+    // Rivers reveal progressively — use Set for O(1) lookup, hash for staggered timing
+    if (sim.riverPaths.has(key)) {
+      // Stagger reveal: each river tile appears based on its position hash
+      const revealDelay = (h % 100) / 100 * 0.6
+      if (progress > revealDelay) {
+        const waterChars = ['~', '=', '-']
+        const ci = (h + Math.floor(time * 0.004)) % waterChars.length
+        return [{ char: waterChars[ci], color: '#6688BB', dx: 0, dy: 0 }]
       }
     }
 
