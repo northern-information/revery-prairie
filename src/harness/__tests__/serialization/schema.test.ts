@@ -69,6 +69,7 @@ const EXPECTED_FIELDS = [
   'lastDialogTypingTick',
   'glintingCoins',
   'zoom',
+  'civilizationRuins',
 ].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {

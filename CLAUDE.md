@@ -63,7 +63,10 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/coordinates.ts` — screen pixel to world tile coordinate transform.
 - `src/engine/camera.ts` — camera positioning and viewport clamping.
 - `src/engine/weather.ts` — weather generation, tick drift, unit conversion.
-- `src/engine/terrain.ts` — map generation with randomized coastline.
+- `src/engine/terrain.ts` — map generation with randomized coastline. exports `smoothNoiseSeeded` for reuse by genesis.
+- `src/engine/genesis.ts` — geological genesis simulation. 14-epoch state machine, terrain mutations, soil accumulation, civilization ruin generation, per-epoch rendering. `createGenesisState`, `tickGenesis`, `extractGenesisResult`, `runAllMutations`, `nameToSeed`.
+- `src/engine/genesisTypes.ts` — genesis type definitions: `GenesisEpoch`, `GenesisSimState`, `CivilizationRuin`, `GenesisResult`, `GenesisTileRender`.
+- `src/engine/genesisRenderer.ts` — canvas rendering for the genesis simulation. commentary overlay, skip hint. `renderGenesis`.
 - `src/engine/cave.ts` — cave generation (semi-random layout with breakable wall and hidden chamber), zone transition functions (`enterCave`, `exitCave`, `checkTransition`).
 - `src/engine/characters.ts` — character definitions (including ghost factory), dialog trees, interaction logic.
 - `src/engine/input.ts` — key-to-direction mapping for WASD and arrow keys.
@@ -75,6 +78,7 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/manual.ts` — prairie manual entry types, `MANUAL_ENTRIES` registry, `MANUAL_LORE` table, builder functions, `recordDiscovery`, `filterManualEntries`, `isDiscovered`.
 - `src/engine/audio.ts` — two-layer audio manager singleton. `setAmbient`, `startDialogMusic`, `stopDialogMusic`, `stopAll`, `setMusicEnabled`. manages ambient (zone) and dialog (character) HTMLAudioElements with rAF crossfading.
 - `src/components/ActionBar.tsx` — bottom-center action bar with 4 slots, animated glyphs, cooldown sweep overlay, drag-to-assign.
+- `src/components/GenesisScreen.tsx` — genesis simulation screen. mounts canvas, runs own rAF loop, skip-on-keypress, calls `onComplete` with `GenesisResult`.
 - `src/components/GameScreen.tsx` — main game container orchestrating canvas, sidebar, inventory, menu, manual, dialogs, toasts, action bar.
 - `src/components/ManualPanel.tsx` — prairie manual panel with category tabs, search, entry cards, spoiler hints, cross-ref navigation.
 - `src/components/GameCanvas.tsx` — canvas element, rAF render via game loop, resize handling, HiDPI.
@@ -356,9 +360,56 @@ clover needs light and water to survive. without either, it slowly dies through 
 - **cut** (`[x]`): facing tile → dirt when no inventory item hovered. soil enrichment (`SOIL_HEALTH_CUT_BONUS`). no item.
 - **tick systems**: `clover-lifecycle-overworld` (priority 52) and `clover-lifecycle-cave` (priority 52) in `gameLoop.ts`.
 
+## genesis
+
+geological simulation that runs between name entry and gameplay. compresses a billion years of planetary history into ~25 seconds. the simulation generates the terrain, soil health map, and civilization ruin data — replacing the old static `generateTerrain`/`generateSoilHealth` pipeline.
+
+### app flow
+
+`NamePrompt → GenesisScreen → GameScreen`. the `GenesisScreen` runs its own `requestAnimationFrame` loop (separate from the game loop — no ECS, no tick systems). on completion it passes a `GenesisResult` (terrain, soil health, ruins) to `GameScreen`, which forwards it to `createGameState`.
+
+### deterministic seeding
+
+`nameToSeed(stewardName)` hashes the name to a seed for `mulberry32` PRNG. same name = same world. the seeded RNG drives all terrain noise, volcanic placement, glacial paths, river walks, ruin sites, and fire spread.
+
+### epochs (14 total)
+
+each epoch has `id`, `durationMs`, `commentary`, `mutate(sim)`, and `renderTile(sim, x, y, progress, time)`. the epoch array is `GENESIS_EPOCHS` in `genesis.ts`. adding/removing/reordering epochs automatically updates the manual entry.
+
+1. **cosmic formation** (1.5s) — stars expand from center
+2. **planetary accretion** (1.5s) — matter coalesces into mass
+3. **magma era** (2s) — molten surface, volcanic hotspots generated, soil +20 at hotspots
+4. **crust cooling** (2s) — edge-inward cooling, volcanic flare-backs
+5. **first water** (2s) — oceans form, ancient seabeds marked, soil +20 near coast
+6. **emergence of life** (2s) — green spreads from water's edge, vegetation map seeded, soil +5
+7. **fire season** (1.5s) — wildfire via cellular automaton, ash enrichment soil +10, edge effect +3
+8. **regrowth** (1.5s) — post-fire recovery, brighter green on burn scars, soil +5
+9. **ice age** (2.5s) — glaciers advance/recede from top/bottom, soil -15 in glacial paths
+10. **post-glacial die-off** (1.5s) — mass vegetation death, decomposition soil +8
+11. **warm period** (2s) — rivers carved via random walk, deltas soil +25, adjacency +10, all dirt +5, optional 2nd fire (30%)
+12. **rise of civilizations** (2s) — 3-5 ruin sites at strategic locations, aqueduct networks with box drawing chars (`─│┬┴├┤┼═║`), multi-glyph layered buildings (`▓▒░█`), soil +15
+13. **fall of civilizations** (2s) — staged decay (3 layers → 2 → 1 → gone), aqueducts last to disappear, soil +5
+14. **present day** (1s) — finalize terrain, scatter sandbars, clamp soil to [10, 100]
+
+### civilization ruins
+
+`GameState.civilizationRuins: CivilizationRuin[]` — data-only, read after genesis. each ruin has `position`, `name`, `radius`, `age`, `aqueductPaths`, `buildingFootprints`. aqueduct junctions inform cave entrance placement. extension point for future underground exploration.
+
+multi-glyph rendering: during rise/fall epochs, ruin tiles render 2-3 characters at sub-pixel offsets to create a dense, messy palimpsest. the `renderTile` return type is `GenesisTileRender[]` (array of `{ char, color, dx, dy }`). all ruin colors are grays (`#666`-`#AAA`).
+
+### skip mechanism
+
+- press any key during genesis → fast-forward (run remaining mutations synchronously, call `onComplete`)
+- dev auto-skip: `?skipGenesis=true` URL param in dev mode → instant skip
+- tests: never run the visual simulation. use `runAllMutations()` for synchronous result, or skip genesis entirely (the `genesisResult` parameter on `createGameState` is optional — omitting it falls back to the old `generateTerrain`/`generateSoilHealth`).
+
+### field ownership
+
+- `civilizationRuins` — **single-owner.** set once during `createGameState` from `GenesisResult.ruins`. read-only after init.
+
 ## soil health
 
-`soilHealth: Map<string, number>` on GameState, keyed by posKey. default value for absent keys is `SOIL_HEALTH_DEFAULT` (50). max is `SOIL_HEALTH_MAX` (100). enriched by natural clover death and cutting. not enriched by harvesting. visible in sidebar when hovering clover or dirt tiles. single number for now — future: mycelium density, worms.
+`soilHealth: Map<string, number>` on GameState, keyed by posKey. default value for absent keys is `SOIL_HEALTH_DEFAULT` (50). max is `SOIL_HEALTH_MAX` (100). when genesis runs, soil health is geologically derived (base 30, accumulated through 14 epochs, clamped to [10, 100]). without genesis, the old layered noise generation is used. enriched at runtime by natural clover death and cutting. not enriched by harvesting. visible in sidebar when hovering clover or dirt tiles. single number for now — future: mycelium density, worms.
 
 ## music
 

@@ -5,19 +5,28 @@ import { TileType } from './types'
 import type { Tile } from './types'
 
 // Simple 1D noise — smoothly varying random values
-const smoothNoise = (length: number, amplitude: number, wavelength: number): number[] => {
+// Seeded variant accepts an rng function; Math.random used as default.
+export const smoothNoiseSeeded = (
+  length: number,
+  amplitude: number,
+  wavelength: number,
+  rng: () => number
+): number[] => {
   const result: number[] = []
   let prev = 0
   for (let i = 0; i < length; i++) {
     if (i % wavelength === 0) {
-      prev = (Math.random() - 0.5) * 2 * amplitude
+      prev = (rng() - 0.5) * 2 * amplitude
     }
-    const next = i + wavelength < length ? (Math.random() - 0.5) * 2 * amplitude : prev
+    const next = i + wavelength < length ? (rng() - 0.5) * 2 * amplitude : prev
     const t = (i % wavelength) / wavelength
     result.push(Math.round(prev + (next - prev) * t))
   }
   return result
 }
+
+const smoothNoise = (length: number, amplitude: number, wavelength: number): number[] =>
+  smoothNoiseSeeded(length, amplitude, wavelength, Math.random)
 
 const scatterSandbars = (map: Tile[][], width: number, height: number) => {
   const count = Math.floor((width + height) / 4)

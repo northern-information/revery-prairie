@@ -12,10 +12,16 @@ import { generateSoilHealth, generateTerrain } from './terrain'
 import { Rotation, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 
+import type { GenesisResult } from './genesisTypes'
 import type { GameState, Position } from './types'
 
-export const createGameState = (stewardName: string, viewportWidth: number, viewportHeight: number): GameState => {
-  const map = generateTerrain(MAP_WIDTH, MAP_HEIGHT)
+export const createGameState = (
+  stewardName: string,
+  viewportWidth: number,
+  viewportHeight: number,
+  genesisResult?: GenesisResult
+): GameState => {
+  const map = genesisResult?.terrain ?? generateTerrain(MAP_WIDTH, MAP_HEIGHT)
   const playerX = Math.floor(MAP_WIDTH / 2)
   const playerY = Math.floor(MAP_HEIGHT / 2)
 
@@ -122,7 +128,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     },
     cloverGrowthPreviews: new Set<string>(),
     cloverLifecycle: new Map(),
-    soilHealth: generateSoilHealth(map, MAP_WIDTH, MAP_HEIGHT),
+    soilHealth: genesisResult?.soilHealth ?? generateSoilHealth(map, MAP_WIDTH, MAP_HEIGHT),
     manualDiscoveries: new Set<string>(['item:bee', 'item:clover', 'item:permacomputer']),
     manualState: {
       activeCategory: null,
@@ -131,6 +137,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     },
     lastDialogTypingTick: 0,
     glintingCoins: new Set<string>(),
+    civilizationRuins: genesisResult?.ruins ?? [],
   }
 
   // Place Gron near the player

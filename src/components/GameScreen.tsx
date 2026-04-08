@@ -23,17 +23,19 @@ import { useMusic } from '@/hooks/useMusic'
 
 import type { DragState } from '@/hooks/useInventoryDrag'
 import type { ItemInfoHandle } from './ItemInfo'
+import type { GenesisResult } from '@/engine/genesisTypes'
 import type { CharMetrics } from '@/engine/types'
 
 interface GameScreenProps {
   stewardName: string
+  genesisResult?: GenesisResult
   onRestart: () => void
 }
 
-export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
+export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreenProps) => {
   // uiVersion is destructured to subscribe GameScreen to the useState counter.
   // refreshUI() increments it, triggering re-renders when engine state mutates.
-  const { state, refreshUI, uiVersion } = useGameEngine(stewardName, 80, 40)
+  const { state, refreshUI, uiVersion } = useGameEngine(stewardName, 80, 40, genesisResult)
   void uiVersion
   const itemInfoRef = useRef<ItemInfoHandle>(null)
   const metricsRef = useRef<CharMetrics | null>(null)

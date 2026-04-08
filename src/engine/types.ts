@@ -1,3 +1,4 @@
+import type { CivilizationRuin } from './genesisTypes'
 import type { World } from './ecs/world'
 
 export const TileType = {
@@ -181,6 +182,7 @@ export interface GameState {
   manualState: ManualState
   lastDialogTypingTick: number
   glintingCoins: Set<string>
+  civilizationRuins: CivilizationRuin[]
 }
 
 export const CloverStage = {
