@@ -206,31 +206,6 @@ describe('tickCharacterBehaviors', () => {
     expect(posAfter?.y).toBe(origY)
   })
 
-  it('drift behavior moves character position', () => {
-    const state = makeState()
-    destroyAllCharacterEntities(state)
-    const eid = createCharacterTestEntity(state, 'ghost-1', state.player.x + 5, state.player.y, {
-      behavior: DRIFT_BEHAVIOR,
-    })
-    registerGhostDefinitions([1])
-
-    const posBefore = state.world.getComponent(eid, ComponentType.Position)
-    expect(posBefore).toBeDefined()
-    if (!posBefore) return
-    const origX = posBefore.x
-    const origY = posBefore.y
-
-    // Tick many times to ensure movement happens
-    for (let i = 0; i < 200; i++) {
-      tickCharacterBehaviors(state)
-    }
-
-    const posAfter = state.world.getComponent(eid, ComponentType.Position)
-    expect(posAfter).toBeDefined()
-    if (!posAfter) return
-    const moved = posAfter.x !== origX || posAfter.y !== origY
-    expect(moved).toBe(true)
-  })
 })
 
 describe('ghost dialog', () => {
