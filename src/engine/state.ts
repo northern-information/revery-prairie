@@ -1,3 +1,4 @@
+import { autoAssignRevery } from './actionBar'
 import { generateCave } from './cave'
 import { registerGhostDefinitions } from './characters'
 import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, ZOOM_DEFAULT } from './constants'
@@ -199,6 +200,10 @@ export const createGameState = (
   createCharacterEntity(state, 'moab', { ...cave.npcSpot }, { zone: Zone.Cave })
 
   autoSort(backpack)
+
+  // Player starts with Earth Revery
+  state.reveries.push('earth')
+  autoAssignRevery(state, 'earth')
 
   return state
 }

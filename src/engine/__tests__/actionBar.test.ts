@@ -8,6 +8,7 @@ import {
   getFacingTile,
   getSlotCooldownFraction,
 } from '../actionBar'
+import { ComponentType } from '../ecs/types'
 import { createGameState } from '../state'
 import { TileType } from '../types'
 
@@ -46,6 +47,8 @@ describe('assignActionBarSlot', () => {
 
   it('ignores out-of-range indices', () => {
     const state = makeState()
+    // Clear pre-assigned earth revery for this test
+    state.actionBar[0] = null
     assignActionBarSlot(state, -1, 'revery', 'fire')
     assignActionBarSlot(state, 4, 'revery', 'fire')
 
@@ -66,7 +69,8 @@ describe('clearActionBarSlot', () => {
 describe('activateActionBarSlot', () => {
   it('returns false for empty slot', () => {
     const state = makeState()
-    expect(activateActionBarSlot(state, 0, 1000)).toBe(false)
+    // Slot 3 is empty (slot 0 has pre-assigned earth)
+    expect(activateActionBarSlot(state, 3, 1000)).toBe(false)
   })
 
   it('returns true and sets cooldown for revery slot', () => {
@@ -107,6 +111,41 @@ describe('activateActionBarSlot', () => {
 
     expect(activateActionBarSlot(state, 0, 1000)).toBe(false)
   })
+
+  it('activates scan-style revery from player position', () => {
+    const state = makeState()
+    assignActionBarSlot(state, 1, 'revery', 'earth')
+
+    const now = 5000
+    const result = activateActionBarSlot(state, 1, now)
+
+    expect(result).toBe(true)
+    expect(state.actionBar[1]?.cooldownEndTime).toBe(now + 6000)
+    expect(state.actionBar[1]?.cooldownDurationMs).toBe(6000)
+
+    // Should create ECS entity with Position (player pos), not MultiPosition
+    const entities = state.world
+      .query(ComponentType.TimedEffect, ComponentType.EntityTag)
+      .filter(eid => {
+        const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+        const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+        return tag === 'reveryCast' && effect?.reveryId === 'earth'
+      })
+    expect(entities).toHaveLength(1)
+
+    const eid = entities[0]
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    expect(pos).toEqual({ x: state.player.x, y: state.player.y })
+  })
+
+  it('records earth-revery discovery on scan activation', () => {
+    const state = makeState()
+    assignActionBarSlot(state, 1, 'revery', 'earth')
+
+    activateActionBarSlot(state, 1, 5000)
+
+    expect(state.manualDiscoveries.has('event:earth-revery')).toBe(true)
+  })
 })
 
 describe('getSlotCooldownFraction', () => {
@@ -134,18 +173,20 @@ describe('getSlotCooldownFraction', () => {
 describe('autoAssignRevery', () => {
   it('assigns to first empty slot', () => {
     const state = makeState()
+    // Slot 0 has earth pre-assigned, so fire goes to slot 1
     autoAssignRevery(state, 'fire')
 
-    expect(state.actionBar[0]?.kind).toBe('revery')
-    expect(state.actionBar[0]?.id).toBe('fire')
+    expect(state.actionBar[1]?.kind).toBe('revery')
+    expect(state.actionBar[1]?.id).toBe('fire')
   })
 
   it('skips filled slots', () => {
     const state = makeState()
-    assignActionBarSlot(state, 0, 'revery', 'fire')
+    // Slot 0 = earth (pre-assigned), slot 1 = fire
+    assignActionBarSlot(state, 1, 'revery', 'fire')
     autoAssignRevery(state, 'water')
 
-    expect(state.actionBar[1]?.id).toBe('water')
+    expect(state.actionBar[2]?.id).toBe('water')
   })
 
   it('does nothing when all slots are full', () => {

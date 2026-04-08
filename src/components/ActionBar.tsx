@@ -8,6 +8,7 @@ import type { DragState } from '@/hooks/useInventoryDrag'
 
 const SLOT_SIZE = 48
 const COOLDOWN_GOLD = '#DAA520'
+const READY_PULSE_MS = 600
 
 interface ActionBarProps {
   state: GameState
@@ -51,6 +52,19 @@ const CooldownOverlay = ({ fraction }: { fraction: number }) => {
   )
 }
 
+const ReadyPulse = ({ active }: { active: boolean }) => {
+  if (!active) return null
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 rounded"
+      style={{
+        boxShadow: '0 0 8px 2px rgba(255, 255, 255, 0.8), inset 0 0 4px rgba(255, 255, 255, 0.4)',
+        animation: `ready-pulse ${String(READY_PULSE_MS)}ms ease-out forwards`,
+      }}
+    />
+  )
+}
+
 const ActionBarSlotView = ({
   slot,
   index,
@@ -71,6 +85,17 @@ const ActionBarSlotView = ({
   onMouseLeave: () => void
 }) => {
   const cooldownFraction = slot ? getSlotCooldownFraction(slot, now) : 0
+  const prevFractionRef = useRef(0)
+  const [readyPulseKey, setReadyPulseKey] = useState<number | null>(null)
+
+  // Detect cooldown completion: fraction was >0, now is 0
+  if (prevFractionRef.current > 0 && cooldownFraction === 0) {
+    setReadyPulseKey(now)
+  }
+  prevFractionRef.current = cooldownFraction
+
+  // Clear pulse after animation duration
+  const isPulsing = readyPulseKey !== null && now - readyPulseKey < READY_PULSE_MS
 
   const glyph = slot ? getSlotGlyph(slot) : ''
   const slotBgColor = slot ? getSlotColor(slot) : ''
@@ -101,6 +126,7 @@ const ActionBarSlotView = ({
         </span>
       )}
       <CooldownOverlay fraction={cooldownFraction} />
+      <ReadyPulse active={isPulsing} />
       <span className="absolute right-1 bottom-0.5 z-10 text-[10px]" style={{ color: slot ? '#1a1a1a' : 'var(--color-dim)' }}>
         {String(index + 1)}
       </span>

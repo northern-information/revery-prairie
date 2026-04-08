@@ -152,6 +152,15 @@ export const SOIL_HEALTH_WATER_REVERY_BONUS = 10
 export const SOIL_HEALTH_FIRE_REVERY_BONUS = 25
 export const CLOVER_WATER_REVERY_FILL = 50
 
+// earth revery (soil scan)
+export const EARTH_SCAN_EXPAND_MS = 1500
+export const EARTH_SCAN_HOLD_MS = 2500
+export const EARTH_SCAN_FADE_MS = 1500
+export const EARTH_SCAN_RADIUS = 20
+// red → green gradient (0 = depleted, 100 = thriving)
+export const EARTH_SCAN_COLOR_LOW = '#FF3333' // red — depleted
+export const EARTH_SCAN_COLOR_HIGH = '#33CC33' // green — thriving
+
 export const PLAYER_CHAR = '@'
 export const PLAYER_COLOR = '#FFFFFF'
 export const TRAIL_DURATION_MS = 1000

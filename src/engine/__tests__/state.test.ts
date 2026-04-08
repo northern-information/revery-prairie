@@ -32,10 +32,18 @@ describe('createGameState', () => {
     expect(containerHasItem(state.backpack, 'permacomputer')).toBe(true)
   })
 
-  it('starts with empty reveries and action bar', () => {
+  it('starts with earth revery pre-assigned', () => {
     const state = createGameState('Willow', 80, 40)
-    expect(state.reveries).toEqual([])
-    expect(state.actionBar).toEqual([null, null, null, null])
+    expect(state.reveries).toEqual(['earth'])
+    expect(state.actionBar[0]).toEqual({
+      kind: 'revery',
+      id: 'earth',
+      cooldownEndTime: 0,
+      cooldownDurationMs: 0,
+    })
+    expect(state.actionBar[1]).toBeNull()
+    expect(state.actionBar[2]).toBeNull()
+    expect(state.actionBar[3]).toBeNull()
     expect(state.giftsReceived.size).toBe(0)
   })
 

@@ -20,9 +20,13 @@ import type { GameState } from '@/engine/types'
 
 // --- mocks ---
 
-vi.mock('@/engine/actionBar', () => ({
-  activateActionBarSlot: vi.fn(() => false),
-}))
+vi.mock('@/engine/actionBar', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/engine/actionBar')>()
+  return {
+    ...actual,
+    activateActionBarSlot: vi.fn(() => false),
+  }
+})
 
 vi.mock('@/engine/entities', async importOriginal => {
   const actual = await importOriginal<typeof import('@/engine/entities')>()

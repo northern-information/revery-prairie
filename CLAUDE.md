@@ -105,7 +105,7 @@ entries are auto-derived at runtime from `ITEM_DEFINITIONS`, `RECIPES`, and `CHA
 
 discovery tracking: `manualDiscoveries: Set<string>` on GameState. structured keys: `item:<id>`, `recipe:<key>`, `character:<id>`, `zone:cave`, `event:<name>`. `recordDiscovery(state, key)` called at mutation points. undiscovered recipe results are behind spoiler blocks.
 
-hand-authored lore goes in `MANUAL_LORE` table in `manual.ts`. run `/maintain-manual` to audit for gaps.
+hand-authored lore goes in `MANUAL_LORE` table in `manual.ts`. run `/maintain-manual` to audit for gaps. **lore is written by humans only** — when adding new entries to `MANUAL_LORE`, use `{ lore: 'TODO' }` as a placeholder. never write lore text.
 
 **when adding new game content**: items, recipes, and characters auto-generate manual entries — no extra work. new entity types that don't fit existing registries must be added to `MANUAL_ONLY_ENTRIES` with a corresponding `recordDiscovery` call.
 
@@ -120,7 +120,9 @@ hand-authored lore goes in `MANUAL_LORE` table in `manual.ts`. run `/maintain-ma
 
 key items that don't occupy inventory grid space. stored as `state.reveries: string[]`. given as gifts by characters on dialog completion.
 
-registry in `src/engine/reveries.ts`. current reveries: `fire` (from Moab) and `water` (from Gron). mechanics deferred — pressing the action bar slot plays cooldown sweep as a dry fire.
+registry in `src/engine/reveries.ts`. current reveries: `earth` (starting revery), `fire` (from Moab), and `water` (from Gron).
+
+`earth` uses `castStyle: 'scan'` — radiates a 20-tile radius soil health visualization from the player position. black → green gradient (black = depleted, green = thriving). works in both overworld and cave. three phases: radial expansion (1.5s), hold (2.5s), radial wave fade-out (1.5s). purely diagnostic — no gameplay effects. skips space and impassable cave walls.
 
 ## character gifts
 
