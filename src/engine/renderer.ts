@@ -46,7 +46,6 @@ import {
   EARTH_SCAN_FADE_MS,
   EARTH_SCAN_RADIUS,
   EARTH_SCAN_COLOR_LOW,
-  EARTH_SCAN_COLOR_MID,
   EARTH_SCAN_COLOR_HIGH,
   EARTH_SCAN_CHAR,
   SOIL_HEALTH_DEFAULT,
@@ -97,13 +96,10 @@ const lerpColor = (from: string, to: string, t: number): string => {
   return `rgb(${String(r)},${String(g)},${String(b)})`
 }
 
-// Map soil health (0–100) to red → white → cyan gradient
+// Map soil health (0–100) to black → green gradient
 const soilHealthColor = (health: number): string => {
   const t = Math.max(0, Math.min(health / 100, 1))
-  if (t <= 0.5) {
-    return lerpColor(EARTH_SCAN_COLOR_LOW, EARTH_SCAN_COLOR_MID, t * 2)
-  }
-  return lerpColor(EARTH_SCAN_COLOR_MID, EARTH_SCAN_COLOR_HIGH, (t - 0.5) * 2)
+  return lerpColor(EARTH_SCAN_COLOR_LOW, EARTH_SCAN_COLOR_HIGH, t)
 }
 
 export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
@@ -432,9 +428,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
 
         const tileType = map[my][mx].type
-        if (tileType === TileType.Space || tileType === TileType.CaveFloor ||
-            tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall ||
-            tileType === TileType.CaveEntrance) continue
+        if (tileType === TileType.Space || tileType === TileType.CaveWall ||
+            tileType === TileType.CaveBreakableWall) continue
 
         const key = posKey(mx, my)
         if (mx === player.x && my === player.y) continue
