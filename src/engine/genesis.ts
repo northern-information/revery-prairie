@@ -1981,11 +1981,12 @@ const fallOfCivilizations: GenesisEpoch = {
       return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
 
-    // Drought wilt — vegetation dies radiating from edges toward Gron
-    if (veg <= 0 && progress > 0.4) {
+    // Drought wilt — dead vegetation shows green then wilts toward Gron
+    if (veg <= 0) {
       const maxDist = Math.max(sim.width, sim.height) * 0.5
       const scatter = ((h % 30) - 15) + (((h >>> 8) % 20) - 10)
       const effectiveDist = dToGron + scatter
+      // Wilt starts after buildings begin decaying (0.4), radiates inward
       const wiltDelay = 0.4 + clamp(1 - effectiveDist / maxDist, 0, 0.5)
 
       if (progress > wiltDelay) {
@@ -1999,13 +2000,13 @@ const fallOfCivilizations: GenesisEpoch = {
         return renderDirt(sim, key, h)
       }
 
-      // Before wilt reaches this tile — show as green
+      // Before wilt reaches this tile — show as green (seamless from previous epoch)
       const greenColors = ['#2E8B57', '#3CB371', '#50C878']
       const gi = h % greenColors.length
       return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
 
-    // Vegetation still alive (first half of epoch)
+    // Vegetation still alive (within Gron's aura, rendered above)
     const vegRender = renderVegetation(sim, x, y, h)
     if (vegRender) return vegRender
 
