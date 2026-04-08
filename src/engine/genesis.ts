@@ -7,6 +7,7 @@ import type { Tile } from './types'
 import type {
   CivilizationRuin,
   GenesisEpoch,
+  GenesisMeteorStreak,
   GenesisResult,
   GenesisSimState,
   GenesisTileRender,
@@ -568,25 +569,77 @@ const emergenceOfLife: GenesisEpoch = {
 // Epoch: Fire Season
 // ---------------------------------------------------------------------------
 
+/** Generate a meteorite streak targeting a specific land position. */
+const createMeteorStreak = (
+  sim: GenesisSimState,
+  impactX: number,
+  impactY: number,
+  index: number,
+): GenesisMeteorStreak => {
+  // Pick a radiant direction
+  const directions = [
+    { dx: 1, dy: 1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 }, { dx: -1, dy: -1 },
+    { dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 },
+  ]
+  const dir = directions[Math.floor(sim.rng() * directions.length)]
+
+  // Trace backward from impact to find off-map start
+  let sx = impactX
+  let sy = impactY
+  while (sx >= -5 && sx < sim.width + 5 && sy >= -5 && sy < sim.height + 5) {
+    sx -= dir.dx
+    sy -= dir.dy
+  }
+
+  const length = 3 + Math.floor(sim.rng() * 4)
+  // Stagger start times across the first 30% of the epoch
+  const startTime = (index / 8) * 0.3
+
+  return { startX: sx, startY: sy, dx: dir.dx, dy: dir.dy, impactX, impactY, length, startTime }
+}
+
 const fireSeason: GenesisEpoch = {
   id: GenesisEpochId.FireSeason,
-  durationMs: 1500,
-  commentary: 'wildfire sweeps the plains...',
+  durationMs: 2000,
+  commentary: 'the sky ignites...',
   mutate: (sim) => {
-    // Spawn 2-3 fire fronts and spread via cellular automaton
-    const fireStarts: string[] = []
     const landKeys = [...sim.landMask]
-    const numFires = 2 + Math.floor(sim.rng() * 2)
 
-    for (let i = 0; i < numFires; i++) {
-      const key = landKeys[Math.floor(sim.rng() * landKeys.length)]
-      fireStarts.push(key)
+    // Generate 5-8 meteorite impact targets on land
+    const numMeteors = 5 + Math.floor(sim.rng() * 4)
+    const impactKeys: string[] = []
+
+    for (let i = 0; i < numMeteors; i++) {
+      // Pick a vegetated land tile for maximum drama
+      for (let attempt = 0; attempt < 50; attempt++) {
+        const candidate = landKeys[Math.floor(sim.rng() * landKeys.length)]
+        const veg = sim.vegetationMap.get(candidate) ?? 0
+        if (veg > 20) {
+          impactKeys.push(candidate)
+          break
+        }
+        // Last resort: any land tile
+        if (attempt === 49) {
+          impactKeys.push(candidate)
+        }
+      }
     }
 
-    // BFS fire spread
+    // Fallback: ensure at least 2 ignition points
+    while (impactKeys.length < 2) {
+      impactKeys.push(landKeys[Math.floor(sim.rng() * landKeys.length)])
+    }
+
+    // Create meteorite streak data for rendering
+    for (let i = 0; i < impactKeys.length; i++) {
+      const [xStr, yStr] = impactKeys[i].split(',')
+      sim.meteorites.push(createMeteorStreak(sim, Number(xStr), Number(yStr), i))
+    }
+
+    // BFS fire spread from each impact point
     const burned = new Set<string>()
-    const queue = [...fireStarts]
-    const maxBurn = Math.floor(landKeys.length * 0.4)
+    const queue = [...impactKeys]
+    const maxBurn = Math.floor(landKeys.length * 0.6)
 
     while (queue.length > 0 && burned.size < maxBurn) {
       const key = queue.shift()
@@ -601,13 +654,13 @@ const fireSeason: GenesisEpoch = {
       const bx = Number(xStr)
       const by = Number(yStr)
 
-      // Spread to neighbors — probability proportional to vegetation
+      // Spread to neighbors — higher probability than before (veg/90 vs veg/120)
       const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]]
       for (const [ddx, ddy] of dirs) {
         const nk = posKey(bx + ddx, by + ddy)
         if (!burned.has(nk) && sim.landMask.has(nk)) {
           const nVeg = sim.vegetationMap.get(nk) ?? 0
-          if (sim.rng() < nVeg / 120) {
+          if (sim.rng() < nVeg / 90) {
             queue.push(nk)
           }
         }
@@ -618,7 +671,6 @@ const fireSeason: GenesisEpoch = {
     for (const key of burned) {
       sim.burnScars.add(key)
       sim.vegetationMap.set(key, 0)
-      // Ash enrichment
       sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 10)
     }
 
@@ -642,14 +694,52 @@ const fireSeason: GenesisEpoch = {
     const key = posKey(x, y)
     const h = tileHash(x, y)
 
+    // Meteorite streaks render over everything (including space)
+    for (const meteor of sim.meteorites) {
+      // How far along is this meteor? Each animates over ~15% of epoch duration
+      const meteorProgress = clamp((progress - meteor.startTime) / 0.15, 0, 1)
+      if (meteorProgress <= 0 || meteorProgress >= 1) continue
+
+      // Current head position interpolated from start to impact
+      const totalSteps = Math.abs(meteor.impactX - meteor.startX) + Math.abs(meteor.impactY - meteor.startY)
+      const currentStep = Math.floor(meteorProgress * totalSteps)
+      const headX = meteor.startX + meteor.dx * currentStep
+      const headY = meteor.startY + meteor.dy * currentStep
+
+      // Check if this tile is the head or trail
+      for (let t = 0; t < meteor.length; t++) {
+        const tx = headX - meteor.dx * t
+        const ty = headY - meteor.dy * t
+        if (tx === x && ty === y) {
+          if (t === 0) {
+            return [{ char: '*', color: '#FFFFFF', dx: 0, dy: 0 }]
+          }
+          const trailChars = ['.', '·', ',']
+          const trailColors = ['#FFD700', '#FF6347', '#FF4500']
+          return [{ char: trailChars[t % trailChars.length], color: trailColors[t % trailColors.length], dx: 0, dy: 0 }]
+        }
+      }
+
+      // Impact explosion flash
+      if (meteorProgress > 0.9) {
+        const impactDist = Math.abs(x - meteor.impactX) + Math.abs(y - meteor.impactY)
+        if (impactDist <= 2) {
+          const flashChars = ['*', '+', '·']
+          const flashColors = ['#FFFFFF', '#FFD700', '#FF4500']
+          return [{ char: flashChars[impactDist % flashChars.length], color: flashColors[impactDist % flashColors.length], dx: 0, dy: 0 }]
+        }
+      }
+    }
+
     if (!sim.landMask.has(key)) {
       if (sim.coastlineTiles.has(key)) return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
       if (h % 3 === 0) return [{ char: '~', color: '#4466AA', dx: 0, dy: 0 }]
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
+    // Fire visuals start after meteor shower phase (30% into epoch)
     const isBurned = sim.burnScars.has(key)
-    const burnDelay = (h % 100) / 100 * 0.5 // Stagger burn visuals
+    const burnDelay = 0.3 + (h % 100) / 100 * 0.3
 
     if (isBurned && progress > burnDelay) {
       const burnProgress = clamp((progress - burnDelay) / 0.4, 0, 1)
@@ -755,36 +845,82 @@ const iceAge: GenesisEpoch = {
   durationMs: 2500,
   commentary: 'glaciers advance...',
   mutate: (sim) => {
+    // Snapshot vegetation before glaciers destroy it (for dramatic render)
+    for (const [key, value] of sim.vegetationMap) {
+      sim.preGlacialVegetation.set(key, value)
+    }
+
+    // Generate smooth noise for glacier edges (organic lobes, not sawtooth)
+    sim.glacialEdgeNoise = {
+      top: smoothNoiseSeeded(sim.width, 7, 12, sim.rng),
+      bottom: smoothNoiseSeeded(sim.width, 7, 12, sim.rng),
+    }
+
     // Glaciers advance from top and bottom
     const glacialDepth = Math.floor(sim.height * 0.2)
 
     for (const key of sim.landMask) {
-      const [, yStr] = key.split(',')
+      const [xStr, yStr] = key.split(',')
+      const x = Number(xStr)
       const y = Number(yStr)
       const topDist = y - SPACE_BORDER
       const bottomDist = (sim.height - SPACE_BORDER) - y
 
       // Is this tile in the glacial zone?
-      const inGlacial = topDist < glacialDepth || bottomDist < glacialDepth
+      const inGlacial = topDist < glacialDepth + 8 || bottomDist < glacialDepth + 8
 
       if (inGlacial) {
-        // Add some noise to the glacial edge
-        const [xStr] = key.split(',')
-        const x = Number(xStr)
-        const h = tileHash(x, y)
-        const edgeNoise = (h % 5) - 2
+        // Smooth noise edge offsets per column
+        const topNoise = sim.glacialEdgeNoise.top[x] ?? 0
+        const bottomNoise = sim.glacialEdgeNoise.bottom[x] ?? 0
 
-        const effectiveTopDist = topDist + edgeNoise
-        const effectiveBottomDist = bottomDist + edgeNoise
+        const effectiveTopDepth = glacialDepth + topNoise
+        const effectiveBottomDepth = glacialDepth + bottomNoise
 
-        if (effectiveTopDist < glacialDepth || effectiveBottomDist < glacialDepth) {
+        if (topDist < effectiveTopDepth || bottomDist < effectiveBottomDepth) {
           sim.glacialPaths.add(key)
           sim.soilHealth.set(key, Math.max(10, (sim.soilHealth.get(key) ?? 30) - 15))
           sim.vegetationMap.set(key, 0)
 
           // Random patches hit minimum
+          const h = tileHash(x, y)
           if (h % 7 === 0) {
             sim.soilHealth.set(key, 10)
+          }
+        }
+      }
+    }
+
+    // Generate meltwater pools at glacier edges
+    const edgeTiles: string[] = []
+    for (const key of sim.glacialPaths) {
+      const [xStr, yStr] = key.split(',')
+      const gx = Number(xStr)
+      const gy = Number(yStr)
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      for (const [ddx, ddy] of dirs) {
+        const nk = posKey(gx + ddx, gy + ddy)
+        if (sim.landMask.has(nk) && !sim.glacialPaths.has(nk)) {
+          edgeTiles.push(nk)
+          break
+        }
+      }
+    }
+    // Pick a few melt pool sites
+    const numMeltPools = 3 + Math.floor(sim.rng() * 4)
+    for (let i = 0; i < numMeltPools && edgeTiles.length > 0; i++) {
+      const idx = Math.floor(sim.rng() * edgeTiles.length)
+      const poolCenter = edgeTiles[idx]
+      sim.meltPools.add(poolCenter)
+      // Small cluster around center
+      const [pxStr, pyStr] = poolCenter.split(',')
+      const px = Number(pxStr)
+      const py = Number(pyStr)
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nk = posKey(px + dx, py + dy)
+          if (sim.landMask.has(nk) && !sim.glacialPaths.has(nk) && sim.rng() < 0.5) {
+            sim.meltPools.add(nk)
           }
         }
       }
@@ -810,10 +946,16 @@ const iceAge: GenesisEpoch = {
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
       const glacialDepth = Math.floor(sim.height * 0.2)
+      const topNoise = sim.glacialEdgeNoise.top[x] ?? 0
+      const bottomNoise = sim.glacialEdgeNoise.bottom[x] ?? 0
+      const effectiveTopDepth = glacialDepth + topNoise
+      const effectiveBottomDepth = glacialDepth + bottomNoise
       const topDist = ty - SPACE_BORDER
       const bottomDist = (sim.height - SPACE_BORDER) - ty
-      const minDist = Math.min(topDist, bottomDist)
-      const coverThreshold = (minDist / glacialDepth) // 0 = edge, 1 = deepest
+      // Normalize distance: 0 at glacier origin (pole), 1 at deepest reach
+      const minDist = topDist < bottomDist ? topDist : bottomDist
+      const effectiveDepth = topDist < bottomDist ? effectiveTopDepth : effectiveBottomDepth
+      const coverThreshold = clamp(minDist / effectiveDepth, 0, 1)
 
       if (advanceProgress > coverThreshold && recedeProgress < (1 - coverThreshold * 0.8)) {
         // Ice
@@ -824,15 +966,34 @@ const iceAge: GenesisEpoch = {
         return [{ char: iceChars[ci], color: iceColors[ii], dx: 0, dy: 0 }]
       }
 
-      // Receded — barren
+      // Receded — barren ground or meltwater
       if (recedeProgress > 0) {
         return [{ char: '.', color: '#696969', dx: 0, dy: 0 }]
       }
+
+      // Ahead of glacier front — show pre-glacial vegetation being crushed
+      const preVeg = sim.preGlacialVegetation.get(key) ?? 0
+      if (preVeg > 20) {
+        const greenColors = ['#2E8B57', '#3CB371', '#50C878']
+        const gi = h % greenColors.length
+        return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
+      }
+      return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
     }
 
-    // Vegetation retreating from glacial edges
-    const veg = sim.vegetationMap.get(key) ?? 0
-    if (veg > 20) {
+    // Meltwater pools appear during recede phase
+    if (sim.meltPools.has(key) && progress > 0.6) {
+      const meltProgress = clamp((progress - 0.6) / 0.3, 0, 1)
+      if (meltProgress > (h % 100) / 100) {
+        const waterChars = ['~', '=', '-']
+        const ci = (h + Math.floor(time * 0.004)) % waterChars.length
+        return [{ char: waterChars[ci], color: '#6688BB', dx: 0, dy: 0 }]
+      }
+    }
+
+    // Non-glacial tiles show pre-glacial vegetation (snapshot from before mutate wiped it)
+    const preVeg = sim.preGlacialVegetation.get(key) ?? 0
+    if (preVeg > 20) {
       const greenColors = ['#2E8B57', '#3CB371']
       const gi = h % greenColors.length
       return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
@@ -915,7 +1076,7 @@ const postGlacialDieOff: GenesisEpoch = {
 
 const warmPeriod: GenesisEpoch = {
   id: GenesisEpochId.WarmPeriod,
-  durationMs: 2000,
+  durationMs: 2500,
   commentary: 'life rebounds, rivers form...',
   mutate: (sim) => {
     // Carve 2-4 rivers via random walk from high ground to coast
@@ -988,6 +1149,9 @@ const warmPeriod: GenesisEpoch = {
         ry = clamp(ry, 1, sim.height - 2)
       }
 
+      // Store ordered path for progressive reveal
+      sim.riverPathsOrdered.push(riverPath)
+
       // River adjacency enrichment
       for (const key of visited) {
         const [pxStr, pyStr] = key.split(',')
@@ -1003,13 +1167,71 @@ const warmPeriod: GenesisEpoch = {
       }
     }
 
+    // Small permanent ponds via flood-fill near river deltas and lowlands
+    // 1-4 ponds, max 5 tiles each
+    const numPonds = 1 + Math.floor(sim.rng() * 4)
+    for (let p = 0; p < numPonds; p++) {
+      // Pick a seed tile near a river or melt pool
+      const waterAdjacent = [...sim.riverPaths, ...sim.meltPools]
+      if (waterAdjacent.length === 0) continue
+
+      const seedKey = waterAdjacent[Math.floor(sim.rng() * waterAdjacent.length)]
+      const [sxStr, syStr] = seedKey.split(',')
+      const sx = Number(sxStr)
+      const sy = Number(syStr)
+
+      // BFS flood-fill from an adjacent tile (not the river itself)
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      const offsets = dirs[Math.floor(sim.rng() * dirs.length)]
+      const pondSeed = posKey(sx + offsets[0], sy + offsets[1])
+
+      if (!sim.landMask.has(pondSeed) || sim.riverPaths.has(pondSeed) || sim.ponds.has(pondSeed)) continue
+
+      const pondQueue = [pondSeed]
+      const pondTiles = new Set<string>()
+      const maxPondSize = 2 + Math.floor(sim.rng() * 4) // 2-5
+
+      while (pondQueue.length > 0 && pondTiles.size < maxPondSize) {
+        const pk = pondQueue.shift()
+        if (!pk) continue
+        if (pondTiles.has(pk)) continue
+        if (!sim.landMask.has(pk) || sim.riverPaths.has(pk) || sim.ponds.has(pk)) continue
+
+        pondTiles.add(pk)
+        sim.ponds.add(pk)
+
+        const [pxStr, pyStr] = pk.split(',')
+        const px = Number(pxStr)
+        const py = Number(pyStr)
+        for (const [ddx, ddy] of dirs) {
+          const nk = posKey(px + ddx, py + ddy)
+          if (!pondTiles.has(nk) && sim.rng() < 0.6) {
+            pondQueue.push(nk)
+          }
+        }
+      }
+
+      // Pond adjacency enrichment
+      for (const pk of pondTiles) {
+        const [pxStr, pyStr] = pk.split(',')
+        const px = Number(pxStr)
+        const py = Number(pyStr)
+        for (const [ddx, ddy] of dirs) {
+          const nk = posKey(px + ddx, py + ddy)
+          if (sim.landMask.has(nk) && !sim.ponds.has(nk) && !sim.riverPaths.has(nk)) {
+            sim.soilHealth.set(nk, (sim.soilHealth.get(nk) ?? 30) + 8)
+          }
+        }
+      }
+    }
+
     // Life rebounds — all dirt gets baseline enrichment
     for (const key of sim.landMask) {
       sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 5)
 
       // Re-spread vegetation from coast and rivers
       if (sim.vegetationMap.get(key) === 0 || (sim.vegetationMap.get(key) ?? 0) < 20) {
-        const isNearWater = sim.riverPaths.has(key) || sim.ancientSeabeds.has(key)
+        const isNearWater = sim.riverPaths.has(key) || sim.ancientSeabeds.has(key) || sim.ponds.has(key)
         if (isNearWater) {
           sim.vegetationMap.set(key, 60 + Math.floor(sim.rng() * 30))
         } else {
@@ -1025,7 +1247,6 @@ const warmPeriod: GenesisEpoch = {
       const [fxStr, fyStr] = fireStart.split(',')
       const fx = Number(fxStr)
       const fy = Number(fyStr)
-      // Smaller fire — just affects nearby area
       for (let dy = -8; dy <= 8; dy++) {
         for (let dx = -8; dx <= 8; dx++) {
           const nk = posKey(fx + dx, fy + dy)
@@ -1049,8 +1270,33 @@ const warmPeriod: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
-    // Rivers
-    if (sim.riverPaths.has(key)) {
+    // Progressive river reveal — each river grows from source to coast
+    for (const riverPath of sim.riverPathsOrdered) {
+      if (riverPath.length === 0) continue
+      // Rivers reveal over the first 60% of the epoch
+      const revealProgress = clamp(progress / 0.6, 0, 1)
+      const visibleTiles = Math.floor(revealProgress * riverPath.length)
+      for (let i = 0; i < visibleTiles && i < riverPath.length; i++) {
+        if (riverPath[i].x === x && riverPath[i].y === y) {
+          const waterChars = ['~', '=', '-']
+          const ci = (h + Math.floor(time * 0.004)) % waterChars.length
+          return [{ char: waterChars[ci], color: '#6688BB', dx: 0, dy: 0 }]
+        }
+      }
+    }
+
+    // Ponds appear after rivers (at 50% progress)
+    if (sim.ponds.has(key) && progress > 0.5) {
+      const pondDelay = 0.5 + (h % 50) / 100
+      if (progress > pondDelay) {
+        const waterChars = ['~', '=']
+        const ci = (h + Math.floor(time * 0.003)) % waterChars.length
+        return [{ char: waterChars[ci], color: '#5577AA', dx: 0, dy: 0 }]
+      }
+    }
+
+    // Meltwater pools persist from ice age
+    if (sim.meltPools.has(key)) {
       const waterChars = ['~', '=', '-']
       const ci = (h + Math.floor(time * 0.004)) % waterChars.length
       return [{ char: waterChars[ci], color: '#6688BB', dx: 0, dy: 0 }]
@@ -1085,8 +1331,8 @@ const riseOfCivilizations: GenesisEpoch = {
   durationMs: 2000,
   commentary: 'civilizations arise...',
   mutate: (sim) => {
-    // Pick 3-5 ruin sites at strategic locations (high soil, near rivers/coast)
-    const numRuins = 3 + Math.floor(sim.rng() * 3)
+    // Pick 8-12 ruin sites at strategic locations (high soil, near rivers/coast)
+    const numRuins = 8 + Math.floor(sim.rng() * 5)
     const candidates: { key: string; score: number }[] = []
 
     for (const key of sim.landMask) {
@@ -1098,12 +1344,13 @@ const riseOfCivilizations: GenesisEpoch = {
 
     // Sort by score and pick from top candidates with some randomness
     candidates.sort((a, b) => b.score - a.score)
-    const topCandidates = candidates.slice(0, Math.floor(candidates.length * 0.15))
+    const topCandidates = candidates.slice(0, Math.floor(candidates.length * 0.25))
 
     const usedKeys = new Set<string>()
+    let failedAttempts = 0
 
-    for (let i = 0; i < numRuins && topCandidates.length > 0; i++) {
-      const idx = Math.floor(sim.rng() * Math.min(50, topCandidates.length))
+    for (let i = 0; i < numRuins && topCandidates.length > 0 && failedAttempts < 50; i++) {
+      const idx = Math.floor(sim.rng() * Math.min(80, topCandidates.length))
       const pick = topCandidates[idx]
       if (!pick) continue
 
@@ -1111,21 +1358,23 @@ const riseOfCivilizations: GenesisEpoch = {
       const cx = Number(xStr)
       const cy = Number(yStr)
 
-      // Ensure minimum distance between ruins
+      // Minimum distance between ruins — reduced to fit more on the map
       let tooClose = false
       for (const uKey of usedKeys) {
         const [uxStr, uyStr] = uKey.split(',')
-        if (dist(cx, cy, Number(uxStr), Number(uyStr)) < 15) {
+        if (dist(cx, cy, Number(uxStr), Number(uyStr)) < 10) {
           tooClose = true
           break
         }
       }
       if (tooClose) {
         i--
+        failedAttempts++
         topCandidates.splice(idx, 1)
         continue
       }
 
+      failedAttempts = 0
       usedKeys.add(pick.key)
       const radius = 3 + Math.floor(sim.rng() * 3)
       const buildingFootprints: { x: number; y: number }[] = []
@@ -1163,14 +1412,13 @@ const riseOfCivilizations: GenesisEpoch = {
       sim.ruins.push(ruin)
     }
 
-    // Generate aqueduct network connecting ruin sites
+    // Generate aqueduct network connecting ruin sites (increased distance)
     for (let i = 0; i < sim.ruins.length; i++) {
       for (let j = i + 1; j < sim.ruins.length; j++) {
         const r1 = sim.ruins[i]
         const r2 = sim.ruins[j]
         const d = dist(r1.position.x, r1.position.y, r2.position.x, r2.position.y)
-        // Connect ruins within reasonable distance
-        if (d > 60) continue
+        if (d > 90) continue
 
         const path: { x: number; y: number }[] = []
         let ax = r1.position.x
@@ -1181,19 +1429,15 @@ const riseOfCivilizations: GenesisEpoch = {
           const key = posKey(ax, ay)
           path.push({ x: ax, y: ay })
 
-          // Determine box drawing char based on direction
           const existing = sim.aqueductNetwork.get(key)
 
           if (existing) {
-            // Intersection
             sim.aqueductNetwork.set(key, BOX_CROSS)
             if (!sim.aqueductJunctions.some(j2 => j2.x === ax && j2.y === ay)) {
               sim.aqueductJunctions.push({ x: ax, y: ay })
             }
           } else if (ax !== r2.position.x && ay !== r2.position.y) {
-            // About to turn — place corner or straight
             if (sim.rng() < 0.5 && ax !== r2.position.x) {
-              // Horizontal first
               sim.aqueductNetwork.set(key, BOX_HORIZONTAL)
             } else {
               sim.aqueductNetwork.set(key, BOX_VERTICAL)
@@ -1204,16 +1448,13 @@ const riseOfCivilizations: GenesisEpoch = {
             sim.aqueductNetwork.set(key, sim.rng() < 0.15 ? BOX_DOUBLE_V : BOX_VERTICAL)
           }
 
-          // Move toward target with occasional jitter
           if (sim.rng() < 0.7) {
-            // Move along primary axis
             if (Math.abs(r2.position.x - ax) > Math.abs(r2.position.y - ay)) {
               ax += r2.position.x > ax ? 1 : -1
             } else {
               ay += r2.position.y > ay ? 1 : -1
             }
           } else {
-            // Jitter
             if (ax !== r2.position.x) ax += r2.position.x > ax ? 1 : -1
             if (ay !== r2.position.y) ay += r2.position.y > ay ? 1 : -1
           }
@@ -1222,14 +1463,14 @@ const riseOfCivilizations: GenesisEpoch = {
           ay = clamp(ay, SPACE_BORDER, sim.height - SPACE_BORDER - 1)
         }
 
-        // Add dead-end branches
-        const numBranches = Math.floor(sim.rng() * 3)
+        // More dead-end branches per connection (2-5)
+        const numBranches = 2 + Math.floor(sim.rng() * 4)
         for (let b = 0; b < numBranches; b++) {
           if (path.length === 0) continue
           const branchStart = path[Math.floor(sim.rng() * path.length)]
           let bx = branchStart.x
           let by = branchStart.y
-          const branchLen = 3 + Math.floor(sim.rng() * 5)
+          const branchLen = 3 + Math.floor(sim.rng() * 8)
           const branchDir = Math.floor(sim.rng() * 4)
 
           for (let s = 0; s < branchLen; s++) {
@@ -1251,6 +1492,62 @@ const riseOfCivilizations: GenesisEpoch = {
 
         r1.aqueductPaths.push(path)
         r2.aqueductPaths.push([...path].reverse())
+      }
+    }
+
+    // Standalone inland aqueduct clusters — chaotic networks unconnected to ruins
+    const landKeys = [...sim.landMask]
+    const numClusters = 4 + Math.floor(sim.rng() * 4)
+    for (let c = 0; c < numClusters; c++) {
+      // Pick a random inland origin
+      const originKey = landKeys[Math.floor(sim.rng() * landKeys.length)]
+      if (sim.coastlineTiles.has(originKey)) continue
+      const [oxStr, oyStr] = originKey.split(',')
+      let cx = Number(oxStr)
+      let cy = Number(oyStr)
+
+      // Random walk to carve a chaotic pipe network
+      const clusterLen = 10 + Math.floor(sim.rng() * 20)
+      for (let s = 0; s < clusterLen; s++) {
+        const ck = posKey(cx, cy)
+        if (sim.landMask.has(ck) && !sim.aqueductNetwork.has(ck)) {
+          const allChars = [BOX_HORIZONTAL, BOX_VERTICAL, BOX_T_DOWN, BOX_T_UP, BOX_T_RIGHT, BOX_T_LEFT, BOX_CROSS, BOX_DOUBLE_H, BOX_DOUBLE_V]
+          sim.aqueductNetwork.set(ck, allChars[Math.floor(sim.rng() * allChars.length)])
+        }
+
+        // Random walk with occasional direction changes
+        const dir = Math.floor(sim.rng() * 4)
+        switch (dir) {
+          case 0: cx++; break
+          case 1: cx--; break
+          case 2: cy++; break
+          default: cy--; break
+        }
+        cx = clamp(cx, SPACE_BORDER, sim.width - SPACE_BORDER - 1)
+        cy = clamp(cy, SPACE_BORDER, sim.height - SPACE_BORDER - 1)
+
+        // Branch off occasionally
+        if (sim.rng() < 0.3) {
+          let bx = cx
+          let by = cy
+          const bLen = 2 + Math.floor(sim.rng() * 5)
+          const bDir = Math.floor(sim.rng() * 4)
+          for (let bs = 0; bs < bLen; bs++) {
+            const bk = posKey(bx, by)
+            if (sim.landMask.has(bk) && !sim.aqueductNetwork.has(bk)) {
+              const branchChars = [BOX_HORIZONTAL, BOX_VERTICAL, BOX_T_DOWN, BOX_T_UP]
+              sim.aqueductNetwork.set(bk, branchChars[Math.floor(sim.rng() * branchChars.length)])
+            }
+            switch (bDir) {
+              case 0: bx++; break
+              case 1: bx--; break
+              case 2: by++; break
+              default: by--; break
+            }
+            bx = clamp(bx, SPACE_BORDER, sim.width - SPACE_BORDER - 1)
+            by = clamp(by, SPACE_BORDER, sim.height - SPACE_BORDER - 1)
+          }
+        }
       }
     }
   },
@@ -1580,6 +1877,12 @@ export const createGenesisState = (
     secondFireOccurred: false,
     landMask: new Set(),
     coastlineTiles: new Set(),
+    preGlacialVegetation: new Map(),
+    glacialEdgeNoise: { top: [], bottom: [] },
+    meteorites: [],
+    riverPathsOrdered: [],
+    meltPools: new Set(),
+    ponds: new Set(),
   }
 }
 
@@ -1617,6 +1920,7 @@ export const extractGenesisResult = (sim: GenesisSimState): GenesisResult => ({
   terrain: sim.grid,
   soilHealth: sim.soilHealth,
   ruins: sim.ruins,
+  ponds: sim.ponds,
 })
 
 export const getGenesisCommentary = (sim: GenesisSimState, epochs: GenesisEpoch[]): string => {

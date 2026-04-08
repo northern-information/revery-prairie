@@ -75,10 +75,40 @@ export interface GenesisSimState {
   landMask: Set<string>
   /** Coastline boundary tiles (sand zone) */
   coastlineTiles: Set<string>
+  /** Snapshot of vegetation map before glacier mutation, for dramatic render */
+  preGlacialVegetation: Map<string, number>
+  /** Per-column noise offsets for top and bottom glacier edges */
+  glacialEdgeNoise: { top: number[]; bottom: number[] }
+  /** Meteorite streak data for fire season animation */
+  meteorites: GenesisMeteorStreak[]
+  /** River paths as ordered arrays for progressive reveal */
+  riverPathsOrdered: { x: number; y: number }[][]
+  /** Glacier meltwater pool positions */
+  meltPools: Set<string>
+  /** Permanent small pond positions */
+  ponds: Set<string>
+}
+
+export interface GenesisMeteorStreak {
+  /** Starting position (off-map edge) */
+  startX: number
+  startY: number
+  /** Velocity per step */
+  dx: number
+  dy: number
+  /** Where the meteorite impacts land */
+  impactX: number
+  impactY: number
+  /** Trail length in tiles */
+  length: number
+  /** Normalized time (0-1) within the epoch when this streak begins */
+  startTime: number
 }
 
 export interface GenesisResult {
   terrain: Tile[][]
   soilHealth: Map<string, number>
   ruins: CivilizationRuin[]
+  /** Permanent pond positions (enriched soil, future water tile support) */
+  ponds: Set<string>
 }

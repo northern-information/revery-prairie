@@ -73,8 +73,8 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
       metricsCache = measureChar(ctx, currentZoomRef.current)
       const { charWidth, charHeight } = metricsCache
 
-      const vw = Math.floor(window.innerWidth / charWidth)
-      const vh = Math.floor(window.innerHeight / charHeight)
+      const vw = Math.ceil(window.innerWidth / charWidth)
+      const vh = Math.ceil(window.innerHeight / charHeight)
       const dpr = window.devicePixelRatio || 1
 
       const pxWidth = vw * charWidth

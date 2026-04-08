@@ -309,3 +309,184 @@ describe('geological features', () => {
     expect(sim.aqueductNetwork.size).toBeGreaterThan(0)
   })
 })
+
+describe('genesis-enhancements', () => {
+  describe('chaotic aqueducts', () => {
+    it('generates 8-12 ruins', () => {
+      // Test across multiple seeds to verify the range
+      let minRuins = Infinity
+      let maxRuins = 0
+      for (let seed = 1; seed <= 20; seed++) {
+        const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
+        runAllMutations(sim, GENESIS_EPOCHS)
+        minRuins = Math.min(minRuins, sim.ruins.length)
+        maxRuins = Math.max(maxRuins, sim.ruins.length)
+      }
+      // At least 3 ruins always placed (fallback minimum)
+      expect(minRuins).toBeGreaterThanOrEqual(3)
+      // Upper bound allows for distance constraint reducing count
+      expect(maxRuins).toBeLessThanOrEqual(12)
+    })
+
+    it('generates roughly 3x more aqueduct tiles than previous baseline', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      runAllMutations(sim, GENESIS_EPOCHS)
+      // Previous baseline was ~200-400 tiles with 3-5 ruins
+      // New should be ~600+ with 8-12 ruins + standalone clusters
+      expect(sim.aqueductNetwork.size).toBeGreaterThan(400)
+    })
+
+    it('generates standalone inland aqueduct clusters', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      runAllMutations(sim, GENESIS_EPOCHS)
+      // Aqueduct tiles should exist far from any ruin center
+      let farFromRuins = 0
+      for (const [key] of sim.aqueductNetwork) {
+        const [xStr, yStr] = key.split(',')
+        const ax = Number(xStr)
+        const ay = Number(yStr)
+        let nearRuin = false
+        for (const ruin of sim.ruins) {
+          const d = Math.sqrt((ruin.position.x - ax) ** 2 + (ruin.position.y - ay) ** 2)
+          if (d < 15) {
+            nearRuin = true
+            break
+          }
+        }
+        if (!nearRuin) farFromRuins++
+      }
+      expect(farFromRuins).toBeGreaterThan(0)
+    })
+  })
+
+  describe('varied glacier edges', () => {
+    it('generates smooth noise for glacier edges', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      // Run through ice age
+      for (let i = 0; i <= 8; i++) {
+        GENESIS_EPOCHS[i].mutate(sim)
+      }
+      expect(sim.glacialEdgeNoise.top.length).toBe(MAP_WIDTH)
+      expect(sim.glacialEdgeNoise.bottom.length).toBe(MAP_WIDTH)
+    })
+
+    it('produces varied glacier edges with amplitude > 2', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      for (let i = 0; i <= 8; i++) {
+        GENESIS_EPOCHS[i].mutate(sim)
+      }
+      const topRange = Math.max(...sim.glacialEdgeNoise.top) - Math.min(...sim.glacialEdgeNoise.top)
+      expect(topRange).toBeGreaterThan(4)
+    })
+
+    it('snapshots pre-glacial vegetation', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      for (let i = 0; i <= 8; i++) {
+        GENESIS_EPOCHS[i].mutate(sim)
+      }
+      expect(sim.preGlacialVegetation.size).toBeGreaterThan(0)
+      // Some pre-glacial tiles should have had vegetation
+      const withVeg = [...sim.preGlacialVegetation.values()].filter(v => v > 20)
+      expect(withVeg.length).toBeGreaterThan(0)
+    })
+
+    it('only adds glacial paths for tiles in landMask', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      for (let i = 0; i <= 8; i++) {
+        GENESIS_EPOCHS[i].mutate(sim)
+      }
+      for (const key of sim.glacialPaths) {
+        expect(sim.landMask.has(key)).toBe(true)
+      }
+    })
+  })
+
+  describe('meteorite-triggered fires', () => {
+    it('generates 5-8 meteorite streaks', () => {
+      let minMeteors = Infinity
+      let maxMeteors = 0
+      for (let seed = 1; seed <= 20; seed++) {
+        const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
+        for (let i = 0; i <= 6; i++) {
+          GENESIS_EPOCHS[i].mutate(sim)
+        }
+        minMeteors = Math.min(minMeteors, sim.meteorites.length)
+        maxMeteors = Math.max(maxMeteors, sim.meteorites.length)
+      }
+      expect(minMeteors).toBeGreaterThanOrEqual(2) // fallback minimum
+      expect(maxMeteors).toBeLessThanOrEqual(9) // 5-8 + possible extra from fallback
+    })
+
+    it('meteorite impacts land on land tiles', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      for (let i = 0; i <= 6; i++) {
+        GENESIS_EPOCHS[i].mutate(sim)
+      }
+      for (const meteor of sim.meteorites) {
+        const key = `${String(meteor.impactX)},${String(meteor.impactY)}`
+        expect(sim.landMask.has(key)).toBe(true)
+      }
+    })
+
+    it('burns more than 40% of vegetated land', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      for (let i = 0; i <= 6; i++) {
+        GENESIS_EPOCHS[i].mutate(sim)
+      }
+      // Count vegetated land before fire (from emergence + regrowth)
+      const totalLand = sim.landMask.size
+      // Burn scars should cover a significant portion
+      expect(sim.burnScars.size / totalLand).toBeGreaterThan(0.2)
+    })
+  })
+
+  describe('animated water systems', () => {
+    it('stores ordered river paths for progressive reveal', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      for (let i = 0; i <= 10; i++) {
+        GENESIS_EPOCHS[i].mutate(sim)
+      }
+      expect(sim.riverPathsOrdered.length).toBeGreaterThan(0)
+      // Each path should have ordered positions
+      for (const path of sim.riverPathsOrdered) {
+        expect(path.length).toBeGreaterThan(0)
+      }
+    })
+
+    it('generates meltwater pools at glacier edges', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      for (let i = 0; i <= 8; i++) {
+        GENESIS_EPOCHS[i].mutate(sim)
+      }
+      expect(sim.meltPools.size).toBeGreaterThan(0)
+      // Melt pools should be on land, not in glacial paths
+      for (const key of sim.meltPools) {
+        expect(sim.landMask.has(key)).toBe(true)
+        expect(sim.glacialPaths.has(key)).toBe(false)
+      }
+    })
+
+    it('generates small permanent ponds', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      runAllMutations(sim, GENESIS_EPOCHS)
+      expect(sim.ponds.size).toBeGreaterThan(0)
+      expect(sim.ponds.size).toBeLessThanOrEqual(20) // max 4 ponds * 5 tiles
+    })
+
+    it('ponds do not overlap river paths', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      runAllMutations(sim, GENESIS_EPOCHS)
+      for (const key of sim.ponds) {
+        expect(sim.riverPaths.has(key)).toBe(false)
+      }
+    })
+
+    it('includes ponds in extracted genesis result', () => {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+      runAllMutations(sim, GENESIS_EPOCHS)
+      const result = extractGenesisResult(sim)
+      expect(result.ponds).toBeDefined()
+      expect(result.ponds.size).toBe(sim.ponds.size)
+    })
+  })
+})

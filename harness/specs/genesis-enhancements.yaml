@@ -1,0 +1,171 @@
+id: genesis-enhancements
+name: Genesis Simulation Enhancements
+status: planned
+priority: high
+layer: engine
+source_files:
+  - src/engine/genesis.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/genesisRenderer.ts
+  - src/components/GenesisScreen.tsx
+  - src/engine/__tests__/genesis.test.ts
+
+behaviors:
+  - id: fullscreen-background
+    description: >
+      Genesis canvas fills the entire browser window with no letterboxing.
+      Out-of-bounds tiles beyond the 170x95 map render as space (stars or black)
+      rather than leaving dead pixel strips along the edges.
+    inputs:
+      - GenesisScreen mounts in any browser window size
+    outputs:
+      - Canvas style.width and style.height cover window.innerWidth and window.innerHeight fully
+      - No sub-character-width black strips visible at right or bottom edges
+      - Out-of-bounds tiles render space/stars consistent with the current epoch
+    state_changes:
+      - field: canvas.width / canvas.style.width
+        effect: Uses Math.ceil for viewport tile count so pixel coverage >= window size
+    determinism: deterministic
+
+  - id: chaotic-aqueducts
+    description: >
+      Civilization epoch generates roughly 3x as many aqueduct/tunnel/pipe tiles.
+      8-12 ruin sites instead of 3-5. Connection distance increased from 60 to 90.
+      Dead-end branches increased to 2-5 per connection. Additional standalone
+      inland aqueduct clusters spawn independently of ruins (chaotic networks for
+      future gameplay use).
+    inputs:
+      - RiseOfCivilizations epoch mutate runs
+    outputs:
+      - 8-12 ruins placed (up from 3-5)
+      - Aqueduct network tile count roughly 3x previous
+      - Inland aqueduct clusters appear disconnected from ruin sites
+    state_changes:
+      - field: sim.ruins
+        effect: 8-12 entries instead of 3-5
+      - field: sim.aqueductNetwork
+        effect: Roughly 3x tile count from more connections, longer branches, and standalone clusters
+      - field: sim.aqueductJunctions
+        effect: More junction points from denser network
+    determinism: probabilistic
+
+  - id: glacier-vegetation-wipe
+    description: >
+      Glaciers visually crush existing vegetation as they advance rather than
+      advancing over pre-drawn dirt. The render shows green vegetation ahead of
+      the glacier front being consumed by ice. Mutation already clears vegetation;
+      this change makes the render reflect that dramatically.
+    inputs:
+      - IceAge epoch renders with progress 0-0.6 (advance phase)
+    outputs:
+      - Tiles ahead of glacier front render as vegetation (green) from prior epochs
+      - Glacier front visually overwrites vegetation as it advances
+      - Behind the front, ice is rendered; ahead, vegetation persists
+    state_changes:
+      - field: sim.preGlacialVegetation
+        effect: New field snapshotting vegetation map before glacier mutation for render use
+    determinism: time-based
+
+  - id: varied-glacier-edges
+    description: >
+      Glacier edges use smooth layered noise (like coastline generation) instead
+      of per-tile hash jitter. Edge amplitude varies +/-6-8 tiles with organic
+      curves, producing irregular lobes and inlets rather than uniform sawtooth.
+    inputs:
+      - IceAge epoch mutate generates glacial boundary
+    outputs:
+      - Glacier edge follows smooth noise contour per column
+      - Edge variation amplitude 6-8 tiles (up from +/-2)
+      - Glacial coverage remains roughly 20% of height from each pole
+    state_changes:
+      - field: sim.glacialPaths
+        effect: Boundary follows noise contour instead of hash jitter
+      - field: sim.glacialEdgeNoise
+        effect: New field storing per-column noise offsets for top and bottom glaciers
+    determinism: probabilistic
+
+  - id: meteorite-triggered-fires
+    description: >
+      Fire season is triggered by a meteor shower animation. 5-8 meteorites
+      streak across the sky (using shooting star visual pattern from celestial.ts)
+      and impact land tiles. Each impact ignites a BFS fire. Max burn increased
+      to 60% of land. Spread probability increased (vegetation/90 instead of
+      vegetation/120). Meteorite streaks are stored in sim state for animated
+      rendering.
+    inputs:
+      - FireSeason epoch starts
+    outputs:
+      - 5-8 animated meteorite streaks visible during fire season render
+      - Each meteorite impact triggers a fire ignition point
+      - Fire spreads further, burning roughly 40-60% of vegetated land
+      - Impact sites show explosion flash before fire spreads
+    state_changes:
+      - field: sim.meteorites
+        effect: New field storing meteorite streak data (start position, velocity, impact position, timing)
+      - field: sim.burnScars
+        effect: Larger burn area from more ignition points and higher spread probability
+      - field: sim.vegetationMap
+        effect: More tiles cleared to 0
+      - field: sim.soilHealth
+        effect: More tiles enriched by ash (+10 per burned tile)
+    determinism: probabilistic
+
+  - id: animated-water-systems
+    description: >
+      Water features animate during genesis. Rivers grow visibly from source to
+      coast during warm period (progress-based reveal). Glacier melt produces
+      meltwater pools at glacier edges during late ice age. Small lowland pools
+      form via flood-fill near river deltas. Some water persists as permanent
+      small ponds in the final game terrain (few and small, fitting the biome).
+    inputs:
+      - WarmPeriod epoch renders rivers
+      - IceAge epoch enters recede phase (progress > 0.6)
+      - Lowland flood-fill runs during WarmPeriod mutate
+    outputs:
+      - Rivers render progressively from source to coast during warm period
+      - Meltwater pools appear at glacier edges during recede phase
+      - Small permanent ponds exist in final terrain (1-4 ponds, 2-5 tiles each)
+      - Flood-fill lowlands animate near river deltas
+    state_changes:
+      - field: sim.riverPathsOrdered
+        effect: New field storing river paths as ordered arrays for progressive reveal
+      - field: sim.meltPools
+        effect: New field storing glacier meltwater positions
+      - field: sim.ponds
+        effect: New field storing permanent small pond positions
+      - field: sim.grid
+        effect: Pond tiles persisted in final terrain
+    determinism: probabilistic
+
+edge_cases:
+  - id: small-viewport-fullscreen
+    description: Browser window smaller than map size (e.g. mobile) still fills fully
+    expected: Canvas covers entire window, camera centers map, edges show space
+  - id: aqueduct-minimum-distance
+    description: With 8-12 ruins, minimum ruin distance must decrease to fit on 170x95 map
+    expected: Minimum distance reduced proportionally, all ruins placed on land
+  - id: meteor-all-hit-space
+    description: All meteorite targets could theoretically land on space tiles
+    expected: Fire still ignites from at least 2 fallback random land positions
+  - id: glacier-noise-out-of-bounds
+    description: Noise-based glacier edges could extend beyond land mask
+    expected: Glacial paths only added for tiles in landMask
+  - id: pond-overlap-river
+    description: Flood-fill pond could overlap with existing river paths
+    expected: Pond tiles skip positions already in riverPaths
+  - id: genesis-skip-preserves-all-mutations
+    description: Pressing any key to skip still runs all epoch mutations synchronously
+    expected: All new state fields (meteorites, meltPools, ponds, glacialEdgeNoise) populated correctly on skip
+
+failure_conditions:
+  - trigger: No land tiles available for meteorite impact
+    expected: Fire season falls back to 2-3 random land ignition points (current behavior)
+  - trigger: Ruin placement exhausts candidates before reaching 8 ruins
+    expected: Placement stops gracefully with however many ruins were placed (minimum 3)
+  - trigger: Flood-fill produces excessively large pond
+    expected: Pond size capped at 5 tiles per pond, 4 ponds maximum
+
+verification:
+  test_file: src/engine/__tests__/genesis.test.ts
+  test_pattern: genesis-enhancements
+  command: npx vitest run src/engine/__tests__/genesis.test.ts
