@@ -45,7 +45,9 @@ import {
   EARTH_SCAN_HOLD_MS,
   EARTH_SCAN_FADE_MS,
   EARTH_SCAN_RADIUS,
-  EARTH_SCAN_COLORS,
+  EARTH_SCAN_COLOR_LOW,
+  EARTH_SCAN_COLOR_MID,
+  EARTH_SCAN_COLOR_HIGH,
   EARTH_SCAN_CHAR,
   SOIL_HEALTH_DEFAULT,
   type VelocityKey,
@@ -93,6 +95,15 @@ const lerpColor = (from: string, to: string, t: number): string => {
   const g = Math.round(fg + (tg - fg) * t)
   const b = Math.round(fb + (tb - fb) * t)
   return `rgb(${String(r)},${String(g)},${String(b)})`
+}
+
+// Map soil health (0–100) to red → white → cyan gradient
+const soilHealthColor = (health: number): string => {
+  const t = Math.max(0, Math.min(health / 100, 1))
+  if (t <= 0.5) {
+    return lerpColor(EARTH_SCAN_COLOR_LOW, EARTH_SCAN_COLOR_MID, t * 2)
+  }
+  return lerpColor(EARTH_SCAN_COLOR_MID, EARTH_SCAN_COLOR_HIGH, (t - 0.5) * 2)
 }
 
 export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
@@ -402,23 +413,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const elapsed = time - effect.startTime
     const totalDuration = EARTH_SCAN_EXPAND_MS + EARTH_SCAN_HOLD_MS + EARTH_SCAN_FADE_MS
 
-    let currentRadius: number
-    let scanOpacity: number
+    // Determine which phase we're in
+    const isExpanding = elapsed <= EARTH_SCAN_EXPAND_MS
+    const isHolding = !isExpanding && elapsed <= EARTH_SCAN_EXPAND_MS + EARTH_SCAN_HOLD_MS
+    const isFading = !isExpanding && !isHolding && elapsed <= totalDuration
 
-    if (elapsed <= EARTH_SCAN_EXPAND_MS) {
-      const progress = elapsed / EARTH_SCAN_EXPAND_MS
-      currentRadius = progress * EARTH_SCAN_RADIUS
-      scanOpacity = 1
-    } else if (elapsed <= EARTH_SCAN_EXPAND_MS + EARTH_SCAN_HOLD_MS) {
-      currentRadius = EARTH_SCAN_RADIUS
-      scanOpacity = 1
-    } else if (elapsed <= totalDuration) {
-      const fadeProgress = (elapsed - EARTH_SCAN_EXPAND_MS - EARTH_SCAN_HOLD_MS) / EARTH_SCAN_FADE_MS
-      currentRadius = EARTH_SCAN_RADIUS
-      scanOpacity = 1 - fadeProgress
-    } else {
-      continue
-    }
+    if (!isExpanding && !isHolding && !isFading) continue
+
+    // During fade, the wave front progresses from center outward
+    const fadeElapsed = isFading ? elapsed - EARTH_SCAN_EXPAND_MS - EARTH_SCAN_HOLD_MS : 0
+    // Wave front radius: 0 at fade start → EARTH_SCAN_RADIUS at fade end
+    const fadeWaveRadius = isFading ? (fadeElapsed / EARTH_SCAN_FADE_MS) * EARTH_SCAN_RADIUS : 0
 
     for (let vy = 0; vy < viewportHeight; vy++) {
       for (let vx = 0; vx < viewportWidth; vx++) {
@@ -443,18 +448,37 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const dx = mx - origin.x
         const dy = my - origin.y
         const dist = Math.sqrt(dx * dx + dy * dy)
-        if (dist > currentRadius) continue
+
+        // During expansion, only show tiles within the expanding radius
+        if (isExpanding) {
+          const expandRadius = (elapsed / EARTH_SCAN_EXPAND_MS) * EARTH_SCAN_RADIUS
+          if (dist > expandRadius) continue
+        } else if (dist > EARTH_SCAN_RADIUS) {
+          continue
+        }
+
+        // During fade, compute per-tile opacity based on radial wave position
+        let tileOpacity = 1
+        if (isFading) {
+          // Tiles behind the wave front have faded; tiles ahead are still visible
+          // Smooth fade over a 3-tile band around the wave front
+          const fadeEdge = fadeWaveRadius
+          if (dist < fadeEdge - 3) {
+            // Fully faded — behind the wave
+            continue
+          } else if (dist < fadeEdge) {
+            // In the fade band
+            tileOpacity = (dist - (fadeEdge - 3)) / 3
+          }
+          // else: ahead of wave, still fully visible (opacity = 1)
+        }
 
         const health = state.soilHealth.get(key) ?? SOIL_HEALTH_DEFAULT
-        const colorIndex = Math.min(
-          Math.floor((health / 100) * EARTH_SCAN_COLORS.length),
-          EARTH_SCAN_COLORS.length - 1,
-        )
 
         earthScanMap.set(key, {
           char: EARTH_SCAN_CHAR,
-          color: EARTH_SCAN_COLORS[colorIndex],
-          opacity: scanOpacity,
+          color: soilHealthColor(health),
+          opacity: tileOpacity,
         })
       }
     }

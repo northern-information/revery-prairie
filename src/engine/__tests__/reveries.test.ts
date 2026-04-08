@@ -36,7 +36,7 @@ describe('revery registry', () => {
     expect(earth.name).toBe('Earth Revery')
     expect(earth.description).toBe('a memory of the land beneath')
     expect(earth.castStyle).toBe('scan')
-    expect(earth.castDurationMs).toBe(5000)
+    expect(earth.castDurationMs).toBe(5500)
     expect(earth.castPattern).toEqual([])
     expect(earth.cooldownMs).toBe(12000)
   })

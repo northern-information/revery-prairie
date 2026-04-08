@@ -122,7 +122,7 @@ key items that don't occupy inventory grid space. stored as `state.reveries: str
 
 registry in `src/engine/reveries.ts`. current reveries: `earth` (starting revery), `fire` (from Moab), and `water` (from Gron).
 
-`earth` uses `castStyle: 'scan'` — radiates a 20-tile radius soil health visualization from the player position. tiles colored ROYGBIV (red = unhealthy, violet = healthiest). three phases: radial expansion (1.5s), hold (2.5s), crossfade back (1s). purely diagnostic — no gameplay effects.
+`earth` uses `castStyle: 'scan'` — radiates a 20-tile radius soil health visualization from the player position. red → white → cyan gradient (red = depleted, white = neutral, cyan = thriving). three phases: radial expansion (1.5s), hold (2.5s), radial wave fade-out (1.5s). purely diagnostic — no gameplay effects.
 
 ## character gifts
 

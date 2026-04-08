@@ -49,7 +49,7 @@ const REVERIES = {
     glyphs: ['\u25CF'],
     glyphColor: '#FFFFFF',
     cooldownMs: 12000,
-    castDurationMs: 5000,
+    castDurationMs: 5500,
     castStyle: 'scan' as const,
     castPattern: [],
   },
