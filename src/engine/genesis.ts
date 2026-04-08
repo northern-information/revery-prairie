@@ -837,10 +837,10 @@ const fireSeason: GenesisEpoch = {
         return [{ char: '.', color: '#3D2B1F', dx: 0, dy: 0 }]
       }
 
-      // Before fire reaches this tile — show vegetation as if it hasn't burned yet
-      const greenColors = ['#2E8B57', '#3CB371', '#50C878']
-      const gi = h % greenColors.length
-      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
+      // Before fire reaches this tile — show as it looked before (river-aware palette)
+      const nearRiver = sim.riverPaths.has(posKey(x + 1, y)) || sim.riverPaths.has(posKey(x - 1, y))
+      const preFireColors = nearRiver ? BRIGHT_GREEN_COLORS : GREEN_COLORS
+      return [{ char: '%', color: preFireColors[h % preFireColors.length], dx: 0, dy: 0 }]
     }
 
     // Unburned — show vegetation
@@ -1038,18 +1038,20 @@ const iceAge: GenesisEpoch = {
       return renderDirt(sim, key, h)
     }
 
-    // Lowland water freezes as glaciers advance
+    // Lowland water freezes gradually as glaciers advance nearby
     const lowWater = renderLowlandWater(sim, key, h, time)
     if (lowWater) {
-      // Check if glaciers are close enough to freeze this water
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
       const glacialDepth = Math.floor(sim.height * 0.2)
       const topDist = ty - SPACE_BORDER
       const bottomDist = (sim.height - SPACE_BORDER) - ty
       const minDist = Math.min(topDist, bottomDist)
-      const freezeThreshold = clamp(minDist / (glacialDepth * 1.5), 0, 1)
-      if (progress > freezeThreshold) {
+      // Water freezes at the same rate as glacier advance but reaches slightly further
+      const freezeThreshold = clamp(minDist / (glacialDepth * 1.3), 0, 1)
+      // Add per-tile scatter so freezing isn't uniform
+      const scatter = ((h % 10) - 5) / 100
+      if (progress > freezeThreshold + scatter) {
         const iceChars = ['#', '=', '.']
         const iceColors = ['#B0C4DE', '#E0E8F0', '#ADD8E6']
         const ci = (h + Math.floor(time * 0.002)) % iceChars.length
@@ -2202,15 +2204,10 @@ export const tickGenesis = (
 
   const elapsed = time - sim.epochStartTime
   if (elapsed >= epoch.durationMs) {
-    // Move to next epoch and immediately run its mutate
-    // so the mutation cost is paid in the transition frame, not the first render frame
+    // Advance to next epoch — mutate runs on the next frame's first tick
     sim.epochIndex++
-    if (sim.epochIndex >= epochs.length) {
-      sim.epochStartTime = 0
-      return true
-    }
-    sim.epochStartTime = time
-    epochs[sim.epochIndex].mutate(sim)
+    sim.epochStartTime = 0
+    if (sim.epochIndex >= epochs.length) return true
   }
 
   return false
