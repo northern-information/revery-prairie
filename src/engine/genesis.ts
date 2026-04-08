@@ -1071,6 +1071,15 @@ const postGlacialDieOff: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
+    // Glaciers persist through the extinction — check before dying animation
+    if (sim.glacialPaths.has(key)) {
+      const iceChars = ['#', '=', '.', '*']
+      const iceColors = ['#B0C4DE', '#E0E8F0', '#FFFFFF', '#ADD8E6']
+      const ci = h % iceChars.length
+      const ii = h % iceColors.length
+      return [{ char: iceChars[ci], color: iceColors[ii], dx: 0, dy: 0 }]
+    }
+
     const veg = sim.vegetationMap.get(key) ?? 0
     const dieDelay = (h % 100) / 100 * 0.5
 
@@ -1085,15 +1094,6 @@ const postGlacialDieOff: GenesisEpoch = {
         return [{ char: '.', color: '#2A1A0A', dx: 0, dy: 0 }]
       }
       return [{ char: '.', color: '#4A3728', dx: 0, dy: 0 }]
-    }
-
-    // Glaciers persist through the extinction
-    if (sim.glacialPaths.has(key)) {
-      const iceChars = ['#', '=', '.', '*']
-      const iceColors = ['#B0C4DE', '#E0E8F0', '#FFFFFF', '#ADD8E6']
-      const ci = h % iceChars.length
-      const ii = h % iceColors.length
-      return [{ char: iceChars[ci], color: iceColors[ii], dx: 0, dy: 0 }]
     }
 
     // Surviving vegetation
