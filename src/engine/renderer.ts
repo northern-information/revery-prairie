@@ -46,8 +46,8 @@ import {
   EARTH_SCAN_FADE_MS,
   EARTH_SCAN_RADIUS,
   EARTH_SCAN_COLOR_LOW,
+  EARTH_SCAN_COLOR_MID,
   EARTH_SCAN_COLOR_HIGH,
-  EARTH_SCAN_CHAR,
   SOIL_HEALTH_DEFAULT,
   type VelocityKey,
 } from './constants'
@@ -96,10 +96,13 @@ const lerpColor = (from: string, to: string, t: number): string => {
   return `rgb(${String(r)},${String(g)},${String(b)})`
 }
 
-// Map soil health (0–100) to black → green gradient
+// Map soil health (0–100) to red → yellow → green gradient
 const soilHealthColor = (health: number): string => {
   const t = Math.max(0, Math.min(health / 100, 1))
-  return lerpColor(EARTH_SCAN_COLOR_LOW, EARTH_SCAN_COLOR_HIGH, t)
+  if (t <= 0.5) {
+    return lerpColor(EARTH_SCAN_COLOR_LOW, EARTH_SCAN_COLOR_MID, t * 2)
+  }
+  return lerpColor(EARTH_SCAN_COLOR_MID, EARTH_SCAN_COLOR_HIGH, (t - 0.5) * 2)
 }
 
 export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
@@ -471,7 +474,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const health = state.soilHealth.get(key) ?? SOIL_HEALTH_DEFAULT
 
         earthScanMap.set(key, {
-          char: EARTH_SCAN_CHAR,
+          char: TILE_CHARS[tileType],
           color: soilHealthColor(health),
           opacity: tileOpacity,
         })
@@ -585,13 +588,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       } else if (earthScanMap.has(tileKey)) {
         const es = earthScanMap.get(tileKey)
         if (es) {
+          char = es.char
           if (es.opacity >= 1) {
-            char = es.char
             color = es.color
           } else {
-            const tile = map[my][mx]
-            const baseColor = TILE_COLORS[tile.type]
-            char = es.opacity > 0.5 ? es.char : TILE_CHARS[tile.type]
+            const baseColor = TILE_COLORS[map[my][mx].type]
             color = lerpColor(es.color, baseColor, 1 - es.opacity)
           }
         } else {

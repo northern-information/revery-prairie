@@ -46,8 +46,8 @@ const REVERIES = {
   earth: {
     name: 'Earth Revery',
     description: 'a memory of the land beneath',
-    glyphs: ['\u25CF'],
-    glyphColor: '#FFFFFF',
+    glyphs: ['.'],
+    glyphColor: '#33CC33',
     cooldownMs: 12000,
     castDurationMs: 5500,
     castStyle: 'scan' as const,
