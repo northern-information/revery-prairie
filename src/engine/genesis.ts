@@ -155,6 +155,8 @@ const BUILDING_CHARS = ['▓', '▒', '░', '█', '#', '+', 'H', 'T', '=']
 const CIV_COLORS = ['#666', '#777', '#888', '#999', '#AAA']
 
 // Genesis rendering constants
+const DIRT_COLORS = ['#8B7355', '#7B6B55', '#806B50']
+const BURN_SCAR_COLORS = ['#3D2B1F', '#4A3728', '#352418']
 const GREEN_COLORS = ['#2E8B57', '#3CB371', '#50C878']
 const BRIGHT_GREEN_COLORS = ['#3CB371', '#50C878', '#66EE88']
 const GRON_RAIN_RADIUS = 6
@@ -185,14 +187,12 @@ const renderDirt = (
   h: number
 ): GenesisTileRender[] => {
   if (sim.burnScars.has(key)) {
-    // Charred ground — stays dark
-    const burnColors = ['#3D2B1F', '#4A3728', '#352418']
-    return [{ char: '.', color: burnColors[h % burnColors.length], dx: 0, dy: 0 }]
+    return [{ char: '.', color: BURN_SCAR_COLORS[h % BURN_SCAR_COLORS.length], dx: 0, dy: 0 }]
   }
   if (sim.glacialPaths.has(key)) {
     return [{ char: '.', color: '#696969', dx: 0, dy: 0 }]
   }
-  return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
+  return [{ char: '.', color: DIRT_COLORS[h % DIRT_COLORS.length], dx: 0, dy: 0 }]
 }
 
 // Shared rendering for vegetation (consistent palette across all epochs)
@@ -543,7 +543,7 @@ const firstWater: GenesisEpoch = {
         if (sandProgress > 0.5) {
           return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
         }
-        return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
+        return [{ char: '.', color: DIRT_COLORS[h % DIRT_COLORS.length], dx: 0, dy: 0 }]
       }
       // Space — stars
       if (h % 5 === 0) {
@@ -626,7 +626,7 @@ const emergenceOfLife: GenesisEpoch = {
     }
 
     // Bare land
-    return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
+    return [{ char: '.', color: DIRT_COLORS[h % DIRT_COLORS.length], dx: 0, dy: 0 }]
   },
 }
 
@@ -834,10 +834,10 @@ const fireSeason: GenesisEpoch = {
     }
 
     // Unburned — show vegetation
-    const veg = renderVegetation(sim, x, y, h)
-    if (veg) return veg
+    const vegRender = renderVegetation(sim, x, y, h)
+    if (vegRender) return vegRender
 
-    return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
+    return [{ char: '.', color: DIRT_COLORS[h % DIRT_COLORS.length], dx: 0, dy: 0 }]
   },
 }
 
@@ -1024,14 +1024,14 @@ const iceAge: GenesisEpoch = {
         return [{ char: iceChars[ci], color: iceColors[ii], dx: 0, dy: 0 }]
       }
 
-      // Ahead of glacier front — show pre-glacial vegetation being crushed
+      // Ahead of glacier front — show pre-glacial state
       const preVeg = sim.preGlacialVegetation.get(key) ?? 0
       if (preVeg > 20) {
         const greenColors = ['#2E8B57', '#3CB371', '#50C878']
         const gi = h % greenColors.length
         return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
       }
-      return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
+      return renderDirt(sim, key, h)
     }
 
     // Lowland water freezes as glaciers advance
@@ -2114,7 +2114,7 @@ const presentDay: GenesisEpoch = {
       }
     }
 
-    return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
+    return renderDirt(sim, key, h)
   },
 }
 

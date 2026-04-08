@@ -10,6 +10,7 @@ import {
   CLOVER_BLACK_COLOR,
   CLOVER_BROWN_COLOR,
   CLOVER_HEALTHY_COLORS,
+  DIRT_COLORS,
   CLOVER_DECOMPOSE_COLOR,
   CLOVER_DYING_COLOR_FROM,
   CLOVER_DYING_COLOR_TO,
@@ -683,6 +684,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             }
           } else if (tile.type === TileType.Clover) {
             color = CLOVER_HEALTHY_COLORS[tileHash(mx, my) % CLOVER_HEALTHY_COLORS.length]
+          } else if (tile.type === TileType.Dirt) {
+            color = DIRT_COLORS[tileHash(mx, my) % DIRT_COLORS.length]
           } else {
             color = TILE_COLORS[tile.type]
           }

@@ -136,6 +136,7 @@ export const CLOVER_DECOMPOSE_DURATION_MS = 30_000
 export const CLOVER_WATER_MAX = 100
 export const CLOVER_WATER_DRAIN_RATE = 2
 export const CLOVER_WATER_RAIN_FILL = 15
+export const DIRT_COLORS = ['#8B7355', '#7B6B55', '#806B50']
 export const CLOVER_HEALTHY_COLORS = ['#2E8B57', '#3CB371', '#50C878']
 export const CLOVER_BROWN_COLOR = '#8B6914'
 export const CLOVER_DYING_COLOR_FROM = [0x8b, 0x69, 0x14] // brown (#8B6914)
