@@ -254,7 +254,7 @@ const landAccretion: GenesisEpoch = {
 const lavaEra: GenesisEpoch = {
   id: GenesisEpochId.LavaEra,
   durationMs: 2000,
-  commentary: 'an kingdom of lava absolute...',
+  commentary: 'a kingdom of lava absolute...',
   mutate: (sim) => {
     // Generate the land mask using the seeded RNG — this produces the final coastline
     const { landMask, coastlineTiles, grid } = generateLandMask(sim.width, sim.height, sim.rng)
@@ -370,7 +370,7 @@ const lavaEra: GenesisEpoch = {
 const crustCooling: GenesisEpoch = {
   id: GenesisEpochId.CrustCooling,
   durationMs: 2000,
-  commentary: 'the land cools...',
+  commentary: '',
   mutate: () => {
     // Visual transition only
   },
@@ -500,9 +500,11 @@ const firstWater: GenesisEpoch = {
 
     // Water gathers in lowlands — low-elevation land tiles show water first
     const elev = sim.elevation.get(key) ?? 50
-    // Lower elevation tiles show water earlier in the epoch
-    const waterThreshold = clamp(elev / 100, 0, 1)
-    if (progress > waterThreshold && elev < 40) {
+    // Per-tile noise breaks up the smooth gaussian look into blotchy pools
+    const tileNoise = ((h % 20) - 10)
+    const effectiveElev = elev + tileNoise
+    const waterThreshold = clamp(effectiveElev / 100, 0, 1)
+    if (progress > waterThreshold && effectiveElev < 40) {
       const waterChars = ['~', '=', '-']
       const waterColors = ['#4466AA', '#335588', '#556699']
       const ci = (h + Math.floor(time * 0.003)) % waterChars.length
@@ -790,24 +792,14 @@ const fireSeason: GenesisEpoch = {
 const regrowth: GenesisEpoch = {
   id: GenesisEpochId.Regrowth,
   durationMs: 1500,
-  commentary: 'life survives...',
+  commentary: '',
   mutate: (sim) => {
-    // Regrow vegetation from unburned edges and burn scars
+    // Ash enrichment only — no vegetation regrowth. land stays barren into ice age.
     for (const key of sim.burnScars) {
-      // Ash-enriched soil speeds recovery
-      sim.vegetationMap.set(key, 50 + Math.floor(sim.rng() * 40))
       sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 5)
     }
-
-    // Boost non-burned areas that survived
-    for (const key of sim.landMask) {
-      if (!sim.burnScars.has(key)) {
-        const current = sim.vegetationMap.get(key) ?? 0
-        sim.vegetationMap.set(key, Math.min(100, current + 10))
-      }
-    }
   },
-  renderTile: (sim, x, y, progress, _time) => {
+  renderTile: (sim, x, y, _progress, _time) => {
     const key = posKey(x, y)
     const h = tileHash(x, y)
 
@@ -817,31 +809,12 @@ const regrowth: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
-    const wasBurned = sim.burnScars.has(key)
-    const regrowDelay = wasBurned ? (h % 100) / 100 * 0.6 : 0
-
-    if (progress > regrowDelay) {
-      const regrowProgress = clamp((progress - regrowDelay) / 0.6, 0, 1)
-      const veg = sim.vegetationMap.get(key) ?? 0
-
-      if (veg > 20 && regrowProgress > 0.3) {
-        // New growth — brighter green for post-fire areas
-        const greenColors = wasBurned
-          ? ['#3CB371', '#50C878', '#66EE88']
-          : ['#2E8B57', '#3CB371', '#50C878']
-        const gi = h % greenColors.length
-        return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
-      }
-
-      if (wasBurned) {
-        // Transitioning from char to green
-        const brownGreen = lerp(0x3D, 0x3C, regrowProgress)
-        const color = `rgb(${String(Math.floor(brownGreen))},${String(Math.floor(lerp(0x2B, 0xB3, regrowProgress)))},${String(Math.floor(lerp(0x1F, 0x71, regrowProgress)))})`
-        return [{ char: '.', color, dx: 0, dy: 0 }]
-      }
+    // Burned tiles stay charred
+    if (sim.burnScars.has(key)) {
+      return [{ char: '.', color: '#3D2B1F', dx: 0, dy: 0 }]
     }
 
-    // Existing vegetation
+    // Surviving vegetation
     if ((sim.vegetationMap.get(key) ?? 0) > 20) {
       return [{ char: '%', color: '#2E8B57', dx: 0, dy: 0 }]
     }
