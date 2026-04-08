@@ -120,8 +120,8 @@ describe('activateActionBarSlot', () => {
     const result = activateActionBarSlot(state, 1, now)
 
     expect(result).toBe(true)
-    expect(state.actionBar[1]?.cooldownEndTime).toBe(now + 12000)
-    expect(state.actionBar[1]?.cooldownDurationMs).toBe(12000)
+    expect(state.actionBar[1]?.cooldownEndTime).toBe(now + 6000)
+    expect(state.actionBar[1]?.cooldownDurationMs).toBe(6000)
 
     // Should create ECS entity with Position (player pos), not MultiPosition
     const entities = state.world

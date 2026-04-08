@@ -38,7 +38,7 @@ describe('revery registry', () => {
     expect(earth.castStyle).toBe('scan')
     expect(earth.castDurationMs).toBe(5500)
     expect(earth.castPattern).toEqual([])
-    expect(earth.cooldownMs).toBe(12000)
+    expect(earth.cooldownMs).toBe(6000)
   })
 })
 

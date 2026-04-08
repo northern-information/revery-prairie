@@ -48,7 +48,7 @@ const REVERIES = {
     description: 'a memory of the land beneath',
     glyphs: ['.'],
     glyphColor: '#33CC33',
-    cooldownMs: 12000,
+    cooldownMs: 6000,
     castDurationMs: 5500,
     castStyle: 'scan' as const,
     castPattern: [],
