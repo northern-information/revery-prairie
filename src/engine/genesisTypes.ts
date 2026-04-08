@@ -2,7 +2,7 @@ import type { Position, Tile } from './types'
 
 export const GenesisEpochId = {
   CosmicFormation: 'cosmicFormation',
-  PlanetaryAccretion: 'planetaryAccretion',
+  LandAccretion: 'landAccretion',
   LavaEra: 'lavaEra',
   CrustCooling: 'crustCooling',
   FirstWater: 'firstWater',

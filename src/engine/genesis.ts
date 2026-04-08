@@ -195,11 +195,11 @@ const cosmicFormation: GenesisEpoch = {
 }
 
 // ---------------------------------------------------------------------------
-// Epoch: Planetary Accretion
+// Epoch: Land Accretion
 // ---------------------------------------------------------------------------
 
-const planetaryAccretion: GenesisEpoch = {
-  id: GenesisEpochId.PlanetaryAccretion,
+const landAccretion: GenesisEpoch = {
+  id: GenesisEpochId.LandAccretion,
   durationMs: 1500,
   commentary: 'dust coalesces...',
   mutate: () => {
@@ -370,7 +370,7 @@ const lavaEra: GenesisEpoch = {
 const crustCooling: GenesisEpoch = {
   id: GenesisEpochId.CrustCooling,
   durationMs: 2000,
-  commentary: 'the planet cools...',
+  commentary: 'the land cools...',
   mutate: () => {
     // Visual transition only
   },
@@ -748,20 +748,27 @@ const fireSeason: GenesisEpoch = {
     const isBurned = sim.burnScars.has(key)
     const burnDelay = 0.3 + (h % 100) / 100 * 0.3
 
-    if (isBurned && progress > burnDelay) {
-      const burnProgress = clamp((progress - burnDelay) / 0.4, 0, 1)
+    if (isBurned) {
+      if (progress > burnDelay) {
+        const burnProgress = clamp((progress - burnDelay) / 0.4, 0, 1)
 
-      if (burnProgress < 0.5) {
-        // Active fire
-        const fireChars = ['^', '~', '*']
-        const fireColors = ['#FF4500', '#FF6347', '#FFD700']
-        const ci = (h + Math.floor(time * 0.005)) % fireChars.length
-        const fi = h % fireColors.length
-        return [{ char: fireChars[ci], color: fireColors[fi], dx: 0, dy: 0 }]
+        if (burnProgress < 0.5) {
+          // Active fire
+          const fireChars = ['^', '~', '*']
+          const fireColors = ['#FF4500', '#FF6347', '#FFD700']
+          const ci = (h + Math.floor(time * 0.005)) % fireChars.length
+          const fi = h % fireColors.length
+          return [{ char: fireChars[ci], color: fireColors[fi], dx: 0, dy: 0 }]
+        }
+
+        // Aftermath — charred
+        return [{ char: '.', color: '#3D2B1F', dx: 0, dy: 0 }]
       }
 
-      // Aftermath — charred
-      return [{ char: '.', color: '#3D2B1F', dx: 0, dy: 0 }]
+      // Before fire reaches this tile — show vegetation as if it hasn't burned yet
+      const greenColors = ['#2E8B57', '#3CB371', '#50C878']
+      const gi = h % greenColors.length
+      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
 
     // Unburned — show vegetation
@@ -1339,16 +1346,18 @@ const warmPeriod: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
-    // Glaciers melt over the epoch — ice recedes from deepest to shallowest
+    // Glaciers melt from the equator-facing side first (center of map inward to poles)
     if (sim.glacialPaths.has(key)) {
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
       const glacialDepth = Math.floor(sim.height * 0.2)
       const topDist = ty - SPACE_BORDER
       const bottomDist = (sim.height - SPACE_BORDER) - ty
-      const minDist = Math.min(topDist, bottomDist)
-      // Tiles deepest in the glacier melt last
-      const meltThreshold = clamp(minDist / glacialDepth, 0, 1)
+      // For top glacier: topDist is large near equator → melts first (low threshold)
+      // For bottom glacier: bottomDist is large near equator → melts first
+      const distFromPole = Math.min(topDist, bottomDist)
+      // Invert: deep in glacier (high dist from pole) melts first → low threshold
+      const meltThreshold = clamp(1 - distFromPole / glacialDepth, 0, 1)
 
       if (progress < meltThreshold) {
         // Still frozen
@@ -1359,7 +1368,13 @@ const warmPeriod: GenesisEpoch = {
         return [{ char: iceChars[ci], color: iceColors[ii], dx: 0, dy: 0 }]
       }
 
-      // Melted — barren ground
+      // Melted — life regrows in exposed dirt
+      const regrowProgress = clamp((progress - meltThreshold) / 0.4, 0, 1)
+      if (regrowProgress > 0.5 && (h % 3 !== 0)) {
+        const greenColors = ['#2E8B57', '#3CB371']
+        const gi = h % greenColors.length
+        return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
+      }
       return [{ char: '.', color: '#696969', dx: 0, dy: 0 }]
     }
 
@@ -1920,7 +1935,7 @@ const presentDay: GenesisEpoch = {
 
 export const GENESIS_EPOCHS: GenesisEpoch[] = [
   cosmicFormation,
-  planetaryAccretion,
+  landAccretion,
   lavaEra,
   crustCooling,
   firstWater,
