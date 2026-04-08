@@ -1859,12 +1859,37 @@ const secondExtinction: GenesisEpoch = {
   durationMs: 2000,
   commentary: 'another extinction...',
   mutate: (sim) => {
-    // Wilt all vegetation except within Gron's rain aura radius
+    // Drought: water sources dry up, vegetation dies without water
     // Gron spawns at map center + 5 tiles east (same as createGameState)
     const gronX = Math.floor(sim.width / 2) + 5
     const gronY = Math.floor(sim.height / 2)
     const rainRadius = 6
 
+    // Evaporate most ponds — keep only the deepest (lowest elevation) ~20%
+    const pondsByElev: { key: string; elev: number }[] = []
+    for (const key of sim.ponds) {
+      pondsByElev.push({ key, elev: sim.elevation.get(key) ?? 50 })
+    }
+    pondsByElev.sort((a, b) => a.elev - b.elev)
+    const keepCount = Math.floor(pondsByElev.length * 0.2)
+    const survivingPonds = new Set<string>()
+    for (let i = 0; i < keepCount; i++) {
+      survivingPonds.add(pondsByElev[i].key)
+    }
+    for (const key of [...sim.ponds]) {
+      if (!survivingPonds.has(key)) {
+        sim.ponds.delete(key)
+      }
+    }
+
+    // Thin rivers — remove ~70% of tiles probabilistically
+    for (const key of [...sim.riverPaths]) {
+      if (sim.rng() < 0.7) {
+        sim.riverPaths.delete(key)
+      }
+    }
+
+    // Kill vegetation everywhere except within Gron's rain aura
     for (const key of sim.landMask) {
       const veg = sim.vegetationMap.get(key) ?? 0
       if (veg <= 0) continue
@@ -1874,11 +1899,12 @@ const secondExtinction: GenesisEpoch = {
       const y = Number(yStr)
       const d = dist(x, y, gronX, gronY)
 
-      // Vegetation within rain aura survives
+      // Vegetation within rain aura survives the drought
       if (d <= rainRadius) continue
 
-      // Everything else wilts from lack of water
+      // Everything else dies from lack of water
       sim.vegetationMap.set(key, 0)
+      // Decomposition enriches soil — the land is fertile, just dry
       sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 3)
     }
   },
@@ -1892,13 +1918,19 @@ const secondExtinction: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
-    // Rivers persist
+    // Gron's rain aura center
+    const gronX = Math.floor(sim.width / 2) + 5
+    const gronY = Math.floor(sim.height / 2)
+    const dToGron = dist(x, y, gronX, gronY)
+    const inAura = dToGron <= 6
+
+    // Rivers — surviving fragments animate, dried ones fade
     if (sim.riverPaths.has(key)) {
       const ci = (h + Math.floor(time * 0.004)) % 3
       return [{ char: ['~', '=', '-'][ci], color: '#6688BB', dx: 0, dy: 0 }]
     }
 
-    // Ponds persist
+    // Ponds — surviving deep ponds animate, evaporated ones fade
     if (sim.ponds.has(key)) {
       const waterChars = ['~', '=']
       const ci = (h + Math.floor(time * 0.003)) % waterChars.length
@@ -1907,14 +1939,11 @@ const secondExtinction: GenesisEpoch = {
 
     const veg = sim.vegetationMap.get(key) ?? 0
 
-    // Wilted vegetation — progressive dying animation from edges inward
+    // Dead vegetation — wilt animation radiating outward from edges toward Gron
     if (veg <= 0) {
-      // Gron's rain aura center
-      const gronX = Math.floor(sim.width / 2) + 5
-      const gronY = Math.floor(sim.height / 2)
-      const d = dist(x, y, gronX, gronY)
       // Tiles far from Gron wilt first, closer tiles wilt later
-      const wiltDelay = clamp(1 - d / (Math.max(sim.width, sim.height) * 0.5), 0, 0.8)
+      const maxDist = Math.max(sim.width, sim.height) * 0.5
+      const wiltDelay = clamp(1 - dToGron / maxDist, 0, 0.8)
 
       if (progress > wiltDelay) {
         const wiltProgress = clamp((progress - wiltDelay) / 0.4, 0, 1)
@@ -1934,7 +1963,7 @@ const secondExtinction: GenesisEpoch = {
     }
 
     // Surviving vegetation (within rain aura)
-    if (veg > 20) {
+    if (veg > 20 && inAura) {
       const greenColors = ['#2E8B57', '#3CB371', '#50C878']
       const gi = h % greenColors.length
       return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
