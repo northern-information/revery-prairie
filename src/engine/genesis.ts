@@ -945,9 +945,8 @@ const iceAge: GenesisEpoch = {
     const isGlacial = sim.glacialPaths.has(key)
 
     if (isGlacial) {
-      // Glacier advance (0-0.6) then recede (0.6-1.0)
-      const advanceProgress = clamp(progress / 0.6, 0, 1)
-      const recedeProgress = clamp((progress - 0.6) / 0.4, 0, 1)
+      // Glaciers only advance during ice age — no recede until warm period
+      const advanceProgress = clamp(progress, 0, 1)
 
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
@@ -958,23 +957,17 @@ const iceAge: GenesisEpoch = {
       const effectiveBottomDepth = glacialDepth + bottomNoise
       const topDist = ty - SPACE_BORDER
       const bottomDist = (sim.height - SPACE_BORDER) - ty
-      // Normalize distance: 0 at glacier origin (pole), 1 at deepest reach
       const minDist = topDist < bottomDist ? topDist : bottomDist
       const effectiveDepth = topDist < bottomDist ? effectiveTopDepth : effectiveBottomDepth
       const coverThreshold = clamp(minDist / effectiveDepth, 0, 1)
 
-      if (advanceProgress > coverThreshold && recedeProgress < (1 - coverThreshold * 0.8)) {
+      if (advanceProgress > coverThreshold) {
         // Ice
         const iceChars = ['#', '=', '.', '*']
         const iceColors = ['#B0C4DE', '#E0E8F0', '#FFFFFF', '#ADD8E6']
         const ci = (h + Math.floor(time * 0.002)) % iceChars.length
         const ii = h % iceColors.length
         return [{ char: iceChars[ci], color: iceColors[ii], dx: 0, dy: 0 }]
-      }
-
-      // Receded — barren ground or meltwater
-      if (recedeProgress > 0) {
-        return [{ char: '.', color: '#696969', dx: 0, dy: 0 }]
       }
 
       // Ahead of glacier front — show pre-glacial vegetation being crushed
@@ -985,16 +978,6 @@ const iceAge: GenesisEpoch = {
         return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
       }
       return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
-    }
-
-    // Meltwater pools appear during recede phase
-    if (sim.meltPools.has(key) && progress > 0.6) {
-      const meltProgress = clamp((progress - 0.6) / 0.3, 0, 1)
-      if (meltProgress > (h % 100) / 100) {
-        const waterChars = ['~', '=', '-']
-        const ci = (h + Math.floor(time * 0.004)) % waterChars.length
-        return [{ char: waterChars[ci], color: '#6688BB', dx: 0, dy: 0 }]
-      }
     }
 
     // Non-glacial tiles show pre-glacial vegetation (snapshot from before mutate wiped it)
@@ -1319,20 +1302,27 @@ const warmPeriod: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
-    // Glaciers melt from the equator-facing side first (center of map inward to poles)
+    // Glaciers melt from equator-facing side first — same animation as ice age advance, reversed
     if (sim.glacialPaths.has(key)) {
+      const recedeProgress = clamp(progress, 0, 1)
+
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
       const glacialDepth = Math.floor(sim.height * 0.2)
+      const topNoise = sim.glacialEdgeNoise.top[x] ?? 0
+      const bottomNoise = sim.glacialEdgeNoise.bottom[x] ?? 0
+      const effectiveTopDepth = glacialDepth + topNoise
+      const effectiveBottomDepth = glacialDepth + bottomNoise
       const topDist = ty - SPACE_BORDER
       const bottomDist = (sim.height - SPACE_BORDER) - ty
-      // For top glacier: topDist is large near equator → melts first (low threshold)
-      // For bottom glacier: bottomDist is large near equator → melts first
-      const distFromPole = Math.min(topDist, bottomDist)
-      // Invert: deep in glacier (high dist from pole) melts first → low threshold
-      const meltThreshold = clamp(1 - distFromPole / glacialDepth, 0, 1)
+      const minDist = topDist < bottomDist ? topDist : bottomDist
+      const effectiveDepth = topDist < bottomDist ? effectiveTopDepth : effectiveBottomDepth
+      // coverThreshold: 0 at pole edge, 1 at deepest reach (equator side)
+      const coverThreshold = clamp(minDist / effectiveDepth, 0, 1)
 
-      if (progress < meltThreshold) {
+      // Melt from equator inward: deepest tiles (highest coverThreshold) melt first
+      // When recedeProgress > (1 - coverThreshold), the tile has melted
+      if (recedeProgress < (1 - coverThreshold * 0.8)) {
         // Still frozen
         const iceChars = ['#', '=', '.', '*']
         const iceColors = ['#B0C4DE', '#E0E8F0', '#FFFFFF', '#ADD8E6']
@@ -1342,7 +1332,8 @@ const warmPeriod: GenesisEpoch = {
       }
 
       // Melted — life regrows in exposed dirt
-      const regrowProgress = clamp((progress - meltThreshold) / 0.4, 0, 1)
+      const meltTime = 1 - coverThreshold * 0.8
+      const regrowProgress = clamp((progress - meltTime) / 0.3, 0, 1)
       if (regrowProgress > 0.5 && (h % 3 !== 0)) {
         const greenColors = ['#2E8B57', '#3CB371']
         const gi = h % greenColors.length
