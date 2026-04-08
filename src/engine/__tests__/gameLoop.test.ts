@@ -121,6 +121,7 @@ describe('registry mechanics', () => {
       'weather',
       'dialog',
       'crumble-cleanup',
+      'revery-cast-cleanup',
     ]) {
       gameLoop.unregister(id)
     }

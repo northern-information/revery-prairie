@@ -27,6 +27,7 @@ defined in `src/engine/types.ts` as a const object (not an enum — `erasableSyn
 
 - `dirt` — empty ground (`.`, tan)
 - `clover` — planted clover field (`%`, green)
+- `burntClover` — fire-scorched clover (`%`, dark charcoal `#3D2B1F`) — walkable, clover cannot regrow on it. created by fire revery.
 - `sand` — shoreline (`:`, tan-gold)
 - `space` — surrounding void (twinkling stars on black)
 - `caveFloor` — walkable cave ground (`.`, dark gray)
@@ -51,7 +52,9 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/entities.ts` — `tickBees`, `tickCharacterBehaviors`, `pickUpGroundItems`, `dropItem`.
 - `src/engine/celestial.ts` — `spawnShootingStar`, `spawnShootingStarAtTarget`, `tickShootingStars`, `spawnChainMeteorites`.
 - `src/engine/cloverLifecycle.ts` — `tickCloverLifecycle`, `harvestClover`, `cutClover`, `getCloverStage`. clover death stages, water meter, soil health enrichment.
-- `src/engine/interaction.ts` — `interactWithCharacter`, `advanceDialog`, `updateFacingEntity`, `isInteractableAt`, dialog tick, `giveMoabGift`, `breakWall`.
+- `src/engine/interaction.ts` — `interactWithCharacter`, `advanceDialog`, `updateFacingEntity`, `isInteractableAt`, dialog tick, `giveCharacterGift`, `breakWall`.
+- `src/engine/reveries.ts` — revery definition registry (`REVERY_DEFINITIONS`), `getReveryDefinition`. fire and water reveries.
+- `src/engine/actionBar.ts` — action bar slot operations: `assignActionBarSlot`, `clearActionBarSlot`, `activateActionBarSlot`, `getSlotCooldownFraction`, `autoAssignRevery`.
 - `src/engine/omnibox.ts` — `openOmnibox`, `closeOmnibox`, `toggleOmnibox`, `grabOmnibox`, `toggleFacingOmnibox`.
 - `src/engine/combine.ts` — drag-drop combine detection (`checkCombine`) and `combineBeeAndClover`.
 - `src/engine/drag.ts` — `DragState` type, `computePlacementPreview`, `executeCombine`, `executeStoreInOmnibox`, `computeRotation`. pure drag-and-drop logic (no React).
@@ -71,7 +74,8 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 - `src/engine/recipes.ts` — recipe definitions, combine detection, preview functions.
 - `src/engine/manual.ts` — prairie manual entry types, `MANUAL_ENTRIES` registry, `MANUAL_LORE` table, builder functions, `recordDiscovery`, `filterManualEntries`, `isDiscovered`.
 - `src/engine/audio.ts` — two-layer audio manager singleton. `setAmbient`, `startDialogMusic`, `stopDialogMusic`, `stopAll`, `setMusicEnabled`. manages ambient (zone) and dialog (character) HTMLAudioElements with rAF crossfading.
-- `src/components/GameScreen.tsx` — main game container orchestrating canvas, sidebar, inventory, menu, manual, dialogs, toasts.
+- `src/components/ActionBar.tsx` — bottom-center action bar with 4 slots, animated glyphs, cooldown sweep overlay, drag-to-assign.
+- `src/components/GameScreen.tsx` — main game container orchestrating canvas, sidebar, inventory, menu, manual, dialogs, toasts, action bar.
 - `src/components/ManualPanel.tsx` — prairie manual panel with category tabs, search, entry cards, spoiler hints, cross-ref navigation.
 - `src/components/GameCanvas.tsx` — canvas element, rAF render via game loop, resize handling, HiDPI.
 - `src/components/InventoryPanel.tsx` — inventory UI panel with grid, drag-to-map.
@@ -156,11 +160,11 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 - `shift` — toggle sprint (double movement speed, works with WASD and click-to-move)
 - `shift+click` — queue waypoints onto existing path (RTS-style)
 - during drag: `r` rotates preview, `esc` cancels (captured by drag hook)
+- `1-4` — activate action bar slot (blocked during dialog and menu)
 - `isDraggingRef` blocks `x`/`r` in keyboard hook while drag is active, but allows movement through
 
 ### reserved keys (not yet implemented)
 
-- `1-4` — hotbar slots (press number to use item directly)
 - `space` — TBD
 - `left click+drag` — TBD (future RTS-style multi-select)
 - `right click` — TBD
@@ -207,6 +211,35 @@ hand-authored content goes in the `MANUAL_LORE` table in `manual.ts`. entries wi
 - **ghosts** — 3 spawn at random walkable positions on game start. drift slowly (15% move chance per 500ms tick) using the shared `getBlockedPositions` set. rendered as `ö` in white. tracked in `state.characters[]` with `behavior: { type: 'drift', speed: 0.15, freezeOnDialog: true }`. block player movement and pathfinding. cannot be captured. freeze in place during dialog. each has a 3-line dialog tree.
 - **ground items** — items dropped on the map. rendered with their glyph/color. walking over them auto-picks up if backpack has room.
 - **ground omniboxes** — omniboxes dropped on the map. tracked in `state.groundOmniboxes[]` (separate from groundItems). player must press `[e]` facing one to open it. walking away (>1 tile) auto-closes it. the player must explicitly drag it to their backpack from the inventory UI.
+
+## reveries
+
+key items that don't occupy inventory grid space. stored as `state.reveries: string[]` (revery definition IDs). given as gifts by characters on dialog completion.
+
+- **registry**: `src/engine/reveries.ts`. `REVERY_DEFINITIONS` follows the `as const satisfies Record<string, T>` pattern. each revery has `glyphs: string[]` (animated frames), `glyphColor`, `cooldownMs`.
+- **current reveries**: `fire` (from Moab, `^`/`~`/`*` in orange-red), `water` (from Gron, `~`/`≈`/`~` in blue).
+- **mechanics**: deferred. pressing a revery's action bar slot plays the cooldown sweep animation as a dry fire.
+
+## character gifts
+
+generic gift system replacing the old hardcoded `giveMoabGift()`. characters have optional `gift` and `postGiftDialog` fields on `CharacterDefinition`.
+
+- `giveCharacterGift(state, characterId)` in `interaction.ts` — checks `state.giftsReceived: Set<string>`, delivers the gift, records discovery, returns the `ReveryDefinition` for toast display.
+- `getCharacterDialog(state, characterId)` in `characters.ts` — returns `postGiftDialog` if gift has been given, else `dialog`. replaces all direct `def.dialog` reads.
+- gifts are one-time per character. `state.giftsReceived` tracks which characters have given their gift.
+
+## action bar
+
+bottom-center UI with 4 slots for reveries or items. positioned `fixed bottom-4 left-1/2 -translate-x-1/2`.
+
+- **engine**: `src/engine/actionBar.ts`. `assignActionBarSlot`, `clearActionBarSlot`, `activateActionBarSlot`, `getSlotCooldownFraction`, `autoAssignRevery`.
+- **component**: `src/components/ActionBar.tsx`. always visible. each slot is 48x48px.
+- **animated glyphs**: revery slots cycle through `glyphs[]` at ~400ms per frame via rAF.
+- **cooldown sweep**: CSS `conic-gradient` overlay, sweeps clockwise from 12 o'clock. driven by rAF reading `performance.now()` against `slot.cooldownEndTime`.
+- **drag-to-assign**: items can be dragged from inventory onto slots. `DragState.actionBarTarget` tracks the hovered slot. compatible slots highlight with pink border during drag.
+- **auto-assign**: new reveries auto-fill the first empty slot via `autoAssignRevery`.
+- **keybinds**: `1-4` activate the corresponding slot (blocked during dialog and menu).
+- **state**: `GameState.actionBar: (ActionBarSlot | null)[]` — always length 4. `ActionBarSlot` has `kind`, `id`, `cooldownEndTime`, `cooldownDurationMs`.
 
 ## omniboxes
 
@@ -265,6 +298,9 @@ mutable game state has no access control — any function with a `GameState` ref
 - `manualState` — **single-owner.** `ManualPanel.tsx` reads and writes via local React state synced to the mutable object. `state.ts` initializes.
 - `cloverLifecycle` — **owner + clearers.** `cloverLifecycle.ts` (`tickCloverLifecycle`) owns tick/stage progression. `cloverLifecycle.ts` (`harvestClover`, `cutClover`) deletes entries. `recipes.ts` and `clover.ts` delete entries when placing new clover.
 - `soilHealth` — **single-owner.** `cloverLifecycle.ts` writes via `addSoilHealth`. read by `Sidebar.tsx`.
+- `reveries` — **single-owner.** `interaction.ts` (`giveCharacterGift`) appends. read by `ActionBar.tsx`.
+- `actionBar` — **owner + clearers.** `actionBar.ts` owns assign/clear/activate. `interaction.ts` calls `autoAssignRevery` on gift delivery. `ActionBar.tsx` reads.
+- `giftsReceived` — **single-owner.** `interaction.ts` (`giveCharacterGift`) adds entries. read by `characters.ts` (`getCharacterDialog`).
 
 **owner + clearers** (one module writes meaningful values, others only null/reset):
 

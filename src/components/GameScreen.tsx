@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react'
+import { ActionBar } from './ActionBar'
 import { DIALOG_HEIGHT, DIALOG_WIDTH, DialogBox } from './DialogBox'
 import { GameCanvas } from './GameCanvas'
 import { InventoryPanel } from './InventoryPanel'
@@ -6,11 +7,12 @@ import { HexagramPanel } from './HexagramPanel'
 import { ManualPanel } from './ManualPanel'
 import { Menu } from './Menu'
 import { PickupToasts } from './PickupToasts'
+import { ReveriesPanel } from './ReveriesPanel'
 import { Sidebar } from './Sidebar'
 
 import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { COIN_GLINTING_COLOR } from '@/engine/constants'
-import { getCharacterDefinition } from '@/engine/characters'
+import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
 import { ComponentType } from '@/engine/ecs/types'
 import { advanceDialog } from '@/engine/interaction'
 import { getDefinition } from '@/engine/items'
@@ -18,6 +20,8 @@ import { useEventLog } from '@/hooks/useEventLog'
 import { useGameEngine } from '@/hooks/useGameEngine'
 import { useKeyboard } from '@/hooks/useKeyboard'
 import { useMusic } from '@/hooks/useMusic'
+
+import type { DragState } from '@/hooks/useInventoryDrag'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { CharMetrics } from '@/engine/types'
 
@@ -34,6 +38,7 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
   const itemInfoRef = useRef<ItemInfoHandle>(null)
   const metricsRef = useRef<CharMetrics | null>(null)
   const isDraggingRef = useRef(false)
+  const inventoryDragStateRef = useRef<DragState | null>(null)
   const { toasts, log, addEvent } = useEventLog()
 
   const onPickup = useCallback(
@@ -103,6 +108,7 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
         onPickup={onPickup}
         onDialog={onDialog}
         onDiscovery={onDiscovery}
+        onGift={onGift}
         metricsRef={metricsRef}
       />
       {activePanel === 'inventory' && (
@@ -122,8 +128,9 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
       {state.activeDialog &&
         (() => {
           const def = getCharacterDefinition(state.activeDialog.characterId)
-          const line = state.activeDialog.transitioning ? '' : def.dialog[state.activeDialog.lineIndex]
-          const isLastLine = state.activeDialog.lineIndex >= def.dialog.length - 1
+          const dialogLines = getCharacterDialog(state, state.activeDialog.characterId)
+          const line = state.activeDialog.transitioning ? '' : dialogLines[state.activeDialog.lineIndex]
+          const isLastLine = state.activeDialog.lineIndex >= dialogLines.length - 1
 
           const dialog = state.activeDialog
           // Find the character entity's position for dialog box placement
@@ -203,6 +210,15 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
           }}
         />
       )}
+      {activePanel === 'reveries' && (
+        <ReveriesPanel
+          state={state}
+          refreshUI={refreshUI}
+          onClose={() => {
+            setActivePanel(null)
+          }}
+        />
+      )}
       {activePanel === 'menu' && (
         <Menu
           onResume={() => {
@@ -225,6 +241,17 @@ export const GameScreen = ({ stewardName, onRestart }: GameScreenProps) => {
           }}
         />
       )}
+      <ActionBar
+        state={state}
+        refreshUI={refreshUI}
+        dragState={inventoryDragStateRef.current}
+        onSetActionBarTarget={() => {
+          // Handled via drag system — placeholder for now
+        }}
+        onOpenReveries={() => {
+          setActivePanel(activePanel === 'reveries' ? null : 'reveries')
+        }}
+      />
       <Sidebar
         state={state}
         activePanel={activePanel}

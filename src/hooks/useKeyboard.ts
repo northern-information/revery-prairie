@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import { activateActionBarSlot, getActionBarPreview } from '@/engine/actionBar'
 import { getCharacterDefinition } from '@/engine/characters'
 import { canCast } from '@/engine/hexagram'
 import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
@@ -10,7 +11,6 @@ import {
   advanceDialog,
   breakWall,
   getAdjacentCharacter,
-  giveMoabGift,
   interactWithCharacter,
   updateFacingEntity,
 } from '@/engine/interaction'
@@ -21,7 +21,7 @@ import { Rotation, Zone } from '@/engine/types'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
-export type Panel = 'inventory' | 'menu' | 'manual' | 'hexagram' | null
+export type Panel = 'inventory' | 'menu' | 'manual' | 'hexagram' | 'reveries' | null
 
 interface UseKeyboardOptions {
   state: GameState
@@ -74,17 +74,22 @@ export const useKeyboard = ({
         return
       }
 
+      // [1-4] — hold to preview revery cast, release to cast
+      if (e.key >= '1' && e.key <= '4') {
+        if (state.activeDialog) return
+        if (activePanel === 'menu') return
+        if (e.repeat) return
+        const slotIndex = parseInt(e.key) - 1
+        state.heldActionSlot = slotIndex
+        state.previewFn = (s) => getActionBarPreview(s, slotIndex)
+        refreshUI()
+        return
+      }
+
       // [e] — advance dialog / pick up or close open omnibox / open omnibox / talk
       if (e.key === 'e' || e.key === 'E') {
         if (state.activeDialog) {
-          const dialogCharId = state.activeDialog.characterId
-          const dialogContinues = advanceDialog(state)
-          if (!dialogContinues && dialogCharId === 'moab' && !state.moabGiftGiven) {
-            if (giveMoabGift(state)) {
-              const def = getDefinition('omnibox')
-              onGift('given an omnibox', def.glyph, def.glyphColor, state.player.x, state.player.y)
-            }
-          }
+          advanceDialog(state)
           refreshUI()
           return
         }
@@ -143,10 +148,16 @@ export const useKeyboard = ({
           }
           // Interact with adjacent character
           const adjacent = getAdjacentCharacter(state)
-          if (adjacent && interactWithCharacter(state)) {
-            const def = getCharacterDefinition(adjacent.definitionId)
-            onDialog(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
-            refreshUI()
+          if (adjacent) {
+            const result = interactWithCharacter(state)
+            if (result.opened) {
+              const def = getCharacterDefinition(adjacent.definitionId)
+              onDialog(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
+              if (result.gift) {
+                onGift(`received ${result.gift.name.toLowerCase()}`, result.gift.glyphs[0], result.gift.glyphColor, state.player.x, state.player.y)
+              }
+              refreshUI()
+            }
           }
           return
         }
@@ -212,7 +223,7 @@ export const useKeyboard = ({
         return
       }
 
-      // Rotate hovered item in inventory
+      // Rotate hovered item in inventory, or toggle reveries panel
       if (e.key === 'r' || e.key === 'R') {
         if (activePanel === 'inventory') {
           const hoveredId = itemInfoRef.current?.getCurrentId()
@@ -223,8 +234,11 @@ export const useKeyboard = ({
               moveItem(state.backpack, item.uid, item.gridX, item.gridY, nextRotation)
               refreshUI()
             }
+            return
           }
         }
+        if (activePanel === 'menu') return
+        setActivePanel(activePanel === 'reveries' ? null : 'reveries')
         return
       }
 
@@ -292,8 +306,19 @@ export const useKeyboard = ({
       if (dir && dir === state.heldDirection) {
         state.heldDirection = null
       }
+
+      // Release number key → cast revery
+      if (e.key >= '1' && e.key <= '4') {
+        const slotIndex = parseInt(e.key) - 1
+        if (state.heldActionSlot === slotIndex) {
+          state.heldActionSlot = null
+          state.previewFn = null
+          activateActionBarSlot(state, slotIndex, performance.now())
+          refreshUI()
+        }
+      }
     },
-    [state]
+    [state, refreshUI]
   )
 
   useEffect(() => {

@@ -28,8 +28,9 @@ export interface KeyBinding {
 export const KEYBINDINGS: KeyBinding[] = [
   { key: 'wasd', action: 'move', context: 'works with inventory open' },
   { key: 'e', action: 'interact', context: 'talk, pick up, open, break wall' },
-  { key: 'r', action: 'rotate item', context: 'inventory open, hovering item' },
+  { key: 'r', action: 'rotate / reveries', context: 'rotate hovered item in inventory, otherwise toggle reveries panel' },
   { key: 'x', action: 'drop item', context: 'inventory open, hovering item' },
+  { key: '1-4', action: 'cast revery', context: 'hold to preview, release to cast at facing tile' },
   { key: 'tab', action: 'toggle inventory' },
   { key: 'q', action: 'toggle manual' },
   { key: 'esc', action: 'close panel / open menu' },

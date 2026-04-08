@@ -29,8 +29,9 @@ export interface ComponentDataMap {
   [ComponentType.Renderable]: { char: string; color: string; zIndex: number }
   [ComponentType.Behavior]: CharacterBehavior
   [ComponentType.TimedEffect]: {
-    kind: 'explosion' | 'pickupBloom' | 'crumble'
+    kind: 'explosion' | 'pickupBloom' | 'crumble' | 'reveryCast'
     startTime: number
+    reveryId?: string
   }
   [ComponentType.Pickupable]: { definitionId: string }
   [ComponentType.Blocking]: { blockMovement: boolean }

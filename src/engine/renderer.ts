@@ -45,6 +45,7 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
+import { getReveryDefinition } from './reveries'
 import { isInBounds, posKey, tileHash } from './position'
 import { CloverStage, TileType, Zone } from './types'
 
@@ -331,6 +332,38 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
+  // Build a map of revery cast effect pixels (tile-style only; rain-style handled in overlay pass)
+  const reveryCastMap = new Map<string, { char: string; color: string }>()
+  const reveryCastRainPositions: { x: number; y: number }[] = []
+  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    if (!inZone(eid)) continue
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'reveryCast') continue
+    const multiPos = state.world.getComponent(eid, ComponentType.MultiPosition)
+    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+    if (!multiPos || !effect?.reveryId) continue
+
+    const revDef = getReveryDefinition(effect.reveryId)
+    const elapsed = time - effect.startTime
+
+    if (revDef.castStyle === 'rain') {
+      // Rain-style: collect tile positions for the overlay pass
+      for (const pos of multiPos.positions) {
+        reveryCastRainPositions.push({ x: pos.x, y: pos.y })
+      }
+    } else {
+      // Tile-style: replace the tile glyph
+      for (const pos of multiPos.positions) {
+        const h = tileHash(pos.x, pos.y)
+        const frameIndex = (Math.floor(elapsed / 200) + (h % revDef.glyphs.length)) % revDef.glyphs.length
+        reveryCastMap.set(posKey(pos.x, pos.y), {
+          char: revDef.glyphs[frameIndex],
+          color: revDef.glyphColor,
+        })
+      }
+    }
+  }
+
   // Build a map of crumble effect pixels (breakable wall, from ECS)
   const crumbleMap = new Map<string, { char: string; color: string }>()
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
@@ -430,6 +463,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const pe = pickupEffectMap.get(tileKey)
         char = pe?.char ?? '*'
         color = pe?.color ?? '#C8C8FF'
+      } else if (reveryCastMap.has(tileKey)) {
+        const rc = reveryCastMap.get(tileKey)
+        char = rc?.char ?? '^'
+        color = rc?.color ?? '#FF4500'
       } else if (crumbleMap.has(tileKey)) {
         const cr = crumbleMap.get(tileKey)
         char = cr?.char ?? '#'
@@ -585,5 +622,23 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         ctx.fillText(RAIN_CHARS[phase], rpx, rpy)
       }
     }
+  }
+
+  // Revery rain overlay — same visual style as Gron's rain, on cast tiles
+  for (const rp of reveryCastRainPositions) {
+    const wx = rp.x
+    const wy = rp.y
+    const vx = wx - camera.x
+    const vy = wy - camera.y
+    if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
+
+    const h = tileHash(wx + state.rainSeed, wy)
+    const phase = ((h >> 4) + Math.floor(time * RAIN_SPEED)) % RAIN_CHARS.length
+    const colorPhase = ((h >> 8) + Math.floor(time * RAIN_SPEED * 0.7)) % RAIN_COLORS.length
+
+    const rpx = vx * charWidth
+    const rpy = vy * charHeight
+    ctx.fillStyle = RAIN_COLORS[colorPhase]
+    ctx.fillText(RAIN_CHARS[phase], rpx, rpy)
   }
 }

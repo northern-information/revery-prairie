@@ -1,11 +1,12 @@
-import { getCharacterDefinition } from './characters'
+import { autoAssignRevery } from './actionBar'
+import { getCharacterDefinition, getCharacterDialog } from './characters'
 import { ComponentType } from './ecs/types'
-import { createOmniboxContainer, findFitPosition, placeItem } from './inventory'
 import { recordDiscovery } from './manual'
+import { getReveryDefinition } from './reveries'
 import { CARDINAL, DIRECTIONS, isInBounds } from './position'
-import { Rotation, TileType, Zone } from './types'
+import { TileType, Zone } from './types'
 
-import type { GameState } from './types'
+import type { GameState, ReveryDefinition } from './types'
 
 export const isInteractableAt = (state: GameState, x: number, y: number): boolean => {
   if (
@@ -110,10 +111,16 @@ export const getAdjacentCharacter = (
   return null
 }
 
-export const interactWithCharacter = (state: GameState): boolean => {
+export const interactWithCharacter = (
+  state: GameState,
+): { opened: boolean; gift: ReveryDefinition | null } => {
   const character = getAdjacentCharacter(state)
-  if (!character) return false
+  if (!character) return { opened: false, gift: null }
   recordDiscovery(state, `character:${character.definitionId}`)
+
+  // Give gift immediately on first interaction — no dialog needed
+  const gift = giveCharacterGift(state, character.definitionId)
+
   state.activeDialog = {
     characterId: character.definitionId,
     lineIndex: 0,
@@ -122,7 +129,7 @@ export const interactWithCharacter = (state: GameState): boolean => {
     transitioning: false,
     transitionStartTime: 0,
   }
-  return true
+  return { opened: true, gift }
 }
 
 export const advanceDialog = (state: GameState): boolean => {
@@ -130,8 +137,8 @@ export const advanceDialog = (state: GameState): boolean => {
 
   // If still typing, reveal the full line instantly
   if (!state.activeDialog.typingDone) {
-    const def = getCharacterDefinition(state.activeDialog.characterId)
-    const line = def.dialog[state.activeDialog.lineIndex]
+    const dialog = getCharacterDialog(state, state.activeDialog.characterId)
+    const line = dialog[state.activeDialog.lineIndex]
     state.activeDialog.typingIndex = line.length
     state.activeDialog.typingDone = true
     return true
@@ -140,8 +147,8 @@ export const advanceDialog = (state: GameState): boolean => {
   // If transitioning between lines, ignore
   if (state.activeDialog.transitioning) return true
 
-  const def = getCharacterDefinition(state.activeDialog.characterId)
-  if (state.activeDialog.lineIndex < def.dialog.length - 1) {
+  const dialog = getCharacterDialog(state, state.activeDialog.characterId)
+  if (state.activeDialog.lineIndex < dialog.length - 1) {
     state.activeDialog.transitioning = true
     state.activeDialog.transitionStartTime = performance.now()
     return true
@@ -167,8 +174,8 @@ export const tickDialogTyping = (state: GameState, now: number): void => {
   if (!state.activeDialog || state.activeDialog.typingDone || state.activeDialog.transitioning) return
   if (now - state.lastDialogTypingTick < DIALOG_TYPING_MS) return
 
-  const def = getCharacterDefinition(state.activeDialog.characterId)
-  const line = def.dialog[state.activeDialog.lineIndex]
+  const dialog = getCharacterDialog(state, state.activeDialog.characterId)
+  const line = dialog[state.activeDialog.lineIndex]
   state.activeDialog.typingIndex++
   if (state.activeDialog.typingIndex >= line.length) {
     state.activeDialog.typingDone = true
@@ -178,33 +185,23 @@ export const tickDialogTyping = (state: GameState, now: number): void => {
 
 export { DIALOG_TRANSITION_MS }
 
-export const giveMoabGift = (state: GameState): boolean => {
-  if (state.moabGiftGiven) return false
+export const giveCharacterGift = (state: GameState, characterId: string): ReveryDefinition | null => {
+  const def = getCharacterDefinition(characterId)
+  if (!def.gift) return null
+  if (state.giftsReceived.has(characterId)) return null
 
-  const fit = findFitPosition(state.backpack, 'omnibox')
-  if (!fit) return false
-
-  const omniboxItem = placeItem(state.backpack, 'omnibox', fit.rotation, fit.gridX, fit.gridY)
-  if (!omniboxItem) return false
-
-  const container = createOmniboxContainer(state, omniboxItem.uid)
-
-  // Fill the omnibox with bees
-  for (let y = 0; y < container.height; y++) {
-    for (let x = 0; x < container.width; x++) {
-      placeItem(container, 'bee', Rotation.R0, x, y)
-    }
+  if (def.gift.kind === 'revery') {
+    const reveryDef = getReveryDefinition(def.gift.id)
+    state.reveries.push(def.gift.id)
+    autoAssignRevery(state, def.gift.id)
+    state.giftsReceived.add(characterId)
+    recordDiscovery(state, `revery:${def.gift.id}`)
+    recordDiscovery(state, `event:${characterId}-gift`)
+    return reveryDef
   }
 
-  state.moabGiftGiven = true
-  recordDiscovery(state, 'event:moab-gift')
-  recordDiscovery(state, 'item:omnibox')
-
-  // Switch Moab's dialog to post-gift single line
-  const def = getCharacterDefinition('moab')
-  def.dialog = ['...']
-
-  return true
+  // Item gifts — deferred
+  return null
 }
 
 export const breakWall = (state: GameState, time: number): boolean => {

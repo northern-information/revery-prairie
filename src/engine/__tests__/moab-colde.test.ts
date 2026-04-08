@@ -1,6 +1,6 @@
 import { enterCave, exitCave } from '../cave'
-import { getCharacterDefinition } from '../characters'
-import { advanceDialog, giveMoabGift, interactWithCharacter, tickDialogTransition } from '../interaction'
+import { getCharacterDefinition, getCharacterDialog } from '../characters'
+import { advanceDialog, giveCharacterGift, interactWithCharacter } from '../interaction'
 import { getBlockedPositions, movePlayer } from '../movement'
 import { posKey } from '../position'
 import { createGameState } from '../state'
@@ -28,12 +28,15 @@ describe('moab character definition', () => {
     expect(def.glyphColor).toBe('#FFFFFF')
   })
 
-  it('has 3-line dialog before gift', () => {
+  it('has single-line dialog', () => {
     const def = getCharacterDefinition('moab')
-    expect(def.dialog).toHaveLength(3)
+    expect(def.dialog).toHaveLength(1)
     expect(def.dialog[0]).toBe('...')
-    expect(def.dialog[1]).toBe('...')
-    expect(def.dialog[2]).toBe('...fine.')
+  })
+
+  it('has fire revery gift configured', () => {
+    const def = getCharacterDefinition('moab')
+    expect(def.gift).toEqual({ kind: 'revery', id: 'fire' })
   })
 })
 
@@ -94,118 +97,85 @@ describe('moab first interaction dialog', () => {
     state.playerFacing = 'right'
 
     const result = interactWithCharacter(state)
-    expect(result).toBe(true)
+    expect(result.opened).toBe(true)
+    expect(result.gift?.id).toBe('fire')
     expect(state.activeDialog?.characterId).toBe('moab')
     expect(state.activeDialog?.lineIndex).toBe(0)
     expect(state.activeDialog?.typingDone).toBe(false)
   })
 
-  it('advances through 3 dialog lines then closes', () => {
+  it('single line dialog opens and closes in one advance', () => {
     const state = makeCaveState()
     state.player = { x: state.caveNpcSpot.x - 1, y: state.caveNpcSpot.y }
     state.playerFacing = 'right'
 
     interactWithCharacter(state)
+    expect(state.activeDialog?.lineIndex).toBe(0)
 
-    const dialog = () => {
-      if (!state.activeDialog) throw new Error('no active dialog')
-      return state.activeDialog
-    }
-
-    // Mark typing done, advance starts transition for line 0 -> 1
-    dialog().typingDone = true
-    expect(advanceDialog(state)).toBe(true)
-    expect(dialog().transitioning).toBe(true)
-    tickDialogTransition(state, dialog().transitionStartTime + 500)
-    expect(dialog().lineIndex).toBe(1)
-
-    // Mark typing done, advance starts transition for line 1 -> 2
-    dialog().typingDone = true
-    expect(advanceDialog(state)).toBe(true)
-    expect(dialog().transitioning).toBe(true)
-    tickDialogTransition(state, dialog().transitionStartTime + 500)
-    expect(dialog().lineIndex).toBe(2)
-
-    // Mark typing done, advance closes on last line
-    dialog().typingDone = true
+    // Mark typing done, only line -> close
+    if (!state.activeDialog) throw new Error('no active dialog')
+    state.activeDialog.typingDone = true
     expect(advanceDialog(state)).toBe(false)
     expect(state.activeDialog).toBeNull()
   })
 })
 
 describe('moab gift delivery', () => {
-  it('gives an omnibox packed with 25 bees', () => {
+  it('gives fire revery on first dialog completion', () => {
     const state = makeCaveState()
-    const omniboxesBefore = state.backpack.items.filter(i => i.definitionId === 'omnibox')
-    const result = giveMoabGift(state)
+    const result = giveCharacterGift(state, 'moab')
 
-    expect(result).toBe(true)
-    expect(state.moabGiftGiven).toBe(true)
-
-    // Find the new omnibox (not any pre-existing ones)
-    const omniboxesAfter = state.backpack.items.filter(i => i.definitionId === 'omnibox')
-    expect(omniboxesAfter.length).toBe(omniboxesBefore.length + 1)
-    const newOmnibox = omniboxesAfter.find(o => !omniboxesBefore.some(b => b.uid === o.uid))
-    if (!newOmnibox) throw new Error('new omnibox not found')
-
-    // Check the container has 25 bees
-    const container = state.omniboxContainers.get(newOmnibox.uid)
-    if (!container) throw new Error('omnibox container not found')
-    expect(container.items).toHaveLength(25)
-    expect(container.items.every(i => i.definitionId === 'bee')).toBe(true)
+    expect(result).not.toBeNull()
+    expect(result?.id).toBe('fire')
+    expect(result?.name).toBe('Fire Revery')
+    expect(state.reveries).toContain('fire')
+    expect(state.giftsReceived.has('moab')).toBe(true)
   })
 
-  it('increments nextOmniboxNumber', () => {
+  it('auto-assigns fire revery to first action bar slot', () => {
     const state = makeCaveState()
-    const before = state.nextOmniboxNumber
-    giveMoabGift(state)
-    expect(state.nextOmniboxNumber).toBe(before + 1)
+    giveCharacterGift(state, 'moab')
+
+    expect(state.actionBar[0]).not.toBeNull()
+    expect(state.actionBar[0]?.kind).toBe('revery')
+    expect(state.actionBar[0]?.id).toBe('fire')
   })
 
-  it('returns false if backpack is full', () => {
+  it('returns null if already given', () => {
     const state = makeCaveState()
+    giveCharacterGift(state, 'moab')
 
-    // Fill backpack completely by placing bees in every cell
-    state.backpack.items = []
-    for (let y = 0; y < state.backpack.height; y++) {
-      for (let x = 0; x < state.backpack.width; x++) {
-        state.backpack.items.push({
-          uid: crypto.randomUUID(),
-          definitionId: 'bee',
-          rotation: 0,
-          gridX: x,
-          gridY: y,
-        })
-      }
-    }
-
-    const result = giveMoabGift(state)
-    expect(result).toBe(false)
-    expect(state.moabGiftGiven).toBe(false)
+    const result = giveCharacterGift(state, 'moab')
+    expect(result).toBeNull()
   })
 
-  it('returns false if already given', () => {
+  it('returns null for character with no gift', () => {
     const state = makeCaveState()
-    giveMoabGift(state)
-    expect(state.moabGiftGiven).toBe(true)
+    const result = giveCharacterGift(state, 'ghost-1')
+    expect(result).toBeNull()
+  })
 
-    const result = giveMoabGift(state)
-    expect(result).toBe(false)
+  it('records discovery for revery and gift event', () => {
+    const state = makeCaveState()
+    giveCharacterGift(state, 'moab')
+
+    expect(state.manualDiscoveries.has('revery:fire')).toBe(true)
+    expect(state.manualDiscoveries.has('event:moab-gift')).toBe(true)
   })
 })
 
 describe('moab subsequent interaction', () => {
-  it('dialog is single line after gift', () => {
+  it('dialog switches to postGiftDialog after gift', () => {
     const state = makeCaveState()
-    giveMoabGift(state)
+    giveCharacterGift(state, 'moab')
 
-    const def = getCharacterDefinition('moab')
-    expect(def.dialog).toEqual(['...'])
+    const dialog = getCharacterDialog(state, 'moab')
+    expect(dialog).toEqual(['...'])
   })
 
   it('opens and closes dialog in one advance after gift', () => {
     const state = makeCaveState()
-    giveMoabGift(state)
+    giveCharacterGift(state, 'moab')
 
     state.player = { x: state.caveNpcSpot.x - 1, y: state.caveNpcSpot.y }
     state.playerFacing = 'right'
