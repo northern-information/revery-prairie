@@ -1,16 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 import { MAP_HEIGHT, MAP_WIDTH, ZOOM_DEFAULT } from '@/engine/constants'
-import {
-  createGenesisState,
-  extractGenesisResult,
-  GENESIS_EPOCHS,
-  nameToSeed,
-  tickGenesis,
-} from '@/engine/genesis'
+import { createGenesisState, extractGenesisResult, GENESIS_EPOCHS, nameToSeed, tickGenesis } from '@/engine/genesis'
 import { renderGenesis } from '@/engine/genesisRenderer'
 import { measureChar } from '@/engine/renderer'
-
 import type { GenesisResult } from '@/engine/genesisTypes'
 import type { CharMetrics } from '@/engine/types'
 
@@ -108,7 +101,7 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
         return
       }
 
-      // Animate zoom-in during the final epoch ("the prairie awakens...")
+      // Animate zoom-in during the final epoch
       const isLastEpoch = sim.epochIndex === GENESIS_EPOCHS.length - 1
       if (isLastEpoch && sim.epochStartTime > 0) {
         const elapsed = time - sim.epochStartTime
@@ -133,11 +126,5 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
     }
   }, [finishSimulation])
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0"
-      style={{ cursor: 'url(/cursor.cur), auto' }}
-    />
-  )
+  return <canvas ref={canvasRef} className="fixed inset-0" style={{ cursor: 'url(/cursor.cur), auto' }} />
 }

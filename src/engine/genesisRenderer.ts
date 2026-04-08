@@ -7,8 +7,7 @@ import type { GenesisEpoch, GenesisSimState } from './genesisTypes'
 // Commentary styling
 const COMMENTARY_FONT_SCALE = 1.5
 const COMMENTARY_COLOR = '#999999'
-const COMMENTARY_BG = 'rgba(26, 26, 26, 0.7)'
-const COMMENTARY_PADDING_Y = 20
+const COMMENTARY_BG = '#000000'
 
 /** Render one frame of the genesis simulation. */
 export const renderGenesis = (
@@ -48,11 +47,6 @@ export const renderGenesis = (
       const px = vx * charWidth
       const py = vy * charHeight
 
-      // Out of bounds — black
-      if (mx < 0 || mx >= sim.width || my < 0 || my >= sim.height) {
-        continue
-      }
-
       const renders = epoch.renderTile(sim, mx, my, progress, time)
 
       for (const r of renders) {
@@ -72,7 +66,7 @@ export const renderGenesis = (
     const textHeight = fontSize + 4
 
     const tx = Math.floor((canvasWidth - textWidth) / 2)
-    const ty = canvasHeight - COMMENTARY_PADDING_Y - textHeight
+    const ty = Math.floor((canvasHeight - textHeight) / 2)
 
     // Background bar
     ctx.fillStyle = COMMENTARY_BG

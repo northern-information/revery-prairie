@@ -95,10 +95,16 @@ describe('runAllMutations', () => {
     runAllMutations(sim, GENESIS_EPOCHS)
     const result = extractGenesisResult(sim)
 
-    expect(result.terrain[0][0].type).toBe(TileType.Space)
-    expect(result.terrain[0][MAP_WIDTH - 1].type).toBe(TileType.Space)
-    expect(result.terrain[MAP_HEIGHT - 1][0].type).toBe(TileType.Space)
-    expect(result.terrain[MAP_HEIGHT - 1][MAP_WIDTH - 1].type).toBe(TileType.Space)
+    // Corners should be space or sand (sandbar scattering can land on corners)
+    const cornerTypes = [
+      result.terrain[0][0].type,
+      result.terrain[0][MAP_WIDTH - 1].type,
+      result.terrain[MAP_HEIGHT - 1][0].type,
+      result.terrain[MAP_HEIGHT - 1][MAP_WIDTH - 1].type,
+    ]
+    for (const ct of cornerTypes) {
+      expect(ct === TileType.Space || ct === TileType.Sand).toBe(true)
+    }
   })
 
   it('produces soil health values in valid range', () => {
@@ -269,7 +275,7 @@ describe('getGenesisCommentary', () => {
 describe('geological features', () => {
   it('generates volcanic heat map', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    // Run through magma era
+    // Run through lava era
     for (let i = 0; i <= 2; i++) {
       GENESIS_EPOCHS[i].mutate(sim)
     }
@@ -466,11 +472,12 @@ describe('genesis-enhancements', () => {
       }
     })
 
-    it('generates small permanent ponds', () => {
+    it('generates elevation-driven ponds within water budget', () => {
       const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
       runAllMutations(sim, GENESIS_EPOCHS)
       expect(sim.ponds.size).toBeGreaterThan(0)
-      expect(sim.ponds.size).toBeLessThanOrEqual(20) // max 4 ponds * 5 tiles
+      // Water budget is 10% of land tiles
+      expect(sim.ponds.size).toBeLessThanOrEqual(Math.floor(sim.landMask.size * 0.1))
     })
 
     it('ponds do not overlap river paths', () => {
@@ -488,5 +495,144 @@ describe('genesis-enhancements', () => {
       expect(result.ponds).toBeDefined()
       expect(result.ponds.size).toBe(sim.ponds.size)
     })
+  })
+})
+
+describe('elevation model', () => {
+  it('generates elevation map during lava era', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    // Run through lava era (epoch 2)
+    for (let i = 0; i <= 2; i++) {
+      GENESIS_EPOCHS[i].mutate(sim)
+    }
+    expect(sim.elevation.size).toBeGreaterThan(0)
+  })
+
+  it('elevation values in valid range after all mutations', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(sim, GENESIS_EPOCHS)
+    for (const [, value] of sim.elevation) {
+      expect(value).toBeGreaterThanOrEqual(0)
+      expect(value).toBeLessThanOrEqual(100)
+    }
+  })
+
+  it('center tends to be higher than edges', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(sim, GENESIS_EPOCHS)
+
+    const centerX = MAP_WIDTH / 2
+    const centerY = MAP_HEIGHT / 2
+    const centerRadius = Math.min(MAP_WIDTH, MAP_HEIGHT) * 0.15
+    let centerSum = 0
+    let centerCount = 0
+    let edgeSum = 0
+    let edgeCount = 0
+
+    for (const [key, value] of sim.elevation) {
+      const [xStr, yStr] = key.split(',')
+      const x = Number(xStr)
+      const y = Number(yStr)
+      const d = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2)
+      if (d < centerRadius) {
+        centerSum += value
+        centerCount++
+      } else if (d > centerRadius * 3) {
+        edgeSum += value
+        edgeCount++
+      }
+    }
+
+    const centerMean = centerSum / centerCount
+    const edgeMean = edgeSum / edgeCount
+    expect(centerMean).toBeGreaterThan(edgeMean)
+  })
+
+  it('glaciers lower elevation', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    // Run through ice age
+    for (let i = 0; i <= 8; i++) {
+      GENESIS_EPOCHS[i].mutate(sim)
+    }
+
+    let glacialSum = 0
+    let glacialCount = 0
+    let nonGlacialSum = 0
+    let nonGlacialCount = 0
+
+    for (const [key, value] of sim.elevation) {
+      if (sim.glacialPaths.has(key)) {
+        glacialSum += value
+        glacialCount++
+      } else {
+        nonGlacialSum += value
+        nonGlacialCount++
+      }
+    }
+
+    const glacialMean = glacialSum / glacialCount
+    const nonGlacialMean = nonGlacialSum / nonGlacialCount
+    expect(glacialMean).toBeLessThan(nonGlacialMean)
+  })
+
+  it('rivers generally flow downhill', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    for (let i = 0; i <= 10; i++) {
+      GENESIS_EPOCHS[i].mutate(sim)
+    }
+
+    for (const path of sim.riverPathsOrdered) {
+      if (path.length < 3) continue
+      let downhillSteps = 0
+      let totalSteps = 0
+      for (let i = 1; i < path.length; i++) {
+        const prevElev = sim.elevation.get(`${String(path[i - 1].x)},${String(path[i - 1].y)}`) ?? 50
+        const currElev = sim.elevation.get(`${String(path[i].x)},${String(path[i].y)}`) ?? 50
+        totalSteps++
+        if (currElev <= prevElev) downhillSteps++
+      }
+      // At least 40% of steps should be downhill (erosion flattens the path, jitter adds uphill;
+      // post-erosion elevation means consecutive tiles may be equal)
+      expect(downhillSteps / totalSteps).toBeGreaterThan(0.4)
+    }
+  })
+
+  it('ponds form at low elevation', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(sim, GENESIS_EPOCHS)
+
+    let pondElevSum = 0
+    let pondCount = 0
+    let allElevSum = 0
+    let allCount = 0
+
+    for (const [key, value] of sim.elevation) {
+      allElevSum += value
+      allCount++
+      if (sim.ponds.has(key)) {
+        pondElevSum += value
+        pondCount++
+      }
+    }
+
+    if (pondCount > 0) {
+      const pondMean = pondElevSum / pondCount
+      const allMean = allElevSum / allCount
+      expect(pondMean).toBeLessThan(allMean)
+    }
+  })
+
+  it('water budget is respected', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(sim, GENESIS_EPOCHS)
+    const waterBudget = Math.floor(sim.landMask.size * 0.1)
+    expect(sim.ponds.size).toBeLessThanOrEqual(waterBudget)
+  })
+
+  it('elevation persists into GenesisResult', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(sim, GENESIS_EPOCHS)
+    const result = extractGenesisResult(sim)
+    expect(result.elevation.size).toBe(sim.elevation.size)
   })
 })

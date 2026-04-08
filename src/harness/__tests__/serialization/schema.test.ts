@@ -52,6 +52,8 @@ const EXPECTED_FIELDS = [
   'cloverGrowthPreviews',
   'cloverLifecycle',
   'soilHealth',
+  'elevation',
+  'ponds',
   'manualDiscoveries',
   'manualState',
   'reveries',

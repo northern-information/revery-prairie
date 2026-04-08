@@ -130,6 +130,8 @@ export const createGameState = (
     cloverGrowthPreviews: new Set<string>(),
     cloverLifecycle: new Map(),
     soilHealth: genesisResult?.soilHealth ?? generateSoilHealth(map, MAP_WIDTH, MAP_HEIGHT),
+    elevation: genesisResult?.elevation ?? new Map<string, number>(),
+    ponds: genesisResult?.ponds ?? new Set<string>(),
     manualDiscoveries: new Set<string>(['item:bee', 'item:clover', 'item:permacomputer']),
     manualState: {
       activeCategory: null,

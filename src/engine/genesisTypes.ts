@@ -3,7 +3,7 @@ import type { Position, Tile } from './types'
 export const GenesisEpochId = {
   CosmicFormation: 'cosmicFormation',
   PlanetaryAccretion: 'planetaryAccretion',
-  MagmaEra: 'magmaEra',
+  LavaEra: 'lavaEra',
   CrustCooling: 'crustCooling',
   FirstWater: 'firstWater',
   EmergenceOfLife: 'emergenceOfLife',
@@ -57,6 +57,8 @@ export interface GenesisSimState {
   height: number
   soilHealth: Map<string, number>
   volcanicHeat: Map<string, number>
+  /** Elevation per land tile (0-100, higher = taller) */
+  elevation: Map<string, number>
   ancientSeabeds: Set<string>
   glacialPaths: Set<string>
   riverPaths: Set<string>
@@ -108,6 +110,7 @@ export interface GenesisMeteorStreak {
 export interface GenesisResult {
   terrain: Tile[][]
   soilHealth: Map<string, number>
+  elevation: Map<string, number>
   ruins: CivilizationRuin[]
   /** Permanent pond positions (enriched soil, future water tile support) */
   ponds: Set<string>

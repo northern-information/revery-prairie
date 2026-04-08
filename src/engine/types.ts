@@ -177,6 +177,8 @@ export interface GameState {
   cloverGrowthPreviews: Set<string>
   cloverLifecycle: Map<string, CloverLifecycleState>
   soilHealth: Map<string, number>
+  elevation: Map<string, number>
+  ponds: Set<string>
   meteorShower: MeteorShowerState
   manualDiscoveries: Set<string>
   manualState: ManualState
