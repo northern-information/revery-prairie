@@ -1245,7 +1245,7 @@ const warmPeriod: GenesisEpoch = {
     }
 
     // Elevation-driven pond generation: find local minima, flood upward
-    const waterBudget = Math.floor(sim.landMask.size * 0.1)
+    const waterBudget = Math.floor(sim.landMask.size * 0.05)
     const minima: { key: string; elev: number }[] = []
 
     for (const key of sim.landMask) {
@@ -2120,10 +2120,6 @@ const presentDay: GenesisEpoch = {
       const ci = (h + Math.floor(time * 0.003)) % waterChars.length
       return [{ char: waterChars[ci], color: '#5577AA', dx: 0, dy: 0 }]
     }
-
-    // Lowland water
-    const lowWater = renderLowlandWater(sim, key, h, time)
-    if (lowWater) return lowWater
 
     // Clover (Gron's aura) — fades in over the epoch for smooth transition
     if (tile.type === TileType.Clover) {

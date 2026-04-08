@@ -14,7 +14,6 @@ import {
   DIRT_COLORS,
   RIVER_COLOR,
   POND_COLOR,
-  WATER_COLORS,
   CLOVER_DECOMPOSE_COLOR,
   CLOVER_DYING_COLOR_FROM,
   CLOVER_DYING_COLOR_TO,
@@ -663,24 +662,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           const waterChars = ['~', '=']
           char = waterChars[(h2 + Math.floor(time * 0.003)) % waterChars.length]
           color = POND_COLOR
-        } else if (map[my][mx].type === TileType.Dirt && state.elevation.has(tileKey)) {
-          // Lowland water (elevation-based)
-          const h2 = tileHash(mx, my)
-          const elev = state.elevation.get(tileKey) ?? 50
-          const scatter = ((h2 % 25) - 12) + (((h2 >>> 8) % 15) - 7)
-          if (elev + scatter < 40) {
-            const waterChars = ['~', '=', '-']
-            char = waterChars[(h2 + Math.floor(time * 0.003)) % waterChars.length]
-            color = WATER_COLORS[h2 % WATER_COLORS.length]
-          } else {
-            const tile = map[my][mx]
-            char = TILE_CHARS[tile.type]
-            if (state.burnScars.has(tileKey)) {
-              color = BURN_SCAR_COLORS[h2 % BURN_SCAR_COLORS.length]
-            } else {
-              color = DIRT_COLORS[h2 % DIRT_COLORS.length]
-            }
-          }
         } else {
           const tile = map[my][mx]
           char = TILE_CHARS[tile.type]
