@@ -1859,14 +1859,27 @@ const secondExtinction: GenesisEpoch = {
   durationMs: 2000,
   commentary: 'another extinction...',
   mutate: (sim) => {
-    // Kill 40-50% of remaining vegetation
+    // Wilt all vegetation except within Gron's rain aura radius
+    // Gron spawns at map center + 5 tiles east (same as createGameState)
+    const gronX = Math.floor(sim.width / 2) + 5
+    const gronY = Math.floor(sim.height / 2)
+    const rainRadius = 6
+
     for (const key of sim.landMask) {
       const veg = sim.vegetationMap.get(key) ?? 0
       if (veg <= 0) continue
-      if (sim.rng() > 0.5) {
-        sim.vegetationMap.set(key, 0)
-        sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 5)
-      }
+
+      const [xStr, yStr] = key.split(',')
+      const x = Number(xStr)
+      const y = Number(yStr)
+      const d = dist(x, y, gronX, gronY)
+
+      // Vegetation within rain aura survives
+      if (d <= rainRadius) continue
+
+      // Everything else wilts from lack of water
+      sim.vegetationMap.set(key, 0)
+      sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 3)
     }
   },
   renderTile: (sim, x, y, progress, time) => {
@@ -1879,13 +1892,13 @@ const secondExtinction: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
-    // Rivers
+    // Rivers persist
     if (sim.riverPaths.has(key)) {
       const ci = (h + Math.floor(time * 0.004)) % 3
       return [{ char: ['~', '=', '-'][ci], color: '#6688BB', dx: 0, dy: 0 }]
     }
 
-    // Ponds
+    // Ponds persist
     if (sim.ponds.has(key)) {
       const waterChars = ['~', '=']
       const ci = (h + Math.floor(time * 0.003)) % waterChars.length
@@ -1893,23 +1906,36 @@ const secondExtinction: GenesisEpoch = {
     }
 
     const veg = sim.vegetationMap.get(key) ?? 0
-    const dieDelay = (h % 100) / 100 * 0.5
 
-    if (veg <= 0 && progress > dieDelay) {
-      const dieProgress = clamp((progress - dieDelay) / 0.5, 0, 1)
-      if (dieProgress < 0.3) {
-        return [{ char: '%', color: '#8B6914', dx: 0, dy: 0 }]
+    // Wilted vegetation — progressive dying animation from edges inward
+    if (veg <= 0) {
+      // Gron's rain aura center
+      const gronX = Math.floor(sim.width / 2) + 5
+      const gronY = Math.floor(sim.height / 2)
+      const d = dist(x, y, gronX, gronY)
+      // Tiles far from Gron wilt first, closer tiles wilt later
+      const wiltDelay = clamp(1 - d / (Math.max(sim.width, sim.height) * 0.5), 0, 0.8)
+
+      if (progress > wiltDelay) {
+        const wiltProgress = clamp((progress - wiltDelay) / 0.4, 0, 1)
+        if (wiltProgress < 0.4) {
+          return [{ char: '%', color: '#8B6914', dx: 0, dy: 0 }]
+        }
+        if (wiltProgress < 0.7) {
+          return [{ char: '%', color: '#6B4914', dx: 0, dy: 0 }]
+        }
+        return [{ char: '.', color: '#4A3728', dx: 0, dy: 0 }]
       }
-      if (dieProgress < 0.6) {
-        return [{ char: '.', color: '#2A1A0A', dx: 0, dy: 0 }]
-      }
-      return [{ char: '.', color: '#4A3728', dx: 0, dy: 0 }]
+
+      // Before wilt reaches this tile — show as green
+      const greenColors = ['#2E8B57', '#3CB371', '#50C878']
+      const gi = h % greenColors.length
+      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
 
-    // Surviving vegetation
+    // Surviving vegetation (within rain aura)
     if (veg > 20) {
-      const nearRiver = sim.riverPaths.has(posKey(x + 1, y)) || sim.riverPaths.has(posKey(x - 1, y))
-      const greenColors = nearRiver ? ['#3CB371', '#50C878', '#66EE88'] : ['#2E8B57', '#3CB371', '#50C878']
+      const greenColors = ['#2E8B57', '#3CB371', '#50C878']
       const gi = h % greenColors.length
       return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
@@ -2075,11 +2101,15 @@ export const tickGenesis = (
 
   const elapsed = time - sim.epochStartTime
   if (elapsed >= epoch.durationMs) {
-    // Move to next epoch
+    // Move to next epoch and immediately run its mutate
+    // so the mutation cost is paid in the transition frame, not the first render frame
     sim.epochIndex++
-    sim.epochStartTime = 0
-
-    if (sim.epochIndex >= epochs.length) return true
+    if (sim.epochIndex >= epochs.length) {
+      sim.epochStartTime = 0
+      return true
+    }
+    sim.epochStartTime = time
+    epochs[sim.epochIndex].mutate(sim)
   }
 
   return false
