@@ -1,0 +1,121 @@
+id: shooting-stars
+name: 'Shooting stars and meteor showers'
+status: implemented
+priority: medium
+layer: engine
+source_files:
+  - src/engine/celestial.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/constants.ts
+dependencies: []
+
+behaviors:
+  - id: ambient-star-spawning
+    description: >
+      spawnShootingStar creates ambient shooting stars from map edges
+      at 15% chance per 2000ms tick. max 5 concurrent stars. suppressed
+      during active meteor showers. picks random edge, generates
+      position and velocity. 30% chance for cardinal-only movement.
+      stars are ECS entities with Position, Velocity, ShootingStarData,
+      EntityTag (shootingStar), EntityZone (overworld). each star has
+      random length (3-6 tiles) and 8% chance to land.
+    inputs:
+      - 'spawnShootingStar called on tick'
+    outputs: []
+    state_changes:
+      - field: world
+        effect: 'shooting star ECS entity created with Position, Velocity, ShootingStarData, EntityTag, EntityZone'
+    determinism: probabilistic
+
+  - id: star-tick-movement
+    description: >
+      tickShootingStars moves each star by its velocity every 80ms
+      tick. increments age. stars are removed when off-map (beyond
+      length + 1 buffer) or age exceeds SHOOTING_STAR_MAX_AGE (300
+      ticks, ~24 seconds). landing stars convert to meteorite +
+      explosion ECS entities on first walkable tile (Dirt or Clover).
+    inputs:
+      - 'tickShootingStars called with time'
+    outputs: []
+    state_changes:
+      - field: world
+        effect: 'star positions updated, expired stars destroyed, meteorite + explosion entities created on landing'
+    determinism: time-based
+
+  - id: targeted-star-spawning
+    description: >
+      spawnShootingStarAtTarget creates a star guaranteed to land on
+      a specific position. traces backward from target to find starting
+      edge outside map bounds. sets willLand true and landingTarget.
+      used by meteor showers.
+    inputs:
+      - 'GameState, target Position, optional direction'
+    outputs: []
+    state_changes:
+      - field: world
+        effect: 'targeted shooting star ECS entity created'
+    determinism: deterministic
+
+  - id: meteor-shower-scheduling
+    description: >
+      tickMeteorShower manages shower state machine. first shower
+      scheduled at random interval [120s, 240s]. when time arrives:
+      active=true, pick radiant direction, calculate remainingStars
+      (8-12), spread over 4-second window. each interval tick spawns
+      one targeted star. when remainingStars=0: active=false, schedule
+      next shower. records event:meteor-shower discovery on first
+      shower.
+    inputs:
+      - 'tickMeteorShower called with time'
+    outputs: []
+    state_changes:
+      - field: meteorShower
+        effect: 'state machine transitions between idle and active'
+      - field: world
+        effect: 'targeted shooting star entities created during active shower'
+      - field: manualDiscoveries
+        effect: 'event:meteor-shower recorded on first shower'
+    determinism: probabilistic
+
+  - id: shower-target-selection
+    description: >
+      findShowerTargets selects landing positions for shower stars.
+      criteria: walkable tile (Dirt or Clover), within SPACE_BORDER,
+      not occupied by player or entities, minimum 5-tile manhattan
+      distance between targets. max attempts = count * 50 to prevent
+      infinite loops.
+    inputs:
+      - 'GameState, count'
+    outputs:
+      - 'Position[] of valid landing targets (may be fewer than count)'
+    state_changes: []
+    determinism: probabilistic
+
+edge_cases:
+  - id: max-active-stars
+    description: '5 stars already active, spawnShootingStar called'
+    expected: 'returns early, no new star created'
+  - id: shower-suppresses-ambient
+    description: 'meteor shower active, ambient spawn called'
+    expected: 'spawnShootingStar returns early during active shower'
+  - id: star-off-map
+    description: 'star moves beyond map bounds by more than length + 1'
+    expected: 'star entity destroyed'
+  - id: star-lands-on-occupied
+    description: 'targeted star reaches target but tile is occupied'
+    expected: 'star continues past target, eventually removed by off-map or age'
+  - id: sparse-map-shower
+    description: 'very few valid landing tiles for shower targets'
+    expected: 'findShowerTargets returns fewer targets, shower spawns fewer stars'
+
+failure_conditions:
+  - trigger: 'Star velocity is (0, 0) — would never move'
+    expected: 'safety check resets to dy=1 if both components zero'
+  - trigger: 'Meteor shower scheduled but no valid targets found'
+    expected: 'shower spawns 0 stars, transitions to idle, schedules next shower'
+
+verification:
+  test_file: src/engine/__tests__/shootingStars.test.ts
+  test_pattern: 'shooting star'
+  command: 'npx vitest run src/engine/__tests__/shootingStars.test.ts'

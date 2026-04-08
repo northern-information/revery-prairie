@@ -1,0 +1,168 @@
+id: action-bar
+name: 'Action bar and reveries'
+status: implemented
+priority: high
+layer: integration
+source_files:
+  - src/engine/actionBar.ts
+  - src/engine/reveries.ts
+  - src/engine/types.ts
+  - src/components/ActionBar.tsx
+  - src/hooks/useKeyboard.ts
+dependencies:
+  - moab-colde
+
+behaviors:
+  - id: revery-definitions
+    description: >
+      REVERY_DEFINITIONS registry defines reveries using the as-const-
+      satisfies pattern. current reveries: fire (glyphs ^/~/*, color
+      #FF4500 orange-red, cooldownMs 12000, castDurationMs 1200,
+      castStyle tile, castPattern SINGLE_PATTERN) and water (glyphs
+      |/:/./, color #4488CC blue, cooldownMs 12000, castDurationMs
+      10000, castStyle rain, castPattern CROSS_PATTERN). each has
+      name, description, and id injected from key.
+    inputs:
+      - 'REVERY_DEFINITIONS registry'
+    outputs:
+      - 'ReveryDefinition objects for fire and water'
+    state_changes: []
+    determinism: deterministic
+
+  - id: assign-action-bar-slot
+    description: >
+      assignActionBarSlot places a revery or item in a slot (0-3).
+      validates slot bounds. initializes cooldown to 0. overwrites
+      existing slot contents.
+    inputs:
+      - 'GameState, slotIndex (0-3), kind (revery/item), id'
+    outputs: []
+    state_changes:
+      - field: actionBar
+        effect: 'slot at index set to ActionBarSlot with kind, id, cooldownEndTime: 0, cooldownDurationMs from revery definition'
+    determinism: deterministic
+
+  - id: clear-action-bar-slot
+    description: >
+      clearActionBarSlot sets a slot to null. validates slot bounds.
+    inputs:
+      - 'GameState, slotIndex (0-3)'
+    outputs: []
+    state_changes:
+      - field: actionBar
+        effect: 'slot at index set to null'
+    determinism: deterministic
+
+  - id: activate-action-bar-slot
+    description: >
+      activateActionBarSlot fires a revery slot. returns false for
+      empty slots, cooldown active, or item slots (deferred). on
+      success: sets cooldownEndTime, creates a timed effect ECS
+      entity with MultiPosition, TimedEffect (reveryCast), EntityTag,
+      EntityZone. calls applyReveryCastEffects for gameplay impact.
+    inputs:
+      - 'GameState, slotIndex (0-3), now (timestamp)'
+    outputs:
+      - 'boolean: true if activation succeeded'
+    state_changes:
+      - field: actionBar
+        effect: 'slot cooldownEndTime set to now + cooldownMs'
+      - field: world
+        effect: 'reveryCast ECS entity created with MultiPosition, TimedEffect, EntityTag, EntityZone'
+    determinism: deterministic
+
+  - id: fire-revery-effect
+    description: >
+      fire revery burns clover tiles to BurntClover at the cast
+      position. adds SOIL_HEALTH_FIRE_REVERY_BONUS to soil health.
+      records event:fire-revery discovery.
+    inputs:
+      - 'fire revery activated, facing a clover tile'
+    outputs: []
+    state_changes:
+      - field: map
+        effect: 'clover tile converted to BurntClover'
+      - field: soilHealth
+        effect: 'SOIL_HEALTH_FIRE_REVERY_BONUS added'
+      - field: manualDiscoveries
+        effect: 'event:fire-revery recorded'
+    determinism: deterministic
+
+  - id: water-revery-effect
+    description: >
+      water revery refills clover water meters at the cast pattern
+      positions (cross: center + 4 cardinal neighbors). caps at
+      CLOVER_WATER_MAX. adds SOIL_HEALTH_WATER_REVERY_BONUS to
+      soil health.
+    inputs:
+      - 'water revery activated, facing clover tiles'
+    outputs: []
+    state_changes:
+      - field: cloverLifecycle
+        effect: 'water refilled at pattern positions, capped at CLOVER_WATER_MAX'
+      - field: soilHealth
+        effect: 'SOIL_HEALTH_WATER_REVERY_BONUS added'
+    determinism: deterministic
+
+  - id: auto-assign-revery
+    description: >
+      autoAssignRevery finds the first empty slot (null) and assigns
+      the given revery id. called by giveCharacterGift when a
+      character delivers a revery. does nothing if all 4 slots are
+      occupied.
+    inputs:
+      - 'GameState, reveryId'
+    outputs: []
+    state_changes:
+      - field: actionBar
+        effect: 'first empty slot filled with revery'
+    determinism: deterministic
+
+  - id: cooldown-fraction
+    description: >
+      getSlotCooldownFraction returns 0-1 fraction of remaining
+      cooldown. formula: (cooldownEndTime - now) / cooldownDurationMs.
+      returns 0 if cooldown expired or not set. used by ActionBar
+      component for the conic-gradient sweep overlay.
+    inputs:
+      - 'ActionBarSlot, now (timestamp)'
+    outputs:
+      - 'number: 0-1 cooldown fraction'
+    state_changes: []
+    determinism: deterministic
+
+  - id: keybind-activation
+    description: >
+      keys 1-4 activate the corresponding action bar slot (index 0-3).
+      blocked during active dialog and menu.
+    inputs:
+      - "key '1'-'4' pressed, no dialog or menu active"
+    outputs:
+      - 'slot activation attempted'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: activate-empty-slot
+    description: 'pressing 1-4 when the slot is null'
+    expected: 'activateActionBarSlot returns false, no effect'
+  - id: activate-on-cooldown
+    description: 'pressing a slot key while cooldown is still active'
+    expected: 'activateActionBarSlot returns false, no effect'
+  - id: auto-assign-all-full
+    description: 'autoAssignRevery called when all 4 slots are occupied'
+    expected: 'no change to actionBar, revery is still in state.reveries'
+  - id: out-of-range-slot
+    description: 'assignActionBarSlot called with index < 0 or >= 4'
+    expected: 'no change, bounds check prevents mutation'
+
+failure_conditions:
+  - trigger: 'activateActionBarSlot called with item kind (not revery)'
+    expected: 'returns false, item activation is deferred'
+  - trigger: 'getReveryDefinition called with unknown id'
+    expected: 'throws error'
+
+verification:
+  test_file: src/engine/__tests__/actionBar.test.ts
+  test_pattern: 'action bar'
+  command: 'npx vitest run src/engine/__tests__/actionBar.test.ts'

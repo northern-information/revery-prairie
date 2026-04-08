@@ -1,0 +1,106 @@
+id: cave-breakable-wall
+name: 'Cave breakable wall and hidden chamber'
+status: implemented
+priority: medium
+layer: engine
+source_files:
+  - src/engine/cave.ts
+  - src/engine/interaction.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/constants.ts
+dependencies:
+  - persistent-dual-zone
+
+behaviors:
+  - id: cave-generation-layout
+    description: >
+      generateCave creates a CaveResult with map, entrance, npcSpot,
+      hiddenChamberPositions, and breakableWallPositions. layout:
+      CaveWall fill, CaveEntrance at bottom center, random-walk
+      corridors upward via L-shaped paths between waypoints (corridor
+      width 2-3), breakable wall row 4 tiles above last waypoint (5
+      tiles wide of CaveBreakableWall), hidden chamber carved above
+      the wall (5 wide x variable height). npcSpot is center of
+      hidden chamber. accepts optional rng for deterministic tests.
+    inputs:
+      - 'width, height, optional rng'
+    outputs:
+      - 'CaveResult with map, entrance, npcSpot, hiddenChamberPositions, breakableWallPositions'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: breakable-wall-interaction
+    description: >
+      breakWall in interaction.ts is triggered by pressing [e] while
+      facing a CaveBreakableWall tile. preconditions: caveRevealed
+      is false, currentZone is Cave, facing tile is CaveBreakableWall.
+      converts all tiles in caveBreakableWallPositions to CaveFloor,
+      sets caveRevealed to true, creates a crumble ECS entity with
+      MultiPosition (all wall positions), TimedEffect (kind: crumble),
+      EntityTag (crumble), EntityZone. records event:wall-break
+      discovery. calls updateFacingEntity after.
+    inputs:
+      - 'player facing CaveBreakableWall, [e] pressed, caveRevealed is false'
+    outputs:
+      - 'boolean: true if wall was broken'
+    state_changes:
+      - field: map
+        effect: 'all breakable wall tiles converted to CaveFloor'
+      - field: caveRevealed
+        effect: 'set to true'
+      - field: world
+        effect: 'crumble ECS entity created with MultiPosition, TimedEffect, EntityTag, EntityZone'
+      - field: manualDiscoveries
+        effect: 'event:wall-break recorded'
+      - field: facingEntityPos
+        effect: 'recalculated via updateFacingEntity'
+    determinism: deterministic
+
+  - id: hidden-chamber-masking
+    description: >
+      when caveRevealed is false, tiles in caveHiddenPositions render
+      as CaveWall in the renderer. the player cannot see the hidden
+      chamber or Moab behind the breakable wall. once caveRevealed
+      is true, the actual tile types render normally.
+    inputs:
+      - 'renderer drawing cave zone with caveRevealed false'
+    outputs:
+      - 'hidden chamber positions show as CaveWall'
+    state_changes: []
+    determinism: deterministic
+
+  - id: interactable-detection
+    description: >
+      isInteractableAt returns true for CaveBreakableWall tiles when
+      in cave zone and caveRevealed is false. after reveal, the tiles
+      are CaveFloor and no longer interactable via this check. this
+      enables pink cursor highlight on the wall before breaking.
+    inputs:
+      - 'isInteractableAt called with breakable wall coordinates'
+    outputs:
+      - 'true when in cave, not revealed, tile is CaveBreakableWall'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: already-revealed
+    description: 'player presses [e] facing wall position after caveRevealed is true'
+    expected: 'breakWall returns false, tiles are already CaveFloor'
+  - id: not-in-cave
+    description: 'breakWall called while in overworld zone'
+    expected: 'returns false, precondition check fails'
+  - id: npc-spot-behind-wall
+    description: 'Moab is at npcSpot inside the hidden chamber, unreachable until wall is broken'
+    expected: 'pathfinding cannot reach npcSpot while CaveBreakableWall tiles exist'
+
+failure_conditions:
+  - trigger: 'breakWall called twice (wall already broken)'
+    expected: 'returns false, caveRevealed guard prevents double break'
+  - trigger: 'player not facing a CaveBreakableWall tile'
+    expected: 'breakWall returns false'
+
+verification:
+  test_file: src/engine/__tests__/cave.test.ts
+  test_pattern: 'breakWall'
+  command: 'npx vitest run src/engine/__tests__/cave.test.ts'

@@ -1,0 +1,100 @@
+id: weather
+name: 'Weather system'
+status: implemented
+priority: medium
+layer: engine
+source_files:
+  - src/engine/weather.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+dependencies: []
+
+behaviors:
+  - id: weather-generation
+    description: >
+      generateWeather creates a Weather object with random spring
+      conditions: temperatureF in [35, 72], windSpeed in [3, 25],
+      humidity in [45, 85], random windDirection from 8 cardinals,
+      sky determined by humidity via pickSky, season hardcoded to
+      spring. called once during createGameState.
+    inputs:
+      - 'createGameState call'
+    outputs:
+      - 'Weather object with all fields initialized'
+    state_changes:
+      - field: weather
+        effect: 'initialized with random spring conditions'
+    determinism: probabilistic
+
+  - id: weather-tick-drift
+    description: >
+      tickWeather mutates a Weather object in place. each tick:
+      temperature drifts ±2°F clamped to [35, 72], humidity drifts
+      ±3% clamped to [45, 85], windSpeed drifts ±2 mph clamped to
+      [3, 25]. windDirection has 15% chance to change to a random
+      cardinal. sky has 30% chance to update via pickSky based on
+      current humidity. season is never mutated.
+    inputs:
+      - 'Weather object'
+    outputs: []
+    state_changes:
+      - field: weather.temperatureF
+        effect: 'drifts ±2, clamped to [35, 72]'
+      - field: weather.humidity
+        effect: 'drifts ±3, clamped to [45, 85]'
+      - field: weather.windSpeed
+        effect: 'drifts ±2, clamped to [3, 25]'
+      - field: weather.windDirection
+        effect: '15% chance to change to random cardinal'
+      - field: weather.sky
+        effect: '30% chance to recalculate from humidity'
+    determinism: probabilistic
+
+  - id: sky-from-humidity
+    description: >
+      pickSky determines sky condition from humidity. humidity >= 75:
+      60% rain, 40% cloudy. humidity 55-74: 50% cloudy, 50% sun.
+      humidity < 55: 80% sun, 20% cloudy.
+    inputs:
+      - 'humidity: number'
+    outputs:
+      - "Sky: 'sun' | 'cloudy' | 'rain'"
+    state_changes: []
+    determinism: probabilistic
+
+  - id: unit-conversions
+    description: >
+      fToC converts Fahrenheit to Celsius via (f - 32) * 5 / 9,
+      rounded. mphToKph converts mph to kph via mph * 1.609,
+      rounded. used by the sidebar when state.metric is true.
+    inputs:
+      - 'temperature in Fahrenheit or speed in mph'
+    outputs:
+      - 'temperature in Celsius or speed in kph'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: temperature-at-bounds
+    description: 'temperature at 35°F or 72°F — drift must not escape range'
+    expected: 'clamped to [35, 72] after drift'
+  - id: humidity-at-bounds
+    description: 'humidity at 45% or 85% — drift must not escape range'
+    expected: 'clamped to [45, 85] after drift'
+  - id: wind-at-bounds
+    description: 'wind at 3 or 25 mph — drift must not escape range'
+    expected: 'clamped to [3, 25] after drift'
+  - id: season-never-changes
+    description: 'season is hardcoded to spring, tickWeather never mutates it'
+    expected: 'weather.season remains spring after any number of ticks'
+
+failure_conditions:
+  - trigger: 'Temperature exceeds [35, 72] range after many ticks'
+    expected: 'Clamping prevents out-of-range values'
+  - trigger: 'Humidity exceeds [45, 85] range after many ticks'
+    expected: 'Clamping prevents out-of-range values'
+
+verification:
+  test_file: src/engine/__tests__/weather.test.ts
+  test_pattern: 'weather'
+  command: 'npx vitest run src/engine/__tests__/weather.test.ts'

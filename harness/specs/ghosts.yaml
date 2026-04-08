@@ -34,7 +34,7 @@ behaviors:
       - 'GameState with 3 ghost entries in state.characters'
     state_changes:
       - field: world
-        effect: "3 ghost ECS entities created with CharacterIdentity({ definitionId: 'ghost-N' }), Position, Blocking, Behavior({ type: 'drift', speed: 0.15, freezeOnDialog: true }), EntityTag('character'), EntityZone({ zone: 'overworld' }) components"
+        effect: "3 ghost ECS entities created with CharacterIdentity({ definitionId: 'ghost-N' }), Position, Blocking, Behavior({ type: 'drift', moveChance: 0.15, freezeOnDialog: true }), EntityTag('character'), EntityZone({ zone: 'overworld' }) components"
     determinism: probabilistic
 
   - id: ghost-drift
@@ -53,7 +53,7 @@ behaviors:
       blocked set before checking candidates and re-adds its new
       position after moving.
     inputs:
-      - 'GameState with ghost characters in state.characters'
+      - 'GameState with ghost ECS entities in state.world'
     outputs: []
     state_changes:
       - field: 'world (ghost entity Position component)'

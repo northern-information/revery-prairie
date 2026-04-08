@@ -1,0 +1,185 @@
+id: omnibox
+name: 'Omnibox containers'
+status: implemented
+priority: high
+layer: engine
+source_files:
+  - src/engine/omnibox.ts
+  - src/engine/inventory.ts
+  - src/engine/entities.ts
+  - src/engine/drag.ts
+  - src/engine/items.ts
+  - src/engine/types.ts
+dependencies:
+  - recipes
+
+behaviors:
+  - id: omnibox-item-definition
+    description: >
+      omnibox item in ITEM_DEFINITIONS: name Omnibox, glyph U+229E,
+      color #C0C0C0 silver, 2x2 shape, weight 4, category Gizmo,
+      description 'a portable container'.
+    inputs:
+      - 'ITEM_DEFINITIONS registry'
+    outputs:
+      - "ItemDefinition with id 'omnibox'"
+    state_changes: []
+    determinism: deterministic
+
+  - id: create-omnibox-container
+    description: >
+      createOmniboxContainer creates a 5x5 Container, increments
+      nextOmniboxNumber, names it 'omnibox #N', and registers it
+      in omniboxContainers keyed by the item's uid.
+    inputs:
+      - 'GameState, uid'
+    outputs:
+      - 'Container with 5x5 grid'
+    state_changes:
+      - field: omniboxContainers
+        effect: 'new container added keyed by uid'
+      - field: nextOmniboxNumber
+        effect: 'incremented by 1'
+    determinism: deterministic
+
+  - id: open-close-toggle
+    description: >
+      openOmnibox sets state.openContainer to the container matching
+      the uid in omniboxContainers. returns false if uid not found.
+      opening a new omnibox auto-closes the previous one. closeOmnibox
+      sets openContainer to null. toggleOmnibox switches between
+      open and closed states. only one omnibox can be open at a time.
+    inputs:
+      - 'GameState, uid'
+    outputs:
+      - 'boolean: success of open/toggle'
+    state_changes:
+      - field: openContainer
+        effect: 'set to Container or null'
+    determinism: deterministic
+
+  - id: toggle-facing-omnibox
+    description: >
+      toggleFacingOmnibox opens or closes the ground omnibox the
+      player is facing. uses playerFacing direction to find adjacent
+      ground omnibox via ECS spatial query. triggered by [e] key when
+      facing a ground omnibox.
+    inputs:
+      - 'player facing a ground omnibox, [e] pressed'
+    outputs:
+      - 'boolean: true if toggled'
+    state_changes:
+      - field: openContainer
+        effect: 'set to facing omnibox container, or null if already open'
+    determinism: deterministic
+
+  - id: ground-omnibox-entity
+    description: >
+      createGroundOmniboxEntity creates an ECS entity with Position,
+      OmniboxLink (uid), Blocking (blockMovement: true), EntityTag
+      (groundOmnibox), and EntityZone. ground omniboxes block player
+      movement and pathfinding via the Blocking component.
+    inputs:
+      - 'GameState, uid, x, y'
+    outputs:
+      - 'Entity ID'
+    state_changes:
+      - field: world
+        effect: 'ground omnibox ECS entity created with 5 components'
+    determinism: deterministic
+
+  - id: ground-omnibox-auto-close
+    description: >
+      when the player moves more than 1 tile (manhattan distance)
+      from an open ground omnibox, it auto-closes. checked during
+      pickUpGroundItems. backpack omniboxes are never auto-closed.
+    inputs:
+      - 'player moves, open ground omnibox exists'
+    outputs: []
+    state_changes:
+      - field: openContainer
+        effect: 'set to null when player walks >1 tile away'
+    determinism: deterministic
+
+  - id: grab-omnibox
+    description: >
+      grabOmnibox picks up an adjacent ground omnibox into the
+      backpack. searches 4 cardinal neighbors for groundOmnibox
+      entities via spatial index. fits the omnibox item into backpack
+      grid, destroys the ground entity, calls updateFacingEntity.
+      returns the uid on success, null if no adjacent omnibox or
+      backpack full.
+    inputs:
+      - 'player adjacent to ground omnibox'
+    outputs:
+      - 'string | null: uid of grabbed omnibox'
+    state_changes:
+      - field: backpack
+        effect: 'omnibox item placed in grid'
+      - field: world
+        effect: 'ground omnibox entity destroyed'
+      - field: facingEntityPos
+        effect: 'recalculated'
+    determinism: deterministic
+
+  - id: drag-to-store
+    description: >
+      executeStoreInOmnibox moves a dragged item from its source
+      container into an omnibox container. uses findFitPosition with
+      auto-rotation to fit the item. removes from source, places in
+      target. returns stored (with uid), no-room, or no-container.
+    inputs:
+      - 'sourceContainer, item, omniboxUid, omniboxContainers'
+    outputs:
+      - "StoreResult: { outcome: 'stored' | 'no-room' | 'no-container' }"
+    state_changes:
+      - field: omniboxContainers
+        effect: 'item added to target omnibox container'
+      - field: backpack
+        effect: 'item removed from source container'
+    determinism: deterministic
+
+  - id: omnibox-nesting
+    description: >
+      omniboxes can be placed inside other omniboxes. nesting is
+      allowed as long as the 2x2 shape fits in the target 5x5 grid.
+      self-nesting is prevented: dragging an omnibox onto itself is
+      detected by isOmniboxSelfDrop and rejected.
+    inputs:
+      - 'dragging omnibox item onto another omnibox'
+    outputs:
+      - 'store action succeeds if target is different omnibox'
+    state_changes:
+      - field: omniboxContainers
+        effect: 'inner omnibox item added to outer omnibox container'
+    determinism: deterministic
+
+edge_cases:
+  - id: self-nesting-prevented
+    description: 'dragging an omnibox onto itself in the inventory'
+    expected: 'isOmniboxSelfDrop returns true, placement rejected'
+  - id: open-replaces-previous
+    description: 'opening omnibox B while omnibox A is open'
+    expected: 'omnibox A auto-closes, openContainer switches to B'
+  - id: ground-omnibox-blocks-movement
+    description: 'player tries to walk onto a ground omnibox tile'
+    expected: 'movePlayer returns false, omnibox tile is blocked'
+  - id: backpack-full-grab
+    description: 'player tries to grab ground omnibox but backpack has no 2x2 space'
+    expected: 'grabOmnibox returns null, omnibox stays on ground'
+  - id: sequential-numbering
+    description: 'creating multiple omniboxes in sequence'
+    expected: "names follow 'omnibox #1', 'omnibox #2', etc. via nextOmniboxNumber"
+
+failure_conditions:
+  - trigger: 'openOmnibox called with uid not in omniboxContainers'
+    expected: 'returns false, openContainer unchanged'
+  - trigger: 'executeStoreInOmnibox with no room in target container'
+    expected: "returns { outcome: 'no-room' }"
+  - trigger: 'grabOmnibox with no adjacent ground omnibox'
+    expected: 'returns null'
+
+verification:
+  test_file: src/engine/__tests__/omnibox.test.ts
+  test_pattern: 'omnibox'
+  command: 'npx vitest run src/engine/__tests__/omnibox.test.ts'
