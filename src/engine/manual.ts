@@ -50,11 +50,24 @@ export interface ManualEntry {
 // --- Hand-authored lore ---
 
 const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }>> = {
-  // Items — lore will be filled in by the user via /maintain-manual
-  // Recipes — auto-use recipe description as lore
-  // Manual-only entries have lore inline below
+  // Items
+  bee: { lore: 'TODO' },
+  clover: { lore: 'TODO' },
+  meteorite: { lore: 'TODO' },
+  permacomputer: { lore: 'TODO' },
+  omnibox: { lore: 'TODO' },
+  honey: { lore: 'TODO' },
+  coin: { lore: 'TODO' },
   // Reveries
-  earth: { lore: 'a memory of the land beneath. the scan reveals soil health as color — red earth is exhausted, violet earth is thriving.' },
+  'revery:fire': { lore: 'TODO' },
+  'revery:water': { lore: 'TODO' },
+  earth: { lore: 'TODO' },
+  // World entities
+  beehive: { lore: 'TODO' },
+  // Characters
+  gron: { lore: 'TODO' },
+  moab: { lore: 'TODO' },
+  ghosts: { lore: 'TODO' },
 }
 
 // --- Category mapping ---
