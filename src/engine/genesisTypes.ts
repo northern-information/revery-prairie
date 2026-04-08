@@ -112,6 +112,7 @@ export interface GenesisResult {
   soilHealth: Map<string, number>
   elevation: Map<string, number>
   ruins: CivilizationRuin[]
-  /** Permanent pond positions (enriched soil, future water tile support) */
   ponds: Set<string>
+  rivers: Set<string>
+  burnScars: Set<string>
 }

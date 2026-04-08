@@ -54,6 +54,8 @@ const EXPECTED_FIELDS = [
   'soilHealth',
   'elevation',
   'ponds',
+  'rivers',
+  'burnScars',
   'manualDiscoveries',
   'manualState',
   'reveries',

@@ -179,6 +179,8 @@ export interface GameState {
   soilHealth: Map<string, number>
   elevation: Map<string, number>
   ponds: Set<string>
+  rivers: Set<string>
+  burnScars: Set<string>
   meteorShower: MeteorShowerState
   manualDiscoveries: Set<string>
   manualState: ManualState

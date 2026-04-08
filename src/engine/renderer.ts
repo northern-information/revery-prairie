@@ -10,7 +10,11 @@ import {
   CLOVER_BLACK_COLOR,
   CLOVER_BROWN_COLOR,
   CLOVER_HEALTHY_COLORS,
+  BURN_SCAR_COLORS,
   DIRT_COLORS,
+  RIVER_COLOR,
+  POND_COLOR,
+  WATER_COLORS,
   CLOVER_DECOMPOSE_COLOR,
   CLOVER_DYING_COLOR_FROM,
   CLOVER_DYING_COLOR_TO,
@@ -647,6 +651,36 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (!state.caveRevealed && state.caveHiddenPositions.has(tileKey)) {
           char = TILE_CHARS[TileType.CaveWall]
           color = TILE_COLORS[TileType.CaveWall]
+        } else if (state.rivers.has(tileKey)) {
+          // River water
+          const h2 = tileHash(mx, my)
+          const waterChars = ['~', '=', '-']
+          char = waterChars[(h2 + Math.floor(time * 0.004)) % waterChars.length]
+          color = RIVER_COLOR
+        } else if (state.ponds.has(tileKey)) {
+          // Pond water
+          const h2 = tileHash(mx, my)
+          const waterChars = ['~', '=']
+          char = waterChars[(h2 + Math.floor(time * 0.003)) % waterChars.length]
+          color = POND_COLOR
+        } else if (map[my][mx].type === TileType.Dirt && state.elevation.has(tileKey)) {
+          // Lowland water (elevation-based)
+          const h2 = tileHash(mx, my)
+          const elev = state.elevation.get(tileKey) ?? 50
+          const scatter = ((h2 % 25) - 12) + (((h2 >>> 8) % 15) - 7)
+          if (elev + scatter < 40) {
+            const waterChars = ['~', '=', '-']
+            char = waterChars[(h2 + Math.floor(time * 0.003)) % waterChars.length]
+            color = WATER_COLORS[h2 % WATER_COLORS.length]
+          } else {
+            const tile = map[my][mx]
+            char = TILE_CHARS[tile.type]
+            if (state.burnScars.has(tileKey)) {
+              color = BURN_SCAR_COLORS[h2 % BURN_SCAR_COLORS.length]
+            } else {
+              color = DIRT_COLORS[h2 % DIRT_COLORS.length]
+            }
+          }
         } else {
           const tile = map[my][mx]
           char = TILE_CHARS[tile.type]
@@ -685,7 +719,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           } else if (tile.type === TileType.Clover) {
             color = CLOVER_HEALTHY_COLORS[tileHash(mx, my) % CLOVER_HEALTHY_COLORS.length]
           } else if (tile.type === TileType.Dirt) {
-            color = DIRT_COLORS[tileHash(mx, my) % DIRT_COLORS.length]
+            if (state.burnScars.has(tileKey)) {
+              color = BURN_SCAR_COLORS[tileHash(mx, my) % BURN_SCAR_COLORS.length]
+            } else {
+              color = DIRT_COLORS[tileHash(mx, my) % DIRT_COLORS.length]
+            }
           } else {
             color = TILE_COLORS[tile.type]
           }

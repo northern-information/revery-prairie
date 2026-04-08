@@ -1708,6 +1708,13 @@ const riseOfCivilizations: GenesisEpoch = {
     const space = renderSpace(sim, key, h, time)
     if (space) return space
 
+    // Gron appears at the dawn of civilization
+    const gronX = Math.floor(sim.width / 2) + 5
+    const gronY = Math.floor(sim.height / 2)
+    if (x === gronX && y === gronY && progress > 0.3) {
+      return [{ char: 'G', color: '#FFFFFF', dx: 0, dy: 0 }]
+    }
+
     // Check if this tile is part of a civilization
     const tileInfo = sim.tileData.get(key)
     const aqueductChar = sim.aqueductNetwork.get(key)
@@ -1866,6 +1873,13 @@ const fallOfCivilizations: GenesisEpoch = {
     const space = renderSpace(sim, key, h, time)
     if (space) return space
 
+    // Gron persists
+    const gronX = Math.floor(sim.width / 2) + 5
+    const gronY = Math.floor(sim.height / 2)
+    if (x === gronX && y === gronY) {
+      return [{ char: 'G', color: '#FFFFFF', dx: 0, dy: 0 }]
+    }
+
     const tileInfo = sim.tileData.get(key)
     const aqueductChar = sim.aqueductNetwork.get(key)
 
@@ -1969,8 +1983,6 @@ const fallOfCivilizations: GenesisEpoch = {
     const veg = sim.vegetationMap.get(key) ?? 0
 
     // Gron's rain aura — vegetation survives here
-    const gronX = Math.floor(sim.width / 2) + 5
-    const gronY = Math.floor(sim.height / 2)
     const dToGron = dist(x, y, gronX, gronY)
 
     if (veg > 20 && dToGron <= GRON_RAIN_RADIUS) {
@@ -2082,6 +2094,20 @@ const presentDay: GenesisEpoch = {
 
     const key = posKey(x, y)
 
+    // Gron
+    const gronX = Math.floor(sim.width / 2) + 5
+    const gronY = Math.floor(sim.height / 2)
+    if (x === gronX && y === gronY) {
+      return [{ char: 'G', color: '#FFFFFF', dx: 0, dy: 0 }]
+    }
+
+    // Player fades in
+    const playerX = Math.floor(sim.width / 2)
+    const playerY = Math.floor(sim.height / 2)
+    if (x === playerX && y === playerY && progress > 0.5) {
+      return [{ char: '@', color: '#FFFFFF', dx: 0, dy: 0 }]
+    }
+
     // Rivers
     if (sim.riverPaths.has(key)) {
       const ci = (h + Math.floor(time * 0.004)) % 3
@@ -2094,6 +2120,10 @@ const presentDay: GenesisEpoch = {
       const ci = (h + Math.floor(time * 0.003)) % waterChars.length
       return [{ char: waterChars[ci], color: '#5577AA', dx: 0, dy: 0 }]
     }
+
+    // Lowland water
+    const lowWater = renderLowlandWater(sim, key, h, time)
+    if (lowWater) return lowWater
 
     // Clover (Gron's aura) — fades in over the epoch for smooth transition
     if (tile.type === TileType.Clover) {
@@ -2219,6 +2249,8 @@ export const extractGenesisResult = (sim: GenesisSimState): GenesisResult => ({
   elevation: sim.elevation,
   ruins: sim.ruins,
   ponds: sim.ponds,
+  rivers: sim.riverPaths,
+  burnScars: sim.burnScars,
 })
 
 export const getGenesisCommentary = (sim: GenesisSimState, epochs: GenesisEpoch[]): string => {

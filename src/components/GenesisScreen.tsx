@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react'
 
-import { MAP_HEIGHT, MAP_WIDTH, ZOOM_DEFAULT } from '@/engine/constants'
+import { MAP_HEIGHT, MAP_WIDTH, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '@/engine/constants'
 import { createGenesisState, extractGenesisResult, GENESIS_EPOCHS, nameToSeed, tickGenesis } from '@/engine/genesis'
 import { renderGenesis } from '@/engine/genesisRenderer'
 import { measureChar } from '@/engine/renderer'
+
 import type { GenesisResult } from '@/engine/genesisTypes'
 import type { CharMetrics } from '@/engine/types'
 
@@ -11,6 +12,8 @@ interface GenesisScreenProps {
   stewardName: string
   onComplete: (result: GenesisResult) => void
 }
+
+const SKIP_KEYS = new Set(['Escape', ' ', 'Enter'])
 
 export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -27,9 +30,8 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
     const sim = simRef.current
     // Run any remaining mutations if skipping
     if (sim.epochIndex < GENESIS_EPOCHS.length) {
-      // Run remaining epochs from current position
       for (let i = sim.epochIndex; i < GENESIS_EPOCHS.length; i++) {
-        if (i === sim.epochIndex && sim.epochStartTime !== 0) continue // Already mutated
+        if (i === sim.epochIndex && sim.epochStartTime !== 0) continue
         GENESIS_EPOCHS[i].mutate(sim)
       }
       sim.epochIndex = GENESIS_EPOCHS.length
@@ -39,10 +41,12 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
     onCompleteRef.current(result)
   }, [])
 
-  // Skip on any keypress
+  // Skip on Escape/Space/Enter only
   useEffect(() => {
-    const handleKey = () => {
-      finishSimulation()
+    const handleKey = (e: KeyboardEvent) => {
+      if (SKIP_KEYS.has(e.key)) {
+        finishSimulation()
+      }
     }
     window.addEventListener('keydown', handleKey)
     return () => {
@@ -86,6 +90,17 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
     }
     window.addEventListener('resize', handleResize)
 
+    // Zoom with mouse wheel
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const direction = e.deltaY < 0 ? 1 : -1
+      const newZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, currentZoomRef.current + direction * ZOOM_STEP))
+      if (newZoom === currentZoomRef.current) return
+      currentZoomRef.current = newZoom
+      viewport = updateSize()
+    }
+    canvas.addEventListener('wheel', handleWheel, { passive: false })
+
     let rafId: number
 
     const loop = (time: number) => {
@@ -111,6 +126,7 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
     return () => {
       cancelAnimationFrame(rafId)
       window.removeEventListener('resize', handleResize)
+      canvas.removeEventListener('wheel', handleWheel)
     }
   }, [finishSimulation])
 
