@@ -1111,6 +1111,16 @@ const postGlacialDieOff: GenesisEpoch = {
       return [{ char: iceChars[ci], color: iceColors[ii], dx: 0, dy: 0 }]
     }
 
+    // Lowland water stays frozen during extinction
+    const lowWater = renderLowlandWater(sim, key, h, time)
+    if (lowWater) {
+      const iceChars = ['#', '=', '.']
+      const iceColors = ['#B0C4DE', '#E0E8F0', '#ADD8E6']
+      const ci = (h + Math.floor(time * 0.002)) % iceChars.length
+      const ii = h % iceColors.length
+      return [{ char: iceChars[ci], color: iceColors[ii], dx: 0, dy: 0 }]
+    }
+
     const veg = sim.vegetationMap.get(key) ?? 0
     const dieDelay = (h % 100) / 100 * 0.5
 
@@ -1444,6 +1454,10 @@ const warmPeriod: GenesisEpoch = {
       const ci = (h + Math.floor(time * 0.004)) % waterChars.length
       return [{ char: waterChars[ci], color: '#6688BB', dx: 0, dy: 0 }]
     }
+
+    // Lowland water
+    const lowWater = renderLowlandWater(sim, key, h, time)
+    if (lowWater) return lowWater
 
     // Vegetation re-spreading
     const veg = sim.vegetationMap.get(key) ?? 0
