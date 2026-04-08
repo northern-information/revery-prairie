@@ -1059,13 +1059,9 @@ const iceAge: GenesisEpoch = {
       return lowWater
     }
 
-    // Non-glacial tiles show pre-glacial vegetation (snapshot from before mutate wiped it)
-    const preVeg = sim.preGlacialVegetation.get(key) ?? 0
-    if (preVeg > 20) {
-      const greenColors = ['#2E8B57', '#3CB371', '#50C878']
-      const gi = h % greenColors.length
-      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
-    }
+    // Non-glacial tiles — vegetationMap is intact for these (only glacial tiles were cleared)
+    const vegRender = renderVegetation(sim, x, y, h)
+    if (vegRender) return vegRender
 
     return renderDirt(sim, key, h)
   },
