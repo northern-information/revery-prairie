@@ -14,6 +14,7 @@ export const GenesisEpochId = {
   WarmPeriod: 'warmPeriod',
   RiseOfCivilizations: 'riseOfCivilizations',
   FallOfCivilizations: 'fallOfCivilizations',
+  SecondExtinction: 'secondExtinction',
   PresentDay: 'presentDay',
 } as const
 

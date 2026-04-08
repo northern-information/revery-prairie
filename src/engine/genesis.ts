@@ -160,7 +160,7 @@ const CIV_COLORS = ['#666', '#777', '#888', '#999', '#AAA']
 
 const cosmicFormation: GenesisEpoch = {
   id: GenesisEpochId.CosmicFormation,
-  durationMs: 1500,
+  durationMs: 2000,
   commentary: 'simulating birth of cosmos...',
   mutate: (sim) => {
     // Fill entire grid with space
@@ -200,7 +200,7 @@ const cosmicFormation: GenesisEpoch = {
 
 const landAccretion: GenesisEpoch = {
   id: GenesisEpochId.LandAccretion,
-  durationMs: 1500,
+  durationMs: 2000,
   commentary: 'dust coalesces...',
   mutate: () => {
     // No grid mutations — purely visual
@@ -791,7 +791,7 @@ const fireSeason: GenesisEpoch = {
 
 const regrowth: GenesisEpoch = {
   id: GenesisEpochId.Regrowth,
-  durationMs: 1500,
+  durationMs: 2000,
   commentary: '',
   mutate: (sim) => {
     // Ash enrichment only — no vegetation regrowth. land stays barren into ice age.
@@ -816,7 +816,9 @@ const regrowth: GenesisEpoch = {
 
     // Surviving vegetation
     if ((sim.vegetationMap.get(key) ?? 0) > 20) {
-      return [{ char: '%', color: '#2E8B57', dx: 0, dy: 0 }]
+      const greenColors = ['#2E8B57', '#3CB371', '#50C878']
+      const gi = h % greenColors.length
+      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
 
     return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
@@ -829,7 +831,7 @@ const regrowth: GenesisEpoch = {
 
 const iceAge: GenesisEpoch = {
   id: GenesisEpochId.IceAge,
-  durationMs: 2500,
+  durationMs: 2000,
   commentary: 'glaciers advance, carving the land...',
   mutate: (sim) => {
     // Snapshot vegetation before glaciers destroy it (for dramatic render)
@@ -983,7 +985,7 @@ const iceAge: GenesisEpoch = {
     // Non-glacial tiles show pre-glacial vegetation (snapshot from before mutate wiped it)
     const preVeg = sim.preGlacialVegetation.get(key) ?? 0
     if (preVeg > 20) {
-      const greenColors = ['#2E8B57', '#3CB371']
+      const greenColors = ['#2E8B57', '#3CB371', '#50C878']
       const gi = h % greenColors.length
       return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
@@ -998,7 +1000,7 @@ const iceAge: GenesisEpoch = {
 
 const postGlacialDieOff: GenesisEpoch = {
   id: GenesisEpochId.PostGlacialDieOff,
-  durationMs: 1500,
+  durationMs: 2000,
   commentary: 'an extinction event...',
   mutate: (sim) => {
     // Kill 60-70% of remaining vegetation, weighted by distance from water
@@ -1017,7 +1019,7 @@ const postGlacialDieOff: GenesisEpoch = {
       }
     }
   },
-  renderTile: (sim, x, y, progress, _time) => {
+  renderTile: (sim, x, y, progress, time) => {
     const key = posKey(x, y)
     const h = tileHash(x, y)
 
@@ -1027,11 +1029,11 @@ const postGlacialDieOff: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
-    // Glaciers persist through the extinction — check before dying animation
+    // Glaciers persist through the extinction — animated to match ice age
     if (sim.glacialPaths.has(key)) {
       const iceChars = ['#', '=', '.', '*']
       const iceColors = ['#B0C4DE', '#E0E8F0', '#FFFFFF', '#ADD8E6']
-      const ci = h % iceChars.length
+      const ci = (h + Math.floor(time * 0.002)) % iceChars.length
       const ii = h % iceColors.length
       return [{ char: iceChars[ci], color: iceColors[ii], dx: 0, dy: 0 }]
     }
@@ -1054,7 +1056,7 @@ const postGlacialDieOff: GenesisEpoch = {
 
     // Surviving vegetation
     if (veg > 20) {
-      const greenColors = ['#2E8B57', '#3CB371']
+      const greenColors = ['#2E8B57', '#3CB371', '#50C878']
       const gi = h % greenColors.length
       return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
@@ -1069,7 +1071,7 @@ const postGlacialDieOff: GenesisEpoch = {
 
 const warmPeriod: GenesisEpoch = {
   id: GenesisEpochId.WarmPeriod,
-  durationMs: 2500,
+  durationMs: 2000,
   commentary: 'glaciers melt and life continues...',
   mutate: (sim) => {
     const landKeys = [...sim.landMask]
@@ -1335,7 +1337,7 @@ const warmPeriod: GenesisEpoch = {
       const meltTime = 1 - coverThreshold * 0.8
       const regrowProgress = clamp((progress - meltTime) / 0.3, 0, 1)
       if (regrowProgress > 0.5 && (h % 3 !== 0)) {
-        const greenColors = ['#2E8B57', '#3CB371']
+        const greenColors = ['#2E8B57', '#3CB371', '#50C878']
         const gi = h % greenColors.length
         return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
       }
@@ -1853,12 +1855,80 @@ const fallOfCivilizations: GenesisEpoch = {
 }
 
 // ---------------------------------------------------------------------------
+// Epoch: Second Extinction
+// ---------------------------------------------------------------------------
+
+const secondExtinction: GenesisEpoch = {
+  id: GenesisEpochId.SecondExtinction,
+  durationMs: 2000,
+  commentary: 'another extinction...',
+  mutate: (sim) => {
+    // Kill 40-50% of remaining vegetation
+    for (const key of sim.landMask) {
+      const veg = sim.vegetationMap.get(key) ?? 0
+      if (veg <= 0) continue
+      if (sim.rng() > 0.5) {
+        sim.vegetationMap.set(key, 0)
+        sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 5)
+      }
+    }
+  },
+  renderTile: (sim, x, y, progress, time) => {
+    const key = posKey(x, y)
+    const h = tileHash(x, y)
+
+    if (!sim.landMask.has(key)) {
+      if (sim.coastlineTiles.has(key)) return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
+      if (h % 3 === 0) return [{ char: '~', color: '#4466AA', dx: 0, dy: 0 }]
+      return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
+    }
+
+    // Rivers
+    if (sim.riverPaths.has(key)) {
+      const ci = (h + Math.floor(time * 0.004)) % 3
+      return [{ char: ['~', '=', '-'][ci], color: '#6688BB', dx: 0, dy: 0 }]
+    }
+
+    // Ponds
+    if (sim.ponds.has(key)) {
+      const waterChars = ['~', '=']
+      const ci = (h + Math.floor(time * 0.003)) % waterChars.length
+      return [{ char: waterChars[ci], color: '#5577AA', dx: 0, dy: 0 }]
+    }
+
+    const veg = sim.vegetationMap.get(key) ?? 0
+    const dieDelay = (h % 100) / 100 * 0.5
+
+    if (veg <= 0 && progress > dieDelay) {
+      const dieProgress = clamp((progress - dieDelay) / 0.5, 0, 1)
+      if (dieProgress < 0.3) {
+        return [{ char: '%', color: '#8B6914', dx: 0, dy: 0 }]
+      }
+      if (dieProgress < 0.6) {
+        return [{ char: '.', color: '#2A1A0A', dx: 0, dy: 0 }]
+      }
+      return [{ char: '.', color: '#4A3728', dx: 0, dy: 0 }]
+    }
+
+    // Surviving vegetation
+    if (veg > 20) {
+      const nearRiver = sim.riverPaths.has(posKey(x + 1, y)) || sim.riverPaths.has(posKey(x - 1, y))
+      const greenColors = nearRiver ? ['#3CB371', '#50C878', '#66EE88'] : ['#2E8B57', '#3CB371', '#50C878']
+      const gi = h % greenColors.length
+      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
+    }
+
+    return [{ char: '.', color: '#8B7355', dx: 0, dy: 0 }]
+  },
+}
+
+// ---------------------------------------------------------------------------
 // Epoch: Present Day
 // ---------------------------------------------------------------------------
 
 const presentDay: GenesisEpoch = {
   id: GenesisEpochId.PresentDay,
-  durationMs: 1000,
+  durationMs: 2000,
   commentary: 'a steward is called...',
   mutate: (sim) => {
     // Finalize terrain and scatter sandbars
@@ -1931,6 +2001,7 @@ export const GENESIS_EPOCHS: GenesisEpoch[] = [
   warmPeriod,
   riseOfCivilizations,
   fallOfCivilizations,
+  secondExtinction,
   presentDay,
 ]
 

@@ -6,8 +6,8 @@ import type { GenesisEpoch, GenesisSimState } from './genesisTypes'
 
 // Commentary styling
 const COMMENTARY_FONT_SCALE = 1.5
-const COMMENTARY_COLOR = '#999999'
-const COMMENTARY_BG = '#000000'
+const COMMENTARY_SHOW_MS = 3000
+const COMMENTARY_FADE_MS = 300
 
 /** Render one frame of the genesis simulation. */
 export const renderGenesis = (
@@ -56,29 +56,41 @@ export const renderGenesis = (
     }
   }
 
-  // Commentary overlay
+  // Commentary overlay with fade in/out (shown for 3 seconds per epoch)
   const commentary = getGenesisCommentary(sim, epochs)
   if (commentary) {
-    const fontSize = Math.round(BASE_FONT_SIZE * COMMENTARY_FONT_SCALE * (metrics.charHeight / (BASE_FONT_SIZE + 2)))
-    ctx.font = `${String(fontSize)}px monospace`
-    const textMetrics = ctx.measureText(commentary)
-    const textWidth = textMetrics.width
-    const textHeight = fontSize + 4
+    const elapsed = sim.epochStartTime > 0 ? time - sim.epochStartTime : 0
+    // Fade in for first 300ms, hold, fade out ending at 3000ms
+    const fadeOutStart = COMMENTARY_SHOW_MS - COMMENTARY_FADE_MS
+    let alpha = 1
+    if (elapsed < COMMENTARY_FADE_MS) {
+      alpha = elapsed / COMMENTARY_FADE_MS
+    } else if (elapsed > fadeOutStart) {
+      alpha = Math.max(0, 1 - (elapsed - fadeOutStart) / COMMENTARY_FADE_MS)
+    }
 
-    const tx = Math.floor((canvasWidth - textWidth) / 2)
-    const ty = Math.floor((canvasHeight - textHeight) / 2)
+    if (alpha > 0.01) {
+      const fontSize = Math.round(BASE_FONT_SIZE * COMMENTARY_FONT_SCALE * (metrics.charHeight / (BASE_FONT_SIZE + 2)))
+      ctx.font = `${String(fontSize)}px monospace`
+      const textMetrics = ctx.measureText(commentary)
+      const textWidth = textMetrics.width
+      const textHeight = fontSize + 4
 
-    // Background bar
-    ctx.fillStyle = COMMENTARY_BG
-    ctx.fillRect(tx - 10, ty - 4, textWidth + 20, textHeight + 8)
+      const tx = Math.floor((canvasWidth - textWidth) / 2)
+      const ty = Math.floor((canvasHeight - textHeight) / 2)
 
-    // Text
-    ctx.fillStyle = COMMENTARY_COLOR
-    ctx.textBaseline = 'top'
-    ctx.fillText(commentary, tx, ty)
+      // Background bar
+      ctx.fillStyle = `rgba(0, 0, 0, ${String(alpha)})`
+      ctx.fillRect(tx - 10, ty - 4, textWidth + 20, textHeight + 8)
 
-    // Restore font
-    ctx.font = metrics.font
+      // Text
+      ctx.fillStyle = `rgba(153, 153, 153, ${String(alpha)})`
+      ctx.textBaseline = 'top'
+      ctx.fillText(commentary, tx, ty)
+
+      // Restore font
+      ctx.font = metrics.font
+    }
   }
 
   // Skip hint — bottom right, small
