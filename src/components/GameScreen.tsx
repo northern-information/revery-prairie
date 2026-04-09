@@ -117,7 +117,9 @@ export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreen
       {activeScreen && (
         <PermacomputerShell
           activeScreen={activeScreen}
-          onClose={() => setActiveScreen(null)}
+          onClose={() => {
+            setActiveScreen(null)
+          }}
           onSwitchScreen={setActiveScreen}
         >
           {activeScreen === 'pack' && (
@@ -136,7 +138,9 @@ export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreen
           {activeScreen === 'divination' && (
             <HexagramPanel
               state={state}
-              onClose={() => setActiveScreen(null)}
+              onClose={() => {
+            setActiveScreen(null)
+          }}
               refreshUI={refreshUI}
               onCastLog={(text, worldX, worldY) => {
                 addEvent('discovery', text, '¤', COIN_GLINTING_COLOR, worldX, worldY)
@@ -146,7 +150,9 @@ export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreen
           {activeScreen === 'reveries' && <ReveriesPanel state={state} refreshUI={refreshUI} />}
           {activeScreen === 'system' && (
             <Menu
-              onResume={() => setActiveScreen(null)}
+              onResume={() => {
+                setActiveScreen(null)
+              }}
               onNewGame={() => {
                 stopAll()
                 onRestart()
