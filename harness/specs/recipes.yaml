@@ -14,18 +14,31 @@ dependencies:
 behaviors:
   - id: recipe-definitions
     description: >
-      RECIPES array defines item combinations. each recipe has
-      ingredients (two definitionIds), kind (macro or craft),
+      RECIPES array defines drag-and-drop item combinations. each recipe
+      has ingredients (two definitionIds), kind (macro or craft),
       resultName, optional resultIcon, description, optional
       preserveIngredient (definitionId kept after combine), optional
       preview function, and execute function. current recipes:
-      bee+clover=prairie (macro, plants 3x3 clover, spawns bee) and
-      meteorite+permacomputer=omnibox (craft, creates omnibox item,
-      preserves permacomputer).
+      bee+clover=prairie (macro, plants 3x3 clover, spawns bee).
     inputs:
       - 'RECIPES array'
     outputs:
       - 'Recipe objects with ingredients, kind, execute'
+    state_changes: []
+    determinism: deterministic
+
+  - id: fabrication-recipe-definitions
+    description: >
+      FABRICATION_RECIPES array defines single-ingredient recipes that
+      use the permacomputer implicitly. each fabrication recipe has
+      ingredient (one definitionId), resultName, resultIcon,
+      description, and execute function. current fabrication recipes:
+      meteorite → omnibox (creates omnibox item in backpack).
+      findFabricationRecipe(definitionId) searches the array.
+    inputs:
+      - 'FABRICATION_RECIPES array'
+    outputs:
+      - 'FabricationRecipe objects with ingredient, execute'
     state_changes: []
     determinism: deterministic
 
@@ -109,13 +122,13 @@ behaviors:
         effect: 'bee ECS entity created with Position, EntityTag, EntityZone'
     determinism: deterministic
 
-  - id: omnibox-recipe-execute
+  - id: fabrication-omnibox-execute
     description: >
-      meteorite+permacomputer omnibox recipe creates a new omnibox
-      item in the backpack. creates container via
-      createOmniboxContainer, finds fit position, places item.
-      permacomputer is preserved via preserveIngredient. fails if
-      backpack has no room for the 2x2 omnibox shape.
+      meteorite fabrication recipe creates a new omnibox item in the
+      backpack. creates container via createOmniboxContainer, finds fit
+      position, places item. re-keys the container from temp uid to the
+      placed item's uid. fails if backpack has no room for the 2x2
+      omnibox shape.
     inputs:
       - 'GameState with room in backpack'
     outputs:
@@ -124,7 +137,7 @@ behaviors:
       - field: backpack
         effect: 'omnibox item placed'
       - field: omniboxContainers
-        effect: 'new 5x5 container registered'
+        effect: 'new 5x5 container registered, keyed by placed item uid'
       - field: nextOmniboxNumber
         effect: 'incremented by 1'
     determinism: deterministic
@@ -163,8 +176,8 @@ behaviors:
 
 edge_cases:
   - id: preserve-ingredient
-    description: 'combining meteorite+permacomputer consumes meteorite but keeps permacomputer'
-    expected: 'permacomputer remains in backpack, meteorite removed'
+    description: 'bee+clover prairie recipe preserveIngredient is not set — both ingredients consumed'
+    expected: 'both bee and clover removed from backpack after combine'
   - id: combine-on-sand
     description: 'player combines bee+clover while standing on sand tile'
     expected: 'recipe.execute returns false, no items consumed'
@@ -174,9 +187,9 @@ edge_cases:
   - id: omnibox-store-priority
     description: 'dragging an item onto an omnibox item when a recipe also exists'
     expected: 'store action takes priority over recipe combine'
-  - id: backpack-full-craft
-    description: 'omnibox recipe executes but backpack has no room for 2x2 item'
-    expected: 'recipe returns false, no items consumed'
+  - id: backpack-full-fabrication
+    description: 'fabrication omnibox recipe executes but backpack has no room for 2x2 item'
+    expected: 'fabrication returns false, meteorite not consumed'
   - id: cave-entrance-excluded
     description: 'prairie recipe planted near a cave entrance tile'
     expected: 'CaveEntrance tile is never overwritten by clover planting'

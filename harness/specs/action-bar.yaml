@@ -16,17 +16,36 @@ behaviors:
   - id: revery-definitions
     description: >
       REVERY_DEFINITIONS registry defines reveries using the as-const-
-      satisfies pattern. current reveries: fire (glyphs ^/~/*, color
-      #FF4500 orange-red, cooldownMs 12000, castDurationMs 1200,
-      castStyle tile, castPattern SINGLE_PATTERN) and water (glyphs
-      |/:/./, color #4488CC blue, cooldownMs 12000, castDurationMs
-      10000, castStyle rain, castPattern CROSS_PATTERN). each has
-      name, description, and id injected from key.
+      satisfies pattern. current reveries: earth (glyphs [.], color
+      #33CC33 green, cooldownMs 6000, castDurationMs 5500, castStyle
+      scan, castPattern []), fire (glyphs ^/~/*, color #FF4500
+      orange-red, cooldownMs 12000, castDurationMs 1200, castStyle
+      tile, castPattern SINGLE_PATTERN), and water (glyphs |/:/./, color
+      #4488CC blue, cooldownMs 12000, castDurationMs 10000, castStyle
+      rain, castPattern CROSS_PATTERN). each has name, description, and
+      id injected from key.
     inputs:
       - 'REVERY_DEFINITIONS registry'
     outputs:
-      - 'ReveryDefinition objects for fire and water'
+      - 'ReveryDefinition objects for earth, fire, and water'
     state_changes: []
+    determinism: deterministic
+
+  - id: earth-revery-effect
+    description: >
+      earth revery uses castStyle 'scan' — radiates a 20-tile radius
+      soil health visualization from the player position. black to green
+      gradient (black = depleted, green = thriving). works in both
+      overworld and cave. three phases: radial expansion (1.5s), hold
+      (2.5s), radial wave fade-out (1.5s). purely diagnostic — no
+      gameplay effects. skips space and impassable cave walls. records
+      event:earth-revery discovery on first activation.
+    inputs:
+      - 'earth revery activated'
+    outputs: []
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'event:earth-revery recorded'
     determinism: deterministic
 
   - id: assign-action-bar-slot
