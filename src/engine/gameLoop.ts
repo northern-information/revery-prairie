@@ -17,10 +17,10 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
-import { getReveryDefinition } from './reveries'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { getDefinition } from './items'
 import { movePlayer, tickPath } from './movement'
+import { getReveryDefinition } from './reveries'
 import { Zone } from './types'
 import { tickWeather } from './weather'
 

@@ -20,7 +20,7 @@ import type { GameState } from '@/engine/types'
 
 // --- mocks ---
 
-vi.mock('@/engine/actionBar', async (importOriginal) => {
+vi.mock('@/engine/actionBar', async importOriginal => {
   const actual = await importOriginal<typeof import('@/engine/actionBar')>()
   return {
     ...actual,
@@ -209,46 +209,46 @@ describe('useKeyboard', () => {
 
       expect(state.activeDialog).toBeNull()
       expect(refreshUI).toHaveBeenCalledOnce()
-      // Panel should not change
-      expect(result.current.activePanel).toBeNull()
+      // Screen should not change
+      expect(result.current.activeScreen).toBeNull()
     })
 
-    it('closes menu panel when no dialog', () => {
+    it('closes system screen when no dialog', () => {
       const { result } = renderKeyboardHook()
 
       // Open menu first
       act(() => {
-        result.current.setActivePanel('menu')
+        result.current.setActiveScreen('system')
       })
-      expect(result.current.activePanel).toBe('menu')
+      expect(result.current.activeScreen).toBe('system')
 
       act(() => {
         fireKey('Escape')
       })
-      expect(result.current.activePanel).toBeNull()
+      expect(result.current.activeScreen).toBeNull()
     })
 
-    it('closes inventory panel when no dialog', () => {
+    it('closes pack screen when no dialog', () => {
       const { result } = renderKeyboardHook()
 
       act(() => {
-        result.current.setActivePanel('inventory')
+        result.current.setActiveScreen('pack')
       })
       act(() => {
         fireKey('Escape')
       })
 
-      expect(result.current.activePanel).toBeNull()
+      expect(result.current.activeScreen).toBeNull()
     })
 
-    it('opens menu when nothing is open', () => {
+    it('opens system when nothing is open', () => {
       const { result } = renderKeyboardHook()
 
       act(() => {
         fireKey('Escape')
       })
 
-      expect(result.current.activePanel).toBe('menu')
+      expect(result.current.activeScreen).toBe('system')
     })
   })
 
@@ -320,8 +320,8 @@ describe('useKeyboard', () => {
     })
   })
 
-  describe('E key — inventory omnibox hover', () => {
-    it('toggles omnibox when hovering omnibox in inventory', () => {
+  describe('E key — pack omnibox hover', () => {
+    it('toggles omnibox when hovering omnibox in pack', () => {
       itemInfoRef = makeItemInfoRef(
         () => 'omnibox',
         () => 'omni-uid-1'
@@ -330,7 +330,7 @@ describe('useKeyboard', () => {
       const { result } = renderKeyboardHook()
 
       act(() => {
-        result.current.setActivePanel('inventory')
+        result.current.setActiveScreen('pack')
       })
       act(() => {
         fireKey('e')
@@ -342,7 +342,7 @@ describe('useKeyboard', () => {
   })
 
   describe('E key — facing ground omnibox', () => {
-    it('opens facing omnibox and sets inventory panel', () => {
+    it('opens facing omnibox and sets pack screen', () => {
       vi.mocked(toggleFacingOmnibox).mockReturnValue(true)
       const { result } = renderKeyboardHook()
 
@@ -351,22 +351,22 @@ describe('useKeyboard', () => {
       })
 
       expect(toggleFacingOmnibox).toHaveBeenCalledWith(state)
-      expect(result.current.activePanel).toBe('inventory')
+      expect(result.current.activeScreen).toBe('pack')
       expect(refreshUI).toHaveBeenCalled()
     })
 
-    it('does not change panel if inventory already open', () => {
+    it('does not change screen if pack already open', () => {
       vi.mocked(toggleFacingOmnibox).mockReturnValue(true)
       const { result } = renderKeyboardHook()
 
       act(() => {
-        result.current.setActivePanel('inventory')
+        result.current.setActiveScreen('pack')
       })
       act(() => {
         fireKey('e')
       })
 
-      expect(result.current.activePanel).toBe('inventory')
+      expect(result.current.activeScreen).toBe('pack')
     })
   })
 
@@ -428,12 +428,12 @@ describe('useKeyboard', () => {
     })
   })
 
-  describe('E key — blocked by menu', () => {
-    it('does nothing when menu is open', () => {
+  describe('E key — blocked by system', () => {
+    it('does nothing when system is open', () => {
       const { result } = renderKeyboardHook()
 
       act(() => {
-        result.current.setActivePanel('menu')
+        result.current.setActiveScreen('system')
       })
       act(() => {
         fireKey('e')
@@ -501,17 +501,17 @@ describe('useKeyboard', () => {
   })
 
   describe('WASD — menu/dialog interaction', () => {
-    it('closes menu on movement key without moving', () => {
+    it('closes system on movement key without moving', () => {
       const { result } = renderKeyboardHook()
 
       act(() => {
-        result.current.setActivePanel('menu')
+        result.current.setActiveScreen('system')
       })
       act(() => {
         fireKey('w')
       })
 
-      expect(result.current.activePanel).toBeNull()
+      expect(result.current.activeScreen).toBeNull()
       expect(state.heldDirection).toBeNull()
       expect(movePlayer).not.toHaveBeenCalled()
     })
@@ -532,13 +532,13 @@ describe('useKeyboard', () => {
   })
 
   describe('X key — drop item', () => {
-    it('drops hovered item when inventory is open', () => {
+    it('drops hovered item when pack is open', () => {
       itemInfoRef = makeItemInfoRef(() => 'bee')
       vi.mocked(dropItem).mockReturnValue(true)
       const { result } = renderKeyboardHook()
 
       act(() => {
-        result.current.setActivePanel('inventory')
+        result.current.setActiveScreen('pack')
       })
       act(() => {
         fireKey('x')
@@ -556,7 +556,7 @@ describe('useKeyboard', () => {
       const { result } = renderKeyboardHook()
 
       act(() => {
-        result.current.setActivePanel('inventory')
+        result.current.setActiveScreen('pack')
       })
       act(() => {
         fireKey('x')
@@ -565,7 +565,7 @@ describe('useKeyboard', () => {
       expect(dropItem).not.toHaveBeenCalled()
     })
 
-    it('does nothing when inventory is closed', () => {
+    it('does nothing when pack is closed', () => {
       itemInfoRef = makeItemInfoRef(() => 'bee')
       renderKeyboardHook()
 
@@ -577,8 +577,8 @@ describe('useKeyboard', () => {
     })
   })
 
-  describe('R key — rotate or toggle inventory', () => {
-    it('rotates hovered item in inventory', () => {
+  describe('R key — rotate or toggle reveries', () => {
+    it('rotates hovered item in pack', () => {
       itemInfoRef = makeItemInfoRef(() => 'meteorite')
       vi.mocked(findItemByDefinition).mockReturnValue({
         uid: 'u1',
@@ -590,7 +590,7 @@ describe('useKeyboard', () => {
       const { result } = renderKeyboardHook()
 
       act(() => {
-        result.current.setActivePanel('inventory')
+        result.current.setActiveScreen('pack')
       })
       act(() => {
         fireKey('r')
@@ -620,7 +620,7 @@ describe('useKeyboard', () => {
       const { result } = renderKeyboardHook()
 
       act(() => {
-        result.current.setActivePanel('inventory')
+        result.current.setActiveScreen('pack')
       })
       // x should be blocked
       act(() => {

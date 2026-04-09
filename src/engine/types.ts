@@ -1,5 +1,5 @@
-import type { CivilizationRuin } from './genesisTypes'
 import type { World } from './ecs/world'
+import type { CivilizationRuin } from './genesisTypes'
 
 export const TileType = {
   Space: 'space',

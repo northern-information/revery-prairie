@@ -7,7 +7,7 @@ import { createGameLoop } from '@/engine/gameLoop'
 import { measureChar, render } from '@/engine/renderer'
 import { useMouse } from '@/hooks/useMouse'
 import type { CharMetrics, GameState } from '@/engine/types'
-import type { Panel } from '@/hooks/useKeyboard'
+import type { PermacomputerScreen } from '@/hooks/useKeyboard'
 
 const resizeState = (state: GameState, charWidth: number, charHeight: number) => {
   const vw = Math.floor(window.innerWidth / charWidth)
@@ -20,8 +20,8 @@ const resizeState = (state: GameState, charWidth: number, charHeight: number) =>
 interface GameCanvasProps {
   state: GameState
   refreshUI: () => void
-  activePanel: Panel
-  setActivePanel: (panel: Panel) => void
+  activeScreen: PermacomputerScreen
+  setActiveScreen: (screen: PermacomputerScreen) => void
   onPickup: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
   onDiscovery: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
@@ -32,8 +32,8 @@ interface GameCanvasProps {
 export const GameCanvas = ({
   state,
   refreshUI,
-  activePanel,
-  setActivePanel,
+  activeScreen,
+  setActiveScreen,
   onPickup,
   onDialog,
   onDiscovery,
@@ -48,7 +48,7 @@ export const GameCanvas = ({
   const onDiscoveryRef = useRef(onDiscovery)
   onDiscoveryRef.current = onDiscovery
 
-  useMouse({ canvasRef, state, metricsRef, activePanel, setActivePanel, refreshUI, onDialog, onDiscovery, onGift })
+  useMouse({ canvasRef, state, metricsRef, activeScreen, setActiveScreen, refreshUI, onDialog, onDiscovery, onGift })
 
   useEffect(() => {
     const canvas = canvasRef.current

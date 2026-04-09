@@ -4,7 +4,6 @@ import { MAP_HEIGHT, MAP_WIDTH, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } fr
 import { createGenesisState, extractGenesisResult, GENESIS_EPOCHS, nameToSeed, tickGenesis } from '@/engine/genesis'
 import { renderGenesis } from '@/engine/genesisRenderer'
 import { measureChar } from '@/engine/renderer'
-
 import type { GenesisResult } from '@/engine/genesisTypes'
 import type { CharMetrics } from '@/engine/types'
 
@@ -130,5 +129,5 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
     }
   }, [finishSimulation])
 
-  return <canvas ref={canvasRef} className="fixed inset-0" style={{ cursor: 'url(/cursor.cur), auto' }} />
+  return <canvas ref={canvasRef} className="fixed inset-0" style={{ cursor: 'url(/cursor.cur), auto' }} onClick={finishSimulation} />
 }

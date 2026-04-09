@@ -20,7 +20,7 @@ describe('checkCombine', () => {
   it('detects recipe when items are in different containers', () => {
     const state = createTestState()
 
-    // permacomputer in an omnibox container (target)
+    // clover in an omnibox container (target)
     const omniboxContainer: Container = {
       id: 'omnibox-1',
       name: 'omnibox #1',
@@ -28,14 +28,14 @@ describe('checkCombine', () => {
       height: 5,
       items: [],
     }
-    placeItem(omniboxContainer, 'permacomputer', Rotation.R0, 0, 0)
+    placeItem(omniboxContainer, 'clover', Rotation.R0, 0, 0)
 
-    // meteorite dragged from backpack onto the omnibox grid at (0,0)
-    const meteorite = makeItem('meteorite')
+    // bee dragged from backpack onto the omnibox grid at (0,0)
+    const bee = makeItem('bee')
 
     const result = checkCombine(
       omniboxContainer,
-      meteorite,
+      bee,
       Rotation.R0,
       0,
       0,
@@ -46,21 +46,21 @@ describe('checkCombine', () => {
 
     expect(result.kind).toBe('recipe')
     if (result.kind === 'recipe') {
-      expect(result.recipe.resultName).toBe('omnibox')
+      expect(result.recipe.resultName).toBe('prairie')
     }
   })
 
   it('detects recipe in same container', () => {
     const state = createTestState()
-    // place permacomputer in backpack at (0,0) - it's 2x1
-    placeItem(state.backpack, 'permacomputer', Rotation.R0, 0, 0)
+    // place clover in backpack at (0,0) - it's 1x1
+    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
 
-    // drag meteorite from backpack onto (0,0) overlapping the permacomputer
-    const meteorite = makeItem('meteorite')
+    // drag bee from backpack onto (0,0) overlapping the clover
+    const bee = makeItem('bee')
 
     const result = checkCombine(
       state.backpack,
-      meteorite,
+      bee,
       Rotation.R0,
       0,
       0,

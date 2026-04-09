@@ -87,12 +87,22 @@ export const RECIPES: Recipe[] = [
       return true
     },
   },
+]
+
+/** Fabrication recipes — items dragged to the fabrication zone on the permacomputer. */
+export interface FabricationRecipe {
+  ingredient: string
+  resultName: string
+  resultIcon: string
+  description: string
+  execute: (state: GameState) => boolean
+}
+
+export const FABRICATION_RECIPES: FabricationRecipe[] = [
   {
-    ingredients: ['meteorite', 'permacomputer'],
-    kind: RecipeKind.Craft,
+    ingredient: 'meteorite',
     resultName: 'omnibox',
     resultIcon: '\u25A1',
-    preserveIngredient: 'permacomputer',
     description: 'folded space within a portable container.',
     execute: state => {
       const fit = findFitPosition(state.backpack, 'omnibox')
@@ -100,10 +110,8 @@ export const RECIPES: Recipe[] = [
       const uid = crypto.randomUUID()
       createOmniboxContainer(state, uid)
       placeItem(state.backpack, 'omnibox', fit.rotation, fit.gridX, fit.gridY)
-      // Link the newly placed item to the omnibox container by updating its uid
       const placed = state.backpack.items[state.backpack.items.length - 1]
       if (placed) {
-        // Replace the auto-generated uid with our pre-generated one
         const container = state.omniboxContainers.get(uid)
         if (container) {
           state.omniboxContainers.delete(uid)
@@ -115,6 +123,10 @@ export const RECIPES: Recipe[] = [
     },
   },
 ]
+
+/** Find a fabrication recipe that accepts the given item. */
+export const findFabricationRecipe = (definitionId: string): FabricationRecipe | null =>
+  FABRICATION_RECIPES.find(r => r.ingredient === definitionId) ?? null
 
 export const recipeKey = (recipe: Recipe): string => {
   const sorted = [...recipe.ingredients].sort((a, b) => a.localeCompare(b))

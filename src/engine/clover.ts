@@ -31,7 +31,6 @@ export interface CloverPatch {
 // Module-scoped spiral state keyed by patch seed (smallest posKey)
 const spiralState = new Map<string, GrowthFront>()
 
-
 // --- Flood-fill patch detection ---
 
 export const floodFillCloverPatches = (state: GameState): CloverPatch[] => {

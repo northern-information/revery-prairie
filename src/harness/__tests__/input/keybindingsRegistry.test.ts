@@ -7,7 +7,7 @@ describe('keybinding registry completeness', () => {
       const manualId = `control:${kb.key}`
       expect(
         MANUAL_ENTRIES[manualId],
-        `keybinding [${kb.key}] (${kb.action}) is missing from the manual — add it to KEYBINDINGS in input.ts`,
+        `keybinding [${kb.key}] (${kb.action}) is missing from the manual — add it to KEYBINDINGS in input.ts`
       ).toBeDefined()
     }
   })

@@ -61,7 +61,6 @@ export const createGameState = (
   placeItem(backpack, 'clover', Rotation.R0, 0, 1)
   placeItem(backpack, 'clover', Rotation.R0, 1, 1)
   placeItem(backpack, 'clover', Rotation.R0, 2, 1)
-  placeItem(backpack, 'permacomputer', Rotation.R0, 0, 2)
 
   const state: GameState = {
     stewardName,
@@ -134,7 +133,7 @@ export const createGameState = (
     ponds: genesisResult?.ponds ?? new Set<string>(),
     rivers: genesisResult?.rivers ?? new Set<string>(),
     burnScars: genesisResult?.burnScars ?? new Set<string>(),
-    manualDiscoveries: new Set<string>(['item:bee', 'item:clover', 'item:permacomputer']),
+    manualDiscoveries: new Set<string>(['item:bee', 'item:clover']),
     manualState: {
       activeCategory: null,
       searchQuery: '',

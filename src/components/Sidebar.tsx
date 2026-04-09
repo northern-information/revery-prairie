@@ -3,7 +3,16 @@ import { ItemInfo } from './ItemInfo'
 import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { getCharacterDefinition } from '@/engine/characters'
-import { CLOVER_WATER_MAX, SOIL_HEALTH_DEFAULT, SPACE_BORDER, TILE_COLORS, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '@/engine/constants'
+import {
+  CLOVER_WATER_MAX,
+  SOIL_HEALTH_DEFAULT,
+  SPACE_BORDER,
+  TILE_COLORS,
+  ZOOM_DEFAULT,
+  ZOOM_MAX,
+  ZOOM_MIN,
+  ZOOM_STEP,
+} from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { getTileEffects } from '@/engine/effects'
 import { getDefinition } from '@/engine/items'
@@ -13,7 +22,7 @@ import { fToC, mphToKph } from '@/engine/weather'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { CharMetrics, GameState } from '@/engine/types'
 import type { GameEvent } from '@/hooks/useEventLog'
-import type { Panel } from '@/hooks/useKeyboard'
+import type { PermacomputerScreen } from '@/hooks/useKeyboard'
 
 const countTiles = (state: GameState, type: TileType): number => {
   let count = 0
@@ -33,14 +42,14 @@ const SKY_LABEL = {
 
 interface SidebarProps {
   state: GameState
-  activePanel: Panel
+  activeScreen: PermacomputerScreen
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
   eventLog: GameEvent[]
   metricsRef: React.RefObject<CharMetrics | null>
   refreshUI: () => void
 }
 
-export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef, refreshUI }: SidebarProps) => {
+export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef, refreshUI }: SidebarProps) => {
   const { metric } = state
   const cursorRef = useRef<{ x: number; y: number } | null>(null)
   const [, setCursorVersion] = useState(0)
@@ -105,7 +114,7 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef,
   return (
     <div
       data-panel="sidebar"
-      className="text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 animate-fade-in flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
+      className="text-text animate-fade-in pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
     >
       <div className="flex flex-col gap-4">
         <PanelTitle>revery prairie</PanelTitle>
@@ -242,7 +251,7 @@ export const Sidebar = ({ state, activePanel, itemInfoRef, eventLog, metricsRef,
           </div>
         )}
 
-        {activePanel === 'inventory' && <ItemInfo ref={itemInfoRef} glintingCoins={state.glintingCoins} />}
+        {activeScreen === 'pack' && <ItemInfo ref={itemInfoRef} glintingCoins={state.glintingCoins} />}
       </div>
 
       <div className="flex flex-col gap-4">

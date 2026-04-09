@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
 import {
   activateActionBarSlot,
   assignActionBarSlot,
@@ -11,6 +9,7 @@ import {
 import { ComponentType } from '../ecs/types'
 import { createGameState } from '../state'
 import { TileType } from '../types'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
 
@@ -52,7 +51,7 @@ describe('assignActionBarSlot', () => {
     assignActionBarSlot(state, -1, 'revery', 'fire')
     assignActionBarSlot(state, 4, 'revery', 'fire')
 
-    expect(state.actionBar.every((s) => s === null)).toBe(true)
+    expect(state.actionBar.every(s => s === null)).toBe(true)
   })
 })
 
@@ -124,13 +123,11 @@ describe('activateActionBarSlot', () => {
     expect(state.actionBar[1]?.cooldownDurationMs).toBe(6000)
 
     // Should create ECS entity with Position (player pos), not MultiPosition
-    const entities = state.world
-      .query(ComponentType.TimedEffect, ComponentType.EntityTag)
-      .filter(eid => {
-        const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-        const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
-        return tag === 'reveryCast' && effect?.reveryId === 'earth'
-      })
+    const entities = state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag).filter(eid => {
+      const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+      const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+      return tag === 'reveryCast' && effect?.reveryId === 'earth'
+    })
     expect(entities).toHaveLength(1)
 
     const eid = entities[0]
@@ -196,6 +193,6 @@ describe('autoAssignRevery', () => {
     }
     autoAssignRevery(state, 'water')
 
-    expect(state.actionBar.every((s) => s?.id === 'fire')).toBe(true)
+    expect(state.actionBar.every(s => s?.id === 'fire')).toBe(true)
   })
 })

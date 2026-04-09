@@ -7,7 +7,7 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
-import { isInBounds, isWalkableTile, DIRECTIONS, posKey } from './position'
+import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { getReveryDefinition } from './reveries'
 import { TileType } from './types'
 
@@ -15,12 +15,7 @@ import type { ActionBarSlot, GameState, Position } from './types'
 
 export const ACTIONBAR_SLOTS = 4
 
-export const assignActionBarSlot = (
-  state: GameState,
-  slotIndex: number,
-  kind: 'revery' | 'item',
-  id: string,
-): void => {
+export const assignActionBarSlot = (state: GameState, slotIndex: number, kind: 'revery' | 'item', id: string): void => {
   if (slotIndex < 0 || slotIndex >= ACTIONBAR_SLOTS) return
   state.actionBar[slotIndex] = {
     kind,
@@ -51,11 +46,7 @@ const canCastAtTile = (state: GameState, pos: Position): boolean => {
   return true
 }
 
-const getCastPositions = (
-  state: GameState,
-  center: Position,
-  pattern: Position[],
-): Position[] => {
+const getCastPositions = (state: GameState, center: Position, pattern: Position[]): Position[] => {
   const positions: Position[] = []
   for (const offset of pattern) {
     const pos = { x: center.x + offset.x, y: center.y + offset.y }
@@ -68,7 +59,7 @@ const getCastPositions = (
 
 export const getActionBarPreview = (
   state: GameState,
-  slotIndex: number,
+  slotIndex: number
 ): { pos: Position; char: string; color: string }[] => {
   const slot = state.actionBar[slotIndex]
   if (slot?.kind !== 'revery') return []
@@ -81,7 +72,7 @@ export const getActionBarPreview = (
   const positions = getCastPositions(state, target, def.castPattern)
   if (positions.length === 0) return []
 
-  return positions.map((pos) => ({ pos, char: def.glyphs[0], color: def.glyphColor }))
+  return positions.map(pos => ({ pos, char: def.glyphs[0], color: def.glyphColor }))
 }
 
 const applyReveryCastEffects = (state: GameState, reveryId: string, positions: Position[]): void => {
@@ -171,7 +162,7 @@ export const getSlotCooldownFraction = (slot: ActionBarSlot, now: number): numbe
 }
 
 export const autoAssignRevery = (state: GameState, reveryId: string): void => {
-  const emptySlot = state.actionBar.findIndex((s) => s === null)
+  const emptySlot = state.actionBar.findIndex(s => s === null)
   if (emptySlot !== -1) {
     assignActionBarSlot(state, emptySlot, 'revery', reveryId)
   }

@@ -131,14 +131,14 @@ edge_cases:
     expected: 'Moab is placed at npcSpot but his tile is masked as CaveWall by caveHiddenPositions. Player cannot see or reach him.'
   - id: moab-persists-across-cave-visits
     description: 'Player leaves cave and re-enters'
-    expected: "Moab is a persistent ECS entity tagged with Zone.Cave. giftsReceived persists on GameState so the gift is only given once."
+    expected: 'Moab is a persistent ECS entity tagged with Zone.Cave. giftsReceived persists on GameState so the gift is only given once.'
   - id: moab-gift-omnibox-numbering
     description: "Moab's omnibox follows the standard nextOmniboxNumber sequence"
     expected: "Omnibox is named 'omnibox #N' where N is the current nextOmniboxNumber value"
 
 failure_conditions:
   - trigger: 'Player talks to Moab twice before breaking the wall (impossible but defensive)'
-    expected: "No crash. giftsReceived prevents double gift."
+    expected: 'No crash. giftsReceived prevents double gift.'
   - trigger: 'enterCave called when moab definition is not registered'
     expected: 'Character definition is registered at module load time in CHARACTERS const. No runtime registration needed.'
   - trigger: 'Omnibox creation fails (e.g. placeItem returns null)'

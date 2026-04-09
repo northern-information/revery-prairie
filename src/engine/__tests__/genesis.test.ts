@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { MAP_HEIGHT, MAP_WIDTH, SOIL_HEALTH_MAX } from '../constants'
 import {
   createGenesisState,
   extractGenesisResult,
@@ -8,8 +8,8 @@ import {
   runAllMutations,
   tickGenesis,
 } from '../genesis'
-import { MAP_HEIGHT, MAP_WIDTH, SOIL_HEALTH_MAX } from '../constants'
 import { TileType } from '../types'
+import { describe, expect, it } from 'vitest'
 
 describe('createGenesisState', () => {
   it('creates a state with correct dimensions', () => {

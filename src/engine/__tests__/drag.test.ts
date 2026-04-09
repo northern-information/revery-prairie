@@ -31,7 +31,6 @@ const defined = <T>(value: T | undefined | null): T => {
 }
 
 const prairieRecipe = defined(RECIPES.find(r => r.resultName === 'prairie'))
-const omniboxRecipe = defined(RECIPES.find(r => r.resultName === 'omnibox'))
 
 describe('NEXT_ROTATION', () => {
   it('cycles through all four rotations', () => {
@@ -83,12 +82,12 @@ describe('computePlacementPreview', () => {
 
   it('detects recipe when overlapping a compatible item', () => {
     const state = createTestState()
-    placeItem(state.backpack, 'permacomputer', Rotation.R0, 0, 0)
-    const meteorite = makeItem('meteorite')
+    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
+    const bee = makeItem('bee')
 
     const result = computePlacementPreview(
       state.backpack,
-      meteorite,
+      bee,
       Rotation.R0,
       0,
       0,
@@ -99,7 +98,7 @@ describe('computePlacementPreview', () => {
 
     expect(result.isValid).toBe(false)
     expect(result.combineTarget).not.toBeNull()
-    expect(result.combineTarget?.recipe.resultName).toBe('omnibox')
+    expect(result.combineTarget?.recipe.resultName).toBe('prairie')
     expect(result.storeTarget).toBeNull()
     expect(result.cannotCombine).toBe(false)
   })
@@ -257,25 +256,6 @@ describe('executeCombine', () => {
     // Both ingredients consumed (no preserveIngredient on prairie recipe)
     expect(state.backpack.items.filter(i => i.definitionId === 'bee')).toHaveLength(0)
     expect(state.backpack.items.filter(i => i.definitionId === 'clover')).toHaveLength(0)
-  })
-
-  it('preserves ingredient when recipe specifies preserveIngredient', () => {
-    const state = createTestState()
-    placeItem(state.backpack, 'permacomputer', Rotation.R0, 0, 0)
-    placeItem(state.backpack, 'meteorite', Rotation.R0, 2, 0)
-    const permacomputer = defined(state.backpack.items.find(i => i.definitionId === 'permacomputer'))
-    const meteorite = defined(state.backpack.items.find(i => i.definitionId === 'meteorite'))
-
-    // Drag meteorite onto permacomputer
-    const result = executeCombine(state, state.backpack, state.backpack, meteorite, {
-      uid: permacomputer.uid,
-      recipe: omniboxRecipe,
-    })
-
-    expect(result.outcome).toBe('success')
-    // Permacomputer preserved, meteorite consumed
-    expect(state.backpack.items.some(i => i.definitionId === 'permacomputer')).toBe(true)
-    expect(state.backpack.items.some(i => i.definitionId === 'meteorite')).toBe(false)
   })
 
   it('returns failed when recipe execution fails', () => {

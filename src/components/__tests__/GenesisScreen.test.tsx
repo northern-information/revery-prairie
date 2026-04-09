@@ -19,7 +19,9 @@ const mockCtx = {
   textBaseline: '',
 }
 
-HTMLCanvasElement.prototype.getContext = vi.fn(() => mockCtx) as unknown as typeof HTMLCanvasElement.prototype.getContext
+HTMLCanvasElement.prototype.getContext = vi.fn(
+  () => mockCtx
+) as unknown as typeof HTMLCanvasElement.prototype.getContext
 
 describe('GenesisScreen', () => {
   beforeEach(() => {

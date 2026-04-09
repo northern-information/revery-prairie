@@ -32,7 +32,9 @@ const stubLlm: LlmClient = {
 const loadPriorResults = (logsRoot: string): Map<string, TaskResult> | undefined => {
   if (!existsSync(logsRoot)) return undefined
 
-  const runs = readdirSync(logsRoot).sort((a, b) => a.localeCompare(b)).reverse()
+  const runs = readdirSync(logsRoot)
+    .sort((a, b) => a.localeCompare(b))
+    .reverse()
   for (const run of runs) {
     const runJson = resolve(logsRoot, run, 'run.json')
     if (existsSync(runJson)) {
@@ -134,7 +136,9 @@ const statusCommand = () => {
     return
   }
 
-  const runs = readdirSync(LOGS_ROOT).sort((a, b) => a.localeCompare(b)).reverse()
+  const runs = readdirSync(LOGS_ROOT)
+    .sort((a, b) => a.localeCompare(b))
+    .reverse()
   if (runs.length === 0) {
     console.log('no runs found')
     return

@@ -18,6 +18,15 @@ export const getBlockedPositions = (state: GameState, zone?: Zone): Set<string> 
       set.add(posKey(pos.x, pos.y))
     }
   }
+  // Water tiles block movement (overworld only — ponds/rivers don't exist in cave)
+  if (z === Zone.Overworld) {
+    for (const key of state.ponds) {
+      set.add(key)
+    }
+    for (const key of state.rivers) {
+      set.add(key)
+    }
+  }
   return set
 }
 

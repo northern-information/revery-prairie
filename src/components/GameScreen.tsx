@@ -1,18 +1,20 @@
 import { useCallback, useRef } from 'react'
 import { ActionBar } from './ActionBar'
 import { DIALOG_HEIGHT, DIALOG_WIDTH, DialogBox } from './DialogBox'
+import { DragCursor } from './DragCursor'
 import { GameCanvas } from './GameCanvas'
-import { InventoryPanel } from './InventoryPanel'
 import { HexagramPanel } from './HexagramPanel'
+import { InventoryPanel } from './InventoryPanel'
 import { ManualPanel } from './ManualPanel'
 import { Menu } from './Menu'
+import { PermacomputerShell } from './PermacomputerShell'
 import { PickupToasts } from './PickupToasts'
 import { ReveriesPanel } from './ReveriesPanel'
 import { Sidebar } from './Sidebar'
 
 import { setMusicEnabled, stopAll } from '@/engine/audio'
-import { COIN_GLINTING_COLOR } from '@/engine/constants'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
+import { COIN_GLINTING_COLOR } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { advanceDialog } from '@/engine/interaction'
 import { getDefinition } from '@/engine/items'
@@ -20,8 +22,7 @@ import { useEventLog } from '@/hooks/useEventLog'
 import { useGameEngine } from '@/hooks/useGameEngine'
 import { useKeyboard } from '@/hooks/useKeyboard'
 import { useMusic } from '@/hooks/useMusic'
-
-import type { DragState } from '@/hooks/useInventoryDrag'
+import type { DragOverlayData } from './InventoryPanel'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { GenesisResult } from '@/engine/genesisTypes'
 import type { CharMetrics } from '@/engine/types'
@@ -40,7 +41,7 @@ export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreen
   const itemInfoRef = useRef<ItemInfoHandle>(null)
   const metricsRef = useRef<CharMetrics | null>(null)
   const isDraggingRef = useRef(false)
-  const inventoryDragStateRef = useRef<DragState | null>(null)
+  const dragOverlayRef = useRef<DragOverlayData | null>(null)
   const { toasts, log, addEvent } = useEventLog()
 
   const onPickup = useCallback(
@@ -88,7 +89,7 @@ export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreen
 
   useMusic(state)
 
-  const { activePanel, setActivePanel } = useKeyboard({
+  const { activeScreen, setActiveScreen } = useKeyboard({
     state,
     refreshUI,
     itemInfoRef,
@@ -105,27 +106,71 @@ export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreen
       <GameCanvas
         state={state}
         refreshUI={refreshUI}
-        activePanel={activePanel}
-        setActivePanel={setActivePanel}
+        activeScreen={activeScreen}
+        setActiveScreen={setActiveScreen}
         onPickup={onPickup}
         onDialog={onDialog}
         onDiscovery={onDiscovery}
         onGift={onGift}
         metricsRef={metricsRef}
       />
-      {activePanel === 'inventory' && (
-        <InventoryPanel
-          state={state}
-          refreshUI={refreshUI}
-          itemInfoRef={itemInfoRef}
-          onCombineLog={onCombineLog}
-          onDropLog={onDrop}
-          metricsRef={metricsRef}
-          isDraggingRef={isDraggingRef}
+      {activeScreen && (
+        <PermacomputerShell
+          activeScreen={activeScreen}
           onClose={() => {
-            setActivePanel(null)
+            setActiveScreen(null)
           }}
-        />
+          onSwitchScreen={setActiveScreen}
+        >
+          {activeScreen === 'pack' && (
+            <InventoryPanel
+              state={state}
+              refreshUI={refreshUI}
+              itemInfoRef={itemInfoRef}
+              onCombineLog={onCombineLog}
+              onDropLog={onDrop}
+              metricsRef={metricsRef}
+              isDraggingRef={isDraggingRef}
+              dragOverlayRef={dragOverlayRef}
+            />
+          )}
+          {activeScreen === 'manual' && <ManualPanel state={state} />}
+          {activeScreen === 'divination' && (
+            <HexagramPanel
+              state={state}
+              onClose={() => {
+            setActiveScreen(null)
+          }}
+              refreshUI={refreshUI}
+              onCastLog={(text, worldX, worldY) => {
+                addEvent('discovery', text, '¤', COIN_GLINTING_COLOR, worldX, worldY)
+              }}
+            />
+          )}
+          {activeScreen === 'reveries' && <ReveriesPanel state={state} refreshUI={refreshUI} />}
+          {activeScreen === 'system' && (
+            <Menu
+              onResume={() => {
+                setActiveScreen(null)
+              }}
+              onNewGame={() => {
+                stopAll()
+                onRestart()
+              }}
+              metric={state.metric}
+              onToggleUnits={() => {
+                state.metric = !state.metric
+                refreshUI()
+              }}
+              musicEnabled={state.musicEnabled}
+              onToggleMusic={() => {
+                state.musicEnabled = !state.musicEnabled
+                setMusicEnabled(state.musicEnabled)
+                refreshUI()
+              }}
+            />
+          )}
+        </PermacomputerShell>
       )}
       {state.activeDialog &&
         (() => {
@@ -192,71 +237,29 @@ export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreen
             />
           )
         })()}
-      {activePanel === 'manual' && (
-        <ManualPanel
-          state={state}
-          onClose={() => {
-            setActivePanel(null)
-          }}
-        />
-      )}
-      {activePanel === 'hexagram' && (
-        <HexagramPanel
-          state={state}
-          onClose={() => {
-            setActivePanel(null)
-          }}
-          refreshUI={refreshUI}
-          onCastLog={(text, worldX, worldY) => {
-            addEvent('discovery', text, '¤', COIN_GLINTING_COLOR, worldX, worldY)
-          }}
-        />
-      )}
-      {activePanel === 'reveries' && (
-        <ReveriesPanel
-          state={state}
-          refreshUI={refreshUI}
-          onClose={() => {
-            setActivePanel(null)
-          }}
-        />
-      )}
-      {activePanel === 'menu' && (
-        <Menu
-          onResume={() => {
-            setActivePanel(null)
-          }}
-          onNewGame={() => {
-            stopAll()
-            onRestart()
-          }}
-          metric={state.metric}
-          onToggleUnits={() => {
-            state.metric = !state.metric
-            refreshUI()
-          }}
-          musicEnabled={state.musicEnabled}
-          onToggleMusic={() => {
-            state.musicEnabled = !state.musicEnabled
-            setMusicEnabled(state.musicEnabled)
-            refreshUI()
-          }}
+      {dragOverlayRef.current && (
+        <DragCursor
+          dragState={dragOverlayRef.current.dragState}
+          cursorPos={dragOverlayRef.current.cursorPos}
+          cursorTarget={dragOverlayRef.current.cursorTarget}
+          canvasRect={dragOverlayRef.current.canvasRect}
+          metricsRef={metricsRef}
         />
       )}
       <ActionBar
         state={state}
         refreshUI={refreshUI}
-        dragState={inventoryDragStateRef.current}
+        dragState={dragOverlayRef.current?.dragState ?? null}
         onSetActionBarTarget={() => {
           // Handled via drag system — placeholder for now
         }}
-        onOpenReveries={() => {
-          setActivePanel(activePanel === 'reveries' ? null : 'reveries')
+        onTogglePermacomputer={() => {
+          setActiveScreen(activeScreen ? null : 'pack')
         }}
       />
       <Sidebar
         state={state}
-        activePanel={activePanel}
+        activeScreen={activeScreen}
         itemInfoRef={itemInfoRef}
         eventLog={log}
         metricsRef={metricsRef}

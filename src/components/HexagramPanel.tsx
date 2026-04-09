@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CloseButton, PanelTitle } from './PanelPrimitives'
 
-import {
-  canCast,
-  completeCast,
-  consumeGlint,
-  lineFromValue,
-  tossThreeCoins,
-} from '@/engine/hexagram'
+import { canCast, completeCast, consumeGlint, lineFromValue, tossThreeCoins } from '@/engine/hexagram'
 import { recordDiscovery } from '@/engine/manual'
 import type { CastResult, HexagramLine, LineType } from '@/engine/hexagram'
 import type { GameState } from '@/engine/types'
@@ -32,9 +25,7 @@ const TossLine = ({ line, index }: { line: HexagramLine; index: number }) => {
   return (
     <div className="flex items-center gap-3 font-mono">
       <span className="text-dim w-3 text-right text-xs">{index + 1}</span>
-      <span className={`text-sm ${changeMark ? 'text-pink' : 'text-text'}`}>
-        {solid ? '———————' : '———  ———'}
-      </span>
+      <span className={`text-sm ${changeMark ? 'text-pink' : 'text-text'}`}>{solid ? '———————' : '———  ———'}</span>
       <span className="text-dim text-xs">
         {line.value} {LINE_LABELS[line.value]}
         {changeMark && (line.yang ? ' (changing)' : ' (changing)')}
@@ -122,91 +113,74 @@ export const HexagramPanel = ({ state, onClose, refreshUI, onCastLog }: Hexagram
   const hasChanging = result ? result.transformed !== null : false
 
   return (
-    <div className="fixed inset-0 z-10" onClick={onClose}>
-      <div
-        className="border-border text-text fixed top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col border bg-black/85 px-8 py-6 font-mono text-xs"
-        style={{ width: 520, maxHeight: '85vh' }}
-        onClick={e => {
-          e.stopPropagation()
-        }}
-      >
-        <CloseButton onClick={onClose} label="Close hexagram" />
-        <PanelTitle>I Ching</PanelTitle>
+    <div className="text-text font-mono text-xs">
+      {!hasEnoughCoins && phase === 'tossing' && tossCount === 0 && (
+        <p className="text-dim mb-4">you need 3 glinting coins in your backpack to cast.</p>
+      )}
 
-        {!hasEnoughCoins && phase === 'tossing' && tossCount === 0 && (
-          <p className="text-dim mb-4">you need 3 glinting coins in your backpack to cast.</p>
-        )}
-
-        {phase === 'tossing' && (
-          <div>
-            {/* Toss log — each toss stays visible */}
-            <div className="mb-4">
-              {parsedLines.map((line, i) => (
-                <TossLine key={i} line={line} index={i} />
-              ))}
-              {tossCount < 6 && (
-                <div className="text-dim mt-1 flex items-center gap-3 font-mono">
-                  <span className="w-3 text-right text-xs">{tossCount + 1}</span>
-                  <span className="text-sm">· · · · · · ·</span>
-                </div>
-              )}
-            </div>
-
-            <div className="text-dim mb-3 text-xs">
-              toss {tossCount}/6
-            </div>
-
-            {canToss && (
-              <button
-                type="button"
-                className="text-pink hover:text-text text-xs"
-                onClick={doToss}
-              >
-                [toss coins] or press [space]
-              </button>
+      {phase === 'tossing' && (
+        <div>
+          {/* Toss log — each toss stays visible */}
+          <div className="mb-4">
+            {parsedLines.map((line, i) => (
+              <TossLine key={i} line={line} index={i} />
+            ))}
+            {tossCount < 6 && (
+              <div className="text-dim mt-1 flex items-center gap-3 font-mono">
+                <span className="w-3 text-right text-xs">{tossCount + 1}</span>
+                <span className="text-sm">· · · · · · ·</span>
+              </div>
             )}
           </div>
-        )}
 
-        {phase === 'result' && result && (
-          <div className="overflow-y-auto">
-            {/* Primary hexagram */}
+          <div className="text-dim mb-3 text-xs">toss {tossCount}/6</div>
+
+          {canToss && (
+            <button type="button" className="text-pink hover:text-text text-xs" onClick={doToss}>
+              [toss coins] or press [space]
+            </button>
+          )}
+        </div>
+      )}
+
+      {phase === 'result' && result && (
+        <div className="overflow-y-auto">
+          {/* Primary hexagram */}
+          <div className="mb-5">
+            {hasChanging && <div className="text-dim mb-2 text-xs tracking-wide uppercase">present</div>}
+            <div className="mb-2 flex items-baseline gap-2">
+              <span className="text-pink">#{result.primary.id}</span>
+              <span className="text-text">{result.primary.name}</span>
+            </div>
+            <div className="mb-3">
+              <HexagramFigure lines={result.lines} changing={hasChanging} />
+            </div>
+            <div className="border-border border-l-2 pl-3">
+              <p className="text-dim leading-relaxed">{result.primary.meaning}</p>
+            </div>
+          </div>
+
+          {/* Transformed hexagram */}
+          {result.transformed && (
             <div className="mb-5">
-              {hasChanging && <div className="text-dim mb-2 text-xs uppercase tracking-wide">present</div>}
+              <div className="text-dim mb-2 text-xs">changing lines transform &darr;</div>
+              <div className="text-dim mb-2 text-xs tracking-wide uppercase">becoming</div>
               <div className="mb-2 flex items-baseline gap-2">
-                <span className="text-pink">#{result.primary.id}</span>
-                <span className="text-text">{result.primary.name}</span>
+                <span className="text-pink">#{result.transformed.id}</span>
+                <span className="text-text">{result.transformed.name}</span>
               </div>
               <div className="mb-3">
-                <HexagramFigure lines={result.lines} changing={hasChanging} />
+                <StaticFigure lines={result.transformed.lines} />
               </div>
               <div className="border-border border-l-2 pl-3">
-                <p className="text-dim leading-relaxed">{result.primary.meaning}</p>
+                <p className="text-dim leading-relaxed">{result.transformed.meaning}</p>
               </div>
             </div>
+          )}
 
-            {/* Transformed hexagram */}
-            {result.transformed && (
-              <div className="mb-5">
-                <div className="text-dim mb-2 text-xs">changing lines transform &darr;</div>
-                <div className="text-dim mb-2 text-xs uppercase tracking-wide">becoming</div>
-                <div className="mb-2 flex items-baseline gap-2">
-                  <span className="text-pink">#{result.transformed.id}</span>
-                  <span className="text-text">{result.transformed.name}</span>
-                </div>
-                <div className="mb-3">
-                  <StaticFigure lines={result.transformed.lines} />
-                </div>
-                <div className="border-border border-l-2 pl-3">
-                  <p className="text-dim leading-relaxed">{result.transformed.meaning}</p>
-                </div>
-              </div>
-            )}
-
-            <div className="text-dim mt-2 text-xs">press [space] or [enter] to close</div>
-          </div>
-        )}
-      </div>
+          <div className="text-dim mt-2 text-xs">press [space] or [enter] to close</div>
+        </div>
+      )}
     </div>
   )
 }

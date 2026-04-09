@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
 import { COIN_GLINTING_COLOR } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
@@ -18,8 +16,10 @@ import { placeItem } from '../inventory'
 import { ITEM_DEFINITIONS } from '../items'
 import { createGameState } from '../state'
 import { Rotation } from '../types'
-import type { Container } from '../types'
 import { clearAroundPlayer, createGroundItemEntity, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
+
+import type { Container } from '../types'
 
 describe('coin item definition', () => {
   it('exists in the item registry', () => {
@@ -240,13 +240,11 @@ describe('glinting coins', () => {
 describe('coin ground spawn', () => {
   it('createGameState spawns coin ground items', () => {
     const freshState = createGameState('Test', 20, 20)
-    const coinEntities = freshState.world
-      .query(ComponentType.EntityTag, ComponentType.ItemDrop)
-      .filter(eid => {
-        const tag = freshState.world.getComponent(eid, ComponentType.EntityTag)
-        const drop = freshState.world.getComponent(eid, ComponentType.ItemDrop)
-        return tag === 'groundItem' && drop?.definitionId === 'coin'
-      })
+    const coinEntities = freshState.world.query(ComponentType.EntityTag, ComponentType.ItemDrop).filter(eid => {
+      const tag = freshState.world.getComponent(eid, ComponentType.EntityTag)
+      const drop = freshState.world.getComponent(eid, ComponentType.ItemDrop)
+      return tag === 'groundItem' && drop?.definitionId === 'coin'
+    })
     expect(coinEntities.length).toBe(3)
   })
 })

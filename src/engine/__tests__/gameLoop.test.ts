@@ -287,10 +287,15 @@ describe('zone gating', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const posBefore = { ...state.world.getComponent(beeEid, ComponentType.Position)! }
 
-    // Tick many times — bees move randomly (30% chance),
-    // so run many ticks to ensure at least one move
-    for (let t = 0; t <= 10000; t += 200) {
-      gameLoop.tick(t)
+    // Force movement to always trigger — eliminates flakiness from randomness
+    const origRandom = Math.random
+    Math.random = () => 0.1
+    try {
+      for (let t = 0; t <= 2000; t += 200) {
+        gameLoop.tick(t)
+      }
+    } finally {
+      Math.random = origRandom
     }
 
     // Cave bees should tick and move
