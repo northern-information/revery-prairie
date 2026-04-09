@@ -287,9 +287,9 @@ describe('zone gating', () => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const posBefore = { ...state.world.getComponent(beeEid, ComponentType.Position)! }
 
-    // Tick many times — bees move randomly (30% chance),
-    // so run many ticks to ensure at least one move
-    for (let t = 0; t <= 10000; t += 200) {
+    // Tick many times — bees move randomly (30% chance per 200ms tick),
+    // so run enough ticks that the probability of zero moves is negligible
+    for (let t = 0; t <= 50000; t += 200) {
       gameLoop.tick(t)
     }
 
