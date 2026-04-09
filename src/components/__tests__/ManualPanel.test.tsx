@@ -81,7 +81,7 @@ describe('ManualPanel', () => {
 
   it('toggles hint blocks on click', async () => {
     const state = createTestState()
-    const entry = MANUAL_ENTRIES.bee
+    const entry = MANUAL_ENTRIES['item:bee']
     const originalHints = entry.hints
     entry.hints = [{ prompt: 'test hint question?', answer: 'test hint answer' }]
 
@@ -94,15 +94,15 @@ describe('ManualPanel', () => {
     // Click to reveal
     await userEvent.click(screen.getByText(/test hint question/))
     expect(screen.getByText('test hint answer')).toBeInTheDocument()
-    expect(state.manualState.revealedHints.has('bee:0')).toBe(true)
+    expect(state.manualState.revealedHints.has('item:bee:0')).toBe(true)
 
     entry.hints = originalHints
   })
 
   it('persists revealed hints across renders', () => {
     const state = createTestState()
-    state.manualState.revealedHints.add('bee:0')
-    const entry = MANUAL_ENTRIES.bee
+    state.manualState.revealedHints.add('item:bee:0')
+    const entry = MANUAL_ENTRIES['item:bee']
     const originalHints = entry.hints
     entry.hints = [{ prompt: 'persisted hint?', answer: 'persisted answer' }]
 

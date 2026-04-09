@@ -1,0 +1,87 @@
+id: manual-id-namespace
+name: 'Manual entry ID namespacing'
+status: implemented
+priority: medium
+layer: integration
+source_files:
+  - src/engine/manual.ts
+  - src/components/ManualPanel.tsx
+  - src/engine/__tests__/manual.test.ts
+  - src/components/__tests__/ManualPanel.test.tsx
+
+behaviors:
+  - id: namespaced-entry-ids
+    description: >
+      every manual entry id uses sourceKind:name format. items use
+      item:<id>, characters use character:<id>, reveries use
+      revery:<id>, recipes use recipe:<key>, controls use
+      control:<key>, world entities use entity:<id>, zones use
+      zone:<id>, events use event:<id>. genesis uses event:genesis.
+      this eliminates ambiguity and aligns entry ids with the existing
+      unlockKey convention.
+    inputs:
+      - 'ITEM_DEFINITIONS, CHARACTER_DEFINITIONS, REVERY_DEFINITIONS, WORLD_ENTITY_DEFINITIONS, RECIPES, KEYBINDINGS, MANUAL_ONLY_ENTRIES, genesis entry'
+    outputs:
+      - 'MANUAL_ENTRIES keyed by namespaced ids'
+    state_changes: []
+    determinism: deterministic
+
+  - id: lore-key-alignment
+    description: >
+      MANUAL_LORE keys match entry ids exactly. buildReveryEntries
+      looks up MANUAL_LORE[`revery:${def.id}`] (fixing a bug where
+      fire and water lore silently failed because the lookup used
+      bare def.id). all other builders use the same namespaced
+      pattern for their lore lookups.
+    inputs:
+      - 'MANUAL_LORE object, builder functions'
+    outputs:
+      - 'lore correctly resolved for all entries including fire and water reveries'
+    state_changes: []
+    determinism: deterministic
+
+  - id: crossref-namespacing
+    description: >
+      recipe crossRefs use namespaced item ids (item:bee, item:clover)
+      instead of bare definition ids. all crossRefs point to valid
+      keys in MANUAL_ENTRIES.
+    inputs:
+      - 'recipe.ingredients array'
+    outputs:
+      - 'crossRefs array with item:-prefixed ids'
+    state_changes: []
+    determinism: deterministic
+
+  - id: crossref-display-stripping
+    description: >
+      ManualPanel strips the namespace prefix from crossRefs before
+      display, preserving the existing lowercase format (bee + clover =).
+      uses regex to remove everything up to and including the first colon.
+    inputs:
+      - 'entry.crossRefs with namespaced ids'
+    outputs:
+      - 'displayed text with bare names (bee + clover =)'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: colons-in-hint-keys
+    description: 'hint toggle keys use entry.id:index format, so namespaced ids produce keys like item:bee:0 with multiple colons'
+    expected: 'revealedHints Set uses exact string match so multi-colon keys work correctly. session-ephemeral, no persistence concern.'
+  - id: entity-sourcekind
+    description: 'world entity entries use a new entity sourceKind value added to the union type'
+    expected: 'sourceKind union includes entity. no exhaustive switch on sourceKind exists, so this is non-breaking.'
+  - id: genesis-event-namespace
+    description: 'genesis entry moves from bare genesis id to event:genesis'
+    expected: 'genesis lore lookups use MANUAL_LORE[event:genesis]. unlockKey stays always (unchanged).'
+
+failure_conditions:
+  - trigger: 'a bare id (no colon) appears in MANUAL_ENTRIES keys for non-control entries'
+    expected: 'test fails — all non-control entries must have sourceKind: prefix'
+  - trigger: 'MANUAL_LORE key does not match the entry id it is intended for'
+    expected: 'lore silently falls through to description/summary default — detectable by checking all MANUAL_LORE keys exist in MANUAL_ENTRIES'
+
+verification:
+  test_file: src/engine/__tests__/manual.test.ts
+  test_pattern: 'manual'
+  command: 'npx vitest run src/engine/__tests__/manual.test.ts'

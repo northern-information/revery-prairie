@@ -44,30 +44,30 @@ export interface ManualEntry {
   hints: ManualHint[]
   crossRefs?: string[]
   unlockKey: string
-  sourceKind: 'item' | 'recipe' | 'character' | 'revery' | 'zone' | 'event' | 'manual-only'
+  sourceKind: 'item' | 'recipe' | 'character' | 'revery' | 'zone' | 'event' | 'entity' | 'manual-only'
 }
 
 // --- Hand-authored lore ---
 
 const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }>> = {
   // Items
-  bee: { lore: 'TODO' },
-  clover: { lore: 'TODO' },
-  meteorite: { lore: 'TODO' },
-  permacomputer: { lore: 'TODO' },
-  omnibox: { lore: 'TODO' },
-  honey: { lore: 'TODO' },
-  coin: { lore: 'TODO' },
+  'item:bee': { lore: 'TODO' },
+  'item:clover': { lore: 'TODO' },
+  'item:meteorite': { lore: 'TODO' },
+  'item:permacomputer': { lore: 'TODO' },
+  'item:omnibox': { lore: 'TODO' },
+  'item:honey': { lore: 'TODO' },
+  'item:coin': { lore: 'TODO' },
   // Reveries
   'revery:fire': { lore: 'TODO' },
   'revery:water': { lore: 'TODO' },
-  earth: { lore: 'TODO' },
+  'revery:earth': { lore: 'TODO' },
   // World entities
-  beehive: { lore: 'TODO' },
+  'entity:beehive': { lore: 'TODO' },
   // Characters
-  gron: { lore: 'TODO' },
-  moab: { lore: 'TODO' },
-  ghosts: { lore: 'TODO' },
+  'character:gron': { lore: 'TODO' },
+  'character:moab': { lore: 'TODO' },
+  'character:ghosts': { lore: 'TODO' },
 }
 
 // --- Category mapping ---
@@ -92,9 +92,9 @@ const itemCategoryToManualCategory = (cat: ItemCategory): ManualCategory => {
 
 const buildItemEntries = (): ManualEntry[] =>
   Object.values(ITEM_DEFINITIONS).map(def => {
-    const loreData = MANUAL_LORE[def.id]
+    const loreData = MANUAL_LORE[`item:${def.id}`]
     return {
-      id: def.id,
+      id: `item:${def.id}`,
       name: def.name,
       category: itemCategoryToManualCategory(def.category),
       glyph: def.glyph,
@@ -109,7 +109,7 @@ const buildItemEntries = (): ManualEntry[] =>
 
 const buildReveryEntries = (): ManualEntry[] =>
   Object.values(REVERY_DEFINITIONS).map(def => {
-    const loreData = MANUAL_LORE[def.id]
+    const loreData = MANUAL_LORE[`revery:${def.id}`]
     return {
       id: `revery:${def.id}`,
       name: def.name,
@@ -138,7 +138,7 @@ const buildRecipeEntries = (): ManualEntry[] =>
       summary: recipe.description.split('\n')[0],
       lore: loreData?.lore ?? recipe.description,
       hints: loreData?.hints ?? [],
-      crossRefs: [...recipe.ingredients],
+      crossRefs: recipe.ingredients.map(id => `item:${id}`),
       unlockKey: `recipe:${key}`,
       sourceKind: 'recipe',
     }
@@ -152,10 +152,10 @@ const buildCharacterEntries = (): ManualEntry[] => {
     // Ghosts have a collective manual-only entry below.
     if (def.id.startsWith('ghost-')) continue
 
-    const loreData = MANUAL_LORE[def.id]
+    const loreData = MANUAL_LORE[`character:${def.id}`]
 
     entries.push({
-      id: def.id,
+      id: `character:${def.id}`,
       name: def.name,
       category: ManualCategory.Person,
       glyph: def.glyph,
@@ -175,9 +175,9 @@ const buildCharacterEntries = (): ManualEntry[] => {
 
 const buildWorldEntityEntries = (): ManualEntry[] =>
   Object.values(WORLD_ENTITY_DEFINITIONS).map(def => {
-    const loreData = MANUAL_LORE[def.id]
+    const loreData = MANUAL_LORE[`entity:${def.id}`]
     return {
-      id: def.id,
+      id: `entity:${def.id}`,
       name: def.name,
       category: def.category as ManualCategory,
       glyph: def.glyph,
@@ -186,7 +186,7 @@ const buildWorldEntityEntries = (): ManualEntry[] =>
       lore: loreData?.lore ?? def.summary,
       hints: loreData?.hints ?? [],
       unlockKey: def.unlockKey,
-      sourceKind: 'manual-only' as const,
+      sourceKind: 'entity' as const,
     }
   })
 
@@ -211,21 +211,21 @@ const buildControlEntries = (): ManualEntry[] =>
 const buildGenesisEntry = (): ManualEntry => {
   const epochList = GENESIS_EPOCHS.map(e => e.commentary.replace(/\.\.\.$/, '')).join(', ')
   return {
-    id: 'genesis',
+    id: 'event:genesis',
     name: 'Genesis',
     category: ManualCategory.Zone,
     glyph: '~',
     glyphColor: '#FF4500',
     summary: 'the geological history that shaped this land',
     lore:
-      MANUAL_LORE.genesis?.lore ??
+      MANUAL_LORE['event:genesis']?.lore ??
       `before the prairie was a prairie, it was magma — and before that, void. ` +
         `a billion years of geological history flash before you each time a new world is born: ${epochList}. ` +
         `every patch of soil remembers what happened to it. volcanic hotspots left minerals behind. ` +
         `glaciers scraped the highlands bare. rivers carved alluvial deltas rich with sediment. ` +
         `ancient civilizations rose and fell, their aqueducts buried deep beneath the dirt. ` +
         `the soil health you see today is the sum of all these forces.`,
-    hints: MANUAL_LORE.genesis?.hints ?? [
+    hints: MANUAL_LORE['event:genesis']?.hints ?? [
       {
         prompt: 'how it works',
         answer: 'genesis runs between the name prompt and gameplay. it simulates 14 geological epochs in ~25 seconds.',
@@ -251,154 +251,154 @@ const buildGenesisEntry = (): ManualEntry => {
 
 const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
   {
-    id: 'ghosts',
+    id: 'character:ghosts',
     name: 'Ghosts',
     category: ManualCategory.Person,
     glyph: 'ö',
     glyphColor: '#FFFFFF',
     summary: 'wandering spirits on the prairie',
     lore:
-      MANUAL_LORE.ghosts?.lore ??
+      MANUAL_LORE['character:ghosts']?.lore ??
       'three ghosts drift across the land. they move slowly and unpredictably. each has something to say if you stop to listen.',
-    hints: MANUAL_LORE.ghosts?.hints ?? [],
+    hints: MANUAL_LORE['character:ghosts']?.hints ?? [],
     unlockKey: 'character:ghost-1',
     sourceKind: 'character',
   },
   {
-    id: 'overworld',
+    id: 'zone:overworld',
     name: 'The Prairie',
     category: ManualCategory.Zone,
     glyph: TILE_CHARS[TileType.Dirt],
     glyphColor: TILE_COLORS[TileType.Dirt],
     summary: 'a dirt island surrounded by stars',
-    lore: MANUAL_LORE.overworld?.lore ?? 'a dirt island surrounded by stars. the land responds to care.',
-    hints: MANUAL_LORE.overworld?.hints ?? [],
+    lore: MANUAL_LORE['zone:overworld']?.lore ?? 'a dirt island surrounded by stars. the land responds to care.',
+    hints: MANUAL_LORE['zone:overworld']?.hints ?? [],
     unlockKey: 'always',
     sourceKind: 'zone',
   },
   {
-    id: 'cave',
+    id: 'zone:cave',
     name: 'The Cave',
     category: ManualCategory.Zone,
     glyph: TILE_CHARS[TileType.CaveEntrance],
     glyphColor: TILE_COLORS[TileType.CaveEntrance],
     summary: 'a dark passage beneath the land',
     lore:
-      MANUAL_LORE.cave?.lore ??
+      MANUAL_LORE['zone:cave']?.lore ??
       'a winding cave accessible through an entrance on the surface. corridors lead upward to a chamber.',
-    hints: MANUAL_LORE.cave?.hints ?? [],
+    hints: MANUAL_LORE['zone:cave']?.hints ?? [],
     unlockKey: 'zone:cave',
     sourceKind: 'zone',
   },
   {
-    id: 'shooting-star',
+    id: 'event:shooting-star',
     name: 'Shooting Star',
     category: ManualCategory.Celestial,
     glyph: '*',
     glyphColor: '#FFFFFF',
     summary: 'a streak of light across the sky',
     lore:
-      MANUAL_LORE['shooting-star']?.lore ??
+      MANUAL_LORE['event:shooting-star']?.lore ??
       'shooting stars appear randomly in the space around the prairie. most pass harmlessly, but some land as meteorites.',
-    hints: MANUAL_LORE['shooting-star']?.hints ?? [],
+    hints: MANUAL_LORE['event:shooting-star']?.hints ?? [],
     unlockKey: 'always',
     sourceKind: 'event',
   },
   {
-    id: 'chain-explosion',
+    id: 'event:chain-explosion',
     name: 'Chain Explosion',
     category: ManualCategory.Celestial,
     glyph: '+',
     glyphColor: '#FFD700',
     summary: 'a cascade of meteorite impacts',
     lore:
-      MANUAL_LORE['chain-explosion']?.lore ??
+      MANUAL_LORE['event:chain-explosion']?.lore ??
       'when a meteorite is picked up, there is a chance it detonates, scattering more meteorites nearby. chain meteorites cannot trigger further chains.',
-    hints: MANUAL_LORE['chain-explosion']?.hints ?? [],
+    hints: MANUAL_LORE['event:chain-explosion']?.hints ?? [],
     unlockKey: 'event:chain-explosion',
     sourceKind: 'event',
   },
   {
-    id: 'meteor-shower',
+    id: 'event:meteor-shower',
     name: 'Meteor Shower',
     category: ManualCategory.Celestial,
     glyph: '*',
     glyphColor: '#FFD700',
     summary: 'a burst of shooting stars raining down on the prairie',
     lore:
-      MANUAL_LORE['meteor-shower']?.lore ??
+      MANUAL_LORE['event:meteor-shower']?.lore ??
       'occasionally the sky erupts with shooting stars, all streaking from the same direction. most land as meteorites scattered across the prairie.',
-    hints: MANUAL_LORE['meteor-shower']?.hints ?? [],
+    hints: MANUAL_LORE['event:meteor-shower']?.hints ?? [],
     unlockKey: 'event:meteor-shower',
     sourceKind: 'event',
   },
   {
-    id: 'clover-growth',
+    id: 'event:clover-growth',
     name: 'Clover Growth',
     category: ManualCategory.Flora,
     glyph: '%',
     glyphColor: '#90EE90',
     summary: 'clover spreads across the prairie',
     lore:
-      MANUAL_LORE['clover-growth']?.lore ??
+      MANUAL_LORE['event:clover-growth']?.lore ??
       'when bees settle on a clover patch, the clover begins to grow in spiraling patterns across the dirt. the more bees tend a patch, the faster it spreads.',
-    hints: MANUAL_LORE['clover-growth']?.hints ?? [],
+    hints: MANUAL_LORE['event:clover-growth']?.hints ?? [],
     unlockKey: 'event:clover-growth',
     sourceKind: 'event',
   },
   {
-    id: 'clover-death',
+    id: 'event:clover-death',
     name: 'Clover Death',
     category: ManualCategory.Flora,
     glyph: '%',
     glyphColor: '#8B6914',
     summary: 'clover withers without light and water',
     lore:
-      MANUAL_LORE['clover-death']?.lore ??
+      MANUAL_LORE['event:clover-death']?.lore ??
       'clover needs both light and water to survive. without them it slowly browns, then blinks red in distress, turns black, and finally decomposes back into the earth — enriching the soil as it goes.',
-    hints: MANUAL_LORE['clover-death']?.hints ?? [],
+    hints: MANUAL_LORE['event:clover-death']?.hints ?? [],
     unlockKey: 'event:clover-death',
     sourceKind: 'event',
   },
   {
-    id: 'clover-harvest',
+    id: 'event:clover-harvest',
     name: 'Clover Harvest',
     category: ManualCategory.Flora,
     glyph: '%',
     glyphColor: '#50C878',
     summary: 'harvesting clover with [f]',
     lore:
-      MANUAL_LORE['clover-harvest']?.lore ??
+      MANUAL_LORE['event:clover-harvest']?.lore ??
       'pressing [f] while facing clover harvests it into your backpack. the tile returns to bare dirt. harvested clover does not enrich the soil.',
-    hints: MANUAL_LORE['clover-harvest']?.hints ?? [],
+    hints: MANUAL_LORE['event:clover-harvest']?.hints ?? [],
     unlockKey: 'event:clover-harvest',
     sourceKind: 'event',
   },
   {
-    id: 'clover-cut',
+    id: 'event:clover-cut',
     name: 'Clover Cut',
     category: ManualCategory.Flora,
     glyph: '%',
     glyphColor: '#50C878',
     summary: 'cutting clover with [x]',
     lore:
-      MANUAL_LORE['clover-cut']?.lore ??
+      MANUAL_LORE['event:clover-cut']?.lore ??
       'pressing [x] while facing clover cuts it down to bare dirt. unlike harvesting, cutting returns nutrients to the earth, enriching the soil.',
-    hints: MANUAL_LORE['clover-cut']?.hints ?? [],
+    hints: MANUAL_LORE['event:clover-cut']?.hints ?? [],
     unlockKey: 'event:clover-cut',
     sourceKind: 'event',
   },
   {
-    id: 'hexagram-cast',
+    id: 'event:hexagram-cast',
     name: 'Hexagram Casting',
     category: ManualCategory.Object,
     glyph: '¤',
     glyphColor: COIN_GLINTING_COLOR,
     summary: 'divination with three coins',
     lore:
-      MANUAL_LORE['hexagram-cast']?.lore ??
+      MANUAL_LORE['event:hexagram-cast']?.lore ??
       'three ancient coins, tossed six times. each toss builds a line — solid or broken, stable or changing. the hexagram that forms speaks in the language of the prairie. listen closely.',
-    hints: MANUAL_LORE['hexagram-cast']?.hints ?? [
+    hints: MANUAL_LORE['event:hexagram-cast']?.hints ?? [
       { prompt: 'how to cast', answer: 'collect 3 glinting coins and press [c] on the overworld.' },
       {
         prompt: 'changing lines',
