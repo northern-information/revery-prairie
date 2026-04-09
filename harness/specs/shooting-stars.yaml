@@ -81,8 +81,9 @@ behaviors:
   - id: shower-target-selection
     description: >
       findShowerTargets selects landing positions for shower stars.
-      criteria: walkable tile (Dirt or Clover), within SPACE_BORDER,
-      not occupied by player or entities, minimum 5-tile manhattan
+      criteria: Dirt or Clover tile (not Sand, CaveFloor, or other
+      walkable types), within SPACE_BORDER, not occupied by player or
+      entities (checked via isTileOccupied), minimum 5-tile manhattan
       distance between targets. max attempts = count * 50 to prevent
       infinite loops.
     inputs:

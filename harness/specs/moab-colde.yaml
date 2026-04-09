@@ -70,29 +70,25 @@ behaviors:
 
   - id: moab-gift-delivery
     description: >
-      When the first dialog completes (player advances past '...fine.'),
-      giveCharacterGift is called which delivers Moab's gift (a revery)
-      and records the delivery in state.giftsReceived. An omnibox packed
-      full of bees is also created via createOmniboxContainer and placed
-      in the backpack via findFitPosition/placeItem. All 25 cells (5x5)
-      are filled with bee items. A toast/log event fires. This is a
-      one-time event per character via the generic gift system.
+      When the player first talks to Moab, giveCharacterGift is called
+      before dialog opens. delivers fire revery via gift.kind === 'revery'.
+      pushes 'fire' to state.reveries, auto-assigns to first empty action
+      bar slot via autoAssignRevery, adds 'moab' to giftsReceived, records
+      revery:fire and event:moab-gift discoveries. one-time per character
+      via the generic gift system. item gifts are stubbed as deferred.
     inputs:
-      - 'Dialog with Moab completes for the first time'
+      - 'Player facing Moab, [e] pressed, gift not yet received'
     outputs:
-      - 'Omnibox item in backpack containing 25 bees'
-      - "Toast/log message: 'Gifted an omnibox'"
+      - 'ReveryDefinition for fire revery returned to caller'
     state_changes:
-      - field: backpack
-        effect: 'omnibox item placed'
-      - field: omniboxContainers
-        effect: 'new container registered, filled with 25 bees'
-      - field: nextOmniboxNumber
-        effect: 'incremented by 1'
+      - field: reveries
+        effect: "'fire' appended"
+      - field: actionBar
+        effect: 'fire revery auto-assigned to first empty slot'
       - field: giftsReceived
         effect: "'moab' added to the set"
-      - field: reveries
-        effect: "Moab's revery id appended"
+      - field: manualDiscoveries
+        effect: 'revery:fire and event:moab-gift recorded'
     determinism: deterministic
 
   - id: moab-subsequent-interaction
@@ -123,26 +119,19 @@ behaviors:
     determinism: deterministic
 
 edge_cases:
-  - id: moab-gift-backpack-full
-    description: 'Backpack has no room for the 2x2 omnibox when dialog completes'
-    expected: "Gift is not given. giftsReceived does not contain 'moab'. Next interaction replays the full dialog and re-attempts gift delivery."
   - id: moab-hidden-before-reveal
     description: 'Player enters cave before breaking the wall'
     expected: 'Moab is placed at npcSpot but his tile is masked as CaveWall by caveHiddenPositions. Player cannot see or reach him.'
   - id: moab-persists-across-cave-visits
     description: 'Player leaves cave and re-enters'
     expected: 'Moab is a persistent ECS entity tagged with Zone.Cave. giftsReceived persists on GameState so the gift is only given once.'
-  - id: moab-gift-omnibox-numbering
-    description: "Moab's omnibox follows the standard nextOmniboxNumber sequence"
-    expected: "Omnibox is named 'omnibox #N' where N is the current nextOmniboxNumber value"
-
 failure_conditions:
   - trigger: 'Player talks to Moab twice before breaking the wall (impossible but defensive)'
     expected: 'No crash. giftsReceived prevents double gift.'
   - trigger: 'enterCave called when moab definition is not registered'
     expected: 'Character definition is registered at module load time in CHARACTERS const. No runtime registration needed.'
-  - trigger: 'Omnibox creation fails (e.g. placeItem returns null)'
-    expected: "giftsReceived does not contain 'moab'. Gift re-attempted on next full dialog completion."
+  - trigger: 'giveCharacterGift called after gift already received'
+    expected: 'returns null, giftsReceived guard prevents double delivery'
 
 verification:
   test_file: src/engine/__tests__/moab-colde.test.ts
