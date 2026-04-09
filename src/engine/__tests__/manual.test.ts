@@ -17,8 +17,8 @@ describe('manual', () => {
   describe('MANUAL_ENTRIES registry', () => {
     it('has an entry for every item definition', () => {
       for (const id of Object.keys(ITEM_DEFINITIONS)) {
-        expect(MANUAL_ENTRIES[id]).toBeDefined()
-        expect(MANUAL_ENTRIES[id].sourceKind).toBe('item')
+        expect(MANUAL_ENTRIES[`item:${id}`]).toBeDefined()
+        expect(MANUAL_ENTRIES[`item:${id}`].sourceKind).toBe('item')
       }
     })
 
@@ -33,22 +33,22 @@ describe('manual', () => {
     it('has an entry for each non-ghost character', () => {
       for (const def of Object.values(CHARACTER_DEFINITIONS)) {
         if (def.id.startsWith('ghost-')) continue
-        expect(MANUAL_ENTRIES[def.id]).toBeDefined()
-        expect(MANUAL_ENTRIES[def.id].sourceKind).toBe('character')
+        expect(MANUAL_ENTRIES[`character:${def.id}`]).toBeDefined()
+        expect(MANUAL_ENTRIES[`character:${def.id}`].sourceKind).toBe('character')
       }
     })
 
     it('has a single collective entry for ghosts', () => {
-      expect(MANUAL_ENTRIES.ghosts).toBeDefined()
-      expect(MANUAL_ENTRIES.ghosts.category).toBe(ManualCategory.Person)
-      expect(MANUAL_ENTRIES.ghosts.glyph).toBe('ö')
+      expect(MANUAL_ENTRIES['character:ghosts']).toBeDefined()
+      expect(MANUAL_ENTRIES['character:ghosts'].category).toBe(ManualCategory.Person)
+      expect(MANUAL_ENTRIES['character:ghosts'].glyph).toBe('ö')
     })
 
     it('has manual-only entries for zones and events', () => {
-      expect(MANUAL_ENTRIES.overworld).toBeDefined()
-      expect(MANUAL_ENTRIES.cave).toBeDefined()
-      expect(MANUAL_ENTRIES['shooting-star']).toBeDefined()
-      expect(MANUAL_ENTRIES['chain-explosion']).toBeDefined()
+      expect(MANUAL_ENTRIES['zone:overworld']).toBeDefined()
+      expect(MANUAL_ENTRIES['zone:cave']).toBeDefined()
+      expect(MANUAL_ENTRIES['event:shooting-star']).toBeDefined()
+      expect(MANUAL_ENTRIES['event:chain-explosion']).toBeDefined()
     })
 
     it('every entry has required fields', () => {
@@ -70,11 +70,11 @@ describe('manual', () => {
     })
 
     it('item entries derive category from item definition', () => {
-      expect(MANUAL_ENTRIES.bee.category).toBe(ManualCategory.Fauna)
-      expect(MANUAL_ENTRIES.clover.category).toBe(ManualCategory.Flora)
-      expect(MANUAL_ENTRIES.meteorite.category).toBe(ManualCategory.Celestial)
-      expect(MANUAL_ENTRIES.permacomputer.category).toBe(ManualCategory.Object)
-      expect(MANUAL_ENTRIES.omnibox.category).toBe(ManualCategory.Object)
+      expect(MANUAL_ENTRIES['item:bee'].category).toBe(ManualCategory.Fauna)
+      expect(MANUAL_ENTRIES['item:clover'].category).toBe(ManualCategory.Flora)
+      expect(MANUAL_ENTRIES['item:meteorite'].category).toBe(ManualCategory.Celestial)
+      expect(MANUAL_ENTRIES['item:permacomputer'].category).toBe(ManualCategory.Object)
+      expect(MANUAL_ENTRIES['item:omnibox'].category).toBe(ManualCategory.Object)
     })
 
     it('recipe entries use hot pink glyph color', () => {
@@ -99,8 +99,8 @@ describe('manual', () => {
 
     it('recipe entries cross-ref their ingredients', () => {
       const prairieRecipe = MANUAL_ENTRIES['recipe:bee+clover']
-      expect(prairieRecipe.crossRefs).toContain('bee')
-      expect(prairieRecipe.crossRefs).toContain('clover')
+      expect(prairieRecipe.crossRefs).toContain('item:bee')
+      expect(prairieRecipe.crossRefs).toContain('item:clover')
     })
 
     it('all cross-refs point to valid entry IDs', () => {
@@ -142,18 +142,18 @@ describe('manual', () => {
   describe('isDiscovered', () => {
     it('returns true for entries with unlockKey "always"', () => {
       const discoveries = new Set<string>()
-      expect(isDiscovered(discoveries, MANUAL_ENTRIES.overworld)).toBe(true)
-      expect(isDiscovered(discoveries, MANUAL_ENTRIES['shooting-star'])).toBe(true)
+      expect(isDiscovered(discoveries, MANUAL_ENTRIES['zone:overworld'])).toBe(true)
+      expect(isDiscovered(discoveries, MANUAL_ENTRIES['event:shooting-star'])).toBe(true)
     })
 
     it('returns false for undiscovered entries', () => {
       const discoveries = new Set<string>()
-      expect(isDiscovered(discoveries, MANUAL_ENTRIES.cave)).toBe(false)
+      expect(isDiscovered(discoveries, MANUAL_ENTRIES['zone:cave'])).toBe(false)
     })
 
     it('returns true when discovery set has the unlock key', () => {
       const discoveries = new Set<string>(['zone:cave'])
-      expect(isDiscovered(discoveries, MANUAL_ENTRIES.cave)).toBe(true)
+      expect(isDiscovered(discoveries, MANUAL_ENTRIES['zone:cave'])).toBe(true)
     })
   })
 
@@ -182,7 +182,7 @@ describe('manual', () => {
 
     it('filters by name', () => {
       const results = filterManualEntries(allEntries, 'bee')
-      expect(results.some(e => e.id === 'bee')).toBe(true)
+      expect(results.some(e => e.id === 'item:bee')).toBe(true)
     })
 
     it('is case-insensitive', () => {
@@ -193,7 +193,7 @@ describe('manual', () => {
 
     it('searches in summary', () => {
       const results = filterManualEntries(allEntries, 'fallen star')
-      expect(results.some(e => e.id === 'meteorite')).toBe(true)
+      expect(results.some(e => e.id === 'item:meteorite')).toBe(true)
     })
 
     it('searches in lore', () => {
