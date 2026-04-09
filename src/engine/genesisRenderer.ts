@@ -1,8 +1,8 @@
 import { BASE_FONT_SIZE, BG_COLOR } from './constants'
 import { getEpochProgress, getGenesisCommentary } from './genesis'
 
-import type { CharMetrics } from './types'
 import type { GenesisEpoch, GenesisSimState } from './genesisTypes'
+import type { CharMetrics } from './types'
 
 // Commentary styling
 const COMMENTARY_FONT_SCALE = 1.5

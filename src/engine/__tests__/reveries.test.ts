@@ -1,6 +1,5 @@
-import { describe, expect, it } from 'vitest'
-
 import { getReveryDefinition, REVERY_DEFINITIONS } from '../reveries'
+import { describe, expect, it } from 'vitest'
 
 describe('revery registry', () => {
   it('defines fire, water, and earth reveries', () => {

@@ -2,10 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { activateActionBarSlot, getActionBarPreview } from '@/engine/actionBar'
 import { getCharacterDefinition } from '@/engine/characters'
-import { canCast } from '@/engine/hexagram'
 import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
 import { ComponentType } from '@/engine/ecs/types'
 import { dropItem } from '@/engine/entities'
+import { canCast } from '@/engine/hexagram'
 import { keyToDirection } from '@/engine/input'
 import {
   advanceDialog,
@@ -21,7 +21,7 @@ import { Rotation, Zone } from '@/engine/types'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
-export type Panel = 'inventory' | 'menu' | 'manual' | 'hexagram' | 'reveries' | null
+export type PermacomputerScreen = 'pack' | 'system' | 'manual' | 'divination' | 'reveries' | null
 
 interface UseKeyboardOptions {
   state: GameState
@@ -46,7 +46,7 @@ export const useKeyboard = ({
   onGift,
   isDraggingRef,
 }: UseKeyboardOptions) => {
-  const [activePanel, setActivePanel] = useState<Panel>(null)
+  const [activeScreen, setActiveScreen] = useState<PermacomputerScreen>(null)
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -55,33 +55,33 @@ export const useKeyboard = ({
         return
       }
 
-      // Escape: close dialog first, then panel, then open menu
+      // Escape: close dialog first, then screen, then open system
       if (e.key === 'Escape') {
         if (state.activeDialog) {
           state.activeDialog = null
           refreshUI()
           return
         }
-        if (activePanel === 'menu') {
-          setActivePanel(null)
+        if (activeScreen === 'system') {
+          setActiveScreen(null)
           return
         }
-        if (activePanel !== null) {
-          setActivePanel(null)
+        if (activeScreen !== null) {
+          setActiveScreen(null)
           return
         }
-        setActivePanel('menu')
+        setActiveScreen('system')
         return
       }
 
       // [1-4] — hold to preview revery cast, release to cast
       if (e.key >= '1' && e.key <= '4') {
         if (state.activeDialog) return
-        if (activePanel === 'menu') return
+        if (activeScreen === 'system') return
         if (e.repeat) return
         const slotIndex = parseInt(e.key) - 1
         state.heldActionSlot = slotIndex
-        state.previewFn = (s) => getActionBarPreview(s, slotIndex)
+        state.previewFn = s => getActionBarPreview(s, slotIndex)
         refreshUI()
         return
       }
@@ -93,7 +93,7 @@ export const useKeyboard = ({
           refreshUI()
           return
         }
-        if (activePanel !== 'menu') {
+        if (activeScreen !== 'system') {
           // If an omnibox is open: pick up (ground) or close (backpack)
           if (state.openContainer) {
             const openId = state.openContainer.id
@@ -121,7 +121,7 @@ export const useKeyboard = ({
             return
           }
           // Open hovered omnibox in inventory
-          if (activePanel === 'inventory') {
+          if (activeScreen === 'pack') {
             const hoveredId = itemInfoRef.current?.getCurrentId()
             const hoveredUid = itemInfoRef.current?.getCurrentUid()
             if (hoveredId === 'omnibox' && hoveredUid) {
@@ -132,8 +132,8 @@ export const useKeyboard = ({
           }
           // Open facing ground omnibox
           if (toggleFacingOmnibox(state)) {
-            if (activePanel !== 'inventory') {
-              setActivePanel('inventory')
+            if (activeScreen !== 'pack') {
+              setActiveScreen('pack')
             }
             refreshUI()
             return
@@ -154,7 +154,13 @@ export const useKeyboard = ({
               const def = getCharacterDefinition(adjacent.definitionId)
               onDialog(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
               if (result.gift) {
-                onGift(`received ${result.gift.name.toLowerCase()}`, result.gift.glyphs[0], result.gift.glyphColor, state.player.x, state.player.y)
+                onGift(
+                  `received ${result.gift.name.toLowerCase()}`,
+                  result.gift.glyphs[0],
+                  result.gift.glyphColor,
+                  state.player.x,
+                  state.player.y
+                )
               }
               refreshUI()
             }
@@ -163,10 +169,10 @@ export const useKeyboard = ({
         }
       }
 
-      // While dragging in inventory, only allow movement
+      // While dragging in pack, only allow movement
       if (isDraggingRef.current) {
         const dir = keyToDirection(e.key)
-        if (dir && activePanel !== 'menu') {
+        if (dir && activeScreen !== 'system') {
           e.preventDefault()
           state.heldDirection = dir
           if (!e.repeat) {
@@ -182,7 +188,7 @@ export const useKeyboard = ({
       // [f] — harvest facing clover
       if (e.key === 'f' || e.key === 'F') {
         if (state.activeDialog) return
-        if (activePanel === 'menu') return
+        if (activeScreen === 'system') return
         const harvestResult = harvestClover(state)
         if (harvestResult === HarvestResult.Success) {
           const def = getDefinition('clover')
@@ -197,9 +203,9 @@ export const useKeyboard = ({
         return
       }
 
-      // [x] — drop item from inventory (only when hovering an item), or cut facing clover
+      // [x] — drop item from pack (only when hovering an item), or cut facing clover
       if (e.key === 'x' || e.key === 'X') {
-        if (activePanel === 'inventory') {
+        if (activeScreen === 'pack') {
           const hoveredId = itemInfoRef.current?.getCurrentId()
           if (hoveredId) {
             const success = dropItem(state, hoveredId)
@@ -213,7 +219,7 @@ export const useKeyboard = ({
           }
         }
         // Cut facing clover when no inventory item is hovered
-        if (activePanel !== 'menu' && !state.activeDialog) {
+        if (activeScreen !== 'system' && !state.activeDialog) {
           if (cutClover(state)) {
             onDiscovery('clover trimmed', state.player.x, state.player.y, '%', '#50C878')
             updateFacingEntity(state)
@@ -223,9 +229,9 @@ export const useKeyboard = ({
         return
       }
 
-      // Rotate hovered item in inventory, or toggle reveries panel
+      // Rotate hovered item in pack, or toggle reveries screen
       if (e.key === 'r' || e.key === 'R') {
-        if (activePanel === 'inventory') {
+        if (activeScreen === 'pack') {
           const hoveredId = itemInfoRef.current?.getCurrentId()
           if (hoveredId) {
             const item = findItemByDefinition(state.backpack, hoveredId)
@@ -237,46 +243,46 @@ export const useKeyboard = ({
             return
           }
         }
-        if (activePanel === 'menu') return
-        setActivePanel(activePanel === 'reveries' ? null : 'reveries')
+        if (activeScreen === 'system') return
+        setActiveScreen(activeScreen === 'reveries' ? null : 'reveries')
         return
       }
 
-      // Toggle inventory
+      // Toggle pack
       if (e.key === 'Tab') {
         e.preventDefault()
-        if (activePanel === 'menu') return
-        setActivePanel(activePanel === 'inventory' ? null : 'inventory')
+        if (activeScreen === 'system') return
+        setActiveScreen(activeScreen === 'pack' ? null : 'pack')
         return
       }
 
       // Toggle manual
       if (e.key === 'q' || e.key === 'Q') {
-        if (activePanel === 'menu') return
-        setActivePanel(activePanel === 'manual' ? null : 'manual')
+        if (activeScreen === 'system') return
+        setActiveScreen(activeScreen === 'manual' ? null : 'manual')
         return
       }
 
-      // Toggle hexagram casting
+      // Toggle divination
       if (e.key === 'c' || e.key === 'C') {
         if (state.activeDialog) return
-        if (activePanel === 'menu') return
+        if (activeScreen === 'system') return
         if (state.currentZone !== Zone.Overworld) return
-        if (activePanel === 'hexagram') {
-          setActivePanel(null)
+        if (activeScreen === 'divination') {
+          setActiveScreen(null)
           return
         }
         if (canCast(state)) {
-          setActivePanel('hexagram')
+          setActiveScreen('divination')
         }
         return
       }
 
-      // Movement (allowed with inventory open; WASD closes menu)
+      // Movement (allowed with pack open; WASD closes system)
       const dir = keyToDirection(e.key)
-      if (dir && activePanel === 'menu') {
+      if (dir && activeScreen === 'system') {
         state.heldDirection = null
-        setActivePanel(null)
+        setActiveScreen(null)
         return
       }
       if (dir && state.activeDialog) {
@@ -297,7 +303,7 @@ export const useKeyboard = ({
         }
       }
     },
-    [state, refreshUI, activePanel, itemInfoRef, onPickup, onDrop, onDialog, onDiscovery, onGift, isDraggingRef]
+    [state, refreshUI, activeScreen, itemInfoRef, onPickup, onDrop, onDialog, onDiscovery, onGift, isDraggingRef]
   )
 
   const handleKeyUp = useCallback(
@@ -330,5 +336,5 @@ export const useKeyboard = ({
     }
   }, [handleKeyDown, handleKeyUp])
 
-  return { activePanel, setActivePanel }
+  return { activeScreen, setActiveScreen }
 }

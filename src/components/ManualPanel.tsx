@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { CloseButton, PanelTitle, SectionHeader } from './PanelPrimitives'
+import { SectionHeader } from './PanelPrimitives'
 
 import {
   CATEGORY_ORDER,
@@ -14,7 +14,6 @@ import type { GameState, ManualState } from '@/engine/types'
 
 interface ManualPanelProps {
   state: GameState
-  onClose: () => void
 }
 
 const ControlName = ({ name }: { name: string }) => {
@@ -180,7 +179,7 @@ const EntryCard = ({
   )
 }
 
-export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
+export const ManualPanel = ({ state }: ManualPanelProps) => {
   const { manualState, manualDiscoveries } = state
 
   // Local React state synced with persistent manualState
@@ -222,82 +221,75 @@ export const ManualPanel = ({ state, onClose }: ManualPanelProps) => {
   const visibleCategories = activeCategory ? [activeCategory as ManualCategory] : CATEGORY_ORDER
 
   return (
-    <div className="fixed inset-0 z-10" onClick={onClose}>
-      <div
-        className="border-border text-text fixed top-1/2 left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col border bg-black/85 px-8 py-6 font-mono text-xs"
-        style={{ width: 560, height: '80vh' }}
-        onClick={e => {
-          e.stopPropagation()
+    <div className="text-text flex flex-col font-mono text-xs" style={{ height: '100%' }}>
+      {/* Search */}
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={e => {
+          setSearch(e.target.value)
         }}
-      >
-        <CloseButton onClick={onClose} label="Close manual" />
-        <PanelTitle>prairie manual</PanelTitle>
+        placeholder="search..."
+        className="text-text placeholder-dim border-border focus:border-pink mb-3 w-full border bg-black/50 px-2 py-1 font-mono text-xs outline-none"
+      />
 
-        {/* Search */}
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={e => {
-            setSearch(e.target.value)
+      {/* Category tabs */}
+      <div className="mb-3 flex flex-wrap">
+        <button
+          type="button"
+          className={`px-2 py-1.5 text-xs transition-colors ${
+            activeCategory === null ? 'bg-pink text-bg' : 'text-dim hover:bg-permacomputer-dim hover:text-text'
+          }`}
+          onClick={() => {
+            setCategory(null)
           }}
-          placeholder="search..."
-          className="text-text placeholder-dim border-border focus:border-pink mb-3 w-full border bg-black/50 px-2 py-1 font-mono text-xs outline-none"
-        />
+        >
+          ALL
+        </button>
+        {CATEGORY_ORDER.map(cat => {
+          const count = searchQuery
+            ? filterManualEntries(getEntriesByCategory(cat), searchQuery).length
+            : getEntriesByCategory(cat).length
+          return (
+            <button
+              key={cat}
+              type="button"
+              className={`px-2 py-1.5 text-xs transition-colors ${
+                activeCategory === cat ? 'bg-pink text-bg' : 'text-dim hover:bg-permacomputer-dim hover:text-text'
+              }`}
+              onClick={() => {
+                setCategory(cat)
+              }}
+            >
+              {CATEGORY_LABELS[cat]}
+              {searchQuery && ` (${String(count)})`}
+            </button>
+          )
+        })}
+      </div>
 
-        {/* Category tabs */}
-        <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1">
-          <button
-            type="button"
-            className={`text-xs ${activeCategory === null ? 'text-pink' : 'text-dim hover:text-text'}`}
-            onClick={() => {
-              setCategory(null)
-            }}
-          >
-            ALL
-          </button>
-          {CATEGORY_ORDER.map(cat => {
-            const count = searchQuery
-              ? filterManualEntries(getEntriesByCategory(cat), searchQuery).length
-              : getEntriesByCategory(cat).length
-            return (
-              <button
-                key={cat}
-                type="button"
-                className={`text-xs ${activeCategory === cat ? 'text-pink' : 'text-dim hover:text-text'}`}
-                onClick={() => {
-                  setCategory(cat)
-                }}
-              >
-                {CATEGORY_LABELS[cat]}
-                {searchQuery && ` (${String(count)})`}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Scrollable content */}
-        <div className="scrollbar-custom min-h-0 flex-1 overflow-y-auto pr-2">
-          {visibleCategories.map(cat => {
-            const catEntries = filtered.filter(e => e.category === cat)
-            if (catEntries.length === 0) return null
-            return (
-              <div key={cat}>
-                <SectionHeader>{CATEGORY_LABELS[cat]}</SectionHeader>
-                {catEntries.map(entry => (
-                  <div key={entry.id} id={`manual-entry-${entry.id}`}>
-                    <EntryCard
-                      entry={entry}
-                      discoveries={manualDiscoveries}
-                      manualState={manualState}
-                      showCategory={activeCategory === null}
-                      onToggleHint={toggleHint}
-                    />
-                  </div>
-                ))}
-              </div>
-            )
-          })}
-        </div>
+      {/* Scrollable content */}
+      <div className="scrollbar-custom min-h-0 flex-1 overflow-y-auto pr-2">
+        {visibleCategories.map(cat => {
+          const catEntries = filtered.filter(e => e.category === cat)
+          if (catEntries.length === 0) return null
+          return (
+            <div key={cat}>
+              <SectionHeader>{CATEGORY_LABELS[cat]}</SectionHeader>
+              {catEntries.map(entry => (
+                <div key={entry.id} id={`manual-entry-${entry.id}`}>
+                  <EntryCard
+                    entry={entry}
+                    discoveries={manualDiscoveries}
+                    manualState={manualState}
+                    showCategory={activeCategory === null}
+                    onToggleHint={toggleHint}
+                  />
+                </div>
+              ))}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

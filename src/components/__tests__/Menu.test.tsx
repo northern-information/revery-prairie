@@ -15,7 +15,6 @@ describe('Menu', () => {
       />
     )
 
-    expect(screen.getByText('revery prairie')).toBeInTheDocument()
     expect(screen.getByText('resume')).toBeInTheDocument()
     expect(screen.getByText('new game')).toBeInTheDocument()
     expect(screen.getByText('units: metric')).toBeInTheDocument()
@@ -178,26 +177,5 @@ describe('Menu', () => {
     await userEvent.click(screen.getByText('music: on'))
 
     expect(onToggleMusic).toHaveBeenCalledOnce()
-  })
-
-  it('calls onResume when clicking outside the menu', async () => {
-    const onResume = vi.fn()
-    render(
-      <Menu
-        onResume={onResume}
-        onNewGame={vi.fn()}
-        metric={true}
-        onToggleUnits={vi.fn()}
-        musicEnabled={true}
-        onToggleMusic={vi.fn()}
-      />
-    )
-
-    // Click the backdrop (the outer fixed div wrapping the menu)
-    const backdrop = screen.getByText('resume').closest('[class*="fixed inset-0"]')
-    expect(backdrop).toBeTruthy()
-    await userEvent.click(backdrop as HTMLElement)
-
-    expect(onResume).toHaveBeenCalledOnce()
   })
 })

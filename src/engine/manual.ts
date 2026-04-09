@@ -220,17 +220,27 @@ const buildGenesisEntry = (): ManualEntry => {
     lore:
       MANUAL_LORE.genesis?.lore ??
       `before the prairie was a prairie, it was magma — and before that, void. ` +
-      `a billion years of geological history flash before you each time a new world is born: ${epochList}. ` +
-      `every patch of soil remembers what happened to it. volcanic hotspots left minerals behind. ` +
-      `glaciers scraped the highlands bare. rivers carved alluvial deltas rich with sediment. ` +
-      `ancient civilizations rose and fell, their aqueducts buried deep beneath the dirt. ` +
-      `the soil health you see today is the sum of all these forces.`,
+        `a billion years of geological history flash before you each time a new world is born: ${epochList}. ` +
+        `every patch of soil remembers what happened to it. volcanic hotspots left minerals behind. ` +
+        `glaciers scraped the highlands bare. rivers carved alluvial deltas rich with sediment. ` +
+        `ancient civilizations rose and fell, their aqueducts buried deep beneath the dirt. ` +
+        `the soil health you see today is the sum of all these forces.`,
     hints: MANUAL_LORE.genesis?.hints ?? [
-      { prompt: 'how it works', answer: 'genesis runs between the name prompt and gameplay. it simulates 14 geological epochs in ~25 seconds.' },
+      {
+        prompt: 'how it works',
+        answer: 'genesis runs between the name prompt and gameplay. it simulates 14 geological epochs in ~25 seconds.',
+      },
       { prompt: 'skip', answer: 'press any key during the genesis sequence to skip ahead.' },
       { prompt: 'determinism', answer: 'the same steward name always produces the same world.' },
-      { prompt: 'soil', answer: 'volcanic regions, river deltas, and civilization ruins have richer soil. glacial paths and barren highlands have poorer soil.' },
-      { prompt: 'ruins', answer: 'civilization ruins are buried underground. their aqueducts once connected great cities.' },
+      {
+        prompt: 'soil',
+        answer:
+          'volcanic regions, river deltas, and civilization ruins have richer soil. glacial paths and barren highlands have poorer soil.',
+      },
+      {
+        prompt: 'ruins',
+        answer: 'civilization ruins are buried underground. their aqueducts once connected great cities.',
+      },
     ],
     unlockKey: 'always',
     sourceKind: 'event',
@@ -390,7 +400,10 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
       'three ancient coins, tossed six times. each toss builds a line — solid or broken, stable or changing. the hexagram that forms speaks in the language of the prairie. listen closely.',
     hints: MANUAL_LORE['hexagram-cast']?.hints ?? [
       { prompt: 'how to cast', answer: 'collect 3 glinting coins and press [c] on the overworld.' },
-      { prompt: 'changing lines', answer: 'old yin (6) and old yang (9) are changing lines. they transform the hexagram into a second reading.' },
+      {
+        prompt: 'changing lines',
+        answer: 'old yin (6) and old yang (9) are changing lines. they transform the hexagram into a second reading.',
+      },
     ],
     unlockKey: 'event:hexagram-cast',
     sourceKind: 'event',

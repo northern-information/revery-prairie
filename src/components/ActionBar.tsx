@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { activateActionBarSlot, getSlotCooldownFraction } from '@/engine/actionBar'
-import { getReveryDefinition } from '@/engine/reveries'
 import { getDefinition } from '@/engine/items'
+import { getReveryDefinition } from '@/engine/reveries'
 import type { ActionBarSlot, GameState } from '@/engine/types'
 import type { DragState } from '@/hooks/useInventoryDrag'
 
@@ -15,7 +15,7 @@ interface ActionBarProps {
   refreshUI: () => void
   dragState: DragState | null
   onSetActionBarTarget: (slotIndex: number | null) => void
-  onOpenReveries: () => void
+  onTogglePermacomputer: () => void
 }
 
 const getSlotGlyph = (slot: ActionBarSlot): string => {
@@ -127,14 +127,23 @@ const ActionBarSlotView = ({
       )}
       <CooldownOverlay fraction={cooldownFraction} />
       <ReadyPulse active={isPulsing} />
-      <span className="absolute right-1 bottom-0.5 z-10 text-[10px]" style={{ color: slot ? '#1a1a1a' : 'var(--color-dim)' }}>
+      <span
+        className="absolute right-1 bottom-0.5 z-10 text-[10px]"
+        style={{ color: slot ? '#1a1a1a' : 'var(--color-dim)' }}
+      >
         {String(index + 1)}
       </span>
     </button>
   )
 }
 
-export const ActionBar = ({ state, refreshUI, dragState, onSetActionBarTarget, onOpenReveries }: ActionBarProps) => {
+export const ActionBar = ({
+  state,
+  refreshUI,
+  dragState,
+  onSetActionBarTarget,
+  onTogglePermacomputer,
+}: ActionBarProps) => {
   const rafRef = useRef(0)
   const [now, setNow] = useState(() => performance.now())
 
@@ -152,17 +161,15 @@ export const ActionBar = ({ state, refreshUI, dragState, onSetActionBarTarget, o
   const hasDrag = dragState !== null
 
   return (
-    <div className="pointer-events-auto fixed bottom-4 left-1/2 z-10 flex -translate-x-1/2 animate-fade-in items-center gap-1">
-      {state.reveries.length > 0 && (
-        <button
-          className="mr-1 flex items-center justify-center rounded border border-[--color-border]/50 bg-black/70 font-mono text-xs text-[--color-dim] transition-colors hover:border-[--color-border] hover:text-[--color-text]"
-          style={{ width: 24, height: SLOT_SIZE }}
-          onClick={onOpenReveries}
-          title="reveries [q]"
-        >
-          R
-        </button>
-      )}
+    <div className="animate-fade-in pointer-events-auto fixed bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1">
+      <button
+        className="mr-1 flex items-center justify-center rounded border border-[--color-border]/50 bg-black/70 font-mono text-base text-[--color-permacomputer] transition-colors hover:border-[--color-permacomputer] hover:text-[--color-text]"
+        style={{ width: SLOT_SIZE, height: SLOT_SIZE }}
+        onClick={onTogglePermacomputer}
+        title="permacomputer [r]"
+      >
+        ⚙
+      </button>
       {state.actionBar.map((slot, i) => (
         <ActionBarSlotView
           key={i}

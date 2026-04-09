@@ -1,33 +1,38 @@
 import { getCharacterDefinition } from './characters'
 import {
   ACTION_COLOR,
+  BASE_FONT_SIZE,
   BEE_CHAR,
   BEE_COLOR,
   BEEHIVE_CHAR,
   BEEHIVE_COLOR,
   BG_COLOR,
-  COIN_DULL_COLOR,
+  BURN_SCAR_COLORS,
   CLOVER_BLACK_COLOR,
   CLOVER_BROWN_COLOR,
-  CLOVER_HEALTHY_COLORS,
-  BURN_SCAR_COLORS,
-  DIRT_COLORS,
-  RIVER_COLOR,
-  POND_COLOR,
   CLOVER_DECOMPOSE_COLOR,
   CLOVER_DYING_COLOR_FROM,
   CLOVER_DYING_COLOR_TO,
   CLOVER_DYING_OSCILLATION_SPEED,
+  CLOVER_HEALTHY_COLORS,
   CLOVER_PREVIEW_BLINK_SPEED,
   CLOVER_PREVIEW_COLORS,
+  COIN_DULL_COLOR,
   CRUMBLE_CHARS,
   CRUMBLE_COLORS,
   CRUMBLE_DURATION_MS,
+  DIRT_COLORS,
+  EARTH_SCAN_COLOR_HIGH,
+  EARTH_SCAN_COLOR_LOW,
+  EARTH_SCAN_EXPAND_MS,
+  EARTH_SCAN_FADE_MS,
+  EARTH_SCAN_HOLD_MS,
+  EARTH_SCAN_RADIUS,
   EXPLOSION_CHARS,
   EXPLOSION_COLORS,
   EXPLOSION_DURATION_MS,
   EXPLOSION_RADIUS,
-  BASE_FONT_SIZE,
+  HOVER_PATH_COLOR,
   METEORITE_CHAR,
   METEORITE_COLOR,
   PICKUP_EFFECT_BLOOM_MS,
@@ -38,31 +43,25 @@ import {
   PICKUP_EFFECT_RADIUS,
   PLAYER_CHAR,
   PLAYER_COLOR,
+  POND_COLOR,
+  RIVER_COLOR,
   SHOOTING_STAR_HEAD_CHAR,
   SHOOTING_STAR_HEAD_COLOR,
   SHOOTING_STAR_TRAIL_CHARS,
   SHOOTING_STAR_TRAIL_COLORS,
+  SOIL_HEALTH_DEFAULT,
   TILE_CHARS,
   TILE_COLORS,
   TRAIL_DURATION_MS,
-  HOVER_PATH_COLOR,
-  EARTH_SCAN_EXPAND_MS,
-  EARTH_SCAN_HOLD_MS,
-  EARTH_SCAN_FADE_MS,
-  EARTH_SCAN_RADIUS,
-  EARTH_SCAN_COLOR_LOW,
-  EARTH_SCAN_COLOR_HIGH,
-  SOIL_HEALTH_DEFAULT,
-  type VelocityKey,
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
-import { getReveryDefinition } from './reveries'
 import { isInBounds, posKey, tileHash } from './position'
+import { getReveryDefinition } from './reveries'
 import { CloverStage, TileType, Zone } from './types'
 
+import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState } from './types'
-
 
 // Rain around characters with the `rain` aura
 const RAIN_CHARS = ['|', ':', '.', ',']
@@ -139,7 +138,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (!inZone(eid)) continue
     const gpos = state.world.getComponent(eid, ComponentType.Position)
     const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
-    if (gpos && drop) groundItemMap.set(posKey(gpos.x, gpos.y), { definitionId: drop.definitionId, glinting: drop.glinting })
+    if (gpos && drop)
+      groundItemMap.set(posKey(gpos.x, gpos.y), { definitionId: drop.definitionId, glinting: drop.glinting })
   }
 
   // Build a map of preview tile positions for macro recipe previews
@@ -432,8 +432,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
 
         const tileType = map[my][mx].type
-        if (tileType === TileType.Space || tileType === TileType.CaveWall ||
-            tileType === TileType.CaveBreakableWall) continue
+        if (tileType === TileType.Space || tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall)
+          continue
 
         const key = posKey(mx, my)
 
@@ -612,9 +612,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (groundEntry) {
           const def = getDefinition(groundEntry.definitionId)
           char = def.glyph
-          color = groundEntry.definitionId === 'coin' && groundEntry.glinting === false
-            ? COIN_DULL_COLOR
-            : def.glyphColor
+          color =
+            groundEntry.definitionId === 'coin' && groundEntry.glinting === false ? COIN_DULL_COLOR : def.glyphColor
         } else {
           const tile = map[my][mx]
           char = TILE_CHARS[tile.type]
@@ -650,18 +649,20 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (!state.caveRevealed && state.caveHiddenPositions.has(tileKey)) {
           char = TILE_CHARS[TileType.CaveWall]
           color = TILE_COLORS[TileType.CaveWall]
-        } else if (state.rivers.has(tileKey)) {
-          // River water
+        } else if (state.currentZone === Zone.Overworld && state.rivers.has(tileKey)) {
+          // River water (overworld only)
           const h2 = tileHash(mx, my)
           const waterChars = ['~', '=', '-']
           char = waterChars[(h2 + Math.floor(time * 0.004)) % waterChars.length]
           color = RIVER_COLOR
-        } else if (state.ponds.has(tileKey)) {
-          // Pond water
+          cursorable = false
+        } else if (state.currentZone === Zone.Overworld && state.ponds.has(tileKey)) {
+          // Pond water (overworld only)
           const h2 = tileHash(mx, my)
           const waterChars = ['~', '=']
           char = waterChars[(h2 + Math.floor(time * 0.003)) % waterChars.length]
           color = POND_COLOR
+          cursorable = false
         } else {
           const tile = map[my][mx]
           char = TILE_CHARS[tile.type]

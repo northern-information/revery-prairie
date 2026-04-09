@@ -56,7 +56,7 @@ const REVERIES = {
 } as const satisfies Record<string, ReveryEntry>
 
 export const REVERY_DEFINITIONS: Record<string, ReveryDefinition> = Object.fromEntries(
-  Object.entries(REVERIES).map(([key, entry]) => [key, { ...entry, id: key }]),
+  Object.entries(REVERIES).map(([key, entry]) => [key, { ...entry, id: key }])
 )
 
 export const getReveryDefinition = (id: string): ReveryDefinition => {

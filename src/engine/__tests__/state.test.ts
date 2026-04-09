@@ -24,12 +24,11 @@ describe('createGameState', () => {
     expect(state.player.y).toBe(Math.floor(MAP_HEIGHT / 2))
   })
 
-  it('starts with bees, clovers, and permacomputer in backpack', () => {
+  it('starts with bees and clovers in backpack', () => {
     const state = createGameState('Willow', 80, 40)
     expect(state.backpack.items.length).toBeGreaterThan(0)
     expect(containerHasItem(state.backpack, 'bee')).toBe(true)
     expect(containerHasItem(state.backpack, 'clover')).toBe(true)
-    expect(containerHasItem(state.backpack, 'permacomputer')).toBe(true)
   })
 
   it('starts with earth revery pre-assigned', () => {

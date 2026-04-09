@@ -205,7 +205,6 @@ describe('tickCharacterBehaviors', () => {
     expect(posAfter?.x).toBe(origX)
     expect(posAfter?.y).toBe(origY)
   })
-
 })
 
 describe('ghost dialog', () => {

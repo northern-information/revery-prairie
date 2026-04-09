@@ -8,17 +8,11 @@ import { recipeKey, RECIPES } from '@/engine/recipes'
 
 const renderManual = (overrides?: Partial<ReturnType<typeof createTestState>>) => {
   const state = { ...createTestState(), ...overrides }
-  const onClose = vi.fn()
-  const result = render(<ManualPanel state={state} onClose={onClose} />)
-  return { state, onClose, ...result }
+  const result = render(<ManualPanel state={state} />)
+  return { state, ...result }
 }
 
 describe('ManualPanel', () => {
-  it('renders the title', () => {
-    renderManual()
-    expect(screen.getByText('prairie manual')).toBeInTheDocument()
-  })
-
   it('renders the ALL tab and category tabs', () => {
     renderManual()
     // All tabs are buttons
@@ -40,20 +34,6 @@ describe('ManualPanel', () => {
     // Bee and Clover entries should appear (may appear multiple times as cross-refs)
     expect(screen.getAllByText('Bee').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Clover').length).toBeGreaterThan(0)
-  })
-
-  it('calls onClose when close button is clicked', async () => {
-    const { onClose } = renderManual()
-    await userEvent.click(screen.getByLabelText('Close manual'))
-    expect(onClose).toHaveBeenCalledOnce()
-  })
-
-  it('calls onClose when clicking the backdrop', async () => {
-    const { onClose } = renderManual()
-    const backdrop = screen.getByText('prairie manual').closest('[class*="fixed inset-0"]')
-    expect(backdrop).toBeTruthy()
-    await userEvent.click(backdrop as HTMLElement)
-    expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('updates manualState.activeCategory when tab is clicked', async () => {
@@ -86,14 +66,14 @@ describe('ManualPanel', () => {
     for (const recipe of RECIPES) {
       state.manualDiscoveries.add(`recipe:${recipeKey(recipe)}`)
     }
-    render(<ManualPanel state={state} onClose={vi.fn()} />)
+    render(<ManualPanel state={state} />)
     // The prairie recipe result name should appear in the recipe entry
     expect(screen.getAllByText('prairie').length).toBeGreaterThan(0)
   })
 
   it('renders entry glyphs in their real color regardless of discovery', () => {
     const state = createTestState()
-    const { container } = render(<ManualPanel state={state} onClose={vi.fn()} />)
+    const { container } = render(<ManualPanel state={state} />)
     // The bee glyph should always be gold (#FFD700), even when undiscovered
     const goldSpans = container.querySelectorAll('span[style*="rgb(255, 215, 0)"]')
     expect(goldSpans.length).toBeGreaterThan(0)
@@ -105,7 +85,7 @@ describe('ManualPanel', () => {
     const originalHints = entry.hints
     entry.hints = [{ prompt: 'test hint question?', answer: 'test hint answer' }]
 
-    render(<ManualPanel state={state} onClose={vi.fn()} />)
+    render(<ManualPanel state={state} />)
 
     // Hint prompt visible, answer hidden
     expect(screen.getByText(/test hint question/)).toBeInTheDocument()
@@ -126,7 +106,7 @@ describe('ManualPanel', () => {
     const originalHints = entry.hints
     entry.hints = [{ prompt: 'persisted hint?', answer: 'persisted answer' }]
 
-    render(<ManualPanel state={state} onClose={vi.fn()} />)
+    render(<ManualPanel state={state} />)
     expect(screen.getByText('persisted answer')).toBeInTheDocument()
 
     entry.hints = originalHints

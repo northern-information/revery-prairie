@@ -33,13 +33,7 @@ export interface GenesisEpoch {
   /** Mutate the simulation grid and accumulate soil/ruin data. Called once at epoch start. */
   mutate: (sim: GenesisSimState) => void
   /** Return char(s) + color for a given tile position at the given progress (0-1). */
-  renderTile: (
-    sim: GenesisSimState,
-    x: number,
-    y: number,
-    progress: number,
-    time: number
-  ) => GenesisTileRender[]
+  renderTile: (sim: GenesisSimState, x: number, y: number, progress: number, time: number) => GenesisTileRender[]
 }
 
 export interface CivilizationRuin {

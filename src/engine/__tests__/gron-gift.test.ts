@@ -1,8 +1,7 @@
-import { describe, expect, it } from 'vitest'
-
 import { getCharacterDefinition, getCharacterDialog } from '../characters'
 import { giveCharacterGift } from '../interaction'
 import { createGameState } from '../state'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
 

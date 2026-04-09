@@ -14,7 +14,14 @@ describe('Sidebar', () => {
   it('renders steward name', () => {
     const state = createGameState('Willow', 80, 40)
     render(
-      <Sidebar state={state} activePanel={null} itemInfoRef={defaultInfoRef} eventLog={[]} metricsRef={createRef()} refreshUI={noop} />
+      <Sidebar
+        state={state}
+        activeScreen={null}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+        refreshUI={noop}
+      />
     )
 
     expect(screen.getByText('Willow')).toBeInTheDocument()
@@ -23,7 +30,14 @@ describe('Sidebar', () => {
   it('renders total land count', () => {
     const state = createGameState('Test', 80, 40)
     render(
-      <Sidebar state={state} activePanel={null} itemInfoRef={defaultInfoRef} eventLog={[]} metricsRef={createRef()} refreshUI={noop} />
+      <Sidebar
+        state={state}
+        activeScreen={null}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+        refreshUI={noop}
+      />
     )
 
     expect(screen.getByText('16,150')).toBeInTheDocument()
@@ -32,7 +46,14 @@ describe('Sidebar', () => {
   it('shows prairie as no initially', () => {
     const state = createGameState('Test', 80, 40)
     render(
-      <Sidebar state={state} activePanel={null} itemInfoRef={defaultInfoRef} eventLog={[]} metricsRef={createRef()} refreshUI={noop} />
+      <Sidebar
+        state={state}
+        activeScreen={null}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+        refreshUI={noop}
+      />
     )
 
     expect(screen.getByText('no')).toBeInTheDocument()
@@ -42,7 +63,14 @@ describe('Sidebar', () => {
     const state = createGameState('Test', 80, 40)
     combineBeeAndClover(state)
     render(
-      <Sidebar state={state} activePanel={null} itemInfoRef={defaultInfoRef} eventLog={[]} metricsRef={createRef()} refreshUI={noop} />
+      <Sidebar
+        state={state}
+        activeScreen={null}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+        refreshUI={noop}
+      />
     )
 
     expect(screen.getByText('yes')).toBeInTheDocument()
@@ -58,7 +86,14 @@ describe('Sidebar', () => {
     }
     combineBeeAndClover(state)
     render(
-      <Sidebar state={state} activePanel={null} itemInfoRef={defaultInfoRef} eventLog={[]} metricsRef={createRef()} refreshUI={noop} />
+      <Sidebar
+        state={state}
+        activeScreen={null}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+        refreshUI={noop}
+      />
     )
 
     expect(screen.getByText('9')).toBeInTheDocument()
@@ -68,7 +103,14 @@ describe('Sidebar', () => {
     const state = createGameState('Test', 20, 20)
     combineBeeAndClover(state)
     render(
-      <Sidebar state={state} activePanel={null} itemInfoRef={defaultInfoRef} eventLog={[]} metricsRef={createRef()} refreshUI={noop} />
+      <Sidebar
+        state={state}
+        activeScreen={null}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+        refreshUI={noop}
+      />
     )
 
     const ones = screen.getAllByText('1')
@@ -78,7 +120,14 @@ describe('Sidebar', () => {
   it('renders weather section in metric by default', () => {
     const state = createGameState('Test', 80, 40)
     render(
-      <Sidebar state={state} activePanel={null} itemInfoRef={defaultInfoRef} eventLog={[]} metricsRef={createRef()} refreshUI={noop} />
+      <Sidebar
+        state={state}
+        activeScreen={null}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+        refreshUI={noop}
+      />
     )
 
     expect(screen.getByText('spring')).toBeInTheDocument()
@@ -91,7 +140,14 @@ describe('Sidebar', () => {
     const state = createGameState('Test', 80, 40)
     state.metric = false
     render(
-      <Sidebar state={state} activePanel={null} itemInfoRef={defaultInfoRef} eventLog={[]} metricsRef={createRef()} refreshUI={noop} />
+      <Sidebar
+        state={state}
+        activeScreen={null}
+        itemInfoRef={defaultInfoRef}
+        eventLog={[]}
+        metricsRef={createRef()}
+        refreshUI={noop}
+      />
     )
 
     expect(screen.getByText(/°F/)).toBeInTheDocument()

@@ -4,7 +4,6 @@ import { resetGameState } from '@/hooks/useGameEngine'
 import { GameScreen } from '@/components/GameScreen'
 import { GenesisScreen } from '@/components/GenesisScreen'
 import { NamePrompt } from '@/components/NamePrompt'
-
 import type { GenesisResult } from '@/engine/genesisTypes'
 
 const generateDevName = (): string => crypto.randomUUID().slice(0, 8)

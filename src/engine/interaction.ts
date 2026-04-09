@@ -2,8 +2,8 @@ import { autoAssignRevery } from './actionBar'
 import { getCharacterDefinition, getCharacterDialog } from './characters'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
-import { getReveryDefinition } from './reveries'
 import { CARDINAL, DIRECTIONS, isInBounds } from './position'
+import { getReveryDefinition } from './reveries'
 import { TileType, Zone } from './types'
 
 import type { GameState, ReveryDefinition } from './types'
@@ -111,9 +111,7 @@ export const getAdjacentCharacter = (
   return null
 }
 
-export const interactWithCharacter = (
-  state: GameState,
-): { opened: boolean; gift: ReveryDefinition | null } => {
+export const interactWithCharacter = (state: GameState): { opened: boolean; gift: ReveryDefinition | null } => {
   const character = getAdjacentCharacter(state)
   if (!character) return { opened: false, gift: null }
   recordDiscovery(state, `character:${character.definitionId}`)

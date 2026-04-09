@@ -15,15 +15,15 @@ import { openOmnibox } from '@/engine/omnibox'
 import { findPath } from '@/engine/pathfinding'
 import { isWalkableTile, posKey } from '@/engine/position'
 import { TileType } from '@/engine/types'
-import type { Panel } from './useKeyboard'
+import type { PermacomputerScreen } from './useKeyboard'
 import type { CharMetrics, GameState } from '@/engine/types'
 
 interface UseMouseOptions {
   canvasRef: React.RefObject<HTMLCanvasElement | null>
   state: GameState
   metricsRef: React.RefObject<CharMetrics | null>
-  activePanel: Panel
-  setActivePanel: (panel: Panel) => void
+  activeScreen: PermacomputerScreen
+  setActiveScreen: (screen: PermacomputerScreen) => void
   refreshUI: () => void
   onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
   onDiscovery: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
@@ -34,22 +34,22 @@ export const useMouse = ({
   canvasRef,
   state,
   metricsRef,
-  activePanel,
-  setActivePanel,
+  activeScreen,
+  setActiveScreen,
   refreshUI,
   onDialog,
   onDiscovery,
   onGift,
 }: UseMouseOptions) => {
-  const activePanelRef = useRef(activePanel)
-  activePanelRef.current = activePanel
+  const activeScreenRef = useRef(activeScreen)
+  activeScreenRef.current = activeScreen
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
 
     const handleClick = (e: MouseEvent) => {
-      if (activePanelRef.current === 'menu') return
+      if (activeScreenRef.current === 'system') return
       if (state.activeDialog) {
         advanceDialog(state)
         refreshUI()
@@ -123,7 +123,13 @@ export const useMouse = ({
             if (result.opened) {
               onDialog(charDef.name, charDef.glyph, charDef.glyphColor, state.player.x, state.player.y)
               if (result.gift) {
-                onGift(`received ${result.gift.name.toLowerCase()}`, result.gift.glyphs[0], result.gift.glyphColor, state.player.x, state.player.y)
+                onGift(
+                  `received ${result.gift.name.toLowerCase()}`,
+                  result.gift.glyphs[0],
+                  result.gift.glyphColor,
+                  state.player.x,
+                  state.player.y
+                )
               }
             }
             refreshUI()
@@ -134,7 +140,7 @@ export const useMouse = ({
             state.pendingInteractionTarget = null
             openOmnibox(state, omniboxUid)
             updateFacingEntity(state)
-            setActivePanel('inventory')
+            setActiveScreen('pack')
             refreshUI()
           }
         } else if (clickedInteractableTile) {
@@ -193,5 +199,5 @@ export const useMouse = ({
     return () => {
       canvas.removeEventListener('click', handleClick)
     }
-  }, [canvasRef, state, metricsRef, setActivePanel, refreshUI, onDialog, onDiscovery, onGift])
+  }, [canvasRef, state, metricsRef, setActiveScreen, refreshUI, onDialog, onDiscovery, onGift])
 }

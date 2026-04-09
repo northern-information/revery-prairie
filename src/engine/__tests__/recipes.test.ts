@@ -1,6 +1,6 @@
 import { ComponentType } from '../ecs/types'
 import { placeItem } from '../inventory'
-import { combineIcon, findRecipe, recipeKey, RecipeKind, RECIPES } from '../recipes'
+import { combineIcon, FABRICATION_RECIPES, findRecipe, recipeKey, RecipeKind, RECIPES } from '../recipes'
 import { Rotation, TileType } from '../types'
 import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
@@ -231,9 +231,9 @@ describe('prairie recipe preview', () => {
   })
 })
 
-describe('omnibox recipe execute', () => {
-  const omniboxRecipe = RECIPES.find(r => r.resultName === 'omnibox')
-  if (!omniboxRecipe) throw new Error('omnibox recipe must exist')
+describe('omnibox fabrication recipe execute', () => {
+  const omniboxRecipe = FABRICATION_RECIPES.find(r => r.resultName === 'omnibox')
+  if (!omniboxRecipe) throw new Error('omnibox fabrication recipe must exist')
 
   const fillBackpack = (state: ReturnType<typeof createTestState>) => {
     for (let y = 0; y < state.backpack.height; y++) {
