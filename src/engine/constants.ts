@@ -8,7 +8,7 @@ export const BASE_FONT_SIZE = 16
 export const ZOOM_MIN = 0.5
 export const ZOOM_MAX = 3.0
 export const ZOOM_STEP = 0.125
-export const ZOOM_DEFAULT = 2.0
+export const ZOOM_DEFAULT = 1.0
 
 export const SAND_BORDER = 2
 
@@ -136,6 +136,12 @@ export const CLOVER_DECOMPOSE_DURATION_MS = 30_000
 export const CLOVER_WATER_MAX = 100
 export const CLOVER_WATER_DRAIN_RATE = 2
 export const CLOVER_WATER_RAIN_FILL = 15
+export const DIRT_COLORS = ['#8B7355', '#7B6B55', '#806B50']
+export const BURN_SCAR_COLORS = ['#3D2B1F', '#4A3728', '#352418']
+export const WATER_COLORS = ['#4466AA', '#335588', '#556699']
+export const RIVER_COLOR = '#6688BB'
+export const POND_COLOR = '#5577AA'
+export const CLOVER_HEALTHY_COLORS = ['#2E8B57', '#3CB371', '#50C878']
 export const CLOVER_BROWN_COLOR = '#8B6914'
 export const CLOVER_DYING_COLOR_FROM = [0x8b, 0x69, 0x14] // brown (#8B6914)
 export const CLOVER_DYING_COLOR_TO = [0x8b, 0x00, 0x00] // dark red (#8B0000)

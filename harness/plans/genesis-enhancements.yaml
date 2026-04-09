@@ -1,0 +1,155 @@
+plan:
+  id: genesis-enhancements
+  title: Enhance genesis simulation with fullscreen rendering, denser aqueducts, dramatic glaciers, meteorite fires, and animated water
+  created: 2026-04-08
+  global_verification:
+    - npm run build
+    - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    - npm run lint
+
+tasks:
+  - id: fullscreen-canvas
+    title: Fix letterboxing by using Math.ceil for viewport tile count
+    spec_id: genesis-enhancements
+    spec_sections:
+      - fullscreen-background
+    context_files:
+      - src/components/GenesisScreen.tsx
+      - src/engine/genesisRenderer.ts
+    output_files:
+      - src/components/GenesisScreen.tsx
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags:
+      - component
+
+  - id: genesis-types-new-fields
+    title: Add new fields to GenesisSimState for all enhancements
+    spec_id: genesis-enhancements
+    spec_sections:
+      - varied-glacier-edges
+      - meteorite-triggered-fires
+      - animated-water-systems
+      - glacier-vegetation-wipe
+      - chaotic-aqueducts
+    context_files:
+      - src/engine/genesisTypes.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesisTypes.ts
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags:
+      - engine
+
+  - id: varied-glacier-edges
+    title: Replace hash jitter with smooth noise for glacier edges
+    spec_id: genesis-enhancements
+    spec_sections:
+      - varied-glacier-edges
+      - glacier-vegetation-wipe
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/terrain.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - genesis-types-new-fields
+    verification:
+      - npm run build
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: meteorite-fires
+    title: Add meteor shower animation and increase fire coverage
+    spec_id: genesis-enhancements
+    spec_sections:
+      - meteorite-triggered-fires
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/celestial.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - genesis-types-new-fields
+    verification:
+      - npm run build
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: chaotic-aqueducts
+    title: Triple aqueduct density with more ruins and standalone inland clusters
+    spec_id: genesis-enhancements
+    spec_sections:
+      - chaotic-aqueducts
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - genesis-types-new-fields
+    verification:
+      - npm run build
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: animated-water
+    title: Add progressive river reveal, meltwater pools, and permanent ponds
+    spec_id: genesis-enhancements
+    spec_sections:
+      - animated-water-systems
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - genesis-types-new-fields
+      - varied-glacier-edges
+    verification:
+      - npm run build
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: update-tests
+    title: Add tests for all new genesis behaviors
+    spec_id: genesis-enhancements
+    spec_sections:
+      - chaotic-aqueducts
+      - varied-glacier-edges
+      - meteorite-triggered-fires
+      - animated-water-systems
+      - glacier-vegetation-wipe
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - varied-glacier-edges
+      - meteorite-fires
+      - chaotic-aqueducts
+      - animated-water
+    verification:
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - test
