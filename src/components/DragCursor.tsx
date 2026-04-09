@@ -39,17 +39,7 @@ export const DragCursor = ({ dragState, cursorPos, cursorTarget, canvasRect, met
     )
   }
 
-  return (
-    <div
-      className="pointer-events-none fixed z-50 font-mono text-sm"
-      style={{
-        left: cursorPos.x + 16,
-        top: cursorPos.y - 8,
-        color: def.glyphColor,
-        textShadow: '0 0 4px #000, 0 0 4px #000',
-      }}
-    >
-      {def.glyph}
-    </div>
-  )
+  // Over inventory grids / action bar / fabrication zone — those areas render
+  // their own preview, so a floating glyph here creates a visual duplicate.
+  return null
 }
