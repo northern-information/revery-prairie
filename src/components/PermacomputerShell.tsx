@@ -1,3 +1,5 @@
+import { Tab } from './PanelPrimitives'
+
 import type { PermacomputerScreen } from '@/hooks/useKeyboard'
 
 const SCREEN_TABS: { screen: NonNullable<PermacomputerScreen>; label: string }[] = [
@@ -40,26 +42,23 @@ export const PermacomputerShell = ({ activeScreen, onClose, onSwitchScreen, chil
         <div className="border-border-dim flex items-end border-b px-2 pt-4 pb-2">
           <button
             type="button"
-            className="text-permacomputer hover:text-text px-2 text-sm transition-colors"
+            className="text-permacomputer hover:text-pink px-2 py-1.5 text-xs transition-colors"
             onClick={onClose}
             title="close permacomputer"
           >
             ⚙
           </button>
           {SCREEN_TABS.map(tab => (
-            <button
+            <Tab
               key={tab.screen}
-              type="button"
+              active={activeScreen === tab.screen}
               data-testid={`tab-${tab.screen}`}
-              className={`px-2 py-1 text-xs transition-colors ${
-                activeScreen === tab.screen ? 'bg-pink text-bg' : 'text-dim hover:bg-permacomputer-dim hover:text-text'
-              }`}
               onClick={() => {
                 onSwitchScreen(tab.screen)
               }}
             >
               {tab.label}
-            </button>
+            </Tab>
           ))}
         </div>
 

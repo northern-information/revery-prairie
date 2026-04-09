@@ -103,13 +103,7 @@ const ActionBarSlotView = ({
   return (
     <button
       className={`relative flex items-center justify-center rounded border font-mono ${
-        isDragHighlighted
-          ? 'border-[--color-pink]'
-          : isHeld
-            ? 'border-white'
-            : slot
-              ? 'border-[--color-border]'
-              : 'border-[--color-border]/50'
+        isDragHighlighted ? 'border-pink' : isHeld ? 'border-white' : slot ? 'border-border' : 'border-border/50'
       } transition-colors`}
       style={{
         width: SLOT_SIZE,
@@ -120,17 +114,10 @@ const ActionBarSlotView = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {slot && (
-        <span className="z-10 text-xl leading-none" style={{ color: '#1a1a1a' }}>
-          {glyph}
-        </span>
-      )}
+      {slot && <span className="text-bg z-10 text-xl leading-none">{glyph}</span>}
       <CooldownOverlay fraction={cooldownFraction} />
       <ReadyPulse active={isPulsing} />
-      <span
-        className="absolute right-1 bottom-0.5 z-10 text-[10px]"
-        style={{ color: slot ? '#1a1a1a' : 'var(--color-dim)' }}
-      >
+      <span className={`absolute right-1 bottom-0.5 z-10 text-[10px] ${slot ? 'text-bg' : 'text-dim'}`}>
         {String(index + 1)}
       </span>
     </button>
@@ -163,7 +150,7 @@ export const ActionBar = ({
   return (
     <div className="animate-fade-in pointer-events-auto fixed bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1">
       <button
-        className="mr-1 flex items-center justify-center rounded border border-[--color-border]/50 bg-black/70 font-mono text-base text-[--color-permacomputer] transition-colors hover:border-[--color-permacomputer] hover:text-[--color-text]"
+        className="border-border/50 text-permacomputer hover:border-permacomputer hover:text-pink mr-1 flex items-center justify-center rounded border bg-black/70 font-mono text-base transition-colors"
         style={{ width: SLOT_SIZE, height: SLOT_SIZE }}
         onClick={onTogglePermacomputer}
         title="permacomputer [r]"

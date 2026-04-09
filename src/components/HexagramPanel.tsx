@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { AccentBlock, TextButton } from './PanelPrimitives'
 
 import { canCast, completeCast, consumeGlint, lineFromValue, tossThreeCoins } from '@/engine/hexagram'
 import { recordDiscovery } from '@/engine/manual'
@@ -68,7 +69,8 @@ export const HexagramPanel = ({ state, onClose, refreshUI, onCastLog }: Hexagram
   const [result, setResult] = useState<CastResult | null>(null)
 
   const tossCount = tossedLines.length
-  const canToss = phase === 'tossing' && tossCount < 6
+  const hasCoins = canCast(state)
+  const canToss = phase === 'tossing' && tossCount < 6 && hasCoins
 
   const doToss = useCallback(() => {
     if (!canToss) return
@@ -92,7 +94,7 @@ export const HexagramPanel = ({ state, onClose, refreshUI, onCastLog }: Hexagram
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === ' ' || e.key === 'Enter') {
+      if (e.key === 'e' || e.key === 'E' || e.key === 'Enter') {
         e.preventDefault()
         e.stopPropagation()
         if (phase === 'tossing') {
@@ -108,13 +110,12 @@ export const HexagramPanel = ({ state, onClose, refreshUI, onCastLog }: Hexagram
     }
   }, [doToss, phase, onClose])
 
-  const hasEnoughCoins = canCast(state)
   const parsedLines = tossedLines.map(lineFromValue)
   const hasChanging = result ? result.transformed !== null : false
 
   return (
     <div className="text-text font-mono text-xs">
-      {!hasEnoughCoins && phase === 'tossing' && tossCount === 0 && (
+      {!hasCoins && phase === 'tossing' && tossCount === 0 && (
         <p className="text-dim mb-4">you need 3 glinting coins in your backpack to cast.</p>
       )}
 
@@ -135,18 +136,14 @@ export const HexagramPanel = ({ state, onClose, refreshUI, onCastLog }: Hexagram
 
           <div className="text-dim mb-3 text-xs">toss {tossCount}/6</div>
 
-          {canToss && (
-            <button type="button" className="text-pink hover:text-text text-xs" onClick={doToss}>
-              [toss coins] or press [space]
-            </button>
-          )}
+          {canToss && <TextButton onClick={doToss}>[toss coins] or press [e]</TextButton>}
         </div>
       )}
 
       {phase === 'result' && result && (
-        <div className="overflow-y-auto">
+        <div className="scrollbar-custom overflow-y-auto">
           {/* Primary hexagram */}
-          <div className="mb-5">
+          <div className="mb-4">
             {hasChanging && <div className="text-dim mb-2 text-xs tracking-wide uppercase">present</div>}
             <div className="mb-2 flex items-baseline gap-2">
               <span className="text-pink">#{result.primary.id}</span>
@@ -155,14 +152,14 @@ export const HexagramPanel = ({ state, onClose, refreshUI, onCastLog }: Hexagram
             <div className="mb-3">
               <HexagramFigure lines={result.lines} changing={hasChanging} />
             </div>
-            <div className="border-border border-l-2 pl-3">
+            <AccentBlock>
               <p className="text-dim leading-relaxed">{result.primary.meaning}</p>
-            </div>
+            </AccentBlock>
           </div>
 
           {/* Transformed hexagram */}
           {result.transformed && (
-            <div className="mb-5">
+            <div className="mb-4">
               <div className="text-dim mb-2 text-xs">changing lines transform &darr;</div>
               <div className="text-dim mb-2 text-xs tracking-wide uppercase">becoming</div>
               <div className="mb-2 flex items-baseline gap-2">
@@ -172,13 +169,13 @@ export const HexagramPanel = ({ state, onClose, refreshUI, onCastLog }: Hexagram
               <div className="mb-3">
                 <StaticFigure lines={result.transformed.lines} />
               </div>
-              <div className="border-border border-l-2 pl-3">
+              <AccentBlock>
                 <p className="text-dim leading-relaxed">{result.transformed.meaning}</p>
-              </div>
+              </AccentBlock>
             </div>
           )}
 
-          <div className="text-dim mt-2 text-xs">press [space] or [enter] to close</div>
+          <div className="text-dim mt-2 text-xs">press [e] or [enter] to close</div>
         </div>
       )}
     </div>

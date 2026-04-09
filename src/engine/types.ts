@@ -128,6 +128,7 @@ export interface GameState {
   camera: Position
   viewportWidth: number
   viewportHeight: number
+  rightInsetTiles: number
   activeDialog: {
     characterId: string
     lineIndex: number
@@ -156,6 +157,7 @@ export interface GameState {
   rainSeed: number
   metric: boolean
   musicEnabled: boolean
+  fontScale: number
   zoom: number
   currentZone: Zone
   overworldMap: Tile[][]

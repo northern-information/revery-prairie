@@ -77,8 +77,8 @@ the permacomputer is never consumed by recipes. the omnibox recipe uses `preserv
 
 left-hand keyboard layout (modern roguelike standard). WASD movement + surrounding keys.
 
-- `wasd` — movement (works with inventory open, blocked in menu and during drag)
-- `e` — context-dependent: pick up open ground omnibox / close open backpack omnibox / open hovered omnibox / open facing ground omnibox / talk to character / advance dialog
+- `wasd` — movement (works with inventory open, blocked in menu, during drag, and when a text input is focused)
+- `e` — context-dependent: pick up open ground omnibox / close open backpack omnibox / open hovered omnibox / open facing ground omnibox / talk to character / advance dialog / toss coins in divination / close divination result
 - `r` — rotate hovered item in place (inventory must be open, item must be hovered)
 - `f` — harvest facing clover tile (tile → dirt, clover item to backpack, no soil enrichment)
 - `x` — drop hovered item; also cuts facing clover when no item is hovered (tile → dirt, soil enrichment, no item)

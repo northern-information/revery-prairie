@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { SectionHeader } from './PanelPrimitives'
+import { SectionHeader, Tab, TextButton } from './PanelPrimitives'
 
 import {
   CATEGORY_ORDER,
@@ -50,16 +50,15 @@ const HintBlock = ({
   onToggle: (key: string) => void
 }) => (
   <div className="mt-1">
-    <button
-      type="button"
-      className="text-dim hover:text-text text-left text-xs"
+    <TextButton
+      variant="secondary"
       onClick={() => {
         onToggle(hintKey)
       }}
     >
       <span className="text-dim">&gt; {hint.prompt}</span>
       <span className="text-pink ml-2">{revealed ? '[-]' : '[+]'}</span>
-    </button>
+    </TextButton>
     {revealed && <div className="text-text mt-1 ml-4 text-xs">{hint.answer}</div>}
   </div>
 )
@@ -84,28 +83,27 @@ const RecipeResultSpoiler = ({
     return (
       <span>
         <span className="text-text">{entry.name}</span>
-        <button
-          type="button"
-          className="text-pink ml-2 text-xs"
+        <TextButton
+          variant="secondary"
+          className="ml-2 inline"
           onClick={() => {
             onToggle(hintKey)
           }}
         >
           [-]
-        </button>
+        </TextButton>
       </span>
     )
   }
   return (
-    <button
-      type="button"
-      className="text-dim hover:text-text text-xs"
+    <TextButton
+      variant="secondary"
       onClick={() => {
         onToggle(hintKey)
       }}
     >
       ??? <span className="text-pink">[+]</span>
-    </button>
+    </TextButton>
   )
 }
 
@@ -221,7 +219,7 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
   const visibleCategories = activeCategory ? [activeCategory as ManualCategory] : CATEGORY_ORDER
 
   return (
-    <div className="text-text flex flex-col font-mono text-xs" style={{ height: '100%' }}>
+    <div className="text-text flex h-full flex-col font-mono text-xs">
       {/* Search */}
       <input
         type="text"
@@ -230,40 +228,34 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
           setSearch(e.target.value)
         }}
         placeholder="search..."
-        className="text-text placeholder-dim border-border focus:border-pink mb-3 w-full border bg-black/50 px-2 py-1 font-mono text-xs outline-none"
+        className="text-text placeholder-dim border-border hover:border-pink focus:border-pink mb-3 w-full border bg-black/50 px-2 py-1 font-mono text-xs outline-none"
       />
 
       {/* Category tabs */}
       <div className="mb-3 flex flex-wrap">
-        <button
-          type="button"
-          className={`px-2 py-1.5 text-xs transition-colors ${
-            activeCategory === null ? 'bg-pink text-bg' : 'text-dim hover:bg-permacomputer-dim hover:text-text'
-          }`}
+        <Tab
+          active={activeCategory === null}
           onClick={() => {
             setCategory(null)
           }}
         >
           ALL
-        </button>
+        </Tab>
         {CATEGORY_ORDER.map(cat => {
           const count = searchQuery
             ? filterManualEntries(getEntriesByCategory(cat), searchQuery).length
             : getEntriesByCategory(cat).length
           return (
-            <button
+            <Tab
               key={cat}
-              type="button"
-              className={`px-2 py-1.5 text-xs transition-colors ${
-                activeCategory === cat ? 'bg-pink text-bg' : 'text-dim hover:bg-permacomputer-dim hover:text-text'
-              }`}
+              active={activeCategory === cat}
               onClick={() => {
                 setCategory(cat)
               }}
             >
               {CATEGORY_LABELS[cat]}
               {searchQuery && ` (${String(count)})`}
-            </button>
+            </Tab>
           )
         })}
       </div>
