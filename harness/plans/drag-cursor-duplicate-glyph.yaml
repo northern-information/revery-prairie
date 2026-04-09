@@ -1,0 +1,45 @@
+plan:
+  id: drag-cursor-duplicate-glyph
+  title: 'Suppress DragCursor glyph over inventory grids'
+  created: 2026-04-09
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: suppress-cursor-over-panels
+    title: 'Do not render DragCursor when cursorTarget is other'
+    spec_id: drag-cursor-duplicate-glyph
+    spec_sections:
+      - cursor-hidden-over-grid
+      - cursor-visible-over-canvas
+    context_files:
+      - src/components/DragCursor.tsx
+      - src/components/GameScreen.tsx
+      - src/components/InventoryGrid.tsx
+    output_files:
+      - src/components/DragCursor.tsx
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: regression-test
+    title: 'Add DragCursor regression test for glyph suppression'
+    spec_id: drag-cursor-duplicate-glyph
+    spec_sections:
+      - cursor-hidden-over-grid
+      - cursor-visible-over-canvas
+    context_files:
+      - src/components/DragCursor.tsx
+      - src/components/InventoryGrid.tsx
+    output_files:
+      - src/components/__tests__/DragCursor.test.tsx
+    depends_on:
+      - suppress-cursor-over-panels
+    verification:
+      - 'npx vitest run src/components/__tests__/DragCursor.test.tsx'
+    repair: retry
+    tags: [test]

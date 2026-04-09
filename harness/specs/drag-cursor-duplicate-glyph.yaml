@@ -1,0 +1,47 @@
+id: drag-cursor-duplicate-glyph
+name: Drag cursor hides glyph over inventory grids
+status: partial
+priority: medium
+layer: component
+source_files:
+  - src/components/DragCursor.tsx
+  - src/components/GameScreen.tsx
+  - src/components/InventoryGrid.tsx
+dependencies: []
+behaviors:
+  - id: cursor-hidden-over-grid
+    description: DragCursor does not render its floating glyph when the cursor is hovering over an inventory grid, because the grid already renders its own preview glyph
+    inputs:
+      - Player is dragging an item
+      - Cursor is hovering over an inventory grid (cursorTarget is 'other')
+    outputs:
+      - No DragCursor glyph is rendered
+      - Only the grid preview glyph is visible (at 0.6 opacity)
+    state_changes: []
+    determinism: deterministic
+  - id: cursor-visible-over-canvas
+    description: DragCursor renders its tile-snapped glyph when the cursor is hovering over the game canvas, providing a drop location preview
+    inputs:
+      - Player is dragging an item
+      - Cursor is hovering over the canvas (cursorTarget is 'canvas')
+    outputs:
+      - DragCursor glyph renders at the tile-snapped position
+    state_changes: []
+    determinism: deterministic
+edge_cases:
+  - id: cursor-transitions-grid-to-canvas
+    description: Moving the cursor from the inventory grid to the canvas should show the DragCursor glyph
+    expected: DragCursor appears when cursorTarget changes from 'other' to 'canvas'
+  - id: cursor-transitions-canvas-to-grid
+    description: Moving the cursor from the canvas back to the inventory grid should hide the DragCursor glyph
+    expected: DragCursor disappears when cursorTarget changes from 'canvas' to 'other'
+  - id: cursor-over-fabrication-zone
+    description: Moving the cursor over the fabrication zone (not a grid) while dragging
+    expected: No DragCursor glyph — fabrication zone has its own text feedback
+failure_conditions:
+  - trigger: DragCursor renders glyph when cursorTarget is 'other' and cursor is over inventory grid
+    expected: No floating glyph — only the grid preview glyph at 0.6 opacity
+verification:
+  test_file: src/engine/__tests__/drag.test.ts
+  test_pattern: drag cursor
+  command: npx vitest run src/engine/__tests__/drag.test.ts src/components/__tests__/DragCursor.test.tsx
