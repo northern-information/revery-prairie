@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { ActionBar } from './ActionBar'
 import { DIALOG_HEIGHT, DIALOG_WIDTH, DialogBox } from './DialogBox'
 import { DragCursor } from './DragCursor'
@@ -38,6 +38,16 @@ export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreen
   // refreshUI() increments it, triggering re-renders when engine state mutates.
   const { state, refreshUI, uiVersion } = useGameEngine(stewardName, 80, 40, genesisResult)
   void uiVersion
+
+  // Apply font scale on mount
+  const fontScale = state.fontScale
+  useEffect(() => {
+    document.documentElement.style.fontSize = `${String(fontScale * 100)}%`
+    return () => {
+      document.documentElement.style.fontSize = ''
+    }
+  }, [fontScale])
+
   const itemInfoRef = useRef<ItemInfoHandle>(null)
   const metricsRef = useRef<CharMetrics | null>(null)
   const isDraggingRef = useRef(false)
@@ -139,8 +149,8 @@ export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreen
             <HexagramPanel
               state={state}
               onClose={() => {
-            setActiveScreen(null)
-          }}
+                setActiveScreen(null)
+              }}
               refreshUI={refreshUI}
               onCastLog={(text, worldX, worldY) => {
                 addEvent('discovery', text, '¤', COIN_GLINTING_COLOR, worldX, worldY)
@@ -166,6 +176,14 @@ export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreen
               onToggleMusic={() => {
                 state.musicEnabled = !state.musicEnabled
                 setMusicEnabled(state.musicEnabled)
+                refreshUI()
+              }}
+              fontScale={state.fontScale}
+              onCycleFontScale={() => {
+                const scales = [1, 1.25, 1.5]
+                const idx = scales.indexOf(state.fontScale)
+                state.fontScale = scales[(idx + 1) % scales.length]
+                document.documentElement.style.fontSize = `${String(state.fontScale * 100)}%`
                 refreshUI()
               }}
             />

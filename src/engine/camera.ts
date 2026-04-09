@@ -1,12 +1,16 @@
 import type { GameState } from './types'
 
 export const updateCamera = (state: GameState): void => {
-  if (state.mapWidth < state.viewportWidth) {
-    state.camera.x = -Math.floor((state.viewportWidth - state.mapWidth) / 2)
+  // The rightmost columns are hidden under the sidebar, so center and clamp
+  // the player within only the visible portion of the viewport.
+  const visibleWidth = state.viewportWidth - state.rightInsetTiles
+
+  if (state.mapWidth < visibleWidth) {
+    state.camera.x = -Math.floor((visibleWidth - state.mapWidth) / 2)
   } else {
     state.camera.x = Math.max(
       0,
-      Math.min(state.player.x - Math.floor(state.viewportWidth / 2), state.mapWidth - state.viewportWidth)
+      Math.min(state.player.x - Math.floor(visibleWidth / 2), state.mapWidth - visibleWidth)
     )
   }
 

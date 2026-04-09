@@ -50,6 +50,12 @@ export const useKeyboard = ({
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      // When a text input has focus, only allow Escape and Tab through
+      const tag = (document.activeElement as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') {
+        if (e.key !== 'Escape' && e.key !== 'Tab') return
+      }
+
       if (e.key === 'Shift') {
         state.sprinting = !state.sprinting
         return
@@ -86,8 +92,10 @@ export const useKeyboard = ({
         return
       }
 
-      // [e] — advance dialog / pick up or close open omnibox / open omnibox / talk
+      // [e] — advance dialog / pick up or close open omnibox / open omnibox / talk / toss coins
       if (e.key === 'e' || e.key === 'E') {
+        // Divination panel owns [e] for tossing — don't interfere
+        if (activeScreen === 'divination') return
         if (state.activeDialog) {
           advanceDialog(state)
           refreshUI()

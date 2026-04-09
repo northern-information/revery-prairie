@@ -24,6 +24,8 @@ describe('boot: component smoke tests', () => {
             onToggleUnits={vi.fn()}
             musicEnabled={true}
             onToggleMusic={vi.fn()}
+            fontScale={1}
+            onCycleFontScale={vi.fn()}
           />
         )
       }).not.toThrow()

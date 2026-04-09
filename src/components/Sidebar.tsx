@@ -181,10 +181,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                   return (
                     <tr>
                       <td className="text-muted py-0.5">effects</td>
-                      <td
-                        className="text-muted py-0.5 text-right"
-                        style={effects.length > 0 ? { color: '#4466aa' } : undefined}
-                      >
+                      <td className={`py-0.5 text-right ${effects.length > 0 ? 'text-effect' : 'text-muted'}`}>
                         {effects.length > 0 ? effects.join(', ') : 'none'}
                       </td>
                     </tr>
@@ -212,7 +209,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                             : stage === CloverStage.Black
                               ? 'dead'
                               : 'decomposing'
-                    const statusColor = stage === CloverStage.Healthy ? '#50C878' : '#8B0000'
+                    const statusClass = stage === CloverStage.Healthy ? 'text-clover' : 'text-danger'
                     return (
                       <>
                         <tr>
@@ -227,9 +224,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                         </tr>
                         <tr>
                           <td className="text-muted py-0.5">status</td>
-                          <td className="py-0.5 text-right" style={{ color: statusColor }}>
-                            {statusLabel}
-                          </td>
+                          <td className={`py-0.5 text-right ${statusClass}`}>{statusLabel}</td>
                         </tr>
                       </>
                     )

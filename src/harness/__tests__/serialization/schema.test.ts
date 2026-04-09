@@ -69,6 +69,8 @@ const EXPECTED_FIELDS = [
   'sprinting',
   'trail',
   'musicEnabled',
+  'fontScale',
+  'rightInsetTiles',
   'world',
   'lastDialogTypingTick',
   'glintingCoins',

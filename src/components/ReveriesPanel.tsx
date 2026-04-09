@@ -1,3 +1,5 @@
+import { ListCard, TextButton } from './PanelPrimitives'
+
 import { assignActionBarSlot, clearActionBarSlot } from '@/engine/actionBar'
 import { getReveryDefinition } from '@/engine/reveries'
 import type { GameState } from '@/engine/types'
@@ -39,8 +41,8 @@ export const ReveriesPanel = ({ state, refreshUI }: ReveriesPanelProps) => {
   }
 
   return (
-    <div className="font-mono text-xs text-[--color-text]">
-      {state.reveries.length === 0 && <div className="text-[--color-dim]">no reveries collected yet.</div>}
+    <div className="text-text font-mono text-xs">
+      {state.reveries.length === 0 && <div className="text-dim">no reveries collected yet.</div>}
 
       {state.reveries.map(id => {
         const def = getReveryDefinition(id)
@@ -48,62 +50,59 @@ export const ReveriesPanel = ({ state, refreshUI }: ReveriesPanelProps) => {
         const slotIndex = state.actionBar.findIndex(s => s?.kind === 'revery' && s.id === id)
 
         return (
-          <div
-            key={id}
-            className="mb-2 flex items-center gap-2 rounded border border-[--color-border]/50 p-2"
-            style={{ backgroundColor: `${def.glyphColor}20` }}
-          >
-            <span className="text-lg" style={{ color: def.glyphColor }}>
+          <ListCard key={id} accentColor={def.glyphColor} className="flex items-center gap-2">
+            <span className="text-base" style={{ color: def.glyphColor }}>
               {def.glyphs[0]}
             </span>
             <div className="flex-1">
               <div style={{ color: def.glyphColor }}>{def.name.toLowerCase()}</div>
-              <div className="text-[--color-dim]">{def.description}</div>
+              <div className="text-dim">{def.description}</div>
             </div>
             <div className="flex gap-1">
               {isEquipped && (
                 <>
-                  <button
-                    className="rounded border border-[--color-border]/50 px-1 text-[--color-dim] hover:text-[--color-text]"
+                  <TextButton
+                    variant="secondary"
                     onClick={() => {
                       handleMoveSlot(id, -1)
                     }}
                     title="move left"
                   >
                     {'<'}
-                  </button>
-                  <span className="px-1 text-[--color-dim]">{String(slotIndex + 1)}</span>
-                  <button
-                    className="rounded border border-[--color-border]/50 px-1 text-[--color-dim] hover:text-[--color-text]"
+                  </TextButton>
+                  <span className="text-dim px-1 py-1">{String(slotIndex + 1)}</span>
+                  <TextButton
+                    variant="secondary"
                     onClick={() => {
                       handleMoveSlot(id, 1)
                     }}
                     title="move right"
                   >
                     {'>'}
-                  </button>
-                  <button
-                    className="ml-1 rounded border border-[--color-border]/50 px-1 text-[--color-dim] hover:text-[--color-text]"
+                  </TextButton>
+                  <TextButton
+                    variant="secondary"
+                    className="ml-1"
                     onClick={() => {
                       handleUnequip(id)
                     }}
                   >
                     unequip
-                  </button>
+                  </TextButton>
                 </>
               )}
               {!isEquipped && (
-                <button
-                  className="rounded border border-[--color-border]/50 px-1 text-[--color-dim] hover:text-[--color-text]"
+                <TextButton
+                  variant="secondary"
                   onClick={() => {
                     handleEquip(id)
                   }}
                 >
                   equip
-                </button>
+                </TextButton>
               )}
             </div>
-          </div>
+          </ListCard>
         )
       })}
     </div>

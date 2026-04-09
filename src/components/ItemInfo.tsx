@@ -1,4 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
+import { SectionHeader } from './PanelPrimitives'
 
 import { COIN_DULL_COLOR, COIN_GLINTING_COLOR } from '@/engine/constants'
 import { getDefinition, ITEM_DEFINITIONS } from '@/engine/items'
@@ -52,6 +53,7 @@ export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoi
     <div>
       {item ? (
         <>
+          <SectionHeader>item</SectionHeader>
           <div className="mb-1 flex items-baseline justify-between">
             <span style={{ color: isCoin && !isGlinting ? COIN_DULL_COLOR : item.glyphColor }}>
               {item.glyph} {item.name.toLowerCase()}

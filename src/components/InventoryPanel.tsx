@@ -242,7 +242,7 @@ export const InventoryPanel = ({
                   ) && (
                   <button
                     type="button"
-                    className="text-dim hover:text-text pointer-events-auto text-left"
+                    className="text-dim hover:text-pink pointer-events-auto px-2 py-1 text-left"
                     onClick={() => {
                       if (!state.openContainer) return
                       const uid = grabOmnibox(state)
@@ -257,7 +257,7 @@ export const InventoryPanel = ({
                 )}
               <button
                 type="button"
-                className="text-dim hover:text-text pointer-events-auto text-left"
+                className="text-dim hover:text-pink pointer-events-auto px-2 py-1 text-left"
                 onClick={() => {
                   if (state.openContainer) {
                     autoSort(state.openContainer)
@@ -294,7 +294,7 @@ export const InventoryPanel = ({
             <div className="mt-2 flex flex-col gap-1">
               <button
                 type="button"
-                className="text-dim hover:text-text pointer-events-auto text-left"
+                className="text-dim hover:text-pink pointer-events-auto px-2 py-1 text-left"
                 onClick={() => {
                   autoSort(state.backpack)
                   refreshUI()

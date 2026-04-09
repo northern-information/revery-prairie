@@ -12,6 +12,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        fontScale={1}
+        onCycleFontScale={vi.fn()}
       />
     )
 
@@ -31,6 +33,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        fontScale={1}
+        onCycleFontScale={vi.fn()}
       />
     )
 
@@ -49,6 +53,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        fontScale={1}
+        onCycleFontScale={vi.fn()}
       />
     )
 
@@ -69,6 +75,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        fontScale={1}
+        onCycleFontScale={vi.fn()}
       />
     )
 
@@ -88,6 +96,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        fontScale={1}
+        onCycleFontScale={vi.fn()}
       />
     )
 
@@ -107,6 +117,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        fontScale={1}
+        onCycleFontScale={vi.fn()}
       />
     )
 
@@ -123,6 +135,8 @@ describe('Menu', () => {
         onToggleUnits={onToggleUnits}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        fontScale={1}
+        onCycleFontScale={vi.fn()}
       />
     )
 
@@ -140,6 +154,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        fontScale={1}
+        onCycleFontScale={vi.fn()}
       />
     )
 
@@ -155,6 +171,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={false}
         onToggleMusic={vi.fn()}
+        fontScale={1}
+        onCycleFontScale={vi.fn()}
       />
     )
 
@@ -171,11 +189,50 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={onToggleMusic}
+        fontScale={1}
+        onCycleFontScale={vi.fn()}
       />
     )
 
     await userEvent.click(screen.getByText('music: on'))
 
     expect(onToggleMusic).toHaveBeenCalledOnce()
+  })
+
+  it('shows font: small when fontScale is 1', () => {
+    render(
+      <Menu
+        onResume={vi.fn()}
+        onNewGame={vi.fn()}
+        metric={true}
+        onToggleUnits={vi.fn()}
+        musicEnabled={true}
+        onToggleMusic={vi.fn()}
+        fontScale={1}
+        onCycleFontScale={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText('font: small')).toBeInTheDocument()
+  })
+
+  it('calls onCycleFontScale when font button is clicked', async () => {
+    const onCycleFontScale = vi.fn()
+    render(
+      <Menu
+        onResume={vi.fn()}
+        onNewGame={vi.fn()}
+        metric={true}
+        onToggleUnits={vi.fn()}
+        musicEnabled={true}
+        onToggleMusic={vi.fn()}
+        fontScale={1}
+        onCycleFontScale={onCycleFontScale}
+      />
+    )
+
+    await userEvent.click(screen.getByText('font: small'))
+
+    expect(onCycleFontScale).toHaveBeenCalledOnce()
   })
 })
