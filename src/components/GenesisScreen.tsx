@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useRef } from 'react'
 
 import { MAP_HEIGHT, MAP_WIDTH, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '@/engine/constants'
-import { createGenesisState, extractGenesisResult, GENESIS_EPOCHS, nameToSeed, tickGenesis } from '@/engine/genesis'
+import {
+  createGenesisState,
+  extractGenesisResult,
+  GENESIS_EPOCHS,
+  nameToSeed,
+  precomputeGenesis,
+  tickGenesis,
+} from '@/engine/genesis'
 import { renderGenesis } from '@/engine/genesisRenderer'
 import { measureChar } from '@/engine/renderer'
-import type { GenesisResult } from '@/engine/genesisTypes'
+import type { GenesisResult, GenesisSimState } from '@/engine/genesisTypes'
 import type { CharMetrics } from '@/engine/types'
 
 interface GenesisScreenProps {
@@ -16,7 +23,12 @@ const SKIP_KEYS = new Set(['Escape', ' ', 'Enter'])
 
 export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const simRef = useRef(createGenesisState(MAP_WIDTH, MAP_HEIGHT, nameToSeed(stewardName)))
+  const simRef = useRef<GenesisSimState | null>(null)
+  if (simRef.current === null) {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, nameToSeed(stewardName))
+    precomputeGenesis(sim, GENESIS_EPOCHS)
+    simRef.current = sim
+  }
   const completedRef = useRef(false)
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
@@ -27,14 +39,9 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
     completedRef.current = true
 
     const sim = simRef.current
-    // Run any remaining mutations if skipping
-    if (sim.epochIndex < GENESIS_EPOCHS.length) {
-      for (let i = sim.epochIndex; i < GENESIS_EPOCHS.length; i++) {
-        if (i === sim.epochIndex && sim.epochStartTime !== 0) continue
-        GENESIS_EPOCHS[i].mutate(sim)
-      }
-      sim.epochIndex = GENESIS_EPOCHS.length
-    }
+    if (!sim) return
+    // All mutations already pre-computed — just advance to completion
+    sim.epochIndex = GENESIS_EPOCHS.length
 
     const result = extractGenesisResult(sim)
     onCompleteRef.current(result)
@@ -106,6 +113,7 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
       if (completedRef.current) return
 
       const sim = simRef.current
+      if (!sim) return
       const done = tickGenesis(sim, GENESIS_EPOCHS, time)
 
       if (done) {
@@ -129,5 +137,12 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
     }
   }, [finishSimulation])
 
-  return <canvas ref={canvasRef} className="fixed inset-0" style={{ cursor: 'url(/cursor.cur), auto' }} onClick={finishSimulation} />
+  return (
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0"
+      style={{ cursor: 'url(/cursor.cur), auto' }}
+      onClick={finishSimulation}
+    />
+  )
 }

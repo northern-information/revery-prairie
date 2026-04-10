@@ -45,6 +45,13 @@ export interface CivilizationRuin {
   buildingFootprints: Position[]
 }
 
+export interface EpochSnapshot {
+  vegetationMap: Map<string, number>
+  riverPaths: Set<string>
+  ponds: Set<string>
+  elevation: Map<string, number>
+}
+
 export interface GenesisSimState {
   grid: Tile[][]
   width: number
@@ -83,6 +90,10 @@ export interface GenesisSimState {
   meltPools: Set<string>
   /** Permanent small pond positions */
   ponds: Set<string>
+  /** Per-epoch snapshots of fields that later mutations destructively modify */
+  epochSnapshots: EpochSnapshot[]
+  /** Whether all mutations have been pre-computed */
+  mutationsPrecomputed: boolean
 }
 
 export interface GenesisMeteorStreak {
