@@ -1,5 +1,10 @@
 import {
+  BURN_SCAR_COLORS as GAME_BURN_SCAR_COLORS,
+  DIRT_COLORS as GAME_DIRT_COLORS,
+  POND_COLOR,
+  RIVER_COLOR,
   SAND_BORDER,
+  SAND_COLORS,
   SOIL_HEALTH_MAX,
   SPACE_BORDER,
   WATER_SAND_BORDER_MAX,
@@ -2224,21 +2229,21 @@ const presentDay: GenesisEpoch = {
     const h = tileHash(x, y)
     const tile = sim.grid[y]?.[x]
 
+    // Stars — match game renderer exactly (STAR_CHARS, STAR_COLORS, density 12)
     if (!tile || tile.type === TileType.Space) {
-      // Stars
-      const starChars = ['.', '*', '+', '·']
-      const starColors = ['#FFFFFF', '#DDDDFF', '#FFDDDD', '#FFFFDD', '#AAAACC']
-      const phase = (time * 0.0015 + h * 0.001) % 1
-      if (h % 5 === 0) {
-        const ci = Math.floor((h + Math.floor(phase * 4)) % starChars.length)
-        const si = h % starColors.length
-        return [{ char: starChars[ci], color: starColors[si], dx: 0, dy: 0 }]
+      const STAR_CHARS = ['.', '+', '*']
+      const STAR_COLORS = ['#333', '#555', '#777', '#999', '#bbb', '#999', '#777', '#555']
+      if (h % 12 === 0) {
+        const phase = (h >> 8) % STAR_COLORS.length
+        const colorIndex = (phase + Math.floor(time * 0.0015)) % STAR_COLORS.length
+        return [{ char: STAR_CHARS[(h >> 4) % STAR_CHARS.length], color: STAR_COLORS[colorIndex], dx: 0, dy: 0 }]
       }
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
+    // Sand — match game renderer's multi-color palette
     if (tile.type === TileType.Sand) {
-      return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
+      return [{ char: ':', color: SAND_COLORS[h % SAND_COLORS.length], dx: 0, dy: 0 }]
     }
 
     const key = posKey(x, y)
@@ -2257,20 +2262,25 @@ const presentDay: GenesisEpoch = {
       return [{ char: '@', color: '#FFFFFF', dx: 0, dy: 0 }]
     }
 
-    // Rivers
+    // Rivers — match game renderer color
     if (sim.riverPaths.has(key)) {
-      const ci = (h + Math.floor(time * 0.004)) % 3
-      return [{ char: ['~', '=', '-'][ci], color: '#6688BB', dx: 0, dy: 0 }]
+      const waterChars = ['~', '=', '-']
+      const ci = (h + Math.floor(time * 0.004)) % waterChars.length
+      return [{ char: waterChars[ci], color: RIVER_COLOR, dx: 0, dy: 0 }]
     }
 
-    // Ponds
+    // Ponds — match game renderer color
     if (sim.ponds.has(key)) {
       const waterChars = ['~', '=']
       const ci = (h + Math.floor(time * 0.003)) % waterChars.length
-      return [{ char: waterChars[ci], color: '#5577AA', dx: 0, dy: 0 }]
+      return [{ char: waterChars[ci], color: POND_COLOR, dx: 0, dy: 0 }]
     }
 
-    return renderDirt(sim, key, h)
+    // Dirt/burn scars — match game renderer's 5-color palette
+    if (sim.burnScars.has(key)) {
+      return [{ char: '.', color: GAME_BURN_SCAR_COLORS[h % GAME_BURN_SCAR_COLORS.length], dx: 0, dy: 0 }]
+    }
+    return [{ char: '.', color: GAME_DIRT_COLORS[h % GAME_DIRT_COLORS.length], dx: 0, dy: 0 }]
   },
 }
 
