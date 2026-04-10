@@ -21,9 +21,10 @@ behaviors:
       corridors upward via L-shaped paths between waypoints (corridor
       width 2-3), breakable wall row 4 tiles above last waypoint (5
       tiles wide of CaveBreakableWall), hidden chamber carved as a
-      5-tile-deep rectangular area above the wall (all CaveFloor
-      tiles within the chamber rectangle are collected as
-      hiddenChamberPositions). npcSpot is center of hidden chamber.
+      up-to-5-tile-deep rectangular area above the wall (clamped by
+      map bounds — actual depth may be less than 5 near the top edge).
+      all CaveFloor tiles within the chamber rectangle are collected
+      as hiddenChamberPositions. npcSpot is center of hidden chamber.
       cave layout is constrained by a 3-tile margin from all edges
       to prevent passages at borders. accepts optional rng for
       deterministic tests.
@@ -36,16 +37,18 @@ behaviors:
 
   - id: breakable-wall-interaction
     description: >
-      breakWall in interaction.ts is triggered by pressing [e] while
-      facing a CaveBreakableWall tile. preconditions: caveRevealed
-      is false, currentZone is Cave, facing tile is CaveBreakableWall.
+      breakWall(state, time) in interaction.ts is triggered by pressing
+      [e] while facing a CaveBreakableWall tile. accepts a time
+      parameter (rAF timestamp) used for crumble effect startTime.
+      preconditions: caveRevealed is false, currentZone is Cave,
+      facing tile is CaveBreakableWall.
       converts all tiles in caveBreakableWallPositions to CaveFloor,
       sets caveRevealed to true, creates a crumble ECS entity with
       MultiPosition (all wall positions), TimedEffect (kind: crumble),
       EntityTag (crumble), EntityZone. records event:wall-break
       discovery. calls updateFacingEntity after.
     inputs:
-      - 'player facing CaveBreakableWall, [e] pressed, caveRevealed is false'
+      - 'player facing CaveBreakableWall, [e] pressed, caveRevealed is false, time (rAF timestamp)'
     outputs:
       - 'boolean: true if wall was broken'
     state_changes:

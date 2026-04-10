@@ -30,6 +30,8 @@ behaviors:
         effect: "up to 3 new meteorite ECS entities created with Position, Pickupable({ definitionId: 'meteorite' }), EntityTag('meteorite'), ChainSource({ fromChain: true }), EntityZone({ zone: Zone.Overworld }) components — always tagged Overworld regardless of current zone"
       - field: world
         effect: "one explosion ECS entity created per spawned meteorite with Position, TimedEffect({ kind: 'explosion', startTime: time }), EntityTag('explosion'), EntityZone({ zone: Zone.Overworld }) components — always tagged Overworld regardless of current zone"
+      - field: manualDiscoveries
+        effect: 'event:chain-explosion recorded when at least one meteorite is spawned'
     determinism: probabilistic
 
   - id: spawn-nearby-meteorites

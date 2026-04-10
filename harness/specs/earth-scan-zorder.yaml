@@ -28,7 +28,10 @@ edge_cases:
 failure_conditions:
   - trigger: South-row earth scan background drawn after north-row glyph in same pass
     expected: Pre-pass ensures all backgrounds precede all glyphs — no cross-row clipping
+# NOTE: previous test_file (reveries.test.ts) only covers revery registry,
+# not the renderer pre-pass. Earth scan z-order behavior is visual and
+# canvas-based — test coverage for the pre-pass is a gap.
 verification:
-  test_file: src/engine/__tests__/reveries.test.ts
-  test_pattern: earth
-  command: npx vitest run src/engine/__tests__/reveries.test.ts
+  test_file: src/engine/__tests__/gameLoop.test.ts
+  test_pattern: earth scan
+  command: npx vitest run src/engine/__tests__/gameLoop.test.ts
