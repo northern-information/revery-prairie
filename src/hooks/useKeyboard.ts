@@ -183,6 +183,7 @@ export const useKeyboard = ({
         if (dir && activeScreen !== 'system') {
           e.preventDefault()
           state.heldDirection = dir
+          document.documentElement.classList.add('cursor-hidden')
           if (!e.repeat) {
             state.path = null
             state.pathWaypoints = []
@@ -302,6 +303,7 @@ export const useKeyboard = ({
       if (dir) {
         e.preventDefault()
         state.heldDirection = dir
+        document.documentElement.classList.add('cursor-hidden')
         if (!e.repeat) {
           state.path = null
           state.pathWaypoints = []
