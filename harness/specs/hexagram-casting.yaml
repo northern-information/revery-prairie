@@ -32,8 +32,8 @@ behaviors:
       Three coins spawn as ground items at random walkable dirt tiles
       on game start. Uses the same random placement pattern as ghost
       spawning — avoids player position, Gron position, ghost positions,
-      and previously placed coins. Coins are overworld-only. Each
-      spawned coin's uid is added to glintingCoins so it starts glinting.
+      and previously placed coins. Coins are overworld-only. Spawned
+      coins have no glinting property — they become glinting on pickup.
     inputs:
       - 'createGameState initialization'
     outputs:
@@ -41,16 +41,15 @@ behaviors:
     state_changes:
       - field: world
         effect: '3 entities created with Position, ItemDrop, EntityTag("groundItem"), EntityZone(overworld) components'
-      - field: glintingCoins
-        effect: '3 coin uids added to the set'
     determinism: probabilistic
 
   - id: coin-glinting-state
     description: >
       glintingCoins: Set<string> on GameState tracks which coin item
       instances are currently glinting, keyed by ItemInstance uid.
-      Coins spawn glinting. Casting sets all 3 used coins to
-      not-glinting (removes their uids from the set). The mechanism
+      Coins become glinting on pickup (added to glintingCoins when
+      ItemDrop.glinting is not explicitly false). Casting sets all 3
+      used coins to not-glinting (removes their uids from the set). The mechanism
       to restore glinting status is deferred to a future feature.
       Non-glinting coins render with a dimmer color (#8B7D3C instead
       of #C9B037) to visually indicate they cannot be used for casting.
@@ -60,7 +59,7 @@ behaviors:
       - 'Boolean glinting status per coin uid'
     state_changes:
       - field: glintingCoins
-        effect: 'uids added on spawn, removed on cast completion'
+        effect: 'uids added on pickup, removed on cast completion'
     determinism: deterministic
 
   - id: coin-pickup-and-inventory
