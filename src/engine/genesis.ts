@@ -1898,29 +1898,105 @@ const fallOfCivilizations: GenesisEpoch = {
       }
     }
 
-    // Drought: water sources dry up, vegetation dies without water
+    // Drought: consolidate water into 2-5 contiguous bodies
+    const MIN_WATER_BODY_SIZE = 10
+
+    // 1. Unify all water tiles
+    const allWater = new Set<string>()
+    for (const key of sim.ponds) allWater.add(key)
+    for (const key of sim.riverPaths) allWater.add(key)
+
+    // 2. Find connected components via cardinal BFS
+    const waterVisited = new Set<string>()
+    const waterComponents: Set<string>[] = []
+    const cDirs = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]
+
+    for (const startKey of allWater) {
+      if (waterVisited.has(startKey)) continue
+      const component = new Set<string>()
+      const stack = [startKey]
+      waterVisited.add(startKey)
+
+      while (stack.length > 0) {
+        const current = stack.pop()
+        if (current === undefined) break
+        component.add(current)
+        const [xStr, yStr] = current.split(',')
+        const cx = Number(xStr)
+        const cy = Number(yStr)
+        for (const [ddx, ddy] of cDirs) {
+          const nk = posKey(cx + ddx, cy + ddy)
+          if (allWater.has(nk) && !waterVisited.has(nk)) {
+            waterVisited.add(nk)
+            stack.push(nk)
+          }
+        }
+      }
+
+      waterComponents.push(component)
+    }
+
+    // 3. Sort by size (largest first), filter by minimum
+    waterComponents.sort((a, b) => b.size - a.size)
+    const viable = waterComponents.filter(c => c.size >= MIN_WATER_BODY_SIZE)
+
+    // 4. Keep 2-5 of the largest viable components
+    const targetCount = 2 + Math.floor(sim.rng() * 4)
+    const kept =
+      viable.length >= 2 ? viable.slice(0, targetCount) : waterComponents.slice(0, targetCount)
+    const keptTiles = new Set<string>()
+    for (const comp of kept) {
+      for (const key of comp) keptTiles.add(key)
+    }
+
+    // 5. Remove non-kept tiles from original sets
+    for (const key of [...sim.ponds]) {
+      if (!keptTiles.has(key)) sim.ponds.delete(key)
+    }
+    for (const key of [...sim.riverPaths]) {
+      if (!keptTiles.has(key)) sim.riverPaths.delete(key)
+    }
+
+    // 6. Add sand shoreline around remaining water bodies
+    const shoreDirs = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+      [1, 1],
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+    ]
+    for (const key of keptTiles) {
+      const [xStr, yStr] = key.split(',')
+      const wx = Number(xStr)
+      const wy = Number(yStr)
+      for (const [ddx, ddy] of shoreDirs) {
+        const nx = wx + ddx
+        const ny = wy + ddy
+        const nk = posKey(nx, ny)
+        if (
+          sim.landMask.has(nk) &&
+          !keptTiles.has(nk) &&
+          ny >= 0 &&
+          ny < sim.height &&
+          nx >= 0 &&
+          nx < sim.width &&
+          sim.grid[ny][nx].type === TileType.Dirt
+        ) {
+          sim.grid[ny][nx].type = TileType.Sand
+        }
+      }
+    }
+
     const gronX = Math.floor(sim.width / 2) + 5
     const gronY = Math.floor(sim.height / 2)
-
-    // Evaporate most ponds — keep only the deepest ~20%
-    const pondsByElev: { key: string; elev: number }[] = []
-    for (const key of sim.ponds) {
-      pondsByElev.push({ key, elev: sim.elevation.get(key) ?? 50 })
-    }
-    pondsByElev.sort((a, b) => a.elev - b.elev)
-    const keepCount = Math.floor(pondsByElev.length * 0.2)
-    const survivingPonds = new Set<string>()
-    for (let i = 0; i < keepCount; i++) {
-      survivingPonds.add(pondsByElev[i].key)
-    }
-    for (const key of [...sim.ponds]) {
-      if (!survivingPonds.has(key)) sim.ponds.delete(key)
-    }
-
-    // Thin rivers — remove ~70% of tiles
-    for (const key of [...sim.riverPaths]) {
-      if (sim.rng() < 0.7) sim.riverPaths.delete(key)
-    }
 
     // Kill vegetation everywhere except within Gron's rain aura
     for (const key of sim.landMask) {
