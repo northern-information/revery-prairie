@@ -68,6 +68,7 @@ const EXPECTED_FIELDS = [
   'pendingInteractionTarget',
   'heldDirection',
   'heldActionSlot',
+  'targetingSlot',
   'sprinting',
   'trail',
   'musicEnabled',

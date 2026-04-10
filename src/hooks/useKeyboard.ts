@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { activateActionBarSlot, getActionBarPreview } from '@/engine/actionBar'
+import { activateActionBarSlot, getActionBarPreview, getTargetingPreview } from '@/engine/actionBar'
+import { getReveryDefinition } from '@/engine/reveries'
 import { getCharacterDefinition } from '@/engine/characters'
 import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
 import { ComponentType } from '@/engine/ecs/types'
@@ -61,8 +62,14 @@ export const useKeyboard = ({
         return
       }
 
-      // Escape: close dialog first, then screen, then open system
+      // Escape: cancel targeting first, then close dialog, then screen, then open system
       if (e.key === 'Escape') {
+        if (state.targetingSlot !== null) {
+          state.targetingSlot = null
+          state.previewFn = null
+          refreshUI()
+          return
+        }
         if (state.activeDialog) {
           state.activeDialog = null
           refreshUI()
@@ -85,6 +92,11 @@ export const useKeyboard = ({
         if (state.activeDialog) return
         if (activeScreen === 'system') return
         if (e.repeat) return
+        // Cancel active targeting if pressing a different slot
+        if (state.targetingSlot !== null) {
+          state.targetingSlot = null
+          state.previewFn = null
+        }
         const slotIndex = parseInt(e.key) - 1
         state.heldActionSlot = slotIndex
         state.previewFn = s => getActionBarPreview(s, slotIndex)
@@ -323,12 +335,26 @@ export const useKeyboard = ({
         state.heldDirection = null
       }
 
-      // Release number key → cast revery
+      // Release number key → cast revery or enter targeting mode
       if (e.key >= '1' && e.key <= '4') {
         const slotIndex = parseInt(e.key) - 1
         if (state.heldActionSlot === slotIndex) {
           state.heldActionSlot = null
           state.previewFn = null
+
+          // Check if this is a targeted revery
+          const slot = state.actionBar[slotIndex]
+          if (slot?.kind === 'revery') {
+            const def = getReveryDefinition(slot.id)
+            if (def.castStyle === 'targeted' && performance.now() >= slot.cooldownEndTime) {
+              // Enter targeting mode
+              state.targetingSlot = slotIndex
+              state.previewFn = s => getTargetingPreview(s, slotIndex)
+              refreshUI()
+              return
+            }
+          }
+
           activateActionBarSlot(state, slotIndex, performance.now())
           refreshUI()
         }

@@ -104,7 +104,7 @@ export interface ReveryDefinition {
   glyphColor: string
   cooldownMs: number
   castDurationMs: number
-  castStyle: 'tile' | 'rain' | 'scan'
+  castStyle: 'tile' | 'rain' | 'scan' | 'targeted'
   castPattern: Position[]
 }
 
@@ -148,6 +148,7 @@ export interface GameState {
   pendingInteractionTarget: Position | null
   heldDirection: Direction | null
   heldActionSlot: number | null
+  targetingSlot: number | null
   sprinting: boolean
   trail: TrailPoint[]
   cursorTile: Position | null

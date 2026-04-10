@@ -116,6 +116,9 @@ export const LIGHTNING_ISOLATED_RADIUS = 2
 export const LIGHTNING_ISOLATED_CLOVER_THRESHOLD = 0.4
 export const LIGHTNING_TARGET_SAMPLE_SIZE = 50
 
+// lightning revery
+export const LIGHTNING_REVERY_RANGE = 20
+
 // wildfire
 export const WILDFIRE_DURATION_MS = 1500
 export const WILDFIRE_MAX_SPREAD = 15

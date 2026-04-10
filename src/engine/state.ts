@@ -129,6 +129,7 @@ export const createGameState = (
     pendingInteractionTarget: null,
     heldDirection: null,
     heldActionSlot: null,
+    targetingSlot: null,
     sprinting: false,
     trail: [],
     cursorTile: null,

@@ -1,0 +1,226 @@
+plan:
+  id: lightning-revery
+  title: 'Lightning revery with targeted casting'
+  created: 2026-04-10
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  # --- Phase 1: Foundation ---
+
+  - id: range-constant
+    title: 'Add LIGHTNING_REVERY_RANGE constant'
+    spec_id: lightning-revery
+    spec_sections:
+      - range-validation
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: targeting-state
+    title: 'Add targetingSlot field to GameState and initialize'
+    spec_id: lightning-revery
+    spec_sections:
+      - targeting-mode-enter
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, types]
+
+  - id: revery-definition
+    title: 'Add lightning revery definition with castStyle targeted'
+    spec_id: lightning-revery
+    spec_sections:
+      - revery-definition
+    context_files:
+      - src/engine/reveries.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/reveries.ts
+      - src/engine/types.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  # --- Phase 2: Cast logic ---
+
+  - id: cast-at-target
+    title: 'Implement castLightningAtTarget in actionBar.ts'
+    spec_id: lightning-revery
+    spec_sections:
+      - cast-at-target
+      - range-validation
+    context_files:
+      - src/engine/actionBar.ts
+      - src/engine/lightning.ts
+      - src/engine/boltPath.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/position.ts
+      - src/engine/reveries.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/actionBar.ts
+    depends_on:
+      - range-constant
+      - revery-definition
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  # --- Phase 3: Keyboard integration ---
+
+  - id: keyboard-targeting
+    title: 'Wire targeting mode enter, cancel, and slot switching in useKeyboard'
+    spec_id: lightning-revery
+    spec_sections:
+      - targeting-mode-enter
+      - targeting-mode-cancel
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/engine/actionBar.ts
+      - src/engine/reveries.ts
+      - src/engine/types.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - targeting-state
+      - cast-at-target
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [hook, integration]
+
+  # --- Phase 4: Mouse integration ---
+
+  - id: mouse-targeting
+    title: 'Wire click-to-cast in useMouse when targetingSlot is set'
+    spec_id: lightning-revery
+    spec_sections:
+      - targeting-mode-cast
+      - targeting-mode-preview
+    context_files:
+      - src/hooks/useMouse.ts
+      - src/engine/actionBar.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+      - src/engine/coordinates.ts
+    output_files:
+      - src/hooks/useMouse.ts
+    depends_on:
+      - keyboard-targeting
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [hook, integration]
+
+  # --- Phase 5: Preview rendering ---
+
+  - id: targeting-preview
+    title: 'Add targeted preview in getActionBarPreview and renderer range indicator'
+    spec_id: lightning-revery
+    spec_sections:
+      - targeting-mode-preview
+    context_files:
+      - src/engine/actionBar.ts
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/actionBar.ts
+      - src/engine/renderer.ts
+    depends_on:
+      - cast-at-target
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, rendering]
+
+  # --- Phase 6: Manual entries ---
+
+  - id: manual-entry
+    title: 'Add lightning revery manual lore placeholder and event entry'
+    spec_id: lightning-revery
+    spec_sections:
+      - manual-entry
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - range-constant
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  # --- Phase 7: Schema test update ---
+
+  - id: schema-test
+    title: 'Add targetingSlot to GameState schema test'
+    spec_id: lightning-revery
+    spec_sections:
+      - targeting-mode-enter
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - targeting-state
+    verification:
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [test]
+
+  # --- Phase 8: Tests ---
+
+  - id: lightning-revery-tests
+    title: 'Unit tests for lightning revery targeting, casting, range, and cancel'
+    spec_id: lightning-revery
+    spec_sections:
+      - revery-definition
+      - targeting-mode-enter
+      - targeting-mode-cast
+      - targeting-mode-cancel
+      - cast-at-target
+      - range-validation
+    context_files:
+      - src/engine/actionBar.ts
+      - src/engine/reveries.ts
+      - src/engine/lightning.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/ecs/types.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/lightningRevery.test.ts
+    depends_on:
+      - mouse-targeting
+      - targeting-preview
+    verification:
+      - 'npx vitest run src/engine/__tests__/lightningRevery.test.ts'
+    repair: retry
+    tags: [test]

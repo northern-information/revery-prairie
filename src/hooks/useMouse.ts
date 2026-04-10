@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 
+import { castLightningAtTarget, isValidLightningTarget } from '@/engine/actionBar'
 import { getCharacterDefinition } from '@/engine/characters'
 import { screenToTile } from '@/engine/coordinates'
 import { ComponentType } from '@/engine/ecs/types'
@@ -50,6 +51,21 @@ export const useMouse = ({
 
     const handleClick = (e: MouseEvent) => {
       if (activeScreenRef.current === 'system') return
+
+      // Lightning targeting mode: click to cast at cursor tile
+      if (state.targetingSlot !== null) {
+        const metrics = metricsRef.current
+        if (!metrics) return
+        const tile = screenToTile(e.offsetX, e.offsetY, state.camera, metrics.charWidth, metrics.charHeight)
+        if (!isValidLightningTarget(state, tile)) return
+        const success = castLightningAtTarget(state, tile, state.targetingSlot, performance.now())
+        if (success) {
+          onDiscovery?.('lightning strikes!', tile.x, tile.y, '|', '#FFFFFF')
+        }
+        refreshUI()
+        return
+      }
+
       if (state.activeDialog) {
         advanceDialog(state)
         refreshUI()
@@ -195,9 +211,20 @@ export const useMouse = ({
       state.pathWaypoints = state.path ? [walkTarget] : []
     }
 
+    const handleContextMenu = (e: MouseEvent) => {
+      if (state.targetingSlot !== null) {
+        e.preventDefault()
+        state.targetingSlot = null
+        state.previewFn = null
+        refreshUI()
+      }
+    }
+
     canvas.addEventListener('click', handleClick)
+    canvas.addEventListener('contextmenu', handleContextMenu)
     return () => {
       canvas.removeEventListener('click', handleClick)
+      canvas.removeEventListener('contextmenu', handleContextMenu)
     }
   }, [canvasRef, state, metricsRef, setActiveScreen, refreshUI, onDialog, onDiscovery, onGift])
 }

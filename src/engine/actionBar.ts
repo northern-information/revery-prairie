@@ -1,12 +1,17 @@
 import { addSoilHealth } from './cloverLifecycle'
+import { generateBoltPath } from './boltPath'
 import {
   CLOVER_WATER_MAX,
   CLOVER_WATER_REVERY_FILL,
+  LIGHTNING_BOLT_MAX_LENGTH,
+  LIGHTNING_BOLT_MIN_LENGTH,
+  LIGHTNING_REVERY_RANGE,
   SOIL_HEALTH_FIRE_REVERY_BONUS,
   SOIL_HEALTH_WATER_REVERY_BONUS,
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
+import { spreadWildfire } from './lightning'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { getReveryDefinition } from './reveries'
 import { TileType } from './types'
@@ -66,7 +71,7 @@ export const getActionBarPreview = (
   if (performance.now() < slot.cooldownEndTime) return []
 
   const def = getReveryDefinition(slot.id)
-  if (def.castStyle === 'scan') return []
+  if (def.castStyle === 'scan' || def.castStyle === 'targeted') return []
 
   const target = getFacingTile(state)
   const positions = getCastPositions(state, target, def.castPattern)
@@ -108,6 +113,12 @@ export const activateActionBarSlot = (state: GameState, slotIndex: number, now: 
 
   if (slot.kind === 'revery') {
     const def = getReveryDefinition(slot.id)
+
+    if (def.castStyle === 'targeted') {
+      // Targeted: enter targeting mode instead of casting immediately
+      // Actual cast happens via castLightningAtTarget when player clicks
+      return false
+    }
 
     if (def.castStyle === 'scan') {
       // Scan-style: radiate from player position, no facing tile
@@ -154,6 +165,94 @@ export const activateActionBarSlot = (state: GameState, slotIndex: number, now: 
 
   // Item activation — deferred
   return false
+}
+
+export const isValidLightningTarget = (state: GameState, target: Position): boolean => {
+  if (!isInBounds(target.x, target.y, state.mapWidth, state.mapHeight)) return false
+  const dist = Math.abs(target.x - state.player.x) + Math.abs(target.y - state.player.y)
+  if (dist > LIGHTNING_REVERY_RANGE) return false
+  const tile = state.map[target.y][target.x]
+  if (
+    tile.type === TileType.Space ||
+    tile.type === TileType.Sand ||
+    tile.type === TileType.CaveWall ||
+    tile.type === TileType.CaveBreakableWall ||
+    tile.type === TileType.CaveEntrance
+  ) {
+    return false
+  }
+  const key = posKey(target.x, target.y)
+  if (state.ponds.has(key) || state.rivers.has(key)) return false
+  return true
+}
+
+export const getTargetingPreview = (
+  state: GameState,
+  slotIndex: number
+): { pos: Position; char: string; color: string }[] => {
+  const slot = state.actionBar[slotIndex]
+  if (slot?.kind !== 'revery') return []
+  const def = getReveryDefinition(slot.id)
+  if (def.castStyle !== 'targeted') return []
+  if (!state.cursorTile) return []
+  if (!isValidLightningTarget(state, state.cursorTile)) return []
+  return [{ pos: state.cursorTile, char: def.glyphs[0], color: def.glyphColor }]
+}
+
+export const castLightningAtTarget = (
+  state: GameState,
+  target: Position,
+  slotIndex: number,
+  now: number
+): boolean => {
+  const slot = state.actionBar[slotIndex]
+  if (slot?.kind !== 'revery') return false
+  const def = getReveryDefinition(slot.id)
+  if (def.castStyle !== 'targeted') return false
+  if (now < slot.cooldownEndTime) return false
+  if (!isValidLightningTarget(state, target)) return false
+
+  // Generate bolt path
+  const length =
+    LIGHTNING_BOLT_MIN_LENGTH + Math.floor(Math.random() * (LIGHTNING_BOLT_MAX_LENGTH - LIGHTNING_BOLT_MIN_LENGTH + 1))
+  const { path, branch } = generateBoltPath(target.x, target.y, length, Math.random)
+
+  // Create lightning ECS entity
+  const eid = state.world.createEntity()
+  state.world.addComponent(eid, ComponentType.Position, { x: target.x, y: target.y })
+  state.world.addComponent(eid, ComponentType.TimedEffect, { kind: 'lightning', startTime: now })
+  state.world.addComponent(eid, ComponentType.LightningData, { path, branch })
+  state.world.addComponent(eid, ComponentType.EntityTag, 'lightning')
+  state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
+
+  // Set cooldown
+  slot.cooldownEndTime = now + def.cooldownMs
+  slot.cooldownDurationMs = def.cooldownMs
+
+  // Record discovery
+  recordDiscovery(state, 'event:lightning-revery')
+
+  // Wildfire spread
+  const burned = spreadWildfire(state, target.x, target.y)
+  if (burned.size > 1) {
+    const we = state.world.createEntity()
+    state.world.addComponent(we, ComponentType.MultiPosition, {
+      positions: [...burned].map(k => {
+        const [xStr, yStr] = k.split(',')
+        return { x: Number(xStr), y: Number(yStr) }
+      }),
+    })
+    state.world.addComponent(we, ComponentType.TimedEffect, { kind: 'wildfire', startTime: now })
+    state.world.addComponent(we, ComponentType.EntityTag, 'wildfire')
+    state.world.addComponent(we, ComponentType.EntityZone, { zone: state.currentZone })
+    recordDiscovery(state, 'event:wildfire')
+  }
+
+  // Clear targeting mode
+  state.targetingSlot = null
+  state.previewFn = null
+
+  return true
 }
 
 export const getSlotCooldownFraction = (slot: ActionBarSlot, now: number): number => {
