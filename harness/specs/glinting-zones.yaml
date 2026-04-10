@@ -1,0 +1,89 @@
+id: glinting-zones
+name: 'Glinting zones'
+status: implemented
+priority: low
+layer: engine
+source_files:
+  - src/engine/state.ts
+  - src/engine/movement.ts
+  - src/engine/renderer.ts
+  - src/engine/constants.ts
+  - src/engine/types.ts
+dependencies:
+  - player-movement
+  - terrain-generation
+
+behaviors:
+  - id: zone-generation
+    description: >
+      generateGlintZones(map, width, height) places GLINT_ZONE_COUNT
+      (8) circular patches of glinting tiles on the map. each patch
+      center is randomly placed on Dirt or Clover tiles within the
+      land area (avoiding SPACE_BORDER). radius is random between
+      GLINT_ZONE_RADIUS_MIN (2) and GLINT_ZONE_RADIUS_MAX (4).
+      tiles within the circle that are Dirt or Clover are added to
+      the returned Set<string>. up to 500 attempts per center
+      placement.
+    inputs:
+      - 'Tile[][] map, dimensions'
+    outputs:
+      - 'Set<string> of posKey entries for glinting tiles'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: coin-reglinting-on-walk
+    description: >
+      movePlayer in movement.ts checks if the new position is in
+      state.glintZones when in the overworld. if so, all coins in
+      the backpack that are not already glinting (uid not in
+      glintingCoins) are restored to glinting status. also records
+      event:glint-zone discovery on first walk-over.
+    inputs:
+      - 'player walks onto a glinting zone tile in overworld'
+    outputs:
+      - 'dull coins restored to glinting, manual discovery recorded'
+    state_changes:
+      - field: glintingCoins
+        effect: 'uids of all non-glinting backpack coins added'
+      - field: manualDiscoveries
+        effect: 'event:glint-zone added on first walk-over'
+    determinism: deterministic
+
+  - id: sparkle-rendering
+    description: >
+      the renderer draws an animated sparkle overlay on tiles in
+      state.glintZones. uses GLINT_ZONE_CHARS (4 sparkle characters)
+      and GLINT_ZONE_COLORS (gold tones). only a subset of tiles
+      sparkle each frame (GLINT_ZONE_DENSITY controls the ratio,
+      ~1 in 5). animation speed controlled by GLINT_ZONE_SPEED.
+    inputs:
+      - 'state.glintZones set, current animation time'
+    outputs:
+      - 'sparkle glyphs rendered over zone tiles'
+    state_changes: []
+    determinism: time-based
+
+edge_cases:
+  - id: zone-on-sand
+    description: 'center placement lands near coastline'
+    expected: 'only Dirt and Clover tiles within the radius are added; Sand and Space skipped'
+  - id: overlapping-zones
+    description: 'two zone circles overlap'
+    expected: 'Set deduplicates; overlapping tiles just appear once'
+  - id: max-attempts-exhausted
+    description: 'all 500 attempts fail to find valid Dirt/Clover center'
+    expected: 'fewer than 8 zones placed; no error'
+  - id: cave-zone-suppression
+    description: 'player is in the cave'
+    expected: 'discovery check only runs for Zone.Overworld; no discovery in cave'
+
+failure_conditions:
+  - trigger: 'map has no Dirt or Clover tiles (all Space/Sand)'
+    expected: 'all center attempts fail; glintZones is empty Set; no crash'
+  - trigger: 'glintZones contains positions that are no longer walkable'
+    expected: 'sparkle still renders on the tile; discovery still fires on walk-over'
+
+verification:
+  test_file: src/engine/__tests__/movement.test.ts
+  test_pattern: 'glint'
+  command: npx vitest run src/engine/__tests__/movement.test.ts

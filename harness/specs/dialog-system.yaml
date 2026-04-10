@@ -1,0 +1,146 @@
+id: dialog-system
+name: 'Character dialog system'
+status: implemented
+priority: high
+layer: engine
+source_files:
+  - src/engine/interaction.ts
+  - src/engine/characters.ts
+  - src/engine/types.ts
+  - src/engine/constants.ts
+dependencies:
+  - player-movement
+  - ghosts
+  - moab-colde
+
+behaviors:
+  - id: interact-with-character
+    description: >
+      interactWithCharacter(state) finds the adjacent character
+      (preferring playerFacing direction, falling back to cardinal
+      neighbors), records a manual discovery for the character,
+      calls giveCharacterGift, and initializes activeDialog with
+      characterId, lineIndex 0, typingIndex 0, typingDone false,
+      transitioning false, transitionStartTime 0. returns
+      { opened: boolean, gift: ReveryDefinition | null }.
+    inputs:
+      - 'player adjacent to a character entity, [e] pressed'
+    outputs:
+      - '{ opened: boolean, gift: ReveryDefinition | null }'
+    state_changes:
+      - field: activeDialog
+        effect: 'initialized with character dialog state'
+      - field: manualDiscoveries
+        effect: 'character discovery recorded'
+    determinism: deterministic
+
+  - id: dialog-typing
+    description: >
+      tickDialogTyping(state, now) advances the typing animation
+      one character at a time. each character reveals after
+      DIALOG_TYPING_MS (40ms) has elapsed since lastDialogTypingTick.
+      when typingIndex reaches the line length, typingDone is set
+      to true. skipped when transitioning or no active dialog.
+    inputs:
+      - 'active dialog with typingDone false, current timestamp'
+    outputs:
+      - 'one more character revealed'
+    state_changes:
+      - field: activeDialog.typingIndex
+        effect: 'incremented by 1'
+      - field: activeDialog.typingDone
+        effect: 'set to true when line fully revealed'
+      - field: lastDialogTypingTick
+        effect: 'updated to current time'
+    determinism: time-based
+
+  - id: dialog-advance
+    description: >
+      advanceDialog(state) handles [e] press during dialog. if
+      typing is not done, reveals the full line immediately. if
+      transitioning, ignores the press. if more lines remain, sets
+      transitioning to true with transitionStartTime. if no more
+      lines, nulls activeDialog and returns false.
+    inputs:
+      - '[e] pressed during active dialog'
+    outputs:
+      - 'boolean: true if dialog still active, false if closed'
+    state_changes:
+      - field: activeDialog
+        effect: 'typing completed, or transition started, or set to null'
+    determinism: deterministic
+
+  - id: dialog-transition
+    description: >
+      tickDialogTransition(state, now) waits DIALOG_TRANSITION_MS
+      (300ms) then advances to the next line by incrementing
+      lineIndex, resetting typingIndex to 0, typingDone to false,
+      and transitioning to false.
+    inputs:
+      - 'active dialog with transitioning true, current timestamp'
+    outputs:
+      - 'next dialog line ready for typing'
+    state_changes:
+      - field: activeDialog
+        effect: 'lineIndex incremented, typing state reset'
+    determinism: time-based
+
+  - id: character-gift-delivery
+    description: >
+      giveCharacterGift(state, characterId) checks if the character
+      definition has a gift and if it has not already been received.
+      for revery gifts, pushes the revery id to state.reveries,
+      auto-assigns to the action bar, adds characterId to
+      giftsReceived, and records manual discoveries. returns the
+      ReveryDefinition or null. tracked in state.giftsReceived so
+      each character gives their gift once.
+    inputs:
+      - 'characterId with a gift defined, gift not yet received'
+    outputs:
+      - 'ReveryDefinition if gift is a revery, null otherwise'
+    state_changes:
+      - field: reveries
+        effect: 'revery id pushed'
+      - field: giftsReceived
+        effect: 'characterId added'
+      - field: manualDiscoveries
+        effect: 'revery and gift event discoveries recorded'
+    determinism: deterministic
+
+  - id: adjacent-character-detection
+    description: >
+      getAdjacentCharacter(state) queries ECS for character entities
+      adjacent to the player. prefers the tile in playerFacing
+      direction, falls back to cardinal neighbors. returns
+      { definitionId, pos } or null.
+    inputs:
+      - 'player position and facing direction'
+    outputs:
+      - '{ definitionId: string, pos: Position } or null'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: no-adjacent-character
+    description: 'player presses [e] with no character in range'
+    expected: 'interactWithCharacter returns { opened: false, gift: null }'
+  - id: gift-already-received
+    description: 'player talks to a character whose gift was already given'
+    expected: 'postGiftDialog is shown instead of original dialog; giveCharacterGift returns null'
+  - id: advance-during-transition
+    description: 'player presses [e] while dialog line is transitioning'
+    expected: 'press is ignored, returns true'
+  - id: rapid-advance
+    description: 'player presses [e] rapidly before typing finishes'
+    expected: 'first press reveals full line; second press starts transition or closes dialog'
+
+failure_conditions:
+  - trigger: 'interactWithCharacter called with no active dialog and no adjacent character'
+    expected: 'returns { opened: false, gift: null }; no state changes'
+  - trigger: 'advanceDialog called with no activeDialog'
+    expected: 'returns false; no state changes'
+
+verification:
+  test_file: src/engine/__tests__/interaction.test.ts
+  test_pattern: 'dialog'
+  command: npx vitest run src/engine/__tests__/interaction.test.ts
