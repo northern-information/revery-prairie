@@ -11,7 +11,8 @@ export const ZOOM_STEP = 0.125
 export const ZOOM_DEFAULT = 1.0
 
 export const SAND_BORDER = 2
-export const WATER_SAND_BORDER = 2
+export const WATER_SAND_BORDER_MAX = 3
+export const WATER_SAND_PASS_CHANCES = [100, 70, 30]
 
 export const CAVE_WIDTH = 40
 export const CAVE_HEIGHT = 25
@@ -137,9 +138,10 @@ export const CLOVER_DECOMPOSE_DURATION_MS = 30_000
 export const CLOVER_WATER_MAX = 100
 export const CLOVER_WATER_DRAIN_RATE = 2
 export const CLOVER_WATER_RAIN_FILL = 15
-export const DIRT_COLORS = ['#8B7355', '#7B6B55', '#806B50']
+export const DIRT_COLORS = ['#8B7355', '#7B6B55', '#806B50', '#8A6D48', '#756252']
 export const BURN_SCAR_COLORS = ['#3D2B1F', '#4A3728', '#352418']
 export const WATER_COLORS = ['#4466AA', '#335588', '#556699']
+export const SAND_COLORS = ['#C2B280', '#B8A870', '#C8B888', '#BCA868', '#C4BC90']
 export const RIVER_COLOR = '#6688BB'
 export const POND_COLOR = '#5577AA'
 export const CLOVER_HEALTHY_COLORS = ['#2E8B57', '#3CB371', '#50C878']

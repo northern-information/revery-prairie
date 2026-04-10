@@ -747,7 +747,7 @@ describe('water consolidation', () => {
     }
   })
 
-  it('water bodies have 2-tile-wide sand shoreline', () => {
+  it('water body sand border varies between 1-3 tiles', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
     runAllMutations(sim, GENESIS_EPOCHS)
     const { allWater } = findWaterComponents(sim)
@@ -776,7 +776,9 @@ describe('water consolidation', () => {
       }
     }
 
-    // Distance-2 land neighbors of dist1Sand should also be sand
+    // Distance-2 land neighbors: count sand vs total
+    let sandCount = 0
+    let totalCount = 0
     for (const key of dist1Sand) {
       const [xStr, yStr] = key.split(',')
       const x = Number(xStr)
@@ -794,9 +796,15 @@ describe('water consolidation', () => {
           !allWater.has(nk) &&
           !dist1Sand.has(nk)
         ) {
-          expect(sim.grid[ny][nx].type).not.toBe(TileType.Dirt)
+          totalCount++
+          if (sim.grid[ny][nx].type === TileType.Sand) sandCount++
         }
       }
     }
+
+    // Probabilistic border: expect 50-95% of distance-2 tiles to be sand
+    const ratio = sandCount / totalCount
+    expect(ratio).toBeGreaterThan(0.5)
+    expect(ratio).toBeLessThan(0.95)
   })
 })

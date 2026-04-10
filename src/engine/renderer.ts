@@ -45,6 +45,7 @@ import {
   PLAYER_COLOR,
   POND_COLOR,
   RIVER_COLOR,
+  SAND_COLORS,
   SHOOTING_STAR_HEAD_CHAR,
   SHOOTING_STAR_HEAD_COLOR,
   SHOOTING_STAR_TRAIL_CHARS,
@@ -706,6 +707,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             } else {
               color = DIRT_COLORS[tileHash(mx, my) % DIRT_COLORS.length]
             }
+          } else if (tile.type === TileType.Sand) {
+            color = SAND_COLORS[tileHash(mx, my) % SAND_COLORS.length]
           } else {
             color = TILE_COLORS[tile.type]
           }
