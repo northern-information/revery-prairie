@@ -404,6 +404,29 @@ describe('transferItem', () => {
     const target = createContainer('b', 'B', 4, 4)
     expect(transferItem(source, target, 'nope', 0, 0, Rotation.R0)).toBe(false)
   })
+
+  it('preserves uid on successful transfer', () => {
+    const source = createContainer('a', 'A', 4, 4)
+    const target = createContainer('b', 'B', 4, 4)
+    const item = placeItem(source, 'bee', Rotation.R0, 0, 0)
+    expect(item).not.toBeNull()
+    const originalUid = item?.uid ?? ''
+
+    transferItem(source, target, originalUid, 2, 2, Rotation.R0)
+    expect(target.items[0]?.uid).toBe(originalUid)
+  })
+
+  it('preserves uid on failed transfer (rollback)', () => {
+    const source = createContainer('a', 'A', 4, 4)
+    const target = createContainer('b', 'B', 1, 1)
+    const item = placeItem(source, 'bee', Rotation.R0, 0, 0)
+    expect(item).not.toBeNull()
+    const originalUid = item?.uid ?? ''
+    placeItem(target, 'clover', Rotation.R0, 0, 0)
+
+    transferItem(source, target, originalUid, 0, 0, Rotation.R0)
+    expect(source.items[0]?.uid).toBe(originalUid)
+  })
 })
 
 describe('containerHasItem', () => {

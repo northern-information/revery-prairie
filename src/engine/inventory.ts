@@ -208,18 +208,19 @@ export const transferItem = (
   const item = source.items.find(i => i.uid === uid)
   if (!item) return false
 
-  const originalGridX = item.gridX
-  const originalGridY = item.gridY
-  const originalRotation = item.rotation
+  if (!canPlace(target, item.definitionId, rotation, gridX, gridY)) {
+    return false
+  }
 
   const removed = removeItem(source, uid)
   if (!removed) return false
 
-  const placed = placeItem(target, item.definitionId, rotation, gridX, gridY)
-  if (!placed) {
-    placeItem(source, item.definitionId, originalRotation, originalGridX, originalGridY)
-    return false
-  }
+  // Mutate the original item in place to preserve uid (same pattern as autoSort).
+  // omniboxContainers and glintingCoins are keyed by uid — generating a new one orphans them.
+  item.gridX = gridX
+  item.gridY = gridY
+  item.rotation = rotation
+  target.items.push(item)
 
   return true
 }
