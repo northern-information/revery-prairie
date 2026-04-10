@@ -8,6 +8,7 @@ import {
   runAllMutations,
   tickGenesis,
 } from '../genesis'
+import { posKey } from '../position'
 import { TileType } from '../types'
 import { describe, expect, it } from 'vitest'
 
@@ -636,5 +637,113 @@ describe('elevation model', () => {
     runAllMutations(sim, GENESIS_EPOCHS)
     const result = extractGenesisResult(sim)
     expect(result.elevation.size).toBe(sim.elevation.size)
+  })
+})
+
+describe('water consolidation', () => {
+  const cardinalDirs = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ]
+
+  const findWaterComponents = (sim: ReturnType<typeof createGenesisState>) => {
+    const allWater = new Set<string>()
+    for (const key of sim.ponds) allWater.add(key)
+    for (const key of sim.riverPaths) allWater.add(key)
+
+    const visited = new Set<string>()
+    const components: Set<string>[] = []
+
+    for (const startKey of allWater) {
+      if (visited.has(startKey)) continue
+      const component = new Set<string>()
+      const stack = [startKey]
+      visited.add(startKey)
+
+      while (stack.length > 0) {
+        const current = stack.pop()
+        if (current === undefined) break
+        component.add(current)
+        const [xStr, yStr] = current.split(',')
+        const cx = Number(xStr)
+        const cy = Number(yStr)
+        for (const [ddx, ddy] of cardinalDirs) {
+          const nk = posKey(cx + ddx, cy + ddy)
+          if (allWater.has(nk) && !visited.has(nk)) {
+            visited.add(nk)
+            stack.push(nk)
+          }
+        }
+      }
+
+      components.push(component)
+    }
+
+    return { allWater, components }
+  }
+
+  it('water forms 2-5 contiguous bodies after genesis', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(sim, GENESIS_EPOCHS)
+    const { components } = findWaterComponents(sim)
+    expect(components.length).toBeGreaterThanOrEqual(1)
+    expect(components.length).toBeLessThanOrEqual(5)
+    for (const comp of components) {
+      expect(comp.size).toBeGreaterThanOrEqual(10)
+    }
+  })
+
+  it('no isolated water tiles after genesis', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(sim, GENESIS_EPOCHS)
+    const { allWater } = findWaterComponents(sim)
+    for (const key of allWater) {
+      const [xStr, yStr] = key.split(',')
+      const x = Number(xStr)
+      const y = Number(yStr)
+      const hasNeighbor = cardinalDirs.some(([ddx, ddy]) =>
+        allWater.has(posKey(x + ddx, y + ddy)),
+      )
+      expect(hasNeighbor).toBe(true)
+    }
+  })
+
+  it('drought preserves pond vs river categorization', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(sim, GENESIS_EPOCHS)
+    for (const key of sim.ponds) {
+      expect(sim.riverPaths.has(key)).toBe(false)
+    }
+  })
+
+  it('water bodies have sand shoreline', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(sim, GENESIS_EPOCHS)
+    const { allWater } = findWaterComponents(sim)
+    const allDirs = [...cardinalDirs, [1, 1], [-1, -1], [1, -1], [-1, 1]]
+    // Every dirt tile adjacent to water should have been converted to sand
+    for (const key of allWater) {
+      const [xStr, yStr] = key.split(',')
+      const x = Number(xStr)
+      const y = Number(yStr)
+      for (const [ddx, ddy] of allDirs) {
+        const nx = x + ddx
+        const ny = y + ddy
+        const nk = posKey(nx, ny)
+        if (
+          ny >= 0 &&
+          ny < sim.height &&
+          nx >= 0 &&
+          nx < sim.width &&
+          sim.landMask.has(nk) &&
+          !allWater.has(nk)
+        ) {
+          // Land tiles bordering water should be sand, not dirt
+          expect(sim.grid[ny][nx].type).not.toBe(TileType.Dirt)
+        }
+      }
+    }
   })
 })
