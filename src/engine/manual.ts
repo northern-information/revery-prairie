@@ -74,6 +74,8 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'event:lightning-attraction': { lore: 'TODO' },
   'event:lightning-revery': { lore: 'TODO' },
   'revery:lightning': { lore: 'TODO' },
+  // Glinting zones
+  'event:glint-zone': { lore: 'TODO' },
 }
 
 // --- Category mapping ---
@@ -483,6 +485,20 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     unlockKey: 'event:lightning-revery',
     sourceKind: 'event',
     crossRefs: ['event:lightning-strike', 'event:wildfire', 'event:lightning-attraction'],
+  },
+  {
+    id: 'event:glint-zone',
+    name: 'Glinting Zone',
+    category: ManualCategory.Zone,
+    glyph: '\u2726',
+    glyphColor: '#C9B037',
+    summary: 'patches of golden light on the prairie',
+    lore:
+      MANUAL_LORE['event:glint-zone']?.lore ??
+      'TODO',
+    hints: MANUAL_LORE['event:glint-zone']?.hints ?? [],
+    unlockKey: 'event:glint-zone',
+    sourceKind: 'event',
   },
 ]
 
