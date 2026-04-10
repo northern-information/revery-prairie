@@ -1,0 +1,102 @@
+id: audio-system
+name: 'Audio system'
+status: implemented
+priority: medium
+layer: engine
+source_files:
+  - src/engine/audio.ts
+  - src/engine/types.ts
+dependencies: []
+
+behaviors:
+  - id: zone-music-mapping
+    description: >
+      ZONE_MUSIC maps each Zone to a music URL. when the player
+      changes zones, setAmbient is called with the new zone's URL.
+      the audio module manages an internal AudioContext, buffer cache,
+      and two independent track channels: ambient (zone) and dialog
+      (character).
+    inputs:
+      - 'Zone value from state.currentZone'
+    outputs:
+      - 'ambient music track playing for the active zone'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ambient-crossfade
+    description: >
+      setAmbient(url, fadeMs?) crossfades from the current ambient
+      track to a new one. default fade is 300ms. if the module is
+      disabled (muted), the URL is stored but no track is created.
+      if the URL matches the current ambient and a track exists,
+      the call is a no-op. an async race guard checks that ambientUrl
+      has not changed during buffer fetch before assigning the new
+      track.
+    inputs:
+      - 'url string, optional fadeMs'
+    outputs:
+      - 'old ambient track faded out, new one faded in'
+    state_changes: []
+    determinism: deterministic
+
+  - id: dialog-music-layer
+    description: >
+      startDialogMusic(url, fadeMs?) creates a dialog track and
+      fades ambient down while dialog plays. stopDialogMusic fades
+      dialog out and ambient back in. only one dialog track exists
+      at a time — calling startDialogMusic again destroys the
+      previous dialog track first.
+    inputs:
+      - 'character dialog opened or closed'
+    outputs:
+      - 'dialog track playing over ducked ambient, or ambient restored'
+    state_changes: []
+    determinism: deterministic
+
+  - id: music-toggle
+    description: >
+      setMusicEnabled(value) toggles the enabled flag. when
+      disabling, gain is set to 0 on all active tracks (preserving
+      playback position). when re-enabling, gain is restored. if
+      re-enabling and ambientUrl exists but ambientTrack is null,
+      the ambient track is recreated via setAmbient.
+    inputs:
+      - 'boolean toggle from ESC menu'
+    outputs:
+      - 'tracks muted or unmuted'
+    state_changes: []
+    determinism: deterministic
+
+  - id: stop-all
+    description: >
+      stopAll() tears down all tracks, clears ambientUrl, cancels
+      pending resume listeners, and resets fade state. used on
+      unmount or scene teardown.
+    inputs:
+      - 'component unmount or scene change'
+    outputs:
+      - 'all audio stopped, state cleared'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: race-condition-fast-zone-switch
+    description: 'player switches zones twice before the first buffer finishes loading'
+    expected: 'the stale buffer is destroyed on arrival because ambientUrl no longer matches the fetched URL'
+  - id: autoplay-policy-blocked
+    description: 'browser blocks AudioContext resume before user interaction'
+    expected: 'pendingResume listener is added to document; first user interaction resumes the context'
+  - id: toggle-while-dialog-active
+    description: 'player toggles music off while dialog music is playing'
+    expected: 'both ambient and dialog gains set to 0; toggling back on restores both'
+
+failure_conditions:
+  - trigger: 'audio file not found (404 on fetch)'
+    expected: 'buffer creation fails silently; no track assigned; ambient remains null'
+  - trigger: 'setAmbient called with same URL as current'
+    expected: 'no-op; existing track continues playing'
+
+verification:
+  test_file: src/engine/__tests__/audio.test.ts
+  test_pattern: 'audio'
+  command: npx vitest run src/engine/__tests__/audio.test.ts

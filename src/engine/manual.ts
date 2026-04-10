@@ -76,6 +76,8 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'revery:lightning': { lore: 'TODO' },
   // Glinting zones
   'event:glint-zone': { lore: 'TODO' },
+  // Recipes
+  'recipe:bee+clover': { lore: 'TODO' },
 }
 
 // --- Category mapping ---

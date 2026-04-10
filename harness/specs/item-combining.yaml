@@ -1,0 +1,92 @@
+id: item-combining
+name: 'Item combining and drag-and-drop recipes'
+status: implemented
+priority: medium
+layer: engine
+source_files:
+  - src/engine/combine.ts
+  - src/engine/recipes.ts
+  - src/engine/inventory.ts
+  - src/engine/types.ts
+dependencies:
+  - recipes
+
+behaviors:
+  - id: check-combine
+    description: >
+      checkCombine determines what happens when a dragged item
+      overlaps another item in a container grid. builds an
+      occupancy grid excluding the dragged item (if same container),
+      collects overlapped UIDs. if exactly 1 item overlapped:
+      omnibox target returns { kind: store, omniboxUid } (takes
+      priority over recipes). otherwise checks findRecipe for the
+      two definition IDs. returns recipe result with discovery
+      status, no-recipe, or none (0 or 2+ overlaps).
+    inputs:
+      - 'container, dragged ItemInstance, rotation, grid position, source/target container IDs, discoveredRecipes'
+    outputs:
+      - 'CheckCombineResult: recipe | store | no-recipe | none'
+    state_changes: []
+    determinism: deterministic
+
+  - id: combine-bee-and-clover
+    description: >
+      combineBeeAndClover(state) is a shortcut for the bee+clover
+      recipe executed from the combine zone. checks that both items
+      exist across backpack and open container. validates the
+      standing tile is walkable and not sand before consuming items.
+      removes one bee and one clover from any active container, then
+      executes the prairie recipe. returns false if any precondition
+      fails.
+    inputs:
+      - 'state with bee and clover in active containers, player on walkable non-sand tile'
+    outputs:
+      - 'boolean: true if recipe executed'
+    state_changes:
+      - field: backpack
+        effect: 'bee and/or clover removed'
+      - field: openContainer
+        effect: 'bee and/or clover removed (if sourced from open container)'
+      - field: map
+        effect: '3x3 area around player converted to clover'
+      - field: world
+        effect: 'bee ECS entity spawned at player position'
+    determinism: deterministic
+
+  - id: omnibox-store-priority
+    description: >
+      when a dragged item overlaps an omnibox in the grid,
+      checkCombine returns { kind: store } regardless of whether
+      a recipe exists between the two items. omnibox storage takes
+      priority over recipe combining.
+    inputs:
+      - 'dragged item overlapping an omnibox item in grid'
+    outputs:
+      - '{ kind: store, omniboxUid }'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: multiple-overlaps
+    description: 'dragged item shape overlaps 2 or more existing items'
+    expected: 'returns { kind: none } — only single-item overlaps trigger combines'
+  - id: no-overlap
+    description: 'dragged item placed in empty grid cells'
+    expected: 'returns { kind: none }'
+  - id: standing-on-sand
+    description: 'combineBeeAndClover called while player stands on sand'
+    expected: 'returns false — sand is not a valid standing tile for recipe execution'
+  - id: items-split-across-containers
+    description: 'bee is in backpack, clover is in open omnibox'
+    expected: 'combineBeeAndClover finds items across both containers and succeeds'
+
+failure_conditions:
+  - trigger: 'combineBeeAndClover called without both items present'
+    expected: 'returns false; no items consumed'
+  - trigger: 'recipe execute fails after items removed'
+    expected: 'items already consumed — this is guarded by validating standing tile before removal'
+
+verification:
+  test_file: src/engine/__tests__/combine.test.ts
+  test_pattern: 'combine'
+  command: npx vitest run src/engine/__tests__/combine.test.ts

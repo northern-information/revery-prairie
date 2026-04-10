@@ -1,0 +1,77 @@
+id: pathfinding
+name: 'A* pathfinding'
+status: implemented
+priority: high
+layer: engine
+source_files:
+  - src/engine/pathfinding.ts
+  - src/engine/position.ts
+  - src/engine/types.ts
+dependencies:
+  - player-movement
+
+behaviors:
+  - id: a-star-search
+    description: >
+      findPath(map, mapWidth, mapHeight, from, to, blockedPositions?)
+      returns a Position[] path from start to goal using A* with
+      manhattan heuristic. uses a binary min-heap for the open set.
+      explores 4-directional cardinal neighbors only. returns null
+      if no path exists.
+    inputs:
+      - 'Tile[][] map, dimensions, start Position, goal Position, optional Set<string> blockedPositions'
+    outputs:
+      - 'Position[] path excluding start, including goal, or null'
+    state_changes: []
+    determinism: deterministic
+
+  - id: walkability-check
+    description: >
+      each neighbor is checked for walkability via isWalkableTile
+      and membership in the blocked positions set. non-walkable
+      tiles (Space, CaveWall, CaveBreakableWall) and blocked
+      positions are impassable.
+    inputs:
+      - 'neighbor tile type, blockedPositions set'
+    outputs:
+      - 'boolean walkability'
+    state_changes: []
+    determinism: deterministic
+
+  - id: null-returns
+    description: >
+      findPath returns null when: destination is out of bounds,
+      destination tile is not walkable, destination is in
+      blockedPositions, start equals destination, or no path
+      exists after exhausting the open set.
+    inputs:
+      - 'invalid or unreachable destination'
+    outputs:
+      - 'null'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: start-equals-destination
+    description: 'findPath called with from and to at the same position'
+    expected: 'returns null (no movement needed)'
+  - id: destination-blocked
+    description: 'goal tile is in the blockedPositions set'
+    expected: 'returns null immediately without searching'
+  - id: surrounded-by-walls
+    description: 'player is completely surrounded by non-walkable tiles'
+    expected: 'returns null after exhausting open set'
+  - id: long-path-performance
+    description: 'pathfinding across the full 170x95 map'
+    expected: 'completes within a single frame budget; heap keeps open set efficient'
+
+failure_conditions:
+  - trigger: 'destination coordinates outside map bounds'
+    expected: 'returns null immediately'
+  - trigger: 'destination tile is Space'
+    expected: 'returns null — Space is not walkable'
+
+verification:
+  test_file: src/engine/__tests__/pathfinding.test.ts
+  test_pattern: 'pathfinding'
+  command: npx vitest run src/engine/__tests__/pathfinding.test.ts

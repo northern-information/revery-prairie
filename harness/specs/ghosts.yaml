@@ -35,6 +35,8 @@ behaviors:
     state_changes:
       - field: world
         effect: "3 ghost ECS entities created with CharacterIdentity({ definitionId: 'ghost-N' }), Position, Blocking, Behavior({ type: 'drift', moveChance: 0.15, freezeOnDialog: true }), EntityTag('character'), EntityZone({ zone: 'overworld' }) components"
+      - field: CHARACTER_DEFINITIONS
+        effect: "registerGhostDefinitions called with ghost numbers, registering CharacterDefinition entries for each ghost so dialog and rendering can resolve them"
     determinism: probabilistic
 
   - id: ghost-drift

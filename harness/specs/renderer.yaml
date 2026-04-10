@@ -1,0 +1,120 @@
+id: renderer
+name: 'Canvas renderer'
+status: implemented
+priority: high
+layer: engine
+source_files:
+  - src/engine/renderer.ts
+  - src/engine/constants.ts
+  - src/engine/types.ts
+dependencies:
+  - camera-viewport
+  - player-movement
+
+behaviors:
+  - id: measure-char
+    description: >
+      measureChar(ctx, zoom?) measures the monospace character cell
+      dimensions (charWidth, charHeight) at the current font size
+      and zoom level. returns a CharMetrics object used by all
+      rendering and coordinate transforms. font size is
+      BASE_FONT_SIZE * zoom.
+    inputs:
+      - 'CanvasRenderingContext2D, optional zoom multiplier'
+    outputs:
+      - 'CharMetrics { charWidth, charHeight }'
+    state_changes: []
+    determinism: deterministic
+
+  - id: main-render-loop
+    description: >
+      render(ctx, state, metrics, time) is the main draw call,
+      invoked each requestAnimationFrame. clears the canvas with
+      BG_COLOR, then draws in ordered phases: tile layer (terrain,
+      clover lifecycle, burn scars, glinting zones), entity layer
+      (ground items, bees, beehives, characters, shooting stars,
+      meteorites, effects), path/hover preview layer, player
+      glyph, and cursor highlight. uses a two-phase resolve-then-draw
+      pattern for each tile: first determines char/color/cursorable,
+      then applies cursor inversion if applicable.
+    inputs:
+      - 'CanvasRenderingContext2D, GameState, CharMetrics, timestamp'
+    outputs:
+      - 'full frame drawn to canvas'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cursor-inversion
+    description: >
+      tiles under the cursor that are cursorable get inverted
+      rendering: pink fillRect background with dark BG_COLOR text.
+      this is applied as a final pass after resolving each tile's
+      char and color, not during the resolve phase.
+    inputs:
+      - 'state.cursorTile matching a cursorable tile'
+    outputs:
+      - 'inverted pink/dark rendering at cursor position'
+    state_changes: []
+    determinism: deterministic
+
+  - id: earth-scan-pre-pass
+    description: >
+      when an earth scan revery is active, a pre-pass draws
+      earthScanBgMap fillRect calls before the main glyph loop.
+      this prevents south-row scan backgrounds from clipping
+      north-row glyphs. the scan radiates from the player with
+      expand, hold, and fade phases controlled by time constants.
+    inputs:
+      - 'active earth scan revery with earthScanBgMap'
+    outputs:
+      - 'colored background tiles showing soil health gradient'
+    state_changes: []
+    determinism: time-based
+
+  - id: cave-masking
+    description: >
+      when caveRevealed is false, tiles in caveHiddenPositions
+      render as CaveWall regardless of their actual type. this
+      hides the secret chamber and Moab behind the breakable wall.
+    inputs:
+      - 'caveRevealed false, tile position in caveHiddenPositions'
+    outputs:
+      - 'CaveWall char and color rendered instead of actual tile'
+    state_changes: []
+    determinism: deterministic
+
+  - id: glinting-zone-rendering
+    description: >
+      tiles in state.glintZones render with an animated sparkle
+      overlay. a subset of zone tiles (controlled by GLINT_ZONE_DENSITY)
+      show sparkle characters from GLINT_ZONE_CHARS in gold tones,
+      animated with GLINT_ZONE_SPEED. only renders on walkable
+      overworld tiles.
+    inputs:
+      - 'state.glintZones set, current time for animation'
+    outputs:
+      - 'sparkle chars overlaid on zone tiles'
+    state_changes: []
+    determinism: time-based
+
+edge_cases:
+  - id: empty-viewport
+    description: 'viewport dimensions are 0 (before canvas sizing)'
+    expected: 'render draws nothing; no crash from zero-size loops'
+  - id: entity-on-hidden-tile
+    description: 'entity positioned on a cave hidden tile before reveal'
+    expected: 'entity not rendered; hidden tiles mask everything'
+  - id: multiple-entities-same-tile
+    description: 'bee and ground item on the same tile'
+    expected: 'rendering priority determines which glyph shows; later draw phases overwrite earlier ones'
+
+failure_conditions:
+  - trigger: 'canvas context lost'
+    expected: 'render call fails silently; next frame attempts again'
+  - trigger: 'state.map is empty (no tiles)'
+    expected: 'tile loops iterate zero times; no crash'
+
+verification:
+  test_file: src/engine/__tests__/gameLoop.test.ts
+  test_pattern: 'render'
+  command: npx vitest run src/engine/__tests__/gameLoop.test.ts

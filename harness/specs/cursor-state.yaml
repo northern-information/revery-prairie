@@ -1,0 +1,77 @@
+id: cursor-state
+name: 'Cursor state and hover path'
+status: implemented
+priority: medium
+layer: engine
+source_files:
+  - src/engine/cursor.ts
+  - src/engine/coordinates.ts
+  - src/engine/movement.ts
+  - src/engine/pathfinding.ts
+  - src/engine/types.ts
+dependencies:
+  - pathfinding
+  - player-movement
+
+behaviors:
+  - id: screen-to-tile-mapping
+    description: >
+      updateCursorState(state, metrics) converts cursorScreenPos
+      (CSS pixel coordinates) to a world tile position via
+      screenToTile, storing the result in state.cursorTile. this
+      runs every frame so the highlight tracks correctly when the
+      camera moves via WASD even without mouse movement.
+    inputs:
+      - 'state.cursorScreenPos, camera position, char metrics'
+    outputs:
+      - 'state.cursorTile updated to world Position or null'
+    state_changes:
+      - field: cursorTile
+        effect: 'set to world tile Position or null if no screen position'
+    determinism: deterministic
+
+  - id: hover-path-computation
+    description: >
+      when cursorTile changes and differs from hoverPathTarget,
+      is not the player position, and no active path exists,
+      a new hover path is computed via findPath with
+      getPathfindingBlockers (includes soft blockers like cave
+      entrances). hoverPath is set to the result (or null if
+      target is out of bounds or non-walkable). when cursor is
+      absent or an active path is running, hoverPath and
+      hoverPathTarget are cleared to null.
+    inputs:
+      - 'cursorTile change, no active state.path'
+    outputs:
+      - 'state.hoverPath and state.hoverPathTarget updated'
+    state_changes:
+      - field: hoverPath
+        effect: 'Position[] path preview or null'
+      - field: hoverPathTarget
+        effect: 'copy of cursorTile or null'
+    determinism: deterministic
+
+edge_cases:
+  - id: cursor-on-player
+    description: 'mouse hovers over the tile the player is standing on'
+    expected: 'no hover path computed (cursorTile equals player position guard)'
+  - id: active-path-suppresses-hover
+    description: 'player is walking a click-to-move path'
+    expected: 'hoverPath and hoverPathTarget cleared to null while state.path exists'
+  - id: cursor-on-unwalkable
+    description: 'mouse hovers over a Space tile'
+    expected: 'hoverPath set to null; tile is not walkable'
+  - id: no-cursor-screen-pos
+    description: 'mouse leaves the canvas'
+    expected: 'cursorTile set to null; hoverPath and hoverPathTarget cleared'
+
+failure_conditions:
+  - trigger: 'cursorScreenPos is null (mouse not over canvas)'
+    expected: 'cursorTile set to null; no pathfinding attempted'
+  - trigger: 'cursorTile is out of map bounds'
+    expected: 'isInBounds check fails; hoverPath set to null'
+
+verification:
+  test_file: src/engine/__tests__/cursor.test.ts
+  test_pattern: 'cursor'
+  command: npx vitest run src/engine/__tests__/cursor.test.ts

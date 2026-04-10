@@ -20,9 +20,13 @@ behaviors:
       CaveWall fill, CaveEntrance at bottom center, random-walk
       corridors upward via L-shaped paths between waypoints (corridor
       width 2-3), breakable wall row 4 tiles above last waypoint (5
-      tiles wide of CaveBreakableWall), hidden chamber carved above
-      the wall (5 wide x variable height). npcSpot is center of
-      hidden chamber. accepts optional rng for deterministic tests.
+      tiles wide of CaveBreakableWall), hidden chamber carved as a
+      5-tile-deep rectangular area above the wall (all CaveFloor
+      tiles within the chamber rectangle are collected as
+      hiddenChamberPositions). npcSpot is center of hidden chamber.
+      cave layout is constrained by a 3-tile margin from all edges
+      to prevent passages at borders. accepts optional rng for
+      deterministic tests.
     inputs:
       - 'width, height, optional rng'
     outputs:

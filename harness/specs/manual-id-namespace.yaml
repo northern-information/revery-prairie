@@ -17,6 +17,8 @@ behaviors:
       revery:<id>, recipes use recipe:<key>, controls use
       control:<key>, world entities use entity:<id>, zones use
       zone:<id>, events use event:<id>. genesis uses event:genesis.
+      control entries use sourceKind 'manual-only' (not 'control')
+      because they have no discovery tracking and are always visible.
       this eliminates ambiguity and aligns entry ids with the existing
       unlockKey convention.
     inputs:

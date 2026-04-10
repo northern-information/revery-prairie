@@ -1,0 +1,185 @@
+id: inventory-management
+name: 'Spatial inventory management'
+status: implemented
+priority: high
+layer: engine
+source_files:
+  - src/engine/inventory.ts
+  - src/engine/items.ts
+  - src/engine/types.ts
+  - src/engine/constants.ts
+dependencies: []
+
+behaviors:
+  - id: occupancy-grid
+    description: >
+      buildOccupancyGrid(container, excludeUid?) creates a 2D grid
+      mapping each cell to the uid of the item occupying it (or null).
+      optionally excludes one item by uid (used during drag to ignore
+      the item being moved). each item's rotated shape is stamped
+      onto the grid at its gridX/gridY position.
+    inputs:
+      - 'Container, optional excludeUid'
+    outputs:
+      - '(string | null)[][] occupancy grid'
+    state_changes: []
+    determinism: deterministic
+
+  - id: can-place
+    description: >
+      canPlace(container, definitionId, rotation, gridX, gridY,
+      excludeUid?) checks if an item shape fits at the given
+      position without overlapping other items or exceeding
+      container bounds. uses buildOccupancyGrid internally.
+    inputs:
+      - 'container, item definition, rotation, position, optional exclude'
+    outputs:
+      - 'boolean: true if item fits'
+    state_changes: []
+    determinism: deterministic
+
+  - id: place-item
+    description: >
+      placeItem(container, definitionId, rotation, gridX, gridY)
+      creates a new ItemInstance with crypto.randomUUID() uid and
+      pushes it to container.items. returns null if canPlace fails.
+    inputs:
+      - 'container, item definition, rotation, position'
+    outputs:
+      - 'ItemInstance or null'
+    state_changes:
+      - field: container.items
+        effect: 'new ItemInstance pushed'
+    determinism: deterministic
+
+  - id: remove-item
+    description: >
+      removeItem(container, uid) splices the item from
+      container.items by uid. returns the removed ItemInstance
+      or null if not found.
+    inputs:
+      - 'container, item uid'
+    outputs:
+      - 'ItemInstance or null'
+    state_changes:
+      - field: container.items
+        effect: 'item spliced out'
+    determinism: deterministic
+
+  - id: move-item
+    description: >
+      moveItem(container, uid, newGridX, newGridY, newRotation)
+      repositions an existing item within the same container.
+      uses canPlace with the item's own uid excluded. updates
+      gridX, gridY, and rotation in place.
+    inputs:
+      - 'container, uid, new position and rotation'
+    outputs:
+      - 'boolean: true if move succeeded'
+    state_changes:
+      - field: container.items
+        effect: 'item position and rotation updated in place'
+    determinism: deterministic
+
+  - id: find-fit-position
+    description: >
+      findFitPosition(container, definitionId) scans all rotations
+      (R0, R90, R180, R270) and all grid positions to find the
+      first valid placement. returns { gridX, gridY, rotation } or
+      null if no fit exists.
+    inputs:
+      - 'container, item definition id'
+    outputs:
+      - '{ gridX, gridY, rotation } or null'
+    state_changes: []
+    determinism: deterministic
+
+  - id: auto-sort
+    description: >
+      autoSort(container) removes all items, sorts by area
+      descending (largest first) then by definitionId for grouping,
+      and re-places each via findFitPosition. preserves original
+      uids. if any item cannot be re-placed, restores the original
+      items array and returns false.
+    inputs:
+      - 'container with items'
+    outputs:
+      - 'boolean: true if sort succeeded'
+    state_changes:
+      - field: container.items
+        effect: 'items repositioned with new gridX/gridY/rotation, same uids'
+    determinism: deterministic
+
+  - id: transfer-item
+    description: >
+      transferItem(source, target, uid, gridX, gridY, rotation)
+      moves an item between containers. removes from source, places
+      in target. if target placement fails, restores to source at
+      original position.
+    inputs:
+      - 'source container, target container, uid, target position'
+    outputs:
+      - 'boolean: true if transfer succeeded'
+    state_changes:
+      - field: source.items
+        effect: 'item removed'
+      - field: target.items
+        effect: 'item added at new position'
+    determinism: deterministic
+
+  - id: shape-rotation
+    description: >
+      getRotatedShape(shape, rotation) rotates a boolean[][] shape
+      clockwise by 0, 90, 180, or 270 degrees. rotateShapeCW
+      transposes rows/columns for a single 90-degree rotation.
+    inputs:
+      - 'boolean[][] shape, Rotation value'
+    outputs:
+      - 'rotated boolean[][] shape'
+    state_changes: []
+    determinism: deterministic
+
+  - id: create-omnibox-container
+    description: >
+      createOmniboxContainer(state, uid) creates a new Container
+      with OMNIBOX_WIDTH x OMNIBOX_HEIGHT dimensions, increments
+      nextOmniboxNumber for naming, and stores it in
+      state.omniboxContainers keyed by uid.
+    inputs:
+      - 'state, item uid'
+    outputs:
+      - 'new Container stored in omniboxContainers'
+    state_changes:
+      - field: omniboxContainers
+        effect: 'new container entry added'
+      - field: nextOmniboxNumber
+        effect: 'incremented by 1'
+    determinism: deterministic
+
+edge_cases:
+  - id: full-container
+    description: 'all grid cells occupied, placeItem called'
+    expected: 'canPlace returns false; placeItem returns null'
+  - id: auto-sort-rollback
+    description: 'autoSort cannot fit all items after sorting'
+    expected: 'original items array restored; returns false'
+  - id: transfer-target-full
+    description: 'transferItem target has no room for the item'
+    expected: 'item restored to source at original position; returns false'
+  - id: uid-not-found
+    description: 'removeItem or moveItem called with nonexistent uid'
+    expected: 'returns null or false; no state change'
+  - id: omnibox-uid-preservation
+    description: 'autoSort preserves original item uids'
+    expected: 'omnibox containers remain linked because uid keys are unchanged'
+
+failure_conditions:
+  - trigger: 'placeItem called at out-of-bounds position'
+    expected: 'canPlace returns false; placeItem returns null'
+  - trigger: 'unknown definitionId passed to getDefinition'
+    expected: 'throws Error — callers must validate before calling'
+
+verification:
+  test_file: src/engine/__tests__/inventory.test.ts
+  test_pattern: 'inventory'
+  command: npx vitest run src/engine/__tests__/inventory.test.ts

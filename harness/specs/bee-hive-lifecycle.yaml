@@ -1,0 +1,133 @@
+id: bee-hive-lifecycle
+name: 'Bee and beehive lifecycle'
+status: implemented
+priority: medium
+layer: engine
+source_files:
+  - src/engine/clover.ts
+  - src/engine/worldEntities.ts
+  - src/engine/constants.ts
+  - src/engine/types.ts
+dependencies:
+  - clover-lifecycle
+  - recipes
+
+behaviors:
+  - id: clover-patch-detection
+    description: >
+      floodFillCloverPatches(state) uses BFS with CARDINAL adjacency
+      to identify contiguous clover patches. each patch records its
+      tile set, centroid, beeCount (0 initially), hiveCount (0),
+      and maxHives (ceil(tiles.size / CLOVER_HIVE_RATIO) if patch
+      is large enough, else 0).
+    inputs:
+      - 'state.map with clover tiles'
+    outputs:
+      - 'CloverPatch[] with tiles, centroid, counts'
+    state_changes: []
+    determinism: deterministic
+
+  - id: bee-counting
+    description: >
+      countBeesOnPatch(patch, state) queries ECS for entities tagged
+      'bee' in the overworld zone whose position is in the patch
+      tile set. countHivesOnPatch does the same for 'beehive' entities.
+    inputs:
+      - 'CloverPatch, GameState with ECS world'
+    outputs:
+      - 'number of bees or hives on the patch'
+    state_changes: []
+    determinism: deterministic
+
+  - id: clover-spiral-growth
+    description: >
+      tickCloverGrowth runs in two phases. phase 1: converts
+      previous cloverGrowthPreviews to actual clover tiles. phase 2:
+      detects patches, counts bees per patch, computes growth front
+      (dirt tiles adjacent to patch edge), and selects new growth
+      tiles via selectSpiralGrowth. growth uses a spiral pattern:
+      each patch has persistent angle state (keyed by smallest
+      posKey), candidates are scored by angular proximity to the
+      front angle, and selected probabilistically (base chance +
+      bee bonus). growth front angle advances each tick.
+    inputs:
+      - 'state with clover patches and bees'
+    outputs:
+      - 'new clover tiles, updated cloverGrowthPreviews'
+    state_changes:
+      - field: map
+        effect: 'preview tiles converted to Clover'
+      - field: cloverGrowthPreviews
+        effect: 'new preview set computed'
+      - field: cloverLifecycle
+        effect: 'entries deleted for newly grown clover tiles'
+      - field: manualDiscoveries
+        effect: 'event:clover-growth recorded on first growth'
+    determinism: probabilistic
+
+  - id: beehive-spawning
+    description: >
+      tickCloverHives checks each patch with bees and fewer hives
+      than maxHives. spawn chance is 0.02 * beeCount per tick.
+      prefers interior tiles (all cardinal neighbors are clover)
+      over edge tiles. avoids player position and occupied tiles.
+      spawns a Blocking ECS entity with tag 'beehive' in the
+      overworld zone. records event:beehive-built discovery.
+    inputs:
+      - 'patch with bees, hive count below max'
+    outputs:
+      - 'beehive ECS entity at chosen tile'
+    state_changes:
+      - field: world
+        effect: 'beehive entity created with Position, EntityTag, Blocking, EntityZone'
+      - field: manualDiscoveries
+        effect: 'event:beehive-built recorded'
+    determinism: probabilistic
+
+  - id: honey-production
+    description: >
+      tickCloverHives also ticks honey production per hive on
+      patches with bees. each hive has a honey spawn chance of
+      CLOVER_HONEY_BASE_CHANCE + beeCount * CLOVER_HONEY_BEE_BONUS
+      (capped at 0.8). on success, spawns a honey ground item on a
+      random adjacent walkable non-Space non-Sand tile that is not
+      occupied.
+    inputs:
+      - 'beehive on a patch with bees'
+    outputs:
+      - 'honey ground item entity adjacent to hive'
+    state_changes:
+      - field: world
+        effect: 'groundItem entity created with Position, ItemDrop(honey), EntityTag, EntityZone'
+    determinism: probabilistic
+
+edge_cases:
+  - id: no-bees-on-patch
+    description: 'clover patch with zero bees'
+    expected: 'no growth, no hive spawning, no honey production for that patch'
+  - id: max-hives-reached
+    description: 'patch already has maxHives beehives'
+    expected: 'no more hives spawn; honey production still occurs'
+  - id: interior-tiles-unavailable
+    description: 'all interior tiles occupied, only edge tiles available for hive'
+    expected: 'falls back to edge tile candidates'
+  - id: all-adjacent-tiles-blocked
+    description: 'hive surrounded by non-walkable or occupied tiles for honey drop'
+    expected: 'no honey spawned for that hive this tick'
+  - id: spiral-state-persistence
+    description: 'spiral growth angle persists across ticks for consistent spiral patterns'
+    expected: 'getOrCreateSpiralState returns existing state for the same patch seed'
+  - id: stale-spiral-cleanup
+    description: 'clover patch is destroyed (all tiles become dirt)'
+    expected: 'spiralState entry cleaned up in next tickCloverGrowth call'
+
+failure_conditions:
+  - trigger: 'no walkable dirt tiles adjacent to patch for growth'
+    expected: 'computeGrowthFront returns empty array; no growth occurs'
+  - trigger: 'hive spawn with no valid candidate tiles'
+    expected: 'no hive spawned; no error'
+
+verification:
+  test_file: src/engine/__tests__/clover.test.ts
+  test_pattern: 'clover'
+  command: npx vitest run src/engine/__tests__/clover.test.ts

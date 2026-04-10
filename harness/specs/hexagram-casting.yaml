@@ -131,6 +131,8 @@ behaviors:
     state_changes:
       - field: manualDiscoveries
         effect: 'event:hexagram-cast added on first cast'
+      - field: divinedHexagrams
+        effect: 'primary hexagram id added; transformed hexagram id also added if changing lines exist'
     determinism: deterministic
 
   - id: coins-dimmed-after-cast
