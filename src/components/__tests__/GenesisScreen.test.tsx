@@ -4,6 +4,18 @@ import userEvent from '@testing-library/user-event'
 
 import type { GenesisResult } from '@/engine/genesisTypes'
 
+// Mock HTMLAudioElement (needed for music during genesis)
+class MockAudio {
+  src = ''
+  loop = false
+  volume = 0
+  muted = false
+  paused = true
+  play = vi.fn().mockResolvedValue(undefined)
+  pause = vi.fn()
+}
+vi.stubGlobal('Audio', MockAudio)
+
 // Mock canvas context
 const mockCtx = {
   fillStyle: '',
