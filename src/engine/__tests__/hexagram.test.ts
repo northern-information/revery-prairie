@@ -6,11 +6,14 @@ import {
   completeCast,
   consumeGlint,
   getGlintingBackpackCoins,
+  HEXAGRAM_GRID,
   HEXAGRAMS,
   lineFromValue,
   LineType,
   lookupHexagram,
+  recordDivinedHexagrams,
   tossThreeCoins,
+  trigramIndex,
 } from '../hexagram'
 import { placeItem } from '../inventory'
 import { ITEM_DEFINITIONS } from '../items'
@@ -147,6 +150,87 @@ describe('completeCast', () => {
     // 7,8,7,8,7,8 = alternating yang/yin
     const result = completeCast([7, 8, 7, 8, 7, 8])
     expect(result.transformed).toBeNull()
+  })
+})
+
+describe('divined hexagram tracking', () => {
+  it('recordDivinedHexagrams adds primary hexagram id', () => {
+    const state = createTestState()
+    const result = completeCast([7, 7, 7, 7, 7, 7]) // all young yang = hexagram 1
+    recordDivinedHexagrams(state, result)
+    expect(state.divinedHexagrams.has(result.primary.id)).toBe(true)
+  })
+
+  it('recordDivinedHexagrams adds transformed hexagram id when present', () => {
+    const state = createTestState()
+    // 9 = old yang (changing), rest young yang
+    const result = completeCast([9, 7, 7, 7, 7, 7])
+    expect(result.transformed).not.toBeNull()
+    recordDivinedHexagrams(state, result)
+    expect(state.divinedHexagrams.has(result.primary.id)).toBe(true)
+    if (result.transformed === null) throw new Error('expected transformed')
+    expect(state.divinedHexagrams.has(result.transformed.id)).toBe(true)
+  })
+
+  it('recordDivinedHexagrams skips transformed when null', () => {
+    const state = createTestState()
+    const result = completeCast([7, 8, 7, 8, 7, 8]) // no changing lines
+    expect(result.transformed).toBeNull()
+    recordDivinedHexagrams(state, result)
+    expect(state.divinedHexagrams.size).toBe(1)
+  })
+
+  it('divinedHexagrams starts empty', () => {
+    const state = createTestState()
+    expect(state.divinedHexagrams.size).toBe(0)
+  })
+
+  it('duplicate casts do not create duplicate entries', () => {
+    const state = createTestState()
+    const result = completeCast([7, 7, 7, 7, 7, 7])
+    recordDivinedHexagrams(state, result)
+    recordDivinedHexagrams(state, result)
+    expect(state.divinedHexagrams.size).toBe(1)
+  })
+})
+
+describe('hexagram grid layout', () => {
+  it('contains all 64 hexagrams', () => {
+    const allIds = new Set<number>()
+    for (const row of HEXAGRAM_GRID) {
+      for (const h of row) {
+        expect(h).not.toBeNull()
+        allIds.add(h.id)
+      }
+    }
+    expect(allIds.size).toBe(64)
+  })
+
+  it('is 8x8', () => {
+    expect(HEXAGRAM_GRID).toHaveLength(8)
+    for (const row of HEXAGRAM_GRID) {
+      expect(row).toHaveLength(8)
+    }
+  })
+
+  it('hexagram 1 (all yang) maps to row 7 col 7', () => {
+    const h1 = HEXAGRAM_GRID[7][7]
+    expect(h1.id).toBe(1)
+    expect(h1.name).toBe('The Creative')
+  })
+
+  it('hexagram 2 (all yin) maps to row 0 col 0', () => {
+    const h2 = HEXAGRAM_GRID[0][0]
+    expect(h2.id).toBe(2)
+    expect(h2.name).toBe('The Receptive')
+  })
+
+  it('trigramIndex correctly encodes trigram bits', () => {
+    expect(trigramIndex([false, false, false], 0)).toBe(0)
+    expect(trigramIndex([true, true, true], 0)).toBe(7)
+    expect(trigramIndex([true, false, false], 0)).toBe(1)
+    expect(trigramIndex([false, true, false], 0)).toBe(2)
+    expect(trigramIndex([false, false, true], 0)).toBe(4)
   })
 })
 

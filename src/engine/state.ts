@@ -1,7 +1,17 @@
 import { autoAssignRevery } from './actionBar'
 import { generateCave } from './cave'
 import { registerGhostDefinitions } from './characters'
-import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, ZOOM_DEFAULT } from './constants'
+import {
+  CAVE_HEIGHT,
+  CAVE_WIDTH,
+  GLINT_ZONE_COUNT,
+  GLINT_ZONE_RADIUS_MAX,
+  GLINT_ZONE_RADIUS_MIN,
+  MAP_HEIGHT,
+  MAP_WIDTH,
+  SPACE_BORDER,
+  ZOOM_DEFAULT,
+} from './constants'
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
@@ -14,7 +24,35 @@ import { Rotation, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 
 import type { GenesisResult } from './genesisTypes'
-import type { GameState, Position } from './types'
+import type { GameState, Position, Tile } from './types'
+
+const generateGlintZones = (map: Tile[][], width: number, height: number): Set<string> => {
+  const zones = new Set<string>()
+  let centersPlaced = 0
+  let attempts = 0
+  while (centersPlaced < GLINT_ZONE_COUNT && attempts < 500) {
+    attempts++
+    const cx = SPACE_BORDER + Math.floor(Math.random() * (width - SPACE_BORDER * 2))
+    const cy = SPACE_BORDER + Math.floor(Math.random() * (height - SPACE_BORDER * 2))
+    if (map[cy][cx].type !== TileType.Dirt && map[cy][cx].type !== TileType.Clover) continue
+    const radius =
+      GLINT_ZONE_RADIUS_MIN + Math.floor(Math.random() * (GLINT_ZONE_RADIUS_MAX - GLINT_ZONE_RADIUS_MIN + 1))
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        if (dx * dx + dy * dy > radius * radius) continue
+        const tx = cx + dx
+        const ty = cy + dy
+        if (tx < 0 || tx >= width || ty < 0 || ty >= height) continue
+        const tile = map[ty][tx].type
+        if (tile === TileType.Dirt || tile === TileType.Clover) {
+          zones.add(posKey(tx, ty))
+        }
+      }
+    }
+    centersPlaced++
+  }
+  return zones
+}
 
 export const createGameState = (
   stewardName: string,
@@ -148,6 +186,8 @@ export const createGameState = (
     },
     lastDialogTypingTick: 0,
     glintingCoins: new Set<string>(),
+    divinedHexagrams: new Set<number>(),
+    glintZones: generateGlintZones(map, MAP_WIDTH, MAP_HEIGHT),
     civilizationRuins: genesisResult?.ruins ?? [],
   }
 

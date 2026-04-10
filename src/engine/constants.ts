@@ -217,4 +217,14 @@ export const ACTION_COLOR = '#ff69b4'
 export const HOVER_PATH_COLOR = '#555555'
 export const COIN_GLINTING_COLOR = '#C9B037'
 export const COIN_DULL_COLOR = '#8B7D3C'
+
+// glinting zones
+export const GLINT_ZONE_CHARS = ['\u00b7', '\u2726', '+', '.'] // · ✦ + .
+export const GLINT_ZONE_COLORS = ['#C9B037', '#DAA520', '#B8A870', '#FFE4B5']
+export const GLINT_ZONE_DENSITY = 5 // ~1 in 5 tiles shows a sparkle
+export const GLINT_ZONE_SPEED = 0.003 // slow sparkle animation
+export const GLINT_ZONE_COUNT = 8 // number of glinting zone patches
+export const GLINT_ZONE_RADIUS_MIN = 2
+export const GLINT_ZONE_RADIUS_MAX = 4
+
 export const INVENTORY_CELL_SIZE = 28

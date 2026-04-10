@@ -1,5 +1,7 @@
 import { movePlayer, tickPath } from '../movement'
-import { TileType } from '../types'
+import { placeItem } from '../inventory'
+import { posKey } from '../position'
+import { Rotation, TileType, Zone } from '../types'
 import { clearAroundPlayer, createCharacterTestEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -260,5 +262,70 @@ describe('tickPath', () => {
     tickPath(state)
     expect(state.path).toBeNull()
     expect(state.pathWaypoints).toEqual([])
+  })
+})
+
+describe('glinting zone walk-through', () => {
+  const placeDullCoin = (state: ReturnType<typeof createTestState>) => {
+    const placed = placeItem(state.backpack, 'coin', Rotation.R0, 0, 0)
+    if (placed === null) throw new Error('expected coin placement to succeed')
+    return placed
+  }
+
+  it('restores glint to dull coins when stepping on a glint zone tile', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const placed = placeDullCoin(state)
+    expect(state.glintingCoins.has(placed.uid)).toBe(false)
+
+    const targetX = state.player.x
+    const targetY = state.player.y + 1
+    state.glintZones.add(posKey(targetX, targetY))
+
+    movePlayer(state, 'down')
+    expect(state.glintingCoins.has(placed.uid)).toBe(true)
+  })
+
+  it('does not affect already-glinting coins', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const placed = placeDullCoin(state)
+    state.glintingCoins.add(placed.uid)
+
+    const targetX = state.player.x
+    const targetY = state.player.y + 1
+    state.glintZones.add(posKey(targetX, targetY))
+
+    movePlayer(state, 'down')
+    expect(state.glintingCoins.has(placed.uid)).toBe(true)
+    expect(state.glintingCoins.size).toBe(1)
+  })
+
+  it('does not restore glint in cave zone', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const placed = placeDullCoin(state)
+
+    state.currentZone = Zone.Cave
+    const targetX = state.player.x
+    const targetY = state.player.y + 1
+    state.glintZones.add(posKey(targetX, targetY))
+    state.map[targetY][targetX] = { type: TileType.CaveFloor }
+
+    movePlayer(state, 'down')
+    expect(state.glintingCoins.has(placed.uid)).toBe(false)
+  })
+
+  it('records event:glint-zone discovery on first walk-through', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+
+    const targetX = state.player.x
+    const targetY = state.player.y + 1
+    state.glintZones.add(posKey(targetX, targetY))
+
+    expect(state.manualDiscoveries.has('event:glint-zone')).toBe(false)
+    movePlayer(state, 'down')
+    expect(state.manualDiscoveries.has('event:glint-zone')).toBe(true)
   })
 })

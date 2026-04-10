@@ -190,6 +190,8 @@ export interface GameState {
   manualState: ManualState
   lastDialogTypingTick: number
   glintingCoins: Set<string>
+  divinedHexagrams: Set<number>
+  glintZones: Set<string>
   civilizationRuins: CivilizationRuin[]
 }
 

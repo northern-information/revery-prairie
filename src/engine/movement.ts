@@ -3,6 +3,7 @@ import { checkTransition } from './cave'
 import { TRAIL_MAX_LENGTH } from './constants'
 import { ComponentType } from './ecs/types'
 import { updateFacingEntity } from './interaction'
+import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { Zone } from './types'
 
@@ -84,6 +85,16 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   state.player.y = ny
   updateCamera(state)
   updateFacingEntity(state)
+
+  // Glinting zone: restore glint to all dull backpack coins
+  if (state.currentZone === Zone.Overworld && state.glintZones.has(posKey(nx, ny))) {
+    for (const item of state.backpack.items) {
+      if (item.definitionId === 'coin' && !state.glintingCoins.has(item.uid)) {
+        state.glintingCoins.add(item.uid)
+      }
+    }
+    recordDiscovery(state, 'event:glint-zone')
+  }
 
   // Check for zone transitions (cave entrance/exit)
   if (checkTransition(state)) {

@@ -76,6 +76,8 @@ const EXPECTED_FIELDS = [
   'world',
   'lastDialogTypingTick',
   'glintingCoins',
+  'divinedHexagrams',
+  'glintZones',
   'zoom',
   'civilizationRuins',
 ].sort((a, b) => a.localeCompare(b))

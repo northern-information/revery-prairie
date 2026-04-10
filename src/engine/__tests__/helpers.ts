@@ -35,6 +35,8 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
     }
   }
   state.glintingCoins = new Set()
+  state.divinedHexagrams = new Set()
+  state.glintZones = new Set()
   state.openContainer = null
   state.playerFacing = 'down'
   state.facingEntityPos = null

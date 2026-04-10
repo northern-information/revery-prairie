@@ -88,6 +88,22 @@ export const completeCast = (lineValues: LineType[]): CastResult => {
   return { lines, primary, transformed }
 }
 
+// --- Divined tracking ---
+
+export const recordDivinedHexagrams = (state: GameState, result: CastResult): void => {
+  state.divinedHexagrams.add(result.primary.id)
+  if (result.transformed) {
+    state.divinedHexagrams.add(result.transformed.id)
+  }
+}
+
+// --- Trigram helpers (for 8x8 grid layout) ---
+
+// Lower trigram = lines[0..2], upper trigram = lines[3..5]
+// Each trigram is a 3-bit number (0-7) giving natural row/column indices
+export const trigramIndex = (lines: boolean[], offset: number): number =>
+  (lines[offset] ? 1 : 0) | (lines[offset + 1] ? 2 : 0) | (lines[offset + 2] ? 4 : 0)
+
 // --- Glinting ---
 
 export const getGlintingBackpackCoins = (state: GameState): string[] =>
@@ -570,3 +586,19 @@ export const HEXAGRAMS: HexagramDefinition[] = [
       'The last tile is dirt. The last coin has not yet been tossed. Almost-done is not done. The prairie is patient with the unfinished — it has all the time there is.',
   },
 ]
+
+// --- 8x8 grid indexed by [lowerTrigram][upperTrigram] ---
+
+const buildHexagramGrid = (): HexagramDefinition[][] => {
+  const grid: HexagramDefinition[][] = Array.from({ length: 8 }, () =>
+    Array(8).fill(null) as HexagramDefinition[]
+  )
+  for (const h of HEXAGRAMS) {
+    const row = trigramIndex(h.lines, 0) // lower trigram
+    const col = trigramIndex(h.lines, 3) // upper trigram
+    grid[row][col] = h
+  }
+  return grid
+}
+
+export const HEXAGRAM_GRID: HexagramDefinition[][] = buildHexagramGrid()

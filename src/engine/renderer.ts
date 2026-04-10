@@ -63,6 +63,10 @@ import {
   TILE_CHARS,
   TILE_COLORS,
   TRAIL_DURATION_MS,
+  GLINT_ZONE_CHARS,
+  GLINT_ZONE_COLORS,
+  GLINT_ZONE_DENSITY,
+  GLINT_ZONE_SPEED,
   WILDFIRE_CHARS,
   WILDFIRE_COLORS,
   WILDFIRE_DURATION_MS,
@@ -913,6 +917,32 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const rpy = vy * charHeight
     ctx.fillStyle = RAIN_COLORS[colorPhase]
     ctx.fillText(RAIN_CHARS[phase], rpx, rpy)
+  }
+
+  // Glinting zone sparkle overlay — overworld only
+  if (zone === Zone.Overworld) {
+    for (let vy = 0; vy < viewportHeight; vy++) {
+      for (let vx = 0; vx < viewportWidth; vx++) {
+        const wx = camera.x + vx
+        const wy = camera.y + vy
+        if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue
+        const key = posKey(wx, wy)
+        if (!state.glintZones.has(key)) continue
+        if (wx === player.x && wy === player.y) continue
+
+        const h = tileHash(wx + state.rainSeed, wy)
+        if (h % GLINT_ZONE_DENSITY !== 0) continue
+
+        const glintPhase = ((h >> 4) + Math.floor(time * GLINT_ZONE_SPEED)) % GLINT_ZONE_CHARS.length
+        const glintColorPhase =
+          ((h >> 8) + Math.floor(time * GLINT_ZONE_SPEED * 0.7)) % GLINT_ZONE_COLORS.length
+
+        const gpx = vx * charWidth
+        const gpy = vy * charHeight
+        ctx.fillStyle = GLINT_ZONE_COLORS[glintColorPhase]
+        ctx.fillText(GLINT_ZONE_CHARS[glintPhase], gpx, gpy)
+      }
+    }
   }
 
   // Lightning screen flash overlay — drawn last, covers everything
