@@ -1,4 +1,10 @@
-import { SAND_BORDER, SOIL_HEALTH_MAX, SPACE_BORDER, WATER_SAND_BORDER } from './constants'
+import {
+  SAND_BORDER,
+  SOIL_HEALTH_MAX,
+  SPACE_BORDER,
+  WATER_SAND_BORDER_MAX,
+  WATER_SAND_PASS_CHANCES,
+} from './constants'
 import { GenesisEpochId } from './genesisTypes'
 import { posKey } from './position'
 import { smoothNoiseSeeded } from './terrain'
@@ -1974,7 +1980,8 @@ const fallOfCivilizations: GenesisEpoch = {
       [-1, 1],
     ]
     let frontier = new Set<string>(keptTiles)
-    for (let pass = 0; pass < WATER_SAND_BORDER; pass++) {
+    for (let pass = 0; pass < WATER_SAND_BORDER_MAX; pass++) {
+      const chance = WATER_SAND_PASS_CHANCES[pass]
       const nextFrontier = new Set<string>()
       for (const key of frontier) {
         const [xStr, yStr] = key.split(',')
@@ -1993,8 +2000,10 @@ const fallOfCivilizations: GenesisEpoch = {
             nx < sim.width &&
             sim.grid[ny][nx].type === TileType.Dirt
           ) {
-            sim.grid[ny][nx].type = TileType.Sand
-            nextFrontier.add(nk)
+            if (chance >= 100 || tileHash(nx, ny) % 100 < chance) {
+              sim.grid[ny][nx].type = TileType.Sand
+              nextFrontier.add(nk)
+            }
           }
         }
       }
