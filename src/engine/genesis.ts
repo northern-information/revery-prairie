@@ -1,6 +1,11 @@
 import {
   BURN_SCAR_COLORS as GAME_BURN_SCAR_COLORS,
   DIRT_COLORS as GAME_DIRT_COLORS,
+  LIGHTNING_BOLT_COLOR_BRIGHT,
+  LIGHTNING_BOLT_COLOR_DIM,
+  LIGHTNING_BOLT_COLOR_MID,
+  LIGHTNING_BOLT_MAX_LENGTH,
+  LIGHTNING_BOLT_MIN_LENGTH,
   POND_COLOR,
   RIVER_COLOR,
   SAND_BORDER,
@@ -10,6 +15,7 @@ import {
   WATER_SAND_BORDER_MAX,
   WATER_SAND_PASS_CHANCES,
 } from './constants'
+import { generateBoltPath } from './boltPath'
 import { GenesisEpochId } from './genesisTypes'
 import { posKey } from './position'
 import { smoothNoiseSeeded } from './terrain'
@@ -716,6 +722,36 @@ const fireSeason: GenesisEpoch = {
       sim.meteorites.push(createMeteorStreak(sim, Number(xStr), Number(yStr), i))
     }
 
+    // Generate 2-4 lightning bolts alongside meteorites
+    const numBolts = 2 + Math.floor(sim.rng() * 3)
+    for (let i = 0; i < numBolts; i++) {
+      // Pick a vegetated land tile for the strike
+      let boltKey: string | null = null
+      for (let attempt = 0; attempt < 50; attempt++) {
+        const candidate = landKeys[Math.floor(sim.rng() * landKeys.length)]
+        const veg = sim.vegetationMap.get(candidate) ?? 0
+        if (veg > 20 || attempt === 49) {
+          boltKey = candidate
+          break
+        }
+      }
+      if (!boltKey) continue
+
+      // Add to fire BFS ignition queue
+      impactKeys.push(boltKey)
+
+      const [bxStr, byStr] = boltKey.split(',')
+      const bx = Number(bxStr)
+      const by = Number(byStr)
+      const length = LIGHTNING_BOLT_MIN_LENGTH + Math.floor(sim.rng() * (LIGHTNING_BOLT_MAX_LENGTH - LIGHTNING_BOLT_MIN_LENGTH + 1))
+      const { path, branch } = generateBoltPath(bx, by, length, sim.rng)
+
+      // Stagger start times to interleave with meteorites
+      const startTime = 0.05 + (i / numBolts) * 0.25
+
+      sim.lightningBolts.push({ impactX: bx, impactY: by, path, branch, startTime })
+    }
+
     // BFS fire spread from each impact point
     const burned = new Set<string>()
     const queue = [...impactKeys]
@@ -820,6 +856,54 @@ const fireSeason: GenesisEpoch = {
             {
               char: flashChars[impactDist % flashChars.length],
               color: flashColors[impactDist % flashColors.length],
+              dx: 0,
+              dy: 0,
+            },
+          ]
+        }
+      }
+    }
+
+    // Lightning bolt rendering (vertical bolts, faster than meteorites)
+    for (const bolt of sim.lightningBolts) {
+      const boltProgress = clamp((progress - bolt.startTime) / 0.1, 0, 1)
+      if (boltProgress <= 0 || boltProgress >= 1) continue
+
+      // Check if this tile is on the bolt path
+      for (let i = 0; i < bolt.path.length; i++) {
+        if (bolt.path[i].x === x && bolt.path[i].y === y) {
+          const bdx = i > 0 ? bolt.path[i].x - bolt.path[i - 1].x : 0
+          const boltChar = bdx === 0 ? '|' : bdx > 0 ? '\\' : '/'
+          if (boltProgress < 0.3) {
+            return [{ char: boltChar, color: LIGHTNING_BOLT_COLOR_BRIGHT, dx: 0, dy: 0 }]
+          } else if (boltProgress < 0.7) {
+            return [{ char: boltChar, color: LIGHTNING_BOLT_COLOR_MID, dx: 0, dy: 0 }]
+          } else {
+            return [{ char: boltChar, color: LIGHTNING_BOLT_COLOR_DIM, dx: 0, dy: 0 }]
+          }
+        }
+      }
+
+      // Check branch
+      if (bolt.branch) {
+        for (const bp of bolt.branch) {
+          if (bp.x === x && bp.y === y) {
+            const bcolor = boltProgress < 0.3 ? LIGHTNING_BOLT_COLOR_BRIGHT : boltProgress < 0.7 ? LIGHTNING_BOLT_COLOR_MID : LIGHTNING_BOLT_COLOR_DIM
+            return [{ char: '/', color: bcolor, dx: 0, dy: 0 }]
+          }
+        }
+      }
+
+      // Impact flash
+      if (boltProgress > 0.9) {
+        const boltDist = Math.abs(x - bolt.impactX) + Math.abs(y - bolt.impactY)
+        if (boltDist <= 2) {
+          const bFlashChars = ['*', '+', '·']
+          const bFlashColors = ['#FFFFFF', '#E0E0FF', '#8888CC']
+          return [
+            {
+              char: bFlashChars[boltDist % bFlashChars.length],
+              color: bFlashColors[boltDist % bFlashColors.length],
               dx: 0,
               dy: 0,
             },
@@ -2349,6 +2433,7 @@ export const createGenesisState = (width: number, height: number, seed: number):
     preGlacialVegetation: new Map(),
     glacialEdgeNoise: { top: [], bottom: [] },
     meteorites: [],
+    lightningBolts: [],
     riverPathsOrdered: [],
     meltPools: new Set(),
     ponds: new Set(),

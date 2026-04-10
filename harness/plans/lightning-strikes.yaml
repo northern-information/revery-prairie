@@ -1,0 +1,337 @@
+plan:
+  id: lightning-strikes
+  title: 'Lightning strikes, wildfires, and rendering'
+  created: 2026-04-10
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  # --- Phase 1: Foundation ---
+
+  - id: constants
+    title: 'Add lightning, wildfire, and screen flash constants'
+    spec_id: lightning-strikes
+    spec_sections:
+      - bolt-path-generation
+      - weighted-target-selection
+      - weather-gated-spawn
+      - wildfire-spread
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: ecs-types
+    title: 'Add LightningData component and extend TimedEffect kind union'
+    spec_id: lightning-strikes
+    spec_sections:
+      - bolt-path-generation
+      - weather-gated-spawn
+      - wildfire-spread
+      - lightning-cleanup
+    context_files:
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/ecs/types.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, types]
+
+  - id: game-state
+    title: 'Add LightningState and omniboxStrikeCounts to GameState and initialize'
+    spec_id: lightning-strikes
+    spec_sections:
+      - weather-gated-spawn
+      - omnibox-strike-counter
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, types]
+
+  # --- Phase 2: Core logic ---
+
+  - id: bolt-path
+    title: 'Implement generateBoltPath with zigzag and branch fork'
+    spec_id: lightning-strikes
+    spec_sections:
+      - bolt-path-generation
+    context_files:
+      - src/engine/constants.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/lightning.ts
+    depends_on:
+      - constants
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: weighted-targeting
+    title: 'Implement selectStrikeTarget with five weighted factors and omnibox strike history'
+    spec_id: lightning-strikes
+    spec_sections:
+      - weighted-target-selection
+      - omnibox-strike-counter
+    context_files:
+      - src/engine/lightning.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/lightning.ts
+    depends_on:
+      - bolt-path
+      - ecs-types
+      - game-state
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: wildfire-spread
+    title: 'Implement spreadWildfire BFS with dry threshold and soil enrichment'
+    spec_id: lightning-strikes
+    spec_sections:
+      - wildfire-spread
+    context_files:
+      - src/engine/lightning.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/position.ts
+      - src/engine/cloverLifecycle.ts
+      - src/engine/actionBar.ts
+    output_files:
+      - src/engine/lightning.ts
+    depends_on:
+      - weighted-targeting
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: spawn-and-cleanup
+    title: 'Implement spawnLightningStrike and tickLightning'
+    spec_id: lightning-strikes
+    spec_sections:
+      - weather-gated-spawn
+      - omnibox-strike-counter
+      - lightning-cleanup
+    context_files:
+      - src/engine/lightning.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/position.ts
+      - src/engine/weather.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/lightning.ts
+    depends_on:
+      - wildfire-spread
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  # --- Phase 3: Game loop + manual ---
+
+  - id: game-loop
+    title: 'Register lightning-spawn and lightning-cleanup tick systems with toast callbacks'
+    spec_id: lightning-strikes
+    spec_sections:
+      - game-loop-registration
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/lightning.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - spawn-and-cleanup
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, integration]
+
+  - id: manual-entries
+    title: 'Add lightning-strike, wildfire, and lightning-attraction manual entries'
+    spec_id: lightning-strikes
+    spec_sections:
+      - manual-entries
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - constants
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  # --- Phase 4: Rendering ---
+
+  - id: runtime-rendering
+    title: 'Add lightning bolt map, wildfire map, cascade insertion, and screen flash overlay'
+    spec_id: lightning-rendering
+    spec_sections:
+      - lightning-bolt-map
+      - wildfire-map
+      - rendering-cascade-priority
+      - screen-flash-overlay
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - game-loop
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, rendering]
+
+  # --- Phase 5: Genesis ---
+
+  - id: genesis-types
+    title: 'Add GenesisLightningBolt interface and lightningBolts to GenesisSimState'
+    spec_id: lightning-strikes
+    spec_sections:
+      - genesis-lightning-bolts
+    context_files:
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesisTypes.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, types]
+
+  - id: genesis-mutate
+    title: 'Generate 2-4 lightning bolts in FireSeason mutate and feed into BFS'
+    spec_id: lightning-strikes
+    spec_sections:
+      - genesis-lightning-bolts
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/lightning.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - genesis-types
+      - bolt-path
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: genesis-render
+    title: 'Render lightning bolts and screen flash in FireSeason renderTile and GenesisScreen'
+    spec_id: lightning-rendering
+    spec_sections:
+      - genesis-lightning-render
+      - genesis-screen-flash
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/constants.ts
+      - src/components/GenesisScreen.tsx
+    output_files:
+      - src/engine/genesis.ts
+      - src/components/GenesisScreen.tsx
+    depends_on:
+      - genesis-mutate
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, rendering, component]
+
+  - id: genesis-init
+    title: 'Initialize lightningBolts empty array in genesis sim state creation'
+    spec_id: lightning-strikes
+    spec_sections:
+      - genesis-lightning-bolts
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - genesis-types
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  # --- Phase 6: Tests ---
+
+  - id: lightning-tests
+    title: 'Unit tests for bolt path, targeting, spawn, wildfire, omnibox strikes, and cleanup'
+    spec_id: lightning-strikes
+    spec_sections:
+      - bolt-path-generation
+      - weighted-target-selection
+      - weather-gated-spawn
+      - wildfire-spread
+      - omnibox-strike-counter
+      - lightning-cleanup
+    context_files:
+      - src/engine/lightning.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/ecs/types.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/lightning.test.ts
+    depends_on:
+      - game-loop
+    verification:
+      - 'npx vitest run src/engine/__tests__/lightning.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: genesis-lightning-tests
+    title: 'Unit tests for genesis lightning bolt generation and BFS integration'
+    spec_id: lightning-strikes
+    spec_sections:
+      - genesis-lightning-bolts
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/lightning.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/genesisLightning.test.ts
+    depends_on:
+      - genesis-render
+    verification:
+      - 'npx vitest run src/engine/__tests__/genesisLightning.test.ts'
+    repair: retry
+    tags: [test]

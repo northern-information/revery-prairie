@@ -1,5 +1,11 @@
-import { BASE_FONT_SIZE, BG_COLOR } from './constants'
+import {
+  BASE_FONT_SIZE,
+  BG_COLOR,
+  LIGHTNING_SCREEN_FLASH_MS,
+  LIGHTNING_SCREEN_FLASH_OPACITY,
+} from './constants'
 import { getEpochProgress, getGenesisCommentary } from './genesis'
+import { GenesisEpochId } from './genesisTypes'
 
 import type { GenesisEpoch, GenesisSimState } from './genesisTypes'
 import type { CharMetrics } from './types'
@@ -268,4 +274,21 @@ export const renderGenesis = (
 
   // Restore font
   ctx.font = metrics.font
+
+  // Lightning screen flash during FireSeason
+  if (epoch.id === GenesisEpochId.FireSeason) {
+    for (const bolt of sim.lightningBolts) {
+      const boltProgress = (progress - bolt.startTime) / 0.1
+      // Flash at the moment of impact (~90% through bolt animation)
+      if (boltProgress > 0.85 && boltProgress < 0.95) {
+        const flashT = (boltProgress - 0.85) / 0.1
+        const flashMs = flashT * LIGHTNING_SCREEN_FLASH_MS
+        if (flashMs < LIGHTNING_SCREEN_FLASH_MS) {
+          const alpha = LIGHTNING_SCREEN_FLASH_OPACITY * (1 - flashMs / LIGHTNING_SCREEN_FLASH_MS)
+          ctx.fillStyle = `rgba(255, 255, 255, ${String(alpha)})`
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+        }
+      }
+    }
+  }
 }

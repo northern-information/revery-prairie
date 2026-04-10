@@ -68,6 +68,10 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'character:gron': { lore: 'TODO' },
   'character:moab': { lore: 'TODO' },
   'character:ghosts': { lore: 'TODO' },
+  // Weather events
+  'event:lightning-strike': { lore: 'TODO' },
+  'event:wildfire': { lore: 'TODO' },
+  'event:lightning-attraction': { lore: 'TODO' },
 }
 
 // --- Category mapping ---
@@ -407,6 +411,56 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     ],
     unlockKey: 'event:hexagram-cast',
     sourceKind: 'event',
+  },
+  {
+    id: 'event:lightning-strike',
+    name: 'Lightning Strike',
+    category: ManualCategory.Celestial,
+    glyph: '|',
+    glyphColor: '#FFFFFF',
+    summary: 'a bolt from the sky',
+    lore:
+      MANUAL_LORE['event:lightning-strike']?.lore ??
+      'lightning strikes the prairie during storms. rain, high humidity, and strong wind all increase the chance. the bolt is brief but unmistakable — the whole sky flashes white.',
+    hints: MANUAL_LORE['event:lightning-strike']?.hints ?? [],
+    unlockKey: 'event:lightning-strike',
+    sourceKind: 'event',
+    crossRefs: ['event:wildfire', 'event:lightning-attraction'],
+  },
+  {
+    id: 'event:wildfire',
+    name: 'Wildfire',
+    category: ManualCategory.Flora,
+    glyph: '^',
+    glyphColor: '#FF4500',
+    summary: 'fire spreads across dry clover',
+    lore:
+      MANUAL_LORE['event:wildfire']?.lore ??
+      'when lightning strikes dry clover, fire spreads to neighboring patches. the drier the clover, the farther it burns. wet clover resists ignition. the fire enriches the soil as it passes.',
+    hints: MANUAL_LORE['event:wildfire']?.hints ?? [],
+    unlockKey: 'event:wildfire',
+    sourceKind: 'event',
+    crossRefs: ['event:lightning-strike', 'event:lightning-attraction'],
+  },
+  {
+    id: 'event:lightning-attraction',
+    name: 'Lightning Attraction',
+    category: ManualCategory.Celestial,
+    glyph: '|',
+    glyphColor: '#E0E0FF',
+    summary: 'what draws lightning to a place',
+    lore:
+      MANUAL_LORE['event:lightning-attraction']?.lore ??
+      'high ground draws lightning down from the clouds. water-soaked earth conducts the charge — tiles near ponds and rivers are struck more often. metal objects left on the ground act as conductors — meteorites and omniboxes attract bolts. a lone beehive standing in open dirt is a target — isolated tall features on flat terrain invite strikes. clover fields conduct slightly better than bare dirt.',
+    hints: MANUAL_LORE['event:lightning-attraction']?.hints ?? [
+      {
+        prompt: 'how to protect clover',
+        answer: 'keep fields hydrated. wet clover resists ignition. remove metal objects from valuable patches.',
+      },
+    ],
+    unlockKey: 'event:lightning-strike',
+    sourceKind: 'event',
+    crossRefs: ['event:lightning-strike', 'event:wildfire'],
   },
 ]
 

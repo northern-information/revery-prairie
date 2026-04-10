@@ -1,0 +1,237 @@
+id: lightning-strikes
+name: 'Lightning strikes and wildfires'
+status: planned
+priority: high
+layer: engine
+source_files:
+  - src/engine/lightning.ts
+  - src/engine/constants.ts
+  - src/engine/ecs/types.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/gameLoop.ts
+  - src/engine/genesis.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/manual.ts
+  - src/engine/__tests__/lightning.test.ts
+  - src/engine/__tests__/genesisLightning.test.ts
+dependencies: []
+
+behaviors:
+  - id: bolt-path-generation
+    description: >
+      generateBoltPath creates a vertical zigzag path from sky to impact
+      point. each step descends by 1 tile (dy=+1) with dx randomly chosen
+      from {-1, 0, +1} (50% straight, 25% each side). path length is
+      between LIGHTNING_BOLT_MIN_LENGTH and LIGHTNING_BOLT_MAX_LENGTH.
+      30% chance of a branch fork splitting off at a random midpoint
+      extending 2-3 tiles diagonally.
+    inputs:
+      - 'impact position (x, y)'
+      - 'path length (8-12)'
+      - 'rng function'
+    outputs:
+      - 'object with path: {x,y}[] and branch: {x,y}[] | null'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: weighted-target-selection
+    description: >
+      selectStrikeTarget samples ~50 random land tiles and scores each
+      using multiplicative weights: elevation (1 + elevation/100 * 2.0),
+      near-water (1.5 if pond/river within 3 tiles), metal objects (3.0
+      if ground meteorite or omnibox on tile), isolated tall features
+      (1.8 if beehive with <40% clover in surrounding 5x5), clover
+      density (1.3 if clover tile). omniboxes with prior strike counts
+      get an additional multiplier (1 + strikeCount * 0.5). selects one
+      tile via weighted random from scored candidates. rejects water,
+      sand, space, occupied tiles, and tiles within
+      LIGHTNING_MIN_PLAYER_DIST of the player.
+    inputs:
+      - 'GameState with terrain, elevation, ponds, rivers, ECS entities'
+      - 'rng function'
+    outputs:
+      - 'Position | null (null if no valid candidate found)'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: weather-gated-spawn
+    description: >
+      spawnLightningStrike checks time against nextStrikeTime cooldown,
+      then rolls against LIGHTNING_BASE_CHANCE multiplied by weather
+      factors: sky (Rain=8x, Cloudy=3x, Sun=0.5x), humidity
+      (humidity/100), wind (windSpeed/25 when >15mph, else 1). on
+      success, calls selectStrikeTarget for the impact position,
+      generates a bolt path, and creates an ECS lightning entity with
+      Position, TimedEffect kind=lightning, LightningData, EntityTag=
+      lightning, and EntityZone. sets nextStrikeTime to current time
+      plus 15-30s random cooldown. records event:lightning-strike
+      discovery. returns the strike position or null.
+    inputs:
+      - 'GameState with weather, lightning state, terrain'
+      - 'current time'
+    outputs:
+      - 'Position | null'
+    state_changes:
+      - field: lightning.nextStrikeTime
+        effect: 'set to time + 15000 + random * 15000'
+      - field: lightning.lastStrikeTime
+        effect: 'set to current time'
+      - field: world (ECS)
+        effect: 'new lightning entity created with TimedEffect, LightningData, Position, EntityTag, EntityZone'
+      - field: manualDiscoveries
+        effect: 'event:lightning-strike added'
+    determinism: probabilistic
+
+  - id: wildfire-spread
+    description: >
+      spreadWildfire triggers when lightning hits a Clover tile with
+      water below WILDFIRE_DRY_THRESHOLD (30). BFS spreads to adjacent
+      Clover tiles (4-directional) with probability (1 - water/100) *
+      0.6 per neighbor. capped at WILDFIRE_MAX_SPREAD (15) tiles.
+      each burned tile converts Clover to BurntClover, deletes
+      cloverLifecycle and cloverGrowthPreviews entries, enriches soil
+      by SOIL_HEALTH_FIRE_REVERY_BONUS. creates a wildfire ECS entity
+      with MultiPosition, TimedEffect kind=wildfire, EntityTag=wildfire
+      when more than 1 tile burns. records event:wildfire discovery.
+    inputs:
+      - 'GameState with clover tiles and lifecycle data'
+      - 'strike position (x, y)'
+      - 'current time'
+    outputs:
+      - 'Set of burned position keys (may be empty)'
+    state_changes:
+      - field: map[y][x]
+        effect: 'Clover tiles in spread area converted to BurntClover'
+      - field: cloverLifecycle
+        effect: 'entries deleted for all burned positions'
+      - field: cloverGrowthPreviews
+        effect: 'entries deleted for all burned positions'
+      - field: soilHealth
+        effect: 'increased by SOIL_HEALTH_FIRE_REVERY_BONUS for each burned tile'
+      - field: world (ECS)
+        effect: 'wildfire entity created if burned count > 1'
+      - field: manualDiscoveries
+        effect: 'event:wildfire added if fire spreads'
+    determinism: probabilistic
+
+  - id: omnibox-strike-counter
+    description: >
+      when lightning strikes a tile containing a ground omnibox, the
+      omnibox strike count is incremented in state.omniboxStrikeCounts
+      (Map keyed by omnibox uid). the strike count feeds back into
+      weighted target selection as an additional multiplier
+      (1 + strikeCount * 0.5), making previously struck omniboxes
+      progressively more attractive to future strikes.
+    inputs:
+      - 'lightning strike landing on a tile with a ground omnibox'
+    outputs: []
+    state_changes:
+      - field: omniboxStrikeCounts
+        effect: 'entry for omnibox uid incremented by 1 (created at 1 if absent)'
+    determinism: deterministic
+
+  - id: lightning-cleanup
+    description: >
+      tickLightning queries ECS for lightning and wildfire TimedEffect
+      entities whose elapsed time exceeds their duration
+      (LIGHTNING_DURATION_MS for lightning, WILDFIRE_DURATION_MS for
+      wildfire) and destroys them.
+    inputs:
+      - 'GameState with ECS entities'
+      - 'current time'
+    outputs: []
+    state_changes:
+      - field: world (ECS)
+        effect: 'expired lightning and wildfire entities destroyed'
+    determinism: time-based
+
+  - id: game-loop-registration
+    description: >
+      two tick systems registered in gameLoop: lightning-spawn
+      (intervalMs=LIGHTNING_TICK_MS, zone=overworld, priority=60) calls
+      spawnLightningStrike and fires onDiscovery callback on strike and
+      on wildfire. lightning-cleanup (intervalMs=0, zone=always,
+      priority=100) calls tickLightning.
+    inputs:
+      - 'game loop tick'
+    outputs:
+      - 'onDiscovery callback fired with lightning strikes! on strike'
+      - 'onDiscovery callback fired with wildfire! on wildfire spread'
+    state_changes: []
+    determinism: time-based
+
+  - id: genesis-lightning-bolts
+    description: >
+      FireSeason genesis epoch mutate generates 2-4 lightning bolts
+      alongside existing meteorites. bolt impact points are added to
+      the fire BFS ignition queue. bolt paths generated via
+      generateBoltPath. startTime values staggered to interleave with
+      meteorite animations. bolts stored in sim.lightningBolts array.
+    inputs:
+      - 'GenesisSimState with landMask and vegetationMap'
+    outputs:
+      - 'GenesisLightningBolt[] added to sim.lightningBolts'
+    state_changes:
+      - field: sim.lightningBolts
+        effect: '2-4 GenesisLightningBolt objects appended'
+      - field: sim.burnScars
+        effect: 'lightning impact points contribute to BFS fire spread'
+    determinism: probabilistic
+
+  - id: manual-entries
+    description: >
+      three MANUAL_ONLY_ENTRIES added: event:lightning-strike (Celestial,
+      glyph |), event:wildfire (Flora, glyph ^), event:lightning-
+      attraction (Celestial, glyph |) documenting the five targeting
+      factors in plain language with a hint about protecting clover.
+      MANUAL_LORE entries use { lore: TODO } placeholder.
+    inputs: []
+    outputs:
+      - 'three new entries in MANUAL_ENTRIES registry'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: no-valid-target
+    description: 'all 50 sampled candidates are invalid (water, sand, near player) so selectStrikeTarget returns null'
+    expected: 'spawnLightningStrike returns null, no entity created, cooldown still set'
+  - id: strike-on-dirt
+    description: 'lightning strikes a dirt tile (no clover)'
+    expected: 'bolt entity created but no wildfire spread, no tile conversion'
+  - id: strike-on-wet-clover
+    description: 'lightning strikes clover with water > WILDFIRE_DRY_THRESHOLD'
+    expected: 'bolt entity created but no wildfire spread — wet clover resists ignition'
+  - id: wildfire-max-spread
+    description: 'BFS reaches WILDFIRE_MAX_SPREAD limit in a large dry clover field'
+    expected: 'spread stops at 15 tiles, remaining dry clover untouched'
+  - id: wildfire-water-barrier
+    description: 'dry clover field split by a river or pond'
+    expected: 'wildfire cannot spread across water tiles, stops at the boundary'
+  - id: cave-zone-suppressed
+    description: 'player is in the cave zone'
+    expected: 'lightning-spawn tick system does not fire (zone=overworld only)'
+  - id: cooldown-respected
+    description: 'time is before nextStrikeTime'
+    expected: 'spawnLightningStrike returns null immediately without rolling or spawning'
+  - id: omnibox-strike-accumulation
+    description: 'same ground omnibox struck twice'
+    expected: 'omniboxStrikeCounts entry equals 2, targeting weight for that tile increases'
+  - id: genesis-lightning-alongside-meteorites
+    description: 'FireSeason epoch generates both meteorites and lightning bolts'
+    expected: 'sim.meteorites has 5-8 entries and sim.lightningBolts has 2-4 entries, all impact points in BFS queue'
+
+failure_conditions:
+  - trigger: 'weather is sunny with low humidity and low wind'
+    expected: 'combined probability is near zero (~0.0005), effectively no strikes'
+  - trigger: 'no land tiles exist (degenerate map)'
+    expected: 'selectStrikeTarget returns null, no crash'
+  - trigger: 'player occupies the only high-value target tile'
+    expected: 'tile rejected by player distance check, no strike on player'
+  - trigger: 'all clover on map is fully hydrated'
+    expected: 'lightning can still strike but wildfire never spreads'
+
+verification:
+  test_file: src/engine/__tests__/lightning.test.ts
+  test_pattern: 'lightning'
+  command: 'npx vitest run src/engine/__tests__/lightning.test.ts'

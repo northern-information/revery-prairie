@@ -184,6 +184,8 @@ export interface GameState {
   rivers: Set<string>
   burnScars: Set<string>
   meteorShower: MeteorShowerState
+  lightning: LightningState
+  omniboxStrikeCounts: Map<string, number>
   manualDiscoveries: Set<string>
   manualState: ManualState
   lastDialogTypingTick: number
@@ -270,6 +272,11 @@ export interface MeteorShowerState {
   spawnIntervalMs: number
   radiantDx: number
   radiantDy: number
+}
+
+export interface LightningState {
+  nextStrikeTime: number
+  lastStrikeTime: number
 }
 
 export interface CharMetrics {

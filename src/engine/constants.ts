@@ -87,6 +87,42 @@ export const EXPLOSION_RADIUS = 3 // max radius in tiles
 export const EXPLOSION_CHARS = ['*', '+', '.', '\u00b7'] // particles shrink as they fade
 export const EXPLOSION_COLORS = ['#FFD700', '#FFC125', '#DAA520', '#B8860B', '#8B6914'] // gold → dark gold fade
 
+// lightning
+export const LIGHTNING_TICK_MS = 10_000
+export const LIGHTNING_BASE_CHANCE = 0.002
+export const LIGHTNING_DURATION_MS = 800
+export const LIGHTNING_FLASH_MS = 100
+export const LIGHTNING_SCREEN_FLASH_MS = 150
+export const LIGHTNING_SCREEN_FLASH_OPACITY = 0.3
+export const LIGHTNING_BOLT_MIN_LENGTH = 8
+export const LIGHTNING_BOLT_MAX_LENGTH = 12
+export const LIGHTNING_BRANCH_CHANCE = 0.3
+export const LIGHTNING_BOLT_COLOR_BRIGHT = '#FFFFFF'
+export const LIGHTNING_BOLT_COLOR_MID = '#E0E0FF'
+export const LIGHTNING_BOLT_COLOR_DIM = '#8888CC'
+export const LIGHTNING_IMPACT_CHARS = ['*', '+', '.']
+export const LIGHTNING_IMPACT_COLORS = ['#FFFFFF', '#FFFFAA', '#FFDD66', '#CC9933']
+export const LIGHTNING_MIN_PLAYER_DIST = 3
+
+// lightning targeting weights
+export const LIGHTNING_WEIGHT_ELEVATION = 2.0
+export const LIGHTNING_WEIGHT_NEAR_WATER = 1.5
+export const LIGHTNING_WEIGHT_METAL = 3.0
+export const LIGHTNING_WEIGHT_ISOLATED = 1.8
+export const LIGHTNING_WEIGHT_CLOVER = 1.3
+export const LIGHTNING_WEIGHT_STRIKE_HISTORY = 0.5
+export const LIGHTNING_NEAR_WATER_RADIUS = 3
+export const LIGHTNING_ISOLATED_RADIUS = 2
+export const LIGHTNING_ISOLATED_CLOVER_THRESHOLD = 0.4
+export const LIGHTNING_TARGET_SAMPLE_SIZE = 50
+
+// wildfire
+export const WILDFIRE_DURATION_MS = 1500
+export const WILDFIRE_MAX_SPREAD = 15
+export const WILDFIRE_DRY_THRESHOLD = 30
+export const WILDFIRE_CHARS = ['^', '~', '*']
+export const WILDFIRE_COLORS = ['#FF4500', '#FF6347', '#FFD700', '#FF8C00']
+
 // meteorite pickup effect (starlight bloom)
 export const PICKUP_EFFECT_DURATION_MS = 700 // total effect lifetime
 export const PICKUP_EFFECT_BLOOM_MS = 400 // phase 1 (expanding ring) duration

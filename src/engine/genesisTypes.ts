@@ -84,6 +84,8 @@ export interface GenesisSimState {
   glacialEdgeNoise: { top: number[]; bottom: number[] }
   /** Meteorite streak data for fire season animation */
   meteorites: GenesisMeteorStreak[]
+  /** Lightning bolt data for fire season animation */
+  lightningBolts: GenesisLightningBolt[]
   /** River paths as ordered arrays for progressive reveal */
   riverPathsOrdered: { x: number; y: number }[][]
   /** Glacier meltwater pool positions */
@@ -109,6 +111,14 @@ export interface GenesisMeteorStreak {
   /** Trail length in tiles */
   length: number
   /** Normalized time (0-1) within the epoch when this streak begins */
+  startTime: number
+}
+
+export interface GenesisLightningBolt {
+  impactX: number
+  impactY: number
+  path: { x: number; y: number }[]
+  branch: { x: number; y: number }[] | null
   startTime: number
 }
 

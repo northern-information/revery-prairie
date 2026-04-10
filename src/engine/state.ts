@@ -128,6 +128,11 @@ export const createGameState = (
       radiantDx: 0,
       radiantDy: 0,
     },
+    lightning: {
+      nextStrikeTime: 60_000,
+      lastStrikeTime: 0,
+    },
+    omniboxStrikeCounts: new Map<string, number>(),
     cloverGrowthPreviews: new Set<string>(),
     cloverLifecycle: new Map(),
     soilHealth: genesisResult?.soilHealth ?? generateSoilHealth(map, MAP_WIDTH, MAP_HEIGHT),

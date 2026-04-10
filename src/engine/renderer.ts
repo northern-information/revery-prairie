@@ -33,6 +33,15 @@ import {
   EXPLOSION_DURATION_MS,
   EXPLOSION_RADIUS,
   HOVER_PATH_COLOR,
+  LIGHTNING_BOLT_COLOR_BRIGHT,
+  LIGHTNING_BOLT_COLOR_DIM,
+  LIGHTNING_BOLT_COLOR_MID,
+  LIGHTNING_DURATION_MS,
+  LIGHTNING_FLASH_MS,
+  LIGHTNING_IMPACT_CHARS,
+  LIGHTNING_IMPACT_COLORS,
+  LIGHTNING_SCREEN_FLASH_MS,
+  LIGHTNING_SCREEN_FLASH_OPACITY,
   METEORITE_CHAR,
   METEORITE_COLOR,
   PICKUP_EFFECT_BLOOM_MS,
@@ -54,6 +63,9 @@ import {
   TILE_CHARS,
   TILE_COLORS,
   TRAIL_DURATION_MS,
+  WILDFIRE_CHARS,
+  WILDFIRE_COLORS,
+  WILDFIRE_DURATION_MS,
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
@@ -286,6 +298,111 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             explosionMap.set(posKey(ex, ey), { char, color })
           }
         }
+      }
+    }
+  }
+
+  // Build a map of lightning bolt pixels (from ECS)
+  const lightningMap = new Map<string, { char: string; color: string }>()
+  let lightningFlashElapsed = Infinity
+  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    if (!inZone(eid)) continue
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'lightning') continue
+    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+    const data = state.world.getComponent(eid, ComponentType.LightningData)
+    if (!effect || !data) continue
+
+    const elapsed = time - effect.startTime
+    if (elapsed >= LIGHTNING_DURATION_MS) continue
+    lightningFlashElapsed = Math.min(lightningFlashElapsed, elapsed)
+
+    const { path, branch } = data
+
+    // Determine bolt character for a segment based on dx from previous to current
+    const boltChar = (dx: number): string => (dx === 0 ? '|' : dx > 0 ? '\\' : '/')
+
+    // Phase 1: Flash (0 to LIGHTNING_FLASH_MS) — all bright white
+    // Phase 2: Glow (LIGHTNING_FLASH_MS to 500ms) — dimming with flicker
+    // Phase 3: Fade (500ms to LIGHTNING_DURATION_MS) — bottom-to-top disappearance
+    if (elapsed < LIGHTNING_FLASH_MS) {
+      // Flash: all segments bright white
+      for (let i = 0; i < path.length; i++) {
+        const dx = i > 0 ? path[i].x - path[i - 1].x : 0
+        lightningMap.set(posKey(path[i].x, path[i].y), { char: boltChar(dx), color: LIGHTNING_BOLT_COLOR_BRIGHT })
+      }
+      if (branch) {
+        for (const bp of branch) {
+          lightningMap.set(posKey(bp.x, bp.y), { char: '/', color: LIGHTNING_BOLT_COLOR_BRIGHT })
+        }
+      }
+      // Impact ring
+      const impact = path[path.length - 1]
+      lightningMap.set(posKey(impact.x, impact.y), { char: LIGHTNING_IMPACT_CHARS[0], color: LIGHTNING_IMPACT_COLORS[0] })
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue
+          if (Math.abs(dx) + Math.abs(dy) === 1) {
+            lightningMap.set(posKey(impact.x + dx, impact.y + dy), { char: LIGHTNING_IMPACT_CHARS[1], color: LIGHTNING_IMPACT_COLORS[1] })
+          }
+        }
+      }
+    } else if (elapsed < 500) {
+      // Glow: dimming with flicker
+      const flickerOn = Math.floor(time / 80) % 2 === 0
+      const color = flickerOn ? LIGHTNING_BOLT_COLOR_MID : LIGHTNING_BOLT_COLOR_DIM
+      for (let i = 0; i < path.length; i++) {
+        const dx = i > 0 ? path[i].x - path[i - 1].x : 0
+        lightningMap.set(posKey(path[i].x, path[i].y), { char: boltChar(dx), color })
+      }
+      if (branch) {
+        for (const bp of branch) {
+          lightningMap.set(posKey(bp.x, bp.y), { char: '/', color })
+        }
+      }
+      // Fading impact
+      const impact = path[path.length - 1]
+      const impactProgress = (elapsed - LIGHTNING_FLASH_MS) / (500 - LIGHTNING_FLASH_MS)
+      const impactCharIdx = Math.min(Math.floor(impactProgress * LIGHTNING_IMPACT_CHARS.length), LIGHTNING_IMPACT_CHARS.length - 1)
+      const impactColorIdx = Math.min(Math.floor(impactProgress * LIGHTNING_IMPACT_COLORS.length), LIGHTNING_IMPACT_COLORS.length - 1)
+      lightningMap.set(posKey(impact.x, impact.y), { char: LIGHTNING_IMPACT_CHARS[impactCharIdx], color: LIGHTNING_IMPACT_COLORS[impactColorIdx] })
+    } else {
+      // Fade: segments disappear bottom-to-top
+      const fadeProgress = (elapsed - 500) / (LIGHTNING_DURATION_MS - 500)
+      const visibleCount = Math.max(0, Math.floor(path.length * (1 - fadeProgress)))
+      for (let i = 0; i < visibleCount; i++) {
+        const dx = i > 0 ? path[i].x - path[i - 1].x : 0
+        lightningMap.set(posKey(path[i].x, path[i].y), { char: boltChar(dx), color: LIGHTNING_BOLT_COLOR_DIM })
+      }
+    }
+  }
+
+  // Build a map of wildfire pixels (from ECS)
+  const wildfireMap = new Map<string, { char: string; color: string }>()
+  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    if (!inZone(eid)) continue
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'wildfire') continue
+    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+    const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
+    if (!effect || !multi) continue
+
+    const elapsed = time - effect.startTime
+    if (elapsed >= WILDFIRE_DURATION_MS) continue
+    const progress = elapsed / WILDFIRE_DURATION_MS
+
+    for (const pos of multi.positions) {
+      const h = tileHash(pos.x, pos.y)
+      if (progress < 0.6) {
+        // Active fire: cycling chars and colors
+        const charIdx = (h + Math.floor(time * 0.01)) % WILDFIRE_CHARS.length
+        const colorIdx = (h + Math.floor(time * 0.008)) % WILDFIRE_COLORS.length
+        wildfireMap.set(posKey(pos.x, pos.y), { char: WILDFIRE_CHARS[charIdx], color: WILDFIRE_COLORS[colorIdx] })
+      } else {
+        // Fade to BurntClover
+        const fadeProgress = (progress - 0.6) / 0.4
+        const colorIdx = Math.min(Math.floor(fadeProgress * WILDFIRE_COLORS.length), WILDFIRE_COLORS.length - 1)
+        wildfireMap.set(posKey(pos.x, pos.y), { char: '%', color: WILDFIRE_COLORS[WILDFIRE_COLORS.length - 1 - colorIdx] })
       }
     }
   }
@@ -573,6 +690,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         char = shootingStarOnLand.char
         color = shootingStarOnLand.color
         cursorable = false
+      } else if (lightningMap.has(tileKey)) {
+        const lp = lightningMap.get(tileKey)
+        char = lp?.char ?? '|'
+        color = lp?.color ?? '#FFFFFF'
+        cursorable = false
       } else if (previewTile) {
         char = previewTile.char
         color = previewTile.color
@@ -583,6 +705,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const ep = explosionMap.get(tileKey)
         char = ep?.char ?? '*'
         color = ep?.color ?? '#FFD700'
+      } else if (wildfireMap.has(tileKey)) {
+        const wf = wildfireMap.get(tileKey)
+        char = wf?.char ?? '^'
+        color = wf?.color ?? '#FF4500'
       } else if (pickupEffectMap.has(tileKey)) {
         const pe = pickupEffectMap.get(tileKey)
         char = pe?.char ?? '*'
@@ -787,5 +913,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const rpy = vy * charHeight
     ctx.fillStyle = RAIN_COLORS[colorPhase]
     ctx.fillText(RAIN_CHARS[phase], rpx, rpy)
+  }
+
+  // Lightning screen flash overlay — drawn last, covers everything
+  if (lightningFlashElapsed < LIGHTNING_SCREEN_FLASH_MS) {
+    const alpha = LIGHTNING_SCREEN_FLASH_OPACITY * (1 - lightningFlashElapsed / LIGHTNING_SCREEN_FLASH_MS)
+    ctx.fillStyle = `rgba(255, 255, 255, ${String(alpha)})`
+    ctx.fillRect(0, 0, pxWidth, pxHeight)
   }
 }
