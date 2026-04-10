@@ -18,7 +18,7 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
-import { isInBounds, isWalkableTile } from './position'
+import { isInBounds, isWalkableTile, posKey } from './position'
 import { TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'
@@ -33,6 +33,11 @@ const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
   return false
 }
 
+const isWaterTile = (state: GameState, x: number, y: number): boolean => {
+  const key = posKey(x, y)
+  return state.ponds.has(key) || state.rivers.has(key)
+}
+
 export const spawnChainMeteorites = (state: GameState, origin: Position, time: number): number => {
   const candidates: Position[] = []
   for (let dy = -CHAIN_EXPLOSION_RADIUS; dy <= CHAIN_EXPLOSION_RADIUS; dy++) {
@@ -43,6 +48,7 @@ export const spawnChainMeteorites = (state: GameState, origin: Position, time: n
       if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
       if (!isWalkableTile(state.map[y][x].type)) continue
       if (isTileOccupied(state, x, y)) continue
+      if (isWaterTile(state, x, y)) continue
       candidates.push({ x, y })
     }
   }
@@ -190,11 +196,13 @@ export const tickShootingStars = (state: GameState, time: number): void => {
       if (data.landingTarget) {
         // Targeted landing — only land on the exact target tile
         if (x === data.landingTarget.x && y === data.landingTarget.y) {
-          const me = state.world.createEntity()
-          state.world.addComponent(me, ComponentType.Position, { x, y })
-          state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
-          state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
-          state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
+          if (!isWaterTile(state, x, y)) {
+            const me = state.world.createEntity()
+            state.world.addComponent(me, ComponentType.Position, { x, y })
+            state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
+            state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
+            state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
+          }
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
@@ -207,11 +215,13 @@ export const tickShootingStars = (state: GameState, time: number): void => {
         // Untargeted landing — land on first walkable tile
         const tile = state.map[y][x]
         if (tile.type === TileType.Dirt || tile.type === TileType.Clover) {
-          const me = state.world.createEntity()
-          state.world.addComponent(me, ComponentType.Position, { x, y })
-          state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
-          state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
-          state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
+          if (!isWaterTile(state, x, y)) {
+            const me = state.world.createEntity()
+            state.world.addComponent(me, ComponentType.Position, { x, y })
+            state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
+            state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
+            state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
+          }
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
@@ -278,6 +288,7 @@ export const findShowerTargets = (state: GameState, count: number): Position[] =
     const tile = state.map[y][x].type
     if (tile !== TileType.Dirt && tile !== TileType.Clover) continue
     if (isTileOccupied(state, x, y)) continue
+    if (isWaterTile(state, x, y)) continue
 
     // Minimum 5-tile manhattan distance between targets
     let tooClose = false
