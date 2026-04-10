@@ -102,14 +102,14 @@ behaviors:
   - id: hexagram-toss-sequence
     description: >
       The casting panel shows a 6-step toss sequence. Each step, the
-      player presses a key (space or enter) to "toss" the 3 coins.
+      player presses [e] or Enter to "toss" the 3 coins.
       Each toss randomly generates heads (3) or tails (2) for each coin,
       summing to 6, 7, 8, or 9. The line type is determined: 6 = old yin
       (broken, changing), 7 = young yang (solid), 8 = young yin (broken),
       9 = old yang (solid, changing). Lines build from bottom to top.
       After 6 tosses the hexagram is complete.
     inputs:
-      - 'Player presses space/enter in the hexagram panel during toss phase'
+      - 'Player presses [e]/Enter in the hexagram panel during toss phase'
     outputs:
       - 'One hexagram line added to the current cast'
       - 'Visual: coin toss animation, line drawn in the hexagram display'

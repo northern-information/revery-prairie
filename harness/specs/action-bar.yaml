@@ -51,14 +51,15 @@ behaviors:
   - id: assign-action-bar-slot
     description: >
       assignActionBarSlot places a revery or item in a slot (0-3).
-      validates slot bounds. initializes cooldown to 0. overwrites
-      existing slot contents.
+      validates slot bounds. initializes cooldownEndTime and
+      cooldownDurationMs both to 0 — actual duration is set later
+      by activateActionBarSlot on cast. overwrites existing slot contents.
     inputs:
       - 'GameState, slotIndex (0-3), kind (revery/item), id'
     outputs: []
     state_changes:
       - field: actionBar
-        effect: 'slot at index set to ActionBarSlot with kind, id, cooldownEndTime: 0, cooldownDurationMs from revery definition'
+        effect: 'slot at index set to ActionBarSlot with kind, id, cooldownEndTime: 0, cooldownDurationMs: 0'
     determinism: deterministic
 
   - id: clear-action-bar-slot
@@ -76,18 +77,21 @@ behaviors:
     description: >
       activateActionBarSlot fires a revery slot. returns false for
       empty slots, cooldown active, or item slots (deferred). on
-      success: sets cooldownEndTime, creates a timed effect ECS
-      entity with MultiPosition, TimedEffect (reveryCast), EntityTag,
-      EntityZone. calls applyReveryCastEffects for gameplay impact.
+      success: sets cooldownEndTime and cooldownDurationMs from the
+      revery definition. scan-style reveries (earth) create a
+      single-Position ECS entity at the player position. tile-style
+      reveries create a MultiPosition ECS entity at the cast pattern
+      positions. both carry TimedEffect (reveryCast), EntityTag,
+      EntityZone. calls applyReveryCastEffects for tile-style casts.
     inputs:
       - 'GameState, slotIndex (0-3), now (timestamp)'
     outputs:
       - 'boolean: true if activation succeeded'
     state_changes:
       - field: actionBar
-        effect: 'slot cooldownEndTime set to now + cooldownMs'
+        effect: 'slot cooldownEndTime set to now + cooldownMs, cooldownDurationMs set to cooldownMs'
       - field: world
-        effect: 'reveryCast ECS entity created with MultiPosition, TimedEffect, EntityTag, EntityZone'
+        effect: 'reveryCast ECS entity created — scan-style uses Position, tile-style uses MultiPosition; both have TimedEffect, EntityTag, EntityZone'
     determinism: deterministic
 
   - id: fire-revery-effect
@@ -150,15 +154,38 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: action-bar-preview
+    description: >
+      getActionBarPreview returns preview glyphs for the revery in a
+      given slot. returns empty for scan-style reveries, empty slots,
+      item slots, or slots on cooldown. for tile-style reveries,
+      computes cast positions from the facing tile and cast pattern,
+      returning { pos, char, color } for each valid position.
+    inputs:
+      - 'GameState, slotIndex (0-3)'
+    outputs:
+      - 'array of { pos: Position, char: string, color: string }'
+    state_changes: []
+    determinism: deterministic
+
   - id: keybind-activation
     description: >
-      keys 1-4 activate the corresponding action bar slot (index 0-3).
-      blocked during active dialog and menu.
+      keys 1-4 use a hold-to-preview, release-to-cast pattern.
+      on keydown: sets heldActionSlot to the slot index and
+      previewFn to getActionBarPreview for that slot (shows cast
+      preview on the map). on keyup: clears heldActionSlot and
+      previewFn, then calls activateActionBarSlot. blocked during
+      active dialog, menu, and key repeat.
     inputs:
-      - "key '1'-'4' pressed, no dialog or menu active"
+      - "key '1'-'4' pressed and released, no dialog or menu active"
     outputs:
-      - 'slot activation attempted'
-    state_changes: []
+      - 'keydown: preview displayed on map'
+      - 'keyup: slot activation attempted'
+    state_changes:
+      - field: heldActionSlot
+        effect: 'set to slot index on keydown, cleared to null on keyup'
+      - field: previewFn
+        effect: 'set to getActionBarPreview on keydown, cleared to null on keyup'
     determinism: deterministic
 
 edge_cases:

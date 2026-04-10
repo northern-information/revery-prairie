@@ -19,11 +19,12 @@ behaviors:
     description: >
       Moab Coldë is defined in the CHARACTERS registry with id 'moab',
       name 'Moab Coldë', glyph 'M', glyphColor '#FFFFFF' (white, same
-      as all other characters), and dialog ['...', '...', '...fine.'].
+      as all other characters), and dialog ['...']. single-line dialog.
+      postGiftDialog is also ['...'].
     inputs:
       - "getCharacterDefinition('moab')"
     outputs:
-      - "CharacterDefinition with glyph 'M', white color, 3-line dialog"
+      - "CharacterDefinition with glyph 'M', white color, 1-line dialog"
     state_changes: []
     determinism: deterministic
 
@@ -57,12 +58,12 @@ behaviors:
   - id: moab-first-interaction-dialog
     description: >
       First time the player talks to Moab (presses [e] while facing
-      him), dialog advances through '...', '...', '...fine.' — 3 lines
-      using the standard dialog system.
+      him), dialog shows '...' — single line using the standard dialog
+      system. gift is delivered before dialog opens.
     inputs:
       - "Player facing Moab, [e] pressed, giftsReceived does not contain 'moab'"
     outputs:
-      - 'activeDialog cycles through 3 lines'
+      - 'activeDialog shows 1 line'
     state_changes:
       - field: activeDialog
         effect: "set to { characterId: 'moab', lineIndex: 0 }"
