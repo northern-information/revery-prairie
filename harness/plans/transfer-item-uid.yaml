@@ -1,0 +1,43 @@
+plan:
+  id: transfer-item-uid
+  title: Fix transferItem to preserve original item uid
+  created: '2026-04-10'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: fix-transfer-item
+    title: Rewrite transferItem to mutate original item instead of calling placeItem
+    spec_id: transfer-item-uid
+    spec_sections:
+      - transfer-preserves-uid
+      - transfer-rollback-preserves-uid
+    context_files:
+      - src/engine/inventory.ts
+    output_files:
+      - src/engine/inventory.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/inventory.test.ts -t transferItem
+    repair: retry
+    tags: [engine]
+
+  - id: add-uid-preservation-tests
+    title: Add regression tests asserting uid is preserved through transfer and rollback
+    spec_id: transfer-item-uid
+    spec_sections:
+      - transfer-preserves-uid
+      - transfer-rollback-preserves-uid
+    context_files:
+      - src/engine/inventory.ts
+      - src/engine/__tests__/inventory.test.ts
+    output_files:
+      - src/engine/__tests__/inventory.test.ts
+    depends_on:
+      - fix-transfer-item
+    verification:
+      - npx vitest run src/engine/__tests__/inventory.test.ts -t transferItem
+    repair: retry
+    tags: [test]

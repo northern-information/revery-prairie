@@ -1,0 +1,68 @@
+id: transfer-item-uid
+name: 'transferItem preserves item uid'
+status: implemented
+priority: high
+layer: engine
+source_files:
+  - src/engine/inventory.ts
+dependencies:
+  - inventory-management
+
+behaviors:
+  - id: transfer-preserves-uid
+    description: >
+      transferItem moves an item between containers while preserving
+      the original ItemInstance uid. uses canPlace for validation,
+      then removes the item from source, mutates its gridX/gridY/
+      rotation in place, and pushes it into target.items. the same
+      object reference with the same uid is transferred. this is
+      critical for omnibox items whose containers are keyed by uid
+      in state.omniboxContainers.
+    inputs:
+      - 'source container, target container, uid, target position and rotation'
+    outputs:
+      - 'boolean: true if transfer succeeded'
+    state_changes:
+      - field: source.items
+        effect: 'item removed via removeItem'
+      - field: target.items
+        effect: 'same ItemInstance (same uid) pushed with updated gridX/gridY/rotation'
+    determinism: deterministic
+
+  - id: transfer-rollback-preserves-uid
+    description: >
+      when target placement fails (canPlace returns false after
+      removal), the original item is restored to source at its
+      original position. the same ItemInstance with the same uid is
+      pushed back — no new uid generated. follows the autoSort
+      pattern of mutating the original object in place.
+    inputs:
+      - 'transferItem where target has no room'
+    outputs:
+      - 'boolean: false, source unchanged'
+    state_changes:
+      - field: source.items
+        effect: 'original item restored with original uid, gridX, gridY, rotation'
+    determinism: deterministic
+
+edge_cases:
+  - id: omnibox-transfer-between-containers
+    description: 'an omnibox item is transferred from backpack to another omnibox. the omniboxContainers entry keyed by the original uid must remain valid.'
+    expected: 'transferred omnibox retains its uid. omniboxContainers.get(uid) still returns the container.'
+  - id: glinting-coin-transfer
+    description: 'a glinting coin (uid in glintingCoins set) is transferred between containers.'
+    expected: 'coin retains its uid. glintingCoins.has(uid) still returns true.'
+  - id: transfer-rollback-does-not-orphan
+    description: 'transferItem fails on target placement and rolls back to source.'
+    expected: 'item in source has its original uid, not a new one. no orphaned omnibox container.'
+
+failure_conditions:
+  - trigger: 'transferItem generates a new uid for the placed item'
+    expected: 'uid must be preserved from the original item. omniboxContainers keyed by original uid would be orphaned otherwise.'
+  - trigger: 'rollback path generates a new uid when restoring to source'
+    expected: 'original uid must be preserved on rollback. no state corruption.'
+
+verification:
+  test_file: src/engine/__tests__/inventory.test.ts
+  test_pattern: 'transferItem'
+  command: 'npx vitest run src/engine/__tests__/inventory.test.ts -t transferItem'
