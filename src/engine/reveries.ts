@@ -7,7 +7,7 @@ interface ReveryEntry {
   glyphColor: string
   cooldownMs: number
   castDurationMs: number
-  castStyle: 'tile' | 'rain' | 'scan'
+  castStyle: 'tile' | 'rain' | 'scan' | 'targeted'
   castPattern: Position[]
 }
 
@@ -51,6 +51,16 @@ const REVERIES = {
     cooldownMs: 6000,
     castDurationMs: 5500,
     castStyle: 'scan' as const,
+    castPattern: [],
+  },
+  lightning: {
+    name: 'Lightning Revery',
+    description: 'a memory of the storm',
+    glyphs: ['|'],
+    glyphColor: '#FFFFFF',
+    cooldownMs: 15000,
+    castDurationMs: 800,
+    castStyle: 'targeted' as const,
     castPattern: [],
   },
 } as const satisfies Record<string, ReveryEntry>

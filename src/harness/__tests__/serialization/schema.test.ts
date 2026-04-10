@@ -68,6 +68,7 @@ const EXPECTED_FIELDS = [
   'pendingInteractionTarget',
   'heldDirection',
   'heldActionSlot',
+  'targetingSlot',
   'sprinting',
   'trail',
   'musicEnabled',
@@ -76,6 +77,8 @@ const EXPECTED_FIELDS = [
   'world',
   'lastDialogTypingTick',
   'glintingCoins',
+  'divinedHexagrams',
+  'glintZones',
   'zoom',
   'civilizationRuins',
 ].sort((a, b) => a.localeCompare(b))

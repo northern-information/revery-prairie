@@ -91,6 +91,7 @@ export const createGameState = (
     pendingInteractionTarget: null,
     heldDirection: null,
     heldActionSlot: null,
+    targetingSlot: null,
     sprinting: false,
     trail: [],
     cursorTile: null,
@@ -148,6 +149,8 @@ export const createGameState = (
     },
     lastDialogTypingTick: 0,
     glintingCoins: new Set<string>(),
+    divinedHexagrams: new Set<number>(),
+    glintZones: new Set<string>(),
     civilizationRuins: genesisResult?.ruins ?? [],
   }
 
