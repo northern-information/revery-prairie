@@ -9,6 +9,29 @@ const COMMENTARY_FONT_SCALE = 1.5
 const COMMENTARY_SHOW_MS = 3000
 const COMMENTARY_FADE_MS = 300
 
+// Cross-fade window: last 10% of each epoch blends into the next
+const CROSSFADE_START = 0.9
+
+/** Parse a hex color (#RGB or #RRGGBB) into [r, g, b]. */
+const parseHex = (hex: string): [number, number, number] => {
+  const h = hex.startsWith('#') ? hex.slice(1) : hex
+  if (h.length === 3) {
+    return [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)]
+  }
+  const n = parseInt(h, 16)
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff]
+}
+
+/** Lerp two hex color strings, returning an rgb() string. */
+const lerpHexColor = (from: string, to: string, t: number): string => {
+  const [fr, fg, fb] = parseHex(from)
+  const [tr, tg, tb] = parseHex(to)
+  const r = Math.round(fr + (tr - fr) * t)
+  const g = Math.round(fg + (tg - fg) * t)
+  const b = Math.round(fb + (tb - fb) * t)
+  return `rgb(${String(r)},${String(g)},${String(b)})`
+}
+
 /** Render one frame of the genesis simulation. */
 export const renderGenesis = (
   ctx: CanvasRenderingContext2D,
@@ -32,9 +55,38 @@ export const renderGenesis = (
   const epoch = epochs[sim.epochIndex]
   const progress = getEpochProgress(sim, epochs)
 
-  // Camera: center on the map
-  const cameraX = Math.floor(sim.width / 2 - viewportWidth / 2)
-  const cameraY = Math.floor(sim.height / 2 - viewportHeight / 2)
+  // Camera: center on the map, lerping toward game camera during Present Day
+  const isLastEpoch = sim.epochIndex === epochs.length - 1
+  const SIDEBAR_WIDTH_PX = 192
+  const rightInsetTiles = Math.ceil(SIDEBAR_WIDTH_PX / charWidth)
+  const visibleWidth = viewportWidth - rightInsetTiles
+
+  // Genesis default: center map in full viewport
+  const genCamX = Math.floor(sim.width / 2 - viewportWidth / 2)
+  const genCamY = Math.floor(sim.height / 2 - viewportHeight / 2)
+
+  // Game camera: center player in visible (non-sidebar) area
+  const playerX = Math.floor(sim.width / 2)
+  const playerY = Math.floor(sim.height / 2)
+  const gameCamX =
+    sim.width < visibleWidth
+      ? -Math.floor((visibleWidth - sim.width) / 2)
+      : Math.max(0, Math.min(playerX - Math.floor(visibleWidth / 2), sim.width - visibleWidth))
+  const gameCamY =
+    sim.height < viewportHeight
+      ? -Math.floor((viewportHeight - sim.height) / 2)
+      : Math.max(0, Math.min(playerY - Math.floor(viewportHeight / 2), sim.height - viewportHeight))
+
+  let cameraX: number
+  let cameraY: number
+  if (isLastEpoch && progress > 0.8) {
+    const lerpT = (progress - 0.8) / 0.2
+    cameraX = Math.round(genCamX + (gameCamX - genCamX) * lerpT)
+    cameraY = Math.round(genCamY + (gameCamY - genCamY) * lerpT)
+  } else {
+    cameraX = genCamX
+    cameraY = genCamY
+  }
 
   // Main viewport loop
   ctx.textBaseline = 'top'
@@ -55,6 +107,16 @@ export const renderGenesis = (
     sim.elevation = snapshot.elevation
   }
 
+  // Cross-fade: blend into next epoch during last 10% of current epoch
+  const hasNextEpoch = sim.epochIndex + 1 < epochs.length
+  const needsBlend = progress > CROSSFADE_START && hasNextEpoch && useSnapshot
+  const blendT = needsBlend ? (progress - CROSSFADE_START) / (1 - CROSSFADE_START) : 0
+  const nextEpoch = needsBlend ? epochs[sim.epochIndex + 1] : null
+  const nextSnapshot =
+    needsBlend && sim.epochSnapshots.length > sim.epochIndex + 1
+      ? sim.epochSnapshots[sim.epochIndex + 1]
+      : null
+
   for (let vy = 0; vy < viewportHeight; vy++) {
     for (let vx = 0; vx < viewportWidth; vx++) {
       const mx = cameraX + vx
@@ -64,9 +126,37 @@ export const renderGenesis = (
 
       const renders = epoch.renderTile(sim, mx, my, progress, time)
 
-      for (const r of renders) {
-        ctx.fillStyle = r.color
-        ctx.fillText(r.char, px + r.dx, py + r.dy)
+      if (nextEpoch && nextSnapshot) {
+        // Swap to next epoch's snapshot
+        sim.vegetationMap = nextSnapshot.vegetationMap
+        sim.riverPaths = nextSnapshot.riverPaths
+        sim.ponds = nextSnapshot.ponds
+        sim.elevation = nextSnapshot.elevation
+
+        const nextRenders = nextEpoch.renderTile(sim, mx, my, 0, time)
+
+        // Restore current epoch's snapshot
+        const currentSnapshot = sim.epochSnapshots[sim.epochIndex]
+        sim.vegetationMap = currentSnapshot.vegetationMap
+        sim.riverPaths = currentSnapshot.riverPaths
+        sim.ponds = currentSnapshot.ponds
+        sim.elevation = currentSnapshot.elevation
+
+        // Blend: interpolate color, snap character at midpoint
+        const curR = renders[0]
+        const nextR = nextRenders[0]
+        if (curR && nextR) {
+          ctx.fillStyle = lerpHexColor(curR.color, nextR.color, blendT)
+          ctx.fillText(blendT > 0.5 ? nextR.char : curR.char, px + curR.dx, py + curR.dy)
+        } else if (curR) {
+          ctx.fillStyle = curR.color
+          ctx.fillText(curR.char, px + curR.dx, py + curR.dy)
+        }
+      } else {
+        for (const r of renders) {
+          ctx.fillStyle = r.color
+          ctx.fillText(r.char, px + r.dx, py + r.dy)
+        }
       }
     }
   }
