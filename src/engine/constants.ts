@@ -11,6 +11,7 @@ export const ZOOM_STEP = 0.125
 export const ZOOM_DEFAULT = 1.0
 
 export const SAND_BORDER = 2
+export const WATER_SAND_BORDER = 2
 
 export const CAVE_WIDTH = 40
 export const CAVE_HEIGHT = 25

@@ -1,4 +1,4 @@
-import { SAND_BORDER, SOIL_HEALTH_MAX, SPACE_BORDER } from './constants'
+import { SAND_BORDER, SOIL_HEALTH_MAX, SPACE_BORDER, WATER_SAND_BORDER } from './constants'
 import { GenesisEpochId } from './genesisTypes'
 import { posKey } from './position'
 import { smoothNoiseSeeded } from './terrain'
@@ -1973,26 +1973,32 @@ const fallOfCivilizations: GenesisEpoch = {
       [1, -1],
       [-1, 1],
     ]
-    for (const key of keptTiles) {
-      const [xStr, yStr] = key.split(',')
-      const wx = Number(xStr)
-      const wy = Number(yStr)
-      for (const [ddx, ddy] of shoreDirs) {
-        const nx = wx + ddx
-        const ny = wy + ddy
-        const nk = posKey(nx, ny)
-        if (
-          sim.landMask.has(nk) &&
-          !keptTiles.has(nk) &&
-          ny >= 0 &&
-          ny < sim.height &&
-          nx >= 0 &&
-          nx < sim.width &&
-          sim.grid[ny][nx].type === TileType.Dirt
-        ) {
-          sim.grid[ny][nx].type = TileType.Sand
+    let frontier = new Set<string>(keptTiles)
+    for (let pass = 0; pass < WATER_SAND_BORDER; pass++) {
+      const nextFrontier = new Set<string>()
+      for (const key of frontier) {
+        const [xStr, yStr] = key.split(',')
+        const wx = Number(xStr)
+        const wy = Number(yStr)
+        for (const [ddx, ddy] of shoreDirs) {
+          const nx = wx + ddx
+          const ny = wy + ddy
+          const nk = posKey(nx, ny)
+          if (
+            sim.landMask.has(nk) &&
+            !keptTiles.has(nk) &&
+            ny >= 0 &&
+            ny < sim.height &&
+            nx >= 0 &&
+            nx < sim.width &&
+            sim.grid[ny][nx].type === TileType.Dirt
+          ) {
+            sim.grid[ny][nx].type = TileType.Sand
+            nextFrontier.add(nk)
+          }
         }
       }
+      frontier = nextFrontier
     }
 
     const gronX = Math.floor(sim.width / 2) + 5
