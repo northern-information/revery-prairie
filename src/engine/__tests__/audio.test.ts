@@ -1,20 +1,51 @@
+import type { Track } from '../audio'
 import { _getState, _reset, setAmbient, setMusicEnabled, startDialogMusic, stopAll, stopDialogMusic } from '../audio'
 
-// Mock HTMLAudioElement
-class MockAudio {
-  src = ''
-  loop = false
-  volume = 0
-  muted = false
-  paused = true
+// --- Web Audio API mocks ---
 
-  play = vi.fn().mockResolvedValue(undefined)
-  pause = vi.fn().mockImplementation(() => {
-    this.paused = true
-  })
+class MockGainParam {
+  value = 0
 }
 
-vi.stubGlobal('Audio', MockAudio)
+class MockGainNode {
+  gain = new MockGainParam()
+  connect = vi.fn()
+  disconnect = vi.fn()
+}
+
+class MockAudioBufferSourceNode {
+  buffer: AudioBuffer | null = null
+  loop = false
+  connect = vi.fn()
+  disconnect = vi.fn()
+  start = vi.fn()
+  stop = vi.fn()
+}
+
+class MockAudioContext {
+  state = 'running'
+  destination = {}
+  createGain = vi.fn(() => new MockGainNode())
+  createBufferSource = vi.fn(() => new MockAudioBufferSourceNode())
+  decodeAudioData = vi.fn((buf: ArrayBuffer) => Promise.resolve(buf as unknown as AudioBuffer))
+  resume = vi.fn(() => Promise.resolve())
+  close = vi.fn(() => Promise.resolve())
+}
+
+vi.stubGlobal('AudioContext', MockAudioContext)
+
+// Mock fetch to return an ArrayBuffer
+const mockFetch = vi.fn(() =>
+  Promise.resolve({
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+  }),
+)
+vi.stubGlobal('fetch', mockFetch)
+
+// Flush microtasks so createTrack resolves
+const flush = async () => {
+  await new Promise((r) => setTimeout(r, 0))
+}
 
 // Use fake rAF that executes callbacks synchronously
 let rafCallbacks: ((time: number) => void)[] = []
@@ -44,12 +75,21 @@ const completeFade = () => {
   }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   _reset()
+  await flush()
   rafCallbacks = []
   rafId = 0
   vi.restoreAllMocks()
-  vi.stubGlobal('Audio', MockAudio)
+  vi.stubGlobal('AudioContext', MockAudioContext)
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() =>
+      Promise.resolve({
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+      }),
+    ),
+  )
   vi.stubGlobal('requestAnimationFrame', (cb: (time: number) => void) => {
     rafCallbacks.push(cb)
     return ++rafId
@@ -59,89 +99,110 @@ beforeEach(() => {
   })
 })
 
+const getSource = (track: Track | null): MockAudioBufferSourceNode | null =>
+  track?.source as unknown as MockAudioBufferSourceNode | null
+
+const getGain = (track: Track | null): MockGainNode | null =>
+  track ? (track.gain as unknown as MockGainNode) : null
+
 describe('audio manager', () => {
   describe('setAmbient', () => {
-    it('creates an audio element with loop enabled', () => {
+    it('creates a track with loop enabled', async () => {
       setAmbient('/music/overworld.mp3')
+      await flush()
 
-      const { ambientAudio, ambientUrl } = _getState()
-      expect(ambientAudio).not.toBeNull()
-      expect((ambientAudio as unknown as MockAudio).loop).toBe(true)
+      const { ambientTrack, ambientUrl } = _getState()
+      expect(ambientTrack).not.toBeNull()
+      expect(getSource(ambientTrack)?.loop).toBe(true)
       expect(ambientUrl).toBe('/music/overworld.mp3')
     })
 
-    it('calls play on the element', () => {
+    it('starts the source node', async () => {
       setAmbient('/music/overworld.mp3')
+      await flush()
 
-      const { ambientAudio } = _getState()
-      expect((ambientAudio as unknown as MockAudio).play).toHaveBeenCalledOnce()
+      const { ambientTrack } = _getState()
+      expect(getSource(ambientTrack)?.start).toHaveBeenCalledOnce()
     })
 
-    it('is a no-op when same URL is already set', () => {
+    it('is a no-op when same URL is already set', async () => {
       setAmbient('/music/overworld.mp3')
-      const first = _getState().ambientAudio
+      await flush()
+      const first = _getState().ambientTrack
 
       setAmbient('/music/overworld.mp3')
-      const second = _getState().ambientAudio
+      await flush()
+      const second = _getState().ambientTrack
 
       expect(first).toBe(second)
     })
 
-    it('replaces ambient when URL changes', () => {
+    it('replaces ambient when URL changes', async () => {
       setAmbient('/music/overworld.mp3')
-      const first = _getState().ambientAudio
+      await flush()
+      const first = _getState().ambientTrack
 
       setAmbient('/music/cave.mp3')
-      const second = _getState().ambientAudio
+      await flush()
+      const second = _getState().ambientTrack
 
       expect(first).not.toBe(second)
       expect(_getState().ambientUrl).toBe('/music/cave.mp3')
     })
 
-    it('pauses old ambient after crossfade completes', () => {
+    it('destroys old track after crossfade completes', async () => {
       setAmbient('/music/overworld.mp3')
-      const old = _getState().ambientAudio as unknown as MockAudio
+      await flush()
+      const oldGain = getGain(_getState().ambientTrack)
       completeFade()
 
       setAmbient('/music/cave.mp3', 0)
+      await flush()
 
-      expect(old.pause).toHaveBeenCalled()
+      expect(oldGain?.disconnect).toHaveBeenCalled()
     })
   })
 
   describe('startDialogMusic', () => {
-    it('creates a dialog audio element', () => {
+    it('creates a dialog track', async () => {
       setAmbient('/music/overworld.mp3', 0)
+      await flush()
 
       startDialogMusic('/music/gron.mp3')
+      await flush()
 
-      const { dialogAudio } = _getState()
-      expect(dialogAudio).not.toBeNull()
-      expect((dialogAudio as unknown as MockAudio).loop).toBe(true)
-      expect((dialogAudio as unknown as MockAudio).play).toHaveBeenCalledOnce()
+      const { dialogTrack } = _getState()
+      expect(dialogTrack).not.toBeNull()
+      expect(getSource(dialogTrack)?.loop).toBe(true)
+      expect(getSource(dialogTrack)?.start).toHaveBeenCalledOnce()
     })
 
-    it('cleans up previous dialog audio', () => {
+    it('cleans up previous dialog track', async () => {
       setAmbient('/music/overworld.mp3', 0)
+      await flush()
 
       startDialogMusic('/music/gron.mp3')
-      const first = _getState().dialogAudio as unknown as MockAudio
+      await flush()
+      const firstGain = getGain(_getState().dialogTrack)
 
       startDialogMusic('/music/ghost.mp3')
+      await flush()
 
-      expect(first.pause).toHaveBeenCalled()
+      expect(firstGain?.disconnect).toHaveBeenCalled()
     })
   })
 
   describe('stopDialogMusic', () => {
-    it('nulls dialog audio after fade', () => {
+    it('nulls dialog track after fade', async () => {
       setAmbient('/music/overworld.mp3', 0)
+      await flush()
       startDialogMusic('/music/gron.mp3', 0)
+      await flush()
 
       stopDialogMusic(0)
 
-      const { dialogAudio } = _getState()
-      expect(dialogAudio).toBeNull()
+      const { dialogTrack } = _getState()
+      expect(dialogTrack).toBeNull()
     })
 
     it('is a no-op when no dialog music is playing', () => {
@@ -152,79 +213,84 @@ describe('audio manager', () => {
   })
 
   describe('stopAll', () => {
-    it('pauses and nulls both elements', () => {
+    it('destroys and nulls both tracks', async () => {
       setAmbient('/music/overworld.mp3', 0)
+      await flush()
       startDialogMusic('/music/gron.mp3', 0)
+      await flush()
 
-      const ambient = _getState().ambientAudio as unknown as MockAudio
-      const dialog = _getState().dialogAudio as unknown as MockAudio
+      const ambientGain = getGain(_getState().ambientTrack)
+      const dialogGain = getGain(_getState().dialogTrack)
 
       stopAll()
 
-      expect(ambient.pause).toHaveBeenCalled()
-      expect(dialog.pause).toHaveBeenCalled()
-      expect(_getState().ambientAudio).toBeNull()
-      expect(_getState().dialogAudio).toBeNull()
+      expect(ambientGain?.disconnect).toHaveBeenCalled()
+      expect(dialogGain?.disconnect).toHaveBeenCalled()
+      expect(_getState().ambientTrack).toBeNull()
+      expect(_getState().dialogTrack).toBeNull()
       expect(_getState().ambientUrl).toBeNull()
     })
 
-    it('clears pendingPlay so destroyed elements are never resumed', () => {
-      // Simulate autoplay block: play() rejects
-      const rejectPlay = vi.fn().mockRejectedValue(new DOMException('NotAllowedError'))
+    it('clears pendingResume so destroyed tracks are never resumed', async () => {
+      // Simulate suspended AudioContext
       vi.stubGlobal(
-        'Audio',
-        class extends MockAudio {
-          override play = rejectPlay
-        }
+        'AudioContext',
+        class extends MockAudioContext {
+          override state = 'suspended'
+          override resume = vi.fn().mockRejectedValue(new DOMException('NotAllowedError'))
+        },
       )
 
       setAmbient('/music/overworld.mp3', 0)
+      await flush()
 
-      // Let the rejected promise resolve and set pendingPlay
-      return Promise.resolve().then(() => {
-        expect(_getState().pendingPlay).not.toBeNull()
+      expect(_getState().pendingResume).not.toBeNull()
 
-        stopAll()
+      stopAll()
 
-        expect(_getState().pendingPlay).toBeNull()
-      })
+      expect(_getState().pendingResume).toBeNull()
     })
 
-    it('allows setAmbient to re-establish audio after stopAll', () => {
+    it('allows setAmbient to re-establish audio after stopAll', async () => {
       setAmbient('/music/overworld.mp3', 0)
+      await flush()
       completeFade()
 
       stopAll()
 
       // Simulates what happens on StrictMode remount
       setAmbient('/music/overworld.mp3', 0)
+      await flush()
 
-      const { ambientAudio, ambientUrl } = _getState()
-      expect(ambientAudio).not.toBeNull()
+      const { ambientTrack, ambientUrl } = _getState()
+      expect(ambientTrack).not.toBeNull()
       expect(ambientUrl).toBe('/music/overworld.mp3')
-      expect((ambientAudio as unknown as MockAudio).play).toHaveBeenCalled()
+      expect(getSource(ambientTrack)?.start).toHaveBeenCalled()
     })
   })
 
   describe('setMusicEnabled', () => {
-    it('mutes both elements when disabled', () => {
+    it('mutes both tracks when disabled', async () => {
       setAmbient('/music/overworld.mp3', 0)
+      await flush()
       startDialogMusic('/music/gron.mp3', 0)
+      await flush()
 
       setMusicEnabled(false)
 
-      const { ambientAudio, dialogAudio } = _getState()
-      expect((ambientAudio as unknown as MockAudio).muted).toBe(true)
-      expect((dialogAudio as unknown as MockAudio).muted).toBe(true)
+      const { ambientTrack, dialogTrack } = _getState()
+      expect(ambientTrack?.gain.gain.value).toBe(0)
+      expect(dialogTrack?.gain.gain.value).toBe(0)
     })
 
-    it('unmutes both elements when enabled', () => {
+    it('unmutes track when enabled', async () => {
       setAmbient('/music/overworld.mp3', 0)
+      await flush()
       setMusicEnabled(false)
       setMusicEnabled(true)
 
-      const { ambientAudio } = _getState()
-      expect((ambientAudio as unknown as MockAudio).muted).toBe(false)
+      const { ambientTrack } = _getState()
+      expect(ambientTrack?.gain.gain.value).toBe(1)
     })
 
     it('tracks URL even when disabled so re-enable works', () => {
@@ -232,6 +298,52 @@ describe('audio manager', () => {
       setAmbient('/music/overworld.mp3')
 
       expect(_getState().ambientUrl).toBe('/music/overworld.mp3')
+    })
+  })
+
+  describe('stale URL discard', () => {
+    it('discards track if ambient URL changed during load', async () => {
+      setAmbient('/music/overworld.mp3', 0)
+      // Immediately change before first resolves
+      setAmbient('/music/cave.mp3', 0)
+      await flush()
+
+      expect(_getState().ambientUrl).toBe('/music/cave.mp3')
+      expect(_getState().ambientTrack?.url).toBe('/music/cave.mp3')
+    })
+  })
+
+  describe('fetch failure resilience', () => {
+    it('does not crash when fetch fails', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')))
+
+      expect(() => {
+        setAmbient('/music/overworld.mp3', 0)
+      }).not.toThrow()
+
+      await flush()
+
+      expect(_getState().ambientTrack).toBeNull()
+    })
+  })
+
+  describe('buffer cache', () => {
+    it('reuses cached buffer for same URL', async () => {
+      setAmbient('/music/overworld.mp3', 0)
+      await flush()
+      completeFade()
+
+      stopAll()
+
+      // Reset AudioContext mock so we get a fresh one
+      setAmbient('/music/overworld.mp3', 0)
+      await flush()
+
+      // fetch should only have been called once for this URL (cached buffer)
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      expect(
+        fetchMock.mock.calls.filter((c: string[]) => c[0] === '/music/overworld.mp3'),
+      ).toHaveLength(1)
     })
   })
 })

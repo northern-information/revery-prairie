@@ -7,15 +7,109 @@ export const ZONE_MUSIC: Record<Zone, string> = {
 
 const FADE_MS = 300
 
+// --- Track type ---
+
+export interface Track {
+  url: string
+  buffer: AudioBuffer
+  source: AudioBufferSourceNode | null
+  gain: GainNode
+}
+
 // --- internal state ---
 
-let ambientAudio: HTMLAudioElement | null = null
+let ctx: AudioContext | null = null
+const bufferCache = new Map<string, AudioBuffer>()
+let ambientTrack: Track | null = null
 let ambientUrl: string | null = null
-let dialogAudio: HTMLAudioElement | null = null
+let dialogTrack: Track | null = null
 let fadeRafId: number | null = null
 let enabled = true
+let pendingResume: (() => void) | null = null
 
 // --- helpers ---
+
+const getContext = (): AudioContext => {
+  ctx ??= new AudioContext()
+  return ctx
+}
+
+const loadBuffer = async (url: string): Promise<AudioBuffer> => {
+  const cached = bufferCache.get(url)
+  if (cached) return cached
+
+  const response = await fetch(url)
+  const arrayBuffer = await response.arrayBuffer()
+  const audioBuffer = await getContext().decodeAudioData(arrayBuffer)
+  bufferCache.set(url, audioBuffer)
+  return audioBuffer
+}
+
+const createTrack = async (url: string): Promise<Track> => {
+  const audioCtx = getContext()
+  const buffer = await loadBuffer(url)
+  const gain = audioCtx.createGain()
+  gain.gain.value = 0
+  gain.connect(audioCtx.destination)
+
+  const source = audioCtx.createBufferSource()
+  source.buffer = buffer
+  source.loop = true
+  source.connect(gain)
+
+  return { url, buffer, source, gain }
+}
+
+const destroyTrack = (track: Track): void => {
+  if (track.source) {
+    try {
+      track.source.stop()
+    } catch {
+      // Already stopped — safe to ignore
+    }
+    track.source.disconnect()
+  }
+  track.gain.disconnect()
+}
+
+const resumePending = (): void => {
+  if (pendingResume) {
+    const fn = pendingResume
+    pendingResume = null
+    fn()
+  }
+  document.removeEventListener('click', resumePending)
+  document.removeEventListener('keydown', resumePending)
+}
+
+const safeStart = (track: Track): void => {
+  pendingResume = null
+
+  const audioCtx = getContext()
+
+  const doStart = (): void => {
+    try {
+      track.source?.start(0)
+    } catch {
+      // Already started — safe to ignore
+    }
+  }
+
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume().then(doStart).catch(() => {
+      // Autoplay blocked — retry on next user interaction
+      pendingResume = () => {
+        audioCtx.resume().then(doStart).catch(() => {
+          // Still blocked — give up silently
+        })
+      }
+      document.addEventListener('click', resumePending, { once: true })
+      document.addEventListener('keydown', resumePending, { once: true })
+    })
+  } else {
+    doStart()
+  }
+}
 
 const cancelFade = (): void => {
   if (fadeRafId !== null) {
@@ -24,65 +118,34 @@ const cancelFade = (): void => {
   }
 }
 
-const createAudio = (url: string): HTMLAudioElement => {
-  const el = new Audio(url)
-  el.loop = true
-  el.volume = 0
-  el.muted = !enabled
-  return el
-}
-
-let pendingPlay: HTMLAudioElement | null = null
-
-const resumePending = (): void => {
-  if (pendingPlay) {
-    const el = pendingPlay
-    pendingPlay = null
-    el.play().catch(() => {
-      // still blocked — give up silently
-    })
-  }
-  document.removeEventListener('click', resumePending)
-  document.removeEventListener('keydown', resumePending)
-}
-
-const safePlay = (el: HTMLAudioElement): void => {
-  pendingPlay = null
-  el.play().catch(() => {
-    // autoplay blocked — retry on next user interaction
-    pendingPlay = el
-    document.addEventListener('click', resumePending, { once: true })
-    document.addEventListener('keydown', resumePending, { once: true })
-  })
-}
-
 const fadeBoth = (
-  fadeIn: HTMLAudioElement | null,
+  fadeInGain: GainNode | null,
   fadeInTarget: number,
-  fadeOut: HTMLAudioElement | null,
+  fadeOutGain: GainNode | null,
   fadeOutTarget: number,
   durationMs: number,
-  onComplete?: () => void
+  onComplete?: () => void,
 ): void => {
   cancelFade()
 
   if (durationMs <= 0) {
-    if (fadeIn) fadeIn.volume = fadeInTarget
-    if (fadeOut) fadeOut.volume = fadeOutTarget
+    if (fadeInGain) fadeInGain.gain.value = fadeInTarget
+    if (fadeOutGain) fadeOutGain.gain.value = fadeOutTarget
     onComplete?.()
     return
   }
 
-  const fadeInStart = fadeIn?.volume ?? 0
-  const fadeOutStart = fadeOut?.volume ?? 0
+  const fadeInStart = fadeInGain?.gain.value ?? 0
+  const fadeOutStart = fadeOutGain?.gain.value ?? 0
   const startTime = performance.now()
 
   const step = (): void => {
     const elapsed = performance.now() - startTime
     const t = Math.min(elapsed / durationMs, 1)
 
-    if (fadeIn) fadeIn.volume = fadeInStart + (fadeInTarget - fadeInStart) * t
-    if (fadeOut) fadeOut.volume = fadeOutStart + (fadeOutTarget - fadeOutStart) * t
+    if (fadeInGain) fadeInGain.gain.value = fadeInStart + (fadeInTarget - fadeInStart) * t
+    if (fadeOutGain)
+      fadeOutGain.gain.value = fadeOutStart + (fadeOutTarget - fadeOutStart) * t
 
     if (t < 1) {
       fadeRafId = requestAnimationFrame(step)
@@ -104,80 +167,88 @@ export const setAmbient = (url: string, fadeMs: number = FADE_MS): void => {
     return
   }
 
-  if (url === ambientUrl && ambientAudio) return
+  if (url === ambientUrl && ambientTrack) return
 
-  const oldAmbient = ambientAudio
-  const newAmbient = createAudio(url)
-  ambientAudio = newAmbient
+  const oldTrack = ambientTrack
+  ambientTrack = null
   ambientUrl = url
-  safePlay(newAmbient)
+  const requestedUrl = url
 
-  fadeBoth(newAmbient, 1, oldAmbient, 0, fadeMs, () => {
-    if (oldAmbient) {
-      oldAmbient.pause()
-      oldAmbient.src = ''
-    }
-  })
+  void createTrack(url)
+    .then((track) => {
+      if (ambientUrl !== requestedUrl) {
+        destroyTrack(track)
+        return
+      }
+      ambientTrack = track
+      safeStart(track)
+      fadeBoth(track.gain, 1, oldTrack?.gain ?? null, 0, fadeMs, () => {
+        if (oldTrack) destroyTrack(oldTrack)
+      })
+    })
+    .catch(() => {
+      // Fetch or decode failure — silent
+    })
 }
 
 export const startDialogMusic = (url: string, fadeMs: number = FADE_MS): void => {
   if (!enabled) return
 
   // Clean up any existing dialog audio
-  if (dialogAudio) {
-    dialogAudio.pause()
-    dialogAudio.src = ''
-    dialogAudio = null
+  if (dialogTrack) {
+    destroyTrack(dialogTrack)
+    dialogTrack = null
   }
 
-  const el = createAudio(url)
-  dialogAudio = el
-  safePlay(el)
-
-  fadeBoth(el, 1, ambientAudio, 0, fadeMs)
+  void createTrack(url)
+    .then((track) => {
+      dialogTrack = track
+      safeStart(track)
+      fadeBoth(track.gain, 1, ambientTrack?.gain ?? null, 0, fadeMs)
+    })
+    .catch(() => {
+      // Fetch or decode failure — silent
+    })
 }
 
 export const stopDialogMusic = (fadeMs: number = FADE_MS): void => {
-  if (!dialogAudio) return
+  if (!dialogTrack) return
 
-  const dying = dialogAudio
-  dialogAudio = null
+  const dying = dialogTrack
+  dialogTrack = null
 
-  fadeBoth(ambientAudio, 1, dying, 0, fadeMs, () => {
-    dying.pause()
-    dying.src = ''
+  fadeBoth(ambientTrack?.gain ?? null, 1, dying.gain, 0, fadeMs, () => {
+    destroyTrack(dying)
   })
 }
 
 export const stopAll = (): void => {
   cancelFade()
 
-  // Clear pending autoplay retry so a destroyed element is never resumed
-  pendingPlay = null
+  // Clear pending autoplay retry so a destroyed track is never resumed
+  pendingResume = null
   document.removeEventListener('click', resumePending)
   document.removeEventListener('keydown', resumePending)
 
-  if (ambientAudio) {
-    ambientAudio.pause()
-    ambientAudio.src = ''
-    ambientAudio = null
+  if (ambientTrack) {
+    destroyTrack(ambientTrack)
+    ambientTrack = null
   }
   ambientUrl = null
 
-  if (dialogAudio) {
-    dialogAudio.pause()
-    dialogAudio.src = ''
-    dialogAudio = null
+  if (dialogTrack) {
+    destroyTrack(dialogTrack)
+    dialogTrack = null
   }
 }
 
 export const setMusicEnabled = (value: boolean): void => {
   enabled = value
 
-  if (ambientAudio) ambientAudio.muted = !value
-  if (dialogAudio) dialogAudio.muted = !value
+  if (ambientTrack) ambientTrack.gain.gain.value = value ? 1 : 0
+  if (dialogTrack) dialogTrack.gain.gain.value = value ? 1 : 0
 
-  if (value && ambientUrl && !ambientAudio) {
+  if (value && ambientUrl && !ambientTrack) {
     // Re-create ambient if it was skipped while disabled
     setAmbient(ambientUrl, FADE_MS)
   }
@@ -186,15 +257,22 @@ export const setMusicEnabled = (value: boolean): void => {
 // --- test helpers ---
 
 export const _getState = (): {
-  ambientAudio: HTMLAudioElement | null
+  ambientTrack: Track | null
   ambientUrl: string | null
-  dialogAudio: HTMLAudioElement | null
+  dialogTrack: Track | null
   fadeRafId: number | null
   enabled: boolean
-  pendingPlay: HTMLAudioElement | null
-} => ({ ambientAudio, ambientUrl, dialogAudio, fadeRafId, enabled, pendingPlay })
+  pendingResume: (() => void) | null
+} => ({ ambientTrack, ambientUrl, dialogTrack, fadeRafId, enabled, pendingResume })
 
 export const _reset = (): void => {
   stopAll()
+  bufferCache.clear()
+  if (ctx) {
+    ctx.close().catch(() => {
+      // Ignore close errors
+    })
+    ctx = null
+  }
   enabled = true
 }
