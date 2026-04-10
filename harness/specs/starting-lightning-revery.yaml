@@ -1,0 +1,78 @@
+id: starting-lightning-revery
+name: 'Player starts with lightning revery'
+status: planned
+priority: high
+layer: engine
+source_files:
+  - src/engine/state.ts
+  - src/engine/__tests__/state.test.ts
+  - src/engine/__tests__/actionBar.test.ts
+  - src/engine/__tests__/gron-gift.test.ts
+  - src/engine/__tests__/moab-colde.test.ts
+dependencies: []
+
+behaviors:
+  - id: lightning-in-starting-reveries
+    description: >
+      createGameState adds 'lightning' to state.reveries alongside 'earth',
+      so the player begins with both reveries available
+    inputs:
+      - 'createGameState called with any valid arguments'
+    outputs:
+      - "state.reveries equals ['earth', 'lightning']"
+    state_changes:
+      - field: reveries
+        effect: "contains both 'earth' and 'lightning'"
+    determinism: deterministic
+
+  - id: lightning-in-action-bar-slot-2
+    description: >
+      createGameState auto-assigns the lightning revery to action bar slot 1
+      (index 1, displayed as slot 2) via autoAssignRevery
+    inputs:
+      - 'createGameState called with any valid arguments'
+    outputs:
+      - 'state.actionBar[1] is a revery slot with id lightning'
+    state_changes:
+      - field: actionBar[1]
+        effect: "set to { kind: 'revery', id: 'lightning', cooldownEndTime: 0, cooldownDurationMs: 0 }"
+    determinism: deterministic
+
+  - id: gift-reveries-shift-to-slot-3-and-4
+    description: >
+      character gifts (fire from moab, water from gron) now auto-assign to
+      slot 2 and slot 3 (indices 2 and 3) since slots 0 and 1 are occupied
+      by earth and lightning at game start
+    inputs:
+      - 'giveCharacterGift called after game start'
+    outputs:
+      - 'gifted revery fills the first empty slot after slot 1'
+    state_changes:
+      - field: actionBar[2]
+        effect: 'first gifted revery fills this slot'
+      - field: actionBar[3]
+        effect: 'second gifted revery fills this slot'
+    determinism: deterministic
+
+edge_cases:
+  - id: all-four-reveries-fill-bar
+    description: >
+      after receiving both character gifts, all four action bar slots are
+      occupied (earth, lightning, fire, water)
+    expected: 'no empty slots remain; further auto-assign is a no-op'
+
+  - id: test-state-includes-lightning
+    description: >
+      createTestState (which wraps createGameState) includes lightning in
+      reveries and action bar, so all tests using createTestState reflect
+      the new starting state
+    expected: "state.reveries contains 'lightning' and actionBar[1] is lightning"
+
+failure_conditions:
+  - trigger: 'lightning revery definition missing from REVERIES'
+    expected: 'autoAssignRevery still succeeds (it does not validate the id against definitions)'
+
+verification:
+  test_file: src/engine/__tests__/state.test.ts
+  test_pattern: 'starts with earth and lightning reveries'
+  command: npx vitest run src/engine/__tests__/state.test.ts
