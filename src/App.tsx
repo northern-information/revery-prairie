@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { resetGameState } from '@/hooks/useGameEngine'
 import { GameScreen } from '@/components/GameScreen'
@@ -14,28 +14,68 @@ const shouldSkipGenesis = (): boolean =>
 const App = () => {
   const [stewardName, setStewardName] = useState(import.meta.env.DEV ? generateDevName() : null)
   const [genesisResult, setGenesisResult] = useState<GenesisResult | null>(null)
+  const [transitioning, setTransitioning] = useState(false)
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleRestart = useCallback(() => {
     resetGameState()
     setStewardName(null)
     setGenesisResult(null)
+    setTransitioning(false)
+    if (transitionTimerRef.current !== null) {
+      clearTimeout(transitionTimerRef.current)
+      transitionTimerRef.current = null
+    }
+  }, [])
+
+  const handleGenesisComplete = useCallback((result: GenesisResult) => {
+    setGenesisResult(result)
+    setTransitioning(true)
+    transitionTimerRef.current = setTimeout(() => {
+      setTransitioning(false)
+      transitionTimerRef.current = null
+    }, 400)
+  }, [])
+
+  // Clean up transition timer on unmount
+  useEffect(() => {
+    return () => {
+      if (transitionTimerRef.current !== null) {
+        clearTimeout(transitionTimerRef.current)
+      }
+    }
   }, [])
 
   if (!stewardName) {
     return <NamePrompt onSubmit={setStewardName} />
   }
 
-  if (!genesisResult && !shouldSkipGenesis()) {
-    return <GenesisScreen stewardName={stewardName} onComplete={setGenesisResult} />
-  }
+  const showGenesis = !genesisResult && !shouldSkipGenesis()
 
   return (
-    <GameScreen
-      key={stewardName}
-      stewardName={stewardName}
-      genesisResult={genesisResult ?? undefined}
-      onRestart={handleRestart}
-    />
+    <>
+      {showGenesis ? (
+        <GenesisScreen stewardName={stewardName} onComplete={handleGenesisComplete} />
+      ) : (
+        <GameScreen
+          key={stewardName}
+          stewardName={stewardName}
+          genesisResult={genesisResult ?? undefined}
+          onRestart={handleRestart}
+        />
+      )}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'black',
+          pointerEvents: 'none',
+          opacity: transitioning ? 1 : 0,
+          transition: 'opacity 300ms',
+          zIndex: 50,
+        }}
+      />
+    </>
   )
 }
 

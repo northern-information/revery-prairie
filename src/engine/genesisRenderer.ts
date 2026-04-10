@@ -40,6 +40,21 @@ export const renderGenesis = (
   ctx.textBaseline = 'top'
   ctx.font = metrics.font
 
+  // Swap in epoch snapshot so renderTile reads the correct per-epoch data
+  const useSnapshot = sim.mutationsPrecomputed && sim.epochSnapshots.length > sim.epochIndex
+  const liveVegetationMap = sim.vegetationMap
+  const liveRiverPaths = sim.riverPaths
+  const livePonds = sim.ponds
+  const liveElevation = sim.elevation
+
+  if (useSnapshot) {
+    const snapshot = sim.epochSnapshots[sim.epochIndex]
+    sim.vegetationMap = snapshot.vegetationMap
+    sim.riverPaths = snapshot.riverPaths
+    sim.ponds = snapshot.ponds
+    sim.elevation = snapshot.elevation
+  }
+
   for (let vy = 0; vy < viewportHeight; vy++) {
     for (let vx = 0; vx < viewportWidth; vx++) {
       const mx = cameraX + vx
@@ -54,6 +69,14 @@ export const renderGenesis = (
         ctx.fillText(r.char, px + r.dx, py + r.dy)
       }
     }
+  }
+
+  // Restore live state after rendering
+  if (useSnapshot) {
+    sim.vegetationMap = liveVegetationMap
+    sim.riverPaths = liveRiverPaths
+    sim.ponds = livePonds
+    sim.elevation = liveElevation
   }
 
   // Commentary overlay with fade in/out (shown for 3 seconds per epoch)
@@ -92,6 +115,58 @@ export const renderGenesis = (
       ctx.font = metrics.font
     }
   }
+
+  // Progress bar — bottom center, above skip hint
+  const BAR_WIDTH = 30
+  const smoothProgress = (sim.epochIndex + progress) / epochs.length
+  const filledCount = Math.round(smoothProgress * BAR_WIDTH)
+  const filledChars = '\u2588'.repeat(filledCount)
+  const emptyChars = '\u2591'.repeat(BAR_WIDTH - filledCount)
+  const counter = `${String(sim.epochIndex + 1)}/${String(epochs.length)}`
+  const barText = `[${filledChars}${emptyChars}] ${counter}`
+
+  const barFontSize = Math.round(BASE_FONT_SIZE * 0.85 * (metrics.charHeight / (BASE_FONT_SIZE + 2)))
+  ctx.font = `${String(barFontSize)}px monospace`
+
+  // Measure full bar for centering and background
+  const barMetrics = ctx.measureText(barText)
+  const barTotalWidth = barMetrics.width
+  const barHeight = barFontSize + 4
+  const barX = Math.floor((canvasWidth - barTotalWidth) / 2)
+  const barY = canvasHeight - barFontSize - 10 - barFontSize - 16
+
+  // Semi-transparent background
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+  ctx.fillRect(barX - 8, barY - 4, barTotalWidth + 16, barHeight + 8)
+
+  // Render brackets in dim color
+  ctx.textBaseline = 'top'
+  const bracketOpen = '['
+  const bracketClose = '] '
+  const bracketOpenWidth = ctx.measureText(bracketOpen).width
+  const filledWidth = ctx.measureText(filledChars).width
+  const emptyWidth = ctx.measureText(emptyChars).width
+  const bracketCloseWidth = ctx.measureText(bracketClose).width
+
+  let cursorX = barX
+  ctx.fillStyle = '#666666'
+  ctx.fillText(bracketOpen, cursorX, barY)
+  cursorX += bracketOpenWidth
+
+  ctx.fillStyle = '#999999'
+  ctx.fillText(filledChars, cursorX, barY)
+  cursorX += filledWidth
+
+  ctx.fillStyle = '#333333'
+  ctx.fillText(emptyChars, cursorX, barY)
+  cursorX += emptyWidth
+
+  ctx.fillStyle = '#666666'
+  ctx.fillText(bracketClose, cursorX, barY)
+  cursorX += bracketCloseWidth
+
+  ctx.fillStyle = '#666666'
+  ctx.fillText(counter, cursorX, barY)
 
   // Skip hint — bottom right, small
   const skipText = 'press any key to skip'
