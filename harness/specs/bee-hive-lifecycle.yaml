@@ -90,8 +90,8 @@ behaviors:
       patches with bees. each hive has a honey spawn chance of
       CLOVER_HONEY_BASE_CHANCE + beeCount * CLOVER_HONEY_BEE_BONUS
       (capped at 0.8). on success, spawns a honey ground item on a
-      random adjacent walkable non-Space non-Sand tile that is not
-      occupied.
+      random adjacent tile that is not Space, Sand, CaveWall, or
+      CaveBreakableWall, and is not occupied by any entity.
     inputs:
       - 'beehive on a patch with bees'
     outputs:

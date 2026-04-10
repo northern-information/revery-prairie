@@ -7,7 +7,6 @@ source_files:
   - src/engine/interaction.ts
   - src/engine/characters.ts
   - src/engine/types.ts
-  - src/engine/constants.ts
 dependencies:
   - player-movement
   - ghosts

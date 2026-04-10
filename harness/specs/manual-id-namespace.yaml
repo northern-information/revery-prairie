@@ -83,6 +83,9 @@ failure_conditions:
   - trigger: 'MANUAL_LORE key does not match the entry id it is intended for'
     expected: 'lore silently falls through to description/summary default — detectable by checking all MANUAL_LORE keys exist in MANUAL_ENTRIES'
 
+# NOTE: crossref-display-stripping behavior (ManualPanel.tsx regex) has
+# no component test coverage. ManualPanel.test.tsx exists but does not
+# test this behavior.
 verification:
   test_file: src/engine/__tests__/manual.test.ts
   test_pattern: 'manual'

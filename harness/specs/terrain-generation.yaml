@@ -59,11 +59,11 @@ behaviors:
 
   - id: sandbar-scattering
     description: >
-      scatterSandbars places small Sand clusters (1-4 tiles each)
-      on Space tiles in the outer border zone. count is roughly
-      (width + height) / 4. each cluster picks a random edge and
-      a random position within the margin, then places the center
-      tile and 1-3 adjacent tiles if they are Space.
+      scatterSandbars places small Sand clusters (1-4 tiles total:
+      1 center + 1-3 adjacents) on Space tiles in the outer border
+      zone. count is roughly (width + height) / 4. each cluster picks
+      a random edge and a random position within the margin, then
+      places the center tile and 1-3 adjacent tiles if they are Space.
     inputs:
       - 'Tile[][] map with Space tiles in outer zone'
     outputs:

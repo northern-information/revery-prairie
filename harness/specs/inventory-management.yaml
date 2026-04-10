@@ -114,8 +114,11 @@ behaviors:
     description: >
       transferItem(source, target, uid, gridX, gridY, rotation)
       moves an item between containers. removes from source, places
-      in target. if target placement fails, restores to source at
-      original position.
+      in target via placeItem (which generates a new uid). if target
+      placement fails, restores to source at original position (also
+      via placeItem, generating another new uid). WARNING: this breaks
+      uid continuity — omnibox containers keyed by the original uid
+      will be orphaned after transfer. this is a known bug.
     inputs:
       - 'source container, target container, uid, target position'
     outputs:
@@ -124,7 +127,7 @@ behaviors:
       - field: source.items
         effect: 'item removed'
       - field: target.items
-        effect: 'item added at new position'
+        effect: 'new ItemInstance added at target position (new uid via placeItem)'
     determinism: deterministic
 
   - id: shape-rotation

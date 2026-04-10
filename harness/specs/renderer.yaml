@@ -31,12 +31,15 @@ behaviors:
       render(ctx, state, metrics, time) is the main draw call,
       invoked each requestAnimationFrame. clears the canvas with
       BG_COLOR, then draws in ordered phases: tile layer (terrain,
-      clover lifecycle, burn scars, glinting zones), entity layer
-      (ground items, bees, beehives, characters, shooting stars,
-      meteorites, effects), path/hover preview layer, player
-      glyph, and cursor highlight. uses a two-phase resolve-then-draw
-      pattern for each tile: first determines char/color/cursorable,
-      then applies cursor inversion if applicable.
+      clover lifecycle, burn scars, glinting zones, ponds, rivers),
+      entity layer (ground items, ground omniboxes, bees, beehives,
+      characters, shooting stars, meteorites, lightning bolts,
+      wildfire effects, pickup bloom effects, crumble effects,
+      player trail, rain aura), path/hover preview layer, player
+      glyph, cursor highlight, and lightning screen flash overlay.
+      uses a two-phase resolve-then-draw pattern for each tile:
+      first determines char/color/cursorable, then applies cursor
+      inversion if applicable.
     inputs:
       - 'CanvasRenderingContext2D, GameState, CharMetrics, timestamp'
     outputs:

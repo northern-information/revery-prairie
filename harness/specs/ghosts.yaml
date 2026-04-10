@@ -31,12 +31,12 @@ behaviors:
     inputs:
       - 'createGameState call'
     outputs:
-      - 'GameState with 3 ghost entries in state.characters'
+      - 'GameState with 3 ghost ECS entities in state.world'
     state_changes:
       - field: world
         effect: "3 ghost ECS entities created with CharacterIdentity({ definitionId: 'ghost-N' }), Position, Blocking, Behavior({ type: 'drift', moveChance: 0.15, freezeOnDialog: true }), EntityTag('character'), EntityZone({ zone: 'overworld' }) components"
       - field: CHARACTER_DEFINITIONS
-        effect: "registerGhostDefinitions called with ghost numbers, registering CharacterDefinition entries for each ghost so dialog and rendering can resolve them"
+        effect: 'registerGhostDefinitions called with ghost numbers, registering CharacterDefinition entries for each ghost so dialog and rendering can resolve them'
     determinism: probabilistic
 
   - id: ghost-drift
@@ -93,7 +93,7 @@ behaviors:
     description: >
       Pressing [e] while facing a ghost initiates dialog using the
       existing character dialog system. The ghost's character entry
-      in state.characters references its definition. Dialog advances
+      in state.world references its definition. Dialog advances
       and closes identically to other characters.
     inputs:
       - 'Player facing a ghost tile, [e] pressed'
@@ -116,8 +116,8 @@ behaviors:
 
 edge_cases:
   - id: ghost-spawns-avoid-overlap
-    description: "Ghost spawn positions must not overlap each other, the player start position, or Gron's position"
-    expected: 'All 3 ghosts at unique positions, none colliding with player or characters'
+    description: "Ghost spawn positions must not overlap each other, the player start position, or Gron's position. The exclusion set is explicit (player + Gron), not a generic character query."
+    expected: 'All 3 ghosts at unique positions, none colliding with player or Gron'
   - id: ghost-drift-at-coastline
     description: 'Ghost adjacent to sand/space border has fewer valid neighbors but never enters Space. Ghosts spawn on non-Sand tiles but can drift onto Sand since isWalkableTile includes Sand.'
     expected: 'Ghost stays on dirt/sand/clover tiles, never moves to Space or cave walls'

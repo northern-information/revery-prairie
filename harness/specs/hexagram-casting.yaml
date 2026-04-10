@@ -137,13 +137,14 @@ behaviors:
 
   - id: coins-dimmed-after-cast
     description: >
-      Upon completing a cast (all 6 tosses + dismissing the result),
-      the 3 glinting coins used are removed from glintingCoins. Their
-      inventory glyph color dims to #8B7D3C. The coins remain in the
-      backpack but cannot be used for another cast until re-glinted
-      (future feature).
+      Upon completing all 6 tosses (before the result screen is
+      shown), the 3 glinting coins used are removed from glintingCoins.
+      Their inventory glyph color dims to #8B7D3C. The coins remain in
+      the backpack but cannot be used for another cast until re-glinted
+      (future feature). Consumption happens at toss completion, not on
+      result dismissal.
     inputs:
-      - 'Hexagram casting completes (result dismissed)'
+      - 'Hexagram casting completes 6th toss'
     outputs:
       - 'All 3 coins remain in backpack'
       - '3 coin uids removed from glintingCoins'
@@ -169,7 +170,7 @@ behaviors:
     description: >
       A manual entry for hexagram casting is auto-generated in the
       manual system. Discovered after the player's first cast.
-      Category could be a new "Ritual" or existing "Gizmo" — TBD.
+      Category is ManualCategory.Object.
     inputs:
       - 'Manual entry generation'
     outputs:

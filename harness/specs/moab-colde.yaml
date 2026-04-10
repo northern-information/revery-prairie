@@ -36,7 +36,7 @@ behaviors:
       so the existing renderer, interaction, and blocking systems
       handle him automatically via zone-filtered ECS queries.
     inputs:
-      - 'enterCave(state)'
+      - 'createGameState initialization'
     outputs:
       - 'state.world includes Moab ECS entity at caveNpcSpot position'
     state_changes:

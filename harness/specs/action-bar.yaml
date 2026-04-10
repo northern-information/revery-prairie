@@ -20,14 +20,16 @@ behaviors:
       #33CC33 green, cooldownMs 6000, castDurationMs 5500, castStyle
       scan, castPattern []), fire (glyphs ^/~/*, color #FF4500
       orange-red, cooldownMs 12000, castDurationMs 1200, castStyle
-      tile, castPattern SINGLE_PATTERN), and water (glyphs |/:/./, color
+      tile, castPattern SINGLE_PATTERN), water (glyphs |/:/./, color
       #4488CC blue, cooldownMs 12000, castDurationMs 10000, castStyle
-      rain, castPattern CROSS_PATTERN). each has name, description, and
+      rain, castPattern CROSS_PATTERN), and lightning (glyphs [|], color
+      #FFFFFF white, cooldownMs 15000, castDurationMs 800, castStyle
+      targeted, castPattern []). each has name, description, and
       id injected from key.
     inputs:
       - 'REVERY_DEFINITIONS registry'
     outputs:
-      - 'ReveryDefinition objects for earth, fire, and water'
+      - 'ReveryDefinition objects for earth, fire, water, and lightning'
     state_changes: []
     determinism: deterministic
 
@@ -76,13 +78,16 @@ behaviors:
   - id: activate-action-bar-slot
     description: >
       activateActionBarSlot fires a revery slot. returns false for
-      empty slots, cooldown active, or item slots (deferred). on
+      empty slots, cooldown active, item slots (deferred), or
+      targeted-style reveries (deferred to targeting flow). on
       success: sets cooldownEndTime and cooldownDurationMs from the
       revery definition. scan-style reveries (earth) create a
       single-Position ECS entity at the player position. tile-style
       reveries create a MultiPosition ECS entity at the cast pattern
       positions. both carry TimedEffect (reveryCast), EntityTag,
       EntityZone. calls applyReveryCastEffects for tile-style casts.
+      targeted-style reveries (lightning) enter targeting mode instead
+      of casting immediately — see targeted-revery-flow.
     inputs:
       - 'GameState, slotIndex (0-3), now (timestamp)'
     outputs:
@@ -127,6 +132,51 @@ behaviors:
         effect: 'SOIL_HEALTH_WATER_REVERY_BONUS added'
     determinism: deterministic
 
+  - id: targeted-revery-flow
+    description: >
+      targeted-style reveries (lightning) use a two-phase activation.
+      activateActionBarSlot returns false for targeted reveries,
+      deferring to the targeting flow. the keyboard hook sets
+      state.targetingSlot to the slot index and state.previewFn to
+      getTargetingPreview, which highlights valid target tiles.
+      isValidLightningTarget checks that a tile is in-bounds, walkable,
+      and within the cast range. on click or confirmation,
+      castLightningAtTarget fires the revery at the selected position,
+      sets cooldown, creates the lightning ECS entity, and clears
+      targeting state. getTargetingPreview returns { pos, char, color }
+      for each valid tile within range using the revery's glyphColor.
+    inputs:
+      - 'targeted-style revery slot activated'
+    outputs:
+      - 'targeting mode entered, preview shown, cast on confirmation'
+    state_changes:
+      - field: targetingSlot
+        effect: 'set to slot index on activation, cleared on cast or cancel'
+      - field: previewFn
+        effect: 'set to getTargetingPreview on activation, cleared on cast or cancel'
+      - field: actionBar
+        effect: 'cooldown set on successful cast'
+      - field: world
+        effect: 'lightning ECS entity created on cast'
+    determinism: deterministic
+
+  - id: lightning-revery-effect
+    description: >
+      lightning revery targets a specific tile within range. on cast,
+      creates a lightning bolt ECS entity with LightningData containing
+      the bolt path, impact position, and branch data. the bolt
+      renders as animated ASCII lightning from sky to impact point.
+      records event:lightning-revery discovery on first cast.
+    inputs:
+      - 'lightning revery cast at a valid target tile'
+    outputs: []
+    state_changes:
+      - field: world
+        effect: 'lightning ECS entity created with LightningData, TimedEffect, EntityTag, EntityZone'
+      - field: manualDiscoveries
+        effect: 'event:lightning-revery recorded'
+    determinism: deterministic
+
   - id: auto-assign-revery
     description: >
       autoAssignRevery finds the first empty slot (null) and assigns
@@ -157,8 +207,9 @@ behaviors:
   - id: action-bar-preview
     description: >
       getActionBarPreview returns preview glyphs for the revery in a
-      given slot. returns empty for scan-style reveries, empty slots,
-      item slots, or slots on cooldown. for tile-style reveries,
+      given slot. returns empty for scan-style and targeted-style
+      reveries, empty slots, item slots, or slots on cooldown. for
+      tile-style reveries,
       computes cast positions from the facing tile and cast pattern,
       returning { pos, char, color } for each valid position.
     inputs:

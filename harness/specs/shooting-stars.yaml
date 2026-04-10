@@ -34,7 +34,9 @@ behaviors:
       tick. increments age. stars are removed when off-map (beyond
       length + 1 buffer) or age exceeds SHOOTING_STAR_MAX_AGE (300
       ticks, ~24 seconds). landing stars convert to meteorite +
-      explosion ECS entities on first walkable tile (Dirt or Clover).
+      explosion ECS entities on first walkable tile (Dirt or Clover)
+      that is not a water tile (pond or river). on water tiles, only
+      the explosion entity is created (no meteorite).
     inputs:
       - 'tickShootingStars called with time'
     outputs: []
@@ -82,10 +84,10 @@ behaviors:
     description: >
       findShowerTargets selects landing positions for shower stars.
       criteria: Dirt or Clover tile (not Sand, CaveFloor, or other
-      walkable types), within SPACE_BORDER, not occupied by player or
-      entities (checked via isTileOccupied), minimum 5-tile manhattan
-      distance between targets. max attempts = count * 50 to prevent
-      infinite loops.
+      walkable types), not a water tile (pond or river), within
+      SPACE_BORDER, not occupied by player or entities (checked via
+      isTileOccupied), minimum 5-tile manhattan distance between
+      targets. max attempts = count * 50 to prevent infinite loops.
     inputs:
       - 'GameState, count'
     outputs:
