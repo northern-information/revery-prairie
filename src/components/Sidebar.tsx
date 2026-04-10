@@ -56,6 +56,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      document.documentElement.classList.remove('cursor-hidden')
       // Hide when mouse is visually over the sidebar or inventory panel
       // (sidebar is pointer-events-none so e.target is still the canvas)
       const sidebarWidth = 192 // w-48
