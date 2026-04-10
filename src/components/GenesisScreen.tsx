@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 
+import { setAmbient, ZONE_MUSIC } from '@/engine/audio'
 import { MAP_HEIGHT, MAP_WIDTH, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '@/engine/constants'
 import {
   createGenesisState,
@@ -12,7 +13,7 @@ import {
 import { renderGenesis } from '@/engine/genesisRenderer'
 import { measureChar } from '@/engine/renderer'
 import type { GenesisResult, GenesisSimState } from '@/engine/genesisTypes'
-import type { CharMetrics } from '@/engine/types'
+import { Zone, type CharMetrics } from '@/engine/types'
 
 interface GenesisScreenProps {
   stewardName: string
@@ -45,6 +46,11 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
 
     const result = extractGenesisResult(sim)
     onCompleteRef.current(result)
+  }, [])
+
+  // Start overworld music during genesis
+  useEffect(() => {
+    setAmbient(ZONE_MUSIC[Zone.Overworld])
   }, [])
 
   // Skip on Escape/Space/Enter only
