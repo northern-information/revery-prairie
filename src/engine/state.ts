@@ -252,9 +252,11 @@ export const createGameState = (
 
   autoSort(backpack)
 
-  // Player starts with Earth Revery
+  // Player starts with Earth and Lightning reveries
   state.reveries.push('earth')
   autoAssignRevery(state, 'earth')
+  state.reveries.push('lightning')
+  autoAssignRevery(state, 'lightning')
 
   return state
 }

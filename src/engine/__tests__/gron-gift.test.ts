@@ -35,9 +35,9 @@ describe('gron gift delivery', () => {
     const state = makeState()
     giveCharacterGift(state, 'gron')
 
-    // Slot 0 = earth (pre-assigned), slot 1 = water
-    expect(state.actionBar[1]?.kind).toBe('revery')
-    expect(state.actionBar[1]?.id).toBe('water')
+    // Slot 0 = earth, slot 1 = lightning (pre-assigned), slot 2 = water
+    expect(state.actionBar[2]?.kind).toBe('revery')
+    expect(state.actionBar[2]?.id).toBe('water')
   })
 
   it('records discovery', () => {
@@ -80,9 +80,10 @@ describe('multiple gifts', () => {
 
     expect(fire?.id).toBe('fire')
     expect(water?.id).toBe('water')
-    expect(state.reveries).toEqual(['earth', 'fire', 'water'])
+    expect(state.reveries).toEqual(['earth', 'lightning', 'fire', 'water'])
     expect(state.actionBar[0]?.id).toBe('earth')
-    expect(state.actionBar[1]?.id).toBe('fire')
-    expect(state.actionBar[2]?.id).toBe('water')
+    expect(state.actionBar[1]?.id).toBe('lightning')
+    expect(state.actionBar[2]?.id).toBe('fire')
+    expect(state.actionBar[3]?.id).toBe('water')
   })
 })

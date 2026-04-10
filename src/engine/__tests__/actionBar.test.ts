@@ -46,8 +46,9 @@ describe('assignActionBarSlot', () => {
 
   it('ignores out-of-range indices', () => {
     const state = makeState()
-    // Clear pre-assigned earth revery for this test
+    // Clear pre-assigned reveries for this test
     state.actionBar[0] = null
+    state.actionBar[1] = null
     assignActionBarSlot(state, -1, 'revery', 'fire')
     assignActionBarSlot(state, 4, 'revery', 'fire')
 
@@ -170,20 +171,20 @@ describe('getSlotCooldownFraction', () => {
 describe('autoAssignRevery', () => {
   it('assigns to first empty slot', () => {
     const state = makeState()
-    // Slot 0 has earth pre-assigned, so fire goes to slot 1
+    // Slot 0 = earth, slot 1 = lightning (pre-assigned), so fire goes to slot 2
     autoAssignRevery(state, 'fire')
 
-    expect(state.actionBar[1]?.kind).toBe('revery')
-    expect(state.actionBar[1]?.id).toBe('fire')
+    expect(state.actionBar[2]?.kind).toBe('revery')
+    expect(state.actionBar[2]?.id).toBe('fire')
   })
 
   it('skips filled slots', () => {
     const state = makeState()
-    // Slot 0 = earth (pre-assigned), slot 1 = fire
-    assignActionBarSlot(state, 1, 'revery', 'fire')
+    // Slot 0 = earth, slot 1 = lightning (pre-assigned), slot 2 = fire
+    assignActionBarSlot(state, 2, 'revery', 'fire')
     autoAssignRevery(state, 'water')
 
-    expect(state.actionBar[2]?.id).toBe('water')
+    expect(state.actionBar[3]?.id).toBe('water')
   })
 
   it('does nothing when all slots are full', () => {

@@ -31,16 +31,21 @@ describe('createGameState', () => {
     expect(containerHasItem(state.backpack, 'clover')).toBe(true)
   })
 
-  it('starts with earth revery pre-assigned', () => {
+  it('starts with earth and lightning reveries pre-assigned', () => {
     const state = createGameState('Willow', 80, 40)
-    expect(state.reveries).toEqual(['earth'])
+    expect(state.reveries).toEqual(['earth', 'lightning'])
     expect(state.actionBar[0]).toEqual({
       kind: 'revery',
       id: 'earth',
       cooldownEndTime: 0,
       cooldownDurationMs: 0,
     })
-    expect(state.actionBar[1]).toBeNull()
+    expect(state.actionBar[1]).toEqual({
+      kind: 'revery',
+      id: 'lightning',
+      cooldownEndTime: 0,
+      cooldownDurationMs: 0,
+    })
     expect(state.actionBar[2]).toBeNull()
     expect(state.actionBar[3]).toBeNull()
     expect(state.giftsReceived.size).toBe(0)

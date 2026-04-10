@@ -136,10 +136,10 @@ describe('moab gift delivery', () => {
     const state = makeCaveState()
     giveCharacterGift(state, 'moab')
 
-    // Slot 0 = earth (pre-assigned), slot 1 = fire
-    expect(state.actionBar[1]).not.toBeNull()
-    expect(state.actionBar[1]?.kind).toBe('revery')
-    expect(state.actionBar[1]?.id).toBe('fire')
+    // Slot 0 = earth, slot 1 = lightning (pre-assigned), slot 2 = fire
+    expect(state.actionBar[2]).not.toBeNull()
+    expect(state.actionBar[2]?.kind).toBe('revery')
+    expect(state.actionBar[2]?.id).toBe('fire')
   })
 
   it('returns null if already given', () => {
