@@ -1,0 +1,145 @@
+id: lightning-rendering
+name: 'Lightning and wildfire rendering'
+status: planned
+priority: high
+layer: integration
+source_files:
+  - src/engine/renderer.ts
+  - src/engine/genesis.ts
+  - src/engine/constants.ts
+  - src/components/GenesisScreen.tsx
+  - src/engine/__tests__/lightning.test.ts
+  - src/engine/__tests__/genesisLightning.test.ts
+dependencies:
+  - lightning-strikes
+
+behaviors:
+  - id: lightning-bolt-map
+    description: >
+      renderer builds a lightningMap by querying ECS for TimedEffect
+      kind=lightning entities with LightningData. bolt path segments
+      rendered as | (dx=0), / (dx=-1), \ (dx=+1). branch segments
+      use same character logic. three animation phases based on elapsed
+      time: flash (0 to LIGHTNING_FLASH_MS) all segments bright white,
+      glow (LIGHTNING_FLASH_MS to 500ms) segments dim from E0E0FF to
+      8888CC with 80ms flicker oscillation, fade (500ms to
+      LIGHTNING_DURATION_MS) segments disappear bottom-to-top.
+      impact point renders * at center, + at radius 1 during flash
+      and glow phases.
+    inputs:
+      - 'ECS entities with TimedEffect kind=lightning and LightningData'
+      - 'current time'
+    outputs:
+      - 'lightningMap: Map<string, { char, color }> populated for visible bolt tiles'
+    state_changes: []
+    determinism: time-based
+
+  - id: wildfire-map
+    description: >
+      renderer builds a wildfireMap by querying ECS for TimedEffect
+      kind=wildfire entities with MultiPosition. during first 60% of
+      WILDFIRE_DURATION_MS, tiles show cycling fire chars (^, ~, *)
+      in WILDFIRE_COLORS. during last 40%, tiles fade to BurntClover
+      appearance (% in #3D2B1F).
+    inputs:
+      - 'ECS entities with TimedEffect kind=wildfire and MultiPosition'
+      - 'current time'
+    outputs:
+      - 'wildfireMap: Map<string, { char, color }> populated for burned tiles'
+    state_changes: []
+    determinism: time-based
+
+  - id: rendering-cascade-priority
+    description: >
+      lightningMap checked between shootingStarOnLand and previewTile
+      in the tile rendering cascade. wildfireMap checked between
+      explosionMap and pickupEffectMap. lightning renders above
+      explosions because it is a more dramatic event.
+    inputs:
+      - 'tile rendering cascade in renderer.ts'
+    outputs:
+      - 'lightning and wildfire visuals override terrain when active'
+    state_changes: []
+    determinism: deterministic
+
+  - id: screen-flash-overlay
+    description: >
+      at the very end of the render function, after all tiles and
+      effects are drawn, query ECS for any active lightning TimedEffect.
+      if elapsed time < LIGHTNING_SCREEN_FLASH_MS (150ms), draw a
+      white fillRect over the entire canvas (pxWidth x pxHeight) with
+      alpha = LIGHTNING_SCREEN_FLASH_OPACITY * (1 - elapsed /
+      LIGHTNING_SCREEN_FLASH_MS). this creates a brief brightness
+      flash that fades linearly from 30% white to transparent.
+    inputs:
+      - 'ECS lightning entity with TimedEffect'
+      - 'current time'
+      - 'canvas context and pixel dimensions'
+    outputs:
+      - 'white semi-transparent overlay drawn on canvas for 150ms'
+    state_changes: []
+    determinism: time-based
+
+  - id: genesis-lightning-render
+    description: >
+      FireSeason epoch renderTile renders lightning bolts from
+      sim.lightningBolts after the existing meteorite rendering pass.
+      each bolt animates over ~10% of epoch duration (faster than
+      meteorites at 15%). bolt segments use |, /, \ characters in
+      white during flash phase, dimming to blue-white (#E0E0FF then
+      #8888CC). impact flash at 90% progress with * at center and +
+      at radius 1 in white/gold. visually distinct from diagonal
+      meteorite streaks.
+    inputs:
+      - 'GenesisSimState with lightningBolts array'
+      - 'tile position (x, y)'
+      - 'epoch progress (0-1)'
+    outputs:
+      - 'GenesisTileRender[] for bolt segment tiles, empty array otherwise'
+    state_changes: []
+    determinism: time-based
+
+  - id: genesis-screen-flash
+    description: >
+      GenesisScreen component detects when a genesis lightning bolt
+      impact occurs (progress > 0.9 for any bolt) and draws a white
+      overlay on the genesis canvas using the same technique as the
+      runtime screen flash. alpha fades from 30% to 0 over 150ms.
+    inputs:
+      - 'GenesisSimState with lightningBolts'
+      - 'current epoch progress'
+      - 'genesis canvas context'
+    outputs:
+      - 'white semi-transparent overlay on genesis canvas during bolt impacts'
+    state_changes: []
+    determinism: time-based
+
+edge_cases:
+  - id: bolt-partially-offscreen
+    description: 'lightning bolt path extends above the visible viewport'
+    expected: 'only segments within viewport bounds are rendered, no out-of-bounds drawing'
+  - id: multiple-simultaneous-bolts
+    description: 'two lightning entities exist at the same time (rapid storm cluster)'
+    expected: 'both bolts rendered, screen flash uses the most recent bolt timing'
+  - id: wildfire-overlaps-bolt
+    description: 'wildfire effect active at the same position as a fading bolt'
+    expected: 'lightning takes priority in cascade (checked first), wildfire renders on non-bolt tiles'
+  - id: genesis-bolt-overlaps-meteorite
+    description: 'genesis lightning bolt and meteorite animate at the same tile simultaneously'
+    expected: 'lightning bolt checked after meteorites in renderTile, meteorite takes visual priority'
+  - id: flash-during-cave-zone
+    description: 'lightning entity somehow exists while in cave zone'
+    expected: 'screen flash still triggers (overlay is zone-independent) but bolt map is empty (entity filtered by zone)'
+
+failure_conditions:
+  - trigger: 'no lightning ECS entities exist'
+    expected: 'lightningMap is empty, no screen flash drawn, zero performance cost'
+  - trigger: 'lightning duration elapsed'
+    expected: 'bolt map and screen flash produce nothing for expired entities'
+  - trigger: 'genesis has no lightningBolts (empty array)'
+    expected: 'renderTile lightning pass produces no output, meteorites render normally'
+
+verification:
+  test_file: src/engine/__tests__/lightning.test.ts
+  test_pattern: 'render|flash|bolt map'
+  command: 'npx vitest run src/engine/__tests__/lightning.test.ts src/engine/__tests__/genesisLightning.test.ts'

@@ -17,6 +17,7 @@ export const ComponentType = {
   CharacterIdentity: 'characterIdentity',
   ItemDrop: 'itemDrop',
   ChainSource: 'chainSource',
+  LightningData: 'lightningData',
   EntityTag: 'entityTag',
   EntityZone: 'entityZone',
 } as const
@@ -29,7 +30,7 @@ export interface ComponentDataMap {
   [ComponentType.Renderable]: { char: string; color: string; zIndex: number }
   [ComponentType.Behavior]: CharacterBehavior
   [ComponentType.TimedEffect]: {
-    kind: 'explosion' | 'pickupBloom' | 'crumble' | 'reveryCast'
+    kind: 'explosion' | 'pickupBloom' | 'crumble' | 'reveryCast' | 'lightning' | 'wildfire'
     startTime: number
     reveryId?: string
   }
@@ -47,6 +48,10 @@ export interface ComponentDataMap {
   [ComponentType.CharacterIdentity]: { definitionId: string }
   [ComponentType.ItemDrop]: { definitionId: string; glinting?: boolean }
   [ComponentType.ChainSource]: { fromChain: boolean }
+  [ComponentType.LightningData]: {
+    path: { x: number; y: number }[]
+    branch: { x: number; y: number }[] | null
+  }
   [ComponentType.EntityTag]: string
   [ComponentType.EntityZone]: { zone: Zone }
 }

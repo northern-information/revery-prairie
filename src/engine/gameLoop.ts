@@ -9,6 +9,7 @@ import {
   CRUMBLE_DURATION_MS,
   GHOST_TICK_MS,
   KEYBOARD_MOVE_TICK_MS,
+  LIGHTNING_TICK_MS,
   METEOR_SHOWER_TICK_MS,
   PATH_TICK_MS,
   SHOOTING_STAR_SPAWN_TICK_MS,
@@ -17,6 +18,7 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
+import { spawnLightningStrike, tickLightning } from './lightning'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { getDefinition } from './items'
 import { movePlayer, tickPath } from './movement'
@@ -184,6 +186,27 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
+      id: 'lightning-spawn',
+      intervalMs: LIGHTNING_TICK_MS,
+      zone: 'overworld',
+      priority: 60,
+      fn: (state, time) => {
+        const struck = spawnLightningStrike(state, time)
+        if (struck) {
+          callbacks.onDiscovery?.('lightning strikes!', struck.x, struck.y, '|', '#FFFFFF')
+          // Check if wildfire spread happened (wildfire entity just created)
+          for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+            const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+            const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+            if (tag === 'wildfire' && effect?.startTime === time) {
+              callbacks.onDiscovery?.('wildfire!', struck.x, struck.y, '^', '#FF4500')
+              break
+            }
+          }
+        }
+      },
+    },
+    {
       id: 'weather',
       intervalMs: WEATHER_TICK_MS,
       zone: 'overworld',
@@ -277,6 +300,15 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
             state.world.destroyEntity(eid)
           }
         }
+      },
+    },
+    {
+      id: 'lightning-cleanup',
+      intervalMs: 0,
+      zone: 'always',
+      priority: 100,
+      fn: (state, time) => {
+        tickLightning(state, time)
       },
     },
   ]

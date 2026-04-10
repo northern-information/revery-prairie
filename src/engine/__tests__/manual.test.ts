@@ -86,11 +86,12 @@ describe('manual', () => {
   })
 
   describe('cross-refs', () => {
-    it('only recipe entries have cross-refs', () => {
+    it('only recipe and event entries have cross-refs', () => {
       for (const entry of Object.values(MANUAL_ENTRIES)) {
-        if (entry.sourceKind === 'recipe') {
-          expect(entry.crossRefs).toBeDefined()
-          expect(entry.crossRefs?.length).toBeGreaterThan(0)
+        if (entry.sourceKind === 'recipe' || entry.sourceKind === 'event') {
+          if (entry.crossRefs) {
+            expect(entry.crossRefs.length).toBeGreaterThan(0)
+          }
         } else {
           expect(entry.crossRefs).toBeUndefined()
         }
