@@ -1,0 +1,206 @@
+id: lightning-revery
+name: 'Lightning revery'
+status: planned
+priority: high
+layer: integration
+source_files:
+  - src/engine/reveries.ts
+  - src/engine/actionBar.ts
+  - src/engine/types.ts
+  - src/engine/lightning.ts
+  - src/hooks/useKeyboard.ts
+  - src/hooks/useMouse.ts
+  - src/engine/renderer.ts
+  - src/engine/manual.ts
+  - src/engine/__tests__/lightningRevery.test.ts
+dependencies:
+  - lightning-strikes
+
+behaviors:
+  - id: revery-definition
+    description: >
+      lightning revery defined in REVERIES registry with id lightning,
+      castStyle targeted, cooldownMs 15000, castDurationMs 800 (matching
+      LIGHTNING_DURATION_MS), empty castPattern, glyphs [|], glyphColor
+      #FFFFFF. new castStyle targeted added to ReveryEntry union.
+    inputs: []
+    outputs:
+      - 'ReveryDefinition with id lightning in REVERY_DEFINITIONS'
+    state_changes: []
+    determinism: deterministic
+
+  - id: targeting-mode-enter
+    description: >
+      when player releases a number key (1-4) and the slot contains the
+      lightning revery (castStyle targeted), instead of casting immediately,
+      the game enters targeting mode. state.targetingSlot is set to the
+      slot index. the cursor becomes the targeting mechanism. movement
+      via WASD remains active. the action bar slot glows or pulses to
+      indicate active targeting.
+    inputs:
+      - 'keyup event for slot containing lightning revery'
+    outputs:
+      - 'targeting mode entered (cursor becomes targeting crosshair)'
+    state_changes:
+      - field: targetingSlot
+        effect: 'set to the slot index (0-3)'
+      - field: previewFn
+        effect: 'set to a function that shows range indicator and cursor highlight'
+    determinism: deterministic
+
+  - id: targeting-mode-preview
+    description: >
+      while in targeting mode, the tile under the cursor is highlighted
+      if it is a valid target (within 20 tiles manhattan distance of
+      player, walkable, on land). invalid tiles show no highlight. the
+      preview shows the lightning glyph | in white at the cursor tile
+      when valid.
+    inputs:
+      - 'mouse position over canvas while targetingSlot is set'
+    outputs:
+      - 'preview glyph at cursor tile if valid target'
+    state_changes: []
+    determinism: deterministic
+
+  - id: targeting-mode-cast
+    description: >
+      clicking a valid tile while in targeting mode fires the lightning
+      strike at that tile. calls spawnLightningStrike logic but with a
+      forced target position instead of weighted random selection. creates
+      the same ECS lightning entity, triggers the same wildfire spread,
+      screen flash, and toast. sets the slot cooldown. clears targeting
+      mode by setting targetingSlot to null and clearing previewFn.
+    inputs:
+      - 'click on valid tile while targetingSlot is set'
+      - 'current time'
+    outputs:
+      - 'lightning bolt at clicked position'
+      - 'onDiscovery callback fired'
+    state_changes:
+      - field: targetingSlot
+        effect: 'set to null'
+      - field: previewFn
+        effect: 'set to null'
+      - field: actionBar[slot].cooldownEndTime
+        effect: 'set to now + cooldownMs'
+      - field: actionBar[slot].cooldownDurationMs
+        effect: 'set to cooldownMs'
+      - field: world (ECS)
+        effect: 'lightning entity created, wildfire entity if applicable'
+    determinism: probabilistic
+
+  - id: targeting-mode-cancel
+    description: >
+      pressing Esc or right-clicking while in targeting mode cancels it
+      without casting. targetingSlot set to null, previewFn cleared. no
+      cooldown applied. pressing another number key (1-4) also cancels
+      current targeting and either enters targeting for new slot or
+      activates non-targeted revery normally.
+    inputs:
+      - 'Esc keydown or right-click while targetingSlot is set'
+    outputs:
+      - 'targeting mode exited without casting'
+    state_changes:
+      - field: targetingSlot
+        effect: 'set to null'
+      - field: previewFn
+        effect: 'set to null'
+    determinism: deterministic
+
+  - id: cast-at-target
+    description: >
+      castLightningAtTarget is a new exported function in actionBar.ts
+      that takes state, target position, slot index, and current time.
+      validates target is within 20-tile manhattan distance of player.
+      validates target is walkable land (not space, sand, water, cave).
+      generates bolt path via generateBoltPath. creates lightning ECS
+      entity at target. calls spreadWildfire from target. creates
+      wildfire ECS entity if fire spreads. sets slot cooldown. records
+      event:lightning-revery discovery.
+    inputs:
+      - 'GameState with valid action bar slot'
+      - 'target position within range'
+      - 'slot index'
+      - 'current time'
+    outputs:
+      - 'boolean: true if cast succeeded'
+    state_changes:
+      - field: actionBar[slot].cooldownEndTime
+        effect: 'set to now + cooldownMs'
+      - field: world (ECS)
+        effect: 'lightning entity created'
+      - field: map tiles
+        effect: 'clover may burn to BurntClover via wildfire'
+      - field: soilHealth
+        effect: 'enriched for burned tiles'
+      - field: manualDiscoveries
+        effect: 'event:lightning-revery added'
+    determinism: probabilistic
+
+  - id: range-validation
+    description: >
+      target must be within LIGHTNING_REVERY_RANGE (20) manhattan
+      distance of player position. tiles outside range are not
+      highlighted during preview and clicks are ignored. the range
+      constant is defined in constants.ts.
+    inputs:
+      - 'player position and target position'
+    outputs:
+      - 'boolean: true if manhattan distance <= 20'
+    state_changes: []
+    determinism: deterministic
+
+  - id: manual-entry
+    description: >
+      lightning revery auto-generates a manual entry via the existing
+      revery entry builder. additionally, event:lightning-revery added
+      to MANUAL_LORE with TODO placeholder. MANUAL_ONLY_ENTRIES gets
+      an event:lightning-revery entry documenting the targeted cast
+      mechanic.
+    inputs: []
+    outputs:
+      - 'manual entry for revery:lightning auto-generated'
+      - 'event:lightning-revery entry in MANUAL_ONLY_ENTRIES'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: targeting-while-dragging
+    description: 'player activates lightning slot while dragging an inventory item'
+    expected: 'targeting mode does not activate (isDraggingRef blocks slot activation)'
+  - id: targeting-during-dialog
+    description: 'player presses number key during active dialog'
+    expected: 'slot activation blocked by dialog check, no targeting mode entered'
+  - id: click-out-of-range
+    description: 'player clicks a tile more than 20 manhattan distance away while targeting'
+    expected: 'click ignored, targeting mode remains active'
+  - id: click-on-space
+    description: 'player clicks a space tile while targeting'
+    expected: 'click ignored, targeting mode remains active'
+  - id: click-on-water
+    description: 'player clicks a pond or river tile while targeting'
+    expected: 'click ignored, targeting mode remains active'
+  - id: cooldown-prevents-targeting
+    description: 'player presses number key for lightning slot that is on cooldown'
+    expected: 'targeting mode does not activate'
+  - id: movement-during-targeting
+    description: 'player moves via WASD while in targeting mode'
+    expected: 'movement works normally, targeting mode persists, range recalculates from new position'
+  - id: targeting-then-switch-slot
+    description: 'player presses a different number key while targeting'
+    expected: 'current targeting cancelled, new slot activated normally (or enters targeting if also lightning)'
+
+failure_conditions:
+  - trigger: 'slot is empty or not a revery'
+    expected: 'no targeting mode entered, no cast'
+  - trigger: 'slot is on cooldown'
+    expected: 'no targeting mode entered'
+  - trigger: 'clicked tile is not walkable land'
+    expected: 'click ignored, targeting persists'
+  - trigger: 'player in cave zone'
+    expected: 'lightning revery still castable (cave has light limitation but bolt still animates)'
+
+verification:
+  test_file: src/engine/__tests__/lightningRevery.test.ts
+  test_pattern: 'lightning revery'
+  command: 'npx vitest run src/engine/__tests__/lightningRevery.test.ts'

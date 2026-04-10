@@ -72,6 +72,8 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'event:lightning-strike': { lore: 'TODO' },
   'event:wildfire': { lore: 'TODO' },
   'event:lightning-attraction': { lore: 'TODO' },
+  'event:lightning-revery': { lore: 'TODO' },
+  'revery:lightning': { lore: 'TODO' },
 }
 
 // --- Category mapping ---
@@ -461,6 +463,26 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     unlockKey: 'event:lightning-strike',
     sourceKind: 'event',
     crossRefs: ['event:lightning-strike', 'event:wildfire'],
+  },
+  {
+    id: 'event:lightning-revery',
+    name: 'Lightning Revery Cast',
+    category: ManualCategory.Celestial,
+    glyph: '|',
+    glyphColor: '#FFFFFF',
+    summary: 'calling the storm down',
+    lore:
+      MANUAL_LORE['event:lightning-revery']?.lore ??
+      'the lightning revery lets you choose where the bolt falls. press the hotkey to enter targeting mode, then click a tile within range. the strike follows the same rules as natural lightning — dry clover ignites, fire spreads, soil enriches.',
+    hints: MANUAL_LORE['event:lightning-revery']?.hints ?? [
+      {
+        prompt: 'how to target',
+        answer: 'press the action bar key, then click a tile within 20 steps. press Esc or right-click to cancel.',
+      },
+    ],
+    unlockKey: 'event:lightning-revery',
+    sourceKind: 'event',
+    crossRefs: ['event:lightning-strike', 'event:wildfire', 'event:lightning-attraction'],
   },
 ]
 
