@@ -117,8 +117,8 @@ edge_cases:
     description: "Ghost spawn positions must not overlap each other, the player start position, or Gron's position"
     expected: 'All 3 ghosts at unique positions, none colliding with player or characters'
   - id: ghost-drift-at-coastline
-    description: 'Ghost adjacent to sand/space border has fewer valid neighbors but never enters Space'
-    expected: 'Ghost stays on dirt/sand/clover tiles, never moves to Space'
+    description: 'Ghost adjacent to sand/space border has fewer valid neighbors but never enters Space. Ghosts spawn on non-Sand tiles but can drift onto Sand since isWalkableTile includes Sand.'
+    expected: 'Ghost stays on dirt/sand/clover tiles, never moves to Space or cave walls'
   - id: ghost-drift-blocked-by-entities
     description: 'Ghost surrounded by other blocking entities has no valid move'
     expected: 'Ghost stays in place, no error'

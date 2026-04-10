@@ -27,9 +27,9 @@ behaviors:
       - 'PickUpResult with chainExplosions count for toast'
     state_changes:
       - field: world
-        effect: "up to 3 new meteorite ECS entities created with Position, Pickupable({ definitionId: 'meteorite' }), EntityTag('meteorite'), ChainSource({ fromChain: true }), EntityZone({ zone: 'overworld' }) components"
+        effect: "up to 3 new meteorite ECS entities created with Position, Pickupable({ definitionId: 'meteorite' }), EntityTag('meteorite'), ChainSource({ fromChain: true }), EntityZone({ zone: Zone.Overworld }) components — always tagged Overworld regardless of current zone"
       - field: world
-        effect: "one explosion ECS entity created per spawned meteorite with Position, TimedEffect({ kind: 'explosion', startTime: time }), EntityTag('explosion'), EntityZone({ zone: 'overworld' }) components"
+        effect: "one explosion ECS entity created per spawned meteorite with Position, TimedEffect({ kind: 'explosion', startTime: time }), EntityTag('explosion'), EntityZone({ zone: Zone.Overworld }) components — always tagged Overworld regardless of current zone"
     determinism: probabilistic
 
   - id: spawn-nearby-meteorites
@@ -37,14 +37,18 @@ behaviors:
       when a chain explosion triggers, 3 new meteorites are
       placed on distinct walkable tiles within a radius of 3
       tiles from the pickup position. tiles must be in-bounds,
-      walkable (dirt or clover), and not occupied by any entity
-      (checked via state.world.spatial index — catches all entity
-      types at a position) or the player. a LandingExplosion is pushed for each
-      spawned meteorite so the existing ring-expansion animation
-      plays. if fewer than 3 valid tiles exist, only as many
-      meteorites as there are valid tiles are spawned. spawned
+      walkable per isWalkableTile on state.map (always uses the
+      current active map, which is overworld or cave depending on
+      zone), and not occupied by any entity (checked via
+      state.world.spatial index — catches all entity types at a
+      position) or the player. a LandingExplosion is pushed for
+      each spawned meteorite so the existing ring-expansion
+      animation plays. if fewer than 3 valid tiles exist, only as
+      many meteorites as there are valid tiles are spawned. spawned
       meteorites are marked with fromChain: true so they cannot
-      trigger further chain explosions on pickup.
+      trigger further chain explosions on pickup. all spawned
+      entities are tagged EntityZone Overworld regardless of the
+      current zone.
     inputs:
       - 'GameState'
       - 'pickup position: Position'
@@ -53,9 +57,9 @@ behaviors:
       - 'number of meteorites actually spawned (0-3)'
     state_changes:
       - field: world
-        effect: "0-3 new meteorite ECS entities created with Position, Pickupable({ definitionId: 'meteorite' }), EntityTag('meteorite'), ChainSource({ fromChain: true }), EntityZone({ zone: 'overworld' }) components"
+        effect: "0-3 new meteorite ECS entities created with Position, Pickupable({ definitionId: 'meteorite' }), EntityTag('meteorite'), ChainSource({ fromChain: true }), EntityZone({ zone: Zone.Overworld }) components — always Overworld"
       - field: world
-        effect: "0-3 new explosion ECS entities created with Position, TimedEffect({ kind: 'explosion', startTime: time }), EntityTag('explosion'), EntityZone({ zone: 'overworld' }) components"
+        effect: "0-3 new explosion ECS entities created with Position, TimedEffect({ kind: 'explosion', startTime: time }), EntityTag('explosion'), EntityZone({ zone: Zone.Overworld }) components — always Overworld"
     determinism: probabilistic
 
   - id: chain-explosion-toast
@@ -84,7 +88,7 @@ edge_cases:
     expected: 'each meteorite has its own 1/7 chance, chain explosions stack'
   - id: cave-zone
     description: 'meteorite pickup in cave zone — chain explosion still applies if meteorites exist there'
-    expected: 'uses cave map tiles for walkability checks, spawns on caveFloor tiles'
+    expected: 'uses state.map (which is the active zone map after context swap) for walkability checks. spawned entities are always tagged Overworld.'
   - id: chain-meteorite-on-player
     description: 'player tile is excluded from candidate spawn tiles since the player occupies it'
     expected: 'no meteorite spawns on the player position'
