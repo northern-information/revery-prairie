@@ -746,4 +746,57 @@ describe('water consolidation', () => {
       }
     }
   })
+
+  it('water bodies have 2-tile-wide sand shoreline', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(sim, GENESIS_EPOCHS)
+    const { allWater } = findWaterComponents(sim)
+    const allDirs = [...cardinalDirs, [1, 1], [-1, -1], [1, -1], [-1, 1]]
+
+    // Collect distance-1 sand tiles (adjacent to water)
+    const dist1Sand = new Set<string>()
+    for (const key of allWater) {
+      const [xStr, yStr] = key.split(',')
+      const x = Number(xStr)
+      const y = Number(yStr)
+      for (const [ddx, ddy] of allDirs) {
+        const nx = x + ddx
+        const ny = y + ddy
+        const nk = posKey(nx, ny)
+        if (
+          ny >= 0 &&
+          ny < sim.height &&
+          nx >= 0 &&
+          nx < sim.width &&
+          sim.landMask.has(nk) &&
+          !allWater.has(nk)
+        ) {
+          dist1Sand.add(nk)
+        }
+      }
+    }
+
+    // Distance-2 land neighbors of dist1Sand should also be sand
+    for (const key of dist1Sand) {
+      const [xStr, yStr] = key.split(',')
+      const x = Number(xStr)
+      const y = Number(yStr)
+      for (const [ddx, ddy] of allDirs) {
+        const nx = x + ddx
+        const ny = y + ddy
+        const nk = posKey(nx, ny)
+        if (
+          ny >= 0 &&
+          ny < sim.height &&
+          nx >= 0 &&
+          nx < sim.width &&
+          sim.landMask.has(nk) &&
+          !allWater.has(nk) &&
+          !dist1Sand.has(nk)
+        ) {
+          expect(sim.grid[ny][nx].type).not.toBe(TileType.Dirt)
+        }
+      }
+    }
+  })
 })
