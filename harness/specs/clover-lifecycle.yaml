@@ -29,8 +29,9 @@ behaviors:
     description: >
       when it is raining (global rain or within rain aura) in the
       overworld, clover tiles gain CLOVER_WATER_RAIN_FILL (15) units
-      per tick. cave clover gets no rain fill. water is capped at
-      CLOVER_WATER_MAX (100).
+      per tick. cave clover gets no global rain. rain auras in the
+      cave zone would still fill clover if any exist (none currently
+      do). water is capped at CLOVER_WATER_MAX (100).
     inputs:
       - 'rain condition active in overworld'
     outputs: []
