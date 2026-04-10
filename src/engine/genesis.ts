@@ -2204,7 +2204,6 @@ const presentDay: GenesisEpoch = {
         sim.elevation.set(key, 50)
       }
     }
-
   },
   renderTile: (sim, x, y, progress, time) => {
     const h = tileHash(x, y)
@@ -2328,6 +2327,8 @@ export const createGenesisState = (width: number, height: number, seed: number):
     riverPathsOrdered: [],
     meltPools: new Set(),
     ponds: new Set(),
+    epochSnapshots: [],
+    mutationsPrecomputed: false,
   }
 }
 
@@ -2339,10 +2340,12 @@ export const tickGenesis = (sim: GenesisSimState, epochs: GenesisEpoch[], time: 
 
   const epoch = epochs[sim.epochIndex]
 
-  // First tick of this epoch — run mutate
+  // First tick of this epoch — run mutate (skipped if pre-computed)
   if (sim.epochStartTime === 0) {
     sim.epochStartTime = time
-    epoch.mutate(sim)
+    if (!sim.mutationsPrecomputed) {
+      epoch.mutate(sim)
+    }
   }
 
   const elapsed = time - sim.epochStartTime
@@ -2384,6 +2387,22 @@ export const runAllMutations = (sim: GenesisSimState, epochs: GenesisEpoch[]): v
     epoch.mutate(sim)
   }
   sim.epochIndex = epochs.length
+}
+
+/** Pre-compute all epoch mutations and take per-epoch snapshots for stall-free playback. */
+export const precomputeGenesis = (sim: GenesisSimState, epochs: GenesisEpoch[]): void => {
+  for (const epoch of epochs) {
+    epoch.mutate(sim)
+    sim.epochSnapshots.push({
+      vegetationMap: new Map(sim.vegetationMap),
+      riverPaths: new Set(sim.riverPaths),
+      ponds: new Set(sim.ponds),
+      elevation: new Map(sim.elevation),
+    })
+  }
+  sim.mutationsPrecomputed = true
+  sim.epochIndex = 0
+  sim.epochStartTime = 0
 }
 
 /** Hash a steward name to a seed number. */
