@@ -8,7 +8,7 @@ import {
   createGroundItemEntity,
   createTestState,
 } from './helpers'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 describe('registry mechanics', () => {
   it('registers a custom system and runs it', () => {
@@ -660,5 +660,88 @@ describe('held key movement', () => {
     gameLoop.tick(100)
 
     expect(pickups).toContain('Bee')
+  })
+})
+
+describe('overworld toast suppression in cave', () => {
+  it('meteor shower toast suppressed in cave', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Cave
+    state.map = state.caveMap
+    state.mapWidth = state.caveMapWidth
+    state.mapHeight = state.caveMapHeight
+    // Schedule shower to activate on next tick
+    state.meteorShower.nextShowerTime = 1
+    state.meteorShower.active = false
+
+    const onDiscovery = vi.fn()
+    const gameLoop = createGameLoop(state, { onDiscovery })
+
+    // Tick past the nextShowerTime so tickMeteorShower activates the shower
+    gameLoop.tick(1000)
+
+    // Shower should have activated (the tick function still runs via map-swap)
+    expect(state.meteorShower.active).toBe(true)
+    // But the toast should NOT fire because we're in the cave
+    expect(onDiscovery).not.toHaveBeenCalledWith(
+      'meteor shower!',
+      expect.any(Number),
+      expect.any(Number),
+      expect.any(String),
+      expect.any(String)
+    )
+  })
+
+  it('meteor shower toast fires in overworld', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Overworld
+    // Schedule shower to activate on next tick
+    state.meteorShower.nextShowerTime = 1
+    state.meteorShower.active = false
+
+    const onDiscovery = vi.fn()
+    const gameLoop = createGameLoop(state, { onDiscovery })
+
+    // Tick past the nextShowerTime so tickMeteorShower activates the shower
+    gameLoop.tick(1000)
+
+    // Shower should have activated
+    expect(state.meteorShower.active).toBe(true)
+    // Toast should fire in overworld
+    expect(onDiscovery).toHaveBeenCalledWith(
+      'meteor shower!',
+      expect.any(Number),
+      expect.any(Number),
+      '*',
+      '#FFD700'
+    )
+  })
+
+  it('lightning toast suppressed in cave', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Cave
+    state.map = state.caveMap
+    state.mapWidth = state.caveMapWidth
+    state.mapHeight = state.caveMapHeight
+
+    const onDiscovery = vi.fn()
+    const gameLoop = createGameLoop(state, { onDiscovery })
+
+    // Tick many times at lightning intervals to give lightning a chance to fire
+    for (let t = 0; t <= 200_000; t += 10_000) {
+      gameLoop.tick(t)
+    }
+
+    // Even if lightning struck during overworld map-swap ticks, the toast must not fire in cave
+    const lightningCalls = onDiscovery.mock.calls.filter(
+      (args: unknown[]) => args[0] === 'lightning strikes!'
+    )
+    expect(lightningCalls).toHaveLength(0)
+
+    // Also verify no wildfire toasts leaked
+    const wildfireCalls = onDiscovery.mock.calls.filter(
+      (args: unknown[]) => args[0] === 'wildfire!'
+    )
+    expect(wildfireCalls).toHaveLength(0)
   })
 })
