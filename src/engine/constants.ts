@@ -118,6 +118,11 @@ export const LIGHTNING_TARGET_SAMPLE_SIZE = 50
 
 // lightning revery
 export const LIGHTNING_REVERY_RANGE = 20
+export const LIGHTNING_RETICLE_CYCLE_MS = 120
+export const LIGHTNING_RETICLE_CHARS = ['|', '/', '\\', '~']
+export const LIGHTNING_INVALID_TARGET_CHAR = 'X'
+export const LIGHTNING_INVALID_TARGET_COLOR = '#CC4444'
+export const LIGHTNING_RANGE_HIGHLIGHT_COLOR = '#222233'
 
 // wildfire
 export const WILDFIRE_DURATION_MS = 1500

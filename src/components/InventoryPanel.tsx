@@ -86,7 +86,11 @@ export const InventoryPanel = ({
 
   // Combine preview on map
   const combinePreviewRef = useRef<
-    ((s: GameState) => { pos: { x: number; y: number }; char: string; color: string }[]) | null
+    | ((
+        s: GameState,
+        t: number
+      ) => { pos: { x: number; y: number }; char: string; color: string; isValid: boolean }[])
+    | null
   >(null)
   useEffect(() => {
     const target = dragState?.combineTarget

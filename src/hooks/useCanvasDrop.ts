@@ -136,7 +136,9 @@ export const useCanvasDrop = ({
 
       if (bestPath && bestPath.length > 0) {
         state.previewFn = () =>
-          Math.floor(Date.now() / 500) % 2 === 0 ? [{ pos: { x: mx, y: my }, char: '#', color: ACTION_COLOR }] : []
+          Math.floor(Date.now() / 500) % 2 === 0
+            ? [{ pos: { x: mx, y: my }, char: '#', color: ACTION_COLOR, isValid: true }]
+            : []
         state.path = bestPath
         state.pendingAction = () => {
           executeDrop()
