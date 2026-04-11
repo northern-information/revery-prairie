@@ -18,7 +18,7 @@ import { AURA_RADIUS } from './effects'
 import { createCharacterEntity } from './entities'
 import { autoSort, placeItem } from './inventory'
 import { createBackpack } from './items'
-import { posKey } from './position'
+import { isWalkableTile, posKey } from './position'
 import { generateSoilHealth, generateTerrain } from './terrain'
 import { Rotation, TileType, Zone } from './types'
 import { generateWeather } from './weather'
@@ -199,7 +199,39 @@ export const createGameState = (
   }
   createCharacterEntity(state, 'gron', { x: gronX, y: gronY }, { aura: 'rain' })
 
-  // Spawn 3 ghosts at random walkable positions
+  // Pre-compute reachable tiles from player spawn (belt-and-suspenders with genesis connectivity)
+  const waterBlocked = new Set<string>()
+  for (const pk of state.ponds) waterBlocked.add(pk)
+  for (const rk of state.rivers) waterBlocked.add(rk)
+  const reachableSet = new Set<string>()
+  const bfsQueue: string[] = [posKey(playerX, playerY)]
+  reachableSet.add(posKey(playerX, playerY))
+  const bfsDirs = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ]
+  while (bfsQueue.length > 0) {
+    const cur = bfsQueue.shift()
+    if (cur === undefined) break
+    const [xStr, yStr] = cur.split(',')
+    const bx = Number(xStr)
+    const by = Number(yStr)
+    for (const [ddx, ddy] of bfsDirs) {
+      const nx = bx + ddx
+      const ny = by + ddy
+      if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue
+      const nk = posKey(nx, ny)
+      if (reachableSet.has(nk)) continue
+      if (waterBlocked.has(nk)) continue
+      if (!isWalkableTile(map[ny][nx].type)) continue
+      reachableSet.add(nk)
+      bfsQueue.push(nk)
+    }
+  }
+
+  // Spawn 3 ghosts at random walkable, reachable positions
   const ghostCount = 3
   const ghostUsedKeys = new Set<string>([posKey(playerX, playerY), posKey(gronX, gronY)])
   const ghostNumbers: number[] = []
@@ -210,6 +242,7 @@ export const createGameState = (
     const gy = SPACE_BORDER + Math.floor(Math.random() * (MAP_HEIGHT - SPACE_BORDER * 2))
     const key = posKey(gx, gy)
     if (ghostUsedKeys.has(key)) continue
+    if (!reachableSet.has(key)) continue
     const tile = map[gy][gx]
     if (tile.type === TileType.Space || tile.type === TileType.Sand) continue
     ghostUsedKeys.add(key)
@@ -226,7 +259,7 @@ export const createGameState = (
   }
   registerGhostDefinitions(ghostNumbers)
 
-  // Spawn 3 coins at random walkable dirt tiles
+  // Spawn 3 coins at random walkable, reachable dirt tiles
   const coinUsedKeys = new Set<string>(ghostUsedKeys)
   let coinCount = 0
   let coinAttempts = 0
@@ -236,6 +269,7 @@ export const createGameState = (
     const cy = SPACE_BORDER + Math.floor(Math.random() * (MAP_HEIGHT - SPACE_BORDER * 2))
     const key = posKey(cx, cy)
     if (coinUsedKeys.has(key)) continue
+    if (!reachableSet.has(key)) continue
     const tile = map[cy][cx]
     if (tile.type !== TileType.Dirt) continue
     coinUsedKeys.add(key)

@@ -57,15 +57,15 @@ const generateLandMask = (
   height: number,
   rng: () => number
 ): { landMask: Set<string>; coastlineTiles: Set<string>; grid: Tile[][] } => {
-  const topOuterVariation = smoothNoiseSeeded(width, 3, 6, rng)
-  const bottomOuterVariation = smoothNoiseSeeded(width, 3, 6, rng)
-  const leftOuterVariation = smoothNoiseSeeded(height, 3, 6, rng)
-  const rightOuterVariation = smoothNoiseSeeded(height, 3, 6, rng)
+  const topOuterVariation = smoothNoiseSeeded(width, 6, 12, rng)
+  const bottomOuterVariation = smoothNoiseSeeded(width, 6, 12, rng)
+  const leftOuterVariation = smoothNoiseSeeded(height, 6, 12, rng)
+  const rightOuterVariation = smoothNoiseSeeded(height, 6, 12, rng)
 
-  const topInnerVariation = smoothNoiseSeeded(width, 3, 8, rng)
-  const bottomInnerVariation = smoothNoiseSeeded(width, 3, 8, rng)
-  const leftInnerVariation = smoothNoiseSeeded(height, 3, 8, rng)
-  const rightInnerVariation = smoothNoiseSeeded(height, 3, 8, rng)
+  const topInnerVariation = smoothNoiseSeeded(width, 4, 10, rng)
+  const bottomInnerVariation = smoothNoiseSeeded(width, 4, 10, rng)
+  const leftInnerVariation = smoothNoiseSeeded(height, 4, 10, rng)
+  const rightInnerVariation = smoothNoiseSeeded(height, 4, 10, rng)
 
   const outerBorder = SPACE_BORDER
   const innerBorder = SPACE_BORDER + SAND_BORDER
@@ -2040,10 +2040,10 @@ const fallOfCivilizations: GenesisEpoch = {
     waterComponents.sort((a, b) => b.size - a.size)
     const viable = waterComponents.filter(c => c.size >= MIN_WATER_BODY_SIZE)
 
-    // 4. Keep 2-5 of the largest viable components
-    const targetCount = 2 + Math.floor(sim.rng() * 4)
+    // 4. Keep 1-3 of the largest viable components
+    const targetCount = 1 + Math.floor(sim.rng() * 3)
     const kept =
-      viable.length >= 2 ? viable.slice(0, targetCount) : waterComponents.slice(0, targetCount)
+      viable.length >= 1 ? viable.slice(0, targetCount) : waterComponents.slice(0, targetCount)
     const keptTiles = new Set<string>()
     for (const comp of kept) {
       for (const key of comp) keptTiles.add(key)
@@ -2333,6 +2333,84 @@ const fallOfCivilizations: GenesisEpoch = {
 // Epoch: Present Day
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Connectivity enforcement — remove unreachable walkable islands
+// ---------------------------------------------------------------------------
+
+export const enforceConnectivity = (sim: GenesisSimState): void => {
+  const spawnX = Math.floor(sim.width / 2)
+  const spawnY = Math.floor(sim.height / 2)
+
+  // Build set of water-blocked positions (ponds + rivers)
+  const waterBlocked = new Set<string>()
+  for (const key of sim.ponds) waterBlocked.add(key)
+  for (const key of sim.riverPaths) waterBlocked.add(key)
+
+  // BFS from player spawn through walkable, non-water tiles
+  const startKey = posKey(spawnX, spawnY)
+  const reachable = new Set<string>()
+  const queue: string[] = [startKey]
+  reachable.add(startKey)
+
+  const dirs = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ]
+
+  while (queue.length > 0) {
+    const current = queue.shift()
+    if (current === undefined) break
+    const [xStr, yStr] = current.split(',')
+    const cx = Number(xStr)
+    const cy = Number(yStr)
+
+    for (const [ddx, ddy] of dirs) {
+      const nx = cx + ddx
+      const ny = cy + ddy
+      if (nx < 0 || nx >= sim.width || ny < 0 || ny >= sim.height) continue
+      const nk = posKey(nx, ny)
+      if (reachable.has(nk)) continue
+      if (waterBlocked.has(nk)) continue
+
+      const tile = sim.grid[ny][nx]
+      // Walkable = anything that's not Space, CaveWall, or CaveBreakableWall
+      if (
+        tile.type === TileType.Space ||
+        tile.type === TileType.CaveWall ||
+        tile.type === TileType.CaveBreakableWall
+      ) {
+        continue
+      }
+
+      reachable.add(nk)
+      queue.push(nk)
+    }
+  }
+
+  // Convert unreachable walkable tiles to Space
+  for (let y = 0; y < sim.height; y++) {
+    for (let x = 0; x < sim.width; x++) {
+      const tile = sim.grid[y][x]
+      if (tile.type === TileType.Space) continue
+      if (tile.type === TileType.CaveWall || tile.type === TileType.CaveBreakableWall) continue
+      if (tile.type === TileType.CaveEntrance) continue // preserve cave entrances
+
+      const key = posKey(x, y)
+      if (waterBlocked.has(key)) continue // don't convert water tiles
+      if (reachable.has(key)) continue // reachable — keep it
+
+      // Unreachable walkable tile — convert to space and clean up
+      sim.grid[y][x] = { type: TileType.Space }
+      sim.landMask.delete(key)
+      sim.coastlineTiles.delete(key)
+      sim.soilHealth.delete(key)
+      sim.elevation.delete(key)
+    }
+  }
+}
+
 const presentDay: GenesisEpoch = {
   id: GenesisEpochId.PresentDay,
   durationMs: 2000,
@@ -2364,6 +2442,9 @@ const presentDay: GenesisEpoch = {
         sim.elevation.set(key, 50)
       }
     }
+
+    // Remove disconnected walkable islands unreachable from player spawn
+    enforceConnectivity(sim)
   },
   renderTile: (sim, x, y, progress, time) => {
     const h = tileHash(x, y)

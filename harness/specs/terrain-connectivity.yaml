@@ -1,0 +1,97 @@
+id: terrain-connectivity
+name: terrain connectivity and water distribution
+status: partial
+priority: high
+layer: engine
+source_files:
+  - src/engine/genesis.ts
+  - src/engine/terrain.ts
+  - src/engine/constants.ts
+  - src/engine/state.ts
+dependencies:
+  - genesis-enhancements
+
+behaviors:
+  - id: no-disconnected-islands
+    description: after genesis completes, every walkable tile on the overworld must be reachable from the player spawn point via cardinal movement through other walkable, non-blocked tiles
+    inputs:
+      - genesis simulation completes (all epochs run)
+      - player spawn position at map center
+    outputs:
+      - flood-fill from player spawn covers all walkable land
+      - no isolated walkable regions exist
+    state_changes:
+      - field: grid
+        effect: disconnected walkable tiles converted to space or sand so they are visually absent rather than tantalizingly unreachable
+    determinism: deterministic
+
+  - id: reduced-water-bodies
+    description: the drought consolidation in fallOfCivilizations keeps fewer and smaller inland water bodies so water does not dominate the landscape
+    inputs:
+      - fallOfCivilizations epoch mutate runs
+      - existing ponds and rivers from prior epochs
+    outputs:
+      - 1-3 contiguous water bodies remain (down from 2-5)
+      - total water tile count is reduced relative to current generation
+    state_changes:
+      - field: ponds
+        effect: fewer pond tiles retained after drought consolidation
+      - field: riverPaths
+        effect: fewer river tiles retained after drought consolidation
+    determinism: probabilistic
+
+  - id: organic-coastline
+    description: the coastline between dirt/sand and space uses higher-amplitude noise for more dramatic natural variation instead of a wobbly rectangle
+    inputs:
+      - generateLandMask called during lavaEra epoch
+      - seeded RNG for determinism
+    outputs:
+      - coastline has bays, peninsulas, and irregular edges
+      - sand border width varies naturally rather than being a uniform 2-tile band
+    state_changes:
+      - field: grid
+        effect: coastline tiles have more dramatic variation from the rectangular border
+      - field: landMask
+        effect: land shape is more organic
+      - field: coastlineTiles
+        effect: sand border has variable width
+    determinism: deterministic
+
+  - id: entity-spawn-reachability
+    description: ghosts, coins, and other overworld entities only spawn on tiles reachable from the player spawn point
+    inputs:
+      - createGameState builds entity positions
+      - terrain already finalized by genesis
+    outputs:
+      - all spawned entities are on tiles the player can walk to
+    state_changes:
+      - field: characters
+        effect: ghost positions verified reachable from player spawn
+    determinism: probabilistic
+
+edge_cases:
+  - id: water-bisects-landmass
+    description: a water body and its sand shoreline span coast-to-coast, splitting walkable land into two disconnected regions
+    expected: connectivity pass converts the smaller disconnected region to space/sand
+  - id: seed-produces-narrow-isthmus
+    description: certain seeds produce a land shape where a narrow 1-2 tile corridor connects two large regions and water nearly bisects it
+    expected: the corridor remains walkable and both regions stay connected
+  - id: all-water-removed
+    description: drought consolidation removes all water bodies because none meet minimum size
+    expected: terrain is valid with no inland water — all land remains connected
+  - id: cave-entrance-preserved
+    description: connectivity pass must not convert cave entrance tile or tiles adjacent to it
+    expected: cave entrance remains accessible after connectivity cleanup
+
+failure_conditions:
+  - trigger: ghost spawns on a tile unreachable from the player
+    expected: ghost is placed on a reachable tile instead
+  - trigger: water body sand border creates an isolated walkable island
+    expected: presentDay connectivity pass eliminates the isolated island
+  - trigger: coastline noise produces a perfectly rectangular border
+    expected: noise amplitude is high enough that straight edges never occur
+
+verification:
+  test_file: src/engine/__tests__/terrainConnectivity.test.ts
+  test_pattern: terrain connectivity
+  command: npx vitest run src/engine/__tests__/terrainConnectivity.test.ts
