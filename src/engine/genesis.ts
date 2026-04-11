@@ -2341,12 +2341,7 @@ export const enforceConnectivity = (sim: GenesisSimState): void => {
   const spawnX = Math.floor(sim.width / 2)
   const spawnY = Math.floor(sim.height / 2)
 
-  // Build set of water-blocked positions (ponds + rivers)
-  const waterBlocked = new Set<string>()
-  for (const key of sim.ponds) waterBlocked.add(key)
-  for (const key of sim.riverPaths) waterBlocked.add(key)
-
-  // BFS from player spawn through walkable, non-water tiles
+  // BFS from player spawn through walkable tiles (including water overlay positions)
   const startKey = posKey(spawnX, spawnY)
   const reachable = new Set<string>()
   const queue: string[] = [startKey]
@@ -2372,7 +2367,6 @@ export const enforceConnectivity = (sim: GenesisSimState): void => {
       if (nx < 0 || nx >= sim.width || ny < 0 || ny >= sim.height) continue
       const nk = posKey(nx, ny)
       if (reachable.has(nk)) continue
-      if (waterBlocked.has(nk)) continue
 
       const tile = sim.grid[ny][nx]
       // Walkable = anything that's not Space, CaveWall, or CaveBreakableWall
@@ -2398,7 +2392,6 @@ export const enforceConnectivity = (sim: GenesisSimState): void => {
       if (tile.type === TileType.CaveEntrance) continue // preserve cave entrances
 
       const key = posKey(x, y)
-      if (waterBlocked.has(key)) continue // don't convert water tiles
       if (reachable.has(key)) continue // reachable — keep it
 
       // Unreachable walkable tile — convert to space and clean up

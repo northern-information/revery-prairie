@@ -1,4 +1,4 @@
-import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
+import { MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER } from '../constants'
 import { ComponentType } from '../ecs/types'
 import {
   createGenesisState,
@@ -74,25 +74,19 @@ const runGenesis = (seed: number): { sim: GenesisSimState; result: ReturnType<ty
 
 describe('terrain connectivity', () => {
   it('all walkable tiles are reachable from player spawn', () => {
-    const { sim, result } = runGenesis(12345)
+    const { result } = runGenesis(12345)
 
     const playerX = Math.floor(MAP_WIDTH / 2)
     const playerY = Math.floor(MAP_HEIGHT / 2)
 
-    // Build water-blocked set
-    const blocked = new Set<string>()
-    for (const key of sim.ponds) blocked.add(key)
-    for (const key of sim.riverPaths) blocked.add(key)
+    const reachable = floodFill(result.terrain, MAP_WIDTH, MAP_HEIGHT, playerX, playerY, new Set<string>())
 
-    const reachable = floodFill(result.terrain, MAP_WIDTH, MAP_HEIGHT, playerX, playerY, blocked)
-
-    // Every walkable non-water tile on the map must be reachable
+    // Every walkable tile on the map must be reachable
     for (let y = 0; y < MAP_HEIGHT; y++) {
       for (let x = 0; x < MAP_WIDTH; x++) {
         const tile = result.terrain[y][x]
         if (!isWalkableTile(tile.type)) continue
         const key = posKey(x, y)
-        if (blocked.has(key)) continue
         expect(reachable.has(key)).toBe(true)
       }
     }
@@ -173,12 +167,7 @@ describe('terrain connectivity', () => {
     const playerX = state.player.x
     const playerY = state.player.y
 
-    // Build water-blocked set
-    const blocked = new Set<string>()
-    for (const key of state.ponds) blocked.add(key)
-    for (const key of state.rivers) blocked.add(key)
-
-    const reachable = floodFill(state.map, state.mapWidth, state.mapHeight, playerX, playerY, blocked)
+    const reachable = floodFill(state.map, state.mapWidth, state.mapHeight, playerX, playerY, new Set<string>())
 
     // Query all character entities on the overworld
     // (ghosts, gron — not moab who is in the cave)
@@ -213,5 +202,36 @@ describe('terrain connectivity', () => {
     // The isolated island tile should have been converted to space
     expect(sim.grid[islandY][islandX].type).toBe(TileType.Space)
     expect(sim.landMask.has(posKey(islandX, islandY))).toBe(false)
+  })
+
+  it('no interior space tiles across multiple seeds', () => {
+    const seeds = [1, 42, 100, 12345, 99999, 7777, 54321]
+    // Coastline noise amplitude is 6, so space can extend up to SPACE_BORDER + 6
+    // tiles from each edge. Use SPACE_BORDER + 7 to safely clear the coastline.
+    const margin = SPACE_BORDER + 7
+
+    for (const seed of seeds) {
+      const { result } = runGenesis(seed)
+
+      let interiorSpaceCount = 0
+      for (let y = margin; y < MAP_HEIGHT - margin; y++) {
+        for (let x = margin; x < MAP_WIDTH - margin; x++) {
+          if (result.terrain[y][x].type !== TileType.Space) continue
+
+          // Count non-space cardinal neighbors
+          let nonSpaceNeighbors = 0
+          if (result.terrain[y - 1][x].type !== TileType.Space) nonSpaceNeighbors++
+          if (result.terrain[y + 1][x].type !== TileType.Space) nonSpaceNeighbors++
+          if (result.terrain[y][x - 1].type !== TileType.Space) nonSpaceNeighbors++
+          if (result.terrain[y][x + 1].type !== TileType.Space) nonSpaceNeighbors++
+
+          if (nonSpaceNeighbors >= 3) {
+            interiorSpaceCount++
+          }
+        }
+      }
+
+      expect(interiorSpaceCount, `seed ${String(seed)} has ${String(interiorSpaceCount)} interior space tiles`).toBe(0)
+    }
   })
 })
