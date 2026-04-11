@@ -172,7 +172,6 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
     <>
       <canvas
         ref={canvasRef}
-        className="fixed inset-0"
         style={{ cursor: 'url(/cursor.cur), auto' }}
         onClick={finishSimulation}
       />

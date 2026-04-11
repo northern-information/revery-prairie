@@ -148,7 +148,7 @@ export const ActionBar = ({
   const hasDrag = dragState !== null
 
   return (
-    <div className="animate-fade-in pointer-events-auto fixed bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1">
+    <div className="pointer-events-auto fixed bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1">
       <button
         className="border-border/50 text-permacomputer hover:border-permacomputer hover:text-pink mr-1 flex items-center justify-center rounded border bg-black/70 font-mono text-base transition-colors"
         style={{ width: SLOT_SIZE, height: SLOT_SIZE }}

@@ -1,0 +1,88 @@
+plan:
+  id: genesis-transition-jump
+  title: 'Fix visual jump during genesis-to-game crossfade transition'
+  created: 2026-04-11
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: remove-fade-in-animations
+    title: 'Remove animate-fade-in from Sidebar and ActionBar so they mount instantly'
+    spec_id: genesis-transition-jump
+    spec_sections:
+      - instant-ui-overlay-mount
+      - pixel-perfect-crossfade
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/components/ActionBar.tsx
+      - src/styles/index.css
+    output_files:
+      - src/components/Sidebar.tsx
+      - src/components/ActionBar.tsx
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: align-canvas-positioning
+    title: 'Make genesis canvas use normal document flow positioning like game canvas'
+    spec_id: genesis-transition-jump
+    spec_sections:
+      - canvas-positioning-match
+      - pixel-perfect-crossfade
+    context_files:
+      - src/components/GenesisScreen.tsx
+      - src/components/GameCanvas.tsx
+    output_files:
+      - src/components/GenesisScreen.tsx
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: align-viewport-calculation
+    title: 'Make genesis canvas subtract SIDEBAR_WIDTH_PX from viewport like game canvas'
+    spec_id: genesis-transition-jump
+    spec_sections:
+      - viewport-inset-alignment
+      - pixel-perfect-crossfade
+    context_files:
+      - src/components/GenesisScreen.tsx
+      - src/components/GameCanvas.tsx
+      - src/engine/constants.ts
+    output_files:
+      - src/components/GenesisScreen.tsx
+    depends_on:
+      - align-canvas-positioning
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: regression-test
+    title: 'Add regression tests for canvas dimensions and positioning consistency'
+    spec_id: genesis-transition-jump
+    spec_sections:
+      - canvas-positioning-match
+      - viewport-inset-alignment
+      - instant-ui-overlay-mount
+      - pixel-perfect-crossfade
+    context_files:
+      - src/components/GenesisScreen.tsx
+      - src/components/GameCanvas.tsx
+      - src/components/Sidebar.tsx
+      - src/components/ActionBar.tsx
+    output_files:
+      - src/components/__tests__/genesisTransition.test.tsx
+    depends_on:
+      - remove-fade-in-animations
+      - align-canvas-positioning
+      - align-viewport-calculation
+    verification:
+      - 'npx vitest run src/components/__tests__/genesisTransition.test.tsx'
+    repair: retry
+    tags: [test]
