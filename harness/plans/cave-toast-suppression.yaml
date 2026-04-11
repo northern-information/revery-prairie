@@ -1,0 +1,49 @@
+plan:
+  id: cave-toast-suppression
+  title: Gate overworld event toasts on current zone
+  created: 2026-04-11
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: fix-overworld-toast-zone-checks
+    title: Add currentZone guard to meteor shower, lightning, and wildfire onDiscovery callbacks
+    spec_id: cave-toast-suppression
+    spec_sections:
+      - suppress-meteor-shower-toast-in-cave
+      - show-meteor-shower-toast-in-overworld
+      - suppress-lightning-toast-in-cave
+      - show-lightning-toast-in-overworld
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+
+  - id: add-regression-tests
+    title: Add regression tests for overworld toast suppression in cave
+    spec_id: cave-toast-suppression
+    spec_sections:
+      - suppress-meteor-shower-toast-in-cave
+      - show-meteor-shower-toast-in-overworld
+      - suppress-lightning-toast-in-cave
+      - show-lightning-toast-in-overworld
+    context_files:
+      - src/engine/__tests__/gameLoop.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/__tests__/gameLoop.test.ts
+    depends_on:
+      - fix-overworld-toast-zone-checks
+    verification:
+      - npx vitest run src/engine/__tests__/gameLoop.test.ts
+    repair: retry
+    tags: [test]

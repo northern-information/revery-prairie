@@ -180,7 +180,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       fn: (state, time) => {
         const wasActive = state.meteorShower.active
         tickMeteorShower(state, time)
-        if (!wasActive && state.meteorShower.active) {
+        if (!wasActive && state.meteorShower.active && state.currentZone === Zone.Overworld) {
           callbacks.onDiscovery?.('meteor shower!', state.player.x, state.player.y, '*', '#FFD700')
         }
       },
@@ -193,14 +193,16 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       fn: (state, time) => {
         const struck = spawnLightningStrike(state, time)
         if (struck) {
-          callbacks.onDiscovery?.('lightning strikes!', struck.x, struck.y, '|', '#FFFFFF')
-          // Check if wildfire spread happened (wildfire entity just created)
-          for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-            const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-            const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
-            if (tag === 'wildfire' && effect?.startTime === time) {
-              callbacks.onDiscovery?.('wildfire!', struck.x, struck.y, '^', '#FF4500')
-              break
+          if (state.currentZone === Zone.Overworld) {
+            callbacks.onDiscovery?.('lightning strikes!', struck.x, struck.y, '|', '#FFFFFF')
+            // Check if wildfire spread happened (wildfire entity just created)
+            for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+              const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+              const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+              if (tag === 'wildfire' && effect?.startTime === time) {
+                callbacks.onDiscovery?.('wildfire!', struck.x, struck.y, '^', '#FF4500')
+                break
+              }
             }
           }
         }
