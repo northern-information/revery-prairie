@@ -40,6 +40,8 @@ import {
   LIGHTNING_FLASH_MS,
   LIGHTNING_IMPACT_CHARS,
   LIGHTNING_IMPACT_COLORS,
+  LIGHTNING_RANGE_HIGHLIGHT_COLOR,
+  LIGHTNING_REVERY_RANGE,
   LIGHTNING_SCREEN_FLASH_MS,
   LIGHTNING_SCREEN_FLASH_OPACITY,
   METEORITE_CHAR,
@@ -160,10 +162,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   }
 
   // Build a map of preview tile positions for macro recipe previews
-  const previewMap = new Map<string, { char: string; color: string }>()
+  const previewMap = new Map<string, { char: string; color: string; isValid: boolean }>()
   if (state.previewFn) {
-    for (const pt of state.previewFn(state)) {
-      previewMap.set(posKey(pt.pos.x, pt.pos.y), { char: pt.char, color: pt.color })
+    for (const pt of state.previewFn(state, time)) {
+      previewMap.set(posKey(pt.pos.x, pt.pos.y), { char: pt.char, color: pt.color, isValid: pt.isValid })
     }
   }
 
@@ -630,6 +632,22 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
+  // Pre-pass: lightning targeting range highlight
+  if (state.targetingSlot !== null) {
+    for (let vy = 0; vy < viewportHeight; vy++) {
+      for (let vx = 0; vx < viewportWidth; vx++) {
+        const mx = camera.x + vx
+        const my = camera.y + vy
+        if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+        if (map[my][mx].type === TileType.Space) continue
+        const dist = Math.abs(mx - player.x) + Math.abs(my - player.y)
+        if (dist > LIGHTNING_REVERY_RANGE) continue
+        ctx.fillStyle = LIGHTNING_RANGE_HIGHLIGHT_COLOR
+        ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
+      }
+    }
+  }
+
   for (let vy = 0; vy < viewportHeight; vy++) {
     for (let vx = 0; vx < viewportWidth; vx++) {
       const mx = camera.x + vx
@@ -846,7 +864,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
 
       // Draw with cursor/facing inversion if applicable
-      if ((isCursor && cursorable) || isFacingEntity || isPendingTarget) {
+      // Invalid preview tiles (e.g. red X for lightning targeting) skip cursor inversion
+      if (previewTile && !previewTile.isValid) {
+        ctx.fillStyle = color
+      } else if ((isCursor && cursorable) || isFacingEntity || isPendingTarget) {
         ctx.fillStyle = ACTION_COLOR
         ctx.fillRect(px, py, charWidth, charHeight)
         ctx.fillStyle = BG_COLOR

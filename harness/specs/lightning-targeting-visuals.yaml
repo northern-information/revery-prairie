@@ -1,0 +1,139 @@
+id: lightning-targeting-visuals
+name: 'Lightning targeting visuals'
+status: planned
+priority: high
+layer: integration
+source_files:
+  - src/engine/actionBar.ts
+  - src/engine/renderer.ts
+  - src/engine/constants.ts
+  - src/engine/types.ts
+  - src/engine/__tests__/lightningTargeting.test.ts
+dependencies:
+  - lightning-revery
+
+behaviors:
+  - id: evocative-reticle
+    description: >
+      when in targeting mode and the cursor is over a valid target tile,
+      the reticle renders as an animated lightning glyph that cycles
+      through the characters |, /, \, and ~ at a fast interval
+      (LIGHTNING_RETICLE_CYCLE_MS, ~120ms). the glyph color is bright
+      white (#FFFFFF). the standard hot pink cursor inversion still
+      applies as the background. this replaces the current static |
+      glyph returned by getTargetingPreview.
+    inputs:
+      - 'cursor over valid target tile while targetingSlot is set'
+      - 'current time for animation cycling'
+    outputs:
+      - 'animated glyph cycling through |, /, \\, ~ at cursor position'
+    state_changes: []
+    determinism: time-based
+
+  - id: invalid-target-feedback
+    description: >
+      when in targeting mode and the cursor is over an invalid target
+      tile (space, character, or living fauna), the reticle renders a
+      red X character at the cursor position. the X is drawn in a muted
+      red (#CC4444) with no background inversion (no hot pink). this
+      gives clear feedback that the tile cannot be targeted without
+      being garish.
+    inputs:
+      - 'cursor over invalid target tile while targetingSlot is set'
+    outputs:
+      - 'red X glyph (#CC4444) at cursor position'
+    state_changes: []
+    determinism: deterministic
+
+  - id: revised-invalid-targets
+    description: >
+      isValidLightningTarget is revised so only three categories are
+      invalid: (1) space tiles, (2) tiles occupied by characters (via
+      ECS CharacterIdentity + Position query), (3) tiles occupied by
+      living fauna (bees and beehives via ECS EntityTag bee/beehive +
+      Position query). sand, cave walls, cave breakable walls, cave
+      entrances, ponds, and rivers are now valid targets. out-of-bounds
+      and out-of-range tiles remain invalid.
+    inputs:
+      - 'GameState and target position'
+    outputs:
+      - 'boolean: false for space, character, or fauna tiles; true otherwise'
+    state_changes: []
+    determinism: deterministic
+
+  - id: range-highlight
+    description: >
+      while in targeting mode, tiles within LIGHTNING_REVERY_RANGE
+      manhattan distance of the player receive a faint background tint.
+      the tint is a dim blue-white (#222233) fillRect drawn before the
+      normal tile content. tiles outside the range get no tint. space
+      tiles within range are not tinted (they keep their star
+      rendering). the tint is subtle enough to not obscure tile content
+      but visible enough to communicate the castable area. the
+      highlight is rendered as a background pass in the renderer, similar
+      to the earthScanBgMap pattern.
+    inputs:
+      - 'targetingSlot is set (not null)'
+      - 'player position'
+      - 'LIGHTNING_REVERY_RANGE constant'
+    outputs:
+      - 'faint background tint on all valid-range non-space tiles'
+    state_changes: []
+    determinism: deterministic
+
+  - id: preview-includes-invalid
+    description: >
+      getTargetingPreview is extended to return entries for both valid
+      and invalid cursor positions. each entry gains an isValid boolean
+      field. valid entries carry the animated lightning glyph and white
+      color. invalid entries carry X and #CC4444. the renderer uses
+      isValid to decide whether to apply hot pink cursor inversion
+      (valid only) or draw the red X without inversion (invalid).
+    inputs:
+      - 'cursor position while targetingSlot is set'
+    outputs:
+      - 'preview entry with pos, char, color, and isValid flag'
+    state_changes: []
+    determinism: time-based
+
+edge_cases:
+  - id: cursor-on-player-tile
+    description: 'cursor is on the player tile during targeting mode'
+    expected: 'player tile is within range and valid (not space/character/fauna), shows normal reticle. player char renders on top.'
+  - id: cursor-on-bee
+    description: 'cursor is on a tile occupied by a bee entity'
+    expected: 'red X rendered, tile is invalid target'
+  - id: cursor-on-beehive
+    description: 'cursor is on a tile occupied by a beehive entity'
+    expected: 'red X rendered, tile is invalid target'
+  - id: cursor-on-ghost
+    description: 'cursor is on a tile occupied by a ghost character'
+    expected: 'red X rendered, tile is invalid target'
+  - id: cursor-on-sand
+    description: 'cursor is on a sand tile during targeting mode'
+    expected: 'valid target, animated reticle renders (sand is no longer invalid)'
+  - id: cursor-on-pond
+    description: 'cursor is on a pond tile during targeting mode'
+    expected: 'valid target, animated reticle renders (ponds are no longer invalid)'
+  - id: range-highlight-near-border
+    description: 'player is near the map edge, range extends beyond map bounds'
+    expected: 'out-of-bounds tiles are not highlighted, no rendering errors'
+  - id: range-highlight-in-cave
+    description: 'player enters targeting mode while in cave zone'
+    expected: 'range highlight renders on cave floor tiles within range, not on cave walls or space'
+  - id: fauna-moves-off-tile
+    description: 'bee moves off a tile between frames while cursor is on that tile'
+    expected: 'tile becomes valid on next frame, reticle switches from red X to animated glyph'
+
+failure_conditions:
+  - trigger: 'targetingSlot is null (not in targeting mode)'
+    expected: 'no range highlight rendered, no reticle changes'
+  - trigger: 'cursor is null (mouse not over canvas)'
+    expected: 'range highlight still renders, no reticle at any position'
+  - trigger: 'cursor on out-of-bounds tile during targeting'
+    expected: 'red X rendered, no crash'
+
+verification:
+  test_file: src/engine/__tests__/lightningTargeting.test.ts
+  test_pattern: 'lightning targeting'
+  command: 'npx vitest run src/engine/__tests__/lightningTargeting.test.ts'

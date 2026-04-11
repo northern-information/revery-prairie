@@ -10,9 +10,9 @@ export const ZOOM_MAX = 3.0
 export const ZOOM_STEP = 0.125
 export const ZOOM_DEFAULT = 1.0
 
-export const SAND_BORDER = 1
-export const WATER_SAND_BORDER_MAX = 2
-export const WATER_SAND_PASS_CHANCES = [100, 50]
+export const SAND_BORDER = 2
+export const WATER_SAND_BORDER_MAX = 3
+export const WATER_SAND_PASS_CHANCES = [100, 70, 30]
 
 export const CAVE_WIDTH = 40
 export const CAVE_HEIGHT = 25
@@ -118,6 +118,11 @@ export const LIGHTNING_TARGET_SAMPLE_SIZE = 50
 
 // lightning revery
 export const LIGHTNING_REVERY_RANGE = 20
+export const LIGHTNING_RETICLE_CYCLE_MS = 120
+export const LIGHTNING_RETICLE_CHARS = ['|', '/', '\\', '~']
+export const LIGHTNING_INVALID_TARGET_CHAR = 'X'
+export const LIGHTNING_INVALID_TARGET_COLOR = '#CC4444'
+export const LIGHTNING_RANGE_HIGHLIGHT_COLOR = '#222233'
 
 // wildfire
 export const WILDFIRE_DURATION_MS = 1500

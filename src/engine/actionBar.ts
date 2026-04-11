@@ -5,6 +5,10 @@ import {
   CLOVER_WATER_REVERY_FILL,
   LIGHTNING_BOLT_MAX_LENGTH,
   LIGHTNING_BOLT_MIN_LENGTH,
+  LIGHTNING_INVALID_TARGET_CHAR,
+  LIGHTNING_INVALID_TARGET_COLOR,
+  LIGHTNING_RETICLE_CHARS,
+  LIGHTNING_RETICLE_CYCLE_MS,
   LIGHTNING_REVERY_RANGE,
   SOIL_HEALTH_FIRE_REVERY_BONUS,
   SOIL_HEALTH_WATER_REVERY_BONUS,
@@ -65,7 +69,7 @@ const getCastPositions = (state: GameState, center: Position, pattern: Position[
 export const getActionBarPreview = (
   state: GameState,
   slotIndex: number
-): { pos: Position; char: string; color: string }[] => {
+): { pos: Position; char: string; color: string; isValid: boolean }[] => {
   const slot = state.actionBar[slotIndex]
   if (slot?.kind !== 'revery') return []
   if (performance.now() < slot.cooldownEndTime) return []
@@ -77,7 +81,7 @@ export const getActionBarPreview = (
   const positions = getCastPositions(state, target, def.castPattern)
   if (positions.length === 0) return []
 
-  return positions.map(pos => ({ pos, char: def.glyphs[0], color: def.glyphColor }))
+  return positions.map(pos => ({ pos, char: def.glyphs[0], color: def.glyphColor, isValid: true }))
 }
 
 const applyReveryCastEffects = (state: GameState, reveryId: string, positions: Position[]): void => {
@@ -172,31 +176,55 @@ export const isValidLightningTarget = (state: GameState, target: Position): bool
   const dist = Math.abs(target.x - state.player.x) + Math.abs(target.y - state.player.y)
   if (dist > LIGHTNING_REVERY_RANGE) return false
   const tile = state.map[target.y][target.x]
-  if (
-    tile.type === TileType.Space ||
-    tile.type === TileType.Sand ||
-    tile.type === TileType.CaveWall ||
-    tile.type === TileType.CaveBreakableWall ||
-    tile.type === TileType.CaveEntrance
-  ) {
-    return false
+  if (tile.type === TileType.Space) return false
+
+  const targetKey = posKey(target.x, target.y)
+
+  // Check characters at target position (same zone)
+  for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
+    const zone = state.world.getComponent(eid, ComponentType.EntityZone)
+    if (zone?.zone !== state.currentZone) continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (pos && posKey(pos.x, pos.y) === targetKey) return false
   }
-  const key = posKey(target.x, target.y)
-  if (state.ponds.has(key) || state.rivers.has(key)) return false
+
+  // Check living fauna (bees and beehives) at target position (same zone)
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'bee' && tag !== 'beehive') continue
+    const zone = state.world.getComponent(eid, ComponentType.EntityZone)
+    if (zone?.zone !== state.currentZone) continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (pos && posKey(pos.x, pos.y) === targetKey) return false
+  }
+
   return true
 }
 
 export const getTargetingPreview = (
   state: GameState,
-  slotIndex: number
-): { pos: Position; char: string; color: string }[] => {
+  slotIndex: number,
+  time: number
+): { pos: Position; char: string; color: string; isValid: boolean }[] => {
   const slot = state.actionBar[slotIndex]
   if (slot?.kind !== 'revery') return []
   const def = getReveryDefinition(slot.id)
   if (def.castStyle !== 'targeted') return []
   if (!state.cursorTile) return []
-  if (!isValidLightningTarget(state, state.cursorTile)) return []
-  return [{ pos: state.cursorTile, char: def.glyphs[0], color: def.glyphColor }]
+
+  if (!isValidLightningTarget(state, state.cursorTile)) {
+    return [
+      {
+        pos: state.cursorTile,
+        char: LIGHTNING_INVALID_TARGET_CHAR,
+        color: LIGHTNING_INVALID_TARGET_COLOR,
+        isValid: false,
+      },
+    ]
+  }
+
+  const charIndex = Math.floor(time / LIGHTNING_RETICLE_CYCLE_MS) % LIGHTNING_RETICLE_CHARS.length
+  return [{ pos: state.cursorTile, char: LIGHTNING_RETICLE_CHARS[charIndex], color: def.glyphColor, isValid: true }]
 }
 
 export const castLightningAtTarget = (

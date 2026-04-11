@@ -140,7 +140,9 @@ export interface GameState {
   omniboxContainers: Map<string, Container>
   nextOmniboxNumber: number
   discoveredRecipes: Set<string>
-  previewFn: ((state: GameState) => { pos: Position; char: string; color: string }[]) | null
+  previewFn:
+    | ((state: GameState, time: number) => { pos: Position; char: string; color: string; isValid: boolean }[])
+    | null
   weather: Weather
   path: Position[] | null
   pathWaypoints: Position[]

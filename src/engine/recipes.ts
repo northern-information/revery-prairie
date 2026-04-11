@@ -10,6 +10,7 @@ export interface PreviewTile {
   pos: Position
   char: string
   color: string
+  isValid: boolean
 }
 
 export const RecipeKind = {
@@ -54,7 +55,7 @@ export const RECIPES: Recipe[] = [
           if (isInBounds(tx, ty, state.mapWidth, state.mapHeight)) {
             const t = state.map[ty][tx].type
             if (t === TileType.Dirt || t === TileType.Clover || t === TileType.CaveFloor) {
-              tiles.push({ pos: { x: tx, y: ty }, char: '#', color: ACTION_COLOR })
+              tiles.push({ pos: { x: tx, y: ty }, char: '#', color: ACTION_COLOR, isValid: true })
             }
           }
         }

@@ -1,0 +1,149 @@
+plan:
+  id: lightning-targeting-visuals
+  title: 'Lightning targeting reticle, invalid feedback, and range highlight'
+  created: '2026-04-11'
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-constants
+    title: 'Add lightning targeting visual constants'
+    spec_id: lightning-targeting-visuals
+    spec_sections:
+      - evocative-reticle
+      - invalid-target-feedback
+      - range-highlight
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: revise-valid-targets
+    title: 'Revise isValidLightningTarget to only reject space, characters, and fauna'
+    spec_id: lightning-targeting-visuals
+    spec_sections:
+      - revised-invalid-targets
+    context_files:
+      - src/engine/actionBar.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/actionBar.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: extend-preview
+    title: 'Extend getTargetingPreview to return valid and invalid entries with isValid flag'
+    spec_id: lightning-targeting-visuals
+    spec_sections:
+      - preview-includes-invalid
+      - evocative-reticle
+      - invalid-target-feedback
+    context_files:
+      - src/engine/actionBar.ts
+      - src/engine/reveries.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/actionBar.ts
+    depends_on:
+      - add-constants
+      - revise-valid-targets
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: render-range-highlight
+    title: 'Add range highlight background pass in renderer for targeting mode'
+    spec_id: lightning-targeting-visuals
+    spec_sections:
+      - range-highlight
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-constants
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: render-reticle
+    title: 'Update renderer to handle animated reticle and red X from preview entries'
+    spec_id: lightning-targeting-visuals
+    spec_sections:
+      - evocative-reticle
+      - invalid-target-feedback
+      - preview-includes-invalid
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - extend-preview
+      - render-range-highlight
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: update-existing-tests
+    title: 'Update existing lightning revery tests for revised valid targets'
+    spec_id: lightning-targeting-visuals
+    spec_sections:
+      - revised-invalid-targets
+    context_files:
+      - src/engine/__tests__/lightningRevery.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/actionBar.ts
+    output_files:
+      - src/engine/__tests__/lightningRevery.test.ts
+    depends_on:
+      - revise-valid-targets
+      - extend-preview
+    verification:
+      - 'npx vitest run src/engine/__tests__/lightningRevery.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: add-targeting-tests
+    title: 'Add new test file for lightning targeting visuals'
+    spec_id: lightning-targeting-visuals
+    spec_sections:
+      - evocative-reticle
+      - invalid-target-feedback
+      - revised-invalid-targets
+      - range-highlight
+      - preview-includes-invalid
+    context_files:
+      - src/engine/__tests__/lightningRevery.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/actionBar.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/lightningTargeting.test.ts
+    depends_on:
+      - revise-valid-targets
+      - extend-preview
+    verification:
+      - 'npx vitest run src/engine/__tests__/lightningTargeting.test.ts'
+    repair: retry
+    tags: [test]

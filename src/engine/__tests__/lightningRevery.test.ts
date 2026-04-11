@@ -7,7 +7,12 @@ import {
   getTargetingPreview,
   isValidLightningTarget,
 } from '../actionBar'
-import { LIGHTNING_REVERY_RANGE } from '../constants'
+import {
+  LIGHTNING_INVALID_TARGET_CHAR,
+  LIGHTNING_INVALID_TARGET_COLOR,
+  LIGHTNING_RETICLE_CHARS,
+  LIGHTNING_REVERY_RANGE,
+} from '../constants'
 import { ComponentType } from '../ecs/types'
 import { posKey } from '../position'
 import { getReveryDefinition, REVERY_DEFINITIONS } from '../reveries'
@@ -67,19 +72,52 @@ describe('lightning revery', () => {
       expect(isValidLightningTarget(state, target)).toBe(false)
     })
 
-    it('rejects sand tiles', () => {
+    it('accepts sand tiles', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
       const target = { x: state.player.x + 3, y: state.player.y + 3 }
       state.map[target.y][target.x] = { type: TileType.Sand }
-      expect(isValidLightningTarget(state, target)).toBe(false)
+      expect(isValidLightningTarget(state, target)).toBe(true)
     })
 
-    it('rejects water tiles', () => {
+    it('accepts water tiles', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
       const target = { x: state.player.x + 3, y: state.player.y + 3 }
       state.ponds.add(posKey(target.x, target.y))
+      expect(isValidLightningTarget(state, target)).toBe(true)
+    })
+
+    it('rejects tiles occupied by characters', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const target = { x: state.player.x + 3, y: state.player.y + 3 }
+      const eid = state.world.createEntity()
+      state.world.addComponent(eid, ComponentType.CharacterIdentity, { definitionId: 'testGhost' })
+      state.world.addComponent(eid, ComponentType.Position, { x: target.x, y: target.y })
+      state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
+      expect(isValidLightningTarget(state, target)).toBe(false)
+    })
+
+    it('rejects tiles occupied by bees', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const target = { x: state.player.x + 3, y: state.player.y + 3 }
+      const eid = state.world.createEntity()
+      state.world.addComponent(eid, ComponentType.EntityTag, 'bee')
+      state.world.addComponent(eid, ComponentType.Position, { x: target.x, y: target.y })
+      state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
+      expect(isValidLightningTarget(state, target)).toBe(false)
+    })
+
+    it('rejects tiles occupied by beehives', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const target = { x: state.player.x + 3, y: state.player.y + 3 }
+      const eid = state.world.createEntity()
+      state.world.addComponent(eid, ComponentType.EntityTag, 'beehive')
+      state.world.addComponent(eid, ComponentType.Position, { x: target.x, y: target.y })
+      state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
       expect(isValidLightningTarget(state, target)).toBe(false)
     })
 
@@ -199,26 +237,30 @@ describe('lightning revery', () => {
   })
 
   describe('getTargetingPreview', () => {
-    it('returns preview for valid cursor tile', () => {
+    it('returns preview for valid cursor tile with animated reticle', () => {
       const state = createTestState()
       clearAroundPlayer(state, 10)
       assignActionBarSlot(state, 0, 'revery', 'lightning')
       state.cursorTile = { x: state.player.x + 5, y: state.player.y + 5 }
 
-      const preview = getTargetingPreview(state, 0)
+      const preview = getTargetingPreview(state, 0, 0)
       expect(preview).toHaveLength(1)
-      expect(preview[0].char).toBe('|')
+      expect(LIGHTNING_RETICLE_CHARS).toContain(preview[0].char)
       expect(preview[0].color).toBe('#FFFFFF')
+      expect(preview[0].isValid).toBe(true)
     })
 
-    it('returns empty for out-of-range cursor tile', () => {
+    it('returns invalid preview for out-of-range cursor tile', () => {
       const state = createTestState()
       clearAroundPlayer(state, LIGHTNING_REVERY_RANGE + 2)
       assignActionBarSlot(state, 0, 'revery', 'lightning')
       state.cursorTile = { x: state.player.x + LIGHTNING_REVERY_RANGE + 1, y: state.player.y }
 
-      const preview = getTargetingPreview(state, 0)
-      expect(preview).toHaveLength(0)
+      const preview = getTargetingPreview(state, 0, 0)
+      expect(preview).toHaveLength(1)
+      expect(preview[0].char).toBe(LIGHTNING_INVALID_TARGET_CHAR)
+      expect(preview[0].color).toBe(LIGHTNING_INVALID_TARGET_COLOR)
+      expect(preview[0].isValid).toBe(false)
     })
 
     it('returns empty when no cursor tile', () => {
@@ -226,7 +268,7 @@ describe('lightning revery', () => {
       assignActionBarSlot(state, 0, 'revery', 'lightning')
       state.cursorTile = null
 
-      const preview = getTargetingPreview(state, 0)
+      const preview = getTargetingPreview(state, 0, 0)
       expect(preview).toHaveLength(0)
     })
 
@@ -235,7 +277,7 @@ describe('lightning revery', () => {
       assignActionBarSlot(state, 0, 'revery', 'fire')
       state.cursorTile = { x: state.player.x + 3, y: state.player.y + 3 }
 
-      const preview = getTargetingPreview(state, 0)
+      const preview = getTargetingPreview(state, 0, 0)
       expect(preview).toHaveLength(0)
     })
   })

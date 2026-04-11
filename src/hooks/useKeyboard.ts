@@ -99,7 +99,7 @@ export const useKeyboard = ({
         }
         const slotIndex = parseInt(e.key) - 1
         state.heldActionSlot = slotIndex
-        state.previewFn = s => getActionBarPreview(s, slotIndex)
+        state.previewFn = (s, _t) => getActionBarPreview(s, slotIndex)
         refreshUI()
         return
       }
@@ -349,7 +349,7 @@ export const useKeyboard = ({
             if (def.castStyle === 'targeted' && performance.now() >= slot.cooldownEndTime) {
               // Enter targeting mode
               state.targetingSlot = slotIndex
-              state.previewFn = s => getTargetingPreview(s, slotIndex)
+              state.previewFn = (s, t) => getTargetingPreview(s, slotIndex, t)
               refreshUI()
               return
             }
