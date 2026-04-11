@@ -1,0 +1,45 @@
+plan:
+  id: meteorite-water-cleanup
+  title: 'Eliminate dirt islands inside water bodies during genesis'
+  created: 2026-04-11
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: island-elimination-pass
+    title: 'Add island elimination sweep after sand shoreline pass in drought epoch'
+    spec_id: meteorite-water-cleanup
+    spec_sections:
+      - eliminate-dirt-islands
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: island-elimination-tests
+    title: 'Add regression tests for dirt island elimination'
+    spec_id: meteorite-water-cleanup
+    spec_sections:
+      - eliminate-dirt-islands
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesis.ts
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - island-elimination-pass
+    verification:
+      - 'npx vitest run src/engine/__tests__/genesis.test.ts'
+    repair: retry
+    tags: [test]

@@ -1,0 +1,54 @@
+id: meteorite-water-cleanup
+name: 'Eliminate dirt islands inside water bodies'
+status: partial
+priority: medium
+layer: engine
+source_files:
+  - src/engine/genesis.ts
+dependencies:
+  - shooting-stars
+  - genesis-enhancements
+
+behaviors:
+  - id: eliminate-dirt-islands
+    description: >
+      after the sand shoreline pass in the drought epoch, genesis
+      scans for small dirt patches (connected components of dirt
+      tiles, cardinal connectivity) that are fully enclosed by water
+      and/or sand tiles. any dirt patch smaller than a threshold
+      (e.g. 4 tiles) where every cardinal neighbor of every tile
+      in the patch is water, sand, or another tile in the same
+      patch is converted to sand. this prevents 1x1 or tiny dirt
+      islands from appearing inside water bodies where meteorites
+      or other entities could land and look wrong.
+    inputs:
+      - 'drought epoch mutate runs after sand shoreline pass'
+    outputs:
+      - 'small enclosed dirt patches converted to sand'
+    state_changes:
+      - field: sim.grid
+        effect: 'isolated dirt tiles inside water bodies become TileType.Sand'
+    determinism: deterministic
+
+edge_cases:
+  - id: single-dirt-tile-surrounded-by-water
+    description: '1x1 dirt tile with all 4 cardinal neighbors as water or sand'
+    expected: 'tile is converted to sand'
+  - id: small-dirt-cluster-in-water
+    description: '2-3 dirt tiles forming a cluster fully enclosed by water and sand'
+    expected: 'all tiles in the cluster are converted to sand'
+  - id: dirt-connected-to-mainland
+    description: 'dirt tile adjacent to water but cardinally connected to the main landmass'
+    expected: 'tile is preserved as dirt (part of a large connected component)'
+  - id: peninsula-into-water
+    description: 'narrow strip of dirt extending into a water body'
+    expected: 'preserved if cardinally connected to a large dirt component'
+
+failure_conditions:
+  - trigger: 'genesis produces a 1x1 dirt tile fully enclosed by water/sand'
+    expected: 'tile is converted to sand during island elimination pass'
+
+verification:
+  test_file: src/engine/__tests__/genesis.test.ts
+  test_pattern: 'island'
+  command: 'npx vitest run src/engine/__tests__/genesis.test.ts'

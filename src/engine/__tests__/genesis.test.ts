@@ -747,6 +747,84 @@ describe('water consolidation', () => {
     }
   })
 
+  it('no small dirt islands inside water bodies', () => {
+    // Test across multiple seeds to catch probabilistic island formation
+    for (let seed = 1; seed <= 10; seed++) {
+      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
+      runAllMutations(sim, GENESIS_EPOCHS)
+      const { allWater } = findWaterComponents(sim)
+
+      // Build a set of all water + sand tiles near water
+      const waterAndSand = new Set<string>(allWater)
+      for (const key of allWater) {
+        const [xStr, yStr] = key.split(',')
+        const x = Number(xStr)
+        const y = Number(yStr)
+        for (const [ddx, ddy] of cardinalDirs) {
+          const nx = x + ddx
+          const ny = y + ddy
+          if (ny >= 0 && ny < sim.height && nx >= 0 && nx < sim.width) {
+            const nk = posKey(nx, ny)
+            if (sim.grid[ny][nx].type === TileType.Sand) {
+              waterAndSand.add(nk)
+            }
+          }
+        }
+      }
+
+      // Find dirt connected components using cardinal BFS
+      const visited = new Set<string>()
+      for (let y = 0; y < sim.height; y++) {
+        for (let x = 0; x < sim.width; x++) {
+          if (sim.grid[y][x].type !== TileType.Dirt) continue
+          const startKey = posKey(x, y)
+          if (visited.has(startKey)) continue
+          if (allWater.has(startKey)) continue
+
+          const component: string[] = [startKey]
+          const stack = [startKey]
+          visited.add(startKey)
+          let enclosed = true
+
+          while (stack.length > 0) {
+            const current = stack.pop()
+            if (current === undefined) break
+            const [cxStr, cyStr] = current.split(',')
+            const cx = Number(cxStr)
+            const cy = Number(cyStr)
+            for (const [ddx, ddy] of cardinalDirs) {
+              const nx = cx + ddx
+              const ny = cy + ddy
+              if (nx < 0 || nx >= sim.width || ny < 0 || ny >= sim.height) {
+                enclosed = false
+                continue
+              }
+              const nk = posKey(nx, ny)
+              if (allWater.has(nk)) continue
+              const neighborType = sim.grid[ny][nx].type
+              if (neighborType === TileType.Dirt) {
+                if (!visited.has(nk)) {
+                  visited.add(nk)
+                  component.push(nk)
+                  stack.push(nk)
+                }
+              } else if (neighborType !== TileType.Sand) {
+                enclosed = false
+              }
+            }
+          }
+
+          // If enclosed by water/sand and smaller than threshold, it's an island
+          if (enclosed && component.length < 4) {
+            throw new Error(
+              `Seed ${String(seed)}: found ${String(component.length)}-tile dirt island at ${component[0]} enclosed by water/sand`
+            )
+          }
+        }
+      }
+    }
+  })
+
   it('water body sand border varies between 1-3 tiles', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
     runAllMutations(sim, GENESIS_EPOCHS)
