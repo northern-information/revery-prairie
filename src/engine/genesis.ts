@@ -2099,6 +2099,62 @@ const fallOfCivilizations: GenesisEpoch = {
       frontier = nextFrontier
     }
 
+    // 7. Eliminate small dirt islands inside water bodies
+    // After the sand shoreline pass, tiny dirt patches can survive
+    // enclosed by water and sand. Convert patches < 4 tiles to sand.
+    const ISLAND_MAX_SIZE = 4
+    const islandVisited = new Set<string>()
+    for (let y = 0; y < sim.height; y++) {
+      for (let x = 0; x < sim.width; x++) {
+        if (sim.grid[y][x].type !== TileType.Dirt) continue
+        const startKey = posKey(x, y)
+        if (islandVisited.has(startKey)) continue
+
+        // Cardinal BFS to find connected dirt component
+        const component: string[] = [startKey]
+        const stack = [startKey]
+        islandVisited.add(startKey)
+        let enclosed = true
+
+        while (stack.length > 0) {
+          const current = stack.pop()
+          if (current === undefined) break
+          const [cxStr, cyStr] = current.split(',')
+          const cx = Number(cxStr)
+          const cy = Number(cyStr)
+          for (const [ddx, ddy] of cDirs) {
+            const nx = cx + ddx
+            const ny = cy + ddy
+            if (nx < 0 || nx >= sim.width || ny < 0 || ny >= sim.height) {
+              enclosed = false
+              continue
+            }
+            const nk = posKey(nx, ny)
+            // Water tiles have Dirt as underlying type — check water set first
+            if (keptTiles.has(nk)) continue
+            const neighborType = sim.grid[ny][nx].type
+            if (neighborType === TileType.Dirt) {
+              if (!islandVisited.has(nk)) {
+                islandVisited.add(nk)
+                component.push(nk)
+                stack.push(nk)
+              }
+            } else if (neighborType !== TileType.Sand) {
+              // Neighbor is not dirt, sand, or water — connected to non-water land
+              enclosed = false
+            }
+          }
+        }
+
+        if (enclosed && component.length < ISLAND_MAX_SIZE) {
+          for (const key of component) {
+            const [ixStr, iyStr] = key.split(',')
+            sim.grid[Number(iyStr)][Number(ixStr)] = { type: TileType.Sand }
+          }
+        }
+      }
+    }
+
     const gronX = Math.floor(sim.width / 2) + 5
     const gronY = Math.floor(sim.height / 2)
 
