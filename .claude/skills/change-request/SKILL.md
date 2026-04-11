@@ -65,4 +65,4 @@ Do not proceed until the user approves.
 
 ### 7. Execute (optional, only on approval)
 
-Ask the user before running. Report results from the run summary.
+Ask the user before running. **Always execute in a worktree** (use the Agent tool with `isolation: "worktree"`). Report results from the run summary.

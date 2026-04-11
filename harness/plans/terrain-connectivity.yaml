@@ -1,0 +1,113 @@
+plan:
+  id: terrain-connectivity
+  title: Fix disconnected islands, reduce inland water, and make coastline more organic
+  created: 2026-04-11
+  global_verification:
+    - npm run build
+    - npx vitest run src/engine/__tests__/terrainConnectivity.test.ts
+    - npx vitest run src/engine/__tests__/genesis.test.ts
+    - npm run lint
+
+tasks:
+  - id: organic-coastline
+    title: Increase noise amplitude and wavelength in generateLandMask for more dramatic coastline variation
+    spec_id: terrain-connectivity
+    spec_sections:
+      - organic-coastline
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/terrain.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/genesis.ts
+      - src/engine/terrain.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags:
+      - engine
+
+  - id: reduce-water-bodies
+    title: Tune drought consolidation to keep 1-3 water bodies instead of 2-5 and reduce sand shoreline passes
+    spec_id: terrain-connectivity
+    spec_sections:
+      - reduced-water-bodies
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/genesis.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags:
+      - engine
+
+  - id: connectivity-pass
+    title: Add flood-fill connectivity pass at end of presentDay epoch to eliminate disconnected walkable regions
+    spec_id: terrain-connectivity
+    spec_sections:
+      - no-disconnected-islands
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/position.ts
+      - src/engine/movement.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - organic-coastline
+      - reduce-water-bodies
+    verification:
+      - npm run build
+    repair: retry
+    tags:
+      - engine
+
+  - id: entity-spawn-reachability
+    title: Gate ghost and coin spawning on reachability from player spawn
+    spec_id: terrain-connectivity
+    spec_sections:
+      - entity-spawn-reachability
+    context_files:
+      - src/engine/state.ts
+      - src/engine/position.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - connectivity-pass
+    verification:
+      - npm run build
+    repair: retry
+    tags:
+      - engine
+
+  - id: regression-tests
+    title: Add regression tests for connectivity, water count, coastline variation, and entity reachability
+    spec_id: terrain-connectivity
+    spec_sections:
+      - no-disconnected-islands
+      - reduced-water-bodies
+      - organic-coastline
+      - entity-spawn-reachability
+    context_files:
+      - src/engine/__tests__/terrainConnectivity.test.ts
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesis.ts
+      - src/engine/terrain.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/__tests__/terrainConnectivity.test.ts
+    depends_on:
+      - connectivity-pass
+      - entity-spawn-reachability
+    verification:
+      - npx vitest run src/engine/__tests__/terrainConnectivity.test.ts
+    repair: retry
+    tags:
+      - test

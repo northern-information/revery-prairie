@@ -87,16 +87,16 @@ const scatterSandbars = (map: Tile[][], width: number, height: number) => {
 
 export const generateTerrain = (width: number, height: number): Tile[][] => {
   // Outer edge variation (sand-to-space boundary)
-  const topOuterVariation = smoothNoise(width, 3, 6)
-  const bottomOuterVariation = smoothNoise(width, 3, 6)
-  const leftOuterVariation = smoothNoise(height, 3, 6)
-  const rightOuterVariation = smoothNoise(height, 3, 6)
+  const topOuterVariation = smoothNoise(width, 6, 12)
+  const bottomOuterVariation = smoothNoise(width, 6, 12)
+  const leftOuterVariation = smoothNoise(height, 6, 12)
+  const rightOuterVariation = smoothNoise(height, 6, 12)
 
   // Inner edge variation (sand-to-dirt boundary)
-  const topInnerVariation = smoothNoise(width, 3, 8)
-  const bottomInnerVariation = smoothNoise(width, 3, 8)
-  const leftInnerVariation = smoothNoise(height, 3, 8)
-  const rightInnerVariation = smoothNoise(height, 3, 8)
+  const topInnerVariation = smoothNoise(width, 4, 10)
+  const bottomInnerVariation = smoothNoise(width, 4, 10)
+  const leftInnerVariation = smoothNoise(height, 4, 10)
+  const rightInnerVariation = smoothNoise(height, 4, 10)
 
   const outerBorder = SPACE_BORDER
   const innerBorder = SPACE_BORDER + SAND_BORDER

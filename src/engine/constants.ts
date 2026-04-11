@@ -10,9 +10,9 @@ export const ZOOM_MAX = 3.0
 export const ZOOM_STEP = 0.125
 export const ZOOM_DEFAULT = 1.0
 
-export const SAND_BORDER = 2
-export const WATER_SAND_BORDER_MAX = 3
-export const WATER_SAND_PASS_CHANCES = [100, 70, 30]
+export const SAND_BORDER = 1
+export const WATER_SAND_BORDER_MAX = 2
+export const WATER_SAND_PASS_CHANCES = [100, 50]
 
 export const CAVE_WIDTH = 40
 export const CAVE_HEIGHT = 25

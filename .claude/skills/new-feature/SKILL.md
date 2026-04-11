@@ -77,4 +77,4 @@ Show the user the complete plan. Iterate on feedback. Do not proceed until the u
 
 Ask the user: "ready to execute? (`npm run harness:run -- --plan harness/plans/{feature-id}.yaml`)"
 
-Only run if they confirm. Report results from the run summary.
+Only run if they confirm. **Always execute in a worktree** (use the Agent tool with `isolation: "worktree"`). Report results from the run summary.
