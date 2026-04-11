@@ -1,19 +1,13 @@
 import {
-  BASE_FONT_SIZE,
   BG_COLOR,
   LIGHTNING_SCREEN_FLASH_MS,
   LIGHTNING_SCREEN_FLASH_OPACITY,
 } from './constants'
-import { getEpochProgress, getGenesisCommentary } from './genesis'
+import { getEpochProgress } from './genesis'
 import { GenesisEpochId } from './genesisTypes'
 
 import type { GenesisEpoch, GenesisSimState } from './genesisTypes'
 import type { CharMetrics } from './types'
-
-// Commentary styling
-const COMMENTARY_FONT_SCALE = 1.5
-const COMMENTARY_SHOW_MS = 3000
-const COMMENTARY_FADE_MS = 300
 
 // Cross-fade window: last 10% of each epoch blends into the next
 const CROSSFADE_START = 0.9
@@ -61,38 +55,22 @@ export const renderGenesis = (
   const epoch = epochs[sim.epochIndex]
   const progress = getEpochProgress(sim, epochs)
 
-  // Camera: center on the map, lerping toward game camera during Present Day
-  const isLastEpoch = sim.epochIndex === epochs.length - 1
+  // Camera: use identical math to updateCamera() in camera.ts so the
+  // genesis-to-game transition is pixel-perfect (no rounding drift).
   const SIDEBAR_WIDTH_PX = 192
   const rightInsetTiles = Math.ceil(SIDEBAR_WIDTH_PX / charWidth)
   const visibleWidth = viewportWidth - rightInsetTiles
-
-  // Genesis default: center map in full viewport
-  const genCamX = Math.floor(sim.width / 2 - viewportWidth / 2)
-  const genCamY = Math.floor(sim.height / 2 - viewportHeight / 2)
-
-  // Game camera: center player in visible (non-sidebar) area
   const playerX = Math.floor(sim.width / 2)
   const playerY = Math.floor(sim.height / 2)
-  const gameCamX =
+
+  const cameraX =
     sim.width < visibleWidth
       ? -Math.floor((visibleWidth - sim.width) / 2)
       : Math.max(0, Math.min(playerX - Math.floor(visibleWidth / 2), sim.width - visibleWidth))
-  const gameCamY =
+  const cameraY =
     sim.height < viewportHeight
       ? -Math.floor((viewportHeight - sim.height) / 2)
       : Math.max(0, Math.min(playerY - Math.floor(viewportHeight / 2), sim.height - viewportHeight))
-
-  let cameraX: number
-  let cameraY: number
-  if (isLastEpoch && progress > 0.8) {
-    const lerpT = (progress - 0.8) / 0.2
-    cameraX = Math.round(genCamX + (gameCamX - genCamX) * lerpT)
-    cameraY = Math.round(genCamY + (gameCamY - genCamY) * lerpT)
-  } else {
-    cameraX = genCamX
-    cameraY = genCamY
-  }
 
   // Main viewport loop
   ctx.textBaseline = 'top'
@@ -174,106 +152,6 @@ export const renderGenesis = (
     sim.ponds = livePonds
     sim.elevation = liveElevation
   }
-
-  // Commentary overlay with fade in/out (shown for 3 seconds per epoch)
-  const commentary = getGenesisCommentary(sim, epochs)
-  if (commentary) {
-    const elapsed = sim.epochStartTime > 0 ? time - sim.epochStartTime : 0
-    // Fade in for first 300ms, hold, fade out ending at 3000ms
-    const fadeOutStart = COMMENTARY_SHOW_MS - COMMENTARY_FADE_MS
-    let alpha = 1
-    if (elapsed < COMMENTARY_FADE_MS) {
-      alpha = elapsed / COMMENTARY_FADE_MS
-    } else if (elapsed > fadeOutStart) {
-      alpha = Math.max(0, 1 - (elapsed - fadeOutStart) / COMMENTARY_FADE_MS)
-    }
-
-    if (alpha > 0.01) {
-      const fontSize = Math.round(BASE_FONT_SIZE * COMMENTARY_FONT_SCALE * (metrics.charHeight / (BASE_FONT_SIZE + 2)))
-      ctx.font = `${String(fontSize)}px monospace`
-      const textMetrics = ctx.measureText(commentary)
-      const textWidth = textMetrics.width
-      const textHeight = fontSize + 4
-
-      const tx = Math.floor((canvasWidth - textWidth) / 2)
-      const ty = Math.floor((canvasHeight - textHeight) / 2)
-
-      // Background bar
-      ctx.fillStyle = `rgba(0, 0, 0, ${String(alpha)})`
-      ctx.fillRect(tx - 10, ty - 4, textWidth + 20, textHeight + 8)
-
-      // Text
-      ctx.fillStyle = `rgba(153, 153, 153, ${String(alpha)})`
-      ctx.textBaseline = 'top'
-      ctx.fillText(commentary, tx, ty)
-
-      // Restore font
-      ctx.font = metrics.font
-    }
-  }
-
-  // Progress bar — bottom center, above skip hint
-  const BAR_WIDTH = 30
-  const smoothProgress = (sim.epochIndex + progress) / epochs.length
-  const filledCount = Math.round(smoothProgress * BAR_WIDTH)
-  const filledChars = '\u2588'.repeat(filledCount)
-  const emptyChars = '\u2591'.repeat(BAR_WIDTH - filledCount)
-  const counter = `${String(sim.epochIndex + 1)}/${String(epochs.length)}`
-  const barText = `[${filledChars}${emptyChars}] ${counter}`
-
-  const barFontSize = Math.round(BASE_FONT_SIZE * 0.85 * (metrics.charHeight / (BASE_FONT_SIZE + 2)))
-  ctx.font = `${String(barFontSize)}px monospace`
-
-  // Measure full bar for centering and background
-  const barMetrics = ctx.measureText(barText)
-  const barTotalWidth = barMetrics.width
-  const barHeight = barFontSize + 4
-  const barX = Math.floor((canvasWidth - barTotalWidth) / 2)
-  const barY = canvasHeight - barFontSize - 10 - barFontSize - 16
-
-  // Semi-transparent background
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
-  ctx.fillRect(barX - 8, barY - 4, barTotalWidth + 16, barHeight + 8)
-
-  // Render brackets in dim color
-  ctx.textBaseline = 'top'
-  const bracketOpen = '['
-  const bracketClose = '] '
-  const bracketOpenWidth = ctx.measureText(bracketOpen).width
-  const filledWidth = ctx.measureText(filledChars).width
-  const emptyWidth = ctx.measureText(emptyChars).width
-  const bracketCloseWidth = ctx.measureText(bracketClose).width
-
-  let cursorX = barX
-  ctx.fillStyle = '#666666'
-  ctx.fillText(bracketOpen, cursorX, barY)
-  cursorX += bracketOpenWidth
-
-  ctx.fillStyle = '#999999'
-  ctx.fillText(filledChars, cursorX, barY)
-  cursorX += filledWidth
-
-  ctx.fillStyle = '#333333'
-  ctx.fillText(emptyChars, cursorX, barY)
-  cursorX += emptyWidth
-
-  ctx.fillStyle = '#666666'
-  ctx.fillText(bracketClose, cursorX, barY)
-  cursorX += bracketCloseWidth
-
-  ctx.fillStyle = '#666666'
-  ctx.fillText(counter, cursorX, barY)
-
-  // Skip hint — bottom right, small
-  const skipText = 'press any key to skip'
-  const skipFontSize = Math.round(BASE_FONT_SIZE * 0.8 * (metrics.charHeight / (BASE_FONT_SIZE + 2)))
-  ctx.font = `${String(skipFontSize)}px monospace`
-  ctx.fillStyle = '#555555'
-  const skipMetrics = ctx.measureText(skipText)
-  ctx.fillText(skipText, canvasWidth - skipMetrics.width - 10, canvasHeight - skipFontSize - 10)
-
-  // Restore font
-  ctx.font = metrics.font
 
   // Lightning screen flash during FireSeason
   if (epoch.id === GenesisEpochId.FireSeason) {

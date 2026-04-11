@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { setAmbient, ZONE_MUSIC } from '@/engine/audio'
 import { MAP_HEIGHT, MAP_WIDTH, ZOOM_DEFAULT, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '@/engine/constants'
@@ -6,6 +8,8 @@ import {
   createGenesisState,
   extractGenesisResult,
   GENESIS_EPOCHS,
+  getEpochProgress,
+  getGenesisCommentary,
   nameToSeed,
   precomputeGenesis,
   tickGenesis,
@@ -34,6 +38,12 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
   const currentZoomRef = useRef(ZOOM_DEFAULT)
+
+  // Sidebar state — updated from rAF loop
+  const [commentary, setCommentary] = useState('')
+  const [epochIndex, setEpochIndex] = useState(0)
+  const progressRef = useRef(0)
+  const progressBarRef = useRef<HTMLDivElement>(null)
 
   const finishSimulation = useCallback(() => {
     if (completedRef.current) return
@@ -75,6 +85,7 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
     if (!ctx) return
 
     let metricsCache: CharMetrics | null = null
+    let lastEpochIndex = -1
 
     const updateSize = () => {
       metricsCache = measureChar(ctx, currentZoomRef.current)
@@ -127,6 +138,20 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
         return
       }
 
+      // Update sidebar state (React setState only on epoch change)
+      if (sim.epochIndex !== lastEpochIndex) {
+        lastEpochIndex = sim.epochIndex
+        setEpochIndex(sim.epochIndex)
+        setCommentary(getGenesisCommentary(sim, GENESIS_EPOCHS))
+      }
+
+      // Update progress bar directly via ref (avoids React re-render per frame)
+      const progress = getEpochProgress(sim, GENESIS_EPOCHS)
+      progressRef.current = (sim.epochIndex + progress) / GENESIS_EPOCHS.length
+      if (progressBarRef.current) {
+        progressBarRef.current.style.width = `${String(progressRef.current * 100)}%`
+      }
+
       if (metricsCache) {
         renderGenesis(ctx, sim, GENESIS_EPOCHS, metricsCache, viewport.vw, viewport.vh, time)
       }
@@ -144,11 +169,36 @@ export const GenesisScreen = ({ stewardName, onComplete }: GenesisScreenProps) =
   }, [finishSimulation])
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0"
-      style={{ cursor: 'url(/cursor.cur), auto' }}
-      onClick={finishSimulation}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        className="fixed inset-0"
+        style={{ cursor: 'url(/cursor.cur), auto' }}
+        onClick={finishSimulation}
+      />
+      <div
+        data-panel="genesis-sidebar"
+        className="text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
+      >
+        <div className="flex flex-col gap-4">
+          <PanelTitle>revery prairie</PanelTitle>
+          {commentary && (
+            <div>
+              <SectionHeader>epoch {epochIndex + 1}/{GENESIS_EPOCHS.length}</SectionHeader>
+              <p className="text-muted">{commentary}</p>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-4">
+          <div>
+            <SectionHeader>genesis</SectionHeader>
+            <div className="mb-2 h-1 w-full overflow-hidden rounded bg-white/10">
+              <div ref={progressBarRef} className="h-full bg-white/40 transition-none" style={{ width: '0%' }} />
+            </div>
+            <p className="text-muted text-center">press any key to skip</p>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }
