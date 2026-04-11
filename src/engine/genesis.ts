@@ -450,7 +450,7 @@ const lavaEra: GenesisEpoch = {
 const crustCooling: GenesisEpoch = {
   id: GenesisEpochId.CrustCooling,
   durationMs: 2000,
-  commentary: '',
+  commentary: 'the crust cools...',
   mutate: () => {
     // Visual transition only
   },
@@ -961,7 +961,7 @@ const fireSeason: GenesisEpoch = {
 const regrowth: GenesisEpoch = {
   id: GenesisEpochId.Regrowth,
   durationMs: 2000,
-  commentary: '',
+  commentary: 'life grows back...',
   mutate: sim => {
     // Ash enrichment only — no vegetation regrowth. land stays barren into ice age.
     for (const key of sim.burnScars) {
