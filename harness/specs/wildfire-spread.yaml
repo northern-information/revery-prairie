@@ -1,0 +1,142 @@
+id: wildfire-spread
+name: 'Wildfire spread from fire and lightning reveries'
+status: planned
+priority: high
+layer: engine
+source_files:
+  - src/engine/actionBar.ts
+  - src/engine/lightning.ts
+  - src/engine/constants.ts
+  - src/engine/__tests__/wildfire.test.ts
+dependencies:
+  - lightning-strikes
+  - lightning-revery
+
+behaviors:
+  - id: forced-origin-ignition
+    description: >
+      spreadWildfire no longer bails when the origin tile has water >=
+      WILDFIRE_DRY_THRESHOLD. instead it forces the origin tile's
+      cloverLifecycle water to 0 before checking spread eligibility.
+      this guarantees the struck/cast tile always ignites if it is
+      Clover, regardless of hydration. neighbor spread still uses
+      existing dryness physics unchanged.
+    inputs:
+      - 'GameState with clover tiles and lifecycle data'
+      - 'strike/cast position (x, y)'
+    outputs:
+      - 'origin tile always burns if it is Clover'
+    state_changes:
+      - field: cloverLifecycle
+        effect: 'origin tile water set to 0 before spread check'
+      - field: map[y][x]
+        effect: 'origin Clover tile converted to BurntClover'
+    determinism: deterministic
+
+  - id: fire-revery-wildfire
+    description: >
+      applyReveryCastEffects for fire revery now calls spreadWildfire
+      at the cast position after burning the facing tile. uses
+      FIRE_REVERY_MAX_SPREAD (7) instead of WILDFIRE_MAX_SPREAD (15)
+      for a more controlled burn. creates a wildfire ECS entity with
+      MultiPosition, TimedEffect kind=wildfire, EntityTag=wildfire,
+      EntityZone if more than 1 tile burns. reuses the same wildfire
+      animation as lightning-triggered wildfires.
+    inputs:
+      - 'fire revery cast on a Clover tile'
+      - 'current time from castStartTime'
+    outputs:
+      - 'Set of burned position keys (1 to FIRE_REVERY_MAX_SPREAD)'
+      - 'wildfire ECS entity created if spread > 1 tile'
+      - 'event:wildfire discovery recorded if spread > 1 tile'
+    state_changes:
+      - field: map tiles
+        effect: 'Clover tiles in spread area converted to BurntClover'
+      - field: cloverLifecycle
+        effect: 'entries deleted for all burned positions'
+      - field: cloverGrowthPreviews
+        effect: 'entries deleted for all burned positions'
+      - field: soilHealth
+        effect: 'increased by SOIL_HEALTH_FIRE_REVERY_BONUS for each burned tile'
+      - field: world (ECS)
+        effect: 'wildfire entity created if burned count > 1'
+      - field: manualDiscoveries
+        effect: 'event:wildfire added if fire spreads'
+    determinism: probabilistic
+
+  - id: lightning-always-ignites
+    description: >
+      lightning strike and lightning revery both benefit from the
+      forced-origin-ignition change to spreadWildfire. lightning
+      targets that land on Clover always ignite regardless of water
+      level. WILDFIRE_MAX_SPREAD (15) still applies to lightning.
+      no code changes needed beyond the spreadWildfire modification —
+      both callers already call spreadWildfire.
+    inputs:
+      - 'lightning strike or lightning revery landing on Clover tile'
+    outputs:
+      - 'origin tile always ignites, wildfire spreads per existing BFS'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: spread-max-override
+    description: >
+      spreadWildfire accepts an optional maxSpread parameter that
+      defaults to WILDFIRE_MAX_SPREAD (15). fire revery passes
+      FIRE_REVERY_MAX_SPREAD (7). lightning callers pass no argument
+      and get the default 15. this keeps the function signature
+      backward-compatible.
+    inputs:
+      - 'optional maxSpread parameter'
+    outputs:
+      - 'BFS capped at the provided or default max'
+    state_changes: []
+    determinism: deterministic
+
+  - id: fire-revery-max-spread-constant
+    description: >
+      new constant FIRE_REVERY_MAX_SPREAD = 7 added to constants.ts.
+      fire revery is intentionally more controlled than lightning.
+      7 tiles is roughly a 3-tile radius diamond — enough to feel
+      like spreading fire without scorching large fields.
+    inputs: []
+    outputs:
+      - 'FIRE_REVERY_MAX_SPREAD exported from constants.ts'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: fire-on-dirt
+    description: 'fire revery cast on a dirt tile (no clover to burn)'
+    expected: 'soil health bonus applied, no wildfire spread, no wildfire entity'
+  - id: fire-on-wet-clover
+    description: 'fire revery cast on fully hydrated clover'
+    expected: 'origin tile still ignites (water forced to 0), neighbors may not spread if they are also wet'
+  - id: fire-spread-blocked-by-water-tiles
+    description: 'fire revery cast near a pond or river'
+    expected: 'wildfire BFS skips pond/river tiles, spread stops at water boundary'
+  - id: fire-max-spread-cap
+    description: 'fire revery cast in a large dry clover field'
+    expected: 'spread capped at FIRE_REVERY_MAX_SPREAD (7), not WILDFIRE_MAX_SPREAD (15)'
+  - id: lightning-on-wet-clover
+    description: 'lightning strikes fully hydrated clover'
+    expected: 'origin tile ignites (water forced to 0), neighbors resist spread due to high water'
+  - id: fire-in-cave
+    description: 'fire revery cast in cave zone on cave floor'
+    expected: 'no clover in cave, no wildfire spread, soil health bonus still applied'
+  - id: single-tile-no-entity
+    description: 'only the origin tile burns (all neighbors wet or non-clover)'
+    expected: 'no wildfire ECS entity created (threshold is > 1 tile), tile still converts to BurntClover'
+
+failure_conditions:
+  - trigger: 'fire revery cast on space or sand tile'
+    expected: 'no clover to burn, no wildfire spread, soil health still applied'
+  - trigger: 'fire revery cast with no clover neighbors in any direction'
+    expected: 'only origin tile burns (if clover), burned set size is 1, no wildfire entity'
+  - trigger: 'all neighboring clover is fully hydrated'
+    expected: 'origin ignites but BFS spread chance is near zero for neighbors'
+
+verification:
+  test_file: src/engine/__tests__/wildfire.test.ts
+  test_pattern: 'wildfire'
+  command: 'npx vitest run src/engine/__tests__/wildfire.test.ts'

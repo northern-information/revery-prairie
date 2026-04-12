@@ -127,6 +127,7 @@ export const LIGHTNING_RANGE_HIGHLIGHT_COLOR = '#222233'
 // wildfire
 export const WILDFIRE_DURATION_MS = 1500
 export const WILDFIRE_MAX_SPREAD = 15
+export const FIRE_REVERY_MAX_SPREAD = 7
 export const WILDFIRE_DRY_THRESHOLD = 30
 export const WILDFIRE_CHARS = ['^', '~', '*']
 export const WILDFIRE_COLORS = ['#FF4500', '#FF6347', '#FFD700', '#FF8C00']

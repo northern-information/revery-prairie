@@ -1,0 +1,77 @@
+plan:
+  id: wildfire-spread
+  title: 'fire and lightning reveries spread wildfires'
+  created: 2026-04-11
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-constant-and-update-signature
+    title: 'add FIRE_REVERY_MAX_SPREAD constant and add maxSpread param to spreadWildfire'
+    spec_id: wildfire-spread
+    spec_sections:
+      - fire-revery-max-spread-constant
+      - spread-max-override
+      - forced-origin-ignition
+    context_files:
+      - src/engine/constants.ts
+      - src/engine/lightning.ts
+      - harness/specs/wildfire-spread.yaml
+    output_files:
+      - src/engine/constants.ts
+      - src/engine/lightning.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/lightning.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: fire-revery-calls-wildfire
+    title: 'fire revery triggers wildfire spread with ECS entity and animation'
+    spec_id: wildfire-spread
+    spec_sections:
+      - fire-revery-wildfire
+    context_files:
+      - src/engine/actionBar.ts
+      - src/engine/lightning.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+      - harness/specs/wildfire-spread.yaml
+    output_files:
+      - src/engine/actionBar.ts
+    depends_on:
+      - add-constant-and-update-signature
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: write-wildfire-tests
+    title: 'write tests for fire revery wildfire spread, forced ignition, and max spread override'
+    spec_id: wildfire-spread
+    spec_sections:
+      - forced-origin-ignition
+      - fire-revery-wildfire
+      - lightning-always-ignites
+      - spread-max-override
+      - fire-revery-max-spread-constant
+    context_files:
+      - src/engine/__tests__/lightning.test.ts
+      - src/engine/lightning.ts
+      - src/engine/actionBar.ts
+      - src/engine/constants.ts
+      - src/engine/__tests__/helpers.ts
+      - harness/specs/wildfire-spread.yaml
+    output_files:
+      - src/engine/__tests__/wildfire.test.ts
+    depends_on:
+      - add-constant-and-update-signature
+      - fire-revery-calls-wildfire
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/wildfire.test.ts'
+    repair: retry
+    tags: [test]

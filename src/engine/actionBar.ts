@@ -1,6 +1,7 @@
-import { addSoilHealth } from './cloverLifecycle'
 import { generateBoltPath } from './boltPath'
+import { addSoilHealth } from './cloverLifecycle'
 import {
+  FIRE_REVERY_MAX_SPREAD,
   LIGHTNING_BOLT_MAX_LENGTH,
   LIGHTNING_BOLT_MIN_LENGTH,
   LIGHTNING_INVALID_TARGET_CHAR,
@@ -14,8 +15,8 @@ import {
   WATER_REVERY_FILL,
 } from './constants'
 import { ComponentType } from './ecs/types'
-import { recordDiscovery } from './manual'
 import { spreadWildfire } from './lightning'
+import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { getReveryDefinition } from './reveries'
 import { TileType } from './types'
@@ -84,7 +85,7 @@ export const getActionBarPreview = (
   return positions.map(pos => ({ pos, char: def.glyphs[0], color: def.glyphColor, isValid: true }))
 }
 
-const applyReveryCastEffects = (state: GameState, reveryId: string, positions: Position[]): void => {
+const applyReveryCastEffects = (state: GameState, reveryId: string, positions: Position[], now: number): void => {
   for (const pos of positions) {
     const key = posKey(pos.x, pos.y)
     const tile = state.map[pos.y]?.[pos.x]
@@ -98,14 +99,27 @@ const applyReveryCastEffects = (state: GameState, reveryId: string, positions: P
         state.tileWater.set(key, Math.min(currentWater + WATER_REVERY_FILL, WATER_MAX))
       }
     } else if (reveryId === 'fire') {
-      // Fire: burn any clover (healthy, withering, or dead) to burnt clover
-      if (tile.type === TileType.Clover) {
-        state.map[pos.y][pos.x] = { type: TileType.BurntClover }
-        state.cloverLifecycle.delete(key)
-        state.cloverGrowthPreviews.delete(key)
-      }
       addSoilHealth(state, key, SOIL_HEALTH_FIRE_REVERY_BONUS)
       recordDiscovery(state, 'event:fire-revery')
+
+      // Spread wildfire from cast position (must happen before manual burn —
+      // spreadWildfire handles origin burn via BFS)
+      if (tile.type === TileType.Clover) {
+        const burned = spreadWildfire(state, pos.x, pos.y, FIRE_REVERY_MAX_SPREAD)
+        if (burned.size > 1) {
+          const we = state.world.createEntity()
+          state.world.addComponent(we, ComponentType.MultiPosition, {
+            positions: [...burned].map(k => {
+              const [xStr, yStr] = k.split(',')
+              return { x: Number(xStr), y: Number(yStr) }
+            }),
+          })
+          state.world.addComponent(we, ComponentType.TimedEffect, { kind: 'wildfire', startTime: now })
+          state.world.addComponent(we, ComponentType.EntityTag, 'wildfire')
+          state.world.addComponent(we, ComponentType.EntityZone, { zone: state.currentZone })
+          recordDiscovery(state, 'event:wildfire')
+        }
+      }
     }
   }
 }
@@ -151,7 +165,7 @@ export const activateActionBarSlot = (state: GameState, slotIndex: number, now: 
     slot.cooldownDurationMs = def.cooldownMs
 
     // Apply gameplay effects to cast tiles
-    applyReveryCastEffects(state, slot.id, positions)
+    applyReveryCastEffects(state, slot.id, positions, now)
 
     // Spawn tile cast effect at all pattern positions
     const eid = state.world.createEntity()
@@ -227,12 +241,7 @@ export const getTargetingPreview = (
   return [{ pos: state.cursorTile, char: LIGHTNING_RETICLE_CHARS[charIndex], color: def.glyphColor, isValid: true }]
 }
 
-export const castLightningAtTarget = (
-  state: GameState,
-  target: Position,
-  slotIndex: number,
-  now: number
-): boolean => {
+export const castLightningAtTarget = (state: GameState, target: Position, slotIndex: number, now: number): boolean => {
   const slot = state.actionBar[slotIndex]
   if (slot?.kind !== 'revery') return false
   const def = getReveryDefinition(slot.id)

@@ -1,20 +1,18 @@
-import { describe, expect, it } from 'vitest'
-
 import { generateBoltPath } from '../boltPath'
 import {
   LIGHTNING_DURATION_MS,
   SOIL_HEALTH_FIRE_REVERY_BONUS,
   WATER_MAX,
-  WILDFIRE_MAX_SPREAD,
   WILDFIRE_DURATION_MS,
+  WILDFIRE_MAX_SPREAD,
 } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { selectStrikeTarget, spawnLightningStrike, spreadWildfire, tickLightning } from '../lightning'
 import { createGroundOmniboxEntity } from '../omnibox'
 import { posKey } from '../position'
 import { CloverStage, Sky, TileType, Zone } from '../types'
-
 import { clearAroundPlayer, createMeteoriteEntity, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 const seededRng = (seed: number) => {
   let s = seed
@@ -76,9 +74,7 @@ describe('lightning', () => {
           // Branch should start adjacent to some point on the main path
           const firstBranch = branch[0]
           // First branch point should be within 2 tiles of a main path point
-          const nearMain = path.some(
-            p => Math.abs(p.x - firstBranch.x) <= 2 && Math.abs(p.y - firstBranch.y) <= 2
-          )
+          const nearMain = path.some(p => Math.abs(p.x - firstBranch.x) <= 2 && Math.abs(p.y - firstBranch.y) <= 2)
           expect(nearMain).toBe(true)
           expect(branch.length).toBeGreaterThanOrEqual(2)
           expect(branch.length).toBeLessThanOrEqual(3)
@@ -206,7 +202,7 @@ describe('lightning', () => {
       expect(burned.size).toBe(0)
     })
 
-    it('does not spread on wet clover', () => {
+    it('forces origin water to 0 and burns wet clover at strike point', () => {
       const state = createTestState()
       const x = state.player.x + 4
       const y = state.player.y + 4
@@ -218,7 +214,10 @@ describe('lightning', () => {
       })
       state.tileWater.set(posKey(x, y), WATER_MAX)
       const burned = spreadWildfire(state, x, y)
-      expect(burned.size).toBe(0)
+      // Origin always burns — water is forced to 0
+      expect(burned.size).toBe(1)
+      expect(state.tileWater.get(posKey(x, y))).toBe(0)
+      expect(state.map[y][x].type).toBe(TileType.BurntClover)
     })
 
     it('spreads on dry clover', () => {
