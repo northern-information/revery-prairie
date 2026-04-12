@@ -173,7 +173,12 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                         const drop = state.world.getComponent(groundItemEid, ComponentType.ItemDrop)
                         if (drop) return getDefinition(drop.definitionId).name.toLowerCase()
                       }
-                      return state.map[cy]?.[cx]?.type ?? 'void'
+                      const tileKey = posKey(cx, cy)
+                      if (state.ponds.has(tileKey) || state.rivers.has(tileKey)) return 'fresh water'
+                      const tileType = state.map[cy]?.[cx]?.type
+                      if (tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall)
+                        return 'stone'
+                      return tileType ?? 'void'
                     })()}
                   </td>
                 </tr>

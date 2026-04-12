@@ -1,0 +1,61 @@
+plan:
+  id: cursor-tile-info-all-types
+  title: Fix cursor tile info for water and cave wall tiles
+  created: 2026-04-12
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: fix-water-cursorable
+    title: Remove cursorable = false for river and pond tiles in renderer
+    spec_id: cursor-tile-info-all-types
+    spec_sections:
+      - water-tiles-cursorable
+    context_files:
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+
+  - id: fix-sidebar-labels
+    title: Add "fresh water" and "stone" content labels in Sidebar.tsx
+    spec_id: cursor-tile-info-all-types
+    spec_sections:
+      - fresh-water-label
+      - stone-label
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [component]
+
+  - id: add-regression-tests
+    title: Add tests verifying water cursorability and sidebar labels
+    spec_id: cursor-tile-info-all-types
+    spec_sections:
+      - water-tiles-cursorable
+      - fresh-water-label
+      - stone-label
+    context_files:
+      - src/engine/__tests__/cursor.test.ts
+      - src/components/__tests__/Sidebar.test.tsx
+    output_files:
+      - src/engine/__tests__/cursorTileInfo.test.ts
+    depends_on:
+      - fix-water-cursorable
+      - fix-sidebar-labels
+    verification:
+      - npx vitest run src/engine/__tests__/cursorTileInfo.test.ts
+    repair: retry
+    tags: [test]
