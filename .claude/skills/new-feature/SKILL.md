@@ -9,6 +9,8 @@ arg: description of the feature
 
 Conversational skill for adding new game features through the spec-driven harness pipeline. Do not skip steps or auto-execute without approval.
 
+**All file writes must happen in a worktree.** After gathering requirements (step 1), enter a worktree before writing any files. Use the Agent tool with `isolation: "worktree"` for all steps that create or modify files (spec drafting, plan drafting, validation, execution). Never write specs, plans, or code directly on main.
+
 ## Flow
 
 ### 1. Gather requirements
@@ -21,7 +23,11 @@ Ask the user 2-3 clarifying questions:
 
 Wait for answers before proceeding.
 
-### 2. Draft the spec
+### 2. Enter a worktree
+
+Before writing any files, enter a worktree. All subsequent file-writing steps (spec, plan, validation, execution) happen inside this worktree.
+
+### 3. Draft the spec
 
 Create `harness/specs/{feature-id}.yaml` following the spec format:
 
@@ -37,15 +43,15 @@ Create `harness/specs/{feature-id}.yaml` following the spec format:
 
 Refer to `harness/specs/player-movement.yaml` as the canonical example.
 
-### 3. Validate the spec
+### 4. Validate the spec
 
 Run `npm run spec:validate`. If there are errors, fix them and re-validate. Repeat until clean.
 
-### 4. Present spec for review
+### 5. Present spec for review
 
 Show the user the complete spec. Iterate on feedback. Do not proceed until the user approves.
 
-### 5. Draft the plan
+### 6. Draft the plan
 
 Create `harness/plans/{feature-id}.yaml` with:
 
@@ -60,7 +66,7 @@ Each task should:
 - Include `npx tsc -b --noEmit` in verification
 - Include relevant unit test commands in verification
 
-### 6. Validate plan references
+### 7. Validate plan references
 
 Verify that:
 
@@ -69,12 +75,12 @@ Verify that:
 - Task dependency graph is acyclic
 - `output_files` don't overlap between tasks in the same tier
 
-### 7. Present plan for review
+### 8. Present plan for review
 
 Show the user the complete plan. Iterate on feedback. Do not proceed until the user approves.
 
-### 8. Execute (optional, only on approval)
+### 9. Execute (optional, only on approval)
 
 Ask the user: "ready to execute? (`npm run harness:run -- --plan harness/plans/{feature-id}.yaml`)"
 
-Only run if they confirm. **Always execute in a worktree** (use the Agent tool with `isolation: "worktree"`). Report results from the run summary.
+Only run if they confirm. Report results from the run summary.

@@ -10,6 +10,8 @@ Periodic skill for keeping specs in sync with code and verifying harness health.
 
 This skill produces spec updates, not new specs or plans. It is a sync check.
 
+**All file writes must happen in a worktree.** Before writing any spec updates, enter a worktree. Use the Agent tool with `isolation: "worktree"` for all steps that modify files. Never write spec changes directly on main.
+
 ## Flow
 
 ### 1. Scan implemented specs

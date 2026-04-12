@@ -9,6 +9,8 @@ arg: description of the change
 
 Conversational skill for modifying existing game behavior through spec updates and the harness pipeline.
 
+**All file writes must happen in a worktree.** After gathering requirements (step 1), enter a worktree before writing any files. Use the Agent tool with `isolation: "worktree"` for all steps that create or modify files (spec updates, plan drafting, validation, execution). Never write specs, plans, or code directly on main.
+
 ## Flow
 
 ### 1. Gather requirements
@@ -21,7 +23,11 @@ Ask clarifying questions:
 
 Wait for answers before proceeding.
 
-### 2. Identify affected specs
+### 2. Enter a worktree
+
+Before writing any files, enter a worktree. All subsequent file-writing steps happen inside this worktree.
+
+### 3. Identify affected specs
 
 Search `harness/specs/` for existing specs that cover the behavior being changed:
 
@@ -30,7 +36,7 @@ Search `harness/specs/` for existing specs that cover the behavior being changed
 
 If no spec exists for the affected behavior, note this — you may need to create one first.
 
-### 3. Draft spec updates
+### 4. Draft spec updates
 
 Modify the affected spec(s):
 
@@ -42,11 +48,11 @@ Modify the affected spec(s):
 
 Preserve behaviors that are not changing.
 
-### 4. Validate updated specs
+### 5. Validate updated specs
 
 Run `npm run spec:validate`. Fix and re-validate until clean.
 
-### 5. Draft a plan
+### 6. Draft a plan
 
 Create `harness/plans/{change-id}.yaml` targeting only the changed behaviors:
 
@@ -54,7 +60,7 @@ Create `harness/plans/{change-id}.yaml` targeting only the changed behaviors:
 - Incremental rebuild (checksum caching) handles unchanged tasks automatically
 - Include regression tests for the new behavior
 
-### 6. Present the diff for review
+### 7. Present the diff for review
 
 Show the user:
 
@@ -63,6 +69,6 @@ Show the user:
 
 Do not proceed until the user approves.
 
-### 7. Execute (optional, only on approval)
+### 8. Execute (optional, only on approval)
 
-Ask the user before running. **Always execute in a worktree** (use the Agent tool with `isolation: "worktree"`). Report results from the run summary.
+Ask the user before running. Report results from the run summary.
