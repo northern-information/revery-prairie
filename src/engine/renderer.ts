@@ -804,14 +804,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           const waterChars = ['~', '=', '-']
           char = waterChars[(h2 + Math.floor(time * 0.004)) % waterChars.length]
           color = RIVER_COLOR
-          cursorable = false
         } else if (state.currentZone === Zone.Overworld && state.ponds.has(tileKey)) {
           // Pond water (overworld only)
           const h2 = tileHash(mx, my)
           const waterChars = ['~', '=']
           char = waterChars[(h2 + Math.floor(time * 0.003)) % waterChars.length]
           color = POND_COLOR
-          cursorable = false
         } else {
           const tile = map[my][mx]
           char = TILE_CHARS[tile.type]
