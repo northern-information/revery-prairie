@@ -78,8 +78,8 @@ describe('tickBees', () => {
     clearArea(state, bx, by, 2)
     const beeEid = createBeeEntity(state, bx, by)
 
-    // Run many ticks — bee should eventually move
-    for (let i = 0; i < 200; i++) {
+    // Run many ticks — bee should eventually move (stay under starvation threshold of 150 ticks)
+    for (let i = 0; i < 100; i++) {
       tickBees(state)
     }
 

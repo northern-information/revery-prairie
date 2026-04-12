@@ -9,6 +9,7 @@ interface CharacterEntry {
   music?: string
   gift?: { kind: 'revery' | 'item'; id: string }
   postGiftDialog?: string[]
+  postGiftAction?: (state: GameState) => void
 }
 
 const CHARACTERS = {
@@ -20,7 +21,13 @@ const CHARACTERS = {
     dialog: ['...'],
     music: '/music/gron.mp3',
     gift: { kind: 'revery' as const, id: 'water' },
-    postGiftDialog: ['...'],
+    postGiftDialog: [
+      'Your final act as steward is casting the Deep Time revery. It will initiate a controlled burn and exile you from the prairie forever. 1000 years will melt before your eyes and you will become a ghost. Plan carefully. Good stewardship means being able to let go and trust in your meritorious deeds.',
+      'Are you ready to burn the prairie and leave forever?',
+    ],
+    postGiftAction: (state: GameState) => {
+      state.reveries.push('deep-time')
+    },
   },
   moab: {
     name: 'Moab Coldë',

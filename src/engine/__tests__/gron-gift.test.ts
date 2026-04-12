@@ -1,5 +1,5 @@
 import { getCharacterDefinition, getCharacterDialog } from '../characters'
-import { giveCharacterGift } from '../interaction'
+import { advanceDialog, giveCharacterGift } from '../interaction'
 import { createGameState } from '../state'
 import { describe, expect, it } from 'vitest'
 
@@ -13,9 +13,16 @@ describe('gron character definition', () => {
     expect(def.gift).toEqual({ kind: 'revery', id: 'water' })
   })
 
-  it('has postGiftDialog', () => {
+  it('has postGiftDialog with deep time warning', () => {
     const def = getCharacterDefinition('gron')
-    expect(def.postGiftDialog).toEqual(['...'])
+    expect(def.postGiftDialog).toHaveLength(2)
+    expect(def.postGiftDialog?.[0]).toContain('Deep Time revery')
+    expect(def.postGiftDialog?.[1]).toContain('ready to burn')
+  })
+
+  it('has postGiftAction', () => {
+    const def = getCharacterDefinition('gron')
+    expect(def.postGiftAction).toBeTypeOf('function')
   })
 })
 
@@ -61,7 +68,8 @@ describe('gron gift delivery', () => {
     giveCharacterGift(state, 'gron')
 
     const dialog = getCharacterDialog(state, 'gron')
-    expect(dialog).toEqual(['...'])
+    expect(dialog).toHaveLength(2)
+    expect(dialog[0]).toContain('Deep Time revery')
   })
 
   it('returns original dialog before gift', () => {
@@ -69,6 +77,134 @@ describe('gron gift delivery', () => {
     const dialog = getCharacterDialog(state, 'gron')
     expect(dialog).toHaveLength(1)
     expect(dialog[0]).toBe('...')
+  })
+})
+
+describe('gron postGiftAction', () => {
+  const advanceToEnd = (state: GameState): void => {
+    while (state.activeDialog) {
+      state.activeDialog.typingDone = true
+      advanceDialog(state)
+      if (state.activeDialog?.transitioning) {
+        state.activeDialog.transitioning = false
+        state.activeDialog.lineIndex++
+        state.activeDialog.typingIndex = 0
+        state.activeDialog.typingDone = false
+      }
+    }
+  }
+
+  it('grants deep-time revery on postGiftDialog completion', () => {
+    const state = makeState()
+    giveCharacterGift(state, 'gron')
+
+    // Open dialog (simulating interactWithCharacter)
+    state.activeDialog = {
+      characterId: 'gron',
+      lineIndex: 0,
+      typingIndex: 0,
+      typingDone: false,
+      transitioning: false,
+      transitionStartTime: 0,
+    }
+
+    advanceToEnd(state)
+
+    expect(state.activeDialog).toBeNull()
+    expect(state.reveries).toContain('deep-time')
+    expect(state.postGiftActionsCompleted.has('gron')).toBe(true)
+  })
+
+  it('auto-assigns deep-time revery to action bar', () => {
+    const state = makeState()
+    giveCharacterGift(state, 'gron')
+
+    state.activeDialog = {
+      characterId: 'gron',
+      lineIndex: 0,
+      typingIndex: 0,
+      typingDone: false,
+      transitioning: false,
+      transitionStartTime: 0,
+    }
+
+    advanceToEnd(state)
+
+    // Slot 0 = earth, 1 = lightning, 2 = water, 3 = deep-time
+    expect(state.actionBar[3]?.kind).toBe('revery')
+    expect(state.actionBar[3]?.id).toBe('deep-time')
+  })
+
+  it('records deep-time discovery', () => {
+    const state = makeState()
+    giveCharacterGift(state, 'gron')
+
+    state.activeDialog = {
+      characterId: 'gron',
+      lineIndex: 0,
+      typingIndex: 0,
+      typingDone: false,
+      transitioning: false,
+      transitionStartTime: 0,
+    }
+
+    advanceToEnd(state)
+
+    expect(state.manualDiscoveries.has('event:gron-deep-time')).toBe(true)
+  })
+
+  it('does not grant deep-time revery twice', () => {
+    const state = makeState()
+    giveCharacterGift(state, 'gron')
+
+    // First dialog completion
+    state.activeDialog = {
+      characterId: 'gron',
+      lineIndex: 0,
+      typingIndex: 0,
+      typingDone: false,
+      transitioning: false,
+      transitionStartTime: 0,
+    }
+    advanceToEnd(state)
+
+    const reveryCount = state.reveries.filter(r => r === 'deep-time').length
+    expect(reveryCount).toBe(1)
+
+    // Second dialog completion
+    state.activeDialog = {
+      characterId: 'gron',
+      lineIndex: 0,
+      typingIndex: 0,
+      typingDone: false,
+      transitioning: false,
+      transitionStartTime: 0,
+    }
+    advanceToEnd(state)
+
+    const reveryCount2 = state.reveries.filter(r => r === 'deep-time').length
+    expect(reveryCount2).toBe(1)
+  })
+
+  it('does not fire before gift is received', () => {
+    const state = makeState()
+    // Don't give gift, just open dialog directly
+    state.activeDialog = {
+      characterId: 'gron',
+      lineIndex: 0,
+      typingIndex: 0,
+      typingDone: false,
+      transitioning: false,
+      transitionStartTime: 0,
+    }
+
+    // Advance through original dialog (only 1 line: '...')
+    state.activeDialog.typingDone = true
+    advanceDialog(state)
+
+    expect(state.activeDialog).toBeNull()
+    expect(state.reveries).not.toContain('deep-time')
+    expect(state.postGiftActionsCompleted.has('gron')).toBe(false)
   })
 })
 

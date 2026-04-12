@@ -17,6 +17,7 @@ import {
   GLINT_ZONE_TICK_MS,
   WEATHER_TICK_MS,
 } from './constants'
+import { tickDeepTime } from './deepTime'
 import { tickTileWater } from './tileWater'
 import { ComponentType } from './ecs/types'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
@@ -26,7 +27,7 @@ import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { getDefinition } from './items'
 import { movePlayer, tickPath } from './movement'
 import { getReveryDefinition } from './reveries'
-import { Zone } from './types'
+import { DeepTimePhase, Zone } from './types'
 import { tickWeather } from './weather'
 
 import type { GameState } from './types'
@@ -43,6 +44,7 @@ export interface GameLoopCallbacks {
   onRefreshUI?: () => void
   onPickup?: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   onDiscovery?: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
+  onBeeDeath?: (worldX: number, worldY: number) => void
   onFrame?: (time: number) => void
 }
 
@@ -71,6 +73,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'always',
       priority: -10,
       fn: (state, time) => {
+        if (state.deepTime?.active && state.deepTime.phase !== DeepTimePhase.Wandering) return
         const moves = state.sprinting ? 2 : 1
         let moved = false
         for (let i = 0; i < moves; i++) {
@@ -105,6 +108,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'always',
       priority: -5,
       fn: (state, time) => {
+        if (state.deepTime?.active && state.deepTime.phase !== DeepTimePhase.Wandering) return
         if (!state.heldDirection) return
         if (state.activeDialog) return
         if (state.path) return
@@ -141,7 +145,10 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: BEE_TICK_MS,
       zone: 'overworld',
       fn: state => {
-        tickBees(state, Zone.Overworld)
+        const deaths = tickBees(state, Zone.Overworld)
+        for (const pos of deaths) {
+          callbacks.onBeeDeath?.(pos.x, pos.y)
+        }
       },
     },
     {
@@ -149,7 +156,10 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: BEE_TICK_MS,
       zone: 'cave',
       fn: state => {
-        tickBees(state, Zone.Cave)
+        const deaths = tickBees(state, Zone.Cave)
+        for (const pos of deaths) {
+          callbacks.onBeeDeath?.(pos.x, pos.y)
+        }
       },
     },
     {
@@ -331,6 +341,15 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'overworld',
       fn: (state, time) => {
         tickGlintZones(state, time)
+      },
+    },
+    {
+      id: 'deep-time',
+      intervalMs: 0,
+      zone: 'always',
+      priority: -20,
+      fn: (state, time) => {
+        tickDeepTime(state, time)
       },
     },
   ]

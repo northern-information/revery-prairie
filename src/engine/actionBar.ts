@@ -15,6 +15,7 @@ import {
   WATER_REVERY_FILL,
 } from './constants'
 import { ComponentType } from './ecs/types'
+import { initiateDeepTime } from './deepTime'
 import { spreadWildfire } from './lightning'
 import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
@@ -105,7 +106,7 @@ const applyReveryCastEffects = (state: GameState, reveryId: string, positions: P
       // Spread wildfire from cast position (must happen before manual burn —
       // spreadWildfire handles origin burn via BFS)
       if (tile.type === TileType.Clover) {
-        const burned = spreadWildfire(state, pos.x, pos.y, FIRE_REVERY_MAX_SPREAD)
+        const burned = spreadWildfire(state, now, pos.x, pos.y, FIRE_REVERY_MAX_SPREAD)
         if (burned.size > 1) {
           const we = state.world.createEntity()
           state.world.addComponent(we, ComponentType.MultiPosition, {
@@ -131,6 +132,11 @@ export const activateActionBarSlot = (state: GameState, slotIndex: number, now: 
 
   if (slot.kind === 'revery') {
     const def = getReveryDefinition(slot.id)
+
+    if (def.castStyle === 'deepTime') {
+      initiateDeepTime(state, now)
+      return true
+    }
 
     if (def.castStyle === 'targeted') {
       // Targeted: enter targeting mode instead of casting immediately
@@ -270,7 +276,7 @@ export const castLightningAtTarget = (state: GameState, target: Position, slotIn
   recordDiscovery(state, 'event:lightning-revery')
 
   // Wildfire spread
-  const burned = spreadWildfire(state, target.x, target.y)
+  const burned = spreadWildfire(state, now, target.x, target.y)
   if (burned.size > 1) {
     const we = state.world.createEntity()
     state.world.addComponent(we, ComponentType.MultiPosition, {

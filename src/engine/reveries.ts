@@ -7,7 +7,7 @@ interface ReveryEntry {
   glyphColor: string
   cooldownMs: number
   castDurationMs: number
-  castStyle: 'tile' | 'rain' | 'scan' | 'targeted'
+  castStyle: 'tile' | 'rain' | 'scan' | 'targeted' | 'deepTime'
   castPattern: Position[]
 }
 
@@ -61,6 +61,16 @@ const REVERIES = {
     cooldownMs: 15000,
     castDurationMs: 800,
     castStyle: 'targeted' as const,
+    castPattern: [],
+  },
+  'deep-time': {
+    name: 'Deep Time Revery',
+    description: 'a memory of deep time',
+    glyphs: ['⧖', '◷', '∞'],
+    glyphColor: '#FFFFFF',
+    cooldownMs: Infinity,
+    castDurationMs: 0,
+    castStyle: 'deepTime' as const,
     castPattern: [],
   },
 } as const satisfies Record<string, ReveryEntry>

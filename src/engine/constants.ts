@@ -242,4 +242,14 @@ export const GLINT_ZONE_DRIFT_MS = 10_000
 export const GLINT_ZONE_SPAWN_MS = 15_000
 export const GLINT_ZONE_TICK_MS = 5_000
 
+// deep time endgame
+export const BEE_STARVATION_MS = 30_000
+export const BURNT_CLOVER_RECOVERY_MS = 60_000
+export const BURNT_CLOVER_RAIN_MULTIPLIER = 3
+export const BEEHIVE_MIN_DISTANCE = 7
+export const WEATHER_RAIN_DENSITY = 5
+export const DEEP_TIME_BURN_DURATION_MS = 5_000
+export const DEEP_TIME_YEARS_PER_FRAME = 50
+export const DEEP_TIME_TOTAL_YEARS = 1000
+
 export const INVENTORY_CELL_SIZE = 28

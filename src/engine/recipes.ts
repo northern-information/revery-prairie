@@ -85,6 +85,7 @@ export const RECIPES: Recipe[] = [
       state.world.addComponent(beeEntity, ComponentType.Position, { x: state.player.x, y: state.player.y })
       state.world.addComponent(beeEntity, ComponentType.EntityTag, 'bee')
       state.world.addComponent(beeEntity, ComponentType.EntityZone, { zone: state.currentZone })
+      state.world.addComponent(beeEntity, ComponentType.HungerTimer, { hungerMs: 0 })
       return true
     },
   },

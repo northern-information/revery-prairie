@@ -113,6 +113,7 @@ export const createBeeEntity = (state: GameState, x: number, y: number, zone?: Z
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.EntityTag, 'bee')
   state.world.addComponent(e, ComponentType.EntityZone, { zone: zone ?? state.currentZone })
+  state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
   return e
 }
 

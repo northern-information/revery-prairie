@@ -85,6 +85,8 @@ const EXPECTED_FIELDS = [
   'lastGlintSpawnTime',
   'zoom',
   'civilizationRuins',
+  'deepTime',
+  'postGiftActionsCompleted',
 ].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {

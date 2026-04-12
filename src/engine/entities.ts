@@ -1,11 +1,13 @@
 import { CHAIN_EXPLOSION_CHANCE, spawnChainMeteorites } from './celestial'
+import { BEE_STARVATION_MS, BEE_TICK_MS } from './constants'
 import { ComponentType } from './ecs/types'
 import { AURA_RADIUS } from './effects'
+import { tickCreatureHunger } from './hunger'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
 import { recordDiscovery } from './manual'
 import { getBlockedPositions } from './movement'
 import { createGroundOmniboxEntity } from './omnibox'
-import { isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
+import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 import { TileType, Zone } from './types'
 
 import type { Entity } from './ecs/types'
@@ -142,7 +144,20 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   return { pickedUp, chainExplosions }
 }
 
-export const tickBees = (state: GameState, zone?: Zone): void => {
+const isBeeNearFood = (state: GameState, pos: Position): boolean => {
+  // Check the bee's own tile
+  if (isInBounds(pos.x, pos.y, state.mapWidth, state.mapHeight) && state.map[pos.y][pos.x].type === TileType.Clover)
+    return true
+  // Check cardinal neighbors
+  for (const d of CARDINAL) {
+    const nx = pos.x + d.x
+    const ny = pos.y + d.y
+    if (isInBounds(nx, ny, state.mapWidth, state.mapHeight) && state.map[ny][nx].type === TileType.Clover) return true
+  }
+  return false
+}
+
+export const tickBees = (state: GameState, zone?: Zone): Position[] => {
   const z = zone ?? state.currentZone
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
@@ -176,6 +191,9 @@ export const tickBees = (state: GameState, zone?: Zone): void => {
       state.world.moveEntity(eid, target.x, target.y)
     }
   }
+
+  const deaths = tickCreatureHunger(state, 'bee', BEE_STARVATION_MS, BEE_TICK_MS, isBeeNearFood)
+  return deaths
 }
 
 const tickDrift = (
@@ -217,6 +235,7 @@ const tickDrift = (
 
 export const tickCharacterBehaviors = (state: GameState, zone?: Zone): void => {
   const z = zone ?? state.currentZone
+  if (state.deepTime?.active) return
   const blocked = getBlockedPositions(state, z)
   blocked.add(posKey(state.player.x, state.player.y))
 
@@ -293,6 +312,7 @@ export const dropItem = (state: GameState, definitionId: string): boolean => {
         state.world.addComponent(e, ComponentType.Position, { x: tx, y: ty })
         state.world.addComponent(e, ComponentType.EntityTag, 'bee')
         state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
+        state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
       } else if (definitionId === 'omnibox') {
         createGroundOmniboxEntity(state, droppedUid, tx, ty)
       } else {

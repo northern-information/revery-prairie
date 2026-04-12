@@ -1,4 +1,6 @@
 import {
+  BURNT_CLOVER_RAIN_MULTIPLIER,
+  BURNT_CLOVER_RECOVERY_MS,
   CLOVER_BLACK_DURATION_MS,
   CLOVER_BLINK_RED_DURATION_MS,
   CLOVER_BROWN_DURATION_MS,
@@ -41,6 +43,8 @@ const stageDuration = (stage: CloverStage): number => {
       return CLOVER_BLACK_DURATION_MS
     case CloverStage.Decomposing:
       return CLOVER_DECOMPOSE_DURATION_MS
+    case CloverStage.BurntRecovering:
+      return BURNT_CLOVER_RECOVERY_MS
     default:
       return Infinity
   }
@@ -71,7 +75,33 @@ export const tickCloverLifecycle = (state: GameState, zone: ZoneType, time: numb
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      if (map[y][x].type !== TileType.Clover) continue
+      const tileType = map[y][x].type
+
+      // Handle BurntClover recovery
+      if (tileType === TileType.BurntClover) {
+        const key = posKey(x, y)
+        let entry = state.cloverLifecycle.get(key)
+
+        // First encounter: create recovery entry
+        if (!entry) {
+          entry = { stage: CloverStage.BurntRecovering, stageStartTime: time, hasLight: true }
+          state.cloverLifecycle.set(key, entry)
+        }
+
+        if (entry.stage === CloverStage.BurntRecovering) {
+          const water = state.tileWater.get(key) ?? 0
+          const effectiveDuration =
+            water > 0 ? BURNT_CLOVER_RECOVERY_MS / BURNT_CLOVER_RAIN_MULTIPLIER : BURNT_CLOVER_RECOVERY_MS
+          if (time - entry.stageStartTime >= effectiveDuration) {
+            map[y][x] = { type: TileType.Dirt }
+            state.cloverLifecycle.delete(key)
+            state.burnScars.delete(key)
+          }
+        }
+        continue
+      }
+
+      if (tileType !== TileType.Clover) continue
 
       const key = posKey(x, y)
       let entry = state.cloverLifecycle.get(key)

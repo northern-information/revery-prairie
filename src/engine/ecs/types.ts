@@ -20,6 +20,7 @@ export const ComponentType = {
   LightningData: 'lightningData',
   EntityTag: 'entityTag',
   EntityZone: 'entityZone',
+  HungerTimer: 'hungerTimer',
 } as const
 
 export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType]
@@ -54,4 +55,5 @@ export interface ComponentDataMap {
   }
   [ComponentType.EntityTag]: string
   [ComponentType.EntityZone]: { zone: Zone }
+  [ComponentType.HungerTimer]: { hungerMs: number }
 }

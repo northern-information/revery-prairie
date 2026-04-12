@@ -82,6 +82,7 @@ export const spawnChainMeteorites = (state: GameState, origin: Position, time: n
 export { CHAIN_EXPLOSION_CHANCE }
 
 export const spawnShootingStar = (state: GameState): void => {
+  if (state.deepTime?.active) return
   if (state.meteorShower.active) return
   if (state.world.query(ComponentType.ShootingStarData).length >= SHOOTING_STAR_MAX_ACTIVE) return
   if (Math.random() >= SHOOTING_STAR_SPAWN_CHANCE) return
@@ -307,6 +308,7 @@ export const findShowerTargets = (state: GameState, count: number): Position[] =
 }
 
 export const tickMeteorShower = (state: GameState, time: number): void => {
+  if (state.deepTime?.active) return
   const shower = state.meteorShower
 
   // First tick: schedule the first shower

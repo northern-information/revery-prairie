@@ -26,7 +26,7 @@ import {
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { CARDINAL, isInBounds, posKey } from './position'
-import { Sky, TileType, Zone } from './types'
+import { CloverStage, Sky, TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'
 
@@ -177,6 +177,7 @@ export const selectStrikeTarget = (state: GameState, rng: () => number): Positio
 
 export const spreadWildfire = (
   state: GameState,
+  time: number,
   strikeX: number,
   strikeY: number,
   maxSpread: number = WILDFIRE_MAX_SPREAD
@@ -214,7 +215,11 @@ export const spreadWildfire = (
     // Burn this tile
     burned.add(key)
     state.map[pos.y][pos.x] = { type: TileType.BurntClover }
-    state.cloverLifecycle.delete(key)
+    state.cloverLifecycle.set(key, {
+      stage: CloverStage.BurntRecovering,
+      stageStartTime: time,
+      hasLight: true,
+    })
     state.cloverGrowthPreviews.delete(key)
     addSoilHealth(state, key, SOIL_HEALTH_FIRE_REVERY_BONUS)
 
@@ -294,7 +299,7 @@ export const spawnLightningStrike = (state: GameState, time: number): Position |
   }
 
   // Wildfire spread
-  const burned = spreadWildfire(state, target.x, target.y)
+  const burned = spreadWildfire(state, time, target.x, target.y)
   if (burned.size > 1) {
     const we = state.world.createEntity()
     state.world.addComponent(we, ComponentType.MultiPosition, {
