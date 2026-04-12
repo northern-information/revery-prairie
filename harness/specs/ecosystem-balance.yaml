@@ -1,0 +1,104 @@
+id: ecosystem-balance
+name: 'Ecosystem balance'
+status: planned
+priority: high
+layer: engine
+source_files:
+  - src/engine/clover.ts
+  - src/engine/cloverLifecycle.ts
+  - src/engine/lightning.ts
+  - src/engine/constants.ts
+  - src/engine/types.ts
+dependencies:
+  - clover-lifecycle
+  - bee-hive-lifecycle
+  - wildfire-spread
+
+behaviors:
+  - id: burnt-clover-recovery
+    description: >
+      BurntClover tiles are no longer permanent. the clover lifecycle
+      system tracks BurntClover tiles in state.cloverLifecycle with a
+      new stage BurntRecovering. after BURNT_CLOVER_RECOVERY_MS
+      (60000ms / 60 seconds dry), the tile converts to Dirt. rain
+      accelerates recovery: when the tile has water (tileWater > 0),
+      elapsed time counts at BURNT_CLOVER_RAIN_MULTIPLIER (3x) speed,
+      so a tile in steady rain recovers in roughly 20 seconds. if
+      the tile's position exists in state.burnScars, that entry is
+      also removed. this allows clover to eventually regrow on
+      previously burned ground. soil health enrichment from the
+      original fire is preserved.
+    inputs:
+      - 'tile of type BurntClover created by wildfire spread'
+      - 'tileWater level at that position (affects recovery speed)'
+    outputs:
+      - 'tile converts to Dirt after recovery duration (faster with rain)'
+    state_changes:
+      - field: map tile
+        effect: 'BurntClover converted to Dirt after BURNT_CLOVER_RECOVERY_MS (accelerated by rain)'
+      - field: cloverLifecycle
+        effect: 'entry added on burn with stage BurntRecovering, deleted on recovery'
+      - field: burnScars
+        effect: 'position key removed on recovery'
+    determinism: time-based
+
+  - id: burnt-clover-lifecycle-entry
+    description: >
+      when spreadWildfire converts a Clover tile to BurntClover, it
+      must also add a cloverLifecycle entry with stage BurntRecovering
+      and stageStartTime set to the current time. this ensures the
+      lifecycle tick picks it up for eventual recovery.
+    inputs:
+      - 'spreadWildfire burns a clover tile'
+    outputs: []
+    state_changes:
+      - field: cloverLifecycle
+        effect: 'entry set to { stage: BurntRecovering, stageStartTime: time, hasLight: true }'
+    determinism: deterministic
+
+  - id: beehive-minimum-spacing
+    description: >
+      beehive spawning in tickCloverHives enforces a minimum distance
+      of BEEHIVE_MIN_DISTANCE (7 tiles, manhattan distance) between
+      hives. when selecting a spawn candidate, any position within
+      BEEHIVE_MIN_DISTANCE of an existing beehive in the same zone is
+      rejected. this prevents hive clustering and naturally limits
+      total hive density across the map.
+    inputs:
+      - 'tickCloverHives attempts to spawn a new beehive'
+      - 'existing beehive positions in the overworld'
+    outputs:
+      - 'spawn rejected if any existing hive is within BEEHIVE_MIN_DISTANCE'
+    state_changes: []
+    determinism: probabilistic
+
+edge_cases:
+  - id: burnt-clover-in-cave
+    description: 'BurntClover created in cave (no light, no rain) still recovers to Dirt at the base dry rate'
+    expected: 'tile converts to Dirt after BURNT_CLOVER_RECOVERY_MS at 1x speed (no rain multiplier)'
+  - id: burnt-clover-rain-accelerated
+    description: 'BurntClover tile with tileWater > 0 recovers at 3x speed'
+    expected: 'tile converts to Dirt in roughly BURNT_CLOVER_RECOVERY_MS / 3 elapsed time'
+  - id: all-burn-scars-clear-after-recovery
+    description: 'after all BurntClover tiles recover, burnScars set is empty'
+    expected: 'each recovery removes the corresponding key from burnScars'
+  - id: hive-spacing-prevents-clustering
+    description: 'on a small clover patch with an existing hive, no second hive can spawn within 7 tiles'
+    expected: 'spawn attempt fails, no new hive created'
+  - id: hive-spacing-allows-distant-hives
+    description: 'on a large clover patch, hives spawn only when candidates are 7+ tiles from all existing hives'
+    expected: 'hive spawns at valid distant position'
+  - id: recovery-during-deep-time
+    description: 'BurntClover tiles recover during the accelerated 1000-year simulation'
+    expected: 'recovery ticks at accelerated rate alongside clover lifecycle, clearing burns over simulated centuries'
+
+failure_conditions:
+  - trigger: 'BurntClover tile has no cloverLifecycle entry (e.g. created by legacy code path)'
+    expected: 'lifecycle tick creates missing entry with current time as stageStartTime on next scan'
+  - trigger: 'all beehive spawn candidates are within BEEHIVE_MIN_DISTANCE of existing hives'
+    expected: 'no hive spawns, tick proceeds without error'
+
+verification:
+  test_file: src/engine/__tests__/ecosystemBalance.test.ts
+  test_pattern: 'ecosystem balance'
+  command: 'npx vitest run src/engine/__tests__/ecosystemBalance.test.ts'

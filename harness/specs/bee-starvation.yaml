@@ -1,0 +1,96 @@
+id: bee-starvation
+name: 'Bee starvation'
+status: planned
+priority: high
+layer: engine
+source_files:
+  - src/engine/hunger.ts
+  - src/engine/entities.ts
+  - src/engine/types.ts
+  - src/engine/ecs/types.ts
+  - src/engine/gameLoop.ts
+  - src/engine/constants.ts
+dependencies:
+  - bee-hive-lifecycle
+
+behaviors:
+  - id: creature-hunger-module
+    description: >
+      a new hunger.ts module provides generic creature hunger tracking.
+      tickCreatureHunger(state, entityTag, starvationMs, isNearFood)
+      iterates all entities matching the given tag, reads their
+      HungerTimer component, increments or resets based on the
+      isNearFood predicate, and returns an array of positions where
+      creatures starved. the module does not know about bees or clover
+      specifically — callers provide the food predicate. the
+      HungerTimer ECS component stores { hungerMs: number }.
+    inputs:
+      - 'entityTag string identifying the creature type'
+      - 'starvationMs threshold in milliseconds'
+      - 'isNearFood predicate: (state, position) => boolean'
+    outputs:
+      - 'array of { x, y } positions where creatures died'
+    state_changes:
+      - field: 'world.components[eid][ComponentType.HungerTimer]'
+        effect: 'hungerMs reset to 0 if isNearFood returns true, otherwise incremented by tick interval'
+      - field: 'world (ECS)'
+        effect: 'entities destroyed when hungerMs >= starvationMs'
+    determinism: deterministic
+
+  - id: bee-hunger-integration
+    description: >
+      tickBees in entities.ts calls tickCreatureHunger after movement
+      with entityTag bee, starvationMs BEE_STARVATION_MS (30000),
+      and a food predicate that checks if the bee is on or cardinally
+      adjacent to a clover tile. deaths returned by the hunger module
+      trigger the onBeeDeath callback for toast display.
+    inputs:
+      - 'bee entity with Position and HungerTimer components'
+      - 'current map tiles surrounding the bee'
+    outputs:
+      - 'onBeeDeath callback fires with bee world position for each death'
+    state_changes:
+      - field: 'world (ECS)'
+        effect: 'starved bee entities removed'
+    determinism: deterministic
+
+  - id: bee-spawn-with-hunger
+    description: >
+      all bee spawn paths (bee+clover combine, bee item drop, beehive
+      tick) must add HungerTimer component with hungerMs: 0 to the new
+      bee entity.
+    inputs:
+      - 'any bee spawn event'
+    outputs: []
+    state_changes:
+      - field: 'world.components[eid][ComponentType.HungerTimer]'
+        effect: 'initialized to { hungerMs: 0 }'
+    determinism: deterministic
+
+edge_cases:
+  - id: bee-on-clover-never-starves
+    description: 'a bee that stays on or adjacent to clover tiles indefinitely never accumulates hunger'
+    expected: 'hungerMs stays at 0, bee survives'
+  - id: bee-finds-clover-last-moment
+    description: 'a bee at 29800ms hunger moves adjacent to clover before the next tick'
+    expected: 'hungerMs resets to 0, bee survives'
+  - id: cave-bees-can-starve
+    description: 'bees in the cave zone with no clover tiles will starve after 30 seconds'
+    expected: 'bee destroyed, callback fires'
+  - id: multiple-bees-starve-independently
+    description: 'each bee tracks hunger independently. one starving does not affect others'
+    expected: 'only the starved bee is destroyed'
+  - id: future-creature-reuse
+    description: 'a new creature type can reuse tickCreatureHunger with its own tag, threshold, and food predicate'
+    expected: 'hunger module works generically without bee-specific logic'
+
+failure_conditions:
+  - trigger: 'entity missing HungerTimer component'
+    expected: 'tickCreatureHunger skips that entity gracefully'
+  - trigger: 'all clover tiles destroyed on the map'
+    expected: 'all bees eventually starve after 30 seconds with no clover contact'
+
+verification:
+  test_file: src/engine/__tests__/hunger.test.ts
+  test_pattern: 'creature hunger'
+  command: 'npx vitest run src/engine/__tests__/hunger.test.ts'
