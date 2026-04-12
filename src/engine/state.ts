@@ -20,6 +20,7 @@ import { createBackpack } from './items'
 import { isWalkableTile, posKey } from './position'
 import { generateSoilHealth, generateTerrain } from './terrain'
 import { Rotation, TileType, Zone } from './types'
+import { buildWaterProximity } from './tileWater'
 import { generateWeather } from './weather'
 
 import type { GenesisResult } from './genesisTypes'
@@ -167,6 +168,8 @@ export const createGameState = (
     civilizationRuins: genesisResult?.ruins ?? [],
     deepTime: null,
     postGiftActionsCompleted: new Set<string>(),
+    rainFrontOffset: 0,
+    waterProximity: new Map<string, number>(),
   }
 
   // Seed glinting zone patches with staggered birth times
@@ -182,6 +185,9 @@ export const createGameState = (
       }
     }
   }
+
+  // Build water proximity map for passive seepage near ponds/rivers
+  buildWaterProximity(state)
 
   // Place Gron near the player
   if (map[gronY][gronX].type !== TileType.Dirt && map[gronY][gronX].type !== TileType.Clover) {

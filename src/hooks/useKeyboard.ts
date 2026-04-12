@@ -17,7 +17,7 @@ import {
 import { findItemByDefinition, moveItem } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
 import { closeOmnibox, grabOmnibox, toggleFacingOmnibox, toggleOmnibox } from '@/engine/omnibox'
-import { Rotation, Zone } from '@/engine/types'
+import { DeepTimePhase, Rotation, Zone } from '@/engine/types'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
@@ -90,6 +90,7 @@ export const useKeyboard = ({
       if (e.key >= '1' && e.key <= '4') {
         if (state.activeDialog) return
         if (activeScreen === 'system') return
+        if (state.deepTime?.active) return
         if (e.repeat) return
         // Cancel active targeting if pressing a different slot
         if (state.targetingSlot !== null) {
@@ -268,10 +269,15 @@ export const useKeyboard = ({
         return
       }
 
+      // Block permacomputer during deep time burning/simulating
+      const deepTimeBlocking =
+        state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
+
       // Toggle pack
       if (e.key === 'Tab') {
         e.preventDefault()
         if (activeScreen === 'system') return
+        if (deepTimeBlocking) return
         setActiveScreen(activeScreen === 'pack' ? null : 'pack')
         return
       }
@@ -279,6 +285,7 @@ export const useKeyboard = ({
       // Toggle manual
       if (e.key === 'q' || e.key === 'Q') {
         if (activeScreen === 'system') return
+        if (deepTimeBlocking) return
         setActiveScreen(activeScreen === 'manual' ? null : 'manual')
         return
       }

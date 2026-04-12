@@ -4,7 +4,7 @@ import { WATER_DRAIN_RATE, WATER_MAX, WATER_RAIN_FILL } from '../constants'
 import { posKey } from '../position'
 import { createGameState } from '../state'
 import { tickTileWater } from '../tileWater'
-import { Sky, TileType, Zone } from '../types'
+import { Sky, TileType, WindDirection, Zone } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
 
 import type { GameState } from '../types'
@@ -78,6 +78,11 @@ describe('tileWater', () => {
       state = createTestState()
       clearAroundPlayer(state, 5)
       state.weather.sky = Sky.Sun
+      // Position rain front to cover the player area for rain tests.
+      // Front advances by RAIN_FRONT_SPEED before the tile loop, so offset
+      // such that player.x+1 lands inside the front after advancement.
+      state.weather.windDirection = WindDirection.E
+      state.rainFrontOffset = state.player.x - 2
     })
 
     it('drains water when not raining', () => {
@@ -111,7 +116,7 @@ describe('tileWater', () => {
 
     it('does not go below 0 when draining', () => {
       const key = posKey(state.player.x + 1, state.player.y)
-      state.tileWater.set(key, 1)
+      state.tileWater.set(key, 0.1)
 
       tickTileWater(state, Zone.Overworld)
 
