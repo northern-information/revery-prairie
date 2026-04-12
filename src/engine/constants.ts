@@ -234,5 +234,11 @@ export const GLINT_ZONE_SPEED = 0.003 // slow sparkle animation
 export const GLINT_ZONE_COUNT = 8 // number of glinting zone patches
 export const GLINT_ZONE_RADIUS_MIN = 2
 export const GLINT_ZONE_RADIUS_MAX = 4
+export const GLINT_ZONE_FADE_IN_MS = 30_000
+export const GLINT_ZONE_HOLD_MS = 60_000
+export const GLINT_ZONE_FADE_OUT_MS = 30_000
+export const GLINT_ZONE_DRIFT_MS = 10_000
+export const GLINT_ZONE_SPAWN_MS = 15_000
+export const GLINT_ZONE_TICK_MS = 5_000
 
 export const INVENTORY_CELL_SIZE = 28

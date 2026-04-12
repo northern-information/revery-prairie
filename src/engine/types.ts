@@ -196,6 +196,9 @@ export interface GameState {
   glintingCoins: Set<string>
   divinedHexagrams: Set<number>
   glintZones: Set<string>
+  glintPatches: GlintPatch[]
+  glintOpacity: Map<string, number>
+  lastGlintSpawnTime: number
   civilizationRuins: CivilizationRuin[]
 }
 
@@ -282,6 +285,15 @@ export interface MeteorShowerState {
 export interface LightningState {
   nextStrikeTime: number
   lastStrikeTime: number
+}
+
+export interface GlintPatch {
+  centerX: number
+  centerY: number
+  radius: number
+  birthTime: number
+  lastDriftTime: number
+  tiles: Set<string>
 }
 
 export interface CharMetrics {

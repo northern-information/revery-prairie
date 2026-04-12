@@ -80,6 +80,9 @@ const EXPECTED_FIELDS = [
   'glintingCoins',
   'divinedHexagrams',
   'glintZones',
+  'glintPatches',
+  'glintOpacity',
+  'lastGlintSpawnTime',
   'zoom',
   'civilizationRuins',
 ].sort((a, b) => a.localeCompare(b))

@@ -1,6 +1,6 @@
 id: glinting-zones
 name: 'Glinting zones'
-status: implemented
+status: partial
 priority: low
 layer: engine
 source_files:
@@ -9,26 +9,85 @@ source_files:
   - src/engine/renderer.ts
   - src/engine/constants.ts
   - src/engine/types.ts
+  - src/engine/gameLoop.ts
+  - src/engine/glintZones.ts
 dependencies:
   - player-movement
   - terrain-generation
 
 behaviors:
-  - id: zone-generation
+  - id: patch-lifecycle
     description: >
-      generateGlintZones(map, width, height) places GLINT_ZONE_COUNT
-      (8) circular patches of glinting tiles on the map. each patch
-      center is randomly placed on Dirt or Clover tiles within the
-      land area (avoiding SPACE_BORDER). radius is random between
-      GLINT_ZONE_RADIUS_MIN (2) and GLINT_ZONE_RADIUS_MAX (4).
-      tiles within the circle that are Dirt or Clover are added to
-      the returned Set<string>. up to 500 attempts per center
-      placement.
+      each glint patch has a lifecycle: fade-in (~30s), hold (~60s),
+      fade-out (~30s), then removed. phase is computed from birth time.
+      during fade-in and fade-out the sparkle density is scaled by the
+      phase progress (0.0 to 1.0 during fade-in, 1.0 to 0.0 during
+      fade-out). during hold the density is full. when fade-out
+      completes the patch is removed from state.glintPatches.
     inputs:
-      - 'Tile[][] map, dimensions'
+      - 'tickGlintZones called each tick interval'
     outputs:
-      - 'Set<string> of posKey entries for glinting tiles'
-    state_changes: []
+      - 'patches transition through phases and are removed when expired'
+    state_changes:
+      - field: glintPatches
+        effect: 'expired patches removed each tick'
+      - field: glintZones
+        effect: 'rebuilt from active patches each tick'
+    determinism: time-based
+
+  - id: patch-drift
+    description: >
+      during the hold phase, each patch center drifts 1 tile in a
+      random cardinal direction every GLINT_ZONE_DRIFT_MS (~10s).
+      drift direction is picked randomly per step. the center is
+      clamped to valid land tiles (Dirt or Clover). if a drift step
+      would move onto non-land, the step is skipped. the tile set
+      for the patch is recomputed after each drift.
+    inputs:
+      - 'tickGlintZones called during hold phase'
+    outputs:
+      - 'patch center shifts by 1 tile, zone tile set recomputed'
+    state_changes:
+      - field: glintPatches
+        effect: 'center position updated, lastDriftTime updated'
+      - field: glintZones
+        effect: 'rebuilt to reflect new patch positions'
+    determinism: probabilistic
+
+  - id: patch-spawning
+    description: >
+      tickGlintZones spawns a new patch every GLINT_ZONE_SPAWN_MS
+      (~15s) if the active patch count is below GLINT_ZONE_COUNT (8).
+      new patch center is randomly placed on Dirt or Clover within
+      the land area (avoiding SPACE_BORDER). radius is random between
+      GLINT_ZONE_RADIUS_MIN and GLINT_ZONE_RADIUS_MAX. up to 50
+      attempts per spawn. spawning is suppressed in cave.
+    inputs:
+      - 'tickGlintZones called when active patches < GLINT_ZONE_COUNT'
+    outputs:
+      - 'new GlintPatch added to state.glintPatches'
+    state_changes:
+      - field: glintPatches
+        effect: 'new patch appended'
+      - field: glintZones
+        effect: 'rebuilt to include new patch tiles'
+    determinism: probabilistic
+
+  - id: initial-seeding
+    description: >
+      createGameState seeds GLINT_ZONE_COUNT initial patches with
+      staggered birth times so they do not all fade in simultaneously.
+      birth times are spread across the hold phase window so some
+      patches are already holding and some are fading in at game start.
+    inputs:
+      - 'createGameState called'
+    outputs:
+      - 'state.glintPatches populated, state.glintZones derived'
+    state_changes:
+      - field: glintPatches
+        effect: 'seeded with GLINT_ZONE_COUNT patches'
+      - field: glintZones
+        effect: 'derived from initial patches'
     determinism: probabilistic
 
   - id: coin-reglinting-on-walk
@@ -52,38 +111,49 @@ behaviors:
   - id: sparkle-rendering
     description: >
       the renderer draws an animated sparkle overlay on tiles in
-      state.glintZones. uses GLINT_ZONE_CHARS (4 sparkle characters)
-      and GLINT_ZONE_COLORS (gold tones). only a subset of tiles
-      sparkle each frame (GLINT_ZONE_DENSITY controls the ratio,
-      ~1 in 5). animation speed controlled by GLINT_ZONE_SPEED.
+      state.glintZones. uses GLINT_ZONE_CHARS and GLINT_ZONE_COLORS.
+      only a subset of tiles sparkle each frame. the density is
+      modulated by the owning patch's phase opacity — during fade-in
+      and fade-out, fewer tiles sparkle. the renderer looks up the
+      patch opacity for each zone tile via a glintOpacity map
+      (Map<string, number>) rebuilt alongside glintZones each tick.
     inputs:
-      - 'state.glintZones set, current animation time'
+      - 'state.glintZones set, state.glintOpacity map, current animation time'
     outputs:
-      - 'sparkle glyphs rendered over zone tiles'
+      - 'sparkle glyphs rendered with phase-modulated density'
     state_changes: []
     determinism: time-based
 
 edge_cases:
   - id: zone-on-sand
-    description: 'center placement lands near coastline'
+    description: 'patch center or drift lands near coastline'
     expected: 'only Dirt and Clover tiles within the radius are added; Sand and Space skipped'
   - id: overlapping-zones
-    description: 'two zone circles overlap'
-    expected: 'Set deduplicates; overlapping tiles just appear once'
+    description: 'two patch circles overlap'
+    expected: 'glintZones Set deduplicates; overlapping tiles appear once with the higher opacity'
   - id: max-attempts-exhausted
-    description: 'all 500 attempts fail to find valid Dirt/Clover center'
-    expected: 'fewer than 8 zones placed; no error'
+    description: 'all spawn attempts fail to find valid Dirt/Clover center'
+    expected: 'fewer than target patches placed; no error'
   - id: cave-zone-suppression
     description: 'player is in the cave'
-    expected: 'discovery check only runs for Zone.Overworld; no discovery in cave'
+    expected: 'tick spawning suppressed; discovery check only runs for Zone.Overworld'
+  - id: drift-to-edge
+    description: 'patch drifts near map edge or coastline'
+    expected: 'drift step skipped if center would land on non-land tile; patch stays in place'
+  - id: all-patches-expire
+    description: 'all patches fade out before new ones spawn'
+    expected: 'glintZones becomes empty briefly; new patches spawn next tick cycle'
+  - id: staggered-initial-lifecycle
+    description: 'initial patches have spread-out birth times'
+    expected: 'patches do not all fade in or expire at the same time'
 
 failure_conditions:
   - trigger: 'map has no Dirt or Clover tiles (all Space/Sand)'
-    expected: 'all center attempts fail; glintZones is empty Set; no crash'
-  - trigger: 'glintZones contains positions that are no longer walkable'
-    expected: 'sparkle still renders on the tile; discovery still fires on walk-over'
+    expected: 'all spawn attempts fail; glintPatches stays empty; no crash'
+  - trigger: 'tickGlintZones called with no patches and spawn fails'
+    expected: 'glintZones is empty Set; no sparkles rendered; no crash'
 
 verification:
-  test_file: src/engine/__tests__/movement.test.ts
+  test_file: src/engine/__tests__/glintZones.test.ts
   test_pattern: 'glint'
-  command: npx vitest run src/engine/__tests__/movement.test.ts
+  command: npx vitest run src/engine/__tests__/glintZones.test.ts
