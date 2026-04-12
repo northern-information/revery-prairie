@@ -1,4 +1,5 @@
 import { generateBoltPath } from './boltPath'
+import { addSoilHealth } from './cloverLifecycle'
 import {
   LIGHTNING_BASE_CHANCE,
   LIGHTNING_BOLT_MAX_LENGTH,
@@ -22,7 +23,6 @@ import {
   WILDFIRE_DURATION_MS,
   WILDFIRE_MAX_SPREAD,
 } from './constants'
-import { addSoilHealth } from './cloverLifecycle'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { CARDINAL, isInBounds, posKey } from './position'
@@ -62,10 +62,7 @@ const isIsolatedFeature = (state: GameState, x: number, y: number): boolean => {
   return total > 0 && cloverCount / total < LIGHTNING_ISOLATED_CLOVER_THRESHOLD
 }
 
-export const selectStrikeTarget = (
-  state: GameState,
-  rng: () => number
-): Position | null => {
+export const selectStrikeTarget = (state: GameState, rng: () => number): Position | null => {
   // Pre-build metal positions set (ground omniboxes + ground meteorites)
   const metalPositions = new Set<string>()
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
@@ -181,20 +178,22 @@ export const selectStrikeTarget = (
 export const spreadWildfire = (
   state: GameState,
   strikeX: number,
-  strikeY: number
+  strikeY: number,
+  maxSpread: number = WILDFIRE_MAX_SPREAD
 ): Set<string> => {
   const burned = new Set<string>()
 
-  // Check if strike tile is dry clover
+  // Check if strike tile is clover
   if (state.map[strikeY][strikeX].type !== TileType.Clover) return burned
   const strikeKey = posKey(strikeX, strikeY)
-  const strikeWater = state.tileWater.get(strikeKey) ?? WATER_MAX
-  if (strikeWater >= WILDFIRE_DRY_THRESHOLD) return burned
+
+  // Force origin tile water to 0 — fire/lightning always ignites the target
+  state.tileWater.set(strikeKey, 0)
 
   // BFS spread
   const queue: { x: number; y: number }[] = [{ x: strikeX, y: strikeY }]
 
-  while (queue.length > 0 && burned.size < WILDFIRE_MAX_SPREAD) {
+  while (queue.length > 0 && burned.size < maxSpread) {
     const pos = queue.shift()
     if (!pos) continue
     const key = posKey(pos.x, pos.y)
@@ -235,10 +234,7 @@ export const spreadWildfire = (
 
 // --- Runtime spawn ---
 
-export const spawnLightningStrike = (
-  state: GameState,
-  time: number
-): Position | null => {
+export const spawnLightningStrike = (state: GameState, time: number): Position | null => {
   // Cooldown guard
   if (time < state.lightning.nextStrikeTime) return null
 
