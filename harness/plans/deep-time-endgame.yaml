@@ -1,0 +1,483 @@
+plan:
+  id: deep-time-endgame
+  title: Implement Deep Time endgame sequence with bee starvation, ecosystem balance, Gron dialog, and 1000-year simulation
+  created: 2026-04-12
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Foundation types and constants ---
+
+  - id: deep-time-types
+    title: Add DeepTimeState type, HungerTimer component, BurntRecovering stage, deepTime castStyle, and constants
+    spec_id: deep-time-endgame
+    spec_sections:
+      - deep-time-state-shape
+      - deep-time-revery-definition
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 1: Independent modules ---
+
+  - id: hunger-module
+    title: Create generic creature hunger module with tickCreatureHunger
+    spec_id: bee-starvation
+    spec_sections:
+      - creature-hunger-module
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/position.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/hunger.ts
+    depends_on:
+      - deep-time-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: hunger-tests
+    title: Write tests for generic creature hunger module
+    spec_id: bee-starvation
+    spec_sections:
+      - creature-hunger-module
+      - bee-hunger-integration
+    context_files:
+      - src/engine/hunger.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/entities.test.ts
+    output_files:
+      - src/engine/__tests__/hunger.test.ts
+    depends_on:
+      - hunger-module
+    verification:
+      - npx vitest run src/engine/__tests__/hunger.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: deep-time-revery
+    title: Register deep-time revery definition in REVERIES
+    spec_id: deep-time-endgame
+    spec_sections:
+      - deep-time-revery-definition
+    context_files:
+      - src/engine/reveries.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/reveries.ts
+    depends_on:
+      - deep-time-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 2: Ecosystem balance + bee hunger ---
+
+  - id: burnt-clover-recovery
+    title: Add BurntRecovering lifecycle stage so BurntClover tiles heal to Dirt over time
+    spec_id: ecosystem-balance
+    spec_sections:
+      - burnt-clover-recovery
+      - burnt-clover-lifecycle-entry
+    context_files:
+      - src/engine/cloverLifecycle.ts
+      - src/engine/lightning.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/cloverLifecycle.ts
+      - src/engine/lightning.ts
+    depends_on:
+      - deep-time-types
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/cloverLifecycle.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: beehive-spacing
+    title: Enforce minimum distance between beehives when spawning
+    spec_id: ecosystem-balance
+    spec_sections:
+      - beehive-minimum-spacing
+    context_files:
+      - src/engine/clover.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/clover.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: bee-hunger-integration
+    title: Wire bee spawning and ticking to use HungerTimer and hunger module
+    spec_id: bee-starvation
+    spec_sections:
+      - bee-hunger-integration
+      - bee-spawn-with-hunger
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/hunger.ts
+      - src/engine/clover.ts
+      - src/engine/gameLoop.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/entities.ts
+      - src/engine/gameLoop.ts
+    depends_on:
+      - hunger-module
+      - beehive-spacing
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/hunger.test.ts
+      - npx vitest run src/engine/__tests__/entities.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: ecosystem-balance-tests
+    title: Write tests for burnt clover recovery and beehive spacing
+    spec_id: ecosystem-balance
+    spec_sections:
+      - burnt-clover-recovery
+      - burnt-clover-lifecycle-entry
+      - beehive-minimum-spacing
+    context_files:
+      - src/engine/cloverLifecycle.ts
+      - src/engine/clover.ts
+      - src/engine/lightning.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/cloverLifecycle.test.ts
+    output_files:
+      - src/engine/__tests__/ecosystemBalance.test.ts
+    depends_on:
+      - burnt-clover-recovery
+      - beehive-spacing
+    verification:
+      - npx vitest run src/engine/__tests__/ecosystemBalance.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: weather-rain-overlay
+    title: Render viewport-wide animated rain overlay when weather sky is rain
+    spec_id: weather-rain-overlay
+    spec_sections:
+      - viewport-rain-overlay
+      - rain-overlay-suppressed-in-cave
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: weather-rain-overlay-tests
+    title: Write tests for weather rain overlay rendering conditions
+    spec_id: weather-rain-overlay
+    spec_sections:
+      - viewport-rain-overlay
+      - rain-overlay-suppressed-in-cave
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/__tests__/weatherRainOverlay.test.ts
+    depends_on:
+      - weather-rain-overlay
+    verification:
+      - npx vitest run src/engine/__tests__/weatherRainOverlay.test.ts
+    repair: retry
+    tags:
+      - test
+
+  # --- Tier 3: Gron dialog and Deep Time engine ---
+
+  - id: gron-deep-time-dialog
+    title: Extend Gron postGiftDialog and add postGiftAction to drop Deep Time revery
+    spec_id: deep-time-endgame
+    spec_sections:
+      - gron-deep-time-dialog
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/interaction.ts
+      - src/engine/entities.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/characters.ts
+      - src/engine/interaction.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    depends_on:
+      - deep-time-revery
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: deep-time-engine
+    title: Create deepTime.ts with initiateDeepTime, tickDeepTime, and phase transitions
+    spec_id: deep-time-endgame
+    spec_sections:
+      - deep-time-cast-initiation
+      - deep-time-burning-phase
+      - deep-time-simulation-phase
+      - deep-time-completion
+      - deep-time-entity-suppression
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+      - src/engine/entities.ts
+      - src/engine/weather.ts
+      - src/engine/tileWater.ts
+      - src/engine/cloverLifecycle.ts
+      - src/engine/clover.ts
+      - src/engine/lightning.ts
+      - src/engine/position.ts
+      - src/engine/state.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/deepTime.ts
+    depends_on:
+      - deep-time-types
+      - hunger-module
+      - burnt-clover-recovery
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 4: Hook up cast and movement suppression ---
+
+  - id: deep-time-cast-hook
+    title: Add deepTime castStyle handling to actionBar.ts activateActionBarSlot
+    spec_id: deep-time-endgame
+    spec_sections:
+      - deep-time-cast-initiation
+    context_files:
+      - src/engine/actionBar.ts
+      - src/engine/deepTime.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/actionBar.ts
+    depends_on:
+      - deep-time-engine
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: deep-time-movement-suppression
+    title: Guard WASD, click-to-move, and path systems against deep time active phases
+    spec_id: deep-time-endgame
+    spec_sections:
+      - deep-time-movement-suppression
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+      - src/engine/deepTime.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - deep-time-engine
+      - bee-hunger-integration
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: deep-time-entity-guards
+    title: Add early returns for shooting stars, meteorites, and character ticks when deepTime active
+    spec_id: deep-time-endgame
+    spec_sections:
+      - deep-time-entity-suppression
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/entities.ts
+      - src/engine/types.ts
+      - src/engine/deepTime.ts
+    output_files:
+      - src/engine/celestial.ts
+      - src/engine/entities.ts
+    depends_on:
+      - deep-time-engine
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 5: Game loop registration and deep time tick ---
+
+  - id: deep-time-gameloop
+    title: Register deep time tick system in game loop with accelerated simulation
+    spec_id: deep-time-endgame
+    spec_sections:
+      - deep-time-burning-phase
+      - deep-time-simulation-phase
+      - deep-time-completion
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/deepTime.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - deep-time-movement-suppression
+      - deep-time-entity-guards
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 6: Renderer changes ---
+
+  - id: deep-time-renderer
+    title: Render ghost player glyph, year counter overlay, and sky-fall visuals during deep time
+    spec_id: deep-time-endgame
+    spec_sections:
+      - deep-time-cast-initiation
+      - deep-time-burning-phase
+      - deep-time-simulation-phase
+      - deep-time-completion
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - deep-time-engine
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 7: Manual entry and dialog tests ---
+
+  - id: deep-time-manual
+    title: Add Deep Time manual-only entries and lore placeholders
+    spec_id: deep-time-endgame
+    spec_sections:
+      - deep-time-manual-entry
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/reveries.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - deep-time-revery
+      - gron-deep-time-dialog
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: gron-dialog-tests
+    title: Write tests for Gron Deep Time dialog and postGiftAction
+    spec_id: deep-time-endgame
+    spec_sections:
+      - gron-deep-time-dialog
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/interaction.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/gron-gift.test.ts
+    output_files:
+      - src/engine/__tests__/gronDeepTime.test.ts
+    depends_on:
+      - gron-deep-time-dialog
+    verification:
+      - npx vitest run src/engine/__tests__/gronDeepTime.test.ts
+    repair: retry
+    tags:
+      - test
+
+  # --- Tier 8: Deep Time integration tests ---
+
+  - id: deep-time-tests
+    title: Write integration tests for deep time initiation, phases, and completion
+    spec_id: deep-time-endgame
+    spec_sections:
+      - deep-time-cast-initiation
+      - deep-time-burning-phase
+      - deep-time-simulation-phase
+      - deep-time-completion
+      - deep-time-movement-suppression
+      - deep-time-entity-suppression
+    context_files:
+      - src/engine/deepTime.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/gameLoop.ts
+      - src/engine/actionBar.ts
+      - src/engine/__tests__/gron-gift.test.ts
+    output_files:
+      - src/engine/__tests__/deepTime.test.ts
+    depends_on:
+      - deep-time-gameloop
+      - deep-time-cast-hook
+      - deep-time-renderer
+    verification:
+      - npx vitest run src/engine/__tests__/deepTime.test.ts
+    repair: retry
+    tags:
+      - test

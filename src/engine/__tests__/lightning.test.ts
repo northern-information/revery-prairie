@@ -198,7 +198,7 @@ describe('lightning', () => {
     it('does not spread on dirt tiles', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
-      const burned = spreadWildfire(state, state.player.x + 3, state.player.y + 3)
+      const burned = spreadWildfire(state, 0, state.player.x + 3, state.player.y + 3)
       expect(burned.size).toBe(0)
     })
 
@@ -213,7 +213,7 @@ describe('lightning', () => {
         hasLight: true,
       })
       state.tileWater.set(posKey(x, y), WATER_MAX)
-      const burned = spreadWildfire(state, x, y)
+      const burned = spreadWildfire(state, 0, x, y)
       // Origin always burns — water is forced to 0
       expect(burned.size).toBe(1)
       expect(state.tileWater.get(posKey(x, y))).toBe(0)
@@ -240,7 +240,7 @@ describe('lightning', () => {
         }
       }
 
-      const burned = spreadWildfire(state, cx, cy)
+      const burned = spreadWildfire(state, 0, cx, cy)
       expect(burned.size).toBeGreaterThan(1)
     })
 
@@ -263,7 +263,7 @@ describe('lightning', () => {
         }
       }
 
-      const burned = spreadWildfire(state, cx, cy)
+      const burned = spreadWildfire(state, 0, cx, cy)
       for (const key of burned) {
         const [xStr, yStr] = key.split(',')
         expect(state.map[Number(yStr)][Number(xStr)].type).toBe(TileType.BurntClover)
@@ -284,7 +284,7 @@ describe('lightning', () => {
       state.tileWater.set(posKey(cx, cy), 0)
 
       state.soilHealth.set(posKey(cx, cy), 10)
-      spreadWildfire(state, cx, cy)
+      spreadWildfire(state, 0, cx, cy)
       const after = state.soilHealth.get(posKey(cx, cy)) ?? 0
       expect(after).toBe(10 + SOIL_HEALTH_FIRE_REVERY_BONUS)
     })
@@ -302,8 +302,10 @@ describe('lightning', () => {
       })
       state.tileWater.set(posKey(cx, cy), 0)
 
-      spreadWildfire(state, cx, cy)
-      expect(state.cloverLifecycle.has(posKey(cx, cy))).toBe(false)
+      spreadWildfire(state, 0, cx, cy)
+      const entry = state.cloverLifecycle.get(posKey(cx, cy))
+      expect(entry).toBeTruthy()
+      expect(entry?.stage).toBe(CloverStage.BurntRecovering)
     })
 
     it('respects WILDFIRE_MAX_SPREAD limit', () => {
@@ -321,7 +323,7 @@ describe('lightning', () => {
         }
       }
 
-      const burned = spreadWildfire(state, state.player.x + 5, state.player.y + 5)
+      const burned = spreadWildfire(state, 0, state.player.x + 5, state.player.y + 5)
       expect(burned.size).toBeLessThanOrEqual(WILDFIRE_MAX_SPREAD)
     })
 
@@ -346,7 +348,7 @@ describe('lightning', () => {
       state.map[cy][cx] = { type: TileType.Dirt }
 
       // Start fire on the left side
-      const burned = spreadWildfire(state, cx - 1, cy)
+      const burned = spreadWildfire(state, 0, cx - 1, cy)
       // Should not have burned any tile on the right side of the river
       for (const key of burned) {
         const [xStr] = key.split(',')

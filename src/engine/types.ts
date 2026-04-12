@@ -94,6 +94,7 @@ export interface CharacterDefinition {
   music?: string
   gift?: { kind: 'revery' | 'item'; id: string }
   postGiftDialog?: string[]
+  postGiftAction?: (state: GameState) => void
 }
 
 export interface ReveryDefinition {
@@ -104,7 +105,7 @@ export interface ReveryDefinition {
   glyphColor: string
   cooldownMs: number
   castDurationMs: number
-  castStyle: 'tile' | 'rain' | 'scan' | 'targeted'
+  castStyle: 'tile' | 'rain' | 'scan' | 'targeted' | 'deepTime'
   castPattern: Position[]
 }
 
@@ -200,6 +201,8 @@ export interface GameState {
   glintOpacity: Map<string, number>
   lastGlintSpawnTime: number
   civilizationRuins: CivilizationRuin[]
+  deepTime: DeepTimeState | null
+  postGiftActionsCompleted: Set<string>
 }
 
 export const CloverStage = {
@@ -208,6 +211,7 @@ export const CloverStage = {
   BlinkingRed: 'blinkingRed',
   Black: 'black',
   Decomposing: 'decomposing',
+  BurntRecovering: 'burntRecovering',
 } as const
 
 export type CloverStage = (typeof CloverStage)[keyof typeof CloverStage]
@@ -271,6 +275,23 @@ export const Zone = {
 } as const
 
 export type Zone = (typeof Zone)[keyof typeof Zone]
+
+export const DeepTimePhase = {
+  Burning: 'burning',
+  Simulating: 'simulating',
+  Wandering: 'wandering',
+} as const
+
+export type DeepTimePhase = (typeof DeepTimePhase)[keyof typeof DeepTimePhase]
+
+export interface DeepTimeState {
+  active: boolean
+  startTime: number
+  phase: DeepTimePhase
+  elapsedYears: number
+  playerGlyph: string
+  playerGlyphColor: string
+}
 
 export interface MeteorShowerState {
   active: boolean

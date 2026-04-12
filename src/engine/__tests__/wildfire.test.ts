@@ -43,7 +43,7 @@ describe('wildfire spread', () => {
       })
       state.tileWater.set(posKey(x, y), WATER_MAX)
 
-      const burned = spreadWildfire(state, x, y)
+      const burned = spreadWildfire(state, 0, x, y)
 
       expect(burned.size).toBe(1)
       expect(burned.has(posKey(x, y))).toBe(true)
@@ -68,7 +68,7 @@ describe('wildfire spread', () => {
         }
       }
 
-      const burned = spreadWildfire(state, state.player.x + 5, state.player.y + 5, FIRE_REVERY_MAX_SPREAD)
+      const burned = spreadWildfire(state, 0, state.player.x + 5, state.player.y + 5, FIRE_REVERY_MAX_SPREAD)
       expect(burned.size).toBeLessThanOrEqual(FIRE_REVERY_MAX_SPREAD)
       expect(burned.size).toBeGreaterThan(0)
     })
@@ -93,7 +93,7 @@ describe('wildfire spread', () => {
           }
         }
 
-        const burned = spreadWildfire(state, state.player.x + 5, state.player.y + 5)
+        const burned = spreadWildfire(state, 0, state.player.x + 5, state.player.y + 5)
         expect(burned.size).toBeLessThanOrEqual(WILDFIRE_MAX_SPREAD)
         if (burned.size > maxBurned) maxBurned = burned.size
       }
@@ -231,7 +231,7 @@ describe('wildfire spread', () => {
       }
 
       // Start fire on the left side
-      const burned = spreadWildfire(state, cx - 1, cy, FIRE_REVERY_MAX_SPREAD)
+      const burned = spreadWildfire(state, 0, cx - 1, cy, FIRE_REVERY_MAX_SPREAD)
 
       // No burned tile should be on the right side of the pond
       for (const key of burned) {

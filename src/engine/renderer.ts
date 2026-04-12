@@ -69,6 +69,7 @@ import {
   GLINT_ZONE_COLORS,
   GLINT_ZONE_DENSITY,
   GLINT_ZONE_SPEED,
+  WEATHER_RAIN_DENSITY,
   WILDFIRE_CHARS,
   WILDFIRE_COLORS,
   WILDFIRE_DURATION_MS,
@@ -77,7 +78,7 @@ import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
 import { isInBounds, posKey, tileHash } from './position'
 import { getReveryDefinition } from './reveries'
-import { CloverStage, TileType, Zone } from './types'
+import { CloverStage, DeepTimePhase, Sky, TileType, Zone } from './types'
 
 import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState } from './types'
@@ -698,8 +699,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           ctx.fillStyle = previewTile.color
           ctx.fillText(previewTile.char, px, py)
         }
-        char = PLAYER_CHAR
-        color = PLAYER_COLOR
+        char = state.deepTime?.active ? state.deepTime.playerGlyph : PLAYER_CHAR
+        color = state.deepTime?.active ? state.deepTime.playerGlyphColor : PLAYER_COLOR
         cursorable = false
       } else if (characterMap.has(tileKey)) {
         const ch = characterMap.get(tileKey)
@@ -938,6 +939,31 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     ctx.fillText(RAIN_CHARS[phase], rpx, rpy)
   }
 
+  // Weather rain overlay — viewport-wide animated rain when sky is rain (overworld only)
+  if (state.weather.sky === Sky.Rain && zone === Zone.Overworld) {
+    for (let vy = 0; vy < viewportHeight; vy++) {
+      for (let vx = 0; vx < viewportWidth; vx++) {
+        const wx = camera.x + vx
+        const wy = camera.y + vy
+        if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue
+        if (wx === player.x && wy === player.y) continue
+
+        const h = tileHash(wx + state.rainSeed, wy)
+        if (h % WEATHER_RAIN_DENSITY !== 0) continue
+
+        const phase =
+          ((h >> 4) + Math.floor(time * RAIN_SPEED)) % RAIN_CHARS.length
+        const colorPhase =
+          ((h >> 8) + Math.floor(time * RAIN_SPEED * 0.7)) % RAIN_COLORS.length
+
+        const rpx = vx * charWidth
+        const rpy = vy * charHeight
+        ctx.fillStyle = RAIN_COLORS[colorPhase]
+        ctx.fillText(RAIN_CHARS[phase], rpx, rpy)
+      }
+    }
+  }
+
   // Glinting zone sparkle overlay — overworld only
   if (zone === Zone.Overworld) {
     for (let vy = 0; vy < viewportHeight; vy++) {
@@ -965,6 +991,42 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         ctx.fillText(GLINT_ZONE_CHARS[glintPhase], gpx, gpy)
       }
     }
+  }
+
+  // Deep Time burning overlay — fire characters on burning tiles
+  if (state.deepTime?.active && state.deepTime.phase === DeepTimePhase.Burning) {
+    for (let vy = 0; vy < viewportHeight; vy++) {
+      for (let vx = 0; vx < viewportWidth; vx++) {
+        const wx = camera.x + vx
+        const wy = camera.y + vy
+        if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue
+        if (map[wy][wx].type !== TileType.BurntClover) continue
+
+        const h = tileHash(wx, wy)
+        if (h % 3 !== 0) continue // sparse
+
+        const fireChars = ['^', '~', '*']
+        const fireColors = ['#FF4500', '#FF6600', '#FF8800', '#FFAA00']
+        const phase = ((h >> 4) + Math.floor(time * 0.01)) % fireChars.length
+        const colorPhase = ((h >> 8) + Math.floor(time * 0.008)) % fireColors.length
+
+        const rpx = vx * charWidth
+        const rpy = vy * charHeight
+        ctx.fillStyle = fireColors[colorPhase]
+        ctx.fillText(fireChars[phase], rpx, rpy)
+      }
+    }
+  }
+
+  // Deep Time year counter overlay
+  if (state.deepTime?.active && state.deepTime.phase === DeepTimePhase.Simulating) {
+    const yearText = `year ${String(state.deepTime.elapsedYears)}`
+    ctx.fillStyle = '#FFFFFF'
+    ctx.font = metrics.font
+    const textWidth = ctx.measureText(yearText).width
+    const x = (pxWidth - textWidth) / 2
+    const y = charHeight * 2
+    ctx.fillText(yearText, x, y)
   }
 
   // Lightning screen flash overlay — drawn last, covers everything

@@ -151,7 +151,28 @@ export const advanceDialog = (state: GameState): boolean => {
     state.activeDialog.transitionStartTime = performance.now()
     return true
   }
+
+  const characterId = state.activeDialog.characterId
   state.activeDialog = null
+
+  // Trigger one-time postGiftAction when completing postGiftDialog
+  const def = getCharacterDefinition(characterId)
+  if (
+    def.postGiftAction &&
+    state.giftsReceived.has(characterId) &&
+    !state.postGiftActionsCompleted.has(characterId)
+  ) {
+    const reveryCountBefore = state.reveries.length
+    def.postGiftAction(state)
+    state.postGiftActionsCompleted.add(characterId)
+    recordDiscovery(state, `event:${characterId}-deep-time`)
+
+    // Auto-assign any newly added reveries to the action bar
+    for (let i = reveryCountBefore; i < state.reveries.length; i++) {
+      autoAssignRevery(state, state.reveries[i])
+    }
+  }
+
   return false
 }
 

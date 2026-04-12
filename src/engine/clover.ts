@@ -1,4 +1,5 @@
 import {
+  BEEHIVE_MIN_DISTANCE,
   CLOVER_BASE_GROWTH_CHANCE,
   CLOVER_BEE_GROWTH_BONUS,
   CLOVER_HIVE_RATIO,
@@ -288,6 +289,20 @@ const spawnHoney = (state: GameState, pos: Position): void => {
 export const tickCloverHives = (state: GameState): void => {
   const patches = floodFillCloverPatches(state)
 
+  // Collect all existing overworld beehive positions for minimum distance enforcement
+  const existingHivePositions: Position[] = []
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'beehive') continue
+    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (pos) existingHivePositions.push({ x: pos.x, y: pos.y })
+  }
+
+  const isTooCloseToHive = (pos: Position): boolean =>
+    existingHivePositions.some(
+      hp => Math.abs(pos.x - hp.x) + Math.abs(pos.y - hp.y) < BEEHIVE_MIN_DISTANCE
+    )
+
   for (const patch of patches) {
     patch.beeCount = countBeesOnPatch(patch, state)
     patch.hiveCount = countHivesOnPatch(patch, state)
@@ -314,7 +329,9 @@ export const tickCloverHives = (state: GameState): void => {
           if (isInterior) interiorTiles.push(pos)
         }
 
-        const candidates = interiorTiles.length > 0 ? interiorTiles : allTiles
+        const candidates = (interiorTiles.length > 0 ? interiorTiles : allTiles).filter(
+          pos => !isTooCloseToHive(pos)
+        )
         if (candidates.length > 0) {
           const target = candidates[Math.floor(Math.random() * candidates.length)]
           spawnBeehive(state, target)

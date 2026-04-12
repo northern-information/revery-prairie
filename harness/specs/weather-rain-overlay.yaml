@@ -1,0 +1,76 @@
+id: weather-rain-overlay
+name: 'Weather rain overlay'
+status: planned
+priority: medium
+layer: engine
+source_files:
+  - src/engine/renderer.ts
+  - src/engine/types.ts
+dependencies:
+  - weather
+  - renderer
+
+behaviors:
+  - id: viewport-rain-overlay
+    description: >
+      when state.weather.sky is rain and currentZone is overworld, the
+      renderer draws animated rain characters across the entire
+      viewport. uses the same RAIN_CHARS, RAIN_COLORS, RAIN_SPEED, and
+      tileHash-based animation as Gron's rain aura overlay. density is
+      sparser than the aura rain — WEATHER_RAIN_DENSITY (5, meaning ~1
+      in 5 tiles) to avoid overwhelming the screen. rain drops are
+      drawn after all tile and entity rendering but before the cursor
+      highlight pass. skips the player tile and any tile already
+      covered by a rain aura or revery rain effect.
+    inputs:
+      - 'state.weather.sky is rain'
+      - 'state.currentZone is overworld'
+    outputs:
+      - 'animated rain characters rendered across visible viewport tiles'
+    state_changes: []
+    determinism: deterministic
+
+  - id: rain-overlay-suppressed-in-cave
+    description: >
+      when currentZone is cave, no weather rain overlay is drawn
+      regardless of weather state. the cave is underground.
+    inputs:
+      - 'state.currentZone is cave'
+    outputs:
+      - 'no rain overlay rendered'
+    state_changes: []
+    determinism: deterministic
+
+  - id: rain-overlay-during-deep-time
+    description: >
+      during the deep time simulation, weather continues to tick. when
+      simulated weather produces rain, the rain overlay renders
+      normally across the viewport, creating visible rain cycles
+      across centuries.
+    inputs:
+      - 'deepTime.active is true and deepTime.phase is simulating'
+      - 'weather.sky is rain'
+    outputs:
+      - 'rain overlay visible during rainy periods of the simulation'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: rain-does-not-overlap-aura
+    description: 'tiles already receiving rain from a character aura or revery cast do not get double rain rendering'
+    expected: 'weather rain skips tiles covered by aura or revery rain'
+  - id: rain-stops-when-weather-clears
+    description: 'when weather transitions from rain to cloudy or sun, overlay disappears immediately'
+    expected: 'no rain characters rendered on next frame after sky changes'
+  - id: rain-at-all-zoom-levels
+    description: 'rain overlay renders correctly at different zoom levels'
+    expected: 'rain characters scale with tile size like all other overlay effects'
+
+failure_conditions:
+  - trigger: 'weather.sky is undefined or invalid'
+    expected: 'no rain overlay rendered, no crash'
+
+verification:
+  test_file: src/engine/__tests__/weatherRainOverlay.test.ts
+  test_pattern: 'weather rain overlay'
+  command: 'npx vitest run src/engine/__tests__/weatherRainOverlay.test.ts'

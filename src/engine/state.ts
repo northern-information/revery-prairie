@@ -165,6 +165,8 @@ export const createGameState = (
     glintOpacity: new Map<string, number>(),
     lastGlintSpawnTime: 0,
     civilizationRuins: genesisResult?.ruins ?? [],
+    deepTime: null,
+    postGiftActionsCompleted: new Set<string>(),
   }
 
   // Seed glinting zone patches with staggered birth times

@@ -1,0 +1,296 @@
+id: deep-time-endgame
+name: 'Deep Time endgame'
+status: planned
+priority: critical
+layer: integration
+source_files:
+  - src/engine/characters.ts
+  - src/engine/reveries.ts
+  - src/engine/types.ts
+  - src/engine/deepTime.ts
+  - src/engine/gameLoop.ts
+  - src/engine/entities.ts
+  - src/engine/interaction.ts
+  - src/engine/state.ts
+  - src/engine/constants.ts
+  - src/engine/manual.ts
+dependencies:
+  - bee-starvation
+  - ecosystem-balance
+  - weather-rain-overlay
+  - clover-lifecycle
+  - weather
+  - shooting-stars
+
+behaviors:
+  - id: gron-deep-time-dialog
+    description: >
+      after gron gives the water revery, subsequent interactions show a
+      multi-line postGiftDialog. the first line is the Deep Time
+      speech. the second line is the readiness question. on completing
+      the final dialog line, gron drops the Deep Time revery as a
+      ground item at the player's position. this uses a new field
+      postGiftAction on CharacterEntry. gron's postGiftAction is a
+      function that spawns a ground revery item. the action fires once
+      — tracked via a new state.postGiftActionsCompleted set.
+    inputs:
+      - 'player interacts with gron after giftsReceived has gron'
+      - 'player advances through all postGiftDialog lines'
+    outputs:
+      - 'deep-time revery item appears on the ground at player position'
+      - 'onDiscovery callback fires for revery drop'
+    state_changes:
+      - field: postGiftActionsCompleted
+        effect: 'gron added to set (prevents repeat drops)'
+      - field: 'world (ECS)'
+        effect: 'new ground item entity with deep-time revery item spawned at player position'
+      - field: manualDiscoveries
+        effect: 'event:gron-deep-time recorded'
+    determinism: deterministic
+
+  - id: deep-time-revery-definition
+    description: >
+      new revery registered in REVERIES with id deep-time. castStyle
+      is a new value deepTime. castDurationMs is 0 (effect is
+      immediate — the simulation takes over). cooldownMs is Infinity
+      (one-shot, no recast). glyphs are hourglass-like characters.
+      glyphColor is white.
+    inputs:
+      - 'player equips deep-time revery to action bar and presses slot key'
+    outputs:
+      - 'castStyle deepTime triggers the deep time sequence'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'revery:deep-time recorded'
+    determinism: deterministic
+
+  - id: deep-time-cast-initiation
+    description: >
+      when the player casts the deep-time revery, the game enters deep
+      time mode. the cast handler in actionBar.ts detects castStyle
+      deepTime and calls initiateDeepTime(state). this function sets
+      state.deepTime.active to true, records the start timestamp,
+      converts the player glyph to ghost glyph (ö) and color to white,
+      disables player movement input (WASD and click-to-move ignored
+      when deepTime phase is burning or simulating — zoom controls
+      remain active), removes all character and ghost entities from
+      the ECS world, and stops meteorite/shooting star spawning.
+    inputs:
+      - 'player activates action bar slot containing deep-time revery'
+    outputs:
+      - 'player rendered as ghost glyph ö in white'
+      - 'all characters and ghosts removed from map'
+      - 'shooting stars and meteorites stop spawning'
+    state_changes:
+      - field: deepTime.active
+        effect: 'set to true'
+      - field: deepTime.startTime
+        effect: 'set to current time'
+      - field: deepTime.elapsedYears
+        effect: 'set to 0'
+      - field: deepTime.phase
+        effect: 'set to burning'
+      - field: player
+        effect: 'position unchanged, rendered as ghost'
+      - field: 'world (ECS)'
+        effect: 'all entities with character/ghost tags destroyed'
+      - field: activeDialog
+        effect: 'set to null'
+      - field: path
+        effect: 'set to null'
+      - field: actionBar
+        effect: 'all slots cleared (no more casting)'
+    determinism: deterministic
+
+  - id: deep-time-burning-phase
+    description: >
+      immediately after initiation the burning phase begins. fire
+      ignites from several random points across the prairie using the
+      existing wildfire spread BFS. the burning phase lasts
+      DEEP_TIME_BURN_DURATION_MS (approximately 5 seconds real-time).
+      the burn is dramatic but not total — it originates from a
+      handful of ignition points (3-5) and spreads organically. how
+      much burns depends on clover density and layout. during this
+      phase a sky-fall visual overlay renders (reusing genesis meteor
+      streak rendering with fire colors). clover lifecycle ticks
+      continue — fire converts clover to burntClover. weather
+      continues.
+    inputs:
+      - 'deepTime.active is true and deepTime.phase is burning'
+    outputs:
+      - 'fire spread from several ignition points across the prairie'
+      - 'genesis-style fire-fall visual overlay'
+    state_changes:
+      - field: map tiles
+        effect: 'clover tiles near ignition points converted to burntClover by wildfire spread'
+      - field: burnScars
+        effect: 'positions added as fire spreads'
+      - field: deepTime.phase
+        effect: 'transitions to simulating after burn duration'
+    determinism: probabilistic
+
+  - id: deep-time-simulation-phase
+    description: >
+      after the burn phase, the simulation phase runs. this accelerates
+      existing game tick systems to compress 1000 years into
+      approximately 20 seconds of real-time. each animation frame
+      advances the simulation by DEEP_TIME_YEARS_PER_FRAME years
+      (approximately 50 years per frame at 60fps = 1000 frames total).
+      per frame, the deep time tick system calls the following existing
+      systems in sequence at their accelerated rates: weather tick,
+      tile water tick, clover lifecycle tick, clover growth tick, bee
+      tick. shooting stars, meteorites, and character behaviors are
+      suppressed. lightning continues to strike — it is a natural
+      phenomenon that persists across millennia and serves as a
+      recurring source of wildfire during the simulation (replicating
+      the burning-phase drama at irregular intervals throughout the
+      1000 years). the sky-fall visual (genesis-style meteor streaks)
+      plays periodically throughout the simulation — not continuously,
+      but in dramatic waves every few hundred simulated years,
+      representing geological upheaval. a year counter overlay shows
+      elapsed years.
+    inputs:
+      - 'deepTime.active is true and deepTime.phase is simulating'
+    outputs:
+      - 'existing game systems tick at accelerated rate'
+      - 'lightning strikes continue, causing periodic wildfires'
+      - 'periodic sky-fall visual waves'
+      - 'year counter overlay visible'
+    state_changes:
+      - field: deepTime.elapsedYears
+        effect: 'incremented by DEEP_TIME_YEARS_PER_FRAME each frame'
+      - field: weather
+        effect: 'drifts over simulated centuries'
+      - field: cloverLifecycle
+        effect: 'clover lives and dies over simulated time'
+      - field: soilHealth
+        effect: 'changes from clover death enrichment'
+      - field: tileWater
+        effect: 'changes from rain cycles'
+      - field: 'world (ECS) bees'
+        effect: 'bees move, starve, or persist based on clover availability'
+      - field: map tiles
+        effect: 'lightning strikes cause periodic wildfire spread during simulation'
+    determinism: probabilistic
+
+  - id: deep-time-completion
+    description: >
+      when elapsedYears reaches 1000 the simulation stops. deepTime
+      phase transitions to wandering. the sky-fall overlay fades out.
+      player movement re-enables but the player remains a ghost (ö
+      glyph, white). no characters return. no meteorites spawn. the
+      game continues indefinitely in this ghost-wandering state. no
+      win/loss message is shown.
+    inputs:
+      - 'deepTime.elapsedYears >= 1000'
+    outputs:
+      - 'sky-fall overlay fades out'
+      - 'player can move again as ghost'
+      - 'no win/loss UI'
+    state_changes:
+      - field: deepTime.phase
+        effect: 'set to wandering'
+      - field: deepTime.active
+        effect: 'remains true (suppresses characters, meteorites permanently)'
+    determinism: deterministic
+
+  - id: deep-time-movement-suppression
+    description: >
+      during burning and simulating phases, WASD movement,
+      click-to-move, and held direction are all ignored. zoom controls
+      remain active so the player can zoom out and watch the
+      simulation unfold. during wandering phase, all movement
+      re-enables.
+    inputs:
+      - 'player attempts WASD or click-to-move during burning or simulating phase'
+    outputs:
+      - 'movement ignored, no state change'
+      - 'zoom still works'
+    state_changes: []
+    determinism: deterministic
+
+  - id: deep-time-entity-suppression
+    description: >
+      when deepTime.active is true, shooting star spawning,
+      meteorite spawning, meteor shower ticks, and character behavior
+      ticks are all suppressed via early returns. lightning spawning
+      continues (natural phenomenon). ground items, ground omniboxes,
+      and other non-character entities persist.
+    inputs:
+      - 'deepTime.active is true, game loop ticks entity systems'
+    outputs:
+      - 'no new shooting stars, meteorites, or character movements'
+      - 'lightning continues to strike and can cause wildfires'
+    state_changes: []
+    determinism: deterministic
+
+  - id: deep-time-state-shape
+    description: >
+      new deepTime field on GameState. type is DeepTimeState or null.
+      DeepTimeState has: active (boolean), startTime (number), phase
+      (burning | simulating | wandering), elapsedYears (number),
+      playerGlyph (string, the ghost glyph), playerGlyphColor (string).
+      initialized to null in createGameState.
+    inputs: []
+    outputs: []
+    state_changes:
+      - field: deepTime
+        effect: 'new field on GameState, null by default'
+    determinism: deterministic
+
+  - id: deep-time-manual-entry
+    description: >
+      deep-time revery auto-generates a manual entry via existing
+      ITEM_DEFINITIONS/REVERY_DEFINITIONS registry. discovery recorded
+      when gron drops it. a manual-only entry for the deep time event
+      is added to MANUAL_ONLY_ENTRIES.
+    inputs:
+      - 'player picks up deep-time revery or casts it'
+    outputs:
+      - 'manual entry visible in prairie manual'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'event:deep-time recorded on cast'
+    determinism: deterministic
+
+edge_cases:
+  - id: cast-in-cave
+    description: 'player casts deep-time revery while in the cave zone'
+    expected: 'deep time initiates normally. cave map is the active map during simulation. overworld map also simulates via dual-zone tick system.'
+  - id: gron-dialog-already-completed
+    description: 'player talks to gron again after deep-time revery was already dropped'
+    expected: 'postGiftDialog replays but postGiftAction does not fire again (tracked in postGiftActionsCompleted)'
+  - id: deep-time-revery-dropped-on-ground
+    description: 'player drops the deep-time revery item without casting it'
+    expected: 'revery becomes a ground item. player can pick it up later.'
+  - id: inventory-full-when-gron-drops
+    description: 'player backpack is full when gron finishes dialog'
+    expected: 'deep-time revery drops on the ground at player position as a ground item regardless of backpack state'
+  - id: sparse-clover-survives-burn
+    description: 'isolated clover patches far from ignition points survive the initial burn phase'
+    expected: 'fire only reaches clover within wildfire BFS range of ignition points. distant clover survives to face the 1000-year simulation.'
+  - id: all-clover-dies-during-simulation
+    description: 'all clover dies and all bees starve during the 1000-year simulation'
+    expected: 'simulation completes normally. player wanders a barren prairie as ghost. no special message.'
+  - id: clover-survives-simulation
+    description: 'some clover and bees survive the 1000-year simulation due to rain, soil health, and distance from lightning fires'
+    expected: 'simulation completes. player wanders a living prairie as ghost. no special message.'
+  - id: esc-during-deep-time
+    description: 'player presses ESC during burning or simulating phase'
+    expected: 'ESC menu opens normally (pause the simulation). resume continues from where it left off.'
+  - id: zoom-during-deep-time
+    description: 'player uses zoom controls during burning or simulating phase'
+    expected: 'zoom works normally so player can watch simulation at different scales'
+
+failure_conditions:
+  - trigger: 'deep-time revery cast while deepTime is already active'
+    expected: 'no-op. action bar is cleared on initiation so this cannot happen in normal play.'
+  - trigger: 'player somehow has no deep-time revery (e.g. test setup)'
+    expected: 'standard action bar validation prevents casting an unequipped revery'
+  - trigger: 'game loop ticks during deep time with destroyed character entities'
+    expected: 'character behavior tick skips gracefully when no characters exist in ECS'
+
+verification:
+  test_file: src/engine/__tests__/deepTime.test.ts
+  test_pattern: 'deep time'
+  command: 'npx vitest run src/engine/__tests__/deepTime.test.ts'

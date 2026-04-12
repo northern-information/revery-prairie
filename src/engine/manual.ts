@@ -76,6 +76,9 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'revery:lightning': { lore: 'TODO' },
   // Glinting zones
   'event:glint-zone': { lore: 'TODO' },
+  // Deep time
+  'event:deep-time': { lore: 'TODO' },
+  'event:gron-deep-time': { lore: 'TODO' },
   // Recipes
   'recipe:bee+clover': { lore: 'TODO' },
 }
@@ -500,6 +503,34 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
       'TODO',
     hints: MANUAL_LORE['event:glint-zone']?.hints ?? [],
     unlockKey: 'event:glint-zone',
+    sourceKind: 'event',
+  },
+  {
+    id: 'event:deep-time',
+    name: 'Deep Time',
+    category: ManualCategory.Revery,
+    glyph: '⧖',
+    glyphColor: '#FFFFFF',
+    summary: 'The final act of stewardship. A controlled burn followed by a millennium of observation.',
+    lore:
+      MANUAL_LORE['event:deep-time']?.lore ??
+      'The final act of stewardship. A controlled burn followed by a millennium of observation.',
+    hints: MANUAL_LORE['event:deep-time']?.hints ?? [],
+    unlockKey: 'event:deep-time',
+    sourceKind: 'event',
+  },
+  {
+    id: 'event:gron-deep-time',
+    name: "Gron's Final Words",
+    category: ManualCategory.Person,
+    glyph: 'G',
+    glyphColor: '#FFFFFF',
+    summary: 'Gron speaks of the Deep Time revery and what it means to let go.',
+    lore:
+      MANUAL_LORE['event:gron-deep-time']?.lore ??
+      'Gron speaks of the Deep Time revery and what it means to let go.',
+    hints: MANUAL_LORE['event:gron-deep-time']?.hints ?? [],
+    unlockKey: 'event:gron-deep-time',
     sourceKind: 'event',
   },
 ]
