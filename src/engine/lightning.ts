@@ -1,6 +1,5 @@
 import { generateBoltPath } from './boltPath'
 import {
-  CLOVER_WATER_MAX,
   LIGHTNING_BASE_CHANCE,
   LIGHTNING_BOLT_MAX_LENGTH,
   LIGHTNING_BOLT_MIN_LENGTH,
@@ -18,6 +17,7 @@ import {
   LIGHTNING_WEIGHT_STRIKE_HISTORY,
   SOIL_HEALTH_FIRE_REVERY_BONUS,
   SPACE_BORDER,
+  WATER_MAX,
   WILDFIRE_DRY_THRESHOLD,
   WILDFIRE_DURATION_MS,
   WILDFIRE_MAX_SPREAD,
@@ -188,8 +188,8 @@ export const spreadWildfire = (
   // Check if strike tile is dry clover
   if (state.map[strikeY][strikeX].type !== TileType.Clover) return burned
   const strikeKey = posKey(strikeX, strikeY)
-  const strikeEntry = state.cloverLifecycle.get(strikeKey)
-  if (strikeEntry && strikeEntry.water >= WILDFIRE_DRY_THRESHOLD) return burned
+  const strikeWater = state.tileWater.get(strikeKey) ?? WATER_MAX
+  if (strikeWater >= WILDFIRE_DRY_THRESHOLD) return burned
 
   // BFS spread
   const queue: { x: number; y: number }[] = [{ x: strikeX, y: strikeY }]
@@ -204,12 +204,11 @@ export const spreadWildfire = (
 
     // Check water level (skip for origin which we already checked)
     if (key !== strikeKey) {
-      const entry = state.cloverLifecycle.get(key)
-      const water = entry?.water ?? CLOVER_WATER_MAX
+      const water = state.tileWater.get(key) ?? WATER_MAX
       if (water >= WILDFIRE_DRY_THRESHOLD) continue
 
       // Probabilistic spread based on dryness
-      const spreadChance = (1 - water / CLOVER_WATER_MAX) * 0.6
+      const spreadChance = (1 - water / WATER_MAX) * 0.6
       if (Math.random() < 1 - spreadChance) continue
     }
 

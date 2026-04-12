@@ -1,0 +1,225 @@
+plan:
+  id: tile-water
+  title: Move water from clover lifecycle to tile-level state
+  created: 2026-04-11
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-tile-water-state-and-constants
+    title: Add tileWater to GameState, rename CLOVER_WATER constants to WATER, remove water from CloverLifecycleState
+    spec_id: tile-water
+    spec_sections:
+      - tile-water-state
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/terrain.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: initialize-tile-water-in-state
+    title: Populate tileWater for all dirt and clover tiles in createGameState
+    spec_id: tile-water
+    spec_sections:
+      - tile-water-state
+    context_files:
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/terrain.ts
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - add-tile-water-state-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: tile-water-tick
+    title: Add tickTileWater function that drains/fills all tileWater entries based on rain state
+    spec_id: tile-water
+    spec_sections:
+      - tile-water-rain-fill
+      - tile-water-drain
+    context_files:
+      - src/engine/cloverLifecycle.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/tileWater.ts
+      - src/engine/gameLoop.ts
+    depends_on:
+      - add-tile-water-state-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: migrate-clover-lifecycle-to-tile-water
+    title: Remove water from clover lifecycle — read from tileWater, remove rain fill and drain logic from tickCloverLifecycle
+    spec_id: tile-water
+    spec_sections:
+      - clover-reads-tile-water
+    context_files:
+      - src/engine/cloverLifecycle.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/tileWater.ts
+    output_files:
+      - src/engine/cloverLifecycle.ts
+    depends_on:
+      - tile-water-tick
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: migrate-water-revery
+    title: Water revery writes to tileWater instead of lifecycle.water
+    spec_id: tile-water
+    spec_sections:
+      - water-revery-fills-tile-water
+    context_files:
+      - src/engine/actionBar.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/actionBar.ts
+    depends_on:
+      - add-tile-water-state-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: migrate-lightning-fire-spread
+    title: Lightning fire spread reads tileWater instead of lifecycle.water
+    spec_id: tile-water
+    spec_sections:
+      - clover-reads-tile-water
+    context_files:
+      - src/engine/lightning.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/lightning.ts
+    depends_on:
+      - add-tile-water-state-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: sidebar-water-display
+    title: Show water row on dirt and clover tiles in sidebar, reading from tileWater
+    spec_id: tile-water
+    spec_sections:
+      - sidebar-shows-water-on-dirt
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - add-tile-water-state-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  - id: update-clover-lifecycle-tests
+    title: Update existing clover lifecycle tests to use tileWater instead of lifecycle.water
+    spec_id: tile-water
+    spec_sections:
+      - clover-reads-tile-water
+    context_files:
+      - src/engine/__tests__/cloverLifecycle.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/cloverLifecycle.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/cloverLifecycle.test.ts
+      - src/engine/__tests__/helpers.ts
+    depends_on:
+      - migrate-clover-lifecycle-to-tile-water
+    verification:
+      - npx vitest run src/engine/__tests__/cloverLifecycle.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: update-lightning-tests
+    title: Update lightning tests that reference lifecycle.water or CLOVER_WATER constants
+    spec_id: tile-water
+    spec_sections:
+      - clover-reads-tile-water
+    context_files:
+      - src/engine/__tests__/lightning.test.ts
+      - src/engine/__tests__/lightningRevery.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/lightning.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/lightning.test.ts
+      - src/engine/__tests__/lightningRevery.test.ts
+    depends_on:
+      - migrate-lightning-fire-spread
+    verification:
+      - npx vitest run src/engine/__tests__/lightning.test.ts
+      - npx vitest run src/engine/__tests__/lightningRevery.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: tile-water-unit-tests
+    title: Add unit tests for tileWater initialization, drain, fill, and persistence through tile changes
+    spec_id: tile-water
+    spec_sections:
+      - tile-water-state
+      - tile-water-rain-fill
+      - tile-water-drain
+    context_files:
+      - src/engine/tileWater.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/__tests__/tileWater.test.ts
+    depends_on:
+      - tile-water-tick
+      - initialize-tile-water-in-state
+    verification:
+      - npx vitest run src/engine/__tests__/tileWater.test.ts
+    repair: retry
+    tags:
+      - test

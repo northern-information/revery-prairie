@@ -10,6 +10,7 @@ import {
   MAP_HEIGHT,
   MAP_WIDTH,
   SPACE_BORDER,
+  WATER_MAX,
   ZOOM_DEFAULT,
 } from './constants'
 import { ComponentType } from './ecs/types'
@@ -174,6 +175,7 @@ export const createGameState = (
     omniboxStrikeCounts: new Map<string, number>(),
     cloverGrowthPreviews: new Set<string>(),
     cloverLifecycle: new Map(),
+    tileWater: new Map<string, number>(),
     soilHealth: genesisResult?.soilHealth ?? generateSoilHealth(map, MAP_WIDTH, MAP_HEIGHT),
     elevation: genesisResult?.elevation ?? new Map<string, number>(),
     ponds: genesisResult?.ponds ?? new Set<string>(),
@@ -190,6 +192,16 @@ export const createGameState = (
     divinedHexagrams: new Set<number>(),
     glintZones: generateGlintZones(map, MAP_WIDTH, MAP_HEIGHT),
     civilizationRuins: genesisResult?.ruins ?? [],
+  }
+
+  // Initialize tile water for all walkable overworld tiles
+  for (let y = 0; y < MAP_HEIGHT; y++) {
+    for (let x = 0; x < MAP_WIDTH; x++) {
+      const tileType = map[y][x].type
+      if (tileType === TileType.Dirt || tileType === TileType.Clover || tileType === TileType.BurntClover) {
+        state.tileWater.set(posKey(x, y), WATER_MAX)
+      }
+    }
   }
 
   // Place Gron near the player

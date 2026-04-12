@@ -3,37 +3,20 @@ import {
   CLOVER_BLINK_RED_DURATION_MS,
   CLOVER_BROWN_DURATION_MS,
   CLOVER_DECOMPOSE_DURATION_MS,
-  CLOVER_WATER_DRAIN_RATE,
-  CLOVER_WATER_MAX,
-  CLOVER_WATER_RAIN_FILL,
   SOIL_HEALTH_CLOVER_DEATH_BONUS,
   SOIL_HEALTH_CUT_BONUS,
   SOIL_HEALTH_DEFAULT,
   SOIL_HEALTH_MAX,
+  WATER_MAX,
 } from './constants'
-import { ComponentType } from './ecs/types'
 import { findFitPosition, placeItem } from './inventory'
 import { recordDiscovery } from './manual'
 import { isInBounds, posKey } from './position'
-import { CloverStage, Sky, TileType, Zone } from './types'
+import { CloverStage, TileType, Zone } from './types'
 
 import type { CloverLifecycleState, GameState, Zone as ZoneType } from './types'
 
 // --- Helpers ---
-
-const isInRainAura = (state: GameState, zone: ZoneType, x: number, y: number): boolean => {
-  for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== zone) continue
-    const aura = state.world.getComponent(eid, ComponentType.Aura)
-    if (aura?.kind !== 'rain') continue
-    const pos = state.world.getComponent(eid, ComponentType.Position)
-    if (!pos) continue
-    const dx = x - pos.x
-    const dy = y - pos.y
-    if (dx * dx + dy * dy <= aura.radius * aura.radius) return true
-  }
-  return false
-}
 
 const getSoilHealth = (state: GameState, key: string): number => state.soilHealth.get(key) ?? SOIL_HEALTH_DEFAULT
 
@@ -42,10 +25,9 @@ export const addSoilHealth = (state: GameState, key: string, bonus: number): voi
   state.soilHealth.set(key, Math.min(current + bonus, SOIL_HEALTH_MAX))
 }
 
-const createHealthyEntry = (time: number, water: number, hasLight: boolean): CloverLifecycleState => ({
+const createHealthyEntry = (time: number, hasLight: boolean): CloverLifecycleState => ({
   stage: CloverStage.Healthy,
   stageStartTime: time,
-  water,
   hasLight,
 })
 
@@ -86,7 +68,6 @@ export const tickCloverLifecycle = (state: GameState, zone: ZoneType, time: numb
   const w = state.mapWidth
   const h = state.mapHeight
   const hasLight = zone === Zone.Overworld
-  const isRaining = zone === Zone.Overworld && state.weather.sky === Sky.Rain
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -95,23 +76,18 @@ export const tickCloverLifecycle = (state: GameState, zone: ZoneType, time: numb
       const key = posKey(x, y)
       let entry = state.cloverLifecycle.get(key)
 
-      // First encounter: create entry with full water
+      // First encounter: create entry
       if (!entry) {
-        entry = createHealthyEntry(time, CLOVER_WATER_MAX, hasLight)
+        entry = createHealthyEntry(time, hasLight)
         state.cloverLifecycle.set(key, entry)
       }
 
       // Update light
       entry.hasLight = hasLight
 
-      // Update water: rain (global or aura) fills, otherwise drain
-      if (isRaining || isInRainAura(state, zone, x, y)) {
-        entry.water = Math.min(entry.water + CLOVER_WATER_RAIN_FILL, CLOVER_WATER_MAX)
-      } else {
-        entry.water = Math.max(entry.water - CLOVER_WATER_DRAIN_RATE, 0)
-      }
-
-      const isStressed = entry.water === 0 || !entry.hasLight
+      // Read water from tile-level state
+      const water = state.tileWater.get(key) ?? WATER_MAX
+      const isStressed = water === 0 || !entry.hasLight
 
       // Stage logic
       if (entry.stage === CloverStage.Healthy) {

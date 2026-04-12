@@ -4,10 +4,10 @@ import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { getCharacterDefinition } from '@/engine/characters'
 import {
-  CLOVER_WATER_MAX,
   SOIL_HEALTH_DEFAULT,
   SPACE_BORDER,
   TILE_COLORS,
+  WATER_MAX,
   ZOOM_DEFAULT,
   ZOOM_MAX,
   ZOOM_MIN,
@@ -195,10 +195,10 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                   const tile = state.map[cy][cx]
                   const key = posKey(cx, cy)
                   const soilHealth = state.soilHealth.get(key) ?? SOIL_HEALTH_DEFAULT
+                  const water = state.tileWater.get(key)
                   const lifecycle = state.cloverLifecycle.get(key)
 
                   if (tile.type === TileType.Clover) {
-                    const water = lifecycle?.water ?? CLOVER_WATER_MAX
                     const stage = lifecycle?.stage ?? CloverStage.Healthy
                     const statusLabel =
                       stage === CloverStage.Healthy
@@ -216,7 +216,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                         <tr>
                           <td className="text-muted py-0.5">water</td>
                           <td className="py-0.5 text-right">
-                            {water}/{CLOVER_WATER_MAX}
+                            {water ?? WATER_MAX}/{WATER_MAX}
                           </td>
                         </tr>
                         <tr>
@@ -231,12 +231,22 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                     )
                   }
 
-                  if (tile.type === TileType.Dirt) {
+                  if (tile.type === TileType.Dirt || tile.type === TileType.BurntClover) {
                     return (
-                      <tr>
-                        <td className="text-muted py-0.5">soil</td>
-                        <td className="py-0.5 text-right">{soilHealth}</td>
-                      </tr>
+                      <>
+                        {water !== undefined && (
+                          <tr>
+                            <td className="text-muted py-0.5">water</td>
+                            <td className="py-0.5 text-right">
+                              {water}/{WATER_MAX}
+                            </td>
+                          </tr>
+                        )}
+                        <tr>
+                          <td className="text-muted py-0.5">soil</td>
+                          <td className="py-0.5 text-right">{soilHealth}</td>
+                        </tr>
+                      </>
                     )
                   }
 

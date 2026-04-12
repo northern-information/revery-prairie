@@ -4,12 +4,10 @@ import {
   CLOVER_BLINK_RED_DURATION_MS,
   CLOVER_BROWN_DURATION_MS,
   CLOVER_DECOMPOSE_DURATION_MS,
-  CLOVER_WATER_DRAIN_RATE,
-  CLOVER_WATER_MAX,
-  CLOVER_WATER_RAIN_FILL,
   SOIL_HEALTH_CLOVER_DEATH_BONUS,
   SOIL_HEALTH_CUT_BONUS,
   SOIL_HEALTH_DEFAULT,
+  WATER_MAX,
 } from '../constants'
 import { placeItem } from '../inventory'
 import { posKey } from '../position'
@@ -32,6 +30,10 @@ beforeEach(() => {
 
 const placeClover = (x: number, y: number) => {
   state.map[y][x] = { type: TileType.Clover }
+  // Ensure tile has water entry (like createGameState does for walkable tiles)
+  if (!state.tileWater.has(posKey(x, y))) {
+    state.tileWater.set(posKey(x, y), WATER_MAX)
+  }
 }
 
 const facingPos = () => {
@@ -42,7 +44,7 @@ const facingPos = () => {
 }
 
 describe('tickCloverLifecycle', () => {
-  describe('water meter', () => {
+  describe('stress detection', () => {
     it('creates healthy entry on first tick for new clover', () => {
       placeClover(px(), py() + 1)
       tickCloverLifecycle(state, Zone.Overworld, 1000)
@@ -51,50 +53,26 @@ describe('tickCloverLifecycle', () => {
       const entry = state.cloverLifecycle.get(key)
       expect(entry).toBeDefined()
       expect(entry?.stage).toBe(CloverStage.Healthy)
-      expect(entry?.water).toBe(CLOVER_WATER_MAX - CLOVER_WATER_DRAIN_RATE)
     })
 
-    it('drains water each tick when not raining', () => {
+    it('reads water from tileWater, not lifecycle entry', () => {
       placeClover(px(), py() + 1)
       const key = posKey(px(), py() + 1)
 
+      // Set tile water to 0 — lifecycle should detect stress
+      state.tileWater.set(key, 0)
       tickCloverLifecycle(state, Zone.Overworld, 1000)
-      tickCloverLifecycle(state, Zone.Overworld, 4000)
 
-      const entry = state.cloverLifecycle.get(key)
-      expect(entry?.water).toBe(CLOVER_WATER_MAX - CLOVER_WATER_DRAIN_RATE * 2)
+      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Brown)
     })
 
-    it('refills water when raining on overworld', () => {
+    it('stays healthy when tile water > 0 and has light', () => {
       placeClover(px(), py() + 1)
       const key = posKey(px(), py() + 1)
 
-      // Drain some water first
+      state.tileWater.set(key, WATER_MAX)
       tickCloverLifecycle(state, Zone.Overworld, 1000)
-      tickCloverLifecycle(state, Zone.Overworld, 4000)
-
-      // Now rain
-      state.weather.sky = Sky.Rain
-      tickCloverLifecycle(state, Zone.Overworld, 7000)
-
-      const entry = state.cloverLifecycle.get(key)
-      const expectedWater = Math.min(
-        CLOVER_WATER_MAX - CLOVER_WATER_DRAIN_RATE * 2 + CLOVER_WATER_RAIN_FILL,
-        CLOVER_WATER_MAX
-      )
-      expect(entry?.water).toBe(expectedWater)
-    })
-
-    it('does not refill water in cave', () => {
-      placeClover(px(), py() + 1)
-      const key = posKey(px(), py() + 1)
-
-      state.weather.sky = Sky.Rain
-      tickCloverLifecycle(state, Zone.Cave, 1000)
-
-      const entry = state.cloverLifecycle.get(key)
-      // Cave gets no rain fill, only drain
-      expect(entry?.water).toBe(CLOVER_WATER_MAX - CLOVER_WATER_DRAIN_RATE)
+      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Healthy)
     })
   })
 
@@ -111,13 +89,10 @@ describe('tickCloverLifecycle', () => {
       placeClover(px(), py() + 1)
       const key = posKey(px(), py() + 1)
 
-      // Set water to just above 0 so next drain hits 0
-      tickCloverLifecycle(state, Zone.Overworld, 1000)
-      const entry = state.cloverLifecycle.get(key)
-      expect(entry).toBeDefined()
-      if (entry) entry.water = CLOVER_WATER_DRAIN_RATE
+      // Set water to 0 so lifecycle detects stress
+      state.tileWater.set(key, 0)
 
-      tickCloverLifecycle(state, Zone.Overworld, 4000)
+      tickCloverLifecycle(state, Zone.Overworld, 1000)
       expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Brown)
     })
 
@@ -204,11 +179,8 @@ describe('tickCloverLifecycle', () => {
       tickCloverLifecycle(state, Zone.Cave, 1000)
       expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Brown)
 
-      // Now give it light and water (overworld, raining)
-      state.weather.sky = Sky.Rain
-      const entry = state.cloverLifecycle.get(key)
-      expect(entry).toBeDefined()
-      if (entry) entry.water = 50
+      // Now give it light and water (overworld with tile water > 0)
+      state.tileWater.set(key, 50)
       tickCloverLifecycle(state, Zone.Overworld, 4000)
       expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Healthy)
     })
@@ -225,9 +197,8 @@ describe('tickCloverLifecycle', () => {
       entry.stage = CloverStage.BlinkingRed
       entry.stageStartTime = 1000
 
-      // Try to recover
-      state.weather.sky = Sky.Rain
-      entry.water = 50
+      // Try to recover with water and light
+      state.tileWater.set(key, 50)
       tickCloverLifecycle(state, Zone.Overworld, 4000)
 
       // Should still be blinkingRed (or advanced), not healthy
@@ -265,7 +236,6 @@ describe('harvestClover', () => {
     state.cloverLifecycle.set(key, {
       stage: CloverStage.Healthy,
       stageStartTime: 0,
-      water: 80,
       hasLight: true,
     })
 
@@ -280,7 +250,6 @@ describe('harvestClover', () => {
     state.cloverLifecycle.set(posKey(fp.x, fp.y), {
       stage: CloverStage.Brown,
       stageStartTime: 0,
-      water: 0,
       hasLight: true,
     })
 
@@ -346,7 +315,6 @@ describe('cutClover', () => {
     state.cloverLifecycle.set(key, {
       stage: CloverStage.Brown,
       stageStartTime: 0,
-      water: 0,
       hasLight: true,
     })
 

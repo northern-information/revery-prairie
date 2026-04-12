@@ -185,6 +185,7 @@ export interface GameState {
   elevation: Map<string, number>
   ponds: Set<string>
   rivers: Set<string>
+  tileWater: Map<string, number>
   burnScars: Set<string>
   meteorShower: MeteorShowerState
   lightning: LightningState
@@ -211,7 +212,6 @@ export type CloverStage = (typeof CloverStage)[keyof typeof CloverStage]
 export interface CloverLifecycleState {
   stage: CloverStage
   stageStartTime: number
-  water: number
   hasLight: boolean
 }
 
