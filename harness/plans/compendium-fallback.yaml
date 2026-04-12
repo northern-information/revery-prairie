@@ -1,0 +1,67 @@
+plan:
+  id: compendium-fallback
+  title: 'Default to compendium tab when coins are not castable'
+  created: '2026-04-12'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: update-hexagram-panel-initial-view
+    title: 'Add initialView prop to HexagramPanel'
+    spec_id: hexagram-casting
+    spec_sections: [cast-keybind]
+    context_files:
+      - src/components/HexagramPanel.tsx
+    output_files:
+      - src/components/HexagramPanel.tsx
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/hexagram.test.ts
+    repair: retry
+    tags: [component]
+
+  - id: pass-initial-view-from-game-screen
+    title: 'Pass initialView to HexagramPanel based on canCast'
+    spec_id: hexagram-casting
+    spec_sections: [cast-keybind]
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/engine/hexagram.ts
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on: [update-hexagram-panel-initial-view]
+    verification:
+      - npm run build
+    repair: retry
+    tags: [component]
+
+  - id: remove-cancast-gate-from-keybind
+    title: 'Remove canCast guard from c keybind in useKeyboard'
+    spec_id: hexagram-casting
+    spec_sections: [cast-keybind]
+    context_files:
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [hook]
+
+  - id: add-compendium-fallback-tests
+    title: 'Add tests for compendium fallback behavior'
+    spec_id: hexagram-casting
+    spec_sections: [cast-keybind]
+    context_files:
+      - src/engine/__tests__/hexagram.test.ts
+      - src/engine/hexagram.ts
+    output_files:
+      - src/engine/__tests__/hexagram.test.ts
+    depends_on: [update-hexagram-panel-initial-view, remove-cancast-gate-from-keybind]
+    verification:
+      - npx vitest run src/engine/__tests__/hexagram.test.ts
+    repair: retry
+    tags: [test]

@@ -81,18 +81,18 @@ behaviors:
 
   - id: cast-keybind
     description: >
-      Pressing 'c' opens the hexagram casting panel when the player
-      has 3 or more glinting coins (definitionId "coin" with uid in
-      glintingCoins) in their backpack. If fewer than 3 glinting coins
-      are present, nothing happens. Blocked during dialog, menu, drag,
-      and while in cave zone. Pressing 'c' again or 'esc' closes the
-      panel.
+      Pressing 'c' ALWAYS opens the hexagram panel (blocked during
+      dialog, menu, drag, and while in cave zone). When canCast is
+      true (3+ glinting backpack coins), opens to casting view. When
+      canCast is false (no coins, fewer than 3, or unglinted), opens
+      to compendium view. Pressing 'c' again or 'esc' closes the panel.
     inputs:
       - 'Key "c" pressed'
-      - 'Player backpack contains >= 3 glinting coin items'
       - 'No dialog, menu, or drag active'
+      - 'Player is in overworld zone'
     outputs:
       - 'Hexagram panel opens (activePanel set to "hexagram")'
+      - 'Initial view is "casting" when canCast(state) is true, "compendium" when false'
     state_changes:
       - field: activePanel
         effect: 'set to "hexagram"'
@@ -179,9 +179,13 @@ behaviors:
     determinism: deterministic
 
 edge_cases:
-  - id: fewer-than-3-glinting-coins
-    description: 'Player presses c with 3 coins but only 2 are glinting'
-    expected: 'Nothing happens — need 3 glinting coins, not just 3 coins'
+  - id: c-without-castable-coins
+    description: 'Player presses c with 0 coins, fewer than 3 coins, or unglinted coins'
+    expected: 'Hexagram panel opens to compendium tab — casting is unavailable but browsing divined hexagrams is allowed'
+
+  - id: c-with-castable-coins
+    description: 'Player presses c with 3 or more glinting coins in backpack'
+    expected: 'Hexagram panel opens to casting tab — existing casting behavior preserved'
 
   - id: coins-in-omnibox-not-counted
     description: 'Player has glinting coins stored in an omnibox, not the backpack'
@@ -198,10 +202,6 @@ edge_cases:
   - id: cast-in-cave
     description: 'Player presses c while in the cave zone'
     expected: 'Casting is blocked — hexagrams are an overworld ritual only (for now)'
-
-  - id: no-glinting-coins-remain
-    description: 'Player has cast once, all 3 coins are dimmed, presses c again'
-    expected: 'Nothing happens — no glinting coins available. Player must wait for future re-glinting mechanic.'
 
   - id: drop-and-repickup-preserves-glint
     description: 'Player drops a glinting coin and picks it back up'

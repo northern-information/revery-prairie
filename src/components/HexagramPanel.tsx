@@ -19,6 +19,7 @@ interface HexagramPanelProps {
   onClose: () => void
   refreshUI: () => void
   onCastLog: (text: string, worldX: number, worldY: number) => void
+  initialView?: View
 }
 
 const LINE_LABELS: Record<number, string> = {
@@ -181,8 +182,8 @@ const HexagramCompendium = ({
 type Phase = 'tossing' | 'result'
 type View = 'casting' | 'compendium'
 
-export const HexagramPanel = ({ state, onClose, refreshUI, onCastLog }: HexagramPanelProps) => {
-  const [view, setView] = useState<View>('casting')
+export const HexagramPanel = ({ state, onClose, refreshUI, onCastLog, initialView }: HexagramPanelProps) => {
+  const [view, setView] = useState<View>(initialView ?? 'casting')
   const [phase, setPhase] = useState<Phase>('tossing')
   const [tossedLines, setTossedLines] = useState<LineType[]>([])
   const [result, setResult] = useState<CastResult | null>(null)
