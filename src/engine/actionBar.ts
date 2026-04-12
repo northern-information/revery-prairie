@@ -1,8 +1,6 @@
 import { addSoilHealth } from './cloverLifecycle'
 import { generateBoltPath } from './boltPath'
 import {
-  CLOVER_WATER_MAX,
-  CLOVER_WATER_REVERY_FILL,
   LIGHTNING_BOLT_MAX_LENGTH,
   LIGHTNING_BOLT_MIN_LENGTH,
   LIGHTNING_INVALID_TARGET_CHAR,
@@ -12,6 +10,8 @@ import {
   LIGHTNING_REVERY_RANGE,
   SOIL_HEALTH_FIRE_REVERY_BONUS,
   SOIL_HEALTH_WATER_REVERY_BONUS,
+  WATER_MAX,
+  WATER_REVERY_FILL,
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
@@ -91,11 +91,11 @@ const applyReveryCastEffects = (state: GameState, reveryId: string, positions: P
     if (!tile) continue
 
     if (reveryId === 'water') {
-      // Water: refill clover water meter and boost soil health
+      // Water: refill tile water and boost soil health
       addSoilHealth(state, key, SOIL_HEALTH_WATER_REVERY_BONUS)
-      const lifecycle = state.cloverLifecycle.get(key)
-      if (lifecycle) {
-        lifecycle.water = Math.min(lifecycle.water + CLOVER_WATER_REVERY_FILL, CLOVER_WATER_MAX)
+      const currentWater = state.tileWater.get(key)
+      if (currentWater !== undefined) {
+        state.tileWater.set(key, Math.min(currentWater + WATER_REVERY_FILL, WATER_MAX))
       }
     } else if (reveryId === 'fire') {
       // Fire: burn any clover (healthy, withering, or dead) to burnt clover

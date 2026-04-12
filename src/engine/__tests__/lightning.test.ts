@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { generateBoltPath } from '../boltPath'
 import {
-  CLOVER_WATER_MAX,
   LIGHTNING_DURATION_MS,
   SOIL_HEALTH_FIRE_REVERY_BONUS,
+  WATER_MAX,
   WILDFIRE_MAX_SPREAD,
   WILDFIRE_DURATION_MS,
 } from '../constants'
@@ -214,9 +214,9 @@ describe('lightning', () => {
       state.cloverLifecycle.set(posKey(x, y), {
         stage: CloverStage.Healthy,
         stageStartTime: 0,
-        water: CLOVER_WATER_MAX,
         hasLight: true,
       })
+      state.tileWater.set(posKey(x, y), WATER_MAX)
       const burned = spreadWildfire(state, x, y)
       expect(burned.size).toBe(0)
     })
@@ -235,9 +235,9 @@ describe('lightning', () => {
           state.cloverLifecycle.set(posKey(x, y), {
             stage: CloverStage.Healthy,
             stageStartTime: 0,
-            water: 0,
             hasLight: true,
           })
+          state.tileWater.set(posKey(x, y), 0)
         }
       }
 
@@ -258,9 +258,9 @@ describe('lightning', () => {
           state.cloverLifecycle.set(posKey(x, y), {
             stage: CloverStage.Healthy,
             stageStartTime: 0,
-            water: 0,
             hasLight: true,
           })
+          state.tileWater.set(posKey(x, y), 0)
         }
       }
 
@@ -280,9 +280,9 @@ describe('lightning', () => {
       state.cloverLifecycle.set(posKey(cx, cy), {
         stage: CloverStage.Healthy,
         stageStartTime: 0,
-        water: 0,
         hasLight: true,
       })
+      state.tileWater.set(posKey(cx, cy), 0)
 
       state.soilHealth.set(posKey(cx, cy), 10)
       spreadWildfire(state, cx, cy)
@@ -299,9 +299,9 @@ describe('lightning', () => {
       state.cloverLifecycle.set(posKey(cx, cy), {
         stage: CloverStage.Healthy,
         stageStartTime: 0,
-        water: 0,
         hasLight: true,
       })
+      state.tileWater.set(posKey(cx, cy), 0)
 
       spreadWildfire(state, cx, cy)
       expect(state.cloverLifecycle.has(posKey(cx, cy))).toBe(false)
@@ -316,9 +316,9 @@ describe('lightning', () => {
           state.cloverLifecycle.set(posKey(x, y), {
             stage: CloverStage.Healthy,
             stageStartTime: 0,
-            water: 0,
             hasLight: true,
           })
+          state.tileWater.set(posKey(x, y), 0)
         }
       }
 
@@ -339,9 +339,9 @@ describe('lightning', () => {
         state.cloverLifecycle.set(posKey(cx + dx, cy), {
           stage: CloverStage.Healthy,
           stageStartTime: 0,
-          water: 0,
           hasLight: true,
         })
+        state.tileWater.set(posKey(cx + dx, cy), 0)
       }
       state.rivers.add(posKey(cx, cy))
       state.map[cy][cx] = { type: TileType.Dirt }

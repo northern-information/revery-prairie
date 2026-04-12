@@ -1,0 +1,144 @@
+id: tile-water
+name: 'Tile-level water'
+status: planned
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/constants.ts
+  - src/engine/state.ts
+  - src/engine/cloverLifecycle.ts
+  - src/engine/actionBar.ts
+  - src/engine/genesis.ts
+  - src/engine/genesisTypes.ts
+  - src/components/Sidebar.tsx
+  - src/engine/__tests__/cloverLifecycle.test.ts
+  - src/engine/__tests__/tileWater.test.ts
+dependencies:
+  - clover-lifecycle
+
+behaviors:
+  - id: tile-water-state
+    description: >
+      GameState holds a tileWater Map<string, number> keyed by posKey.
+      All dirt and clover tiles are initialized to WATER_MAX. The water
+      field is removed from CloverLifecycleState.
+    inputs:
+      - 'createGameState called with or without genesis result'
+    outputs:
+      - 'state.tileWater populated for every dirt and clover tile'
+    state_changes:
+      - field: tileWater
+        effect: 'new Map<string, number> initialized with WATER_MAX for all dirt and clover tiles'
+    determinism: deterministic
+
+  - id: tile-water-rain-fill
+    description: >
+      When it is raining or a tile is within a rain aura, tileWater
+      for that tile increases by WATER_RAIN_FILL per tick, clamped to
+      WATER_MAX. Applies to all dirt and clover tiles.
+    inputs:
+      - 'tick fires while state.weather.isRaining or tile is in rain aura radius'
+    outputs:
+      - 'tileWater value increases'
+    state_changes:
+      - field: tileWater
+        effect: 'min(current + WATER_RAIN_FILL, WATER_MAX)'
+    determinism: time-based
+
+  - id: tile-water-drain
+    description: >
+      When it is not raining and a tile is not in a rain aura, tileWater
+      drains by WATER_DRAIN_RATE per tick, floored at 0. Applies to all
+      dirt and clover tiles.
+    inputs:
+      - 'tick fires while not raining and tile is not in rain aura'
+    outputs:
+      - 'tileWater value decreases'
+    state_changes:
+      - field: tileWater
+        effect: 'max(current - WATER_DRAIN_RATE, 0)'
+    determinism: time-based
+
+  - id: clover-reads-tile-water
+    description: >
+      Clover lifecycle stress check reads water from state.tileWater
+      instead of the removed lifecycle.water field. Clover is stressed
+      when tileWater for its position is 0 or it has no light.
+    inputs:
+      - 'clover lifecycle tick for a clover tile'
+    outputs:
+      - 'stress condition uses tile water level'
+    state_changes:
+      - field: cloverLifecycle[key].stage
+        effect: 'transitions based on tileWater === 0 instead of lifecycle.water === 0'
+    determinism: time-based
+
+  - id: water-revery-fills-tile-water
+    description: >
+      Water revery cast writes to state.tileWater instead of
+      lifecycle.water. Fills affected tiles by WATER_REVERY_FILL,
+      clamped to WATER_MAX.
+    inputs:
+      - 'player casts water revery targeting positions'
+    outputs:
+      - 'tileWater for affected positions increases'
+    state_changes:
+      - field: tileWater
+        effect: 'min(current + WATER_REVERY_FILL, WATER_MAX) for each targeted position'
+    determinism: deterministic
+
+  - id: sidebar-shows-water-on-dirt
+    description: >
+      Sidebar tile inspector shows water level for both dirt and clover
+      tiles, reading from state.tileWater. Previously water was only
+      shown on clover.
+    inputs:
+      - 'cursor hovers over a dirt or clover tile'
+    outputs:
+      - 'sidebar displays water row with current/max values'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: tile-converts-dirt-to-clover
+    description: >
+      When a dirt tile becomes clover (planting), the tileWater entry
+      persists — the new clover inherits the existing tile water level.
+    expected: 'tileWater entry unchanged, clover lifecycle reads it'
+
+  - id: tile-converts-clover-to-dirt
+    description: >
+      When clover dies or is harvested, the tileWater entry persists.
+      The dirt tile retains its water level.
+    expected: 'tileWater entry unchanged, sidebar still shows water for dirt'
+
+  - id: cave-tiles-no-water
+    description: >
+      Cave floor and cave wall tiles do not have tileWater entries.
+      Water ticking skips the cave zone entirely.
+    expected: 'no tileWater entries for cave tiles, no water row in sidebar for cave tiles'
+
+  - id: space-and-sand-no-water
+    description: >
+      Space and sand tiles do not have tileWater entries and do not
+      show water in the sidebar.
+    expected: 'no tileWater entries, sidebar returns null for these tile types'
+
+  - id: burnt-clover-has-water
+    description: >
+      Burnt clover tiles retain their tileWater entry from when the
+      tile was clover. Water continues to drain and fill on burnt clover.
+    expected: 'tileWater entry persists through fire revery, sidebar shows water'
+
+failure_conditions:
+  - trigger: 'tileWater map missing a key for a dirt or clover tile'
+    expected: 'fall back to WATER_MAX as default (same as soilHealth pattern with SOIL_HEALTH_DEFAULT)'
+
+  - trigger: 'clover lifecycle tick references removed lifecycle.water field'
+    expected: 'TypeScript compilation fails — caught by tsc'
+
+verification:
+  test_file: src/engine/__tests__/tileWater.test.ts
+  test_pattern: 'tile water'
+  command: 'npx vitest run src/engine/__tests__/tileWater.test.ts'

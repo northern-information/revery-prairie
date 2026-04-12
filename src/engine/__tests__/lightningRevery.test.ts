@@ -213,9 +213,9 @@ describe('lightning revery', () => {
           state.cloverLifecycle.set(posKey(tx + dx, ty + dy), {
             stage: CloverStage.Healthy,
             stageStartTime: 0,
-            water: 0,
             hasLight: true,
           })
+          state.tileWater.set(posKey(tx + dx, ty + dy), 0)
         }
       }
 

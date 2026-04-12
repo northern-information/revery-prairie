@@ -16,6 +16,7 @@ import {
   SHOOTING_STAR_TICK_MS,
   WEATHER_TICK_MS,
 } from './constants'
+import { tickTileWater } from './tileWater'
 import { ComponentType } from './ecs/types'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
 import { spawnLightningStrike, tickLightning } from './lightning'
@@ -232,6 +233,15 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       priority: 55,
       fn: state => {
         tickCloverHives(state)
+      },
+    },
+    {
+      id: 'tile-water',
+      intervalMs: CLOVER_LIFECYCLE_TICK_MS,
+      zone: 'overworld',
+      priority: 51,
+      fn: state => {
+        tickTileWater(state, Zone.Overworld)
       },
     },
     {

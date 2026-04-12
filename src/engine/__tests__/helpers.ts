@@ -53,6 +53,7 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   state.cloverGrowthPreviews = new Set()
   state.cloverLifecycle = new Map()
   state.soilHealth = new Map()
+  state.tileWater = new Map()
   return state
 }
 
