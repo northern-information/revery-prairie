@@ -90,6 +90,8 @@ failure_conditions:
     expected: presentDay connectivity pass eliminates the isolated island
   - trigger: coastline noise produces a perfectly rectangular border
     expected: noise amplitude is high enough that straight edges never occur
+  - trigger: enforceConnectivity BFS treats water tiles as impassable, converting land behind water bodies to space
+    expected: BFS floods through water tiles so land on both sides of a water body remains connected — no interior space islands
 
 verification:
   test_file: src/engine/__tests__/terrainConnectivity.test.ts
