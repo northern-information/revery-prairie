@@ -148,7 +148,8 @@ describe('cursor tile info', () => {
       if (state.ponds.has(key) || state.rivers.has(key)) return 'fresh water'
       const tileType = state.map[y]?.[x]?.type
       if (tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall) return 'stone'
-      if (tileType === TileType.CaveFloor || tileType === TileType.CaveEntrance) return 'dirt'
+      if (tileType === TileType.CaveFloor) return 'dirt'
+      if (tileType === TileType.CaveEntrance) return 'cave entrance'
       return tileType ?? 'void'
     }
 
@@ -162,14 +163,14 @@ describe('cursor tile info', () => {
       expect(deriveLabel(state, x, y)).toBe('dirt')
     })
 
-    it('CaveEntrance tile type maps to dirt label', () => {
+    it('CaveEntrance tile type maps to cave entrance label', () => {
       const state = createTestState()
       clearAroundPlayer(state, 3)
       const x = state.player.x + 1
       const y = state.player.y
       state.map[y][x] = { type: TileType.CaveEntrance }
 
-      expect(deriveLabel(state, x, y)).toBe('dirt')
+      expect(deriveLabel(state, x, y)).toBe('cave entrance')
     })
 
     it('water overlay on cave floor shows fresh water not dirt', () => {

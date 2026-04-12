@@ -13,7 +13,7 @@ tasks:
     spec_id: cave-floor-tile-label
     spec_sections:
       - cave-floor-shows-dirt
-      - cave-entrance-shows-dirt
+      - cave-entrance-shows-cave-entrance
       - cave-wall-shows-stone
       - water-overlay-takes-precedence
     context_files:
@@ -32,7 +32,7 @@ tasks:
     spec_id: cave-floor-tile-label
     spec_sections:
       - cave-floor-shows-dirt
-      - cave-entrance-shows-dirt
+      - cave-entrance-shows-cave-entrance
     context_files:
       - src/engine/__tests__/cursorTileInfo.test.ts
       - src/components/Sidebar.tsx

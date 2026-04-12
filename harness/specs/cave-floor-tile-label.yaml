@@ -19,15 +19,14 @@ behaviors:
       - 'sidebar contents row shows "dirt"'
     state_changes: []
     determinism: deterministic
-  - id: cave-entrance-shows-dirt
+  - id: cave-entrance-shows-cave-entrance
     description: >
       When the cursor is over a CaveEntrance tile, the sidebar contents row
-      displays "dirt" instead of the raw tile type name "caveEntrance". The
-      entrance tile should not reveal its special nature in the sidebar.
+      displays "cave entrance" instead of the raw tile type name "caveEntrance".
     inputs:
       - 'state.cursorTile resolves to a CaveEntrance tile'
     outputs:
-      - 'sidebar contents row shows "dirt"'
+      - 'sidebar contents row shows "cave entrance"'
     state_changes: []
     determinism: deterministic
   - id: cave-wall-shows-stone
@@ -56,10 +55,10 @@ behaviors:
 edge_cases:
   - id: cave-entrance-label-in-overworld
     description: >
-      The CaveEntrance tile on the overworld map should also display "dirt"
+      The CaveEntrance tile on the overworld map should also display "cave entrance"
       in the sidebar, not "caveEntrance". The label mapping applies to the
       tile type regardless of which zone the player is in.
-    expected: 'sidebar contents shows "dirt" for CaveEntrance in overworld'
+    expected: 'sidebar contents shows "cave entrance" for CaveEntrance in overworld'
   - id: breakable-wall-after-breaking
     description: >
       When a CaveBreakableWall is broken via [e], it becomes a CaveFloor
@@ -75,8 +74,8 @@ failure_conditions:
   - trigger: 'mouse hovers over a CaveFloor tile'
     expected: 'sidebar contents shows "dirt", not the raw string "caveFloor"'
   - trigger: 'mouse hovers over a CaveEntrance tile'
-    expected: 'sidebar contents shows "dirt", not the raw string "caveEntrance"'
+    expected: 'sidebar contents shows "cave entrance", not the raw string "caveEntrance"'
 verification:
   test_file: src/engine/__tests__/cursorTileInfo.test.ts
-  test_pattern: 'cave floor.*dirt|caveFloor.*dirt|cave entrance.*dirt'
+  test_pattern: 'cave floor.*dirt|caveFloor.*dirt|cave entrance.*label'
   command: 'npx vitest run src/engine/__tests__/cursorTileInfo.test.ts'
