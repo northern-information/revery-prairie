@@ -1,0 +1,46 @@
+plan:
+  id: cave-floor-tile-label
+  title: Fix cave floor and entrance tile labels to show "dirt" in sidebar
+  created: 2026-04-12
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: fix-label-mapping
+    title: Add CaveFloor and CaveEntrance cases to sidebar tile label logic
+    spec_id: cave-floor-tile-label
+    spec_sections:
+      - cave-floor-shows-dirt
+      - cave-entrance-shows-dirt
+      - cave-wall-shows-stone
+      - water-overlay-takes-precedence
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [component]
+
+  - id: add-regression-tests
+    title: Add regression tests for CaveFloor and CaveEntrance tile labels
+    spec_id: cave-floor-tile-label
+    spec_sections:
+      - cave-floor-shows-dirt
+      - cave-entrance-shows-dirt
+    context_files:
+      - src/engine/__tests__/cursorTileInfo.test.ts
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/engine/__tests__/cursorTileInfo.test.ts
+    depends_on:
+      - fix-label-mapping
+    verification:
+      - npx vitest run src/engine/__tests__/cursorTileInfo.test.ts
+    repair: retry
+    tags: [test]

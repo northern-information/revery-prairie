@@ -178,6 +178,8 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                       const tileType = state.map[cy]?.[cx]?.type
                       if (tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall)
                         return 'stone'
+                      if (tileType === TileType.CaveFloor || tileType === TileType.CaveEntrance)
+                        return 'dirt'
                       return tileType ?? 'void'
                     })()}
                   </td>
