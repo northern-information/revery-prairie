@@ -4,6 +4,12 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  root: 'src',
+  publicDir: resolve(__dirname, 'public'),
+  build: {
+    outDir: resolve(__dirname, 'dist'),
+    emptyOutDir: true,
+  },
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
