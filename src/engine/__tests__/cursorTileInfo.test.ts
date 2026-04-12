@@ -141,4 +141,60 @@ describe('cursor tile info', () => {
       expect(label).toBe(TileType.Dirt)
     })
   })
+
+  describe('cave floor dirt label', () => {
+    const deriveLabel = (state: ReturnType<typeof createTestState>, x: number, y: number) => {
+      const key = posKey(x, y)
+      if (state.ponds.has(key) || state.rivers.has(key)) return 'fresh water'
+      const tileType = state.map[y]?.[x]?.type
+      if (tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall) return 'stone'
+      if (tileType === TileType.CaveFloor) return 'dirt'
+      if (tileType === TileType.CaveEntrance) return 'cave entrance'
+      return tileType ?? 'void'
+    }
+
+    it('CaveFloor tile type maps to dirt label', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      const x = state.player.x + 1
+      const y = state.player.y
+      state.map[y][x] = { type: TileType.CaveFloor }
+
+      expect(deriveLabel(state, x, y)).toBe('dirt')
+    })
+
+    it('CaveEntrance tile type maps to cave entrance label', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      const x = state.player.x + 1
+      const y = state.player.y
+      state.map[y][x] = { type: TileType.CaveEntrance }
+
+      expect(deriveLabel(state, x, y)).toBe('cave entrance')
+    })
+
+    it('water overlay on cave floor shows fresh water not dirt', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      const x = state.player.x + 1
+      const y = state.player.y
+      state.map[y][x] = { type: TileType.CaveFloor }
+      state.ponds.add(posKey(x, y))
+
+      expect(deriveLabel(state, x, y)).toBe('fresh water')
+    })
+
+    it('broken breakable wall becomes CaveFloor and shows dirt', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      const x = state.player.x + 1
+      const y = state.player.y
+      // Before breaking: stone
+      state.map[y][x] = { type: TileType.CaveBreakableWall }
+      expect(deriveLabel(state, x, y)).toBe('stone')
+      // After breaking: converts to CaveFloor → dirt
+      state.map[y][x] = { type: TileType.CaveFloor }
+      expect(deriveLabel(state, x, y)).toBe('dirt')
+    })
+  })
 })

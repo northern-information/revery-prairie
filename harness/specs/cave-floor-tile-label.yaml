@@ -1,0 +1,81 @@
+id: cave-floor-tile-label
+name: 'Cave floor tile label'
+status: partial
+priority: low
+layer: component
+source_files:
+  - src/components/Sidebar.tsx
+dependencies:
+  - cursor-tile-info-all-types
+behaviors:
+  - id: cave-floor-shows-dirt
+    description: >
+      When the cursor is over a CaveFloor tile, the sidebar contents row
+      displays "dirt" instead of the raw tile type name "caveFloor". Cave
+      floor is visually equivalent to dirt ground.
+    inputs:
+      - 'state.cursorTile resolves to a CaveFloor tile'
+    outputs:
+      - 'sidebar contents row shows "dirt"'
+    state_changes: []
+    determinism: deterministic
+  - id: cave-entrance-shows-cave-entrance
+    description: >
+      When the cursor is over a CaveEntrance tile, the sidebar contents row
+      displays "cave entrance" instead of the raw tile type name "caveEntrance".
+    inputs:
+      - 'state.cursorTile resolves to a CaveEntrance tile'
+    outputs:
+      - 'sidebar contents row shows "cave entrance"'
+    state_changes: []
+    determinism: deterministic
+  - id: cave-wall-shows-stone
+    description: >
+      When the cursor is over a CaveWall or CaveBreakableWall tile, the
+      sidebar contents row displays "stone". This behavior already works
+      correctly and must not regress.
+    inputs:
+      - 'state.cursorTile resolves to a CaveWall tile'
+      - 'state.cursorTile resolves to a CaveBreakableWall tile'
+    outputs:
+      - 'sidebar contents row shows "stone"'
+    state_changes: []
+    determinism: deterministic
+  - id: water-overlay-takes-precedence
+    description: >
+      When a tile has a pond or river overlay, the sidebar contents row
+      displays "fresh water" regardless of the underlying tile type or
+      zone. This check runs before tile type mapping and is zone-agnostic.
+    inputs:
+      - 'state.cursorTile resolves to a tile present in state.ponds or state.rivers'
+    outputs:
+      - 'sidebar contents row shows "fresh water"'
+    state_changes: []
+    determinism: deterministic
+edge_cases:
+  - id: cave-entrance-label-in-overworld
+    description: >
+      The CaveEntrance tile on the overworld map should also display "cave entrance"
+      in the sidebar, not "caveEntrance". The label mapping applies to the
+      tile type regardless of which zone the player is in.
+    expected: 'sidebar contents shows "cave entrance" for CaveEntrance in overworld'
+  - id: breakable-wall-after-breaking
+    description: >
+      When a CaveBreakableWall is broken via [e], it becomes a CaveFloor
+      tile. The sidebar label should then show "dirt" instead of "stone".
+    expected: 'sidebar contents shows "dirt" after breaking a wall'
+  - id: water-on-cave-floor
+    description: >
+      If a cave floor tile has a water overlay (pond or river), the label
+      should show "fresh water" not "dirt", since the water check has
+      higher precedence than tile type mapping.
+    expected: 'sidebar contents shows "fresh water" for cave floor with water overlay'
+failure_conditions:
+  - trigger: 'mouse hovers over a CaveFloor tile'
+    expected: 'sidebar contents shows "dirt", not the raw string "caveFloor"'
+  - trigger: 'mouse hovers over a CaveEntrance tile'
+    expected: 'sidebar contents shows "cave entrance", not the raw string "caveEntrance"'
+verification:
+  test_file: src/engine/__tests__/cursorTileInfo.test.ts
+  test_pattern: 'cave floor.*dirt|caveFloor.*dirt|cave entrance.*label'
+  command: 'npx vitest run src/engine/__tests__/cursorTileInfo.test.ts'
