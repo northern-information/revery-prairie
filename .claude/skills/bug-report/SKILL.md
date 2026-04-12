@@ -9,6 +9,8 @@ arg: description of the bug
 
 Conversational skill for investigating bugs, specifying the correct behavior, and planning fixes through the harness pipeline.
 
+**All file writes must happen in a worktree.** After investigation (steps 1-2), enter a worktree before writing any files. Use the Agent tool with `isolation: "worktree"` for all steps that create or modify files (spec drafting, plan drafting, validation, execution). Never write specs, plans, or code directly on main.
+
 ## Flow
 
 ### 1. Gather reproduction details
@@ -35,7 +37,11 @@ For each finding, provide:
 - Code snippet
 - Explanation of the mechanism (how this code causes the bug)
 
-### 3. Draft a spec
+### 3. Enter a worktree
+
+Before writing any files, enter a worktree. All subsequent file-writing steps happen inside this worktree.
+
+### 4. Draft a spec
 
 Create `harness/specs/{bug-id}.yaml` with:
 
@@ -45,11 +51,11 @@ Create `harness/specs/{bug-id}.yaml` with:
 - `edge_cases`: include the reproduction scenario
 - `verification`: point to existing test file if one exists, or the file where the regression test will live
 
-### 4. Validate the spec
+### 5. Validate the spec
 
 Run `npm run spec:validate`. Fix and re-validate until clean.
 
-### 5. Draft a plan
+### 6. Draft a plan
 
 Create `harness/plans/{bug-id}.yaml` with tasks to:
 
@@ -58,7 +64,7 @@ Create `harness/plans/{bug-id}.yaml` with tasks to:
 
 Each task should have narrow context and output files.
 
-### 6. Present findings for review
+### 7. Present findings for review
 
 Show the user:
 
@@ -68,6 +74,6 @@ Show the user:
 
 Do not proceed until the user approves.
 
-### 7. Execute (optional, only on approval)
+### 8. Execute (optional, only on approval)
 
-Ask the user before running. **Always execute in a worktree** (use the Agent tool with `isolation: "worktree"`). Report results from the run summary.
+Ask the user before running. Report results from the run summary.

@@ -8,6 +8,8 @@ user_invocable: true
 
 Audit skill for keeping the prairie manual in sync with game content. Run after adding items, recipes, or characters to check for missing lore and preview all entries.
 
+**All file writes must happen in a worktree.** Before scaffolding lore stubs or making any code changes, enter a worktree. Use the Agent tool with `isolation: "worktree"` for all steps that modify files. Never write changes directly on main.
+
 ## Flow
 
 ### 1. Scan registries
