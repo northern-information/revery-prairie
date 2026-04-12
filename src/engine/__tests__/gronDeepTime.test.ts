@@ -32,9 +32,8 @@ describe('gron deep time', () => {
     expect(dialog[1]).toContain('ready to burn')
   })
 
-  it('postGiftAction grants deep-time revery on dialog completion', () => {
+  it('completing initial dialog gives water revery', () => {
     const state = makeState()
-    giveCharacterGift(state, 'gron')
     clearAroundPlayer(state)
     createCharacterTestEntity(state, 'gron', state.player.x + 1, state.player.y)
 
@@ -43,15 +42,27 @@ describe('gron deep time', () => {
 
     advanceToEnd(state)
 
-    expect(state.activeDialog).toBeNull()
+    expect(state.reveries).toContain('water')
+    expect(state.giftsReceived.has('gron')).toBe(true)
+  })
+
+  it('completing postGiftDialog gives deep-time revery', () => {
+    const state = makeState()
+    giveCharacterGift(state, 'gron')
+    clearAroundPlayer(state)
+    createCharacterTestEntity(state, 'gron', state.player.x + 1, state.player.y)
+
+    interactWithCharacter(state)
+    advanceToEnd(state)
+
     expect(state.reveries).toContain('deep-time')
   })
 
-  it('postGiftAction only fires once', () => {
+  it('postGift only fires once', () => {
     const state = makeState()
     giveCharacterGift(state, 'gron')
 
-    // First dialog completion
+    // First postGiftDialog completion
     state.activeDialog = {
       characterId: 'gron',
       lineIndex: 0,
@@ -65,7 +76,7 @@ describe('gron deep time', () => {
     const reveryCount = state.reveries.filter(r => r === 'deep-time').length
     expect(reveryCount).toBe(1)
 
-    // Second dialog completion
+    // Second postGiftDialog completion
     state.activeDialog = {
       characterId: 'gron',
       lineIndex: 0,
@@ -80,9 +91,9 @@ describe('gron deep time', () => {
     expect(reveryCount2).toBe(1)
   })
 
-  it('postGiftAction does not fire if gift not received', () => {
+  it('initial dialog gives water not deep-time', () => {
     const state = makeState()
-    // Manually open dialog without giving gift first
+    // Open dialog without prior gift — initial dialog plays
     state.activeDialog = {
       characterId: 'gron',
       lineIndex: 0,
@@ -92,11 +103,10 @@ describe('gron deep time', () => {
       transitionStartTime: 0,
     }
 
-    // Advance through original dialog (only 1 line: '...')
-    state.activeDialog.typingDone = true
-    advanceDialog(state)
+    advanceToEnd(state)
 
-    expect(state.activeDialog).toBeNull()
+    // Completing initial dialog gives water gift
+    expect(state.reveries).toContain('water')
     expect(state.reveries).not.toContain('deep-time')
     expect(state.postGiftActionsCompleted.has('gron')).toBe(false)
   })

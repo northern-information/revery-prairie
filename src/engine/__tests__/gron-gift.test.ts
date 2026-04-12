@@ -20,9 +20,9 @@ describe('gron character definition', () => {
     expect(def.postGiftDialog?.[1]).toContain('ready to burn')
   })
 
-  it('has postGiftAction', () => {
+  it('has postGift for deep-time revery', () => {
     const def = getCharacterDefinition('gron')
-    expect(def.postGiftAction).toBeTypeOf('function')
+    expect(def.postGift).toEqual({ kind: 'revery', id: 'deep-time' })
   })
 })
 
@@ -75,12 +75,14 @@ describe('gron gift delivery', () => {
   it('returns original dialog before gift', () => {
     const state = makeState()
     const dialog = getCharacterDialog(state, 'gron')
-    expect(dialog).toHaveLength(1)
+    expect(dialog).toHaveLength(3)
     expect(dialog[0]).toBe('...')
+    expect(dialog[1]).toContain('new steward')
+    expect(dialog[2]).toContain("you'll need this")
   })
 })
 
-describe('gron postGiftAction', () => {
+describe('gron postGift', () => {
   const advanceToEnd = (state: GameState): void => {
     while (state.activeDialog) {
       state.activeDialog.typingDone = true
@@ -186,9 +188,9 @@ describe('gron postGiftAction', () => {
     expect(reveryCount2).toBe(1)
   })
 
-  it('does not fire before gift is received', () => {
+  it('initial dialog gives water revery not deep-time', () => {
     const state = makeState()
-    // Don't give gift, just open dialog directly
+    // Open dialog without prior gift
     state.activeDialog = {
       characterId: 'gron',
       lineIndex: 0,
@@ -198,11 +200,11 @@ describe('gron postGiftAction', () => {
       transitionStartTime: 0,
     }
 
-    // Advance through original dialog (only 1 line: '...')
-    state.activeDialog.typingDone = true
-    advanceDialog(state)
+    advanceToEnd(state)
 
+    // Initial dialog gives the water gift, not deep-time
     expect(state.activeDialog).toBeNull()
+    expect(state.reveries).toContain('water')
     expect(state.reveries).not.toContain('deep-time')
     expect(state.postGiftActionsCompleted.has('gron')).toBe(false)
   })

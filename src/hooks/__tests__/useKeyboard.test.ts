@@ -42,7 +42,7 @@ vi.mock('@/engine/movement', () => ({
 }))
 
 vi.mock('@/engine/interaction', () => ({
-  advanceDialog: vi.fn(() => false),
+  advanceDialog: vi.fn(() => ({ continuing: false, gift: null })),
   breakWall: vi.fn(() => false),
   getAdjacentCharacter: vi.fn(() => null),
   giveCharacterGift: vi.fn(() => null),
@@ -184,7 +184,7 @@ beforeEach(() => {
   // Reset all mock return values (clearAllMocks only clears call history)
   vi.mocked(movePlayer).mockReturnValue(true)
   vi.mocked(pickUpGroundItems).mockReturnValue({ pickedUp: [], chainExplosions: 0 })
-  vi.mocked(advanceDialog).mockReturnValue(false)
+  vi.mocked(advanceDialog).mockReturnValue({ continuing: false, gift: null })
   vi.mocked(breakWall).mockReturnValue(false)
   vi.mocked(getAdjacentCharacter).mockReturnValue(null)
   vi.mocked(interactWithCharacter).mockReturnValue({ opened: false, gift: null })
@@ -255,7 +255,7 @@ describe('useKeyboard', () => {
   describe('E key — dialog branch', () => {
     it('advances dialog', () => {
       state.activeDialog = { characterId: 'gron', lineIndex: 0 } as GameState['activeDialog']
-      vi.mocked(advanceDialog).mockReturnValue(true)
+      vi.mocked(advanceDialog).mockReturnValue({ continuing: true, gift: null })
       renderKeyboardHook()
 
       act(() => {
@@ -268,7 +268,7 @@ describe('useKeyboard', () => {
 
     it('simply advances dialog without gift check', () => {
       state.activeDialog = { characterId: 'moab', lineIndex: 0 } as GameState['activeDialog']
-      vi.mocked(advanceDialog).mockReturnValue(false)
+      vi.mocked(advanceDialog).mockReturnValue({ continuing: false, gift: null })
       renderKeyboardHook()
 
       act(() => {

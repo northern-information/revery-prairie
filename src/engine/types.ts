@@ -94,7 +94,7 @@ export interface CharacterDefinition {
   music?: string
   gift?: { kind: 'revery' | 'item'; id: string }
   postGiftDialog?: string[]
-  postGiftAction?: (state: GameState) => void
+  postGift?: { kind: 'revery' | 'item'; id: string }
 }
 
 export interface ReveryDefinition {

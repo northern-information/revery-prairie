@@ -108,7 +108,16 @@ export const useKeyboard = ({
         // Divination panel owns [e] for tossing — don't interfere
         if (activeScreen === 'divination') return
         if (state.activeDialog) {
-          advanceDialog(state)
+          const result = advanceDialog(state)
+          if (result.gift) {
+            onGift(
+              `received ${result.gift.name.toLowerCase()}`,
+              result.gift.glyphs[0],
+              result.gift.glyphColor,
+              state.player.x,
+              state.player.y
+            )
+          }
           refreshUI()
           return
         }
@@ -172,15 +181,6 @@ export const useKeyboard = ({
             if (result.opened) {
               const def = getCharacterDefinition(adjacent.definitionId)
               onDialog(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
-              if (result.gift) {
-                onGift(
-                  `received ${result.gift.name.toLowerCase()}`,
-                  result.gift.glyphs[0],
-                  result.gift.glyphColor,
-                  state.player.x,
-                  state.player.y
-                )
-              }
               refreshUI()
             }
           }

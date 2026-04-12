@@ -67,7 +67,7 @@ describe('advanceDialog', () => {
       transitionStartTime: 0,
     }
     const result = advanceDialog(state)
-    expect(result).toBe(true)
+    expect(result.continuing).toBe(true)
     expect(state.activeDialog?.typingDone).toBe(true)
     expect(state.activeDialog?.lineIndex).toBe(0)
   })
@@ -84,7 +84,7 @@ describe('advanceDialog', () => {
       transitionStartTime: 0,
     }
     const result = advanceDialog(state)
-    expect(result).toBe(true)
+    expect(result.continuing).toBe(true)
     expect(state.activeDialog?.transitioning).toBe(true)
   })
 
@@ -100,14 +100,14 @@ describe('advanceDialog', () => {
       transitionStartTime: 0,
     }
     const result = advanceDialog(state)
-    expect(result).toBe(false)
+    expect(result.continuing).toBe(false)
     expect(state.activeDialog).toBeNull()
   })
 
-  it('returns false when no dialog is active', () => {
+  it('returns continuing false when no dialog is active', () => {
     const state = createTestState()
     state.activeDialog = null
     const result = advanceDialog(state)
-    expect(result).toBe(false)
+    expect(result.continuing).toBe(false)
   })
 })

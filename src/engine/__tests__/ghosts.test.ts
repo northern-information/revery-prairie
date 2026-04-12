@@ -242,7 +242,7 @@ describe('ghost dialog', () => {
 
     // Mark typing done, advance starts transition for line 0 -> 1
     dialog().typingDone = true
-    expect(advanceDialog(state)).toBe(true)
+    expect(advanceDialog(state).continuing).toBe(true)
     expect(dialog().transitioning).toBe(true)
     // Simulate transition completing
     tickDialogTransition(state, dialog().transitionStartTime + 500)
@@ -250,14 +250,14 @@ describe('ghost dialog', () => {
 
     // Mark typing done, advance starts transition for line 1 -> 2
     dialog().typingDone = true
-    expect(advanceDialog(state)).toBe(true)
+    expect(advanceDialog(state).continuing).toBe(true)
     expect(dialog().transitioning).toBe(true)
     tickDialogTransition(state, dialog().transitionStartTime + 500)
     expect(dialog().lineIndex).toBe(2)
 
     // Mark typing done, advance closes on last line
     dialog().typingDone = true
-    expect(advanceDialog(state)).toBe(false)
+    expect(advanceDialog(state).continuing).toBe(false)
     expect(state.activeDialog).toBeNull()
   })
 })

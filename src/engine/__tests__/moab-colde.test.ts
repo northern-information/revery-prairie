@@ -98,7 +98,6 @@ describe('moab first interaction dialog', () => {
 
     const result = interactWithCharacter(state)
     expect(result.opened).toBe(true)
-    expect(result.gift?.id).toBe('fire')
     expect(state.activeDialog?.characterId).toBe('moab')
     expect(state.activeDialog?.lineIndex).toBe(0)
     expect(state.activeDialog?.typingDone).toBe(false)
@@ -115,7 +114,7 @@ describe('moab first interaction dialog', () => {
     // Mark typing done, only line -> close
     if (!state.activeDialog) throw new Error('no active dialog')
     state.activeDialog.typingDone = true
-    expect(advanceDialog(state)).toBe(false)
+    expect(advanceDialog(state).continuing).toBe(false)
     expect(state.activeDialog).toBeNull()
   })
 })
@@ -188,7 +187,7 @@ describe('moab subsequent interaction', () => {
     // Mark typing done, only line -> close
     if (!state.activeDialog) throw new Error('no active dialog')
     state.activeDialog.typingDone = true
-    expect(advanceDialog(state)).toBe(false)
+    expect(advanceDialog(state).continuing).toBe(false)
     expect(state.activeDialog).toBeNull()
   })
 })

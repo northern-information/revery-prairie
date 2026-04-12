@@ -116,9 +116,6 @@ export const interactWithCharacter = (state: GameState): { opened: boolean; gift
   if (!character) return { opened: false, gift: null }
   recordDiscovery(state, `character:${character.definitionId}`)
 
-  // Give gift immediately on first interaction — no dialog needed
-  const gift = giveCharacterGift(state, character.definitionId)
-
   state.activeDialog = {
     characterId: character.definitionId,
     lineIndex: 0,
@@ -127,11 +124,13 @@ export const interactWithCharacter = (state: GameState): { opened: boolean; gift
     transitioning: false,
     transitionStartTime: 0,
   }
-  return { opened: true, gift }
+  return { opened: true, gift: null }
 }
 
-export const advanceDialog = (state: GameState): boolean => {
-  if (!state.activeDialog) return false
+export const advanceDialog = (
+  state: GameState
+): { continuing: boolean; gift: ReveryDefinition | null } => {
+  if (!state.activeDialog) return { continuing: false, gift: null }
 
   // If still typing, reveal the full line instantly
   if (!state.activeDialog.typingDone) {
@@ -139,41 +138,40 @@ export const advanceDialog = (state: GameState): boolean => {
     const line = dialog[state.activeDialog.lineIndex]
     state.activeDialog.typingIndex = line.length
     state.activeDialog.typingDone = true
-    return true
+    return { continuing: true, gift: null }
   }
 
   // If transitioning between lines, ignore
-  if (state.activeDialog.transitioning) return true
+  if (state.activeDialog.transitioning) return { continuing: true, gift: null }
 
   const dialog = getCharacterDialog(state, state.activeDialog.characterId)
   if (state.activeDialog.lineIndex < dialog.length - 1) {
     state.activeDialog.transitioning = true
     state.activeDialog.transitionStartTime = performance.now()
-    return true
+    return { continuing: true, gift: null }
   }
 
   const characterId = state.activeDialog.characterId
   state.activeDialog = null
 
-  // Trigger one-time postGiftAction when completing postGiftDialog
-  const def = getCharacterDefinition(characterId)
-  if (
-    def.postGiftAction &&
-    state.giftsReceived.has(characterId) &&
-    !state.postGiftActionsCompleted.has(characterId)
-  ) {
-    const reveryCountBefore = state.reveries.length
-    def.postGiftAction(state)
-    state.postGiftActionsCompleted.add(characterId)
-    recordDiscovery(state, `event:${characterId}-deep-time`)
-
-    // Auto-assign any newly added reveries to the action bar
-    for (let i = reveryCountBefore; i < state.reveries.length; i++) {
-      autoAssignRevery(state, state.reveries[i])
-    }
+  // Give initial gift when completing the initial dialog
+  if (!state.giftsReceived.has(characterId)) {
+    const gift = giveCharacterGift(state, characterId)
+    return { continuing: false, gift }
   }
 
-  return false
+  // Give one-time postGift when completing postGiftDialog
+  const def = getCharacterDefinition(characterId)
+  if (
+    def.postGift &&
+    !state.postGiftActionsCompleted.has(characterId)
+  ) {
+    const gift = givePostGift(state, characterId)
+    state.postGiftActionsCompleted.add(characterId)
+    return { continuing: false, gift }
+  }
+
+  return { continuing: false, gift: null }
 }
 
 const DIALOG_TRANSITION_MS = 300
@@ -220,6 +218,22 @@ export const giveCharacterGift = (state: GameState, characterId: string): Revery
   }
 
   // Item gifts — deferred
+  return null
+}
+
+export const givePostGift = (state: GameState, characterId: string): ReveryDefinition | null => {
+  const def = getCharacterDefinition(characterId)
+  if (!def.postGift) return null
+
+  if (def.postGift.kind === 'revery') {
+    const reveryDef = getReveryDefinition(def.postGift.id)
+    state.reveries.push(def.postGift.id)
+    autoAssignRevery(state, def.postGift.id)
+    recordDiscovery(state, `revery:${def.postGift.id}`)
+    recordDiscovery(state, `event:${characterId}-deep-time`)
+    return reveryDef
+  }
+
   return null
 }
 
