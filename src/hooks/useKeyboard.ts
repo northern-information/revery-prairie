@@ -6,7 +6,6 @@ import { getCharacterDefinition } from '@/engine/characters'
 import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
 import { ComponentType } from '@/engine/ecs/types'
 import { dropItem } from '@/engine/entities'
-import { canCast } from '@/engine/hexagram'
 import { keyToDirection } from '@/engine/input'
 import {
   advanceDialog,
@@ -293,9 +292,7 @@ export const useKeyboard = ({
           setActiveScreen(null)
           return
         }
-        if (canCast(state)) {
-          setActiveScreen('divination')
-        }
+        setActiveScreen('divination')
         return
       }
 

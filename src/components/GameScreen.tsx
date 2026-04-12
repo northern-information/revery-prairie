@@ -15,6 +15,7 @@ import { Sidebar } from './Sidebar'
 import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
 import { COIN_GLINTING_COLOR } from '@/engine/constants'
+import { canCast } from '@/engine/hexagram'
 import { ComponentType } from '@/engine/ecs/types'
 import { advanceDialog } from '@/engine/interaction'
 import { getDefinition } from '@/engine/items'
@@ -155,6 +156,7 @@ export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreen
               onCastLog={(text, worldX, worldY) => {
                 addEvent('discovery', text, '¤', COIN_GLINTING_COLOR, worldX, worldY)
               }}
+              initialView={canCast(state) ? 'casting' : 'compendium'}
             />
           )}
           {activeScreen === 'reveries' && <ReveriesPanel state={state} refreshUI={refreshUI} />}
