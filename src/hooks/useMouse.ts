@@ -67,7 +67,16 @@ export const useMouse = ({
       }
 
       if (state.activeDialog) {
-        advanceDialog(state)
+        const result = advanceDialog(state)
+        if (result.gift) {
+          onGift(
+            `received ${result.gift.name.toLowerCase()}`,
+            result.gift.glyphs[0],
+            result.gift.glyphColor,
+            state.player.x,
+            state.player.y
+          )
+        }
         refreshUI()
         return
       }
@@ -138,15 +147,6 @@ export const useMouse = ({
             const result = interactWithCharacter(state)
             if (result.opened) {
               onDialog(charDef.name, charDef.glyph, charDef.glyphColor, state.player.x, state.player.y)
-              if (result.gift) {
-                onGift(
-                  `received ${result.gift.name.toLowerCase()}`,
-                  result.gift.glyphs[0],
-                  result.gift.glyphColor,
-                  state.player.x,
-                  state.player.y
-                )
-              }
             }
             refreshUI()
           }
