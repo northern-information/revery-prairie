@@ -1,0 +1,164 @@
+plan:
+  id: glinting-zones-drift
+  title: Add fade-in/out lifecycle and drift to glinting zone patches
+  created: 2026-04-11
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-glint-patch-type-and-constants
+    title: Add GlintPatch type to types.ts, lifecycle constants to constants.ts, glintPatches and glintOpacity to GameState
+    spec_id: glinting-zones
+    spec_sections:
+      - patch-lifecycle
+      - patch-drift
+      - patch-spawning
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+
+  - id: extract-glint-zone-module
+    title: Create src/engine/glintZones.ts with spawnGlintPatch, tickGlintZones, rebuildGlintZones, seedGlintPatches
+    spec_id: glinting-zones
+    spec_sections:
+      - patch-lifecycle
+      - patch-drift
+      - patch-spawning
+      - initial-seeding
+    context_files:
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/glintZones.ts
+    depends_on:
+      - add-glint-patch-type-and-constants
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+
+  - id: update-state-initialization
+    title: Replace generateGlintZones in state.ts with seedGlintPatches from glintZones.ts
+    spec_id: glinting-zones
+    spec_sections:
+      - initial-seeding
+    context_files:
+      - src/engine/state.ts
+      - src/engine/glintZones.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - extract-glint-zone-module
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+
+  - id: register-tick-system
+    title: Add glint-zone tick system to gameLoop.ts calling tickGlintZones
+    spec_id: glinting-zones
+    spec_sections:
+      - patch-lifecycle
+      - patch-drift
+      - patch-spawning
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/glintZones.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - extract-glint-zone-module
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+
+  - id: update-renderer-opacity
+    title: Modulate sparkle density by glintOpacity in renderer.ts
+    spec_id: glinting-zones
+    spec_sections:
+      - sparkle-rendering
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-glint-patch-type-and-constants
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+
+  - id: update-test-helpers
+    title: Update test helpers to initialize glintPatches and glintOpacity
+    spec_id: glinting-zones
+    spec_sections:
+      - initial-seeding
+    context_files:
+      - src/engine/__tests__/helpers.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/helpers.ts
+    depends_on:
+      - add-glint-patch-type-and-constants
+    verification:
+      - npm run build
+    repair: retry
+    tags: [test]
+
+  - id: add-glint-zone-tests
+    title: Add unit tests for patch lifecycle, drift, spawning, opacity, and rebuild
+    spec_id: glinting-zones
+    spec_sections:
+      - patch-lifecycle
+      - patch-drift
+      - patch-spawning
+      - initial-seeding
+    context_files:
+      - src/engine/glintZones.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/movement.test.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/glintZones.test.ts
+    depends_on:
+      - extract-glint-zone-module
+      - update-test-helpers
+    verification:
+      - npx vitest run src/engine/__tests__/glintZones.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: update-serialization-schema
+    title: Update serialization schema test to include glintPatches and glintOpacity fields
+    spec_id: glinting-zones
+    spec_sections:
+      - patch-lifecycle
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - add-glint-patch-type-and-constants
+    verification:
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [test]

@@ -14,11 +14,13 @@ import {
   PATH_TICK_MS,
   SHOOTING_STAR_SPAWN_TICK_MS,
   SHOOTING_STAR_TICK_MS,
+  GLINT_ZONE_TICK_MS,
   WEATHER_TICK_MS,
 } from './constants'
 import { tickTileWater } from './tileWater'
 import { ComponentType } from './ecs/types'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
+import { tickGlintZones } from './glintZones'
 import { spawnLightningStrike, tickLightning } from './lightning'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { getDefinition } from './items'
@@ -321,6 +323,14 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       priority: 100,
       fn: (state, time) => {
         tickLightning(state, time)
+      },
+    },
+    {
+      id: 'glint-zone',
+      intervalMs: GLINT_ZONE_TICK_MS,
+      zone: 'overworld',
+      fn: (state, time) => {
+        tickGlintZones(state, time)
       },
     },
   ]

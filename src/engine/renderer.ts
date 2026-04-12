@@ -952,7 +952,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (wx === player.x && wy === player.y) continue
 
         const h = tileHash(wx + state.rainSeed, wy)
-        if (h % GLINT_ZONE_DENSITY !== 0) continue
+        const opacity = state.glintOpacity.get(key) ?? 0
+        if (opacity <= 0) continue
+        const effectiveDensity = Math.ceil(GLINT_ZONE_DENSITY / opacity)
+        if (h % effectiveDensity !== 0) continue
 
         const glintPhase = ((h >> 4) + Math.floor(time * GLINT_ZONE_SPEED)) % GLINT_ZONE_CHARS.length
         const glintColorPhase =
