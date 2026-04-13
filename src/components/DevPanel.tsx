@@ -4,6 +4,7 @@ import { PanelTitle, Tab } from './PanelPrimitives'
 import {
   COMPONENT_META,
   DEV_PRESETS,
+  ENTITY_TAG_SUGGESTIONS,
   paintRect,
   spawnDevEntity,
   TILE_TYPE_LIST,
@@ -22,22 +23,7 @@ interface DevPanelProps {
   metricsRef: React.RefObject<CharMetrics | null>
 }
 
-const ENTITY_TAG_SUGGESTIONS = [
-  'bee',
-  'angel',
-  'character',
-  'groundItem',
-  'meteorite',
-  'beehive',
-  'groundOmnibox',
-  'shootingStar',
-  'explosion',
-  'pickupBloom',
-  'reveryCast',
-  'lightning',
-  'wildfire',
-  'crumble',
-]
+const ENTITY_TAG_LIST = [...ENTITY_TAG_SUGGESTIONS]
 
 // --- Shared helpers ---
 
@@ -211,7 +197,7 @@ const FieldEditor = ({
       label={field.name}
       value={strVal}
       onChange={onChange}
-      suggestions={isEntityTag ? ENTITY_TAG_SUGGESTIONS : undefined}
+      suggestions={isEntityTag ? ENTITY_TAG_LIST : undefined}
     />
   )
 }
@@ -276,7 +262,7 @@ const ComponentSection = ({
             onChange={v => {
               onFieldChange('value', v)
             }}
-            suggestions={ENTITY_TAG_SUGGESTIONS}
+            suggestions={ENTITY_TAG_LIST}
           />
         </div>
       )}

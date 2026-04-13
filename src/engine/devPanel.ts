@@ -4,6 +4,25 @@ import { TileType, Zone } from './types'
 import type { ComponentDataMap } from './ecs/types'
 import type { GameState, Position } from './types'
 
+// --- Known entity tags: must include every EntityTag string used in src/engine/ ---
+
+export const ENTITY_TAG_SUGGESTIONS = [
+  'angel',
+  'bee',
+  'beehive',
+  'character',
+  'crumble',
+  'explosion',
+  'groundItem',
+  'groundOmnibox',
+  'lightning',
+  'meteorite',
+  'pickupBloom',
+  'reveryCast',
+  'shootingStar',
+  'wildfire',
+] as const
+
 // --- Component metadata: describes each component's fields for the dev panel UI ---
 
 export type FieldKind = 'number' | 'string' | 'boolean' | 'select'

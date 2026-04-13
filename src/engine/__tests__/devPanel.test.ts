@@ -1,8 +1,12 @@
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import {
   COMPONENT_META,
   DEV_PRESETS,
+  ENTITY_TAG_SUGGESTIONS,
   getComponentDefaults,
   paintRect,
   paintTile,
@@ -265,6 +269,34 @@ describe('dev panel', () => {
       expect(state.map[4][4].type).toBe(TileType.Clover)
       expect(state.map[4][3].type).toBe(TileType.Dirt)
       expect(state.map[3][4].type).toBe(TileType.Dirt)
+    })
+  })
+
+  describe('entity tag completeness', () => {
+    it('ENTITY_TAG_SUGGESTIONS includes every EntityTag string used in engine source', () => {
+      const engineDir = path.resolve(__dirname, '..')
+      const tagPattern = /addComponent\(\s*\w+,\s*ComponentType\.EntityTag,\s*'([^']+)'\)/g
+
+      const foundTags = new Set<string>()
+      const scanDir = (dir: string) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          if (entry.name === '__tests__') continue
+          const full = path.join(dir, entry.name)
+          if (entry.isDirectory()) {
+            scanDir(full)
+          } else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) {
+            const content = fs.readFileSync(full, 'utf8')
+            for (const match of content.matchAll(tagPattern)) {
+              foundTags.add(match[1])
+            }
+          }
+        }
+      }
+      scanDir(engineDir)
+
+      const knownTags = new Set<string>(ENTITY_TAG_SUGGESTIONS)
+      const missing = [...foundTags].filter(tag => !knownTags.has(tag))
+      expect(missing, `EntityTag strings missing from ENTITY_TAG_SUGGESTIONS: ${missing.join(', ')}`).toEqual([])
     })
   })
 })
