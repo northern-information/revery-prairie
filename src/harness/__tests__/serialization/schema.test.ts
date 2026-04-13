@@ -97,6 +97,7 @@ const EXPECTED_FIELDS = [
   'angelFlashTime',
   'devPanelOpen',
   'devPaintPreview',
+  'devEntityPreview',
 ].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {

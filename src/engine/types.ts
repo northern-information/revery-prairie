@@ -213,6 +213,7 @@ export interface GameState {
   angelFlashTime: number
   devPanelOpen: boolean
   devPaintPreview: { x1: number; y1: number; x2: number; y2: number; tileType: string } | null
+  devEntityPreview: { x: number; y: number; char: string; color: string } | null
 }
 
 export const CloverStage = {

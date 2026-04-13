@@ -975,6 +975,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
+      // Dev entity preview: show glyph with pink background at hovered tile
+      if (mx === state.devEntityPreview?.x && my === state.devEntityPreview?.y) {
+        ctx.fillStyle = ACTION_COLOR
+        ctx.fillRect(px, py, charWidth, charHeight)
+        ctx.fillStyle = state.devEntityPreview.color
+        ctx.fillText(state.devEntityPreview.char, px, py)
+        continue
+      }
+
       // Draw with cursor/facing inversion if applicable
       // Invalid preview tiles (e.g. red X for lightning targeting) skip cursor inversion
       if (previewTile && !previewTile.isValid) {
