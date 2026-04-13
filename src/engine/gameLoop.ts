@@ -78,16 +78,23 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: 0,
       zone: 'always' as const,
       priority: -25,
-      fn: (state, time) => {
-        if (!state.genesis) return
-        if (state.genesis.epochIndex >= GENESIS_EPOCHS.length) return
+      fn: (() => {
+        let lastRefresh = 0
+        return (state: GameState, time: number) => {
+          if (!state.genesis) return
+          if (state.genesis.epochIndex >= GENESIS_EPOCHS.length) return
 
-        const done = tickGenesis(state.genesis, GENESIS_EPOCHS, time)
-        if (done) {
-          completeGenesis(state)
-          callbacks.onRefreshUI?.()
+          const done = tickGenesis(state.genesis, GENESIS_EPOCHS, time)
+          if (done) {
+            completeGenesis(state)
+            callbacks.onRefreshUI?.()
+          } else if (time - lastRefresh >= 100) {
+            // Throttled refresh — keeps year counter and progress bar ticking
+            lastRefresh = time
+            callbacks.onRefreshUI?.()
+          }
         }
-      },
+      })(),
     },
     {
       id: 'path',

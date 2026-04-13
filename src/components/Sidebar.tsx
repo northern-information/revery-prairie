@@ -15,7 +15,14 @@ import {
 } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { getTileEffects } from '@/engine/effects'
-import { GENESIS_EPOCHS, getEpochProgress, getGenesisCommentary } from '@/engine/genesis'
+import {
+  formatYear,
+  GENESIS_END_YEAR,
+  GENESIS_EPOCHS,
+  getEpochProgress,
+  getGenesisCommentary,
+  getGenesisYear,
+} from '@/engine/genesis'
 import { getDefinition } from '@/engine/items'
 import { isInBounds, posKey } from '@/engine/position'
 import { DEEP_TIME_TOTAL_YEARS } from '@/engine/constants'
@@ -115,24 +122,25 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
       >
         <div className="flex flex-col gap-4">
           <PanelTitle>revery prairie</PanelTitle>
+          <p className="text-xs">
+            <span className="text-muted">year </span>
+            {formatYear(getGenesisYear(state.genesis, GENESIS_EPOCHS, performance.now()))}
+          </p>
           <div>
             <SectionHeader>
               epoch {state.genesis.epochIndex + 1}/{GENESIS_EPOCHS.length}
             </SectionHeader>
             <p className="text-muted">{getGenesisCommentary(state.genesis, GENESIS_EPOCHS)}</p>
-          </div>
-        </div>
-        <div className="flex flex-col gap-4">
-          <div>
-            <SectionHeader>genesis</SectionHeader>
-            <div className="mb-2 h-1 w-full overflow-hidden rounded bg-white/10">
+            <div className="mt-2 h-1 w-full overflow-hidden rounded bg-white/10">
               <div
                 className="h-full bg-white/40 transition-none"
                 style={{ width: `${String(Math.round(overallProgress * 100))}%` }}
               />
             </div>
-            <p className="text-muted text-center">press any key to skip</p>
           </div>
+        </div>
+        <div>
+          <p className="text-muted text-center text-xs">press any key to skip</p>
         </div>
       </div>
     )
@@ -151,15 +159,14 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
       >
         <div className="flex flex-col gap-4">
           <PanelTitle>revery prairie</PanelTitle>
+          <p className="text-xs">
+            <span className="text-muted">year </span>
+            {formatYear(GENESIS_END_YEAR + state.deepTime.elapsedYears)}
+          </p>
           <div>
             <SectionHeader>deep time</SectionHeader>
             <p className="text-muted">{phaseLabel}</p>
           </div>
-          {state.deepTime.phase === DeepTimePhase.Simulating && (
-            <div>
-              <SectionHeader>year {state.deepTime.elapsedYears}</SectionHeader>
-            </div>
-          )}
         </div>
         <div className="flex flex-col gap-4">
           <div>

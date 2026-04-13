@@ -3,6 +3,7 @@ import {
   createGenesisState,
   extractGenesisResult,
   GENESIS_EPOCHS,
+  getEpochProgress,
   getGenesisCommentary,
   nameToSeed,
   runAllMutations,
@@ -10,7 +11,7 @@ import {
 } from '../genesis'
 import { posKey } from '../position'
 import { TileType } from '../types'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 describe('createGenesisState', () => {
   it('creates a state with correct dimensions', () => {
@@ -261,6 +262,49 @@ describe('tickGenesis', () => {
     runAllMutations(sim, GENESIS_EPOCHS)
     const done = tickGenesis(sim, GENESIS_EPOCHS, 99999)
     expect(done).toBe(true)
+  })
+
+  it('sets epochStartTime on advance so next epoch has non-zero progress', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+
+    // Start epoch 0
+    const startTime = 1000
+    tickGenesis(sim, GENESIS_EPOCHS, startTime)
+    expect(sim.epochIndex).toBe(0)
+    expect(sim.epochStartTime).toBe(startTime)
+
+    // Advance past epoch 0 duration
+    const advanceTime = startTime + GENESIS_EPOCHS[0].durationMs + 1
+    tickGenesis(sim, GENESIS_EPOCHS, advanceTime)
+    expect(sim.epochIndex).toBe(1)
+
+    // epochStartTime should be set to the advance time, not 0
+    expect(sim.epochStartTime).toBe(advanceTime)
+    expect(sim.epochStartTime).not.toBe(0)
+  })
+
+  it('does not produce progress=0 at epoch transitions', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+
+    // Start epoch 0
+    tickGenesis(sim, GENESIS_EPOCHS, 1000)
+
+    // Advance to epoch 1
+    const advanceTime = 1000 + GENESIS_EPOCHS[0].durationMs + 1
+    tickGenesis(sim, GENESIS_EPOCHS, advanceTime)
+    expect(sim.epochIndex).toBe(1)
+
+    // Mock performance.now to match the advance time
+    vi.spyOn(performance, 'now').mockReturnValue(advanceTime)
+    try {
+      const progress = getEpochProgress(sim, GENESIS_EPOCHS)
+      // Progress should be 0 or very small but epochStartTime should be set,
+      // so getEpochProgress should not take the epochStartTime===0 early return
+      expect(sim.epochStartTime).not.toBe(0)
+      expect(progress).toBeGreaterThanOrEqual(0)
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 })
 

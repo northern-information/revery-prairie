@@ -2590,10 +2590,18 @@ export const tickGenesis = (sim: GenesisSimState, epochs: GenesisEpoch[], time: 
 
   const elapsed = time - sim.epochStartTime
   if (elapsed >= epoch.durationMs) {
-    // Advance to next epoch — mutate runs on the next frame's first tick
+    // Advance to next epoch — set epochStartTime to current time so the
+    // renderer sees a valid (non-zero) progress on the first frame,
+    // preventing a single-frame flash at epoch transitions.
     sim.epochIndex++
-    sim.epochStartTime = 0
-    if (sim.epochIndex >= epochs.length) return true
+    if (sim.epochIndex >= epochs.length) {
+      sim.epochStartTime = 0
+      return true
+    }
+    sim.epochStartTime = time
+    if (!sim.mutationsPrecomputed) {
+      epochs[sim.epochIndex].mutate(sim)
+    }
   }
 
   return false
@@ -2629,6 +2637,50 @@ export const getGenesisCommentary = (sim: GenesisSimState, epochs: GenesisEpoch[
   if (sim.epochIndex >= epochs.length) return ''
   return epochs[sim.epochIndex].commentary
 }
+
+// Year ranges per epoch — maps geological time across the genesis sequence.
+// Each entry is [startYear, endYear]. The counter lerps between them based on
+// epoch progress, giving a running year from the big bang to present day.
+const EPOCH_YEAR_RANGES: [number, number][] = [
+  [0, 500_000_000], // cosmicFormation
+  [500_000_000, 1_000_000_000], // landAccretion
+  [1_000_000_000, 2_000_000_000], // lavaEra
+  [2_000_000_000, 3_000_000_000], // crustCooling
+  [3_000_000_000, 4_000_000_000], // firstWater
+  [4_000_000_000, 5_500_000_000], // emergenceOfLife
+  [5_500_000_000, 7_000_000_000], // fireSeason
+  [7_000_000_000, 8_500_000_000], // regrowth
+  [8_500_000_000, 10_000_000_000], // iceAge
+  [10_000_000_000, 11_000_000_000], // postGlacialDieOff
+  [11_000_000_000, 12_000_000_000], // warmPeriod
+  [12_000_000_000, 13_000_000_000], // riseOfCivilizations
+  [13_000_000_000, 13_700_000_000], // fallOfCivilizations
+  [13_700_000_000, 13_800_000_000], // presentDay
+]
+
+/** The year at which genesis ends and gameplay begins. */
+export const GENESIS_END_YEAR = 13_800_000_000
+
+/** Get the current geological year based on epoch index and progress.
+ *  The high-order digits advance with epoch progress. The last 6 digits
+ *  roll independently at a slower rate (driven by `time`) to give the
+ *  impression of a fast-running clock without jumpy noise. */
+export const getGenesisYear = (sim: GenesisSimState, epochs: GenesisEpoch[], time: number): number => {
+  if (sim.epochIndex >= epochs.length) return GENESIS_END_YEAR
+  const progress = getEpochProgress(sim, epochs)
+  const [startYear, endYear] = EPOCH_YEAR_RANGES[sim.epochIndex]
+  const rawYear = Math.floor(lerp(startYear, endYear, progress))
+
+  // Truncate last 6 digits, replace with a rolling counter derived from time.
+  // The counter cycles through 0–999999 over ~4 seconds, giving a steady
+  // odometer feel instead of random jumps.
+  const significant = rawYear - (rawYear % 1_000_000)
+  const rolling = Math.floor((time * 250) % 1_000_000)
+  return significant + rolling
+}
+
+/** Format a year number for display (e.g. 4500000000 → "4,500,000,000"). */
+export const formatYear = (year: number): string => year.toLocaleString()
 
 export const getEpochProgress = (sim: GenesisSimState, epochs: GenesisEpoch[]): number => {
   if (sim.epochIndex >= epochs.length) return 1
