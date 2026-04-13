@@ -21,6 +21,7 @@ export const ComponentType = {
   EntityTag: 'entityTag',
   EntityZone: 'entityZone',
   HungerTimer: 'hungerTimer',
+  AngelData: 'angelData',
 } as const
 
 export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType]
@@ -56,4 +57,13 @@ export interface ComponentDataMap {
   [ComponentType.EntityTag]: string
   [ComponentType.EntityZone]: { zone: Zone }
   [ComponentType.HungerTimer]: { hungerMs: number }
+  [ComponentType.AngelData]: {
+    auraKind: 'rain' | 'bees' | 'clover'
+    spawnTime: number
+    spokenToPlayer: boolean
+    encounterCount: number
+    seed: number
+    lastBeeSpawnTime: number
+    lastCloverGrowTime: number
+  }
 }

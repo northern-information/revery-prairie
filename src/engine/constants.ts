@@ -246,6 +246,22 @@ export const GLINT_ZONE_DRIFT_MS = 10_000
 export const GLINT_ZONE_SPAWN_MS = 15_000
 export const GLINT_ZONE_TICK_MS = 5_000
 
+// angels
+export const ANGEL_SPAWN_INTERVAL_MS = 90_000 // ~90s between spawns
+export const ANGEL_SPAWN_JITTER_MS = 30_000 // ±30s random jitter
+export const ANGEL_LIFESPAN_MS = 120_000 // ~120s before despawn
+export const ANGEL_DRIFT_TICK_MS = 2000 // slower than ghosts
+export const ANGEL_DRIFT_CHANCE = 0.1 // 10% chance per tick — very slow
+export const ANGEL_AURA_RADIUS = 25
+export const ANGEL_BEE_SPAWN_INTERVAL_MS = 5000
+export const ANGEL_BEE_MAX = 8
+export const ANGEL_CLOVER_GROW_INTERVAL_MS = 3000
+export const ANGEL_BODY_SIZE = 8 // 8x8 tile footprint
+export const ANGEL_ANIMATION_FRAME_MS = 200
+export const ANGEL_MIN_PLAYER_DIST = 30
+export const ANGEL_CANTOS_MAX = 64 // 8x8 grid
+export const ANGEL_AURA_KINDS = ['rain', 'bees', 'clover'] as const
+
 // deep time endgame
 export const BEE_STARVATION_MS = 30_000
 export const BURNT_CLOVER_RECOVERY_MS = 60_000

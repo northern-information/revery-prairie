@@ -1,3 +1,4 @@
+import { checkAngelDialog, spawnAngel, tickAngelBeeAura, tickAngelCloverAura, tickAngelDrift, tickAngelLifespan } from './angels'
 import { spawnShootingStar, tickMeteorShower, tickShootingStars } from './celestial'
 import { tickCloverGrowth, tickCloverHives } from './clover'
 import { tickCloverLifecycle } from './cloverLifecycle'
@@ -14,6 +15,10 @@ import {
   PATH_TICK_MS,
   SHOOTING_STAR_SPAWN_TICK_MS,
   SHOOTING_STAR_TICK_MS,
+  ANGEL_BEE_SPAWN_INTERVAL_MS,
+  ANGEL_CLOVER_GROW_INTERVAL_MS,
+  ANGEL_DRIFT_TICK_MS,
+  ANGEL_SPAWN_INTERVAL_MS,
   GLINT_ZONE_TICK_MS,
   WEATHER_TICK_MS,
 } from './constants'
@@ -374,6 +379,58 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       fn: (state, time) => {
         if (state.genesis) return
         tickGlintZones(state, time)
+      },
+    },
+    {
+      id: 'angel-spawn',
+      intervalMs: ANGEL_SPAWN_INTERVAL_MS,
+      zone: 'overworld',
+      fn: (state, time) => {
+        if (state.genesis) return
+        if (spawnAngel(state, time)) {
+          callbacks.onDiscovery?.('be not afraid', state.player.x, state.player.y, 'O', '#FFFFFF')
+          callbacks.onRefreshUI?.()
+        }
+      },
+    },
+    {
+      id: 'angel-drift',
+      intervalMs: ANGEL_DRIFT_TICK_MS,
+      zone: 'overworld',
+      fn: state => {
+        tickAngelDrift(state)
+      },
+    },
+    {
+      id: 'angel-lifespan',
+      intervalMs: 1000,
+      zone: 'overworld',
+      fn: (state, time) => {
+        tickAngelLifespan(state, time)
+      },
+    },
+    {
+      id: 'angel-bee-aura',
+      intervalMs: ANGEL_BEE_SPAWN_INTERVAL_MS,
+      zone: 'overworld',
+      fn: (state, time) => {
+        tickAngelBeeAura(state, time)
+      },
+    },
+    {
+      id: 'angel-clover-aura',
+      intervalMs: ANGEL_CLOVER_GROW_INTERVAL_MS,
+      zone: 'overworld',
+      fn: (state, time) => {
+        tickAngelCloverAura(state, time)
+      },
+    },
+    {
+      id: 'angel-dialog',
+      intervalMs: 0,
+      zone: 'overworld',
+      fn: state => {
+        checkAngelDialog(state)
       },
     },
     {

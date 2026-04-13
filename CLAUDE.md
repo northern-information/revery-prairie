@@ -233,11 +233,13 @@ every feature must have tests. engine tests in `src/engine/__tests__/`, componen
 
 if a feature cannot be tested (e.g. canvas rendering), flag it for the user to review how to proceed before skipping.
 
-tests that depend on terrain must account for the randomized coastline — use `clearAroundPlayer()` or manually set tiles to dirt before testing movement/combine mechanics.
+tests that depend on terrain must account for the randomized coastline — use `clearAroundPlayer()` or manually set tiles to dirt before testing movement/combine mechanics. this applies to any entity, not just the player: if a test spawns an entity and then asserts on random tile selection within a radius (aura effects, spawning, etc.), clear the terrain around that entity first. without explicit terrain preparation, random tile picks may land on sand/space/water and silently fail.
 
 `createGameState` seeds shooting stars and other entities. tests that assert exact counts on `state.shootingStars`, `state.meteorites`, etc. must reset these arrays (e.g. `state.meteorites = []`) before the test logic.
 
-tests must never depend on `Math.random()` producing favorable outcomes over N iterations. mock it with `vi.spyOn(Math, 'random').mockReturnValue(...)` and restore with `vi.restoreAllMocks()` in a `finally` block. never use the manual `const orig = Math.random; Math.random = () => ...` pattern.
+tests must never depend on `Math.random()` producing favorable outcomes over N iterations. mock it with `vi.spyOn(Math, 'random').mockReturnValue(...)` and restore with `vi.restoreAllMocks()` in a `finally` block. never use the manual `const orig = Math.random; Math.random = () => ...` pattern. when a test needs random placement to succeed (spawning an entity at a random position within a radius), don't rely on mocked random values landing on valid tiles — instead, prepare the terrain so all tiles in the radius are valid. mocking random is for controlling *which path* code takes, not for guaranteeing tile validity.
+
+`no-non-null-assertion` forbids `getComponent(...)!` in tests. use a `requireComponent` helper that wraps `expect(val).toBeTruthy()` and returns the typed value. see `src/engine/__tests__/angels.test.ts` for the pattern.
 
 ## harness
 
@@ -291,6 +293,10 @@ each task in `tasks[]`:
 - `repair` — `retry` or `skip`
 - `tags` — optional array (e.g. `[engine]`, `[test]`, `[hook]`)
 
+### harness execution
+
+`npm run harness:run` delegates tasks to an LLM agent that may produce zero edits, causing tasks to fail with 0 attempts. when executing a plan, implement the tasks manually following the plan's task order and dependency graph. the harness is useful for validation and structure, not autonomous execution.
+
 ### harness commands
 
 ```
@@ -306,7 +312,7 @@ npm run harness:run      # execute a plan (--plan harness/plans/{id}.yaml)
 - Tailwind for styling. custom theme tokens defined in `src/styles/index.css`.
 - `@/` path alias maps to `src/`.
 - prettier config matches shop-item-detail-frontend (single quotes, no semis, trailing commas, import sorting, tailwind class sorting).
-- eslint uses `strictTypeChecked` + `stylisticTypeChecked` from typescript-eslint. never add `eslint-disable` comments — fix the underlying code instead.
+- eslint uses `strictTypeChecked` + `stylisticTypeChecked` from typescript-eslint. never add `eslint-disable` comments — fix the underlying code instead. `no-dynamic-delete` forbids `delete obj[key]` — use `Reflect.deleteProperty(obj, key)` instead.
 - for event handlers that read mutable game state, use refs (`containerRef.current`, `dragStateRef.current`) instead of closure-captured values. this avoids stale closures and prevents `useEffect` re-registration on every state change.
 - when a `useEffect` only needs to know if something is truthy (not its full value), extract a boolean (`const isDragging = dragState !== null`) and use that in the dependency array to reduce churn.
 - `as const satisfies Record<string, T>` pattern for typed registries that derive IDs from keys.

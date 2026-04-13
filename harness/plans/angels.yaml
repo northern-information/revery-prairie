@@ -1,0 +1,253 @@
+plan:
+  id: angels
+  title: 'Add biblically accurate ASCII angels with aura effects and cantos system'
+  created: '2026-04-13'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: angel-types-and-constants
+    title: 'Add angel ECS components, GameState fields, and constants'
+    spec_id: angels
+    spec_sections:
+      - angel-spawning
+      - angel-aura-types
+      - angel-cantos-storage
+      - angel-despawn
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+      - src/engine/effects.ts
+      - src/engine/state.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+      - src/engine/effects.ts
+      - src/engine/state.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization
+    repair: retry
+    tags: [engine]
+
+  - id: angel-core-module
+    title: 'Create angels.ts with spawn, drift, despawn, aura tick, and dialog trigger logic'
+    spec_id: angels
+    spec_sections:
+      - angel-spawning
+      - angel-drifting
+      - angel-aura-types
+      - angel-aura-rain
+      - angel-aura-bees
+      - angel-aura-clover
+      - angel-dialog-trigger
+      - angel-cantos-storage
+      - angel-despawn
+      - angel-movement-blocking
+      - angel-character-definition
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+      - src/engine/celestial.ts
+      - src/engine/entities.ts
+      - src/engine/characters.ts
+      - src/engine/interaction.ts
+      - src/engine/effects.ts
+      - src/engine/position.ts
+      - src/engine/clover.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/angels.ts
+    depends_on:
+      - angel-types-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: angel-animation
+    title: 'Create angel animation system with procedural Ezekiel-inspired ASCII frames'
+    spec_id: angels
+    spec_sections:
+      - angel-animation
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+      - src/engine/angels.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/angelAnimation.ts
+    depends_on:
+      - angel-core-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: angel-game-loop
+    title: 'Register angel tick systems in game loop'
+    spec_id: angels
+    spec_sections:
+      - angel-spawning
+      - angel-drifting
+      - angel-aura-bees
+      - angel-aura-clover
+      - angel-despawn
+      - angel-dialog-trigger
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/constants.ts
+      - src/engine/angels.ts
+    output_files:
+      - src/engine/gameLoop.ts
+      - src/engine/constants.ts
+    depends_on:
+      - angel-core-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: angel-renderer
+    title: 'Add angel body and aura rendering to the render loop'
+    spec_id: angels
+    spec_sections:
+      - angel-animation
+      - angel-aura-rain
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+      - src/engine/angelAnimation.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+    depends_on:
+      - angel-animation
+      - angel-game-loop
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: angel-manual-entries
+    title: 'Add angel manual entries and discovery keys'
+    spec_id: angels
+    spec_sections:
+      - angel-spawning
+      - angel-dialog-trigger
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/angels.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - angel-core-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: cantos-screen-component
+    title: 'Create CantosScreen component with 8x8 grid display'
+    spec_id: angels
+    spec_sections:
+      - cantos-tab
+      - angel-cantos-storage
+    context_files:
+      - src/components/PermacomputerShell.tsx
+      - src/components/Sidebar.tsx
+      - src/components/PanelPrimitives.tsx
+      - src/engine/types.ts
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/components/CantosScreen.tsx
+    depends_on:
+      - angel-types-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: cantos-tab-integration
+    title: 'Add CANTOS tab to PermacomputerShell and wire up screen routing'
+    spec_id: angels
+    spec_sections:
+      - cantos-tab
+    context_files:
+      - src/components/PermacomputerShell.tsx
+      - src/components/GameScreen.tsx
+      - src/hooks/useKeyboard.ts
+      - src/components/CantosScreen.tsx
+    output_files:
+      - src/components/PermacomputerShell.tsx
+      - src/components/GameScreen.tsx
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - cantos-screen-component
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: angel-engine-tests
+    title: 'Write engine tests for angel spawning, drifting, auras, dialog, and cantos'
+    spec_id: angels
+    spec_sections:
+      - angel-spawning
+      - angel-drifting
+      - angel-aura-types
+      - angel-aura-rain
+      - angel-aura-bees
+      - angel-aura-clover
+      - angel-dialog-trigger
+      - angel-cantos-storage
+      - angel-despawn
+      - angel-movement-blocking
+    context_files:
+      - src/engine/angels.ts
+      - src/engine/angelAnimation.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/angels.test.ts
+    depends_on:
+      - angel-core-module
+      - angel-animation
+      - angel-game-loop
+    verification:
+      - npx vitest run src/engine/__tests__/angels.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: cantos-component-tests
+    title: 'Write component tests for CantosScreen'
+    spec_id: angels
+    spec_sections:
+      - cantos-tab
+    context_files:
+      - src/components/CantosScreen.tsx
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/components/__tests__/PermacomputerShell.test.tsx
+    output_files:
+      - src/components/__tests__/CantosScreen.test.tsx
+    depends_on:
+      - cantos-tab-integration
+    verification:
+      - npx vitest run src/components/__tests__/CantosScreen.test.tsx
+    repair: retry
+    tags: [test]
