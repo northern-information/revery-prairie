@@ -251,6 +251,10 @@ tests must never depend on `Math.random()` producing favorable outcomes over N i
 
 `no-non-null-assertion` forbids `getComponent(...)!` in tests. use a `requireComponent` helper that wraps `expect(val).toBeTruthy()` and returns the typed value. see `src/engine/__tests__/angels.test.ts` for the pattern.
 
+adding a new field to `GameState` requires adding it to `EXPECTED_FIELDS` in `src/harness/__tests__/serialization/schema.test.ts` or the schema whitelist test will fail.
+
+rain-related tests must set `state.rainIntensity = 1` (not just `state.weather.sky = Sky.Rain`) and position the test tile in the rain front's core zone (dist between `RAIN_FRONT_FRINGE` and `RAIN_FRONT_WIDTH - RAIN_FRONT_FRINGE`) to avoid probabilistic exclusion by the blotchy fringe noise.
+
 ## harness
 
 spec-driven development pipeline. see README.md for the workflow, roles, and entry points.
