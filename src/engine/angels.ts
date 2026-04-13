@@ -157,7 +157,6 @@ export const spawnAngel = (state: GameState, time: number): boolean => {
       auraKind,
       spawnTime: time,
       cantoStored: false,
-      playerUnder: false,
       encounterCount: state.angelEncounterCount,
       seed,
       lastBeeSpawnTime: 0,
@@ -334,61 +333,26 @@ export const tickAngelCloverAura = (state: GameState, time: number): void => {
   }
 }
 
-// --- Dialog trigger ---
+// --- Canto storage (called from interactWithCharacter) ---
 
-export const checkAngelDialog = (state: GameState): void => {
-  if (state.activeDialog) return
-  if (state.currentZone !== Zone.Overworld) return
-
-  for (const eid of state.world.query(
-    ComponentType.AngelData,
-    ComponentType.MultiPosition,
-    ComponentType.CharacterIdentity
-  )) {
-    const data = state.world.getComponent(eid, ComponentType.AngelData)
-    const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
+export const storeAngelCanto = (state: GameState, characterId: string): void => {
+  for (const eid of state.world.query(ComponentType.AngelData, ComponentType.CharacterIdentity)) {
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-    if (!data || !multi || !identity) continue
+    if (identity?.definitionId !== characterId) continue
+    const data = state.world.getComponent(eid, ComponentType.AngelData)
+    if (!data || data.cantoStored) return
 
-    // Check if player is standing on any angel body tile
-    const playerKey = posKey(state.player.x, state.player.y)
-    const isUnderAngel = multi.positions.some(p => posKey(p.x, p.y) === playerKey)
-
-    if (!isUnderAngel) {
-      // Player left — reset so next walk-under can trigger
-      data.playerUnder = false
-      continue
-    }
-
-    // Only trigger on the transition from outside to under (edge detection)
-    if (data.playerUnder) continue
-    data.playerUnder = true
-
-    // Trigger dialog (repeatable on each new walk-under)
-    state.activeDialog = {
-      characterId: identity.definitionId,
-      lineIndex: 0,
-      typingIndex: 0,
-      typingDone: false,
-      transitioning: false,
-      transitionStartTime: 0,
-    }
-
-    // Store canto only on first encounter with this angel
-    if (!data.cantoStored) {
-      data.cantoStored = true
-      const hash = generateAngelHash(
-        state.stewardName,
-        data.seed % 10000,
-        Math.floor(data.seed / 10000) % 10000,
-        data.encounterCount
-      )
-      state.angelCantos.push(hash)
-      state.angelEncounterCount++
-
-      recordDiscovery(state, 'event:angel-canto')
-    }
-    break
+    data.cantoStored = true
+    const hash = generateAngelHash(
+      state.stewardName,
+      data.seed % 10000,
+      Math.floor(data.seed / 10000) % 10000,
+      data.encounterCount
+    )
+    state.angelCantos.push(hash)
+    state.angelEncounterCount++
+    recordDiscovery(state, 'event:angel-canto')
+    return
   }
 }
 
