@@ -1000,10 +1000,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const isAngelGroupHighlighted =
         angelGroup !== undefined &&
         !state.devPanelOpen &&
-        ((state.cursorTile && angelGroup.has(posKey(state.cursorTile.x, state.cursorTile.y))) ||
-          (state.facingEntityPos && angelGroup.has(posKey(state.facingEntityPos.x, state.facingEntityPos.y))) ||
-          (state.pendingInteractionTarget &&
-            angelGroup.has(posKey(state.pendingInteractionTarget.x, state.pendingInteractionTarget.y))))
+        (Boolean(state.cursorTile && angelGroup.has(posKey(state.cursorTile.x, state.cursorTile.y))) ||
+          Boolean(state.facingEntityPos && angelGroup.has(posKey(state.facingEntityPos.x, state.facingEntityPos.y))) ||
+          Boolean(
+            state.pendingInteractionTarget &&
+              angelGroup.has(posKey(state.pendingInteractionTarget.x, state.pendingInteractionTarget.y))
+          ))
 
       // Draw with cursor/facing inversion if applicable
       // Invalid preview tiles (e.g. red X for lightning targeting) skip cursor inversion
