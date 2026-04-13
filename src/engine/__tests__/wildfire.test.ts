@@ -5,7 +5,7 @@ import { spreadWildfire } from '../lightning'
 import { posKey } from '../position'
 import { CloverStage, TileType } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * Fills a rectangular area with dry clover and sets up lifecycle + water.
@@ -106,7 +106,13 @@ describe('wildfire spread', () => {
   })
 
   describe('fire revery creates wildfire ECS entity', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
     it('creates a wildfire entity when clover cluster burns more than 1 tile', () => {
+      // Mock random to guarantee wildfire spread (spreadChance check: Math.random() < 0.4 skips)
+      vi.spyOn(Math, 'random').mockReturnValue(0.99)
       const state = createTestState()
       clearAroundPlayer(state, 10)
 
