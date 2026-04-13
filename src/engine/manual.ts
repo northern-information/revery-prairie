@@ -62,6 +62,7 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'revery:fire': { lore: 'TODO' },
   'revery:water': { lore: 'TODO' },
   'revery:earth': { lore: 'TODO' },
+  'revery:deep-time': { lore: 'TODO' },
   // World entities
   'entity:beehive': { lore: 'TODO' },
   // Characters
