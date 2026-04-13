@@ -24,9 +24,9 @@ import type { GameState, Position } from './types'
 // --- Angel names by aura kind ---
 
 const ANGEL_NAMES: Record<string, string> = {
-  rain: 'Ophan of Rain',
-  bees: 'Ophan of Bees',
-  clover: 'Ophan of Clover',
+  rain: 'Angel of Rain',
+  bees: 'Angel of Bees',
+  clover: 'Angel of Clover',
 }
 
 // --- sha256 hash generation ---
@@ -65,8 +65,12 @@ const sha256Sync = (message: string): string => {
   return hex(h0) + hex(h1) + hex(h2) + hex(h3) + hex(h4) + hex(h5) + hex(h6) + hex(h7)
 }
 
-export const generateAngelHash = (stewardName: string, spawnX: number, spawnY: number, encounterCount: number): string =>
-  sha256Sync(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`)
+export const generateAngelHash = (
+  stewardName: string,
+  spawnX: number,
+  spawnY: number,
+  encounterCount: number
+): string => sha256Sync(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`)
 
 // Async version for when crypto.subtle is available
 export const generateAngelHashAsync = async (
@@ -153,7 +157,7 @@ export const spawnAngel = (state: GameState, time: number): boolean => {
     state.world.addComponent(e, ComponentType.AngelData, {
       auraKind,
       spawnTime: time,
-      spokenToPlayer: false,
+      cantoStored: false,
       encounterCount: state.angelEncounterCount,
       seed,
       lastBeeSpawnTime: 0,
@@ -171,13 +175,14 @@ export const spawnAngel = (state: GameState, time: number): boolean => {
     const angelId = `angel-${String(time)}`
     CHARACTER_DEFINITIONS[angelId] = {
       id: angelId,
-      name: ANGEL_NAMES[auraKind] ?? 'Ophan',
+      name: ANGEL_NAMES[auraKind] ?? 'Angel',
       glyph: 'O',
       glyphColor: '#FFFFFF',
       dialog: [generateAngelHash(state.stewardName, x, y, state.angelEncounterCount)],
     }
     state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId: angelId })
 
+    state.angelFlashTime = time
     recordDiscovery(state, 'event:angel')
     return true
   }
@@ -238,6 +243,8 @@ const despawnAngel = (state: GameState, eid: number, time: number): void => {
   }
 
   state.world.destroyEntity(eid)
+
+  state.angelFlashTime = time
 
   // Schedule next spawn
   state.nextAngelSpawnTime = time + ANGEL_SPAWN_INTERVAL_MS + Math.floor(Math.random() * ANGEL_SPAWN_JITTER_MS)
@@ -333,20 +340,22 @@ export const checkAngelDialog = (state: GameState): void => {
   if (state.activeDialog) return
   if (state.currentZone !== Zone.Overworld) return
 
-  for (const eid of state.world.query(ComponentType.AngelData, ComponentType.MultiPosition, ComponentType.CharacterIdentity)) {
+  for (const eid of state.world.query(
+    ComponentType.AngelData,
+    ComponentType.MultiPosition,
+    ComponentType.CharacterIdentity
+  )) {
     const data = state.world.getComponent(eid, ComponentType.AngelData)
     const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
     if (!data || !multi || !identity) continue
-    if (data.spokenToPlayer) continue
 
     // Check if player is standing on any angel body tile
     const playerKey = posKey(state.player.x, state.player.y)
     const isUnderAngel = multi.positions.some(p => posKey(p.x, p.y) === playerKey)
     if (!isUnderAngel) continue
 
-    // Trigger dialog
-    data.spokenToPlayer = true
+    // Trigger dialog (repeatable)
     state.activeDialog = {
       characterId: identity.definitionId,
       lineIndex: 0,
@@ -356,20 +365,23 @@ export const checkAngelDialog = (state: GameState): void => {
       transitionStartTime: 0,
     }
 
-    // Store canto
-    const hash = generateAngelHash(
-      state.stewardName,
-      data.seed % 10000,
-      Math.floor(data.seed / 10000) % 10000,
-      data.encounterCount
-    )
-    if (state.angelCantos.length >= ANGEL_CANTOS_MAX) {
-      state.angelCantos.shift()
-    }
-    state.angelCantos.push(hash)
-    state.angelEncounterCount++
+    // Store canto only on first encounter with this angel
+    if (!data.cantoStored) {
+      data.cantoStored = true
+      const hash = generateAngelHash(
+        state.stewardName,
+        data.seed % 10000,
+        Math.floor(data.seed / 10000) % 10000,
+        data.encounterCount
+      )
+      if (state.angelCantos.length >= ANGEL_CANTOS_MAX) {
+        state.angelCantos.shift()
+      }
+      state.angelCantos.push(hash)
+      state.angelEncounterCount++
 
-    recordDiscovery(state, 'event:angel-canto')
+      recordDiscovery(state, 'event:angel-canto')
+    }
     break
   }
 }

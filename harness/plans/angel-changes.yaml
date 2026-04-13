@@ -1,0 +1,182 @@
+plan:
+  id: angel-changes
+  title: 'Angel symmetry, flash, interaction, hash grid, gold aura, drift speed, naming'
+  created: '2026-04-13'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: body-size-and-constants
+    title: 'Change ANGEL_BODY_SIZE from 8 to 9, ANGEL_DRIFT_CHANCE from 0.1 to 0.2, rename ANGEL_NAMES to Angel of X, add angelFlashTime to GameState'
+    spec_id: angels
+    spec_sections:
+      - angel-animation
+      - angel-drifting
+      - angel-character-definition
+      - angel-spawning
+      - angel-despawn
+    context_files:
+      - src/engine/constants.ts
+      - src/engine/angels.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/constants.ts
+      - src/engine/angels.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization
+    repair: retry
+    tags: [engine]
+
+  - id: bilateral-symmetry
+    title: 'Rewrite generateTemplate in angelAnimation.ts for strong Y-axis symmetry, decent X-axis symmetry, and centered face on 9x9 grid'
+    spec_id: angels
+    spec_sections:
+      - angel-animation
+    context_files:
+      - src/engine/angelAnimation.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/angelAnimation.ts
+    depends_on:
+      - body-size-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: spawn-despawn-flash
+    title: 'Add full-screen white flash on angel spawn and despawn using angelFlashTime state field'
+    spec_id: angels
+    spec_sections:
+      - angel-spawning
+      - angel-despawn
+    context_files:
+      - src/engine/angels.ts
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/angels.ts
+      - src/engine/renderer.ts
+    depends_on:
+      - body-size-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: repeated-interaction
+    title: 'Remove spokenToPlayer gate so dialog triggers on every walk-under, store canto only on first encounter'
+    spec_id: angels
+    spec_sections:
+      - angel-dialog-trigger
+      - angel-cantos-storage
+      - angel-pink-highlight
+    context_files:
+      - src/engine/angels.ts
+      - src/engine/interaction.ts
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/angels.ts
+      - src/engine/renderer.ts
+    depends_on:
+      - body-size-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: hash-grid-dialog
+    title: 'Render 64-char hash as 8x8 grid in Times New Roman in DialogBox when character is an angel'
+    spec_id: angels
+    spec_sections:
+      - angel-hash-grid-display
+    context_files:
+      - src/components/DialogBox.tsx
+      - src/engine/characters.ts
+      - src/engine/angels.ts
+    output_files:
+      - src/components/DialogBox.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: hash-grid-cantos
+    title: 'Update CantosScreen to show each hash as 8x8 grid of single hex chars in Times New Roman'
+    spec_id: angels
+    spec_sections:
+      - angel-hash-grid-display
+      - cantos-tab
+    context_files:
+      - src/components/CantosScreen.tsx
+      - src/engine/constants.ts
+    output_files:
+      - src/components/CantosScreen.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: gold-aura-rendering
+    title: 'Add oscillating gold fillRect aura behind tiles within angel aura radius in renderer'
+    spec_id: angels
+    spec_sections:
+      - angel-aura-gold-rendering
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - body-size-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: update-tests
+    title: 'Update angel tests for 9x9 body, repeated interaction, drift chance 0.2, Angel of X naming, flash time'
+    spec_id: angels
+    spec_sections:
+      - angel-animation
+      - angel-dialog-trigger
+      - angel-drifting
+      - angel-character-definition
+      - angel-spawning
+      - angel-despawn
+    context_files:
+      - src/engine/__tests__/angels.test.ts
+      - src/components/__tests__/CantosScreen.test.tsx
+      - src/engine/constants.ts
+      - src/engine/angels.ts
+    output_files:
+      - src/engine/__tests__/angels.test.ts
+      - src/components/__tests__/CantosScreen.test.tsx
+    depends_on:
+      - bilateral-symmetry
+      - spawn-despawn-flash
+      - repeated-interaction
+      - hash-grid-dialog
+      - hash-grid-cantos
+      - gold-aura-rendering
+    verification:
+      - npx vitest run src/engine/__tests__/angels.test.ts
+      - npx vitest run src/components/__tests__/CantosScreen.test.tsx
+    repair: retry
+    tags: [test]

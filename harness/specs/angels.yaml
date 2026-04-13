@@ -1,10 +1,11 @@
 id: angels
 name: 'Biblically accurate ASCII angels'
-status: planned
+status: partial
 priority: high
 layer: integration
 source_files:
   - src/engine/angels.ts
+  - src/engine/angelAnimation.ts
   - src/engine/types.ts
   - src/engine/ecs/types.ts
   - src/engine/constants.ts
@@ -19,6 +20,7 @@ source_files:
   - src/components/Sidebar.tsx
   - src/components/PermacomputerShell.tsx
   - src/components/CantosScreen.tsx
+  - src/components/DialogBox.tsx
   - src/hooks/useKeyboard.ts
   - src/engine/__tests__/angels.test.ts
   - src/components/__tests__/CantosScreen.test.tsx
@@ -32,56 +34,60 @@ behaviors:
       a time. Spawn location is a random walkable dirt or clover tile at least
       30 tiles from the player. Spawning is gated by a configurable interval
       (ANGEL_SPAWN_INTERVAL_MS) with random jitter. Angels do not spawn during
-      deep time or in the cave.
+      deep time or in the cave. On spawn, a full-screen white flash fires
+      (same effect as lightning screen flash: 150ms fade at 30% opacity).
     inputs:
       - 'GameState with no active angel entity'
       - 'Current time past nextAngelSpawnTime'
       - 'Player in overworld zone'
     outputs:
       - 'New ECS entity with angel components created'
+      - 'Full-screen white flash rendered on spawn frame'
     state_changes:
       - field: world
-        effect: 'new entity with AngelData, Position, MultiPosition, Aura, EntityTag("angel"), EntityZone(overworld), Behavior(drift) components'
+        effect: 'new entity with AngelData, Position, MultiPosition, Aura, EntityTag("angel"), EntityZone(overworld) components'
       - field: nextAngelSpawnTime
         effect: 'set to time + ANGEL_SPAWN_INTERVAL_MS + random jitter'
       - field: manualDiscoveries
         effect: 'event:angel recorded on first spawn'
+      - field: angelFlashTime
+        effect: 'set to current time to trigger screen flash'
     determinism: probabilistic
 
   - id: angel-drifting
     description: >
-      Angels drift slowly across the overworld, similar to ghost movement but
-      slower (lower moveChance). Movement updates all tiles in the angel's
-      multi-tile body. Angels avoid space, sand, cave entrance, water, and
-      other blocked positions. If an angel drifts off the land edge, it
-      despawns and a new spawn is scheduled.
+      Angels drift across the overworld with a 20% chance per tick
+      (ANGEL_DRIFT_CHANCE = 0.2). Movement updates all tiles in the angel's
+      9x9 body. Angels avoid space, sand, cave entrance, water, and
+      other blocked positions. Drift is frozen during active dialog.
     inputs:
-      - 'Angel entity with Behavior(drift) component'
+      - 'Angel entity exists'
       - 'Drift tick fires'
     outputs:
       - 'Angel position shifts by 1 tile in a random cardinal direction'
     state_changes:
       - field: world.Position
-        effect: 'angel anchor position moves by 1 tile'
+        effect: 'angel center position moves by 1 tile'
       - field: world.MultiPosition
-        effect: 'all body positions recalculated from new anchor'
+        effect: 'all 9x9 body positions recalculated from new anchor'
     determinism: probabilistic
 
   - id: angel-animation
     description: >
-      Each angel is rendered as an animated multi-character ASCII figure on an
-      8x8 tile footprint. The animation cycles through multiple frames using
-      characters inspired by Ezekiel's descriptions (wheels within wheels,
-      many eyes, wings). Each angel instance is procedurally varied — frame
-      patterns are seeded from the angel's spawn position so no two angels
-      look identical. Animation cycles continuously at ~200ms per frame.
-      Characters include eyes (O, o, 0), wings (~, ^, v), wheels (@, *),
-      halos (-, =), and structural elements (|, +, {, }).
+      Each angel is rendered as an animated multi-character ASCII figure on a
+      9x9 tile footprint with strong bilateral symmetry along the Y axis
+      (left-right mirror) and decent bilateral symmetry along the X axis
+      (top-bottom approximate mirror). The face (central eye cluster) is
+      centered on the true center tile. The odd body size ensures a single
+      center column and center row. Animation cycles through multiple frames
+      using characters inspired by Ezekiel's descriptions (wheels within
+      wheels, many eyes, wings). Each angel instance is procedurally varied
+      via spawn-position seed. Animation cycles at ~200ms per frame.
     inputs:
       - 'Angel entity exists in viewport'
       - 'Current render time'
     outputs:
-      - 'Animated 8x8 ASCII figure drawn on canvas at angel position'
+      - 'Animated 9x9 ASCII figure drawn on canvas at angel position'
     state_changes: []
     determinism: probabilistic
 
@@ -97,6 +103,23 @@ behaviors:
       - 'Aura effect applied within radius'
     state_changes: []
     determinism: probabilistic
+
+  - id: angel-aura-gold-rendering
+    description: >
+      All angels display a gently oscillating gold aura on the ground within
+      their 25-tile effect radius. The renderer draws a gold fillRect behind
+      each tile character within the aura. The alpha oscillates using a sine
+      wave based on time plus distance from center, creating a gentle
+      breathing/pulsing effect. The aura is purely visual — it does not
+      affect gameplay. It renders beneath tile characters but above the
+      background, similar to how rain overlays work but as a pre-pass.
+    inputs:
+      - 'Angel entity exists in viewport'
+      - 'Current render time'
+    outputs:
+      - 'Gold-tinted fillRect drawn behind tiles within aura radius'
+    state_changes: []
+    determinism: time-based
 
   - id: angel-aura-rain
     description: >
@@ -155,24 +178,45 @@ behaviors:
   - id: angel-dialog-trigger
     description: >
       When the player walks under (occupies any tile within) the angel's
-      8x8 body, dialog is triggered automatically. The angel speaks a single
-      line: a sha256 hash string. Each encounter produces a unique hash
-      derived from the steward name, angel spawn position, and encounter
-      count. Dialog uses the standard dialog panel system. Only one hash
-      per encounter — after the dialog completes, the hash is stored.
+      9x9 body, dialog is triggered automatically. The angel speaks a single
+      line: a sha256 hash string unique to this angel. Dialog can be
+      triggered repeatedly — every walk-under opens the same dialog with
+      the same hash. The canto is only stored on the first encounter.
+      Dialog uses the standard dialog panel system. Angel body tiles
+      highlight pink on cursor hover, consistent with other interactable
+      characters.
     inputs:
       - 'Player position overlaps any of the angel MultiPosition tiles'
-      - 'Angel has not already spoken to the player this spawn'
+      - 'No active dialog already open'
     outputs:
       - 'activeDialog set with angel character identity'
-      - 'Dialog panel shows sha256 hash string'
+      - 'Dialog panel shows sha256 hash as 8x8 grid in Times New Roman'
     state_changes:
       - field: activeDialog
         effect: 'set with angel characterId, single line of sha256 text'
       - field: angelCantos
-        effect: 'hash string appended after dialog completion'
+        effect: 'hash string appended on first encounter only'
+      - field: angelEncounterCount
+        effect: 'incremented on first encounter only'
       - field: manualDiscoveries
         effect: 'event:angel-canto recorded on first canto received'
+    determinism: deterministic
+
+  - id: angel-hash-grid-display
+    description: >
+      The 64-character sha256 hash is displayed as an 8x8 grid of single
+      hex characters in both the dialog box and the permacomputer cantos
+      screen. The grid uses Times New Roman font at a size slightly larger
+      than the surrounding monospace text, giving it a strange, tablet-like
+      quality — like receiving the ten commandments. In the dialog box, the
+      hash grid replaces the single-line text display. In the cantos screen,
+      each cell shows a single hex character (not 4-char truncation). The
+      full hash is shown on hover as before.
+    inputs:
+      - 'Angel dialog opens or cantos tab is viewed'
+    outputs:
+      - '8x8 grid of hex characters rendered in Times New Roman'
+    state_changes: []
     determinism: deterministic
 
   - id: angel-cantos-storage
@@ -180,9 +224,11 @@ behaviors:
       Sha256 hashes from angel encounters are stored in state.angelCantos
       as an ordered array of strings. Maximum capacity is 64 entries (8x8
       grid). When the grid is full, new cantos overwrite the oldest entry
-      (FIFO). Each canto is a full 64-character hex string.
+      (FIFO). Each canto is a full 64-character hex string. A canto is only
+      stored on the first encounter with each angel — repeated interactions
+      with the same angel do not add duplicate cantos.
     inputs:
-      - 'Angel dialog completes'
+      - 'First angel dialog with a given angel completes'
     outputs:
       - 'Hash added to angelCantos array'
     state_changes:
@@ -192,35 +238,36 @@ behaviors:
 
   - id: cantos-tab
     description: >
-      A new "CANTOS" tab is added to the PermacomputerShell. It displays
-      the angel cantos as an 8x8 grid where each cell shows a truncated
-      hash (first 4 hex characters). Empty cells are rendered as dim
-      placeholders. The full hash is shown on hover or focus. The grid
-      is displayed in a monospace font consistent with the permacomputer
-      aesthetic.
+      The "CANTOS" tab in the PermacomputerShell displays angel cantos as
+      an 8x8 grid where each cell shows a single hex character from the
+      hash in Times New Roman font, slightly larger than surrounding text.
+      Empty cells are rendered as dim placeholders. The full hash is shown
+      on hover or focus. The grid evokes a stone tablet aesthetic.
     inputs:
       - 'User navigates to CANTOS tab in permacomputer'
     outputs:
-      - '8x8 grid of canto hashes rendered in panel'
+      - '8x8 grid of canto hashes rendered in panel with Times New Roman'
     state_changes: []
     determinism: deterministic
 
   - id: angel-despawn
     description: >
       Angels despawn after ANGEL_LIFESPAN_MS (configurable, ~120 seconds).
-      On despawn, the entity and all components are destroyed. A new spawn
-      is scheduled at nextAngelSpawnTime. Angels also despawn if they drift
-      onto non-walkable terrain or off the map edge.
+      On despawn, a full-screen white flash fires (same as spawn flash).
+      The entity and all components are destroyed. A new spawn is scheduled
+      at nextAngelSpawnTime.
     inputs:
       - 'Angel entity age exceeds ANGEL_LIFESPAN_MS'
-      - 'Or angel drifts to invalid position'
     outputs:
       - 'Angel entity destroyed'
+      - 'Full-screen white flash rendered on despawn frame'
     state_changes:
       - field: world
         effect: 'angel entity and all components removed'
       - field: nextAngelSpawnTime
         effect: 'set to time + ANGEL_SPAWN_INTERVAL_MS + jitter'
+      - field: angelFlashTime
+        effect: 'set to current time to trigger screen flash'
     determinism: deterministic
 
   - id: angel-movement-blocking
@@ -238,14 +285,31 @@ behaviors:
   - id: angel-character-definition
     description: >
       Each angel type (rain, bees, clover) has a CharacterDefinition
-      registered dynamically on spawn. The definition includes a unique
-      name (e.g. "Ophan of Rain"), a multi-character glyph for the dialog
-      portrait area, and the sha256 dialog line. Definition is removed on
-      despawn.
+      registered dynamically on spawn. The name uses "Angel of X" format
+      (e.g. "Angel of Rain", "Angel of Bees", "Angel of Clover"). The
+      definition includes a glyph for the dialog portrait area and the
+      sha256 dialog line. Definition is removed on despawn.
     inputs:
       - 'Angel spawns'
     outputs:
       - 'CharacterDefinition registered in CHARACTER_DEFINITIONS'
+    state_changes: []
+    determinism: deterministic
+
+  - id: angel-pink-highlight
+    description: >
+      All angel body tiles highlight pink on mouse hover, consistent with
+      other interactable characters. The renderer marks angel tiles as
+      cursorable so the two-phase resolve-then-draw pattern applies cursor
+      inversion (pink fillRect background + dark text). Click-to-interact
+      pathfinds to the nearest adjacent walkable tile and triggers dialog
+      on arrival.
+    inputs:
+      - 'Mouse cursor hovers over any angel body tile'
+      - 'Or player clicks an angel body tile'
+    outputs:
+      - 'Pink highlight applied to hovered angel tile'
+      - 'Click-to-interact pathfinds and opens dialog on arrival'
     state_changes: []
     determinism: deterministic
 
@@ -259,8 +323,8 @@ edge_cases:
     expected: 'Oldest canto is removed (FIFO), new canto takes last position'
 
   - id: angel-drift-into-water
-    description: 'Angel drifts onto a pond or river tile'
-    expected: 'Angel despawns, new spawn scheduled'
+    description: 'Angel drifts toward a pond or river tile'
+    expected: 'Drift validation rejects the move; angel stays in place'
 
   - id: angel-zone-transition
     description: 'Player enters cave while angel exists on overworld'
@@ -274,9 +338,21 @@ edge_cases:
     description: 'Player walks under angel while already in dialog with a ghost'
     expected: 'Angel dialog does not trigger; existing dialog takes priority'
 
-  - id: angel-multiple-walk-through
+  - id: angel-repeated-walk-through
     description: 'Player walks through angel body multiple times during same spawn'
-    expected: 'Only first walk-through triggers dialog per angel spawn'
+    expected: 'Dialog triggers every time; canto stored only on first encounter'
+
+  - id: angel-flash-during-cave
+    description: 'Angel spawns or despawns while player is in cave'
+    expected: 'Flash does not render; angel exists on overworld only'
+
+  - id: angel-gold-aura-overlap
+    description: 'Gold aura overlaps with rain aura, clover, or other terrain'
+    expected: 'Gold fillRect renders behind tile chars; does not interfere with rain overlay or other effects'
+
+  - id: angel-hash-grid-odd-length
+    description: 'Hash string is not exactly 64 characters for some reason'
+    expected: 'Grid renders available characters; remaining cells show dim placeholder'
 
 failure_conditions:
   - trigger: 'Angel spawn position calculation selects space or sand tile'
@@ -287,6 +363,9 @@ failure_conditions:
 
   - trigger: 'Angel Aura component missing on tick'
     expected: 'Aura tick silently skips; no crash'
+
+  - trigger: 'Angel flash time set but player not in overworld'
+    expected: 'Flash rendering skipped when in cave zone'
 
 verification:
   test_file: src/engine/__tests__/angels.test.ts

@@ -1,36 +1,24 @@
 import { autoAssignRevery } from './actionBar'
 import { generateCave } from './cave'
 import { registerGhostDefinitions } from './characters'
-import {
-  CAVE_HEIGHT,
-  CAVE_WIDTH,
-  MAP_HEIGHT,
-  MAP_WIDTH,
-  SPACE_BORDER,
-  WATER_MAX,
-  ZOOM_DEFAULT,
-} from './constants'
+import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, WATER_MAX, ZOOM_DEFAULT } from './constants'
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
+import { createCharacterEntity } from './entities'
 import { createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } from './genesis'
 import { rebuildGlintZones, seedGlintPatches } from './glintZones'
-import { createCharacterEntity } from './entities'
 import { autoSort, placeItem } from './inventory'
 import { createBackpack } from './items'
 import { isWalkableTile, posKey } from './position'
-import { Rotation, TileType, Zone } from './types'
 import { buildWaterProximity } from './tileWater'
+import { Rotation, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 
 import type { GenesisSimState } from './genesisTypes'
 import type { GameState, Position } from './types'
 
-export const createGameState = (
-  stewardName: string,
-  viewportWidth: number,
-  viewportHeight: number
-): GameState => {
+export const createGameState = (stewardName: string, viewportWidth: number, viewportHeight: number): GameState => {
   // Create genesis state, precompute all epochs, extract terrain
   const seed = nameToSeed(stewardName)
   const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
@@ -180,6 +168,7 @@ export const createGameState = (
     angelCantos: [],
     nextAngelSpawnTime: 60_000, // first angel after ~60s
     angelEncounterCount: 0,
+    angelFlashTime: 0,
   }
 
   // Seed glinting zone patches with staggered birth times

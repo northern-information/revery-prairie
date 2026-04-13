@@ -1,10 +1,9 @@
 import { getAngelRenderData } from './angelAnimation'
-import { ANGEL_BODY_SIZE } from './constants'
 import { getCharacterDefinition } from './characters'
-import { GENESIS_EPOCHS } from './genesis'
-import { renderGenesis } from './genesisRenderer'
 import {
   ACTION_COLOR,
+  ANGEL_AURA_RADIUS,
+  ANGEL_BODY_SIZE,
   BASE_FONT_SIZE,
   BEE_CHAR,
   BEE_COLOR,
@@ -36,6 +35,10 @@ import {
   EXPLOSION_COLORS,
   EXPLOSION_DURATION_MS,
   EXPLOSION_RADIUS,
+  GLINT_ZONE_CHARS,
+  GLINT_ZONE_COLORS,
+  GLINT_ZONE_DENSITY,
+  GLINT_ZONE_SPEED,
   HOVER_PATH_COLOR,
   LIGHTNING_BOLT_COLOR_BRIGHT,
   LIGHTNING_BOLT_COLOR_DIM,
@@ -69,20 +72,18 @@ import {
   TILE_CHARS,
   TILE_COLORS,
   TRAIL_DURATION_MS,
-  GLINT_ZONE_CHARS,
-  GLINT_ZONE_COLORS,
-  GLINT_ZONE_DENSITY,
-  GLINT_ZONE_SPEED,
   WEATHER_RAIN_DENSITY,
   WILDFIRE_CHARS,
   WILDFIRE_COLORS,
   WILDFIRE_DURATION_MS,
 } from './constants'
 import { ComponentType } from './ecs/types'
+import { GENESIS_EPOCHS } from './genesis'
+import { renderGenesis } from './genesisRenderer'
 import { getDefinition } from './items'
 import { isInBounds, posKey, tileHash } from './position'
-import { isInRainFront } from './tileWater'
 import { getReveryDefinition } from './reveries'
+import { isInRainFront } from './tileWater'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 
 import type { VelocityKey } from './constants'
@@ -276,6 +277,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Build a map of angel body pixels (from ECS)
   const angelMap = new Map<string, { char: string; color: string }>()
+  // Build angel aura center positions for gold aura rendering
+  const angelAuraCenters: { x: number; y: number }[] = []
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
     if (!inZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -286,6 +289,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     for (const pixel of getAngelRenderData(data.seed, anchorX, anchorY, time)) {
       angelMap.set(posKey(pixel.pos.x, pixel.pos.y), { char: pixel.char, color: pixel.color })
     }
+    angelAuraCenters.push({ x: pos.x, y: pos.y })
   }
 
   // Prune expired trail points and build a map with opacity
@@ -370,12 +374,18 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
       // Impact ring
       const impact = path[path.length - 1]
-      lightningMap.set(posKey(impact.x, impact.y), { char: LIGHTNING_IMPACT_CHARS[0], color: LIGHTNING_IMPACT_COLORS[0] })
+      lightningMap.set(posKey(impact.x, impact.y), {
+        char: LIGHTNING_IMPACT_CHARS[0],
+        color: LIGHTNING_IMPACT_COLORS[0],
+      })
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
           if (dx === 0 && dy === 0) continue
           if (Math.abs(dx) + Math.abs(dy) === 1) {
-            lightningMap.set(posKey(impact.x + dx, impact.y + dy), { char: LIGHTNING_IMPACT_CHARS[1], color: LIGHTNING_IMPACT_COLORS[1] })
+            lightningMap.set(posKey(impact.x + dx, impact.y + dy), {
+              char: LIGHTNING_IMPACT_CHARS[1],
+              color: LIGHTNING_IMPACT_COLORS[1],
+            })
           }
         }
       }
@@ -395,9 +405,18 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // Fading impact
       const impact = path[path.length - 1]
       const impactProgress = (elapsed - LIGHTNING_FLASH_MS) / (500 - LIGHTNING_FLASH_MS)
-      const impactCharIdx = Math.min(Math.floor(impactProgress * LIGHTNING_IMPACT_CHARS.length), LIGHTNING_IMPACT_CHARS.length - 1)
-      const impactColorIdx = Math.min(Math.floor(impactProgress * LIGHTNING_IMPACT_COLORS.length), LIGHTNING_IMPACT_COLORS.length - 1)
-      lightningMap.set(posKey(impact.x, impact.y), { char: LIGHTNING_IMPACT_CHARS[impactCharIdx], color: LIGHTNING_IMPACT_COLORS[impactColorIdx] })
+      const impactCharIdx = Math.min(
+        Math.floor(impactProgress * LIGHTNING_IMPACT_CHARS.length),
+        LIGHTNING_IMPACT_CHARS.length - 1
+      )
+      const impactColorIdx = Math.min(
+        Math.floor(impactProgress * LIGHTNING_IMPACT_COLORS.length),
+        LIGHTNING_IMPACT_COLORS.length - 1
+      )
+      lightningMap.set(posKey(impact.x, impact.y), {
+        char: LIGHTNING_IMPACT_CHARS[impactCharIdx],
+        color: LIGHTNING_IMPACT_COLORS[impactColorIdx],
+      })
     } else {
       // Fade: segments disappear bottom-to-top
       const fadeProgress = (elapsed - 500) / (LIGHTNING_DURATION_MS - 500)
@@ -434,7 +453,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // Fade to BurntClover
         const fadeProgress = (progress - 0.6) / 0.4
         const colorIdx = Math.min(Math.floor(fadeProgress * WILDFIRE_COLORS.length), WILDFIRE_COLORS.length - 1)
-        wildfireMap.set(posKey(pos.x, pos.y), { char: '%', color: WILDFIRE_COLORS[WILDFIRE_COLORS.length - 1 - colorIdx] })
+        wildfireMap.set(posKey(pos.x, pos.y), {
+          char: '%',
+          color: WILDFIRE_COLORS[WILDFIRE_COLORS.length - 1 - colorIdx],
+        })
       }
     }
   }
@@ -672,6 +694,38 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
       }
     }
+  }
+
+  // Pre-pass: angel gold aura background
+  if (angelAuraCenters.length > 0) {
+    const savedAlpha = ctx.globalAlpha
+    for (let vy = 0; vy < viewportHeight; vy++) {
+      for (let vx = 0; vx < viewportWidth; vx++) {
+        const mx = camera.x + vx
+        const my = camera.y + vy
+        if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+        if (map[my][mx].type === TileType.Space) continue
+
+        for (const ac of angelAuraCenters) {
+          const dx = mx - ac.x
+          const dy = my - ac.y
+          const distSq = dx * dx + dy * dy
+          if (distSq > ANGEL_AURA_RADIUS * ANGEL_AURA_RADIUS) continue
+
+          // Oscillating alpha: gentle sine wave based on time + distance from center
+          const dist = Math.sqrt(distSq)
+          const wave = Math.sin(time * 0.002 + dist * 0.3) * 0.5 + 0.5 // 0..1
+          const falloff = 1 - dist / ANGEL_AURA_RADIUS // 1 at center, 0 at edge
+          const alpha = 0.06 + 0.06 * wave * falloff // gentle 0.06..0.12
+
+          ctx.globalAlpha = alpha
+          ctx.fillStyle = '#FFD700'
+          ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
+          break // only one angel aura can contribute per tile
+        }
+      }
+    }
+    ctx.globalAlpha = savedAlpha
   }
 
   for (let vy = 0; vy < viewportHeight; vy++) {
@@ -987,10 +1041,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const h = tileHash(wx + state.rainSeed, wy)
         if (h % WEATHER_RAIN_DENSITY !== 0) continue
 
-        const phase =
-          ((h >> 4) + Math.floor(time * RAIN_SPEED)) % RAIN_CHARS.length
-        const colorPhase =
-          ((h >> 8) + Math.floor(time * RAIN_SPEED * 0.7)) % RAIN_COLORS.length
+        const phase = ((h >> 4) + Math.floor(time * RAIN_SPEED)) % RAIN_CHARS.length
+        const colorPhase = ((h >> 8) + Math.floor(time * RAIN_SPEED * 0.7)) % RAIN_COLORS.length
 
         // Alpha = rainIntensity (fade in/out) * edgeAlpha (fringe falloff)
         ctx.globalAlpha = state.rainIntensity * front.edgeAlpha
@@ -1023,8 +1075,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (h % effectiveDensity !== 0) continue
 
         const glintPhase = ((h >> 4) + Math.floor(time * GLINT_ZONE_SPEED)) % GLINT_ZONE_CHARS.length
-        const glintColorPhase =
-          ((h >> 8) + Math.floor(time * GLINT_ZONE_SPEED * 0.7)) % GLINT_ZONE_COLORS.length
+        const glintColorPhase = ((h >> 8) + Math.floor(time * GLINT_ZONE_SPEED * 0.7)) % GLINT_ZONE_COLORS.length
 
         const gpx = vx * charWidth
         const gpy = vy * charHeight
@@ -1064,6 +1115,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Lightning screen flash overlay — drawn last, covers everything
   if (lightningFlashElapsed < LIGHTNING_SCREEN_FLASH_MS) {
     const alpha = LIGHTNING_SCREEN_FLASH_OPACITY * (1 - lightningFlashElapsed / LIGHTNING_SCREEN_FLASH_MS)
+    ctx.fillStyle = `rgba(255, 255, 255, ${String(alpha)})`
+    ctx.fillRect(0, 0, pxWidth, pxHeight)
+  }
+
+  // Angel spawn/despawn screen flash overlay
+  const angelFlashElapsed = time - state.angelFlashTime
+  if (angelFlashElapsed < LIGHTNING_SCREEN_FLASH_MS) {
+    const alpha = LIGHTNING_SCREEN_FLASH_OPACITY * (1 - angelFlashElapsed / LIGHTNING_SCREEN_FLASH_MS)
     ctx.fillStyle = `rgba(255, 255, 255, ${String(alpha)})`
     ctx.fillRect(0, 0, pxWidth, pxHeight)
   }
