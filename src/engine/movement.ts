@@ -28,6 +28,15 @@ export const getBlockedPositions = (state: GameState, zone?: Zone): Set<string> 
       set.add(key)
     }
   }
+  // Angel body tiles block movement
+  for (const eid of state.world.query(ComponentType.AngelData, ComponentType.MultiPosition)) {
+    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== z) continue
+    const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
+    if (!multi) continue
+    for (const p of multi.positions) {
+      set.add(posKey(p.x, p.y))
+    }
+  }
   return set
 }
 

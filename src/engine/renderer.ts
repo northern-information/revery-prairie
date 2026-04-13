@@ -296,6 +296,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const angelMap = new Map<string, { char: string; color: string }>()
   // Build angel aura center positions for gold aura rendering
   const angelAuraCenters: { x: number; y: number }[] = []
+  // Track angel body tile groups so hovering/facing any tile highlights all
+  const angelBodyGroups: Set<string>[] = []
+  const angelTileToGroup = new Map<string, Set<string>>()
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
     if (!inZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -303,8 +306,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (!pos || !data) continue
     const anchorX = pos.x - Math.floor(ANGEL_BODY_SIZE / 2)
     const anchorY = pos.y - Math.floor(ANGEL_BODY_SIZE / 2)
+    const group = new Set<string>()
     for (const pixel of getAngelRenderData(data.seed, anchorX, anchorY, time)) {
-      angelMap.set(posKey(pixel.pos.x, pixel.pos.y), { char: pixel.char, color: pixel.color })
+      const key = posKey(pixel.pos.x, pixel.pos.y)
+      angelMap.set(key, { char: pixel.char, color: pixel.color })
+      group.add(key)
+    }
+    angelBodyGroups.push(group)
+    for (const key of group) {
+      angelTileToGroup.set(key, group)
     }
     angelAuraCenters.push({ x: pos.x, y: pos.y })
   }
@@ -984,6 +994,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
+      // Angel group highlight: if cursor or facingEntity is on any tile in this
+      // angel's body, highlight ALL body tiles pink
+      const angelGroup = angelTileToGroup.get(tileKey)
+      const isAngelGroupHighlighted =
+        angelGroup !== undefined &&
+        !state.devPanelOpen &&
+        ((state.cursorTile && angelGroup.has(posKey(state.cursorTile.x, state.cursorTile.y))) ||
+          (state.facingEntityPos && angelGroup.has(posKey(state.facingEntityPos.x, state.facingEntityPos.y))) ||
+          (state.pendingInteractionTarget &&
+            angelGroup.has(posKey(state.pendingInteractionTarget.x, state.pendingInteractionTarget.y))))
+
       // Draw with cursor/facing inversion if applicable
       // Invalid preview tiles (e.g. red X for lightning targeting) skip cursor inversion
       if (previewTile && !previewTile.isValid) {
@@ -991,6 +1012,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       } else if (state.devPanelOpen) {
         // Suppress cursor highlight when dev panel is open
         ctx.fillStyle = color
+      } else if (isAngelGroupHighlighted) {
+        ctx.fillStyle = ACTION_COLOR
+        ctx.fillRect(px, py, charWidth, charHeight)
+        ctx.fillStyle = BG_COLOR
       } else if ((isCursor && cursorable) || isFacingEntity || isPendingTarget) {
         ctx.fillStyle = ACTION_COLOR
         ctx.fillRect(px, py, charWidth, charHeight)
