@@ -18,7 +18,8 @@ import { getTileEffects } from '@/engine/effects'
 import { GENESIS_EPOCHS, getEpochProgress, getGenesisCommentary } from '@/engine/genesis'
 import { getDefinition } from '@/engine/items'
 import { isInBounds, posKey } from '@/engine/position'
-import { CloverStage, TileType, Zone } from '@/engine/types'
+import { DEEP_TIME_TOTAL_YEARS } from '@/engine/constants'
+import { CloverStage, DeepTimePhase, TileType, Zone } from '@/engine/types'
 import { fToC, mphToKph } from '@/engine/weather'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { CharMetrics, GameState } from '@/engine/types'
@@ -131,6 +132,44 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
               />
             </div>
             <p className="text-muted text-center">press any key to skip</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Deep Time mode: show phase info + year counter + progress bar
+  if (state.deepTime?.active && state.deepTime.phase !== DeepTimePhase.Wandering) {
+    const phaseLabel =
+      state.deepTime.phase === DeepTimePhase.Burning ? 'the prairie burns...' : 'centuries pass...'
+    const progress = state.deepTime.elapsedYears / DEEP_TIME_TOTAL_YEARS
+
+    return (
+      <div
+        data-panel="sidebar"
+        className="text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
+      >
+        <div className="flex flex-col gap-4">
+          <PanelTitle>revery prairie</PanelTitle>
+          <div>
+            <SectionHeader>deep time</SectionHeader>
+            <p className="text-muted">{phaseLabel}</p>
+          </div>
+          {state.deepTime.phase === DeepTimePhase.Simulating && (
+            <div>
+              <SectionHeader>year {state.deepTime.elapsedYears}</SectionHeader>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-4">
+          <div>
+            <SectionHeader>simulation</SectionHeader>
+            <div className="mb-2 h-1 w-full overflow-hidden rounded bg-white/10">
+              <div
+                className="h-full bg-white/40 transition-none"
+                style={{ width: `${String(Math.round(progress * 100))}%` }}
+              />
+            </div>
           </div>
         </div>
       </div>
