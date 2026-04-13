@@ -12,9 +12,14 @@ import type { CharMetrics } from './types'
 // Cross-fade window: last 10% of each epoch blends into the next
 const CROSSFADE_START = 0.9
 
-/** Parse a hex color (#RGB or #RRGGBB) into [r, g, b]. */
-const parseHex = (hex: string): [number, number, number] => {
-  const h = hex.startsWith('#') ? hex.slice(1) : hex
+/** Parse a color string (#RGB, #RRGGBB, or rgb(r,g,b)) into [r, g, b]. */
+const parseColor = (color: string): [number, number, number] => {
+  if (color.startsWith('rgb')) {
+    const match = /(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(color)
+    if (match) return [Number(match[1]), Number(match[2]), Number(match[3])]
+    return [0, 0, 0]
+  }
+  const h = color.startsWith('#') ? color.slice(1) : color
   if (h.length === 3) {
     return [parseInt(h[0] + h[0], 16), parseInt(h[1] + h[1], 16), parseInt(h[2] + h[2], 16)]
   }
@@ -22,10 +27,10 @@ const parseHex = (hex: string): [number, number, number] => {
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff]
 }
 
-/** Lerp two hex color strings, returning an rgb() string. */
-const lerpHexColor = (from: string, to: string, t: number): string => {
-  const [fr, fg, fb] = parseHex(from)
-  const [tr, tg, tb] = parseHex(to)
+/** Lerp two color strings (hex or rgb()), returning an rgb() string. */
+const lerpColor = (from: string, to: string, t: number): string => {
+  const [fr, fg, fb] = parseColor(from)
+  const [tr, tg, tb] = parseColor(to)
   const r = Math.round(fr + (tr - fr) * t)
   const g = Math.round(fg + (tg - fg) * t)
   const b = Math.round(fb + (tb - fb) * t)
@@ -117,7 +122,9 @@ export const renderGenesis = (
         sim.ponds = nextSnapshot.ponds
         sim.elevation = nextSnapshot.elevation
 
-        const nextRenders = nextEpoch.renderTile(sim, mx, my, 0, time)
+        // Pass blendT as progress so the next epoch's fade-in doesn't render
+        // all gray (progress=0 triggers full fade-in guards in most epochs)
+        const nextRenders = nextEpoch.renderTile(sim, mx, my, blendT, time)
 
         // Restore current epoch's snapshot
         const currentSnapshot = sim.epochSnapshots[sim.epochIndex]
@@ -130,7 +137,7 @@ export const renderGenesis = (
         const curR = renders[0]
         const nextR = nextRenders[0]
         if (curR && nextR) {
-          ctx.fillStyle = lerpHexColor(curR.color, nextR.color, blendT)
+          ctx.fillStyle = lerpColor(curR.color, nextR.color, blendT)
           ctx.fillText(blendT > 0.5 ? nextR.char : curR.char, px + curR.dx, py + curR.dy)
         } else if (curR) {
           ctx.fillStyle = curR.color
