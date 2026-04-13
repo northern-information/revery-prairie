@@ -8,6 +8,7 @@ source_files:
   - src/engine/interaction.ts
   - src/engine/position.ts
   - src/engine/camera.ts
+  - src/engine/gameLoop.ts
 dependencies: []
 
 behaviors:
@@ -107,6 +108,20 @@ behaviors:
         effect: 'set to adjacent interactable position in facing direction, or null'
     determinism: deterministic
 
+  - id: movement-suppressed-during-deep-time
+    description: >
+      when state.deepTime is active and the phase is not Wandering
+      (i.e. Burning or Simulating), both the path tick system and the
+      keyboard-move tick system return early without processing any
+      movement. movement re-enables when the phase transitions to
+      Wandering, allowing the player to explore freely as a ghost.
+    inputs:
+      - 'state.deepTime.active is true, phase is Burning or Simulating'
+    outputs:
+      - 'no movement processed'
+    state_changes: []
+    determinism: deterministic
+
 edge_cases:
   - id: map-boundary
     description: 'Player at (0,0) attempting up or left is rejected'
@@ -117,6 +132,9 @@ edge_cases:
   - id: small-map-camera-centering
     description: 'When map dimensions are smaller than viewport (e.g. cave zone), camera centers the map in the viewport using negative offset'
     expected: 'camera.x = -floor((viewportWidth - mapWidth) / 2) when mapWidth < viewportWidth, same for y axis'
+  - id: deep-time-wandering-allows-movement
+    description: 'During deep time Wandering phase, movement is not suppressed'
+    expected: 'path and keyboard-move tick systems process movement normally'
 
 failure_conditions:
   - trigger: 'Target tile is non-walkable (Space, CaveWall, CaveBreakableWall)'
@@ -127,6 +145,8 @@ failure_conditions:
     expected: 'movePlayer returns false, no state mutation to player position'
   - trigger: 'Target tile occupied by character'
     expected: 'movePlayer returns false, no state mutation to player position'
+  - trigger: 'WASD or click-to-move during deep time Burning or Simulating phase'
+    expected: 'tick systems return early, no movement processed'
 
 verification:
   test_file: src/engine/__tests__/movement.test.ts
