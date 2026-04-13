@@ -322,6 +322,8 @@ npm run harness:run      # execute a plan (--plan harness/plans/{id}.yaml)
 
 after `EnterWorktree`, the Bash tool's working directory does **not** automatically change to the worktree. Read/Edit/Write tools use the worktree path, but Bash stays at the original repo root. always prefix git commands with `cd <worktree-path> &&` or they will silently operate on the main checkout.
 
+after `/new-feature`, `/bug-report`, or `/change-request` completes, prompt the user if they want to run the dev server in the worktree: `cd <worktree-path> && npm run dev`.
+
 ## conventions
 
 - no enums. use `as const` objects + type aliases.
