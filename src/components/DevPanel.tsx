@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { PanelTitle, SectionHeader, Tab } from './PanelPrimitives'
+import { PanelTitle, Tab } from './PanelPrimitives'
 
 import {
   COMPONENT_META,
@@ -362,25 +362,6 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
     [checked, values, state, refreshUI, metricsRef]
   )
 
-  const handleSpawnAtCursor = useCallback(() => {
-    const metrics = metricsRef.current
-    if (!metrics) return
-    if (!state.cursorScreenPos) return
-    const canvas = document.querySelector('canvas')
-    if (!canvas) return
-    const tile = screenToTilePos(
-      state.cursorScreenPos.x + canvas.getBoundingClientRect().left,
-      state.cursorScreenPos.y + canvas.getBoundingClientRect().top,
-      canvas,
-      metrics,
-      state.camera
-    )
-    if (!tile) return
-    if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return
-    spawn(tile.x, tile.y)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checked, values, state, refreshUI, metricsRef])
-
   const filteredMeta = filter
     ? COMPONENT_META.filter(m => m.label.toLowerCase().includes(filter.toLowerCase()))
     : COMPONENT_META
@@ -388,7 +369,7 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
   const canSpawn = checked.size > 0
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex items-center gap-1">
         <span className="text-muted text-xs">preset</span>
         <select
@@ -414,10 +395,10 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
         onChange={e => {
           setFilter(e.target.value)
         }}
-        className="bg-bg border-border-dim rounded border px-2 py-1 text-xs"
+        className="bg-bg border-border-dim shrink-0 rounded border px-2 py-1 text-xs"
       />
 
-      <div className="scrollbar-custom max-h-64 overflow-y-auto">
+      <div className="scrollbar-custom min-h-0 flex-1 overflow-y-auto">
         {filteredMeta.map(meta => (
           <ComponentSection
             key={meta.type}
@@ -442,24 +423,14 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
         ))}
       </div>
 
-      <div className="flex gap-1">
-        <button
-          type="button"
-          disabled={!canSpawn}
-          onMouseDown={handleDragStart}
-          className={`border-border-dim flex-1 rounded border px-2 py-1 text-xs ${canSpawn ? 'text-pink hover:bg-pink/20 cursor-grab' : 'text-muted cursor-not-allowed'}`}
-        >
-          drag to place
-        </button>
-        <button
-          type="button"
-          disabled={!canSpawn}
-          onClick={handleSpawnAtCursor}
-          className={`border-border-dim flex-1 rounded border px-2 py-1 text-xs ${canSpawn ? 'text-pink hover:bg-pink/20' : 'text-muted cursor-not-allowed'}`}
-        >
-          spawn at cursor
-        </button>
-      </div>
+      <button
+        type="button"
+        disabled={!canSpawn}
+        onMouseDown={handleDragStart}
+        className={`border-border-dim shrink-0 rounded border px-2 py-1 text-xs ${canSpawn ? 'text-pink hover:bg-pink/20 cursor-grab' : 'text-muted cursor-not-allowed'}`}
+      >
+        drag to place
+      </button>
     </div>
   )
 }
@@ -491,19 +462,28 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
       const startTile = screenToTilePos(e.clientX, e.clientY, canvas, metrics, state.camera)
       if (!startTile) return
 
-      // Track the rectangle preview
       let currentTile = startTile
+
+      // Show initial preview (single tile)
+      state.devPaintPreview = {
+        x1: startTile.x,
+        y1: startTile.y,
+        x2: startTile.x,
+        y2: startTile.y,
+        tileType: selectedTile,
+      }
+      refreshUI()
 
       const handleMove = (me: MouseEvent) => {
         const tile = screenToTilePos(me.clientX, me.clientY, canvas, metrics, state.camera)
         if (tile) {
           currentTile = tile
-          // Store preview rect on state for renderer
           state.devPaintPreview = {
             x1: startTile.x,
             y1: startTile.y,
             x2: currentTile.x,
             y2: currentTile.y,
+            tileType: selectedTile,
           }
           refreshUI()
         }
@@ -513,7 +493,6 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
         window.removeEventListener('mousemove', handleMove)
         window.removeEventListener('mouseup', handleUp)
 
-        // Paint the rectangle
         paintRect(state, startTile.x, startTile.y, currentTile.x, currentTile.y, selectedTile)
         state.devPaintPreview = null
         refreshUI()
@@ -568,8 +547,8 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-col gap-1">
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="scrollbar-custom flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
         {TILE_TYPE_LIST.map(tile => (
           <button
             key={tile.value}
@@ -577,7 +556,7 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
             onClick={() => {
               activatePaint(tile.value)
             }}
-            className={`rounded px-2 py-1 text-left text-xs ${
+            className={`shrink-0 rounded px-2 py-1 text-left text-xs ${
               selectedTile === tile.value
                 ? 'bg-pink text-bg'
                 : 'text-text hover:bg-pink/20'
@@ -598,7 +577,7 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
             }
             setSelectedTile(null)
           }}
-          className="text-muted hover:text-pink text-xs"
+          className="text-muted hover:text-pink shrink-0 text-xs"
         >
           clear brush
         </button>
@@ -617,10 +596,13 @@ export const DevPanel = (props: DevPanelProps) => {
       data-panel="dev-panel"
       className="text-text pointer-events-none fixed top-0 left-0 z-10 flex h-full w-52 flex-col bg-black/70 px-4 py-4 font-mono text-xs"
     >
-      <div className="pointer-events-auto flex flex-col gap-2 overflow-hidden">
-        <PanelTitle>dev panel</PanelTitle>
+      <div className="pointer-events-auto flex min-h-0 flex-1 flex-col gap-2">
+        <div className="flex shrink-0 items-center justify-between">
+          <PanelTitle>dev panel</PanelTitle>
+          <span className="text-dim shrink-0 text-xs">` to toggle</span>
+        </div>
 
-        <div className="border-border-dim flex border-b">
+        <div className="border-border-dim flex shrink-0 border-b">
           <Tab active={tab === 'entity'} onClick={() => { setTab('entity') }}>
             entity
           </Tab>
@@ -629,14 +611,8 @@ export const DevPanel = (props: DevPanelProps) => {
           </Tab>
         </div>
 
-        <div className="scrollbar-custom min-h-0 flex-1 overflow-y-auto">
-          {tab === 'entity' && <EntityTab {...props} />}
-          {tab === 'tile' && <TileTab {...props} />}
-        </div>
-
-        <SectionHeader className="mb-0 mt-2">
-          <span className="text-dim">` to toggle</span>
-        </SectionHeader>
+        {tab === 'entity' && <EntityTab {...props} />}
+        {tab === 'tile' && <TileTab {...props} />}
       </div>
     </div>
   )
