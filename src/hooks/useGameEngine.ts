@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 
+import { completeGenesis } from '@/engine/genesis'
 import { createGameState } from '@/engine/state'
-import type { GenesisResult } from '@/engine/genesisTypes'
 import type { GameState } from '@/engine/types'
 
 // Game state lives outside React's render cycle.
@@ -16,12 +16,15 @@ export const useGameEngine = (
   stewardName: string,
   viewportWidth: number,
   viewportHeight: number,
-  genesisResult?: GenesisResult
+  skipGenesis?: boolean
 ) => {
   const [uiVersion, setUiVersion] = useState(0)
 
   const state = useMemo(() => {
-    gameState ??= createGameState(stewardName, viewportWidth, viewportHeight, genesisResult)
+    gameState ??= createGameState(stewardName, viewportWidth, viewportHeight)
+    if (skipGenesis && gameState.genesis) {
+      completeGenesis(gameState)
+    }
     return gameState
     // Only create once
     // eslint-disable-next-line react-hooks/exhaustive-deps

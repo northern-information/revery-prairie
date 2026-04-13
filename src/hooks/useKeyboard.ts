@@ -6,6 +6,7 @@ import { getCharacterDefinition } from '@/engine/characters'
 import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
 import { ComponentType } from '@/engine/ecs/types'
 import { dropItem } from '@/engine/entities'
+import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import { keyToDirection } from '@/engine/input'
 import {
   advanceDialog,
@@ -54,6 +55,15 @@ export const useKeyboard = ({
       const tag = (document.activeElement as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') {
         if (e.key !== 'Escape' && e.key !== 'Tab') return
+      }
+
+      // During genesis, Escape/Space/Enter skip; block all other keys
+      if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
+        if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
+          completeGenesis(state)
+          refreshUI()
+        }
+        return
       }
 
       if (e.key === 'Shift') {

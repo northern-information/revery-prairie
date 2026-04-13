@@ -1,4 +1,6 @@
 import { getCharacterDefinition } from './characters'
+import { GENESIS_EPOCHS } from './genesis'
+import { renderGenesis } from './genesisRenderer'
 import {
   ACTION_COLOR,
   BASE_FONT_SIZE,
@@ -127,6 +129,12 @@ const soilHealthColor = (health: number): string => {
 }
 
 export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
+  // Genesis mode — delegate to genesis renderer
+  if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
+    renderGenesis(ctx, state.genesis, GENESIS_EPOCHS, metrics, state.viewportWidth, state.viewportHeight, time)
+    return
+  }
+
   const { camera, viewportWidth, viewportHeight, map, player } = state
   const { charWidth, charHeight } = metrics
 
@@ -1035,16 +1043,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Deep Time year counter overlay
-  if (state.deepTime?.active && state.deepTime.phase === DeepTimePhase.Simulating) {
-    const yearText = `year ${String(state.deepTime.elapsedYears)}`
-    ctx.fillStyle = '#FFFFFF'
-    ctx.font = metrics.font
-    const textWidth = ctx.measureText(yearText).width
-    const x = (pxWidth - textWidth) / 2
-    const y = charHeight * 2
-    ctx.fillText(yearText, x, y)
-  }
+  // Deep Time year counter moved to Sidebar.tsx
 
   // Lightning screen flash overlay — drawn last, covers everything
   if (lightningFlashElapsed < LIGHTNING_SCREEN_FLASH_MS) {

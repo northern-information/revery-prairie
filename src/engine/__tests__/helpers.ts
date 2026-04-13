@@ -3,6 +3,7 @@ import { createCharacterEntity } from '../entities'
 import { createGroundOmniboxEntity } from '../omnibox'
 import { isInBounds } from '../position'
 import { createGameState } from '../state'
+import { completeGenesis } from '../genesis'
 import { TileType } from '../types'
 
 import type { Entity } from '../ecs/types'
@@ -17,6 +18,8 @@ import type { CharacterBehavior, GameState, Zone } from '../types'
  */
 export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?: number }): GameState => {
   const state = createGameState('Test', opts?.viewportWidth ?? 20, opts?.viewportHeight ?? 20)
+  // Complete genesis immediately so tests start in normal gameplay mode
+  completeGenesis(state)
   state.backpack.items = []
   // Destroy all ground omnibox ECS entities
   for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)) {

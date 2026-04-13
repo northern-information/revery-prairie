@@ -7,7 +7,6 @@ source_files:
   - src/engine/renderer.ts
   - src/engine/genesis.ts
   - src/engine/constants.ts
-  - src/components/GenesisScreen.tsx
   - src/engine/__tests__/lightning.test.ts
   - src/engine/__tests__/genesisLightning.test.ts
 dependencies:

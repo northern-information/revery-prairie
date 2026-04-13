@@ -39,6 +39,13 @@ describe('serialization round-trip', () => {
 
     for (const key of FUNCTION_FIELDS) {
       const val = restored[key]
+
+      // genesis is a mixed object (data + rng function) — only verify rng became null
+      if (key === 'genesis' && val !== null && typeof val === 'object') {
+        expect((val as Record<string, unknown>).rng).toBeNull()
+        continue
+      }
+
       // Pure function fields become null; object-of-functions (like world)
       // become an object with null-valued keys — both are non-functional.
       if (val !== null && typeof val === 'object') {

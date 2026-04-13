@@ -7,7 +7,6 @@ source_files:
   - src/engine/genesis.ts
   - src/engine/genesisTypes.ts
   - src/engine/genesisRenderer.ts
-  - src/components/GenesisScreen.tsx
   - src/engine/__tests__/genesis.test.ts
 
 behaviors:

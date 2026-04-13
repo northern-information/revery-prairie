@@ -7,6 +7,7 @@ source_files:
   - src/engine/renderer.ts
   - src/engine/constants.ts
   - src/engine/types.ts
+  - src/engine/deepTime.ts
 dependencies:
   - camera-viewport
   - player-movement
@@ -36,10 +37,13 @@ behaviors:
       characters, shooting stars, meteorites, lightning bolts,
       wildfire effects, pickup bloom effects, crumble effects,
       player trail, rain aura), path/hover preview layer, player
-      glyph, cursor highlight, and lightning screen flash overlay.
-      uses a two-phase resolve-then-draw pattern for each tile:
-      first determines char/color/cursorable, then applies cursor
-      inversion if applicable.
+      glyph (uses deep time ghost glyph when active), cursor
+      highlight, revery rain overlay, weather rain overlay (follows
+      rain front), deep time burning overlay, deep time year counter,
+      and lightning screen flash overlay. uses a two-phase
+      resolve-then-draw pattern for each tile: first determines
+      char/color/cursorable, then applies cursor inversion if
+      applicable.
     inputs:
       - 'CanvasRenderingContext2D, GameState, CharMetrics, timestamp'
     outputs:
@@ -97,6 +101,62 @@ behaviors:
       - 'state.glintZones set, current time for animation'
     outputs:
       - 'sparkle chars overlaid on zone tiles'
+    state_changes: []
+    determinism: time-based
+
+  - id: deep-time-ghost-glyph
+    description: >
+      when state.deepTime is active, the player glyph is rendered
+      using state.deepTime.playerGlyph (the ghost glyph, currently
+      set to the character o-diaeresis) and state.deepTime.playerGlyphColor
+      instead of the normal PLAYER_CHAR and PLAYER_COLOR constants.
+    inputs:
+      - 'state.deepTime.active is true'
+    outputs:
+      - 'player rendered with ghost glyph and color'
+    state_changes: []
+    determinism: deterministic
+
+  - id: deep-time-burning-overlay
+    description: >
+      during DeepTimePhase.Burning, animated fire characters render
+      on BurntClover tiles across the viewport. sparse rendering
+      (every 3rd tile via hash) with fire characters (^, ~, *) in
+      orange tones (#FF4500 to #FFAA00), animated by time. drawn as
+      a post-pass overlay after the main tile/entity rendering.
+    inputs:
+      - 'state.deepTime.active is true, phase is Burning'
+    outputs:
+      - 'animated fire overlay on BurntClover tiles'
+    state_changes: []
+    determinism: time-based
+
+  - id: deep-time-year-counter
+    description: >
+      during DeepTimePhase.Simulating, a centered year counter
+      overlay renders at the top of the viewport showing the
+      current elapsed years from state.deepTime.elapsedYears.
+    inputs:
+      - 'state.deepTime.active is true, phase is Simulating'
+    outputs:
+      - 'white year counter text centered horizontally near top of viewport'
+    state_changes: []
+    determinism: deterministic
+
+  - id: weather-rain-overlay
+    description: >
+      when weather.sky is Rain and the current zone is overworld,
+      animated rain characters render across the viewport following
+      the rain front. the rain front axis and direction are computed
+      from the wind direction. only tiles within the RAIN_FRONT_WIDTH
+      band from the current rainFrontOffset are rendered. uses
+      WEATHER_RAIN_DENSITY to control sparsity and tileHash with
+      rainSeed for per-tile variation. rain characters (|, :, ., ,)
+      animate in blue tones.
+    inputs:
+      - 'state.weather.sky is Rain, zone is overworld, current time for animation'
+    outputs:
+      - 'animated rain overlay following the sweeping rain front'
     state_changes: []
     determinism: time-based
 

@@ -6,6 +6,7 @@ layer: integration
 source_files:
   - src/engine/actionBar.ts
   - src/engine/reveries.ts
+  - src/engine/deepTime.ts
   - src/engine/types.ts
   - src/components/ActionBar.tsx
   - src/hooks/useKeyboard.ts
@@ -22,14 +23,16 @@ behaviors:
       orange-red, cooldownMs 12000, castDurationMs 1200, castStyle
       tile, castPattern SINGLE_PATTERN), water (glyphs |/:/./, color
       #4488CC blue, cooldownMs 12000, castDurationMs 10000, castStyle
-      rain, castPattern CROSS_PATTERN), and lightning (glyphs [|], color
+      rain, castPattern CROSS_PATTERN), lightning (glyphs [|], color
       #FFFFFF white, cooldownMs 15000, castDurationMs 800, castStyle
-      targeted, castPattern []). each has name, description, and
-      id injected from key.
+      targeted, castPattern []), and deep-time (glyphs [hourglass,
+      clock, infinity], color #FFFFFF white, cooldownMs Infinity,
+      castDurationMs 0, castStyle deepTime, castPattern []). each
+      has name, description, and id injected from key.
     inputs:
       - 'REVERY_DEFINITIONS registry'
     outputs:
-      - 'ReveryDefinition objects for earth, fire, water, and lightning'
+      - 'ReveryDefinition objects for earth, fire, water, lightning, and deep-time'
     state_changes: []
     determinism: deterministic
 
@@ -87,7 +90,9 @@ behaviors:
       positions. both carry TimedEffect (reveryCast), EntityTag,
       EntityZone. calls applyReveryCastEffects for tile-style casts.
       targeted-style reveries (lightning) enter targeting mode instead
-      of casting immediately — see targeted-revery-flow.
+      of casting immediately — see targeted-revery-flow. deepTime-style
+      reveries call initiateDeepTime and return true immediately — see
+      deep-time-activation.
     inputs:
       - 'GameState, slotIndex (0-3), now (timestamp)'
     outputs:
@@ -98,6 +103,35 @@ behaviors:
       - field: world
         effect: 'reveryCast ECS entity created — scan-style uses Position, tile-style uses MultiPosition; both have TimedEffect, EntityTag, EntityZone'
     determinism: deterministic
+
+  - id: deep-time-activation
+    description: >
+      when activateActionBarSlot encounters a revery with castStyle
+      'deepTime', it calls initiateDeepTime(state, now) and returns
+      true. initiateDeepTime sets state.deepTime to active with
+      Burning phase, clears player state (dialog, path, waypoints,
+      heldDirection, actionBar, previewFn, targetingSlot), removes
+      all character ECS entities, records event:deep-time discovery,
+      and spawns initial fire ignition points on random clover tiles.
+      no cooldown is set on the action bar slot.
+    inputs:
+      - 'GameState, slotIndex with deepTime-style revery, now (timestamp)'
+    outputs:
+      - 'boolean: true'
+    state_changes:
+      - field: deepTime
+        effect: 'set to active DeepTimeState with Burning phase'
+      - field: activeDialog
+        effect: 'set to null'
+      - field: path
+        effect: 'set to null'
+      - field: actionBar
+        effect: 'all slots cleared to null'
+      - field: world
+        effect: 'all character entities destroyed'
+      - field: manualDiscoveries
+        effect: 'event:deep-time recorded'
+    determinism: probabilistic
 
   - id: fire-revery-effect
     description: >

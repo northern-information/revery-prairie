@@ -1,6 +1,6 @@
 id: dialog-system
 name: 'Character dialog system'
-status: implemented
+status: partial
 priority: high
 layer: engine
 source_files:
@@ -18,14 +18,15 @@ behaviors:
       interactWithCharacter(state) finds the adjacent character
       (preferring playerFacing direction, falling back to cardinal
       neighbors), records a manual discovery for the character,
-      calls giveCharacterGift, and initializes activeDialog with
-      characterId, lineIndex 0, typingIndex 0, typingDone false,
-      transitioning false, transitionStartTime 0. returns
-      { opened: boolean, gift: ReveryDefinition | null }.
+      and initializes activeDialog with characterId, lineIndex 0,
+      typingIndex 0, typingDone false, transitioning false,
+      transitionStartTime 0. does not give gifts — gift delivery
+      happens on dialog completion via advanceDialog. always returns
+      { opened: boolean, gift: null }.
     inputs:
       - 'player adjacent to a character entity, [e] pressed'
     outputs:
-      - '{ opened: boolean, gift: ReveryDefinition | null }'
+      - '{ opened: boolean, gift: null }'
     state_changes:
       - field: activeDialog
         effect: 'initialized with character dialog state'
@@ -55,18 +56,52 @@ behaviors:
 
   - id: dialog-advance
     description: >
-      advanceDialog(state) handles [e] press during dialog. if
-      typing is not done, reveals the full line immediately. if
-      transitioning, ignores the press. if more lines remain, sets
-      transitioning to true with transitionStartTime. if no more
-      lines, nulls activeDialog and returns false.
+      advanceDialog(state) handles [e] press during dialog. returns
+      { continuing: boolean; gift: ReveryDefinition | null }. if
+      typing is not done, reveals the full line immediately and
+      returns { continuing: true, gift: null }. if transitioning,
+      ignores the press and returns { continuing: true, gift: null }.
+      if more lines remain, sets transitioning to true with
+      transitionStartTime and returns { continuing: true, gift: null }.
+      if no more lines, nulls activeDialog and triggers the gift
+      delivery flow via dialog-completion-gift.
     inputs:
       - '[e] pressed during active dialog'
     outputs:
-      - 'boolean: true if dialog still active, false if closed'
+      - '{ continuing: boolean, gift: ReveryDefinition | null }'
     state_changes:
       - field: activeDialog
         effect: 'typing completed, or transition started, or set to null'
+    determinism: deterministic
+
+  - id: dialog-completion-gift
+    description: >
+      when advanceDialog reaches the last line and closes the dialog,
+      it checks the gift state for the character. if giftsReceived
+      does not contain the characterId, calls giveCharacterGift to
+      deliver the initial gift and returns { continuing: false,
+      gift: ReveryDefinition | null }. if the initial gift was
+      already received and the character has a postGift defined and
+      postGiftActionsCompleted does not contain the characterId,
+      calls givePostGift and adds characterId to
+      postGiftActionsCompleted, returning { continuing: false,
+      gift: ReveryDefinition | null }. if neither condition applies,
+      returns { continuing: false, gift: null }.
+    inputs:
+      - 'dialog reaches last line and closes'
+    outputs:
+      - '{ continuing: false, gift: ReveryDefinition | null }'
+    state_changes:
+      - field: activeDialog
+        effect: 'set to null'
+      - field: giftsReceived
+        effect: 'characterId added if initial gift given'
+      - field: reveries
+        effect: 'revery id pushed if gift is a revery'
+      - field: postGiftActionsCompleted
+        effect: 'characterId added if postGift given'
+      - field: manualDiscoveries
+        effect: 'revery and gift event discoveries recorded'
     determinism: deterministic
 
   - id: dialog-transition
@@ -91,8 +126,9 @@ behaviors:
       for revery gifts, pushes the revery id to state.reveries,
       auto-assigns to the action bar, adds characterId to
       giftsReceived, and records manual discoveries. returns the
-      ReveryDefinition or null. tracked in state.giftsReceived so
-      each character gives their gift once.
+      ReveryDefinition or null. called by advanceDialog on dialog
+      completion, not during interactWithCharacter. tracked in
+      state.giftsReceived so each character gives their gift once.
     inputs:
       - 'characterId with a gift defined, gift not yet received'
     outputs:
@@ -104,6 +140,26 @@ behaviors:
         effect: 'characterId added'
       - field: manualDiscoveries
         effect: 'revery and gift event discoveries recorded'
+    determinism: deterministic
+
+  - id: post-gift-delivery
+    description: >
+      givePostGift(state, characterId) checks if the character
+      definition has a postGift field. for revery postGifts, pushes
+      the revery id to state.reveries, auto-assigns to the action
+      bar, and records manual discoveries. called by advanceDialog
+      on dialog completion when the initial gift has already been
+      received and postGiftActionsCompleted does not contain the
+      characterId. one-time per character via postGiftActionsCompleted.
+    inputs:
+      - 'characterId with a postGift defined, postGift not yet completed'
+    outputs:
+      - 'ReveryDefinition if postGift is a revery, null otherwise'
+    state_changes:
+      - field: reveries
+        effect: 'revery id pushed'
+      - field: manualDiscoveries
+        effect: 'revery and deep-time event discoveries recorded'
     determinism: deterministic
 
   - id: adjacent-character-detection
@@ -125,19 +181,22 @@ edge_cases:
     expected: 'interactWithCharacter returns { opened: false, gift: null }'
   - id: gift-already-received
     description: 'player talks to a character whose gift was already given'
-    expected: 'postGiftDialog is shown instead of original dialog; giveCharacterGift returns null'
+    expected: 'postGiftDialog is shown instead of original dialog; gift given on dialog completion not on interaction open'
   - id: advance-during-transition
     description: 'player presses [e] while dialog line is transitioning'
-    expected: 'press is ignored, returns true'
+    expected: 'press is ignored, returns { continuing: true, gift: null }'
   - id: rapid-advance
     description: 'player presses [e] rapidly before typing finishes'
     expected: 'first press reveals full line; second press starts transition or closes dialog'
+  - id: post-gift-already-completed
+    description: 'player completes postGiftDialog after postGift already given'
+    expected: 'advanceDialog returns { continuing: false, gift: null }; postGiftActionsCompleted guard prevents double delivery'
 
 failure_conditions:
   - trigger: 'interactWithCharacter called with no active dialog and no adjacent character'
     expected: 'returns { opened: false, gift: null }; no state changes'
   - trigger: 'advanceDialog called with no activeDialog'
-    expected: 'returns false; no state changes'
+    expected: 'returns { continuing: false, gift: null }; no state changes'
 
 verification:
   test_file: src/engine/__tests__/interaction.test.ts

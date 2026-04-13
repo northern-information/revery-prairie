@@ -59,7 +59,8 @@ behaviors:
     description: >
       First time the player talks to Moab (presses [e] while facing
       him), dialog shows '...' — single line using the standard dialog
-      system. gift is delivered before dialog opens.
+      system. gift is not delivered on interaction open; it is delivered
+      when the player completes the dialog (advances past the last line).
     inputs:
       - "Player facing Moab, [e] pressed, giftsReceived does not contain 'moab'"
     outputs:
@@ -71,16 +72,17 @@ behaviors:
 
   - id: moab-gift-delivery
     description: >
-      When the player first talks to Moab, giveCharacterGift is called
-      before dialog opens. delivers fire revery via gift.kind === 'revery'.
-      pushes 'fire' to state.reveries, auto-assigns to first empty action
-      bar slot via autoAssignRevery, adds 'moab' to giftsReceived, records
-      revery:fire and event:moab-gift discoveries. one-time per character
-      via the generic gift system. item gifts are stubbed as deferred.
+      When the player completes Moab's initial dialog (advances past the
+      last line), advanceDialog calls giveCharacterGift. delivers fire
+      revery via gift.kind === 'revery'. pushes 'fire' to state.reveries,
+      auto-assigns to first empty action bar slot via autoAssignRevery,
+      adds 'moab' to giftsReceived, records revery:fire and event:moab-gift
+      discoveries. one-time per character via the generic gift system.
+      item gifts are stubbed as deferred.
     inputs:
-      - 'Player facing Moab, [e] pressed, gift not yet received'
+      - 'Player completes Moab dialog, gift not yet received'
     outputs:
-      - 'ReveryDefinition for fire revery returned to caller'
+      - 'ReveryDefinition for fire revery returned via advanceDialog result'
     state_changes:
       - field: reveries
         effect: "'fire' appended"
@@ -127,8 +129,8 @@ edge_cases:
     description: 'Player leaves cave and re-enters'
     expected: 'Moab is a persistent ECS entity tagged with Zone.Cave. giftsReceived persists on GameState so the gift is only given once.'
 failure_conditions:
-  - trigger: 'Player talks to Moab twice before breaking the wall (impossible but defensive)'
-    expected: 'No crash. giftsReceived prevents double gift.'
+  - trigger: 'Player completes Moab dialog twice before breaking the wall (impossible but defensive)'
+    expected: 'No crash. giftsReceived prevents double gift on second dialog completion.'
   - trigger: 'enterCave called when moab definition is not registered'
     expected: 'Character definition is registered at module load time in CHARACTERS const. No runtime registration needed.'
   - trigger: 'giveCharacterGift called after gift already received'
