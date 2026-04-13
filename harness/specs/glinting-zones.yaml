@@ -7,6 +7,7 @@ source_files:
   - src/engine/state.ts
   - src/engine/movement.ts
   - src/engine/renderer.ts
+  - src/engine/effects.ts
   - src/engine/constants.ts
   - src/engine/types.ts
   - src/engine/gameLoop.ts
@@ -123,6 +124,20 @@ behaviors:
       - 'sparkle glyphs rendered with phase-modulated density'
     state_changes: []
     determinism: time-based
+
+  - id: glinting-cursor-effect
+    description: >
+      getTileEffects in effects.ts checks if the queried tile position
+      is in state.glintZones (overworld only). if so, "glinting" is
+      included in the returned effects array. this surfaces in the
+      sidebar effects row when hovering over a glinting zone tile.
+    inputs:
+      - 'getTileEffects called with a tile position in state.glintZones'
+      - 'state.currentZone is overworld'
+    outputs:
+      - 'effects array includes "glinting"'
+    state_changes: []
+    determinism: deterministic
 
 edge_cases:
   - id: zone-on-sand

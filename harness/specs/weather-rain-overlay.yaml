@@ -5,6 +5,7 @@ priority: medium
 layer: engine
 source_files:
   - src/engine/renderer.ts
+  - src/engine/effects.ts
   - src/engine/types.ts
 dependencies:
   - weather
@@ -52,6 +53,24 @@ behaviors:
       - 'weather.sky is rain'
     outputs:
       - 'rain overlay visible during rainy periods of the simulation'
+    state_changes: []
+    determinism: deterministic
+
+  - id: rain-front-cursor-effect
+    description: >
+      getTileEffects in effects.ts checks if the queried tile position
+      is within the active rain front band when weather.sky is Rain and
+      currentZone is overworld. replicates the renderer's rain front
+      axis/sign/position calculation using state.weather.windDirection,
+      state.rainFrontOffset, and state.overworldMapWidth/Height. if the
+      tile falls within RAIN_FRONT_WIDTH of the front position, "rain"
+      is included in the returned effects array.
+    inputs:
+      - 'getTileEffects called with a tile in the rain front band'
+      - 'state.weather.sky is Rain'
+      - 'state.currentZone is overworld'
+    outputs:
+      - 'effects array includes "rain"'
     state_changes: []
     determinism: deterministic
 

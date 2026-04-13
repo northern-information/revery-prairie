@@ -1,11 +1,16 @@
 id: cursor-tile-info-all-types
 name: 'Show cursor tile info for all tile types'
-status: implemented
+status: partial
 priority: medium
 layer: integration
 source_files:
   - src/engine/renderer.ts
+  - src/engine/effects.ts
   - src/components/Sidebar.tsx
+dependencies:
+  - cursor-state
+  - glinting-zones
+  - weather-rain-overlay
 behaviors:
   - id: water-tiles-cursorable
     description: >
@@ -47,6 +52,30 @@ behaviors:
       - 'sidebar contents row shows "stone"'
     state_changes: []
     determinism: deterministic
+  - id: beehive-contents
+    description: >
+      When the cursor is over a tile containing a beehive entity, the sidebar
+      contents row displays "beehive". Beehives are ECS entities with
+      EntityTag === 'beehive' and a Position component. The check runs after
+      meteorites and before ground omniboxes in the contents priority order.
+    inputs:
+      - 'state.cursorTile resolves to a tile with a beehive ECS entity'
+    outputs:
+      - 'sidebar contents row shows "beehive"'
+    state_changes: []
+    determinism: deterministic
+  - id: burnt-clover-label
+    description: >
+      When the cursor is over a BurntClover tile, the sidebar contents row
+      displays "burnt clover" instead of the raw camelCase type string
+      "burntClover". All tile type labels shown in the sidebar must be
+      human-readable plain-english strings.
+    inputs:
+      - 'state.cursorTile resolves to a BurntClover tile'
+    outputs:
+      - 'sidebar contents row shows "burnt clover"'
+    state_changes: []
+    determinism: deterministic
 edge_cases:
   - id: hidden-chamber-wall-shows-stone
     description: >
@@ -59,11 +88,30 @@ edge_cases:
       CaveBreakableWall displays "stone" identical to regular CaveWall from
       the player perspective, preserving the hidden nature of the breakable wall.
     expected: 'sidebar contents shows "stone" for both CaveWall and CaveBreakableWall'
+  - id: beehive-on-clover
+    description: >
+      A beehive occupies a clover tile. The contents row should show "beehive"
+      (entity takes priority), not "clover" (the underlying tile type).
+    expected: 'sidebar contents shows "beehive" when a beehive entity is at the cursor tile'
+  - id: bee-on-beehive
+    description: >
+      A bee and a beehive occupy the same tile. The contents row should show
+      "bee" because bee is checked before beehive in the priority order.
+    expected: 'sidebar contents shows "bee" when both a bee and beehive are at the same tile'
+  - id: burnt-clover-not-raw-type
+    description: >
+      BurntClover tile type must never display as the raw camelCase string
+      "burntClover" in the sidebar. It must always show "burnt clover".
+    expected: 'sidebar contents shows "burnt clover", not "burntClover"'
 failure_conditions:
   - trigger: 'mouse hovers over a water tile (pond or river)'
     expected: 'sidebar cursor section is visible with "fresh water" as contents, not hidden'
   - trigger: 'mouse hovers over a cave wall tile'
     expected: 'sidebar contents shows "stone", not the raw tile type name'
+  - trigger: 'mouse hovers over a beehive tile'
+    expected: 'sidebar contents shows "beehive", not the underlying tile type'
+  - trigger: 'mouse hovers over a burnt clover tile'
+    expected: 'sidebar contents shows "burnt clover", not "burntClover"'
 verification:
   test_file: src/engine/__tests__/cursorTileInfo.test.ts
   test_pattern: 'cursor tile info'
