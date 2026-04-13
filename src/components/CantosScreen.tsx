@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { SectionHeader } from './PanelPrimitives'
 
-import { ANGEL_CANTOS_MAX } from '@/engine/constants'
-
 interface CantosScreenProps {
   cantos: string[]
 }
@@ -34,24 +32,20 @@ export const CantosScreen = ({ cantos }: CantosScreenProps) => {
 
   return (
     <div>
-      <SectionHeader>
-        angel cantos ({String(cantos.length)}/{String(ANGEL_CANTOS_MAX)})
-      </SectionHeader>
+      <SectionHeader>angel cantos ({String(cantos.length)})</SectionHeader>
 
       {cantos.length === 0 ? (
         <p className="text-dim text-xs">no cantos received. walk beneath an angel to hear one speak.</p>
       ) : (
         <>
-          {/* 8x8 grid — one cell per canto */}
+          {/* Grid of cantos — one cell per canto, wraps in rows of 8 */}
           <div
             className="mb-4 grid gap-1"
             style={{ gridTemplateColumns: `repeat(${String(GRID_SIZE)}, 1fr)` }}
             data-testid="cantos-grid"
           >
-            {Array.from({ length: ANGEL_CANTOS_MAX }, (_, i) => {
-              const hash = cantos[i]
-              const firstChar = hash ? hash[0] : null
-              const isFilled = hash !== undefined
+            {cantos.map((hash, i) => {
+              const firstChar = hash[0]
               const isHovered = hoveredIndex === i
 
               return (
@@ -59,30 +53,28 @@ export const CantosScreen = ({ cantos }: CantosScreenProps) => {
                   key={i}
                   type="button"
                   className={`border-border-dim flex h-8 items-center justify-center border transition-colors ${
-                    isHovered && isFilled
+                    isHovered
                       ? 'border-pink bg-pink/20 text-text'
-                      : isFilled
-                        ? 'text-permacomputer border-permacomputer/30 hover:border-pink'
-                        : 'text-dim/20 border-border-dim/30'
+                      : 'text-permacomputer border-permacomputer/30 hover:border-pink'
                   }`}
                   style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '0.9rem' }}
                   onMouseEnter={() => {
-                    if (isFilled) setHoveredIndex(i)
+                    setHoveredIndex(i)
                   }}
                   onMouseLeave={() => {
                     setHoveredIndex(null)
                   }}
                   onFocus={() => {
-                    if (isFilled) setHoveredIndex(i)
+                    setHoveredIndex(i)
                   }}
                   onBlur={() => {
                     setHoveredIndex(null)
                   }}
-                  tabIndex={isFilled ? 0 : -1}
-                  aria-label={isFilled ? `canto ${String(i + 1)}: ${hash}` : `empty slot ${String(i + 1)}`}
+                  tabIndex={0}
+                  aria-label={`canto ${String(i + 1)}: ${hash}`}
                   data-testid={`canto-cell-${String(i)}`}
                 >
-                  {firstChar ?? '\u00b7'}
+                  {firstChar}
                 </button>
               )
             })}

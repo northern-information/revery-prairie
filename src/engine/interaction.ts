@@ -2,7 +2,7 @@ import { autoAssignRevery } from './actionBar'
 import { getCharacterDefinition, getCharacterDialog } from './characters'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
-import { CARDINAL, DIRECTIONS, isInBounds } from './position'
+import { CARDINAL, DIRECTIONS, isInBounds, posKey } from './position'
 import { getReveryDefinition } from './reveries'
 import { TileType, Zone } from './types'
 
@@ -16,6 +16,12 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
     })
   ) {
     return true
+  }
+  // Angel body tiles — not in spatial index, check MultiPosition
+  const key = posKey(x, y)
+  for (const eid of state.world.query(ComponentType.AngelData, ComponentType.MultiPosition)) {
+    const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
+    if (multi?.positions.some(p => posKey(p.x, p.y) === key)) return true
   }
   if (
     state.currentZone === Zone.Cave &&
@@ -127,9 +133,7 @@ export const interactWithCharacter = (state: GameState): { opened: boolean; gift
   return { opened: true, gift: null }
 }
 
-export const advanceDialog = (
-  state: GameState
-): { continuing: boolean; gift: ReveryDefinition | null } => {
+export const advanceDialog = (state: GameState): { continuing: boolean; gift: ReveryDefinition | null } => {
   if (!state.activeDialog) return { continuing: false, gift: null }
 
   // If still typing, reveal the full line instantly
@@ -162,10 +166,7 @@ export const advanceDialog = (
 
   // Give one-time postGift when completing postGiftDialog
   const def = getCharacterDefinition(characterId)
-  if (
-    def.postGift &&
-    !state.postGiftActionsCompleted.has(characterId)
-  ) {
+  if (def.postGift && !state.postGiftActionsCompleted.has(characterId)) {
     const gift = givePostGift(state, characterId)
     state.postGiftActionsCompleted.add(characterId)
     return { continuing: false, gift }

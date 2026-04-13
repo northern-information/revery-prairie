@@ -13,7 +13,6 @@ import {
   ANGEL_AURA_RADIUS,
   ANGEL_BEE_SPAWN_INTERVAL_MS,
   ANGEL_BODY_SIZE,
-  ANGEL_CANTOS_MAX,
   ANGEL_LIFESPAN_MS,
   SPACE_BORDER,
 } from '../constants'
@@ -345,21 +344,32 @@ describe('angel dialog', () => {
     expect(state.activeDialog).toBeNull()
   })
 
-  it('triggers dialog again on repeated walk-under', () => {
+  it('triggers dialog again after walking away and back', () => {
     const state = createAngelTestState()
     spawnAngel(state, 1000)
 
     const eid = getAngelEntities(state)[0]
     const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
 
+    // Walk under
     state.player.x = multi.positions[0].x
     state.player.y = multi.positions[0].y
-
     checkAngelDialog(state)
     expect(state.activeDialog).not.toBeNull()
 
-    // Clear dialog and try again — should trigger again
+    // Close dialog, still standing under — should NOT re-trigger
     state.activeDialog = null
+    checkAngelDialog(state)
+    expect(state.activeDialog).toBeNull()
+
+    // Walk away
+    state.player.x = SPACE_BORDER + 5
+    state.player.y = SPACE_BORDER + 5
+    checkAngelDialog(state)
+
+    // Walk back under
+    state.player.x = multi.positions[0].x
+    state.player.y = multi.positions[0].y
     checkAngelDialog(state)
     expect(state.activeDialog).not.toBeNull()
   })
@@ -404,7 +414,7 @@ describe('angel cantos', () => {
     checkAngelDialog(state)
 
     expect(state.angelCantos).toHaveLength(1)
-    expect(state.angelCantos[0]).toMatch(/^[0-9a-f]{64}$/)
+    expect(state.angelCantos[0]).toMatch(/^[0-9A-F]{64}$/)
   })
 
   it('does not store duplicate canto on repeated encounter', () => {
@@ -414,14 +424,19 @@ describe('angel cantos', () => {
     const eid = getAngelEntities(state)[0]
     const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
 
+    // First walk-under
     state.player.x = multi.positions[0].x
     state.player.y = multi.positions[0].y
-
     checkAngelDialog(state)
     expect(state.angelCantos).toHaveLength(1)
 
-    // Clear dialog and trigger again
+    // Walk away, then back
     state.activeDialog = null
+    state.player.x = SPACE_BORDER + 5
+    state.player.y = SPACE_BORDER + 5
+    checkAngelDialog(state)
+    state.player.x = multi.positions[0].x
+    state.player.y = multi.positions[0].y
     checkAngelDialog(state)
     expect(state.angelCantos).toHaveLength(1)
   })
@@ -440,19 +455,24 @@ describe('angel cantos', () => {
 
     expect(state.angelEncounterCount).toBe(1)
 
-    // Repeated encounter should not increment
+    // Walk away and back — should not increment again
     state.activeDialog = null
+    state.player.x = SPACE_BORDER + 5
+    state.player.y = SPACE_BORDER + 5
+    checkAngelDialog(state)
+    state.player.x = multi.positions[0].x
+    state.player.y = multi.positions[0].y
     checkAngelDialog(state)
     expect(state.angelEncounterCount).toBe(1)
   })
 
-  it('FIFO overflows at max capacity', () => {
+  it('appends cantos without limit', () => {
     const state = createAngelTestState()
-    // Pre-fill to max
-    for (let i = 0; i < ANGEL_CANTOS_MAX; i++) {
-      state.angelCantos.push(`hash_${String(i).padStart(60, '0')}`)
+    // Pre-fill with many cantos
+    for (let i = 0; i < 100; i++) {
+      state.angelCantos.push(`HASH${String(i).padStart(60, '0')}`)
     }
-    expect(state.angelCantos).toHaveLength(ANGEL_CANTOS_MAX)
+    expect(state.angelCantos).toHaveLength(100)
 
     spawnAngel(state, 1000)
 
@@ -462,16 +482,14 @@ describe('angel cantos', () => {
     state.player.y = multi.positions[0].y
     checkAngelDialog(state)
 
-    expect(state.angelCantos).toHaveLength(ANGEL_CANTOS_MAX)
-    // First entry should have been removed
-    expect(state.angelCantos[0]).not.toBe('hash_' + '0'.repeat(60))
+    expect(state.angelCantos).toHaveLength(101)
   })
 })
 
 describe('angel hash generation', () => {
   it('produces a 64-character hex string', () => {
     const hash = generateAngelHash('test', 10, 20, 0)
-    expect(hash).toMatch(/^[0-9a-f]{64}$/)
+    expect(hash).toMatch(/^[0-9A-F]{64}$/)
   })
 
   it('produces different hashes for different inputs', () => {

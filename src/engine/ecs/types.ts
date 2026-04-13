@@ -61,6 +61,7 @@ export interface ComponentDataMap {
     auraKind: 'rain' | 'bees' | 'clover'
     spawnTime: number
     cantoStored: boolean
+    playerUnder: boolean
     encounterCount: number
     seed: number
     lastBeeSpawnTime: number
