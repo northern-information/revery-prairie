@@ -10,6 +10,7 @@ import {
   tickAngelLifespan,
 } from '../angels'
 import {
+  ANGEL_AURA_RADIUS,
   ANGEL_BEE_SPAWN_INTERVAL_MS,
   ANGEL_BODY_SIZE,
   ANGEL_CANTOS_MAX,
@@ -203,11 +204,20 @@ describe('angel aura - bees', () => {
     // Force the angel to be bee type
     const eid = getAngelEntities(state)[0]
     const data = requireComponent(state.world.getComponent(eid, ComponentType.AngelData))
+    const pos = requireComponent(state.world.getComponent(eid, ComponentType.Position))
     data.auraKind = 'bees'
     data.lastBeeSpawnTime = 0
 
-    vi.restoreAllMocks()
-    vi.spyOn(Math, 'random').mockReturnValue(0.3)
+    // Clear area around angel center so random tile picks always land on dirt
+    for (let dy = -ANGEL_AURA_RADIUS; dy <= ANGEL_AURA_RADIUS; dy++) {
+      for (let dx = -ANGEL_AURA_RADIUS; dx <= ANGEL_AURA_RADIUS; dx++) {
+        const tx = pos.x + dx
+        const ty = pos.y + dy
+        if (tx >= 0 && tx < state.mapWidth && ty >= 0 && ty < state.mapHeight) {
+          state.map[ty][tx] = { type: TileType.Dirt }
+        }
+      }
+    }
 
     tickAngelBeeAura(state, ANGEL_BEE_SPAWN_INTERVAL_MS + 1)
 
