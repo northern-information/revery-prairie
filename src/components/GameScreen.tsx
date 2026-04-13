@@ -289,17 +289,19 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
           metricsRef={metricsRef}
         />
       )}
-      <ActionBar
-        state={state}
-        refreshUI={refreshUI}
-        dragState={dragOverlayRef.current?.dragState ?? null}
-        onSetActionBarTarget={() => {
-          // Handled via drag system — placeholder for now
-        }}
-        onTogglePermacomputer={() => {
-          setActiveScreen(activeScreen ? null : 'pack')
-        }}
-      />
+      {!state.genesis && (
+        <ActionBar
+          state={state}
+          refreshUI={refreshUI}
+          dragState={dragOverlayRef.current?.dragState ?? null}
+          onSetActionBarTarget={() => {
+            // Handled via drag system — placeholder for now
+          }}
+          onTogglePermacomputer={() => {
+            setActiveScreen(activeScreen ? null : 'pack')
+          }}
+        />
+      )}
       {import.meta.env.DEV && state.devPanelOpen && (
         <DevPanel state={state} refreshUI={refreshUI} metricsRef={metricsRef} />
       )}

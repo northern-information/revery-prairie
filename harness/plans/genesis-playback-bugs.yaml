@@ -1,0 +1,78 @@
+plan:
+  id: genesis-playback-bugs
+  title: Fix genesis progress bar, action bar visibility, and epoch transition flicker
+  created: 2026-04-13
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: fix-epoch-transition-flicker
+    title: Set epochStartTime to current time when advancing epochs instead of 0
+    spec_id: genesis-playback-bugs
+    spec_sections:
+      - no-epoch-transition-flicker
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: fix-progress-bar-refresh
+    title: Call refreshUI periodically during genesis so sidebar progress bar updates
+    spec_id: genesis-playback-bugs
+    spec_sections:
+      - progress-bar-advances
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+
+  - id: hide-action-bar-during-genesis
+    title: Gate ActionBar render on genesis not active
+    spec_id: genesis-playback-bugs
+    spec_sections:
+      - action-bar-hidden-during-genesis
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [component]
+
+  - id: add-regression-tests
+    title: Add regression tests for epoch transition timing and genesis UI state
+    spec_id: genesis-playback-bugs
+    spec_sections:
+      - no-epoch-transition-flicker
+      - progress-bar-advances
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesis.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - fix-epoch-transition-flicker
+      - fix-progress-bar-refresh
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags: [test]

@@ -1,0 +1,89 @@
+id: genesis-playback-bugs
+name: 'Genesis sequence playback bugs'
+status: partial
+priority: high
+layer: integration
+source_files:
+  - src/engine/gameLoop.ts
+  - src/engine/genesis.ts
+  - src/engine/genesisRenderer.ts
+  - src/components/GameScreen.tsx
+  - src/components/Sidebar.tsx
+behaviors:
+  - id: progress-bar-advances
+    description: >
+      The genesis progress bar in the sidebar advances smoothly from 0% to
+      100% over the course of the genesis sequence. The sidebar must re-render
+      frequently enough during genesis for the bar to appear animated.
+    inputs:
+      - 'genesis sequence is playing (state.genesis.epochIndex < GENESIS_EPOCHS.length)'
+    outputs:
+      - 'sidebar progress bar width increases over time from 0% to 100%'
+    state_changes: []
+    determinism: time-based
+
+  - id: action-bar-hidden-during-genesis
+    description: >
+      The action bar component is not rendered while genesis is active. It
+      should only appear after genesis completes and gameplay begins.
+    inputs:
+      - 'state.genesis exists and epochIndex < GENESIS_EPOCHS.length'
+    outputs:
+      - 'ActionBar component is not in the DOM during genesis'
+    state_changes: []
+    determinism: deterministic
+
+  - id: no-epoch-transition-flicker
+    description: >
+      When tickGenesis advances to a new epoch, the renderer must not produce
+      a single-frame flash where the new epoch renders with progress 0. The
+      epochStartTime must be set on the same tick that advances epochIndex so
+      that getEpochProgress returns a valid initial value on the first render
+      frame of the new epoch.
+    inputs:
+      - 'tickGenesis detects elapsed >= epoch.durationMs and advances epochIndex'
+    outputs:
+      - 'the new epoch renders with a non-zero progress on its first frame'
+      - 'no visible flicker at epoch transitions for lava, civilizations, or any epoch'
+    state_changes:
+      - field: sim.epochIndex
+        effect: incremented to next epoch
+      - field: sim.epochStartTime
+        effect: set to current time (not 0) when advancing
+    determinism: time-based
+
+edge_cases:
+  - id: skip-key-during-genesis
+    description: >
+      Pressing any key during genesis skips remaining epochs. The progress bar
+      should jump to 100% and gameplay should begin immediately.
+    expected: 'progress bar reaches 100%, genesis completes, action bar appears'
+
+  - id: final-epoch-completion
+    description: >
+      When the last epoch finishes naturally, genesis completes without an
+      extra flicker frame. The transition from genesis rendering to game
+      rendering should be seamless.
+    expected: 'no flash frame between last epoch and game start'
+
+  - id: first-epoch-start
+    description: >
+      The very first epoch should begin with epochStartTime set to the first
+      tick time, not 0. Progress should start at a small positive value, not
+      produce a frame of progress=0.
+    expected: 'first epoch renders without a progress=0 flash frame'
+
+failure_conditions:
+  - trigger: 'genesis plays from start to finish without user interaction'
+    expected: 'progress bar advances smoothly, no epoch-transition flicker, action bar hidden'
+
+  - trigger: 'epoch transition occurs (epochIndex incremented by tickGenesis)'
+    expected: 'no single-frame flash where new epoch renders with progress=0'
+
+  - trigger: 'genesis is active'
+    expected: 'action bar is not visible'
+
+verification:
+  test_file: src/engine/__tests__/genesis.test.ts
+  test_pattern: 'progress bar|action bar|epoch transition|flicker'
+  command: 'npx vitest run src/engine/__tests__/genesis.test.ts'
