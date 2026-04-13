@@ -6,8 +6,15 @@ import type { Position } from './types'
 /**
  * Angel animation system.
  *
- * Each angel is rendered as an 8x8 ASCII figure inspired by Ezekiel's
+ * Each angel is rendered as a 9x9 ASCII figure inspired by Ezekiel's
  * descriptions: wheels within wheels, many eyes, wings, halos.
+ *
+ * Strong bilateral symmetry on both axes, but not quadrilateral.
+ * Y-axis symmetry (left-right mirror) governs wings and structure.
+ * X-axis symmetry (top-bottom mirror) governs halos. Each axis
+ * contributes different structural roles so the angel reads
+ * differently horizontally vs vertically. The face and central
+ * wheel use quad symmetry since they're radial by nature.
  *
  * The animation is procedurally varied per-angel using a seed derived
  * from spawn position. No two angels look identical. The frame cycles
@@ -53,9 +60,32 @@ const mulberry32 = (seed: number): (() => number) => {
 const pickFrom = <T>(arr: readonly T[], rng: () => number): T => arr[Math.floor(rng() * arr.length)]
 
 /**
+ * Mirror a cell left-right (Y-axis symmetry).
+ */
+const mirrorLR = (template: number[][], y: number, x: number, role: number, S: number): void => {
+  template[y][x] = role
+  template[y][S - 1 - x] = role
+}
+
+/**
+ * Mirror a cell top-bottom (X-axis symmetry).
+ */
+const mirrorTB = (template: number[][], y: number, x: number, role: number, S: number): void => {
+  template[y][x] = role
+  template[S - 1 - y][x] = role
+}
+
+/**
  * Generate a base pattern template for an angel.
- * This creates the structural layout — which cells are eyes, wings,
- * wheels, halos, structure, or empty.
+ *
+ * Strong bilateral symmetry on both axes, but NOT quadrilateral.
+ * Y-axis (left-right) is generated first on the left half and mirrored.
+ * X-axis (top-bottom) is generated separately on the top half and mirrored.
+ * Each axis contributes different structural roles so the angel reads
+ * differently horizontally vs vertically.
+ *
+ * Face (eyes) is centered at (cx, cy) and uses full quad symmetry
+ * since a face should be symmetric in all directions.
  */
 const generateTemplate = (seed: number): number[][] => {
   const rng = mulberry32(seed)
@@ -66,7 +96,24 @@ const generateTemplate = (seed: number): number[][] => {
   const cx = Math.floor(S / 2)
   const cy = Math.floor(S / 2)
 
-  // Central wheel (ring of wheel chars)
+  // --- Central face (quad-symmetric — a face should be) ---
+  template[cy][cx] = 1 // center eye
+  const faceEyes = 2 + Math.floor(rng() * 3) // 2-4 eye pairs
+  for (let i = 0; i < faceEyes; i++) {
+    const dx = Math.floor(rng() * 2) + 1 // 1-2 from center
+    const dy = Math.floor(rng() * 2) + 1 // 1-2 from center
+    const ex = cx - dx
+    const ey = cy - dy
+    if (ey >= 0 && ex >= 0) {
+      // Quad mirror for face eyes
+      template[ey][ex] = 1
+      template[ey][S - 1 - ex] = 1
+      template[S - 1 - ey][ex] = 1
+      template[S - 1 - ey][S - 1 - ex] = 1
+    }
+  }
+
+  // --- Central wheel (quad-symmetric — radial structure) ---
   const wheelRadius = 1 + Math.floor(rng() * 2) // 1-2
   for (let dy = -wheelRadius; dy <= wheelRadius; dy++) {
     for (let dx = -wheelRadius; dx <= wheelRadius; dx++) {
@@ -74,46 +121,44 @@ const generateTemplate = (seed: number): number[][] => {
       if (dist === wheelRadius || dist === wheelRadius - 1) {
         const wy = cy + dy
         const wx = cx + dx
-        if (wy >= 0 && wy < S && wx >= 0 && wx < S) {
+        if (wy >= 0 && wy < S && wx >= 0 && wx < S && template[wy][wx] === 0) {
           template[wy][wx] = 3
         }
       }
     }
   }
 
-  // Eyes scattered — more toward center, fewer at edges
-  const eyeCount = 4 + Math.floor(rng() * 5) // 4-8 eyes
-  for (let i = 0; i < eyeCount; i++) {
-    const ex = Math.floor(rng() * S)
-    const ey = Math.floor(rng() * S)
-    if (template[ey][ex] === 0) {
-      template[ey][ex] = 1
-    }
-  }
-
-  // Wings — fill edges with wing chars
+  // --- Y-axis layer: wings on left/right edges, mirrored LR only ---
+  // Generate on left half, mirror right. NOT mirrored top-bottom.
   for (let y = 0; y < S; y++) {
-    for (let x = 0; x < S; x++) {
+    for (let x = 0; x <= cx; x++) {
       if (template[y][x] !== 0) continue
-      const edgeDist = Math.min(x, y, S - 1 - x, S - 1 - y)
-      if (edgeDist <= 1 && rng() < 0.6) {
-        template[y][x] = 2
+      const edgeDistX = Math.min(x, S - 1 - x)
+      if (edgeDistX <= 1 && rng() < 0.6) {
+        mirrorLR(template, y, x, 2, S)
       }
     }
   }
 
-  // Halo — top and bottom rows get halo chars if not already filled
-  for (let x = 0; x < S; x++) {
-    if (template[0][x] === 0 && rng() < 0.7) template[0][x] = 4
-    if (template[S - 1][x] === 0 && rng() < 0.7) template[S - 1][x] = 4
-  }
-
-  // Structure — fill remaining gaps with occasional structure chars
-  for (let y = 0; y < S; y++) {
+  // --- X-axis layer: halos on top/bottom rows, mirrored TB only ---
+  // Generate on top half, mirror bottom. NOT mirrored left-right.
+  for (let y = 0; y <= cy; y++) {
     for (let x = 0; x < S; x++) {
       if (template[y][x] !== 0) continue
+      const edgeDistY = Math.min(y, S - 1 - y)
+      if (edgeDistY <= 1 && rng() < 0.65) {
+        mirrorTB(template, y, x, 4, S)
+      }
+    }
+  }
+
+  // --- Structure: fill remaining voids with LR symmetry ---
+  // Gives a vertical spine feel without top-bottom repetition
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x <= cx; x++) {
+      if (template[y][x] !== 0) continue
       if (rng() < 0.3) {
-        template[y][x] = 5
+        mirrorLR(template, y, x, 5, S)
       }
     }
   }
@@ -212,7 +257,7 @@ const FRAME_COUNT = 6
  * Get the current animation frame for an angel.
  *
  * Returns an array of { pos, char, color } entries for each non-void
- * cell in the angel's 8x8 body.
+ * cell in the angel's 9x9 body.
  */
 export const getAngelRenderData = (
   seed: number,

@@ -16,8 +16,8 @@ import { Sidebar } from './Sidebar'
 import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
 import { COIN_GLINTING_COLOR } from '@/engine/constants'
-import { canCast } from '@/engine/hexagram'
 import { ComponentType } from '@/engine/ecs/types'
+import { canCast } from '@/engine/hexagram'
 import { advanceDialog } from '@/engine/interaction'
 import { getDefinition } from '@/engine/items'
 import { useEventLog } from '@/hooks/useEventLog'
@@ -245,19 +245,34 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
               typingIndex={state.activeDialog.typingIndex}
               typingDone={state.activeDialog.typingDone}
               isLastLine={isLastLine}
+              isAngel={state.activeDialog.characterId.startsWith('angel-')}
               top={dTop}
               left={dLeft}
               onNext={() => {
                 const result = advanceDialog(state)
                 if (result.gift) {
-                  addEvent('discovery', `received ${result.gift.name.toLowerCase()}`, result.gift.glyphs[0], result.gift.glyphColor, state.player.x, state.player.y)
+                  addEvent(
+                    'discovery',
+                    `received ${result.gift.name.toLowerCase()}`,
+                    result.gift.glyphs[0],
+                    result.gift.glyphColor,
+                    state.player.x,
+                    state.player.y
+                  )
                 }
                 refreshUI()
               }}
               onClose={() => {
                 const result = advanceDialog(state)
                 if (result.gift) {
-                  addEvent('discovery', `received ${result.gift.name.toLowerCase()}`, result.gift.glyphs[0], result.gift.glyphColor, state.player.x, state.player.y)
+                  addEvent(
+                    'discovery',
+                    `received ${result.gift.name.toLowerCase()}`,
+                    result.gift.glyphs[0],
+                    result.gift.glyphColor,
+                    state.player.x,
+                    state.player.y
+                  )
                 }
                 refreshUI()
               }}

@@ -210,6 +210,7 @@ export interface GameState {
   angelCantos: string[]
   nextAngelSpawnTime: number
   angelEncounterCount: number
+  angelFlashTime: number
 }
 
 export const CloverStage = {

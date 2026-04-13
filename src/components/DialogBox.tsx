@@ -10,10 +10,34 @@ interface DialogBoxProps {
   typingIndex: number
   typingDone: boolean
   isLastLine: boolean
+  isAngel?: boolean
   onNext: () => void
   onClose: () => void
   top: number
   left: number
+}
+
+const HASH_GRID_SIZE = 8
+
+const HashGrid = ({ hash, revealCount }: { hash: string; revealCount: number }) => {
+  const chars = hash.slice(0, revealCount).split('')
+  return (
+    <div
+      className="mx-auto my-2 grid gap-0.5"
+      style={{ gridTemplateColumns: `repeat(${String(HASH_GRID_SIZE)}, 1fr)`, width: 'fit-content' }}
+      data-testid="angel-hash-grid"
+    >
+      {Array.from({ length: 64 }, (_, i) => (
+        <div
+          key={i}
+          className="text-permacomputer flex h-6 w-6 items-center justify-center"
+          style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '0.9rem' }}
+        >
+          {chars[i] ?? ''}
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export const DialogBox = ({
@@ -23,6 +47,7 @@ export const DialogBox = ({
   typingIndex,
   typingDone,
   isLastLine,
+  isAngel,
   onNext,
   onClose,
   top,
@@ -43,7 +68,13 @@ export const DialogBox = ({
       </div>
     )}
     <SectionHeader className="shrink-0">{characterName.toLowerCase()}</SectionHeader>
-    <p className="min-h-0 flex-1 overflow-hidden leading-relaxed">{line.slice(0, typingIndex)}</p>
+    {isAngel ? (
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <HashGrid hash={line} revealCount={typingIndex} />
+      </div>
+    ) : (
+      <p className="min-h-0 flex-1 overflow-hidden leading-relaxed">{line.slice(0, typingIndex)}</p>
+    )}
     <div className="mt-auto flex shrink-0 gap-4">
       {!typingDone ? (
         <TextButton variant="secondary" onClick={onNext}>

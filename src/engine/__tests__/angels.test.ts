@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   checkAngelDialog,
   destroyAllAngels,
@@ -9,6 +8,7 @@ import {
   tickAngelDrift,
   tickAngelLifespan,
 } from '../angels'
+import { getCharacterDefinition } from '../characters'
 import {
   ANGEL_AURA_RADIUS,
   ANGEL_BEE_SPAWN_INTERVAL_MS,
@@ -20,12 +20,14 @@ import {
 import { ComponentType } from '../ecs/types'
 import { TileType, Zone } from '../types'
 import { createTestState } from './helpers'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const getAngelEntities = (state: ReturnType<typeof createTestState>) =>
-  state.world.query(ComponentType.AngelData)
+const getAngelEntities = (state: ReturnType<typeof createTestState>) => state.world.query(ComponentType.AngelData)
 
 const getBeeEntities = (state: ReturnType<typeof createTestState>) =>
-  state.world.query(ComponentType.EntityTag).filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+  state.world
+    .query(ComponentType.EntityTag)
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
 
 /** Assert and return a component value — avoids non-null assertions */
 const requireComponent = <T>(val: T | undefined): T => {
@@ -79,7 +81,14 @@ describe('angel spawning', () => {
 
   it('does not spawn during deep time', () => {
     const state = createAngelTestState()
-    state.deepTime = { active: true, startTime: 0, phase: 'burning', elapsedYears: 0, playerGlyph: '@', playerGlyphColor: '#FFF' }
+    state.deepTime = {
+      active: true,
+      startTime: 0,
+      phase: 'burning',
+      elapsedYears: 0,
+      playerGlyph: '@',
+      playerGlyphColor: '#FFF',
+    }
 
     expect(spawnAngel(state, 1000)).toBe(false)
   })
@@ -117,6 +126,25 @@ describe('angel spawning', () => {
     const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
     expect(multi?.positions).toHaveLength(ANGEL_BODY_SIZE * ANGEL_BODY_SIZE)
   })
+
+  it('sets angelFlashTime on spawn', () => {
+    const state = createAngelTestState()
+
+    spawnAngel(state, 1000)
+
+    expect(state.angelFlashTime).toBe(1000)
+  })
+
+  it('uses Angel of X naming', () => {
+    const state = createAngelTestState()
+
+    spawnAngel(state, 1000)
+
+    const eid = getAngelEntities(state)[0]
+    const identity = requireComponent(state.world.getComponent(eid, ComponentType.CharacterIdentity))
+    const def = getCharacterDefinition(identity.definitionId)
+    expect(def.name).toMatch(/^Angel of (Rain|Bees|Clover)$/)
+  })
 })
 
 describe('angel drifting', () => {
@@ -127,9 +155,9 @@ describe('angel drifting', () => {
     const eid = getAngelEntities(state)[0]
 
     // Force drift to succeed by returning values that select a specific direction
-    // and ensure moveChance passes
+    // and ensure moveChance passes (drift chance is 0.2)
     vi.spyOn(Math, 'random')
-      .mockReturnValueOnce(0) // drift chance passes (< 0.1)
+      .mockReturnValueOnce(0) // drift chance passes (< 0.2)
       .mockReturnValueOnce(0) // picks first cardinal direction (up)
 
     tickAngelDrift(state)
@@ -193,6 +221,16 @@ describe('angel lifespan', () => {
     tickAngelLifespan(state, despawnTime)
 
     expect(state.nextAngelSpawnTime).toBeGreaterThan(despawnTime)
+  })
+
+  it('sets angelFlashTime on despawn', () => {
+    const state = createAngelTestState()
+    spawnAngel(state, 1000)
+
+    const despawnTime = 1000 + ANGEL_LIFESPAN_MS + 1
+    tickAngelLifespan(state, despawnTime)
+
+    expect(state.angelFlashTime).toBe(despawnTime)
   })
 })
 
@@ -307,7 +345,7 @@ describe('angel dialog', () => {
     expect(state.activeDialog).toBeNull()
   })
 
-  it('only triggers dialog once per angel spawn', () => {
+  it('triggers dialog again on repeated walk-under', () => {
     const state = createAngelTestState()
     spawnAngel(state, 1000)
 
@@ -320,10 +358,10 @@ describe('angel dialog', () => {
     checkAngelDialog(state)
     expect(state.activeDialog).not.toBeNull()
 
-    // Clear dialog and try again
+    // Clear dialog and try again — should trigger again
     state.activeDialog = null
     checkAngelDialog(state)
-    expect(state.activeDialog).toBeNull()
+    expect(state.activeDialog).not.toBeNull()
   })
 
   it('does not trigger when already in dialog', () => {
@@ -353,7 +391,7 @@ describe('angel dialog', () => {
 })
 
 describe('angel cantos', () => {
-  it('stores a canto when dialog triggers', () => {
+  it('stores a canto on first encounter', () => {
     const state = createAngelTestState()
     spawnAngel(state, 1000)
 
@@ -369,7 +407,26 @@ describe('angel cantos', () => {
     expect(state.angelCantos[0]).toMatch(/^[0-9a-f]{64}$/)
   })
 
-  it('increments encounter count', () => {
+  it('does not store duplicate canto on repeated encounter', () => {
+    const state = createAngelTestState()
+    spawnAngel(state, 1000)
+
+    const eid = getAngelEntities(state)[0]
+    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
+
+    state.player.x = multi.positions[0].x
+    state.player.y = multi.positions[0].y
+
+    checkAngelDialog(state)
+    expect(state.angelCantos).toHaveLength(1)
+
+    // Clear dialog and trigger again
+    state.activeDialog = null
+    checkAngelDialog(state)
+    expect(state.angelCantos).toHaveLength(1)
+  })
+
+  it('increments encounter count only on first encounter', () => {
     const state = createAngelTestState()
 
     expect(state.angelEncounterCount).toBe(0)
@@ -381,6 +438,11 @@ describe('angel cantos', () => {
     state.player.y = multi.positions[0].y
     checkAngelDialog(state)
 
+    expect(state.angelEncounterCount).toBe(1)
+
+    // Repeated encounter should not increment
+    state.activeDialog = null
+    checkAngelDialog(state)
     expect(state.angelEncounterCount).toBe(1)
   })
 

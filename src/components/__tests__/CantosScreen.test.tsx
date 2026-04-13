@@ -1,6 +1,7 @@
 import { CantosScreen } from '../CantosScreen'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+
 import { ANGEL_CANTOS_MAX } from '@/engine/constants'
 
 describe('CantosScreen', () => {
@@ -19,11 +20,11 @@ describe('CantosScreen', () => {
     expect(grid.children).toHaveLength(ANGEL_CANTOS_MAX)
   })
 
-  it('shows truncated hash in filled cells', () => {
+  it('shows first hex char in filled cells', () => {
     render(<CantosScreen cantos={['abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234']} />)
 
     const cell = screen.getByTestId('canto-cell-0')
-    expect(cell.textContent).toBe('abcd')
+    expect(cell.textContent).toBe('a')
   })
 
   it('shows placeholder in empty cells', () => {
@@ -33,7 +34,7 @@ describe('CantosScreen', () => {
     expect(emptyCell.textContent).toBe('\u00b7') // middle dot
   })
 
-  it('displays full hash on hover', async () => {
+  it('displays full hash as 8x8 grid on hover', async () => {
     const hash = 'abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234'
     render(<CantosScreen cantos={[hash]} />)
 
@@ -42,7 +43,11 @@ describe('CantosScreen', () => {
 
     const fullHash = screen.getByTestId('canto-full-hash')
     expect(fullHash).toBeInTheDocument()
-    expect(fullHash.textContent).toContain(hash)
+    // Should contain a hash grid
+    const hashGrid = screen.getByTestId('canto-hash-grid')
+    expect(hashGrid).toBeInTheDocument()
+    // Grid should have 64 cells with individual hex chars
+    expect(hashGrid.children).toHaveLength(64)
   })
 
   it('hides full hash on mouse leave', async () => {
@@ -74,5 +79,12 @@ describe('CantosScreen', () => {
 
     const filledCell = screen.getByTestId('canto-cell-0')
     expect(filledCell).toHaveAttribute('tabindex', '0')
+  })
+
+  it('uses Times New Roman font in cells', () => {
+    render(<CantosScreen cantos={['a'.repeat(64)]} />)
+
+    const cell = screen.getByTestId('canto-cell-0')
+    expect(cell.style.fontFamily).toContain('Times New Roman')
   })
 })
