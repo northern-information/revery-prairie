@@ -211,6 +211,7 @@ export interface GameState {
   nextAngelSpawnTime: number
   angelEncounterCount: number
   angelFlashTime: number
+  devPanelOpen: boolean
 }
 
 export const CloverStage = {

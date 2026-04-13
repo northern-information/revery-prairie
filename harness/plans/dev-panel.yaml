@@ -1,0 +1,154 @@
+plan:
+  id: dev-panel
+  title: 'Add dev panel with ECS introspection, drag-to-place spawning, and tile painting'
+  created: '2026-04-13'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: gamestate-field
+    title: 'Add devPanelOpen boolean to GameState and serialization whitelist'
+    spec_id: dev-panel
+    spec_sections:
+      - toggle-visibility
+      - dev-gated
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization
+    repair: retry
+    tags: [engine]
+
+  - id: dev-panel-engine
+    title: 'Create devPanel.ts with presets, component metadata, and spawn helpers'
+    spec_id: dev-panel
+    spec_sections:
+      - component-introspection
+      - component-field-editing
+      - entity-presets
+      - drag-to-place
+      - spawn-at-cursor
+      - tile-painting-tab
+    context_files:
+      - src/engine/ecs/types.ts
+      - src/engine/ecs/world.ts
+      - src/engine/types.ts
+      - src/engine/entities.ts
+      - src/engine/constants.ts
+      - src/engine/angels.ts
+      - src/engine/celestial.ts
+      - src/engine/lightning.ts
+      - src/engine/omnibox.ts
+      - src/engine/clover.ts
+    output_files:
+      - src/engine/devPanel.ts
+    depends_on:
+      - gamestate-field
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: dev-panel-component
+    title: 'Create DevPanel.tsx with entity tab, tile tab, drag-to-place, and spawn button'
+    spec_id: dev-panel
+    spec_sections:
+      - toggle-visibility
+      - component-introspection
+      - component-field-editing
+      - entity-presets
+      - drag-to-place
+      - spawn-at-cursor
+      - tile-painting-tab
+      - dev-gated
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/components/PanelPrimitives.tsx
+      - src/components/GameScreen.tsx
+      - src/components/GameCanvas.tsx
+      - src/engine/devPanel.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+      - src/styles/index.css
+    output_files:
+      - src/components/DevPanel.tsx
+    depends_on:
+      - dev-panel-engine
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: keyboard-integration
+    title: 'Add backtick toggle to useKeyboard, gated behind import.meta.env.DEV'
+    spec_id: dev-panel
+    spec_sections:
+      - toggle-visibility
+      - dev-gated
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/engine/types.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - gamestate-field
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [hook]
+
+  - id: gamescreen-integration
+    title: 'Render DevPanel in GameScreen, conditionally gated on DEV and state.devPanelOpen'
+    spec_id: dev-panel
+    spec_sections:
+      - toggle-visibility
+      - dev-gated
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/components/DevPanel.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on:
+      - dev-panel-component
+      - keyboard-integration
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: dev-panel-tests
+    title: 'Add engine tests for presets, component metadata, and spawn helper'
+    spec_id: dev-panel
+    spec_sections:
+      - component-introspection
+      - entity-presets
+      - drag-to-place
+      - spawn-at-cursor
+      - tile-painting-tab
+    context_files:
+      - src/engine/devPanel.ts
+      - src/engine/ecs/types.ts
+      - src/engine/ecs/world.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/angels.test.ts
+    output_files:
+      - src/engine/__tests__/devPanel.test.ts
+    depends_on:
+      - dev-panel-engine
+    verification:
+      - npx vitest run src/engine/__tests__/devPanel.test.ts
+    repair: retry
+    tags: [test]

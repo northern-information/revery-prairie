@@ -292,6 +292,13 @@ export const useKeyboard = ({
         return
       }
 
+      // Toggle dev panel (dev only)
+      if (e.key === '`' && import.meta.env.DEV) {
+        state.devPanelOpen = !state.devPanelOpen
+        refreshUI()
+        return
+      }
+
       // Toggle manual
       if (e.key === 'q' || e.key === 'Q') {
         if (activeScreen === 'system') return
