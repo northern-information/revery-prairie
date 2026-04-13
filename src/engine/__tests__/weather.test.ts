@@ -1,5 +1,9 @@
+import { RAIN_FADE_DURATION_MS } from '../constants'
 import { Season, Sky } from '../types'
-import { fToC, generateWeather, mphToKph, tickWeather } from '../weather'
+import { fToC, generateWeather, mphToKph, tickRainIntensity, tickWeather } from '../weather'
+import { createTestState } from './helpers'
+
+import type { GameState } from '../types'
 
 describe('generateWeather', () => {
   it('returns weather with spring season', () => {
@@ -113,5 +117,65 @@ describe('mphToKph', () => {
 
   it('converts 3 mph to 5 kph', () => {
     expect(mphToKph(3)).toBe(5)
+  })
+})
+
+describe('tickRainIntensity', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createTestState()
+    state.rainIntensity = 0
+  })
+
+  it('ramps up when sky is rain', () => {
+    state.weather.sky = Sky.Rain
+    tickRainIntensity(state, 1000)
+    expect(state.rainIntensity).toBeCloseTo(1000 / RAIN_FADE_DURATION_MS)
+  })
+
+  it('ramps down when sky is not rain', () => {
+    state.rainIntensity = 1
+    state.weather.sky = Sky.Sun
+    tickRainIntensity(state, 1000)
+    expect(state.rainIntensity).toBeCloseTo(1 - 1000 / RAIN_FADE_DURATION_MS)
+  })
+
+  it('clamps to 1.0 and does not exceed', () => {
+    state.rainIntensity = 0.9
+    state.weather.sky = Sky.Rain
+    tickRainIntensity(state, RAIN_FADE_DURATION_MS)
+    expect(state.rainIntensity).toBe(1)
+  })
+
+  it('clamps to 0.0 and does not go below', () => {
+    state.rainIntensity = 0.1
+    state.weather.sky = Sky.Sun
+    tickRainIntensity(state, RAIN_FADE_DURATION_MS)
+    expect(state.rainIntensity).toBe(0)
+  })
+
+  it('reaches 1.0 after exactly RAIN_FADE_DURATION_MS of rain', () => {
+    state.weather.sky = Sky.Rain
+    tickRainIntensity(state, RAIN_FADE_DURATION_MS)
+    expect(state.rainIntensity).toBe(1)
+  })
+
+  it('stays at 0 when not raining and already 0', () => {
+    state.weather.sky = Sky.Sun
+    tickRainIntensity(state, 1000)
+    expect(state.rainIntensity).toBe(0)
+  })
+
+  it('stays at 1 when raining and already 1', () => {
+    state.rainIntensity = 1
+    state.weather.sky = Sky.Rain
+    tickRainIntensity(state, 1000)
+    expect(state.rainIntensity).toBe(1)
+  })
+
+  it('initializes to 0 in createGameState', () => {
+    const fresh = createTestState()
+    expect(fresh.rainIntensity).toBe(0)
   })
 })

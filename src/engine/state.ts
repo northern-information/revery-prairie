@@ -174,6 +174,7 @@ export const createGameState = (
     deepTime: null,
     postGiftActionsCompleted: new Set<string>(),
     rainFrontOffset: 0,
+    rainIntensity: 0,
     waterProximity: new Map<string, number>(),
     genesis: genesisData,
     angelCantos: [],

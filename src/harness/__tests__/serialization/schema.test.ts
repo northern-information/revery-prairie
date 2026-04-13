@@ -88,6 +88,7 @@ const EXPECTED_FIELDS = [
   'deepTime',
   'postGiftActionsCompleted',
   'rainFrontOffset',
+  'rainIntensity',
   'waterProximity',
   'genesis',
   'angelCantos',

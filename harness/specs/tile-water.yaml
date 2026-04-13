@@ -34,11 +34,16 @@ behaviors:
 
   - id: tile-water-rain-fill
     description: >
-      When it is raining or a tile is within a rain aura, tileWater
-      for that tile increases by WATER_RAIN_FILL per tick, clamped to
-      WATER_MAX. Applies to all dirt and clover tiles.
+      When state.rainIntensity > 0 and the tile is within the rain
+      front (including blotchy fringe), or the tile is within a rain
+      aura, tileWater for that tile increases by WATER_RAIN_FILL per
+      tick, clamped to WATER_MAX. The rain front has blotchy edges —
+      tiles in the RAIN_FRONT_FRINGE zone at each edge are
+      probabilistically included via tileHash noise, matching the
+      renderer's visual boundary exactly. Applies to all dirt and
+      clover tiles.
     inputs:
-      - 'tick fires while state.weather.isRaining or tile is in rain aura radius'
+      - 'tick fires while state.rainIntensity > 0 and tile is in rain front (core or fringe), or tile is in rain aura radius'
     outputs:
       - 'tileWater value increases'
     state_changes:
@@ -130,6 +135,14 @@ edge_cases:
       Burnt clover tiles retain their tileWater entry from when the
       tile was clover. Water continues to drain and fill on burnt clover.
     expected: 'tileWater entry persists through fire revery, sidebar shows water'
+
+  - id: fringe-tiles-hydrate-when-included
+    description: >
+      Tiles in the rain front fringe zone that pass the tileHash noise
+      check receive water. Tiles that fail the check do not — they
+      drain as if not raining. The same noise function determines
+      inclusion in both renderer and tileWater.
+    expected: 'fringe tile hydration matches visual rain presence exactly'
 
 failure_conditions:
   - trigger: 'tileWater map missing a key for a dirt or clover tile'

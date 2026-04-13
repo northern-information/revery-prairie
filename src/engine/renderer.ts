@@ -73,7 +73,6 @@ import {
   GLINT_ZONE_COLORS,
   GLINT_ZONE_DENSITY,
   GLINT_ZONE_SPEED,
-  RAIN_FRONT_WIDTH,
   WEATHER_RAIN_DENSITY,
   WILDFIRE_CHARS,
   WILDFIRE_COLORS,
@@ -82,8 +81,9 @@ import {
 import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
 import { isInBounds, posKey, tileHash } from './position'
+import { isInRainFront } from './tileWater'
 import { getReveryDefinition } from './reveries'
-import { CloverStage, DeepTimePhase, Sky, TileType, WindDirection, Zone } from './types'
+import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 
 import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState } from './types'
@@ -969,17 +969,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   }
 
   // Weather rain overlay — animated rain follows the sweeping rain front (overworld only)
-  if (state.weather.sky === Sky.Rain && zone === Zone.Overworld) {
-    // Compute rain front axis from wind direction
-    const windDir = state.weather.windDirection
-    const frontAxis =
-      windDir === WindDirection.N || windDir === WindDirection.S ? 'y' : 'x'
-    const frontSign =
-      windDir === WindDirection.N || windDir === WindDirection.W || windDir === WindDirection.NW || windDir === WindDirection.SW
-        ? -1
-        : 1
-    const frontMapSize = frontAxis === 'x' ? state.overworldMapWidth : state.overworldMapHeight
-    const frontPos = ((state.rainFrontOffset * frontSign) % frontMapSize + frontMapSize) % frontMapSize
+  // Uses rainIntensity for fade in/out and isInRainFront for blotchy edges
+  if (state.rainIntensity > 0 && zone === Zone.Overworld) {
+    const savedAlpha = ctx.globalAlpha
 
     for (let vy = 0; vy < viewportHeight; vy++) {
       for (let vx = 0; vx < viewportWidth; vx++) {
@@ -988,10 +980,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue
         if (wx === player.x && wy === player.y) continue
 
-        // Check if tile is within rain front band
-        const coord = frontAxis === 'x' ? wx : wy
-        const dist = ((coord - frontPos) * frontSign + frontMapSize) % frontMapSize
-        if (dist >= RAIN_FRONT_WIDTH) continue
+        // Check if tile is within rain front (blotchy edges via fringe noise)
+        const front = isInRainFront(state, wx, wy)
+        if (!front.hit) continue
 
         const h = tileHash(wx + state.rainSeed, wy)
         if (h % WEATHER_RAIN_DENSITY !== 0) continue
@@ -1001,12 +992,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const colorPhase =
           ((h >> 8) + Math.floor(time * RAIN_SPEED * 0.7)) % RAIN_COLORS.length
 
+        // Alpha = rainIntensity (fade in/out) * edgeAlpha (fringe falloff)
+        ctx.globalAlpha = state.rainIntensity * front.edgeAlpha
+
         const rpx = vx * charWidth
         const rpy = vy * charHeight
         ctx.fillStyle = RAIN_COLORS[colorPhase]
         ctx.fillText(RAIN_CHARS[phase], rpx, rpy)
       }
     }
+
+    ctx.globalAlpha = savedAlpha
   }
 
   // Glinting zone sparkle overlay — overworld only

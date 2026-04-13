@@ -1,4 +1,5 @@
 import {
+  RAIN_FRONT_FRINGE,
   RAIN_FRONT_SPEED,
   RAIN_FRONT_WIDTH,
   WATER_DRAIN_RATE,
@@ -8,7 +9,8 @@ import {
   WATER_RAIN_FILL,
 } from './constants'
 import { ComponentType } from './ecs/types'
-import { Sky, WindDirection, Zone } from './types'
+import { tileHash } from './position'
+import { WindDirection, Zone } from './types'
 
 import type { GameState, Zone as ZoneType } from './types'
 
@@ -29,7 +31,7 @@ const isInRainAura = (state: GameState, zone: ZoneType, x: number, y: number): b
 // Wind direction → rain front sweep axis. The front moves perpendicular-ish
 // to how real weather fronts sweep across the prairie.
 // Returns { axis, sign } where axis is 'x' or 'y' and sign is direction.
-const windToFrontAxis = (
+export const windToFrontAxis = (
   dir: WindDirection
 ): { axis: 'x' | 'y'; sign: 1 | -1 } => {
   switch (dir) {
@@ -52,11 +54,14 @@ const windToFrontAxis = (
   }
 }
 
-const isInRainFront = (
+// Returns whether a tile is in the rain front (including blotchy fringe),
+// and its edge alpha (1.0 in core, 0.0-1.0 in fringe, 0.0 outside).
+// Fringe uses tileHash noise so the boundary is organic, not a straight line.
+export const isInRainFront = (
   state: GameState,
   x: number,
   y: number
-): boolean => {
+): { hit: boolean; edgeAlpha: number } => {
   const { axis, sign } = windToFrontAxis(state.weather.windDirection)
   const mapSize = axis === 'x' ? state.overworldMapWidth : state.overworldMapHeight
   const coord = axis === 'x' ? x : y
@@ -65,16 +70,42 @@ const isInRainFront = (
   const frontPos = (state.rainFrontOffset * sign + mapSize) % mapSize
   const dist = ((coord - frontPos) * sign + mapSize) % mapSize
 
-  return dist < RAIN_FRONT_WIDTH
+  // Core zone — fully inside
+  if (dist >= RAIN_FRONT_FRINGE && dist < RAIN_FRONT_WIDTH - RAIN_FRONT_FRINGE) {
+    return { hit: true, edgeAlpha: 1 }
+  }
+
+  // Leading fringe (entering edge)
+  if (dist < RAIN_FRONT_FRINGE) {
+    const t = dist / RAIN_FRONT_FRINGE // 0 at outer edge, 1 at core boundary
+    const threshold = t * t // quadratic — sparse at edge, dense near core
+    const noise = (tileHash(x * 7, y * 13) % 1000) / 1000
+    if (noise < threshold) return { hit: true, edgeAlpha: t }
+    return { hit: false, edgeAlpha: 0 }
+  }
+
+  // Trailing fringe (exiting edge)
+  if (dist < RAIN_FRONT_WIDTH) {
+    const overshoot = dist - (RAIN_FRONT_WIDTH - RAIN_FRONT_FRINGE)
+    const t = 1 - overshoot / RAIN_FRONT_FRINGE // 1 at core boundary, 0 at outer edge
+    const threshold = t * t
+    const noise = (tileHash(x * 7, y * 13) % 1000) / 1000
+    if (noise < threshold) return { hit: true, edgeAlpha: t }
+    return { hit: false, edgeAlpha: 0 }
+  }
+
+  // Outside the front entirely
+  return { hit: false, edgeAlpha: 0 }
 }
 
 export const tickTileWater = (state: GameState, zone: ZoneType): void => {
   if (zone !== Zone.Overworld) return
 
-  const isRaining = state.weather.sky === Sky.Rain
+  const hasRainIntensity = state.rainIntensity > 0
 
-  // Advance rain front when raining
-  if (isRaining) {
+  // Advance rain front when raining (even during fade-out so the front
+  // doesn't freeze mid-map while intensity drains)
+  if (hasRainIntensity) {
     state.rainFrontOffset += RAIN_FRONT_SPEED
   }
 
@@ -86,7 +117,8 @@ export const tickTileWater = (state: GameState, zone: ZoneType): void => {
     // Water proximity to ponds/rivers — passive seepage
     const proximityBonus = state.waterProximity.get(key) ?? 0
 
-    if ((isRaining && isInRainFront(state, x, y)) || isInRainAura(state, zone, x, y)) {
+    const inFront = hasRainIntensity && isInRainFront(state, x, y).hit
+    if (inFront || isInRainAura(state, zone, x, y)) {
       state.tileWater.set(key, Math.min(current + WATER_RAIN_FILL, WATER_MAX))
     } else if (proximityBonus > 0) {
       // Near water body — drain slower, with passive fill
