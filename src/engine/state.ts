@@ -169,6 +169,8 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     nextAngelSpawnTime: 60_000, // first angel after ~60s
     angelEncounterCount: 0,
     angelFlashTime: 0,
+    devPanelOpen: false,
+    devPaintPreview: null,
   }
 
   // Seed glinting zone patches with staggered birth times

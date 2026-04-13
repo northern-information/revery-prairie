@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { ActionBar } from './ActionBar'
 import { CantosScreen } from './CantosScreen'
 import { DIALOG_HEIGHT, DIALOG_WIDTH, DialogBox } from './DialogBox'
+import { DevPanel } from './DevPanel'
 import { DragCursor } from './DragCursor'
 import { GameCanvas } from './GameCanvas'
 import { HexagramPanel } from './HexagramPanel'
@@ -299,6 +300,9 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
           setActiveScreen(activeScreen ? null : 'pack')
         }}
       />
+      {import.meta.env.DEV && state.devPanelOpen && (
+        <DevPanel state={state} refreshUI={refreshUI} metricsRef={metricsRef} />
+      )}
       <Sidebar
         state={state}
         activeScreen={activeScreen}

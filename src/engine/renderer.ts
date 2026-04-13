@@ -196,11 +196,28 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     waypointPositions.add(posKey(w.x, w.y))
   }
 
-  // Build a set of hover path positions for preview rendering
+  // Build a set of hover path positions for preview rendering (suppressed when dev panel is open)
   const hoverPathPositions = new Set<string>()
-  if (state.hoverPath) {
+  if (state.hoverPath && !state.devPanelOpen) {
     for (const p of state.hoverPath) {
       hoverPathPositions.add(posKey(p.x, p.y))
+    }
+  }
+
+  // Build dev paint preview positions
+  const devPaintPositions = new Set<string>()
+  let devPaintTileType: string | null = null
+  if (state.devPaintPreview) {
+    const { x1, y1, x2, y2 } = state.devPaintPreview
+    const minX = Math.max(0, Math.min(x1, x2))
+    const maxX = Math.min(state.mapWidth - 1, Math.max(x1, x2))
+    const minY = Math.max(0, Math.min(y1, y2))
+    const maxY = Math.min(state.mapHeight - 1, Math.max(y1, y2))
+    devPaintTileType = state.devPaintPreview.tileType ?? null
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        devPaintPositions.add(posKey(x, y))
+      }
     }
   }
 
@@ -945,9 +962,25 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         }
       }
 
+      // Dev paint preview: show target tile type with pink background
+      if (devPaintPositions.has(tileKey)) {
+        if (devPaintTileType) {
+          char = TILE_CHARS[devPaintTileType as keyof typeof TILE_CHARS] ?? '?'
+          color = TILE_COLORS[devPaintTileType as keyof typeof TILE_COLORS] ?? '#ffffff'
+        }
+        ctx.fillStyle = ACTION_COLOR
+        ctx.fillRect(px, py, charWidth, charHeight)
+        ctx.fillStyle = color
+        ctx.fillText(char, px, py)
+        continue
+      }
+
       // Draw with cursor/facing inversion if applicable
       // Invalid preview tiles (e.g. red X for lightning targeting) skip cursor inversion
       if (previewTile && !previewTile.isValid) {
+        ctx.fillStyle = color
+      } else if (state.devPanelOpen) {
+        // Suppress cursor highlight when dev panel is open
         ctx.fillStyle = color
       } else if ((isCursor && cursorable) || isFacingEntity || isPendingTarget) {
         ctx.fillStyle = ACTION_COLOR
