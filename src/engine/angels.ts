@@ -5,7 +5,6 @@ import {
   ANGEL_BEE_MAX,
   ANGEL_BEE_SPAWN_INTERVAL_MS,
   ANGEL_BODY_SIZE,
-  ANGEL_CANTOS_MAX,
   ANGEL_CLOVER_GROW_INTERVAL_MS,
   ANGEL_DRIFT_CHANCE,
   ANGEL_LIFESPAN_MS,
@@ -70,7 +69,7 @@ export const generateAngelHash = (
   spawnX: number,
   spawnY: number,
   encounterCount: number
-): string => sha256Sync(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`)
+): string => sha256Sync(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`).toUpperCase()
 
 // Async version for when crypto.subtle is available
 export const generateAngelHashAsync = async (
@@ -80,7 +79,7 @@ export const generateAngelHashAsync = async (
   encounterCount: number
 ): Promise<string> => {
   try {
-    return await sha256(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`)
+    return (await sha256(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`)).toUpperCase()
   } catch {
     return generateAngelHash(stewardName, spawnX, spawnY, encounterCount)
   }
@@ -158,6 +157,7 @@ export const spawnAngel = (state: GameState, time: number): boolean => {
       auraKind,
       spawnTime: time,
       cantoStored: false,
+      playerUnder: false,
       encounterCount: state.angelEncounterCount,
       seed,
       lastBeeSpawnTime: 0,
@@ -353,9 +353,18 @@ export const checkAngelDialog = (state: GameState): void => {
     // Check if player is standing on any angel body tile
     const playerKey = posKey(state.player.x, state.player.y)
     const isUnderAngel = multi.positions.some(p => posKey(p.x, p.y) === playerKey)
-    if (!isUnderAngel) continue
 
-    // Trigger dialog (repeatable)
+    if (!isUnderAngel) {
+      // Player left — reset so next walk-under can trigger
+      data.playerUnder = false
+      continue
+    }
+
+    // Only trigger on the transition from outside to under (edge detection)
+    if (data.playerUnder) continue
+    data.playerUnder = true
+
+    // Trigger dialog (repeatable on each new walk-under)
     state.activeDialog = {
       characterId: identity.definitionId,
       lineIndex: 0,
@@ -374,9 +383,6 @@ export const checkAngelDialog = (state: GameState): void => {
         Math.floor(data.seed / 10000) % 10000,
         data.encounterCount
       )
-      if (state.angelCantos.length >= ANGEL_CANTOS_MAX) {
-        state.angelCantos.shift()
-      }
       state.angelCantos.push(hash)
       state.angelEncounterCount++
 
