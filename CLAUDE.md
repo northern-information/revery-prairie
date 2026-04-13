@@ -55,6 +55,16 @@ coordinate transform: `screenToTile()` converts CSS pixels to world tile positio
 
 custom cursor from `public/cursor.cur` (diablo II style). set globally via CSS on root elements with `auto` fallback.
 
+## cursor info panel
+
+the sidebar shows data for whatever tile the mouse hovers over. three rules apply to all current and future content:
+
+1. **every entity that renders on the map must appear in the contents row.** if the renderer draws it at a tile position, the sidebar contents IIFE in `Sidebar.tsx` must check for it and return a human-readable label. transient timed effects (explosions, pickup blooms, wildfire, crumble) are exempt — they are visual-only.
+2. **every persistent map-visible effect must appear in the effects row.** if an overlay is drawn on tiles (rain, glinting, aura, revery cast), `getTileEffects()` in `effects.ts` must detect and return it. transient timed effects are exempt.
+3. **tile type labels must be human-readable.** never show raw camelCase type strings (e.g. `burntClover`). map every tile type to a plain-english label (e.g. "burnt clover").
+
+when adding new entities, effects, or tile types — wire up cursor info at the same time.
+
 ## inventory
 
 tetris-style spatial inventory. items have shapes (`boolean[][]`) that must physically fit in a container grid.
@@ -303,6 +313,10 @@ each task in `tasks[]`:
 npm run spec:validate    # validate all specs against schema
 npm run harness:run      # execute a plan (--plan harness/plans/{id}.yaml)
 ```
+
+## worktrees
+
+after `EnterWorktree`, the Bash tool's working directory does **not** automatically change to the worktree. Read/Edit/Write tools use the worktree path, but Bash stays at the original repo root. always prefix git commands with `cd <worktree-path> &&` or they will silently operate on the main checkout.
 
 ## conventions
 

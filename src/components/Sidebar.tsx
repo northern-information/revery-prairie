@@ -231,6 +231,10 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                         .at(cx, cy)
                         .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
                       if (hasMeteoriteEcs) return 'meteorite'
+                      const hasBeehiveEcs = state.world.spatial
+                        .at(cx, cy)
+                        .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'beehive')
+                      if (hasBeehiveEcs) return 'beehive'
                       const omniboxEid = state.world.spatial
                         .at(cx, cy)
                         .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox')
@@ -255,6 +259,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                         return 'stone'
                       if (tileType === TileType.CaveFloor) return 'dirt'
                       if (tileType === TileType.CaveEntrance) return 'cave entrance'
+                      if (tileType === TileType.BurntClover) return 'burnt clover'
                       return tileType ?? 'void'
                     })()}
                   </td>

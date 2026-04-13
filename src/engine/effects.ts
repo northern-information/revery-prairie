@@ -1,5 +1,8 @@
+import { RAIN_FRONT_WIDTH } from './constants'
 import { ComponentType } from './ecs/types'
+import { posKey } from './position'
 import { getReveryDefinition } from './reveries'
+import { Sky, WindDirection, Zone } from './types'
 
 import type { GameState } from './types'
 
@@ -45,6 +48,29 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
         break
       }
     }
+  }
+
+  // Weather rain front (overworld only)
+  if (state.weather.sky === Sky.Rain && zone === Zone.Overworld) {
+    const windDir = state.weather.windDirection
+    const frontAxis =
+      windDir === WindDirection.N || windDir === WindDirection.S ? 'y' : 'x'
+    const frontSign =
+      windDir === WindDirection.N || windDir === WindDirection.W || windDir === WindDirection.NW || windDir === WindDirection.SW
+        ? -1
+        : 1
+    const frontMapSize = frontAxis === 'x' ? state.overworldMapWidth : state.overworldMapHeight
+    const frontPos = ((state.rainFrontOffset * frontSign) % frontMapSize + frontMapSize) % frontMapSize
+    const coord = frontAxis === 'x' ? x : y
+    const dist = ((coord - frontPos) * frontSign + frontMapSize) % frontMapSize
+    if (dist < RAIN_FRONT_WIDTH) {
+      seen.add('rain')
+    }
+  }
+
+  // Glinting zones (overworld only)
+  if (zone === Zone.Overworld && state.glintZones.has(posKey(x, y))) {
+    seen.add('glinting')
   }
 
   return [...seen]

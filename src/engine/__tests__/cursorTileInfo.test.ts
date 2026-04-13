@@ -1,12 +1,41 @@
 import { updateCursorState } from '../cursor'
+import { ComponentType } from '../ecs/types'
+import { getTileEffects } from '../effects'
 import { posKey } from '../position'
-import { TileType } from '../types'
-import { clearAroundPlayer, createTestState } from './helpers'
+import { Sky, TileType, WindDirection, Zone } from '../types'
+import { clearAroundPlayer, createBeehiveEntity, createBeeEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 import type { CharMetrics } from '../types'
 
 const metrics: CharMetrics = { charWidth: 10, charHeight: 16, font: '16px monospace' }
+
+/**
+ * Replicates the sidebar contents label derivation logic from Sidebar.tsx.
+ * Must be kept in sync with the IIFE in the sidebar component.
+ */
+const deriveContentsLabel = (state: ReturnType<typeof createTestState>, x: number, y: number): string => {
+  const { world } = state
+  if (x === state.player.x && y === state.player.y) return state.stewardName.toLowerCase()
+  const hasBee = world.spatial.at(x, y).some(eid => world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+  if (hasBee) return 'bee'
+  const hasMeteorite = world.spatial
+    .at(x, y)
+    .some(eid => world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+  if (hasMeteorite) return 'meteorite'
+  const hasBeehive = world.spatial
+    .at(x, y)
+    .some(eid => world.getComponent(eid, ComponentType.EntityTag) === 'beehive')
+  if (hasBeehive) return 'beehive'
+  const key = posKey(x, y)
+  if (state.ponds.has(key) || state.rivers.has(key)) return 'fresh water'
+  const tileType = state.map[y]?.[x]?.type
+  if (tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall) return 'stone'
+  if (tileType === TileType.CaveFloor) return 'dirt'
+  if (tileType === TileType.CaveEntrance) return 'cave entrance'
+  if (tileType === TileType.BurntClover) return 'burnt clover'
+  return tileType ?? 'void'
+}
 
 describe('cursor tile info', () => {
   describe('water tiles are cursorable', () => {
@@ -76,13 +105,10 @@ describe('cursor tile info', () => {
       const x = state.player.x + 1
       const y = state.player.y
       const key = posKey(x, y)
-      // Tile is dirt, but has a pond overlay
       expect(state.map[y][x].type).toBe(TileType.Dirt)
       state.ponds.add(key)
 
-      // Simulate the sidebar label derivation logic
-      const label = state.ponds.has(key) || state.rivers.has(key) ? 'fresh water' : state.map[y][x].type
-      expect(label).toBe('fresh water')
+      expect(deriveContentsLabel(state, x, y)).toBe('fresh water')
     })
   })
 
@@ -94,10 +120,7 @@ describe('cursor tile info', () => {
       const y = state.player.y
       state.map[y][x] = { type: TileType.CaveWall }
 
-      const tileType = state.map[y][x].type
-      const label =
-        tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall ? 'stone' : (tileType ?? 'void')
-      expect(label).toBe('stone')
+      expect(deriveContentsLabel(state, x, y)).toBe('stone')
     })
 
     it('CaveBreakableWall tile type maps to stone label', () => {
@@ -107,10 +130,7 @@ describe('cursor tile info', () => {
       const y = state.player.y
       state.map[y][x] = { type: TileType.CaveBreakableWall }
 
-      const tileType = state.map[y][x].type
-      const label =
-        tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall ? 'stone' : (tileType ?? 'void')
-      expect(label).toBe('stone')
+      expect(deriveContentsLabel(state, x, y)).toBe('stone')
     })
 
     it('breakable wall shows same label as regular wall', () => {
@@ -122,10 +142,7 @@ describe('cursor tile info', () => {
       state.map[y][x1] = { type: TileType.CaveWall }
       state.map[y][x2] = { type: TileType.CaveBreakableWall }
 
-      const deriveLabel = (tileType: string | undefined) =>
-        tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall ? 'stone' : (tileType ?? 'void')
-
-      expect(deriveLabel(state.map[y][x1].type)).toBe(deriveLabel(state.map[y][x2].type))
+      expect(deriveContentsLabel(state, x1, y)).toBe(deriveContentsLabel(state, x2, y))
     })
 
     it('other tile types are not mapped to stone', () => {
@@ -134,25 +151,12 @@ describe('cursor tile info', () => {
       const x = state.player.x + 1
       const y = state.player.y
 
-      const tileType = state.map[y][x].type
-      const label =
-        tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall ? 'stone' : (tileType ?? 'void')
-      expect(label).not.toBe('stone')
-      expect(label).toBe(TileType.Dirt)
+      expect(deriveContentsLabel(state, x, y)).not.toBe('stone')
+      expect(deriveContentsLabel(state, x, y)).toBe(TileType.Dirt)
     })
   })
 
   describe('cave floor dirt label', () => {
-    const deriveLabel = (state: ReturnType<typeof createTestState>, x: number, y: number) => {
-      const key = posKey(x, y)
-      if (state.ponds.has(key) || state.rivers.has(key)) return 'fresh water'
-      const tileType = state.map[y]?.[x]?.type
-      if (tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall) return 'stone'
-      if (tileType === TileType.CaveFloor) return 'dirt'
-      if (tileType === TileType.CaveEntrance) return 'cave entrance'
-      return tileType ?? 'void'
-    }
-
     it('CaveFloor tile type maps to dirt label', () => {
       const state = createTestState()
       clearAroundPlayer(state, 3)
@@ -160,7 +164,7 @@ describe('cursor tile info', () => {
       const y = state.player.y
       state.map[y][x] = { type: TileType.CaveFloor }
 
-      expect(deriveLabel(state, x, y)).toBe('dirt')
+      expect(deriveContentsLabel(state, x, y)).toBe('dirt')
     })
 
     it('CaveEntrance tile type maps to cave entrance label', () => {
@@ -170,7 +174,7 @@ describe('cursor tile info', () => {
       const y = state.player.y
       state.map[y][x] = { type: TileType.CaveEntrance }
 
-      expect(deriveLabel(state, x, y)).toBe('cave entrance')
+      expect(deriveContentsLabel(state, x, y)).toBe('cave entrance')
     })
 
     it('water overlay on cave floor shows fresh water not dirt', () => {
@@ -181,7 +185,7 @@ describe('cursor tile info', () => {
       state.map[y][x] = { type: TileType.CaveFloor }
       state.ponds.add(posKey(x, y))
 
-      expect(deriveLabel(state, x, y)).toBe('fresh water')
+      expect(deriveContentsLabel(state, x, y)).toBe('fresh water')
     })
 
     it('broken breakable wall becomes CaveFloor and shows dirt', () => {
@@ -189,12 +193,139 @@ describe('cursor tile info', () => {
       clearAroundPlayer(state, 3)
       const x = state.player.x + 1
       const y = state.player.y
-      // Before breaking: stone
       state.map[y][x] = { type: TileType.CaveBreakableWall }
-      expect(deriveLabel(state, x, y)).toBe('stone')
-      // After breaking: converts to CaveFloor → dirt
+      expect(deriveContentsLabel(state, x, y)).toBe('stone')
       state.map[y][x] = { type: TileType.CaveFloor }
-      expect(deriveLabel(state, x, y)).toBe('dirt')
+      expect(deriveContentsLabel(state, x, y)).toBe('dirt')
+    })
+  })
+
+  describe('beehive contents', () => {
+    it('beehive entity shows "beehive" in contents', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      const x = state.player.x + 1
+      const y = state.player.y
+      createBeehiveEntity(state, x, y)
+
+      expect(deriveContentsLabel(state, x, y)).toBe('beehive')
+    })
+
+    it('beehive takes priority over underlying clover tile', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      const x = state.player.x + 1
+      const y = state.player.y
+      state.map[y][x] = { type: TileType.Clover }
+      createBeehiveEntity(state, x, y)
+
+      expect(deriveContentsLabel(state, x, y)).toBe('beehive')
+    })
+
+    it('bee takes priority over beehive on same tile', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      const x = state.player.x + 1
+      const y = state.player.y
+      createBeehiveEntity(state, x, y)
+      createBeeEntity(state, x, y)
+
+      expect(deriveContentsLabel(state, x, y)).toBe('bee')
+    })
+  })
+
+  describe('burnt clover label', () => {
+    it('BurntClover tile type maps to "burnt clover" label', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      const x = state.player.x + 1
+      const y = state.player.y
+      state.map[y][x] = { type: TileType.BurntClover }
+
+      expect(deriveContentsLabel(state, x, y)).toBe('burnt clover')
+    })
+
+    it('does not show raw camelCase type string', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      const x = state.player.x + 1
+      const y = state.player.y
+      state.map[y][x] = { type: TileType.BurntClover }
+
+      expect(deriveContentsLabel(state, x, y)).not.toBe('burntClover')
+    })
+  })
+
+  describe('effects: glinting zones', () => {
+    it('returns "glinting" when tile is in a glint zone (overworld)', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      const x = state.player.x + 1
+      const y = state.player.y
+      state.currentZone = Zone.Overworld
+      state.glintZones.add(posKey(x, y))
+
+      const effects = getTileEffects(state, x, y)
+      expect(effects).toContain('glinting')
+    })
+
+    it('does not return "glinting" when tile is not in a glint zone', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      const x = state.player.x + 1
+      const y = state.player.y
+      state.currentZone = Zone.Overworld
+
+      const effects = getTileEffects(state, x, y)
+      expect(effects).not.toContain('glinting')
+    })
+
+    it('does not return "glinting" in cave zone', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      const x = state.player.x + 1
+      const y = state.player.y
+      state.currentZone = Zone.Cave
+      state.glintZones.add(posKey(x, y))
+
+      const effects = getTileEffects(state, x, y)
+      expect(effects).not.toContain('glinting')
+    })
+  })
+
+  describe('effects: weather rain front', () => {
+    it('returns "rain" when tile is within rain front band', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      state.currentZone = Zone.Overworld
+      state.weather.sky = Sky.Rain
+      state.weather.windDirection = WindDirection.E
+      state.rainFrontOffset = state.player.x + 1
+
+      const effects = getTileEffects(state, state.player.x + 1, state.player.y)
+      expect(effects).toContain('rain')
+    })
+
+    it('does not return "rain" when weather is not rainy', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      state.currentZone = Zone.Overworld
+      state.weather.sky = Sky.Sun
+      state.rainFrontOffset = state.player.x + 1
+
+      const effects = getTileEffects(state, state.player.x + 1, state.player.y)
+      expect(effects).not.toContain('rain')
+    })
+
+    it('does not return "rain" in cave zone', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 3)
+      state.currentZone = Zone.Cave
+      state.weather.sky = Sky.Rain
+      state.rainFrontOffset = state.player.x + 1
+
+      const effects = getTileEffects(state, state.player.x + 1, state.player.y)
+      expect(effects).not.toContain('rain')
     })
   })
 })
