@@ -277,7 +277,8 @@ export const useKeyboard = ({
       }
 
       // Rotate hovered item in pack, or toggle reveries screen
-      if (e.key === 'r' || e.key === 'R') {
+      // Block when modifier held (Cmd+R / Ctrl+R is browser refresh)
+      if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (activeScreen === 'pack') {
           const hoveredId = itemInfoRef.current?.getCurrentId()
           if (hoveredId) {

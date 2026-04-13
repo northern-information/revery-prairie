@@ -122,21 +122,31 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
       >
         <div className="flex flex-col gap-4">
           <PanelTitle>revery prairie</PanelTitle>
-          <p className="text-xs">
-            <span className="text-muted">year </span>
-            {formatYear(getGenesisYear(state.genesis, GENESIS_EPOCHS, performance.now()))}
-          </p>
           <div>
-            <SectionHeader>
-              epoch {state.genesis.epochIndex + 1}/{GENESIS_EPOCHS.length}
-            </SectionHeader>
-            <p className="text-muted">{getGenesisCommentary(state.genesis, GENESIS_EPOCHS)}</p>
+            <SectionHeader>genesis</SectionHeader>
+            <table className="w-full">
+              <tbody>
+                <tr>
+                  <td className="text-muted py-0.5">year</td>
+                  <td className="py-0.5 text-right">
+                    {formatYear(getGenesisYear(state.genesis, GENESIS_EPOCHS, performance.now()))}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="text-muted py-0.5">epoch</td>
+                  <td className="py-0.5 text-right">
+                    {state.genesis.epochIndex + 1}/{GENESIS_EPOCHS.length}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
             <div className="mt-2 h-1 w-full overflow-hidden rounded bg-white/10">
               <div
                 className="h-full bg-white/40 transition-none"
                 style={{ width: `${String(Math.round(overallProgress * 100))}%` }}
               />
             </div>
+            <p className="text-muted mt-2">{getGenesisCommentary(state.genesis, GENESIS_EPOCHS)}</p>
           </div>
         </div>
         <div>
@@ -459,6 +469,14 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
               <tr>
                 <td className="text-muted py-0.5">humidity</td>
                 <td className="py-0.5 text-right">{weather.humidity}%</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">year</td>
+                <td className="py-0.5 text-right">
+                  {state.deepTime?.active
+                    ? formatYear(GENESIS_END_YEAR + (state.deepTime.elapsedYears ?? 0))
+                    : formatYear(GENESIS_END_YEAR)}
+                </td>
               </tr>
             </tbody>
           </table>
