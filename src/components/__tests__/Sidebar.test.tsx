@@ -3,6 +3,7 @@ import { Sidebar } from '../Sidebar'
 import { render, screen } from '@testing-library/react'
 
 import { combineBeeAndClover } from '@/engine/combine'
+import { completeGenesis } from '@/engine/genesis'
 import { createGameState } from '@/engine/state'
 import { TileType } from '@/engine/types'
 import type { ItemInfoHandle } from '../ItemInfo'
@@ -13,6 +14,7 @@ const noop = () => undefined
 describe('Sidebar', () => {
   it('renders steward name', () => {
     const state = createGameState('Willow', 80, 40)
+    completeGenesis(state)
     render(
       <Sidebar
         state={state}
@@ -29,6 +31,7 @@ describe('Sidebar', () => {
 
   it('renders total land count', () => {
     const state = createGameState('Test', 80, 40)
+    completeGenesis(state)
     render(
       <Sidebar
         state={state}
@@ -45,6 +48,7 @@ describe('Sidebar', () => {
 
   it('shows prairie as no initially', () => {
     const state = createGameState('Test', 80, 40)
+    completeGenesis(state)
     render(
       <Sidebar
         state={state}
@@ -61,6 +65,7 @@ describe('Sidebar', () => {
 
   it('shows prairie as yes after combining', () => {
     const state = createGameState('Test', 80, 40)
+    completeGenesis(state)
     combineBeeAndClover(state)
     render(
       <Sidebar
@@ -78,6 +83,7 @@ describe('Sidebar', () => {
 
   it('shows clover count after combining', () => {
     const state = createGameState('Test', 20, 20)
+    completeGenesis(state)
     // Ensure 3x3 around player is dirt
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
@@ -101,6 +107,7 @@ describe('Sidebar', () => {
 
   it('shows bee count after combining', () => {
     const state = createGameState('Test', 20, 20)
+    completeGenesis(state)
     combineBeeAndClover(state)
     render(
       <Sidebar
@@ -119,6 +126,7 @@ describe('Sidebar', () => {
 
   it('renders weather section in metric by default', () => {
     const state = createGameState('Test', 80, 40)
+    completeGenesis(state)
     render(
       <Sidebar
         state={state}
@@ -138,6 +146,7 @@ describe('Sidebar', () => {
 
   it('renders weather in imperial when metric is false', () => {
     const state = createGameState('Test', 80, 40)
+    completeGenesis(state)
     state.metric = false
     render(
       <Sidebar

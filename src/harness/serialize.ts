@@ -51,4 +51,4 @@ export const deserializeState = (json: string): GameState => JSON.parse(json, de
  * Fields that are functions and will be null after deserialization.
  * Tests can use this to exclude them from round-trip equality checks.
  */
-export const FUNCTION_FIELDS: (keyof GameState)[] = ['previewFn', 'pendingAction', 'world']
+export const FUNCTION_FIELDS: (keyof GameState)[] = ['previewFn', 'pendingAction', 'world', 'genesis']

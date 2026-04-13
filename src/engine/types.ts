@@ -1,5 +1,5 @@
 import type { World } from './ecs/world'
-import type { CivilizationRuin } from './genesisTypes'
+import type { CivilizationRuin, GenesisSimState } from './genesisTypes'
 
 export const TileType = {
   Space: 'space',
@@ -205,6 +205,7 @@ export interface GameState {
   postGiftActionsCompleted: Set<string>
   rainFrontOffset: number
   waterProximity: Map<string, number>
+  genesis: GenesisSimState | null
 }
 
 export const CloverStage = {

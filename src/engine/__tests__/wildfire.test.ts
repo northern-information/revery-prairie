@@ -76,10 +76,12 @@ describe('wildfire spread', () => {
 
   describe('lightning uses default max spread', () => {
     it('allows spread up to WILDFIRE_MAX_SPREAD (exceeding FIRE_REVERY_MAX_SPREAD)', () => {
-      // BFS spread is probabilistic, so run multiple trials
+      // BFS spread is probabilistic, so run multiple trials.
+      // Reuse a single state and reset the map each trial to avoid
+      // expensive genesis precomputation on every iteration.
+      const state = createTestState()
       let maxBurned = 0
       for (let trial = 0; trial < 50; trial++) {
-        const state = createTestState()
         // Fill entire map with dry clover
         for (let y = 0; y < state.mapHeight; y++) {
           for (let x = 0; x < state.mapWidth; x++) {
@@ -92,6 +94,7 @@ describe('wildfire spread', () => {
             state.tileWater.set(posKey(x, y), 0)
           }
         }
+        state.burnScars = new Set<string>()
 
         const burned = spreadWildfire(state, 0, state.player.x + 5, state.player.y + 5)
         expect(burned.size).toBeLessThanOrEqual(WILDFIRE_MAX_SPREAD)

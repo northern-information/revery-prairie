@@ -13,26 +13,31 @@ import {
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
+import { createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } from './genesis'
 import { rebuildGlintZones, seedGlintPatches } from './glintZones'
 import { createCharacterEntity } from './entities'
 import { autoSort, placeItem } from './inventory'
 import { createBackpack } from './items'
 import { isWalkableTile, posKey } from './position'
-import { generateSoilHealth, generateTerrain } from './terrain'
 import { Rotation, TileType, Zone } from './types'
 import { buildWaterProximity } from './tileWater'
 import { generateWeather } from './weather'
 
-import type { GenesisResult } from './genesisTypes'
+import type { GenesisSimState } from './genesisTypes'
 import type { GameState, Position } from './types'
 
 export const createGameState = (
   stewardName: string,
   viewportWidth: number,
-  viewportHeight: number,
-  genesisResult?: GenesisResult
+  viewportHeight: number
 ): GameState => {
-  const map = genesisResult?.terrain ?? generateTerrain(MAP_WIDTH, MAP_HEIGHT)
+  // Create genesis state, precompute all epochs, extract terrain
+  const seed = nameToSeed(stewardName)
+  const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
+  precomputeGenesis(sim, GENESIS_EPOCHS)
+  const map = sim.grid
+  const genesisData: GenesisSimState = sim
+
   const playerX = Math.floor(MAP_WIDTH / 2)
   const playerY = Math.floor(MAP_HEIGHT / 2)
 
@@ -147,11 +152,11 @@ export const createGameState = (
     cloverGrowthPreviews: new Set<string>(),
     cloverLifecycle: new Map(),
     tileWater: new Map<string, number>(),
-    soilHealth: genesisResult?.soilHealth ?? generateSoilHealth(map, MAP_WIDTH, MAP_HEIGHT),
-    elevation: genesisResult?.elevation ?? new Map<string, number>(),
-    ponds: genesisResult?.ponds ?? new Set<string>(),
-    rivers: genesisResult?.rivers ?? new Set<string>(),
-    burnScars: genesisResult?.burnScars ?? new Set<string>(),
+    soilHealth: genesisData.soilHealth,
+    elevation: genesisData.elevation,
+    ponds: genesisData.ponds,
+    rivers: genesisData.riverPaths,
+    burnScars: genesisData.burnScars,
     manualDiscoveries: new Set<string>(['item:bee', 'item:clover']),
     manualState: {
       activeCategory: null,
@@ -165,11 +170,12 @@ export const createGameState = (
     glintPatches: [],
     glintOpacity: new Map<string, number>(),
     lastGlintSpawnTime: 0,
-    civilizationRuins: genesisResult?.ruins ?? [],
+    civilizationRuins: genesisData.ruins,
     deepTime: null,
     postGiftActionsCompleted: new Set<string>(),
     rainFrontOffset: 0,
     waterProximity: new Map<string, number>(),
+    genesis: genesisData,
   }
 
   // Seed glinting zone patches with staggered birth times

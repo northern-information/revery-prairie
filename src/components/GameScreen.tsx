@@ -25,19 +25,18 @@ import { useKeyboard } from '@/hooks/useKeyboard'
 import { useMusic } from '@/hooks/useMusic'
 import type { DragOverlayData } from './InventoryPanel'
 import type { ItemInfoHandle } from './ItemInfo'
-import type { GenesisResult } from '@/engine/genesisTypes'
 import type { CharMetrics } from '@/engine/types'
 
 interface GameScreenProps {
   stewardName: string
-  genesisResult?: GenesisResult
+  skipGenesis?: boolean
   onRestart: () => void
 }
 
-export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreenProps) => {
+export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenProps) => {
   // uiVersion is destructured to subscribe GameScreen to the useState counter.
   // refreshUI() increments it, triggering re-renders when engine state mutates.
-  const { state, refreshUI, uiVersion } = useGameEngine(stewardName, 80, 40, genesisResult)
+  const { state, refreshUI, uiVersion } = useGameEngine(stewardName, 80, 40, skipGenesis)
   void uiVersion
 
   // Apply font scale on mount

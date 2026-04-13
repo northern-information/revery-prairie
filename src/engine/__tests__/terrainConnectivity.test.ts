@@ -161,8 +161,7 @@ describe('terrain connectivity', () => {
   })
 
   it('entities only spawn on reachable tiles', () => {
-    const { result } = runGenesis(12345)
-    const state = createGameState('TestSteward', 20, 20, result)
+    const state = createGameState('TestSteward', 20, 20)
 
     const playerX = state.player.x
     const playerY = state.player.y

@@ -15,6 +15,7 @@ import {
 } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { getTileEffects } from '@/engine/effects'
+import { GENESIS_EPOCHS, getEpochProgress, getGenesisCommentary } from '@/engine/genesis'
 import { getDefinition } from '@/engine/items'
 import { isInBounds, posKey } from '@/engine/position'
 import { CloverStage, TileType, Zone } from '@/engine/types'
@@ -100,6 +101,41 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
           y: Math.floor(state.cursorScreenPos.y / metrics.charHeight) + state.camera.y,
         }
       : null
+
+  // Genesis mode: show epoch info + progress bar instead of normal sidebar
+  if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
+    const epochProgress = getEpochProgress(state.genesis, GENESIS_EPOCHS)
+    const overallProgress = (state.genesis.epochIndex + epochProgress) / GENESIS_EPOCHS.length
+
+    return (
+      <div
+        data-panel="sidebar"
+        className="text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
+      >
+        <div className="flex flex-col gap-4">
+          <PanelTitle>revery prairie</PanelTitle>
+          <div>
+            <SectionHeader>
+              epoch {state.genesis.epochIndex + 1}/{GENESIS_EPOCHS.length}
+            </SectionHeader>
+            <p className="text-muted">{getGenesisCommentary(state.genesis, GENESIS_EPOCHS)}</p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-4">
+          <div>
+            <SectionHeader>genesis</SectionHeader>
+            <div className="mb-2 h-1 w-full overflow-hidden rounded bg-white/10">
+              <div
+                className="h-full bg-white/40 transition-none"
+                style={{ width: `${String(Math.round(overallProgress * 100))}%` }}
+              />
+            </div>
+            <p className="text-muted text-center">press any key to skip</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const total = state.mapWidth * state.mapHeight
   const cloverCount = countTiles(state, TileType.Clover)

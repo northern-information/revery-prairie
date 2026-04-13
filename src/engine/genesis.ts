@@ -29,7 +29,7 @@ import type {
   GenesisSimState,
   GenesisTileRender,
 } from './genesisTypes'
-import type { Tile } from './types'
+import type { GameState, Tile } from './types'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -2608,6 +2608,22 @@ export const extractGenesisResult = (sim: GenesisSimState): GenesisResult => ({
   rivers: sim.riverPaths,
   burnScars: sim.burnScars,
 })
+
+export const completeGenesis = (state: GameState): void => {
+  if (!state.genesis) return
+
+  // If genesis wasn't fully played out, run remaining mutations
+  const sim = state.genesis
+  if (sim.epochIndex < GENESIS_EPOCHS.length) {
+    if (!sim.mutationsPrecomputed) {
+      runAllMutations(sim, GENESIS_EPOCHS)
+    }
+    sim.epochIndex = GENESIS_EPOCHS.length
+  }
+
+  // Clear genesis data
+  state.genesis = null
+}
 
 export const getGenesisCommentary = (sim: GenesisSimState, epochs: GenesisEpoch[]): string => {
   if (sim.epochIndex >= epochs.length) return ''
