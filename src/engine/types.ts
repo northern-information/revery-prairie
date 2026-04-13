@@ -204,6 +204,7 @@ export interface GameState {
   deepTime: DeepTimeState | null
   postGiftActionsCompleted: Set<string>
   rainFrontOffset: number
+  rainIntensity: number
   waterProximity: Map<string, number>
   genesis: GenesisSimState | null
 }

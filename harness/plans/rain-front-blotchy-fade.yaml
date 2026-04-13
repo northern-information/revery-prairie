@@ -1,0 +1,144 @@
+plan:
+  id: rain-front-blotchy-fade
+  title: 'Blotchy rain front edges and gradual fade in/out'
+  created: 2026-04-13
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-rain-intensity-state
+    title: 'Add rainIntensity field to GameState and RAIN_FADE_DURATION_MS constant'
+    spec_id: weather
+    spec_sections:
+      - rain-intensity-ramp
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - 'npm run build'
+    repair: retry
+    tags: [engine]
+
+  - id: add-rain-front-fringe-constant
+    title: 'Add RAIN_FRONT_FRINGE constant to constants.ts'
+    spec_id: weather-rain-overlay
+    spec_sections:
+      - rain-front-blotchy-edges
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - 'npm run build'
+    repair: retry
+    tags: [engine]
+
+  - id: tick-rain-intensity
+    title: 'Add tickRainIntensity function to weather.ts, wire into game loop'
+    spec_id: weather
+    spec_sections:
+      - rain-intensity-ramp
+    context_files:
+      - src/engine/weather.ts
+      - src/engine/gameLoop.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/weather.ts
+      - src/engine/gameLoop.ts
+    depends_on:
+      - add-rain-intensity-state
+    verification:
+      - 'npm run build'
+    repair: retry
+    tags: [engine]
+
+  - id: blotchy-rain-front
+    title: 'Update isInRainFront with fringe noise in tileWater.ts, export for renderer'
+    spec_id: weather-rain-overlay
+    spec_sections:
+      - rain-front-blotchy-edges
+    context_files:
+      - src/engine/tileWater.ts
+      - src/engine/constants.ts
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/tileWater.ts
+    depends_on:
+      - add-rain-front-fringe-constant
+    verification:
+      - 'npm run build'
+    repair: retry
+    tags: [engine]
+
+  - id: renderer-fade-and-fringe
+    title: 'Update renderer rain overlay to use rainIntensity alpha, blotchy edges, and edge alpha falloff'
+    spec_id: weather-rain-overlay
+    spec_sections:
+      - viewport-rain-overlay
+      - rain-front-blotchy-edges
+      - rain-front-edge-alpha-falloff
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileWater.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - blotchy-rain-front
+      - tick-rain-intensity
+    verification:
+      - 'npm run build'
+    repair: retry
+    tags: [engine]
+
+  - id: tile-water-uses-intensity
+    title: 'Update tickTileWater to check rainIntensity > 0 instead of sky === Rain'
+    spec_id: tile-water
+    spec_sections:
+      - tile-water-rain-fill
+    context_files:
+      - src/engine/tileWater.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/tileWater.ts
+    depends_on:
+      - blotchy-rain-front
+      - tick-rain-intensity
+    verification:
+      - 'npm run build'
+    repair: retry
+    tags: [engine]
+
+  - id: tests-rain-front-fringe
+    title: 'Add tests for blotchy fringe, rain intensity ramp, and fringe hydration'
+    spec_id: weather-rain-overlay
+    spec_sections:
+      - rain-front-blotchy-edges
+      - rain-front-edge-alpha-falloff
+    context_files:
+      - src/engine/__tests__/tileWater.test.ts
+      - src/engine/__tests__/weather.test.ts
+      - src/engine/tileWater.ts
+      - src/engine/weather.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/tileWater.test.ts
+      - src/engine/__tests__/weather.test.ts
+    depends_on:
+      - tile-water-uses-intensity
+      - renderer-fade-and-fringe
+    verification:
+      - 'npx vitest run src/engine/__tests__/tileWater.test.ts'
+      - 'npx vitest run src/engine/__tests__/weather.test.ts'
+    repair: retry
+    tags: [test]

@@ -1,6 +1,7 @@
+import { RAIN_FADE_DURATION_MS } from './constants'
 import { Season, Sky, WindDirection } from './types'
 
-import type { Weather } from './types'
+import type { GameState, Weather } from './types'
 
 const WIND_DIRECTIONS: WindDirection[] = [
   WindDirection.N,
@@ -61,6 +62,16 @@ export const tickWeather = (weather: Weather): void => {
   // Sky adapts to humidity
   if (Math.random() > 0.7) {
     weather.sky = pickSky(weather.humidity)
+  }
+}
+
+export const tickRainIntensity = (state: GameState, dt: number): void => {
+  const target = state.weather.sky === Sky.Rain ? 1 : 0
+  const step = dt / RAIN_FADE_DURATION_MS
+  if (target > state.rainIntensity) {
+    state.rainIntensity = Math.min(state.rainIntensity + step, 1)
+  } else if (target < state.rainIntensity) {
+    state.rainIntensity = Math.max(state.rainIntensity - step, 0)
   }
 }
 

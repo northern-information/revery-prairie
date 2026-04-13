@@ -6,6 +6,8 @@ layer: engine
 source_files:
   - src/engine/renderer.ts
   - src/engine/types.ts
+  - src/engine/tileWater.ts
+  - src/engine/constants.ts
 dependencies:
   - weather
   - renderer
@@ -13,20 +15,55 @@ dependencies:
 behaviors:
   - id: viewport-rain-overlay
     description: >
-      when state.weather.sky is rain and currentZone is overworld, the
-      renderer draws animated rain characters across the entire
-      viewport. uses the same RAIN_CHARS, RAIN_COLORS, RAIN_SPEED, and
+      when state.rainIntensity > 0 and currentZone is overworld, the
+      renderer draws animated rain characters within the rain front
+      band. uses the same RAIN_CHARS, RAIN_COLORS, RAIN_SPEED, and
       tileHash-based animation as Gron's rain aura overlay. density is
       sparser than the aura rain — WEATHER_RAIN_DENSITY (5, meaning ~1
       in 5 tiles) to avoid overwhelming the screen. rain drops are
       drawn after all tile and entity rendering but before the cursor
       highlight pass. skips the player tile and any tile already
-      covered by a rain aura or revery rain effect.
+      covered by a rain aura or revery rain effect. rain alpha is
+      modulated by state.rainIntensity (0.0-1.0) so rain fades in and
+      out gradually rather than appearing/disappearing instantly.
     inputs:
-      - 'state.weather.sky is rain'
+      - 'state.rainIntensity > 0'
       - 'state.currentZone is overworld'
     outputs:
-      - 'animated rain characters rendered across visible viewport tiles'
+      - 'animated rain characters rendered with alpha = rainIntensity'
+    state_changes: []
+    determinism: deterministic
+
+  - id: rain-front-blotchy-edges
+    description: >
+      the rain front band has irregular, organic edges instead of
+      straight lines. a fringe zone of RAIN_FRONT_FRINGE tiles (8) on
+      each edge of the front uses tileHash noise to probabilistically
+      include or exclude tiles. tiles at the outer fringe boundary have
+      low inclusion probability, tiles near the core have high
+      probability. the noise function is deterministic per tile
+      position so the blotchy pattern is stable frame-to-frame. the
+      same isInRainFront function is used by both the renderer and
+      tileWater so visual rain and hydration stay in sync.
+    inputs:
+      - 'tile position within RAIN_FRONT_FRINGE tiles of front edge'
+    outputs:
+      - 'tile probabilistically included or excluded based on tileHash noise'
+    state_changes: []
+    determinism: deterministic
+
+  - id: rain-front-edge-alpha-falloff
+    description: >
+      tiles within the fringe zone are rendered with reduced alpha
+      proportional to their distance from the front core. tiles at the
+      outer edge of the fringe have lower alpha, tiles near the core
+      have full alpha. this alpha is multiplied with state.rainIntensity
+      so both effects compose. creates a visual thinning of rain at the
+      front's edges.
+    inputs:
+      - 'tile in fringe zone of rain front'
+    outputs:
+      - 'rain character rendered with reduced globalAlpha'
     state_changes: []
     determinism: deterministic
 
@@ -59,12 +96,18 @@ edge_cases:
   - id: rain-does-not-overlap-aura
     description: 'tiles already receiving rain from a character aura or revery cast do not get double rain rendering'
     expected: 'weather rain skips tiles covered by aura or revery rain'
-  - id: rain-stops-when-weather-clears
-    description: 'when weather transitions from rain to cloudy or sun, overlay disappears immediately'
-    expected: 'no rain characters rendered on next frame after sky changes'
+  - id: rain-fades-when-weather-clears
+    description: 'when weather transitions from rain to cloudy or sun, rain intensity ramps down gradually over RAIN_FADE_DURATION_MS'
+    expected: 'rain characters fade out over several seconds, not instantly'
   - id: rain-at-all-zoom-levels
     description: 'rain overlay renders correctly at different zoom levels'
     expected: 'rain characters scale with tile size like all other overlay effects'
+  - id: fringe-noise-is-stable
+    description: 'the blotchy edge pattern does not flicker between frames because tileHash is deterministic per position'
+    expected: 'same tiles are included/excluded on consecutive frames for the same front position'
+  - id: rain-intensity-clamps
+    description: 'rainIntensity never exceeds 1.0 or drops below 0.0'
+    expected: 'clamped to [0.0, 1.0] after every tick'
 
 failure_conditions:
   - trigger: 'weather.sky is undefined or invalid'

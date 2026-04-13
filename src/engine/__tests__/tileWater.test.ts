@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { WATER_DRAIN_RATE, WATER_MAX, WATER_RAIN_FILL } from '../constants'
+import { RAIN_FRONT_FRINGE, RAIN_FRONT_WIDTH, WATER_DRAIN_RATE, WATER_MAX, WATER_RAIN_FILL } from '../constants'
 import { posKey } from '../position'
 import { createGameState } from '../state'
-import { tickTileWater } from '../tileWater'
+import { isInRainFront, tickTileWater } from '../tileWater'
 import { Sky, TileType, WindDirection, Zone } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
 
@@ -78,11 +78,11 @@ describe('tileWater', () => {
       state = createTestState()
       clearAroundPlayer(state, 5)
       state.weather.sky = Sky.Sun
-      // Position rain front to cover the player area for rain tests.
-      // Front advances by RAIN_FRONT_SPEED before the tile loop, so offset
-      // such that player.x+1 lands inside the front after advancement.
+      // Position rain front so player.x+1 lands in the core zone (not the
+      // fringe). With RAIN_FRONT_FRINGE=8 the core starts at offset 8, so
+      // place the front 12 tiles behind the test tile to land solidly in core.
       state.weather.windDirection = WindDirection.E
-      state.rainFrontOffset = state.player.x - 2
+      state.rainFrontOffset = state.player.x + 1 - 12
     })
 
     it('drains water when not raining', () => {
@@ -98,6 +98,7 @@ describe('tileWater', () => {
       const key = posKey(state.player.x + 1, state.player.y)
       state.tileWater.set(key, 50)
       state.weather.sky = Sky.Rain
+      state.rainIntensity = 1
 
       tickTileWater(state, Zone.Overworld)
 
@@ -108,6 +109,7 @@ describe('tileWater', () => {
       const key = posKey(state.player.x + 1, state.player.y)
       state.tileWater.set(key, WATER_MAX)
       state.weather.sky = Sky.Rain
+      state.rainIntensity = 1
 
       tickTileWater(state, Zone.Overworld)
 
@@ -163,6 +165,79 @@ describe('tileWater', () => {
 
       // Water should still be 60
       expect(state.tileWater.get(key)).toBe(60)
+    })
+
+    it('does not hydrate when rainIntensity is 0 even if sky is rain', () => {
+      const key = posKey(state.player.x + 1, state.player.y)
+      state.tileWater.set(key, 50)
+      state.weather.sky = Sky.Rain
+      state.rainIntensity = 0
+
+      tickTileWater(state, Zone.Overworld)
+
+      expect(state.tileWater.get(key)).toBe(50 - WATER_DRAIN_RATE)
+    })
+  })
+
+  describe('isInRainFront', () => {
+    let state: GameState
+
+    beforeEach(() => {
+      state = createTestState()
+      state.weather.windDirection = WindDirection.E
+      state.rainFrontOffset = 0
+    })
+
+    it('returns hit=true with edgeAlpha=1 for tiles in the core zone', () => {
+      // Core zone: dist in [FRINGE, WIDTH - FRINGE)
+      // With offset 0, wind E, tile x = FRINGE + 1 should be solidly in core
+      const result = isInRainFront(state, RAIN_FRONT_FRINGE + 1, 0)
+      expect(result.hit).toBe(true)
+      expect(result.edgeAlpha).toBe(1)
+    })
+
+    it('returns hit=false for tiles outside the front', () => {
+      const result = isInRainFront(state, RAIN_FRONT_WIDTH + 5, 0)
+      expect(result.hit).toBe(false)
+      expect(result.edgeAlpha).toBe(0)
+    })
+
+    it('fringe produces a mix of included and excluded tiles', () => {
+      // Sample many y positions at a fixed x in the leading fringe zone.
+      // dist=3 (middle of fringe) should produce a mix — not all in, not all out.
+      const x = 3 // dist=3 from front at offset 0
+      let hits = 0
+      let misses = 0
+      for (let y = 0; y < 200; y++) {
+        const result = isInRainFront(state, x, y)
+        if (result.hit) hits++
+        else misses++
+      }
+      expect(hits).toBeGreaterThan(0)
+      expect(misses).toBeGreaterThan(0)
+    })
+
+    it('fringe noise is deterministic — same tile always returns same result', () => {
+      const x = 2
+      const y = 7
+      const first = isInRainFront(state, x, y)
+      const second = isInRainFront(state, x, y)
+      expect(first.hit).toBe(second.hit)
+      expect(first.edgeAlpha).toBe(second.edgeAlpha)
+    })
+
+    it('fringe tiles have edgeAlpha < 1 when hit', () => {
+      // Sample fringe tiles that are hit — they should have alpha < 1
+      const x = 2 // in leading fringe, dist=2
+      let foundHitWithReducedAlpha = false
+      for (let y = 0; y < 200; y++) {
+        const result = isInRainFront(state, x, y)
+        if (result.hit && result.edgeAlpha < 1) {
+          foundHitWithReducedAlpha = true
+          break
+        }
+      }
+      expect(foundHitWithReducedAlpha).toBe(true)
     })
   })
 })

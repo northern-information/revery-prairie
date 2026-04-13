@@ -29,7 +29,7 @@ import { getDefinition } from './items'
 import { movePlayer, tickPath } from './movement'
 import { getReveryDefinition } from './reveries'
 import { DeepTimePhase, Zone } from './types'
-import { tickWeather } from './weather'
+import { tickRainIntensity, tickWeather } from './weather'
 
 import type { GameState } from './types'
 
@@ -255,6 +255,20 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         if (state.genesis) return
         tickWeather(state.weather)
       },
+    },
+    {
+      id: 'rain-intensity',
+      intervalMs: 0,
+      zone: 'overworld',
+      fn: (() => {
+        let lastTime = 0
+        return (state: GameState, time: number) => {
+          if (state.genesis) return
+          const dt = lastTime > 0 ? time - lastTime : 0
+          lastTime = time
+          tickRainIntensity(state, dt)
+        }
+      })(),
     },
     {
       id: 'clover-growth',

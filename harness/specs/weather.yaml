@@ -7,6 +7,7 @@ source_files:
   - src/engine/weather.ts
   - src/engine/types.ts
   - src/engine/state.ts
+  - src/engine/constants.ts
 dependencies: []
 
 behaviors:
@@ -63,6 +64,28 @@ behaviors:
     state_changes: []
     determinism: probabilistic
 
+  - id: rain-intensity-ramp
+    description: >
+      state.rainIntensity is a number in [0.0, 1.0] that ramps up
+      when weather.sky is rain and ramps down when it is not rain.
+      tickRainIntensity is called every frame (rAF) with the elapsed
+      time delta. when sky is rain, intensity increases by
+      dt / RAIN_FADE_DURATION_MS, clamped to 1.0. when sky is not
+      rain, intensity decreases by dt / RAIN_FADE_DURATION_MS, clamped
+      to 0.0. RAIN_FADE_DURATION_MS is 3000 (3 seconds for a full
+      fade in or out). the renderer and tileWater both read
+      rainIntensity — renderer for visual alpha, tileWater for whether
+      to hydrate (hydrates when rainIntensity > 0 and tile is in
+      front).
+    inputs:
+      - 'rAF tick with dt in milliseconds'
+      - 'state.weather.sky'
+    outputs: []
+    state_changes:
+      - field: rainIntensity
+        effect: 'ramps toward 1.0 when raining, toward 0.0 when not raining, by dt/RAIN_FADE_DURATION_MS per frame'
+    determinism: time-based
+
   - id: unit-conversions
     description: >
       fToC converts Fahrenheit to Celsius via (f - 32) * 5 / 9,
@@ -88,6 +111,12 @@ edge_cases:
   - id: season-never-changes
     description: 'season is hardcoded to spring, tickWeather never mutates it'
     expected: 'weather.season remains spring after any number of ticks'
+  - id: rain-intensity-ramps-not-jumps
+    description: 'when sky changes from rain to sun or vice versa, rainIntensity transitions smoothly over RAIN_FADE_DURATION_MS rather than jumping to 0 or 1'
+    expected: 'intermediate values visible over multiple frames during transition'
+  - id: rain-intensity-starts-at-zero
+    description: 'rainIntensity initializes to 0.0 in createGameState even if initial sky is rain — rain fades in at game start'
+    expected: 'state.rainIntensity is 0.0 at init, ramps up on first frames if raining'
 
 failure_conditions:
   - trigger: 'Temperature exceeds [35, 72] range after many ticks'
