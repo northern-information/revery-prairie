@@ -11,6 +11,8 @@ Conversational skill for adding new game features through the spec-driven harnes
 
 **All file writes must happen in a worktree.** After gathering requirements (step 1), enter a worktree before writing any files. Use the Agent tool with `isolation: "worktree"` for all steps that create or modify files (spec drafting, plan drafting, validation, execution). Never write specs, plans, or code directly on main.
 
+**Always rebase before pushing or opening a PR.** Run `git fetch origin main && git rebase origin/main` in the worktree before pushing. Squash-merged PRs from other worktrees can silently diverge from your branch — rebasing ensures your changes apply cleanly on top of the latest main and prevents regressions from stale bases.
+
 ## Flow
 
 ### 1. Gather requirements

@@ -12,6 +12,8 @@ This skill produces spec updates, not new specs or plans. It is a sync check.
 
 **All file writes must happen in a worktree.** Before writing any spec updates, enter a worktree. Use the Agent tool with `isolation: "worktree"` for all steps that modify files. Never write spec changes directly on main.
 
+**Always rebase before pushing or opening a PR.** Run `git fetch origin main && git rebase origin/main` in the worktree before pushing. Squash-merged PRs from other worktrees can silently diverge from your branch — rebasing ensures your changes apply cleanly on top of the latest main and prevents regressions from stale bases.
+
 ## Flow
 
 ### 1. Scan implemented specs

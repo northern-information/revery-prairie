@@ -10,6 +10,8 @@ Audit skill for keeping the prairie manual in sync with game content. Run after 
 
 **All file writes must happen in a worktree.** Before scaffolding lore stubs or making any code changes, enter a worktree. Use the Agent tool with `isolation: "worktree"` for all steps that modify files. Never write changes directly on main.
 
+**Always rebase before pushing or opening a PR.** Run `git fetch origin main && git rebase origin/main` in the worktree before pushing. Squash-merged PRs from other worktrees can silently diverge from your branch — rebasing ensures your changes apply cleanly on top of the latest main and prevents regressions from stale bases.
+
 ## Flow
 
 ### 1. Scan registries
