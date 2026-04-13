@@ -5,6 +5,7 @@ import {
   COMPONENT_META,
   DEV_PRESETS,
   ENTITY_TAG_SUGGESTIONS,
+  getEntityPreviewGlyph,
   paintRect,
   spawnDevEntity,
   TILE_TYPE_LIST,
@@ -322,9 +323,13 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
       if (checked.size === 0) return
       e.preventDefault()
 
+      const componentMap = buildComponentMap()
+      const glyph = getEntityPreviewGlyph(componentMap)
+
       const handleUp = (ue: MouseEvent) => {
         window.removeEventListener('mousemove', handleMove)
         window.removeEventListener('mouseup', handleUp)
+        state.devEntityPreview = null
 
         const metrics = metricsRef.current
         if (!metrics) return
@@ -337,8 +342,18 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
         spawn(tile.x, tile.y)
       }
 
-      const handleMove = (_me: MouseEvent) => {
-        // Cursor tracking handled by existing system
+      const handleMove = (me: MouseEvent) => {
+        const metrics = metricsRef.current
+        if (!metrics) return
+        const canvas = document.querySelector('canvas')
+        if (!canvas) return
+        const tile = screenToTilePos(me.clientX, me.clientY, canvas, metrics, state.camera)
+        if (tile && tile.x >= 0 && tile.x < state.mapWidth && tile.y >= 0 && tile.y < state.mapHeight) {
+          state.devEntityPreview = { x: tile.x, y: tile.y, ...glyph }
+        } else {
+          state.devEntityPreview = null
+        }
+        refreshUI()
       }
 
       window.addEventListener('mousemove', handleMove)

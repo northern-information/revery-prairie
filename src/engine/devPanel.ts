@@ -1,4 +1,19 @@
+import { generateBoltPath } from './boltPath'
+import {
+  BEE_CHAR,
+  BEE_COLOR,
+  BEEHIVE_CHAR,
+  BEEHIVE_COLOR,
+  GHOST_CHAR,
+  GHOST_COLOR,
+  LIGHTNING_BOLT_COLOR_BRIGHT,
+  LIGHTNING_BOLT_MIN_LENGTH,
+  LIGHTNING_BOLT_MAX_LENGTH,
+  METEORITE_CHAR,
+  METEORITE_COLOR,
+} from './constants'
 import { ComponentType } from './ecs/types'
+import { getDefinition } from './items'
 import { TileType, Zone } from './types'
 
 import type { ComponentDataMap } from './ecs/types'
@@ -318,6 +333,14 @@ export const spawnDevEntity = (
       continue
     }
 
+    // LightningData: generate a real bolt path from the drop position
+    if (type === ComponentType.LightningData) {
+      const length = LIGHTNING_BOLT_MIN_LENGTH + Math.floor(Math.random() * (LIGHTNING_BOLT_MAX_LENGTH - LIGHTNING_BOLT_MIN_LENGTH + 1))
+      const { path, branch } = generateBoltPath(position.x, position.y, length, Math.random)
+      state.world.addComponent(e, ComponentType.LightningData, { path, branch })
+      continue
+    }
+
     // For all other components, merge defaults with overrides
     const merged = typeof defaults === 'object' && defaults !== null
       ? { ...defaults, ...values }
@@ -356,4 +379,66 @@ export const paintRect = (
       state.map[y][x] = { type: tt }
     }
   }
+}
+
+// --- Entity preview glyph lookup ---
+
+const ENTITY_TAG_GLYPHS: Record<string, { char: string; color: string }> = {
+  bee: { char: BEE_CHAR, color: BEE_COLOR },
+  beehive: { char: BEEHIVE_CHAR, color: BEEHIVE_COLOR },
+  character: { char: GHOST_CHAR, color: GHOST_COLOR },
+  meteorite: { char: METEORITE_CHAR, color: METEORITE_COLOR },
+  angel: { char: 'A', color: '#FFFFFF' },
+  shootingStar: { char: '*', color: '#FFFFFF' },
+  explosion: { char: '*', color: '#FFD700' },
+  lightning: { char: '|', color: LIGHTNING_BOLT_COLOR_BRIGHT },
+  wildfire: { char: '^', color: '#FF4500' },
+  reveryCast: { char: '~', color: '#4466aa' },
+  crumble: { char: '#', color: '#997755' },
+  pickupBloom: { char: '*', color: '#FFE4B5' },
+}
+
+export const getEntityPreviewGlyph = (
+  checkedComponents: Map<ComponentType, Record<string, unknown>>
+): { char: string; color: string } => {
+  // Check Renderable first (explicit char/color)
+  const renderable = checkedComponents.get(ComponentType.Renderable)
+  if (renderable) {
+    return {
+      char: typeof renderable.char === 'string' ? renderable.char : '?',
+      color: typeof renderable.color === 'string' ? renderable.color : '#ffffff',
+    }
+  }
+
+  // Derive from EntityTag
+  const tagValues = checkedComponents.get(ComponentType.EntityTag)
+  const tag = typeof tagValues?.value === 'string' ? tagValues.value : null
+  if (tag) {
+    const known = ENTITY_TAG_GLYPHS[tag]
+    if (known) return known
+
+    // Ground items use the item definition glyph
+    if (tag === 'groundItem' || tag === 'groundOmnibox') {
+      const itemDrop = checkedComponents.get(ComponentType.ItemDrop)
+      const defId = typeof itemDrop?.definitionId === 'string' ? itemDrop.definitionId : null
+      if (defId) {
+        try {
+          const def = getDefinition(defId)
+          return { char: def.glyph, color: def.glyphColor }
+        } catch {
+          // Unknown item
+        }
+      }
+      if (tag === 'groundOmnibox') {
+        try {
+          const def = getDefinition('omnibox')
+          return { char: def.glyph, color: def.glyphColor }
+        } catch {
+          // Fallback
+        }
+      }
+    }
+  }
+
+  return { char: '?', color: '#ff69b4' }
 }
