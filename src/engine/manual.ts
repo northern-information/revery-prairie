@@ -79,6 +79,9 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   // Deep time
   'event:deep-time': { lore: 'TODO' },
   'event:gron-deep-time': { lore: 'TODO' },
+  // Angels
+  'event:angel': { lore: 'TODO' },
+  'event:angel-canto': { lore: 'TODO' },
   // Recipes
   'recipe:bee+clover': { lore: 'TODO' },
 }
@@ -532,6 +535,32 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     hints: MANUAL_LORE['event:gron-deep-time']?.hints ?? [],
     unlockKey: 'event:gron-deep-time',
     sourceKind: 'event',
+  },
+  {
+    id: 'event:angel',
+    name: 'Angel',
+    category: ManualCategory.Celestial,
+    glyph: 'O',
+    glyphColor: '#FFFFFF',
+    summary: 'a biblically accurate celestial being drifting across the prairie',
+    lore: MANUAL_LORE['event:angel']?.lore ?? 'TODO',
+    hints: MANUAL_LORE['event:angel']?.hints ?? [],
+    unlockKey: 'event:angel',
+    sourceKind: 'event',
+    crossRefs: ['event:angel-canto'],
+  },
+  {
+    id: 'event:angel-canto',
+    name: 'Angel Canto',
+    category: ManualCategory.Celestial,
+    glyph: '#',
+    glyphColor: '#E8E8FF',
+    summary: 'a sha256 hash spoken by an angel, recorded in the permacomputer',
+    lore: MANUAL_LORE['event:angel-canto']?.lore ?? 'TODO',
+    hints: MANUAL_LORE['event:angel-canto']?.hints ?? [],
+    unlockKey: 'event:angel-canto',
+    sourceKind: 'event',
+    crossRefs: ['event:angel'],
   },
 ]
 

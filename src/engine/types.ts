@@ -206,6 +206,9 @@ export interface GameState {
   rainFrontOffset: number
   waterProximity: Map<string, number>
   genesis: GenesisSimState | null
+  angelCantos: string[]
+  nextAngelSpawnTime: number
+  angelEncounterCount: number
 }
 
 export const CloverStage = {

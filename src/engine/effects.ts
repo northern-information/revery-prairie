@@ -5,6 +5,9 @@ import type { GameState } from './types'
 
 export const AURA_RADIUS: Record<string, number> = {
   rain: 6,
+  'angel-rain': 25,
+  'angel-bees': 25,
+  'angel-clover': 25,
 }
 
 export const getTileEffects = (state: GameState, x: number, y: number): string[] => {

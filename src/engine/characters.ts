@@ -64,6 +64,11 @@ export const registerGhostDefinitions = (numbers: number[]): void => {
   }
 }
 
+export const removeCharacterDefinition = (id: string): void => {
+  // Reflect.deleteProperty avoids the no-dynamic-delete lint rule on `delete obj[key]`
+  Reflect.deleteProperty(CHARACTER_DEFINITIONS, id)
+}
+
 export const getCharacterDialog = (state: GameState, characterId: string): string[] => {
   const def = getCharacterDefinition(characterId)
   if (def.postGiftDialog && state.giftsReceived.has(characterId)) {

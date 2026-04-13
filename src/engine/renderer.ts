@@ -1,3 +1,5 @@
+import { getAngelRenderData } from './angelAnimation'
+import { ANGEL_BODY_SIZE } from './constants'
 import { getCharacterDefinition } from './characters'
 import { GENESIS_EPOCHS } from './genesis'
 import { renderGenesis } from './genesisRenderer'
@@ -270,6 +272,20 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (!state.caveRevealed && state.caveHiddenPositions.has(key)) continue
     const def = getCharacterDefinition(identity.definitionId)
     characterMap.set(key, { glyph: def.glyph, color: def.glyphColor })
+  }
+
+  // Build a map of angel body pixels (from ECS)
+  const angelMap = new Map<string, { char: string; color: string }>()
+  for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
+    if (!inZone(eid)) continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const data = state.world.getComponent(eid, ComponentType.AngelData)
+    if (!pos || !data) continue
+    const anchorX = pos.x - Math.floor(ANGEL_BODY_SIZE / 2)
+    const anchorY = pos.y - Math.floor(ANGEL_BODY_SIZE / 2)
+    for (const pixel of getAngelRenderData(data.seed, anchorX, anchorY, time)) {
+      angelMap.set(posKey(pixel.pos.x, pixel.pos.y), { char: pixel.char, color: pixel.color })
+    }
   }
 
   // Prune expired trail points and build a map with opacity
@@ -718,6 +734,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       } else if (beehivePositions.has(tileKey)) {
         char = BEEHIVE_CHAR
         color = BEEHIVE_COLOR
+      } else if (angelMap.has(tileKey)) {
+        const ap = angelMap.get(tileKey)
+        char = ap?.char ?? 'O'
+        color = ap?.color ?? '#FFFFFF'
       } else if (shootingStarOnLand) {
         char = shootingStarOnLand.char
         color = shootingStarOnLand.color

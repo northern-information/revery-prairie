@@ -22,7 +22,7 @@ import { DeepTimePhase, Rotation, Zone } from '@/engine/types'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
-export type PermacomputerScreen = 'pack' | 'system' | 'manual' | 'divination' | 'reveries' | null
+export type PermacomputerScreen = 'pack' | 'system' | 'manual' | 'divination' | 'reveries' | 'cantos' | null
 
 interface UseKeyboardOptions {
   state: GameState

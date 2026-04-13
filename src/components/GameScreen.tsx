@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { ActionBar } from './ActionBar'
+import { CantosScreen } from './CantosScreen'
 import { DIALOG_HEIGHT, DIALOG_WIDTH, DialogBox } from './DialogBox'
 import { DragCursor } from './DragCursor'
 import { GameCanvas } from './GameCanvas'
@@ -159,6 +160,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
             />
           )}
           {activeScreen === 'reveries' && <ReveriesPanel state={state} refreshUI={refreshUI} />}
+          {activeScreen === 'cantos' && <CantosScreen cantos={state.angelCantos} />}
           {activeScreen === 'system' && (
             <Menu
               onResume={() => {

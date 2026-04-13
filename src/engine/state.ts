@@ -176,6 +176,9 @@ export const createGameState = (
     rainFrontOffset: 0,
     waterProximity: new Map<string, number>(),
     genesis: genesisData,
+    angelCantos: [],
+    nextAngelSpawnTime: 60_000, // first angel after ~60s
+    angelEncounterCount: 0,
   }
 
   // Seed glinting zone patches with staggered birth times

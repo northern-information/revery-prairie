@@ -90,6 +90,9 @@ const EXPECTED_FIELDS = [
   'rainFrontOffset',
   'waterProximity',
   'genesis',
+  'angelCantos',
+  'nextAngelSpawnTime',
+  'angelEncounterCount',
 ].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {
