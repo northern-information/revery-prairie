@@ -212,6 +212,7 @@ export interface GameState {
   angelEncounterCount: number
   angelFlashTime: number
   devPanelOpen: boolean
+  devPaintPreview: { x1: number; y1: number; x2: number; y2: number } | null
 }
 
 export const CloverStage = {

@@ -170,6 +170,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     angelEncounterCount: 0,
     angelFlashTime: 0,
     devPanelOpen: false,
+    devPaintPreview: null,
   }
 
   // Seed glinting zone patches with staggered birth times

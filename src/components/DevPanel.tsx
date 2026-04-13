@@ -1,10 +1,10 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { PanelTitle, SectionHeader, Tab } from './PanelPrimitives'
 
 import {
   COMPONENT_META,
   DEV_PRESETS,
-  paintTile,
+  paintRect,
   spawnDevEntity,
   TILE_TYPE_LIST,
   getComponentDefaults,
@@ -12,7 +12,7 @@ import {
 import { ComponentType } from '@/engine/ecs/types'
 
 import type { ComponentMeta, FieldMeta } from '@/engine/devPanel'
-import type { CharMetrics, GameState } from '@/engine/types'
+import type { CharMetrics, GameState, Position } from '@/engine/types'
 
 type DevTab = 'entity' | 'tile'
 
@@ -38,6 +38,25 @@ const ENTITY_TAG_SUGGESTIONS = [
   'wildfire',
   'crumble',
 ]
+
+// --- Shared helpers ---
+
+const screenToTilePos = (
+  clientX: number,
+  clientY: number,
+  canvas: HTMLCanvasElement,
+  metrics: CharMetrics,
+  camera: Position
+): Position | null => {
+  const rect = canvas.getBoundingClientRect()
+  const sx = clientX - rect.left
+  const sy = clientY - rect.top
+  if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return null
+  return {
+    x: Math.floor(sx / metrics.charWidth) + camera.x,
+    y: Math.floor(sy / metrics.charHeight) + camera.y,
+  }
+}
 
 // --- Field editor components ---
 
@@ -271,7 +290,6 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
   const [checked, setChecked] = useState(() => new Set<ComponentType>())
   const [values, setValues] = useState(() => new Map<ComponentType, Record<string, unknown>>())
   const [filter, setFilter] = useState('')
-  const dragRef = useRef(false)
 
   const getValues = (type: ComponentType): Record<string, unknown> => {
     const existing = values.get(type)
@@ -317,35 +335,24 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
     (e: React.MouseEvent) => {
       if (checked.size === 0) return
       e.preventDefault()
-      dragRef.current = true
-
-      const handleMove = (me: MouseEvent) => {
-        // Update cursor tile for preview — handled by existing cursor tracking
-        void me
-      }
 
       const handleUp = (ue: MouseEvent) => {
-        dragRef.current = false
         window.removeEventListener('mousemove', handleMove)
         window.removeEventListener('mouseup', handleUp)
 
         const metrics = metricsRef.current
         if (!metrics) return
-
         const canvas = document.querySelector('canvas')
         if (!canvas) return
-        const rect = canvas.getBoundingClientRect()
-        const sx = ue.clientX - rect.left
-        const sy = ue.clientY - rect.top
+        const tile = screenToTilePos(ue.clientX, ue.clientY, canvas, metrics, state.camera)
+        if (!tile) return
+        if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return
 
-        if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
+        spawn(tile.x, tile.y)
+      }
 
-        const tileX = Math.floor(sx / metrics.charWidth) + state.camera.x
-        const tileY = Math.floor(sy / metrics.charHeight) + state.camera.y
-
-        if (tileX < 0 || tileX >= state.mapWidth || tileY < 0 || tileY >= state.mapHeight) return
-
-        spawn(tileX, tileY)
+      const handleMove = (_me: MouseEvent) => {
+        // Cursor tracking handled by existing system
       }
 
       window.addEventListener('mousemove', handleMove)
@@ -355,11 +362,29 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
     [checked, values, state, refreshUI, metricsRef]
   )
 
+  const handleSpawnAtCursor = useCallback(() => {
+    const metrics = metricsRef.current
+    if (!metrics) return
+    if (!state.cursorScreenPos) return
+    const canvas = document.querySelector('canvas')
+    if (!canvas) return
+    const tile = screenToTilePos(
+      state.cursorScreenPos.x + canvas.getBoundingClientRect().left,
+      state.cursorScreenPos.y + canvas.getBoundingClientRect().top,
+      canvas,
+      metrics,
+      state.camera
+    )
+    if (!tile) return
+    if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return
+    spawn(tile.x, tile.y)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checked, values, state, refreshUI, metricsRef])
+
   const filteredMeta = filter
     ? COMPONENT_META.filter(m => m.label.toLowerCase().includes(filter.toLowerCase()))
     : COMPONENT_META
 
-  const hasPosition = checked.has(ComponentType.Position)
   const canSpawn = checked.size > 0
 
   return (
@@ -428,11 +453,9 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
         </button>
         <button
           type="button"
-          disabled={!canSpawn || !hasPosition || !state.cursorTile}
-          onClick={() => {
-            if (state.cursorTile) spawn(state.cursorTile.x, state.cursorTile.y)
-          }}
-          className={`border-border-dim flex-1 rounded border px-2 py-1 text-xs ${canSpawn && hasPosition && state.cursorTile ? 'text-pink hover:bg-pink/20' : 'text-muted cursor-not-allowed'}`}
+          disabled={!canSpawn}
+          onClick={handleSpawnAtCursor}
+          className={`border-border-dim flex-1 rounded border px-2 py-1 text-xs ${canSpawn ? 'text-pink hover:bg-pink/20' : 'text-muted cursor-not-allowed'}`}
         >
           spawn at cursor
         </button>
@@ -445,7 +468,17 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
 
 const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
   const [selectedTile, setSelectedTile] = useState<string | null>(null)
-  const paintingRef = useRef(false)
+  const listenerRef = useRef<((e: MouseEvent) => void) | null>(null)
+
+  // Clean up listener on unmount
+  useEffect(() => {
+    return () => {
+      if (listenerRef.current) {
+        const canvas = document.querySelector('canvas')
+        canvas?.removeEventListener('mousedown', listenerRef.current)
+      }
+    }
+  }, [])
 
   const handleCanvasMouseDown = useCallback(
     (e: MouseEvent) => {
@@ -454,32 +487,36 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
       if (!metrics) return
       const canvas = document.querySelector('canvas')
       if (!canvas) return
-      const rect = canvas.getBoundingClientRect()
-      const sx = e.clientX - rect.left
-      const sy = e.clientY - rect.top
-      if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return
 
-      const tileX = Math.floor(sx / metrics.charWidth) + state.camera.x
-      const tileY = Math.floor(sy / metrics.charHeight) + state.camera.y
+      const startTile = screenToTilePos(e.clientX, e.clientY, canvas, metrics, state.camera)
+      if (!startTile) return
 
-      paintTile(state, tileX, tileY, selectedTile)
-      paintingRef.current = true
-      refreshUI()
+      // Track the rectangle preview
+      let currentTile = startTile
 
       const handleMove = (me: MouseEvent) => {
-        if (!paintingRef.current) return
-        const msx = me.clientX - rect.left
-        const msy = me.clientY - rect.top
-        const mx = Math.floor(msx / metrics.charWidth) + state.camera.x
-        const my = Math.floor(msy / metrics.charHeight) + state.camera.y
-        paintTile(state, mx, my, selectedTile)
-        refreshUI()
+        const tile = screenToTilePos(me.clientX, me.clientY, canvas, metrics, state.camera)
+        if (tile) {
+          currentTile = tile
+          // Store preview rect on state for renderer
+          state.devPaintPreview = {
+            x1: startTile.x,
+            y1: startTile.y,
+            x2: currentTile.x,
+            y2: currentTile.y,
+          }
+          refreshUI()
+        }
       }
 
       const handleUp = () => {
-        paintingRef.current = false
         window.removeEventListener('mousemove', handleMove)
         window.removeEventListener('mouseup', handleUp)
+
+        // Paint the rectangle
+        paintRect(state, startTile.x, startTile.y, currentTile.x, currentTile.y, selectedTile)
+        state.devPaintPreview = null
+        refreshUI()
       }
 
       window.addEventListener('mousemove', handleMove)
@@ -487,9 +524,6 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
     },
     [selectedTile, state, refreshUI, metricsRef]
   )
-
-  // Register/unregister canvas listener when paint mode is active
-  const listenerRef = useRef<((e: MouseEvent) => void) | null>(null)
 
   const activatePaint = (tileType: string) => {
     // Deactivate previous listener
@@ -505,30 +539,32 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
     }
 
     setSelectedTile(tileType)
+
+    // Attach listener on next frame
+    requestAnimationFrame(() => {
+      const canvas = document.querySelector('canvas')
+      if (canvas) {
+        canvas.addEventListener('mousedown', handleCanvasMouseDown)
+        listenerRef.current = handleCanvasMouseDown
+      }
+    })
   }
 
-  // Effect: when selectedTile changes, attach/detach listener
-  // Using ref-based approach to avoid useEffect dependency on handleCanvasMouseDown
-  const prevSelectedRef = useRef<string | null>(null)
-  if (prevSelectedRef.current !== selectedTile) {
-    // Clean up old listener
+  // Re-attach listener when handleCanvasMouseDown changes (selectedTile changed)
+  const prevCallbackRef = useRef(handleCanvasMouseDown)
+  if (prevCallbackRef.current !== handleCanvasMouseDown && selectedTile) {
     if (listenerRef.current) {
       const canvas = document.querySelector('canvas')
       canvas?.removeEventListener('mousedown', listenerRef.current)
-      listenerRef.current = null
     }
-    // Attach new listener if painting
-    if (selectedTile) {
-      // Defer to next frame so the canvas exists
-      requestAnimationFrame(() => {
-        const canvas = document.querySelector('canvas')
-        if (canvas) {
-          canvas.addEventListener('mousedown', handleCanvasMouseDown)
-          listenerRef.current = handleCanvasMouseDown
-        }
-      })
-    }
-    prevSelectedRef.current = selectedTile
+    requestAnimationFrame(() => {
+      const canvas = document.querySelector('canvas')
+      if (canvas) {
+        canvas.addEventListener('mousedown', handleCanvasMouseDown)
+        listenerRef.current = handleCanvasMouseDown
+      }
+    })
+    prevCallbackRef.current = handleCanvasMouseDown
   }
 
   return (
@@ -555,7 +591,12 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
         <button
           type="button"
           onClick={() => {
-            activatePaint(selectedTile)
+            if (listenerRef.current) {
+              const canvas = document.querySelector('canvas')
+              canvas?.removeEventListener('mousedown', listenerRef.current)
+              listenerRef.current = null
+            }
+            setSelectedTile(null)
           }}
           className="text-muted hover:text-pink text-xs"
         >

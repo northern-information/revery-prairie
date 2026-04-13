@@ -318,3 +318,23 @@ export const paintTile = (state: GameState, x: number, y: number, tileType: stri
   if (y < 0 || y >= state.mapHeight || x < 0 || x >= state.mapWidth) return
   state.map[y][x] = { type: tileType as typeof TileType[keyof typeof TileType] }
 }
+
+export const paintRect = (
+  state: GameState,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  tileType: string
+): void => {
+  const minX = Math.max(0, Math.min(x1, x2))
+  const maxX = Math.min(state.mapWidth - 1, Math.max(x1, x2))
+  const minY = Math.max(0, Math.min(y1, y2))
+  const maxY = Math.min(state.mapHeight - 1, Math.max(y1, y2))
+  const tt = tileType as typeof TileType[keyof typeof TileType]
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      state.map[y][x] = { type: tt }
+    }
+  }
+}

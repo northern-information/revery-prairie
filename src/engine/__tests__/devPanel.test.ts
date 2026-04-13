@@ -4,6 +4,7 @@ import {
   COMPONENT_META,
   DEV_PRESETS,
   getComponentDefaults,
+  paintRect,
   paintTile,
   spawnDevEntity,
   TILE_TYPE_LIST,
@@ -214,6 +215,56 @@ describe('dev panel', () => {
       const allValues = new Set(Object.values(TileType))
       const listValues = new Set(TILE_TYPE_LIST.map(t => t.value))
       expect(listValues).toEqual(allValues)
+    })
+  })
+
+  describe('rectangle painting', () => {
+    it('fills a rectangular area with the selected tile type', () => {
+      const state = makeMinimalState()
+      paintRect(state, 2, 3, 5, 6, TileType.Clover)
+
+      for (let y = 3; y <= 6; y++) {
+        for (let x = 2; x <= 5; x++) {
+          expect(state.map[y][x].type).toBe(TileType.Clover)
+        }
+      }
+      // Outside the rect should still be dirt
+      expect(state.map[2][2].type).toBe(TileType.Dirt)
+      expect(state.map[7][5].type).toBe(TileType.Dirt)
+    })
+
+    it('handles inverted coordinates (drag right-to-left or bottom-to-top)', () => {
+      const state = makeMinimalState()
+      paintRect(state, 5, 6, 2, 3, TileType.Sand)
+
+      for (let y = 3; y <= 6; y++) {
+        for (let x = 2; x <= 5; x++) {
+          expect(state.map[y][x].type).toBe(TileType.Sand)
+        }
+      }
+    })
+
+    it('clamps to map bounds', () => {
+      const state = makeMinimalState()
+      paintRect(state, -5, -5, 2, 2, TileType.Space)
+
+      // Only the in-bounds portion should be painted
+      for (let y = 0; y <= 2; y++) {
+        for (let x = 0; x <= 2; x++) {
+          expect(state.map[y][x].type).toBe(TileType.Space)
+        }
+      }
+      // Rest untouched
+      expect(state.map[3][3].type).toBe(TileType.Dirt)
+    })
+
+    it('paints a single tile when start equals end', () => {
+      const state = makeMinimalState()
+      paintRect(state, 4, 4, 4, 4, TileType.Clover)
+
+      expect(state.map[4][4].type).toBe(TileType.Clover)
+      expect(state.map[4][3].type).toBe(TileType.Dirt)
+      expect(state.map[3][4].type).toBe(TileType.Dirt)
     })
   })
 })

@@ -96,6 +96,7 @@ const EXPECTED_FIELDS = [
   'angelEncounterCount',
   'angelFlashTime',
   'devPanelOpen',
+  'devPaintPreview',
 ].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {

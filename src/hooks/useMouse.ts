@@ -50,6 +50,7 @@ export const useMouse = ({
     if (!canvas) return
 
     const handleClick = (e: MouseEvent) => {
+      if (state.devPanelOpen) return
       if (activeScreenRef.current === 'system') return
 
       // Lightning targeting mode: click to cast at cursor tile
