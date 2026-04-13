@@ -272,13 +272,14 @@ behaviors:
 
   - id: angel-movement-blocking
     description: >
-      Angels do NOT block player movement. The player can walk through and
-      under them. This is intentional — the player must walk under the angel
-      to trigger dialog. Angels do not appear in getBlockedPositions.
+      Angels block player movement. All 9x9 body tiles are impassable.
+      Angel body tiles are added to getBlockedPositions. The player must
+      approach an angel and press [e] to interact. Click-to-move pathfinding
+      routes around angel body tiles.
     inputs:
       - 'Player attempts to move onto angel-occupied tile'
     outputs:
-      - 'Movement succeeds normally'
+      - 'Movement is blocked'
     state_changes: []
     determinism: deterministic
 

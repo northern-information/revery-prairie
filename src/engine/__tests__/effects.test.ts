@@ -10,6 +10,8 @@ const makeState = () => {
   for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
     state.world.destroyEntity(eid)
   }
+  // Clear glint zones so random spawns don't pollute effect checks
+  state.glintZones.clear()
   return state
 }
 
