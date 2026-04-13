@@ -1,3 +1,4 @@
+import { vi } from 'vitest'
 import { tickShootingStars } from '../celestial'
 import { PICKUP_EFFECT_DURATION_MS } from '../constants'
 import { ComponentType } from '../ecs/types'
@@ -16,8 +17,7 @@ describe('meteoritePickupEffect', () => {
     createMeteoriteEntity(state, state.player.x, state.player.y)
 
     // Prevent chain explosion from consuming the meteorite before pickup
-    const orig = Math.random
-    Math.random = () => 0.9
+    vi.spyOn(Math, 'random').mockReturnValue(0.9)
     try {
       pickUpGroundItems(state, 5000)
 
@@ -31,7 +31,7 @@ describe('meteoritePickupEffect', () => {
       })
       expect(effect?.startTime).toBe(5000)
     } finally {
-      Math.random = orig
+      vi.restoreAllMocks()
     }
   })
 
@@ -84,8 +84,7 @@ describe('meteoritePickupEffect', () => {
     createMeteoriteEntity(state, state.player.x, state.player.y)
 
     // Prevent chain explosion from spawning extra meteorites
-    const orig = Math.random
-    Math.random = () => 0.9
+    vi.spyOn(Math, 'random').mockReturnValue(0.9)
     try {
       const result = pickUpGroundItems(state, 5000)
 
@@ -93,7 +92,7 @@ describe('meteoritePickupEffect', () => {
       expect(getMeteoriteEntities(state)).toHaveLength(0)
       expect(state.backpack.items.some(i => i.definitionId === 'meteorite')).toBe(true)
     } finally {
-      Math.random = orig
+      vi.restoreAllMocks()
     }
   })
 })

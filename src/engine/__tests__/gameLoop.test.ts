@@ -288,14 +288,13 @@ describe('zone gating', () => {
     const posBefore = { ...state.world.getComponent(beeEid, ComponentType.Position)! }
 
     // Force movement to always trigger — eliminates flakiness from randomness
-    const origRandom = Math.random
-    Math.random = () => 0.1
+    vi.spyOn(Math, 'random').mockReturnValue(0.1)
     try {
       for (let t = 0; t <= 2000; t += 200) {
         gameLoop.tick(t)
       }
     } finally {
-      Math.random = origRandom
+      vi.restoreAllMocks()
     }
 
     // Cave bees should tick and move

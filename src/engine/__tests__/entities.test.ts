@@ -13,7 +13,7 @@ import {
   getBeeEntities,
   getGroundItemEntities,
 } from './helpers'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 describe('tickBees', () => {
   it('does nothing when there are no bees', () => {
@@ -29,8 +29,14 @@ describe('tickBees', () => {
     clearAroundPlayer(state, 1)
     combineBeeAndClover(state)
 
-    for (let i = 0; i < 100; i++) {
-      tickBees(state)
+    // Force movement to always trigger so we actually test clover preference
+    vi.spyOn(Math, 'random').mockReturnValue(0.1)
+    try {
+      for (let i = 0; i < 100; i++) {
+        tickBees(state)
+      }
+    } finally {
+      vi.restoreAllMocks()
     }
 
     for (const eid of getBeeEntities(state)) {
@@ -78,9 +84,12 @@ describe('tickBees', () => {
     clearArea(state, bx, by, 2)
     const beeEid = createBeeEntity(state, bx, by)
 
-    // Run many ticks — bee should eventually move (stay under starvation threshold of 150 ticks)
-    for (let i = 0; i < 100; i++) {
+    // Force movement to always trigger — deterministic instead of hoping 100 ticks is enough
+    vi.spyOn(Math, 'random').mockReturnValue(0.1)
+    try {
       tickBees(state)
+    } finally {
+      vi.restoreAllMocks()
     }
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
