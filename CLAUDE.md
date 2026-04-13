@@ -237,6 +237,8 @@ tests that depend on terrain must account for the randomized coastline — use `
 
 `createGameState` seeds shooting stars and other entities. tests that assert exact counts on `state.shootingStars`, `state.meteorites`, etc. must reset these arrays (e.g. `state.meteorites = []`) before the test logic.
 
+tests must never depend on `Math.random()` producing favorable outcomes over N iterations. mock it with `vi.spyOn(Math, 'random').mockReturnValue(...)` and restore with `vi.restoreAllMocks()` in a `finally` block. never use the manual `const orig = Math.random; Math.random = () => ...` pattern.
+
 ## harness
 
 spec-driven development pipeline. see README.md for the workflow, roles, and entry points.

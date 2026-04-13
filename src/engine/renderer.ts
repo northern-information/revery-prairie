@@ -69,6 +69,7 @@ import {
   GLINT_ZONE_COLORS,
   GLINT_ZONE_DENSITY,
   GLINT_ZONE_SPEED,
+  RAIN_FRONT_WIDTH,
   WEATHER_RAIN_DENSITY,
   WILDFIRE_CHARS,
   WILDFIRE_COLORS,
@@ -78,7 +79,7 @@ import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
 import { isInBounds, posKey, tileHash } from './position'
 import { getReveryDefinition } from './reveries'
-import { CloverStage, DeepTimePhase, Sky, TileType, Zone } from './types'
+import { CloverStage, DeepTimePhase, Sky, TileType, WindDirection, Zone } from './types'
 
 import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState } from './types'
@@ -939,14 +940,30 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     ctx.fillText(RAIN_CHARS[phase], rpx, rpy)
   }
 
-  // Weather rain overlay — viewport-wide animated rain when sky is rain (overworld only)
+  // Weather rain overlay — animated rain follows the sweeping rain front (overworld only)
   if (state.weather.sky === Sky.Rain && zone === Zone.Overworld) {
+    // Compute rain front axis from wind direction
+    const windDir = state.weather.windDirection
+    const frontAxis =
+      windDir === WindDirection.N || windDir === WindDirection.S ? 'y' : 'x'
+    const frontSign =
+      windDir === WindDirection.N || windDir === WindDirection.W || windDir === WindDirection.NW || windDir === WindDirection.SW
+        ? -1
+        : 1
+    const frontMapSize = frontAxis === 'x' ? state.overworldMapWidth : state.overworldMapHeight
+    const frontPos = ((state.rainFrontOffset * frontSign) % frontMapSize + frontMapSize) % frontMapSize
+
     for (let vy = 0; vy < viewportHeight; vy++) {
       for (let vx = 0; vx < viewportWidth; vx++) {
         const wx = camera.x + vx
         const wy = camera.y + vy
         if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue
         if (wx === player.x && wy === player.y) continue
+
+        // Check if tile is within rain front band
+        const coord = frontAxis === 'x' ? wx : wy
+        const dist = ((coord - frontPos) * frontSign + frontMapSize) % frontMapSize
+        if (dist >= RAIN_FRONT_WIDTH) continue
 
         const h = tileHash(wx + state.rainSeed, wy)
         if (h % WEATHER_RAIN_DENSITY !== 0) continue

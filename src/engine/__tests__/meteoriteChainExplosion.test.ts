@@ -1,3 +1,4 @@
+import { vi } from 'vitest'
 import { spawnChainMeteorites } from '../celestial'
 import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
@@ -323,15 +324,14 @@ describe('chain explosion', () => {
       createMeteoriteEntity(state, state.player.x, state.player.y)
 
       // Force Math.random to always trigger (< 1/7)
-      const orig = Math.random
-      Math.random = () => 0.1
+      vi.spyOn(Math, 'random').mockReturnValue(0.1)
       try {
         const result = pickUpGroundItems(state, 1000)
         expect(result.chainExplosions).toBe(3)
         // Exploded meteorite is consumed, not picked up
         expect(result.pickedUp).not.toContain('meteorite')
       } finally {
-        Math.random = orig
+        vi.restoreAllMocks()
       }
     })
 
@@ -340,14 +340,13 @@ describe('chain explosion', () => {
       clearAroundPlayer(state, 5)
       createMeteoriteEntity(state, state.player.x, state.player.y)
 
-      const orig = Math.random
-      Math.random = () => 0.9
+      vi.spyOn(Math, 'random').mockReturnValue(0.9)
       try {
         const result = pickUpGroundItems(state, 1000)
         expect(result.chainExplosions).toBe(0)
         expect(result.pickedUp).toContain('meteorite')
       } finally {
-        Math.random = orig
+        vi.restoreAllMocks()
       }
     })
 
@@ -356,13 +355,12 @@ describe('chain explosion', () => {
       clearAroundPlayer(state, 5)
       createMeteoriteEntity(state, state.player.x, state.player.y)
 
-      const orig = Math.random
-      Math.random = () => 0.1
+      vi.spyOn(Math, 'random').mockReturnValue(0.1)
       try {
         const result = pickUpGroundItems(state)
         expect(result.chainExplosions).toBe(0)
       } finally {
-        Math.random = orig
+        vi.restoreAllMocks()
       }
     })
 
@@ -378,8 +376,7 @@ describe('chain explosion', () => {
         }
       }
 
-      const orig = Math.random
-      Math.random = () => 0.1
+      vi.spyOn(Math, 'random').mockReturnValue(0.1)
       try {
         const result = pickUpGroundItems(state, 1000)
         // Meteorite not captured (consumed by explosion)
@@ -392,7 +389,7 @@ describe('chain explosion', () => {
           .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
         expect(meteoritesAtPlayer).toHaveLength(0)
       } finally {
-        Math.random = orig
+        vi.restoreAllMocks()
       }
     })
 
@@ -402,8 +399,7 @@ describe('chain explosion', () => {
       createMeteoriteEntity(state, state.player.x, state.player.y)
       createMeteoriteEntity(state, state.player.x, state.player.y)
 
-      const orig = Math.random
-      Math.random = () => 0.1
+      vi.spyOn(Math, 'random').mockReturnValue(0.1)
       try {
         const result = pickUpGroundItems(state, 1000)
         // Both rolled, both triggered — but second spawn has fewer open tiles
@@ -411,7 +407,7 @@ describe('chain explosion', () => {
         // Both consumed by explosion, not picked up
         expect(result.pickedUp).not.toContain('meteorite')
       } finally {
-        Math.random = orig
+        vi.restoreAllMocks()
       }
     })
 
@@ -420,14 +416,13 @@ describe('chain explosion', () => {
       clearAroundPlayer(state, 5)
       createMeteoriteEntity(state, state.player.x, state.player.y, true)
 
-      const orig = Math.random
-      Math.random = () => 0.0 // would always trigger if checked
+      vi.spyOn(Math, 'random').mockReturnValue(0.0) // would always trigger if checked
       try {
         const result = pickUpGroundItems(state, 1000)
         expect(result.chainExplosions).toBe(0)
         expect(result.pickedUp).toContain('meteorite')
       } finally {
-        Math.random = orig
+        vi.restoreAllMocks()
       }
     })
 

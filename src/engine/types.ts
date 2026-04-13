@@ -203,6 +203,8 @@ export interface GameState {
   civilizationRuins: CivilizationRuin[]
   deepTime: DeepTimeState | null
   postGiftActionsCompleted: Set<string>
+  rainFrontOffset: number
+  waterProximity: Map<string, number>
 }
 
 export const CloverStage = {

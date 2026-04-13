@@ -247,11 +247,17 @@ export const GameScreen = ({ stewardName, genesisResult, onRestart }: GameScreen
               top={dTop}
               left={dLeft}
               onNext={() => {
-                advanceDialog(state)
+                const result = advanceDialog(state)
+                if (result.gift) {
+                  addEvent('discovery', `received ${result.gift.name.toLowerCase()}`, result.gift.glyphs[0], result.gift.glyphColor, state.player.x, state.player.y)
+                }
                 refreshUI()
               }}
               onClose={() => {
-                state.activeDialog = null
+                const result = advanceDialog(state)
+                if (result.gift) {
+                  addEvent('discovery', `received ${result.gift.name.toLowerCase()}`, result.gift.glyphs[0], result.gift.glyphColor, state.player.x, state.player.y)
+                }
                 refreshUI()
               }}
             />

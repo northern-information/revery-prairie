@@ -87,6 +87,8 @@ const EXPECTED_FIELDS = [
   'civilizationRuins',
   'deepTime',
   'postGiftActionsCompleted',
+  'rainFrontOffset',
+  'waterProximity',
 ].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {
