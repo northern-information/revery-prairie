@@ -1,4 +1,5 @@
 import { autoAssignRevery } from './actionBar'
+import { storeAngelCanto } from './angels'
 import { getCharacterDefinition, getCharacterDialog } from './characters'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
@@ -114,6 +115,29 @@ export const getAdjacentCharacter = (
     const character = findCharAt(px + cd.x, py + cd.y)
     if (character) return character
   }
+
+  // Check angel body tiles — player can be adjacent to or standing under
+  const checkTiles = [
+    { x: px, y: py }, // standing under
+    { x: px + DIRECTIONS[state.playerFacing].x, y: py + DIRECTIONS[state.playerFacing].y }, // facing
+    ...CARDINAL.map(cd => ({ x: px + cd.x, y: py + cd.y })), // adjacent
+  ]
+  for (const eid of state.world.query(
+    ComponentType.AngelData,
+    ComponentType.MultiPosition,
+    ComponentType.CharacterIdentity
+  )) {
+    const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
+    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (!multi || !identity || !pos) continue
+    const bodyKeys = new Set(multi.positions.map(p => posKey(p.x, p.y)))
+    for (const t of checkTiles) {
+      if (bodyKeys.has(posKey(t.x, t.y))) {
+        return { definitionId: identity.definitionId, pos: { x: pos.x, y: pos.y } }
+      }
+    }
+  }
   return null
 }
 
@@ -130,6 +154,12 @@ export const interactWithCharacter = (state: GameState): { opened: boolean; gift
     transitioning: false,
     transitionStartTime: 0,
   }
+
+  // Store angel canto on first interaction with this angel
+  if (character.definitionId.startsWith('angel-')) {
+    storeAngelCanto(state, character.definitionId)
+  }
+
   return { opened: true, gift: null }
 }
 

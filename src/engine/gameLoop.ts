@@ -1,38 +1,38 @@
-import { checkAngelDialog, spawnAngel, tickAngelBeeAura, tickAngelCloverAura, tickAngelDrift, tickAngelLifespan } from './angels'
+import { spawnAngel, tickAngelBeeAura, tickAngelCloverAura, tickAngelDrift, tickAngelLifespan } from './angels'
 import { spawnShootingStar, tickMeteorShower, tickShootingStars } from './celestial'
 import { tickCloverGrowth, tickCloverHives } from './clover'
 import { tickCloverLifecycle } from './cloverLifecycle'
 import {
+  ANGEL_BEE_SPAWN_INTERVAL_MS,
+  ANGEL_CLOVER_GROW_INTERVAL_MS,
+  ANGEL_DRIFT_TICK_MS,
+  ANGEL_SPAWN_INTERVAL_MS,
   BEE_TICK_MS,
   CLOVER_GROWTH_TICK_MS,
   CLOVER_HIVE_TICK_MS,
   CLOVER_LIFECYCLE_TICK_MS,
   CRUMBLE_DURATION_MS,
   GHOST_TICK_MS,
+  GLINT_ZONE_TICK_MS,
   KEYBOARD_MOVE_TICK_MS,
   LIGHTNING_TICK_MS,
   METEOR_SHOWER_TICK_MS,
   PATH_TICK_MS,
   SHOOTING_STAR_SPAWN_TICK_MS,
   SHOOTING_STAR_TICK_MS,
-  ANGEL_BEE_SPAWN_INTERVAL_MS,
-  ANGEL_CLOVER_GROW_INTERVAL_MS,
-  ANGEL_DRIFT_TICK_MS,
-  ANGEL_SPAWN_INTERVAL_MS,
-  GLINT_ZONE_TICK_MS,
   WEATHER_TICK_MS,
 } from './constants'
 import { tickDeepTime } from './deepTime'
-import { completeGenesis, GENESIS_EPOCHS, tickGenesis } from './genesis'
-import { tickTileWater } from './tileWater'
 import { ComponentType } from './ecs/types'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
+import { completeGenesis, GENESIS_EPOCHS, tickGenesis } from './genesis'
 import { tickGlintZones } from './glintZones'
-import { spawnLightningStrike, tickLightning } from './lightning'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { getDefinition } from './items'
+import { spawnLightningStrike, tickLightning } from './lightning'
 import { movePlayer, tickPath } from './movement'
 import { getReveryDefinition } from './reveries'
+import { tickTileWater } from './tileWater'
 import { DeepTimePhase, Zone } from './types'
 import { tickRainIntensity, tickWeather } from './weather'
 
@@ -444,14 +444,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'overworld',
       fn: (state, time) => {
         tickAngelCloverAura(state, time)
-      },
-    },
-    {
-      id: 'angel-dialog',
-      intervalMs: 0,
-      zone: 'overworld',
-      fn: state => {
-        checkAngelDialog(state)
       },
     },
     {

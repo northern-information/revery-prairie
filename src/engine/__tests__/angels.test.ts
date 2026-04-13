@@ -1,5 +1,4 @@
 import {
-  checkAngelDialog,
   destroyAllAngels,
   generateAngelHash,
   spawnAngel,
@@ -17,6 +16,7 @@ import {
   SPACE_BORDER,
 } from '../constants'
 import { ComponentType } from '../ecs/types'
+import { interactWithCharacter } from '../interaction'
 import { TileType, Zone } from '../types'
 import { createTestState } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -317,91 +317,74 @@ describe('angel aura - clover', () => {
   })
 })
 
-describe('angel dialog', () => {
-  it('triggers dialog when player walks under angel', () => {
+describe('angel dialog via [e] interaction', () => {
+  it('opens dialog when player is adjacent to angel body', () => {
     const state = createAngelTestState()
     spawnAngel(state, 1000)
 
     const eid = getAngelEntities(state)[0]
     const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
 
-    // Move player to first body tile
-    state.player.x = multi.positions[0].x
+    // Move player adjacent to the first body tile
+    state.player.x = multi.positions[0].x - 1
     state.player.y = multi.positions[0].y
+    state.playerFacing = 'right'
 
-    checkAngelDialog(state)
+    const result = interactWithCharacter(state)
 
+    expect(result.opened).toBe(true)
     expect(state.activeDialog).not.toBeNull()
   })
 
-  it('does not trigger dialog when player is not under angel', () => {
+  it('opens dialog when player is standing under angel body', () => {
+    const state = createAngelTestState()
+    spawnAngel(state, 1000)
+
+    const eid = getAngelEntities(state)[0]
+    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
+
+    // Move player onto a body tile
+    state.player.x = multi.positions[0].x
+    state.player.y = multi.positions[0].y
+
+    const result = interactWithCharacter(state)
+
+    expect(result.opened).toBe(true)
+    expect(state.activeDialog).not.toBeNull()
+  })
+
+  it('can talk to angel repeatedly', () => {
+    const state = createAngelTestState()
+    spawnAngel(state, 1000)
+
+    const eid = getAngelEntities(state)[0]
+    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
+
+    state.player.x = multi.positions[0].x
+    state.player.y = multi.positions[0].y
+
+    interactWithCharacter(state)
+    expect(state.activeDialog).not.toBeNull()
+
+    state.activeDialog = null
+    interactWithCharacter(state)
+    expect(state.activeDialog).not.toBeNull()
+  })
+
+  it('does not open when player is far from angel', () => {
     const state = createAngelTestState()
     spawnAngel(state, 1000)
 
     // Player stays at their original position, far from angel
-    checkAngelDialog(state)
+    const result = interactWithCharacter(state)
 
+    expect(result.opened).toBe(false)
     expect(state.activeDialog).toBeNull()
-  })
-
-  it('triggers dialog again after walking away and back', () => {
-    const state = createAngelTestState()
-    spawnAngel(state, 1000)
-
-    const eid = getAngelEntities(state)[0]
-    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
-
-    // Walk under
-    state.player.x = multi.positions[0].x
-    state.player.y = multi.positions[0].y
-    checkAngelDialog(state)
-    expect(state.activeDialog).not.toBeNull()
-
-    // Close dialog, still standing under — should NOT re-trigger
-    state.activeDialog = null
-    checkAngelDialog(state)
-    expect(state.activeDialog).toBeNull()
-
-    // Walk away
-    state.player.x = SPACE_BORDER + 5
-    state.player.y = SPACE_BORDER + 5
-    checkAngelDialog(state)
-
-    // Walk back under
-    state.player.x = multi.positions[0].x
-    state.player.y = multi.positions[0].y
-    checkAngelDialog(state)
-    expect(state.activeDialog).not.toBeNull()
-  })
-
-  it('does not trigger when already in dialog', () => {
-    const state = createAngelTestState()
-    spawnAngel(state, 1000)
-
-    const eid = getAngelEntities(state)[0]
-    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
-
-    state.player.x = multi.positions[0].x
-    state.player.y = multi.positions[0].y
-
-    state.activeDialog = {
-      characterId: 'other',
-      lineIndex: 0,
-      typingIndex: 0,
-      typingDone: false,
-      transitioning: false,
-      transitionStartTime: 0,
-    }
-
-    checkAngelDialog(state)
-
-    // Should still be the other dialog
-    expect(state.activeDialog.characterId).toBe('other')
   })
 })
 
 describe('angel cantos', () => {
-  it('stores a canto on first encounter', () => {
+  it('stores a canto on first interaction', () => {
     const state = createAngelTestState()
     spawnAngel(state, 1000)
 
@@ -410,38 +393,30 @@ describe('angel cantos', () => {
 
     state.player.x = multi.positions[0].x
     state.player.y = multi.positions[0].y
-
-    checkAngelDialog(state)
+    interactWithCharacter(state)
 
     expect(state.angelCantos).toHaveLength(1)
     expect(state.angelCantos[0]).toMatch(/^[0-9A-F]{64}$/)
   })
 
-  it('does not store duplicate canto on repeated encounter', () => {
+  it('does not store duplicate canto on repeated interaction', () => {
     const state = createAngelTestState()
     spawnAngel(state, 1000)
 
     const eid = getAngelEntities(state)[0]
     const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
 
-    // First walk-under
     state.player.x = multi.positions[0].x
     state.player.y = multi.positions[0].y
-    checkAngelDialog(state)
+    interactWithCharacter(state)
     expect(state.angelCantos).toHaveLength(1)
 
-    // Walk away, then back
     state.activeDialog = null
-    state.player.x = SPACE_BORDER + 5
-    state.player.y = SPACE_BORDER + 5
-    checkAngelDialog(state)
-    state.player.x = multi.positions[0].x
-    state.player.y = multi.positions[0].y
-    checkAngelDialog(state)
+    interactWithCharacter(state)
     expect(state.angelCantos).toHaveLength(1)
   })
 
-  it('increments encounter count only on first encounter', () => {
+  it('increments encounter count only on first interaction', () => {
     const state = createAngelTestState()
 
     expect(state.angelEncounterCount).toBe(0)
@@ -451,24 +426,17 @@ describe('angel cantos', () => {
     const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
     state.player.x = multi.positions[0].x
     state.player.y = multi.positions[0].y
-    checkAngelDialog(state)
+    interactWithCharacter(state)
 
     expect(state.angelEncounterCount).toBe(1)
 
-    // Walk away and back — should not increment again
     state.activeDialog = null
-    state.player.x = SPACE_BORDER + 5
-    state.player.y = SPACE_BORDER + 5
-    checkAngelDialog(state)
-    state.player.x = multi.positions[0].x
-    state.player.y = multi.positions[0].y
-    checkAngelDialog(state)
+    interactWithCharacter(state)
     expect(state.angelEncounterCount).toBe(1)
   })
 
   it('appends cantos without limit', () => {
     const state = createAngelTestState()
-    // Pre-fill with many cantos
     for (let i = 0; i < 100; i++) {
       state.angelCantos.push(`HASH${String(i).padStart(60, '0')}`)
     }
@@ -480,7 +448,7 @@ describe('angel cantos', () => {
     const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
     state.player.x = multi.positions[0].x
     state.player.y = multi.positions[0].y
-    checkAngelDialog(state)
+    interactWithCharacter(state)
 
     expect(state.angelCantos).toHaveLength(101)
   })
