@@ -1964,9 +1964,10 @@ const riseOfCivilizations: GenesisEpoch = {
       return [{ char: waterChars[ci], color: '#6688BB', dx: 0, dy: 0 }]
     }
 
-    // Lowland water
-    const lowWater = renderLowlandWater(sim, key, h, time)
-    if (lowWater) return lowWater
+    // No renderLowlandWater — by riseOfCivilizations, water is tracked in
+    // ponds/riverPaths (populated by warmPeriod). Elevation-based cosmetic
+    // water would show tiles not in those sets, causing a discontinuity when
+    // later epochs and the game renderer only show tracked water.
 
     // Vegetation
     const vegRender = renderVegetation(sim, x, y, h)
@@ -2281,9 +2282,10 @@ const fallOfCivilizations: GenesisEpoch = {
       return [{ char: waterChars[ci], color: '#6688BB', dx: 0, dy: 0 }]
     }
 
-    // Lowland water
-    const lowWater = renderLowlandWater(sim, key, h, time)
-    if (lowWater) return lowWater
+    // No renderLowlandWater here — fallOfCivilizations.mutate consolidates
+    // water into ponds/riverPaths, so only tracked water should render.
+    // Elevation-based cosmetic water would create a discontinuity at the
+    // genesis-to-game transition (game renderer only shows ponds/rivers).
 
     const veg = sim.vegetationMap.get(key) ?? 0
 
@@ -2455,12 +2457,27 @@ const presentDay: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
+    const key = posKey(x, y)
+
+    // Rivers and ponds checked before Sand — matches game renderer priority
+    // (game renderer checks state.rivers/ponds before tile.type). Water tiles
+    // can sit on Sand grid tiles due to shoreline generation.
+    if (sim.riverPaths.has(key)) {
+      const waterChars = ['~', '=', '-']
+      const ci = (h + Math.floor(time * 0.004)) % waterChars.length
+      return [{ char: waterChars[ci], color: RIVER_COLOR, dx: 0, dy: 0 }]
+    }
+
+    if (sim.ponds.has(key)) {
+      const waterChars = ['~', '=']
+      const ci = (h + Math.floor(time * 0.003)) % waterChars.length
+      return [{ char: waterChars[ci], color: POND_COLOR, dx: 0, dy: 0 }]
+    }
+
     // Sand — match game renderer's multi-color palette
     if (tile.type === TileType.Sand) {
       return [{ char: ':', color: SAND_COLORS[h % SAND_COLORS.length], dx: 0, dy: 0 }]
     }
-
-    const key = posKey(x, y)
 
     // Gron
     const gronX = Math.floor(sim.width / 2) + 5
@@ -2474,20 +2491,6 @@ const presentDay: GenesisEpoch = {
     const playerY = Math.floor(sim.height / 2)
     if (x === playerX && y === playerY && progress > 0.5) {
       return [{ char: '@', color: '#FFFFFF', dx: 0, dy: 0 }]
-    }
-
-    // Rivers — match game renderer color
-    if (sim.riverPaths.has(key)) {
-      const waterChars = ['~', '=', '-']
-      const ci = (h + Math.floor(time * 0.004)) % waterChars.length
-      return [{ char: waterChars[ci], color: RIVER_COLOR, dx: 0, dy: 0 }]
-    }
-
-    // Ponds — match game renderer color
-    if (sim.ponds.has(key)) {
-      const waterChars = ['~', '=']
-      const ci = (h + Math.floor(time * 0.003)) % waterChars.length
-      return [{ char: waterChars[ci], color: POND_COLOR, dx: 0, dy: 0 }]
     }
 
     // Dirt/burn scars — match game renderer's 5-color palette
@@ -2555,6 +2558,7 @@ export const createGenesisState = (width: number, height: number, seed: number):
     aqueductJunctions: [],
     epochIndex: 0,
     epochStartTime: 0,
+    lastTickTime: 0,
     rng,
     tileData: new Map(),
     secondFireOccurred: false,
@@ -2578,6 +2582,7 @@ export const getGenesisEpochs = (): GenesisEpoch[] => GENESIS_EPOCHS
 export const tickGenesis = (sim: GenesisSimState, epochs: GenesisEpoch[], time: number): boolean => {
   if (sim.epochIndex >= epochs.length) return true
 
+  sim.lastTickTime = time
   const epoch = epochs[sim.epochIndex]
 
   // First tick of this epoch — run mutate (skipped if pre-computed)
@@ -2686,7 +2691,11 @@ export const getEpochProgress = (sim: GenesisSimState, epochs: GenesisEpoch[]): 
   if (sim.epochIndex >= epochs.length) return 1
   const epoch = epochs[sim.epochIndex]
   if (sim.epochStartTime === 0) return 0
-  return clamp((performance.now() - sim.epochStartTime) / epoch.durationMs, 0, 1)
+  // Use lastTickTime (set by tickGenesis from the rAF clock) instead of
+  // performance.now() so the tick and render share the same time source.
+  // This prevents near-zero progress on the first frame of a new epoch.
+  const now = sim.lastTickTime > 0 ? sim.lastTickTime : performance.now()
+  return clamp((now - sim.epochStartTime) / epoch.durationMs, 0, 1)
 }
 
 /** Run all epoch mutations synchronously (for skip / tests). */

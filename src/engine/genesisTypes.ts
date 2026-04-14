@@ -81,6 +81,9 @@ export interface GenesisSimState {
   aqueductJunctions: Position[]
   epochIndex: number
   epochStartTime: number
+  /** Last rAF time passed to tickGenesis — used by getEpochProgress so the
+   *  tick and render share the same clock (avoids performance.now() drift). */
+  lastTickTime: number
   rng: () => number
   tileData: Map<string, { char: string; baseColor: string; intensity: number }>
   /** Tracks whether the optional second fire occurred during warm period */

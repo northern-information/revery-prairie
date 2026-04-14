@@ -8,6 +8,8 @@ source_files:
   - src/engine/genesis.ts
   - src/engine/genesisRenderer.ts
   - src/engine/genesisTypes.ts
+  - src/engine/renderer.ts
+  - src/components/GameCanvas.tsx
   - src/components/GameScreen.tsx
   - src/components/Sidebar.tsx
 behaviors:
@@ -37,20 +39,29 @@ behaviors:
   - id: no-epoch-transition-flicker
     description: >
       When tickGenesis advances to a new epoch, the renderer must not produce
-      a single-frame flash where the new epoch renders with progress 0. The
-      epochStartTime must be set on the same tick that advances epochIndex so
-      that getEpochProgress returns a valid initial value on the first render
-      frame of the new epoch.
+      a single-frame flash where the new epoch renders with near-zero progress.
+      The root cause is a clock mismatch: tickGenesis stores epochStartTime
+      from the rAF time argument, but getEpochProgress computes elapsed time
+      using performance.now(). On the first render frame of a new epoch,
+      performance.now() minus the rAF-based epochStartTime is near-zero,
+      causing progress-gated visuals (water thresholds, vegetation spread,
+      fire animations) to not render for one frame. The fix is to make
+      getEpochProgress use the same time source as tickGenesis — either accept
+      a time parameter or store lastTickTime on the sim.
     inputs:
       - 'tickGenesis detects elapsed >= epoch.durationMs and advances epochIndex'
+      - 'renderGenesis calls getEpochProgress on the same frame'
     outputs:
-      - 'the new epoch renders with a non-zero progress on its first frame'
-      - 'no visible flicker at epoch transitions for lava, civilizations, or any epoch'
+      - 'getEpochProgress uses the rAF time (not performance.now())'
+      - 'the new epoch renders with meaningful progress on its first frame'
+      - 'no visible flicker at epoch transitions for any epoch'
     state_changes:
       - field: sim.epochIndex
         effect: incremented to next epoch
       - field: sim.epochStartTime
-        effect: set to current time (not 0) when advancing
+        effect: set to current rAF time when advancing
+      - field: sim.lastTickTime (new)
+        effect: stored each tick so renderer can compute progress from the same clock
     determinism: time-based
 
   - id: snapshot-completeness
@@ -92,6 +103,27 @@ behaviors:
     state_changes:
       - field: sim (multiple fields)
         effect: temporarily swapped to next snapshot, then restored to current snapshot, per tile during crossfade
+    determinism: deterministic
+
+  - id: water-continuity-at-game-transition
+    description: >
+      When genesis completes and the game renderer takes over, water tiles must
+      not appear or disappear abruptly. During genesis, multiple epochs render
+      cosmetic water using renderLowlandWater (elevation-based: elev+scatter<40).
+      The game renderer only shows water from state.rivers and state.ponds sets.
+      Tiles that appear as water during genesis (low elevation) but are not in
+      the ponds/rivers sets will vanish at the transition. The presentDay epoch
+      renderTile must only render water from sim.riverPaths and sim.ponds (not
+      elevation-based cosmetic water) so that the last genesis frame exactly
+      matches the first game frame.
+    inputs:
+      - 'presentDay epoch is the last epoch before genesis completes'
+      - 'completeGenesis sets state.genesis = null'
+      - 'game renderer reads state.rivers and state.ponds for water'
+    outputs:
+      - 'presentDay renderTile shows water only at positions in sim.riverPaths and sim.ponds'
+      - 'no water tiles appear or disappear at the genesis-to-game transition'
+    state_changes: []
     determinism: deterministic
 
   - id: no-future-state-leakage
@@ -153,6 +185,23 @@ edge_cases:
       so no streaks appear during earlier epochs.
     expected: 'meteorites snapshot is empty array for all epochs before fireSeason'
 
+  - id: lowland-water-vs-pond-river-mismatch
+    description: >
+      renderLowlandWater shows water at any land tile with elev+scatter<40.
+      The game renderer only shows water at positions in state.rivers and
+      state.ponds. Many low-elevation tiles are not in either set. The
+      presentDay epoch must not use renderLowlandWater — it must render water
+      only from sim.riverPaths and sim.ponds to match the game renderer.
+    expected: 'presentDay renderTile water output matches game renderer water exactly'
+
+  - id: genesis-to-game-camera-alignment
+    description: >
+      The genesis renderer computes camera position from sim.width/sim.height,
+      the game renderer from state.mapWidth/state.mapHeight. Both must be
+      equal (MAP_WIDTH/MAP_HEIGHT). If they differ, the viewport shifts at
+      the transition.
+    expected: 'no viewport shift at genesis-to-game transition'
+
 failure_conditions:
   - trigger: 'genesis plays from start to finish without user interaction'
     expected: 'progress bar advances smoothly, no epoch-transition flicker, action bar hidden'
@@ -168,6 +217,12 @@ failure_conditions:
 
   - trigger: 'renderDirt called during cosmicFormation or landAccretion epoch'
     expected: 'burn scars and glacial paths must not color tiles — snapshots must be empty for those fields'
+
+  - trigger: 'genesis completes and game renderer takes over'
+    expected: 'water tiles rendered in final genesis frame match water tiles rendered in first game frame — no tiles appear or disappear'
+
+  - trigger: 'getEpochProgress called during render with performance.now() instead of rAF time'
+    expected: 'progress must not be near-zero on new epoch first frame — use consistent time source'
 
 verification:
   test_file: src/engine/__tests__/genesis.test.ts

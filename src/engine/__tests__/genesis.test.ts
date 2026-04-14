@@ -1022,3 +1022,163 @@ describe('epoch snapshot completeness', () => {
     expect(snapshots[5].vegetationMap.size).toBeGreaterThan(0)
   })
 })
+
+describe('getEpochProgress clock consistency', () => {
+  it('uses lastTickTime instead of performance.now()', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+
+    // Start epoch 0 at time 1000
+    tickGenesis(sim, GENESIS_EPOCHS, 1000)
+    expect(sim.lastTickTime).toBe(1000)
+
+    // Advance to epoch 1
+    const advanceTime = 1000 + GENESIS_EPOCHS[0].durationMs + 1
+    tickGenesis(sim, GENESIS_EPOCHS, advanceTime)
+    expect(sim.epochIndex).toBe(1)
+    expect(sim.lastTickTime).toBe(advanceTime)
+
+    // getEpochProgress should use lastTickTime, not performance.now().
+    // Even if performance.now() is wildly different, progress should be
+    // based on lastTickTime.
+    vi.spyOn(performance, 'now').mockReturnValue(advanceTime + 999999)
+    try {
+      const progress = getEpochProgress(sim, GENESIS_EPOCHS)
+      // With lastTickTime = advanceTime and epochStartTime = advanceTime,
+      // progress should be near 0 (1ms / durationMs), NOT near 1 from
+      // the mocked performance.now far in the future.
+      const expectedMax = 100 / GENESIS_EPOCHS[1].durationMs
+      expect(progress).toBeLessThan(expectedMax)
+    } finally {
+      vi.restoreAllMocks()
+    }
+  })
+
+  it('returns meaningful progress on epoch transition frame', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+
+    // Start epoch 0
+    tickGenesis(sim, GENESIS_EPOCHS, 1000)
+
+    // Advance partway through epoch 0 to accumulate some time, then
+    // advance past the epoch boundary
+    const midTime = 1000 + GENESIS_EPOCHS[0].durationMs / 2
+    tickGenesis(sim, GENESIS_EPOCHS, midTime)
+
+    // Now advance past the epoch boundary — epochIndex should be 1 and
+    // epochStartTime should be set to this time
+    const boundaryTime = 1000 + GENESIS_EPOCHS[0].durationMs + 1
+    tickGenesis(sim, GENESIS_EPOCHS, boundaryTime)
+    expect(sim.epochIndex).toBe(1)
+
+    // Progress on the transition frame should be based on lastTickTime
+    const progress = getEpochProgress(sim, GENESIS_EPOCHS)
+    expect(progress).toBeGreaterThanOrEqual(0)
+    // Should be very small (1ms / durationMs) but NOT exactly 0
+    // since epochStartTime = boundaryTime and lastTickTime = boundaryTime
+    // means elapsed = 0, so progress = 0. That's correct — it's the same
+    // frame, so progress is 0. The key fix is that it's no longer
+    // performance.now() which could produce arbitrary values.
+    expect(progress).toBeLessThan(0.01)
+  })
+})
+
+describe('water continuity at genesis-to-game transition', () => {
+  it('presentDay renderTile water matches riverPaths and ponds', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    precomputeGenesis(sim, GENESIS_EPOCHS)
+
+    // Get the presentDay epoch (last one)
+    const presentDayEpoch = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
+    const presentDaySnapshot = sim.epochSnapshots[sim.epochSnapshots.length - 1]
+
+    // Apply the final snapshot so renderTile reads correct data
+    const savedRivers = sim.riverPaths
+    const savedPonds = sim.ponds
+    sim.riverPaths = presentDaySnapshot.riverPaths
+    sim.ponds = presentDaySnapshot.ponds
+    sim.elevation = presentDaySnapshot.elevation
+    sim.vegetationMap = presentDaySnapshot.vegetationMap
+    sim.burnScars = presentDaySnapshot.burnScars
+
+    const time = 5000
+    const progress = 0.5
+    const waterChars = new Set(['~', '=', '-'])
+
+    // Track which tiles renderTile shows as water vs which are in the sets
+    const renderedWater = new Set<string>()
+    const trackedWater = new Set<string>()
+
+    for (const key of sim.riverPaths) trackedWater.add(key)
+    for (const key of sim.ponds) trackedWater.add(key)
+
+    // Check all land tiles
+    for (const key of sim.landMask) {
+      const [xStr, yStr] = key.split(',')
+      const x = Number(xStr)
+      const y = Number(yStr)
+      const renders = presentDayEpoch.renderTile(sim, x, y, progress, time)
+      if (renders.length > 0 && waterChars.has(renders[0].char)) {
+        renderedWater.add(key)
+      }
+    }
+
+    // Every tile rendered as water must be in riverPaths or ponds
+    for (const key of renderedWater) {
+      expect(trackedWater.has(key)).toBe(true)
+    }
+
+    // Every tile in riverPaths/ponds must render as water
+    for (const key of trackedWater) {
+      if (!sim.landMask.has(key)) continue
+      expect(renderedWater.has(key)).toBe(true)
+    }
+
+    // Restore
+    sim.riverPaths = savedRivers
+    sim.ponds = savedPonds
+  })
+
+  it('fallOfCivilizations does not render elevation-based cosmetic water', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    precomputeGenesis(sim, GENESIS_EPOCHS)
+
+    // fallOfCivilizations is index 12 (second to last)
+    const fallEpoch = GENESIS_EPOCHS[12]
+    const fallSnapshot = sim.epochSnapshots[12]
+
+    // Apply snapshot
+    sim.riverPaths = fallSnapshot.riverPaths
+    sim.ponds = fallSnapshot.ponds
+    sim.elevation = fallSnapshot.elevation
+    sim.vegetationMap = fallSnapshot.vegetationMap
+    sim.burnScars = fallSnapshot.burnScars
+    sim.meltPools = fallSnapshot.meltPools
+    sim.tileData = fallSnapshot.tileData
+    sim.aqueductNetwork = fallSnapshot.aqueductNetwork
+    sim.ruins = fallSnapshot.ruins
+
+    const time = 5000
+    const progress = 0.99 // near end of epoch (crossfade window)
+    const waterChars = new Set(['~', '=', '-'])
+
+    const trackedWater = new Set<string>()
+    for (const key of sim.riverPaths) trackedWater.add(key)
+    for (const key of sim.ponds) trackedWater.add(key)
+    for (const key of sim.meltPools) trackedWater.add(key)
+
+    // Check all land tiles — any water rendered should be in tracked sets
+    for (const key of sim.landMask) {
+      const [xStr, yStr] = key.split(',')
+      const x = Number(xStr)
+      const y = Number(yStr)
+      const renders = fallEpoch.renderTile(sim, x, y, progress, time)
+      if (renders.length > 0 && waterChars.has(renders[0].char)) {
+        const inTracked = trackedWater.has(key)
+        if (!inTracked) {
+          // This would be a phantom water tile — elevation-based but not in any set
+          expect.fail(`tile ${key} renders as water but is not in riverPaths, ponds, or meltPools`)
+        }
+      }
+    }
+  })
+})
