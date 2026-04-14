@@ -16,7 +16,8 @@ import {
   SPACE_BORDER,
 } from '../constants'
 import { ComponentType } from '../ecs/types'
-import { interactWithCharacter } from '../interaction'
+import { interactWithCharacter, isInteractableAt } from '../interaction'
+import { posKey } from '../position'
 import { TileType, Zone } from '../types'
 import { createTestState } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -485,6 +486,56 @@ describe('angel movement blocking', () => {
     // Angels should not have a Blocking component
     const blocking = state.world.getComponent(eid, ComponentType.Blocking)
     expect(blocking).toBeUndefined()
+  })
+})
+
+describe('angel click-to-interact detection', () => {
+  it('angel body tile resolves to CharacterIdentity via MultiPosition query', () => {
+    const state = createAngelTestState()
+    spawnAngel(state, 1000)
+
+    const eid = getAngelEntities(state)[0]
+    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
+    const expectedIdentity = requireComponent(state.world.getComponent(eid, ComponentType.CharacterIdentity))
+
+    // Pick an arbitrary body tile (not the anchor — pick the last one to cover edges)
+    const bodyTile = multi.positions[multi.positions.length - 1]
+    const tileKey = posKey(bodyTile.x, bodyTile.y)
+
+    // Replicate the detection logic from useMouse: spatial index misses angel body tiles
+    const spatialHit = state.world.spatial
+      .at(bodyTile.x, bodyTile.y)
+      .find(e => state.world.getComponent(e, ComponentType.EntityTag) === 'character')
+    expect(spatialHit).toBeUndefined()
+
+    // MultiPosition query finds the angel and returns its CharacterIdentity
+    let foundIdentity: { definitionId: string } | undefined
+    for (const e of state.world.query(
+      ComponentType.AngelData,
+      ComponentType.MultiPosition,
+      ComponentType.CharacterIdentity
+    )) {
+      const m = state.world.getComponent(e, ComponentType.MultiPosition)
+      if (m?.positions.some(p => posKey(p.x, p.y) === tileKey)) {
+        foundIdentity = state.world.getComponent(e, ComponentType.CharacterIdentity)
+        break
+      }
+    }
+    expect(foundIdentity).toBeTruthy()
+    expect(foundIdentity?.definitionId).toBe(expectedIdentity.definitionId)
+  })
+
+  it('isInteractableAt returns true for angel body tiles', () => {
+    const state = createAngelTestState()
+    spawnAngel(state, 1000)
+
+    const eid = getAngelEntities(state)[0]
+    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
+
+    // Check several body tiles
+    for (const pos of multi.positions.slice(0, 5)) {
+      expect(isInteractableAt(state, pos.x, pos.y)).toBe(true)
+    }
   })
 })
 
