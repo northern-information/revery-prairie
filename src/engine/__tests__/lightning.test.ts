@@ -12,7 +12,7 @@ import { createGroundOmniboxEntity } from '../omnibox'
 import { posKey } from '../position'
 import { CloverStage, Sky, TileType, Zone } from '../types'
 import { clearAroundPlayer, createMeteoriteEntity, createTestState } from './helpers'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const seededRng = (seed: number) => {
   let s = seed
@@ -21,6 +21,10 @@ const seededRng = (seed: number) => {
     return (s - 1) / 2147483646
   }
 }
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 describe('lightning', () => {
   describe('generateBoltPath', () => {
@@ -223,6 +227,8 @@ describe('lightning', () => {
     it('spreads on dry clover', () => {
       const state = createTestState()
       clearAroundPlayer(state, 10)
+      // Mock random so spread always succeeds (spread skips when random < 1 - spreadChance)
+      vi.spyOn(Math, 'random').mockReturnValue(0.99)
       // Create a patch of dry clover
       const cx = state.player.x + 5
       const cy = state.player.y + 5

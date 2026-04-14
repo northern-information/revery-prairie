@@ -10,6 +10,8 @@ import { ComponentType } from '../ecs/types'
 import { createGameState } from '../state'
 import { TileType } from '../types'
 
+import { afterEach, vi } from 'vitest'
+
 import type { GameState } from '../types'
 
 const createTestState = (): GameState => {
@@ -22,6 +24,10 @@ const createTestState = (): GameState => {
 }
 
 const getStarCount = (state: GameState): number => state.world.query(ComponentType.ShootingStarData).length
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 describe('meteor shower', () => {
   describe('scheduling', () => {
@@ -204,14 +210,18 @@ describe('meteor shower', () => {
     })
 
     it('star count is between STAR_COUNT_MIN and STAR_COUNT_MAX', () => {
-      // Run multiple trials to verify the range (5 trials keeps CI under timeout)
-      for (let trial = 0; trial < 5; trial++) {
-        const state = createTestState()
-        state.meteorShower.nextShowerTime = 1000
-        tickMeteorShower(state, 1000)
-        expect(state.meteorShower.remainingStars).toBeGreaterThanOrEqual(METEOR_SHOWER_STAR_COUNT_MIN)
-        expect(state.meteorShower.remainingStars).toBeLessThanOrEqual(METEOR_SHOWER_STAR_COUNT_MAX)
-      }
+      // Mock random to hit both boundaries instead of running many trials
+      vi.spyOn(Math, 'random').mockReturnValue(0)
+      const stateMin = createTestState()
+      stateMin.meteorShower.nextShowerTime = 1000
+      tickMeteorShower(stateMin, 1000)
+      expect(stateMin.meteorShower.remainingStars).toBe(METEOR_SHOWER_STAR_COUNT_MIN)
+
+      vi.spyOn(Math, 'random').mockReturnValue(0.999)
+      const stateMax = createTestState()
+      stateMax.meteorShower.nextShowerTime = 1000
+      tickMeteorShower(stateMax, 1000)
+      expect(stateMax.meteorShower.remainingStars).toBe(METEOR_SHOWER_STAR_COUNT_MAX)
     })
 
     it('computes spawnIntervalMs from window / count', () => {
