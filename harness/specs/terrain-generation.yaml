@@ -64,6 +64,8 @@ behaviors:
       zone. count is roughly (width + height) / 4. each cluster picks
       a random edge and a random position within the margin, then
       places the center tile and 1-3 adjacent tiles if they are Space.
+      adjacency uses 6 deltas (4 cardinal + 2 diagonal: [1,1] and
+      [-1,-1]), creating a slight directional bias in cluster shape.
     inputs:
       - 'Tile[][] map with Space tiles in outer zone'
     outputs:

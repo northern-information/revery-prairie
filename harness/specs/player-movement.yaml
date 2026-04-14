@@ -46,7 +46,9 @@ behaviors:
     description: >
       movePlayer returns false and does not mutate position when the
       target tile is non-walkable. isWalkableTile rejects Space,
-      CaveWall, and CaveBreakableWall tile types.
+      CaveWall, and CaveBreakableWall tile types. additionally,
+      getBlockedPositions includes water tiles (ponds and rivers) in
+      the overworld, which also block movement.
     inputs:
       - 'GameState with player adjacent to a non-walkable tile'
       - 'Direction toward the non-walkable tile'
@@ -115,13 +117,13 @@ edge_cases:
     expected: 'movePlayer returns false, position unchanged'
   - id: small-map-camera-centering
     description: 'When map dimensions are smaller than viewport (e.g. cave zone), camera centers the map in the viewport using negative offset'
-    expected: 'camera.x = -floor((viewportWidth - mapWidth) / 2) when mapWidth < viewportWidth, same for y axis'
+    expected: 'camera.x = -floor((visibleWidth - mapWidth) / 2) where visibleWidth = viewportWidth - rightInsetTiles. same logic for y axis using viewportHeight directly (no inset).'
   - id: deep-time-wandering-allows-movement
     description: 'During deep time Wandering phase, movement is not suppressed'
     expected: 'path and keyboard-move tick systems process movement normally'
 
 failure_conditions:
-  - trigger: 'Target tile is non-walkable (Space, CaveWall, CaveBreakableWall)'
+  - trigger: 'Target tile is non-walkable (Space, CaveWall, CaveBreakableWall) or is a water tile (pond/river)'
     expected: 'movePlayer returns false, no state mutation to player position'
   - trigger: 'Target position is out of map bounds'
     expected: 'movePlayer returns false, no state mutation to player position'

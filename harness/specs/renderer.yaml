@@ -133,15 +133,75 @@ behaviors:
 
   - id: deep-time-year-counter
     description: >
-      during DeepTimePhase.Simulating, a centered year counter
-      overlay renders at the top of the viewport showing the
-      current elapsed years from state.deepTime.elapsedYears.
+      during DeepTimePhase.Simulating, the deep time year counter
+      is rendered in the Sidebar React component (Sidebar.tsx), not
+      in the canvas renderer. the renderer previously owned this
+      but it was moved to the UI layer.
     inputs:
       - 'state.deepTime.active is true, phase is Simulating'
     outputs:
-      - 'white year counter text centered horizontally near top of viewport'
+      - 'year counter displayed in the sidebar UI'
     state_changes: []
     determinism: deterministic
+
+  - id: rain-aura-overlay
+    description: >
+      animated rain characters render near entities with rain aura
+      ECS components (e.g. water revery effect tiles). drawn as a
+      post-pass overlay after the main tile rendering.
+    inputs:
+      - 'entities with rain aura components, current time'
+    outputs:
+      - 'animated rain overlay near aura entities'
+    state_changes: []
+    determinism: time-based
+
+  - id: angel-aura-background
+    description: >
+      oscillating gold background renders within ANGEL_AURA_RADIUS
+      of angel entities. drawn as a pre-pass before the main glyph
+      loop. entire angel body group gets pink highlight when cursor
+      or facing is on any tile of the group.
+    inputs:
+      - 'angel entities with Position/MultiPosition, current time'
+    outputs:
+      - 'gold aura background around angel tiles'
+    state_changes: []
+    determinism: time-based
+
+  - id: twinkling-space-stars
+    description: >
+      space tiles render with twinkling star animation. random star
+      characters appear and fade based on a hash of tile position
+      and time, creating a starfield effect in the void border.
+    inputs:
+      - 'space tiles in viewport, current time'
+    outputs:
+      - 'animated twinkling stars on space tiles'
+    state_changes: []
+    determinism: time-based
+
+  - id: player-trail-rendering
+    description: >
+      trail points from state.trail render with decreasing opacity
+      based on age. older trail points are more transparent.
+    inputs:
+      - 'state.trail array with timestamped positions'
+    outputs:
+      - 'fading trail dots behind the player'
+    state_changes: []
+    determinism: time-based
+
+  - id: angel-spawn-despawn-flash
+    description: >
+      a brief screen flash overlay renders when angelFlashTime is
+      recent. used to punctuate angel spawn and despawn events.
+    inputs:
+      - 'state.angelFlashTime within flash duration'
+    outputs:
+      - 'white screen flash overlay fading out'
+    state_changes: []
+    determinism: time-based
 
   - id: weather-rain-overlay
     description: >

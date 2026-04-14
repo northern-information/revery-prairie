@@ -154,14 +154,14 @@ behaviors:
     description: >
       water revery refills clover water meters at the cast pattern
       positions (cross: center + 4 cardinal neighbors). caps at
-      CLOVER_WATER_MAX. adds SOIL_HEALTH_WATER_REVERY_BONUS to
+      WATER_MAX. adds SOIL_HEALTH_WATER_REVERY_BONUS to
       soil health.
     inputs:
       - 'water revery activated, facing clover tiles'
     outputs: []
     state_changes:
       - field: cloverLifecycle
-        effect: 'water refilled at pattern positions, capped at CLOVER_WATER_MAX'
+        effect: 'water refilled at pattern positions, capped at WATER_MAX'
       - field: soilHealth
         effect: 'SOIL_HEALTH_WATER_REVERY_BONUS added'
     determinism: deterministic

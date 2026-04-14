@@ -5,6 +5,7 @@ priority: high
 layer: engine
 source_files:
   - src/engine/cloverLifecycle.ts
+  - src/engine/tileWater.ts
   - src/engine/types.ts
   - src/engine/constants.ts
 dependencies:
@@ -13,31 +14,34 @@ dependencies:
 behaviors:
   - id: clover-water-drain
     description: >
-      each tick, clover tiles lose CLOVER_WATER_DRAIN_RATE (2) units
-      of water. water is clamped to [0, CLOVER_WATER_MAX (100)]. when
-      water reaches 0 and clover is in Healthy stage, it transitions
-      to Brown.
+      tickTileWater (in tileWater.ts) drains water from all tiles
+      each tick. clover tiles lose WATER_DRAIN_RATE (0.25) units per
+      tick, clamped to [0, WATER_MAX (100)]. this runs as a separate
+      tick system in the game loop, not inside tickCloverLifecycle.
+      cloverLifecycle.ts only reads water state to determine stress.
+      when water reaches 0 and clover is in Healthy stage, lifecycle
+      transitions it to Brown.
     inputs:
-      - 'tickCloverLifecycle called with clover tiles on map'
+      - 'tickTileWater called each tick'
     outputs: []
     state_changes:
-      - field: cloverLifecycle
-        effect: 'water decremented by CLOVER_WATER_DRAIN_RATE per tick, clamped to 0'
+      - field: tileWater
+        effect: 'water decremented by WATER_DRAIN_RATE (0.25) per tick, clamped to 0'
     determinism: time-based
 
   - id: clover-rain-fill
     description: >
-      when it is raining (global rain or within rain aura) in the
-      overworld, clover tiles gain CLOVER_WATER_RAIN_FILL (15) units
-      per tick. cave clover gets no global rain. rain auras in the
-      cave zone would still fill clover if any exist (none currently
-      do). water is capped at CLOVER_WATER_MAX (100).
+      tickTileWater (in tileWater.ts) refills water on overworld
+      tiles when it is raining (global rain or within rain aura).
+      tiles gain WATER_RAIN_FILL (15) units per tick. cave tiles
+      get no global rain. water is capped at WATER_MAX (100). this
+      runs as a separate tick system, not inside tickCloverLifecycle.
     inputs:
       - 'rain condition active in overworld'
     outputs: []
     state_changes:
-      - field: cloverLifecycle
-        effect: 'water incremented by CLOVER_WATER_RAIN_FILL per rain tick, capped at 100'
+      - field: tileWater
+        effect: 'water incremented by WATER_RAIN_FILL (15) per rain tick, capped at WATER_MAX (100)'
     determinism: deterministic
 
   - id: clover-death-stages
@@ -76,6 +80,22 @@ behaviors:
       - field: cloverLifecycle
         effect: 'stage reset to Healthy'
     determinism: deterministic
+
+  - id: burnt-clover-recovery
+    description: >
+      BurntClover tiles (created by fire revery) enter BurntRecovering
+      stage in cloverLifecycle. after BURNT_CLOVER_RECOVERY_MS (60s)
+      the tile converts to Dirt. if water > 0, recovery time is divided
+      by BURNT_CLOVER_RAIN_MULTIPLIER (3), recovering 3x faster.
+    inputs:
+      - 'BurntClover tile on map with lifecycle entry in BurntRecovering stage'
+    outputs: []
+    state_changes:
+      - field: map
+        effect: 'tile converted to Dirt after recovery period'
+      - field: cloverLifecycle
+        effect: 'entry deleted when recovery completes'
+    determinism: time-based
 
   - id: harvest-clover
     description: >
@@ -131,7 +151,10 @@ edge_cases:
     expected: 'cutClover succeeds regardless of stage, tile becomes dirt with soil enrichment'
   - id: water-overflow
     description: 'rain fills clover already at max water'
-    expected: 'water stays at CLOVER_WATER_MAX (100)'
+    expected: 'water stays at WATER_MAX (100)'
+  - id: burnt-clover-rain-acceleration
+    description: 'BurntClover tile has water > 0 during recovery'
+    expected: 'recovery completes in BURNT_CLOVER_RECOVERY_MS / BURNT_CLOVER_RAIN_MULTIPLIER (20s instead of 60s)'
 
 failure_conditions:
   - trigger: 'Backpack full when harvesting'

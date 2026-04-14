@@ -70,9 +70,11 @@ behaviors:
       tickCloverHives checks each patch with bees and fewer hives
       than maxHives. spawn chance is 0.02 * beeCount per tick.
       prefers interior tiles (all cardinal neighbors are clover)
-      over edge tiles. avoids player position and occupied tiles.
-      spawns a Blocking ECS entity with tag 'beehive' in the
-      overworld zone. records event:beehive-built discovery.
+      over edge tiles. avoids player position, occupied tiles, and
+      tiles within BEEHIVE_MIN_DISTANCE (7) manhattan distance of
+      existing hives. spawns a Blocking ECS entity with tag
+      'beehive' in the overworld zone. records event:beehive-built
+      discovery.
     inputs:
       - 'patch with bees, hive count below max'
     outputs:
