@@ -99,8 +99,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
     return () => {
       window.removeEventListener('mousemove', handleMouseMove)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metricsRef])
+  }, [metricsRef, state])
 
   // Derive cursor world tile from screen position + current camera each render
   const metrics = metricsRef.current

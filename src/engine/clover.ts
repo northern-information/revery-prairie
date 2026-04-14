@@ -54,8 +54,8 @@ export const floodFillCloverPatches = (state: GameState): CloverPatch[] => {
       let sumY = 0
 
       while (queue.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const pos = queue.shift()!
+        const pos = queue.shift()
+        if (!pos) continue
         const key = posKey(pos.x, pos.y)
         if (visited.has(key)) continue
         visited.add(key)

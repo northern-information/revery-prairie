@@ -1,8 +1,12 @@
 .DS_Store
+Thumbs.db
 node_modules
 dist
+coverage
 .claude/*
 !.claude/skills/
 .vite
+.env*
+*.log
 harness/logs/
 public/music/*.mp3

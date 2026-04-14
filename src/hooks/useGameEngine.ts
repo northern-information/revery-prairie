@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 import { completeGenesis } from '@/engine/genesis'
 import { createGameState } from '@/engine/state'
@@ -20,15 +20,16 @@ export const useGameEngine = (
 ) => {
   const [uiVersion, setUiVersion] = useState(0)
 
-  const state = useMemo(() => {
+  const initializedRef = useRef(false)
+  if (!initializedRef.current) {
     gameState ??= createGameState(stewardName, viewportWidth, viewportHeight)
     if (skipGenesis && gameState.genesis) {
       completeGenesis(gameState)
     }
-    return gameState
-    // Only create once
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    initializedRef.current = true
+  }
+  if (!gameState) throw new Error('GameState not initialized')
+  const state = gameState
 
   const refreshUI = useCallback(() => {
     setUiVersion(v => v + 1)
