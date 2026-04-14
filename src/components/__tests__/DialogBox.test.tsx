@@ -95,4 +95,19 @@ describe('DialogBox', () => {
 
     expect(screen.getByTestId('angel-hash-grid')).toBeTruthy()
   })
+
+  it('clips overflowing content with overflow-hidden on outer container', () => {
+    const { container } = render(
+      <DialogBox
+        characterName="Angel"
+        line="abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+        typingIndex={64}
+        typingDone={false}
+        isAngel
+      />,
+    )
+
+    const dialogRoot = container.firstElementChild as HTMLElement
+    expect(dialogRoot.className).toMatch(/overflow-hidden/)
+  })
 })

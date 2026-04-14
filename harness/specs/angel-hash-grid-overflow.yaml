@@ -1,0 +1,63 @@
+id: angel-hash-grid-overflow
+name: Angel hash grid overflows dialog box bounds
+status: partial
+priority: high
+layer: component
+source_files:
+  - src/components/DialogBox.tsx
+  - src/components/__tests__/DialogBox.test.tsx
+dependencies:
+  - dialog-box-overflow
+  - dialog-box-presentation
+
+behaviors:
+  - id: dialog-clips-internal-overflow
+    description: >
+      The dialog box outer container must clip content that exceeds its
+      max-h-[140px] constraint. The angel hash grid (8x8, ~206px tall)
+      is taller than the dialog. Without overflow-hidden on the outer
+      div, the grid visually spills below the dialog box onto the
+      game canvas. Adding overflow-hidden to the outer dialog div
+      clips the grid to the dialog bounds.
+    inputs:
+      - dialog opens for an angel character
+      - hash grid is 8 rows of 24px cells + gaps (~206px total)
+      - dialog max height is 140px
+    outputs:
+      - hash grid content that exceeds dialog bounds is clipped
+      - no visual spillover below the dialog box
+      - dialog outer div has overflow-hidden class
+    state_changes: []
+    determinism: deterministic
+
+  - id: non-angel-dialog-unaffected
+    description: >
+      Regular character dialogs (ghosts, coyote, Moab, Gron) use plain
+      text that fits within 140px. Adding overflow-hidden must not clip
+      or alter their appearance.
+    inputs:
+      - dialog opens for a non-angel character with typical line length
+    outputs:
+      - text renders fully within dialog bounds
+      - no visual change from before the fix
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: hash-grid-typing-reveal
+    description: Hash grid cells reveal progressively via typingIndex — early reveals show few cells and fit within bounds
+    expected: partially revealed grid renders within dialog bounds without overflow
+  - id: font-scale-hash-grid
+    description: At 1.5x font scale the hash grid cells grow via rem sizing, making overflow worse
+    expected: overflow-hidden still clips the grid to dialog bounds regardless of font scale
+
+failure_conditions:
+  - trigger: Angel hash grid content extends below the dialog box bottom edge
+    expected: Content is clipped at the dialog box boundary via overflow-hidden
+  - trigger: Adding overflow-hidden to the outer div breaks the vertical centering transform
+    expected: The fixed + top-1/2 + -translate-y-1/2 centering still works with overflow-hidden
+
+verification:
+  test_file: src/components/__tests__/DialogBox.test.tsx
+  test_pattern: overflow-hidden|angel.*overflow|clips
+  command: npx vitest run src/components/__tests__/DialogBox.test.tsx
