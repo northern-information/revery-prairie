@@ -1,4 +1,5 @@
 import { checkCombine } from './combine'
+import { spawnPickupBloom } from './effects'
 import { canPlace, removeItem } from './inventory'
 import { recordDiscovery } from './manual'
 import { recipeKey } from './recipes'
@@ -75,7 +76,8 @@ export const executeCombine = (
   sourceContainer: Container,
   targetContainer: Container,
   draggedItem: ItemInstance,
-  combineTarget: { uid: string; recipe: Recipe }
+  combineTarget: { uid: string; recipe: Recipe },
+  time?: number
 ): CombineResult => {
   const recipe = combineTarget.recipe
   const key = recipeKey(recipe)
@@ -89,6 +91,10 @@ export const executeCombine = (
   const targetItem = targetContainer.items.find(i => i.uid === combineTarget.uid)
   if (targetItem) {
     removeItem(targetContainer, combineTarget.uid)
+  }
+
+  if (time !== undefined) {
+    spawnPickupBloom(state, state.player.x, state.player.y, time)
   }
 
   return { outcome: 'success' }

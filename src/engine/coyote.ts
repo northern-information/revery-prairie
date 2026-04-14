@@ -4,6 +4,7 @@ import {
   COYOTE_FOLLOW_MIN_DIST,
 } from './constants'
 import { ComponentType } from './ecs/types'
+import { spawnPickupBloom } from './effects'
 import { findFitPosition, placeItem } from './inventory'
 import { getBlockedPositions } from './movement'
 import { findPath } from './pathfinding'
@@ -190,7 +191,7 @@ export interface CoyoteTickResult {
 }
 
 /** Main coyote tick — called from game loop. */
-export const tickCoyote = (state: GameState): CoyoteTickResult => {
+export const tickCoyote = (state: GameState, time?: number): CoyoteTickResult => {
   const result: CoyoteTickResult = { pickedUp: null, delivered: null, modeChanged: false }
   const eid = findCoyoteEntity(state)
   if (eid === null) return result
@@ -204,7 +205,7 @@ export const tickCoyote = (state: GameState): CoyoteTickResult => {
   if (state.coyoteMode === CoyoteMode.Follow) {
     tickFollow(state, eid, pos, blocked)
   } else {
-    tickCollect(state, eid, pos, blocked, result)
+    tickCollect(state, eid, pos, blocked, result, time)
   }
 
   return result
@@ -232,7 +233,8 @@ const tickCollect = (
   eid: Entity,
   pos: { x: number; y: number },
   blocked: Set<string>,
-  result: CoyoteTickResult
+  result: CoyoteTickResult,
+  time?: number
 ): void => {
   const coyotePos = { x: pos.x, y: pos.y }
 
@@ -264,6 +266,9 @@ const tickCollect = (
           x: state.player.x,
           y: state.player.y,
           toGron: false,
+        }
+        if (time !== undefined) {
+          spawnPickupBloom(state, state.player.x, state.player.y, time)
         }
         state.coyoteCargo = null
         return

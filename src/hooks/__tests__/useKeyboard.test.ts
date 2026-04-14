@@ -234,7 +234,7 @@ describe('useKeyboard', () => {
         fireKey('e')
       })
 
-      expect(advanceDialog).toHaveBeenCalledWith(state)
+      expect(advanceDialog).toHaveBeenCalledWith(state, expect.any(Number))
       expect(refreshUI).toHaveBeenCalledOnce()
     })
 
@@ -247,7 +247,7 @@ describe('useKeyboard', () => {
         fireKey('e')
       })
 
-      expect(advanceDialog).toHaveBeenCalledWith(state)
+      expect(advanceDialog).toHaveBeenCalledWith(state, expect.any(Number))
       expect(refreshUI).toHaveBeenCalled()
     })
   })

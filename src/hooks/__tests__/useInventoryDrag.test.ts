@@ -214,7 +214,7 @@ describe('useInventoryDrag', () => {
         uid: 'target-1',
         recipe: fakeRecipe,
         isDiscovered: false,
-      })
+      }, expect.any(Number))
       expect(onCombine).toHaveBeenCalledWith(fakeRecipe)
       expect(onDrop).toHaveBeenCalledOnce()
       expect(result.current.dragState).toBeNull()

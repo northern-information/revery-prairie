@@ -132,7 +132,7 @@ export const useKeyboard = ({
         // Divination panel owns [e] for tossing — don't interfere
         if (activeScreen === 'divination') return
         if (state.activeDialog) {
-          const result = advanceDialog(state)
+          const result = advanceDialog(state, performance.now())
           if (result.gift) {
             onGift(
               `received ${result.gift.name.toLowerCase()}`,
@@ -193,7 +193,7 @@ export const useKeyboard = ({
       if (e.key === 'f' || e.key === 'F') {
         if (state.activeDialog) return
         if (activeScreen === 'system') return
-        const harvestResult = harvestClover(state)
+        const harvestResult = harvestClover(state, performance.now())
         if (harvestResult === HarvestResult.Success) {
           const def = getDefinition('clover')
           onPickup(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)

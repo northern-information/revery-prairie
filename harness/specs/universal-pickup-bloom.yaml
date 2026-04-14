@@ -1,0 +1,211 @@
+id: universal-pickup-bloom
+name: Universal Pickup Bloom Effect
+status: planned
+priority: medium
+layer: engine
+source_files:
+  - src/engine/entities.ts
+  - src/engine/effects.ts
+  - src/engine/coyote.ts
+  - src/engine/cloverLifecycle.ts
+  - src/engine/drag.ts
+  - src/engine/interaction.ts
+  - src/engine/gameLoop.ts
+  - src/engine/__tests__/pickupBloom.test.ts
+dependencies:
+  - shooting-stars
+  - coyote-companion
+
+behaviors:
+  - id: spawn-bloom-helper
+    description: >
+      A reusable spawnPickupBloom(state, x, y, time) function in effects.ts
+      creates a pickupBloom ECS entity at the given position with the given
+      start time and zone. All acquisition paths call this instead of
+      inlining the ECS component setup.
+    inputs:
+      - 'GameState, x, y, time'
+    outputs:
+      - 'pickupBloom ECS entity created at (x, y) with startTime and current zone'
+    state_changes:
+      - field: world
+        effect: 'new entity with Position, TimedEffect(pickupBloom), EntityTag(pickupBloom), EntityZone'
+    determinism: deterministic
+
+  - id: ground-item-bloom
+    description: >
+      When the player walks over a ground item and it is picked up, a
+      pickupBloom spawns at the player position. This replaces the
+      meteorite-only bloom. All ground item types (coins, honey, etc.)
+      now trigger the bloom.
+    inputs:
+      - 'player walks onto tile containing ground item entity'
+      - 'time parameter is provided'
+    outputs:
+      - 'pickupBloom at player position'
+    state_changes:
+      - field: world
+        effect: 'pickupBloom entity created at player position'
+    determinism: deterministic
+
+  - id: bee-pickup-bloom
+    description: >
+      When the player walks over a bee and it is captured to the backpack,
+      a pickupBloom spawns at the player position.
+    inputs:
+      - 'player walks onto tile containing bee entity'
+      - 'time parameter is provided'
+    outputs:
+      - 'pickupBloom at player position'
+    state_changes:
+      - field: world
+        effect: 'pickupBloom entity created at player position'
+    determinism: deterministic
+
+  - id: meteorite-pickup-bloom
+    description: >
+      Meteorite pickup continues to spawn a pickupBloom at the player
+      position, now via the shared helper.
+    inputs:
+      - 'player walks onto tile containing meteorite entity'
+      - 'time parameter is provided'
+      - 'meteorite survives chain explosion roll'
+    outputs:
+      - 'pickupBloom at player position'
+    state_changes:
+      - field: world
+        effect: 'pickupBloom entity created at player position'
+    determinism: deterministic
+
+  - id: harvest-bloom
+    description: >
+      When the player harvests clover with [f], a pickupBloom spawns at the
+      player position. harvestClover receives time and calls spawnPickupBloom
+      on success.
+    inputs:
+      - 'player presses [f] facing clover tile'
+      - 'harvest succeeds (clover is healthy, backpack has room)'
+      - 'time parameter is provided'
+    outputs:
+      - 'pickupBloom at player position'
+    state_changes:
+      - field: world
+        effect: 'pickupBloom entity created at player position'
+    determinism: deterministic
+
+  - id: coyote-delivery-bloom
+    description: >
+      When the coyote delivers an item to the player's backpack, a
+      pickupBloom spawns at the player position.
+    inputs:
+      - 'coyote is adjacent to player with cargo'
+      - 'item fits in backpack'
+      - 'time parameter is provided'
+    outputs:
+      - 'pickupBloom at player position'
+    state_changes:
+      - field: world
+        effect: 'pickupBloom entity created at player position'
+    determinism: deterministic
+
+  - id: craft-bloom
+    description: >
+      When a recipe is successfully executed via drag-and-drop combine,
+      a pickupBloom spawns at the player position.
+    inputs:
+      - 'executeCombine returns success'
+      - 'time parameter is provided'
+    outputs:
+      - 'pickupBloom at player position'
+    state_changes:
+      - field: world
+        effect: 'pickupBloom entity created at player position'
+    determinism: deterministic
+
+  - id: revery-gift-bloom
+    description: >
+      When a character gives the player a revery (initial gift or post-gift),
+      a pickupBloom spawns at the player position.
+    inputs:
+      - 'dialog completes with a character that has an unclaimed gift'
+      - 'gift is a revery'
+      - 'time parameter is provided'
+    outputs:
+      - 'pickupBloom at player position'
+    state_changes:
+      - field: world
+        effect: 'pickupBloom entity created at player position'
+    determinism: deterministic
+
+  - id: single-bloom-per-event
+    description: >
+      Each acquisition event spawns exactly one pickupBloom regardless of
+      how many items are picked up. Walking over 3 ground items in one
+      move spawns 1 bloom, not 3.
+    inputs:
+      - 'multiple items at the same tile picked up in one move'
+    outputs:
+      - 'exactly one pickupBloom entity'
+    state_changes:
+      - field: world
+        effect: 'one pickupBloom entity, not N'
+    determinism: deterministic
+
+  - id: convention-all-acquisitions
+    description: >
+      All current and future item acquisition paths must call
+      spawnPickupBloom. This is a project convention documented in
+      CLAUDE.md. Any new code that adds items to the backpack, grants
+      reveries, or otherwise gives the player something must spawn a
+      bloom at the player position.
+    inputs:
+      - 'any new acquisition path added in the future'
+    outputs:
+      - 'pickupBloom at player position'
+    state_changes:
+      - field: world
+        effect: 'pickupBloom entity created at player position'
+    determinism: deterministic
+
+edge_cases:
+  - id: no-bloom-without-time
+    description: >
+      If time parameter is not provided (e.g. pickUpGroundItems called
+      without time), no bloom is spawned. This preserves backward
+      compatibility with test helpers that omit time.
+    expected: 'no pickupBloom entity created'
+
+  - id: no-bloom-on-failed-harvest
+    description: >
+      If harvestClover fails (no clover, backpack full, dying clover),
+      no bloom is spawned.
+    expected: 'no pickupBloom entity created'
+
+  - id: no-bloom-on-failed-combine
+    description: >
+      If executeCombine returns outcome:failed, no bloom is spawned.
+    expected: 'no pickupBloom entity created'
+
+  - id: coyote-gron-delivery-no-bloom
+    description: >
+      When the coyote delivers an item to Gron (backpack full fallback),
+      no bloom spawns at the player position since the player did not
+      receive the item.
+    expected: 'no pickupBloom entity at player position'
+
+  - id: bloom-zone-correct
+    description: >
+      Bloom entity uses state.currentZone so it only renders in the zone
+      where the pickup occurred.
+    expected: 'pickupBloom EntityZone matches state.currentZone'
+
+failure_conditions:
+  - trigger: 'spawnPickupBloom called with invalid position'
+    expected: 'entity still created — renderer handles out-of-bounds gracefully'
+  - trigger: 'ECS world full (theoretical)'
+    expected: 'createEntity throws — no silent failure'
+
+verification:
+  test_file: src/engine/__tests__/pickupBloom.test.ts
+  test_pattern: pickupBloom
+  command: npx vitest run src/engine/__tests__/pickupBloom.test.ts

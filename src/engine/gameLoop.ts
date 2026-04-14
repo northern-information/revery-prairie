@@ -210,9 +210,9 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       id: 'coyote',
       intervalMs: COYOTE_TICK_MS,
       zone: 'always',
-      fn: (state) => {
+      fn: (state, time) => {
         if (state.genesis) return
-        const result = tickCoyote(state)
+        const result = tickCoyote(state, time)
         if (result.pickedUp) {
           const def = getDefinition(result.pickedUp.definitionId)
           callbacks.onDiscovery?.(

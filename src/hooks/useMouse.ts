@@ -67,7 +67,7 @@ export const useMouse = ({
       }
 
       if (state.activeDialog) {
-        const result = advanceDialog(state)
+        const result = advanceDialog(state, performance.now())
         if (result.gift) {
           onGift(
             `received ${result.gift.name.toLowerCase()}`,

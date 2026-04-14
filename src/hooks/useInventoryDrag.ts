@@ -93,7 +93,8 @@ export const useInventoryDrag = ({
             sourceContainer,
             targetContainer,
             dragState.item,
-            dragState.combineTarget
+            dragState.combineTarget,
+            performance.now()
           )
           if (result.outcome === 'success') {
             onCombine(dragState.combineTarget.recipe)

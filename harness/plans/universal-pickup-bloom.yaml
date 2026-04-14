@@ -1,0 +1,160 @@
+plan:
+  id: universal-pickup-bloom
+  title: Extract spawnPickupBloom helper and wire it into all item acquisition paths
+  created: 2026-04-14
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: extract-spawn-helper
+    title: Extract spawnPickupBloom function into effects.ts
+    spec_id: universal-pickup-bloom
+    spec_sections:
+      - spawn-bloom-helper
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/effects.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/effects.ts
+      - src/engine/entities.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/meteoritePickupEffect.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: bloom-all-ground-items
+    title: Spawn bloom for all ground item pickups, not just meteorites
+    spec_id: universal-pickup-bloom
+    spec_sections:
+      - ground-item-bloom
+      - bee-pickup-bloom
+      - meteorite-pickup-bloom
+      - single-bloom-per-event
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/effects.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on:
+      - extract-spawn-helper
+    verification:
+      - npx vitest run src/engine/__tests__/meteoritePickupEffect.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: bloom-harvest
+    title: Add time parameter to harvestClover and spawn bloom on success
+    spec_id: universal-pickup-bloom
+    spec_sections:
+      - harvest-bloom
+    context_files:
+      - src/engine/cloverLifecycle.ts
+      - src/engine/effects.ts
+      - src/hooks/useKeyboard.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/cloverLifecycle.ts
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - extract-spawn-helper
+    verification:
+      - npx vitest run src/engine/__tests__/cloverLifecycle.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: bloom-coyote-delivery
+    title: Spawn bloom at player position when coyote delivers to backpack
+    spec_id: universal-pickup-bloom
+    spec_sections:
+      - coyote-delivery-bloom
+    context_files:
+      - src/engine/coyote.ts
+      - src/engine/effects.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/coyote.ts
+      - src/engine/gameLoop.ts
+    depends_on:
+      - extract-spawn-helper
+    verification:
+      - npx vitest run src/engine/__tests__/coyote.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: bloom-craft
+    title: Spawn bloom at player position on successful recipe combine
+    spec_id: universal-pickup-bloom
+    spec_sections:
+      - craft-bloom
+    context_files:
+      - src/engine/drag.ts
+      - src/engine/effects.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/drag.ts
+    depends_on:
+      - extract-spawn-helper
+    verification:
+      - npx vitest run src/engine/__tests__/drag.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: bloom-revery-gift
+    title: Spawn bloom at player position when receiving a revery gift
+    spec_id: universal-pickup-bloom
+    spec_sections:
+      - revery-gift-bloom
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/effects.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - extract-spawn-helper
+    verification:
+      - npx vitest run src/engine/__tests__/interaction.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: write-tests
+    title: Write comprehensive tests for all pickup bloom paths
+    spec_id: universal-pickup-bloom
+    spec_sections:
+      - spawn-bloom-helper
+      - ground-item-bloom
+      - bee-pickup-bloom
+      - meteorite-pickup-bloom
+      - harvest-bloom
+      - coyote-delivery-bloom
+      - craft-bloom
+      - revery-gift-bloom
+      - single-bloom-per-event
+    context_files:
+      - src/engine/__tests__/meteoritePickupEffect.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/effects.ts
+      - src/engine/entities.ts
+      - src/engine/cloverLifecycle.ts
+      - src/engine/coyote.ts
+      - src/engine/drag.ts
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/__tests__/pickupBloom.test.ts
+      - src/engine/__tests__/meteoritePickupEffect.test.ts
+    depends_on:
+      - bloom-all-ground-items
+      - bloom-harvest
+      - bloom-coyote-delivery
+      - bloom-craft
+      - bloom-revery-gift
+    verification:
+      - npx vitest run src/engine/__tests__/pickupBloom.test.ts
+      - npx vitest run src/engine/__tests__/meteoritePickupEffect.test.ts
+    repair: retry
+    tags: [test]

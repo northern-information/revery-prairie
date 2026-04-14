@@ -11,6 +11,7 @@ import {
   SOIL_HEALTH_MAX,
   WATER_MAX,
 } from './constants'
+import { spawnPickupBloom } from './effects'
 import { findFitPosition, placeItem } from './inventory'
 import { recordDiscovery } from './manual'
 import { isInBounds, posKey } from './position'
@@ -173,7 +174,7 @@ export const HarvestResult = {
 
 export type HarvestResult = (typeof HarvestResult)[keyof typeof HarvestResult]
 
-export const harvestClover = (state: GameState): HarvestResult => {
+export const harvestClover = (state: GameState, time?: number): HarvestResult => {
   const pos = getFacingCloverPos(state)
   if (!pos) return HarvestResult.NoClover
 
@@ -187,6 +188,9 @@ export const harvestClover = (state: GameState): HarvestResult => {
   placeItem(state.backpack, 'clover', fit.gridX, fit.gridY)
   state.cloverLifecycle.delete(posKey(pos.x, pos.y))
   recordDiscovery(state, 'event:clover-harvest')
+  if (time !== undefined) {
+    spawnPickupBloom(state, state.player.x, state.player.y, time)
+  }
   return HarvestResult.Success
 }
 
