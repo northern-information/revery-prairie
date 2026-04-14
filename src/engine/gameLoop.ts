@@ -118,6 +118,21 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
+      id: 'deepTimeTransitionCleanup',
+      intervalMs: 100,
+      zone: 'always' as const,
+      phase: 'gameplay' as const,
+      priority: -19,
+      fn: (state: GameState, time: number) => {
+        if (!state.deepTimeTransition) return
+        const elapsed = time - state.deepTimeTransition.startTime
+        if (elapsed >= state.deepTimeTransition.duration) {
+          state.deepTimeTransition = null
+          callbacks.onRefreshUI?.()
+        }
+      },
+    },
+    {
       id: 'path',
       intervalMs: PATH_TICK_MS,
       zone: 'always',

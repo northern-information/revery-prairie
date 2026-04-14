@@ -157,6 +157,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     lastGlintSpawnTime: 0,
     civilizationRuins: genesisData.ruins,
     deepTime: null,
+    deepTimeTransition: null,
     postGiftActionsCompleted: new Set<string>(),
     rainFrontOffset: 0,
     rainIntensity: 0,

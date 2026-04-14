@@ -10,6 +10,7 @@ import {
   BEEHIVE_CHAR,
   BEEHIVE_COLOR,
   BG_COLOR,
+  DEEP_TIME_TRANSITION_GLYPH_DURATION_MS,
   BURN_SCAR_COLORS,
   CLOVER_BLACK_COLOR,
   CLOVER_BROWN_COLOR,
@@ -91,10 +92,10 @@ import { isInRainFront } from './tileWater'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 
 import type { VelocityKey } from './constants'
-import type { CharMetrics, GameState, GenesisTransition } from './types'
+import type { CharMetrics, GameState, TransitionFade } from './types'
 
-/** Compute transition progress (0→1) from a GenesisTransition, or 1 if null. */
-const getTransitionAlpha = (transition: GenesisTransition | null, time: number): number => {
+/** Compute transition progress (0→1) from a TransitionFade, or 1 if null. */
+const getTransitionAlpha = (transition: TransitionFade | null, time: number): number => {
   if (!transition) return 1
   const elapsed = time - transition.startTime
   if (elapsed <= 0) return 0
@@ -808,6 +809,25 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (previewTile) {
           ctx.fillStyle = previewTile.color
           ctx.fillText(previewTile.char, px, py)
+        }
+        // Deep time glyph crossfade: ö fades out, @ fades in
+        if (state.deepTimeTransition && state.deepTime?.active) {
+          const glyphElapsed = time - state.deepTimeTransition.startTime
+          const glyphT = Math.max(0, Math.min(glyphElapsed / DEEP_TIME_TRANSITION_GLYPH_DURATION_MS, 1))
+          // Draw old glyph fading out
+          ctx.globalAlpha = 1 - glyphT
+          ctx.fillStyle = state.deepTime.playerGlyphColor
+          ctx.fillText(state.deepTime.playerGlyph, px, py)
+          // Draw new glyph fading in
+          ctx.globalAlpha = glyphT
+          ctx.fillStyle = PLAYER_COLOR
+          ctx.fillText(PLAYER_CHAR, px, py)
+          ctx.globalAlpha = 1
+          // Skip the normal draw path for this tile
+          char = PLAYER_CHAR
+          color = PLAYER_COLOR
+          cursorable = false
+          continue
         }
         char = state.deepTime?.active ? state.deepTime.playerGlyph : PLAYER_CHAR
         color = state.deepTime?.active ? state.deepTime.playerGlyphColor : PLAYER_COLOR

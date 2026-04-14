@@ -115,7 +115,7 @@ export interface ActionBarSlot {
   cooldownDurationMs: number
 }
 
-export interface GenesisTransition {
+export interface TransitionFade {
   startTime: number
   duration: number
 }
@@ -203,12 +203,13 @@ export interface GameState {
   lastGlintSpawnTime: number
   civilizationRuins: CivilizationRuin[]
   deepTime: DeepTimeState | null
+  deepTimeTransition: TransitionFade | null
   postGiftActionsCompleted: Set<string>
   rainFrontOffset: number
   rainIntensity: number
   waterProximity: Map<string, number>
   genesis: GenesisSimState | null
-  genesisTransition: GenesisTransition | null
+  genesisTransition: TransitionFade | null
   angelCantos: string[]
   nextAngelSpawnTime: number
   angelEncounterCount: number
