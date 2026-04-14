@@ -1,0 +1,50 @@
+plan:
+  id: click-to-interact-angel
+  title: 'Fix click-to-interact to detect angel body tiles and route through character dialog path'
+  created: '2026-04-14'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: fix-click-angel-detection
+    title: 'Add angel MultiPosition detection to useMouse click handler'
+    spec_id: click-to-interact-angel
+    spec_sections:
+      - click-angel-body-pathfinds
+      - click-angel-opens-dialog-on-arrival
+      - click-angel-immediate-when-adjacent
+    context_files:
+      - src/hooks/useMouse.ts
+      - src/engine/interaction.ts
+      - src/engine/ecs/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/hooks/useMouse.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/angels.test.ts
+    repair: retry
+    tags: [hook]
+
+  - id: add-angel-click-regression-test
+    title: 'Add regression test verifying click on angel body tile routes to character dialog'
+    spec_id: click-to-interact-angel
+    spec_sections:
+      - click-angel-body-pathfinds
+      - click-angel-opens-dialog-on-arrival
+    context_files:
+      - src/engine/__tests__/angels.test.ts
+      - src/engine/interaction.ts
+      - src/engine/angels.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/__tests__/angels.test.ts
+    depends_on:
+      - fix-click-angel-detection
+    verification:
+      - npx vitest run src/engine/__tests__/angels.test.ts
+    repair: retry
+    tags: [test]

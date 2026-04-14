@@ -107,10 +107,26 @@ export const useMouse = ({
       const clickedCharacterEid = state.world.spatial
         .at(tile.x, tile.y)
         .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'character')
-      const clickedCharacterIdentity =
+      let clickedCharacterIdentity =
         clickedCharacterEid !== undefined
           ? state.world.getComponent(clickedCharacterEid, ComponentType.CharacterIdentity)
           : null
+
+      // Angels use MultiPosition instead of the spatial index — check body tiles
+      if (!clickedCharacterIdentity) {
+        const tileKey = posKey(tile.x, tile.y)
+        for (const eid of state.world.query(
+          ComponentType.AngelData,
+          ComponentType.MultiPosition,
+          ComponentType.CharacterIdentity
+        )) {
+          const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
+          if (multi?.positions.some(p => posKey(p.x, p.y) === tileKey)) {
+            clickedCharacterIdentity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+            break
+          }
+        }
+      }
       const clickedOmniboxEid = state.world.spatial
         .at(tile.x, tile.y)
         .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox')

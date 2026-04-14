@@ -29,6 +29,13 @@ const HALO_CHARS = ['-', '=', '~', '\u00b7'] // · at end
 const STRUCTURE_CHARS = ['|', '+', '{', '}', '(', ')']
 const VOID_CHAR = ' '
 
+// Mirror maps for glyph reflection across axes
+const H_MIRROR: Record<string, string> = { '<': '>', '>': '<', '{': '}', '}': '{', '(': ')', ')': '(' }
+const V_MIRROR: Record<string, string> = { '^': 'v', v: '^' }
+
+const mirrorH = (c: string): string => H_MIRROR[c] ?? c
+const mirrorV = (c: string): string => V_MIRROR[c] ?? c
+
 // Color palettes — ethereal, shifting
 const ANGEL_COLORS = [
   '#FFFFFF', // white
@@ -198,11 +205,11 @@ const generateFrame = (template: number[][], seed: number, frameIndex: number): 
 
       chars[y][x] = char
       colors[y][x] = color
-      chars[y][mx] = char
+      chars[y][mx] = mirrorH(char)
       colors[y][mx] = color
-      chars[my][x] = char
+      chars[my][x] = mirrorV(char)
       colors[my][x] = color
-      chars[my][mx] = char
+      chars[my][mx] = mirrorH(mirrorV(char))
       colors[my][mx] = color
     }
   }

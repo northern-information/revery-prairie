@@ -1,0 +1,102 @@
+id: click-to-interact-angel
+name: 'Click-to-interact pathfinds to angel and opens dialog'
+status: partial
+priority: high
+layer: integration
+source_files:
+  - src/hooks/useMouse.ts
+  - src/engine/interaction.ts
+  - src/engine/__tests__/angels.test.ts
+dependencies:
+  - angels
+
+behaviors:
+  - id: click-angel-body-pathfinds
+    description: >
+      Clicking any tile within an angel's 9x9 MultiPosition body pathfinds
+      the player to the nearest adjacent walkable tile — same as clicking a
+      ghost or other character. The click handler must detect angel body tiles
+      via MultiPosition query (they are not in the spatial index) and route
+      through the character interaction path.
+    inputs:
+      - 'Player left-clicks a tile occupied by an angel body'
+    outputs:
+      - 'Path computed to nearest adjacent walkable tile'
+      - 'pendingInteractionTarget set to the clicked tile'
+      - 'pendingAction set to character dialog trigger'
+    state_changes:
+      - field: path
+        effect: 'set to A* path from player to adjacent walkable tile'
+      - field: pathWaypoints
+        effect: 'set to [walkTarget]'
+      - field: pendingInteractionTarget
+        effect: 'set to clicked angel body tile position'
+      - field: pendingAction
+        effect: 'set to callback that calls interactWithCharacter and opens dialog'
+    determinism: deterministic
+
+  - id: click-angel-opens-dialog-on-arrival
+    description: >
+      When the player arrives at the adjacent tile after clicking an angel,
+      the pendingAction fires, calling interactWithCharacter which detects
+      the angel via adjacency check and opens dialog. The angel's sha256
+      hash grid displays in the dialog panel.
+    inputs:
+      - 'Player path completes to tile adjacent to angel body'
+      - 'pendingAction callback fires'
+    outputs:
+      - 'Dialog opens with angel character definition'
+      - 'pendingInteractionTarget cleared'
+    state_changes:
+      - field: activeDialog
+        effect: 'set with angel characterId and dialog line'
+      - field: pendingInteractionTarget
+        effect: 'cleared to null'
+    determinism: deterministic
+
+  - id: click-angel-immediate-when-adjacent
+    description: >
+      If the player is already adjacent to the clicked angel body tile,
+      the dialog opens immediately without pathfinding — same as existing
+      character click-when-adjacent behavior.
+    inputs:
+      - 'Player clicks angel body tile while already adjacent'
+    outputs:
+      - 'Dialog opens immediately, no path set'
+    state_changes:
+      - field: activeDialog
+        effect: 'set with angel characterId'
+    determinism: deterministic
+
+edge_cases:
+  - id: click-angel-all-adjacent-blocked
+    description: 'All tiles adjacent to the clicked angel body tile are blocked or unwalkable'
+    expected: 'Click does nothing — no path set, no pendingAction'
+
+  - id: click-angel-during-existing-path
+    description: 'Player clicks angel while already pathing somewhere else'
+    expected: 'Old path replaced with new path to angel, pendingAction updated'
+
+  - id: shift-click-angel-waypoint
+    description: 'Player shift-clicks angel to chain waypoint'
+    expected: 'Waypoint appended to existing path with angel interaction as pendingAction'
+
+  - id: click-angel-while-dialog-open
+    description: 'Player clicks angel while a dialog is already open'
+    expected: 'Click ignored or dialog must be closed first'
+
+  - id: angel-despawns-during-pathfind
+    description: 'Angel despawns while player is pathing toward it'
+    expected: 'Player reaches destination but interactWithCharacter finds no adjacent angel — no dialog opens, no crash'
+
+failure_conditions:
+  - trigger: 'Click on angel body tile routes through generic interactable handler instead of character handler'
+    expected: 'Angel click detected as character interaction; dialog opens on arrival, not just facing change'
+
+  - trigger: 'Angel body tile not detected as clickable target'
+    expected: 'isInteractableAt already returns true for angel body tiles; click handler must also detect and route them'
+
+verification:
+  test_file: src/engine/__tests__/angels.test.ts
+  test_pattern: 'click.*angel|angel.*click|angel.*interact'
+  command: npx vitest run src/engine/__tests__/angels.test.ts
