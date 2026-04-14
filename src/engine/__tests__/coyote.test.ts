@@ -408,7 +408,8 @@ describe('coyote companion', () => {
       let walkPath: { x: number; y: number }[] = []
 
       while (queue.length > 0) {
-        const cur = queue.shift()!
+        const cur = queue.shift()
+        if (!cur) break
         if (cur.dist >= 6) {
           walkPath = cur.path
           break
