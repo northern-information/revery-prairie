@@ -162,4 +162,27 @@ describe('Sidebar', () => {
     expect(screen.getByText(/°F/)).toBeInTheDocument()
     expect(screen.getByText(/mph/)).toBeInTheDocument()
   })
+
+  it('log scroll container has pointer-events-auto so wheel events do not fall through to canvas zoom', () => {
+    const state = createGameState('Test', 80, 40)
+    completeGenesis(state)
+    const eventLog = [
+      { id: '1', kind: 'pickup' as const, text: 'test event', icon: '!', iconColor: '#fff', timestamp: 0, worldX: 0, worldY: 0 },
+    ]
+    render(
+      <Sidebar
+        state={state}
+        activeScreen={null}
+        itemInfoRef={defaultInfoRef}
+        eventLog={eventLog}
+        metricsRef={createRef()}
+        refreshUI={noop}
+      />
+    )
+
+    const logEntry = screen.getByText('test event')
+    const scrollContainer = logEntry.closest('.overflow-y-auto')
+    expect(scrollContainer).toBeInTheDocument()
+    expect(scrollContainer?.className).toMatch(/pointer-events-auto/)
+  })
 })
