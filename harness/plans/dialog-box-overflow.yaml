@@ -1,0 +1,47 @@
+plan:
+  id: dialog-box-overflow
+  title: Fix dialog box viewport overflow by centering relative to game canvas area
+  created: 2026-04-14
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: fix-dialog-centering
+    title: Center dialog relative to game canvas area and clamp to viewport bounds
+    spec_id: dialog-box-overflow
+    spec_sections:
+      - horizontal-containment
+      - vertical-containment
+      - font-scale-resilience
+      - angel-hash-grid-preserved
+    context_files:
+      - src/components/DialogBox.tsx
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/DialogBox.tsx
+    depends_on: []
+    verification:
+      - npx vitest run src/components/__tests__/DialogBox.test.tsx
+    repair: retry
+    tags: [component]
+
+  - id: update-dialog-tests
+    title: Add regression tests for viewport containment and sidebar-aware centering
+    spec_id: dialog-box-overflow
+    spec_sections:
+      - horizontal-containment
+      - vertical-containment
+      - font-scale-resilience
+    context_files:
+      - src/components/DialogBox.tsx
+      - src/components/__tests__/DialogBox.test.tsx
+    output_files:
+      - src/components/__tests__/DialogBox.test.tsx
+    depends_on:
+      - fix-dialog-centering
+    verification:
+      - npx vitest run src/components/__tests__/DialogBox.test.tsx
+    repair: retry
+    tags: [test]

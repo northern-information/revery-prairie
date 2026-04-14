@@ -1,0 +1,80 @@
+id: dialog-box-overflow
+name: Dialog box viewport overflow
+status: partial
+priority: high
+layer: component
+source_files:
+  - src/components/DialogBox.tsx
+  - src/components/__tests__/DialogBox.test.tsx
+dependencies: []
+
+behaviors:
+  - id: horizontal-containment
+    description: >
+      The dialog box must never overflow the left or right edge of the viewport.
+      It should be horizontally centered within the game canvas area (viewport
+      minus the 192px sidebar), not the full viewport.
+    inputs:
+      - dialog opens for any character (ghost, angel, coyote)
+      - viewport is any width from 640px upward
+    outputs:
+      - dialog left edge >= 0px (with a small margin)
+      - dialog right edge <= viewport width - sidebar width
+    state_changes: []
+    determinism: deterministic
+
+  - id: vertical-containment
+    description: >
+      The dialog box must never overflow the top or bottom edge of the viewport.
+      It should be vertically centered in the viewport.
+    inputs:
+      - dialog opens for any character
+    outputs:
+      - dialog top edge >= 0px
+      - dialog bottom edge <= viewport height
+    state_changes: []
+    determinism: deterministic
+
+  - id: font-scale-resilience
+    description: >
+      The dialog box must remain fully visible when the user increases the font
+      scale (1x, 1.25x, 1.5x). Rem-based sizing (padding, gaps, grid cells)
+      grows with font scale — the box must not overflow as a result.
+    inputs:
+      - font scale set to 1.5x
+      - dialog opens for an angel (hash grid is the widest content)
+    outputs:
+      - dialog remains within viewport bounds
+    state_changes: []
+    determinism: deterministic
+
+  - id: angel-hash-grid-preserved
+    description: >
+      The angel hash grid (8x8 character grid) must remain visible and centered
+      within the dialog box. The fix must not break the hash grid layout.
+    inputs:
+      - dialog opens for an angel character
+    outputs:
+      - hash grid renders centered in dialog
+      - all 64 cells visible
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: narrow-viewport
+    description: Viewport is 640px wide — dialog should shrink rather than overflow
+    expected: dialog fits within viewport minus sidebar, content truncates or wraps if needed
+  - id: large-font-scale
+    description: Font scale is 1.5x on a moderate viewport
+    expected: dialog remains contained, rem-based sizing does not push edges offscreen
+
+failure_conditions:
+  - trigger: dialog box left edge extends past viewport left boundary
+    expected: left edge clamped to a minimum margin (e.g. 8px)
+  - trigger: dialog box right edge overlaps the sidebar
+    expected: right edge stops before the sidebar boundary
+
+verification:
+  test_file: src/components/__tests__/DialogBox.test.tsx
+  test_pattern: viewport|overflow|containment|sidebar
+  command: npx vitest run src/components/__tests__/DialogBox.test.tsx
