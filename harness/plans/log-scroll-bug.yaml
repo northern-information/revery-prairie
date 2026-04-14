@@ -1,0 +1,46 @@
+plan:
+  id: log-scroll-bug
+  title: Fix sidebar log scroll intercepted by canvas zoom
+  created: 2026-04-14
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-pointer-events-to-log
+    title: Add pointer-events-auto to the log scrollable container
+    spec_id: log-scroll-bug
+    spec_sections:
+      - log-scrolls-on-wheel
+      - canvas-zooms-outside-log
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/components/GameCanvas.tsx
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags:
+      - component
+
+  - id: add-regression-test
+    title: Add regression test verifying log container has pointer-events-auto
+    spec_id: log-scroll-bug
+    spec_sections:
+      - log-scrolls-on-wheel
+      - log-empty
+    context_files:
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on:
+      - add-pointer-events-to-log
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags:
+      - test
