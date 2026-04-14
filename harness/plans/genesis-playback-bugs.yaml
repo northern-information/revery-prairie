@@ -1,56 +1,84 @@
 plan:
   id: genesis-playback-bugs
-  title: Fix genesis snapshot incompleteness causing visual flashing during epoch playback
-  created: '2026-04-13'
+  title: Fix epoch transition flashing and water rendering discontinuity in genesis
+  created: '2026-04-14'
   global_verification:
     - npm run build
     - npm run test
     - npm run lint
 
 tasks:
-  - id: expand-epoch-snapshot
-    title: Add 11 missing fields to EpochSnapshot interface in genesisTypes.ts
+  - id: fix-progress-clock-mismatch
+    title: Make getEpochProgress use rAF time instead of performance.now()
     spec_id: genesis-playback-bugs
     spec_sections:
-      - snapshot-completeness
+      - no-epoch-transition-flicker
     context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
       - src/engine/genesisTypes.ts
+      - src/engine/gameLoop.ts
+      - src/components/GameCanvas.tsx
     output_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
       - src/engine/genesisTypes.ts
     depends_on: []
     verification:
       - npm run build
     repair: retry
     tags: [engine]
+    notes: >
+      Root cause: getEpochProgress (genesis.ts:2689) uses performance.now() but
+      tickGenesis stores epochStartTime from the rAF time argument. On the first
+      frame of a new epoch, progress computes to near-zero causing progress-gated
+      visuals to not render.
 
-  - id: expand-precompute-snapshots
-    title: Clone all 15 fields in precomputeGenesis and swap all in renderGenesis
+      Fix approach:
+      1. Add lastTickTime field to GenesisSimState (genesisTypes.ts).
+      2. In tickGenesis, store time to sim.lastTickTime each call.
+      3. Change getEpochProgress to use sim.lastTickTime instead of
+         performance.now(). This makes the tick and render share the same clock.
+      4. In renderGenesis, pass time to any call that needs progress (already
+         receives time from the rAF loop).
+
+  - id: fix-presentday-water-rendering
+    title: Make presentDay renderTile show only riverPaths/ponds water (not elevation-based)
     spec_id: genesis-playback-bugs
     spec_sections:
-      - snapshot-completeness
-      - crossfade-isolation
-      - no-future-state-leakage
+      - water-continuity-at-game-transition
     context_files:
       - src/engine/genesis.ts
-      - src/engine/genesisRenderer.ts
-      - src/engine/genesisTypes.ts
+      - src/engine/renderer.ts
     output_files:
       - src/engine/genesis.ts
-      - src/engine/genesisRenderer.ts
-    depends_on:
-      - expand-epoch-snapshot
+    depends_on: []
     verification:
       - npm run build
-      - npx vitest run src/engine/__tests__/genesis.test.ts
     repair: retry
     tags: [engine]
+    notes: >
+      The presentDay epoch's renderTile currently calls renderLowlandWater which
+      shows water at any land tile with elev+scatter<40. The game renderer only
+      shows water from state.rivers and state.ponds. This causes water tiles to
+      appear/vanish at the genesis-to-game transition.
 
-  - id: regression-test
-    title: Add tests verifying early epoch snapshots are empty and late snapshots are populated
+      Fix: presentDay renderTile already checks sim.riverPaths.has(key) and
+      sim.ponds.has(key) separately (lines 2480-2491). It also calls
+      renderLowlandWater (line 2285 in fallOfCivilizations, but presentDay at
+      line 2463 does NOT call renderLowlandWater — it only checks riverPaths and
+      ponds directly). Wait — need to re-verify. If presentDay already only uses
+      riverPaths/ponds, then the discontinuity may be in an earlier epoch's
+      crossfade bleeding through, or in the fallOfCivilizations epoch which does
+      use renderLowlandWater. The fix is to ensure fallOfCivilizations renderTile
+      stops using renderLowlandWater and switches to riverPaths/ponds by its
+      crossfade window into presentDay.
+
+  - id: regression-tests-progress-clock
+    title: Add tests verifying getEpochProgress uses consistent time source
     spec_id: genesis-playback-bugs
     spec_sections:
-      - snapshot-completeness
-      - no-future-state-leakage
+      - no-epoch-transition-flicker
     context_files:
       - src/engine/__tests__/genesis.test.ts
       - src/engine/genesis.ts
@@ -58,8 +86,42 @@ tasks:
     output_files:
       - src/engine/__tests__/genesis.test.ts
     depends_on:
-      - expand-precompute-snapshots
+      - fix-progress-clock-mismatch
     verification:
       - npx vitest run src/engine/__tests__/genesis.test.ts
     repair: retry
     tags: [test]
+    notes: >
+      Update existing test 'does not produce progress=0 at epoch transitions' to
+      verify that getEpochProgress returns meaningful progress without needing to
+      mock performance.now(). The test should confirm that after tickGenesis
+      advances an epoch, getEpochProgress returns progress consistent with the
+      time passed to tickGenesis.
+
+      Add new test: 'getEpochProgress does not use performance.now' — verify that
+      getEpochProgress returns the same value regardless of performance.now drift.
+
+  - id: regression-tests-water-continuity
+    title: Add test verifying presentDay water tiles match game renderer water tiles
+    spec_id: genesis-playback-bugs
+    spec_sections:
+      - water-continuity-at-game-transition
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesis.ts
+      - src/engine/renderer.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - fix-presentday-water-rendering
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags: [test]
+    notes: >
+      Create a test that runs precomputeGenesis, extracts the final epoch
+      snapshot, and for every tile position checks: if presentDay.renderTile
+      returns a water character (~, =, -), then the tile must be in
+      sim.riverPaths or sim.ponds. And vice versa: every tile in riverPaths/ponds
+      must render as water in presentDay.renderTile.
