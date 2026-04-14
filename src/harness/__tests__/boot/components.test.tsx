@@ -41,11 +41,6 @@ describe('boot: component smoke tests', () => {
             line="Hello there."
             typingIndex={12}
             typingDone={true}
-            isLastLine={false}
-            onNext={vi.fn()}
-            onClose={vi.fn()}
-            top={100}
-            left={100}
           />
         )
       }).not.toThrow()
