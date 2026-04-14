@@ -1,6 +1,7 @@
 import {
   DEEP_TIME_BURN_DURATION_MS,
   DEEP_TIME_TOTAL_YEARS,
+  DEEP_TIME_TRANSITION_DURATION_MS,
   DEEP_TIME_YEARS_PER_FRAME,
 } from './constants'
 import { tickCloverGrowth } from './clover'
@@ -116,6 +117,10 @@ export const tickDeepTime = (state: GameState, time: number): void => {
     if (dt.elapsedYears >= DEEP_TIME_TOTAL_YEARS) {
       dt.phase = DeepTimePhase.Wandering
       dt.elapsedYears = DEEP_TIME_TOTAL_YEARS
+      state.deepTimeTransition = {
+        startTime: performance.now(),
+        duration: DEEP_TIME_TRANSITION_DURATION_MS,
+      }
     }
     return
   }

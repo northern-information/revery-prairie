@@ -4,6 +4,7 @@ import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { getCharacterDefinition } from '@/engine/characters'
 import {
+  DEEP_TIME_TRANSITION_DURATION_MS,
   GENESIS_TRANSITION_SIDEBAR_DURATION_MS,
   SOIL_HEALTH_DEFAULT,
   SPACE_BORDER,
@@ -207,7 +208,9 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
 
   const sidebarFadeStyle = state.genesisTransition
     ? { animation: `fade-in ${String(GENESIS_TRANSITION_SIDEBAR_DURATION_MS)}ms ease-in forwards` }
-    : undefined
+    : state.deepTimeTransition
+      ? { animation: `fade-in ${String(DEEP_TIME_TRANSITION_DURATION_MS)}ms ease-in forwards` }
+      : undefined
 
   return (
     <div

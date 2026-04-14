@@ -83,6 +83,7 @@ const EXPECTED_FIELDS = [
   'zoom',
   'civilizationRuins',
   'deepTime',
+  'deepTimeTransition',
   'postGiftActionsCompleted',
   'rainFrontOffset',
   'rainIntensity',
