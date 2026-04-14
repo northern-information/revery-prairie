@@ -33,7 +33,7 @@ const HashGrid = ({ hash, revealCount }: { hash: string; revealCount: number }) 
 }
 
 export const DialogBox = ({ characterName, portrait, line, typingIndex, isAngel }: DialogBoxProps) => (
-  <div className="text-text fixed bottom-8 left-1/2 z-10 flex max-h-[140px] min-h-[80px] w-[65vw] min-w-[400px] max-w-[800px] -translate-x-1/2 items-start gap-4 bg-black/85 px-6 py-4 font-mono text-xs">
+  <div className="text-text fixed top-1/2 left-1/2 z-30 flex max-h-[140px] min-h-[80px] w-[65vw] min-w-[400px] max-w-[800px] -translate-x-1/2 -translate-y-1/2 items-start gap-4 bg-black/85 px-6 py-4 font-mono text-xs">
     {portrait && (
       <img
         src={portrait}

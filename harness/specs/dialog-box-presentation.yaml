@@ -1,6 +1,6 @@
 id: dialog-box-presentation
 name: 'FromSoft-style dialog box presentation'
-status: planned
+status: partial
 priority: high
 layer: component
 source_files:
@@ -10,19 +10,18 @@ dependencies:
   - dialog-system
 
 behaviors:
-  - id: bottom-center-positioning
+  - id: vertically-centered-positioning
     description: >
-      dialog box is fixed to the bottom center of the viewport.
-      horizontally centered, bottom edge inset ~32px from the
-      viewport bottom. width is 65% of viewport width clamped
-      between 400px and 800px. height is auto with a max around
-      140px. the character-relative positioning logic in
-      GameScreen is removed — position is always bottom center
-      regardless of where the character is on screen.
+      dialog box is fixed to the center of the viewport — both
+      horizontally and vertically. width is 65% of viewport width
+      clamped between 400px and 800px. height is auto with a max
+      around 140px. uses z-30 to render above the action bar (z-10)
+      but below the drag cursor (z-50).
     inputs:
       - 'activeDialog is non-null'
     outputs:
-      - 'dialog box rendered at bottom center of viewport'
+      - 'dialog box rendered at center of viewport'
+      - 'dialog box renders above the action bar'
     state_changes: []
     determinism: deterministic
 
@@ -104,6 +103,8 @@ failure_conditions:
     expected: 'component is not rendered — conditional in GameScreen prevents it'
   - trigger: 'player clicks on the dialog box area'
     expected: 'no interactive response — dialog has no click handlers for progression'
+  - trigger: 'dialog box and action bar both visible'
+    expected: 'dialog box renders above the action bar — z-30 vs z-10'
 
 verification:
   test_file: src/harness/__tests__/boot/components.test.tsx

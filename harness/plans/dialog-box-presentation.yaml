@@ -1,6 +1,6 @@
 plan:
   id: dialog-box-presentation
-  title: 'Restyle dialog box to FromSoft-style bottom-center minimal chrome'
+  title: 'Fix dialog box positioning — center on screen, z-index above action bar'
   created: '2026-04-14'
   global_verification:
     - npm run build
@@ -8,71 +8,35 @@ plan:
     - npm run lint
 
 tasks:
-  - id: strip-dialog-box-chrome
-    title: 'Remove buttons, close icon, border, and position props from DialogBox'
+  - id: fix-dialog-position-and-z-index
+    title: 'Center dialog on screen and raise z-index above action bar'
     spec_id: dialog-box-presentation
     spec_sections:
-      - minimal-chrome
-      - props-simplified
+      - vertically-centered-positioning
     context_files:
       - src/components/DialogBox.tsx
-      - src/components/PanelPrimitives.tsx
+      - src/components/ActionBar.tsx
     output_files:
       - src/components/DialogBox.tsx
     depends_on: []
-    verification:
-      - npx vitest run src/harness/__tests__/boot/components.test.tsx
-    repair: retry
-    tags: [component]
-
-  - id: restyle-dialog-layout
-    title: 'Apply FromSoft layout — wide short box, bottom center, inline portrait'
-    spec_id: dialog-box-presentation
-    spec_sections:
-      - bottom-center-positioning
-      - minimal-chrome
-      - angel-dialog-preserved
-    context_files:
-      - src/components/DialogBox.tsx
-    output_files:
-      - src/components/DialogBox.tsx
-    depends_on:
-      - strip-dialog-box-chrome
-    verification:
-      - npx vitest run src/harness/__tests__/boot/components.test.tsx
-    repair: retry
-    tags: [component]
-
-  - id: simplify-gamescreen-dialog
-    title: 'Remove character-relative positioning logic from GameScreen'
-    spec_id: dialog-box-presentation
-    spec_sections:
-      - gamescreen-positioning-cleanup
-    context_files:
-      - src/components/GameScreen.tsx
-      - src/components/DialogBox.tsx
-    output_files:
-      - src/components/GameScreen.tsx
-    depends_on:
-      - restyle-dialog-layout
     verification:
       - npm run build
     repair: retry
     tags: [component]
 
-  - id: update-dialog-smoke-test
-    title: 'Update DialogBox smoke test to match simplified props'
+  - id: add-dialog-z-index-regression-test
+    title: 'Add regression test verifying dialog z-index is above action bar'
     spec_id: dialog-box-presentation
     spec_sections:
-      - props-simplified
+      - vertically-centered-positioning
     context_files:
-      - src/harness/__tests__/boot/components.test.tsx
       - src/components/DialogBox.tsx
+      - src/components/__tests__
     output_files:
-      - src/harness/__tests__/boot/components.test.tsx
+      - src/components/__tests__/DialogBox.test.tsx
     depends_on:
-      - strip-dialog-box-chrome
+      - fix-dialog-position-and-z-index
     verification:
-      - npx vitest run src/harness/__tests__/boot/components.test.tsx
+      - npx vitest run src/components/__tests__/DialogBox.test.tsx
     repair: retry
     tags: [test]

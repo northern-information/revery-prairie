@@ -1,0 +1,80 @@
+import { render, screen } from '@testing-library/react'
+
+import { DialogBox } from '../DialogBox'
+
+describe('DialogBox', () => {
+  it('renders character name and dialog text', () => {
+    render(
+      <DialogBox
+        characterName="Moab"
+        line="hello traveler"
+        typingIndex={14}
+        typingDone={false}
+      />,
+    )
+
+    expect(screen.getByText('moab')).toBeTruthy()
+    expect(screen.getByText('hello traveler')).toBeTruthy()
+  })
+
+  it('renders with z-30 to sit above the action bar', () => {
+    const { container } = render(
+      <DialogBox
+        characterName="Moab"
+        line="hello"
+        typingIndex={5}
+        typingDone={false}
+      />,
+    )
+
+    const dialogRoot = container.firstElementChild as HTMLElement
+    expect(dialogRoot.className).toMatch(/z-30/)
+    expect(dialogRoot.className).not.toMatch(/z-10/)
+  })
+
+  it('is vertically and horizontally centered on the viewport', () => {
+    const { container } = render(
+      <DialogBox
+        characterName="Moab"
+        line="hello"
+        typingIndex={5}
+        typingDone={false}
+      />,
+    )
+
+    const dialogRoot = container.firstElementChild as HTMLElement
+    expect(dialogRoot.className).toMatch(/top-1\/2/)
+    expect(dialogRoot.className).toMatch(/left-1\/2/)
+    expect(dialogRoot.className).toMatch(/-translate-x-1\/2/)
+    expect(dialogRoot.className).toMatch(/-translate-y-1\/2/)
+  })
+
+  it('renders portrait when provided', () => {
+    render(
+      <DialogBox
+        characterName="Moab"
+        portrait="/portraits/moab.png"
+        line="hello"
+        typingIndex={5}
+        typingDone={false}
+      />,
+    )
+
+    const img = screen.getByAltText('portrait of moab')
+    expect(img).toBeTruthy()
+  })
+
+  it('renders angel hash grid for angel characters', () => {
+    render(
+      <DialogBox
+        characterName="Angel"
+        line="abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+        typingIndex={10}
+        typingDone={false}
+        isAngel
+      />,
+    )
+
+    expect(screen.getByTestId('angel-hash-grid')).toBeTruthy()
+  })
+})
