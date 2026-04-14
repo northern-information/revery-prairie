@@ -215,23 +215,23 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         const result = tickCoyote(state)
         if (result.pickedUp) {
           const def = getDefinition(result.pickedUp.definitionId)
-          callbacks.onPickup?.(
+          callbacks.onDiscovery?.(
             `coyote found ${def.name.toLowerCase()}`,
+            result.pickedUp.x,
+            result.pickedUp.y,
             def.glyph,
             def.glyphColor,
-            result.pickedUp.x,
-            result.pickedUp.y
           )
         }
         if (result.delivered) {
           const def = getDefinition(result.delivered.definitionId)
           const dest = result.delivered.toGron ? 'near gron' : 'to backpack'
-          callbacks.onPickup?.(
+          callbacks.onDiscovery?.(
             `coyote delivered ${def.name.toLowerCase()} ${dest}`,
+            result.delivered.x,
+            result.delivered.y,
             def.glyph,
             def.glyphColor,
-            result.delivered.x,
-            result.delivered.y
           )
           callbacks.onRefreshUI?.()
         }

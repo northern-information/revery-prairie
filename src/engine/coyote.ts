@@ -57,20 +57,33 @@ const findNearestCollectible = (
   let best: { eid: Entity; pos: Position; definitionId: string } | null = null
   let bestDist = Infinity
 
-  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position, ComponentType.ItemDrop)) {
-    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundItem') continue
+  const consider = (eid: Entity, definitionId: string): void => {
     const ez = state.world.getComponent(eid, ComponentType.EntityZone)
-    if (ez?.zone !== state.currentZone) continue
-    const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
-    if (!drop) continue
-    if (!(COYOTE_COLLECTIBLE_DEFINITIONS as readonly string[]).includes(drop.definitionId)) continue
+    if (ez?.zone !== state.currentZone) return
+    if (!(COYOTE_COLLECTIBLE_DEFINITIONS as readonly string[]).includes(definitionId)) return
     const pos = state.world.getComponent(eid, ComponentType.Position)
-    if (!pos) continue
+    if (!pos) return
     const dist = Math.abs(pos.x - coyotePos.x) + Math.abs(pos.y - coyotePos.y)
     if (dist < bestDist) {
       bestDist = dist
-      best = { eid, pos: { x: pos.x, y: pos.y }, definitionId: drop.definitionId }
+      best = { eid, pos: { x: pos.x, y: pos.y }, definitionId }
     }
+  }
+
+  // Ground items (honey, coins, etc.) — ItemDrop + 'groundItem' tag
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position, ComponentType.ItemDrop)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundItem') continue
+    const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
+    if (!drop) continue
+    consider(eid, drop.definitionId)
+  }
+
+  // Meteorites — Pickupable + 'meteorite' tag (different ECS scheme from ground items)
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position, ComponentType.Pickupable)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'meteorite') continue
+    const pick = state.world.getComponent(eid, ComponentType.Pickupable)
+    if (!pick) continue
+    consider(eid, pick.definitionId)
   }
 
   return best
@@ -205,7 +218,7 @@ const tickFollow = (
 ): void => {
   const dist = chebyshev(pos, state.player)
   if (dist <= COYOTE_FOLLOW_MIN_DIST) return
-  if (dist > COYOTE_FOLLOW_MAX_DIST) {
+  if (dist >= COYOTE_FOLLOW_MAX_DIST) {
     // Temporarily remove the player from blocked set so we can pathfind to their tile
     const playerKey = posKey(state.player.x, state.player.y)
     blocked.delete(playerKey)

@@ -18,6 +18,7 @@ import {
   clearAroundPlayer,
   createCharacterTestEntity,
   createGroundItemEntity,
+  createMeteoriteEntity,
   createTestState,
 } from './helpers'
 
@@ -96,6 +97,23 @@ describe('coyote companion', () => {
       expect(getCoyotePosition(state)).toEqual(pos)
     })
 
+    it('moves toward player when at exactly max distance', () => {
+      const state = createCoyoteState()
+      // Move coyote to exactly COYOTE_FOLLOW_MAX_DIST (3) tiles from player
+      const eid = requireValue(findCoyoteEntity(state))
+      state.world.moveEntity(eid, state.player.x + 3, state.player.y)
+      clearAroundPlayer(state, 10)
+
+      const before = requireValue(getCoyotePosition(state))
+      tickCoyote(state)
+      const after = requireValue(getCoyotePosition(state))
+
+      // Should have moved closer to player
+      const distBefore = Math.max(Math.abs(before.x - state.player.x), Math.abs(before.y - state.player.y))
+      const distAfter = Math.max(Math.abs(after.x - state.player.x), Math.abs(after.y - state.player.y))
+      expect(distAfter).toBeLessThan(distBefore)
+    })
+
     it('moves toward player when beyond max distance', () => {
       const state = createCoyoteState()
       // Move coyote far from player
@@ -125,7 +143,7 @@ describe('coyote companion', () => {
       const meteoriteX = state.player.x + 3
       const meteoriteY = state.player.y
       state.world.moveEntity(eid, meteoriteX, meteoriteY)
-      createGroundItemEntity(state, 'meteorite', meteoriteX, meteoriteY)
+      createMeteoriteEntity(state, meteoriteX, meteoriteY)
 
       const result = tickCoyote(state)
       const pickedUp = requireValue(result.pickedUp)
@@ -200,7 +218,7 @@ describe('coyote companion', () => {
       clearAroundPlayer(state, 10)
 
       // Place meteorite far from coyote
-      createGroundItemEntity(state, 'meteorite', state.player.x + 5, state.player.y)
+      createMeteoriteEntity(state, state.player.x + 5, state.player.y)
       const eid = requireValue(findCoyoteEntity(state))
       state.world.moveEntity(eid, state.player.x - 3, state.player.y)
 
