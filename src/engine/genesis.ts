@@ -7,6 +7,10 @@ import {
   LIGHTNING_BOLT_MAX_LENGTH,
   LIGHTNING_BOLT_MIN_LENGTH,
   POND_COLOR,
+  RAIN_AURA_CHARS,
+  RAIN_AURA_COLORS,
+  RAIN_AURA_DENSITY,
+  RAIN_AURA_SPEED,
   RIVER_COLOR,
   SAND_BORDER,
   SAND_COLORS,
@@ -16,6 +20,8 @@ import {
   WATER_SAND_PASS_CHANCES,
 } from './constants'
 import { generateBoltPath } from './boltPath'
+import { getCharacterDefinition } from './characters'
+import { AURA_RADIUS } from './effects'
 import { GenesisEpochId } from './genesisTypes'
 import { posKey } from './position'
 import { smoothNoiseSeeded } from './terrain'
@@ -181,7 +187,14 @@ const DIRT_COLORS = ['#8B7355', '#7B6B55', '#806B50']
 const BURN_SCAR_COLORS = ['#3D2B1F', '#4A3728', '#352418']
 const GREEN_COLORS = ['#2E8B57', '#3CB371', '#50C878']
 const BRIGHT_GREEN_COLORS = ['#3CB371', '#50C878', '#66EE88']
-const GRON_RAIN_RADIUS = 6
+const GRON_RAIN_RADIUS = AURA_RADIUS.rain ?? 6
+
+// Lazy-resolved Gron visuals from character definition (avoids per-tile lookup)
+let gronDefCache: { glyph: string; glyphColor: string } | null = null
+const getGronVisuals = (): { glyph: string; glyphColor: string } => {
+  gronDefCache ??= getCharacterDefinition('gron')
+  return gronDefCache
+}
 
 // Shared rendering for space tiles (stars — no water in space, it's not ocean)
 const renderSpace = (sim: GenesisSimState, key: string, h: number, time: number): GenesisTileRender[] | null => {
@@ -1874,7 +1887,8 @@ const riseOfCivilizations: GenesisEpoch = {
     const gronX = Math.floor(sim.width / 2) + 5
     const gronY = Math.floor(sim.height / 2)
     if (x === gronX && y === gronY && progress > 0.3) {
-      return [{ char: 'G', color: '#FFFFFF', dx: 0, dy: 0 }]
+      const gron = getGronVisuals()
+      return [{ char: gron.glyph, color: gron.glyphColor, dx: 0, dy: 0 }]
     }
 
     // Check if this tile is part of a civilization
@@ -2181,7 +2195,8 @@ const fallOfCivilizations: GenesisEpoch = {
     const gronX = Math.floor(sim.width / 2) + 5
     const gronY = Math.floor(sim.height / 2)
     if (x === gronX && y === gronY) {
-      return [{ char: 'G', color: '#FFFFFF', dx: 0, dy: 0 }]
+      const gron = getGronVisuals()
+      return [{ char: gron.glyph, color: gron.glyphColor, dx: 0, dy: 0 }]
     }
 
     const tileInfo = sim.tileData.get(key)
@@ -2295,7 +2310,14 @@ const fallOfCivilizations: GenesisEpoch = {
     if (veg > 20 && dToGron <= GRON_RAIN_RADIUS) {
       const greenColors = ['#2E8B57', '#3CB371', '#50C878']
       const gi = h % greenColors.length
-      return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
+      const base: GenesisTileRender = { char: '%', color: greenColors[gi], dx: 0, dy: 0 }
+      // Rain aura overlay — matches gameplay renderer
+      if (h % RAIN_AURA_DENSITY === 0) {
+        const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
+        const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
+        return [base, { char: RAIN_AURA_CHARS[phase], color: RAIN_AURA_COLORS[colorPhase], dx: 0, dy: 0 }]
+      }
+      return [base]
     }
 
     // Drought wilt — dead vegetation shows green then wilts toward Gron
@@ -2483,7 +2505,8 @@ const presentDay: GenesisEpoch = {
     const gronX = Math.floor(sim.width / 2) + 5
     const gronY = Math.floor(sim.height / 2)
     if (x === gronX && y === gronY) {
-      return [{ char: 'G', color: '#FFFFFF', dx: 0, dy: 0 }]
+      const gron = getGronVisuals()
+      return [{ char: gron.glyph, color: gron.glyphColor, dx: 0, dy: 0 }]
     }
 
     // Player fades in
@@ -2493,11 +2516,21 @@ const presentDay: GenesisEpoch = {
       return [{ char: '@', color: '#FFFFFF', dx: 0, dy: 0 }]
     }
 
-    // Dirt/burn scars — match game renderer's 5-color palette
-    if (sim.burnScars.has(key)) {
-      return [{ char: '.', color: GAME_BURN_SCAR_COLORS[h % GAME_BURN_SCAR_COLORS.length], dx: 0, dy: 0 }]
+    // Base terrain
+    const baseTile: GenesisTileRender = sim.burnScars.has(key)
+      ? { char: '.', color: GAME_BURN_SCAR_COLORS[h % GAME_BURN_SCAR_COLORS.length], dx: 0, dy: 0 }
+      : { char: '.', color: GAME_DIRT_COLORS[h % GAME_DIRT_COLORS.length], dx: 0, dy: 0 }
+
+    // Rain aura overlay — matches gameplay renderer (renderer.ts rain overlay pass)
+    const dx = x - gronX
+    const dy = y - gronY
+    if (dx * dx + dy * dy <= GRON_RAIN_RADIUS * GRON_RAIN_RADIUS && h % RAIN_AURA_DENSITY === 0) {
+      const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
+      const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
+      return [baseTile, { char: RAIN_AURA_CHARS[phase], color: RAIN_AURA_COLORS[colorPhase], dx: 0, dy: 0 }]
     }
-    return [{ char: '.', color: GAME_DIRT_COLORS[h % GAME_DIRT_COLORS.length], dx: 0, dy: 0 }]
+
+    return [baseTile]
   },
 }
 

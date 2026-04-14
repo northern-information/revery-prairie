@@ -11,6 +11,12 @@ import type { CharMetrics } from './types'
 
 // Cross-fade window: last 10% of each epoch blends into the next
 const CROSSFADE_START = 0.9
+// How far into the next epoch we peek during cross-fade. At blendT=1 the
+// next epoch renders at this progress value, which closely matches what it
+// will show when it actually starts (progress near 0). Without this, the
+// cross-fade shows the next epoch at progress=blendT→1 (fully complete),
+// then the epoch starts at progress≈0, causing a visual snap.
+const CROSSFADE_PEEK = 0.05
 
 /** Parse a color string (#RGB, #RRGGBB, or rgb(r,g,b)) into [r, g, b]. */
 const parseColor = (color: string): [number, number, number] => {
@@ -150,9 +156,10 @@ export const renderGenesis = (
         // Swap to next epoch's snapshot
         applySnapshot(sim, nextSnapshot)
 
-        // Pass blendT as progress so the next epoch's fade-in doesn't render
-        // all gray (progress=0 triggers full fade-in guards in most epochs)
-        const nextRenders = nextEpoch.renderTile(sim, mx, my, blendT, time)
+        // Peek into the start of the next epoch — blendT * CROSSFADE_PEEK
+        // keeps the next epoch at low progress so the cross-fade end matches
+        // the new epoch's actual start (progress≈0), preventing a visual snap.
+        const nextRenders = nextEpoch.renderTile(sim, mx, my, blendT * CROSSFADE_PEEK, time)
 
         // Restore current epoch's snapshot
         applySnapshot(sim, sim.epochSnapshots[sim.epochIndex])

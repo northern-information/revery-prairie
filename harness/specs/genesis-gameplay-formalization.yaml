@@ -1,0 +1,172 @@
+id: genesis-gameplay-formalization
+name: 'Formalize genesis-gameplay coupling with phase system and shared rendering'
+status: partial
+priority: high
+layer: integration
+source_files:
+  - src/engine/gameLoop.ts
+  - src/engine/genesis.ts
+  - src/engine/genesisRenderer.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/renderer.ts
+  - src/engine/characters.ts
+  - src/engine/effects.ts
+  - src/engine/constants.ts
+dependencies:
+  - genesis-playback-bugs
+
+behaviors:
+  - id: phase-based-system-filtering
+    description: >
+      Each TickSystem declares a phase field ('genesis', 'gameplay', or 'always')
+      that controls when it runs. The game loop dispatcher skips systems whose
+      phase does not match the current game phase. The current phase is derived
+      from state: 'genesis' when state.genesis is active, 'gameplay' otherwise.
+      This replaces all per-system 'if (state.genesis) return' guards with a
+      single dispatcher-level check.
+    inputs:
+      - 'game loop tick runs with a time argument'
+      - 'state.genesis is non-null (genesis phase) or null (gameplay phase)'
+    outputs:
+      - 'systems with phase genesis only run during genesis'
+      - 'systems with phase gameplay only run during gameplay'
+      - 'systems with phase always run in both phases'
+      - 'no per-system genesis guard code remains'
+    state_changes:
+      - field: TickSystem.phase
+        effect: new field added to TickSystem interface
+    determinism: deterministic
+
+  - id: crossfade-progress-continuity
+    description: >
+      During the cross-fade window (last 10% of an epoch), the next epoch
+      renderTile receives a progress value that matches what it will actually
+      show when it becomes the active epoch. The cross-fade blends into the
+      start of the next epoch (low progress), not the end. When blendT goes
+      from 0 to 1, the next epoch progress goes from 0 to a small initial
+      value, so the visual at blendT=1 matches the visual at real progress=0.
+    inputs:
+      - 'renderGenesis detects progress > CROSSFADE_START and a next epoch exists'
+      - 'blendT ranges from 0 to 1 over the cross-fade window'
+    outputs:
+      - 'next epoch renderTile receives progress proportional to blendT * initial_fraction'
+      - 'no visual snap when epoch index advances and progress resets to near-zero'
+      - 'cross-fade end state matches new epoch start state'
+    state_changes: []
+    determinism: time-based
+
+  - id: shared-rain-aura-constants
+    description: >
+      Genesis and gameplay use the same rain aura radius. The duplicated
+      GRON_RAIN_RADIUS constant in genesis.ts is replaced with an import of
+      AURA_RADIUS.rain from effects.ts. Rain animation constants (RAIN_CHARS,
+      RAIN_COLORS, RAIN_DENSITY, RAIN_SPEED) are exported from a shared
+      location so both genesis renderTile and the gameplay renderer use
+      identical values.
+    inputs:
+      - 'genesis renderTile needs rain aura radius and animation parameters'
+      - 'gameplay renderer needs rain aura radius and animation parameters'
+    outputs:
+      - 'GRON_RAIN_RADIUS removed from genesis.ts'
+      - 'genesis imports AURA_RADIUS from effects.ts'
+      - 'rain animation constants shared between genesis and gameplay'
+    state_changes: []
+    determinism: deterministic
+
+  - id: present-day-rain-aura-rendering
+    description: >
+      The presentDay epoch renderTile renders animated rain drops around Gron
+      position, matching the gameplay renderer rain aura visual style. Rain
+      characters and colors use the shared constants. The rain animation is
+      tile-hashed and time-driven, identical to the gameplay rain overlay pass
+      in renderer.ts. This eliminates the visual pop when genesis ends and
+      the gameplay renderer rain aura appears.
+    inputs:
+      - 'presentDay epoch is rendering and tile is within rain aura radius of Gron'
+      - 'tile is not Gron position and not player position'
+    outputs:
+      - 'rain character overlay rendered on applicable tiles during presentDay'
+      - 'rain animation matches gameplay renderer exactly (same chars, colors, density, speed)'
+      - 'no visual change at genesis-to-gameplay transition for rain aura tiles'
+    state_changes: []
+    determinism: time-based
+
+  - id: shared-character-glyph-lookup
+    description: >
+      The presentDay epoch renders Gron and the player using character
+      definition lookups instead of hardcoded glyphs and colors. Gron glyph
+      and color come from getCharacterDefinition('gron'). Player glyph is '@'
+      and color '#FFFFFF' (matching the gameplay renderer). This ensures
+      genesis and gameplay show identical character visuals.
+    inputs:
+      - 'presentDay renderTile encounters Gron or player tile position'
+    outputs:
+      - 'Gron glyph and color match CHARACTER_DEFINITIONS.gron'
+      - 'player glyph and color match gameplay renderer'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: genesis-system-still-ticks
+    description: >
+      The genesis tick system itself must have phase 'genesis' or 'always' so
+      it continues to run during genesis. It must not be filtered out by the
+      phase system it introduces.
+    expected: 'genesis tick system runs during genesis phase'
+
+  - id: deep-time-phase-interaction
+    description: >
+      Deep time systems currently check state.deepTime independently. The phase
+      system should not interfere with deep time guards. All deep time systems
+      keep their existing guards and use phase gameplay.
+    expected: 'deep time behavior unchanged after phase system introduction'
+
+  - id: rain-aura-density-match
+    description: >
+      The genesis rain overlay must use the same tile hash density check as
+      the gameplay renderer (h % RAIN_DENSITY !== 0 means skip). Mismatched
+      density would cause rain drops to shift positions at the transition.
+    expected: 'identical rain drop positions in genesis and gameplay for same tile and time'
+
+  - id: crossfade-into-present-day
+    description: >
+      The cross-fade from fallOfCivilizations into presentDay must show rain
+      gradually appearing. Since fallOfCivilizations has no rain rendering but
+      presentDay does, the cross-fade blends between no-rain and rain tiles
+      during the transition window.
+    expected: 'rain aura fades in smoothly during fallOfCivilizations-to-presentDay cross-fade'
+
+  - id: skip-genesis-still-works
+    description: >
+      Pressing any key to skip genesis or using ?skipGenesis=true must still
+      work. completeGenesis sets state.genesis = null which switches the phase
+      to gameplay, enabling all gameplay systems.
+    expected: 'skip mechanism works identically after phase system introduction'
+
+  - id: cave-entrance-rendering-in-present-day
+    description: >
+      The presentDay epoch should render cave entrance tiles with proper
+      appearance. Currently cave entrances are not explicitly rendered in
+      presentDay renderTile — they fall through to the dirt rendering.
+    expected: 'cave entrance tile renders distinctly in presentDay (same as gameplay)'
+
+failure_conditions:
+  - trigger: 'epoch transition occurs during genesis playback'
+    expected: 'no visual flash — cross-fade end matches new epoch start'
+
+  - trigger: 'genesis completes and gameplay renderer takes over'
+    expected: 'rain aura around Gron is already visible in last genesis frame — no pop'
+
+  - trigger: 'system with phase gameplay attempts to run during genesis'
+    expected: 'dispatcher skips the system without executing its function body'
+
+  - trigger: 'GRON_RAIN_RADIUS in genesis differs from AURA_RADIUS.rain in effects'
+    expected: 'single source of truth — genesis imports from effects.ts'
+
+  - trigger: 'Gron character definition changes glyph or color'
+    expected: 'genesis presentDay automatically reflects the change via shared lookup'
+
+verification:
+  test_file: src/engine/__tests__/genesis.test.ts
+  test_pattern: 'phase|crossfade|rain aura|character glyph'
+  command: 'npx vitest run src/engine/__tests__/genesis.test.ts'

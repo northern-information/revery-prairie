@@ -1,4 +1,11 @@
-import { MAP_HEIGHT, MAP_WIDTH, SOIL_HEALTH_MAX } from '../constants'
+import {
+  MAP_HEIGHT,
+  MAP_WIDTH,
+  RAIN_AURA_CHARS,
+  RAIN_AURA_COLORS,
+  RAIN_AURA_DENSITY,
+  SOIL_HEALTH_MAX,
+} from '../constants'
 import {
   createGenesisState,
   extractGenesisResult,
@@ -10,7 +17,7 @@ import {
   runAllMutations,
   tickGenesis,
 } from '../genesis'
-import { posKey } from '../position'
+import { posKey, tileHash } from '../position'
 import { TileType } from '../types'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -1180,5 +1187,133 @@ describe('water continuity at genesis-to-game transition', () => {
         }
       }
     }
+  })
+})
+
+const readSource = async (relativePath: string): Promise<string> => {
+  const fs = await import('node:fs')
+  const path = await import('node:path')
+  return fs.readFileSync(path.resolve(__dirname, relativePath), 'utf-8')
+}
+
+describe('phase-based system filtering', () => {
+  it('no genesis guards remain in game loop system bodies', async () => {
+    const source = await readSource('../gameLoop.ts')
+
+    const fnBodies = source.split(/\n/)
+    let inGenesisSystem = false
+    let genesisGuardCount = 0
+
+    for (const line of fnBodies) {
+      if (line.includes("id: 'genesis'")) inGenesisSystem = true
+      if (inGenesisSystem && line.includes('},')) inGenesisSystem = false
+
+      if (!inGenesisSystem && line.includes('if (state.genesis) return')) {
+        genesisGuardCount++
+      }
+    }
+
+    expect(genesisGuardCount).toBe(0)
+  })
+
+  it('TickSystem interface includes phase field', async () => {
+    const source = await readSource('../gameLoop.ts')
+    expect(source).toContain("phase?: 'genesis' | 'gameplay' | 'always'")
+  })
+
+  it('dispatcher resolves phase from state.genesis', async () => {
+    const source = await readSource('../gameLoop.ts')
+    expect(source).toContain("state.genesis ? 'genesis' : 'gameplay'")
+  })
+})
+
+describe('presentDay rain aura rendering', () => {
+  it('renders rain overlay on tiles within Gron rain radius', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    precomputeGenesis(sim, GENESIS_EPOCHS)
+
+    const presentDay = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
+    const gronX = Math.floor(sim.width / 2) + 5
+    const gronY = Math.floor(sim.height / 2)
+
+    // Apply the final epoch snapshot
+    sim.epochIndex = GENESIS_EPOCHS.length - 1
+
+    // Check tiles around Gron for rain overlay
+    let rainFound = false
+    for (let dy = -5; dy <= 5; dy++) {
+      for (let dx = -5; dx <= 5; dx++) {
+        if (dx === 0 && dy === 0) continue // Gron tile itself
+        const tx = gronX + dx
+        const ty = gronY + dy
+        if (dx * dx + dy * dy > 36) continue // outside radius
+
+        const h = tileHash(tx, ty)
+        if (h % RAIN_AURA_DENSITY !== 0) continue // density check
+
+        const renders = presentDay.renderTile(sim, tx, ty, 0.8, 1000)
+        if (renders.length > 1) {
+          // Second entry should be rain overlay
+          const rainChar = renders[1].char
+          const rainColor = renders[1].color
+          expect(RAIN_AURA_CHARS).toContain(rainChar)
+          expect(RAIN_AURA_COLORS).toContain(rainColor)
+          rainFound = true
+        }
+      }
+    }
+
+    expect(rainFound).toBe(true)
+  })
+
+  it('does not render rain on Gron or player tiles', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    precomputeGenesis(sim, GENESIS_EPOCHS)
+
+    const presentDay = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
+    const gronX = Math.floor(sim.width / 2) + 5
+    const gronY = Math.floor(sim.height / 2)
+
+    sim.epochIndex = GENESIS_EPOCHS.length - 1
+
+    // Gron tile — should be single entry (character glyph only)
+    const gronRenders = presentDay.renderTile(sim, gronX, gronY, 0.8, 1000)
+    expect(gronRenders.length).toBe(1)
+
+    // Player tile — should be single entry
+    const playerX = Math.floor(sim.width / 2)
+    const playerY = Math.floor(sim.height / 2)
+    const playerRenders = presentDay.renderTile(sim, playerX, playerY, 0.8, 1000)
+    expect(playerRenders.length).toBe(1)
+  })
+
+  it('uses shared AURA_RADIUS.rain for Gron rain radius', async () => {
+    const source = await readSource('../genesis.ts')
+    // GRON_RAIN_RADIUS should derive from AURA_RADIUS, not be a raw literal
+    expect(source).toContain('GRON_RAIN_RADIUS = AURA_RADIUS.rain')
+    // No hardcoded '= 6' for the radius (the ?? 6 fallback is acceptable)
+    expect(source).not.toMatch(/GRON_RAIN_RADIUS\s*=\s*6\s*[;\n]/)
+  })
+
+  it('uses character definition for Gron glyph', async () => {
+    const source = await readSource('../genesis.ts')
+    // No hardcoded Gron glyph in renderTile
+    expect(source).not.toMatch(/char: 'G', color: '#FFFFFF'/)
+    // Uses getGronVisuals or getCharacterDefinition
+    expect(source).toContain('getGronVisuals')
+  })
+})
+
+describe('crossfade progress continuity', () => {
+  it('CROSSFADE_PEEK limits next epoch progress during blend', async () => {
+    const source = await readSource('../genesisRenderer.ts')
+    // The next epoch renderTile should receive blendT * CROSSFADE_PEEK, not raw blendT
+    expect(source).toContain('blendT * CROSSFADE_PEEK')
+    // CROSSFADE_PEEK should be small (< 0.2)
+    const match = /CROSSFADE_PEEK\s*=\s*([\d.]+)/.exec(source)
+    expect(match).toBeTruthy()
+    const peek = Number(match?.[1])
+    expect(peek).toBeGreaterThan(0)
+    expect(peek).toBeLessThan(0.2)
   })
 })
