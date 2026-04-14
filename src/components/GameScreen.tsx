@@ -17,7 +17,11 @@ import { Sidebar } from './Sidebar'
 
 import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
-import { COIN_GLINTING_COLOR } from '@/engine/constants'
+import {
+  COIN_GLINTING_COLOR,
+  GENESIS_TRANSITION_ACTION_BAR_DELAY_MS,
+  GENESIS_TRANSITION_ACTION_BAR_DURATION_MS,
+} from '@/engine/constants'
 import { canCast } from '@/engine/hexagram'
 import { getDefinition } from '@/engine/items'
 import { useEventLog } from '@/hooks/useEventLog'
@@ -221,14 +225,25 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
         />
       )}
       {!state.genesis && (
-        <ActionBar
-          state={state}
-          refreshUI={refreshUI}
-          dragState={dragOverlayRef.current?.dragState ?? null}
-          onSetActionBarTarget={() => {
-            // Handled via drag system — placeholder for now
-          }}
-        />
+        <div
+          style={
+            state.genesisTransition
+              ? {
+                  opacity: 0,
+                  animation: `fade-in ${String(GENESIS_TRANSITION_ACTION_BAR_DURATION_MS)}ms ease-in ${String(GENESIS_TRANSITION_ACTION_BAR_DELAY_MS)}ms forwards`,
+                }
+              : undefined
+          }
+        >
+          <ActionBar
+            state={state}
+            refreshUI={refreshUI}
+            dragState={dragOverlayRef.current?.dragState ?? null}
+            onSetActionBarTarget={() => {
+              // Handled via drag system — placeholder for now
+            }}
+          />
+        </div>
       )}
       {import.meta.env.DEV && state.devPanelOpen && (
         <DevPanel state={state} refreshUI={refreshUI} metricsRef={metricsRef} />

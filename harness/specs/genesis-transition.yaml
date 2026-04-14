@@ -1,0 +1,130 @@
+id: genesis-transition
+name: 'Seamless genesis-to-gameplay transition'
+status: planned
+priority: high
+layer: integration
+source_files:
+  - src/engine/genesis.ts
+  - src/engine/renderer.ts
+  - src/engine/gameLoop.ts
+  - src/engine/types.ts
+  - src/components/GameScreen.tsx
+  - src/components/Sidebar.tsx
+  - src/components/ActionBar.tsx
+dependencies:
+  - player-movement
+
+behaviors:
+  - id: canvas-crossfade
+    description: >
+      when completeGenesis fires, the renderer enters a crossfade window
+      (~1500ms). during this window it blends the final genesis frame
+      (terrain only, no entities) with the live gameplay frame (terrain +
+      entities) using a global alpha ramp from 0 to 1. the genesis frame
+      is a static snapshot captured at the moment of completion. terrain
+      tiles that are identical between genesis and gameplay remain fully
+      opaque throughout — only new elements (entities, player, overlays)
+      fade in.
+    inputs:
+      - 'completeGenesis sets state.genesis = null'
+      - 'performance.now() timestamp at genesis completion'
+    outputs:
+      - 'canvas renders a smooth blend from genesis final frame to gameplay frame over ~1500ms'
+    state_changes:
+      - field: genesisTransition
+        effect: 'set to { startTime, duration } when genesis completes, cleared to null after duration elapses'
+    determinism: time-based
+
+  - id: entity-fade-in
+    description: >
+      during the crossfade window, entities that were not visible in
+      genesis (ghosts, coins, coyote, ground items) render with opacity
+      ramping from 0 to 1 over the crossfade duration. the player
+      character also fades from its genesis appearance to full gameplay
+      rendering. gron and rain aura are already visible in genesis and
+      do not need special treatment.
+    inputs:
+      - 'genesisTransition active with startTime and duration'
+      - 'entities present in game state (ghosts, coins, coyote)'
+    outputs:
+      - 'entities render at fractional opacity during crossfade, full opacity after'
+    state_changes: []
+    determinism: time-based
+
+  - id: sidebar-crossfade
+    description: >
+      when genesis completes, the sidebar content transitions smoothly
+      from the genesis HUD (year counter, epoch progress, commentary)
+      to the gameplay sidebar (weather, coordinates, tile counts). uses
+      a CSS opacity fade-out on genesis content and fade-in on gameplay
+      content over ~1000ms synchronized with the canvas crossfade start.
+    inputs:
+      - 'state.genesis becomes null'
+      - 'state.genesisTransition is active'
+    outputs:
+      - 'genesis sidebar fades out, gameplay sidebar fades in over ~1000ms'
+    state_changes: []
+    determinism: time-based
+
+  - id: action-bar-fade-in
+    description: >
+      the action bar fades in from opacity 0 to 1 over ~800ms, starting
+      after a short delay (~500ms into the crossfade) so it does not
+      compete with the terrain transition. uses CSS animation.
+    inputs:
+      - 'state.genesis is null'
+      - 'state.genesisTransition is active or recently completed'
+    outputs:
+      - 'action bar appears with a fade-in animation instead of popping in'
+    state_changes: []
+    determinism: time-based
+
+  - id: skip-genesis-bypasses-transition
+    description: >
+      when genesis is skipped (dev mode ?skipGenesis=true or
+      completeGenesis called before any epochs run), the crossfade
+      is skipped entirely. genesisTransition is never set. all
+      entities and UI render at full opacity immediately.
+    inputs:
+      - 'skipGenesis flag is true'
+    outputs:
+      - 'no crossfade, no fade-in — immediate full render'
+    state_changes:
+      - field: genesisTransition
+        effect: 'remains null'
+    determinism: deterministic
+
+edge_cases:
+  - id: key-skip-during-crossfade
+    description: >
+      player presses a key during the crossfade window (not to skip
+      genesis, since genesis already completed — just normal input).
+      movement and interaction process identically to post-crossfade
+      gameplay. the crossfade continues visually without blocking input.
+    expected: 'crossfade is purely visual — all gameplay systems active during the fade'
+
+  - id: resize-during-crossfade
+    description: >
+      browser window resizes during the crossfade. the renderer
+      recalculates viewport dimensions as normal. the crossfade
+      continues with the new dimensions.
+    expected: 'crossfade adapts to new viewport size without visual glitch'
+
+  - id: fast-forward-skip
+    description: >
+      player presses a key to fast-forward genesis (runs remaining
+      mutations synchronously). completeGenesis fires, crossfade
+      begins normally from whatever the last rendered genesis frame was.
+    expected: 'crossfade starts from the fast-forwarded final frame, same duration'
+
+failure_conditions:
+  - trigger: 'genesisTransition.startTime is in the future (clock skew)'
+    expected: 'clamp progress to 0, crossfade starts immediately on next frame'
+
+  - trigger: 'genesisTransition is somehow still active after 2x duration'
+    expected: 'force-clear genesisTransition to null, render at full opacity'
+
+verification:
+  test_file: src/engine/__tests__/genesisTransition.test.ts
+  test_pattern: 'genesis transition'
+  command: npx vitest run src/engine/__tests__/genesisTransition.test.ts

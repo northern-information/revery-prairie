@@ -102,6 +102,22 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       })(),
     },
     {
+      id: 'genesisTransitionCleanup',
+      intervalMs: 100,
+      zone: 'always' as const,
+      phase: 'gameplay' as const,
+      priority: -20,
+      fn: (state: GameState, time: number) => {
+        if (!state.genesisTransition) return
+        const elapsed = time - state.genesisTransition.startTime
+        // Safety clamp: clear after 2x duration
+        if (elapsed >= state.genesisTransition.duration * 2 || elapsed >= state.genesisTransition.duration) {
+          state.genesisTransition = null
+          callbacks.onRefreshUI?.()
+        }
+      },
+    },
+    {
       id: 'path',
       intervalMs: PATH_TICK_MS,
       zone: 'always',

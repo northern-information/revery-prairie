@@ -4,6 +4,7 @@ import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { getCharacterDefinition } from '@/engine/characters'
 import {
+  GENESIS_TRANSITION_SIDEBAR_DURATION_MS,
   SOIL_HEALTH_DEFAULT,
   SPACE_BORDER,
   TILE_COLORS,
@@ -204,10 +205,15 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
     ? `${String(mphToKph(weather.windSpeed))} kph ${weather.windDirection}`
     : `${String(weather.windSpeed)} mph ${weather.windDirection}`
 
+  const sidebarFadeStyle = state.genesisTransition
+    ? { animation: `fade-in ${String(GENESIS_TRANSITION_SIDEBAR_DURATION_MS)}ms ease-in forwards` }
+    : undefined
+
   return (
     <div
       data-panel="sidebar"
       className="text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
+      style={sidebarFadeStyle}
     >
       <div className="flex flex-col gap-4">
         <PanelTitle>revery prairie</PanelTitle>

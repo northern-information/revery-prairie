@@ -88,6 +88,7 @@ const EXPECTED_FIELDS = [
   'rainIntensity',
   'waterProximity',
   'genesis',
+  'genesisTransition',
   'angelCantos',
   'nextAngelSpawnTime',
   'angelEncounterCount',
