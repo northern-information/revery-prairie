@@ -112,6 +112,7 @@ export const useMouse = ({
           : null
 
       // Angels use MultiPosition instead of the spatial index — check body tiles
+      let clickedBodyPositions: { x: number; y: number }[] | null = null
       if (!clickedCharacterIdentity) {
         const tileKey = posKey(tile.x, tile.y)
         for (const eid of state.world.query(
@@ -122,6 +123,7 @@ export const useMouse = ({
           const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
           if (multi?.positions.some(p => posKey(p.x, p.y) === tileKey)) {
             clickedCharacterIdentity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+            clickedBodyPositions = multi.positions
             break
           }
         }
@@ -130,19 +132,26 @@ export const useMouse = ({
         !clickedCharacterIdentity && isInteractableAt(state, tile.x, tile.y)
 
       if (clickedCharacterIdentity || clickedInteractableTile) {
-        // Find closest adjacent walkable tile to the entity
+        // Find closest adjacent walkable tile to the entity.
+        // For multi-tile bodies (angels), scan all tiles adjacent to the full body
+        // perimeter — not just the single clicked tile — so interior clicks work.
+        const bodyTiles = clickedBodyPositions ?? [tile]
+        const bodyKeys = new Set(bodyTiles.map(p => posKey(p.x, p.y)))
         let bestTarget: { x: number; y: number } | null = null
         let bestDist = Infinity
-        for (const d of adjacentDeltas) {
-          const ax = tile.x + d.x
-          const ay = tile.y + d.y
-          if (ax < 0 || ax >= state.mapWidth || ay < 0 || ay >= state.mapHeight) continue
-          if (!isWalkableTile(state.map[ay][ax].type)) continue
-          if (blocked.has(posKey(ax, ay))) continue
-          const dist = Math.abs(ax - state.player.x) + Math.abs(ay - state.player.y)
-          if (dist < bestDist) {
-            bestDist = dist
-            bestTarget = { x: ax, y: ay }
+        for (const bt of bodyTiles) {
+          for (const d of adjacentDeltas) {
+            const ax = bt.x + d.x
+            const ay = bt.y + d.y
+            if (ax < 0 || ax >= state.mapWidth || ay < 0 || ay >= state.mapHeight) continue
+            if (bodyKeys.has(posKey(ax, ay))) continue
+            if (!isWalkableTile(state.map[ay][ax].type)) continue
+            if (blocked.has(posKey(ax, ay))) continue
+            const dist = Math.abs(ax - state.player.x) + Math.abs(ay - state.player.y)
+            if (dist < bestDist) {
+              bestDist = dist
+              bestTarget = { x: ax, y: ay }
+            }
           }
         }
         if (!bestTarget) return
