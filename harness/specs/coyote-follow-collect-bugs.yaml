@@ -30,57 +30,38 @@ behaviors:
         effect: 'moved one tile along A* path toward player'
     determinism: deterministic
 
-  - id: collect-meteorite-entities
+  - id: collect-all-ground-items
     description: >
-      findNearestCollectible must find meteorite entities that use
-      ComponentType.Pickupable + EntityTag('meteorite'), not just
-      ground items with ComponentType.ItemDrop + EntityTag('groundItem').
-      meteorites are spawned by celestial.ts with a different ECS
-      component scheme than honey (which uses ItemDrop + 'groundItem').
-      the function must query both entity systems to find all collectible
-      items on the map.
+      findNearestCollectible finds all ground items regardless of
+      definitionId. it queries both ECS entity systems: ItemDrop +
+      EntityTag('groundItem') for standard ground items (honey, coins,
+      clover, etc.) and Pickupable + EntityTag('meteorite') for
+      meteorites spawned by celestial.ts. no allowlist filtering is
+      applied — COYOTE_COLLECTIBLE_DEFINITIONS is removed. the coyote
+      picks up whichever item is closest by manhattan distance.
     inputs:
       - "coyoteMode === 'collect'"
-      - 'meteorite ECS entities exist with Pickupable + EntityTag meteorite'
+      - 'any ground item entities exist on current map'
     outputs:
-      - 'findNearestCollectible returns the meteorite entity'
-      - 'coyote pathfinds to and picks up the meteorite'
+      - 'findNearestCollectible returns the nearest ground item entity'
+      - 'coyote pathfinds to and picks up the item'
     state_changes:
       - field: coyoteCargo
-        effect: "set to 'meteorite' after pickup"
+        effect: 'set to definitionId of picked-up item'
       - field: world
-        effect: 'meteorite entity destroyed on pickup'
-    determinism: deterministic
-
-  - id: collect-honey-entities
-    description: >
-      findNearestCollectible continues to find honey entities that use
-      ComponentType.ItemDrop + EntityTag('groundItem'). this is the
-      existing ground item system and must remain functional after the
-      meteorite fix.
-    inputs:
-      - "coyoteMode === 'collect'"
-      - 'honey ECS entities exist with ItemDrop + EntityTag groundItem'
-    outputs:
-      - 'findNearestCollectible returns the honey entity'
-      - 'coyote pathfinds to and picks up the honey'
-    state_changes:
-      - field: coyoteCargo
-        effect: "set to 'honey' after pickup"
-      - field: world
-        effect: 'honey entity destroyed on pickup'
+        effect: 'ground item entity destroyed on pickup'
     determinism: deterministic
 
 edge_cases:
   - id: follow-at-exact-max-distance
     description: 'coyote is exactly COYOTE_FOLLOW_MAX_DIST (3) tiles from player in follow mode'
     expected: 'coyote moves one step toward player'
-  - id: meteorite-and-honey-on-map
-    description: 'both a meteorite (Pickupable entity) and honey (ItemDrop entity) exist on the map'
-    expected: 'coyote targets whichever is closer by manhattan distance'
-  - id: meteorite-only-on-map
-    description: 'only meteorite entities exist, no honey'
-    expected: 'coyote finds and collects the meteorite'
+  - id: mixed-item-types-on-map
+    description: 'multiple item types exist on the map (meteorite, honey, coin, clover, etc.)'
+    expected: 'coyote targets whichever is closest by manhattan distance, regardless of type'
+  - id: single-item-type-on-map
+    description: 'only one type of ground item exists (e.g. only coins)'
+    expected: 'coyote finds and collects the item'
 
 failure_conditions:
   - trigger: 'coyote is exactly 3 tiles from player in follow mode'

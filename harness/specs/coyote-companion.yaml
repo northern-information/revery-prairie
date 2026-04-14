@@ -79,27 +79,28 @@ behaviors:
   - id: coyote-collect-behavior
     description: >
       when coyoteMode is 'collect', the coyote autonomously gathers
-      ground items with definitionId 'meteorite' or 'honey'. on each
-      tick, if the coyote is not carrying an item (coyoteCargo is null),
-      it scans all ground items on the current map that match the
-      collectible definitions, computes the nearest one by manhattan
-      distance, pathfinds to it, and takes one step. upon arriving at
-      the item's tile, the coyote picks it up: removes the ground item
-      ECS entity and sets coyoteCargo to the item definition id. once
-      carrying, the coyote pathfinds toward the player. upon arriving
-      adjacent to the player, it attempts to place the item in the
-      player's backpack via placeItem. if backpack has room, the item
-      is placed and coyoteCargo is cleared. if backpack is full, the
-      coyote pathfinds to Gron's position and drops the item as a
-      ground item entity near Gron (using the same DROP_DELTAS pattern
-      as existing drop logic). after each delivery, the coyote resumes
-      scanning for the next item. when no collectible items remain on
-      the map, the coyote idles at its current position until new items
-      appear. each pickup and each delivery fires addEvent with kind
-      'pickup', the item icon, and descriptive text.
+      all ground items regardless of definitionId. on each tick, if the
+      coyote is not carrying an item (coyoteCargo is null), it scans
+      all ground items on the current map (both ItemDrop+'groundItem'
+      entities and Pickupable+'meteorite' entities), computes the
+      nearest one by manhattan distance, pathfinds to it, and takes one
+      step. upon arriving at the item's tile, the coyote picks it up:
+      removes the ground item ECS entity and sets coyoteCargo to the
+      item definition id. once carrying, the coyote pathfinds toward
+      the player. upon arriving adjacent to the player, it attempts to
+      place the item in the player's backpack via placeItem. if
+      backpack has room, the item is placed and coyoteCargo is cleared.
+      if backpack is full, the coyote pathfinds to Gron's position and
+      drops the item as a ground item entity near Gron (using the same
+      DROP_DELTAS pattern as existing drop logic). after each delivery,
+      the coyote resumes scanning for the next item. when no ground
+      items remain on the map, the coyote idles at its current position
+      until new items appear. each pickup and each delivery fires
+      addEvent with kind 'pickup', the item icon, and descriptive text.
+      COYOTE_COLLECTIBLE_DEFINITIONS is removed — no allowlist filtering.
     inputs:
       - "coyoteMode === 'collect'"
-      - 'ground items with definitionId meteorite or honey exist on current map'
+      - 'any ground items exist on current map'
     outputs:
       - 'items collected and placed in player backpack or dropped near Gron'
       - 'addEvent called for each pickup and delivery'
@@ -244,7 +245,7 @@ behaviors:
 
 edge_cases:
   - id: coyote-no-collectibles
-    description: 'coyote is in collect mode but no meteorites or honey exist on the map'
+    description: 'coyote is in collect mode but no ground items exist on the map'
     expected: 'coyote idles at current position, resumes when new items spawn'
   - id: coyote-backpack-full-gron-area-full
     description: 'backpack is full and all drop positions near Gron are occupied by ground items or blocked'
@@ -256,7 +257,7 @@ edge_cases:
     description: 'coyote is pathfinding to player for delivery but player moves away'
     expected: 'coyote recalculates path to new player position on next tick'
   - id: coyote-collect-in-cave
-    description: 'coyote in collect mode enters cave with player — cave has no meteorites or honey'
+    description: 'coyote in collect mode enters cave with player — cave has no ground items'
     expected: 'coyote idles in cave until items appear or player exits'
   - id: coyote-summon-all-adjacent-blocked
     description: 'summon action but all tiles adjacent to player are blocked or unwalkable'
@@ -276,8 +277,8 @@ failure_conditions:
     expected: 'coyote position unchanged, Space never entered'
   - trigger: 'player walks onto coyote tile'
     expected: 'movePlayer returns false, player position unchanged'
-  - trigger: 'coyote picks up non-collectible ground item (e.g. clover, coin)'
-    expected: 'coyote ignores non-collectible items entirely'
+  - trigger: 'any ground item exists on the map while coyote is in collect mode'
+    expected: 'coyote pathfinds to and picks up the item regardless of definitionId'
   - trigger: 'coyote and ghost collide during movement'
     expected: 'blocked position set prevents overlap — both entities respect getBlockedPositions'
   - trigger: 'coyote mode toggled during mid-path movement'

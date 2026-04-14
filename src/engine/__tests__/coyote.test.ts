@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 
-import { COYOTE_COLLECTIBLE_DEFINITIONS } from '../constants'
 import {
   findCoyoteEntity,
   getCoyotePosition,
@@ -258,20 +257,39 @@ describe('coyote companion', () => {
       expect(state.coyoteCargo).toBe('honey')
     })
 
-    it('ignores non-collectible ground items', () => {
+    it('picks up a coin ground item', () => {
       const state = createCoyoteState()
       state.coyoteMode = CoyoteMode.Collect
       clearAroundPlayer(state, 10)
 
-      // Place a coin (not collectible) next to coyote
       const eid = requireValue(findCoyoteEntity(state))
       const coinX = state.player.x + 3
       state.world.moveEntity(eid, coinX, state.player.y)
       createGroundItemEntity(state, 'coin', coinX, state.player.y)
 
       const result = tickCoyote(state)
-      expect(result.pickedUp).toBeNull()
-      expect(state.coyoteCargo).toBeNull()
+      const pickedUp = requireValue(result.pickedUp)
+      expect(pickedUp.definitionId).toBe('coin')
+      expect(state.coyoteCargo).toBe('coin')
+    })
+
+    it('picks up the nearest item regardless of type', () => {
+      const state = createCoyoteState()
+      state.coyoteMode = CoyoteMode.Collect
+      clearAroundPlayer(state, 10)
+
+      const eid = requireValue(findCoyoteEntity(state))
+      const coyoteX = state.player.x + 5
+      state.world.moveEntity(eid, coyoteX, state.player.y)
+
+      // Place a coin closer and a meteorite farther
+      createGroundItemEntity(state, 'coin', coyoteX + 1, state.player.y)
+      createMeteoriteEntity(state, coyoteX + 4, state.player.y)
+
+      tickCoyote(state)
+      // Coyote should step toward the closer coin, not the farther meteorite
+      const pos = requireValue(state.world.getComponent(eid, ComponentType.Position))
+      expect(pos.x).toBe(coyoteX + 1)
     })
 
     it('delivers to player backpack when adjacent and backpack has room', () => {
@@ -445,10 +463,4 @@ describe('coyote companion', () => {
     })
   })
 
-  describe('collectible definitions', () => {
-    it('includes meteorite and honey', () => {
-      expect(COYOTE_COLLECTIBLE_DEFINITIONS).toContain('meteorite')
-      expect(COYOTE_COLLECTIBLE_DEFINITIONS).toContain('honey')
-    })
-  })
 })
