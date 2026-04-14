@@ -37,13 +37,17 @@ behaviors:
       characters, shooting stars, meteorites, lightning bolts,
       wildfire effects, pickup bloom effects, crumble effects,
       player trail, rain aura), path/hover preview layer, player
-      glyph (uses deep time ghost glyph when active), cursor
-      highlight, revery rain overlay, weather rain overlay (follows
-      rain front), deep time burning overlay, deep time year counter,
-      and lightning screen flash overlay. uses a two-phase
-      resolve-then-draw pattern for each tile: first determines
-      char/color/cursorable, then applies cursor inversion if
-      applicable.
+      glyph (uses deep time ghost glyph when active; crossfades
+      from ö to @ via complementary globalAlpha during
+      deepTimeTransition), cursor highlight, revery rain overlay,
+      weather rain overlay (follows rain front), deep time burning
+      overlay, and lightning screen flash overlay. during
+      genesisTransition, entities not visible in genesis (characters,
+      bees, beehives, ground items, meteorites, angels) render at
+      transitionAlpha (0→1 over duration) via globalAlpha. uses a
+      two-phase resolve-then-draw pattern for each tile: first
+      determines char/color/cursorable, then applies cursor inversion
+      if applicable.
     inputs:
       - 'CanvasRenderingContext2D, GameState, CharMetrics, timestamp'
     outputs:
