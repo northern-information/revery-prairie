@@ -28,7 +28,7 @@ export const NamePrompt = ({ onSubmit }: NamePromptProps) => {
         The revery alone will do,
         <br />
         If bees are few.
-        <div className="text-dim mt-4 text-xs">Emily Dickinson, 1755</div>
+        <div className="text-dim mt-4 text-xs">Emily Dickinson</div>
       </blockquote>
 
       <form onSubmit={handleSubmit} className="flex flex-col items-center gap-4">
