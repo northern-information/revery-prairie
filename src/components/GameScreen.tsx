@@ -252,7 +252,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
               top={dTop}
               left={dLeft}
               onNext={() => {
-                const result = advanceDialog(state)
+                const result = advanceDialog(state, performance.now())
                 if (result.gift) {
                   addEvent(
                     'discovery',
@@ -266,7 +266,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
                 refreshUI()
               }}
               onClose={() => {
-                const result = advanceDialog(state)
+                const result = advanceDialog(state, performance.now())
                 if (result.gift) {
                   addEvent(
                     'discovery',

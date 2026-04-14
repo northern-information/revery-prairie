@@ -3,6 +3,7 @@ import { storeAngelCanto } from './angels'
 import { getCharacterDefinition, getCharacterDialog } from './characters'
 import { toggleCoyoteMode } from './coyote'
 import { ComponentType } from './ecs/types'
+import { spawnPickupBloom } from './effects'
 import { recordDiscovery } from './manual'
 import { CARDINAL, DIRECTIONS, isInBounds, posKey } from './position'
 import { getReveryDefinition } from './reveries'
@@ -141,7 +142,10 @@ export const interactWithCharacter = (
   return { opened: true, gift: null, coyoteToggled: false }
 }
 
-export const advanceDialog = (state: GameState): { continuing: boolean; gift: ReveryDefinition | null } => {
+export const advanceDialog = (
+  state: GameState,
+  time?: number
+): { continuing: boolean; gift: ReveryDefinition | null } => {
   if (!state.activeDialog) return { continuing: false, gift: null }
 
   // If still typing, reveal the full line instantly
@@ -168,14 +172,14 @@ export const advanceDialog = (state: GameState): { continuing: boolean; gift: Re
 
   // Give initial gift when completing the initial dialog
   if (!state.giftsReceived.has(characterId)) {
-    const gift = giveCharacterGift(state, characterId)
+    const gift = giveCharacterGift(state, characterId, time)
     return { continuing: false, gift }
   }
 
   // Give one-time postGift when completing postGiftDialog
   const def = getCharacterDefinition(characterId)
   if (def.postGift && !state.postGiftActionsCompleted.has(characterId)) {
-    const gift = givePostGift(state, characterId)
+    const gift = givePostGift(state, characterId, time)
     state.postGiftActionsCompleted.add(characterId)
     return { continuing: false, gift }
   }
@@ -211,7 +215,7 @@ export const tickDialogTyping = (state: GameState, now: number): void => {
 
 export { DIALOG_TRANSITION_MS }
 
-export const giveCharacterGift = (state: GameState, characterId: string): ReveryDefinition | null => {
+export const giveCharacterGift = (state: GameState, characterId: string, time?: number): ReveryDefinition | null => {
   const def = getCharacterDefinition(characterId)
   if (!def.gift) return null
   if (state.giftsReceived.has(characterId)) return null
@@ -223,6 +227,9 @@ export const giveCharacterGift = (state: GameState, characterId: string): Revery
     state.giftsReceived.add(characterId)
     recordDiscovery(state, `revery:${def.gift.id}`)
     recordDiscovery(state, `event:${characterId}-gift`)
+    if (time !== undefined) {
+      spawnPickupBloom(state, state.player.x, state.player.y, time)
+    }
     return reveryDef
   }
 
@@ -230,7 +237,7 @@ export const giveCharacterGift = (state: GameState, characterId: string): Revery
   return null
 }
 
-export const givePostGift = (state: GameState, characterId: string): ReveryDefinition | null => {
+export const givePostGift = (state: GameState, characterId: string, time?: number): ReveryDefinition | null => {
   const def = getCharacterDefinition(characterId)
   if (!def.postGift) return null
 
@@ -240,6 +247,9 @@ export const givePostGift = (state: GameState, characterId: string): ReveryDefin
     autoAssignRevery(state, def.postGift.id)
     recordDiscovery(state, `revery:${def.postGift.id}`)
     recordDiscovery(state, `event:${characterId}-deep-time`)
+    if (time !== undefined) {
+      spawnPickupBloom(state, state.player.x, state.player.y, time)
+    }
     return reveryDef
   }
 

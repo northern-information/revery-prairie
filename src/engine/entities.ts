@@ -1,7 +1,7 @@
 import { CHAIN_EXPLOSION_CHANCE, spawnChainMeteorites } from './celestial'
 import { BEE_STARVATION_MS, BEE_TICK_MS } from './constants'
 import { ComponentType } from './ecs/types'
-import { AURA_RADIUS } from './effects'
+import { AURA_RADIUS, spawnPickupBloom } from './effects'
 import { tickCreatureHunger } from './hunger'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
 import { recordDiscovery } from './manual'
@@ -96,7 +96,6 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   const remainingMeteoritesAtPlayer = state.world.spatial
     .at(px, py)
     .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
-  let meteoritesCaptured = 0
   for (const eid of remainingMeteoritesAtPlayer) {
     const fit = findFitPosition(state.backpack, 'meteorite')
     if (fit) {
@@ -104,16 +103,11 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
       state.world.destroyEntity(eid)
       recordDiscovery(state, 'item:meteorite')
       pickedUp.push('meteorite')
-      meteoritesCaptured++
     }
   }
 
-  if (meteoritesCaptured > 0 && time !== undefined) {
-    const e = state.world.createEntity()
-    state.world.addComponent(e, ComponentType.Position, { x: px, y: py })
-    state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pickupBloom', startTime: time })
-    state.world.addComponent(e, ComponentType.EntityTag, 'pickupBloom')
-    state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
+  if (pickedUp.length > 0 && time !== undefined) {
+    spawnPickupBloom(state, px, py, time)
   }
 
   return { pickedUp, chainExplosions }

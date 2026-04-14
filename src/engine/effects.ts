@@ -6,6 +6,15 @@ import { Sky, WindDirection, Zone } from './types'
 
 import type { GameState } from './types'
 
+/** Spawn a pickupBloom timed effect at the given world position. */
+export const spawnPickupBloom = (state: GameState, x: number, y: number, time: number): void => {
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x, y })
+  state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pickupBloom', startTime: time })
+  state.world.addComponent(e, ComponentType.EntityTag, 'pickupBloom')
+  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
+}
+
 export const AURA_RADIUS: Record<string, number> = {
   rain: 6,
   'angel-rain': 25,
