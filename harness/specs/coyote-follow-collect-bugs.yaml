@@ -1,0 +1,96 @@
+id: coyote-follow-collect-bugs
+name: 'Coyote Follow and Collect Bug Fixes'
+status: partial
+priority: high
+layer: engine
+source_files:
+  - src/engine/coyote.ts
+  - src/engine/constants.ts
+  - src/engine/__tests__/coyote.test.ts
+  - src/engine/__tests__/helpers.ts
+dependencies:
+  - coyote-companion
+
+behaviors:
+  - id: follow-distance-threshold
+    description: >
+      when coyoteMode is 'follow', the coyote should begin moving toward
+      the player when chebyshev distance is >= COYOTE_FOLLOW_MAX_DIST (3).
+      the coyote idles only when distance is < COYOTE_FOLLOW_MAX_DIST
+      and > 0. this means at exactly distance 3 the coyote steps toward
+      the player, not idles. tickFollow uses >= comparison for the
+      max-distance check.
+    inputs:
+      - "coyoteMode === 'follow'"
+      - 'chebyshev distance from coyote to player >= COYOTE_FOLLOW_MAX_DIST'
+    outputs:
+      - 'coyote takes one step toward the player'
+    state_changes:
+      - field: 'world (coyote entity Position component)'
+        effect: 'moved one tile along A* path toward player'
+    determinism: deterministic
+
+  - id: collect-meteorite-entities
+    description: >
+      findNearestCollectible must find meteorite entities that use
+      ComponentType.Pickupable + EntityTag('meteorite'), not just
+      ground items with ComponentType.ItemDrop + EntityTag('groundItem').
+      meteorites are spawned by celestial.ts with a different ECS
+      component scheme than honey (which uses ItemDrop + 'groundItem').
+      the function must query both entity systems to find all collectible
+      items on the map.
+    inputs:
+      - "coyoteMode === 'collect'"
+      - 'meteorite ECS entities exist with Pickupable + EntityTag meteorite'
+    outputs:
+      - 'findNearestCollectible returns the meteorite entity'
+      - 'coyote pathfinds to and picks up the meteorite'
+    state_changes:
+      - field: coyoteCargo
+        effect: "set to 'meteorite' after pickup"
+      - field: world
+        effect: 'meteorite entity destroyed on pickup'
+    determinism: deterministic
+
+  - id: collect-honey-entities
+    description: >
+      findNearestCollectible continues to find honey entities that use
+      ComponentType.ItemDrop + EntityTag('groundItem'). this is the
+      existing ground item system and must remain functional after the
+      meteorite fix.
+    inputs:
+      - "coyoteMode === 'collect'"
+      - 'honey ECS entities exist with ItemDrop + EntityTag groundItem'
+    outputs:
+      - 'findNearestCollectible returns the honey entity'
+      - 'coyote pathfinds to and picks up the honey'
+    state_changes:
+      - field: coyoteCargo
+        effect: "set to 'honey' after pickup"
+      - field: world
+        effect: 'honey entity destroyed on pickup'
+    determinism: deterministic
+
+edge_cases:
+  - id: follow-at-exact-max-distance
+    description: 'coyote is exactly COYOTE_FOLLOW_MAX_DIST (3) tiles from player in follow mode'
+    expected: 'coyote moves one step toward player'
+  - id: meteorite-and-honey-on-map
+    description: 'both a meteorite (Pickupable entity) and honey (ItemDrop entity) exist on the map'
+    expected: 'coyote targets whichever is closer by manhattan distance'
+  - id: meteorite-only-on-map
+    description: 'only meteorite entities exist, no honey'
+    expected: 'coyote finds and collects the meteorite'
+
+failure_conditions:
+  - trigger: 'coyote is exactly 3 tiles from player in follow mode'
+    expected: 'coyote moves toward player, not idles'
+  - trigger: 'meteorite entity with Pickupable + EntityTag meteorite exists on map, coyote in collect mode'
+    expected: 'coyote detects and pathfinds to meteorite, not idles'
+  - trigger: 'test creates meteorite via createGroundItemEntity with wrong component scheme'
+    expected: 'test uses createMeteoriteEntity helper which matches production entity shape'
+
+verification:
+  test_file: src/engine/__tests__/coyote.test.ts
+  test_pattern: 'coyote'
+  command: 'npx vitest run src/engine/__tests__/coyote.test.ts'
