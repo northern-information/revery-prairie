@@ -1,8 +1,4 @@
-import {
-  COYOTE_COLLECTIBLE_DEFINITIONS,
-  COYOTE_FOLLOW_MAX_DIST,
-  COYOTE_FOLLOW_MIN_DIST,
-} from './constants'
+import { COYOTE_FOLLOW_MAX_DIST, COYOTE_FOLLOW_MIN_DIST } from './constants'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { findFitPosition, placeItem } from './inventory'
@@ -50,7 +46,7 @@ const findAdjacentWalkable = (state: GameState, target: Position, blocked: Set<s
 /** Chebyshev (chessboard) distance between two positions. */
 const chebyshev = (a: Position, b: Position): number => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
 
-/** Find the closest collectible ground item (meteorite or honey) to the coyote. */
+/** Find the closest ground item to the coyote. */
 const findNearestCollectible = (
   state: GameState,
   coyotePos: Position
@@ -61,7 +57,6 @@ const findNearestCollectible = (
   const consider = (eid: Entity, definitionId: string): void => {
     const ez = state.world.getComponent(eid, ComponentType.EntityZone)
     if (ez?.zone !== state.currentZone) return
-    if (!(COYOTE_COLLECTIBLE_DEFINITIONS as readonly string[]).includes(definitionId)) return
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!pos) return
     const dist = Math.abs(pos.x - coyotePos.x) + Math.abs(pos.y - coyotePos.y)
