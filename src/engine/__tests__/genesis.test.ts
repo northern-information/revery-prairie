@@ -6,6 +6,7 @@ import {
   getEpochProgress,
   getGenesisCommentary,
   nameToSeed,
+  precomputeGenesis,
   runAllMutations,
   tickGenesis,
 } from '../genesis'
@@ -934,5 +935,90 @@ describe('water consolidation', () => {
     const ratio = sandCount / totalCount
     expect(ratio).toBeGreaterThan(0.2)
     expect(ratio).toBeLessThan(0.95)
+  })
+})
+
+describe('epoch snapshot completeness', () => {
+  // Epoch indices:
+  // 0: cosmicFormation, 1: landAccretion, 2: lavaEra, 3: crustCooling,
+  // 4: firstWater, 5: emergenceOfLife, 6: fireSeason, 7: regrowth,
+  // 8: iceAge, 9: postGlacialDieOff, 10: warmPeriod,
+  // 11: riseOfCivilizations, 12: fallOfCivilizations, 13: presentDay
+
+  const getSnapshots = () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    precomputeGenesis(sim, GENESIS_EPOCHS)
+    return sim.epochSnapshots
+  }
+
+  it('produces one snapshot per epoch', () => {
+    const snapshots = getSnapshots()
+    expect(snapshots.length).toBe(GENESIS_EPOCHS.length)
+  })
+
+  it('early epoch snapshots have empty burnScars', () => {
+    const snapshots = getSnapshots()
+    // burnScars first populated by fireSeason (index 6)
+    for (let i = 0; i < 6; i++) {
+      expect(snapshots[i].burnScars.size).toBe(0)
+    }
+  })
+
+  it('early epoch snapshots have empty glacialPaths', () => {
+    const snapshots = getSnapshots()
+    // glacialPaths first populated by iceAge (index 8)
+    for (let i = 0; i < 8; i++) {
+      expect(snapshots[i].glacialPaths.size).toBe(0)
+    }
+  })
+
+  it('early epoch snapshots have empty tileData and aqueductNetwork', () => {
+    const snapshots = getSnapshots()
+    // tileData and aqueductNetwork first populated by riseOfCivilizations (index 11)
+    for (let i = 0; i < 11; i++) {
+      expect(snapshots[i].tileData.size).toBe(0)
+      expect(snapshots[i].aqueductNetwork.size).toBe(0)
+    }
+  })
+
+  it('early epoch snapshots have empty meteorites and lightningBolts', () => {
+    const snapshots = getSnapshots()
+    // meteorites and lightningBolts first populated by fireSeason (index 6)
+    for (let i = 0; i < 6; i++) {
+      expect(snapshots[i].meteorites.length).toBe(0)
+      expect(snapshots[i].lightningBolts.length).toBe(0)
+    }
+  })
+
+  it('iceAge snapshot has non-empty glacialPaths', () => {
+    const snapshots = getSnapshots()
+    // iceAge is index 8
+    expect(snapshots[8].glacialPaths.size).toBeGreaterThan(0)
+  })
+
+  it('fireSeason snapshot has non-empty burnScars', () => {
+    const snapshots = getSnapshots()
+    // fireSeason is index 6
+    expect(snapshots[6].burnScars.size).toBeGreaterThan(0)
+  })
+
+  it('riseOfCivilizations snapshot has non-empty tileData', () => {
+    const snapshots = getSnapshots()
+    // riseOfCivilizations is index 11
+    expect(snapshots[11].tileData.size).toBeGreaterThan(0)
+  })
+
+  it('riseOfCivilizations snapshot has non-empty ruins', () => {
+    const snapshots = getSnapshots()
+    expect(snapshots[11].ruins.length).toBeGreaterThan(0)
+  })
+
+  it('snapshots are independent clones — later mutations do not corrupt earlier snapshots', () => {
+    const snapshots = getSnapshots()
+    // cosmicFormation (index 0) should have empty vegetationMap even though
+    // later epochs populate it
+    expect(snapshots[0].vegetationMap.size).toBe(0)
+    // emergenceOfLife (index 5) populates vegetationMap
+    expect(snapshots[5].vegetationMap.size).toBeGreaterThan(0)
   })
 })

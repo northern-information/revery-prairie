@@ -50,6 +50,17 @@ export interface EpochSnapshot {
   riverPaths: Set<string>
   ponds: Set<string>
   elevation: Map<string, number>
+  volcanicHeat: Map<string, number>
+  ancientSeabeds: Set<string>
+  burnScars: Set<string>
+  meteorites: GenesisMeteorStreak[]
+  lightningBolts: GenesisLightningBolt[]
+  preGlacialVegetation: Map<string, number>
+  glacialPaths: Set<string>
+  meltPools: Set<string>
+  tileData: Map<string, { char: string; baseColor: string; intensity: number }>
+  aqueductNetwork: Map<string, string>
+  ruins: CivilizationRuin[]
 }
 
 export interface GenesisSimState {
