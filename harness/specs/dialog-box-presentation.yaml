@@ -1,0 +1,111 @@
+id: dialog-box-presentation
+name: 'FromSoft-style dialog box presentation'
+status: planned
+priority: high
+layer: component
+source_files:
+  - src/components/DialogBox.tsx
+  - src/components/GameScreen.tsx
+dependencies:
+  - dialog-system
+
+behaviors:
+  - id: bottom-center-positioning
+    description: >
+      dialog box is fixed to the bottom center of the viewport.
+      horizontally centered, bottom edge inset ~32px from the
+      viewport bottom. width is 65% of viewport width clamped
+      between 400px and 800px. height is auto with a max around
+      140px. the character-relative positioning logic in
+      GameScreen is removed — position is always bottom center
+      regardless of where the character is on screen.
+    inputs:
+      - 'activeDialog is non-null'
+    outputs:
+      - 'dialog box rendered at bottom center of viewport'
+    state_changes: []
+    determinism: deterministic
+
+  - id: minimal-chrome
+    description: >
+      dialog box has no visible border, no close button, and no
+      action buttons (skip, next, close are all removed). background
+      is semi-transparent black (bg-black/85). all player interaction
+      is via [e] key — the component exposes no clickable UI controls
+      for dialog progression. the portrait (if present) renders inline
+      to the left of the text at a smaller size (48x48), vertically
+      centered. character name renders above the dialog text in the
+      existing lowercase style.
+    inputs:
+      - 'activeDialog is non-null'
+    outputs:
+      - 'dialog box with no buttons, no border, no close icon'
+    state_changes: []
+    determinism: deterministic
+
+  - id: angel-dialog-preserved
+    description: >
+      angel dialog retains the HashGrid rendering within the new
+      box layout. the 8x8 hash grid displays inside the same
+      wide-short bottom-center box. no behavioral changes to
+      angel dialog — only the container shape and position change.
+    inputs:
+      - 'activeDialog with angel character'
+    outputs:
+      - 'HashGrid rendered inside the fromsoft-style box'
+    state_changes: []
+    determinism: deterministic
+
+  - id: props-simplified
+    description: >
+      DialogBox props are simplified. removed: onNext, onClose,
+      isLastLine, top, left. retained: characterName, portrait,
+      line, typingIndex, typingDone, isAngel. the component is
+      now purely presentational with no interactive callbacks —
+      all dialog advancement is handled by the keyboard hook.
+    inputs:
+      - 'DialogBox rendered by GameScreen'
+    outputs:
+      - 'component renders with simplified prop interface'
+    state_changes: []
+    determinism: deterministic
+
+  - id: gamescreen-positioning-cleanup
+    description: >
+      GameScreen no longer computes character-relative dialog
+      position. the character entity position lookup, GAP/EDGE
+      constants, and top/left clamping logic are removed. the
+      DIALOG_WIDTH and DIALOG_HEIGHT exports from DialogBox are
+      removed. GameScreen passes only the retained props to
+      DialogBox.
+    inputs:
+      - 'activeDialog is non-null in GameScreen render'
+    outputs:
+      - 'DialogBox rendered without position props'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: narrow-viewport
+    description: 'viewport narrower than 400px minimum width'
+    expected: 'dialog box clamps to 400px min-width, may overflow slightly but remains centered'
+  - id: very-long-line
+    description: 'dialog line exceeds the visible area of the short box'
+    expected: 'text overflows hidden — lines should be authored to fit, but overflow is clipped not scrolled'
+  - id: portrait-and-angel
+    description: 'angel character with a portrait defined'
+    expected: 'portrait renders inline-left, HashGrid renders in the text area to the right'
+  - id: no-portrait
+    description: 'character without a portrait (e.g. ghosts)'
+    expected: 'text area takes full width, no empty space on the left'
+
+failure_conditions:
+  - trigger: 'DialogBox rendered with no activeDialog (should never happen)'
+    expected: 'component is not rendered — conditional in GameScreen prevents it'
+  - trigger: 'player clicks on the dialog box area'
+    expected: 'no interactive response — dialog has no click handlers for progression'
+
+verification:
+  test_file: src/harness/__tests__/boot/components.test.tsx
+  test_pattern: 'DialogBox'
+  command: npx vitest run src/harness/__tests__/boot/components.test.tsx

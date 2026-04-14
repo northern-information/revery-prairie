@@ -1,7 +1,4 @@
-import { CloseButton, SectionHeader, TextButton } from './PanelPrimitives'
-
-export const DIALOG_WIDTH = 448
-export const DIALOG_HEIGHT = 340
+import { SectionHeader } from './PanelPrimitives'
 
 interface DialogBoxProps {
   characterName: string
@@ -9,12 +6,7 @@ interface DialogBoxProps {
   line: string
   typingIndex: number
   typingDone: boolean
-  isLastLine: boolean
   isAngel?: boolean
-  onNext: () => void
-  onClose: () => void
-  top: number
-  left: number
 }
 
 const HASH_GRID_SIZE = 8
@@ -40,54 +32,23 @@ const HashGrid = ({ hash, revealCount }: { hash: string; revealCount: number }) 
   )
 }
 
-export const DialogBox = ({
-  characterName,
-  portrait,
-  line,
-  typingIndex,
-  typingDone,
-  isLastLine,
-  isAngel,
-  onNext,
-  onClose,
-  top,
-  left,
-}: DialogBoxProps) => (
-  <div
-    className="border-border text-text fixed z-10 flex h-[340px] w-[448px] flex-col border bg-black/85 px-8 py-6 font-mono text-xs"
-    style={{ top, left }}
-  >
-    <CloseButton onClick={onClose} label="Close dialog" />
+export const DialogBox = ({ characterName, portrait, line, typingIndex, isAngel }: DialogBoxProps) => (
+  <div className="text-text fixed bottom-8 left-1/2 z-10 flex max-h-[140px] min-h-[80px] w-[65vw] min-w-[400px] max-w-[800px] -translate-x-1/2 items-start gap-4 bg-black/85 px-6 py-4 font-mono text-xs">
     {portrait && (
-      <div className="mb-4 flex shrink-0 justify-center">
-        <img
-          src={portrait}
-          alt={`portrait of ${characterName.toLowerCase()}`}
-          className="border-border-dim h-32 w-32 border [image-rendering:pixelated]"
-        />
-      </div>
+      <img
+        src={portrait}
+        alt={`portrait of ${characterName.toLowerCase()}`}
+        className="h-12 w-12 shrink-0 self-center [image-rendering:pixelated]"
+      />
     )}
-    <SectionHeader className="shrink-0">{characterName.toLowerCase()}</SectionHeader>
-    {isAngel ? (
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <HashGrid hash={line} revealCount={typingIndex} />
-      </div>
-    ) : (
-      <p className="min-h-0 flex-1 overflow-hidden leading-relaxed">{line.slice(0, typingIndex)}</p>
-    )}
-    <div className="mt-auto flex shrink-0 gap-4">
-      {!typingDone ? (
-        <TextButton variant="secondary" onClick={onNext}>
-          skip
-        </TextButton>
-      ) : isLastLine ? (
-        <TextButton variant="secondary" onClick={onClose}>
-          close
-        </TextButton>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <SectionHeader className="shrink-0">{characterName.toLowerCase()}</SectionHeader>
+      {isAngel ? (
+        <div className="min-h-0 overflow-hidden">
+          <HashGrid hash={line} revealCount={typingIndex} />
+        </div>
       ) : (
-        <TextButton variant="secondary" onClick={onNext}>
-          next
-        </TextButton>
+        <p className="min-h-0 overflow-hidden leading-relaxed">{line.slice(0, typingIndex)}</p>
       )}
     </div>
   </div>

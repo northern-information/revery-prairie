@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { ActionBar } from './ActionBar'
 import { CantosScreen } from './CantosScreen'
 import { CoyoteScreen } from './CoyoteScreen'
-import { DIALOG_HEIGHT, DIALOG_WIDTH, DialogBox } from './DialogBox'
+import { DialogBox } from './DialogBox'
 import { DevPanel } from './DevPanel'
 import { DragCursor } from './DragCursor'
 import { GameCanvas } from './GameCanvas'
@@ -18,9 +18,7 @@ import { Sidebar } from './Sidebar'
 import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
 import { COIN_GLINTING_COLOR } from '@/engine/constants'
-import { ComponentType } from '@/engine/ecs/types'
 import { canCast } from '@/engine/hexagram'
-import { advanceDialog } from '@/engine/interaction'
 import { getDefinition } from '@/engine/items'
 import { useEventLog } from '@/hooks/useEventLog'
 import { useGameEngine } from '@/hooks/useGameEngine'
@@ -201,44 +199,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
           const def = getCharacterDefinition(state.activeDialog.characterId)
           const dialogLines = getCharacterDialog(state, state.activeDialog.characterId)
           const line = state.activeDialog.transitioning ? '' : dialogLines[state.activeDialog.lineIndex]
-          const isLastLine = state.activeDialog.lineIndex >= dialogLines.length - 1
-
-          const dialog = state.activeDialog
-          // Find the character entity's position for dialog box placement
-          const charPos = (() => {
-            for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
-              if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== state.currentZone) continue
-              const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-              if (identity?.definitionId === dialog.characterId) {
-                return state.world.getComponent(eid, ComponentType.Position)
-              }
-            }
-            return null
-          })()
-          const metrics = metricsRef.current
-          const GAP = 12
-          const EDGE = 8
-
-          let dTop: number
-          let dLeft: number
-
-          if (charPos && metrics) {
-            const sx = (charPos.x - state.camera.x) * metrics.charWidth
-            const sy = (charPos.y - state.camera.y) * metrics.charHeight
-
-            dTop = sy - DIALOG_HEIGHT - GAP
-            dLeft = sx + metrics.charWidth / 2 - DIALOG_WIDTH / 2
-
-            if (dTop < EDGE) {
-              dTop = sy + metrics.charHeight + GAP
-            }
-
-            dLeft = Math.max(EDGE, Math.min(dLeft, window.innerWidth - DIALOG_WIDTH - EDGE))
-            dTop = Math.max(EDGE, Math.min(dTop, window.innerHeight - DIALOG_HEIGHT - EDGE))
-          } else {
-            dTop = (window.innerHeight - DIALOG_HEIGHT) / 2
-            dLeft = (window.innerWidth - DIALOG_WIDTH) / 2
-          }
 
           return (
             <DialogBox
@@ -247,38 +207,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
               line={line}
               typingIndex={state.activeDialog.typingIndex}
               typingDone={state.activeDialog.typingDone}
-              isLastLine={isLastLine}
               isAngel={state.activeDialog.characterId.startsWith('angel-')}
-              top={dTop}
-              left={dLeft}
-              onNext={() => {
-                const result = advanceDialog(state, performance.now())
-                if (result.gift) {
-                  addEvent(
-                    'discovery',
-                    `received ${result.gift.name.toLowerCase()}`,
-                    result.gift.glyphs[0],
-                    result.gift.glyphColor,
-                    state.player.x,
-                    state.player.y
-                  )
-                }
-                refreshUI()
-              }}
-              onClose={() => {
-                const result = advanceDialog(state, performance.now())
-                if (result.gift) {
-                  addEvent(
-                    'discovery',
-                    `received ${result.gift.name.toLowerCase()}`,
-                    result.gift.glyphs[0],
-                    result.gift.glyphColor,
-                    state.player.x,
-                    state.player.y
-                  )
-                }
-                refreshUI()
-              }}
             />
           )
         })()}
