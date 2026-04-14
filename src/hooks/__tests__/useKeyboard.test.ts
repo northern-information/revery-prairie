@@ -2,8 +2,8 @@ import { useKeyboard } from '../useKeyboard'
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createGroundOmniboxTestEntity, createTestState } from '@/engine/__tests__/helpers'
-import { dropItem, pickUpGroundItems } from '@/engine/entities'
+import { createTestState } from '@/engine/__tests__/helpers'
+import { dropItem } from '@/engine/entities'
 import {
   advanceDialog,
   breakWall,
@@ -11,9 +11,7 @@ import {
   interactWithCharacter,
   updateFacingEntity,
 } from '@/engine/interaction'
-import { findItemByDefinition, moveItem } from '@/engine/inventory'
 import { movePlayer } from '@/engine/movement'
-import { closeOmnibox, grabOmnibox, toggleFacingOmnibox, toggleOmnibox } from '@/engine/omnibox'
 import { Zone } from '@/engine/types'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
@@ -33,7 +31,6 @@ vi.mock('@/engine/entities', async importOriginal => {
   return {
     ...actual,
     dropItem: vi.fn(() => false),
-    pickUpGroundItems: vi.fn(() => ({ pickedUp: [], chainExplosions: 0 })),
   }
 })
 
@@ -49,17 +46,6 @@ vi.mock('@/engine/interaction', () => ({
   interactWithCharacter: vi.fn(() => ({ opened: false, gift: null })),
   updateFacingEntity: vi.fn(),
 }))
-
-vi.mock('@/engine/omnibox', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/engine/omnibox')>()
-  return {
-    ...actual,
-    closeOmnibox: vi.fn(),
-    grabOmnibox: vi.fn(() => null),
-    toggleFacingOmnibox: vi.fn(() => false),
-    toggleOmnibox: vi.fn(() => false),
-  }
-})
 
 vi.mock('@/engine/input', async importOriginal => {
   const actual = await importOriginal<typeof import('@/engine/input')>()
@@ -82,15 +68,6 @@ vi.mock('@/engine/input', async importOriginal => {
       }
       return map[key] ?? null
     }),
-  }
-})
-
-vi.mock('@/engine/inventory', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/engine/inventory')>()
-  return {
-    ...actual,
-    findItemByDefinition: vi.fn(() => undefined),
-    moveItem: vi.fn(),
   }
 })
 
@@ -183,16 +160,11 @@ beforeEach(() => {
 
   // Reset all mock return values (clearAllMocks only clears call history)
   vi.mocked(movePlayer).mockReturnValue(true)
-  vi.mocked(pickUpGroundItems).mockReturnValue({ pickedUp: [], chainExplosions: 0 })
   vi.mocked(advanceDialog).mockReturnValue({ continuing: false, gift: null })
   vi.mocked(breakWall).mockReturnValue(false)
   vi.mocked(getAdjacentCharacter).mockReturnValue(null)
   vi.mocked(interactWithCharacter).mockReturnValue({ opened: false, gift: null, coyoteToggled: false })
   vi.mocked(dropItem).mockReturnValue(false)
-  vi.mocked(grabOmnibox).mockReturnValue(null)
-  vi.mocked(toggleFacingOmnibox).mockReturnValue(false)
-  vi.mocked(toggleOmnibox).mockReturnValue(false)
-  vi.mocked(findItemByDefinition).mockReturnValue(undefined)
 })
 
 // --- tests ---
@@ -280,96 +252,6 @@ describe('useKeyboard', () => {
     })
   })
 
-  describe('E key — open container branch', () => {
-    it('grabs ground omnibox and closes container', () => {
-      const container = { id: 'omni-uid', name: 'omnibox #1', width: 5, height: 5, items: [] }
-      state.openContainer = container
-      createGroundOmniboxTestEntity(state, 'omni-uid', state.player.x + 1, state.player.y)
-      vi.mocked(grabOmnibox).mockReturnValue('omni-uid')
-      renderKeyboardHook()
-
-      act(() => {
-        fireKey('e')
-      })
-
-      expect(grabOmnibox).toHaveBeenCalledWith(state)
-      expect(onPickup).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.any(String),
-        expect.any(String),
-        state.player.x,
-        state.player.y
-      )
-      expect(closeOmnibox).toHaveBeenCalledWith(state)
-      expect(refreshUI).toHaveBeenCalled()
-    })
-
-    it('closes non-ground omnibox container without grabbing', () => {
-      const container = { id: 'backpack-omni', name: 'omnibox #2', width: 5, height: 5, items: [] }
-      state.openContainer = container
-      // Not a ground omnibox ECS entity — no groundOmnibox entities in world
-      renderKeyboardHook()
-
-      act(() => {
-        fireKey('e')
-      })
-
-      expect(grabOmnibox).not.toHaveBeenCalled()
-      expect(closeOmnibox).toHaveBeenCalledWith(state)
-      expect(refreshUI).toHaveBeenCalled()
-    })
-  })
-
-  describe('E key — pack omnibox hover', () => {
-    it('toggles omnibox when hovering omnibox in pack', () => {
-      itemInfoRef = makeItemInfoRef(
-        () => 'omnibox',
-        () => 'omni-uid-1'
-      )
-      vi.mocked(toggleOmnibox).mockReturnValue(true)
-      const { result } = renderKeyboardHook()
-
-      act(() => {
-        result.current.setActiveScreen('pack')
-      })
-      act(() => {
-        fireKey('e')
-      })
-
-      expect(toggleOmnibox).toHaveBeenCalledWith(state, 'omni-uid-1')
-      expect(refreshUI).toHaveBeenCalled()
-    })
-  })
-
-  describe('E key — facing ground omnibox', () => {
-    it('opens facing omnibox and sets pack screen', () => {
-      vi.mocked(toggleFacingOmnibox).mockReturnValue(true)
-      const { result } = renderKeyboardHook()
-
-      act(() => {
-        fireKey('e')
-      })
-
-      expect(toggleFacingOmnibox).toHaveBeenCalledWith(state)
-      expect(result.current.activeScreen).toBe('pack')
-      expect(refreshUI).toHaveBeenCalled()
-    })
-
-    it('does not change screen if pack already open', () => {
-      vi.mocked(toggleFacingOmnibox).mockReturnValue(true)
-      const { result } = renderKeyboardHook()
-
-      act(() => {
-        result.current.setActiveScreen('pack')
-      })
-      act(() => {
-        fireKey('e')
-      })
-
-      expect(result.current.activeScreen).toBe('pack')
-    })
-  })
-
   describe('E key — break wall', () => {
     it('calls breakWall in cave zone when not revealed', () => {
       state.currentZone = Zone.Cave
@@ -441,7 +323,6 @@ describe('useKeyboard', () => {
 
       expect(advanceDialog).not.toHaveBeenCalled()
       expect(interactWithCharacter).not.toHaveBeenCalled()
-      expect(toggleFacingOmnibox).not.toHaveBeenCalled()
     })
   })
 
@@ -577,27 +458,28 @@ describe('useKeyboard', () => {
     })
   })
 
-  describe('R key — rotate or toggle reveries', () => {
-    it('rotates hovered item in pack', () => {
-      itemInfoRef = makeItemInfoRef(() => 'meteorite')
-      vi.mocked(findItemByDefinition).mockReturnValue({
-        uid: 'u1',
-        definitionId: 'meteorite',
-        rotation: 0,
-        gridX: 0,
-        gridY: 0,
-      })
+  describe('R key — toggle reveries screen', () => {
+    it('opens reveries screen when closed', () => {
       const { result } = renderKeyboardHook()
 
       act(() => {
-        result.current.setActiveScreen('pack')
+        fireKey('r')
+      })
+
+      expect(result.current.activeScreen).toBe('reveries')
+    })
+
+    it('closes reveries screen when open', () => {
+      const { result } = renderKeyboardHook()
+
+      act(() => {
+        result.current.setActiveScreen('reveries')
       })
       act(() => {
         fireKey('r')
       })
 
-      expect(moveItem).toHaveBeenCalledWith(state.backpack, 'u1', 0, 0, 1)
-      expect(refreshUI).toHaveBeenCalled()
+      expect(result.current.activeScreen).toBeNull()
     })
   })
 

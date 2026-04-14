@@ -317,7 +317,7 @@ export const HEXAGRAMS: HexagramDefinition[] = [
     name: 'Great Taming',
     lines: [true, true, true, false, false, true],
     meaning:
-      'The omnibox holds more than its shape suggests. Contain great things in small vessels. Discipline is the container; potential is the contents.',
+      'The backpack holds more than its shape suggests. Contain great things in small vessels. Discipline is the container; potential is the contents.',
   },
   {
     id: 27,
@@ -485,7 +485,7 @@ export const HEXAGRAMS: HexagramDefinition[] = [
     name: 'The Cauldron',
     lines: [false, true, true, true, false, true],
     meaning:
-      'The omnibox transmutes what is placed inside it. Base materials become something greater through containment and intention. Combine with care.',
+      'The prairie transmutes what is given to it. Base materials become something greater through patience and intention. Combine with care.',
   },
   {
     id: 51,

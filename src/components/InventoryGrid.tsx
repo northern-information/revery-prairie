@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react'
 
 import { COIN_DULL_COLOR, INVENTORY_CELL_SIZE } from '@/engine/constants'
-import { buildOccupancyGrid, getRotatedShape } from '@/engine/inventory'
+import { buildOccupancyGrid } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
 import { combineIcon } from '@/engine/recipes'
 import type { ItemInfoHandle } from './ItemInfo'
@@ -124,7 +124,7 @@ export const InventoryGrid = ({
     (e: React.MouseEvent) => {
       if (e.button !== 0) return
       if (!dragStateRef.current) return
-      if (dragStateRef.current.isValid || dragStateRef.current.combineTarget || dragStateRef.current.storeTarget) {
+      if (dragStateRef.current.isValid || dragStateRef.current.combineTarget) {
         onDrop(containerId)
       }
     },
@@ -153,18 +153,10 @@ export const InventoryGrid = ({
     })
   }
 
-  // Preview shape cells — only in the container being hovered
+  // Preview cell — only in the container being hovered
   const previewCells = new Set<string>()
   if (dragState?.targetContainerId === containerId) {
-    const def = getDefinition(dragState.item.definitionId)
-    const shape = getRotatedShape(def.shape, dragState.rotation)
-    for (let sy = 0; sy < shape.length; sy++) {
-      for (let sx = 0; sx < (shape[sy]?.length ?? 0); sx++) {
-        if (shape[sy]?.[sx]) {
-          previewCells.add(`${String(dragState.previewX + sx)},${String(dragState.previewY + sy)}`)
-        }
-      }
-    }
+    previewCells.add(`${String(dragState.previewX)},${String(dragState.previewY)}`)
   }
 
   const cells: React.ReactNode[] = []
@@ -180,13 +172,11 @@ export const InventoryGrid = ({
 
       const isCombineTarget = dragState?.combineTarget?.uid === uid && uid !== undefined
       const isCombinePreview = isPreview && dragState?.combineTarget
-      const isStoreTarget = dragState?.storeTarget?.omniboxUid === uid && uid !== undefined
-      const isStorePreview = isPreview && dragState?.storeTarget
       const isCannotCombine = isPreview && dragState?.cannotCombine && isOccupied
 
       let bgClass = 'bg-grid-empty'
       let bgStyle: React.CSSProperties | undefined
-      if (isCombineTarget || isCombinePreview || isStoreTarget || isStorePreview || isCannotCombine) {
+      if (isCombineTarget || isCombinePreview || isCannotCombine) {
         bgClass = ''
         bgStyle = { backgroundColor: '#ff69b4' }
       } else if (isPreview) {
@@ -202,9 +192,7 @@ export const InventoryGrid = ({
           className={`border-grid-border flex items-center justify-center border font-mono text-xs ${bgClass}`}
           style={{ width: INVENTORY_CELL_SIZE, height: INVENTORY_CELL_SIZE, ...bgStyle }}
         >
-          {(isStoreTarget || isStorePreview) && dragState ? (
-            <span style={{ color: '#000' }}>{getDefinition(dragState.item.definitionId).glyph}</span>
-          ) : (isCombineTarget || isCombinePreview) && dragState?.combineTarget ? (
+          {(isCombineTarget || isCombinePreview) && dragState?.combineTarget ? (
             <span style={{ color: '#000' }}>
               {combineIcon(dragState.combineTarget.recipe, dragState.combineTarget.isDiscovered)}
             </span>

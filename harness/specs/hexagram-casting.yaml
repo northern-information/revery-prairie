@@ -187,10 +187,6 @@ edge_cases:
     description: 'Player presses c with 3 or more glinting coins in backpack'
     expected: 'Hexagram panel opens to casting tab — existing casting behavior preserved'
 
-  - id: coins-in-omnibox-not-counted
-    description: 'Player has glinting coins stored in an omnibox, not the backpack'
-    expected: 'Coins in omniboxes do not count toward the 3-coin requirement. Only backpack coins qualify.'
-
   - id: panel-close-mid-toss
     description: 'Player presses esc during the toss sequence (before completing 6 tosses)'
     expected: 'Panel closes, partial cast is discarded, coins remain glinting (not consumed). Next cast starts fresh.'

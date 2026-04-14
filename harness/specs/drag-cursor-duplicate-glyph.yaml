@@ -35,9 +35,6 @@ edge_cases:
   - id: cursor-transitions-canvas-to-grid
     description: Moving the cursor from the canvas back to the inventory grid should hide the DragCursor glyph
     expected: DragCursor disappears when cursorTarget changes from 'canvas' to 'other'
-  - id: cursor-over-fabrication-zone
-    description: Moving the cursor over the fabrication zone (not a grid) while dragging
-    expected: No DragCursor glyph — fabrication zone has its own text feedback
 failure_conditions:
   - trigger: DragCursor renders glyph when cursorTarget is 'other' and cursor is over inventory grid
     expected: No floating glyph — only the grid preview glyph at 0.6 opacity

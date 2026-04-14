@@ -4,7 +4,6 @@ import { ACTION_COLOR } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { removeItem } from '@/engine/inventory'
 import { getBlockedPositions } from '@/engine/movement'
-import { createGroundOmniboxEntity } from '@/engine/omnibox'
 import { findPath } from '@/engine/pathfinding'
 import { ORDINAL } from '@/engine/position'
 import { TileType } from '@/engine/types'
@@ -86,7 +85,7 @@ export const useCanvasDrop = ({
         if (
           state.world.spatial.at(mx, my).some(eid => {
             const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-            return tag === 'groundItem' || tag === 'groundOmnibox'
+            return tag === 'groundItem'
           })
         )
           return
@@ -96,8 +95,6 @@ export const useCanvasDrop = ({
           state.world.addComponent(beeEntity, ComponentType.Position, { x: mx, y: my })
           state.world.addComponent(beeEntity, ComponentType.EntityTag, 'bee')
           state.world.addComponent(beeEntity, ComponentType.EntityZone, { zone: state.currentZone })
-        } else if (defId === 'omnibox') {
-          createGroundOmniboxEntity(state, itemUid, mx, my)
         } else {
           const ge = state.world.createEntity()
           state.world.addComponent(ge, ComponentType.Position, { x: mx, y: my })

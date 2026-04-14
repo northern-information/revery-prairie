@@ -12,7 +12,6 @@ import {
   updateFacingEntity,
 } from '@/engine/interaction'
 import { getPathfindingBlockers } from '@/engine/movement'
-import { openOmnibox } from '@/engine/omnibox'
 import { findPath } from '@/engine/pathfinding'
 import { isWalkableTile, posKey } from '@/engine/position'
 import { TileType } from '@/engine/types'
@@ -127,15 +126,10 @@ export const useMouse = ({
           }
         }
       }
-      const clickedOmniboxEid = state.world.spatial
-        .at(tile.x, tile.y)
-        .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox')
-      const clickedOmniboxLink =
-        clickedOmniboxEid !== undefined ? state.world.getComponent(clickedOmniboxEid, ComponentType.OmniboxLink) : null
       const clickedInteractableTile =
-        !clickedCharacterIdentity && !clickedOmniboxLink && isInteractableAt(state, tile.x, tile.y)
+        !clickedCharacterIdentity && isInteractableAt(state, tile.x, tile.y)
 
-      if (clickedCharacterIdentity || clickedOmniboxLink || clickedInteractableTile) {
+      if (clickedCharacterIdentity || clickedInteractableTile) {
         // Find closest adjacent walkable tile to the entity
         let bestTarget: { x: number; y: number } | null = null
         let bestDist = Infinity
@@ -165,15 +159,6 @@ export const useMouse = ({
             if (result.opened) {
               onDialog(charDef.name, charDef.glyph, charDef.glyphColor, state.player.x, state.player.y)
             }
-            refreshUI()
-          }
-        } else if (clickedOmniboxLink) {
-          const omniboxUid = clickedOmniboxLink.uid
-          action = () => {
-            state.pendingInteractionTarget = null
-            openOmnibox(state, omniboxUid)
-            updateFacingEntity(state)
-            setActiveScreen('pack')
             refreshUI()
           }
         } else if (clickedInteractableTile) {

@@ -245,7 +245,7 @@ const tickCollect = (
       // Adjacent to player — try backpack
       const fit = findFitPosition(state.backpack, state.coyoteCargo)
       if (fit) {
-        placeItem(state.backpack, state.coyoteCargo, fit.rotation, fit.gridX, fit.gridY)
+        placeItem(state.backpack, state.coyoteCargo, fit.gridX, fit.gridY)
         result.delivered = {
           definitionId: state.coyoteCargo,
           x: state.player.x,

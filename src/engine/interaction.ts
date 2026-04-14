@@ -14,7 +14,7 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
   if (
     state.world.spatial.at(x, y).some(eid => {
       const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-      return tag === 'groundOmnibox' || tag === 'character'
+      return tag === 'character'
     })
   ) {
     return true
@@ -40,39 +40,12 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
 }
 
 export const updateFacingEntity = (state: GameState): void => {
-  const switchIfOpen = (x: number, y: number) => {
-    // Find ground omnibox at this position
-    let goUid: string | null = null
-    for (const eid of state.world.spatial.at(x, y)) {
-      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
-      const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
-      if (link) goUid = link.uid
-      break
-    }
-    if (!goUid || !state.openContainer) return
-    // Only switch if the open container is also a ground omnibox
-    let openIsGround = false
-    for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)) {
-      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
-      if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== state.currentZone) continue
-      const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
-      if (link?.uid === state.openContainer.id) {
-        openIsGround = true
-        break
-      }
-    }
-    if (!openIsGround || state.openContainer.id === goUid) return
-    const container = state.omniboxContainers.get(goUid)
-    if (container) state.openContainer = container
-  }
-
   // Prefer the interactable in the facing direction
   const d = DIRECTIONS[state.playerFacing]
   const fx = state.player.x + d.x
   const fy = state.player.y + d.y
   if (isInteractableAt(state, fx, fy)) {
     state.facingEntityPos = { x: fx, y: fy }
-    switchIfOpen(fx, fy)
     return
   }
   // Fall back to any cardinally adjacent interactable
@@ -81,15 +54,11 @@ export const updateFacingEntity = (state: GameState): void => {
     const ny = state.player.y + cd.y
     if (isInteractableAt(state, nx, ny)) {
       state.facingEntityPos = { x: nx, y: ny }
-      switchIfOpen(nx, ny)
       return
     }
   }
   state.facingEntityPos = null
 }
-
-/** @deprecated Use updateFacingEntity instead */
-export const updateFacingOmnibox = updateFacingEntity
 
 export const getAdjacentCharacter = (
   state: GameState

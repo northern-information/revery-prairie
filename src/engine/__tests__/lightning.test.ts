@@ -8,7 +8,6 @@ import {
 } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { selectStrikeTarget, spawnLightningStrike, spreadWildfire, tickLightning } from '../lightning'
-import { createGroundOmniboxEntity } from '../omnibox'
 import { posKey } from '../position'
 import { CloverStage, Sky, TileType, Zone } from '../types'
 import { clearAroundPlayer, createMeteoriteEntity, createTestState } from './helpers'
@@ -405,32 +404,6 @@ describe('lightning', () => {
         )
         expect(lightningEntities.length).toBeGreaterThan(0)
       }
-    })
-  })
-
-  describe('omnibox strike counter', () => {
-    it('increments when lightning strikes an omnibox tile', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 10)
-      for (let y = 0; y < state.mapHeight; y++) {
-        for (let x = 0; x < state.mapWidth; x++) {
-          state.map[y][x] = { type: TileType.Dirt }
-        }
-      }
-
-      // Place omnibox far from player
-      const ox = state.player.x + 8
-      const oy = state.player.y + 8
-      const uid = 'test-omnibox-uid'
-      createGroundOmniboxEntity(state, uid, ox, oy)
-
-      // Simulate a strike landing on the omnibox tile by calling spawnLightningStrike
-      // with forced conditions — but since targeting is probabilistic, directly test the counter logic
-      state.omniboxStrikeCounts.set(uid, 0)
-      state.omniboxStrikeCounts.set(uid, (state.omniboxStrikeCounts.get(uid) ?? 0) + 1)
-      expect(state.omniboxStrikeCounts.get(uid)).toBe(1)
-      state.omniboxStrikeCounts.set(uid, (state.omniboxStrikeCounts.get(uid) ?? 0) + 1)
-      expect(state.omniboxStrikeCounts.get(uid)).toBe(2)
     })
   })
 

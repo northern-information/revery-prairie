@@ -1,69 +1,37 @@
-import {
-  buildOccupancyGrid,
-  containerHasItem,
-  findItemByDefinition,
-  getActiveContainers,
-  getRotatedShape,
-  removeItem,
-} from './inventory'
-import { getDefinition } from './items'
+import { buildOccupancyGrid, containerHasItem, findItemByDefinition, removeItem } from './inventory'
 import { isWalkableTile } from './position'
 import { findRecipe, recipeKey, RECIPES } from './recipes'
 import { TileType } from './types'
 
 import type { Recipe } from './recipes'
-import type { Container, GameState, ItemInstance, Rotation } from './types'
+import type { Container, GameState, ItemInstance } from './types'
 
 export type CheckCombineResult =
   | { kind: 'recipe'; uid: string; recipe: Recipe; isDiscovered: boolean }
-  | { kind: 'store'; omniboxUid: string }
   | { kind: 'no-recipe' }
   | { kind: 'none' }
 
 export const checkCombine = (
   container: Container,
   draggedItem: ItemInstance,
-  rotation: Rotation,
   gridX: number,
   gridY: number,
   sourceContainerId: string,
   containerId: string,
   discoveredRecipes: Set<string>
 ): CheckCombineResult => {
-  const def = getDefinition(draggedItem.definitionId)
-  const shape = getRotatedShape(def.shape, rotation)
+  if (gridX < 0 || gridY < 0 || gridX >= container.width || gridY >= container.height) {
+    return { kind: 'none' }
+  }
 
   const excludeUid = sourceContainerId === containerId ? draggedItem.uid : undefined
   const occupancy = buildOccupancyGrid(container, excludeUid)
 
-  const overlappedUids = new Set<string>()
-  for (let sy = 0; sy < shape.length; sy++) {
-    for (let sx = 0; sx < (shape[sy]?.length ?? 0); sx++) {
-      if (shape[sy]?.[sx]) {
-        const gx = gridX + sx
-        const gy = gridY + sy
-        if (gy >= 0 && gy < container.height && gx >= 0 && gx < container.width) {
-          const uid = occupancy[gy]?.[gx]
-          if (uid) {
-            overlappedUids.add(uid)
-          }
-        }
-      }
-    }
-  }
-
-  if (overlappedUids.size !== 1) return { kind: 'none' }
-
-  const targetUid = [...overlappedUids][0]
+  const targetUid = occupancy[gridY]?.[gridX]
   if (!targetUid) return { kind: 'none' }
 
   const targetItem = container.items.find(i => i.uid === targetUid)
   if (!targetItem) return { kind: 'none' }
-
-  // Dragging onto an omnibox stores the item inside (takes priority over recipes)
-  if (targetItem.definitionId === 'omnibox' && draggedItem.uid !== targetItem.uid) {
-    return { kind: 'store', omniboxUid: targetItem.uid }
-  }
 
   const recipe = findRecipe(draggedItem.definitionId, targetItem.definitionId)
   if (!recipe) return { kind: 'no-recipe' }
@@ -73,26 +41,17 @@ export const checkCombine = (
 }
 
 const findAndRemoveItem = (state: GameState, definitionId: string): boolean => {
-  const containers = getActiveContainers(state)
-  for (const container of containers) {
-    const item = findItemByDefinition(container, definitionId)
-    if (item) {
-      removeItem(container, item.uid)
-      return true
-    }
+  const item = findItemByDefinition(state.backpack, definitionId)
+  if (item) {
+    removeItem(state.backpack, item.uid)
+    return true
   }
   return false
 }
 
-const hasItemInAnyContainer = (state: GameState, definitionId: string): boolean => {
-  if (containerHasItem(state.backpack, definitionId)) return true
-  if (state.openContainer && containerHasItem(state.openContainer, definitionId)) return true
-  return false
-}
-
 export const combineBeeAndClover = (state: GameState): boolean => {
-  const hasBee = hasItemInAnyContainer(state, 'bee')
-  const hasClover = hasItemInAnyContainer(state, 'clover')
+  const hasBee = containerHasItem(state.backpack, 'bee')
+  const hasClover = containerHasItem(state.backpack, 'clover')
 
   if (!hasBee || !hasClover) return false
 

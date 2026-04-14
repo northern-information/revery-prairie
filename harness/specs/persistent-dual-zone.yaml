@@ -15,7 +15,6 @@ source_files:
   - src/engine/interaction.ts
   - src/engine/effects.ts
   - src/engine/celestial.ts
-  - src/engine/omnibox.ts
   - src/engine/recipes.ts
   - src/hooks/useKeyboard.ts
   - src/hooks/useCanvasDrop.ts
@@ -83,8 +82,7 @@ behaviors:
       queries: getBlockedPositions (movement.ts), renderer entity
       loops (renderer.ts), tickBees/tickCharacterBehaviors
       (entities.ts), updateFacingEntity/isInteractableAt
-      (interaction.ts), getTileEffects (effects.ts), omnibox
-      ground checks (useKeyboard.ts, entities.ts). Each query
+      (interaction.ts), getTileEffects (effects.ts). Each query
       includes ComponentType.EntityZone and checks zone matches
       the system's active zone.
     inputs:
@@ -155,7 +153,7 @@ edge_cases:
 
   - id: blocked-positions-zone-isolation
     description: >
-      A ground omnibox exists on the overworld. In the cave, the
+      A blocking entity exists on the overworld. In the cave, the
       player can walk on the same coordinates because
       getBlockedPositions only returns blockers for the current
       zone.
@@ -173,8 +171,8 @@ failure_conditions:
     expected: 'Overworld tick systems ran while player was in cave, stars have moved or landed'
 
   - trigger: >
-      getBlockedPositions returns overworld ground omnibox
-      positions while player is in cave, blocking cave movement
+      getBlockedPositions returns overworld blocker positions
+      while player is in cave, blocking cave movement
     expected: 'getBlockedPositions filters by current zone'
 
 verification:

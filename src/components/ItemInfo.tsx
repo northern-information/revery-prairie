@@ -59,10 +59,6 @@ export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoi
               {item.glyph} {item.name.toLowerCase()}
             </span>
           </div>
-          <div className="mb-1 flex items-baseline justify-between">
-            <span className="text-muted">weight</span>
-            <span>{item.weight}</span>
-          </div>
           <div className="mb-1 flex items-baseline justify-between text-end">
             <span className="text-muted">category</span>
             <span className="">{item.category}</span>

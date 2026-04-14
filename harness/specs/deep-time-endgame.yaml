@@ -214,8 +214,8 @@ behaviors:
       when deepTime.active is true, shooting star spawning,
       meteorite spawning, meteor shower ticks, and character behavior
       ticks are all suppressed via early returns. lightning spawning
-      continues (natural phenomenon). ground items, ground omniboxes,
-      and other non-character entities persist.
+      continues (natural phenomenon). ground items and other
+      non-character entities persist.
     inputs:
       - 'deepTime.active is true, game loop ticks entity systems'
     outputs:

@@ -54,8 +54,6 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'item:bee': { lore: 'TODO' },
   'item:clover': { lore: 'TODO' },
   'item:meteorite': { lore: 'TODO' },
-  'item:permacomputer': { lore: 'TODO' },
-  'item:omnibox': { lore: 'TODO' },
   'item:honey': { lore: 'TODO' },
   'item:coin': { lore: 'TODO' },
   // Reveries
@@ -465,7 +463,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     summary: 'what draws lightning to a place',
     lore:
       MANUAL_LORE['event:lightning-attraction']?.lore ??
-      'high ground draws lightning down from the clouds. water-soaked earth conducts the charge — tiles near ponds and rivers are struck more often. metal objects left on the ground act as conductors — meteorites and omniboxes attract bolts. a lone beehive standing in open dirt is a target — isolated tall features on flat terrain invite strikes. clover fields conduct slightly better than bare dirt.',
+      'high ground draws lightning down from the clouds. water-soaked earth conducts the charge — tiles near ponds and rivers are struck more often. metal objects left on the ground act as conductors — meteorites attract bolts. a lone beehive standing in open dirt is a target — isolated tall features on flat terrain invite strikes. clover fields conduct slightly better than bare dirt.',
     hints: MANUAL_LORE['event:lightning-attraction']?.hints ?? [
       {
         prompt: 'how to protect clover',
@@ -557,7 +555,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '#',
     glyphColor: '#E8E8FF',
-    summary: 'a sha256 hash spoken by an angel, recorded in the permacomputer',
+    summary: 'a sha256 hash spoken by an angel',
     lore: MANUAL_LORE['event:angel-canto']?.lore ?? 'TODO',
     hints: MANUAL_LORE['event:angel-canto']?.hints ?? [],
     unlockKey: 'event:angel-canto',

@@ -8,12 +8,8 @@ interface ItemEntry {
   description: string
   glyph: string
   glyphColor: string
-  weight: number
   category: ItemCategoryType
-  shape: string[]
 }
-
-const parseShape = (rows: string[]): boolean[][] => rows.map(row => Array.from(row, ch => ch === '#'))
 
 const ITEMS = {
   bee: {
@@ -21,68 +17,40 @@ const ITEMS = {
     description: 'a single bee',
     glyph: '*',
     glyphColor: '#FFD700',
-    weight: 1,
     category: ItemCategory.Fauna,
-    shape: ['#'],
   },
   clover: {
     name: 'Clover',
     description: 'a single clover',
     glyph: '%',
     glyphColor: '#50C878',
-    weight: 1,
     category: ItemCategory.Flora,
-    shape: ['#'],
   },
   meteorite: {
     name: 'Meteorite',
     description: 'a fallen star',
     glyph: '\u2726',
     glyphColor: '#FFE4B5',
-    weight: 2,
     category: ItemCategory.CelestialDebris,
-    shape: ['#'],
-  },
-  permacomputer: {
-    name: 'Permacomputer',
-    description: 'standard issue fabrication omnitool',
-    glyph: '⚙',
-    glyphColor: '#8B7355',
-    weight: 3,
-    category: ItemCategory.Gizmo,
-    shape: ['##'],
-  },
-  omnibox: {
-    name: 'Omnibox',
-    description: 'a portable container',
-    glyph: '\u229E',
-    glyphColor: '#C0C0C0',
-    weight: 4,
-    category: ItemCategory.Gizmo,
-    shape: ['##', '##'],
   },
   honey: {
     name: 'Honey',
     description: 'golden nectar from the hive',
     glyph: '~',
     glyphColor: '#DAA520',
-    weight: 1,
     category: ItemCategory.Flora,
-    shape: ['#'],
   },
   coin: {
     name: 'Coin',
     description: 'an ancient divination coin',
     glyph: '¤',
     glyphColor: COIN_GLINTING_COLOR,
-    weight: 1,
     category: ItemCategory.Tool,
-    shape: ['#'],
   },
 } as const satisfies Record<string, ItemEntry>
 
 export const ITEM_DEFINITIONS: Record<string, ItemDefinition> = Object.fromEntries(
-  Object.entries(ITEMS).map(([key, entry]) => [key, { ...entry, id: key, shape: parseShape(entry.shape) }])
+  Object.entries(ITEMS).map(([key, entry]) => [key, { ...entry, id: key }])
 )
 
 export const getDefinition = (id: string): ItemDefinition => {
@@ -93,16 +61,16 @@ export const getDefinition = (id: string): ItemDefinition => {
   return def
 }
 
+export const BACKPACK_WIDTH = 10
+export const BACKPACK_HEIGHT = 100
+
 export const createBackpack = (): Container => ({
   id: 'backpack',
   name: 'Backpack',
-  width: 4,
-  height: 6,
+  width: BACKPACK_WIDTH,
+  height: BACKPACK_HEIGHT,
   items: [],
 })
-
-export const BACKPACK_WIDTH = 4
-export const BACKPACK_HEIGHT = 6
 
 export const createContainer = (id: string, name: string, width: number, height: number): Container => ({
   id,

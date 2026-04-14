@@ -57,7 +57,7 @@ behaviors:
       When the cursor is over a tile containing a beehive entity, the sidebar
       contents row displays "beehive". Beehives are ECS entities with
       EntityTag === 'beehive' and a Position component. The check runs after
-      meteorites and before ground omniboxes in the contents priority order.
+      meteorites in the contents priority order.
     inputs:
       - 'state.cursorTile resolves to a tile with a beehive ECS entity'
     outputs:

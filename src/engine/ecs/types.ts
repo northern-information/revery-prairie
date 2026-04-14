@@ -13,7 +13,7 @@ export const ComponentType = {
   Aura: 'aura',
   ShootingStarData: 'shootingStarData',
   MultiPosition: 'multiPosition',
-  OmniboxLink: 'omniboxLink',
+
   CharacterIdentity: 'characterIdentity',
   ItemDrop: 'itemDrop',
   ChainSource: 'chainSource',
@@ -46,7 +46,7 @@ export interface ComponentDataMap {
     landingTarget: Position | null
   }
   [ComponentType.MultiPosition]: { positions: Position[] }
-  [ComponentType.OmniboxLink]: { uid: string }
+
   [ComponentType.CharacterIdentity]: { definitionId: string }
   [ComponentType.ItemDrop]: { definitionId: string; glinting?: boolean }
   [ComponentType.ChainSource]: { fromChain: boolean }

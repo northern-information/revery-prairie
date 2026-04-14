@@ -5,7 +5,6 @@ import { autoSort, placeItem } from '@/engine/inventory'
 import { createBackpack } from '@/engine/items'
 import { findPath } from '@/engine/pathfinding'
 import { generateTerrain } from '@/engine/terrain'
-import { Rotation } from '@/engine/types'
 
 const SEED = 42
 
@@ -48,13 +47,13 @@ describe('performance budgets', () => {
   budget('autoSort on full backpack', 10, () => {
     const backpack = createBackpack()
 
-    // fill backpack with small items
+    // fill backpack with 100 items (1x1 each, 10 columns x 10 rows)
     withSeededRandom(SEED, () => {
       const smallItems = ['bee', 'clover']
-      for (let y = 0; y < 6; y++) {
-        for (let x = 0; x < 4; x++) {
+      for (let y = 0; y < 10; y++) {
+        for (let x = 0; x < 10; x++) {
           const itemId = smallItems[(x + y) % smallItems.length] ?? 'bee'
-          placeItem(backpack, itemId, Rotation.R0, x, y)
+          placeItem(backpack, itemId, x, y)
         }
       }
     })

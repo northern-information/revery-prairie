@@ -6,7 +6,6 @@ import { tickCreatureHunger } from './hunger'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
 import { recordDiscovery } from './manual'
 import { getBlockedPositions } from './movement'
-import { createGroundOmniboxEntity } from './omnibox'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 import { TileType, Zone } from './types'
 
@@ -54,7 +53,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     if (!itemDrop) continue
     const fit = findFitPosition(state.backpack, itemDrop.definitionId)
     if (fit) {
-      const placed = placeItem(state.backpack, itemDrop.definitionId, fit.rotation, fit.gridX, fit.gridY)
+      const placed = placeItem(state.backpack, itemDrop.definitionId, fit.gridX, fit.gridY)
       if (placed && itemDrop.definitionId === 'coin' && itemDrop.glinting !== false) {
         state.glintingCoins.add(placed.uid)
       }
@@ -70,7 +69,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   for (const eid of beesAtPlayer) {
     const fit = findFitPosition(state.backpack, 'bee')
     if (fit) {
-      placeItem(state.backpack, 'bee', fit.rotation, fit.gridX, fit.gridY)
+      placeItem(state.backpack, 'bee', fit.gridX, fit.gridY)
       state.world.destroyEntity(eid)
       recordDiscovery(state, 'item:bee')
       pickedUp.push('bee')
@@ -101,7 +100,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   for (const eid of remainingMeteoritesAtPlayer) {
     const fit = findFitPosition(state.backpack, 'meteorite')
     if (fit) {
-      placeItem(state.backpack, 'meteorite', fit.rotation, fit.gridX, fit.gridY)
+      placeItem(state.backpack, 'meteorite', fit.gridX, fit.gridY)
       state.world.destroyEntity(eid)
       recordDiscovery(state, 'item:meteorite')
       pickedUp.push('meteorite')
@@ -115,30 +114,6 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pickupBloom', startTime: time })
     state.world.addComponent(e, ComponentType.EntityTag, 'pickupBloom')
     state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
-  }
-
-  // Auto-close open ground omnibox when player walks away
-  if (state.openContainer) {
-    const openId = state.openContainer.id
-    let isGroundOmnibox = false
-    for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.Position)) {
-      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
-      if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== state.currentZone) continue
-      const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
-      if (link?.uid !== openId) continue
-      const goPos = state.world.getComponent(eid, ComponentType.Position)
-      if (!goPos) continue
-      isGroundOmnibox = true
-      const dx = Math.abs(goPos.x - px)
-      const dy = Math.abs(goPos.y - py)
-      if (dx > 1 || dy > 1) {
-        state.openContainer = null
-      }
-      break
-    }
-    if (!isGroundOmnibox) {
-      // Not a ground omnibox — leave it open (backpack omnibox)
-    }
   }
 
   return { pickedUp, chainExplosions }
@@ -275,7 +250,7 @@ const canDropAt = (state: GameState, x: number, y: number): boolean => {
   if (
     state.world.spatial.at(x, y).some(eid => {
       const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-      return tag === 'groundItem' || tag === 'groundOmnibox'
+      return tag === 'groundItem'
     })
   )
     return false
@@ -313,8 +288,6 @@ export const dropItem = (state: GameState, definitionId: string): boolean => {
         state.world.addComponent(e, ComponentType.EntityTag, 'bee')
         state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
         state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
-      } else if (definitionId === 'omnibox') {
-        createGroundOmniboxEntity(state, droppedUid, tx, ty)
       } else {
         const ge = state.world.createEntity()
         state.world.addComponent(ge, ComponentType.Position, { x: tx, y: ty })

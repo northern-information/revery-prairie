@@ -4,7 +4,6 @@ import { activateActionBarSlot, getActionBarPreview, getTargetingPreview } from 
 import { getReveryDefinition } from '@/engine/reveries'
 import { getCharacterDefinition } from '@/engine/characters'
 import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
-import { ComponentType } from '@/engine/ecs/types'
 import { dropItem } from '@/engine/entities'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import { keyToDirection } from '@/engine/input'
@@ -15,10 +14,8 @@ import {
   interactWithCharacter,
   updateFacingEntity,
 } from '@/engine/interaction'
-import { findItemByDefinition, moveItem } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
-import { closeOmnibox, grabOmnibox, toggleFacingOmnibox, toggleOmnibox } from '@/engine/omnibox'
-import { DeepTimePhase, Rotation, Zone } from '@/engine/types'
+import { DeepTimePhase, Zone } from '@/engine/types'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
@@ -130,7 +127,7 @@ export const useKeyboard = ({
         return
       }
 
-      // [e] — advance dialog / pick up or close open omnibox / open omnibox / talk / toss coins
+      // [e] — advance dialog / talk / break wall / toss coins
       if (e.key === 'e' || e.key === 'E') {
         // Divination panel owns [e] for tossing — don't interfere
         if (activeScreen === 'divination') return
@@ -149,50 +146,6 @@ export const useKeyboard = ({
           return
         }
         if (activeScreen !== 'system') {
-          // If an omnibox is open: pick up (ground) or close (backpack)
-          if (state.openContainer) {
-            const openId = state.openContainer.id
-            let isGround = false
-            for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)) {
-              if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
-              if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== state.currentZone) continue
-              const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
-              if (link?.uid === openId) {
-                isGround = true
-                break
-              }
-            }
-            if (isGround) {
-              const uid = grabOmnibox(state)
-              if (uid) {
-                const def = getDefinition('omnibox')
-                onPickup(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
-              }
-              closeOmnibox(state)
-            } else {
-              closeOmnibox(state)
-            }
-            refreshUI()
-            return
-          }
-          // Open hovered omnibox in inventory
-          if (activeScreen === 'pack') {
-            const hoveredId = itemInfoRef.current?.getCurrentId()
-            const hoveredUid = itemInfoRef.current?.getCurrentUid()
-            if (hoveredId === 'omnibox' && hoveredUid) {
-              toggleOmnibox(state, hoveredUid)
-              refreshUI()
-              return
-            }
-          }
-          // Open facing ground omnibox
-          if (toggleFacingOmnibox(state)) {
-            if (activeScreen !== 'pack') {
-              setActiveScreen('pack')
-            }
-            refreshUI()
-            return
-          }
           // Break facing breakable wall
           if (state.currentZone === Zone.Cave && !state.caveRevealed) {
             if (breakWall(state, performance.now())) {
@@ -280,21 +233,9 @@ export const useKeyboard = ({
         return
       }
 
-      // Rotate hovered item in pack, or toggle reveries screen
+      // Toggle reveries screen
       // Block when modifier held (Cmd+R / Ctrl+R is browser refresh)
       if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        if (activeScreen === 'pack') {
-          const hoveredId = itemInfoRef.current?.getCurrentId()
-          if (hoveredId) {
-            const item = findItemByDefinition(state.backpack, hoveredId)
-            if (item) {
-              const nextRotation = ((item.rotation + 1) % 4) as Rotation
-              moveItem(state.backpack, item.uid, item.gridX, item.gridY, nextRotation)
-              refreshUI()
-            }
-            return
-          }
-        }
         if (activeScreen === 'system') return
         setActiveScreen(activeScreen === 'reveries' ? null : 'reveries')
         return

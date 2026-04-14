@@ -64,7 +64,7 @@ behaviors:
       functions. selecting a preset populates the form. presets are
       defined as a static DEV_PRESETS object in devPanel.ts. presets
       include: bee, angel, shooting-star, meteorite, ghost, ground-item,
-      beehive, lightning, explosion, wildfire, ground-omnibox.
+      beehive, lightning, explosion, wildfire.
     inputs:
       - 'user selects a preset from dropdown'
     outputs:

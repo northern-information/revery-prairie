@@ -40,30 +40,18 @@ export const ItemCategory = {
 
 export type ItemCategory = (typeof ItemCategory)[keyof typeof ItemCategory]
 
-export const Rotation = {
-  R0: 0,
-  R90: 1,
-  R180: 2,
-  R270: 3,
-} as const
-
-export type Rotation = (typeof Rotation)[keyof typeof Rotation]
-
 export interface ItemDefinition {
   id: string
   name: string
   description: string
   glyph: string
   glyphColor: string
-  weight: number
   category: ItemCategory
-  shape: boolean[][]
 }
 
 export interface ItemInstance {
   uid: string
   definitionId: string
-  rotation: Rotation
   gridX: number
   gridY: number
 }
@@ -149,8 +137,6 @@ export interface GameState {
     transitioning: boolean
     transitionStartTime: number
   } | null
-  omniboxContainers: Map<string, Container>
-  nextOmniboxNumber: number
   discoveredRecipes: Set<string>
   previewFn:
     | ((state: GameState, time: number) => { pos: Position; char: string; color: string; isValid: boolean }[])
@@ -201,7 +187,6 @@ export interface GameState {
   burnScars: Set<string>
   meteorShower: MeteorShowerState
   lightning: LightningState
-  omniboxStrikeCounts: Map<string, number>
   manualDiscoveries: Set<string>
   manualState: ManualState
   lastDialogTypingTick: number

@@ -11,7 +11,7 @@ import {
 } from '../constants'
 import { placeItem } from '../inventory'
 import { posKey } from '../position'
-import { CloverStage, Rotation, Sky, TileType, Zone } from '../types'
+import { CloverStage, Sky, TileType, Zone } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -264,7 +264,7 @@ describe('harvestClover', () => {
     // Fill backpack completely with 1x1 items (clover is 1x1)
     for (let gy = 0; gy < state.backpack.height; gy++) {
       for (let gx = 0; gx < state.backpack.width; gx++) {
-        placeItem(state.backpack, 'clover', Rotation.R0, gx, gy)
+        placeItem(state.backpack, 'clover', gx, gy)
       }
     }
 

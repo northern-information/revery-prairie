@@ -29,7 +29,6 @@ export const ENTITY_TAG_SUGGESTIONS = [
   'crumble',
   'explosion',
   'groundItem',
-  'groundOmnibox',
   'lightning',
   'meteorite',
   'pickupBloom',
@@ -94,7 +93,7 @@ export const COMPONENT_META: ComponentMeta[] = [
     fields: [pos('length'), pos('age'), bool('willLand')],
   },
   { type: ComponentType.MultiPosition, label: 'MultiPosition', fields: [] },
-  { type: ComponentType.OmniboxLink, label: 'OmniboxLink', fields: [str('uid')] },
+
   { type: ComponentType.CharacterIdentity, label: 'CharacterIdentity', fields: [str('definitionId')] },
   {
     type: ComponentType.ItemDrop,
@@ -149,8 +148,7 @@ const componentDefaults = (type: ComponentType, now: number, zone: Zone): Record
       return { length: 4, age: 0, willLand: false, landingTarget: null }
     case ComponentType.MultiPosition:
       return { positions: [] }
-    case ComponentType.OmniboxLink:
-      return { uid: crypto.randomUUID() }
+
     case ComponentType.CharacterIdentity:
       return { definitionId: 'gron' }
     case ComponentType.ItemDrop:
@@ -289,16 +287,6 @@ export const DEV_PRESETS: Record<string, DevPreset> = {
       { type: ComponentType.EntityZone },
     ],
   },
-  'ground-omnibox': {
-    label: 'Ground Omnibox',
-    components: [
-      { type: ComponentType.Position },
-      { type: ComponentType.OmniboxLink },
-      { type: ComponentType.Blocking },
-      { type: ComponentType.EntityTag, overrides: { value: 'groundOmnibox' } },
-      { type: ComponentType.EntityZone },
-    ],
-  },
 }
 
 // --- Spawn helper ---
@@ -418,7 +406,7 @@ export const getEntityPreviewGlyph = (
     if (known) return known
 
     // Ground items use the item definition glyph
-    if (tag === 'groundItem' || tag === 'groundOmnibox') {
+    if (tag === 'groundItem') {
       const itemDrop = checkedComponents.get(ComponentType.ItemDrop)
       const defId = typeof itemDrop?.definitionId === 'string' ? itemDrop.definitionId : null
       if (defId) {
@@ -427,14 +415,6 @@ export const getEntityPreviewGlyph = (
           return { char: def.glyph, color: def.glyphColor }
         } catch {
           // Unknown item
-        }
-      }
-      if (tag === 'groundOmnibox') {
-        try {
-          const def = getDefinition('omnibox')
-          return { char: def.glyph, color: def.glyphColor }
-        } catch {
-          // Fallback
         }
       }
     }
