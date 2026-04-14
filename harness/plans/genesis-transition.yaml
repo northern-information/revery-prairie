@@ -1,0 +1,152 @@
+plan:
+  id: genesis-transition
+  title: 'Seamless genesis-to-gameplay transition with canvas crossfade, entity fade-in, sidebar and action bar animations'
+  created: '2026-04-14'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-transition-state
+    title: 'Add genesisTransition field to GameState and wire into completeGenesis'
+    spec_id: genesis-transition
+    spec_sections:
+      - canvas-crossfade
+      - skip-genesis-bypasses-transition
+    context_files:
+      - src/engine/types.ts
+      - src/engine/genesis.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/genesis.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: canvas-crossfade
+    title: 'Implement canvas crossfade in the renderer — blend genesis final frame into gameplay'
+    spec_id: genesis-transition
+    spec_sections:
+      - canvas-crossfade
+      - entity-fade-in
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/renderer.ts
+      - src/engine/gameLoop.ts
+    depends_on:
+      - add-transition-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: sidebar-crossfade
+    title: 'Implement sidebar crossfade from genesis HUD to gameplay sidebar'
+    spec_id: genesis-transition
+    spec_sections:
+      - sidebar-crossfade
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - add-transition-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: action-bar-fade-in
+    title: 'Implement action bar delayed fade-in after genesis completes'
+    spec_id: genesis-transition
+    spec_sections:
+      - action-bar-fade-in
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/components/ActionBar.tsx
+      - src/styles/index.css
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/components/GameScreen.tsx
+      - src/styles/index.css
+    depends_on:
+      - add-transition-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: transition-cleanup
+    title: 'Clear genesisTransition in the game loop after duration elapses and add safety clamp'
+    spec_id: genesis-transition
+    spec_sections:
+      - canvas-crossfade
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - canvas-crossfade
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: schema-whitelist
+    title: 'Add genesisTransition to EXPECTED_FIELDS in schema test'
+    spec_id: genesis-transition
+    spec_sections:
+      - canvas-crossfade
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - add-transition-state
+    verification:
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: tests
+    title: 'Write tests for genesis transition behaviors'
+    spec_id: genesis-transition
+    spec_sections:
+      - canvas-crossfade
+      - entity-fade-in
+      - skip-genesis-bypasses-transition
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/genesis.ts
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+    depends_on:
+      - add-transition-state
+      - canvas-crossfade
+      - transition-cleanup
+    verification:
+      - npx vitest run src/engine/__tests__/genesisTransition.test.ts
+    repair: retry
+    tags: [test]

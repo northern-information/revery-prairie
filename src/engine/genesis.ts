@@ -12,6 +12,7 @@ import {
   RAIN_AURA_DENSITY,
   RAIN_AURA_SPEED,
   RIVER_COLOR,
+  GENESIS_TRANSITION_DURATION_MS,
   SAND_BORDER,
   SAND_COLORS,
   SOIL_HEALTH_MAX,
@@ -2665,6 +2666,12 @@ export const completeGenesis = (state: GameState): void => {
       runAllMutations(sim, GENESIS_EPOCHS)
     }
     sim.epochIndex = GENESIS_EPOCHS.length
+  }
+
+  // Start the crossfade transition
+  state.genesisTransition = {
+    startTime: performance.now(),
+    duration: GENESIS_TRANSITION_DURATION_MS,
   }
 
   // Clear genesis data

@@ -162,6 +162,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     rainIntensity: 0,
     waterProximity: new Map<string, number>(),
     genesis: genesisData,
+    genesisTransition: null,
     angelCantos: [],
     nextAngelSpawnTime: 60_000, // first angel after ~60s
     angelEncounterCount: 0,

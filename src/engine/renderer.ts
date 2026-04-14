@@ -91,7 +91,16 @@ import { isInRainFront } from './tileWater'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 
 import type { VelocityKey } from './constants'
-import type { CharMetrics, GameState } from './types'
+import type { CharMetrics, GameState, GenesisTransition } from './types'
+
+/** Compute transition progress (0→1) from a GenesisTransition, or 1 if null. */
+const getTransitionAlpha = (transition: GenesisTransition | null, time: number): number => {
+  if (!transition) return 1
+  const elapsed = time - transition.startTime
+  if (elapsed <= 0) return 0
+  if (elapsed >= transition.duration) return 1
+  return elapsed / transition.duration
+}
 
 const STAR_CHARS = ['.', '+', '*']
 const STAR_COLORS = ['#333', '#555', '#777', '#999', '#bbb', '#999', '#777', '#555']
@@ -138,6 +147,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   const { camera, viewportWidth, viewportHeight, map, player } = state
   const { charWidth, charHeight } = metrics
+
+  // Genesis-to-gameplay crossfade: entities not visible in genesis fade in
+  const transitionAlpha = getTransitionAlpha(state.genesisTransition, time)
+  const isTransitioning = transitionAlpha < 1
 
   const pxWidth = viewportWidth * charWidth
   const pxHeight = viewportHeight * charHeight
@@ -784,6 +797,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       let char: string
       let color: string
       let cursorable = true
+      // isEntity: true for elements not visible during genesis (ghosts, bees, ground items, etc.)
+      // Used during genesis-to-gameplay crossfade to apply fade-in alpha
+      let isEntity = false
 
       const shootingStarOnLand = targetedStarMap.get(tileKey)
       const previewTile = previewMap.get(tileKey)
@@ -800,13 +816,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const ch = characterMap.get(tileKey)
         char = ch?.glyph ?? 'G'
         color = ch?.color ?? '#FFFFFF'
+        isEntity = true
       } else if (beehivePositions.has(tileKey)) {
         char = BEEHIVE_CHAR
         color = BEEHIVE_COLOR
+        isEntity = true
       } else if (angelMap.has(tileKey)) {
         const ap = angelMap.get(tileKey)
         char = ap?.char ?? 'O'
         color = ap?.color ?? '#FFFFFF'
+        isEntity = true
       } else if (shootingStarOnLand) {
         char = shootingStarOnLand.char
         color = shootingStarOnLand.color
@@ -822,6 +841,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       } else if (beePositions.has(tileKey)) {
         char = BEE_CHAR
         color = BEE_COLOR
+        isEntity = true
       } else if (explosionMap.has(tileKey)) {
         const ep = explosionMap.get(tileKey)
         char = ep?.char ?? '*'
@@ -844,6 +864,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         color = cr?.color ?? '#997755'
       } else if (meteoritePositions.has(tileKey)) {
         char = METEORITE_CHAR
+        isEntity = true
         if (pathPositions.has(tileKey)) {
           color = ACTION_COLOR
         } else if (hoverPathPositions.has(tileKey)) {
@@ -853,6 +874,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         }
       } else if (groundItemMap.has(tileKey)) {
         const groundEntry = groundItemMap.get(tileKey)
+        isEntity = true
         if (groundEntry) {
           const def = getDefinition(groundEntry.definitionId)
           char = def.glyph
@@ -991,6 +1013,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
               angelGroup.has(posKey(state.pendingInteractionTarget.x, state.pendingInteractionTarget.y))
           ))
 
+      // Genesis-to-gameplay crossfade: fade in entities not visible during genesis
+      const applyEntityFade = isTransitioning && isEntity
+      if (applyEntityFade) ctx.globalAlpha = transitionAlpha
+
       // Draw with cursor/facing inversion if applicable
       // Invalid preview tiles (e.g. red X for lightning targeting) skip cursor inversion
       if (previewTile && !previewTile.isValid) {
@@ -1010,6 +1036,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         ctx.fillStyle = color
       }
       ctx.fillText(char, px, py)
+
+      if (applyEntityFade) ctx.globalAlpha = 1
     }
   }
 

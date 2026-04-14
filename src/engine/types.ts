@@ -115,6 +115,11 @@ export interface ActionBarSlot {
   cooldownDurationMs: number
 }
 
+export interface GenesisTransition {
+  startTime: number
+  duration: number
+}
+
 export interface GameState {
   stewardName: string
   map: Tile[][]
@@ -203,6 +208,7 @@ export interface GameState {
   rainIntensity: number
   waterProximity: Map<string, number>
   genesis: GenesisSimState | null
+  genesisTransition: GenesisTransition | null
   angelCantos: string[]
   nextAngelSpawnTime: number
   angelEncounterCount: number
