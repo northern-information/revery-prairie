@@ -368,8 +368,8 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
         {eventLog.length > 0 && (
           <div>
             <SectionHeader>log</SectionHeader>
-            <div className="flex flex-col gap-1">
-              {eventLog.slice(0, 8).map(entry => (
+            <div className="scrollbar-custom flex max-h-40 flex-col gap-1 overflow-y-auto">
+              {eventLog.map(entry => (
                 <span key={entry.id}>
                   <span style={{ color: entry.iconColor }}>{entry.icon}</span> {entry.text}
                 </span>

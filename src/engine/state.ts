@@ -10,9 +10,9 @@ import { createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } fro
 import { rebuildGlintZones, seedGlintPatches } from './glintZones'
 import { autoSort, placeItem } from './inventory'
 import { createBackpack } from './items'
-import { isWalkableTile, posKey } from './position'
+import { isInBounds, isWalkableTile, posKey } from './position'
 import { buildWaterProximity } from './tileWater'
-import { Rotation, TileType, Zone } from './types'
+import { CoyoteMode, Rotation, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 
 import type { GenesisSimState } from './genesisTypes'
@@ -169,6 +169,9 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     nextAngelSpawnTime: 60_000, // first angel after ~60s
     angelEncounterCount: 0,
     angelFlashTime: 0,
+    coyoteMode: CoyoteMode.Follow,
+    coyoteCargo: null,
+    coyotePath: null,
     devPanelOpen: false,
     devPaintPreview: null,
     devEntityPreview: null,
@@ -197,6 +200,22 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     map[gronY][gronX] = { type: TileType.Dirt }
   }
   createCharacterEntity(state, 'gron', { x: gronX, y: gronY }, { aura: 'rain' })
+
+  // Spawn coyote adjacent to player
+  const coyoteBlocked = new Set<string>([posKey(playerX, playerY), posKey(gronX, gronY)])
+  for (const d of [
+    { x: -1, y: 0 },
+    { x: 1, y: 0 },
+    { x: 0, y: -1 },
+    { x: 0, y: 1 },
+  ]) {
+    const cx = playerX + d.x
+    const cy = playerY + d.y
+    if (isInBounds(cx, cy, MAP_WIDTH, MAP_HEIGHT) && isWalkableTile(map[cy][cx].type) && !coyoteBlocked.has(posKey(cx, cy))) {
+      createCharacterEntity(state, 'coyote', { x: cx, y: cy }, { behavior: { type: 'follow' } })
+      break
+    }
+  }
 
   // Pre-compute reachable tiles from player spawn (belt-and-suspenders with genesis connectivity)
   const waterBlocked = new Set<string>()

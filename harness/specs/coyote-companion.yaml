@@ -1,0 +1,279 @@
+id: coyote-companion
+name: 'Coyote Companion'
+status: planned
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/entities.ts
+  - src/engine/characters.ts
+  - src/engine/movement.ts
+  - src/engine/interaction.ts
+  - src/engine/pathfinding.ts
+  - src/engine/renderer.ts
+  - src/engine/constants.ts
+  - src/engine/position.ts
+  - src/engine/coyote.ts
+  - src/engine/manual.ts
+  - src/components/PermacomputerShell.tsx
+  - src/components/CoyoteScreen.tsx
+  - src/components/Sidebar.tsx
+  - src/hooks/useKeyboard.ts
+  - src/hooks/useGameEngine.ts
+dependencies:
+  - player-movement
+  - ghosts
+
+behaviors:
+  - id: coyote-spawning
+    description: >
+      createGameState creates one coyote ECS entity via
+      createCharacterEntity with definitionId 'coyote' at a position
+      adjacent to the player start. the coyote has ECS components:
+      CharacterIdentity, Position, Blocking, Behavior (type: 'follow'),
+      EntityTag ('character'), and EntityZone (overworld). a
+      CharacterDefinition is registered with id 'coyote', name 'Coyote',
+      glyph 'C', glyphColor '#D4A054' (warm amber-tan). the coyote has
+      no dialog array — pressing [e] opens a mode-toggle menu instead
+      of the standard dialog system.
+    inputs:
+      - 'createGameState call'
+    outputs:
+      - 'GameState with 1 coyote ECS entity in state.world'
+    state_changes:
+      - field: world
+        effect: "1 coyote ECS entity created with CharacterIdentity({ definitionId: 'coyote' }), Position, Blocking, Behavior({ type: 'follow' }), EntityTag('character'), EntityZone({ zone: 'overworld' })"
+      - field: CHARACTER_DEFINITIONS
+        effect: "CharacterDefinition entry registered for 'coyote' with glyph 'C', glyphColor '#D4A054', name 'Coyote'"
+      - field: coyoteMode
+        effect: "new GameState field initialized to 'follow'"
+    determinism: deterministic
+
+  - id: coyote-follow-behavior
+    description: >
+      when coyoteMode is 'follow', the coyote trails the player by
+      maintaining a target distance of 2-3 tiles. each tick, if the
+      coyote is more than 3 tiles (chebyshev distance) from the player,
+      it pathfinds toward the player and takes one step along the path.
+      if the coyote is within 2 tiles, it idles. movement uses the
+      same A* pathfinding as click-to-move, respecting blocked positions
+      and unwalkable tiles. the coyote moves at a rate slightly slower
+      than the player (one step per ~150ms vs player's 100ms). the
+      coyote removes itself from the blocked set before pathfinding
+      (same pattern as ghost drift).
+    inputs:
+      - "coyoteMode === 'follow'"
+      - 'player position changes'
+    outputs:
+      - 'coyote position moves toward player'
+    state_changes:
+      - field: 'world (coyote entity Position component)'
+        effect: 'moved one tile along A* path toward player, or unchanged if within 2 tiles'
+    determinism: probabilistic
+
+  - id: coyote-collect-behavior
+    description: >
+      when coyoteMode is 'collect', the coyote autonomously gathers
+      ground items with definitionId 'meteorite' or 'honey'. on each
+      tick, if the coyote is not carrying an item (coyoteCargo is null),
+      it scans all ground items on the current map that match the
+      collectible definitions, computes the nearest one by manhattan
+      distance, pathfinds to it, and takes one step. upon arriving at
+      the item's tile, the coyote picks it up: removes the ground item
+      ECS entity and sets coyoteCargo to the item definition id. once
+      carrying, the coyote pathfinds toward the player. upon arriving
+      adjacent to the player, it attempts to place the item in the
+      player's backpack via placeItem. if backpack has room, the item
+      is placed and coyoteCargo is cleared. if backpack is full, the
+      coyote pathfinds to Gron's position and drops the item as a
+      ground item entity near Gron (using the same DROP_DELTAS pattern
+      as existing drop logic). after each delivery, the coyote resumes
+      scanning for the next item. when no collectible items remain on
+      the map, the coyote idles at its current position until new items
+      appear. each pickup and each delivery fires addEvent with kind
+      'pickup', the item icon, and descriptive text.
+    inputs:
+      - "coyoteMode === 'collect'"
+      - 'ground items with definitionId meteorite or honey exist on current map'
+    outputs:
+      - 'items collected and placed in player backpack or dropped near Gron'
+      - 'addEvent called for each pickup and delivery'
+    state_changes:
+      - field: coyoteCargo
+        effect: "set to item definitionId when picking up, cleared to null on delivery"
+      - field: 'world (ground item entities)'
+        effect: 'ground item entity destroyed when coyote picks it up'
+      - field: 'backpack containers'
+        effect: 'item placed in backpack when coyote delivers to player'
+      - field: 'world (coyote entity Position component)'
+        effect: 'moved one tile along A* path toward target item or player'
+    determinism: deterministic
+
+  - id: coyote-interaction
+    description: >
+      pressing [e] while adjacent to the coyote toggles coyoteMode
+      between 'follow' and 'collect'. unlike other characters, the
+      coyote does not open the dialog system. instead, getAdjacentCharacter
+      still detects the coyote, but interactWithCharacter checks for
+      the 'coyote' definitionId and delegates to a coyote-specific
+      handler that toggles the mode and fires an addEvent with the
+      new mode. the coyote is detected by isInteractableAt at its
+      position.
+    inputs:
+      - 'player adjacent to coyote, [e] pressed'
+    outputs:
+      - 'coyoteMode toggled'
+      - 'addEvent called with new mode description'
+    state_changes:
+      - field: coyoteMode
+        effect: "toggled between 'follow' and 'collect'"
+    determinism: deterministic
+
+  - id: coyote-blocks-player
+    description: >
+      the coyote has a Blocking component, so it is included in
+      getBlockedPositions. movePlayer returns false when the target
+      tile is occupied by the coyote. A* routes around the coyote.
+      the player cannot walk through the coyote.
+    inputs:
+      - 'GameState with coyote adjacent to player'
+      - 'direction toward coyote tile'
+    outputs:
+      - 'boolean: false from movePlayer'
+    state_changes: []
+    determinism: deterministic
+
+  - id: coyote-cave-transition
+    description: >
+      when the player enters or exits the cave, the coyote transitions
+      with them. enterCave teleports the coyote to a position adjacent
+      to the player's cave spawn point. exitCave teleports the coyote
+      to a position adjacent to the player's overworld position. the
+      coyote's EntityZone component is updated to match the new zone.
+      if coyoteMode is 'collect', the coyote continues collecting in
+      the new zone (scanning for ground items in the cave or overworld).
+    inputs:
+      - 'player triggers cave entrance or exit'
+    outputs:
+      - 'coyote teleported to adjacent tile in new zone'
+    state_changes:
+      - field: 'world (coyote entity Position and EntityZone components)'
+        effect: 'position set adjacent to player in new zone, EntityZone updated'
+    determinism: deterministic
+
+  - id: coyote-rendering
+    description: >
+      the coyote renders as 'C' in warm amber-tan (#D4A054) at its
+      world position. rendered at the same z-level as characters in
+      the renderer (same path as ghosts and other characters via
+      CharacterIdentity resolution).
+    inputs:
+      - 'GameState with coyote in viewport'
+    outputs:
+      - "C character drawn in #D4A054 at coyote position"
+    state_changes: []
+    determinism: deterministic
+
+  - id: coyote-cursor-info
+    description: >
+      hovering the mouse over the coyote tile shows 'Coyote' in the
+      sidebar contents row and the current mode (follow/collect) in
+      the effects row. the coyote is detected via the standard
+      character entity lookup in the sidebar contents IIFE.
+    inputs:
+      - 'mouse cursor over coyote tile'
+    outputs:
+      - "sidebar contents: 'Coyote'"
+      - "sidebar shows current coyote mode"
+    state_changes: []
+    determinism: deterministic
+
+  - id: coyote-manual-entry
+    description: >
+      the coyote appears in the prairie manual as a character entry
+      derived from CHARACTER_DEFINITIONS. discovery tracked as
+      'character:coyote'. MANUAL_LORE entry added with TODO placeholder.
+    inputs:
+      - 'character:coyote discovery recorded'
+    outputs:
+      - 'manual entry visible for Coyote'
+    state_changes:
+      - field: manualDiscoveries
+        effect: "'character:coyote' added to set"
+    determinism: deterministic
+
+  - id: coyote-permacomputer-tab
+    description: >
+      a new 'COYOTE' tab is added to the permacomputer shell between
+      CANTOS and SYS. the PermacomputerScreen type is extended with
+      'coyote'. the CoyoteScreen component displays the current coyote
+      mode and a 'summon' action. activating summon teleports the
+      coyote to an adjacent walkable tile next to the player (using
+      the same adjacency-finding logic as cave transition). the tab
+      shows the coyote's current cargo status (empty or carrying an
+      item name).
+    inputs:
+      - 'permacomputer open, COYOTE tab selected'
+      - 'summon action activated'
+    outputs:
+      - 'coyote teleported to tile adjacent to player'
+    state_changes:
+      - field: 'world (coyote entity Position component)'
+        effect: 'position set to walkable tile adjacent to player'
+    determinism: deterministic
+
+  - id: coyote-mouth-capacity
+    description: >
+      the coyote carries at most 1 item at a time in its mouth. this
+      is tracked by coyoteCargo on GameState (string | null). when
+      coyoteCargo is non-null, the coyote must deliver before picking
+      up another item.
+    inputs:
+      - 'coyote picks up a ground item'
+    outputs:
+      - 'coyoteCargo set to definitionId'
+    state_changes:
+      - field: coyoteCargo
+        effect: 'set to definitionId of picked-up item, null after delivery'
+    determinism: deterministic
+
+edge_cases:
+  - id: coyote-no-collectibles
+    description: 'coyote is in collect mode but no meteorites or honey exist on the map'
+    expected: 'coyote idles at current position, resumes when new items spawn'
+  - id: coyote-backpack-full-gron-area-full
+    description: 'backpack is full and all drop positions near Gron are occupied by ground items or blocked'
+    expected: 'coyote idles near Gron holding cargo until a drop position opens'
+  - id: coyote-path-blocked
+    description: 'coyote pathfinding returns no valid path to target item (surrounded by blockers or unwalkable tiles)'
+    expected: 'coyote skips that item and targets the next nearest collectible, or idles if none reachable'
+  - id: coyote-player-moves-during-delivery
+    description: 'coyote is pathfinding to player for delivery but player moves away'
+    expected: 'coyote recalculates path to new player position on next tick'
+  - id: coyote-collect-in-cave
+    description: 'coyote in collect mode enters cave with player — cave has no meteorites or honey'
+    expected: 'coyote idles in cave until items appear or player exits'
+  - id: coyote-summon-all-adjacent-blocked
+    description: 'summon action but all tiles adjacent to player are blocked or unwalkable'
+    expected: 'summon fails silently, coyote stays at current position'
+  - id: coyote-spawn-position-blocked
+    description: 'at game start, the tile adjacent to player for coyote spawn is blocked'
+    expected: 'try all cardinal neighbors of player, place on first walkable unblocked tile'
+
+failure_conditions:
+  - trigger: 'coyote walks onto a Space tile'
+    expected: 'coyote position unchanged, Space never entered'
+  - trigger: 'player walks onto coyote tile'
+    expected: 'movePlayer returns false, player position unchanged'
+  - trigger: 'coyote picks up non-collectible ground item (e.g. clover, coin)'
+    expected: 'coyote ignores non-collectible items entirely'
+  - trigger: 'coyote and ghost collide during movement'
+    expected: 'blocked position set prevents overlap — both entities respect getBlockedPositions'
+  - trigger: 'coyote mode toggled during mid-path movement'
+    expected: 'coyote abandons current path and begins new behavior on next tick'
+
+verification:
+  test_file: src/engine/__tests__/coyote.test.ts
+  test_pattern: 'coyote'
+  command: 'npx vitest run src/engine/__tests__/coyote.test.ts'

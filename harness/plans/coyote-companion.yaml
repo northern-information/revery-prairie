@@ -1,0 +1,304 @@
+plan:
+  id: coyote-companion
+  title: 'Add coyote companion with follow/collect AI, permacomputer tab, and scrollable event log'
+  created: 2026-04-14
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: coyote-types
+    title: 'Add coyote state fields and behavior type to GameState and types'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-spawning
+      - coyote-mouth-capacity
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, types]
+
+  - id: coyote-character-definition
+    title: 'Register coyote CharacterDefinition in characters.ts'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-spawning
+      - coyote-rendering
+      - coyote-manual-entry
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on:
+      - coyote-types
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, characters]
+
+  - id: coyote-manual-lore
+    title: 'Add MANUAL_LORE TODO placeholder for coyote'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-manual-entry
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - coyote-character-definition
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, manual]
+
+  - id: coyote-engine-module
+    title: 'Create src/engine/coyote.ts with follow AI, collect AI, and summon logic'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-follow-behavior
+      - coyote-collect-behavior
+      - coyote-interaction
+      - coyote-mouth-capacity
+      - coyote-permacomputer-tab
+    context_files:
+      - src/engine/types.ts
+      - src/engine/entities.ts
+      - src/engine/movement.ts
+      - src/engine/pathfinding.ts
+      - src/engine/position.ts
+      - src/engine/inventory.ts
+      - src/engine/items.ts
+      - src/engine/characters.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/coyote.ts
+    depends_on:
+      - coyote-types
+      - coyote-character-definition
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, ai]
+
+  - id: coyote-spawning
+    title: 'Spawn coyote entity in createGameState adjacent to player'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-spawning
+    context_files:
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/entities.ts
+      - src/engine/characters.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - coyote-types
+      - coyote-character-definition
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, state]
+
+  - id: coyote-interaction-hook
+    title: 'Wire coyote [e] toggle into interactWithCharacter and useKeyboard'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-interaction
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/coyote.ts
+      - src/hooks/useKeyboard.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/interaction.ts
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - coyote-engine-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, hooks]
+
+  - id: coyote-cave-transition
+    title: 'Teleport coyote on enterCave and exitCave'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-cave-transition
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/coyote.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/cave.ts
+    depends_on:
+      - coyote-engine-module
+      - coyote-spawning
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, cave]
+
+  - id: coyote-tick-integration
+    title: 'Add coyote tick to game loop with its own interval'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-follow-behavior
+      - coyote-collect-behavior
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/coyote.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - coyote-engine-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, gameloop]
+
+  - id: coyote-cursor-info
+    title: 'Add coyote to sidebar cursor info contents and effects rows'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-cursor-info
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/effects.ts
+      - src/engine/types.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/components/Sidebar.tsx
+      - src/engine/effects.ts
+    depends_on:
+      - coyote-character-definition
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component, sidebar]
+
+  - id: coyote-permacomputer-screen
+    title: 'Add COYOTE tab to permacomputer shell and CoyoteScreen component'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-permacomputer-tab
+    context_files:
+      - src/components/PermacomputerShell.tsx
+      - src/hooks/useKeyboard.ts
+      - src/engine/coyote.ts
+      - src/engine/types.ts
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/components/PermacomputerShell.tsx
+      - src/components/CoyoteScreen.tsx
+      - src/hooks/useKeyboard.ts
+      - src/components/GameScreen.tsx
+    depends_on:
+      - coyote-engine-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component, permacomputer]
+
+  - id: scrollable-event-log
+    title: 'Make sidebar event log scrollable with preserved scroll position'
+    spec_id: scrollable-event-log
+    spec_sections:
+      - log-scrollable-container
+      - log-scroll-position-preserved
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/hooks/useEventLog.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component, sidebar]
+
+  - id: coyote-schema-whitelist
+    title: 'Add new GameState fields to EXPECTED_FIELDS in schema test'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-spawning
+      - coyote-mouth-capacity
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - coyote-types
+    verification:
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [test, schema]
+
+  - id: coyote-engine-tests
+    title: 'Add coyote unit tests for follow, collect, interact, cave transition, summon'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-follow-behavior
+      - coyote-collect-behavior
+      - coyote-interaction
+      - coyote-blocks-player
+      - coyote-cave-transition
+      - coyote-permacomputer-tab
+      - coyote-mouth-capacity
+    context_files:
+      - src/engine/coyote.ts
+      - src/engine/types.ts
+      - src/engine/entities.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/ghosts.test.ts
+    output_files:
+      - src/engine/__tests__/coyote.test.ts
+    depends_on:
+      - coyote-engine-module
+      - coyote-spawning
+      - coyote-interaction-hook
+      - coyote-cave-transition
+      - coyote-tick-integration
+    verification:
+      - 'npx vitest run src/engine/__tests__/coyote.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: coyote-component-tests
+    title: 'Add component tests for CoyoteScreen and scrollable log'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-permacomputer-tab
+    context_files:
+      - src/components/CoyoteScreen.tsx
+      - src/components/Sidebar.tsx
+      - src/components/__tests__/Sidebar.test.tsx
+    output_files:
+      - src/components/__tests__/CoyoteScreen.test.tsx
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on:
+      - coyote-permacomputer-screen
+      - scrollable-event-log
+    verification:
+      - 'npx vitest run src/components/__tests__/CoyoteScreen.test.tsx'
+      - 'npx vitest run src/components/__tests__/Sidebar.test.tsx'
+    repair: retry
+    tags: [test, component]

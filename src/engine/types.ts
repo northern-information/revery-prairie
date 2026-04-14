@@ -82,7 +82,18 @@ export interface DriftBehavior {
   freezeOnDialog: boolean
 }
 
-export type CharacterBehavior = DriftBehavior
+export interface FollowBehavior {
+  type: 'follow'
+}
+
+export type CharacterBehavior = DriftBehavior | FollowBehavior
+
+export const CoyoteMode = {
+  Follow: 'follow',
+  Collect: 'collect',
+} as const
+
+export type CoyoteMode = (typeof CoyoteMode)[keyof typeof CoyoteMode]
 
 export interface CharacterDefinition {
   id: string
@@ -211,6 +222,9 @@ export interface GameState {
   nextAngelSpawnTime: number
   angelEncounterCount: number
   angelFlashTime: number
+  coyoteMode: CoyoteMode
+  coyoteCargo: string | null
+  coyotePath: Position[] | null
   devPanelOpen: boolean
   devPaintPreview: { x1: number; y1: number; x2: number; y2: number; tileType: string } | null
   devEntityPreview: { x: number; y: number; char: string; color: string } | null

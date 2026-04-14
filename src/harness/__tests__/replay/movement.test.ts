@@ -1,12 +1,20 @@
 import { withSeededRandom } from '@/harness/prng'
 
+import { ComponentType } from '@/engine/ecs/types'
 import { movePlayer } from '@/engine/movement'
 import { createGameState } from '@/engine/state'
 import type { Direction } from '@/engine/types'
 
 const SEED = 42
 
-const createSeededState = () => withSeededRandom(SEED, () => createGameState('test', 40, 30))
+const createSeededState = () => {
+  const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+  // Destroy all spawned characters so they don't block movement tests
+  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
+    state.world.destroyEntity(eid)
+  }
+  return state
+}
 
 describe('replay: movement sequences', () => {
   it('produces identical final position for the same move sequence', () => {

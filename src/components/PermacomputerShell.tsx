@@ -8,6 +8,7 @@ const SCREEN_TABS: { screen: NonNullable<PermacomputerScreen>; label: string }[]
   { screen: 'reveries', label: 'REVERIES' },
   { screen: 'divination', label: 'DIVINATION' },
   { screen: 'cantos', label: 'CANTOS' },
+  { screen: 'coyote', label: 'COYOTE' },
   { screen: 'system', label: 'SYS' },
 ]
 

@@ -35,6 +35,12 @@ const CHARACTERS = {
     gift: { kind: 'revery' as const, id: 'fire' },
     postGiftDialog: ['...'],
   },
+  coyote: {
+    name: 'Coyote',
+    glyph: 'C',
+    glyphColor: '#D4A054',
+    dialog: [],
+  },
 } as const satisfies Record<string, CharacterEntry>
 
 export const CHARACTER_DEFINITIONS: Record<string, CharacterDefinition> = Object.fromEntries(

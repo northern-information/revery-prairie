@@ -21,16 +21,19 @@ describe('fixture: character definitions', () => {
         expect(char.glyphColor).toMatch(/^#[0-9a-fA-F]{6}$/)
       })
 
-      it('has non-empty dialog array', () => {
-        expect(char.dialog.length).toBeGreaterThan(0)
-      })
+      // Coyote uses mode toggle instead of dialog — no dialog lines expected
+      if (char.id !== 'coyote') {
+        it('has non-empty dialog array', () => {
+          expect(char.dialog.length).toBeGreaterThan(0)
+        })
 
-      it('every dialog line is a non-empty string', () => {
-        for (const line of char.dialog) {
-          expect(typeof line).toBe('string')
-          expect(line.length).toBeGreaterThan(0)
-        }
-      })
+        it('every dialog line is a non-empty string', () => {
+          for (const line of char.dialog) {
+            expect(typeof line).toBe('string')
+            expect(line.length).toBeGreaterThan(0)
+          }
+        })
+      }
     })
   }
 })

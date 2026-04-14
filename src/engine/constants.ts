@@ -274,4 +274,12 @@ export const DEEP_TIME_BURN_DURATION_MS = 5_000
 export const DEEP_TIME_YEARS_PER_FRAME = 1
 export const DEEP_TIME_TOTAL_YEARS = 1000
 
+// coyote companion
+export const COYOTE_CHAR = 'C'
+export const COYOTE_COLOR = '#D4A054'
+export const COYOTE_TICK_MS = 150
+export const COYOTE_FOLLOW_MIN_DIST = 2
+export const COYOTE_FOLLOW_MAX_DIST = 3
+export const COYOTE_COLLECTIBLE_DEFINITIONS = ['meteorite', 'honey'] as const
+
 export const INVENTORY_CELL_SIZE = 28

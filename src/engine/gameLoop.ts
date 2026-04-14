@@ -1,5 +1,6 @@
 import { spawnAngel, tickAngelBeeAura, tickAngelCloverAura, tickAngelDrift, tickAngelLifespan } from './angels'
 import { spawnShootingStar, tickMeteorShower, tickShootingStars } from './celestial'
+import { tickCoyote } from './coyote'
 import { tickCloverGrowth, tickCloverHives } from './clover'
 import { tickCloverLifecycle } from './cloverLifecycle'
 import {
@@ -12,6 +13,7 @@ import {
   CLOVER_HIVE_TICK_MS,
   CLOVER_LIFECYCLE_TICK_MS,
   CRUMBLE_DURATION_MS,
+  COYOTE_TICK_MS,
   GHOST_TICK_MS,
   GLINT_ZONE_TICK_MS,
   KEYBOARD_MOVE_TICK_MS,
@@ -202,6 +204,37 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       fn: state => {
         if (state.genesis) return
         tickCharacterBehaviors(state, Zone.Overworld)
+      },
+    },
+    {
+      id: 'coyote',
+      intervalMs: COYOTE_TICK_MS,
+      zone: 'always',
+      fn: (state) => {
+        if (state.genesis) return
+        const result = tickCoyote(state)
+        if (result.pickedUp) {
+          const def = getDefinition(result.pickedUp.definitionId)
+          callbacks.onPickup?.(
+            `coyote found ${def.name.toLowerCase()}`,
+            def.glyph,
+            def.glyphColor,
+            result.pickedUp.x,
+            result.pickedUp.y
+          )
+        }
+        if (result.delivered) {
+          const def = getDefinition(result.delivered.definitionId)
+          const dest = result.delivered.toGron ? 'near gron' : 'to backpack'
+          callbacks.onPickup?.(
+            `coyote delivered ${def.name.toLowerCase()} ${dest}`,
+            def.glyph,
+            def.glyphColor,
+            result.delivered.x,
+            result.delivered.y
+          )
+          callbacks.onRefreshUI?.()
+        }
       },
     },
     {
