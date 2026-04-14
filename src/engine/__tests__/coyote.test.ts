@@ -12,7 +12,7 @@ import {
 import { ComponentType } from '../ecs/types'
 import { getBlockedPositions } from '../movement'
 import { posKey } from '../position'
-import { CoyoteMode, Zone } from '../types'
+import { CoyoteMode, TileType, Zone } from '../types'
 
 import {
   clearAroundPlayer,
@@ -129,6 +129,96 @@ describe('coyote companion', () => {
       const distBefore = Math.abs(before.x - state.player.x) + Math.abs(before.y - state.player.y)
       const distAfter = Math.abs(after.x - state.player.x) + Math.abs(after.y - state.player.y)
       expect(distAfter).toBeLessThan(distBefore)
+    })
+
+    it('follows around L-shaped corridor using path distance, not chebyshev', () => {
+      const state = createTestState()
+      const px = state.player.x
+      const py = state.player.y
+
+      // Build an L-shaped corridor with walls everywhere else in a 10x10 area
+      // Corridor: horizontal from (px, py) to (px+4, py), then vertical down to (px+4, py+4)
+      for (let dy = -2; dy <= 6; dy++) {
+        for (let dx = -2; dx <= 6; dx++) {
+          const x = px + dx
+          const y = py + dy
+          if (x >= 0 && x < state.mapWidth && y >= 0 && y < state.mapHeight) {
+            state.map[y][x] = { type: TileType.CaveWall }
+          }
+        }
+      }
+      // Carve horizontal arm
+      for (let dx = 0; dx <= 4; dx++) {
+        state.map[py][px + dx] = { type: TileType.Dirt }
+      }
+      // Carve vertical arm
+      for (let dy = 0; dy <= 4; dy++) {
+        state.map[py + dy][px + 4] = { type: TileType.Dirt }
+      }
+
+      // Place coyote at the start of the horizontal arm
+      createCharacterTestEntity(state, 'coyote', px, py, {
+        behavior: { type: 'follow' },
+      })
+
+      // Place player at the end of the vertical arm
+      state.player = { x: px + 4, y: py + 4 }
+
+      // Chebyshev distance is max(4, 4) = 4, but that's irrelevant now.
+      // Path distance is 4 (horizontal) + 4 (vertical) = 8 steps.
+      // With path distance >= 3 (COYOTE_FOLLOW_MAX_DIST), coyote should move.
+      const before = requireValue(getCoyotePosition(state))
+      tickCoyote(state)
+      const after = requireValue(getCoyotePosition(state))
+
+      expect(after.x !== before.x || after.y !== before.y).toBe(true)
+    })
+
+    it('idles when path distance is within min distance even if tiles are not adjacent', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+
+      // Place coyote 2 tiles away (path distance = 2 = COYOTE_FOLLOW_MIN_DIST)
+      createCharacterTestEntity(state, 'coyote', state.player.x + 2, state.player.y, {
+        behavior: { type: 'follow' },
+      })
+
+      const before = requireValue(getCoyotePosition(state))
+      tickCoyote(state)
+      const after = requireValue(getCoyotePosition(state))
+
+      expect(after).toEqual(before)
+    })
+
+    it('idles gracefully when no path exists to player', () => {
+      const state = createTestState()
+      const px = state.player.x
+      const py = state.player.y
+      clearAroundPlayer(state, 10)
+
+      // Place coyote 5 tiles away
+      createCharacterTestEntity(state, 'coyote', px + 5, py, {
+        behavior: { type: 'follow' },
+      })
+
+      // Wall off the coyote completely
+      const cx = px + 5
+      const cy = py
+      for (const d of [
+        { x: -1, y: 0 },
+        { x: 1, y: 0 },
+        { x: 0, y: -1 },
+        { x: 0, y: 1 },
+      ]) {
+        state.map[cy + d.y][cx + d.x] = { type: TileType.CaveWall }
+      }
+
+      const before = requireValue(getCoyotePosition(state))
+      // Should not throw
+      tickCoyote(state)
+      const after = requireValue(getCoyotePosition(state))
+
+      expect(after).toEqual(before)
     })
   })
 
@@ -291,6 +381,66 @@ describe('coyote companion', () => {
       const eid = requireValue(findCoyoteEntity(state))
       const ez = state.world.getComponent(eid, ComponentType.EntityZone)
       expect(ez?.zone).toBe(Zone.Cave)
+    })
+
+    it('coyote follows player step-by-step through cave corridors', () => {
+      const state = createCoyoteState()
+
+      // Switch to cave
+      state.map = state.caveMap
+      state.mapWidth = state.caveMapWidth
+      state.mapHeight = state.caveMapHeight
+      state.currentZone = Zone.Cave
+      state.player = {
+        x: state.caveEntranceInterior.x,
+        y: state.caveEntranceInterior.y - 1,
+      }
+      transitionCoyoteToZone(state, Zone.Cave)
+
+      const startCoyote = requireValue(getCoyotePosition(state))
+
+      // BFS to find a walkable tile 6+ path-steps from the player
+      const visited = new Set<string>()
+      const queue: { x: number; y: number; dist: number; path: { x: number; y: number }[] }[] = [
+        { ...state.player, dist: 0, path: [] },
+      ]
+      visited.add(posKey(state.player.x, state.player.y))
+      let walkPath: { x: number; y: number }[] = []
+
+      while (queue.length > 0) {
+        const cur = queue.shift()!
+        if (cur.dist >= 6) {
+          walkPath = cur.path
+          break
+        }
+        for (const d of [
+          { x: -1, y: 0 },
+          { x: 1, y: 0 },
+          { x: 0, y: -1 },
+          { x: 0, y: 1 },
+        ]) {
+          const nx = cur.x + d.x
+          const ny = cur.y + d.y
+          const key = posKey(nx, ny)
+          if (visited.has(key)) continue
+          if (nx < 0 || ny < 0 || nx >= state.mapWidth || ny >= state.mapHeight) continue
+          const tile = state.map[ny][nx].type
+          if (tile === TileType.CaveWall || tile === TileType.CaveBreakableWall) continue
+          if (tile === TileType.CaveEntrance) continue
+          visited.add(key)
+          queue.push({ x: nx, y: ny, dist: cur.dist + 1, path: [...cur.path, { x: nx, y: ny }] })
+        }
+      }
+
+      // Walk player step-by-step, ticking coyote each step
+      for (const step of walkPath) {
+        state.player = { x: step.x, y: step.y }
+        tickCoyote(state)
+      }
+
+      // Coyote should have followed — it should NOT still be at its start position
+      const finalCoyote = requireValue(getCoyotePosition(state))
+      expect(finalCoyote.x !== startCoyote.x || finalCoyote.y !== startCoyote.y).toBe(true)
     })
   })
 

@@ -217,14 +217,25 @@ const tickFollow = (
   pos: { x: number; y: number },
   blocked: Set<string>
 ): void => {
-  const dist = chebyshev(pos, state.player)
-  if (dist <= COYOTE_FOLLOW_MIN_DIST) return
-  if (dist >= COYOTE_FOLLOW_MAX_DIST) {
-    // Temporarily remove the player from blocked set so we can pathfind to their tile
-    const playerKey = posKey(state.player.x, state.player.y)
-    blocked.delete(playerKey)
-    stepToward(state, eid, state.player, blocked)
-    blocked.add(playerKey)
+  // Temporarily remove player and self from blocked so we can pathfind to player
+  const playerKey = posKey(state.player.x, state.player.y)
+  const selfKey = posKey(pos.x, pos.y)
+  blocked.delete(playerKey)
+  blocked.delete(selfKey)
+
+  const path = findPath(state.map, state.mapWidth, state.mapHeight, { x: pos.x, y: pos.y }, state.player, blocked)
+
+  // Restore blocked set
+  blocked.add(playerKey)
+  blocked.add(selfKey)
+
+  // Use path length (not Chebyshev) so the coyote follows correctly
+  // through narrow corridors and around corners in all zones
+  if (!path || path.length <= COYOTE_FOLLOW_MIN_DIST) return
+  if (path.length >= COYOTE_FOLLOW_MAX_DIST) {
+    const next = path[0]
+    blocked.add(posKey(next.x, next.y))
+    state.world.moveEntity(eid, next.x, next.y)
   }
 }
 
