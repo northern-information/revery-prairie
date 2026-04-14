@@ -73,8 +73,6 @@ describe('manual', () => {
       expect(MANUAL_ENTRIES['item:bee'].category).toBe(ManualCategory.Fauna)
       expect(MANUAL_ENTRIES['item:clover'].category).toBe(ManualCategory.Flora)
       expect(MANUAL_ENTRIES['item:meteorite'].category).toBe(ManualCategory.Celestial)
-      expect(MANUAL_ENTRIES['item:permacomputer'].category).toBe(ManualCategory.Object)
-      expect(MANUAL_ENTRIES['item:omnibox'].category).toBe(ManualCategory.Object)
     })
 
     it('recipe entries use hot pink glyph color', () => {

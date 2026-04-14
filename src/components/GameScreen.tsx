@@ -299,9 +299,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
           onSetActionBarTarget={() => {
             // Handled via drag system — placeholder for now
           }}
-          onTogglePermacomputer={() => {
-            setActiveScreen(activeScreen ? null : 'pack')
-          }}
         />
       )}
       {import.meta.env.DEV && state.devPanelOpen && (

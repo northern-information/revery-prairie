@@ -1,6 +1,6 @@
 id: recipes
 name: 'Recipes and combining'
-status: implemented
+status: partial
 priority: high
 layer: engine
 source_files:
@@ -16,29 +16,13 @@ behaviors:
     description: >
       RECIPES array defines drag-and-drop item combinations. each recipe
       has ingredients (two definitionIds), kind (macro or craft),
-      resultName, optional resultIcon, description, optional
-      preserveIngredient (definitionId kept after combine), optional
-      preview function, and execute function. current recipes:
-      bee+clover=prairie (macro, plants 3x3 clover, spawns bee).
+      resultName, optional resultIcon, description, optional preview
+      function, and execute function. current recipes: bee+clover=prairie
+      (macro, plants 3x3 clover, spawns bee).
     inputs:
       - 'RECIPES array'
     outputs:
       - 'Recipe objects with ingredients, kind, execute'
-    state_changes: []
-    determinism: deterministic
-
-  - id: fabrication-recipe-definitions
-    description: >
-      FABRICATION_RECIPES array defines single-ingredient recipes that
-      use the permacomputer implicitly. each fabrication recipe has
-      ingredient (one definitionId), resultName, resultIcon,
-      description, and execute function. current fabrication recipes:
-      meteorite → omnibox (creates omnibox item in backpack).
-      findFabricationRecipe(definitionId) searches the array.
-    inputs:
-      - 'FABRICATION_RECIPES array'
-    outputs:
-      - 'FabricationRecipe objects with ingredient, execute'
     state_changes: []
     determinism: deterministic
 
@@ -71,14 +55,13 @@ behaviors:
     description: >
       checkCombine detects what happens when a dragged item overlaps
       exactly one item in a container. builds occupancy grid, finds
-      overlapped items. if exactly one overlap: checks if target is
-      an omnibox (returns store result, takes priority), then checks
-      findRecipe. returns one of: recipe (with isDiscovered flag),
-      store (omnibox uid), no-recipe, or none.
+      overlapped items. if exactly one overlap: checks findRecipe.
+      returns one of: recipe (with isDiscovered flag), no-recipe,
+      or none.
     inputs:
-      - 'container, draggedItem, rotation, gridX, gridY, sourceContainerId, containerId, discoveredRecipes'
+      - 'container, draggedItem, gridX, gridY, sourceContainerId, containerId, discoveredRecipes'
     outputs:
-      - "CheckCombineResult: { kind: 'recipe' | 'store' | 'no-recipe' | 'none' }"
+      - "CheckCombineResult: { kind: 'recipe' | 'no-recipe' | 'none' }"
     state_changes: []
     determinism: deterministic
 
@@ -86,9 +69,8 @@ behaviors:
     description: >
       executeCombine in drag.ts runs the recipe's execute function.
       on success: adds recipe key to discoveredRecipes, records
-      manual discovery (recipe:<key>), removes consumed ingredients
-      from their containers. preserveIngredient items are kept.
-      returns success or failed.
+      manual discovery (recipe:<key>), removes both consumed
+      ingredients from their containers. returns success or failed.
     inputs:
       - 'GameState, sourceContainer, targetContainer, draggedItem, combineTarget'
     outputs:
@@ -99,7 +81,7 @@ behaviors:
       - field: manualDiscoveries
         effect: 'recipe:<key> recorded'
       - field: backpack
-        effect: 'consumed ingredients removed (preserveIngredient kept)'
+        effect: 'consumed ingredients removed'
     determinism: deterministic
 
   - id: prairie-recipe-execute
@@ -122,26 +104,6 @@ behaviors:
         effect: 'bee ECS entity created with Position, EntityTag, EntityZone'
     determinism: deterministic
 
-  - id: fabrication-omnibox-execute
-    description: >
-      meteorite fabrication recipe creates a new omnibox item in the
-      backpack. creates container via createOmniboxContainer, finds fit
-      position, places item. re-keys the container from temp uid to the
-      placed item's uid. fails if backpack has no room for the 2x2
-      omnibox shape.
-    inputs:
-      - 'GameState with room in backpack'
-    outputs:
-      - 'boolean: true if omnibox was created'
-    state_changes:
-      - field: backpack
-        effect: 'omnibox item placed'
-      - field: omniboxContainers
-        effect: 'new 5x5 container registered, keyed by placed item uid'
-      - field: nextOmniboxNumber
-        effect: 'incremented by 1'
-    determinism: deterministic
-
   - id: combine-icon-display
     description: >
       combineIcon returns the glyph shown on grid cells during drag
@@ -158,11 +120,11 @@ behaviors:
   - id: combine-bee-and-clover
     description: >
       combineBeeAndClover is a convenience function for auto-combining.
-      searches backpack and open container for bee and clover items.
-      validates standing tile (rejects Sand, non-walkable). removes
-      both items from their containers and executes the prairie recipe.
+      searches backpack for bee and clover items. validates standing
+      tile (rejects Sand, non-walkable). removes both items from
+      backpack and executes the prairie recipe.
     inputs:
-      - 'GameState with bee and clover items in inventory'
+      - 'GameState with bee and clover items in backpack'
     outputs:
       - 'boolean: true if combine succeeded'
     state_changes:
@@ -175,21 +137,12 @@ behaviors:
     determinism: deterministic
 
 edge_cases:
-  - id: preserve-ingredient
-    description: 'bee+clover prairie recipe preserveIngredient is not set — both ingredients consumed'
-    expected: 'both bee and clover removed from backpack after combine'
   - id: combine-on-sand
     description: 'player combines bee+clover while standing on sand tile'
     expected: 'recipe.execute returns false, no items consumed'
   - id: bidirectional-lookup
     description: 'findRecipe(bee, clover) and findRecipe(clover, bee) return same recipe'
     expected: 'same Recipe object returned regardless of argument order'
-  - id: omnibox-store-priority
-    description: 'dragging an item onto an omnibox item when a recipe also exists'
-    expected: 'store action takes priority over recipe combine'
-  - id: backpack-full-fabrication
-    description: 'fabrication omnibox recipe executes but backpack has no room for 2x2 item'
-    expected: 'fabrication returns false, meteorite not consumed'
   - id: cave-entrance-excluded
     description: 'prairie recipe planted near a cave entrance tile'
     expected: 'CaveEntrance tile is never overwritten by clover planting'
@@ -197,7 +150,7 @@ edge_cases:
 failure_conditions:
   - trigger: 'No recipe exists for the two dragged items'
     expected: "checkCombine returns { kind: 'no-recipe' }"
-  - trigger: 'Recipe execute fails (bad standing tile, full backpack)'
+  - trigger: 'Recipe execute fails (bad standing tile)'
     expected: 'executeCombine returns failed, discoveredRecipes not updated, items not consumed'
 
 verification:

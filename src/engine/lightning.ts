@@ -15,7 +15,7 @@ import {
   LIGHTNING_WEIGHT_ISOLATED,
   LIGHTNING_WEIGHT_METAL,
   LIGHTNING_WEIGHT_NEAR_WATER,
-  LIGHTNING_WEIGHT_STRIKE_HISTORY,
+
   SOIL_HEALTH_FIRE_REVERY_BONUS,
   SPACE_BORDER,
   WATER_MAX,
@@ -63,11 +63,11 @@ const isIsolatedFeature = (state: GameState, x: number, y: number): boolean => {
 }
 
 export const selectStrikeTarget = (state: GameState, rng: () => number): Position | null => {
-  // Pre-build metal positions set (ground omniboxes + ground meteorites)
+  // Pre-build metal positions set (ground meteorites)
   const metalPositions = new Set<string>()
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-    if (tag === 'groundOmnibox' || tag === 'meteorite') {
+    if (tag === 'meteorite') {
       const pos = state.world.getComponent(eid, ComponentType.Position)
       if (pos) metalPositions.add(posKey(pos.x, pos.y))
     }
@@ -130,21 +130,6 @@ export const selectStrikeTarget = (state: GameState, rng: () => number): Positio
     // Metal factor
     if (metalPositions.has(key)) {
       score *= LIGHTNING_WEIGHT_METAL
-      // Omnibox strike history bonus
-      for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
-        const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-        if (tag === 'groundOmnibox') {
-          const pos = state.world.getComponent(eid, ComponentType.Position)
-          if (pos?.x === x && pos.y === y) {
-            const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
-            if (link) {
-              const strikes = state.omniboxStrikeCounts.get(link.uid) ?? 0
-              score *= 1 + strikes * LIGHTNING_WEIGHT_STRIKE_HISTORY
-            }
-            break
-          }
-        }
-      }
     }
 
     // Isolated tall feature factor (beehives)
@@ -282,21 +267,6 @@ export const spawnLightningStrike = (state: GameState, time: number): Position |
 
   // Record discovery
   recordDiscovery(state, 'event:lightning-strike')
-
-  // Omnibox strike counter
-  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
-    if (state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox') {
-      const pos = state.world.getComponent(eid, ComponentType.Position)
-      if (pos?.x === target.x && pos.y === target.y) {
-        const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
-        if (link) {
-          const current = state.omniboxStrikeCounts.get(link.uid) ?? 0
-          state.omniboxStrikeCounts.set(link.uid, current + 1)
-        }
-        break
-      }
-    }
-  }
 
   // Wildfire spread
   const burned = spreadWildfire(state, time, target.x, target.y)

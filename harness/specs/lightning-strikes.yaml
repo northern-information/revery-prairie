@@ -40,10 +40,9 @@ behaviors:
       selectStrikeTarget samples ~50 random land tiles and scores each
       using multiplicative weights: elevation (1 + elevation/100 * 2.0),
       near-water (1.5 if pond/river within 3 tiles), metal objects (3.0
-      if ground meteorite or omnibox on tile), isolated tall features
+      if ground meteorite on tile), isolated tall features
       (1.8 if beehive with <40% clover in surrounding 5x5), clover
-      density (1.3 if clover tile). omniboxes with prior strike counts
-      get an additional multiplier (1 + strikeCount * 0.5). selects one
+      density (1.3 if clover tile). selects one
       tile via weighted random from scored candidates. rejects water,
       sand, space, occupied tiles, and tiles within
       LIGHTNING_MIN_PLAYER_DIST of the player.
@@ -114,22 +113,6 @@ behaviors:
       - field: manualDiscoveries
         effect: 'event:wildfire added if fire spreads'
     determinism: probabilistic
-
-  - id: omnibox-strike-counter
-    description: >
-      when lightning strikes a tile containing a ground omnibox, the
-      omnibox strike count is incremented in state.omniboxStrikeCounts
-      (Map keyed by omnibox uid). the strike count feeds back into
-      weighted target selection as an additional multiplier
-      (1 + strikeCount * 0.5), making previously struck omniboxes
-      progressively more attractive to future strikes.
-    inputs:
-      - 'lightning strike landing on a tile with a ground omnibox'
-    outputs: []
-    state_changes:
-      - field: omniboxStrikeCounts
-        effect: 'entry for omnibox uid incremented by 1 (created at 1 if absent)'
-    determinism: deterministic
 
   - id: lightning-cleanup
     description: >
@@ -214,9 +197,6 @@ edge_cases:
   - id: cooldown-respected
     description: 'time is before nextStrikeTime'
     expected: 'spawnLightningStrike returns null immediately without rolling or spawning'
-  - id: omnibox-strike-accumulation
-    description: 'same ground omnibox struck twice'
-    expected: 'omniboxStrikeCounts entry equals 2, targeting weight for that tile increases'
   - id: genesis-lightning-alongside-meteorites
     description: 'FireSeason epoch generates both meteorites and lightning bolts'
     expected: 'sim.meteorites has 5-8 entries and sim.lightningBolts has 2-4 entries, all impact points in BFS queue'

@@ -3,7 +3,7 @@ import { ComponentType } from '../ecs/types'
 import { dropItem, pickUpGroundItems, tickBees } from '../entities'
 import { containerHasItem, placeItem } from '../inventory'
 import { movePlayer } from '../movement'
-import { Rotation, TileType } from '../types'
+import { TileType } from '../types'
 import {
   clearArea,
   clearAroundPlayer,
@@ -24,8 +24,8 @@ describe('tickBees', () => {
 
   it('keeps bees on clover tiles', () => {
     const state = createTestState()
-    placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
-    placeItem(state.backpack, 'clover', Rotation.R0, 1, 0)
+    placeItem(state.backpack, 'bee', 0, 0)
+    placeItem(state.backpack, 'clover', 1, 0)
     clearAroundPlayer(state, 1)
     combineBeeAndClover(state)
 
@@ -103,7 +103,7 @@ describe('dropItem', () => {
   it('drops item to the north first', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
+    placeItem(state.backpack, 'clover', 0, 0)
     const result = dropItem(state, 'clover')
     expect(result).toBe(true)
     const items = getGroundItemEntities(state)
@@ -117,7 +117,7 @@ describe('dropItem', () => {
   it('skips occupied ground tiles', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
+    placeItem(state.backpack, 'clover', 0, 0)
     // Place a ground item to the north
     createGroundItemEntity(state, 'clover', state.player.x, state.player.y - 1)
     const result = dropItem(state, 'clover')
@@ -136,7 +136,7 @@ describe('dropItem', () => {
   it('drops under the player as last resort', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
+    placeItem(state.backpack, 'clover', 0, 0)
     // Fill all 8 surrounding tiles with ground items
     const deltas = [
       { x: 0, y: -1 },
@@ -166,7 +166,7 @@ describe('dropItem', () => {
   it('returns false when all positions are occupied', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
+    placeItem(state.backpack, 'clover', 0, 0)
     const deltas = [
       { x: 0, y: -1 },
       { x: 1, y: -1 },
@@ -196,7 +196,7 @@ describe('dropItem', () => {
   it('skips Space tiles', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    placeItem(state.backpack, 'clover', Rotation.R0, 0, 0)
+    placeItem(state.backpack, 'clover', 0, 0)
     state.map[state.player.y - 1][state.player.x] = { type: TileType.Space }
     const result = dropItem(state, 'clover')
     expect(result).toBe(true)
@@ -210,7 +210,7 @@ describe('dropItem', () => {
   it('releases bee as world entity instead of ground item', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    placeItem(state.backpack, 'bee', Rotation.R0, 0, 0)
+    placeItem(state.backpack, 'bee', 0, 0)
     const result = dropItem(state, 'bee')
     expect(result).toBe(true)
     expect(getGroundItemEntities(state)).toHaveLength(0)
@@ -249,7 +249,7 @@ describe('pickUpGroundItems', () => {
         state.backpack.items.push({
           uid: crypto.randomUUID(),
           definitionId: 'bee',
-          rotation: 0,
+
           gridX: x,
           gridY: y,
         })
@@ -280,7 +280,7 @@ describe('pickUpGroundItems', () => {
         state.backpack.items.push({
           uid: crypto.randomUUID(),
           definitionId: 'clover',
-          rotation: 0,
+
           gridX: x,
           gridY: y,
         })

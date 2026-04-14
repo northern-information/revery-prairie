@@ -96,7 +96,7 @@ edge_cases:
     description: 'player tile is excluded from candidate spawn tiles since the player occupies it'
     expected: 'no meteorite spawns on the player position'
   - id: occupied-tile-excluded
-    description: 'a candidate tile is occupied by a ground item, ground omnibox, character (including ghost), or existing meteorite'
+    description: 'a candidate tile is occupied by a ground item, character (including ghost), or existing meteorite'
     expected: 'that tile is skipped, meteorite spawns on next valid candidate'
   - id: chain-children-cannot-explode
     description: 'meteorites spawned by a chain explosion have fromChain: true and are skipped by the explosion roll'

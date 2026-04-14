@@ -15,7 +15,6 @@ interface ActionBarProps {
   refreshUI: () => void
   dragState: DragState | null
   onSetActionBarTarget: (slotIndex: number | null) => void
-  onTogglePermacomputer: () => void
 }
 
 const getSlotGlyph = (slot: ActionBarSlot): string => {
@@ -129,7 +128,6 @@ export const ActionBar = ({
   refreshUI,
   dragState,
   onSetActionBarTarget,
-  onTogglePermacomputer,
 }: ActionBarProps) => {
   const rafRef = useRef(0)
   const [now, setNow] = useState(() => performance.now())
@@ -149,14 +147,6 @@ export const ActionBar = ({
 
   return (
     <div className="pointer-events-auto fixed bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1">
-      <button
-        className="border-border/50 text-permacomputer hover:border-permacomputer hover:text-pink mr-1 flex items-center justify-center rounded border bg-black/70 font-mono text-base transition-colors"
-        style={{ width: SLOT_SIZE, height: SLOT_SIZE }}
-        onClick={onTogglePermacomputer}
-        title="permacomputer [r]"
-      >
-        ⚙
-      </button>
       {state.actionBar.map((slot, i) => (
         <ActionBarSlotView
           key={i}

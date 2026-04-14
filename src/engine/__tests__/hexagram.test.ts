@@ -18,7 +18,6 @@ import {
 import { placeItem } from '../inventory'
 import { ITEM_DEFINITIONS } from '../items'
 import { createGameState } from '../state'
-import { Rotation } from '../types'
 import { clearAroundPlayer, createGroundItemEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -32,7 +31,6 @@ describe('coin item definition', () => {
     expect(coin.glyph).toBe('¤')
     expect(coin.glyphColor).toBe(COIN_GLINTING_COLOR)
     expect(coin.category).toBe('tool')
-    expect(coin.shape).toEqual([[true]])
   })
 })
 
@@ -242,8 +240,8 @@ describe('glinting coins', () => {
 
   it('canCast returns false with fewer than 3 glinting coins', () => {
     const state = createTestState()
-    placeItem(state.backpack, 'coin', Rotation.R0, 0, 0)
-    placeItem(state.backpack, 'coin', Rotation.R0, 1, 0)
+    placeItem(state.backpack, 'coin', 0, 0)
+    placeItem(state.backpack, 'coin', 1, 0)
     // Add only 2 to glintingCoins
     state.glintingCoins.add(state.backpack.items[0].uid)
     state.glintingCoins.add(state.backpack.items[1].uid)
@@ -252,9 +250,9 @@ describe('glinting coins', () => {
 
   it('canCast returns true with 3 glinting coins', () => {
     const state = createTestState()
-    placeItem(state.backpack, 'coin', Rotation.R0, 0, 0)
-    placeItem(state.backpack, 'coin', Rotation.R0, 1, 0)
-    placeItem(state.backpack, 'coin', Rotation.R0, 2, 0)
+    placeItem(state.backpack, 'coin', 0, 0)
+    placeItem(state.backpack, 'coin', 1, 0)
+    placeItem(state.backpack, 'coin', 2, 0)
     for (const item of state.backpack.items) {
       state.glintingCoins.add(item.uid)
     }
@@ -263,18 +261,18 @@ describe('glinting coins', () => {
 
   it('canCast returns false when 3 coins exist but none are glinting', () => {
     const state = createTestState()
-    placeItem(state.backpack, 'coin', Rotation.R0, 0, 0)
-    placeItem(state.backpack, 'coin', Rotation.R0, 1, 0)
-    placeItem(state.backpack, 'coin', Rotation.R0, 2, 0)
+    placeItem(state.backpack, 'coin', 0, 0)
+    placeItem(state.backpack, 'coin', 1, 0)
+    placeItem(state.backpack, 'coin', 2, 0)
     // Don't add to glintingCoins
     expect(canCast(state)).toBe(false)
   })
 
   it('consumeGlint removes 3 coin uids from glintingCoins', () => {
     const state = createTestState()
-    placeItem(state.backpack, 'coin', Rotation.R0, 0, 0)
-    placeItem(state.backpack, 'coin', Rotation.R0, 1, 0)
-    placeItem(state.backpack, 'coin', Rotation.R0, 2, 0)
+    placeItem(state.backpack, 'coin', 0, 0)
+    placeItem(state.backpack, 'coin', 1, 0)
+    placeItem(state.backpack, 'coin', 2, 0)
     for (const item of state.backpack.items) {
       state.glintingCoins.add(item.uid)
     }
@@ -285,9 +283,9 @@ describe('glinting coins', () => {
 
   it('coins remain in backpack after consumeGlint', () => {
     const state = createTestState()
-    placeItem(state.backpack, 'coin', Rotation.R0, 0, 0)
-    placeItem(state.backpack, 'coin', Rotation.R0, 1, 0)
-    placeItem(state.backpack, 'coin', Rotation.R0, 2, 0)
+    placeItem(state.backpack, 'coin', 0, 0)
+    placeItem(state.backpack, 'coin', 1, 0)
+    placeItem(state.backpack, 'coin', 2, 0)
     for (const item of state.backpack.items) {
       state.glintingCoins.add(item.uid)
     }
@@ -298,9 +296,9 @@ describe('glinting coins', () => {
 
   it('getGlintingBackpackCoins only counts glinting coins', () => {
     const state = createTestState()
-    placeItem(state.backpack, 'coin', Rotation.R0, 0, 0)
-    placeItem(state.backpack, 'coin', Rotation.R0, 1, 0)
-    placeItem(state.backpack, 'coin', Rotation.R0, 2, 0)
+    placeItem(state.backpack, 'coin', 0, 0)
+    placeItem(state.backpack, 'coin', 1, 0)
+    placeItem(state.backpack, 'coin', 2, 0)
     // Only glint 2 of 3
     state.glintingCoins.add(state.backpack.items[0].uid)
     state.glintingCoins.add(state.backpack.items[1].uid)
@@ -311,9 +309,9 @@ describe('glinting coins', () => {
     const state = createTestState()
     // Place 3 coins in an omnibox container, not backpack
     const container: Container = { id: 'test-omni', name: 'test', width: 5, height: 5, items: [] }
-    placeItem(container, 'coin', Rotation.R0, 0, 0)
-    placeItem(container, 'coin', Rotation.R0, 1, 0)
-    placeItem(container, 'coin', Rotation.R0, 2, 0)
+    placeItem(container, 'coin', 0, 0)
+    placeItem(container, 'coin', 1, 0)
+    placeItem(container, 'coin', 2, 0)
     for (const item of container.items) {
       state.glintingCoins.add(item.uid)
     }

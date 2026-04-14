@@ -1,6 +1,5 @@
 import { ACTION_COLOR } from './constants'
 import { ComponentType } from './ecs/types'
-import { createOmniboxContainer, findFitPosition, placeItem } from './inventory'
 import { isInBounds, posKey } from './position'
 import { TileType } from './types'
 
@@ -26,7 +25,6 @@ export interface Recipe {
   resultName: string
   resultIcon?: string
   description: string
-  preserveIngredient?: string // definitionId of the ingredient to keep after combining
   preview?: (state: GameState) => PreviewTile[]
   execute: (state: GameState) => boolean
 }
@@ -90,45 +88,6 @@ export const RECIPES: Recipe[] = [
     },
   },
 ]
-
-/** Fabrication recipes — items dragged to the fabrication zone on the permacomputer. */
-export interface FabricationRecipe {
-  ingredient: string
-  resultName: string
-  resultIcon: string
-  description: string
-  execute: (state: GameState) => boolean
-}
-
-export const FABRICATION_RECIPES: FabricationRecipe[] = [
-  {
-    ingredient: 'meteorite',
-    resultName: 'omnibox',
-    resultIcon: '\u25A1',
-    description: 'folded space within a portable container.',
-    execute: state => {
-      const fit = findFitPosition(state.backpack, 'omnibox')
-      if (!fit) return false
-      const uid = crypto.randomUUID()
-      createOmniboxContainer(state, uid)
-      placeItem(state.backpack, 'omnibox', fit.rotation, fit.gridX, fit.gridY)
-      const placed = state.backpack.items[state.backpack.items.length - 1]
-      if (placed) {
-        const container = state.omniboxContainers.get(uid)
-        if (container) {
-          state.omniboxContainers.delete(uid)
-          state.omniboxContainers.set(placed.uid, container)
-          container.id = placed.uid
-        }
-      }
-      return true
-    },
-  },
-]
-
-/** Find a fabrication recipe that accepts the given item. */
-export const findFabricationRecipe = (definitionId: string): FabricationRecipe | null =>
-  FABRICATION_RECIPES.find(r => r.ingredient === definitionId) ?? null
 
 export const recipeKey = (recipe: Recipe): string => {
   const sorted = [...recipe.ingredients].sort((a, b) => a.localeCompare(b))

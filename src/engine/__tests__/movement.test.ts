@@ -1,7 +1,7 @@
 import { movePlayer, tickPath } from '../movement'
 import { placeItem } from '../inventory'
 import { posKey } from '../position'
-import { Rotation, TileType, Zone } from '../types'
+import { TileType, Zone } from '../types'
 import { clearAroundPlayer, createCharacterTestEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -267,7 +267,7 @@ describe('tickPath', () => {
 
 describe('glinting zone walk-through', () => {
   const placeDullCoin = (state: ReturnType<typeof createTestState>) => {
-    const placed = placeItem(state.backpack, 'coin', Rotation.R0, 0, 0)
+    const placed = placeItem(state.backpack, 'coin', 0, 0)
     if (placed === null) throw new Error('expected coin placement to succeed')
     return placed
   }

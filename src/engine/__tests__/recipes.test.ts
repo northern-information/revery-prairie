@@ -1,7 +1,6 @@
 import { ComponentType } from '../ecs/types'
-import { placeItem } from '../inventory'
-import { combineIcon, FABRICATION_RECIPES, findRecipe, recipeKey, RecipeKind, RECIPES } from '../recipes'
-import { Rotation, TileType } from '../types'
+import { combineIcon, findRecipe, recipeKey, RecipeKind, RECIPES } from '../recipes'
+import { TileType } from '../types'
 import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -105,10 +104,10 @@ describe('prairie recipe execute', () => {
     prairieRecipe.execute(state)
     const bees = getBeeEntities(state)
     expect(bees).toHaveLength(1)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const beePos = state.world.getComponent(bees[0], ComponentType.Position)!
-    expect(beePos.x).toBe(px)
-    expect(beePos.y).toBe(py)
+    const beePos = state.world.getComponent(bees[0], ComponentType.Position)
+    expect(beePos).toBeTruthy()
+    expect(beePos?.x).toBe(px)
+    expect(beePos?.y).toBe(py)
   })
 
   it('returns false when standing on sand', () => {
@@ -228,56 +227,5 @@ describe('prairie recipe preview', () => {
     expect(tiles).toHaveLength(8)
     const skippedPos = tiles.find(t => t.pos.x === px + 1 && t.pos.y === py)
     expect(skippedPos).toBeUndefined()
-  })
-})
-
-describe('omnibox fabrication recipe execute', () => {
-  const omniboxRecipe = FABRICATION_RECIPES.find(r => r.resultName === 'omnibox')
-  if (!omniboxRecipe) throw new Error('omnibox fabrication recipe must exist')
-
-  const fillBackpack = (state: ReturnType<typeof createTestState>) => {
-    for (let y = 0; y < state.backpack.height; y++) {
-      for (let x = 0; x < state.backpack.width; x++) {
-        placeItem(state.backpack, 'bee', Rotation.R0, x, y)
-      }
-    }
-  }
-
-  it('returns false when backpack is full', () => {
-    const state = createTestState()
-    fillBackpack(state)
-
-    const result = omniboxRecipe.execute(state)
-    expect(result).toBe(false)
-  })
-
-  it('does not increment nextOmniboxNumber on failure', () => {
-    const state = createTestState()
-    fillBackpack(state)
-
-    omniboxRecipe.execute(state)
-    expect(state.nextOmniboxNumber).toBe(1)
-  })
-
-  it('does not register orphaned container on failure', () => {
-    const state = createTestState()
-    fillBackpack(state)
-
-    omniboxRecipe.execute(state)
-    expect(state.omniboxContainers.size).toBe(0)
-  })
-
-  it('creates omnibox and registers container on success', () => {
-    const state = createTestState()
-
-    const result = omniboxRecipe.execute(state)
-    expect(result).toBe(true)
-
-    const omniboxItem = state.backpack.items.find(i => i.definitionId === 'omnibox')
-    expect(omniboxItem).toBeDefined()
-    if (omniboxItem) {
-      expect(state.omniboxContainers.has(omniboxItem.uid)).toBe(true)
-    }
-    expect(state.nextOmniboxNumber).toBe(2)
   })
 })

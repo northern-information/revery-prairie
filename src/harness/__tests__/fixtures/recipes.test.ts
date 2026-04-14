@@ -29,12 +29,6 @@ describe('fixture: recipe definitions', () => {
       it('has a non-empty description', () => {
         expect(recipe.description.length).toBeGreaterThan(0)
       })
-
-      if (recipe.preserveIngredient) {
-        it('preserveIngredient is one of the recipe ingredients', () => {
-          expect(recipe.ingredients).toContain(recipe.preserveIngredient)
-        })
-      }
     })
   }
 })

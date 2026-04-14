@@ -45,19 +45,6 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: omnibox-panel-included
-    description: >
-      when an omnibox is open, both the omnibox grid and the
-      backpack grid are inside the same flex container. the
-      clamping logic uses the full container width (both panels
-      combined) so neither panel clips off-screen.
-    inputs:
-      - 'panel container with omnibox panel + backpack panel'
-    outputs:
-      - 'both panels fully visible within viewport'
-    state_changes: []
-    determinism: deterministic
-
 edge_cases:
   - id: player-top-right-corner
     description: 'player is in the top-right corner of the map — preferred above-right quadrant clips both top and right edges'
@@ -68,9 +55,6 @@ edge_cases:
   - id: very-small-viewport
     description: 'viewport is smaller than the panel container (e.g. narrow mobile or resized browser)'
     expected: 'panel is clamped to top-left with edge margin, may overflow but starts on-screen'
-  - id: omnibox-open-near-edge
-    description: 'omnibox is open making the container wider, player near right edge'
-    expected: 'combined width is accounted for, panels flip left of player'
   - id: player-moves-while-open
     description: 'player walks with inventory open, crossing from a safe quadrant into an edge'
     expected: 'panel repositions on each render to stay on-screen'

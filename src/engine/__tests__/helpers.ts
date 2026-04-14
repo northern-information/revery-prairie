@@ -1,6 +1,5 @@
 import { ComponentType } from '../ecs/types'
 import { createCharacterEntity } from '../entities'
-import { createGroundOmniboxEntity } from '../omnibox'
 import { isInBounds } from '../position'
 import { createGameState } from '../state'
 import { completeGenesis } from '../genesis'
@@ -21,12 +20,6 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   // Complete genesis immediately so tests start in normal gameplay mode
   completeGenesis(state)
   state.backpack.items = []
-  // Destroy all ground omnibox ECS entities
-  for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.EntityTag)) {
-    if (state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox') {
-      state.world.destroyEntity(eid)
-    }
-  }
   // Destroy all character ECS entities (ghosts, gron, etc.)
   for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
     state.world.destroyEntity(eid)
@@ -46,8 +39,6 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   state.openContainer = null
   state.playerFacing = 'down'
   state.facingEntityPos = null
-  state.omniboxContainers = new Map()
-  state.nextOmniboxNumber = 1
   state.discoveredRecipes = new Set()
   state.manualDiscoveries = new Set()
   state.manualState = { activeCategory: null, searchQuery: '', revealedHints: new Set() }
@@ -187,20 +178,6 @@ export const destroyAllCharacterEntities = (state: GameState): void => {
     state.world.destroyEntity(eid)
   }
 }
-
-/**
- * Creates a ground omnibox ECS entity at the given position.
- */
-export const createGroundOmniboxTestEntity = (state: GameState, uid: string, x: number, y: number): Entity =>
-  createGroundOmniboxEntity(state, uid, x, y)
-
-/**
- * Queries all ground omnibox ECS entities in the world.
- */
-export const getGroundOmniboxEntities = (state: GameState): Entity[] =>
-  state.world
-    .query(ComponentType.OmniboxLink, ComponentType.EntityTag)
-    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundOmnibox')
 
 /**
  * Creates a beehive ECS entity at the given position.

@@ -12,7 +12,7 @@ import { autoSort, placeItem } from './inventory'
 import { createBackpack } from './items'
 import { isInBounds, isWalkableTile, posKey } from './position'
 import { buildWaterProximity } from './tileWater'
-import { CoyoteMode, Rotation, TileType, Zone } from './types'
+import { CoyoteMode, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 
 import type { GenesisSimState } from './genesisTypes'
@@ -58,12 +58,12 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
   map[caveEntranceOverworld.y][caveEntranceOverworld.x] = { type: TileType.CaveEntrance }
 
   const backpack = createBackpack()
-  placeItem(backpack, 'bee', Rotation.R0, 0, 0)
-  placeItem(backpack, 'bee', Rotation.R0, 1, 0)
-  placeItem(backpack, 'bee', Rotation.R0, 2, 0)
-  placeItem(backpack, 'clover', Rotation.R0, 0, 1)
-  placeItem(backpack, 'clover', Rotation.R0, 1, 1)
-  placeItem(backpack, 'clover', Rotation.R0, 2, 1)
+  placeItem(backpack, 'bee', 0, 0)
+  placeItem(backpack, 'bee', 1, 0)
+  placeItem(backpack, 'bee', 2, 0)
+  placeItem(backpack, 'clover', 0, 1)
+  placeItem(backpack, 'clover', 1, 1)
+  placeItem(backpack, 'clover', 2, 1)
 
   const state: GameState = {
     stewardName,
@@ -83,8 +83,6 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     viewportHeight,
     rightInsetTiles: 0,
     activeDialog: null,
-    omniboxContainers: new Map(),
-    nextOmniboxNumber: 1,
     discoveredRecipes: new Set<string>(),
     previewFn: null,
     weather: generateWeather(),
@@ -136,7 +134,6 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
       nextStrikeTime: 60_000,
       lastStrikeTime: 0,
     },
-    omniboxStrikeCounts: new Map<string, number>(),
     cloverGrowthPreviews: new Set<string>(),
     cloverLifecycle: new Map(),
     tileWater: new Map<string, number>(),

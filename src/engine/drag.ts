@@ -1,9 +1,7 @@
 import { checkCombine } from './combine'
-import { canPlace, findFitPosition, getRotatedShape, placeItem, removeItem } from './inventory'
-import { getDefinition } from './items'
+import { canPlace, removeItem } from './inventory'
 import { recordDiscovery } from './manual'
 import { recipeKey } from './recipes'
-import { Rotation } from './types'
 
 import type { Recipe } from './recipes'
 import type { Container, GameState, ItemInstance } from './types'
@@ -12,65 +10,44 @@ export interface DragState {
   item: ItemInstance
   sourceContainerId: string
   targetContainerId: string
-  rotation: Rotation
   previewX: number
   previewY: number
   isValid: boolean
   combineTarget: { uid: string; recipe: Recipe; isDiscovered: boolean } | null
-  storeTarget: { omniboxUid: string } | null
-  actionBarTarget: { slotIndex: number } | null
   cannotCombine: boolean
+  actionBarTarget: { slotIndex: number } | null
 }
-
-export const NEXT_ROTATION: Record<Rotation, Rotation> = {
-  [Rotation.R0]: Rotation.R90,
-  [Rotation.R90]: Rotation.R180,
-  [Rotation.R180]: Rotation.R270,
-  [Rotation.R270]: Rotation.R0,
-}
-
-export const isOmniboxSelfDrop = (item: ItemInstance, targetContainerId: string): boolean =>
-  item.definitionId === 'omnibox' && targetContainerId === item.uid
 
 export interface PlacementPreview {
   isValid: boolean
   combineTarget: DragState['combineTarget']
-  storeTarget: DragState['storeTarget']
   cannotCombine: boolean
 }
 
 export const computePlacementPreview = (
   container: Container,
   item: ItemInstance,
-  rotation: Rotation,
   gridX: number,
   gridY: number,
   sourceContainerId: string,
   targetContainerId: string,
   discoveredRecipes: Set<string>
 ): PlacementPreview => {
-  const selfDrop = isOmniboxSelfDrop(item, targetContainerId)
-
-  const isValid =
-    !selfDrop &&
-    canPlace(
-      container,
-      item.definitionId,
-      rotation,
-      gridX,
-      gridY,
-      targetContainerId === sourceContainerId ? item.uid : undefined
-    )
+  const isValid = canPlace(
+    container,
+    item.definitionId,
+    gridX,
+    gridY,
+    targetContainerId === sourceContainerId ? item.uid : undefined
+  )
 
   let combineTarget: DragState['combineTarget'] = null
-  let storeTarget: DragState['storeTarget'] = null
   let cannotCombine = false
 
   if (!isValid) {
     const result = checkCombine(
       container,
       item,
-      rotation,
       gridX,
       gridY,
       sourceContainerId,
@@ -79,8 +56,6 @@ export const computePlacementPreview = (
     )
     if (result.kind === 'no-recipe') {
       cannotCombine = true
-    } else if (result.kind === 'store') {
-      storeTarget = { omniboxUid: result.omniboxUid }
     } else if (result.kind === 'recipe') {
       combineTarget = {
         uid: result.uid,
@@ -90,29 +65,7 @@ export const computePlacementPreview = (
     }
   }
 
-  return { isValid, combineTarget, storeTarget, cannotCombine }
-}
-
-export type StoreResult =
-  | { outcome: 'stored'; omniboxUid: string }
-  | { outcome: 'no-room' }
-  | { outcome: 'no-container' }
-
-export const executeStoreInOmnibox = (
-  sourceContainer: Container,
-  item: ItemInstance,
-  omniboxUid: string,
-  omniboxContainers: Map<string, Container>
-): StoreResult => {
-  const omniboxContainer = omniboxContainers.get(omniboxUid)
-  if (!omniboxContainer) return { outcome: 'no-container' }
-
-  const fit = findFitPosition(omniboxContainer, item.definitionId)
-  if (!fit) return { outcome: 'no-room' }
-
-  removeItem(sourceContainer, item.uid)
-  placeItem(omniboxContainer, item.definitionId, fit.rotation, fit.gridX, fit.gridY)
-  return { outcome: 'stored', omniboxUid }
+  return { isValid, combineTarget, cannotCombine }
 }
 
 export type CombineResult = { outcome: 'success' } | { outcome: 'failed' }
@@ -132,44 +85,11 @@ export const executeCombine = (
   state.discoveredRecipes.add(key)
   recordDiscovery(state, `recipe:${key}`)
 
-  if (draggedItem.definitionId !== recipe.preserveIngredient) {
-    removeItem(sourceContainer, draggedItem.uid)
-  }
+  removeItem(sourceContainer, draggedItem.uid)
   const targetItem = targetContainer.items.find(i => i.uid === combineTarget.uid)
-  if (targetItem?.definitionId !== recipe.preserveIngredient) {
+  if (targetItem) {
     removeItem(targetContainer, combineTarget.uid)
   }
 
   return { outcome: 'success' }
-}
-
-export interface RotationResult {
-  rotation: Rotation
-  previewX: number
-  previewY: number
-  isValid: boolean
-}
-
-export const computeRotation = (
-  container: Container | null,
-  item: ItemInstance,
-  currentRotation: Rotation,
-  previewX: number,
-  previewY: number
-): RotationResult => {
-  const newRotation = NEXT_ROTATION[currentRotation]
-  const def = getDefinition(item.definitionId)
-  const shape = getRotatedShape(def.shape, newRotation)
-  const sw = shape[0]?.length ?? 0
-  const sh = shape.length
-
-  if (!container) {
-    return { rotation: newRotation, previewX, previewY, isValid: false }
-  }
-
-  const clampedX = Math.min(previewX, Math.max(0, container.width - sw))
-  const clampedY = Math.min(previewY, Math.max(0, container.height - sh))
-  const isValid = canPlace(container, item.definitionId, newRotation, clampedX, clampedY, item.uid)
-
-  return { rotation: newRotation, previewX: clampedX, previewY: clampedY, isValid }
 }

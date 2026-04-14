@@ -55,7 +55,7 @@ describe('inventory panel clamping', () => {
     expect(pos.top + PANEL_H).toBeLessThanOrEqual(VP_H - 8)
   })
 
-  it('accounts for wider panel when omnibox is open', () => {
+  it('accounts for wider panel when secondary container is open', () => {
     // Simulate both panels open — wider combined width
     const combinedW = 380
     const pos = clampPanelPosition(700, 400, CHAR_W, CHAR_H, combinedW, PANEL_H, VP_W, VP_H)

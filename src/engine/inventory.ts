@@ -1,37 +1,7 @@
-import { OMNIBOX_HEIGHT, OMNIBOX_WIDTH } from './constants'
-import { getDefinition } from './items'
-import { Rotation } from './types'
-
 import type { Container, GameState, ItemInstance } from './types'
 
 export const getActiveContainers = (state: GameState): Container[] =>
   state.openContainer ? [state.backpack, state.openContainer] : [state.backpack]
-
-export const rotateShapeCW = (shape: boolean[][]): boolean[][] => {
-  const rows = shape.length
-  const cols = shape[0]?.length ?? 0
-  const result: boolean[][] = []
-  for (let c = 0; c < cols; c++) {
-    const row: boolean[] = []
-    for (let r = rows - 1; r >= 0; r--) {
-      row.push(shape[r]?.[c] ?? false)
-    }
-    result.push(row)
-  }
-  return result
-}
-
-export const getRotatedShape = (shape: boolean[][], rotation: Rotation): boolean[][] => {
-  let result = shape
-  for (let i = 0; i < rotation; i++) {
-    result = rotateShapeCW(result)
-  }
-  return result
-}
-
-export const shapeWidth = (shape: boolean[][]): number => shape[0]?.length ?? 0
-
-export const shapeHeight = (shape: boolean[][]): number => shape.length
 
 export const buildOccupancyGrid = (container: Container, excludeUid?: string): (string | null)[][] => {
   const grid: (string | null)[][] = []
@@ -40,19 +10,9 @@ export const buildOccupancyGrid = (container: Container, excludeUid?: string): (
   }
   for (const item of container.items) {
     if (item.uid === excludeUid) continue
-    const def = getDefinition(item.definitionId)
-    const shape = getRotatedShape(def.shape, item.rotation)
-    for (let sy = 0; sy < shape.length; sy++) {
-      for (let sx = 0; sx < (shape[sy]?.length ?? 0); sx++) {
-        if (shape[sy]?.[sx]) {
-          const gx = item.gridX + sx
-          const gy = item.gridY + sy
-          const row = grid[gy]
-          if (row && gy >= 0 && gy < container.height && gx >= 0 && gx < container.width) {
-            row[gx] = item.uid
-          }
-        }
-      }
+    const row = grid[item.gridY]
+    if (row && item.gridY >= 0 && item.gridY < container.height && item.gridX >= 0 && item.gridX < container.width) {
+      row[item.gridX] = item.uid
     }
   }
   return grid
@@ -60,49 +20,32 @@ export const buildOccupancyGrid = (container: Container, excludeUid?: string): (
 
 export const canPlace = (
   container: Container,
-  definitionId: string,
-  rotation: Rotation,
+  _definitionId: string,
   gridX: number,
   gridY: number,
   excludeUid?: string
 ): boolean => {
-  const def = getDefinition(definitionId)
-  const shape = getRotatedShape(def.shape, rotation)
-  const sw = shapeWidth(shape)
-  const sh = shapeHeight(shape)
-
-  if (gridX < 0 || gridY < 0 || gridX + sw > container.width || gridY + sh > container.height) {
+  if (gridX < 0 || gridY < 0 || gridX >= container.width || gridY >= container.height) {
     return false
   }
 
   const occupancy = buildOccupancyGrid(container, excludeUid)
-
-  for (let sy = 0; sy < sh; sy++) {
-    for (let sx = 0; sx < sw; sx++) {
-      if (shape[sy]?.[sx] && occupancy[gridY + sy]?.[gridX + sx] !== null) {
-        return false
-      }
-    }
-  }
-
-  return true
+  return occupancy[gridY]?.[gridX] === null
 }
 
 export const placeItem = (
   container: Container,
   definitionId: string,
-  rotation: Rotation,
   gridX: number,
   gridY: number
 ): ItemInstance | null => {
-  if (!canPlace(container, definitionId, rotation, gridX, gridY)) {
+  if (!canPlace(container, definitionId, gridX, gridY)) {
     return null
   }
 
   const instance: ItemInstance = {
     uid: crypto.randomUUID(),
     definitionId,
-    rotation,
     gridX,
     gridY,
   }
@@ -121,39 +64,28 @@ export const moveItem = (
   container: Container,
   uid: string,
   newGridX: number,
-  newGridY: number,
-  newRotation: Rotation
+  newGridY: number
 ): boolean => {
   const item = container.items.find(i => i.uid === uid)
   if (!item) return false
 
-  if (!canPlace(container, item.definitionId, newRotation, newGridX, newGridY, uid)) {
+  if (!canPlace(container, item.definitionId, newGridX, newGridY, uid)) {
     return false
   }
 
   item.gridX = newGridX
   item.gridY = newGridY
-  item.rotation = newRotation
   return true
 }
 
 export const findFitPosition = (
   container: Container,
-  definitionId: string
-): { gridX: number; gridY: number; rotation: Rotation } | null => {
-  const rotations = [Rotation.R0, Rotation.R90, Rotation.R180, Rotation.R270]
-
-  for (const rotation of rotations) {
-    const def = getDefinition(definitionId)
-    const shape = getRotatedShape(def.shape, rotation)
-    const sw = shapeWidth(shape)
-    const sh = shapeHeight(shape)
-
-    for (let y = 0; y <= container.height - sh; y++) {
-      for (let x = 0; x <= container.width - sw; x++) {
-        if (canPlace(container, definitionId, rotation, x, y)) {
-          return { gridX: x, gridY: y, rotation }
-        }
+  _definitionId: string
+): { gridX: number; gridY: number } | null => {
+  for (let y = 0; y < container.height; y++) {
+    for (let x = 0; x < container.width; x++) {
+      if (canPlace(container, '', x, y)) {
+        return { gridX: x, gridY: y }
       }
     }
   }
@@ -165,30 +97,20 @@ export const autoSort = (container: Container): boolean => {
   const items = [...container.items]
   container.items = []
 
-  const sorted = items
-    .map(item => {
-      const def = getDefinition(item.definitionId)
-      const shape = getRotatedShape(def.shape, Rotation.R0)
-      const area = shape.flat().filter(Boolean).length
-      return { item, area, definitionId: item.definitionId }
-    })
-    .sort((a, b) => {
-      // Largest items first to avoid fragmentation, then group same types together
-      if (a.area !== b.area) return b.area - a.area
-      if (a.definitionId !== b.definitionId) {
-        return a.definitionId < b.definitionId ? -1 : 1
-      }
-      return 0
-    })
+  const sorted = [...items].sort((a, b) => {
+    if (a.definitionId !== b.definitionId) {
+      return a.definitionId < b.definitionId ? -1 : 1
+    }
+    return 0
+  })
 
-  for (const { item } of sorted) {
+  for (const item of sorted) {
     const pos = findFitPosition(container, item.definitionId)
     if (!pos) {
       container.items = items
       return false
     }
     // Re-place the original item at the new position, preserving its uid
-    item.rotation = pos.rotation
     item.gridX = pos.gridX
     item.gridY = pos.gridY
     container.items.push(item)
@@ -202,13 +124,12 @@ export const transferItem = (
   target: Container,
   uid: string,
   gridX: number,
-  gridY: number,
-  rotation: Rotation
+  gridY: number
 ): boolean => {
   const item = source.items.find(i => i.uid === uid)
   if (!item) return false
 
-  if (!canPlace(target, item.definitionId, rotation, gridX, gridY)) {
+  if (!canPlace(target, item.definitionId, gridX, gridY)) {
     return false
   }
 
@@ -216,10 +137,9 @@ export const transferItem = (
   if (!removed) return false
 
   // Mutate the original item in place to preserve uid (same pattern as autoSort).
-  // omniboxContainers and glintingCoins are keyed by uid — generating a new one orphans them.
+  // glintingCoins are keyed by uid — generating a new one orphans them.
   item.gridX = gridX
   item.gridY = gridY
-  item.rotation = rotation
   target.items.push(item)
 
   return true
@@ -227,19 +147,6 @@ export const transferItem = (
 
 export const containerHasItem = (container: Container, definitionId: string): boolean =>
   container.items.some(i => i.definitionId === definitionId)
-
-export const createOmniboxContainer = (state: GameState, uid: string): Container => {
-  const num = state.nextOmniboxNumber++
-  const container: Container = {
-    id: uid,
-    name: `omnibox #${String(num)}`,
-    width: OMNIBOX_WIDTH,
-    height: OMNIBOX_HEIGHT,
-    items: [],
-  }
-  state.omniboxContainers.set(uid, container)
-  return container
-}
 
 export const findItemByDefinition = (container: Container, definitionId: string): ItemInstance | undefined =>
   container.items.find(i => i.definitionId === definitionId)

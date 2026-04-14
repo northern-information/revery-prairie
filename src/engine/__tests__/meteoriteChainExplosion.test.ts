@@ -8,7 +8,6 @@ import {
   clearAroundPlayer,
   createCharacterTestEntity,
   createGroundItemEntity,
-  createGroundOmniboxTestEntity,
   createMeteoriteEntity,
   createTestState,
   getMeteoriteEntities,
@@ -169,30 +168,6 @@ describe('chain explosion', () => {
       state.map[py + 1][px] = { type: TileType.Dirt }
 
       createGroundItemEntity(state, 'clover', px, py - 1)
-
-      const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
-
-      expect(spawned).toBe(1)
-      const meteorites = getMeteoriteEntities(state)
-      const pos = state.world.getComponent(meteorites[0], ComponentType.Position)
-      expect(pos).toEqual({ x: px, y: py + 1 })
-    })
-
-    it('does not spawn on tiles occupied by ground omniboxes', () => {
-      const state = createTestState()
-      const px = state.player.x
-      const py = state.player.y
-
-      for (let dy = -3; dy <= 3; dy++) {
-        for (let dx = -3; dx <= 3; dx++) {
-          if (dx === 0 && dy === 0) continue
-          state.map[py + dy][px + dx] = { type: TileType.Space }
-        }
-      }
-      state.map[py - 1][px] = { type: TileType.Dirt }
-      state.map[py + 1][px] = { type: TileType.Dirt }
-
-      createGroundOmniboxTestEntity(state, 'test-uid', px, py - 1)
 
       const spawned = spawnChainMeteorites(state, { x: px, y: py }, 1000)
 
@@ -372,7 +347,7 @@ describe('chain explosion', () => {
       // Fill backpack completely (4x6 = 24 slots, clover is 1x1)
       for (let y = 0; y < state.backpack.height; y++) {
         for (let x = 0; x < state.backpack.width; x++) {
-          placeItem(state.backpack, 'clover', 0, x, y)
+          placeItem(state.backpack, 'clover', x, y)
         }
       }
 

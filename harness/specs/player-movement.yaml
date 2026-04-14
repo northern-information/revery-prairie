@@ -59,22 +59,6 @@ behaviors:
         effect: 'recalculated (see facing-entity-update)'
     determinism: deterministic
 
-  - id: movement-blocked-by-ground-omnibox
-    description: >
-      movePlayer returns false and does not mutate position when the
-      target tile contains a ground omnibox
-    inputs:
-      - 'GameState with a ground omnibox adjacent to player'
-      - 'Direction toward the omnibox tile'
-    outputs:
-      - 'boolean: false'
-    state_changes:
-      - field: playerFacing
-        effect: 'set to dir (see facing-entity-update)'
-      - field: facingEntityPos
-        effect: 'recalculated (see facing-entity-update)'
-    determinism: deterministic
-
   - id: movement-blocked-by-character
     description: >
       movePlayer returns false and does not mutate position when the
@@ -96,7 +80,7 @@ behaviors:
       after any move attempt (successful or not), playerFacing is set
       to the direction argument and facingEntityPos is recalculated
       via updateFacingEntity to highlight the nearest interactable
-      (ground omnibox, character, or cave breakable wall)
+      (character or cave breakable wall)
     inputs:
       - 'GameState'
       - 'Direction'
@@ -140,8 +124,6 @@ failure_conditions:
   - trigger: 'Target tile is non-walkable (Space, CaveWall, CaveBreakableWall)'
     expected: 'movePlayer returns false, no state mutation to player position'
   - trigger: 'Target position is out of map bounds'
-    expected: 'movePlayer returns false, no state mutation to player position'
-  - trigger: 'Target tile occupied by ground omnibox'
     expected: 'movePlayer returns false, no state mutation to player position'
   - trigger: 'Target tile occupied by character'
     expected: 'movePlayer returns false, no state mutation to player position'

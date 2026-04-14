@@ -10,8 +10,6 @@ describe('getDefinition', () => {
     expect(def.glyph).toBe('*')
     expect(def.glyphColor).toBe('#FFD700')
     expect(def.category).toBe(ItemCategory.Fauna)
-    expect(def.weight).toBe(1)
-    expect(def.shape).toEqual([[true]])
   })
 
   it('returns correct definition for clover', () => {
@@ -21,19 +19,6 @@ describe('getDefinition', () => {
     expect(def.glyph).toBe('%')
     expect(def.glyphColor).toBe('#50C878')
     expect(def.category).toBe(ItemCategory.Flora)
-    expect(def.weight).toBe(1)
-    expect(def.shape).toEqual([[true]])
-  })
-
-  it('returns correct definition for permacomputer', () => {
-    const def = getDefinition('permacomputer')
-    expect(def.id).toBe('permacomputer')
-    expect(def.name).toBe('Permacomputer')
-    expect(def.glyph).toBe('⚙')
-    expect(def.glyphColor).toBe('#8B7355')
-    expect(def.category).toBe(ItemCategory.Gizmo)
-    expect(def.weight).toBe(3)
-    expect(def.shape).toEqual([[true, true]])
   })
 
   it('throws for unknown id', () => {
@@ -54,9 +39,7 @@ describe('ITEM_DEFINITIONS', () => {
       expect(def.description).toBeTruthy()
       expect(def.glyph).toBeTruthy()
       expect(def.glyphColor).toBeTruthy()
-      expect(def.weight).toBeGreaterThan(0)
       expect(def.category).toBeTruthy()
-      expect(def.shape.length).toBeGreaterThan(0)
     }
   })
 })
@@ -70,8 +53,8 @@ describe('createBackpack', () => {
 
   it('returns correct dimensions', () => {
     const backpack = createBackpack()
-    expect(backpack.width).toBe(4)
-    expect(backpack.height).toBe(6)
+    expect(backpack.width).toBe(10)
+    expect(backpack.height).toBe(100)
   })
 
   it('starts with empty items', () => {

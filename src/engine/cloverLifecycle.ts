@@ -184,7 +184,7 @@ export const harvestClover = (state: GameState): HarvestResult => {
   if (!fit) return HarvestResult.BackpackFull
 
   state.map[pos.y][pos.x] = { type: TileType.Dirt }
-  placeItem(state.backpack, 'clover', fit.rotation, fit.gridX, fit.gridY)
+  placeItem(state.backpack, 'clover', fit.gridX, fit.gridY)
   state.cloverLifecycle.delete(posKey(pos.x, pos.y))
   recordDiscovery(state, 'event:clover-harvest')
   return HarvestResult.Success

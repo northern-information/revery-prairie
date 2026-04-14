@@ -39,7 +39,7 @@ export const DragCursor = ({ dragState, cursorPos, cursorTarget, canvasRect, met
     )
   }
 
-  // Over inventory grids / action bar / fabrication zone — those areas render
+  // Over inventory grids / action bar — those areas render
   // their own preview, so a floating glyph here creates a visual duplicate.
   return null
 }

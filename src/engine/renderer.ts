@@ -259,16 +259,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (mpos) meteoritePositions.add(posKey(mpos.x, mpos.y))
   }
 
-  // Build a map of ground omnibox positions for rendering (from ECS)
-  const groundOmniboxMap = new Map<string, string>()
-  for (const eid of state.world.query(ComponentType.OmniboxLink, ComponentType.Position)) {
-    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundOmnibox') continue
-    if (!inZone(eid)) continue
-    const goPos = state.world.getComponent(eid, ComponentType.Position)
-    const link = state.world.getComponent(eid, ComponentType.OmniboxLink)
-    if (goPos && link) groundOmniboxMap.set(posKey(goPos.x, goPos.y), link.uid)
-  }
-
   // Build a set of beehive positions for rendering (from ECS)
   const beehivePositions = new Set<string>()
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
@@ -863,10 +853,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         } else {
           color = METEORITE_COLOR
         }
-      } else if (groundOmniboxMap.has(tileKey)) {
-        const omniboxDef = getDefinition('omnibox')
-        char = omniboxDef.glyph
-        color = omniboxDef.glyphColor
       } else if (groundItemMap.has(tileKey)) {
         const groundEntry = groundItemMap.get(tileKey)
         if (groundEntry) {

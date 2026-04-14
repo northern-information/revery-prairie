@@ -110,7 +110,7 @@ export const LIGHTNING_WEIGHT_NEAR_WATER = 1.5
 export const LIGHTNING_WEIGHT_METAL = 3.0
 export const LIGHTNING_WEIGHT_ISOLATED = 1.8
 export const LIGHTNING_WEIGHT_CLOVER = 1.3
-export const LIGHTNING_WEIGHT_STRIKE_HISTORY = 0.5
+
 export const LIGHTNING_NEAR_WATER_RADIUS = 3
 export const LIGHTNING_ISOLATED_RADIUS = 2
 export const LIGHTNING_ISOLATED_CLOVER_THRESHOLD = 0.4
@@ -139,10 +139,6 @@ export const PICKUP_EFFECT_RADIUS = 3 // max diamond radius in tiles
 export const PICKUP_EFFECT_CHARS_RING = ['\u2726', '+', '.', '\u00b7'] // ✦ → + → . → · (ring shrinks)
 export const PICKUP_EFFECT_CHARS_FILL = ['.', '+'] // shimmer interior chars
 export const PICKUP_EFFECT_COLORS = ['#FFFFFF', '#E0E0FF', '#C8C8FF', '#B0B0EE', '#9999DD'] // white → soft lavender fade
-
-// omnibox
-export const OMNIBOX_WIDTH = 5
-export const OMNIBOX_HEIGHT = 5
 
 // tick intervals
 export const BEE_TICK_MS = 200

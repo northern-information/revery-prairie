@@ -1,7 +1,6 @@
 import { render, screen } from '@testing-library/react'
 
 import { DragCursor } from '../DragCursor'
-import { Rotation } from '@/engine/types'
 import type { DragState } from '@/engine/drag'
 import type { CharMetrics } from '@/engine/types'
 
@@ -9,18 +8,15 @@ const makeDragState = (overrides?: Partial<DragState>): DragState => ({
   item: {
     uid: 'clover-1',
     definitionId: 'clover',
-    rotation: Rotation.R0,
     gridX: 0,
     gridY: 0,
   },
   sourceContainerId: 'backpack',
   targetContainerId: 'backpack',
-  rotation: Rotation.R0,
   previewX: 0,
   previewY: 0,
   isValid: true,
   combineTarget: null,
-  storeTarget: null,
   actionBarTarget: null,
   cannotCombine: false,
   ...overrides,
