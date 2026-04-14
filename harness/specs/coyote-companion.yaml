@@ -53,15 +53,19 @@ behaviors:
   - id: coyote-follow-behavior
     description: >
       when coyoteMode is 'follow', the coyote trails the player by
-      maintaining a target distance of 2-3 tiles. each tick, if the
-      coyote is more than 3 tiles (chebyshev distance) from the player,
-      it pathfinds toward the player and takes one step along the path.
-      if the coyote is within 2 tiles, it idles. movement uses the
-      same A* pathfinding as click-to-move, respecting blocked positions
-      and unwalkable tiles. the coyote moves at a rate slightly slower
-      than the player (one step per ~150ms vs player's 100ms). the
-      coyote removes itself from the blocked set before pathfinding
-      (same pattern as ghost drift).
+      maintaining a target distance of 2-3 tiles measured by A* path
+      length. each tick, the coyote computes the A* path to the player.
+      if the path length is greater than COYOTE_FOLLOW_MAX_DIST (3),
+      it takes one step along the path. if the path length is less than
+      or equal to COYOTE_FOLLOW_MIN_DIST (2), it idles. this uses path
+      distance (not chebyshev) so the coyote correctly follows through
+      narrow corridors and around corners in all zones (overworld, cave,
+      and any future zones). movement uses the same A* pathfinding as
+      click-to-move, respecting blocked positions and unwalkable tiles.
+      the coyote moves at a rate slightly slower than the player (one
+      step per ~150ms vs player's 100ms). the coyote removes itself
+      from the blocked set before pathfinding (same pattern as ghost
+      drift).
     inputs:
       - "coyoteMode === 'follow'"
       - 'player position changes'
@@ -260,6 +264,12 @@ edge_cases:
   - id: coyote-spawn-position-blocked
     description: 'at game start, the tile adjacent to player for coyote spawn is blocked'
     expected: 'try all cardinal neighbors of player, place on first walkable unblocked tile'
+  - id: coyote-follow-around-corners
+    description: 'player walks around an L-shaped corridor — chebyshev distance is small but path distance is large'
+    expected: 'coyote follows using path distance, not chebyshev, so it does not stall at corners'
+  - id: coyote-follow-no-path
+    description: 'coyote cannot pathfind to player (completely walled off)'
+    expected: 'coyote idles — no movement, no crash'
 
 failure_conditions:
   - trigger: 'coyote walks onto a Space tile'
