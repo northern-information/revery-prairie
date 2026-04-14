@@ -44,6 +44,8 @@ export interface TickSystem {
   id: string
   intervalMs: number
   zone: 'overworld' | 'cave' | 'always'
+  /** Which game phase this system runs in. Defaults to 'gameplay'. */
+  phase?: 'genesis' | 'gameplay' | 'always'
   priority?: number
   fn: (state: GameState, time: number) => void
 }
@@ -79,6 +81,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       id: 'genesis',
       intervalMs: 0,
       zone: 'always' as const,
+      phase: 'genesis' as const,
       priority: -25,
       fn: (() => {
         let lastRefresh = 0
@@ -104,7 +107,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'always',
       priority: -10,
       fn: (state, time) => {
-        if (state.genesis) return
         if (state.deepTime?.active && state.deepTime.phase !== DeepTimePhase.Wandering) return
         const moves = state.sprinting ? 2 : 1
         let moved = false
@@ -140,7 +142,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'always',
       priority: -5,
       fn: (state, time) => {
-        if (state.genesis) return
         if (state.deepTime?.active && state.deepTime.phase !== DeepTimePhase.Wandering) return
         if (!state.heldDirection) return
         if (state.activeDialog) return
@@ -178,7 +179,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: BEE_TICK_MS,
       zone: 'overworld',
       fn: state => {
-        if (state.genesis) return
         const deaths = tickBees(state, Zone.Overworld)
         for (const pos of deaths) {
           callbacks.onBeeDeath?.(pos.x, pos.y)
@@ -190,7 +190,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: BEE_TICK_MS,
       zone: 'cave',
       fn: state => {
-        if (state.genesis) return
         const deaths = tickBees(state, Zone.Cave)
         for (const pos of deaths) {
           callbacks.onBeeDeath?.(pos.x, pos.y)
@@ -202,7 +201,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: GHOST_TICK_MS,
       zone: 'overworld',
       fn: state => {
-        if (state.genesis) return
         tickCharacterBehaviors(state, Zone.Overworld)
       },
     },
@@ -211,7 +209,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: COYOTE_TICK_MS,
       zone: 'always',
       fn: (state, time) => {
-        if (state.genesis) return
         const result = tickCoyote(state, time)
         if (result.pickedUp) {
           const def = getDefinition(result.pickedUp.definitionId)
@@ -242,7 +239,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: SHOOTING_STAR_SPAWN_TICK_MS,
       zone: 'overworld',
       fn: state => {
-        if (state.genesis) return
         spawnShootingStar(state)
       },
     },
@@ -251,7 +247,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: SHOOTING_STAR_TICK_MS,
       zone: 'overworld',
       fn: (state, time) => {
-        if (state.genesis) return
         tickShootingStars(state, time)
       },
     },
@@ -260,7 +255,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: METEOR_SHOWER_TICK_MS,
       zone: 'overworld',
       fn: (state, time) => {
-        if (state.genesis) return
         const wasActive = state.meteorShower.active
         tickMeteorShower(state, time)
         if (!wasActive && state.meteorShower.active && state.currentZone === Zone.Overworld) {
@@ -274,7 +268,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'overworld',
       priority: 60,
       fn: (state, time) => {
-        if (state.genesis) return
         const struck = spawnLightningStrike(state, time)
         if (struck) {
           if (state.currentZone === Zone.Overworld) {
@@ -297,7 +290,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: WEATHER_TICK_MS,
       zone: 'overworld',
       fn: state => {
-        if (state.genesis) return
         tickWeather(state.weather)
       },
     },
@@ -308,7 +300,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       fn: (() => {
         let lastTime = 0
         return (state: GameState, time: number) => {
-          if (state.genesis) return
           const dt = lastTime > 0 ? time - lastTime : 0
           lastTime = time
           tickRainIntensity(state, dt)
@@ -321,7 +312,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'overworld',
       priority: 50,
       fn: state => {
-        if (state.genesis) return
         tickCloverGrowth(state)
       },
     },
@@ -331,7 +321,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'overworld',
       priority: 55,
       fn: state => {
-        if (state.genesis) return
         tickCloverHives(state)
       },
     },
@@ -341,7 +330,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'overworld',
       priority: 51,
       fn: state => {
-        if (state.genesis) return
         tickTileWater(state, Zone.Overworld)
       },
     },
@@ -351,7 +339,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'overworld',
       priority: 52,
       fn: (state, time) => {
-        if (state.genesis) return
         tickCloverLifecycle(state, Zone.Overworld, time)
       },
     },
@@ -361,7 +348,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'cave',
       priority: 52,
       fn: (state, time) => {
-        if (state.genesis) return
         tickCloverLifecycle(state, Zone.Cave, time)
       },
     },
@@ -431,7 +417,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: GLINT_ZONE_TICK_MS,
       zone: 'overworld',
       fn: (state, time) => {
-        if (state.genesis) return
         tickGlintZones(state, time)
       },
     },
@@ -440,7 +425,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: ANGEL_SPAWN_INTERVAL_MS,
       zone: 'overworld',
       fn: (state, time) => {
-        if (state.genesis) return
         if (spawnAngel(state, time)) {
           callbacks.onDiscovery?.('be not afraid', state.player.x, state.player.y, 'O', '#FFFFFF')
           callbacks.onRefreshUI?.()
@@ -524,7 +508,13 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
   }
 
   const tick = (time: number): void => {
+    const currentPhase = state.genesis ? 'genesis' : 'gameplay'
+
     for (const entry of entries) {
+      // Phase filtering — skip systems that don't match the current phase
+      const systemPhase = entry.system.phase ?? 'gameplay'
+      if (systemPhase !== 'always' && systemPhase !== currentPhase) continue
+
       if (entry.system.intervalMs === 0 || time - entry.lastTick >= entry.system.intervalMs) {
         // For zone-specific systems, temporarily swap state.map to that
         // zone's map so tick functions read the correct terrain.

@@ -62,6 +62,10 @@ import {
   PLAYER_CHAR,
   PLAYER_COLOR,
   POND_COLOR,
+  RAIN_AURA_CHARS,
+  RAIN_AURA_COLORS,
+  RAIN_AURA_DENSITY,
+  RAIN_AURA_SPEED,
   RIVER_COLOR,
   SAND_COLORS,
   SHOOTING_STAR_HEAD_CHAR,
@@ -88,12 +92,6 @@ import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 
 import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState } from './types'
-
-// Rain around characters with the `rain` aura
-const RAIN_CHARS = ['|', ':', '.', ',']
-const RAIN_COLORS = ['#4466aa', '#335588', '#556699', '#445577']
-const RAIN_DENSITY = 3 // ~1 in 3 tiles has a visible raindrop
-const RAIN_SPEED = 0.008 // cycles per millisecond — fast falling feel
 
 const STAR_CHARS = ['.', '+', '*']
 const STAR_COLORS = ['#333', '#555', '#777', '#999', '#bbb', '#999', '#777', '#555']
@@ -1045,16 +1043,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
         // Per-tile seed mixed with rainSeed so pattern varies per game load
         const h = tileHash(wx + state.rainSeed, wy)
-        if (h % RAIN_DENSITY !== 0) continue
+        if (h % RAIN_AURA_DENSITY !== 0) continue
 
         // Animate: offset by time so drops appear to fall
-        const phase = ((h >> 4) + Math.floor(time * RAIN_SPEED)) % RAIN_CHARS.length
-        const colorPhase = ((h >> 8) + Math.floor(time * RAIN_SPEED * 0.7)) % RAIN_COLORS.length
+        const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
+        const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
 
         const rpx = vx * charWidth
         const rpy = vy * charHeight
-        ctx.fillStyle = RAIN_COLORS[colorPhase]
-        ctx.fillText(RAIN_CHARS[phase], rpx, rpy)
+        ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]
+        ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy)
       }
     }
   }
@@ -1068,13 +1066,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
 
     const h = tileHash(wx + state.rainSeed, wy)
-    const phase = ((h >> 4) + Math.floor(time * RAIN_SPEED)) % RAIN_CHARS.length
-    const colorPhase = ((h >> 8) + Math.floor(time * RAIN_SPEED * 0.7)) % RAIN_COLORS.length
+    const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
+    const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
 
     const rpx = vx * charWidth
     const rpy = vy * charHeight
-    ctx.fillStyle = RAIN_COLORS[colorPhase]
-    ctx.fillText(RAIN_CHARS[phase], rpx, rpy)
+    ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]
+    ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy)
   }
 
   // Weather rain overlay — animated rain follows the sweeping rain front (overworld only)
@@ -1096,16 +1094,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const h = tileHash(wx + state.rainSeed, wy)
         if (h % WEATHER_RAIN_DENSITY !== 0) continue
 
-        const phase = ((h >> 4) + Math.floor(time * RAIN_SPEED)) % RAIN_CHARS.length
-        const colorPhase = ((h >> 8) + Math.floor(time * RAIN_SPEED * 0.7)) % RAIN_COLORS.length
+        const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
+        const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
 
         // Alpha = rainIntensity (fade in/out) * edgeAlpha (fringe falloff)
         ctx.globalAlpha = state.rainIntensity * front.edgeAlpha
 
         const rpx = vx * charWidth
         const rpy = vy * charHeight
-        ctx.fillStyle = RAIN_COLORS[colorPhase]
-        ctx.fillText(RAIN_CHARS[phase], rpx, rpy)
+        ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]
+        ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy)
       }
     }
 

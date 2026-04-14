@@ -1,0 +1,262 @@
+plan:
+  id: genesis-gameplay-formalization
+  title: Formalize genesis-gameplay coupling with phase system and shared rendering
+  created: '2026-04-14'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-phase-to-tick-system
+    title: Add phase field to TickSystem and filter at dispatcher level
+    spec_id: genesis-gameplay-formalization
+    spec_sections:
+      - phase-based-system-filtering
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+    notes: >
+      1. Add optional phase field to TickSystem interface (gameLoop.ts:43-49):
+         phase?: 'genesis' | 'gameplay' | 'always'
+         Default: 'gameplay' (most systems are gameplay-only).
+
+      2. Add phase resolution at the top of the tick() function (gameLoop.ts:526):
+         const currentPhase = state.genesis ? 'genesis' : 'gameplay'
+
+      3. In the tick loop (gameLoop.ts:530-560), before executing each system,
+         check: if system.phase is defined and !== 'always' and !== currentPhase,
+         skip it. This goes before the zone check.
+
+      4. Tag each system in createDefaultSystems with its phase:
+         - genesis: phase 'genesis' (only system that needs it)
+         - path, keyboard-move: phase 'gameplay'
+         - bee, bee-cave, character-behaviors, coyote: phase 'gameplay'
+         - shooting-star-spawn, shooting-star-tick, meteor-shower: phase 'gameplay'
+         - lightning-spawn, weather, rain-intensity: phase 'gameplay'
+         - clover-growth, clover-hive, tile-water: phase 'gameplay'
+         - clover-lifecycle-overworld, clover-lifecycle-cave: phase 'gameplay'
+         - glint-zone, angel-spawn: phase 'gameplay'
+         - dialog, timed-effects, deep-time, etc: phase 'gameplay'
+         Systems that currently lack a genesis guard but should still run
+         during genesis (angel-drift, angel-lifespan, etc.) get phase 'always'
+         or 'gameplay' depending on whether they should tick during genesis.
+
+      5. Remove all 'if (state.genesis) return' guards from system fn bodies.
+         The dispatcher handles phase filtering now.
+
+  - id: fix-crossfade-progress
+    title: Fix cross-fade to blend into start of next epoch instead of end
+    spec_id: genesis-gameplay-formalization
+    spec_sections:
+      - crossfade-progress-continuity
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+    notes: >
+      Root cause: genesisRenderer.ts:155 passes blendT (0->1) as progress to
+      the next epoch renderTile. At blendT=1 the next epoch looks fully
+      complete. Then epochIndex advances and real progress starts at ~0,
+      causing a visual snap.
+
+      Fix in genesisRenderer.ts:155:
+      Change: nextEpoch.renderTile(sim, mx, my, blendT, time)
+      To:     nextEpoch.renderTile(sim, mx, my, blendT * CROSSFADE_PEEK, time)
+
+      Where CROSSFADE_PEEK is a small fraction (e.g. 0.05) representing how
+      far into the next epoch we peek during cross-fade. At blendT=1, the
+      next epoch renders at progress=0.05, which closely matches what it will
+      show when it actually starts (progress near 0). The color blend still
+      goes from 0->1, so the transition smoothly interpolates from the current
+      epoch at progress=1 into the next epoch at progress~=0.
+
+      The key insight: we want to cross-fade the COLORS between epochs, but
+      the next epoch should render its START state, not its END state.
+
+  - id: export-rain-constants
+    title: Export rain animation constants from shared location
+    spec_id: genesis-gameplay-formalization
+    spec_sections:
+      - shared-rain-aura-constants
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/effects.ts
+    output_files:
+      - src/engine/constants.ts
+      - src/engine/renderer.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+    notes: >
+      1. Move RAIN_CHARS, RAIN_COLORS, RAIN_DENSITY, RAIN_SPEED from
+         renderer.ts (lines 93-96) to constants.ts. Export them.
+
+      2. Update renderer.ts to import these from constants.ts instead of
+         defining them locally.
+
+      3. These will be imported by genesis.ts in a later task.
+
+  - id: replace-gron-rain-radius
+    title: Replace GRON_RAIN_RADIUS with AURA_RADIUS.rain import
+    spec_id: genesis-gameplay-formalization
+    spec_sections:
+      - shared-rain-aura-constants
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/effects.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+    notes: >
+      1. Remove 'const GRON_RAIN_RADIUS = 6' (genesis.ts:184).
+      2. Add import: import { AURA_RADIUS } from './effects'
+      3. Replace all references to GRON_RAIN_RADIUS with AURA_RADIUS.rain
+         (genesis.ts:2168, 2295, and anywhere else it appears).
+      4. Verify no other hardcoded rain radius values exist in genesis.ts.
+
+  - id: add-rain-aura-to-present-day
+    title: Render rain aura around Gron in presentDay epoch renderTile
+    spec_id: genesis-gameplay-formalization
+    spec_sections:
+      - present-day-rain-aura-rendering
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/renderer.ts
+      - src/engine/effects.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - export-rain-constants
+      - replace-gron-rain-radius
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+    notes: >
+      In the presentDay renderTile function (genesis.ts:2444), after the Gron
+      and player rendering, add a rain overlay check:
+
+      1. Import RAIN_CHARS, RAIN_COLORS, RAIN_DENSITY, RAIN_SPEED from
+         constants.ts (or wherever they were exported in export-rain-constants).
+
+      2. Compute distance from (x, y) to (gronX, gronY). If within
+         AURA_RADIUS.rain and the tile is land (not space, not sand):
+         - Skip if tile is Gron position or player position
+         - Use tileHash for density check: if h % RAIN_DENSITY !== 0, skip
+         - Compute rain phase using same formula as gameplay renderer:
+           phase = ((h >> 4) + Math.floor(time * RAIN_SPEED)) % RAIN_CHARS.length
+           colorPhase = ((h >> 8) + Math.floor(time * RAIN_SPEED * 0.7)) % RAIN_COLORS.length
+         - Return the rain character as an additional render layer
+
+      3. The rain is an overlay on the base tile, so the renderTile should
+         return BOTH the base tile render AND the rain character. The
+         GenesisTileRender array supports multiple entries per tile.
+
+      4. Also add rain to the fallOfCivilizations renderTile for tiles within
+         Gron's rain radius that have vegetation, so rain appears during the
+         cross-fade into presentDay.
+
+  - id: use-character-definitions-in-present-day
+    title: Replace hardcoded Gron glyph/color with character definition lookup
+    spec_id: genesis-gameplay-formalization
+    spec_sections:
+      - shared-character-glyph-lookup
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+    notes: >
+      1. Import getCharacterDefinition from './characters' in genesis.ts.
+      2. In presentDay renderTile (genesis.ts:2485-2486), replace:
+           return [{ char: 'G', color: '#FFFFFF', dx: 0, dy: 0 }]
+         with:
+           const gDef = getCharacterDefinition('gron')
+           return [{ char: gDef.glyph, color: gDef.glyphColor, dx: 0, dy: 0 }]
+      3. If fallOfCivilizations also hardcodes Gron glyph rendering, update
+         it similarly.
+
+  - id: regression-tests-phase-system
+    title: Add tests for phase-based system filtering
+    spec_id: genesis-gameplay-formalization
+    spec_sections:
+      - phase-based-system-filtering
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - add-phase-to-tick-system
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags: [test]
+    notes: >
+      Add tests verifying:
+      1. During genesis (state.genesis non-null), gameplay-phase systems do
+         not execute. Mock a gameplay system fn, tick the loop, assert fn was
+         not called.
+      2. During gameplay (state.genesis null), genesis-phase systems do not
+         execute.
+      3. Always-phase systems execute in both phases.
+      4. No 'if (state.genesis) return' guards remain in any system fn body
+         (can grep the source or use a structural test).
+
+  - id: regression-tests-crossfade-and-rain
+    title: Add tests for cross-fade continuity and rain aura in presentDay
+    spec_id: genesis-gameplay-formalization
+    spec_sections:
+      - crossfade-progress-continuity
+      - present-day-rain-aura-rendering
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - fix-crossfade-progress
+      - add-rain-aura-to-present-day
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags: [test]
+    notes: >
+      Add tests verifying:
+      1. Cross-fade progress continuity: at blendT=1 the next epoch renderTile
+         receives a small progress value (not 1.0). Assert that the progress
+         passed to the next epoch renderTile is <= CROSSFADE_PEEK.
+      2. presentDay rain aura: for tiles within AURA_RADIUS.rain of Gron
+         position, presentDay renderTile returns multiple render entries
+         (base tile + rain overlay). Verify rain chars match RAIN_CHARS.
+      3. Rain density: tiles where tileHash % RAIN_DENSITY !== 0 do not get
+         rain overlay. Verify exact density match with gameplay renderer.

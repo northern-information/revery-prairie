@@ -266,6 +266,13 @@ export const BURNT_CLOVER_RECOVERY_MS = 60_000
 export const BURNT_CLOVER_RAIN_MULTIPLIER = 3
 export const BEEHIVE_MIN_DISTANCE = 7
 export const WEATHER_RAIN_DENSITY = 5
+
+// rain aura animation (shared between genesis renderer and gameplay renderer)
+export const RAIN_AURA_CHARS = ['|', ':', '.', ',']
+export const RAIN_AURA_COLORS = ['#4466aa', '#335588', '#556699', '#445577']
+export const RAIN_AURA_DENSITY = 3 // ~1 in 3 tiles has a visible raindrop
+export const RAIN_AURA_SPEED = 0.008 // cycles per millisecond
+
 export const DEEP_TIME_BURN_DURATION_MS = 5_000
 export const DEEP_TIME_YEARS_PER_FRAME = 1
 export const DEEP_TIME_TOTAL_YEARS = 1000
