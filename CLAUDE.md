@@ -88,10 +88,11 @@ the permacomputer is never consumed by recipes. the omnibox recipe uses `preserv
 left-hand keyboard layout (modern roguelike standard). WASD movement + surrounding keys.
 
 - `wasd` — movement (works with inventory open, blocked in menu, during drag, and when a text input is focused)
-- `e` — context-dependent: pick up open ground omnibox / close open backpack omnibox / open hovered omnibox / open facing ground omnibox / talk to character / advance dialog / toss coins in divination / close divination result
-- `r` — rotate hovered item in place (inventory must be open, item must be hovered)
+- `e` — context-dependent: pick up open ground omnibox / close open backpack omnibox / open hovered omnibox / open facing ground omnibox / talk to character / advance dialog / toss coins in divination / close divination result / break facing cave breakable wall
+- `r` — toggle reveries screen (blocked when modifier held to avoid overriding Cmd+R / Ctrl+R browser refresh)
 - `f` — harvest facing clover tile (tile → dirt, clover item to backpack, no soil enrichment)
 - `x` — drop hovered item; also cuts facing clover when no item is hovered (tile → dirt, soil enrichment, no item)
+- `c` — toggle divination screen (overworld only, blocked during dialog and menu)
 - `tab` — toggle inventory
 - `q` — toggle prairie manual
 - `esc` — close panel / open menu
@@ -99,6 +100,7 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 - `shift+click` — queue waypoints onto existing path (RTS-style)
 - during drag: `r` rotates preview, `esc` cancels (captured by drag hook)
 - `1-4` — activate action bar slot (blocked during dialog and menu)
+- `` ` `` — toggle dev panel (dev mode only)
 - `isDraggingRef` blocks `x`/`r` in keyboard hook while drag is active, but allows movement through
 
 ### reserved keys (not yet implemented)
@@ -123,6 +125,9 @@ hand-authored lore goes in `MANUAL_LORE` table in `manual.ts`. run `/maintain-ma
 
 - **bees** — spawn on bee+clover combine or bee item drop. wander randomly preferring clover. rendered as `*` in gold. walking over captures to backpack.
 - **ghosts** — 3 spawn at random positions on game start. drift slowly (15% move chance per 500ms). block movement/pathfinding. freeze during dialog. each has a 3-line dialog tree.
+- **angels** — biblically accurate ASCII entities. 9x9 body rendered from seeded animation. spawn periodically (~90s intervals), drift slowly, despawn after ~120s. have gold aura background, bee-spawning and clover-growing effects. dialog grants cantos (poems). tracked via `angelCantos`, `angelEncounterCount`, `angelFlashTime` on GameState.
+- **coyote** — companion NPC. follows the player in `Follow` mode (stays 2-3 tiles behind). `Collect` mode: roams and picks up ground items, delivers them to the player's backpack. toggled via coyote screen. tracked via `state.coyoteMode`, `state.coyoteCargo`, `state.coyotePath`.
+- **shooting stars** — ambient space entities. streak across the void with animated trails. targeted stars land on the map and become meteorites.
 - **ground items** — dropped items on map. auto-pickup on walk-over if backpack has room.
 - **ground omniboxes** — tracked separately in `state.groundOmniboxes[]`. press `[e]` to open. auto-close when player walks >1 tile away.
 
@@ -136,9 +141,13 @@ when adding new acquisition paths — any code that adds items to the backpack, 
 
 key items that don't occupy inventory grid space. stored as `state.reveries: string[]`. given as gifts by characters on dialog completion.
 
-registry in `src/engine/reveries.ts`. current reveries: `earth` (starting revery), `fire` (from Moab), and `water` (from Gron).
+registry in `src/engine/reveries.ts`. current reveries:
 
-`earth` uses `castStyle: 'scan'` — radiates a 20-tile radius soil health visualization from the player position. black → green gradient (black = depleted, green = thriving). works in both overworld and cave. three phases: radial expansion (1.5s), hold (2.5s), radial wave fade-out (1.5s). purely diagnostic — no gameplay effects. skips space and impassable cave walls.
+- `earth` (starting revery) — `castStyle: 'scan'`. radiates a 20-tile radius soil health visualization from the player position. black → green gradient (black = depleted, green = thriving). works in both overworld and cave. three phases: radial expansion (1.5s), hold (2.5s), radial wave fade-out (1.5s). purely diagnostic — no gameplay effects. skips space and impassable cave walls.
+- `lightning` (starting revery) — `castStyle: 'targeted'`. player selects a tile within range, lightning strikes it. 15s cooldown.
+- `fire` (from Moab) — `castStyle: 'tile'`. burns the facing tile. 12s cooldown.
+- `water` (from Gron) — `castStyle: 'rain'`. rain pattern on cross shape. 12s cooldown.
+- `deep-time` (from Gron post-deep-time) — `castStyle: 'deepTime'`. initiates the deep time endgame sequence. single use (infinite cooldown).
 
 ## character gifts
 
@@ -234,13 +243,19 @@ MP3s in `public/music/`, gitignored. `public/music/MANIFEST.md` lists expected f
 ## commands
 
 ```
-npm run dev          # start dev server
-npm run build        # type-check + production build
-npm run lint         # eslint (strict type-checked)
-npm run format       # prettier
-npm run format:check # prettier check
-npm run test         # run tests once
-npm run test:watch   # run tests in watch mode
+npm run dev             # start dev server
+npm run build           # type-check + production build (tsc -b && vite build)
+npm run lint            # eslint (strict type-checked)
+npm run format          # prettier
+npm run format:check    # prettier check
+npm run typecheck       # tsc -b --noEmit (type-check only, no build)
+npm run test            # run tests once
+npm run test:watch      # run tests in watch mode
+npm run test:engine     # engine tests only
+npm run test:components # component tests only
+npm run test:harness    # harness tests only
+npm run verify          # typecheck + lint + test (all three)
+npm run preview         # vite preview
 ```
 
 ## testing
