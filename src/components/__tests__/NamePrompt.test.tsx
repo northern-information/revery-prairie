@@ -6,7 +6,7 @@ describe('NamePrompt', () => {
   it('renders the poem text', () => {
     render(<NamePrompt onSubmit={vi.fn()} />)
     expect(screen.getByText(/To make a prairie/)).toBeInTheDocument()
-    expect(screen.getByText(/Emily Dickinson, 1755/)).toBeInTheDocument()
+    expect(screen.getByText(/Emily Dickinson/)).toBeInTheDocument()
   })
 
   it('renders the name input with label', () => {

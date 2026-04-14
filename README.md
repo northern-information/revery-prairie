@@ -7,7 +7,7 @@ And revery.
 The revery alone will do,
 If bees are few.
 
-— Emily Dickinson, 01755 A.D.
+— Emily Dickinson
 ```
 
 a browser-based game about tending a prairie. ASCII on canvas now, isometric sprites later.

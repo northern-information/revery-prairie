@@ -42,7 +42,7 @@ export const RECIPES: Recipe[] = [
       'the revery alone will do,',
       'if bees are few.',
       '',
-      '— emily dickinson, 1755',
+      '— emily dickinson',
     ].join('\n'),
     preview: state => {
       const tiles: PreviewTile[] = []
