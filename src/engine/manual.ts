@@ -69,6 +69,7 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'character:gron': { lore: 'TODO' },
   'character:moab': { lore: 'TODO' },
   'character:ghosts': { lore: 'TODO' },
+  'character:coyote': { lore: 'TODO' },
   // Weather events
   'event:lightning-strike': { lore: 'TODO' },
   'event:wildfire': { lore: 'TODO' },

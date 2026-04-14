@@ -1,12 +1,20 @@
 import { describe, it, expect } from 'vitest'
 import { createGameState } from '../state'
 import { getCharacterDialog } from '../characters'
+import { ComponentType } from '../ecs/types'
 import { advanceDialog, giveCharacterGift, interactWithCharacter } from '../interaction'
 import { clearAroundPlayer, createCharacterTestEntity } from './helpers'
 
 import type { GameState } from '../types'
 
-const makeState = (): GameState => createGameState('test', 40, 30)
+const makeState = (): GameState => {
+  const state = createGameState('test', 40, 30)
+  // Destroy all spawned characters so tests control placement explicitly
+  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
+    state.world.destroyEntity(eid)
+  }
+  return state
+}
 
 const advanceToEnd = (state: GameState): void => {
   while (state.activeDialog) {

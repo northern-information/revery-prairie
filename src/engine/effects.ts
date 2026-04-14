@@ -73,5 +73,14 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
     seen.add('glinting')
   }
 
+  // Coyote mode indicator
+  for (const eid of state.world.spatial.at(x, y)) {
+    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    if (identity?.definitionId === 'coyote') {
+      seen.add(state.coyoteMode === 'follow' ? 'following' : 'collecting')
+      break
+    }
+  }
+
   return [...seen]
 }

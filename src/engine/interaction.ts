@@ -1,6 +1,7 @@
 import { autoAssignRevery } from './actionBar'
 import { storeAngelCanto } from './angels'
 import { getCharacterDefinition, getCharacterDialog } from './characters'
+import { toggleCoyoteMode } from './coyote'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { CARDINAL, DIRECTIONS, isInBounds, posKey } from './position'
@@ -141,10 +142,18 @@ export const getAdjacentCharacter = (
   return null
 }
 
-export const interactWithCharacter = (state: GameState): { opened: boolean; gift: ReveryDefinition | null } => {
+export const interactWithCharacter = (
+  state: GameState
+): { opened: boolean; gift: ReveryDefinition | null; coyoteToggled: boolean } => {
   const character = getAdjacentCharacter(state)
-  if (!character) return { opened: false, gift: null }
+  if (!character) return { opened: false, gift: null, coyoteToggled: false }
   recordDiscovery(state, `character:${character.definitionId}`)
+
+  // Coyote uses mode toggle instead of dialog
+  if (character.definitionId === 'coyote') {
+    toggleCoyoteMode(state)
+    return { opened: false, gift: null, coyoteToggled: true }
+  }
 
   state.activeDialog = {
     characterId: character.definitionId,
@@ -160,7 +169,7 @@ export const interactWithCharacter = (state: GameState): { opened: boolean; gift
     storeAngelCanto(state, character.definitionId)
   }
 
-  return { opened: true, gift: null }
+  return { opened: true, gift: null, coyoteToggled: false }
 }
 
 export const advanceDialog = (state: GameState): { continuing: boolean; gift: ReveryDefinition | null } => {

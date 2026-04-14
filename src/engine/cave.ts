@@ -1,3 +1,4 @@
+import { transitionCoyoteToZone } from './coyote'
 import { recordDiscovery } from './manual'
 import { TileType, Zone } from './types'
 
@@ -190,6 +191,9 @@ export const enterCave = (state: GameState): void => {
   state.activeDialog = null
   state.trail = []
   state.cloverGrowthPreviews = new Set<string>()
+
+  // Teleport coyote to cave
+  transitionCoyoteToZone(state, Zone.Cave)
 }
 
 export const exitCave = (state: GameState): void => {
@@ -216,6 +220,9 @@ export const exitCave = (state: GameState): void => {
   state.activeDialog = null
   state.trail = []
   state.cloverGrowthPreviews = new Set<string>()
+
+  // Teleport coyote to overworld
+  transitionCoyoteToZone(state, Zone.Overworld)
 }
 
 export const checkTransition = (state: GameState): boolean => {

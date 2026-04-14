@@ -187,7 +187,7 @@ beforeEach(() => {
   vi.mocked(advanceDialog).mockReturnValue({ continuing: false, gift: null })
   vi.mocked(breakWall).mockReturnValue(false)
   vi.mocked(getAdjacentCharacter).mockReturnValue(null)
-  vi.mocked(interactWithCharacter).mockReturnValue({ opened: false, gift: null })
+  vi.mocked(interactWithCharacter).mockReturnValue({ opened: false, gift: null, coyoteToggled: false })
   vi.mocked(dropItem).mockReturnValue(false)
   vi.mocked(grabOmnibox).mockReturnValue(null)
   vi.mocked(toggleFacingOmnibox).mockReturnValue(false)
@@ -403,7 +403,7 @@ describe('useKeyboard', () => {
     it('calls interactWithCharacter and fires onDialog', () => {
       const character = { definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }
       vi.mocked(getAdjacentCharacter).mockReturnValue(character)
-      vi.mocked(interactWithCharacter).mockReturnValue({ opened: true, gift: null })
+      vi.mocked(interactWithCharacter).mockReturnValue({ opened: true, gift: null, coyoteToggled: false })
       renderKeyboardHook()
 
       act(() => {
