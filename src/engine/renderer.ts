@@ -97,6 +97,7 @@ import type { CharMetrics, GameState, TransitionFade } from './types'
 /** Compute transition progress (0→1) from a TransitionFade, or 1 if null. */
 const getTransitionAlpha = (transition: TransitionFade | null, time: number): number => {
   if (!transition) return 1
+  if (transition.duration <= 0) return 1
   const elapsed = time - transition.startTime
   if (elapsed <= 0) return 0
   if (elapsed >= transition.duration) return 1
@@ -139,6 +140,31 @@ const soilHealthColor = (health: number): string => {
   return lerpColor(EARTH_SCAN_COLOR_LOW, EARTH_SCAN_COLOR_HIGH, t)
 }
 
+// ── Pooled render collections ──
+// Reused every frame to avoid per-frame allocation / GC pressure.
+const _beePositions = new Set<string>()
+const _groundItemMap = new Map<string, { definitionId: string; glinting?: boolean }>()
+const _previewMap = new Map<string, { char: string; color: string; isValid: boolean }>()
+const _pathPositions = new Set<string>()
+const _waypointPositions = new Set<string>()
+const _hoverPathPositions = new Set<string>()
+const _devPaintPositions = new Set<string>()
+const _shootingStarMap = new Map<string, { char: string; color: string }>()
+const _targetedStarMap = new Map<string, { char: string; color: string }>()
+const _meteoritePositions = new Set<string>()
+const _beehivePositions = new Set<string>()
+const _characterMap = new Map<string, { glyph: string; color: string }>()
+const _angelMap = new Map<string, { char: string; color: string }>()
+const _angelTileToGroup = new Map<string, Set<string>>()
+const _trailMap = new Map<string, number>()
+const _explosionMap = new Map<string, { char: string; color: string }>()
+const _lightningMap = new Map<string, { char: string; color: string }>()
+const _wildfireMap = new Map<string, { char: string; color: string }>()
+const _pickupEffectMap = new Map<string, { char: string; color: string }>()
+const _reveryCastMap = new Map<string, { char: string; color: string }>()
+const _earthScanBgMap = new Map<string, { color: string; opacity: number }>()
+const _crumbleMap = new Map<string, { char: string; color: string }>()
+
 export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   // Genesis mode — delegate to genesis renderer
   if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
@@ -166,8 +192,55 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const zone = state.currentZone
   const inZone = (eid: number): boolean => state.world.getComponent(eid, ComponentType.EntityZone)?.zone === zone
 
-  // Build a set of bee positions for fast lookup (from ECS)
-  const beePositions = new Set<string>()
+  // Clear pooled collections for this frame
+  _beePositions.clear()
+  _groundItemMap.clear()
+  _previewMap.clear()
+  _pathPositions.clear()
+  _waypointPositions.clear()
+  _hoverPathPositions.clear()
+  _devPaintPositions.clear()
+  _shootingStarMap.clear()
+  _targetedStarMap.clear()
+  _meteoritePositions.clear()
+  _beehivePositions.clear()
+  _characterMap.clear()
+  _angelMap.clear()
+  _angelTileToGroup.clear()
+  _trailMap.clear()
+  _explosionMap.clear()
+  _lightningMap.clear()
+  _wildfireMap.clear()
+  _pickupEffectMap.clear()
+  _reveryCastMap.clear()
+  _earthScanBgMap.clear()
+  _crumbleMap.clear()
+
+  // Alias pooled collections for readability
+  const beePositions = _beePositions
+  const groundItemMap = _groundItemMap
+  const previewMap = _previewMap
+  const pathPositions = _pathPositions
+  const waypointPositions = _waypointPositions
+  const hoverPathPositions = _hoverPathPositions
+  const devPaintPositions = _devPaintPositions
+  const shootingStarMap = _shootingStarMap
+  const targetedStarMap = _targetedStarMap
+  const meteoritePositions = _meteoritePositions
+  const beehivePositions = _beehivePositions
+  const characterMap = _characterMap
+  const angelMap = _angelMap
+  const angelTileToGroup = _angelTileToGroup
+  const trailMap = _trailMap
+  const explosionMap = _explosionMap
+  const lightningMap = _lightningMap
+  const wildfireMap = _wildfireMap
+  const pickupEffectMap = _pickupEffectMap
+  const reveryCastMap = _reveryCastMap
+  const earthScanBgMap = _earthScanBgMap
+  const crumbleMap = _crumbleMap
+
+  // Populate bee positions (from ECS)
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
     if (!inZone(eid)) continue
@@ -175,8 +248,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (bpos) beePositions.add(posKey(bpos.x, bpos.y))
   }
 
-  // Build a map of ground item positions for rendering (from ECS)
-  const groundItemMap = new Map<string, { definitionId: string; glinting?: boolean }>()
+  // Populate ground item positions (from ECS)
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position, ComponentType.ItemDrop)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundItem') continue
     if (!inZone(eid)) continue
@@ -186,38 +258,33 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       groundItemMap.set(posKey(gpos.x, gpos.y), { definitionId: drop.definitionId, glinting: drop.glinting })
   }
 
-  // Build a map of preview tile positions for macro recipe previews
-  const previewMap = new Map<string, { char: string; color: string; isValid: boolean }>()
+  // Populate preview tile positions for macro recipe previews
   if (state.previewFn) {
     for (const pt of state.previewFn(state, time)) {
       previewMap.set(posKey(pt.pos.x, pt.pos.y), { char: pt.char, color: pt.color, isValid: pt.isValid })
     }
   }
 
-  // Build a set of path positions for highlight rendering
-  const pathPositions = new Set<string>()
+  // Populate path positions for highlight rendering
   if (state.path) {
     for (const p of state.path) {
       pathPositions.add(posKey(p.x, p.y))
     }
   }
 
-  // Build a set of waypoint positions for distinct markers
-  const waypointPositions = new Set<string>()
+  // Populate waypoint positions for distinct markers
   for (const w of state.pathWaypoints) {
     waypointPositions.add(posKey(w.x, w.y))
   }
 
-  // Build a set of hover path positions for preview rendering (suppressed when dev panel is open)
-  const hoverPathPositions = new Set<string>()
+  // Populate hover path positions for preview rendering (suppressed when dev panel is open)
   if (state.hoverPath && !state.devPanelOpen) {
     for (const p of state.hoverPath) {
       hoverPathPositions.add(posKey(p.x, p.y))
     }
   }
 
-  // Build dev paint preview positions
-  const devPaintPositions = new Set<string>()
+  // Populate dev paint preview positions
   let devPaintTileType: string | null = null
   if (state.devPaintPreview) {
     const { x1, y1, x2, y2 } = state.devPaintPreview
@@ -233,9 +300,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build maps of shooting star pixels — targeted stars render over land, others only on space
-  const shootingStarMap = new Map<string, { char: string; color: string }>()
-  const targetedStarMap = new Map<string, { char: string; color: string }>()
+  // Populate shooting star pixel maps — targeted stars render over land, others only on space
   for (const eid of state.world.query(ComponentType.ShootingStarData, ComponentType.Position, ComponentType.Velocity)) {
     if (!inZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -262,8 +327,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a set of meteorite positions (from ECS)
-  const meteoritePositions = new Set<string>()
+  // Populate meteorite positions (from ECS)
   for (const eid of state.world.query(ComponentType.EntityTag)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'meteorite') continue
     if (!inZone(eid)) continue
@@ -271,8 +335,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (mpos) meteoritePositions.add(posKey(mpos.x, mpos.y))
   }
 
-  // Build a set of beehive positions for rendering (from ECS)
-  const beehivePositions = new Set<string>()
+  // Populate beehive positions (from ECS)
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'beehive') continue
     if (!inZone(eid)) continue
@@ -280,8 +343,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (hpos) beehivePositions.add(posKey(hpos.x, hpos.y))
   }
 
-  // Build a map of character positions for rendering (from ECS)
-  const characterMap = new Map<string, { glyph: string; color: string }>()
+  // Populate character positions (from ECS)
   for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
     if (!inZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -294,13 +356,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     characterMap.set(key, { glyph: def.glyph, color: def.glyphColor })
   }
 
-  // Build a map of angel body pixels (from ECS)
-  const angelMap = new Map<string, { char: string; color: string }>()
-  // Build angel aura center positions for gold aura rendering
+  // Populate angel body pixels (from ECS)
+  // Angel aura center positions for gold aura rendering
   const angelAuraCenters: { x: number; y: number }[] = []
   // Track angel body tile groups so hovering/facing any tile highlights all
   const angelBodyGroups: Set<string>[] = []
-  const angelTileToGroup = new Map<string, Set<string>>()
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
     if (!inZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -321,8 +381,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     angelAuraCenters.push({ x: pos.x, y: pos.y })
   }
 
-  // Prune expired trail points and build a map with opacity
-  const trailMap = new Map<string, number>()
+  // Prune expired trail points and populate trail map with opacity
   const activeTrail = state.trail.filter(tp => {
     const age = time - tp.time
     if (age >= TRAIL_DURATION_MS) return false
@@ -331,8 +390,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   })
   state.trail = activeTrail
 
-  // Build a map of explosion pixels (from ECS)
-  const explosionMap = new Map<string, { char: string; color: string }>()
+  // Populate explosion pixels (from ECS)
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
     if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
@@ -367,8 +425,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a map of lightning bolt pixels (from ECS)
-  const lightningMap = new Map<string, { char: string; color: string }>()
+  // Populate lightning bolt pixels (from ECS)
   let lightningFlashElapsed = Infinity
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
     if (!inZone(eid)) continue
@@ -457,8 +514,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a map of wildfire pixels (from ECS)
-  const wildfireMap = new Map<string, { char: string; color: string }>()
+  // Populate wildfire pixels (from ECS)
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
     if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
@@ -490,8 +546,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a map of meteorite pickup effect pixels (starlight bloom, from ECS)
-  const pickupEffectMap = new Map<string, { char: string; color: string }>()
+  // Populate meteorite pickup effect pixels (starlight bloom, from ECS)
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
     if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
@@ -565,8 +620,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a map of revery cast effect pixels (tile-style only; rain-style handled in overlay pass)
-  const reveryCastMap = new Map<string, { char: string; color: string }>()
+  // Populate revery cast effect pixels (tile-style only; rain-style handled in overlay pass)
   const reveryCastRainPositions: { x: number; y: number }[] = []
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
     if (!inZone(eid)) continue
@@ -600,9 +654,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a map of earth scan background colors (scan-style revery)
+  // Populate earth scan background colors (scan-style revery)
   // This is a background layer — tiles get a colored fillRect, then normal content draws on top
-  const earthScanBgMap = new Map<string, { color: string; opacity: number }>()
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
     if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
@@ -669,8 +722,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Build a map of crumble effect pixels (breakable wall, from ECS)
-  const crumbleMap = new Map<string, { char: string; color: string }>()
+  // Populate crumble effect pixels (breakable wall, from ECS)
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
     if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)

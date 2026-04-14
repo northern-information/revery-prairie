@@ -1,3 +1,4 @@
+import { HOVER_PATH_MAX_DISTANCE } from './constants'
 import { screenToTile } from './coordinates'
 import { getPathfindingBlockers } from './movement'
 import { findPath } from './pathfinding'
@@ -22,7 +23,8 @@ export const updateCursorState = (state: GameState, metrics: CharMetrics): void 
   const ht = state.hoverPathTarget
   if (ct && (ct.x !== ht?.x || ct.y !== ht?.y) && (ct.x !== player.x || ct.y !== player.y) && !state.path) {
     state.hoverPathTarget = { x: ct.x, y: ct.y }
-    if (isInBounds(ct.x, ct.y, state.mapWidth, state.mapHeight) && isWalkableTile(state.map[ct.y][ct.x].type)) {
+    const dist = Math.abs(ct.x - player.x) + Math.abs(ct.y - player.y)
+    if (dist <= HOVER_PATH_MAX_DISTANCE && isInBounds(ct.x, ct.y, state.mapWidth, state.mapHeight) && isWalkableTile(state.map[ct.y][ct.x].type)) {
       const hoverBlocked = getPathfindingBlockers(state, ct)
       state.hoverPath = findPath(state.map, state.mapWidth, state.mapHeight, player, ct, hoverBlocked)
     } else {

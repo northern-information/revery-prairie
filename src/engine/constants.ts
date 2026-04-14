@@ -144,6 +144,7 @@ export const PICKUP_EFFECT_COLORS = ['#FFFFFF', '#E0E0FF', '#C8C8FF', '#B0B0EE',
 export const BEE_TICK_MS = 200
 export const PATH_TICK_MS = 100
 export const KEYBOARD_MOVE_TICK_MS = 100
+export const HOVER_PATH_MAX_DISTANCE = 60 // manhattan distance cap for hover preview pathfinding
 export const WEATHER_TICK_MS = 5000
 
 // ghosts

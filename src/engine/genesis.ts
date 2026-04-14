@@ -393,8 +393,8 @@ const lavaEra: GenesisEpoch = {
       sumY += Number(yStr)
       landCount++
     }
-    const centroidX = sumX / landCount
-    const centroidY = sumY / landCount
+    const centroidX = landCount > 0 ? sumX / landCount : sim.width / 2
+    const centroidY = landCount > 0 ? sumY / landCount : sim.height / 2
     const maxLandDist = Math.sqrt((sim.width / 2) ** 2 + (sim.height / 2) ** 2)
 
     for (const key of landMask) {
