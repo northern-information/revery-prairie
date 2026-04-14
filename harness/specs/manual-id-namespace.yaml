@@ -45,12 +45,14 @@ behaviors:
   - id: crossref-namespacing
     description: >
       recipe crossRefs use namespaced item ids (item:bee, item:clover)
-      instead of bare definition ids. all crossRefs point to valid
-      keys in MANUAL_ENTRIES.
+      instead of bare definition ids. manual-only event entries also
+      have crossRefs pointing to other namespaced entries (e.g.
+      event:lightning-strike cross-refs event:wildfire). all crossRefs
+      point to valid keys in MANUAL_ENTRIES.
     inputs:
-      - 'recipe.ingredients array'
+      - 'recipe.ingredients array, manual-only event crossRefs arrays'
     outputs:
-      - 'crossRefs array with item:-prefixed ids'
+      - 'crossRefs arrays with namespaced ids'
     state_changes: []
     determinism: deterministic
 

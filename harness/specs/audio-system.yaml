@@ -15,42 +15,59 @@ behaviors:
       changes zones, setAmbient is called with the new zone's URL.
       the audio module manages an internal AudioContext, buffer cache,
       and two independent track channels: ambient (zone) and dialog
-      (character).
+      (character). state is module-scoped (not on GameState):
+      ambientUrl, ambientTrack, dialogTrack, enabled, fadeRafId,
+      pendingResume.
     inputs:
       - 'Zone value from state.currentZone'
     outputs:
       - 'ambient music track playing for the active zone'
-    state_changes: []
+    state_changes:
+      - field: '(module) ambientUrl'
+        effect: 'set to zone music URL'
+      - field: '(module) ambientTrack'
+        effect: 'created or replaced via setAmbient'
     determinism: deterministic
 
   - id: ambient-crossfade
     description: >
       setAmbient(url, fadeMs?) crossfades from the current ambient
-      track to a new one. default fade is 300ms. if the module is
-      disabled (muted), the URL is stored but no track is created.
-      if the URL matches the current ambient and a track exists,
-      the call is a no-op. an async race guard checks that ambientUrl
-      has not changed during buffer fetch before assigning the new
-      track.
+      track to a new one. default fade is 300ms (FADE_MS). if the
+      module is disabled (muted), the URL is stored but no track is
+      created. if the URL matches the current ambient and a track
+      exists, the call is a no-op. an async race guard checks that
+      ambientUrl has not changed during buffer fetch before assigning
+      the new track.
     inputs:
       - 'url string, optional fadeMs'
     outputs:
       - 'old ambient track faded out, new one faded in'
-    state_changes: []
+    state_changes:
+      - field: '(module) ambientUrl'
+        effect: 'set to requested URL (even when disabled)'
+      - field: '(module) ambientTrack'
+        effect: 'old track destroyed, new track assigned after buffer fetch'
+      - field: '(module) fadeRafId'
+        effect: 'rAF id stored during crossfade animation'
     determinism: deterministic
 
   - id: dialog-music-layer
     description: >
       startDialogMusic(url, fadeMs?) creates a dialog track and
-      fades ambient down while dialog plays. stopDialogMusic fades
-      dialog out and ambient back in. only one dialog track exists
-      at a time — calling startDialogMusic again destroys the
-      previous dialog track first.
+      fades ambient down while dialog plays. stopDialogMusic(fadeMs?)
+      fades dialog out and ambient back in. both accept an optional
+      fadeMs parameter (default FADE_MS = 300ms). only one dialog
+      track exists at a time — calling startDialogMusic again
+      destroys the previous dialog track first.
     inputs:
       - 'character dialog opened or closed'
     outputs:
       - 'dialog track playing over ducked ambient, or ambient restored'
-    state_changes: []
+    state_changes:
+      - field: '(module) dialogTrack'
+        effect: 'created on start, destroyed on stop'
+      - field: '(module) fadeRafId'
+        effect: 'rAF id stored during fade animation'
     determinism: deterministic
 
   - id: music-toggle
@@ -64,7 +81,13 @@ behaviors:
       - 'boolean toggle from ESC menu'
     outputs:
       - 'tracks muted or unmuted'
-    state_changes: []
+    state_changes:
+      - field: '(module) enabled'
+        effect: 'set to value'
+      - field: '(module) ambientTrack'
+        effect: 'gain set to 0 (disable) or recreated (re-enable when null)'
+      - field: '(module) dialogTrack'
+        effect: 'gain set to 0 (disable)'
     determinism: deterministic
 
   - id: stop-all
@@ -76,7 +99,32 @@ behaviors:
       - 'component unmount or scene change'
     outputs:
       - 'all audio stopped, state cleared'
-    state_changes: []
+    state_changes:
+      - field: '(module) ambientTrack'
+        effect: 'destroyed and set to null'
+      - field: '(module) ambientUrl'
+        effect: 'cleared to empty string'
+      - field: '(module) dialogTrack'
+        effect: 'destroyed and set to null'
+      - field: '(module) fadeRafId'
+        effect: 'cancelled'
+      - field: '(module) pendingResume'
+        effect: 'listener removed from document'
+    determinism: deterministic
+
+  - id: autoplay-resume
+    description: >
+      safeStart() handles browser autoplay policy. if AudioContext
+      is suspended, attempts resume. on failure, registers a
+      pendingResume listener on click and keydown events (with
+      { once: true }) that retries resume on first user interaction.
+    inputs:
+      - 'AudioContext in suspended state'
+    outputs:
+      - 'AudioContext resumed after user interaction'
+    state_changes:
+      - field: '(module) pendingResume'
+        effect: 'listener function stored for cleanup'
     determinism: deterministic
 
 edge_cases:

@@ -15,11 +15,12 @@ behaviors:
     description: >
       spawnShootingStar creates ambient shooting stars from map edges
       at 15% chance per 2000ms tick. max 5 concurrent stars. suppressed
-      during active meteor showers. picks random edge, generates
-      position and velocity. 30% chance for cardinal-only movement.
-      stars are ECS entities with Position, Velocity, ShootingStarData,
-      EntityTag (shootingStar), EntityZone (overworld). each star has
-      random length (3-6 tiles) and 8% chance to land.
+      during active meteor showers and during deep time (deepTime.active).
+      picks random edge, generates position and velocity. 30% chance for
+      cardinal-only movement. stars are ECS entities with Position,
+      Velocity, ShootingStarData, EntityTag (shootingStar), EntityZone
+      (overworld). each star has random length (3-6 tiles) and 8%
+      chance to land.
     inputs:
       - 'spawnShootingStar called on tick'
     outputs: []
@@ -36,7 +37,9 @@ behaviors:
       ticks, ~24 seconds). landing stars convert to meteorite +
       explosion ECS entities on first walkable tile (Dirt or Clover)
       that is not a water tile (pond or river). on water tiles, only
-      the explosion entity is created (no meteorite).
+      the explosion entity is created (no meteorite). targeted stars
+      land unconditionally on their target tile (destroyed immediately
+      on arrival regardless of occupancy).
     inputs:
       - 'tickShootingStars called with time'
     outputs: []
@@ -61,13 +64,13 @@ behaviors:
 
   - id: meteor-shower-scheduling
     description: >
-      tickMeteorShower manages shower state machine. first shower
-      scheduled at random interval [120s, 240s]. when time arrives:
-      active=true, pick radiant direction, calculate remainingStars
-      (8-12), spread over 4-second window. each interval tick spawns
-      one targeted star. when remainingStars=0: active=false, schedule
-      next shower. records event:meteor-shower discovery on first
-      shower.
+      tickMeteorShower manages shower state machine. suppressed during
+      deep time (deepTime.active). first shower scheduled at random
+      interval [120s, 240s]. when time arrives: active=true, pick
+      radiant direction, calculate remainingStars (8-12), spread over
+      4-second window. each interval tick spawns one targeted star.
+      when remainingStars=0: active=false, schedule next shower.
+      records event:meteor-shower discovery on first shower.
     inputs:
       - 'tickMeteorShower called with time'
     outputs: []
@@ -95,6 +98,29 @@ behaviors:
     state_changes: []
     determinism: probabilistic
 
+  - id: chain-meteorite-spawning
+    description: >
+      spawnChainMeteorites(state, origin, time) spawns up to
+      CHAIN_EXPLOSION_COUNT (3) meteorites within a
+      CHAIN_EXPLOSION_RADIUS (3) tile radius of the origin. selects
+      from walkable, non-occupied, non-water tiles (excluding origin).
+      candidates are Fisher-Yates shuffled for fair random selection.
+      spawned meteorites have a ChainSource({ fromChain: true })
+      component that prevents them from triggering further chain
+      explosions. records event:chain-explosion discovery when at
+      least one meteorite is spawned. returns the count of spawned
+      meteorites.
+    inputs:
+      - 'GameState, origin Position, time'
+    outputs:
+      - 'number of meteorites spawned'
+    state_changes:
+      - field: world
+        effect: 'meteorite + explosion ECS entities created at random nearby tiles'
+      - field: manualDiscoveries
+        effect: 'event:chain-explosion recorded when at least one meteorite is spawned'
+    determinism: probabilistic
+
 edge_cases:
   - id: max-active-stars
     description: '5 stars already active, spawnShootingStar called'
@@ -105,12 +131,15 @@ edge_cases:
   - id: star-off-map
     description: 'star moves beyond map bounds by more than length + 1'
     expected: 'star entity destroyed'
-  - id: star-lands-on-occupied
-    description: 'targeted star reaches target but tile is occupied'
-    expected: 'star continues past target, eventually removed by off-map or age'
+  - id: targeted-star-lands-unconditionally
+    description: 'targeted star reaches its landingTarget tile'
+    expected: 'star is destroyed and meteorite + explosion created regardless of tile occupancy'
   - id: sparse-map-shower
     description: 'very few valid landing tiles for shower targets'
     expected: 'findShowerTargets returns fewer targets, shower spawns fewer stars'
+  - id: deep-time-suppression
+    description: 'spawnShootingStar or tickMeteorShower called during deep time'
+    expected: 'both return early without spawning or scheduling'
 
 failure_conditions:
   - trigger: 'Star velocity is (0, 0) — would never move'

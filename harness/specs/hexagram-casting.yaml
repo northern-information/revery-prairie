@@ -18,7 +18,7 @@ behaviors:
   - id: coin-item-definition
     description: >
       A 'coin' item exists in the item registry. 1x1 shape, glyph '¤',
-      color '#C9B037' (antique gold), category Tool, weight 1.
+      color '#C9B037' (antique gold), category Tool.
       Description: 'an ancient divination coin'.
     inputs:
       - 'ITEM_DEFINITIONS registry'

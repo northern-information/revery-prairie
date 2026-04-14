@@ -21,13 +21,14 @@ behaviors:
     description: >
       createGameState places 3 ghosts as ECS entities in state.world
       via createCharacterEntity at random walkable (non-Space, non-Sand)
-      positions on the map. each ghost has definitionId 'ghost-N',
-      a unique spawn-order number (1, 2, 3), and ECS components:
-      CharacterIdentity, Position, Blocking, Behavior (drift),
-      EntityTag ('character'), and EntityZone (overworld). ghost
-      positions must not overlap each other, the player, or existing
-      characters. registerGhostDefinitions is called to register
-      CharacterDefinitions for each ghost.
+      positions on the map that are reachable from the player start
+      position (verified via BFS reachable set). each ghost has
+      definitionId 'ghost-N', a unique spawn-order number (1, 2, 3),
+      and ECS components: CharacterIdentity, Position, Blocking,
+      Behavior (drift), EntityTag ('character'), and EntityZone
+      (overworld). ghost positions must not overlap each other, the
+      player, or existing characters (Gron). registerGhostDefinitions
+      is called to register CharacterDefinitions for each ghost.
     inputs:
       - 'createGameState call'
     outputs:
