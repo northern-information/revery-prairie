@@ -7,6 +7,7 @@ source_files:
   - src/engine/gameLoop.ts
   - src/engine/genesis.ts
   - src/engine/genesisRenderer.ts
+  - src/engine/genesisTypes.ts
   - src/components/GameScreen.tsx
   - src/components/Sidebar.tsx
 behaviors:
@@ -52,6 +53,63 @@ behaviors:
         effect: set to current time (not 0) when advancing
     determinism: time-based
 
+  - id: snapshot-completeness
+    description: >
+      All mutable simulation fields read by any renderTile function must be
+      captured in EpochSnapshot and swapped during rendering. The 4 currently
+      snapshotted fields (vegetationMap, riverPaths, ponds, elevation) are
+      insufficient — 11 additional fields are mutated by epoch mutations and
+      later read by renderTile functions: volcanicHeat, ancientSeabeds,
+      burnScars, meteorites, lightningBolts, preGlacialVegetation,
+      glacialPaths, meltPools, tileData, aqueductNetwork, ruins. Each must
+      be cloned into EpochSnapshot after each epoch mutate call in
+      precomputeGenesis, so that playback reads epoch-local state.
+    inputs:
+      - 'precomputeGenesis runs all epoch mutations sequentially'
+    outputs:
+      - 'each EpochSnapshot contains all 15 fields (4 existing + 11 new)'
+      - 'each snapshot is a deep clone (new Map, new Set, spread array) so later mutations do not corrupt earlier snapshots'
+    state_changes:
+      - field: EpochSnapshot interface
+        effect: expanded with 11 new optional-to-existing but required-going-forward fields
+      - field: sim.epochSnapshots
+        effect: each entry now contains all 15 snapshotted fields
+    determinism: deterministic
+
+  - id: crossfade-isolation
+    description: >
+      During the crossfade window (last 10% of each epoch), the renderer
+      swaps to the next epoch snapshot before calling the next epoch
+      renderTile, then restores the current epoch snapshot. This swap must
+      cover ALL snapshotted fields, not just the original 4. Without this,
+      the next epoch renderTile reads final-state data for unswapped fields,
+      causing future state to bleed into the crossfade blend.
+    inputs:
+      - 'renderGenesis detects progress > CROSSFADE_START and a next epoch exists'
+    outputs:
+      - 'next epoch renderTile reads its own snapshot for all 15 fields'
+      - 'current epoch renderTile reads its own snapshot after restore'
+    state_changes:
+      - field: sim (multiple fields)
+        effect: temporarily swapped to next snapshot, then restored to current snapshot, per tile during crossfade
+    determinism: deterministic
+
+  - id: no-future-state-leakage
+    description: >
+      During playback of epoch N, renderTile must never see data from
+      mutations that occur in epoch N+1 or later. This is enforced by the
+      snapshot swap in renderGenesis — before any renderTile call, sim fields
+      are replaced with the epoch-N snapshot. After rendering completes, live
+      (final) state is restored. If any mutable field is missed in the swap,
+      renderTile sees the post-all-mutations value, causing visual pops.
+    inputs:
+      - 'renderGenesis is called during epoch N playback'
+    outputs:
+      - 'renderTile for epoch N reads only data from epochs 0..N'
+      - 'no visual flash or pop from future epoch data appearing early'
+    state_changes: []
+    determinism: deterministic
+
 edge_cases:
   - id: skip-key-during-genesis
     description: >
@@ -73,6 +131,28 @@ edge_cases:
       produce a frame of progress=0.
     expected: 'first epoch renders without a progress=0 flash frame'
 
+  - id: early-epoch-reads-glacial-paths
+    description: >
+      renderDirt checks glacialPaths to shade tiles differently. During epochs
+      before iceAge (which first populates glacialPaths), the snapshot must
+      contain an empty Set so renderDirt does not show glacial shading.
+    expected: 'glacialPaths snapshot is empty Set for all epochs before iceAge'
+
+  - id: civilization-crossfade
+    description: >
+      Crossfade from warmPeriod into riseOfCivilizations must not show
+      buildings or aqueducts appearing early. The warmPeriod snapshot must
+      have empty tileData and aqueductNetwork Maps, since those fields are
+      first populated by riseOfCivilizations mutate.
+    expected: 'tileData and aqueductNetwork are empty Maps in warmPeriod snapshot'
+
+  - id: meteorites-outside-fire-season
+    description: >
+      fireSeason renderTile reads sim.meteorites for streak animation. Epochs
+      before fireSeason must have an empty meteorites array in their snapshot
+      so no streaks appear during earlier epochs.
+    expected: 'meteorites snapshot is empty array for all epochs before fireSeason'
+
 failure_conditions:
   - trigger: 'genesis plays from start to finish without user interaction'
     expected: 'progress bar advances smoothly, no epoch-transition flicker, action bar hidden'
@@ -83,7 +163,13 @@ failure_conditions:
   - trigger: 'genesis is active'
     expected: 'action bar is not visible'
 
+  - trigger: 'snapshot swap is incomplete (some fields not swapped in renderGenesis)'
+    expected: 'tiles briefly show future state during crossfade — burn scars in early epochs, buildings before riseOfCivilizations'
+
+  - trigger: 'renderDirt called during cosmicFormation or landAccretion epoch'
+    expected: 'burn scars and glacial paths must not color tiles — snapshots must be empty for those fields'
+
 verification:
   test_file: src/engine/__tests__/genesis.test.ts
-  test_pattern: 'progress bar|action bar|epoch transition|flicker'
+  test_pattern: 'progress bar|action bar|epoch transition|flicker|snapshot|leakage'
   command: 'npx vitest run src/engine/__tests__/genesis.test.ts'

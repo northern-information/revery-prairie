@@ -2706,6 +2706,17 @@ export const precomputeGenesis = (sim: GenesisSimState, epochs: GenesisEpoch[]):
       riverPaths: new Set(sim.riverPaths),
       ponds: new Set(sim.ponds),
       elevation: new Map(sim.elevation),
+      volcanicHeat: new Map(sim.volcanicHeat),
+      ancientSeabeds: new Set(sim.ancientSeabeds),
+      burnScars: new Set(sim.burnScars),
+      meteorites: [...sim.meteorites],
+      lightningBolts: [...sim.lightningBolts],
+      preGlacialVegetation: new Map(sim.preGlacialVegetation),
+      glacialPaths: new Set(sim.glacialPaths),
+      meltPools: new Set(sim.meltPools),
+      tileData: new Map(sim.tileData),
+      aqueductNetwork: new Map(sim.aqueductNetwork),
+      ruins: [...sim.ruins],
     })
   }
   sim.mutationsPrecomputed = true

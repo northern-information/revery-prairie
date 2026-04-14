@@ -6,7 +6,7 @@ import {
 import { getEpochProgress } from './genesis'
 import { GenesisEpochId } from './genesisTypes'
 
-import type { GenesisEpoch, GenesisSimState } from './genesisTypes'
+import type { EpochSnapshot, GenesisEpoch, GenesisSimState } from './genesisTypes'
 import type { CharMetrics } from './types'
 
 // Cross-fade window: last 10% of each epoch blends into the next
@@ -35,6 +35,44 @@ const lerpColor = (from: string, to: string, t: number): string => {
   const g = Math.round(fg + (tg - fg) * t)
   const b = Math.round(fb + (tb - fb) * t)
   return `rgb(${String(r)},${String(g)},${String(b)})`
+}
+
+/** Capture a snapshot of all mutable sim fields that renderTile reads. */
+const captureLiveState = (sim: GenesisSimState): EpochSnapshot => ({
+  vegetationMap: sim.vegetationMap,
+  riverPaths: sim.riverPaths,
+  ponds: sim.ponds,
+  elevation: sim.elevation,
+  volcanicHeat: sim.volcanicHeat,
+  ancientSeabeds: sim.ancientSeabeds,
+  burnScars: sim.burnScars,
+  meteorites: sim.meteorites,
+  lightningBolts: sim.lightningBolts,
+  preGlacialVegetation: sim.preGlacialVegetation,
+  glacialPaths: sim.glacialPaths,
+  meltPools: sim.meltPools,
+  tileData: sim.tileData,
+  aqueductNetwork: sim.aqueductNetwork,
+  ruins: sim.ruins,
+})
+
+/** Swap all mutable sim fields to match a snapshot. */
+const applySnapshot = (sim: GenesisSimState, snapshot: EpochSnapshot): void => {
+  sim.vegetationMap = snapshot.vegetationMap
+  sim.riverPaths = snapshot.riverPaths
+  sim.ponds = snapshot.ponds
+  sim.elevation = snapshot.elevation
+  sim.volcanicHeat = snapshot.volcanicHeat
+  sim.ancientSeabeds = snapshot.ancientSeabeds
+  sim.burnScars = snapshot.burnScars
+  sim.meteorites = snapshot.meteorites
+  sim.lightningBolts = snapshot.lightningBolts
+  sim.preGlacialVegetation = snapshot.preGlacialVegetation
+  sim.glacialPaths = snapshot.glacialPaths
+  sim.meltPools = snapshot.meltPools
+  sim.tileData = snapshot.tileData
+  sim.aqueductNetwork = snapshot.aqueductNetwork
+  sim.ruins = snapshot.ruins
 }
 
 /** Render one frame of the genesis simulation. */
@@ -83,17 +121,10 @@ export const renderGenesis = (
 
   // Swap in epoch snapshot so renderTile reads the correct per-epoch data
   const useSnapshot = sim.mutationsPrecomputed && sim.epochSnapshots.length > sim.epochIndex
-  const liveVegetationMap = sim.vegetationMap
-  const liveRiverPaths = sim.riverPaths
-  const livePonds = sim.ponds
-  const liveElevation = sim.elevation
+  const liveState = useSnapshot ? captureLiveState(sim) : null
 
   if (useSnapshot) {
-    const snapshot = sim.epochSnapshots[sim.epochIndex]
-    sim.vegetationMap = snapshot.vegetationMap
-    sim.riverPaths = snapshot.riverPaths
-    sim.ponds = snapshot.ponds
-    sim.elevation = snapshot.elevation
+    applySnapshot(sim, sim.epochSnapshots[sim.epochIndex])
   }
 
   // Cross-fade: blend into next epoch during last 10% of current epoch
@@ -117,21 +148,14 @@ export const renderGenesis = (
 
       if (nextEpoch && nextSnapshot) {
         // Swap to next epoch's snapshot
-        sim.vegetationMap = nextSnapshot.vegetationMap
-        sim.riverPaths = nextSnapshot.riverPaths
-        sim.ponds = nextSnapshot.ponds
-        sim.elevation = nextSnapshot.elevation
+        applySnapshot(sim, nextSnapshot)
 
         // Pass blendT as progress so the next epoch's fade-in doesn't render
         // all gray (progress=0 triggers full fade-in guards in most epochs)
         const nextRenders = nextEpoch.renderTile(sim, mx, my, blendT, time)
 
         // Restore current epoch's snapshot
-        const currentSnapshot = sim.epochSnapshots[sim.epochIndex]
-        sim.vegetationMap = currentSnapshot.vegetationMap
-        sim.riverPaths = currentSnapshot.riverPaths
-        sim.ponds = currentSnapshot.ponds
-        sim.elevation = currentSnapshot.elevation
+        applySnapshot(sim, sim.epochSnapshots[sim.epochIndex])
 
         // Blend: interpolate color, snap character at midpoint
         const curR = renders[0]
@@ -153,11 +177,8 @@ export const renderGenesis = (
   }
 
   // Restore live state after rendering
-  if (useSnapshot) {
-    sim.vegetationMap = liveVegetationMap
-    sim.riverPaths = liveRiverPaths
-    sim.ponds = livePonds
-    sim.elevation = liveElevation
+  if (liveState) {
+    applySnapshot(sim, liveState)
   }
 
   // Lightning screen flash during FireSeason
