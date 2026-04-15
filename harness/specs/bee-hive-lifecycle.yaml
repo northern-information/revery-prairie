@@ -123,6 +123,10 @@ edge_cases:
     description: 'clover patch is destroyed (all tiles become dirt)'
     expected: 'spiralState entry cleaned up in next tickCloverGrowth call'
 
+  - id: beehive-spawn-rate-bounds
+    description: 'Beehive spawn chance scales at 0.02 per bee; with 1 bee the probability is 2% per tick'
+    expected: 'With Math.random mocked above 0.02, no hive spawns; mocked below 0.02, hive spawns'
+
 failure_conditions:
   - trigger: 'no walkable dirt tiles adjacent to patch for growth'
     expected: 'computeGrowthFront returns empty array; no growth occurs'

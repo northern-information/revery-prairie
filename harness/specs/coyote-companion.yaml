@@ -272,6 +272,10 @@ edge_cases:
     description: 'coyote cannot pathfind to player (completely walled off)'
     expected: 'coyote idles — no movement, no crash'
 
+  - id: coyote-follow-frequency-deterministic
+    description: 'Coyote movement rate is deterministic at 1 step per tick when distance > 3 tiles'
+    expected: 'No random jitter; movement frequency is purely a function of distance'
+
 failure_conditions:
   - trigger: 'coyote walks onto a Space tile'
     expected: 'coyote position unchanged, Space never entered'

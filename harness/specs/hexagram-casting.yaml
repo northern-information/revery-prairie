@@ -203,6 +203,10 @@ edge_cases:
     description: 'Player drops a glinting coin and picks it back up'
     expected: 'Glinting status is preserved — tracked by uid, not by inventory position'
 
+  - id: toss-line-probability-distribution
+    description: 'Each toss sums 3 independent coin flips (heads=3, tails=2) producing line values 6-9'
+    expected: 'Distribution: P(6)=1/8, P(7)=3/8, P(8)=3/8, P(9)=1/8'
+
 failure_conditions:
   - trigger: 'No walkable dirt tiles available for coin spawn'
     expected: 'Coins that cannot be placed are silently skipped (should never happen given map size)'

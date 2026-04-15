@@ -355,6 +355,10 @@ edge_cases:
     description: 'Hash string is not exactly 64 characters for some reason'
     expected: 'Grid renders available characters; remaining cells show dim placeholder'
 
+  - id: angel-spawn-probability-bounds
+    description: 'Angel spawn has 0% chance when no valid tile exists at least 30 tiles from player'
+    expected: 'Spawn attempt exits early after max attempts; nextAngelSpawnTime reset with jitter'
+
 failure_conditions:
   - trigger: 'Angel spawn position calculation selects space or sand tile'
     expected: 'Tile validation rejects non-dirt/clover tiles; spawn retries or defers'
