@@ -1,0 +1,120 @@
+plan:
+  id: genesis-transition-polish
+  title: 'Fix visual glitches in genesis-to-gameplay transition'
+  created: 2026-04-15
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: fix-gron-entity-fade
+    title: 'Exclude Gron from entity fade-in during genesis transition'
+    spec_id: genesis-transition
+    spec_sections:
+      - entity-fade-in
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/genesisTransition.test.ts
+    repair: retry
+    tags: [engine]
+    notes: >
+      In the main tile loop (renderer.ts ~line 887), when a character is
+      found in characterMap, isEntity is set to true unconditionally. This
+      causes Gron to fade from 0 during the genesis transition even though
+      he was already visible in the presentDay epoch. Fix: do not set
+      isEntity for the character tile at Gron's position. The simplest
+      approach is to skip isEntity when isTransitioning and the character
+      was visible in genesis. Since only Gron is rendered in genesis
+      presentDay, check if the characterMap entry's definitionId is 'gron'.
+      Alternatively, skip isEntity for ALL characters during transition
+      since the player is already excluded (handled separately at line 860).
+
+  - id: fix-rain-aura-seed
+    title: 'Use rainSeed in genesis presentDay rain aura rendering'
+    spec_id: genesis-transition
+    spec_sections:
+      - rain-aura-continuity
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/renderer.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+      - npx vitest run src/engine/__tests__/genesisTransition.test.ts
+    repair: retry
+    tags: [engine]
+    notes: >
+      The genesis presentDay renderTile uses tileHash(x, y) for the rain
+      aura overlay (line ~2528), but the game renderer uses
+      tileHash(wx + state.rainSeed, wy) (line ~1145). This causes rain
+      drop positions to shift when the renderer switches. Fix: pass
+      rainSeed through the genesis sim state (it's already on GameState
+      as state.rainSeed, and the genesis sim is stored as state.genesis).
+      The renderTile signature receives sim as first arg — either add
+      rainSeed to GenesisSimState, or access it from the GameState that
+      holds the sim. The simplest path is to store rainSeed on the
+      GenesisSimState during createGameState and use it in presentDay's
+      renderTile.
+
+  - id: fix-sidebar-flash
+    title: 'Add initial opacity 0 to gameplay sidebar during genesis transition'
+    spec_id: genesis-transition
+    spec_sections:
+      - sidebar-crossfade
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/constants.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [component]
+    notes: >
+      The gameplay sidebar (Sidebar.tsx line ~208-212) sets a fade-in
+      animation when genesisTransition is active, but does not set
+      opacity: 0 as the initial value. The CSS fade-in keyframe starts
+      from opacity 0, but without an explicit initial opacity the element
+      renders at full opacity for one frame before the animation begins.
+      Fix: add opacity: 0 to the sidebarFadeStyle object alongside the
+      animation property, matching the pattern used by the ActionBar.
+
+  - id: add-transition-tests
+    title: 'Add regression tests for transition visual continuity'
+    spec_id: genesis-transition
+    spec_sections:
+      - entity-fade-in
+      - rain-aura-continuity
+      - sidebar-crossfade
+    context_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+      - src/engine/renderer.ts
+      - src/engine/genesis.ts
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+    depends_on:
+      - fix-gron-entity-fade
+      - fix-rain-aura-seed
+      - fix-sidebar-flash
+    verification:
+      - npx vitest run src/engine/__tests__/genesisTransition.test.ts
+    repair: retry
+    tags: [test]
+    notes: >
+      Add tests verifying: (1) Gron's character tile does not get
+      isEntity treatment during transition — test that the renderer
+      logic excludes gron from fade. (2) Genesis presentDay rain aura
+      uses rainSeed-offset tileHash matching the game renderer. (3)
+      Sidebar fade style includes opacity: 0 when genesisTransition
+      is active (component test or snapshot).

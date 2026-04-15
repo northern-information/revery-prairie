@@ -110,6 +110,9 @@ export interface GenesisSimState {
   epochSnapshots: EpochSnapshot[]
   /** Whether all mutations have been pre-computed */
   mutationsPrecomputed: boolean
+  /** Rain aura tile hash seed — set from GameState.rainSeed so presentDay
+   *  rain overlay matches the game renderer exactly. */
+  rainSeed: number
 }
 
 export interface GenesisMeteorStreak {

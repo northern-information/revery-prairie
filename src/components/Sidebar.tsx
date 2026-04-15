@@ -206,9 +206,9 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
     : `${String(weather.windSpeed)} mph ${weather.windDirection}`
 
   const sidebarFadeStyle = state.genesisTransition
-    ? { animation: `fade-in ${String(GENESIS_TRANSITION_SIDEBAR_DURATION_MS)}ms ease-in forwards` }
+    ? { opacity: 0, animation: `fade-in ${String(GENESIS_TRANSITION_SIDEBAR_DURATION_MS)}ms ease-in forwards` }
     : state.deepTimeTransition
-      ? { animation: `fade-in ${String(DEEP_TIME_TRANSITION_DURATION_MS)}ms ease-in forwards` }
+      ? { opacity: 0, animation: `fade-in ${String(DEEP_TIME_TRANSITION_DURATION_MS)}ms ease-in forwards` }
       : undefined
 
   return (

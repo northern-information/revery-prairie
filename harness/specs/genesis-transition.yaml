@@ -38,31 +38,68 @@ behaviors:
   - id: entity-fade-in
     description: >
       during the crossfade window, entities that were not visible in
-      genesis (ghosts, coins, coyote, ground items) render with opacity
-      ramping from 0 to 1 over the crossfade duration. the player
-      character also fades from its genesis appearance to full gameplay
-      rendering. gron and rain aura are already visible in genesis and
-      do not need special treatment.
+      genesis (ghosts, bees, beehives, coyote, ground items, meteorites,
+      angels) render with opacity ramping from 0 to 1 over the crossfade
+      duration. gron and the player are excluded from the entity fade
+      because they are already rendered in the presentDay genesis epoch
+      and must remain continuously visible. the isEntity flag is not set
+      for the player tile or for character tiles whose characterId
+      matches a character rendered in genesis (currently only gron).
     inputs:
       - 'genesisTransition active with startTime and duration'
-      - 'entities present in game state (ghosts, coins, coyote)'
+      - 'entities present in game state (ghosts, bees, coyote, etc.)'
     outputs:
-      - 'entities render at fractional opacity during crossfade, full opacity after'
+      - 'non-genesis entities render at fractional opacity during crossfade'
+      - 'gron and player remain at full opacity throughout the transition'
     state_changes: []
     determinism: time-based
 
+  - id: star-rendering-continuity
+    description: >
+      the genesis presentDay epoch renders stars using the same tileHash
+      function (from position.ts) as the game renderer. this ensures
+      star positions, chars, and colors are identical before and after
+      the transition. earlier genesis epochs use a different star style
+      intentionally — only presentDay must match.
+    inputs:
+      - 'genesis presentDay renderTile called on Space tiles'
+      - 'game renderer star rendering pass for Space tiles'
+    outputs:
+      - 'stars appear at identical positions with identical chars across the transition'
+    state_changes: []
+    determinism: deterministic
+
+  - id: rain-aura-continuity
+    description: >
+      the rain aura overlay uses the same tile hash seed in both the
+      genesis presentDay renderer and the game renderer so rain drop
+      positions do not shift when the renderer switches. genesis
+      presentDay uses tileHash(x + rainSeed, y) matching the game
+      renderer's tileHash(wx + state.rainSeed, wy). this prevents a
+      visual pop where green rain chars jump to different tile positions
+      on transition.
+    inputs:
+      - 'genesis presentDay renderTile called with sim and tile coords'
+      - 'game renderer rain aura overlay pass runs after genesis ends'
+    outputs:
+      - 'rain aura drops appear at identical tile positions before and after transition'
+    state_changes: []
+    determinism: deterministic
+
   - id: sidebar-crossfade
     description: >
-      when genesis completes, the sidebar content transitions smoothly
-      from the genesis HUD (year counter, epoch progress, commentary)
-      to the gameplay sidebar (weather, coordinates, tile counts). uses
-      a CSS opacity fade-out on genesis content and fade-in on gameplay
-      content over ~1000ms synchronized with the canvas crossfade start.
+      when genesis completes, the sidebar morphs from the genesis HUD
+      (year counter, epoch progress, commentary) to the gameplay sidebar
+      (weather, coordinates, tile counts). the gameplay sidebar div starts
+      with opacity 0 and uses a CSS fade-in animation over ~1000ms
+      synchronized with the canvas crossfade start. the initial opacity 0
+      prevents a flash where the gameplay sidebar renders at full opacity
+      for one frame before the animation begins.
     inputs:
       - 'state.genesis becomes null'
       - 'state.genesisTransition is active'
     outputs:
-      - 'genesis sidebar fades out, gameplay sidebar fades in over ~1000ms'
+      - 'gameplay sidebar fades in smoothly from opacity 0 to 1 over ~1000ms with no flash'
     state_changes: []
     determinism: time-based
 
@@ -70,12 +107,13 @@ behaviors:
     description: >
       the action bar fades in from opacity 0 to 1 over ~800ms, starting
       after a short delay (~500ms into the crossfade) so it does not
-      compete with the terrain transition. uses CSS animation.
+      compete with the terrain transition. uses CSS animation with an
+      explicit opacity 0 initial style to prevent FOUC.
     inputs:
       - 'state.genesis is null'
       - 'state.genesisTransition is active or recently completed'
     outputs:
-      - 'action bar appears with a fade-in animation instead of popping in'
+      - 'action bar appears with a smooth fade-in animation, no pop or flash'
     state_changes: []
     determinism: time-based
 
@@ -116,6 +154,27 @@ edge_cases:
       mutations synchronously). completeGenesis fires, crossfade
       begins normally from whatever the last rendered genesis frame was.
     expected: 'crossfade starts from the fast-forwarded final frame, same duration'
+
+  - id: gron-continuously-visible
+    description: >
+      gron is rendered in the genesis presentDay epoch at his spawn
+      position. when the game renderer takes over, gron must not
+      disappear or flash — he remains at full opacity throughout.
+    expected: 'gron is visible before, during, and after the transition with no opacity change'
+
+  - id: stars-no-shift
+    description: >
+      stars in the space border must not shift position, change
+      character, or change color when the renderer switches from
+      genesis presentDay to the game renderer.
+    expected: 'star positions and glyphs are identical across the transition boundary'
+
+  - id: rain-aura-no-shift
+    description: >
+      the rain aura overlay pattern around gron must not visually
+      shift when the renderer switches from genesis to game. the
+      same tile hash seed ensures drop positions are identical.
+    expected: 'rain drops stay in the same tile positions across the transition boundary'
 
 failure_conditions:
   - trigger: 'genesisTransition.startTime is in the future (clock skew)'
