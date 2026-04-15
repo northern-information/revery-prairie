@@ -1,0 +1,50 @@
+plan:
+  id: deep-time-refresh-ui
+  title: Add throttled refreshUI calls to the deep-time game loop tick entry
+  created: 2026-04-15
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: fix-deep-time-tick-refresh
+    title: Wrap deep-time tick entry in IIFE with throttled onRefreshUI calls
+    spec_id: deep-time-refresh-ui
+    spec_sections:
+      - throttled-refresh-during-burning
+      - throttled-refresh-during-simulating
+      - no-refresh-during-wandering
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/deepTime.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: regression-test-deep-time-refresh
+    title: Add regression test verifying onRefreshUI is called during burning and simulating phases
+    spec_id: deep-time-refresh-ui
+    spec_sections:
+      - throttled-refresh-during-burning
+      - throttled-refresh-during-simulating
+      - no-refresh-during-wandering
+    context_files:
+      - src/engine/__tests__/deepTime.test.ts
+      - src/engine/gameLoop.ts
+      - src/engine/deepTime.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/deepTime.test.ts
+    depends_on:
+      - fix-deep-time-tick-refresh
+    verification:
+      - npx vitest run src/engine/__tests__/deepTime.test.ts
+    repair: retry
+    tags:
+      - test

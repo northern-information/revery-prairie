@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { activateActionBarSlot, assignActionBarSlot } from '../actionBar'
 import { spawnShootingStar } from '../celestial'
 import {
@@ -9,6 +9,7 @@ import {
 import { initiateDeepTime, tickDeepTime } from '../deepTime'
 import { ComponentType } from '../ecs/types'
 import { tickCharacterBehaviors } from '../entities'
+import { createGameLoop } from '../gameLoop'
 import { DeepTimePhase } from '../types'
 import { createTestState, createCharacterTestEntity, getCharacterEntities } from './helpers'
 
@@ -202,6 +203,93 @@ describe('deep time', () => {
       expect(gron).toBeDefined()
       expect(gron?.pos.x).toBe(charX)
       expect(gron?.pos.y).toBe(charY)
+    })
+  })
+
+  describe('UI refresh during deep time (regression)', () => {
+    it('onRefreshUI called during burning phase', () => {
+      const state = createTestState()
+      const refreshUI = vi.fn()
+      const gameLoop = createGameLoop(state, { onRefreshUI: refreshUI })
+
+      initiateDeepTime(state, 0)
+      expect(state.deepTime?.phase).toBe(DeepTimePhase.Burning)
+
+      // Tick at t=0 (first tick, lastRefresh=0, so 0-0>=100 is false)
+      gameLoop.tick(0)
+      // Tick at t=100 — should trigger refreshUI (100-0 >= 100)
+      gameLoop.tick(100)
+
+      expect(refreshUI).toHaveBeenCalled()
+    })
+
+    it('onRefreshUI called during simulating phase', () => {
+      const state = createTestState()
+      const refreshUI = vi.fn()
+      const gameLoop = createGameLoop(state, { onRefreshUI: refreshUI })
+
+      initiateDeepTime(state, 0)
+
+      // Advance past burning phase
+      gameLoop.tick(DEEP_TIME_BURN_DURATION_MS + 1)
+      expect(state.deepTime?.phase).toBe(DeepTimePhase.Simulating)
+      refreshUI.mockClear()
+
+      // Tick at +200ms — should trigger refreshUI
+      gameLoop.tick(DEEP_TIME_BURN_DURATION_MS + 201)
+
+      expect(refreshUI).toHaveBeenCalled()
+    })
+
+    it('onRefreshUI throttled to ~100ms intervals', () => {
+      const state = createTestState()
+      const refreshUI = vi.fn()
+      const gameLoop = createGameLoop(state, { onRefreshUI: refreshUI })
+
+      initiateDeepTime(state, 0)
+
+      // Advance past burning into simulating
+      gameLoop.tick(DEEP_TIME_BURN_DURATION_MS + 1)
+      refreshUI.mockClear()
+
+      // Rapid ticks at 16ms intervals (simulating 60fps) over 200ms
+      const baseTime = DEEP_TIME_BURN_DURATION_MS + 1
+      for (let t = baseTime + 16; t <= baseTime + 200; t += 16) {
+        gameLoop.tick(t)
+      }
+
+      // At 60fps over 200ms, that's ~12 frames but only ~2 refreshUI calls
+      // (one at ~100ms, one at ~200ms)
+      expect(refreshUI.mock.calls.length).toBeGreaterThanOrEqual(1)
+      expect(refreshUI.mock.calls.length).toBeLessThanOrEqual(3)
+    })
+
+    it('onRefreshUI not called during wandering phase', () => {
+      const state = createTestState()
+      const refreshUI = vi.fn()
+      const gameLoop = createGameLoop(state, { onRefreshUI: refreshUI })
+
+      initiateDeepTime(state, 0)
+
+      // Advance to wandering: burn phase + all simulation ticks
+      gameLoop.tick(DEEP_TIME_BURN_DURATION_MS + 1)
+      const ticksNeeded = Math.ceil(DEEP_TIME_TOTAL_YEARS / DEEP_TIME_YEARS_PER_FRAME)
+      for (let i = 0; i < ticksNeeded; i++) {
+        gameLoop.tick(DEEP_TIME_BURN_DURATION_MS + 200 + i * 100)
+      }
+      expect(state.deepTime?.phase).toBe(DeepTimePhase.Wandering)
+      refreshUI.mockClear()
+
+      // Tick several more times in wandering — no refreshUI from deep-time system
+      const wanderingBase = DEEP_TIME_BURN_DURATION_MS + 200 + ticksNeeded * 100
+      for (let t = wanderingBase + 100; t <= wanderingBase + 500; t += 100) {
+        gameLoop.tick(t)
+      }
+
+      // refreshUI may be called by other systems (movement, etc.) but
+      // since we haven't triggered any movement or other state changes,
+      // verify no calls were made
+      expect(refreshUI).not.toHaveBeenCalled()
     })
   })
 })

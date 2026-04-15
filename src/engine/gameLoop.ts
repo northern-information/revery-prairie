@@ -499,9 +499,17 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: 0,
       zone: 'always',
       priority: -20,
-      fn: (state, time) => {
-        tickDeepTime(state, time)
-      },
+      fn: (() => {
+        let lastRefresh = 0
+        return (state: GameState, time: number) => {
+          if (!state.deepTime?.active) return
+          tickDeepTime(state, time)
+          if (state.deepTime.phase !== DeepTimePhase.Wandering && time - lastRefresh >= 100) {
+            lastRefresh = time
+            callbacks.onRefreshUI?.()
+          }
+        }
+      })(),
     },
   ]
 }
