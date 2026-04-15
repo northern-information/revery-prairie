@@ -96,7 +96,7 @@ describe('DialogBox', () => {
     expect(screen.getByTestId('angel-hash-grid')).toBeTruthy()
   })
 
-  it('clips overflowing content with overflow-hidden on outer container', () => {
+  it('does not constrain height — content grows to fit', () => {
     const { container } = render(
       <DialogBox
         characterName="Angel"
@@ -108,6 +108,91 @@ describe('DialogBox', () => {
     )
 
     const dialogRoot = container.firstElementChild as HTMLElement
-    expect(dialogRoot.className).toMatch(/overflow-hidden/)
+    expect(dialogRoot.className).not.toMatch(/max-h/)
+    expect(dialogRoot.className).not.toMatch(/overflow-hidden/)
+  })
+
+  it('renders portrait at 128x128 when provided', () => {
+    render(
+      <DialogBox
+        characterName="Gron"
+        portrait="/gron.gif"
+        line="hello"
+        typingIndex={5}
+        typingDone={false}
+      />,
+    )
+
+    const img = screen.getByAltText('portrait of gron')
+    expect(img.className).toMatch(/h-32/)
+    expect(img.className).toMatch(/w-32/)
+  })
+
+  it('shows n[e]xt button when typing is done and not last line', () => {
+    const onAdvance = vi.fn()
+    render(
+      <DialogBox
+        characterName="Gron"
+        line="hello"
+        typingIndex={5}
+        typingDone={true}
+        isLastLine={false}
+        onAdvance={onAdvance}
+      />,
+    )
+
+    const button = screen.getByTestId('dialog-advance-button')
+    expect(button.textContent).toBe('n[e]xt')
+  })
+
+  it('shows clos[e] button on last line', () => {
+    const onAdvance = vi.fn()
+    render(
+      <DialogBox
+        characterName="Gron"
+        line="goodbye"
+        typingIndex={7}
+        typingDone={true}
+        isLastLine={true}
+        onAdvance={onAdvance}
+      />,
+    )
+
+    const button = screen.getByTestId('dialog-advance-button')
+    expect(button.textContent).toBe('clos[e]')
+  })
+
+  it('hides button while still typing', () => {
+    const onAdvance = vi.fn()
+    render(
+      <DialogBox
+        characterName="Gron"
+        line="hello"
+        typingIndex={3}
+        typingDone={false}
+        isLastLine={false}
+        onAdvance={onAdvance}
+      />,
+    )
+
+    expect(screen.queryByTestId('dialog-advance-button')).toBeNull()
+  })
+
+  it('calls onAdvance when button is clicked', () => {
+    const onAdvance = vi.fn()
+    render(
+      <DialogBox
+        characterName="Gron"
+        line="hello"
+        typingIndex={5}
+        typingDone={true}
+        isLastLine={false}
+        onAdvance={onAdvance}
+      />,
+    )
+
+    const button = screen.getByTestId('dialog-advance-button')
+    button.click()
+    expect(onAdvance).toHaveBeenCalledOnce()
   })
 })

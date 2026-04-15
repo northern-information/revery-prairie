@@ -17,6 +17,7 @@ import { Sidebar } from './Sidebar'
 
 import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
+import { advanceDialog } from '@/engine/interaction'
 import {
   COIN_GLINTING_COLOR,
   GENESIS_TRANSITION_ACTION_BAR_DELAY_MS,
@@ -203,6 +204,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
           const def = getCharacterDefinition(state.activeDialog.characterId)
           const dialogLines = getCharacterDialog(state, state.activeDialog.characterId)
           const line = state.activeDialog.transitioning ? '' : dialogLines[state.activeDialog.lineIndex]
+          const isLastLine = state.activeDialog.lineIndex >= dialogLines.length - 1
 
           return (
             <DialogBox
@@ -212,6 +214,20 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
               typingIndex={state.activeDialog.typingIndex}
               typingDone={state.activeDialog.typingDone}
               isAngel={state.activeDialog.characterId.startsWith('angel-')}
+              isLastLine={isLastLine}
+              onAdvance={() => {
+                const result = advanceDialog(state, performance.now())
+                if (result.gift) {
+                  onGift(
+                    `received ${result.gift.name.toLowerCase()}`,
+                    result.gift.glyphs[0],
+                    result.gift.glyphColor,
+                    state.player.x,
+                    state.player.y,
+                  )
+                }
+                refreshUI()
+              }}
             />
           )
         })()}
