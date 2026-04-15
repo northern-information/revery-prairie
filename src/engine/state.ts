@@ -57,6 +57,10 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
   }
   map[caveEntranceOverworld.y][caveEntranceOverworld.x] = { type: TileType.CaveEntrance }
 
+  // Generate rain seed early so genesis presentDay can use it for rain aura rendering
+  const rainSeed = Math.floor(Math.random() * 2147483647)
+  sim.rainSeed = rainSeed
+
   const backpack = createBackpack()
   placeItem(backpack, 'bee', 0, 0)
   placeItem(backpack, 'bee', 1, 0)
@@ -99,7 +103,7 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     cursorScreenPos: null,
     hoverPath: null,
     hoverPathTarget: null,
-    rainSeed: Math.floor(Math.random() * 2147483647),
+    rainSeed,
     metric: true,
     musicEnabled: true,
     fontScale: 1.25,

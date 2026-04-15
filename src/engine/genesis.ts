@@ -24,7 +24,7 @@ import { generateBoltPath } from './boltPath'
 import { getCharacterDefinition } from './characters'
 import { AURA_RADIUS } from './effects'
 import { GenesisEpochId } from './genesisTypes'
-import { posKey } from './position'
+import { posKey, tileHash as rendererTileHash } from './position'
 import { smoothNoiseSeeded } from './terrain'
 import { TileType } from './types'
 
@@ -2468,14 +2468,15 @@ const presentDay: GenesisEpoch = {
     const h = tileHash(x, y)
     const tile = sim.grid[y]?.[x]
 
-    // Stars — match game renderer exactly (STAR_CHARS, STAR_COLORS, density 12)
+    // Stars — use rendererTileHash to match game renderer exactly
     if (!tile || tile.type === TileType.Space) {
       const STAR_CHARS = ['.', '+', '*']
       const STAR_COLORS = ['#333', '#555', '#777', '#999', '#bbb', '#999', '#777', '#555']
-      if (h % 12 === 0) {
-        const phase = (h >> 8) % STAR_COLORS.length
+      const starH = rendererTileHash(x, y)
+      if (starH % 12 === 0) {
+        const phase = (starH >> 8) % STAR_COLORS.length
         const colorIndex = (phase + Math.floor(time * 0.0015)) % STAR_COLORS.length
-        return [{ char: STAR_CHARS[(h >> 4) % STAR_CHARS.length], color: STAR_COLORS[colorIndex], dx: 0, dy: 0 }]
+        return [{ char: STAR_CHARS[(starH >> 4) % STAR_CHARS.length], color: STAR_COLORS[colorIndex], dx: 0, dy: 0 }]
       }
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
@@ -2523,11 +2524,14 @@ const presentDay: GenesisEpoch = {
       : { char: '.', color: GAME_DIRT_COLORS[h % GAME_DIRT_COLORS.length], dx: 0, dy: 0 }
 
     // Rain aura overlay — matches gameplay renderer (renderer.ts rain overlay pass)
+    // Use rendererTileHash (from position.ts) with rainSeed offset to match
+    // the game renderer's tileHash(wx + state.rainSeed, wy) exactly
     const dx = x - gronX
     const dy = y - gronY
-    if (dx * dx + dy * dy <= GRON_RAIN_RADIUS * GRON_RAIN_RADIUS && h % RAIN_AURA_DENSITY === 0) {
-      const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
-      const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
+    const rainH = rendererTileHash(x + sim.rainSeed, y)
+    if (dx * dx + dy * dy <= GRON_RAIN_RADIUS * GRON_RAIN_RADIUS && rainH % RAIN_AURA_DENSITY === 0) {
+      const phase = ((rainH >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
+      const colorPhase = ((rainH >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
       return [baseTile, { char: RAIN_AURA_CHARS[phase], color: RAIN_AURA_COLORS[colorPhase], dx: 0, dy: 0 }]
     }
 
@@ -2607,6 +2611,7 @@ export const createGenesisState = (width: number, height: number, seed: number):
     ponds: new Set(),
     epochSnapshots: [],
     mutationsPrecomputed: false,
+    rainSeed: 0,
   }
 }
 

@@ -888,7 +888,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const ch = characterMap.get(tileKey)
         char = ch?.glyph ?? 'G'
         color = ch?.color ?? '#FFFFFF'
-        isEntity = true
+        // Characters visible in genesis (Gron, coyote) stay at full opacity
+        // during the transition — only fade entities not rendered in genesis
+        if (!isTransitioning) isEntity = true
       } else if (beehivePositions.has(tileKey)) {
         char = BEEHIVE_CHAR
         color = BEEHIVE_COLOR
