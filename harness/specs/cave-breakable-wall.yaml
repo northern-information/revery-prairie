@@ -101,6 +101,10 @@ edge_cases:
     description: 'Moab is at npcSpot inside the hidden chamber, unreachable until wall is broken'
     expected: 'pathfinding cannot reach npcSpot while CaveBreakableWall tiles exist'
 
+  - id: cave-layout-seeded-random-determinism
+    description: 'Cave corridor random walk accepts seeded RNG, producing deterministic layout for a given seed'
+    expected: 'Same seed yields identical corridor paths, waypoints, and breakable wall positions'
+
 failure_conditions:
   - trigger: 'breakWall called twice (wall already broken)'
     expected: 'returns false, caveRevealed guard prevents double break'

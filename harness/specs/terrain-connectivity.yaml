@@ -83,6 +83,10 @@ edge_cases:
     description: connectivity pass must not convert cave entrance tile or tiles adjacent to it
     expected: cave entrance remains accessible after connectivity cleanup
 
+  - id: water-body-count-range
+    description: 'Drought consolidation bounds water body count to 1-3 range regardless of seed'
+    expected: 'No seed produces 0 or more than 3 water bodies after consolidation'
+
 failure_conditions:
   - trigger: ghost spawns on a tile unreachable from the player
     expected: ghost is placed on a reachable tile instead

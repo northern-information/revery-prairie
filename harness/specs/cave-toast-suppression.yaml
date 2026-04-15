@@ -78,6 +78,11 @@ edge_cases:
     description: >
       lightning strikes overworld while player is in cave. no toast.
     expected: 'no toast — lightning effects apply to overworld but player is not notified'
+
+  - id: strike-probability-independent-of-zone
+    description: 'Lightning strike probability is independent of zone; toast suppression is deterministic based on currentZone'
+    expected: 'Strike chance unchanged when player enters cave; only toast display is suppressed'
+
 failure_conditions:
   - trigger: 'player is in cave and meteor shower activates'
     expected: 'no toast or onDiscovery callback fires'

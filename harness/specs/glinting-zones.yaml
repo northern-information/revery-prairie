@@ -162,6 +162,10 @@ edge_cases:
     description: 'initial patches have spread-out birth times'
     expected: 'patches do not all fade in or expire at the same time'
 
+  - id: patch-spawn-max-attempts-bounds
+    description: 'Patch spawn attempts capped at 50; 0% chance of infinite loop'
+    expected: 'If no valid center found after 50 attempts, spawn is skipped for that cycle'
+
 failure_conditions:
   - trigger: 'map has no Dirt or Clover tiles (all Space/Sand)'
     expected: 'all spawn attempts fail; glintPatches stays empty; no crash'
