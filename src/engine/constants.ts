@@ -277,6 +277,9 @@ export const RAIN_AURA_SPEED = 0.008 // cycles per millisecond
 export const DEEP_TIME_BURN_DURATION_MS = 5_000
 export const DEEP_TIME_YEARS_PER_FRAME = 1
 export const DEEP_TIME_TOTAL_YEARS = 1000
+export const DEEP_TIME_LIGHTNING_COUNT = 13
+export const DEEP_TIME_SHAKE_AMPLITUDE = 3 // pixels
+export const DEEP_TIME_SHAKE_DURATION_MS = 200 // per-strike shake
 
 // coyote companion
 export const COYOTE_CHAR = 'C'

@@ -1,5 +1,6 @@
 import { HOVER_PATH_MAX_DISTANCE } from './constants'
 import { screenToTile } from './coordinates'
+import { isDeepTimeLocked } from './deepTime'
 import { getPathfindingBlockers } from './movement'
 import { findPath } from './pathfinding'
 import { isInBounds, isWalkableTile } from './position'
@@ -16,6 +17,13 @@ export const updateCursorState = (state: GameState, metrics: CharMetrics): void 
     state.cursorTile = screenToTile(state.cursorScreenPos.x, state.cursorScreenPos.y, camera, charWidth, charHeight)
   } else {
     state.cursorTile = null
+  }
+
+  // Suppress hover path during deep time locked phases
+  if (isDeepTimeLocked(state)) {
+    state.hoverPath = null
+    state.hoverPathTarget = null
+    return
   }
 
   // Recompute hover path when cursor tile changes

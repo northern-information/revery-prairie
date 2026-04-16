@@ -10,6 +10,7 @@ import {
   BEEHIVE_CHAR,
   BEEHIVE_COLOR,
   BG_COLOR,
+  DEEP_TIME_SHAKE_AMPLITUDE,
   DEEP_TIME_TRANSITION_GLYPH_DURATION_MS,
   BURN_SCAR_COLORS,
   CLOVER_BLACK_COLOR,
@@ -187,6 +188,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   ctx.font = metrics.font
   ctx.textBaseline = 'top'
+
+  // Camera shake — translate entire canvas during deep time lightning strikes
+  const shakeActive = state.deepTime?.active === true && time < state.deepTime.shakeUntil
+  if (shakeActive) {
+    const sx = (Math.random() * 2 - 1) * DEEP_TIME_SHAKE_AMPLITUDE
+    const sy = (Math.random() * 2 - 1) * DEEP_TIME_SHAKE_AMPLITUDE
+    ctx.save()
+    ctx.translate(sx, sy)
+  }
 
   // Zone filter helper — only render entities in the current zone
   const zone = state.currentZone
@@ -824,6 +834,25 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           // Cave: just leave the dark background
           continue
         }
+
+        // Deep time: space turns crimson during Burning and Simulating
+        const deepTimeLocked =
+          state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
+        if (deepTimeLocked) {
+          const h = tileHash(mx, my)
+          const pulse = Math.sin(time * 0.003 + (h & 0xff) * 0.05) * 0.5 + 0.5
+          const bgAlpha = 0.15 + 0.1 * pulse
+          ctx.fillStyle = `rgba(139, 0, 0, ${String(bgAlpha)})`
+          ctx.fillRect(px, py, charWidth, charHeight)
+          if (h % STAR_DENSITY === 0) {
+            const redColors = ['#550000', '#770000', '#990000', '#771111', '#993333']
+            const charPhase = ((h >> 4) + Math.floor(time * 0.002)) % STAR_CHARS.length
+            ctx.fillStyle = redColors[(h >> 8) % redColors.length]
+            ctx.fillText(STAR_CHARS[charPhase], px, py)
+          }
+          continue
+        }
+
         const spaceKey = posKey(mx, my)
         const shootingStar = shootingStarMap.get(spaceKey) ?? targetedStarMap.get(spaceKey)
         if (shootingStar) {
@@ -1266,6 +1295,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   }
 
   // Deep Time year counter moved to Sidebar.tsx
+
+  // Restore canvas transform before screen-level overlays
+  if (shakeActive) {
+    ctx.restore()
+  }
 
   // Lightning screen flash overlay — drawn last, covers everything
   if (lightningFlashElapsed < LIGHTNING_SCREEN_FLASH_MS) {

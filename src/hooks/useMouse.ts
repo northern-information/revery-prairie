@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { castLightningAtTarget, isValidLightningTarget } from '@/engine/actionBar'
 import { getCharacterDefinition } from '@/engine/characters'
 import { screenToTile } from '@/engine/coordinates'
+import { isDeepTimeLocked } from '@/engine/deepTime'
 import { ComponentType } from '@/engine/ecs/types'
 import {
   advanceDialog,
@@ -51,6 +52,7 @@ export const useMouse = ({
     const handleClick = (e: MouseEvent) => {
       if (state.devPanelOpen) return
       if (activeScreenRef.current === 'system') return
+      if (isDeepTimeLocked(state)) return
 
       // Lightning targeting mode: click to cast at cursor tile
       if (state.targetingSlot !== null) {
