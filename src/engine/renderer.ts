@@ -89,6 +89,7 @@ import { renderGenesis } from './genesisRenderer'
 import { getDefinition } from './items'
 import { isInBounds, posKey, tileHash } from './position'
 import { getReveryDefinition } from './reveries'
+import { getRuinTileLayers, isHiddenTile } from './ruins'
 import { isInRainFront } from './tileWater'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 
@@ -830,8 +831,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // Out-of-bounds and Space tiles render as twinkling stars (overworld) or dark void (cave)
       const isOutOfBounds = !isInBounds(mx, my, state.mapWidth, state.mapHeight)
       if (isOutOfBounds || map[my][mx].type === TileType.Space) {
-        if (state.currentZone === Zone.Cave) {
-          // Cave: just leave the dark background
+        if (state.currentZone === Zone.Cave || state.currentZone === Zone.Ruin) {
+          // Cave/Ruin: just leave the dark background
           continue
         }
 
@@ -1018,6 +1019,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (!state.caveRevealed && state.caveHiddenPositions.has(tileKey)) {
           char = TILE_CHARS[TileType.CaveWall]
           color = TILE_COLORS[TileType.CaveWall]
+        } else if (
+          state.currentZone === Zone.Ruin &&
+          state.currentRuinIndex !== null &&
+          isHiddenTile(state.ruinInteriors[state.currentRuinIndex], mx, my, time)
+        ) {
+          // Resonance: hidden tiles render as wall
+          char = TILE_CHARS[TileType.RuinWall]
+          color = TILE_COLORS[TileType.RuinWall]
         } else if (state.currentZone === Zone.Overworld && state.rivers.has(tileKey)) {
           // River water (overworld only)
           const h2 = tileHash(mx, my)
@@ -1138,7 +1147,25 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       } else {
         ctx.fillStyle = color
       }
-      ctx.fillText(char, px, py)
+
+      // Multilayer drawing for ruin tiles (non-entity, non-highlighted)
+      const tile = map[my]?.[mx]
+      const isRuinMultilayer =
+        state.currentZone === Zone.Ruin &&
+        !isEntity &&
+        !previewTile &&
+        !(isAngelGroupHighlighted || ((isCursor && cursorable) || isFacingEntity || isPendingTarget)) &&
+        (tile?.type.startsWith('ruin') ?? false)
+      if (isRuinMultilayer) {
+        const layers = getRuinTileLayers(tile.type, mx, my, time)
+        const offsetScale = charWidth * 0.25
+        for (const layer of layers) {
+          ctx.fillStyle = layer.color
+          ctx.fillText(layer.char, px + layer.dx * offsetScale, py + layer.dy * offsetScale)
+        }
+      } else {
+        ctx.fillText(char, px, py)
+      }
 
       if (applyEntityFade) ctx.globalAlpha = 1
     }

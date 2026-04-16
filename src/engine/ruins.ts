@@ -1,5 +1,6 @@
 import { CHARACTER_DEFINITIONS } from './characters'
-import { transitionCoyoteToZone } from './coyote'
+import { BUILDING_CHARS, CIV_COLORS, TILE_CHARS, TILE_COLORS } from './constants'
+import { findCoyoteEntity, transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { posKey, tileHash } from './position'
@@ -851,6 +852,18 @@ export const enterRuin = (state: GameState, ruinIndex: number): void => {
   transitionCoyoteToZone(state, Zone.Ruin)
 
   recordDiscovery(state, `zone:ruin-${String(ruinIndex)}`)
+
+  // Record archetype-specific discovery for manual entries
+  const archetypeDiscoveryKey: Record<string, string> = {
+    [RuinArchetype.Subsidence]: 'zone:ruin-subsidence',
+    [RuinArchetype.DormantGarden]: 'zone:ruin-dormant-garden',
+    [RuinArchetype.HauntedThreshold]: 'zone:ruin-haunted-threshold',
+    [RuinArchetype.Resonance]: 'zone:ruin-resonance',
+  }
+  const discoveryKey = archetypeDiscoveryKey[interior.archetype]
+  if (discoveryKey) {
+    recordDiscovery(state, discoveryKey)
+  }
 }
 
 export const exitRuin = (state: GameState): void => {
@@ -994,6 +1007,7 @@ export const tickSubsidenceCollapse = (state: GameState, dt: number): void => {
 
   // Collapse tiles below the current threshold
   let playerDisplaced = false
+  const collapsedPositions = new Set<string>()
   const { map, mapWidth, mapHeight } = interior
 
   for (const [key, integrity] of sub.structuralIntegrity) {
@@ -1009,9 +1023,7 @@ export const tickSubsidenceCollapse = (state: GameState, dt: number): void => {
     // Collapse this tile to rubble
     map[ty][tx] = { type: TileType.RuinWall }
     sub.structuralIntegrity.delete(key)
-
-    // Destroy any seed entities at this position
-    // (seed spawning will be wired in when ECS ground items are placed)
+    collapsedPositions.add(key)
 
     // Check if player is on this tile
     if (state.player.x === tx && state.player.y === ty) {
@@ -1029,6 +1041,18 @@ export const tickSubsidenceCollapse = (state: GameState, dt: number): void => {
       // No walkable tile found — eject to overworld
       exitRuin(state)
       return
+    }
+  }
+
+  // Displace coyote if standing on a collapsed tile
+  const coyoteEid = findCoyoteEntity(state)
+  if (coyoteEid !== null) {
+    const coyotePos = state.world.getComponent(coyoteEid, ComponentType.Position)
+    if (coyotePos && collapsedPositions.has(posKey(coyotePos.x, coyotePos.y))) {
+      const safe = findNearestWalkable(map, mapWidth, mapHeight, coyotePos.x, coyotePos.y)
+      if (safe) {
+        state.world.moveEntity(coyoteEid, safe.x, safe.y)
+      }
     }
   }
 
@@ -1450,4 +1474,133 @@ export const isHiddenTile = (interior: RuinInterior, x: number, y: number, time:
   }
 
   return true
+}
+
+// ---------------------------------------------------------------------------
+// Multilayer ruin tile rendering
+// ---------------------------------------------------------------------------
+
+export interface RuinTileLayer {
+  char: string
+  color: string
+  dx: number
+  dy: number
+}
+
+const BOX_HORIZONTAL = '─'
+const BOX_VERTICAL = '│'
+
+export const getRuinTileLayers = (tileType: TileType, x: number, y: number, time: number): RuinTileLayer[] => {
+  const h = tileHash(x, y)
+
+  switch (tileType) {
+    case TileType.RuinWall: {
+      // 2-3 dense building char layers in grays — thick, cluttered, ancient
+      const layers: RuinTileLayer[] = [
+        { char: BUILDING_CHARS[h % BUILDING_CHARS.length], color: CIV_COLORS[h % CIV_COLORS.length], dx: 0, dy: 0 },
+        {
+          char: BUILDING_CHARS[(h + 3) % BUILDING_CHARS.length],
+          color: CIV_COLORS[(h + 2) % CIV_COLORS.length],
+          dx: 1,
+          dy: 1,
+        },
+      ]
+      // ~60% of wall tiles get a third layer
+      if (h % 5 < 3) {
+        layers.push({ char: '·', color: CIV_COLORS[(h + 4) % CIV_COLORS.length], dx: -1, dy: 0 })
+      }
+      return layers
+    }
+
+    case TileType.RuinFloor:
+    case TileType.RuinHiddenFloor: {
+      // 1-2 sparse layers — floor char + optional debris dot
+      const layers: RuinTileLayer[] = [
+        { char: h % 3 === 0 ? '·' : '.', color: TILE_COLORS[TileType.RuinFloor], dx: 0, dy: 0 },
+      ]
+      // ~40% of floor tiles get a debris dot
+      if (h % 5 < 2) {
+        layers.push({
+          char: '·',
+          color: CIV_COLORS[(h + 1) % CIV_COLORS.length],
+          dx: h % 2 === 0 ? 1 : -1,
+          dy: 0,
+        })
+      }
+      return layers
+    }
+
+    case TileType.RuinEntrance:
+      return [
+        { char: 'O', color: TILE_COLORS[TileType.RuinEntrance], dx: 0, dy: 0 },
+        { char: '·', color: CIV_COLORS[h % CIV_COLORS.length], dx: 1, dy: 0 },
+      ]
+
+    case TileType.RuinUnstable: {
+      // Floor with reddish tint suggesting instability
+      const red = Math.floor(0x8b + (h % 30))
+      const green = Math.floor(0x5e - (h % 20))
+      const blue = Math.floor(0x4e - (h % 15))
+      return [
+        { char: '.', color: `rgb(${String(red)},${String(green)},${String(blue)})`, dx: 0, dy: 0 },
+      ]
+    }
+
+    case TileType.RuinAqueduct: {
+      // Box-drawing chars with overlay dots — matching genesis aqueduct style
+      const aqChars = [BOX_HORIZONTAL, BOX_VERTICAL, '~']
+      const layers: RuinTileLayer[] = [
+        { char: aqChars[h % aqChars.length], color: TILE_COLORS[TileType.RuinAqueduct], dx: 0, dy: 0 },
+      ]
+      if (h % 3 < 2) {
+        const overlayChars = [BOX_HORIZONTAL, BOX_VERTICAL, '·', '.']
+        layers.push({
+          char: overlayChars[h % overlayChars.length],
+          color: CIV_COLORS[(h + 1) % CIV_COLORS.length],
+          dx: h % 2 === 0 ? 1 : -1,
+          dy: h % 3 === 0 ? 1 : 0,
+        })
+      }
+      return layers
+    }
+
+    case TileType.RuinAqueductBroken: {
+      // Fragmenting chars in fading brown
+      const breakChars = ['+', '.', '·']
+      return [
+        { char: breakChars[h % breakChars.length], color: TILE_COLORS[TileType.RuinAqueductBroken], dx: 0, dy: 0 },
+      ]
+    }
+
+    case TileType.RuinDebris: {
+      // Crumble chars in browns — 2 layers
+      const crumbleChars = ['▒', '░', '▓']
+      return [
+        { char: crumbleChars[h % crumbleChars.length], color: TILE_COLORS[TileType.RuinDebris], dx: 0, dy: 0 },
+        { char: '·', color: CIV_COLORS[(h + 2) % CIV_COLORS.length], dx: 1, dy: 1 },
+      ]
+    }
+
+    case TileType.RuinMachine: {
+      // Copper glyph with faint secondary layer
+      return [
+        { char: TILE_CHARS[TileType.RuinMachine], color: TILE_COLORS[TileType.RuinMachine], dx: 0, dy: 0 },
+        { char: '·', color: '#996644', dx: -1, dy: 0 },
+      ]
+    }
+
+    case TileType.RuinMachineActive: {
+      // Pulsing gold glyph — secondary layer alternates based on time
+      const pulseChars = ['*', '·', '+', '·']
+      const pulseIdx = Math.floor(time * 0.004 + h) % pulseChars.length
+      return [
+        { char: TILE_CHARS[TileType.RuinMachineActive], color: TILE_COLORS[TileType.RuinMachineActive], dx: 0, dy: 0 },
+        { char: pulseChars[pulseIdx], color: '#FFAA00', dx: 1, dy: 0 },
+      ]
+    }
+
+    default:
+      // Non-ruin tiles: single layer using standard chars/colors
+      return [{ char: TILE_CHARS[tileType] ?? '.', color: TILE_COLORS[tileType] ?? '#666', dx: 0, dy: 0 }]
+  }
 }
