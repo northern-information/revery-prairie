@@ -1,3 +1,4 @@
+import { CHARACTER_DEFINITIONS } from './characters'
 import { transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
@@ -5,7 +6,16 @@ import { posKey, tileHash } from './position'
 import { RuinArchetype, TileType, Zone } from './types'
 
 import type { CivilizationRuin } from './genesisTypes'
-import type { DormantGardenData, GameState, Position, RuinInterior, SubsidenceData, Tile } from './types'
+import type {
+  DormantGardenData,
+  GameState,
+  GhostFormation,
+  HauntedThresholdData,
+  Position,
+  RuinInterior,
+  SubsidenceData,
+  Tile,
+} from './types'
 
 // ---------------------------------------------------------------------------
 // PRNG (same mulberry32 used in genesis.ts)
@@ -409,6 +419,166 @@ const generateDormantGarden = (
 }
 
 // ---------------------------------------------------------------------------
+// Haunted threshold generator
+// ---------------------------------------------------------------------------
+
+// Dialog hints mapped to wanted items — each ghost gets a memory fragment
+const GUARDIAN_DIALOG_HINTS: { itemId: string; dialog: string[]; postDialog: string[] }[] = [
+  {
+    itemId: 'clover',
+    dialog: ['...', 'I remember fields of green...', '...the smell after rain...'],
+    postDialog: ['...thank you. I had forgotten the smell of growing things.'],
+  },
+  {
+    itemId: 'honey',
+    dialog: ['...', 'the sweetness... I can almost taste it...', '...we kept hives on the roof...'],
+    postDialog: ['...how long has it been? thank you.'],
+  },
+  {
+    itemId: 'coin',
+    dialog: ['...', 'we counted everything... measured everything...', '...kept ledgers of every transaction...'],
+    postDialog: ['...the weight of it. yes. I remember now.'],
+  },
+  {
+    itemId: 'meteorite',
+    dialog: ['...', 'we measured the heavens for signs...', '...the night a star fell into the square...'],
+    postDialog: ['...it still burns cold. thank you, steward.'],
+  },
+  {
+    itemId: 'bee',
+    dialog: ['...', 'they hummed in the walls...', '...we built our city around them...'],
+    postDialog: ['...I can hear them again. thank you.'],
+  },
+]
+
+const generateHauntedThreshold = (
+  map: Tile[][],
+  mapWidth: number,
+  _mapHeight: number,
+  entranceX: number,
+  entranceY: number,
+  ruin: CivilizationRuin,
+  ruinIndex: number,
+  rng: () => number,
+): HauntedThresholdData => {
+  // Number of rooms scales with radius (3-5)
+  const roomCount = Math.min(5, Math.max(3, ruin.radius))
+  const rooms: { center: Position; width: number; height: number }[] = []
+  const ghostFormations: GhostFormation[] = []
+
+  // Generate rooms arranged roughly northward from entrance
+  let prevCenter: Position = { x: entranceX, y: entranceY - 3 }
+  for (let i = 0; i < roomCount; i++) {
+    const roomW = 5 + Math.floor(rng() * 3) // 5-7
+    const roomH = 5 + Math.floor(rng() * 3) // 5-7
+    // Place room above previous, with lateral offset
+    const lateralOffset = Math.floor((rng() - 0.5) * 6)
+    const cx = Math.max(MARGIN + Math.floor(roomW / 2) + 1, Math.min(mapWidth - MARGIN - Math.floor(roomW / 2) - 1, prevCenter.x + lateralOffset))
+    const cy = Math.max(MARGIN + Math.floor(roomH / 2) + 1, prevCenter.y - roomH - 3 - Math.floor(rng() * 2))
+    const center: Position = { x: cx, y: cy }
+
+    // Carve the room
+    const rx = cx - Math.floor(roomW / 2)
+    const ry = cy - Math.floor(roomH / 2)
+    carveRect(map, rx, ry, roomW, roomH)
+
+    rooms.push({ center, width: roomW, height: roomH })
+
+    // Carve corridor from previous center to this room
+    if (i === 0) {
+      carveCorridor(map, { x: entranceX, y: entranceY - 2 }, center, 2)
+    } else {
+      carveCorridor(map, prevCenter, center, 2)
+    }
+
+    // Place ghost formation in the corridor between rooms (except before first room)
+    if (i > 0) {
+      const corridorMidX = Math.floor((prevCenter.x + center.x) / 2)
+      const corridorMidY = Math.floor((prevCenter.y + center.y) / 2)
+      const ghostCount = 2 + Math.floor(rng() * 2) // 2-3
+      const positions: Position[] = []
+      const wantedItems: string[] = []
+
+      for (let g = 0; g < ghostCount; g++) {
+        // Spread ghosts across the corridor width
+        const gx = corridorMidX + (g - Math.floor(ghostCount / 2))
+        const gy = corridorMidY
+        if (map[gy]?.[gx]?.type === TileType.RuinFloor) {
+          positions.push({ x: gx, y: gy })
+          // Pick a dialog/item from the pool, seeded by position
+          const hintIdx = (tileHash(gx, gy) + ruinIndex * 7) % GUARDIAN_DIALOG_HINTS.length
+          const hint = GUARDIAN_DIALOG_HINTS[hintIdx]
+          wantedItems.push(hint.itemId)
+
+          // Register ghost character definition
+          const ghostId = `ruin-guardian-${String(ruinIndex)}-${String(i)}-${String(g)}`
+          CHARACTER_DEFINITIONS[ghostId] = {
+            id: ghostId,
+            name: `Guardian Spirit`,
+            glyph: 'ö',
+            glyphColor: '#8888CC',
+            dialog: hint.dialog,
+            postGiftDialog: hint.postDialog,
+          }
+        }
+      }
+
+      if (positions.length > 0) {
+        ghostFormations.push({
+          positions,
+          wantedItems,
+          satisfied: positions.map(() => false),
+        })
+      }
+    }
+
+    prevCenter = center
+  }
+
+  // Carve inner chamber behind the last room (6x4, single 1-wide doorway)
+  const lastRoom = rooms[rooms.length - 1]
+  const chamberW = 6
+  const chamberH = 4
+  const chamberX = Math.max(MARGIN, Math.min(mapWidth - MARGIN - chamberW, lastRoom.center.x - Math.floor(chamberW / 2)))
+  const chamberY = Math.max(MARGIN, lastRoom.center.y - lastRoom.height - chamberH)
+  carveRect(map, chamberX, chamberY, chamberW, chamberH)
+
+  // Single 1-wide doorway connecting chamber to last room
+  const doorX = chamberX + Math.floor(chamberW / 2)
+  const doorY = chamberY + chamberH
+  for (let y = doorY; y <= lastRoom.center.y - Math.floor(lastRoom.height / 2); y++) {
+    if (map[y]?.[doorX]) {
+      map[y][doorX] = { type: TileType.RuinFloor }
+    }
+  }
+
+  // Collect inner chamber floor positions
+  const innerChamber: Position[] = []
+  for (let dy = 0; dy < chamberH; dy++) {
+    for (let dx = 0; dx < chamberW; dx++) {
+      const cx = chamberX + dx
+      const cy = chamberY + dy
+      if (map[cy]?.[cx]?.type === TileType.RuinFloor) {
+        innerChamber.push({ x: cx, y: cy })
+      }
+    }
+  }
+
+  // Place artifact in the inner chamber center
+  const artifactPosition: Position = {
+    x: chamberX + Math.floor(chamberW / 2),
+    y: chamberY + Math.floor(chamberH / 2),
+  }
+
+  return {
+    rooms,
+    ghostFormations,
+    innerChamber,
+    artifactPosition,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Generic ruin interior generation (dispatches to archetype-specific)
 // ---------------------------------------------------------------------------
 
@@ -424,13 +594,16 @@ export const generateRuinInterior = (
 
   let subsidenceData: SubsidenceData | null = null
   let dormantGardenData: DormantGardenData | null = null
+  let hauntedThresholdData: HauntedThresholdData | null = null
 
   if (archetype === RuinArchetype.Subsidence) {
     subsidenceData = generateSubsidence(map, mapWidth, mapHeight, entranceX, entranceY, ruin, rng)
   } else if (archetype === RuinArchetype.DormantGarden) {
     dormantGardenData = generateDormantGarden(map, mapWidth, mapHeight, entranceX, entranceY, ruin, rng)
+  } else if (archetype === RuinArchetype.HauntedThreshold) {
+    hauntedThresholdData = generateHauntedThreshold(map, mapWidth, mapHeight, entranceX, entranceY, ruin, ruinIndex, rng)
   } else {
-    // Fallback: generic corridors for other archetypes (placeholder)
+    // Fallback: generic corridors for Resonance (placeholder)
     const waypointCount = 2 + Math.floor(rng() * 2)
     let prevPos: Position = { x: entranceX, y: entranceY - 2 }
     for (let i = 0; i < waypointCount; i++) {
@@ -453,6 +626,7 @@ export const generateRuinInterior = (
     cleared: false,
     subsidence: subsidenceData,
     dormantGarden: dormantGardenData,
+    hauntedThreshold: hauntedThresholdData,
   }
 }
 
@@ -524,6 +698,11 @@ export const enterRuin = (state: GameState, ruinIndex: number): void => {
   // Dormant garden: spawn seeds on first entry
   if (interior.dormantGarden && !interior.explored) {
     spawnDormantGardenSeeds(state, ruinIndex)
+  }
+
+  // Haunted threshold: spawn ghosts and artifact on first entry
+  if (interior.hauntedThreshold && !interior.explored) {
+    spawnHauntedThresholdEntities(state, ruinIndex)
   }
 
   // Mark as explored (after first-entry logic)
@@ -881,6 +1060,112 @@ export const repairAqueductBreak = (state: GameState, x: number, y: number): boo
   }
 
   return true
+}
+
+// ---------------------------------------------------------------------------
+// Dormant garden fire interaction
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Haunted threshold ghost spawning
+// ---------------------------------------------------------------------------
+
+export const spawnHauntedThresholdEntities = (state: GameState, ruinIndex: number): void => {
+  const interior = state.ruinInteriors[ruinIndex]
+  if (!interior?.hauntedThreshold) return
+
+  const ht = interior.hauntedThreshold
+
+  // Spawn guardian ghosts at each formation position
+  for (let fi = 0; fi < ht.ghostFormations.length; fi++) {
+    const formation = ht.ghostFormations[fi]
+    for (let gi = 0; gi < formation.positions.length; gi++) {
+      if (formation.satisfied[gi]) continue // already satisfied from previous visit
+      const pos = formation.positions[gi]
+      const ghostId = `ruin-guardian-${String(ruinIndex)}-${String(fi + 1)}-${String(gi)}`
+
+      // Skip if definition wasn't registered (edge case)
+      if (!CHARACTER_DEFINITIONS[ghostId]) continue
+
+      const e = state.world.createEntity()
+      state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
+      state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId: ghostId })
+      state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
+      state.world.addComponent(e, ComponentType.EntityTag, 'character')
+      state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
+      state.world.addComponent(e, ComponentType.Behavior, {
+        type: 'drift' as const,
+        moveChance: 0.03,
+        freezeOnDialog: true,
+      })
+    }
+  }
+
+  // Spawn artifact in inner chamber
+  const seedTypes = ['stoneTablet', 'aqueductKey']
+  const artifactType = seedTypes[tileHash(ht.artifactPosition.x, ht.artifactPosition.y) % seedTypes.length]
+  const ae = state.world.createEntity()
+  state.world.addComponent(ae, ComponentType.Position, { x: ht.artifactPosition.x, y: ht.artifactPosition.y })
+  state.world.addComponent(ae, ComponentType.ItemDrop, { definitionId: artifactType })
+  state.world.addComponent(ae, ComponentType.EntityTag, 'groundItem')
+  state.world.addComponent(ae, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
+}
+
+// ---------------------------------------------------------------------------
+// Haunted threshold offering mechanic
+// ---------------------------------------------------------------------------
+
+export const offerItemToGuardian = (
+  state: GameState,
+  ghostEntityId: number,
+  itemDefinitionId: string,
+): boolean => {
+  if (state.currentRuinIndex === null) return false
+  const interior = state.ruinInteriors[state.currentRuinIndex]
+  if (!interior?.hauntedThreshold) return false
+
+  const identity = state.world.getComponent(ghostEntityId, ComponentType.CharacterIdentity)
+  if (!identity) return false
+
+  // Find which formation this ghost belongs to
+  const ghostPos = state.world.getComponent(ghostEntityId, ComponentType.Position)
+  if (!ghostPos) return false
+
+  for (const formation of interior.hauntedThreshold.ghostFormations) {
+    for (let gi = 0; gi < formation.positions.length; gi++) {
+      if (formation.satisfied[gi]) continue
+      const fpos = formation.positions[gi]
+      if (fpos.x !== ghostPos.x || fpos.y !== ghostPos.y) continue
+
+      // Check if the offered item matches what this ghost wants
+      if (formation.wantedItems[gi] !== itemDefinitionId) return false
+
+      // Satisfy the ghost
+      formation.satisfied[gi] = true
+
+      // Remove blocking component so the ghost no longer obstructs
+      state.world.removeComponent(ghostEntityId, ComponentType.Blocking)
+
+      // Increase drift speed so ghost wanders away
+      state.world.addComponent(ghostEntityId, ComponentType.Behavior, {
+        type: 'drift' as const,
+        moveChance: 0.15,
+        freezeOnDialog: true,
+      })
+
+      // Mark gift as received for postGiftDialog
+      state.giftsReceived.add(identity.definitionId)
+
+      // Check if all ghosts in this formation are satisfied
+      if (formation.satisfied.every(Boolean)) {
+        recordDiscovery(state, `event:ruin-formation-${String(state.currentRuinIndex)}`)
+      }
+
+      return true
+    }
+  }
+
+  return false
 }
 
 // ---------------------------------------------------------------------------

@@ -16,14 +16,17 @@ export const createCharacterEntity = (
   state: GameState,
   definitionId: string,
   pos: Position,
-  opts?: { aura?: string; behavior?: CharacterBehavior; zone?: Zone }
+  opts?: { aura?: string; behavior?: CharacterBehavior; zone?: Zone; ruinIndex?: number }
 ): Entity => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
   state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId })
   state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
   state.world.addComponent(e, ComponentType.EntityTag, 'character')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: opts?.zone ?? state.currentZone })
+  state.world.addComponent(e, ComponentType.EntityZone, {
+    zone: opts?.zone ?? state.currentZone,
+    ruinIndex: opts?.ruinIndex,
+  })
   if (opts?.aura) {
     const radius = AURA_RADIUS[opts.aura] ?? 6
     state.world.addComponent(e, ComponentType.Aura, { kind: opts.aura, radius })

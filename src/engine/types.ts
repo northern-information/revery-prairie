@@ -331,6 +331,19 @@ export interface DormantGardenData {
   waterFlowing: boolean
 }
 
+export interface GhostFormation {
+  positions: Position[]
+  wantedItems: string[]
+  satisfied: boolean[]
+}
+
+export interface HauntedThresholdData {
+  rooms: { center: Position; width: number; height: number }[]
+  ghostFormations: GhostFormation[]
+  innerChamber: Position[]
+  artifactPosition: Position
+}
+
 export interface RuinInterior {
   ruinIndex: number
   archetype: RuinArchetype
@@ -344,6 +357,7 @@ export interface RuinInterior {
   cleared: boolean
   subsidence: SubsidenceData | null
   dormantGarden: DormantGardenData | null
+  hauntedThreshold: HauntedThresholdData | null
 }
 
 export const DeepTimePhase = {
