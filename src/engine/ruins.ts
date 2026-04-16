@@ -852,6 +852,18 @@ export const enterRuin = (state: GameState, ruinIndex: number): void => {
   transitionCoyoteToZone(state, Zone.Ruin)
 
   recordDiscovery(state, `zone:ruin-${String(ruinIndex)}`)
+
+  // Record archetype-specific discovery for manual entries
+  const archetypeDiscoveryKey: Record<string, string> = {
+    [RuinArchetype.Subsidence]: 'zone:ruin-subsidence',
+    [RuinArchetype.DormantGarden]: 'zone:ruin-dormant-garden',
+    [RuinArchetype.HauntedThreshold]: 'zone:ruin-haunted-threshold',
+    [RuinArchetype.Resonance]: 'zone:ruin-resonance',
+  }
+  const discoveryKey = archetypeDiscoveryKey[interior.archetype]
+  if (discoveryKey) {
+    recordDiscovery(state, discoveryKey)
+  }
 }
 
 export const exitRuin = (state: GameState): void => {

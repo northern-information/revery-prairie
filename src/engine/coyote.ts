@@ -197,7 +197,8 @@ export const tickCoyote = (state: GameState, time?: number): CoyoteTickResult =>
   const blocked = getBlockedPositions(state)
   blocked.add(posKey(state.player.x, state.player.y))
 
-  if (state.coyoteMode === CoyoteMode.Follow) {
+  // Suppress collect mode in ruins — coyote follows instead
+  if (state.coyoteMode === CoyoteMode.Follow || state.currentZone === Zone.Ruin) {
     tickFollow(state, eid, pos, blocked)
   } else {
     tickCollect(state, eid, pos, blocked, result, time)

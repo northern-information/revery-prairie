@@ -3,8 +3,6 @@ import { getRuinTileLayers } from '../ruins'
 import { BUILDING_CHARS, CIV_COLORS } from '../constants'
 import { TileType } from '../types'
 
-import type { RuinTileLayer } from '../ruins'
-
 describe('ruin visual style', () => {
   describe('getRuinTileLayers', () => {
     it('always returns at least one layer', () => {
