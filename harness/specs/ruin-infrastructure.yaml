@@ -234,13 +234,14 @@ behaviors:
 
   - id: seed-item-definitions
     description: >
-      three ancient seed items added to ITEM_DEFINITIONS in items.ts.
-      ancientWheatSeed (Flora, glyph centered dot, warm gold),
-      ancientFlaxSeed (Flora, glyph centered dot, pale blue),
-      ancientGourdSeed (Flora, glyph centered dot, earthy green).
-      each has MANUAL_LORE entry with lore 'TODO'. ItemCategory
-      gains Seed: 'seed'. itemCategoryToManualCategory maps Seed
-      to ManualCategory.Flora.
+      three seed items added to ITEM_DEFINITIONS in items.ts.
+      wildflowerSeeds (Seed, glyph centered dot, orchid),
+      tallGrassSeeds (Seed, glyph centered dot, dark sea green),
+      milkweedSeeds (Seed, glyph centered dot, wheat). each has
+      MANUAL_LORE entry with lore 'TODO'. ItemCategory gains
+      Seed: 'seed'. itemCategoryToManualCategory maps Seed to
+      ManualCategory.Flora. items have no description field —
+      all player-facing text lives in MANUAL_LORE.
     inputs:
       - 'item system initialization'
     outputs:
@@ -255,7 +256,8 @@ behaviors:
       aqueductKey (Tool category, glyph dagger, copper). each has
       MANUAL_LORE entry with lore 'TODO'. ItemCategory gains
       Artifact: 'artifact'. itemCategoryToManualCategory maps
-      Artifact to ManualCategory.Object.
+      Artifact to ManualCategory.Object. items have no description
+      field — all player-facing text lives in MANUAL_LORE.
     inputs:
       - 'item system initialization'
     outputs:
