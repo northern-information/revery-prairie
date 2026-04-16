@@ -12,6 +12,7 @@ import type {
   GhostFormation,
   HauntedThresholdData,
   Position,
+  ResonanceData,
   RuinInterior,
   SubsidenceData,
   Tile,
@@ -579,6 +580,148 @@ const generateHauntedThreshold = (
 }
 
 // ---------------------------------------------------------------------------
+// Resonance generator
+// ---------------------------------------------------------------------------
+
+const RESONANCE_ACTIVATION_MS = 8000
+
+const generateResonance = (
+  map: Tile[][],
+  mapWidth: number,
+  mapHeight: number,
+  entranceX: number,
+  entranceY: number,
+  ruin: CivilizationRuin,
+  rng: () => number,
+): ResonanceData => {
+  // Main chamber dimensions scale with radius (10x10 to 14x14)
+  const chamberW = Math.min(14, 10 + ruin.radius - 3)
+  const chamberH = Math.min(14, 10 + ruin.radius - 3)
+  const chamberX = Math.floor((mapWidth - chamberW) / 2)
+  const chamberY = Math.max(MARGIN + 1, Math.floor((mapHeight - chamberH) / 2) - 2)
+
+  // Carve main chamber
+  carveRect(map, chamberX, chamberY, chamberW, chamberH)
+
+  // Carve corridor from entrance to chamber
+  carveCorridor(map, { x: entranceX, y: entranceY - 2 }, { x: chamberX + Math.floor(chamberW / 2), y: chamberY + chamberH - 1 }, 2)
+
+  // Place machines in chamber walls (adjacent to floor tiles)
+  const machineCount = 3 + Math.floor(rng() * 3) // 3-5
+  const machinePositions: Position[] = []
+  let machineAttempts = 0
+
+  while (machinePositions.length < machineCount && machineAttempts < 200) {
+    machineAttempts++
+    // Pick a wall tile adjacent to the chamber
+    const side = Math.floor(rng() * 4) // 0=top, 1=bottom, 2=left, 3=right
+    let mx: number
+    let my: number
+    if (side === 0) {
+      mx = chamberX + 1 + Math.floor(rng() * (chamberW - 2))
+      my = chamberY - 1
+    } else if (side === 1) {
+      mx = chamberX + 1 + Math.floor(rng() * (chamberW - 2))
+      my = chamberY + chamberH
+    } else if (side === 2) {
+      mx = chamberX - 1
+      my = chamberY + 1 + Math.floor(rng() * (chamberH - 2))
+    } else {
+      mx = chamberX + chamberW
+      my = chamberY + 1 + Math.floor(rng() * (chamberH - 2))
+    }
+
+    if (mx < 0 || mx >= mapWidth || my < 0 || my >= mapHeight) continue
+    if (map[my][mx].type !== TileType.RuinWall) continue
+
+    // Check Manhattan distance from other machines (4-8 tiles apart)
+    const tooClose = machinePositions.some((mp) => Math.abs(mp.x - mx) + Math.abs(mp.y - my) < 4)
+    if (tooClose) continue
+
+    map[my][mx] = { type: TileType.RuinMachine }
+    machinePositions.push({ x: mx, y: my })
+  }
+
+  // Carve 2-3 hidden passages branching from the chamber
+  const passageCount = 2 + Math.floor(rng() * 2)
+  const hiddenTiles = new Set<string>()
+  let vaultPosition: Position = { x: chamberX + Math.floor(chamberW / 2), y: chamberY }
+
+  for (let p = 0; p < passageCount; p++) {
+    // Pick a direction from the chamber
+    const side = Math.floor(rng() * 4)
+    let startX: number
+    let startY: number
+    let dx: number
+    let dy: number
+
+    if (side === 0) { // north
+      startX = chamberX + 2 + Math.floor(rng() * (chamberW - 4))
+      startY = chamberY - 1
+      dx = 0
+      dy = -1
+    } else if (side === 1) { // south — skip if it conflicts with entrance
+      startX = chamberX + 2 + Math.floor(rng() * (chamberW - 4))
+      startY = chamberY + chamberH
+      dx = 0
+      dy = 1
+    } else if (side === 2) { // west
+      startX = chamberX - 1
+      startY = chamberY + 2 + Math.floor(rng() * (chamberH - 4))
+      dx = -1
+      dy = 0
+    } else { // east
+      startX = chamberX + chamberW
+      startY = chamberY + 2 + Math.floor(rng() * (chamberH - 4))
+      dx = 1
+      dy = 0
+    }
+
+    // Carve a short passage (3-5 tiles) using RuinHiddenFloor
+    const passageLen = 3 + Math.floor(rng() * 3)
+    for (let i = 1; i <= passageLen; i++) {
+      const px = startX + dx * i
+      const py = startY + dy * i
+      if (px < MARGIN || px >= mapWidth - MARGIN || py < MARGIN || py >= mapHeight - MARGIN) break
+      if (map[py][px].type === TileType.RuinFloor || map[py][px].type === TileType.RuinEntrance) break
+      map[py][px] = { type: TileType.RuinHiddenFloor }
+      hiddenTiles.add(posKey(px, py))
+    }
+
+    // First passage gets a vault room at the end
+    if (p === 0) {
+      const vaultEndX = startX + dx * (passageLen + 1)
+      const vaultEndY = startY + dy * (passageLen + 1)
+      const vaultW = 4
+      const vaultH = 4
+      const vx = Math.max(MARGIN, Math.min(mapWidth - MARGIN - vaultW, vaultEndX - Math.floor(vaultW / 2)))
+      const vy = Math.max(MARGIN, Math.min(mapHeight - MARGIN - vaultH, vaultEndY - Math.floor(vaultH / 2)))
+      for (let vdy = 0; vdy < vaultH; vdy++) {
+        for (let vdx = 0; vdx < vaultW; vdx++) {
+          const tx = vx + vdx
+          const ty = vy + vdy
+          if (tx >= 0 && tx < mapWidth && ty >= 0 && ty < mapHeight) {
+            map[ty][tx] = { type: TileType.RuinHiddenFloor }
+            hiddenTiles.add(posKey(tx, ty))
+          }
+        }
+      }
+      vaultPosition = { x: vx + Math.floor(vaultW / 2), y: vy + Math.floor(vaultH / 2) }
+    }
+  }
+
+  return {
+    machinePositions,
+    machineActiveUntil: new Map<string, number>(),
+    activationDurationMs: RESONANCE_ACTIVATION_MS,
+    hiddenTiles,
+    vaultPosition,
+    vaultRevealed: false,
+    revealedTiles: new Set<string>(),
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Generic ruin interior generation (dispatches to archetype-specific)
 // ---------------------------------------------------------------------------
 
@@ -595,6 +738,7 @@ export const generateRuinInterior = (
   let subsidenceData: SubsidenceData | null = null
   let dormantGardenData: DormantGardenData | null = null
   let hauntedThresholdData: HauntedThresholdData | null = null
+  let resonanceData: ResonanceData | null = null
 
   if (archetype === RuinArchetype.Subsidence) {
     subsidenceData = generateSubsidence(map, mapWidth, mapHeight, entranceX, entranceY, ruin, rng)
@@ -602,16 +746,8 @@ export const generateRuinInterior = (
     dormantGardenData = generateDormantGarden(map, mapWidth, mapHeight, entranceX, entranceY, ruin, rng)
   } else if (archetype === RuinArchetype.HauntedThreshold) {
     hauntedThresholdData = generateHauntedThreshold(map, mapWidth, mapHeight, entranceX, entranceY, ruin, ruinIndex, rng)
-  } else {
-    // Fallback: generic corridors for Resonance (placeholder)
-    const waypointCount = 2 + Math.floor(rng() * 2)
-    let prevPos: Position = { x: entranceX, y: entranceY - 2 }
-    for (let i = 0; i < waypointCount; i++) {
-      const wx = MARGIN + 2 + Math.floor(rng() * (mapWidth - MARGIN * 2 - 4))
-      const wy = MARGIN + 2 + Math.floor(rng() * (mapHeight - MARGIN * 2 - 8))
-      carveCorridor(map, prevPos, { x: wx, y: wy }, 2 + Math.floor(rng() * 2))
-      prevPos = { x: wx, y: wy }
-    }
+  } else if (archetype === RuinArchetype.Resonance) {
+    resonanceData = generateResonance(map, mapWidth, mapHeight, entranceX, entranceY, ruin, rng)
   }
 
   return {
@@ -627,6 +763,7 @@ export const generateRuinInterior = (
     subsidence: subsidenceData,
     dormantGarden: dormantGardenData,
     hauntedThreshold: hauntedThresholdData,
+    resonance: resonanceData,
   }
 }
 
@@ -1193,4 +1330,124 @@ export const fireOnRuinTile = (state: GameState, x: number, y: number): boolean 
   }
 
   return false
+}
+
+// ---------------------------------------------------------------------------
+// Resonance machine activation
+// ---------------------------------------------------------------------------
+
+export const activateMachine = (state: GameState, x: number, y: number, time: number): boolean => {
+  if (state.currentRuinIndex === null) return false
+  const interior = state.ruinInteriors[state.currentRuinIndex]
+  if (!interior?.resonance) return false
+  if (interior.resonance.vaultRevealed) return false
+
+  const tile = interior.map[y]?.[x]
+  if (tile?.type !== TileType.RuinMachine) return false
+
+  const res = interior.resonance
+
+  // Activate the machine
+  interior.map[y][x] = { type: TileType.RuinMachineActive }
+  res.machineActiveUntil.set(posKey(x, y), time + res.activationDurationMs)
+
+  // Check if all machines are now simultaneously active
+  const allActive = res.machinePositions.every((mp) => {
+    const key = posKey(mp.x, mp.y)
+    const until = res.machineActiveUntil.get(key)
+    return until !== undefined && until > time
+  })
+
+  if (allActive) {
+    // Vault revealed — permanently reveal all hidden tiles
+    res.vaultRevealed = true
+    for (const key of res.hiddenTiles) {
+      res.revealedTiles.add(key)
+    }
+    recordDiscovery(state, `event:ruin-resonance-vault`)
+  }
+
+  return true
+}
+
+// ---------------------------------------------------------------------------
+// Resonance deactivation tick
+// ---------------------------------------------------------------------------
+
+export const tickResonanceDeactivation = (state: GameState, time: number): void => {
+  if (state.currentRuinIndex === null) return
+  const interior = state.ruinInteriors[state.currentRuinIndex]
+  if (!interior?.resonance) return
+  if (interior.resonance.vaultRevealed) return
+
+  const res = interior.resonance
+
+  for (const [key, until] of res.machineActiveUntil) {
+    if (time <= until) continue
+
+    // Deactivate this machine
+    const parts = key.split(',')
+    const mx = Number(parts[0])
+    const my = Number(parts[1])
+    if (interior.map[my]?.[mx]?.type === TileType.RuinMachineActive) {
+      interior.map[my][mx] = { type: TileType.RuinMachine }
+    }
+    res.machineActiveUntil.delete(key)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Resonance: get temporarily visible tiles (near active machines)
+// ---------------------------------------------------------------------------
+
+const MACHINE_REVEAL_RADIUS = 4
+
+export const getTemporarilyVisibleTiles = (interior: RuinInterior): Set<string> => {
+  if (!interior.resonance) return new Set()
+  const res = interior.resonance
+  const visible = new Set<string>()
+
+  for (const [machineKey] of res.machineActiveUntil) {
+    const parts = machineKey.split(',')
+    const mx = Number(parts[0])
+    const my = Number(parts[1])
+    for (const hiddenKey of res.hiddenTiles) {
+      if (res.revealedTiles.has(hiddenKey)) continue
+      const hParts = hiddenKey.split(',')
+      const hx = Number(hParts[0])
+      const hy = Number(hParts[1])
+      if (Math.abs(hx - mx) + Math.abs(hy - my) <= MACHINE_REVEAL_RADIUS) {
+        visible.add(hiddenKey)
+      }
+    }
+  }
+
+  return visible
+}
+
+// ---------------------------------------------------------------------------
+// Resonance: check if a tile is currently hidden
+// ---------------------------------------------------------------------------
+
+export const isHiddenTile = (interior: RuinInterior, x: number, y: number, time: number): boolean => {
+  if (!interior.resonance) return false
+  const res = interior.resonance
+  const key = posKey(x, y)
+  if (!res.hiddenTiles.has(key)) return false
+  if (res.revealedTiles.has(key)) return false
+  if (res.vaultRevealed) return false
+
+  // Check if temporarily visible (near an active machine)
+  for (const [machineKey, until] of res.machineActiveUntil) {
+    if (time <= until) {
+      const parts = machineKey.split(',')
+      const mx = Number(parts[0])
+      const my = Number(parts[1])
+      if (Math.abs(x - mx) + Math.abs(y - my) <= MACHINE_REVEAL_RADIUS) {
+        return false
+      }
+    }
+  }
+
+  return true
 }

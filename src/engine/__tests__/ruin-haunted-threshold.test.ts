@@ -5,7 +5,6 @@ import {
 } from '../ruins'
 import { CHARACTER_DEFINITIONS } from '../characters'
 import { RuinArchetype, TileType } from '../types'
-import { posKey } from '../position'
 
 import type { CivilizationRuin } from '../genesisTypes'
 
@@ -65,7 +64,7 @@ describe('ruin haunted threshold', () => {
         expect(formation.positions.length).toBeGreaterThanOrEqual(1)
         expect(formation.wantedItems.length).toBe(formation.positions.length)
         expect(formation.satisfied.length).toBe(formation.positions.length)
-        expect(formation.satisfied.every((s) => s === false)).toBe(true)
+        expect(formation.satisfied.every((s) => !s)).toBe(true)
       }
     })
 

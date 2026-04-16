@@ -18,6 +18,9 @@ export const TileType = {
   RuinAqueduct: 'ruinAqueduct',
   RuinAqueductBroken: 'ruinAqueductBroken',
   RuinDebris: 'ruinDebris',
+  RuinMachine: 'ruinMachine',
+  RuinMachineActive: 'ruinMachineActive',
+  RuinHiddenFloor: 'ruinHiddenFloor',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
@@ -344,6 +347,16 @@ export interface HauntedThresholdData {
   artifactPosition: Position
 }
 
+export interface ResonanceData {
+  machinePositions: Position[]
+  machineActiveUntil: Map<string, number>
+  activationDurationMs: number
+  hiddenTiles: Set<string>
+  vaultPosition: Position
+  vaultRevealed: boolean
+  revealedTiles: Set<string>
+}
+
 export interface RuinInterior {
   ruinIndex: number
   archetype: RuinArchetype
@@ -358,6 +371,7 @@ export interface RuinInterior {
   subsidence: SubsidenceData | null
   dormantGarden: DormantGardenData | null
   hauntedThreshold: HauntedThresholdData | null
+  resonance: ResonanceData | null
 }
 
 export const DeepTimePhase = {
