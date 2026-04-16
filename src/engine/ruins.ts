@@ -1,6 +1,6 @@
 import { CHARACTER_DEFINITIONS } from './characters'
 import { BUILDING_CHARS, CIV_COLORS, TILE_CHARS, TILE_COLORS } from './constants'
-import { transitionCoyoteToZone } from './coyote'
+import { findCoyoteEntity, transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { posKey, tileHash } from './position'
@@ -1007,6 +1007,7 @@ export const tickSubsidenceCollapse = (state: GameState, dt: number): void => {
 
   // Collapse tiles below the current threshold
   let playerDisplaced = false
+  const collapsedPositions = new Set<string>()
   const { map, mapWidth, mapHeight } = interior
 
   for (const [key, integrity] of sub.structuralIntegrity) {
@@ -1022,9 +1023,7 @@ export const tickSubsidenceCollapse = (state: GameState, dt: number): void => {
     // Collapse this tile to rubble
     map[ty][tx] = { type: TileType.RuinWall }
     sub.structuralIntegrity.delete(key)
-
-    // Destroy any seed entities at this position
-    // (seed spawning will be wired in when ECS ground items are placed)
+    collapsedPositions.add(key)
 
     // Check if player is on this tile
     if (state.player.x === tx && state.player.y === ty) {
@@ -1042,6 +1041,18 @@ export const tickSubsidenceCollapse = (state: GameState, dt: number): void => {
       // No walkable tile found — eject to overworld
       exitRuin(state)
       return
+    }
+  }
+
+  // Displace coyote if standing on a collapsed tile
+  const coyoteEid = findCoyoteEntity(state)
+  if (coyoteEid !== null) {
+    const coyotePos = state.world.getComponent(coyoteEid, ComponentType.Position)
+    if (coyotePos && collapsedPositions.has(posKey(coyotePos.x, coyotePos.y))) {
+      const safe = findNearestWalkable(map, mapWidth, mapHeight, coyotePos.x, coyotePos.y)
+      if (safe) {
+        state.world.moveEntity(coyoteEid, safe.x, safe.y)
+      }
     }
   }
 
