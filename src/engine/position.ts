@@ -42,4 +42,7 @@ export const tileHash = (x: number, y: number): number => {
 }
 
 export const isWalkableTile = (tileType: TileType): boolean =>
-  tileType !== TileType.Space && tileType !== TileType.CaveWall && tileType !== TileType.CaveBreakableWall
+  tileType !== TileType.Space &&
+  tileType !== TileType.CaveWall &&
+  tileType !== TileType.CaveBreakableWall &&
+  tileType !== TileType.RuinWall

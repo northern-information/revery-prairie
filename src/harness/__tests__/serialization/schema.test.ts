@@ -97,6 +97,8 @@ const EXPECTED_FIELDS = [
   'coyoteMode',
   'coyoteCargo',
   'coyotePath',
+  'ruinInteriors',
+  'currentRuinIndex',
   'devPanelOpen',
   'devPaintPreview',
   'devEntityPreview',

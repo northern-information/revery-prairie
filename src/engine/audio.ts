@@ -3,6 +3,7 @@ import { Zone } from './types'
 export const ZONE_MUSIC: Record<Zone, string> = {
   [Zone.Overworld]: '/music/overworld.mp3',
   [Zone.Cave]: '/music/cave.mp3',
+  [Zone.Ruin]: '/music/cave.mp3', // TODO: ruin-specific ambient track
 }
 
 const FADE_MS = 300

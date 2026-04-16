@@ -84,6 +84,13 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'event:angel-canto': { lore: 'TODO' },
   // Recipes
   'recipe:bee+clover': { lore: 'TODO' },
+  // Seeds
+  'item:wildflowerSeeds': { lore: 'TODO' },
+  'item:tallGrassSeeds': { lore: 'TODO' },
+  'item:milkweedSeeds': { lore: 'TODO' },
+  // Artifacts
+  'item:stoneTablet': { lore: 'TODO' },
+  'item:aqueductKey': { lore: 'TODO' },
 }
 
 // --- Category mapping ---
@@ -98,7 +105,10 @@ const itemCategoryToManualCategory = (cat: ItemCategory): ManualCategory => {
       return ManualCategory.Celestial
     case ItemCategory.Tool:
     case ItemCategory.Gizmo:
+    case ItemCategory.Artifact:
       return ManualCategory.Object
+    case ItemCategory.Seed:
+      return ManualCategory.Flora
     default:
       return ManualCategory.Object
   }

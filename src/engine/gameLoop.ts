@@ -35,6 +35,7 @@ import { spawnLightningStrike, tickLightning } from './lightning'
 import { movePlayer, tickPath } from './movement'
 import { getReveryDefinition } from './reveries'
 import { tickTileWater } from './tileWater'
+import { tickSubsidenceCollapse } from './ruins'
 import { DeepTimePhase, Zone } from './types'
 import { tickRainIntensity, tickWeather } from './weather'
 
@@ -43,7 +44,7 @@ import type { GameState } from './types'
 export interface TickSystem {
   id: string
   intervalMs: number
-  zone: 'overworld' | 'cave' | 'always'
+  zone: 'overworld' | 'cave' | 'ruin' | 'always'
   /** Which game phase this system runs in. Defaults to 'gameplay'. */
   phase?: 'genesis' | 'gameplay' | 'always'
   priority?: number
@@ -511,6 +512,14 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         }
       })(),
     },
+    {
+      id: 'ruin-subsidence',
+      intervalMs: 500,
+      zone: 'ruin',
+      fn: (state: GameState, _time: number) => {
+        tickSubsidenceCollapse(state, 500)
+      },
+    },
   ]
 }
 
@@ -563,8 +572,13 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
         // For zone-specific systems, temporarily swap state.map to that
         // zone's map so tick functions read the correct terrain.
         // 'always' systems use the current zone's map as-is.
+        // Ruin ticks only run when the player is inside a ruin — skip otherwise.
+        // No map swap needed because the active map is already the ruin map.
+        if (entry.system.zone === 'ruin' && state.currentZone !== Zone.Ruin) continue
+
         const needsSwap =
           entry.system.zone !== 'always' &&
+          entry.system.zone !== 'ruin' &&
           ((entry.system.zone === 'overworld' && state.currentZone !== Zone.Overworld) ||
             (entry.system.zone === 'cave' && state.currentZone !== Zone.Cave))
 

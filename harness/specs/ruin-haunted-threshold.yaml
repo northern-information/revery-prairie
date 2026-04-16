@@ -1,0 +1,164 @@
+id: ruin-haunted-threshold
+name: 'Ruin archetype: haunted threshold'
+status: planned
+priority: medium
+layer: engine
+source_files:
+  - src/engine/ruins.ts
+  - src/engine/types.ts
+  - src/engine/characters.ts
+  - src/engine/interaction.ts
+  - src/engine/entities.ts
+  - src/engine/renderer.ts
+  - src/engine/manual.ts
+dependencies:
+  - ruin-infrastructure
+  - ghosts
+
+behaviors:
+  - id: haunted-threshold-data
+    description: >
+      HauntedThresholdData interface stores: rooms (array of { center,
+      width, height }), ghostFormations (array of { positions, wantedItems,
+      satisfied } where satisfied is boolean[] tracking per-ghost state),
+      innerChamber (Position[] of floor tiles in final chamber),
+      artifactPosition (Position of reward item).
+    inputs:
+      - 'ruin generation with HauntedThreshold archetype'
+    outputs:
+      - 'HauntedThresholdData populated on RuinInterior.archetypeData'
+    state_changes: []
+    determinism: deterministic
+
+  - id: haunted-threshold-generation
+    description: >
+      generateHauntedThreshold creates 3-5 rooms (5x5 to 7x7)
+      connected by narrow 2-tile-wide corridors arranged roughly
+      north from the entrance with lateral offsets. room count scales
+      with ruin radius. each corridor has a chokepoint: 2-4 ghost
+      positions spanning the corridor width forming an impassable
+      wall. 1-2 ambient ground items placed in each room. a 6x4
+      inner chamber carved behind the last room connected by a single
+      1-tile-wide doorway. artifact ground item placed in the inner
+      chamber.
+    inputs:
+      - 'CivilizationRuin with HauntedThreshold archetype, seeded rng'
+    outputs:
+      - 'RuinInterior with rooms, corridors, ghost formations, inner chamber'
+    state_changes: []
+    determinism: deterministic
+
+  - id: guardian-ghost-spawning
+    description: >
+      ghost entities created at each formation position during
+      createGameState with EntityZone { zone: Zone.Ruin, ruinIndex }.
+      each ghost gets a CharacterIdentity pointing to a ruin-specific
+      character definition. low drift moveChance (0.03) so they mostly
+      hold formation. freezeOnDialog: true. Blocking component makes
+      them impassable.
+    inputs:
+      - 'createGameState processing haunted threshold ruins'
+    outputs:
+      - 'ghost ECS entities at formation positions'
+    state_changes:
+      - field: world
+        effect: 'ghost entities created with Position, CharacterIdentity, Blocking, Behavior, EntityTag, EntityZone'
+    determinism: deterministic
+
+  - id: guardian-ghost-definitions
+    description: >
+      per-ruin ghost character definitions registered in characters.ts.
+      each ghost has a dialog array with memory-fragment lines hinting
+      at the wanted item. examples: 'I remember fields of green...'
+      hints at clover. 'we measured the heavens for signs...' hints
+      at meteorite. 'the sweetness... I can almost taste it...' hints
+      at honey. dialog fragments are seeded from position hash for
+      variety. gift field is null (ghosts receive, not give).
+      postGiftDialog contains a peaceful resolution line.
+    inputs:
+      - 'character definition lookup for ruin ghost'
+    outputs:
+      - 'dialog tree with hint toward wanted item'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ghost-offering-mechanic
+    description: >
+      dropping the correct item (via [x] key) adjacent to a guardian
+      ghost satisfies it. the ghost absorbs the item (item entity
+      destroyed), the corresponding satisfied[] entry becomes true,
+      and the ghost's Blocking component is removed. the ghost's
+      drift moveChance increases to 0.15 so it wanders away from its
+      post. the ghost's dialog switches to postGiftDialog. dropping
+      the wrong item does nothing — item stays on the ground.
+    inputs:
+      - 'player drops item adjacent to guardian ghost'
+    outputs:
+      - 'if correct: ghost steps aside, item consumed. if wrong: no effect'
+    state_changes:
+      - field: world
+        effect: 'item entity destroyed, ghost Blocking component removed, drift updated'
+    determinism: deterministic
+
+  - id: formation-cleared
+    description: >
+      when all ghosts in a formation have satisfied[] set to true,
+      the corridor between rooms is fully open. pathfinding
+      automatically recognizes the cleared path since blocking
+      entities are removed. a discovery is recorded for the formation.
+    inputs:
+      - 'last ghost in a formation satisfied'
+    outputs:
+      - 'corridor passable, discovery recorded'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'event:ruin-formation-{index} recorded'
+    determinism: deterministic
+
+  - id: haunted-threshold-multilayer-visuals
+    description: >
+      rooms rendered with denser floor layering suggesting preserved
+      architecture. corridors are narrow with 1-2 layers creating
+      claustrophobic feel. ghost formation areas have subtle cold
+      blue-gray background tint behind ghost glyphs. inner chamber
+      has richest layering: 3 layers of building chars suggesting
+      the civilization's heart.
+    inputs:
+      - 'renderer drawing haunted threshold ruin tiles'
+    outputs:
+      - 'multilayer ASCII with atmospheric tinting for ghost areas'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: offer-correct-item-not-adjacent
+    description: 'player drops correct item but more than 1 tile away from ghost'
+    expected: 'item drops to ground normally, ghost is not satisfied'
+
+  - id: inventory-too-full-for-items
+    description: 'player picks up ambient room items and has no room for offering items'
+    expected: 'player must make space or make multiple trips'
+
+  - id: ghost-wanders-after-satisfied
+    description: 'satisfied ghost wanders into another formation corridor'
+    expected: 'ghost no longer has Blocking component so it does not obstruct'
+
+  - id: all-formations-satisfied-but-inner-door-blocked
+    description: 'inner chamber doorway has no ghost but is only 1 tile wide'
+    expected: 'player can walk through 1-wide doorway normally'
+
+  - id: reenter-haunted-threshold
+    description: 'player exits and re-enters a haunted threshold ruin'
+    expected: 'ghost satisfaction state preserved — already cleared formations stay clear'
+
+failure_conditions:
+  - trigger: 'player drops item type that no ghost in the ruin wants'
+    expected: 'item sits on ground, can be picked back up'
+
+  - trigger: 'ghost definition not found for ruin ghost characterId'
+    expected: 'fallback to generic ghost dialog, no wanted item, ghost cannot be satisfied'
+
+verification:
+  test_file: src/engine/__tests__/ruin-haunted-threshold.test.ts
+  test_pattern: 'ruin haunted threshold'
+  command: 'npx vitest run src/engine/__tests__/ruin-haunted-threshold.test.ts'
