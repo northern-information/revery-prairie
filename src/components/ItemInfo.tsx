@@ -3,6 +3,7 @@ import { SectionHeader } from './PanelPrimitives'
 
 import { COIN_DULL_COLOR, COIN_GLINTING_COLOR } from '@/engine/constants'
 import { getDefinition, ITEM_DEFINITIONS } from '@/engine/items'
+import { getLore } from '@/engine/manual'
 import type { ItemDefinition } from '@/engine/types'
 
 export interface ItemInfoHandle {
@@ -63,7 +64,7 @@ export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoi
             <span className="text-muted">category</span>
             <span className="">{item.category}</span>
           </div>
-          <div className="mb-1 flex items-baseline justify-between">{item.description}</div>
+          <div className="mb-1 flex items-baseline justify-between">{getLore(`item:${item.id}`)}</div>
           {isCoin && (
             <div className="mt-1" style={{ color: isGlinting ? COIN_GLINTING_COLOR : COIN_DULL_COLOR }}>
               {isGlinting ? 'it glints in the light.' : 'the shine has faded.'}

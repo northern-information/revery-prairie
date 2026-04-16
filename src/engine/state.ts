@@ -12,6 +12,7 @@ import { autoSort, placeItem } from './inventory'
 import { createBackpack } from './items'
 import { isInBounds, isWalkableTile, posKey } from './position'
 import { buildWaterProximity } from './tileWater'
+import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
 import { CoyoteMode, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 
@@ -175,6 +176,8 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     coyoteMode: CoyoteMode.Follow,
     coyoteCargo: null,
     coyotePath: null,
+    ruinInteriors: generateAllRuinInteriors(genesisData.ruins),
+    currentRuinIndex: null,
     devPanelOpen: false,
     devPaintPreview: null,
     devEntityPreview: null,
@@ -196,6 +199,9 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
 
   // Build water proximity map for passive seepage near ponds/rivers
   buildWaterProximity(state)
+
+  // Place ruin entrances on the overworld
+  placeRuinEntrances(map, state.ruinInteriors)
 
   // Place Gron near the player
   if (map[gronY][gronX].type !== TileType.Dirt && map[gronY][gronX].type !== TileType.Clover) {

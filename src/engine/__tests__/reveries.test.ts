@@ -33,7 +33,6 @@ describe('revery registry', () => {
   it('earth revery has correct fields', () => {
     const earth = REVERY_DEFINITIONS.earth
     expect(earth.name).toBe('Earth Revery')
-    expect(earth.description).toBe('a memory of the land beneath')
     expect(earth.castStyle).toBe('scan')
     expect(earth.castDurationMs).toBe(5500)
     expect(earth.castPattern).toEqual([])

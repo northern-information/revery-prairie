@@ -1,5 +1,6 @@
 import { transitionCoyoteToZone } from './coyote'
 import { recordDiscovery } from './manual'
+import { checkRuinTransition } from './ruins'
 import { TileType, Zone } from './types'
 
 import type { GameState, Position, Tile } from './types'
@@ -227,14 +228,19 @@ export const exitCave = (state: GameState): void => {
 
 export const checkTransition = (state: GameState): boolean => {
   const tileType = state.map[state.player.y]?.[state.player.x]?.type
-  if (tileType !== TileType.CaveEntrance) return false
 
-  if (state.currentZone === Zone.Overworld) {
-    enterCave(state)
-    return true
-  } else if (state.currentZone === Zone.Cave) {
-    exitCave(state)
-    return true
+  if (tileType === TileType.CaveEntrance) {
+    if (state.currentZone === Zone.Overworld) {
+      enterCave(state)
+      return true
+    } else if (state.currentZone === Zone.Cave) {
+      exitCave(state)
+      return true
+    }
+  }
+
+  if (tileType === TileType.RuinEntrance) {
+    return checkRuinTransition(state)
   }
 
   return false

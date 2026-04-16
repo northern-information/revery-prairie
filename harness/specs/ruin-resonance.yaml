@@ -1,0 +1,195 @@
+id: ruin-resonance
+name: 'Ruin archetype: resonance'
+status: planned
+priority: medium
+layer: engine
+source_files:
+  - src/engine/ruins.ts
+  - src/engine/types.ts
+  - src/engine/constants.ts
+  - src/engine/position.ts
+  - src/engine/renderer.ts
+  - src/engine/gameLoop.ts
+  - src/engine/actionBar.ts
+dependencies:
+  - ruin-infrastructure
+
+behaviors:
+  - id: resonance-data
+    description: >
+      ResonanceData interface stores: machinePositions (Position[]),
+      machineActiveUntil (Map of posKey to deactivation timestamp),
+      activationDurationMs (approximately 8000ms per machine),
+      hiddenTiles (Set of posKeys rendered as wall until revealed),
+      vaultPosition (Position of hidden vault center), vaultRevealed
+      (boolean, true when all machines activated simultaneously),
+      revealedTiles (Set of posKeys permanently revealed).
+    inputs:
+      - 'ruin generation with Resonance archetype'
+    outputs:
+      - 'ResonanceData populated on RuinInterior.archetypeData'
+    state_changes: []
+    determinism: deterministic
+
+  - id: resonance-generation
+    description: >
+      generateResonance carves a medium main chamber (10x10 to 14x14)
+      accessible from entrance via a short corridor. 2-3 hidden
+      passages branch off the main chamber, carved as RuinHiddenFloor
+      tiles. 3-5 RuinMachine tiles placed in main chamber walls
+      adjacent to walkable floor tiles. Manhattan distance between
+      consecutive machines is 4-8 tiles, requiring sprint to chain.
+      a hidden 4x4 vault room carved at the end of one hidden passage.
+      all hidden passage and vault floor tiles added to hiddenTiles set.
+    inputs:
+      - 'CivilizationRuin with Resonance archetype, seeded rng'
+    outputs:
+      - 'RuinInterior with chamber, machines, hidden passages, vault'
+    state_changes: []
+    determinism: deterministic
+
+  - id: machine-tile-types
+    description: >
+      TileType gains RuinMachine ('ruinMachine'), RuinMachineActive
+      ('ruinMachineActive'), and RuinHiddenFloor ('ruinHiddenFloor').
+      RuinMachine and RuinMachineActive are non-walkable (embedded
+      in walls). RuinHiddenFloor is walkable but rendered as RuinWall
+      when in the hiddenTiles set. RuinMachine: glyph lightning bolt,
+      copper #B87333. RuinMachineActive: glyph lightning bolt, bright
+      gold #FFD700.
+    inputs:
+      - 'tile rendering and walkability checks'
+    outputs:
+      - 'three new tile types for resonance archetype'
+    state_changes: []
+    determinism: deterministic
+
+  - id: lightning-machine-activation
+    description: >
+      casting lightning revery targeting a RuinMachine tile activates
+      it. tile type changes from RuinMachine to RuinMachineActive.
+      machineActiveUntil is set to current time + activationDurationMs.
+      hidden tiles within radius 4 of the machine become temporarily
+      visible (rendered as their actual type instead of RuinWall) but
+      are not added to revealedTiles. standard 15s lightning revery
+      cooldown applies.
+    inputs:
+      - 'lightning revery targeted at RuinMachine tile'
+    outputs:
+      - 'machine activated, nearby hidden tiles temporarily visible'
+    state_changes:
+      - field: map
+        effect: 'RuinMachine becomes RuinMachineActive'
+    determinism: deterministic
+
+  - id: machine-deactivation-tick
+    description: >
+      ruin-resonance tick system (zone: 'ruin', interval 200ms). only
+      runs when current ruin archetype is Resonance. checks each
+      active machine: if current time exceeds machineActiveUntil for
+      that position, reverts tile from RuinMachineActive to RuinMachine
+      and removes from active map. temporary visibility for nearby
+      tiles is removed.
+    inputs:
+      - 'tick fires every 200ms while player is in resonance ruin'
+    outputs:
+      - 'expired machines deactivate, temporary visibility removed'
+    state_changes:
+      - field: map
+        effect: 'RuinMachineActive reverts to RuinMachine'
+    determinism: time-based
+
+  - id: all-machines-activated
+    description: >
+      when all machines in machinePositions are simultaneously active
+      (all have machineActiveUntil > current time), vaultRevealed is
+      set to true. all tiles in hiddenTiles are moved to revealedTiles
+      permanently. hidden passages and vault become permanently visible
+      and accessible. a discovery is recorded. machines stay active
+      and do not deactivate.
+    inputs:
+      - 'last machine activated while all others still active'
+    outputs:
+      - 'vault permanently revealed, all hidden tiles visible'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'event:ruin-resonance-vault recorded'
+    determinism: deterministic
+
+  - id: hidden-tile-rendering
+    description: >
+      tiles in hiddenTiles minus revealedTiles are rendered as
+      RuinWall regardless of their actual tile type. tiles in
+      revealedTiles render as their actual type. temporarily visible
+      tiles (near active machines) also render as their actual type
+      for the duration of machine activation. pathfinding treats
+      hidden walkable tiles as blocked until they are in revealedTiles
+      or temporarily visible.
+    inputs:
+      - 'renderer drawing resonance ruin tiles'
+    outputs:
+      - 'hidden architecture only visible near active machines or after vault reveal'
+    state_changes: []
+    determinism: deterministic
+
+  - id: earth-revery-machine-reveal
+    description: >
+      when earth revery is cast inside a Resonance ruin, the scan
+      visualization reveals machine positions through walls as glowing
+      dots. this allows the player to plan their activation route
+      before committing.
+    inputs:
+      - 'earth revery cast while in resonance ruin'
+    outputs:
+      - 'machine positions visible through walls during scan'
+    state_changes: []
+    determinism: deterministic
+
+  - id: resonance-multilayer-visuals
+    description: >
+      main chamber rendered with 2-layer floor with debris and 2-3
+      layer walls matching genesis building style. machine tiles have
+      copper glyph with pulsing secondary layer (alternating chars
+      based on time). hidden architecture reveal shows a brief flash
+      effect with bright glyph layers on transition from hidden to
+      visible. vault has densest layering representing the preserved
+      heart of the machine room.
+    inputs:
+      - 'renderer drawing resonance ruin tiles'
+    outputs:
+      - 'multilayer ASCII with animated machine pulses'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: machine-deactivates-during-sprint
+    description: 'first machine deactivates while player sprints toward second'
+    expected: 'chain fails, temporary visibility removed, player must retry'
+
+  - id: vault-already-revealed-on-reentry
+    description: 'player exits and re-enters a resonance ruin after vault reveal'
+    expected: 'vaultRevealed persists, all tiles permanently visible, machines stay active'
+
+  - id: lightning-on-non-machine-wall
+    description: 'player targets lightning at regular RuinWall instead of machine'
+    expected: 'standard lightning strike effect, no machine activation'
+
+  - id: hidden-floor-movement
+    description: 'player tries to walk onto a hidden walkable tile that is not yet revealed'
+    expected: 'movement blocked — hidden tiles treated as walls for pathfinding and movement until revealed'
+
+  - id: all-machines-active-but-player-walks-away
+    description: 'vault reveals while player is far from vault'
+    expected: 'reveal is permanent regardless of player position'
+
+failure_conditions:
+  - trigger: 'lightning revery on cooldown when player reaches next machine'
+    expected: 'player must wait for cooldown, earlier machine may deactivate — puzzle requires routing optimization'
+
+  - trigger: 'no path exists from machine to machine due to hidden walls'
+    expected: 'machines always adjacent to main chamber floor — path always exists through main chamber'
+
+verification:
+  test_file: src/engine/__tests__/ruin-resonance.test.ts
+  test_pattern: 'ruin resonance'
+  command: 'npx vitest run src/engine/__tests__/ruin-resonance.test.ts'

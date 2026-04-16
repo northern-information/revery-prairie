@@ -83,7 +83,7 @@ failure_conditions:
   - trigger: 'a bare id (no colon) appears in MANUAL_ENTRIES keys for non-control entries'
     expected: 'test fails — all non-control entries must have sourceKind: prefix'
   - trigger: 'MANUAL_LORE key does not match the entry id it is intended for'
-    expected: 'lore silently falls through to description/summary default — detectable by checking all MANUAL_LORE keys exist in MANUAL_ENTRIES'
+    expected: 'lore silently falls through to name default — detectable by checking all MANUAL_LORE keys exist in MANUAL_ENTRIES'
 
 # NOTE: crossref-display-stripping behavior (ManualPanel.tsx regex) has
 # no component test coverage. ManualPanel.test.tsx exists but does not

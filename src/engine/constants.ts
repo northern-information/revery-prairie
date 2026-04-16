@@ -27,6 +27,10 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.CaveWall]: '#',
   [TileType.CaveBreakableWall]: '#',
   [TileType.CaveEntrance]: 'O',
+  [TileType.RuinFloor]: '.',
+  [TileType.RuinWall]: '#',
+  [TileType.RuinEntrance]: 'O',
+  [TileType.RuinUnstable]: '.',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -39,7 +43,15 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.CaveWall]: '#444444',
   [TileType.CaveBreakableWall]: '#997755',
   [TileType.CaveEntrance]: '#AAAAAA',
+  [TileType.RuinFloor]: '#7A7A6E',
+  [TileType.RuinWall]: '#555555',
+  [TileType.RuinEntrance]: '#C9A040',
+  [TileType.RuinUnstable]: '#8B6E5E',
 }
+
+// Ruin visual palette — shared with genesis civilization rendering
+export const BUILDING_CHARS = ['▓', '▒', '░', '█', '#', '+', 'H', 'T', '=']
+export const CIV_COLORS = ['#666', '#777', '#888', '#999', '#AAA']
 
 // shooting stars
 export const SHOOTING_STAR_TICK_MS = 80

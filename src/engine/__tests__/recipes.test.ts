@@ -56,7 +56,6 @@ describe('combineIcon', () => {
       kind: RecipeKind.Craft,
       resultName: 'test',
       resultIcon: 'X',
-      description: 'test recipe',
       execute: () => true,
     }
     expect(combineIcon(craftRecipe, true)).toBe('X')
@@ -67,7 +66,6 @@ describe('combineIcon', () => {
       ingredients: ['a', 'b'],
       kind: RecipeKind.Craft,
       resultName: 'test',
-      description: 'test recipe',
       execute: () => true,
     }
     expect(combineIcon(craftRecipe, true)).toBe('!')

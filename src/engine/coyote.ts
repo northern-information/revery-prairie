@@ -315,7 +315,7 @@ const tickCollect = (
 }
 
 /** Teleport coyote to adjacent tile in a new zone after cave transition. */
-export const transitionCoyoteToZone = (state: GameState, zone: typeof Zone.Overworld | typeof Zone.Cave): void => {
+export const transitionCoyoteToZone = (state: GameState, zone: Zone): void => {
   // Find coyote in any zone
   for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)

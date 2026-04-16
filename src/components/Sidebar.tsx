@@ -276,6 +276,10 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                       if (tileType === TileType.CaveFloor) return 'dirt'
                       if (tileType === TileType.CaveEntrance) return 'cave entrance'
                       if (tileType === TileType.BurntClover) return 'burnt clover'
+                      if (tileType === TileType.RuinFloor) return 'ruin floor'
+                      if (tileType === TileType.RuinWall) return 'ruin wall'
+                      if (tileType === TileType.RuinEntrance) return 'ruin entrance'
+                      if (tileType === TileType.RuinUnstable) return 'unstable floor'
                       return tileType ?? 'void'
                     })()}
                   </td>

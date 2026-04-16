@@ -11,6 +11,10 @@ export const TileType = {
   CaveWall: 'caveWall',
   CaveBreakableWall: 'caveBreakableWall',
   CaveEntrance: 'caveEntrance',
+  RuinFloor: 'ruinFloor',
+  RuinWall: 'ruinWall',
+  RuinEntrance: 'ruinEntrance',
+  RuinUnstable: 'ruinUnstable',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
@@ -36,6 +40,8 @@ export const ItemCategory = {
   Tool: 'tool',
   CelestialDebris: 'celestial debris',
   Gizmo: 'gizmo',
+  Seed: 'seed',
+  Artifact: 'artifact',
 } as const
 
 export type ItemCategory = (typeof ItemCategory)[keyof typeof ItemCategory]
@@ -43,7 +49,6 @@ export type ItemCategory = (typeof ItemCategory)[keyof typeof ItemCategory]
 export interface ItemDefinition {
   id: string
   name: string
-  description: string
   glyph: string
   glyphColor: string
   category: ItemCategory
@@ -99,7 +104,6 @@ export interface CharacterDefinition {
 export interface ReveryDefinition {
   id: string
   name: string
-  description: string
   glyphs: string[]
   glyphColor: string
   cooldownMs: number
@@ -217,6 +221,8 @@ export interface GameState {
   coyoteMode: CoyoteMode
   coyoteCargo: string | null
   coyotePath: Position[] | null
+  ruinInteriors: RuinInterior[]
+  currentRuinIndex: number | null
   devPanelOpen: boolean
   devPaintPreview: { x1: number; y1: number; x2: number; y2: number; tileType: string } | null
   devEntityPreview: { x: number; y: number; char: string; color: string } | null
@@ -289,9 +295,41 @@ export type Direction = 'up' | 'down' | 'left' | 'right'
 export const Zone = {
   Overworld: 'overworld',
   Cave: 'cave',
+  Ruin: 'ruin',
 } as const
 
 export type Zone = (typeof Zone)[keyof typeof Zone]
+
+export const RuinArchetype = {
+  Subsidence: 'subsidence',
+  DormantGarden: 'dormantGarden',
+  HauntedThreshold: 'hauntedThreshold',
+  Resonance: 'resonance',
+} as const
+
+export type RuinArchetype = (typeof RuinArchetype)[keyof typeof RuinArchetype]
+
+export interface SubsidenceData {
+  structuralIntegrity: Map<string, number>
+  collapseTimer: number
+  collapseRate: number
+  seedPositions: Position[]
+  collapsed: boolean
+}
+
+export interface RuinInterior {
+  ruinIndex: number
+  archetype: RuinArchetype
+  name: string
+  map: Tile[][]
+  mapWidth: number
+  mapHeight: number
+  entranceOverworld: Position
+  entranceInterior: Position
+  explored: boolean
+  cleared: boolean
+  subsidence: SubsidenceData | null
+}
 
 export const DeepTimePhase = {
   Burning: 'burning',

@@ -36,7 +36,6 @@ describe('ITEM_DEFINITIONS', () => {
   it('all entries have required fields', () => {
     for (const def of Object.values(ITEM_DEFINITIONS)) {
       expect(def.name).toBeTruthy()
-      expect(def.description).toBeTruthy()
       expect(def.glyph).toBeTruthy()
       expect(def.glyphColor).toBeTruthy()
       expect(def.category).toBeTruthy()

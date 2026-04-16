@@ -55,7 +55,7 @@ export interface ComponentDataMap {
     branch: { x: number; y: number }[] | null
   }
   [ComponentType.EntityTag]: string
-  [ComponentType.EntityZone]: { zone: Zone }
+  [ComponentType.EntityZone]: { zone: Zone; ruinIndex?: number }
   [ComponentType.HungerTimer]: { hungerMs: number }
   [ComponentType.AngelData]: {
     auraKind: 'rain' | 'bees' | 'clover'

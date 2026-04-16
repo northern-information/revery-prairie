@@ -2,7 +2,6 @@ import type { Position, ReveryDefinition } from './types'
 
 interface ReveryEntry {
   name: string
-  description: string
   glyphs: string[]
   glyphColor: string
   cooldownMs: number
@@ -25,7 +24,6 @@ const SINGLE_PATTERN: Position[] = [{ x: 0, y: 0 }]
 const REVERIES = {
   fire: {
     name: 'Fire Revery',
-    description: 'a memory of flame',
     glyphs: ['^', '~', '*'],
     glyphColor: '#FF4500',
     cooldownMs: 12000,
@@ -35,7 +33,6 @@ const REVERIES = {
   },
   water: {
     name: 'Water Revery',
-    description: 'a memory of flowing water',
     glyphs: ['|', ':', '.', ','],
     glyphColor: '#4488CC',
     cooldownMs: 12000,
@@ -45,7 +42,6 @@ const REVERIES = {
   },
   earth: {
     name: 'Earth Revery',
-    description: 'a memory of the land beneath',
     glyphs: ['.'],
     glyphColor: '#33CC33',
     cooldownMs: 6000,
@@ -55,7 +51,6 @@ const REVERIES = {
   },
   lightning: {
     name: 'Lightning Revery',
-    description: 'a memory of the storm',
     glyphs: ['|'],
     glyphColor: '#FFFFFF',
     cooldownMs: 15000,
@@ -65,7 +60,6 @@ const REVERIES = {
   },
   'deep-time': {
     name: 'Deep Time Revery',
-    description: 'a memory of deep time',
     glyphs: ['⧖', '◷', '∞'],
     glyphColor: '#FFFFFF',
     cooldownMs: Infinity,
@@ -76,7 +70,7 @@ const REVERIES = {
 } as const satisfies Record<string, ReveryEntry>
 
 export const REVERY_DEFINITIONS: Record<string, ReveryDefinition> = Object.fromEntries(
-  Object.entries(REVERIES).map(([key, entry]) => [key, { ...entry, id: key }])
+  Object.entries(REVERIES).map(([key, entry]) => [key, { ...entry, id: key }]),
 )
 
 export const getReveryDefinition = (id: string): ReveryDefinition => {

@@ -26,8 +26,8 @@ describe('fixture: recipe definitions', () => {
         expect(['macro', 'craft']).toContain(recipe.kind)
       })
 
-      it('has a non-empty description', () => {
-        expect(recipe.description.length).toBeGreaterThan(0)
+      it('has a non-empty result name', () => {
+        expect(recipe.resultName.length).toBeGreaterThan(0)
       })
     })
   }

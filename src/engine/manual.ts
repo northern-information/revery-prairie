@@ -39,7 +39,6 @@ export interface ManualEntry {
   category: ManualCategory
   glyph: string
   glyphColor: string
-  summary: string
   lore: string
   hints: ManualHint[]
   crossRefs?: string[]
@@ -56,10 +55,16 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'item:meteorite': { lore: 'TODO' },
   'item:honey': { lore: 'TODO' },
   'item:coin': { lore: 'TODO' },
+  'item:wildflowerSeeds': { lore: 'TODO' },
+  'item:tallGrassSeeds': { lore: 'TODO' },
+  'item:milkweedSeeds': { lore: 'TODO' },
+  'item:stoneTablet': { lore: 'TODO' },
+  'item:aqueductKey': { lore: 'TODO' },
   // Reveries
   'revery:fire': { lore: 'TODO' },
   'revery:water': { lore: 'TODO' },
   'revery:earth': { lore: 'TODO' },
+  'revery:lightning': { lore: 'TODO' },
   'revery:deep-time': { lore: 'TODO' },
   // World entities
   'entity:beehive': { lore: 'TODO' },
@@ -68,23 +73,34 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'character:moab': { lore: 'TODO' },
   'character:ghosts': { lore: 'TODO' },
   'character:coyote': { lore: 'TODO' },
-  // Weather events
+  // Recipes
+  'recipe:bee+clover': {
+    lore: [
+      'to make a prairie it takes a clover and one bee,',
+      'one clover, and a bee.',
+      '',
+      'and revery.',
+      'the revery alone will do,',
+      'if bees are few.',
+      '',
+      '— emily dickinson',
+    ].join('\n'),
+  },
+  // Events
   'event:lightning-strike': { lore: 'TODO' },
   'event:wildfire': { lore: 'TODO' },
   'event:lightning-attraction': { lore: 'TODO' },
   'event:lightning-revery': { lore: 'TODO' },
-  'revery:lightning': { lore: 'TODO' },
-  // Glinting zones
   'event:glint-zone': { lore: 'TODO' },
-  // Deep time
   'event:deep-time': { lore: 'TODO' },
   'event:gron-deep-time': { lore: 'TODO' },
-  // Angels
   'event:angel': { lore: 'TODO' },
   'event:angel-canto': { lore: 'TODO' },
-  // Recipes
-  'recipe:bee+clover': { lore: 'TODO' },
 }
+
+// --- Lore lookup for UI components ---
+
+export const getLore = (key: string): string => MANUAL_LORE[key]?.lore ?? ''
 
 // --- Category mapping ---
 
@@ -98,7 +114,10 @@ const itemCategoryToManualCategory = (cat: ItemCategory): ManualCategory => {
       return ManualCategory.Celestial
     case ItemCategory.Tool:
     case ItemCategory.Gizmo:
+    case ItemCategory.Artifact:
       return ManualCategory.Object
+    case ItemCategory.Seed:
+      return ManualCategory.Flora
     default:
       return ManualCategory.Object
   }
@@ -115,8 +134,7 @@ const buildItemEntries = (): ManualEntry[] =>
       category: itemCategoryToManualCategory(def.category),
       glyph: def.glyph,
       glyphColor: def.glyphColor,
-      summary: def.description,
-      lore: loreData?.lore ?? def.description,
+      lore: loreData?.lore ?? def.name,
       hints: loreData?.hints ?? [],
       unlockKey: `item:${def.id}`,
       sourceKind: 'item',
@@ -132,8 +150,7 @@ const buildReveryEntries = (): ManualEntry[] =>
       category: ManualCategory.Revery,
       glyph: def.glyphs[0],
       glyphColor: def.glyphColor,
-      summary: def.description,
-      lore: loreData?.lore ?? def.description,
+      lore: loreData?.lore ?? def.name,
       hints: loreData?.hints ?? [],
       unlockKey: `revery:${def.id}`,
       sourceKind: 'revery' as const,
@@ -151,8 +168,7 @@ const buildRecipeEntries = (): ManualEntry[] =>
       category: ManualCategory.Recipe,
       glyph: recipe.resultIcon ?? '!',
       glyphColor: '#ff69b4',
-      summary: recipe.description.split('\n')[0],
-      lore: loreData?.lore ?? recipe.description,
+      lore: loreData?.lore ?? recipe.resultName,
       hints: loreData?.hints ?? [],
       crossRefs: recipe.ingredients.map(id => `item:${id}`),
       unlockKey: `recipe:${key}`,
@@ -176,7 +192,6 @@ const buildCharacterEntries = (): ManualEntry[] => {
       category: ManualCategory.Person,
       glyph: def.glyph,
       glyphColor: def.glyphColor,
-      summary: loreData?.lore ?? def.name,
       lore: loreData?.lore ?? def.name,
       hints: loreData?.hints ?? [],
       unlockKey: `character:${def.id}`,
@@ -198,8 +213,7 @@ const buildWorldEntityEntries = (): ManualEntry[] =>
       category: def.category as ManualCategory,
       glyph: def.glyph,
       glyphColor: def.glyphColor,
-      summary: def.summary,
-      lore: loreData?.lore ?? def.summary,
+      lore: loreData?.lore ?? def.name,
       hints: loreData?.hints ?? [],
       unlockKey: def.unlockKey,
       sourceKind: 'entity' as const,
@@ -215,7 +229,6 @@ const buildControlEntries = (): ManualEntry[] =>
     category: ManualCategory.Control,
     glyph: '',
     glyphColor: '#ff69b4',
-    summary: kb.context ?? '',
     lore: kb.context ?? '',
     hints: [],
     unlockKey: 'always',
@@ -232,7 +245,6 @@ const buildGenesisEntry = (): ManualEntry => {
     category: ManualCategory.Zone,
     glyph: '~',
     glyphColor: '#FF4500',
-    summary: 'the geological history that shaped this land',
     lore:
       MANUAL_LORE['event:genesis']?.lore ??
       `before the prairie was a prairie, it was magma — and before that, void. ` +
@@ -272,7 +284,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Person,
     glyph: 'ö',
     glyphColor: '#FFFFFF',
-    summary: 'wandering spirits on the prairie',
     lore:
       MANUAL_LORE['character:ghosts']?.lore ??
       'three ghosts drift across the land. they move slowly and unpredictably. each has something to say if you stop to listen.',
@@ -286,7 +297,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Zone,
     glyph: TILE_CHARS[TileType.Dirt],
     glyphColor: TILE_COLORS[TileType.Dirt],
-    summary: 'a dirt island surrounded by stars',
     lore: MANUAL_LORE['zone:overworld']?.lore ?? 'a dirt island surrounded by stars. the land responds to care.',
     hints: MANUAL_LORE['zone:overworld']?.hints ?? [],
     unlockKey: 'always',
@@ -298,7 +308,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Zone,
     glyph: TILE_CHARS[TileType.CaveEntrance],
     glyphColor: TILE_COLORS[TileType.CaveEntrance],
-    summary: 'a dark passage beneath the land',
     lore:
       MANUAL_LORE['zone:cave']?.lore ??
       'a winding cave accessible through an entrance on the surface. corridors lead upward to a chamber.',
@@ -312,7 +321,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '*',
     glyphColor: '#FFFFFF',
-    summary: 'a streak of light across the sky',
     lore:
       MANUAL_LORE['event:shooting-star']?.lore ??
       'shooting stars appear randomly in the space around the prairie. most pass harmlessly, but some land as meteorites.',
@@ -326,7 +334,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '+',
     glyphColor: '#FFD700',
-    summary: 'a cascade of meteorite impacts',
     lore:
       MANUAL_LORE['event:chain-explosion']?.lore ??
       'when a meteorite is picked up, there is a chance it detonates, scattering more meteorites nearby. chain meteorites cannot trigger further chains.',
@@ -340,7 +347,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '*',
     glyphColor: '#FFD700',
-    summary: 'a burst of shooting stars raining down on the prairie',
     lore:
       MANUAL_LORE['event:meteor-shower']?.lore ??
       'occasionally the sky erupts with shooting stars, all streaking from the same direction. most land as meteorites scattered across the prairie.',
@@ -354,7 +360,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Flora,
     glyph: '%',
     glyphColor: '#90EE90',
-    summary: 'clover spreads across the prairie',
     lore:
       MANUAL_LORE['event:clover-growth']?.lore ??
       'when bees settle on a clover patch, the clover begins to grow in spiraling patterns across the dirt. the more bees tend a patch, the faster it spreads.',
@@ -368,7 +373,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Flora,
     glyph: '%',
     glyphColor: '#8B6914',
-    summary: 'clover withers without light and water',
     lore:
       MANUAL_LORE['event:clover-death']?.lore ??
       'clover needs both light and water to survive. without them it slowly browns, then blinks red in distress, turns black, and finally decomposes back into the earth — enriching the soil as it goes.',
@@ -382,7 +386,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Flora,
     glyph: '%',
     glyphColor: '#50C878',
-    summary: 'harvesting clover with [f]',
     lore:
       MANUAL_LORE['event:clover-harvest']?.lore ??
       'pressing [f] while facing clover harvests it into your backpack. the tile returns to bare dirt. harvested clover does not enrich the soil.',
@@ -396,7 +399,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Flora,
     glyph: '%',
     glyphColor: '#50C878',
-    summary: 'cutting clover with [x]',
     lore:
       MANUAL_LORE['event:clover-cut']?.lore ??
       'pressing [x] while facing clover cuts it down to bare dirt. unlike harvesting, cutting returns nutrients to the earth, enriching the soil.',
@@ -410,7 +412,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Object,
     glyph: '¤',
     glyphColor: COIN_GLINTING_COLOR,
-    summary: 'divination with three coins',
     lore:
       MANUAL_LORE['event:hexagram-cast']?.lore ??
       'three ancient coins, tossed six times. each toss builds a line — solid or broken, stable or changing. the hexagram that forms speaks in the language of the prairie. listen closely.',
@@ -430,7 +431,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '|',
     glyphColor: '#FFFFFF',
-    summary: 'a bolt from the sky',
     lore:
       MANUAL_LORE['event:lightning-strike']?.lore ??
       'lightning strikes the prairie during storms. rain, high humidity, and strong wind all increase the chance. the bolt is brief but unmistakable — the whole sky flashes white.',
@@ -445,7 +445,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Flora,
     glyph: '^',
     glyphColor: '#FF4500',
-    summary: 'fire spreads across dry clover',
     lore:
       MANUAL_LORE['event:wildfire']?.lore ??
       'when lightning strikes dry clover, fire spreads to neighboring patches. the drier the clover, the farther it burns. wet clover resists ignition. the fire enriches the soil as it passes.',
@@ -460,7 +459,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '|',
     glyphColor: '#E0E0FF',
-    summary: 'what draws lightning to a place',
     lore:
       MANUAL_LORE['event:lightning-attraction']?.lore ??
       'high ground draws lightning down from the clouds. water-soaked earth conducts the charge — tiles near ponds and rivers are struck more often. metal objects left on the ground act as conductors — meteorites attract bolts. a lone beehive standing in open dirt is a target — isolated tall features on flat terrain invite strikes. clover fields conduct slightly better than bare dirt.',
@@ -480,7 +478,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '|',
     glyphColor: '#FFFFFF',
-    summary: 'calling the storm down',
     lore:
       MANUAL_LORE['event:lightning-revery']?.lore ??
       'the lightning revery lets you choose where the bolt falls. press the hotkey to enter targeting mode, then click a tile within range. the strike follows the same rules as natural lightning — dry clover ignites, fire spreads, soil enriches.',
@@ -500,7 +497,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Zone,
     glyph: '\u2726',
     glyphColor: '#C9B037',
-    summary: 'patches of golden light on the prairie',
     lore:
       MANUAL_LORE['event:glint-zone']?.lore ??
       'TODO',
@@ -514,7 +510,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Revery,
     glyph: '⧖',
     glyphColor: '#FFFFFF',
-    summary: 'The final act of stewardship. A controlled burn followed by a millennium of observation.',
     lore:
       MANUAL_LORE['event:deep-time']?.lore ??
       'The final act of stewardship. A controlled burn followed by a millennium of observation.',
@@ -528,7 +523,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Person,
     glyph: 'G',
     glyphColor: '#FFFFFF',
-    summary: 'Gron speaks of the Deep Time revery and what it means to let go.',
     lore:
       MANUAL_LORE['event:gron-deep-time']?.lore ??
       'Gron speaks of the Deep Time revery and what it means to let go.',
@@ -542,7 +536,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: 'O',
     glyphColor: '#FFFFFF',
-    summary: 'a biblically accurate celestial being drifting across the prairie',
     lore: MANUAL_LORE['event:angel']?.lore ?? 'TODO',
     hints: MANUAL_LORE['event:angel']?.hints ?? [],
     unlockKey: 'event:angel',
@@ -555,7 +548,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '#',
     glyphColor: '#E8E8FF',
-    summary: 'a sha256 hash spoken by an angel',
     lore: MANUAL_LORE['event:angel-canto']?.lore ?? 'TODO',
     hints: MANUAL_LORE['event:angel-canto']?.hints ?? [],
     unlockKey: 'event:angel-canto',
@@ -604,7 +596,6 @@ export const filterManualEntries = (entries: ManualEntry[], query: string): Manu
   const q = query.toLowerCase()
   return entries.filter(e => {
     if (e.name.toLowerCase().includes(q)) return true
-    if (e.summary.toLowerCase().includes(q)) return true
     if (e.lore.toLowerCase().includes(q)) return true
     for (const hint of e.hints) {
       if (hint.prompt.toLowerCase().includes(q)) return true

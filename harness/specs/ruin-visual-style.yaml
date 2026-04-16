@@ -1,0 +1,156 @@
+id: ruin-visual-style
+name: 'Ruin multilayer visual style'
+status: planned
+priority: medium
+layer: engine
+source_files:
+  - src/engine/renderer.ts
+  - src/engine/constants.ts
+  - src/engine/genesis.ts
+  - src/engine/position.ts
+dependencies:
+  - ruin-infrastructure
+  - renderer
+
+behaviors:
+  - id: multilayer-tile-rendering
+    description: >
+      when currentZone is Zone.Ruin, the renderer uses a multilayer
+      drawing path. getRuinTileLayers(tileType, x, y) returns an
+      array of { char, color, dx, dy } matching the GenesisTileRender
+      shape from genesisTypes.ts. each layer is drawn at px + dx *
+      fractionalPixelOffset, py + dy * fractionalPixelOffset where
+      fractionalPixelOffset is a fraction of the tile cell size.
+      layers composite in order (first layer drawn first, last on top).
+    inputs:
+      - 'renderer drawing a tile in ruin zone'
+    outputs:
+      - 'multiple ASCII glyphs composited per tile cell'
+    state_changes: []
+    determinism: deterministic
+
+  - id: genesis-palette-reuse
+    description: >
+      ruin tile rendering uses the same BUILDING_CHARS (['▓', '▒',
+      '░', '█', '#', '+', 'H', 'T', '=']) and CIV_COLORS (['#666',
+      '#777', '#888', '#999', '#AAA']) defined in genesis.ts. these
+      are exported from constants.ts for shared access. tileHash(x, y)
+      selects which chars and colors apply per tile for deterministic
+      variety across the map.
+    inputs:
+      - 'ruin tile layer calculation'
+    outputs:
+      - 'chars and colors from genesis civilization palette'
+    state_changes: []
+    determinism: deterministic
+
+  - id: wall-tile-layers
+    description: >
+      RuinWall tiles render 2-3 layers of building chars in grays
+      with pixel offsets. layer 1: building char at (0,0). layer 2:
+      different building char at (+1,+1). layer 3 (optional, based
+      on hash): debris dot at (-1,0). this matches the genesis
+      RiseOfCivilizations rendering pattern (genesis.ts:1905-1935).
+      creates a thick, cluttered, ancient feel.
+    inputs:
+      - 'RuinWall tile at position (x,y)'
+    outputs:
+      - '2-3 layer array with building chars in grays'
+    state_changes: []
+    determinism: deterministic
+
+  - id: floor-tile-layers
+    description: >
+      RuinFloor tiles render 1-2 layers. layer 1: floor char ('.' or
+      '·') in muted stone color. layer 2 (optional, ~50% of tiles):
+      debris dot at a random offset. floor layers are sparser than
+      wall layers to create visual contrast and readability for the
+      player character and entities.
+    inputs:
+      - 'RuinFloor tile at position (x,y)'
+    outputs:
+      - '1-2 layer array with floor chars'
+    state_changes: []
+    determinism: deterministic
+
+  - id: crumble-sequence-rendering
+    description: >
+      tiles transitioning during subsidence collapse animate through
+      the genesis FallOfCivilizations crumble sequence: building chars
+      fade through stages (genesis.ts:2216-2244). crumble stages: the
+      current building char transitions through '█', '▓', '▒', '░',
+      '.', '·'. color fades from gray (rgb 136,136,136) to brown
+      (rgb 139,115,85). layer count decreases from 3 to 2 to 1 as
+      the crumble progresses.
+    inputs:
+      - 'tile undergoing collapse in subsidence ruin'
+    outputs:
+      - 'animated crumble with decreasing layer count and color fade'
+    state_changes: []
+    determinism: time-based
+
+  - id: aqueduct-tile-layers
+    description: >
+      RuinAqueduct tiles render with box-drawing chars (horizontal,
+      vertical, cross) as primary layer. secondary layer adds overlay
+      dots at offsets matching the genesis aqueduct rendering pattern
+      (genesis.ts:1938-1958). broken aqueduct tiles use fragmenting
+      chars (+, ., ·) in fading brown colors.
+    inputs:
+      - 'RuinAqueduct or RuinAqueductBroken tile at position (x,y)'
+    outputs:
+      - 'layered box-drawing chars with overlays'
+    state_changes: []
+    determinism: deterministic
+
+  - id: machine-tile-layers
+    description: >
+      RuinMachine tiles render copper-colored primary glyph with a
+      faint secondary layer. RuinMachineActive tiles pulse: the
+      secondary layer alternates chars based on time, creating a
+      visible animation indicating the machine is running.
+    inputs:
+      - 'RuinMachine or RuinMachineActive tile at position (x,y)'
+    outputs:
+      - 'copper glyph with static or pulsing secondary layer'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ruin-zone-overlay-suppression
+    description: >
+      when currentZone is Zone.Ruin, overworld-specific overlays are
+      suppressed: rain rendering, glinting zones, weather effects,
+      shooting star rendering. out-of-bounds tiles render as dark void
+      (no twinkling stars), matching the cave zone pattern in
+      renderer.ts.
+    inputs:
+      - 'renderer overlay passes in ruin zone'
+    outputs:
+      - 'overworld overlays not drawn'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: tile-hash-collision
+    description: 'two adjacent tiles hash to same building char and color'
+    expected: 'visually acceptable — the offset layers still create variation'
+
+  - id: fractional-offset-at-small-font
+    description: 'very small font scale makes pixel offsets negligible'
+    expected: 'layers overlap more at small scales — still readable, just denser'
+
+  - id: cursor-highlight-on-multilayer
+    description: 'cursor hovers over a multilayer ruin tile'
+    expected: 'cursor inversion (pink background + dark text) applies to the topmost layer only, matching the existing resolve-then-draw pattern'
+
+failure_conditions:
+  - trigger: 'BUILDING_CHARS or CIV_COLORS not exported from constants'
+    expected: 'compilation error — these must be importable by renderer'
+
+  - trigger: 'getRuinTileLayers returns empty array'
+    expected: 'tile renders as blank — function must always return at least 1 layer'
+
+verification:
+  test_file: src/engine/__tests__/ruin-visual-style.test.ts
+  test_pattern: 'ruin visual style'
+  command: 'npx vitest run src/engine/__tests__/ruin-visual-style.test.ts'

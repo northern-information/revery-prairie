@@ -1,0 +1,179 @@
+id: ruin-subsidence
+name: 'Ruin archetype: subsidence'
+status: planned
+priority: medium
+layer: engine
+source_files:
+  - src/engine/ruins.ts
+  - src/engine/types.ts
+  - src/engine/constants.ts
+  - src/engine/position.ts
+  - src/engine/renderer.ts
+  - src/engine/gameLoop.ts
+  - src/engine/actionBar.ts
+  - src/engine/effects.ts
+dependencies:
+  - ruin-infrastructure
+
+behaviors:
+  - id: subsidence-data
+    description: >
+      SubsidenceData interface stores: structuralIntegrity (Map of
+      posKey to 0-100 value), collapseTimer (ms since entry),
+      collapseRate (ms per collapse wave derived from ruin age),
+      seedPositions (Position[] of initial seed spawn points),
+      collapsed (boolean, true when entrance is closed). stored as
+      archetypeData on the RuinInterior.
+    inputs:
+      - 'ruin generation with Subsidence archetype'
+    outputs:
+      - 'SubsidenceData populated on RuinInterior.archetypeData'
+    state_changes: []
+    determinism: deterministic
+
+  - id: subsidence-generation
+    description: >
+      generateSubsidence carves a large central hall (70% of map
+      width, 60% of height) with messy edges via noise — not clean
+      rectangles. scatters 3-6 stone pillar clusters (2x2 RuinWall)
+      inside the hall for visual interest (rejected if too close to
+      entrance). entrance corridor from bottom of map to hall's south
+      edge. structural integrity assigned per perimeter tile: distance
+      from entrance + noise. tiles near entrance get 80-100, far
+      perimeter tiles get 20-60. ruin age scales how many tiles start
+      below 50 integrity. 4-8 seed ground item positions placed at
+      random floor tiles biased toward outer edges (higher risk =
+      better reward). RuinUnstable tile type used for low-integrity
+      floor tiles.
+    inputs:
+      - 'CivilizationRuin with Subsidence archetype, seeded rng'
+    outputs:
+      - 'RuinInterior with hall layout, integrity map, seed positions'
+    state_changes: []
+    determinism: deterministic
+
+  - id: unstable-tile-type
+    description: >
+      TileType gains RuinUnstable ('ruinUnstable'). walkable. rendered
+      as '.' with a faint red tint via the multilayer renderer. the
+      renderer applies a reddish color shift proportional to the
+      structural integrity value (lower integrity = more red).
+    inputs:
+      - 'tile rendering in subsidence ruin'
+    outputs:
+      - 'visually distinct floor tiles showing structural danger'
+    state_changes: []
+    determinism: deterministic
+
+  - id: collapse-tick
+    description: >
+      ruin-subsidence tick system (zone: 'ruin', interval 500ms).
+      only runs when current ruin archetype is Subsidence. increments
+      collapseTimer. every collapseRate ms, a collapse wave fires:
+      all tiles with structural integrity below the current threshold
+      convert from RuinFloor or RuinUnstable to RuinWall (rubble).
+      a crumble visual effect spawns at each converted tile. threshold
+      starts at 20 and rises to 80 over approximately 90 seconds.
+      the collapseRate is derived from ruin age: older ruins collapse
+      faster (shorter interval between waves).
+    inputs:
+      - 'tick fires every 500ms while player is in subsidence ruin'
+    outputs:
+      - 'perimeter tiles progressively convert to impassable rubble'
+    state_changes:
+      - field: map
+        effect: 'low-integrity floor tiles become RuinWall'
+      - field: world
+        effect: 'crumble effect entities created at collapse points'
+    determinism: time-based
+
+  - id: entrance-collapse
+    description: >
+      when tiles adjacent to the entrance position have collapsed,
+      the entrance is considered threatened. a warning toast displays
+      to the player. 5 seconds after the warning, the player is
+      auto-ejected to the overworld via exitRuin with a fade
+      transition. the player keeps any items already picked up but
+      gains nothing else from this visit. sets collapsed to true.
+    inputs:
+      - 'tiles adjacent to entrance have collapsed'
+    outputs:
+      - 'warning toast, then auto-eject after 5 seconds'
+    state_changes:
+      - field: currentZone
+        effect: 'set to Overworld via exitRuin'
+      - field: currentRuinIndex
+        effect: 'set to null'
+    determinism: time-based
+
+  - id: player-on-collapsing-tile
+    description: >
+      if a tile collapses while the player is standing on it, the
+      player is pushed to the nearest walkable tile. if no adjacent
+      walkable tile exists, the player is auto-ejected to the overworld.
+    inputs:
+      - 'collapse wave converts tile under player to RuinWall'
+    outputs:
+      - 'player repositioned to nearest walkable or ejected'
+    state_changes:
+      - field: player
+        effect: 'repositioned to nearest walkable tile'
+    determinism: deterministic
+
+  - id: earth-revery-subsidence
+    description: >
+      when earth revery is cast inside a Subsidence ruin, the scan
+      visualization shows structural integrity as a color gradient
+      instead of soil health. green = stable (high integrity), red =
+      about to collapse (low integrity). uses the same radial
+      expansion animation as the normal earth scan.
+    inputs:
+      - 'earth revery cast while in subsidence ruin'
+    outputs:
+      - 'structural integrity gradient visualization'
+    state_changes: []
+    determinism: deterministic
+
+  - id: subsidence-multilayer-visuals
+    description: >
+      collapsing tiles animate through a crumble sequence matching
+      genesis FallOfCivilizations: building chars fade through stages
+      before becoming wall. fresh rubble walls render with 2-3 messy
+      layers in browns and grays (like genesis buildings in mid-decay).
+      stable floor tiles render with 1-2 layers including scattered
+      debris dots.
+    inputs:
+      - 'renderer drawing subsidence ruin tiles'
+    outputs:
+      - 'multilayer ASCII with crumble animation'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: all-paths-blocked
+    description: 'all paths from player to entrance are blocked by rubble'
+    expected: 'auto-eject player to overworld with fade transition'
+
+  - id: seeds-on-collapsed-tiles
+    description: 'a seed ground item sits on a tile that collapses'
+    expected: 'seed entity is destroyed when its tile becomes rubble — seed is lost'
+
+  - id: coyote-in-subsidence
+    description: 'coyote is inside ruin when collapse starts'
+    expected: 'coyote flees toward entrance, collect mode suppressed'
+
+  - id: reenter-collapsed-ruin
+    description: 'player returns to a subsidence ruin after being ejected'
+    expected: 'ruin state is preserved — collapsed tiles remain, collected seeds remain collected, uncollected seeds may still be accessible if paths exist'
+
+failure_conditions:
+  - trigger: 'collapse wave fires with no eligible tiles below threshold'
+    expected: 'no-op, timer continues'
+
+  - trigger: 'collapseRate is very fast (old ruin) and player enters with no time to react'
+    expected: 'minimum 10 seconds before first wave regardless of age'
+
+verification:
+  test_file: src/engine/__tests__/ruin-subsidence.test.ts
+  test_pattern: 'ruin subsidence'
+  command: 'npx vitest run src/engine/__tests__/ruin-subsidence.test.ts'
