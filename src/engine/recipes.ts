@@ -24,7 +24,6 @@ export interface Recipe {
   kind: RecipeKind
   resultName: string
   resultIcon?: string
-  description: string
   preview?: (state: GameState) => PreviewTile[]
   execute: (state: GameState) => boolean
 }
@@ -34,16 +33,6 @@ export const RECIPES: Recipe[] = [
     ingredients: ['bee', 'clover'],
     kind: RecipeKind.Macro,
     resultName: 'prairie',
-    description: [
-      'to make a prairie it takes a clover and one bee,',
-      'one clover, and a bee.',
-      '',
-      'and revery.',
-      'the revery alone will do,',
-      'if bees are few.',
-      '',
-      '— emily dickinson',
-    ].join('\n'),
     preview: state => {
       const tiles: PreviewTile[] = []
       for (let dy = -1; dy <= 1; dy++) {

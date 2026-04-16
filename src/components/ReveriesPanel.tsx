@@ -1,6 +1,7 @@
 import { ListCard, TextButton } from './PanelPrimitives'
 
 import { assignActionBarSlot, clearActionBarSlot } from '@/engine/actionBar'
+import { getLore } from '@/engine/manual'
 import { getReveryDefinition } from '@/engine/reveries'
 import type { GameState } from '@/engine/types'
 
@@ -56,7 +57,7 @@ export const ReveriesPanel = ({ state, refreshUI }: ReveriesPanelProps) => {
             </span>
             <div className="flex-1">
               <div style={{ color: def.glyphColor }}>{def.name.toLowerCase()}</div>
-              <div className="text-dim">{def.description}</div>
+              <div className="text-dim">{getLore(`revery:${id}`)}</div>
             </div>
             <div className="flex gap-1">
               {isEquipped && (

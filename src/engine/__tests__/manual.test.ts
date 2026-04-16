@@ -56,10 +56,9 @@ describe('manual', () => {
         expect(entry.id).toBeTruthy()
         expect(entry.name).toBeTruthy()
         expect(entry.category).toBeTruthy()
-        // Control entries have no glyph or summary (context-dependent)
+        // Control entries have no glyph (context-dependent)
         if (entry.category !== ManualCategory.Control) {
           expect(entry.glyph).toBeTruthy()
-          expect(entry.summary).toBeTruthy()
           expect(entry.lore).toBeTruthy()
         }
         expect(entry.glyphColor).toBeTruthy()
@@ -190,8 +189,8 @@ describe('manual', () => {
       expect(lower).toEqual(upper)
     })
 
-    it('searches in summary', () => {
-      const results = filterManualEntries(allEntries, 'fallen star')
+    it('searches in name', () => {
+      const results = filterManualEntries(allEntries, 'meteorite')
       expect(results.some(e => e.id === 'item:meteorite')).toBe(true)
     })
 

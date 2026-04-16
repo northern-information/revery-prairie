@@ -3,7 +3,6 @@ interface WorldEntityEntry {
   glyph: string
   glyphColor: string
   category: string
-  summary: string
   unlockKey: string
 }
 
@@ -13,7 +12,6 @@ const WORLD_ENTITIES = {
     glyph: '\u2302',
     glyphColor: '#DAA520',
     category: 'fauna',
-    summary: 'a hive built by bees on a clover patch',
     unlockKey: 'event:beehive-built',
   },
 } as const satisfies Record<string, WorldEntityEntry>

@@ -49,7 +49,6 @@ export type ItemCategory = (typeof ItemCategory)[keyof typeof ItemCategory]
 export interface ItemDefinition {
   id: string
   name: string
-  description: string
   glyph: string
   glyphColor: string
   category: ItemCategory
@@ -105,7 +104,6 @@ export interface CharacterDefinition {
 export interface ReveryDefinition {
   id: string
   name: string
-  description: string
   glyphs: string[]
   glyphColor: string
   cooldownMs: number
