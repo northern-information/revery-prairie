@@ -5,7 +5,7 @@ import { posKey, tileHash } from './position'
 import { RuinArchetype, TileType, Zone } from './types'
 
 import type { CivilizationRuin } from './genesisTypes'
-import type { GameState, Position, RuinInterior, SubsidenceData, Tile } from './types'
+import type { DormantGardenData, GameState, Position, RuinInterior, SubsidenceData, Tile } from './types'
 
 // ---------------------------------------------------------------------------
 // PRNG (same mulberry32 used in genesis.ts)
@@ -271,6 +271,144 @@ const generateSubsidence = (
 }
 
 // ---------------------------------------------------------------------------
+// Dormant garden generator
+// ---------------------------------------------------------------------------
+
+const SEED_DECAY_BASE_MS = 90_000
+const SEED_DECAY_MIN_MS = 45_000
+
+const generateDormantGarden = (
+  map: Tile[][],
+  mapWidth: number,
+  mapHeight: number,
+  entranceX: number,
+  entranceY: number,
+  ruin: CivilizationRuin,
+  rng: () => number,
+): DormantGardenData => {
+  // Number of turns in the corridor (1-3, based on aqueduct complexity)
+  const turnCount = Math.min(3, Math.max(1, ruin.aqueductPaths.length))
+  const corridorWidth = 3
+
+  // Build waypoints for the L/Z-shaped corridor
+  const waypoints: Position[] = [{ x: entranceX, y: entranceY - 2 }]
+  for (let i = 0; i < turnCount; i++) {
+    const wx = MARGIN + 3 + Math.floor(rng() * (mapWidth - MARGIN * 2 - 6))
+    const wy = MARGIN + 2 + Math.floor(rng() * Math.floor((mapHeight - MARGIN * 2 - 6) * ((turnCount - i) / (turnCount + 1))))
+    waypoints.push({ x: wx, y: wy })
+  }
+
+  // Carve corridors between waypoints
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    carveCorridor(map, waypoints[i], waypoints[i + 1], corridorWidth)
+  }
+
+  // Carve seed vault chamber at the terminus (before laying aqueduct so vault floor exists)
+  const lastWaypoint = waypoints[waypoints.length - 1]
+  const vaultW = 5
+  const vaultH = 4
+  const vaultX = Math.max(MARGIN, Math.min(mapWidth - MARGIN - vaultW, lastWaypoint.x - Math.floor(vaultW / 2)))
+  const vaultY = Math.max(MARGIN, lastWaypoint.y - vaultH - 1)
+  carveRect(map, vaultX, vaultY, vaultW, vaultH)
+  const vaultCenter: Position = { x: vaultX + Math.floor(vaultW / 2), y: vaultY + Math.floor(vaultH / 2) }
+  carveCorridor(map, lastWaypoint, vaultCenter, 2)
+
+  // Lay aqueduct channel (1 tile wide) down the center of the corridor path
+  const aqueductTiles = new Set<string>()
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const from = waypoints[i]
+    const to = waypoints[i + 1]
+    // Horizontal segment
+    const minX = Math.min(from.x, to.x)
+    const maxX = Math.max(from.x, to.x)
+    for (let x = minX; x <= maxX; x++) {
+      const tile = map[from.y]?.[x]
+      if (tile && tile.type !== TileType.RuinWall && tile.type !== TileType.RuinEntrance) {
+        map[from.y][x] = { type: TileType.RuinAqueduct }
+        aqueductTiles.add(posKey(x, from.y))
+      }
+    }
+    // Vertical segment
+    const minY = Math.min(from.y, to.y)
+    const maxY = Math.max(from.y, to.y)
+    for (let y = minY; y <= maxY; y++) {
+      const tile = map[y]?.[to.x]
+      if (tile && tile.type !== TileType.RuinWall && tile.type !== TileType.RuinEntrance) {
+        map[y][to.x] = { type: TileType.RuinAqueduct }
+        aqueductTiles.add(posKey(to.x, y))
+      }
+    }
+  }
+
+  // Place break points along the aqueduct
+  const breakCount = 2 + Math.floor(rng() * 3)
+  const aqueductArray = [...aqueductTiles]
+  const breakPoints: Position[] = []
+  for (let i = 0; i < breakCount && aqueductArray.length > 2; i++) {
+    // Pick from the middle portion of the aqueduct (not near endpoints)
+    const startIdx = Math.floor(aqueductArray.length * 0.15)
+    const endIdx = Math.floor(aqueductArray.length * 0.85)
+    const idx = startIdx + Math.floor(rng() * (endIdx - startIdx))
+    const key = aqueductArray[idx]
+    if (!key) continue
+    const parts = key.split(',')
+    const bx = Number(parts[0])
+    const by = Number(parts[1])
+    // Don't place breaks too close to each other
+    const tooClose = breakPoints.some((bp) => Math.abs(bp.x - bx) + Math.abs(bp.y - by) < 4)
+    if (tooClose) continue
+    map[by][bx] = { type: TileType.RuinAqueductBroken }
+    breakPoints.push({ x: bx, y: by })
+    aqueductTiles.delete(key)
+  }
+
+  // Place debris at corridor intersections
+  const debrisCount = 3 + Math.floor(rng() * 3)
+  const debrisPositions: Position[] = []
+  let debrisAttempts = 0
+  while (debrisPositions.length < debrisCount && debrisAttempts < 100) {
+    debrisAttempts++
+    const dx = MARGIN + Math.floor(rng() * (mapWidth - MARGIN * 2))
+    const dy = MARGIN + Math.floor(rng() * (mapHeight - MARGIN * 2))
+    if (map[dy]?.[dx]?.type !== TileType.RuinFloor) continue
+    // Don't block the aqueduct
+    if (aqueductTiles.has(posKey(dx, dy))) continue
+    // Don't block the entrance
+    if (Math.abs(dx - entranceX) <= 1 && dy >= entranceY - 3) continue
+    map[dy][dx] = { type: TileType.RuinDebris }
+    debrisPositions.push({ x: dx, y: dy })
+  }
+
+  // Seed decay timers — scaled by ruin age (older = faster decay = shorter timer)
+  const ageFactor = ruin.age / 6000
+  const baseDecay = SEED_DECAY_BASE_MS - ageFactor * (SEED_DECAY_BASE_MS - SEED_DECAY_MIN_MS)
+
+  // Place seed positions in the vault
+  const seedDecayTimers = new Map<string, number>()
+  const seedCount = 3 + Math.floor(rng() * 3)
+  for (let i = 0; i < seedCount; i++) {
+    const sx = vaultX + 1 + Math.floor(rng() * (vaultW - 2))
+    const sy = vaultY + 1 + Math.floor(rng() * (vaultH - 2))
+    const key = posKey(sx, sy)
+    if (seedDecayTimers.has(key)) continue
+    if (map[sy]?.[sx]?.type !== TileType.RuinFloor) continue
+    // Each seed gets a slightly different timer
+    seedDecayTimers.set(key, baseDecay + (rng() - 0.5) * 10_000)
+  }
+
+  return {
+    aqueductTiles,
+    breakPoints,
+    repairedBreaks: new Set<string>(),
+    debrisPositions,
+    seedVault: vaultCenter,
+    seedDecayTimers,
+    seedDecayAcceleration: 1,
+    waterFlowing: false,
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Generic ruin interior generation (dispatches to archetype-specific)
 // ---------------------------------------------------------------------------
 
@@ -285,11 +423,14 @@ export const generateRuinInterior = (
   const { map, entranceX, entranceY, entranceInterior } = createBaseMap(mapWidth, mapHeight)
 
   let subsidenceData: SubsidenceData | null = null
+  let dormantGardenData: DormantGardenData | null = null
 
   if (archetype === RuinArchetype.Subsidence) {
     subsidenceData = generateSubsidence(map, mapWidth, mapHeight, entranceX, entranceY, ruin, rng)
+  } else if (archetype === RuinArchetype.DormantGarden) {
+    dormantGardenData = generateDormantGarden(map, mapWidth, mapHeight, entranceX, entranceY, ruin, rng)
   } else {
-    // Fallback: generic corridors for non-subsidence archetypes (placeholder)
+    // Fallback: generic corridors for other archetypes (placeholder)
     const waypointCount = 2 + Math.floor(rng() * 2)
     let prevPos: Position = { x: entranceX, y: entranceY - 2 }
     for (let i = 0; i < waypointCount; i++) {
@@ -311,6 +452,7 @@ export const generateRuinInterior = (
     explored: false,
     cleared: false,
     subsidence: subsidenceData,
+    dormantGarden: dormantGardenData,
   }
 }
 
@@ -377,6 +519,11 @@ export const enterRuin = (state: GameState, ruinIndex: number): void => {
     if (!interior.explored) {
       spawnSubsidenceSeeds(state, ruinIndex)
     }
+  }
+
+  // Dormant garden: spawn seeds on first entry
+  if (interior.dormantGarden && !interior.explored) {
+    spawnDormantGardenSeeds(state, ruinIndex)
   }
 
   // Mark as explored (after first-entry logic)
@@ -621,4 +768,144 @@ export const spawnSubsidenceSeeds = (state: GameState, ruinIndex: number): void 
     state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
     state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
   }
+}
+
+// ---------------------------------------------------------------------------
+// Dormant garden seed spawning
+// ---------------------------------------------------------------------------
+
+export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): void => {
+  const interior = state.ruinInteriors[ruinIndex]
+  if (!interior?.dormantGarden) return
+
+  const seedTypes = ['wildflowerSeeds', 'tallGrassSeeds', 'milkweedSeeds']
+  for (const [key] of interior.dormantGarden.seedDecayTimers) {
+    const parts = key.split(',')
+    const x = Number(parts[0])
+    const y = Number(parts[1])
+    const seedType = seedTypes[Math.floor(Math.random() * seedTypes.length)]
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.Position, { x, y })
+    state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: seedType })
+    state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
+    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dormant garden seed decay tick
+// ---------------------------------------------------------------------------
+
+const SOIL_HEALTH_ENRICHMENT = 10
+
+export const tickDormantGardenDecay = (state: GameState, dt: number): void => {
+  if (state.currentRuinIndex === null) return
+  const interior = state.ruinInteriors[state.currentRuinIndex]
+  if (!interior?.dormantGarden) return
+
+  const garden = interior.dormantGarden
+
+  // If water is flowing, seeds are stabilized — reverse brown ones to healthy
+  if (garden.waterFlowing) {
+    for (const [key, timer] of garden.seedDecayTimers) {
+      const maxTimer = SEED_DECAY_BASE_MS
+      // Brown stage = below 66% — reverse to full
+      if (timer > maxTimer * 0.33 && timer < maxTimer * 0.66) {
+        garden.seedDecayTimers.set(key, maxTimer)
+      }
+    }
+    return
+  }
+
+  // Tick each seed's decay timer
+  const toRemove: string[] = []
+  for (const [key, timer] of garden.seedDecayTimers) {
+    const newTimer = timer - dt * garden.seedDecayAcceleration
+    if (newTimer <= 0) {
+      // Seed decomposed — remove entity, enrich soil
+      toRemove.push(key)
+      const parts = key.split(',')
+      const sx = Number(parts[0])
+      const sy = Number(parts[1])
+
+      // Destroy the ground item entity at this position
+      for (const eid of state.world.query(ComponentType.Position, ComponentType.EntityTag)) {
+        const pos = state.world.getComponent(eid, ComponentType.Position)
+        const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+        if (pos?.x === sx && pos?.y === sy && tag === 'groundItem') {
+          state.world.destroyEntity(eid)
+          break
+        }
+      }
+
+      // Enrich soil at this position
+      const soilKey = posKey(sx, sy)
+      const current = state.soilHealth.get(soilKey) ?? 50
+      state.soilHealth.set(soilKey, Math.min(100, current + SOIL_HEALTH_ENRICHMENT))
+    } else {
+      garden.seedDecayTimers.set(key, newTimer)
+    }
+  }
+
+  for (const key of toRemove) {
+    garden.seedDecayTimers.delete(key)
+  }
+
+  // If all seeds are gone, mark as cleared
+  if (garden.seedDecayTimers.size === 0) {
+    interior.cleared = true
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dormant garden aqueduct repair
+// ---------------------------------------------------------------------------
+
+export const repairAqueductBreak = (state: GameState, x: number, y: number): boolean => {
+  if (state.currentRuinIndex === null) return false
+  const interior = state.ruinInteriors[state.currentRuinIndex]
+  if (!interior?.dormantGarden) return false
+
+  const tile = interior.map[y]?.[x]
+  if (tile?.type !== TileType.RuinAqueductBroken) return false
+
+  const garden = interior.dormantGarden
+  interior.map[y][x] = { type: TileType.RuinAqueduct }
+  garden.repairedBreaks.add(posKey(x, y))
+  garden.aqueductTiles.add(posKey(x, y))
+
+  // Check if all breaks are now repaired
+  const allRepaired = garden.breakPoints.every((bp) => garden.repairedBreaks.has(posKey(bp.x, bp.y)))
+  if (allRepaired) {
+    garden.waterFlowing = true
+  }
+
+  return true
+}
+
+// ---------------------------------------------------------------------------
+// Dormant garden fire interaction
+// ---------------------------------------------------------------------------
+
+export const fireOnRuinTile = (state: GameState, x: number, y: number): boolean => {
+  if (state.currentRuinIndex === null) return false
+  const interior = state.ruinInteriors[state.currentRuinIndex]
+  if (!interior?.dormantGarden) return false
+
+  const tile = interior.map[y]?.[x]
+  if (!tile) return false
+
+  // Fire on debris: clear it
+  if (tile.type === TileType.RuinDebris) {
+    interior.map[y][x] = { type: TileType.RuinFloor }
+    return true
+  }
+
+  // Fire on aqueduct: accelerate seed decay (if water isn't already flowing)
+  if (tile.type === TileType.RuinAqueduct && !interior.dormantGarden.waterFlowing) {
+    interior.dormantGarden.seedDecayAcceleration = 1.5
+    return true
+  }
+
+  return false
 }

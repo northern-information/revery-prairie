@@ -15,6 +15,9 @@ export const TileType = {
   RuinWall: 'ruinWall',
   RuinEntrance: 'ruinEntrance',
   RuinUnstable: 'ruinUnstable',
+  RuinAqueduct: 'ruinAqueduct',
+  RuinAqueductBroken: 'ruinAqueductBroken',
+  RuinDebris: 'ruinDebris',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
@@ -317,6 +320,17 @@ export interface SubsidenceData {
   collapsed: boolean
 }
 
+export interface DormantGardenData {
+  aqueductTiles: Set<string>
+  breakPoints: Position[]
+  repairedBreaks: Set<string>
+  debrisPositions: Position[]
+  seedVault: Position
+  seedDecayTimers: Map<string, number>
+  seedDecayAcceleration: number
+  waterFlowing: boolean
+}
+
 export interface RuinInterior {
   ruinIndex: number
   archetype: RuinArchetype
@@ -329,6 +343,7 @@ export interface RuinInterior {
   explored: boolean
   cleared: boolean
   subsidence: SubsidenceData | null
+  dormantGarden: DormantGardenData | null
 }
 
 export const DeepTimePhase = {
