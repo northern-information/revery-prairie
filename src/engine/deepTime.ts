@@ -1,5 +1,7 @@
 import {
   DEEP_TIME_BURN_DURATION_MS,
+  DEEP_TIME_LIGHTNING_COUNT,
+  DEEP_TIME_SHAKE_DURATION_MS,
   DEEP_TIME_TOTAL_YEARS,
   DEEP_TIME_TRANSITION_DURATION_MS,
   DEEP_TIME_YEARS_PER_FRAME,
@@ -8,13 +10,17 @@ import { tickCloverGrowth } from './clover'
 import { tickCloverLifecycle } from './cloverLifecycle'
 import { ComponentType } from './ecs/types'
 import { tickBees } from './entities'
-import { spawnLightningStrike, spreadWildfire } from './lightning'
+import { forceSpawnLightningStrike, spreadWildfire } from './lightning'
 import { recordDiscovery } from './manual'
 import { tickTileWater } from './tileWater'
 import { DeepTimePhase, TileType, Zone } from './types'
 import { tickWeather } from './weather'
 
 import type { GameState, Position } from './types'
+
+/** True during Burning and Simulating — player cannot act. */
+export const isDeepTimeLocked = (state: GameState): boolean =>
+  state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
 
 export const initiateDeepTime = (state: GameState, time: number): void => {
   state.deepTime = {
@@ -24,6 +30,9 @@ export const initiateDeepTime = (state: GameState, time: number): void => {
     elapsedYears: 0,
     playerGlyph: 'ö',
     playerGlyphColor: '#FFFFFF',
+    scheduledStrikeYears: [],
+    strikesCompleted: 0,
+    shakeUntil: 0,
   }
 
   // Clear player state
@@ -81,6 +90,10 @@ export const tickDeepTime = (state: GameState, time: number): void => {
     if (time - dt.startTime >= DEEP_TIME_BURN_DURATION_MS) {
       dt.phase = DeepTimePhase.Simulating
       dt.startTime = time // reset for simulation phase
+
+      // Schedule all lightning strikes at the start — instant barrage
+      dt.scheduledStrikeYears = Array.from({ length: DEEP_TIME_LIGHTNING_COUNT }, () => 0)
+      dt.strikesCompleted = 0
     }
     return
   }
@@ -107,10 +120,14 @@ export const tickDeepTime = (state: GameState, time: number): void => {
     // Bees — run once per frame (movement + hunger)
     tickBees(state, Zone.Overworld)
 
-    // Lightning — periodic strikes during simulation (natural phenomenon)
-    // Only strike occasionally during simulation to avoid overwhelming
-    if (Math.random() < 0.05) {
-      spawnLightningStrike(state, time)
+    // Lightning — deterministic strikes at scheduled year thresholds
+    while (
+      dt.strikesCompleted < dt.scheduledStrikeYears.length &&
+      dt.elapsedYears >= dt.scheduledStrikeYears[dt.strikesCompleted]
+    ) {
+      forceSpawnLightningStrike(state, time)
+      dt.shakeUntil = time + DEEP_TIME_SHAKE_DURATION_MS
+      dt.strikesCompleted++
     }
 
     // Check completion

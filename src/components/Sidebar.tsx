@@ -157,7 +157,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
     )
   }
 
-  // Deep Time mode: show phase info + year counter + progress bar
+  // Deep Time mode: show phase info + year counter + progress bar (mirrors genesis layout)
   if (state.deepTime?.active && state.deepTime.phase !== DeepTimePhase.Wandering) {
     const phaseLabel =
       state.deepTime.phase === DeepTimePhase.Burning ? 'the prairie burns...' : 'centuries pass...'
@@ -170,24 +170,25 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
       >
         <div className="flex flex-col gap-4">
           <PanelTitle>revery prairie</PanelTitle>
-          <p className="text-xs">
-            <span className="text-muted">year </span>
-            {formatYear(GENESIS_END_YEAR + state.deepTime.elapsedYears)}
-          </p>
           <div>
             <SectionHeader>deep time</SectionHeader>
-            <p className="text-muted">{phaseLabel}</p>
-          </div>
-        </div>
-        <div className="flex flex-col gap-4">
-          <div>
-            <SectionHeader>simulation</SectionHeader>
-            <div className="mb-2 h-1 w-full overflow-hidden rounded bg-white/10">
+            <table className="w-full">
+              <tbody>
+                <tr>
+                  <td className="text-muted py-0.5">year</td>
+                  <td className="py-0.5 text-right">
+                    {formatYear(GENESIS_END_YEAR + state.deepTime.elapsedYears)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div className="mt-2 h-1 w-full overflow-hidden rounded bg-white/10">
               <div
-                className="h-full bg-white/40 transition-none"
+                className="h-full bg-white/40 transition-[width] duration-100 ease-linear"
                 style={{ width: `${String(Math.round(progress * 100))}%` }}
               />
             </div>
+            <p className="text-muted mt-2">{phaseLabel}</p>
           </div>
         </div>
       </div>

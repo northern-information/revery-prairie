@@ -89,6 +89,9 @@ describe('angel spawning', () => {
       elapsedYears: 0,
       playerGlyph: '@',
       playerGlyphColor: '#FFF',
+      scheduledStrikeYears: [],
+      strikesCompleted: 0,
+      shakeUntil: 0,
     }
 
     expect(spawnAngel(state, 1000)).toBe(false)

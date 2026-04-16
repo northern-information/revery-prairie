@@ -308,6 +308,9 @@ export interface DeepTimeState {
   elapsedYears: number
   playerGlyph: string
   playerGlyphColor: string
+  scheduledStrikeYears: number[]
+  strikesCompleted: number
+  shakeUntil: number
 }
 
 export interface MeteorShowerState {

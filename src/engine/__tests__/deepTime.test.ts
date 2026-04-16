@@ -3,10 +3,11 @@ import { activateActionBarSlot, assignActionBarSlot } from '../actionBar'
 import { spawnShootingStar } from '../celestial'
 import {
   DEEP_TIME_BURN_DURATION_MS,
+  DEEP_TIME_LIGHTNING_COUNT,
   DEEP_TIME_TOTAL_YEARS,
   DEEP_TIME_YEARS_PER_FRAME,
 } from '../constants'
-import { initiateDeepTime, tickDeepTime } from '../deepTime'
+import { initiateDeepTime, isDeepTimeLocked, tickDeepTime } from '../deepTime'
 import { ComponentType } from '../ecs/types'
 import { tickCharacterBehaviors } from '../entities'
 import { createGameLoop } from '../gameLoop'
@@ -133,11 +134,7 @@ describe('deep time', () => {
       const state = createTestState()
       initiateDeepTime(state, 0)
 
-      // The guard condition used by game loop systems
-      const blocked =
-        state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
-
-      expect(blocked).toBe(true)
+      expect(isDeepTimeLocked(state)).toBe(true)
     })
 
     it('movement allowed during wandering phase', () => {
@@ -151,11 +148,7 @@ describe('deep time', () => {
       }
 
       expect(state.deepTime?.phase).toBe(DeepTimePhase.Wandering)
-
-      const blocked =
-        state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
-
-      expect(blocked).toBe(false)
+      expect(isDeepTimeLocked(state)).toBe(false)
     })
   })
 
@@ -290,6 +283,56 @@ describe('deep time', () => {
       // since we haven't triggered any movement or other state changes,
       // verify no calls were made
       expect(refreshUI).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('scheduled lightning strikes', () => {
+    it('schedules exactly DEEP_TIME_LIGHTNING_COUNT strikes when entering simulating phase', () => {
+      const state = createTestState()
+      enterSimulatingPhase(state)
+
+      const dt = state.deepTime
+      expect(dt).not.toBeNull()
+      expect(dt?.scheduledStrikeYears).toHaveLength(DEEP_TIME_LIGHTNING_COUNT)
+      expect(dt?.strikesCompleted).toBe(0)
+    })
+
+    it('all strikes are scheduled at year 0 (instant barrage)', () => {
+      const state = createTestState()
+      enterSimulatingPhase(state)
+
+      const years = state.deepTime?.scheduledStrikeYears ?? []
+      for (const y of years) {
+        expect(y).toBe(0)
+      }
+    })
+
+    it('no strikes are scheduled during burning phase', () => {
+      const state = createTestState()
+      initiateDeepTime(state, 0)
+
+      expect(state.deepTime?.scheduledStrikeYears).toEqual([])
+      expect(state.deepTime?.strikesCompleted).toBe(0)
+    })
+
+    it('fires all strikes on first simulation tick', () => {
+      const state = createTestState()
+      enterSimulatingPhase(state)
+
+      // Single tick advances past year 0
+      tickDeepTime(state, DEEP_TIME_BURN_DURATION_MS + 100)
+
+      expect(state.deepTime?.strikesCompleted).toBe(DEEP_TIME_LIGHTNING_COUNT)
+    })
+
+    it('triggers camera shake on strikes', () => {
+      const state = createTestState()
+      enterSimulatingPhase(state)
+
+      const strikeTime = DEEP_TIME_BURN_DURATION_MS + 100
+      tickDeepTime(state, strikeTime)
+
+      expect(state.deepTime?.shakeUntil).toBeGreaterThan(strikeTime)
     })
   })
 })

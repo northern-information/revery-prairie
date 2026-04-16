@@ -23,6 +23,7 @@ import {
   GENESIS_TRANSITION_ACTION_BAR_DELAY_MS,
   GENESIS_TRANSITION_ACTION_BAR_DURATION_MS,
 } from '@/engine/constants'
+import { isDeepTimeLocked } from '@/engine/deepTime'
 import { canCast } from '@/engine/hexagram'
 import { getDefinition } from '@/engine/items'
 import { useEventLog } from '@/hooks/useEventLog'
@@ -248,7 +249,9 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
                   opacity: 0,
                   animation: `fade-in ${String(GENESIS_TRANSITION_ACTION_BAR_DURATION_MS)}ms ease-in ${String(GENESIS_TRANSITION_ACTION_BAR_DELAY_MS)}ms forwards`,
                 }
-              : undefined
+              : isDeepTimeLocked(state)
+                ? { opacity: 0, transition: 'opacity 500ms ease-out', pointerEvents: 'none' as const }
+                : undefined
           }
         >
           <ActionBar

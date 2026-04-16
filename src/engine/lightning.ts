@@ -222,31 +222,11 @@ export const spreadWildfire = (
   return burned
 }
 
-// --- Runtime spawn ---
+// --- Core spawn (no cooldown/weather gates) ---
 
-export const spawnLightningStrike = (state: GameState, time: number): Position | null => {
-  // Cooldown guard
-  if (time < state.lightning.nextStrikeTime) return null
-
-  // Weather probability
-  const { sky, humidity, windSpeed } = state.weather
-  const skyMult = sky === Sky.Rain ? 8 : sky === Sky.Cloudy ? 3 : 0.5
-  const humidityMult = humidity / 100
-  const windMult = windSpeed > 15 ? windSpeed / 25 : 1
-  const chance = LIGHTNING_BASE_CHANCE * skyMult * humidityMult * windMult
-
-  if (Math.random() >= chance) {
-    // Failed the roll — still set cooldown so we don't check every tick
-    state.lightning.nextStrikeTime = time + 15_000 + Math.random() * 15_000
-    return null
-  }
-
-  // Find target
+export const forceSpawnLightningStrike = (state: GameState, time: number): Position | null => {
   const target = selectStrikeTarget(state, Math.random)
-  if (!target) {
-    state.lightning.nextStrikeTime = time + 15_000 + Math.random() * 15_000
-    return null
-  }
+  if (!target) return null
 
   // Generate bolt path
   const length =
@@ -263,7 +243,6 @@ export const spawnLightningStrike = (state: GameState, time: number): Position |
 
   // Update lightning state
   state.lightning.lastStrikeTime = time
-  state.lightning.nextStrikeTime = time + 15_000 + Math.random() * 15_000
 
   // Record discovery
   recordDiscovery(state, 'event:lightning-strike')
@@ -285,6 +264,30 @@ export const spawnLightningStrike = (state: GameState, time: number): Position |
   }
 
   return target
+}
+
+// --- Runtime spawn (with cooldown + weather gates) ---
+
+export const spawnLightningStrike = (state: GameState, time: number): Position | null => {
+  // Cooldown guard
+  if (time < state.lightning.nextStrikeTime) return null
+
+  // Weather probability
+  const { sky, humidity, windSpeed } = state.weather
+  const skyMult = sky === Sky.Rain ? 8 : sky === Sky.Cloudy ? 3 : 0.5
+  const humidityMult = humidity / 100
+  const windMult = windSpeed > 15 ? windSpeed / 25 : 1
+  const chance = LIGHTNING_BASE_CHANCE * skyMult * humidityMult * windMult
+
+  if (Math.random() >= chance) {
+    // Failed the roll — still set cooldown so we don't check every tick
+    state.lightning.nextStrikeTime = time + 15_000 + Math.random() * 15_000
+    return null
+  }
+
+  const result = forceSpawnLightningStrike(state, time)
+  state.lightning.nextStrikeTime = time + 15_000 + Math.random() * 15_000
+  return result
 }
 
 // --- Cleanup tick ---
