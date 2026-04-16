@@ -280,6 +280,12 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                       if (tileType === TileType.RuinWall) return 'ruin wall'
                       if (tileType === TileType.RuinEntrance) return 'ruin entrance'
                       if (tileType === TileType.RuinUnstable) return 'unstable floor'
+                      if (tileType === TileType.RuinAqueduct) return 'aqueduct'
+                      if (tileType === TileType.RuinAqueductBroken) return 'broken aqueduct'
+                      if (tileType === TileType.RuinDebris) return 'debris'
+                      if (tileType === TileType.RuinMachine) return 'ancient machine'
+                      if (tileType === TileType.RuinMachineActive) return 'active machine'
+                      if (tileType === TileType.RuinHiddenFloor) return 'ruin floor'
                       return tileType ?? 'void'
                     })()}
                   </td>

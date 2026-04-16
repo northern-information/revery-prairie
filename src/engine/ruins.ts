@@ -1,3 +1,4 @@
+import { CHARACTER_DEFINITIONS } from './characters'
 import { transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
@@ -5,7 +6,17 @@ import { posKey, tileHash } from './position'
 import { RuinArchetype, TileType, Zone } from './types'
 
 import type { CivilizationRuin } from './genesisTypes'
-import type { GameState, Position, RuinInterior, SubsidenceData, Tile } from './types'
+import type {
+  DormantGardenData,
+  GameState,
+  GhostFormation,
+  HauntedThresholdData,
+  Position,
+  ResonanceData,
+  RuinInterior,
+  SubsidenceData,
+  Tile,
+} from './types'
 
 // ---------------------------------------------------------------------------
 // PRNG (same mulberry32 used in genesis.ts)
@@ -271,6 +282,446 @@ const generateSubsidence = (
 }
 
 // ---------------------------------------------------------------------------
+// Dormant garden generator
+// ---------------------------------------------------------------------------
+
+const SEED_DECAY_BASE_MS = 90_000
+const SEED_DECAY_MIN_MS = 45_000
+
+const generateDormantGarden = (
+  map: Tile[][],
+  mapWidth: number,
+  mapHeight: number,
+  entranceX: number,
+  entranceY: number,
+  ruin: CivilizationRuin,
+  rng: () => number,
+): DormantGardenData => {
+  // Number of turns in the corridor (1-3, based on aqueduct complexity)
+  const turnCount = Math.min(3, Math.max(1, ruin.aqueductPaths.length))
+  const corridorWidth = 3
+
+  // Build waypoints for the L/Z-shaped corridor
+  const waypoints: Position[] = [{ x: entranceX, y: entranceY - 2 }]
+  for (let i = 0; i < turnCount; i++) {
+    const wx = MARGIN + 3 + Math.floor(rng() * (mapWidth - MARGIN * 2 - 6))
+    const wy = MARGIN + 2 + Math.floor(rng() * Math.floor((mapHeight - MARGIN * 2 - 6) * ((turnCount - i) / (turnCount + 1))))
+    waypoints.push({ x: wx, y: wy })
+  }
+
+  // Carve corridors between waypoints
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    carveCorridor(map, waypoints[i], waypoints[i + 1], corridorWidth)
+  }
+
+  // Carve seed vault chamber at the terminus (before laying aqueduct so vault floor exists)
+  const lastWaypoint = waypoints[waypoints.length - 1]
+  const vaultW = 5
+  const vaultH = 4
+  const vaultX = Math.max(MARGIN, Math.min(mapWidth - MARGIN - vaultW, lastWaypoint.x - Math.floor(vaultW / 2)))
+  const vaultY = Math.max(MARGIN, lastWaypoint.y - vaultH - 1)
+  carveRect(map, vaultX, vaultY, vaultW, vaultH)
+  const vaultCenter: Position = { x: vaultX + Math.floor(vaultW / 2), y: vaultY + Math.floor(vaultH / 2) }
+  carveCorridor(map, lastWaypoint, vaultCenter, 2)
+
+  // Lay aqueduct channel (1 tile wide) down the center of the corridor path
+  const aqueductTiles = new Set<string>()
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const from = waypoints[i]
+    const to = waypoints[i + 1]
+    // Horizontal segment
+    const minX = Math.min(from.x, to.x)
+    const maxX = Math.max(from.x, to.x)
+    for (let x = minX; x <= maxX; x++) {
+      const tile = map[from.y]?.[x]
+      if (tile && tile.type !== TileType.RuinWall && tile.type !== TileType.RuinEntrance) {
+        map[from.y][x] = { type: TileType.RuinAqueduct }
+        aqueductTiles.add(posKey(x, from.y))
+      }
+    }
+    // Vertical segment
+    const minY = Math.min(from.y, to.y)
+    const maxY = Math.max(from.y, to.y)
+    for (let y = minY; y <= maxY; y++) {
+      const tile = map[y]?.[to.x]
+      if (tile && tile.type !== TileType.RuinWall && tile.type !== TileType.RuinEntrance) {
+        map[y][to.x] = { type: TileType.RuinAqueduct }
+        aqueductTiles.add(posKey(to.x, y))
+      }
+    }
+  }
+
+  // Place break points along the aqueduct
+  const breakCount = 2 + Math.floor(rng() * 3)
+  const aqueductArray = [...aqueductTiles]
+  const breakPoints: Position[] = []
+  for (let i = 0; i < breakCount && aqueductArray.length > 2; i++) {
+    // Pick from the middle portion of the aqueduct (not near endpoints)
+    const startIdx = Math.floor(aqueductArray.length * 0.15)
+    const endIdx = Math.floor(aqueductArray.length * 0.85)
+    const idx = startIdx + Math.floor(rng() * (endIdx - startIdx))
+    const key = aqueductArray[idx]
+    if (!key) continue
+    const parts = key.split(',')
+    const bx = Number(parts[0])
+    const by = Number(parts[1])
+    // Don't place breaks too close to each other
+    const tooClose = breakPoints.some((bp) => Math.abs(bp.x - bx) + Math.abs(bp.y - by) < 4)
+    if (tooClose) continue
+    map[by][bx] = { type: TileType.RuinAqueductBroken }
+    breakPoints.push({ x: bx, y: by })
+    aqueductTiles.delete(key)
+  }
+
+  // Place debris at corridor intersections
+  const debrisCount = 3 + Math.floor(rng() * 3)
+  const debrisPositions: Position[] = []
+  let debrisAttempts = 0
+  while (debrisPositions.length < debrisCount && debrisAttempts < 100) {
+    debrisAttempts++
+    const dx = MARGIN + Math.floor(rng() * (mapWidth - MARGIN * 2))
+    const dy = MARGIN + Math.floor(rng() * (mapHeight - MARGIN * 2))
+    if (map[dy]?.[dx]?.type !== TileType.RuinFloor) continue
+    // Don't block the aqueduct
+    if (aqueductTiles.has(posKey(dx, dy))) continue
+    // Don't block the entrance
+    if (Math.abs(dx - entranceX) <= 1 && dy >= entranceY - 3) continue
+    map[dy][dx] = { type: TileType.RuinDebris }
+    debrisPositions.push({ x: dx, y: dy })
+  }
+
+  // Seed decay timers — scaled by ruin age (older = faster decay = shorter timer)
+  const ageFactor = ruin.age / 6000
+  const baseDecay = SEED_DECAY_BASE_MS - ageFactor * (SEED_DECAY_BASE_MS - SEED_DECAY_MIN_MS)
+
+  // Place seed positions in the vault
+  const seedDecayTimers = new Map<string, number>()
+  const seedCount = 3 + Math.floor(rng() * 3)
+  for (let i = 0; i < seedCount; i++) {
+    const sx = vaultX + 1 + Math.floor(rng() * (vaultW - 2))
+    const sy = vaultY + 1 + Math.floor(rng() * (vaultH - 2))
+    const key = posKey(sx, sy)
+    if (seedDecayTimers.has(key)) continue
+    if (map[sy]?.[sx]?.type !== TileType.RuinFloor) continue
+    // Each seed gets a slightly different timer
+    seedDecayTimers.set(key, baseDecay + (rng() - 0.5) * 10_000)
+  }
+
+  return {
+    aqueductTiles,
+    breakPoints,
+    repairedBreaks: new Set<string>(),
+    debrisPositions,
+    seedVault: vaultCenter,
+    seedDecayTimers,
+    seedDecayAcceleration: 1,
+    waterFlowing: false,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Haunted threshold generator
+// ---------------------------------------------------------------------------
+
+// Dialog hints mapped to wanted items — each ghost gets a memory fragment
+const GUARDIAN_DIALOG_HINTS: { itemId: string; dialog: string[]; postDialog: string[] }[] = [
+  {
+    itemId: 'clover',
+    dialog: ['...', 'I remember fields of green...', '...the smell after rain...'],
+    postDialog: ['...thank you. I had forgotten the smell of growing things.'],
+  },
+  {
+    itemId: 'honey',
+    dialog: ['...', 'the sweetness... I can almost taste it...', '...we kept hives on the roof...'],
+    postDialog: ['...how long has it been? thank you.'],
+  },
+  {
+    itemId: 'coin',
+    dialog: ['...', 'we counted everything... measured everything...', '...kept ledgers of every transaction...'],
+    postDialog: ['...the weight of it. yes. I remember now.'],
+  },
+  {
+    itemId: 'meteorite',
+    dialog: ['...', 'we measured the heavens for signs...', '...the night a star fell into the square...'],
+    postDialog: ['...it still burns cold. thank you, steward.'],
+  },
+  {
+    itemId: 'bee',
+    dialog: ['...', 'they hummed in the walls...', '...we built our city around them...'],
+    postDialog: ['...I can hear them again. thank you.'],
+  },
+]
+
+const generateHauntedThreshold = (
+  map: Tile[][],
+  mapWidth: number,
+  _mapHeight: number,
+  entranceX: number,
+  entranceY: number,
+  ruin: CivilizationRuin,
+  ruinIndex: number,
+  rng: () => number,
+): HauntedThresholdData => {
+  // Number of rooms scales with radius (3-5)
+  const roomCount = Math.min(5, Math.max(3, ruin.radius))
+  const rooms: { center: Position; width: number; height: number }[] = []
+  const ghostFormations: GhostFormation[] = []
+
+  // Generate rooms arranged roughly northward from entrance
+  let prevCenter: Position = { x: entranceX, y: entranceY - 3 }
+  for (let i = 0; i < roomCount; i++) {
+    const roomW = 5 + Math.floor(rng() * 3) // 5-7
+    const roomH = 5 + Math.floor(rng() * 3) // 5-7
+    // Place room above previous, with lateral offset
+    const lateralOffset = Math.floor((rng() - 0.5) * 6)
+    const cx = Math.max(MARGIN + Math.floor(roomW / 2) + 1, Math.min(mapWidth - MARGIN - Math.floor(roomW / 2) - 1, prevCenter.x + lateralOffset))
+    const cy = Math.max(MARGIN + Math.floor(roomH / 2) + 1, prevCenter.y - roomH - 3 - Math.floor(rng() * 2))
+    const center: Position = { x: cx, y: cy }
+
+    // Carve the room
+    const rx = cx - Math.floor(roomW / 2)
+    const ry = cy - Math.floor(roomH / 2)
+    carveRect(map, rx, ry, roomW, roomH)
+
+    rooms.push({ center, width: roomW, height: roomH })
+
+    // Carve corridor from previous center to this room
+    if (i === 0) {
+      carveCorridor(map, { x: entranceX, y: entranceY - 2 }, center, 2)
+    } else {
+      carveCorridor(map, prevCenter, center, 2)
+    }
+
+    // Place ghost formation in the corridor between rooms (except before first room)
+    if (i > 0) {
+      const corridorMidX = Math.floor((prevCenter.x + center.x) / 2)
+      const corridorMidY = Math.floor((prevCenter.y + center.y) / 2)
+      const ghostCount = 2 + Math.floor(rng() * 2) // 2-3
+      const positions: Position[] = []
+      const wantedItems: string[] = []
+
+      for (let g = 0; g < ghostCount; g++) {
+        // Spread ghosts across the corridor width
+        const gx = corridorMidX + (g - Math.floor(ghostCount / 2))
+        const gy = corridorMidY
+        if (map[gy]?.[gx]?.type === TileType.RuinFloor) {
+          positions.push({ x: gx, y: gy })
+          // Pick a dialog/item from the pool, seeded by position
+          const hintIdx = (tileHash(gx, gy) + ruinIndex * 7) % GUARDIAN_DIALOG_HINTS.length
+          const hint = GUARDIAN_DIALOG_HINTS[hintIdx]
+          wantedItems.push(hint.itemId)
+
+          // Register ghost character definition
+          const ghostId = `ruin-guardian-${String(ruinIndex)}-${String(i)}-${String(g)}`
+          CHARACTER_DEFINITIONS[ghostId] = {
+            id: ghostId,
+            name: `Guardian Spirit`,
+            glyph: 'ö',
+            glyphColor: '#8888CC',
+            dialog: hint.dialog,
+            postGiftDialog: hint.postDialog,
+          }
+        }
+      }
+
+      if (positions.length > 0) {
+        ghostFormations.push({
+          positions,
+          wantedItems,
+          satisfied: positions.map(() => false),
+        })
+      }
+    }
+
+    prevCenter = center
+  }
+
+  // Carve inner chamber behind the last room (6x4, single 1-wide doorway)
+  const lastRoom = rooms[rooms.length - 1]
+  const chamberW = 6
+  const chamberH = 4
+  const chamberX = Math.max(MARGIN, Math.min(mapWidth - MARGIN - chamberW, lastRoom.center.x - Math.floor(chamberW / 2)))
+  const chamberY = Math.max(MARGIN, lastRoom.center.y - lastRoom.height - chamberH)
+  carveRect(map, chamberX, chamberY, chamberW, chamberH)
+
+  // Single 1-wide doorway connecting chamber to last room
+  const doorX = chamberX + Math.floor(chamberW / 2)
+  const doorY = chamberY + chamberH
+  for (let y = doorY; y <= lastRoom.center.y - Math.floor(lastRoom.height / 2); y++) {
+    if (map[y]?.[doorX]) {
+      map[y][doorX] = { type: TileType.RuinFloor }
+    }
+  }
+
+  // Collect inner chamber floor positions
+  const innerChamber: Position[] = []
+  for (let dy = 0; dy < chamberH; dy++) {
+    for (let dx = 0; dx < chamberW; dx++) {
+      const cx = chamberX + dx
+      const cy = chamberY + dy
+      if (map[cy]?.[cx]?.type === TileType.RuinFloor) {
+        innerChamber.push({ x: cx, y: cy })
+      }
+    }
+  }
+
+  // Place artifact in the inner chamber center
+  const artifactPosition: Position = {
+    x: chamberX + Math.floor(chamberW / 2),
+    y: chamberY + Math.floor(chamberH / 2),
+  }
+
+  return {
+    rooms,
+    ghostFormations,
+    innerChamber,
+    artifactPosition,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Resonance generator
+// ---------------------------------------------------------------------------
+
+const RESONANCE_ACTIVATION_MS = 8000
+
+const generateResonance = (
+  map: Tile[][],
+  mapWidth: number,
+  mapHeight: number,
+  entranceX: number,
+  entranceY: number,
+  ruin: CivilizationRuin,
+  rng: () => number,
+): ResonanceData => {
+  // Main chamber dimensions scale with radius (10x10 to 14x14)
+  const chamberW = Math.min(14, 10 + ruin.radius - 3)
+  const chamberH = Math.min(14, 10 + ruin.radius - 3)
+  const chamberX = Math.floor((mapWidth - chamberW) / 2)
+  const chamberY = Math.max(MARGIN + 1, Math.floor((mapHeight - chamberH) / 2) - 2)
+
+  // Carve main chamber
+  carveRect(map, chamberX, chamberY, chamberW, chamberH)
+
+  // Carve corridor from entrance to chamber
+  carveCorridor(map, { x: entranceX, y: entranceY - 2 }, { x: chamberX + Math.floor(chamberW / 2), y: chamberY + chamberH - 1 }, 2)
+
+  // Place machines in chamber walls (adjacent to floor tiles)
+  const machineCount = 3 + Math.floor(rng() * 3) // 3-5
+  const machinePositions: Position[] = []
+  let machineAttempts = 0
+
+  while (machinePositions.length < machineCount && machineAttempts < 200) {
+    machineAttempts++
+    // Pick a wall tile adjacent to the chamber
+    const side = Math.floor(rng() * 4) // 0=top, 1=bottom, 2=left, 3=right
+    let mx: number
+    let my: number
+    if (side === 0) {
+      mx = chamberX + 1 + Math.floor(rng() * (chamberW - 2))
+      my = chamberY - 1
+    } else if (side === 1) {
+      mx = chamberX + 1 + Math.floor(rng() * (chamberW - 2))
+      my = chamberY + chamberH
+    } else if (side === 2) {
+      mx = chamberX - 1
+      my = chamberY + 1 + Math.floor(rng() * (chamberH - 2))
+    } else {
+      mx = chamberX + chamberW
+      my = chamberY + 1 + Math.floor(rng() * (chamberH - 2))
+    }
+
+    if (mx < 0 || mx >= mapWidth || my < 0 || my >= mapHeight) continue
+    if (map[my][mx].type !== TileType.RuinWall) continue
+
+    // Check Manhattan distance from other machines (4-8 tiles apart)
+    const tooClose = machinePositions.some((mp) => Math.abs(mp.x - mx) + Math.abs(mp.y - my) < 4)
+    if (tooClose) continue
+
+    map[my][mx] = { type: TileType.RuinMachine }
+    machinePositions.push({ x: mx, y: my })
+  }
+
+  // Carve 2-3 hidden passages branching from the chamber
+  const passageCount = 2 + Math.floor(rng() * 2)
+  const hiddenTiles = new Set<string>()
+  let vaultPosition: Position = { x: chamberX + Math.floor(chamberW / 2), y: chamberY }
+
+  for (let p = 0; p < passageCount; p++) {
+    // Pick a direction from the chamber
+    const side = Math.floor(rng() * 4)
+    let startX: number
+    let startY: number
+    let dx: number
+    let dy: number
+
+    if (side === 0) { // north
+      startX = chamberX + 2 + Math.floor(rng() * (chamberW - 4))
+      startY = chamberY - 1
+      dx = 0
+      dy = -1
+    } else if (side === 1) { // south — skip if it conflicts with entrance
+      startX = chamberX + 2 + Math.floor(rng() * (chamberW - 4))
+      startY = chamberY + chamberH
+      dx = 0
+      dy = 1
+    } else if (side === 2) { // west
+      startX = chamberX - 1
+      startY = chamberY + 2 + Math.floor(rng() * (chamberH - 4))
+      dx = -1
+      dy = 0
+    } else { // east
+      startX = chamberX + chamberW
+      startY = chamberY + 2 + Math.floor(rng() * (chamberH - 4))
+      dx = 1
+      dy = 0
+    }
+
+    // Carve a short passage (3-5 tiles) using RuinHiddenFloor
+    const passageLen = 3 + Math.floor(rng() * 3)
+    for (let i = 1; i <= passageLen; i++) {
+      const px = startX + dx * i
+      const py = startY + dy * i
+      if (px < MARGIN || px >= mapWidth - MARGIN || py < MARGIN || py >= mapHeight - MARGIN) break
+      if (map[py][px].type === TileType.RuinFloor || map[py][px].type === TileType.RuinEntrance) break
+      map[py][px] = { type: TileType.RuinHiddenFloor }
+      hiddenTiles.add(posKey(px, py))
+    }
+
+    // First passage gets a vault room at the end
+    if (p === 0) {
+      const vaultEndX = startX + dx * (passageLen + 1)
+      const vaultEndY = startY + dy * (passageLen + 1)
+      const vaultW = 4
+      const vaultH = 4
+      const vx = Math.max(MARGIN, Math.min(mapWidth - MARGIN - vaultW, vaultEndX - Math.floor(vaultW / 2)))
+      const vy = Math.max(MARGIN, Math.min(mapHeight - MARGIN - vaultH, vaultEndY - Math.floor(vaultH / 2)))
+      for (let vdy = 0; vdy < vaultH; vdy++) {
+        for (let vdx = 0; vdx < vaultW; vdx++) {
+          const tx = vx + vdx
+          const ty = vy + vdy
+          if (tx >= 0 && tx < mapWidth && ty >= 0 && ty < mapHeight) {
+            map[ty][tx] = { type: TileType.RuinHiddenFloor }
+            hiddenTiles.add(posKey(tx, ty))
+          }
+        }
+      }
+      vaultPosition = { x: vx + Math.floor(vaultW / 2), y: vy + Math.floor(vaultH / 2) }
+    }
+  }
+
+  return {
+    machinePositions,
+    machineActiveUntil: new Map<string, number>(),
+    activationDurationMs: RESONANCE_ACTIVATION_MS,
+    hiddenTiles,
+    vaultPosition,
+    vaultRevealed: false,
+    revealedTiles: new Set<string>(),
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Generic ruin interior generation (dispatches to archetype-specific)
 // ---------------------------------------------------------------------------
 
@@ -285,19 +736,18 @@ export const generateRuinInterior = (
   const { map, entranceX, entranceY, entranceInterior } = createBaseMap(mapWidth, mapHeight)
 
   let subsidenceData: SubsidenceData | null = null
+  let dormantGardenData: DormantGardenData | null = null
+  let hauntedThresholdData: HauntedThresholdData | null = null
+  let resonanceData: ResonanceData | null = null
 
   if (archetype === RuinArchetype.Subsidence) {
     subsidenceData = generateSubsidence(map, mapWidth, mapHeight, entranceX, entranceY, ruin, rng)
-  } else {
-    // Fallback: generic corridors for non-subsidence archetypes (placeholder)
-    const waypointCount = 2 + Math.floor(rng() * 2)
-    let prevPos: Position = { x: entranceX, y: entranceY - 2 }
-    for (let i = 0; i < waypointCount; i++) {
-      const wx = MARGIN + 2 + Math.floor(rng() * (mapWidth - MARGIN * 2 - 4))
-      const wy = MARGIN + 2 + Math.floor(rng() * (mapHeight - MARGIN * 2 - 8))
-      carveCorridor(map, prevPos, { x: wx, y: wy }, 2 + Math.floor(rng() * 2))
-      prevPos = { x: wx, y: wy }
-    }
+  } else if (archetype === RuinArchetype.DormantGarden) {
+    dormantGardenData = generateDormantGarden(map, mapWidth, mapHeight, entranceX, entranceY, ruin, rng)
+  } else if (archetype === RuinArchetype.HauntedThreshold) {
+    hauntedThresholdData = generateHauntedThreshold(map, mapWidth, mapHeight, entranceX, entranceY, ruin, ruinIndex, rng)
+  } else if (archetype === RuinArchetype.Resonance) {
+    resonanceData = generateResonance(map, mapWidth, mapHeight, entranceX, entranceY, ruin, rng)
   }
 
   return {
@@ -311,6 +761,9 @@ export const generateRuinInterior = (
     explored: false,
     cleared: false,
     subsidence: subsidenceData,
+    dormantGarden: dormantGardenData,
+    hauntedThreshold: hauntedThresholdData,
+    resonance: resonanceData,
   }
 }
 
@@ -377,6 +830,16 @@ export const enterRuin = (state: GameState, ruinIndex: number): void => {
     if (!interior.explored) {
       spawnSubsidenceSeeds(state, ruinIndex)
     }
+  }
+
+  // Dormant garden: spawn seeds on first entry
+  if (interior.dormantGarden && !interior.explored) {
+    spawnDormantGardenSeeds(state, ruinIndex)
+  }
+
+  // Haunted threshold: spawn ghosts and artifact on first entry
+  if (interior.hauntedThreshold && !interior.explored) {
+    spawnHauntedThresholdEntities(state, ruinIndex)
   }
 
   // Mark as explored (after first-entry logic)
@@ -621,4 +1084,370 @@ export const spawnSubsidenceSeeds = (state: GameState, ruinIndex: number): void 
     state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
     state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
   }
+}
+
+// ---------------------------------------------------------------------------
+// Dormant garden seed spawning
+// ---------------------------------------------------------------------------
+
+export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): void => {
+  const interior = state.ruinInteriors[ruinIndex]
+  if (!interior?.dormantGarden) return
+
+  const seedTypes = ['wildflowerSeeds', 'tallGrassSeeds', 'milkweedSeeds']
+  for (const [key] of interior.dormantGarden.seedDecayTimers) {
+    const parts = key.split(',')
+    const x = Number(parts[0])
+    const y = Number(parts[1])
+    const seedType = seedTypes[Math.floor(Math.random() * seedTypes.length)]
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.Position, { x, y })
+    state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: seedType })
+    state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
+    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dormant garden seed decay tick
+// ---------------------------------------------------------------------------
+
+const SOIL_HEALTH_ENRICHMENT = 10
+
+export const tickDormantGardenDecay = (state: GameState, dt: number): void => {
+  if (state.currentRuinIndex === null) return
+  const interior = state.ruinInteriors[state.currentRuinIndex]
+  if (!interior?.dormantGarden) return
+
+  const garden = interior.dormantGarden
+
+  // If water is flowing, seeds are stabilized — reverse brown ones to healthy
+  if (garden.waterFlowing) {
+    for (const [key, timer] of garden.seedDecayTimers) {
+      const maxTimer = SEED_DECAY_BASE_MS
+      // Brown stage = below 66% — reverse to full
+      if (timer > maxTimer * 0.33 && timer < maxTimer * 0.66) {
+        garden.seedDecayTimers.set(key, maxTimer)
+      }
+    }
+    return
+  }
+
+  // Tick each seed's decay timer
+  const toRemove: string[] = []
+  for (const [key, timer] of garden.seedDecayTimers) {
+    const newTimer = timer - dt * garden.seedDecayAcceleration
+    if (newTimer <= 0) {
+      // Seed decomposed — remove entity, enrich soil
+      toRemove.push(key)
+      const parts = key.split(',')
+      const sx = Number(parts[0])
+      const sy = Number(parts[1])
+
+      // Destroy the ground item entity at this position
+      for (const eid of state.world.query(ComponentType.Position, ComponentType.EntityTag)) {
+        const pos = state.world.getComponent(eid, ComponentType.Position)
+        const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+        if (pos?.x === sx && pos?.y === sy && tag === 'groundItem') {
+          state.world.destroyEntity(eid)
+          break
+        }
+      }
+
+      // Enrich soil at this position
+      const soilKey = posKey(sx, sy)
+      const current = state.soilHealth.get(soilKey) ?? 50
+      state.soilHealth.set(soilKey, Math.min(100, current + SOIL_HEALTH_ENRICHMENT))
+    } else {
+      garden.seedDecayTimers.set(key, newTimer)
+    }
+  }
+
+  for (const key of toRemove) {
+    garden.seedDecayTimers.delete(key)
+  }
+
+  // If all seeds are gone, mark as cleared
+  if (garden.seedDecayTimers.size === 0) {
+    interior.cleared = true
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dormant garden aqueduct repair
+// ---------------------------------------------------------------------------
+
+export const repairAqueductBreak = (state: GameState, x: number, y: number): boolean => {
+  if (state.currentRuinIndex === null) return false
+  const interior = state.ruinInteriors[state.currentRuinIndex]
+  if (!interior?.dormantGarden) return false
+
+  const tile = interior.map[y]?.[x]
+  if (tile?.type !== TileType.RuinAqueductBroken) return false
+
+  const garden = interior.dormantGarden
+  interior.map[y][x] = { type: TileType.RuinAqueduct }
+  garden.repairedBreaks.add(posKey(x, y))
+  garden.aqueductTiles.add(posKey(x, y))
+
+  // Check if all breaks are now repaired
+  const allRepaired = garden.breakPoints.every((bp) => garden.repairedBreaks.has(posKey(bp.x, bp.y)))
+  if (allRepaired) {
+    garden.waterFlowing = true
+  }
+
+  return true
+}
+
+// ---------------------------------------------------------------------------
+// Dormant garden fire interaction
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Haunted threshold ghost spawning
+// ---------------------------------------------------------------------------
+
+export const spawnHauntedThresholdEntities = (state: GameState, ruinIndex: number): void => {
+  const interior = state.ruinInteriors[ruinIndex]
+  if (!interior?.hauntedThreshold) return
+
+  const ht = interior.hauntedThreshold
+
+  // Spawn guardian ghosts at each formation position
+  for (let fi = 0; fi < ht.ghostFormations.length; fi++) {
+    const formation = ht.ghostFormations[fi]
+    for (let gi = 0; gi < formation.positions.length; gi++) {
+      if (formation.satisfied[gi]) continue // already satisfied from previous visit
+      const pos = formation.positions[gi]
+      const ghostId = `ruin-guardian-${String(ruinIndex)}-${String(fi + 1)}-${String(gi)}`
+
+      // Skip if definition wasn't registered (edge case)
+      if (!CHARACTER_DEFINITIONS[ghostId]) continue
+
+      const e = state.world.createEntity()
+      state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
+      state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId: ghostId })
+      state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
+      state.world.addComponent(e, ComponentType.EntityTag, 'character')
+      state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
+      state.world.addComponent(e, ComponentType.Behavior, {
+        type: 'drift' as const,
+        moveChance: 0.03,
+        freezeOnDialog: true,
+      })
+    }
+  }
+
+  // Spawn artifact in inner chamber
+  const seedTypes = ['stoneTablet', 'aqueductKey']
+  const artifactType = seedTypes[tileHash(ht.artifactPosition.x, ht.artifactPosition.y) % seedTypes.length]
+  const ae = state.world.createEntity()
+  state.world.addComponent(ae, ComponentType.Position, { x: ht.artifactPosition.x, y: ht.artifactPosition.y })
+  state.world.addComponent(ae, ComponentType.ItemDrop, { definitionId: artifactType })
+  state.world.addComponent(ae, ComponentType.EntityTag, 'groundItem')
+  state.world.addComponent(ae, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
+}
+
+// ---------------------------------------------------------------------------
+// Haunted threshold offering mechanic
+// ---------------------------------------------------------------------------
+
+export const offerItemToGuardian = (
+  state: GameState,
+  ghostEntityId: number,
+  itemDefinitionId: string,
+): boolean => {
+  if (state.currentRuinIndex === null) return false
+  const interior = state.ruinInteriors[state.currentRuinIndex]
+  if (!interior?.hauntedThreshold) return false
+
+  const identity = state.world.getComponent(ghostEntityId, ComponentType.CharacterIdentity)
+  if (!identity) return false
+
+  // Find which formation this ghost belongs to
+  const ghostPos = state.world.getComponent(ghostEntityId, ComponentType.Position)
+  if (!ghostPos) return false
+
+  for (const formation of interior.hauntedThreshold.ghostFormations) {
+    for (let gi = 0; gi < formation.positions.length; gi++) {
+      if (formation.satisfied[gi]) continue
+      const fpos = formation.positions[gi]
+      if (fpos.x !== ghostPos.x || fpos.y !== ghostPos.y) continue
+
+      // Check if the offered item matches what this ghost wants
+      if (formation.wantedItems[gi] !== itemDefinitionId) return false
+
+      // Satisfy the ghost
+      formation.satisfied[gi] = true
+
+      // Remove blocking component so the ghost no longer obstructs
+      state.world.removeComponent(ghostEntityId, ComponentType.Blocking)
+
+      // Increase drift speed so ghost wanders away
+      state.world.addComponent(ghostEntityId, ComponentType.Behavior, {
+        type: 'drift' as const,
+        moveChance: 0.15,
+        freezeOnDialog: true,
+      })
+
+      // Mark gift as received for postGiftDialog
+      state.giftsReceived.add(identity.definitionId)
+
+      // Check if all ghosts in this formation are satisfied
+      if (formation.satisfied.every(Boolean)) {
+        recordDiscovery(state, `event:ruin-formation-${String(state.currentRuinIndex)}`)
+      }
+
+      return true
+    }
+  }
+
+  return false
+}
+
+// ---------------------------------------------------------------------------
+// Dormant garden fire interaction
+// ---------------------------------------------------------------------------
+
+export const fireOnRuinTile = (state: GameState, x: number, y: number): boolean => {
+  if (state.currentRuinIndex === null) return false
+  const interior = state.ruinInteriors[state.currentRuinIndex]
+  if (!interior?.dormantGarden) return false
+
+  const tile = interior.map[y]?.[x]
+  if (!tile) return false
+
+  // Fire on debris: clear it
+  if (tile.type === TileType.RuinDebris) {
+    interior.map[y][x] = { type: TileType.RuinFloor }
+    return true
+  }
+
+  // Fire on aqueduct: accelerate seed decay (if water isn't already flowing)
+  if (tile.type === TileType.RuinAqueduct && !interior.dormantGarden.waterFlowing) {
+    interior.dormantGarden.seedDecayAcceleration = 1.5
+    return true
+  }
+
+  return false
+}
+
+// ---------------------------------------------------------------------------
+// Resonance machine activation
+// ---------------------------------------------------------------------------
+
+export const activateMachine = (state: GameState, x: number, y: number, time: number): boolean => {
+  if (state.currentRuinIndex === null) return false
+  const interior = state.ruinInteriors[state.currentRuinIndex]
+  if (!interior?.resonance) return false
+  if (interior.resonance.vaultRevealed) return false
+
+  const tile = interior.map[y]?.[x]
+  if (tile?.type !== TileType.RuinMachine) return false
+
+  const res = interior.resonance
+
+  // Activate the machine
+  interior.map[y][x] = { type: TileType.RuinMachineActive }
+  res.machineActiveUntil.set(posKey(x, y), time + res.activationDurationMs)
+
+  // Check if all machines are now simultaneously active
+  const allActive = res.machinePositions.every((mp) => {
+    const key = posKey(mp.x, mp.y)
+    const until = res.machineActiveUntil.get(key)
+    return until !== undefined && until > time
+  })
+
+  if (allActive) {
+    // Vault revealed — permanently reveal all hidden tiles
+    res.vaultRevealed = true
+    for (const key of res.hiddenTiles) {
+      res.revealedTiles.add(key)
+    }
+    recordDiscovery(state, `event:ruin-resonance-vault`)
+  }
+
+  return true
+}
+
+// ---------------------------------------------------------------------------
+// Resonance deactivation tick
+// ---------------------------------------------------------------------------
+
+export const tickResonanceDeactivation = (state: GameState, time: number): void => {
+  if (state.currentRuinIndex === null) return
+  const interior = state.ruinInteriors[state.currentRuinIndex]
+  if (!interior?.resonance) return
+  if (interior.resonance.vaultRevealed) return
+
+  const res = interior.resonance
+
+  for (const [key, until] of res.machineActiveUntil) {
+    if (time <= until) continue
+
+    // Deactivate this machine
+    const parts = key.split(',')
+    const mx = Number(parts[0])
+    const my = Number(parts[1])
+    if (interior.map[my]?.[mx]?.type === TileType.RuinMachineActive) {
+      interior.map[my][mx] = { type: TileType.RuinMachine }
+    }
+    res.machineActiveUntil.delete(key)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Resonance: get temporarily visible tiles (near active machines)
+// ---------------------------------------------------------------------------
+
+const MACHINE_REVEAL_RADIUS = 4
+
+export const getTemporarilyVisibleTiles = (interior: RuinInterior): Set<string> => {
+  if (!interior.resonance) return new Set()
+  const res = interior.resonance
+  const visible = new Set<string>()
+
+  for (const [machineKey] of res.machineActiveUntil) {
+    const parts = machineKey.split(',')
+    const mx = Number(parts[0])
+    const my = Number(parts[1])
+    for (const hiddenKey of res.hiddenTiles) {
+      if (res.revealedTiles.has(hiddenKey)) continue
+      const hParts = hiddenKey.split(',')
+      const hx = Number(hParts[0])
+      const hy = Number(hParts[1])
+      if (Math.abs(hx - mx) + Math.abs(hy - my) <= MACHINE_REVEAL_RADIUS) {
+        visible.add(hiddenKey)
+      }
+    }
+  }
+
+  return visible
+}
+
+// ---------------------------------------------------------------------------
+// Resonance: check if a tile is currently hidden
+// ---------------------------------------------------------------------------
+
+export const isHiddenTile = (interior: RuinInterior, x: number, y: number, time: number): boolean => {
+  if (!interior.resonance) return false
+  const res = interior.resonance
+  const key = posKey(x, y)
+  if (!res.hiddenTiles.has(key)) return false
+  if (res.revealedTiles.has(key)) return false
+  if (res.vaultRevealed) return false
+
+  // Check if temporarily visible (near an active machine)
+  for (const [machineKey, until] of res.machineActiveUntil) {
+    if (time <= until) {
+      const parts = machineKey.split(',')
+      const mx = Number(parts[0])
+      const my = Number(parts[1])
+      if (Math.abs(x - mx) + Math.abs(y - my) <= MACHINE_REVEAL_RADIUS) {
+        return false
+      }
+    }
+  }
+
+  return true
 }

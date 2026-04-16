@@ -35,7 +35,7 @@ import { spawnLightningStrike, tickLightning } from './lightning'
 import { movePlayer, tickPath } from './movement'
 import { getReveryDefinition } from './reveries'
 import { tickTileWater } from './tileWater'
-import { tickSubsidenceCollapse } from './ruins'
+import { tickDormantGardenDecay, tickResonanceDeactivation, tickSubsidenceCollapse } from './ruins'
 import { DeepTimePhase, Zone } from './types'
 import { tickRainIntensity, tickWeather } from './weather'
 
@@ -518,6 +518,22 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'ruin',
       fn: (state: GameState, _time: number) => {
         tickSubsidenceCollapse(state, 500)
+      },
+    },
+    {
+      id: 'ruin-dormant-garden',
+      intervalMs: 1000,
+      zone: 'ruin',
+      fn: (state: GameState, _time: number) => {
+        tickDormantGardenDecay(state, 1000)
+      },
+    },
+    {
+      id: 'ruin-resonance',
+      intervalMs: 200,
+      zone: 'ruin',
+      fn: (state: GameState, time: number) => {
+        tickResonanceDeactivation(state, time)
       },
     },
   ]

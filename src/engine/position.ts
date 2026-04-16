@@ -45,4 +45,7 @@ export const isWalkableTile = (tileType: TileType): boolean =>
   tileType !== TileType.Space &&
   tileType !== TileType.CaveWall &&
   tileType !== TileType.CaveBreakableWall &&
-  tileType !== TileType.RuinWall
+  tileType !== TileType.RuinWall &&
+  tileType !== TileType.RuinDebris &&
+  tileType !== TileType.RuinMachine &&
+  tileType !== TileType.RuinMachineActive
