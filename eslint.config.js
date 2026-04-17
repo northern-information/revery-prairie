@@ -6,7 +6,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
-export default defineConfig(globalIgnores(['dist', 'vite.config.ts', 'vitest.config.ts', 'eslint.config.js']), {
+export default defineConfig(globalIgnores(['dist', 'vite.config.ts', 'vitest.config.ts', 'vitest.workspace.ts', 'eslint.config.js']), {
   settings: { react: { version: '19' } },
   files: ['**/*.{ts,tsx}'],
   extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked, ...tseslint.configs.stylisticTypeChecked],
