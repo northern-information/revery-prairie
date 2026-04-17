@@ -1,0 +1,203 @@
+plan:
+  id: cave-fog-of-war
+  title: 'Starcraft-style fog of war for cave zone with LOS shadowcasting'
+  created: 2026-04-17
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-fog-state
+    title: 'Add caveFogExplored and visibility types to GameState'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - three-state-visibility
+      - fog-persists-across-visits
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: shadowcasting-algorithm
+    title: 'Implement symmetric shadowcasting FOV in visibility.ts'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - player-vision-radius
+    context_files:
+      - src/engine/types.ts
+      - src/engine/position.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/visibility.ts
+    depends_on:
+      - add-fog-state
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: visibility-tests
+    title: 'Write unit tests for shadowcasting and fog state management'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - player-vision-radius
+      - three-state-visibility
+      - fog-updates-on-movement
+    context_files:
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/cave.test.ts
+    output_files:
+      - src/engine/__tests__/visibility.test.ts
+    depends_on:
+      - shadowcasting-algorithm
+    verification:
+      - 'npx vitest run src/engine/__tests__/visibility.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: renderer-fog-integration
+    title: 'Integrate fog of war into cave rendering loop'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - three-state-visibility
+      - entity-visibility-culling
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - shadowcasting-algorithm
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: cave-entrance-visibility
+    title: 'Force cave entrance and neighbors into visible set'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - fog-updates-on-movement
+    context_files:
+      - src/engine/visibility.ts
+      - src/engine/cave.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/visibility.ts
+    depends_on:
+      - shadowcasting-algorithm
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: revery-illumination
+    title: 'Add fog reveal logic for earth, fire, and lightning reveries'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - earth-revery-reveals-fog
+      - fire-revery-illumination
+      - lightning-revery-illumination
+    context_files:
+      - src/engine/actionBar.ts
+      - src/engine/reveries.ts
+      - src/engine/visibility.ts
+      - src/engine/effects.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/actionBar.ts
+      - src/engine/effects.ts
+      - src/engine/visibility.ts
+      - src/engine/renderer.ts
+    depends_on:
+      - renderer-fog-integration
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: sidebar-fog-awareness
+    title: 'Update sidebar cursor info to respect fog visibility state'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - cursor-info-fog-awareness
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+      - src/engine/effects.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - renderer-fog-integration
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: manual-entry
+    title: 'Add fog of war manual-only entry with discovery tracking'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - three-state-visibility
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/cave.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/manual.ts
+      - src/engine/cave.ts
+    depends_on:
+      - add-fog-state
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: integration-tests
+    title: 'Add integration tests for fog + revery interaction and persistence'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - earth-revery-reveals-fog
+      - fire-revery-illumination
+      - lightning-revery-illumination
+      - fog-persists-across-visits
+      - entity-visibility-culling
+    context_files:
+      - src/engine/__tests__/visibility.test.ts
+      - src/engine/__tests__/cave.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/visibility.ts
+      - src/engine/actionBar.ts
+      - src/engine/cave.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/visibility.test.ts
+    depends_on:
+      - visibility-tests
+      - revery-illumination
+      - cave-entrance-visibility
+    verification:
+      - 'npx vitest run src/engine/__tests__/visibility.test.ts'
+      - 'npm run test'
+    repair: retry
+    tags: [test]

@@ -1,14 +1,20 @@
 import { generateBoltPath } from './boltPath'
 import { addSoilHealth } from './cloverLifecycle'
 import {
+  EARTH_SCAN_EXPAND_MS,
+  EARTH_SCAN_FADE_MS,
+  EARTH_SCAN_HOLD_MS,
+  EARTH_SCAN_RADIUS,
   FIRE_REVERY_MAX_SPREAD,
   LIGHTNING_BOLT_MAX_LENGTH,
   LIGHTNING_BOLT_MIN_LENGTH,
+  LIGHTNING_DURATION_MS,
   LIGHTNING_INVALID_TARGET_CHAR,
   LIGHTNING_INVALID_TARGET_COLOR,
   LIGHTNING_RETICLE_CHARS,
   LIGHTNING_RETICLE_CYCLE_MS,
   LIGHTNING_REVERY_RANGE,
+  REVERY_ILLUMINATION_RADIUS,
   SOIL_HEALTH_FIRE_REVERY_BONUS,
   SOIL_HEALTH_WATER_REVERY_BONUS,
   WATER_MAX,
@@ -20,7 +26,8 @@ import { spreadWildfire } from './lightning'
 import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { getReveryDefinition } from './reveries'
-import { TileType } from './types'
+import { addReveryIllumination } from './visibility'
+import { TileType, Zone } from './types'
 
 import type { ActionBarSlot, GameState, Position } from './types'
 
@@ -103,6 +110,12 @@ const applyReveryCastEffects = (state: GameState, reveryId: string, positions: P
       addSoilHealth(state, key, SOIL_HEALTH_FIRE_REVERY_BONUS)
       recordDiscovery(state, 'event:fire-revery')
 
+      // Fire revery illuminates surrounding area in caves
+      if (state.currentZone === Zone.Cave) {
+        const fireDef = getReveryDefinition('fire')
+        addReveryIllumination(state, pos.x, pos.y, REVERY_ILLUMINATION_RADIUS, now + fireDef.castDurationMs)
+      }
+
       // Spread wildfire from cast position (must happen before manual burn —
       // spreadWildfire handles origin burn via BFS)
       if (tile.type === TileType.Clover) {
@@ -160,6 +173,13 @@ export const activateActionBarSlot = (state: GameState, slotIndex: number, now: 
       state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
 
       recordDiscovery(state, 'event:earth-revery')
+
+      // Earth revery reveals fog in caves — illuminate entire scan radius
+      if (state.currentZone === Zone.Cave) {
+        const earthDuration = EARTH_SCAN_EXPAND_MS + EARTH_SCAN_HOLD_MS + EARTH_SCAN_FADE_MS
+        addReveryIllumination(state, state.player.x, state.player.y, EARTH_SCAN_RADIUS, now + earthDuration)
+      }
+
       return true
     }
 
@@ -274,6 +294,23 @@ export const castLightningAtTarget = (state: GameState, target: Position, slotIn
 
   // Record discovery
   recordDiscovery(state, 'event:lightning-revery')
+
+  // Lightning revery illuminates strike area and bolt path in caves
+  if (state.currentZone === Zone.Cave) {
+    // Illuminate around strike point
+    addReveryIllumination(state, target.x, target.y, REVERY_ILLUMINATION_RADIUS, now + LIGHTNING_DURATION_MS)
+    // Illuminate bolt path tiles
+    for (const p of path) {
+      state.caveFogIllumination.set(posKey(p.x, p.y), now + LIGHTNING_DURATION_MS)
+      state.caveFogExplored.add(posKey(p.x, p.y))
+    }
+    if (branch) {
+      for (const p of branch) {
+        state.caveFogIllumination.set(posKey(p.x, p.y), now + LIGHTNING_DURATION_MS)
+        state.caveFogExplored.add(posKey(p.x, p.y))
+      }
+    }
+  }
 
   // Wildfire spread
   const burned = spreadWildfire(state, now, target.x, target.y)

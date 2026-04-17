@@ -316,6 +316,17 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     sourceKind: 'zone',
   },
   {
+    id: 'event:cave-fog',
+    name: 'Cave Darkness',
+    category: ManualCategory.Zone,
+    glyph: '#',
+    glyphColor: '#444444',
+    lore: MANUAL_LORE['event:cave-fog']?.lore ?? 'TODO',
+    hints: MANUAL_LORE['event:cave-fog']?.hints ?? [],
+    unlockKey: 'zone:cave',
+    sourceKind: 'event',
+  },
+  {
     id: 'zone:ruin-subsidence',
     name: 'Crumbling Ruin',
     category: ManualCategory.Zone,

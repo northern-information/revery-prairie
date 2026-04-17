@@ -178,6 +178,8 @@ export const createGameState = (stewardName: string, viewportWidth: number, view
     coyotePath: null,
     ruinInteriors: generateAllRuinInteriors(genesisData.ruins),
     currentRuinIndex: null,
+    caveFogExplored: new Set<string>(),
+    caveFogIllumination: new Map<string, number>(),
     devPanelOpen: false,
     devPaintPreview: null,
     devEntityPreview: null,

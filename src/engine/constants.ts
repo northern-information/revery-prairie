@@ -322,4 +322,9 @@ export const GENESIS_TRANSITION_ACTION_BAR_DURATION_MS = 800
 export const DEEP_TIME_TRANSITION_DURATION_MS = 1000
 export const DEEP_TIME_TRANSITION_GLYPH_DURATION_MS = 800
 
+// cave fog of war
+export const CAVE_VISION_RADIUS = 3
+export const FOG_EXPLORED_BRIGHTNESS = 0.4 // dimmed brightness for explored-but-not-visible tiles
+export const REVERY_ILLUMINATION_RADIUS = 3 // fire/lightning reveal radius from impact point
+
 export const INVENTORY_CELL_SIZE = 28

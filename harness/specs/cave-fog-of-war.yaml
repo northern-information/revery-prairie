@@ -1,0 +1,205 @@
+id: cave-fog-of-war
+name: 'Cave fog of war'
+status: planned
+priority: high
+layer: integration
+source_files:
+  - src/engine/visibility.ts
+  - src/engine/renderer.ts
+  - src/engine/state.ts
+  - src/engine/types.ts
+  - src/engine/cave.ts
+  - src/engine/actionBar.ts
+  - src/engine/constants.ts
+  - src/engine/effects.ts
+  - src/engine/manual.ts
+  - src/components/Sidebar.tsx
+dependencies:
+  - player-movement
+
+behaviors:
+  - id: three-state-visibility
+    description: >
+      cave tiles exist in one of three visibility states: unexplored
+      (never seen — rendered as solid black, identical to space),
+      explored (previously seen — terrain rendered at reduced
+      brightness, entities and effects hidden), and visible (currently
+      in player line-of-sight — full brightness, all entities and
+      effects shown). overworld is unaffected.
+    inputs:
+      - 'state.currentZone is Cave'
+      - 'state.caveFogExplored: Set<string> tracking explored tile keys'
+      - 'per-frame visible set computed from player position'
+    outputs:
+      - 'unexplored tiles render as black (no char, no color)'
+      - 'explored tiles render terrain char and color at ~40% brightness'
+      - 'visible tiles render normally with all entities and effects'
+    state_changes:
+      - field: caveFogExplored
+        effect: 'union of previous explored set and current visible set — tiles never revert to unexplored'
+    determinism: deterministic
+
+  - id: player-vision-radius
+    description: >
+      player has a vision radius of 3 tiles. only tiles within this
+      radius AND with unobstructed line-of-sight from the player
+      position are visible. cave walls (CaveWall, CaveBreakableWall)
+      block line-of-sight — the blocking wall tile itself is visible
+      but nothing behind it. uses symmetric shadowcasting for
+      consistent, artifact-free FOV.
+    inputs:
+      - 'player position in cave'
+      - 'cave map tile data'
+    outputs:
+      - 'Set<string> of currently visible tile keys'
+    state_changes: []
+    determinism: deterministic
+
+  - id: fog-updates-on-movement
+    description: >
+      after each player movement in the cave, the visible set is
+      recomputed and newly visible tiles are added to
+      caveFogExplored. this happens as part of the render frame
+      following the movement — no separate tick needed.
+    inputs:
+      - 'player moves to new position in cave'
+    outputs:
+      - 'visible set shifts to new player position'
+      - 'previously visible tiles that are now out of sight revert to explored state'
+    state_changes:
+      - field: caveFogExplored
+        effect: 'newly visible tiles added to set'
+    determinism: deterministic
+
+  - id: earth-revery-reveals-fog
+    description: >
+      when the earth revery is cast in the cave, all tiles within
+      its scan radius that have line-of-sight from the player
+      (walls block) are added to caveFogExplored. the scan
+      expansion animation reveals tiles progressively as the
+      radius expands. these tiles become explored (dimmed) after
+      the revery ends, not permanently visible.
+    inputs:
+      - 'earth revery cast in cave zone'
+      - 'EARTH_SCAN_RADIUS defines reveal range'
+    outputs:
+      - 'tiles within scan radius with LOS added to caveFogExplored'
+      - 'during scan animation, tiles within current expansion radius render as visible'
+    state_changes:
+      - field: caveFogExplored
+        effect: 'all LOS-reachable tiles within scan radius added'
+    determinism: deterministic
+
+  - id: fire-revery-illumination
+    description: >
+      when the fire revery is cast in the cave, the fire effect
+      temporarily illuminates tiles within a small radius (3 tiles)
+      around the target tile. line-of-sight applies from the fire
+      tile — walls block. illuminated tiles are added to
+      caveFogExplored. during the fire effect duration, illuminated
+      tiles render as visible. after the effect ends, they revert
+      to explored.
+    inputs:
+      - 'fire revery cast on a cave tile'
+      - 'fire illumination radius: 3 tiles from target'
+    outputs:
+      - 'tiles within fire illumination radius with LOS from fire tile render as visible during effect'
+      - 'tiles added to caveFogExplored'
+    state_changes:
+      - field: caveFogExplored
+        effect: 'LOS-reachable tiles within fire illumination radius added'
+    determinism: deterministic
+
+  - id: lightning-revery-illumination
+    description: >
+      when the lightning revery is cast in the cave, the bolt path
+      and a small radius (3 tiles) around the strike tile are
+      temporarily illuminated. line-of-sight applies from the
+      strike point — walls block. illuminated tiles are added to
+      caveFogExplored. during the lightning effect duration,
+      illuminated tiles render as visible. after the effect ends,
+      they revert to explored.
+    inputs:
+      - 'lightning revery cast targeting a cave tile'
+      - 'lightning illumination radius: 3 tiles from strike point'
+      - 'bolt path tiles from player to target'
+    outputs:
+      - 'bolt path tiles and tiles within strike illumination radius render as visible during effect'
+      - 'tiles added to caveFogExplored'
+    state_changes:
+      - field: caveFogExplored
+        effect: 'bolt path tiles and LOS-reachable tiles within strike radius added'
+    determinism: deterministic
+
+  - id: entity-visibility-culling
+    description: >
+      entities (characters, bees, ground items, ground omniboxes) in
+      the cave are only rendered when their tile is in the current
+      visible set. entities on explored-but-not-visible tiles are
+      hidden. this applies to rendering only — entities still exist
+      and tick normally regardless of visibility.
+    inputs:
+      - 'entity position in cave'
+      - 'current visible tile set'
+    outputs:
+      - 'entity rendered only if its tile is visible'
+      - 'entity char/color hidden if tile is explored but not visible'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cursor-info-fog-awareness
+    description: >
+      the sidebar cursor info panel respects fog state. hovering
+      over unexplored tiles shows no information. hovering over
+      explored tiles shows terrain type only. hovering over visible
+      tiles shows full information (terrain, entities, effects).
+    inputs:
+      - 'mouse hover position in cave'
+      - 'tile visibility state'
+    outputs:
+      - 'unexplored: sidebar shows "unexplored"'
+      - 'explored: sidebar shows terrain type, contents show "unknown"'
+      - 'visible: sidebar shows full tile info'
+    state_changes: []
+    determinism: deterministic
+
+  - id: fog-persists-across-visits
+    description: >
+      caveFogExplored persists across cave entry/exit cycles. leaving
+      the cave and re-entering preserves which tiles were explored.
+      the set is initialized empty on first cave generation.
+    inputs:
+      - 'player exits and re-enters cave'
+    outputs:
+      - 'previously explored tiles remain in explored state'
+    state_changes:
+      - field: caveFogExplored
+        effect: 'not cleared on zone transition'
+    determinism: deterministic
+
+edge_cases:
+  - id: cave-entrance-always-visible
+    description: 'the cave entrance tile and its immediate neighbors (1 tile radius) are always visible regardless of player position, so the player can always find the exit'
+    expected: 'cave entrance tile and adjacent walkable tiles are force-added to the visible set'
+  - id: hidden-chamber-fog-interaction
+    description: 'the hidden chamber behind breakable walls respects both caveRevealed and fog state — even after breaking the wall, hidden chamber tiles start as unexplored until the player walks in'
+    expected: 'breaking the wall reveals CaveFloor tiles that are initially unexplored in the fog system'
+  - id: revery-illumination-stacking
+    description: 'multiple revery effects active simultaneously have their illumination areas unioned — no conflicts'
+    expected: 'visible set is union of player vision plus all active illumination areas'
+  - id: zero-radius-wall-corner
+    description: 'player standing in a 1-tile-wide corridor sees only the corridor tiles and wall faces, not tiles around corners'
+    expected: 'shadowcasting correctly handles narrow corridors without light leaking through diagonal wall gaps'
+
+failure_conditions:
+  - trigger: 'player is in overworld zone'
+    expected: 'fog of war system is completely inactive, all tiles render normally'
+  - trigger: 'computeVisibility called with out-of-bounds position'
+    expected: 'returns empty set, no crash'
+  - trigger: 'caveFogExplored contains keys for tiles that were later changed (breakable wall broken)'
+    expected: 'tile renders with current tile type at explored brightness — fog tracks position keys not tile types'
+
+verification:
+  test_file: src/engine/__tests__/visibility.test.ts
+  test_pattern: 'fog of war'
+  command: 'npx vitest run src/engine/__tests__/visibility.test.ts'
