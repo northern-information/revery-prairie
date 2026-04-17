@@ -1205,6 +1205,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         ctx.fillStyle = ACTION_COLOR
         ctx.fillRect(px, py, charWidth, charHeight)
         ctx.fillStyle = BG_COLOR
+      } else if (state.playerSelected && mx === player.x && my === player.y) {
+        ctx.fillStyle = ACTION_COLOR
+        ctx.fillRect(px, py, charWidth, charHeight)
+        ctx.fillStyle = BG_COLOR
       } else if (isAngelGroupHighlighted) {
         ctx.fillStyle = ACTION_COLOR
         ctx.fillRect(px, py, charWidth, charHeight)

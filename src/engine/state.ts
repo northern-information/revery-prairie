@@ -189,6 +189,7 @@ export const createGameState = (
     caveFogExplored: new Set<string>(),
     caveFogIllumination: new Map<string, number>(),
     selectedUnits: new Set<number>(),
+    playerSelected: false,
     selectionBox: null,
     unitCommands: new Map(),
     moveOrderMarkers: [],

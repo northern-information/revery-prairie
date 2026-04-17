@@ -49,24 +49,61 @@ export const getControllableUnitsInRect = (
 /** Select a single unit, replacing the current selection. */
 export const selectUnit = (state: GameState, eid: Entity): void => {
   state.selectedUnits.clear()
+  state.playerSelected = false
   state.selectedUnits.add(eid)
 }
 
 /** Select multiple units, replacing the current selection. */
 export const selectUnits = (state: GameState, eids: Entity[]): void => {
   state.selectedUnits.clear()
+  state.playerSelected = false
   for (const eid of eids) {
     state.selectedUnits.add(eid)
   }
 }
 
-/** Deselect all units. */
-export const deselectAll = (state: GameState): void => {
+/** Select only the player, clearing any NPC selections. */
+export const selectPlayer = (state: GameState): void => {
   state.selectedUnits.clear()
+  state.playerSelected = true
 }
 
-/** Check if any units are currently selected. */
-export const hasSelection = (state: GameState): boolean => state.selectedUnits.size > 0
+/**
+ * Commit a drag-box selection atomically.
+ * Replaces the current selection with the given NPC units and player flag.
+ */
+export const commitBoxSelection = (
+  state: GameState,
+  eids: Entity[],
+  includePlayer: boolean
+): void => {
+  state.selectedUnits.clear()
+  state.playerSelected = includePlayer
+  for (const eid of eids) {
+    state.selectedUnits.add(eid)
+  }
+}
+
+/** Deselect all units and the player. */
+export const deselectAll = (state: GameState): void => {
+  state.selectedUnits.clear()
+  state.playerSelected = false
+}
+
+/** Check if any units or the player are currently selected. */
+export const hasSelection = (state: GameState): boolean =>
+  state.selectedUnits.size > 0 || state.playerSelected
+
+/** Check if the player's tile falls within a rectangle (inclusive). */
+export const isPlayerInRect = (
+  state: GameState,
+  topLeft: Position,
+  bottomRight: Position
+): boolean =>
+  state.player.x >= topLeft.x &&
+  state.player.x <= bottomRight.x &&
+  state.player.y >= topLeft.y &&
+  state.player.y <= bottomRight.y
 
 /** Get positions of all selected units (for rendering highlights). */
 export const getSelectedUnitPositions = (state: GameState): Map<string, Entity> => {
@@ -79,6 +116,10 @@ export const getSelectedUnitPositions = (state: GameState): Map<string, Entity> 
   }
   return positions
 }
+
+/** Check if the player's current tile should render the selection highlight. */
+export const isPlayerSelectionHighlighted = (state: GameState): boolean =>
+  state.playerSelected
 
 /** Clean up selection — remove dead entities. */
 export const pruneSelection = (state: GameState): void => {
