@@ -567,16 +567,11 @@ const sortEntries = (entries: TickEntry[]): void => {
   entries.sort((a, b) => (a.system.priority ?? 0) - (b.system.priority ?? 0))
 }
 
-// Maximum time delta per frame (ms). Prevents huge jumps when a
-// backgrounded tab resumes and rAF delivers a stale timestamp.
-const MAX_FRAME_DELTA_MS = 200
-
 export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): GameLoop => {
   const entries: TickEntry[] = []
   let rafId = 0
   let running = false
   let paused = false
-  let lastLoopTime = 0
 
   const register = (system: TickSystem): void => {
     const existing = entries.findIndex(e => e.system.id === system.id)
@@ -649,26 +644,14 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
   }
 
   const loop = (rawTime: number): void => {
-    // Clamp large time jumps (e.g. tab was backgrounded) so systems
-    // never see a delta larger than MAX_FRAME_DELTA_MS.
-    let time = rawTime
-    if (lastLoopTime > 0) {
-      const delta = rawTime - lastLoopTime
-      if (delta > MAX_FRAME_DELTA_MS) {
-        // Advance by at most MAX_FRAME_DELTA_MS from the last frame
-        time = lastLoopTime + MAX_FRAME_DELTA_MS
-      }
-    }
-    lastLoopTime = time
-
     if (!paused) {
       try {
-        tick(time)
+        tick(rawTime)
       } catch (err) {
         console.error('[gameLoop] tick error:', err)
       }
     }
-    callbacks.onFrame?.(time)
+    callbacks.onFrame?.(rawTime)
     rafId = requestAnimationFrame(loop)
   }
 

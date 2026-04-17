@@ -1,0 +1,126 @@
+id: background-tab-fastforward
+name: 'Background tab return plays in fast-forward'
+status: partial
+priority: medium
+layer: engine
+source_files:
+  - src/engine/gameLoop.ts
+  - src/engine/__tests__/gameLoop.test.ts
+behaviors:
+  - id: single-frame-catchup-on-resume
+    description: >
+      When the browser tab is backgrounded and requestAnimationFrame pauses,
+      the game loop must not play back accumulated time in a visible
+      fast-forward on return. Instead, the first rAF frame after the tab
+      becomes visible again performs a single catch-up tick using the current
+      real timestamp. Every tick system sees the true elapsed time, so
+      time-based systems (lifecycle, despawn, cooldowns, interval-gated fires)
+      advance correctly in one pass. Per-tick movement systems (bees, ghosts,
+      shooting stars, coyote, path) advance by a single step — they do not
+      simulate the full elapsed duration. Subsequent frames resume normal-speed
+      rAF rendering with no visible catch-up.
+    inputs:
+      - 'tab was backgrounded for N ms (N > one tick interval)'
+      - 'tab returns to foreground and rAF fires with a timestamp N ms after the previous frame'
+    outputs:
+      - 'tick(rawTime) is called once with the current rAF timestamp on the first frame after resume'
+      - 'no visible catch-up playback over subsequent frames'
+      - 'time-based systems (angel lifespan, lightning cleanup, clover lifecycle, meteor shower scheduling, rain intensity fade) advance to the correct real-time state in one pass'
+      - 'per-tick movement systems advance by exactly one step, not N steps'
+      - 'entry.lastTick for every tick entry is set to the current rAF time, preventing subsequent frames from re-firing missed intervals'
+    state_changes:
+      - field: 'game loop internal lastLoopTime'
+        effect: 'advances to the current rAF timestamp in one step, not clamped to MAX_FRAME_DELTA_MS per frame'
+      - field: 'entry.lastTick (for every tick system)'
+        effect: 'set to current rAF time on the single catch-up frame'
+      - field: 'rainIntensity'
+        effect: 'converges to the target intensity in one tick because dt equals the real elapsed time'
+    determinism: time-based
+
+  - id: no-fast-forward-clamp
+    description: >
+      The game loop does not artificially throttle the virtual clock during
+      catch-up. Previous behavior clamped per-frame time advancement to
+      MAX_FRAME_DELTA_MS (200ms), which caused the virtual clock to advance at
+      ~12x real speed for the duration of the catch-up — visible to the user
+      as fast-forward. The new behavior passes the raw rAF timestamp through
+      to tick() without clamping, so the virtual clock snaps to real time in
+      one frame.
+    inputs:
+      - 'rAF delivers a rawTime more than 200ms after the previous frame'
+    outputs:
+      - 'tick() is called with rawTime (not a clamped value)'
+      - 'the next frame after catch-up sees a normal ~16ms delta'
+    state_changes: []
+    determinism: deterministic
+
+  - id: normal-frame-behavior-unchanged
+    description: >
+      When the tab stays in the foreground, frame-to-frame behavior is
+      unchanged. Every rAF fires with a small delta (~16ms at 60fps), tick()
+      is called with rawTime, and tick systems fire at their configured
+      intervals as before. The fix must not change any timing for the
+      non-backgrounded case.
+    inputs:
+      - 'rAF delivers rawTime values at typical 60fps cadence'
+    outputs:
+      - 'tick() receives rawTime unchanged'
+      - 'tick systems fire on their configured intervals'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: backgrounded-during-genesis
+    description: 'Tab is backgrounded during the genesis sequence'
+    expected: >
+      Genesis is driven by rAF time and precomputed snapshots. On resume, the
+      genesis tick advances by the real elapsed time — if enough time has
+      passed it may complete genesis in one frame. No visible fast-forward of
+      intermediate epochs.
+
+  - id: backgrounded-during-dialog-typing
+    description: 'Tab is backgrounded mid-dialog while characters are typing out'
+    expected: >
+      Dialog typing uses time-based progression. On resume, the dialog
+      advances to its correct typed position in a single frame. No visible
+      catch-up typing animation.
+
+  - id: backgrounded-with-in-flight-entities
+    description: 'Tab is backgrounded while a shooting star is in flight or lightning is striking'
+    expected: >
+      Time-based cleanup (shooting star max age, explosion duration, lightning
+      duration, wildfire duration) fires on the catch-up tick and destroys
+      expired entities. In-flight shooting stars that have not hit their
+      landing target will advance by only one step on resume — they are likely
+      destroyed by the max-age check if enough time has passed.
+
+  - id: backgrounded-briefly
+    description: 'Tab loses focus for less than one tick interval'
+    expected: >
+      Behavior is indistinguishable from a normal frame. Delta is small, no
+      special catch-up logic triggers.
+
+  - id: backgrounded-during-path-walk
+    description: 'Tab is backgrounded while the player is auto-walking a click-to-move path'
+    expected: >
+      On resume, the path advances by one tile in the catch-up frame, then
+      continues at normal speed. The path is not invisibly completed.
+
+failure_conditions:
+  - trigger: 'tab backgrounded for 30 seconds and then returned to foreground'
+    expected: >
+      Game state snaps to the correct real-time state in one frame
+      (despawns, scheduled spawns, rain intensity, clover stages all reflect
+      30 seconds having passed). No visible fast-forward animation over
+      subsequent frames. Gameplay resumes at normal speed immediately.
+
+  - trigger: 'backgrounded tab with active game loop receives a rAF callback with rawTime >> lastLoopTime'
+    expected: >
+      tick(rawTime) is called once. Every entry.lastTick is advanced to
+      rawTime. The next rAF frame sees a small delta (~16ms) and ticks
+      normally. No MAX_FRAME_DELTA_MS clamp is applied.
+
+verification:
+  test_file: src/engine/__tests__/gameLoop.test.ts
+  test_pattern: 'background tab'
+  command: npx vitest run src/engine/__tests__/gameLoop.test.ts

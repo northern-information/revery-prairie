@@ -744,3 +744,178 @@ describe('overworld toast suppression in cave', () => {
     expect(wildfireCalls).toHaveLength(0)
   })
 })
+
+describe('background tab return', () => {
+  it('passes raw rAF time to tick without per-frame delta clamp', () => {
+    // When a tab is backgrounded, rAF pauses and then fires with a timestamp
+    // far in the future on return. The game loop must pass that raw time
+    // straight through — it must not throttle the virtual clock.
+    const state = createTestState()
+    const observedTimes: number[] = []
+
+    const rafRef: { cb: ((time: number) => void) | null } = { cb: null }
+    vi.stubGlobal('requestAnimationFrame', (cb: (time: number) => void) => {
+      rafRef.cb = cb
+      return 1
+    })
+    vi.stubGlobal('cancelAnimationFrame', () => {
+      rafRef.cb = null
+    })
+
+    try {
+      const gameLoop = createGameLoop(state, {
+        onFrame: time => {
+          observedTimes.push(time)
+        },
+      })
+
+      gameLoop.register({
+        id: 'time-recorder',
+        intervalMs: 0,
+        zone: 'always',
+        fn: (_s, time) => {
+          observedTimes.push(time)
+        },
+      })
+
+      gameLoop.start()
+
+      // First frame at t=16 (normal)
+      rafRef.cb?.(16)
+      // Second frame at t=30016 — tab was backgrounded for ~30 seconds
+      rafRef.cb?.(30_016)
+      // Third frame resumes at normal cadence
+      rafRef.cb?.(30_032)
+
+      // Systems must have seen the raw timestamps — no clamp to +200ms
+      expect(observedTimes).toContain(30_016)
+      expect(observedTimes).toContain(30_032)
+      // The clamped value (16 + 200 = 216) must not appear
+      expect(observedTimes).not.toContain(216)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('fires interval tick once across a large time jump, not N times', () => {
+    // A system with a 100ms interval that was idle for 30s must fire
+    // exactly once on the catch-up tick — not 300 times.
+    const state = createTestState()
+    let callCount = 0
+    const gameLoop = createGameLoop(state, {})
+
+    gameLoop.register({
+      id: 'interval-counter',
+      intervalMs: 100,
+      zone: 'always',
+      fn: () => {
+        callCount++
+      },
+    })
+
+    gameLoop.tick(0)
+    expect(callCount).toBe(0) // lastTick=0, 0-0 < 100
+    gameLoop.tick(100)
+    expect(callCount).toBe(1)
+
+    // Simulate tab backgrounded for 30 seconds between frames
+    gameLoop.tick(30_100)
+    expect(callCount).toBe(2) // one catch-up tick
+
+    // Next frame at normal cadence — no missed intervals re-fire
+    gameLoop.tick(30_116)
+    expect(callCount).toBe(2)
+  })
+
+  it('advances time-based despawns correctly in a single catch-up tick', () => {
+    // A timed effect that should have expired while the tab was backgrounded
+    // must be cleaned up on the first frame after resume.
+    const state = createTestState()
+    const gameLoop = createGameLoop(state, {})
+
+    // Create a fake timed entity whose lifetime has already passed by t=5000
+    const eid = state.world.createEntity()
+    state.world.addComponent(eid, ComponentType.Position, { x: 0, y: 0 })
+    state.world.addComponent(eid, ComponentType.TimedEffect, {
+      kind: 'explosion',
+      startTime: 0,
+    })
+    state.world.addComponent(eid, ComponentType.EntityTag, 'test-effect')
+
+    let despawned = false
+    gameLoop.register({
+      id: 'test-cleanup',
+      intervalMs: 0,
+      zone: 'always',
+      fn: (s, time) => {
+        for (const e of s.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+          const tag = s.world.getComponent(e, ComponentType.EntityTag)
+          if (tag !== 'test-effect') continue
+          const effect = s.world.getComponent(e, ComponentType.TimedEffect)
+          if (effect && time - effect.startTime >= 1000) {
+            s.world.destroyEntity(e)
+            despawned = true
+          }
+        }
+      },
+    })
+
+    // First frame at t=16 — effect is only 16ms old, survives
+    gameLoop.tick(16)
+    expect(despawned).toBe(false)
+
+    // Backgrounded for ~30s — catch-up frame at t=30016
+    gameLoop.tick(30_016)
+    expect(despawned).toBe(true)
+  })
+
+  it('advances entry.lastTick to the current time after a jump so subsequent frames behave normally', () => {
+    const state = createTestState()
+    const timesSeen: number[] = []
+    const gameLoop = createGameLoop(state, {})
+
+    gameLoop.register({
+      id: 'recorder',
+      intervalMs: 500,
+      zone: 'always',
+      fn: (_s, time) => {
+        timesSeen.push(time)
+      },
+    })
+
+    gameLoop.tick(0) // lastTick set to 0, does not fire (0-0 < 500)
+    gameLoop.tick(30_000) // large jump — fires once, lastTick -> 30_000
+    expect(timesSeen).toEqual([30_000])
+
+    // Next frame at t=30_016 — only 16ms since lastTick, must NOT fire again
+    gameLoop.tick(30_016)
+    expect(timesSeen).toEqual([30_000])
+
+    // At t=30_500 — 500ms since lastTick, fires
+    gameLoop.tick(30_500)
+    expect(timesSeen).toEqual([30_000, 30_500])
+  })
+
+  it('preserves normal-cadence behavior when the tab is not backgrounded', () => {
+    // Sanity check: removing the clamp must not change behavior for normal
+    // 60fps frames.
+    const state = createTestState()
+    let count = 0
+    const gameLoop = createGameLoop(state, {})
+
+    gameLoop.register({
+      id: 'every-frame',
+      intervalMs: 0,
+      zone: 'always',
+      fn: () => {
+        count++
+      },
+    })
+
+    // 10 frames at ~60fps cadence
+    for (let i = 0; i < 10; i++) {
+      gameLoop.tick(i * 16)
+    }
+    expect(count).toBe(10)
+  })
+})
