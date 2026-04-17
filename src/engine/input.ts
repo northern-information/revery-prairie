@@ -28,6 +28,7 @@ export interface KeyBinding {
 export const KEYBINDINGS: KeyBinding[] = [
   { key: 'wasd', action: 'move', context: 'works with pack open' },
   { key: 'e', action: 'interact', context: 'talk, pick up, open, break wall' },
+  { key: 'f', action: 'harvest', context: 'facing clover tile' },
   { key: 'r', action: 'rotate / reveries', context: 'rotate hovered item in pack, otherwise toggle reveries screen' },
   { key: 'x', action: 'drop item', context: 'pack open, hovering item' },
   { key: '1-4', action: 'cast revery', context: 'hold to preview, release to cast at facing tile' },
