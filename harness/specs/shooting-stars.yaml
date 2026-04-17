@@ -15,8 +15,11 @@ behaviors:
     description: >
       spawnShootingStar creates ambient shooting stars from map edges
       at 15% chance per 2000ms tick. max 5 concurrent stars. suppressed
-      during active meteor showers and during deep time (deepTime.active).
-      picks random edge, generates position and velocity. 30% chance for
+      during active meteor showers, during deep time (deepTime.active),
+      and when the overworld already contains METEORITE_GROUND_MAX (20)
+      or more meteorite entities on the ground (shooting stars simply
+      do not spawn while at cap — no fizzle, no FIFO removal). picks
+      random edge, generates position and velocity. 30% chance for
       cardinal-only movement. stars are ECS entities with Position,
       Velocity, ShootingStarData, EntityTag (shootingStar), EntityZone
       (overworld). each star has random length (3-6 tiles) and 8%
@@ -140,6 +143,18 @@ edge_cases:
   - id: deep-time-suppression
     description: 'spawnShootingStar or tickMeteorShower called during deep time'
     expected: 'both return early without spawning or scheduling'
+  - id: meteorite-ground-cap-reached
+    description: 'overworld already has METEORITE_GROUND_MAX (20) meteorite entities, spawnShootingStar called'
+    expected: 'returns early, no new star created; player picking up a meteorite drops count below cap and future ticks may resume spawning'
+  - id: meteorite-cap-excludes-backpack-and-omnibox
+    description: 'player holds meteorite items in backpack/omnibox, zero meteorites on overworld ground'
+    expected: 'cap does not apply — only ECS meteorite entities (ground-placed, overworld zone) count toward the 20-entity limit'
+  - id: meteorite-cap-excludes-cave
+    description: 'cave has meteorite entities (hypothetical), overworld ground is empty'
+    expected: 'cap counts only overworld-zoned meteorite entities; cave meteorites are ignored'
+  - id: meteor-shower-bypasses-cap
+    description: 'meteor shower active and 20+ meteorites already on ground'
+    expected: 'shower continues spawning targeted stars — the cap only gates ambient spawnShootingStar, not targeted/chain spawns'
 
 failure_conditions:
   - trigger: 'Star velocity is (0, 0) — would never move'

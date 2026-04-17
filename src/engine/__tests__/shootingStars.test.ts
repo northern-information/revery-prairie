@@ -1,16 +1,22 @@
-import { spawnShootingStar, spawnShootingStarAtTarget, tickShootingStars } from '../celestial'
+import {
+  countOverworldMeteorites,
+  spawnShootingStar,
+  spawnShootingStarAtTarget,
+  tickShootingStars,
+} from '../celestial'
 import {
   EXPLOSION_DURATION_MS,
   MAP_HEIGHT,
   MAP_WIDTH,
+  METEORITE_GROUND_MAX,
   SHOOTING_STAR_MAX_ACTIVE,
   SHOOTING_STAR_MAX_AGE,
 } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
 import { createGameState } from '../state'
-import { TileType } from '../types'
-import { describe, expect, it } from 'vitest'
+import { TileType, Zone } from '../types'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { Entity } from '../ecs/types'
 import type { GameState, Position } from '../types'
@@ -80,6 +86,12 @@ const createMeteoriteEntity = (state: GameState, x: number, y: number): Entity =
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.Pickupable, { definitionId: 'meteorite' })
   state.world.addComponent(e, ComponentType.EntityTag, 'meteorite')
+  return e
+}
+
+const createZonedMeteorite = (state: GameState, x: number, y: number, zone: Zone): Entity => {
+  const e = createMeteoriteEntity(state, x, y)
+  state.world.addComponent(e, ComponentType.EntityZone, { zone })
   return e
 }
 
@@ -291,6 +303,81 @@ describe('spawnShootingStar', () => {
         }
       }
     }
+  })
+})
+
+describe('meteorite ground cap', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('countOverworldMeteorites counts only overworld-zoned meteorite entities', () => {
+    const state = createGameState('Test', 20, 20)
+    destroyAllMeteorites(state)
+    createZonedMeteorite(state, 5, 5, Zone.Overworld)
+    createZonedMeteorite(state, 6, 5, Zone.Overworld)
+    createZonedMeteorite(state, 7, 5, Zone.Cave)
+
+    expect(countOverworldMeteorites(state)).toBe(2)
+  })
+
+  it('spawnShootingStar returns early when at or above METEORITE_GROUND_MAX', () => {
+    const state = createGameState('Test', 20, 20)
+    destroyAllStars(state)
+    destroyAllMeteorites(state)
+    vi.spyOn(Math, 'random').mockReturnValue(0) // force SPAWN_CHANCE check to pass
+    for (let i = 0; i < METEORITE_GROUND_MAX; i++) {
+      createZonedMeteorite(state, i % state.mapWidth, Math.floor(i / state.mapWidth), Zone.Overworld)
+    }
+
+    for (let i = 0; i < 50; i++) spawnShootingStar(state)
+
+    expect(getStarCount(state)).toBe(0)
+  })
+
+  it('resumes spawning after a meteorite is removed from the ground', () => {
+    const state = createGameState('Test', 20, 20)
+    destroyAllStars(state)
+    destroyAllMeteorites(state)
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    const meteorites: Entity[] = []
+    for (let i = 0; i < METEORITE_GROUND_MAX; i++) {
+      meteorites.push(createZonedMeteorite(state, i % state.mapWidth, Math.floor(i / state.mapWidth), Zone.Overworld))
+    }
+    spawnShootingStar(state)
+    expect(getStarCount(state)).toBe(0)
+
+    state.world.destroyEntity(meteorites[0])
+    spawnShootingStar(state)
+
+    expect(getStarCount(state)).toBe(1)
+  })
+
+  it('cave-zoned meteorites do not count toward the cap', () => {
+    const state = createGameState('Test', 20, 20)
+    destroyAllStars(state)
+    destroyAllMeteorites(state)
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+    for (let i = 0; i < METEORITE_GROUND_MAX + 5; i++) {
+      createZonedMeteorite(state, i % state.mapWidth, Math.floor(i / state.mapWidth), Zone.Cave)
+    }
+
+    spawnShootingStar(state)
+
+    expect(getStarCount(state)).toBe(1)
+  })
+
+  it('spawnShootingStarAtTarget bypasses the cap (meteor shower continues)', () => {
+    const state = createGameState('Test', 20, 20)
+    destroyAllStars(state)
+    destroyAllMeteorites(state)
+    for (let i = 0; i < METEORITE_GROUND_MAX; i++) {
+      createZonedMeteorite(state, i % state.mapWidth, Math.floor(i / state.mapWidth), Zone.Overworld)
+    }
+
+    spawnShootingStarAtTarget(state, { x: 10, y: 10 })
+
+    expect(getStarCount(state)).toBe(1)
   })
 })
 

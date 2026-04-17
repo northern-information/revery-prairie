@@ -7,6 +7,7 @@ import {
   METEOR_SHOWER_SPAWN_WINDOW_MS,
   METEOR_SHOWER_STAR_COUNT_MAX,
   METEOR_SHOWER_STAR_COUNT_MIN,
+  METEORITE_GROUND_MAX,
   PICKUP_EFFECT_DURATION_MS,
   SHOOTING_STAR_LAND_CHANCE,
   SHOOTING_STAR_MAX_ACTIVE,
@@ -36,6 +37,17 @@ const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
 const isWaterTile = (state: GameState, x: number, y: number): boolean => {
   const key = posKey(x, y)
   return state.ponds.has(key) || state.rivers.has(key)
+}
+
+export const countOverworldMeteorites = (state: GameState): number => {
+  let count = 0
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.EntityZone)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'meteorite') continue
+    const zone = state.world.getComponent(eid, ComponentType.EntityZone)
+    if (zone?.zone !== Zone.Overworld) continue
+    count++
+  }
+  return count
 }
 
 export const spawnChainMeteorites = (state: GameState, origin: Position, time: number): number => {
@@ -85,6 +97,7 @@ export const spawnShootingStar = (state: GameState): void => {
   if (state.deepTime?.active) return
   if (state.meteorShower.active) return
   if (state.world.query(ComponentType.ShootingStarData).length >= SHOOTING_STAR_MAX_ACTIVE) return
+  if (countOverworldMeteorites(state) >= METEORITE_GROUND_MAX) return
   if (Math.random() >= SHOOTING_STAR_SPAWN_CHANCE) return
 
   // Pick a random edge: 0=top, 1=bottom, 2=left, 3=right
