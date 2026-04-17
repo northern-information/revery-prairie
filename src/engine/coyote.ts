@@ -117,7 +117,7 @@ const dropGroundItemNear = (state: GameState, center: Position, definitionId: st
     if (!isWalkableTile(state.map[ty][tx].type)) continue
     const occupied = state.world.spatial.at(tx, ty).some(eid => {
       const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-      return tag === 'groundItem' || tag === 'groundOmnibox'
+      return tag === 'groundItem'
     })
     if (occupied) continue
 

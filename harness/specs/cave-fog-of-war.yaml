@@ -133,7 +133,7 @@ behaviors:
 
   - id: entity-visibility-culling
     description: >
-      entities (characters, bees, ground items, ground omniboxes) in
+      entities (characters, bees, ground items) in
       the cave are only rendered when their tile is in the current
       visible set. entities on explored-but-not-visible tiles are
       hidden. this applies to rendering only — entities still exist
