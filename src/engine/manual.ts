@@ -71,7 +71,6 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   // Characters
   'character:gron': { lore: 'TODO' },
   'character:moab': { lore: 'TODO' },
-  'character:ghosts': { lore: 'TODO' },
   'character:coyote': { lore: 'TODO' },
   // Recipes
   'recipe:bee+clover': {
@@ -87,13 +86,7 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
     ].join('\n'),
   },
   // Events
-  'event:lightning-strike': { lore: 'TODO' },
-  'event:wildfire': { lore: 'TODO' },
-  'event:lightning-attraction': { lore: 'TODO' },
-  'event:lightning-revery': { lore: 'TODO' },
   'event:glint-zone': { lore: 'TODO' },
-  'event:deep-time': { lore: 'TODO' },
-  'event:gron-deep-time': { lore: 'TODO' },
   'event:angel': { lore: 'TODO' },
   'event:angel-canto': { lore: 'TODO' },
 }
