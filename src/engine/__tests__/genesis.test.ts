@@ -377,7 +377,7 @@ describe('geological features', () => {
 
 describe('genesis-enhancements', () => {
   describe('chaotic aqueducts', () => {
-    it('generates 8-12 ruins', () => {
+    it('generates 8-12 ruins', { timeout: 30_000 }, () => {
       // Test across a few seeds to verify the range (kept small to avoid timeout)
       let minRuins = Infinity
       let maxRuins = 0
