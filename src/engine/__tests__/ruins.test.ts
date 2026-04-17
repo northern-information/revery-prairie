@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { assignArchetype, checkRuinTransition, enterRuin, exitRuin, generateAllRuinInteriors, generateRuinInterior, isInCurrentZone, placeRuinEntrances, tickSubsidenceCollapse } from '../ruins'
+import { assignArchetype, checkRuinTransition, enterRuin, exitRuin, generateAllRuinInteriors, generateRuinInterior, getRuinTileLayers, isInCurrentZone, placeRuinEntrances, tickSubsidenceCollapse } from '../ruins'
 import { RuinArchetype, TileType, Zone } from '../types'
 import { createGameState } from '../state'
-import { isWalkableTile, posKey } from '../position'
+import { findSafeExitPosition, isWalkableTile, posKey } from '../position'
+import { movePlayer } from '../movement'
 import { ITEM_DEFINITIONS } from '../items'
 import { ENTRANCE_GLYPHS, getEntranceGlyph } from '../constants'
 
@@ -182,14 +183,20 @@ describe('ruin infrastructure', () => {
       expect(state.map).toBe(overworldMap)
     })
 
-    it('exitRuin places player south of entrance', () => {
+    it('exitRuin places player on walkable tile adjacent to entrance', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
       if (state.ruinInteriors.length === 0) return
       const entrance = state.ruinInteriors[0].entranceOverworld
       enterRuin(state, 0)
       exitRuin(state)
-      expect(state.player.x).toBe(entrance.x)
-      expect(state.player.y).toBe(entrance.y + 1)
+      // Player should be within 1 tile of the entrance
+      const dx = Math.abs(state.player.x - entrance.x)
+      const dy = Math.abs(state.player.y - entrance.y)
+      expect(dx).toBeLessThanOrEqual(1)
+      expect(dy).toBeLessThanOrEqual(1)
+      // Player should be on a walkable tile
+      const tile = state.map[state.player.y][state.player.x]
+      expect(isWalkableTile(tile.type)).toBe(true)
     })
 
     it('exitRuin is a no-op when not in a ruin', () => {
@@ -759,6 +766,219 @@ describe('ruin infrastructure', () => {
         }
       }
       expect(gotEjected).toBe(true)
+    })
+  })
+
+  describe('ruin accessibility', () => {
+    it('placeRuinEntrances converts non-walkable neighbors to dirt', () => {
+      // Create a small map with space surrounding a dirt tile
+      const mapWidth = 10
+      const mapHeight = 10
+      const map: Tile[][] = Array.from({ length: mapHeight }, () =>
+        Array.from({ length: mapWidth }, () => ({ type: TileType.Space })),
+      )
+      // Place dirt at (5, 5) for the entrance
+      map[5][5] = { type: TileType.Dirt }
+
+      const interior = {
+        entranceOverworld: { x: 5, y: 5 },
+      } as { entranceOverworld: { x: number; y: number } }
+
+      placeRuinEntrances(map, [interior as never])
+
+      // Entrance tile should be RuinEntrance
+      expect(map[5][5].type).toBe(TileType.RuinEntrance)
+
+      // All 8 neighbors should now be dirt (were space, which is non-walkable)
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue
+          expect(map[5 + dy][5 + dx].type).toBe(TileType.Dirt)
+        }
+      }
+    })
+
+    it('placeRuinEntrances handles map edges gracefully', () => {
+      const mapWidth = 5
+      const mapHeight = 5
+      const map: Tile[][] = Array.from({ length: mapHeight }, () =>
+        Array.from({ length: mapWidth }, () => ({ type: TileType.Space })),
+      )
+      map[0][0] = { type: TileType.Dirt }
+
+      const interior = {
+        entranceOverworld: { x: 0, y: 0 },
+      } as { entranceOverworld: { x: number; y: number } }
+
+      // Should not throw
+      placeRuinEntrances(map, [interior as never])
+      expect(map[0][0].type).toBe(TileType.RuinEntrance)
+      // In-bounds neighbors should be converted
+      expect(map[0][1].type).toBe(TileType.Dirt)
+      expect(map[1][0].type).toBe(TileType.Dirt)
+      expect(map[1][1].type).toBe(TileType.Dirt)
+    })
+
+    it('findSafeExitPosition prefers south, falls back to other walkable neighbors', () => {
+      const mapWidth = 5
+      const mapHeight = 5
+      const map: Tile[][] = Array.from({ length: mapHeight }, () =>
+        Array.from({ length: mapWidth }, () => ({ type: TileType.Space })),
+      )
+      const entrance = { x: 2, y: 2 }
+
+      // Only place walkable tiles to the north and east
+      map[1][2] = { type: TileType.Dirt } // north
+      map[2][3] = { type: TileType.Dirt } // east
+
+      const result = findSafeExitPosition(entrance, map, mapWidth, mapHeight)
+      // South is Space, so should fall back to north (second priority)
+      expect(result).toEqual({ x: 2, y: 1 })
+    })
+
+    it('findSafeExitPosition falls back to entrance when all neighbors blocked', () => {
+      const mapWidth = 5
+      const mapHeight = 5
+      const map: Tile[][] = Array.from({ length: mapHeight }, () =>
+        Array.from({ length: mapWidth }, () => ({ type: TileType.Space })),
+      )
+      const entrance = { x: 2, y: 2 }
+      map[2][2] = { type: TileType.Dirt }
+
+      const result = findSafeExitPosition(entrance, map, mapWidth, mapHeight)
+      expect(result).toEqual({ x: 2, y: 2 })
+    })
+
+    it('exitRuin places player on walkable tile even when south is blocked', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      if (state.ruinInteriors.length === 0) return
+      const entrance = state.ruinInteriors[0].entranceOverworld
+      // Block the tile south of entrance
+      if (entrance.y + 1 < state.overworldMapHeight) {
+        state.overworldMap[entrance.y + 1][entrance.x] = { type: TileType.Space }
+      }
+      enterRuin(state, 0)
+      exitRuin(state)
+      // Player should be on a walkable tile
+      const tile = state.map[state.player.y][state.player.x]
+      expect(isWalkableTile(tile.type)).toBe(true)
+      // Player should be within 1 tile of entrance
+      expect(Math.abs(state.player.x - entrance.x)).toBeLessThanOrEqual(1)
+      expect(Math.abs(state.player.y - entrance.y)).toBeLessThanOrEqual(1)
+    })
+  })
+
+  describe('seed position revalidation', () => {
+    const makeRng = (seed: number) => {
+      let a = seed | 0
+      return () => {
+        a = (a + 0x6d2b79f5) | 0
+        let t = Math.imul(a ^ (a >>> 15), 1 | a)
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+      }
+    }
+
+    it('subsidence seeds are only on walkable tiles after generation', () => {
+      const ruin = makeRuin({ radius: 5, age: 2000 })
+      const interior = generateRuinInterior(ruin, 0, RuinArchetype.Subsidence, makeRng(SEED))
+      if (!interior.subsidence) return
+      for (const pos of interior.subsidence.seedPositions) {
+        const tile = interior.map[pos.y]?.[pos.x]
+        expect(tile).toBeTruthy()
+        expect(isWalkableTile(tile.type)).toBe(true)
+      }
+    })
+
+    it('dormant garden seeds are only on walkable tiles after generation', () => {
+      const ruin = makeRuin({ radius: 5, age: 4000, aqueductPaths: [[{ x: 50, y: 50 }, { x: 60, y: 50 }, { x: 70, y: 50 }]] })
+      const interior = generateRuinInterior(ruin, 0, RuinArchetype.DormantGarden, makeRng(SEED))
+      if (!interior.dormantGarden) return
+      for (const key of interior.dormantGarden.seedDecayTimers.keys()) {
+        const [sx, sy] = key.split(',').map(Number) as [number, number]
+        const tile = interior.map[sy]?.[sx]
+        expect(tile).toBeTruthy()
+        expect(isWalkableTile(tile.type)).toBe(true)
+      }
+    })
+  })
+
+  describe('unstable floor rendering', () => {
+    it('RuinUnstable tile blinks between dot and exclamation mark', () => {
+      const chars = new Set<string>()
+      // Sample at many different time values to catch both phases
+      for (let t = 0; t < 5000; t += 50) {
+        const layers = getRuinTileLayers(TileType.RuinUnstable, 10, 10, t)
+        expect(layers.length).toBeGreaterThan(0)
+        chars.add(layers[0].char)
+      }
+      // Should have both '.' (normal) and '!' (blink) states
+      expect(chars.has('.')).toBe(true)
+      expect(chars.has('!')).toBe(true)
+    })
+  })
+
+  describe('unstable floor collapse', () => {
+    it('RuinUnstable tile collapses to Space when player walks off it', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      if (state.ruinInteriors.length === 0) return
+
+      // Find a subsidence ruin (has unstable tiles)
+      const subIdx = state.ruinInteriors.findIndex((r) => r.subsidence)
+      if (subIdx === -1) return
+      enterRuin(state, subIdx)
+
+      // Find an unstable tile
+      let unstablePos: { x: number; y: number } | null = null
+      for (let y = 0; y < state.mapHeight; y++) {
+        for (let x = 0; x < state.mapWidth; x++) {
+          if (state.map[y][x].type === TileType.RuinUnstable) {
+            // Check if there's a walkable tile to move to (south)
+            if (y + 1 < state.mapHeight && isWalkableTile(state.map[y + 1][x].type)) {
+              unstablePos = { x, y }
+              break
+            }
+          }
+        }
+        if (unstablePos) break
+      }
+      if (!unstablePos) return
+
+      // Place player on unstable tile
+      state.player = { ...unstablePos }
+
+      // Move player south (off the unstable tile)
+      movePlayer(state, 'down')
+
+      // The tile the player left should now be Space
+      expect(state.map[unstablePos.y][unstablePos.x].type).toBe(TileType.Space)
+    })
+
+    it('stable ruin floor does not collapse when player walks off', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      if (state.ruinInteriors.length === 0) return
+      enterRuin(state, 0)
+
+      // Find a stable floor tile
+      let floorPos: { x: number; y: number } | null = null
+      for (let y = 0; y < state.mapHeight; y++) {
+        for (let x = 0; x < state.mapWidth; x++) {
+          if (state.map[y][x].type === TileType.RuinFloor) {
+            if (y + 1 < state.mapHeight && isWalkableTile(state.map[y + 1][x].type)) {
+              floorPos = { x, y }
+              break
+            }
+          }
+        }
+        if (floorPos) break
+      }
+      if (!floorPos) return
+
+      state.player = { ...floorPos }
+      movePlayer(state, 'down')
+
+      // Should remain RuinFloor
+      expect(state.map[floorPos.y][floorPos.x].type).toBe(TileType.RuinFloor)
     })
   })
 })

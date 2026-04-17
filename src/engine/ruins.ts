@@ -3,7 +3,7 @@ import { BUILDING_CHARS, CIV_COLORS, TILE_CHARS, TILE_COLORS } from './constants
 import { findCoyoteEntity, transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
-import { isWalkableTile, posKey, tileHash } from './position'
+import { findSafeExitPosition, isWalkableTile, posKey, tileHash } from './position'
 import { RuinArchetype, TileType, Zone } from './types'
 
 import type { CivilizationRuin } from './genesisTypes'
@@ -943,6 +943,23 @@ export const generateRuinInterior = (
   // Place astral void ponds after archetype generation
   placeVoidPonds(map, mapWidth, mapHeight, entranceInterior, subsidenceData, dormantGardenData, hauntedThresholdData, resonanceData, rng)
 
+  // Revalidate seed positions — void ponds and debris may have overwritten floor tiles
+  if (subsidenceData) {
+    subsidenceData.seedPositions = subsidenceData.seedPositions.filter((pos) => {
+      const tile = map[pos.y]?.[pos.x]
+      return tile != null && isWalkableTile(tile.type)
+    })
+  }
+  if (dormantGardenData) {
+    for (const key of [...dormantGardenData.seedDecayTimers.keys()]) {
+      const [sx, sy] = key.split(',').map(Number) as [number, number]
+      const tile = map[sy]?.[sx]
+      if (!tile || !isWalkableTile(tile.type)) {
+        dormantGardenData.seedDecayTimers.delete(key)
+      }
+    }
+  }
+
   return {
     ruinIndex,
     archetype,
@@ -1071,11 +1088,13 @@ export const exitRuin = (state: GameState): void => {
   state.mapHeight = state.overworldMapHeight
   state.currentZone = Zone.Overworld
 
-  // Place player one tile south of the overworld entrance to avoid re-entry loop
-  state.player = {
-    x: interior.entranceOverworld.x,
-    y: interior.entranceOverworld.y + 1,
-  }
+  // Place player on nearest walkable tile adjacent to entrance
+  state.player = findSafeExitPosition(
+    interior.entranceOverworld,
+    state.map,
+    state.mapWidth,
+    state.mapHeight,
+  )
 
   state.currentRuinIndex = null
 
@@ -1126,6 +1145,8 @@ export const placeRuinEntrances = (
   map: Tile[][],
   ruinInteriors: RuinInterior[],
 ): void => {
+  const mapHeight = map.length
+  const mapWidth = map[0]?.length ?? 0
   for (const interior of ruinInteriors) {
     const { x, y } = interior.entranceOverworld
     const row = map[y]
@@ -1135,6 +1156,21 @@ export const placeRuinEntrances = (
     // Don't overwrite cave entrances
     if (tile.type === TileType.CaveEntrance) continue
     row[x] = { type: TileType.RuinEntrance }
+
+    // Ensure all adjacent tiles are walkable so the entrance is reachable
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue
+        const nx = x + dx
+        const ny = y + dy
+        if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) continue
+        const neighbor = map[ny][nx]
+        if (!neighbor) continue
+        if (!isWalkableTile(neighbor.type)) {
+          map[ny][nx] = { type: TileType.Dirt }
+        }
+      }
+    }
   }
 }
 
@@ -1722,12 +1758,19 @@ export const getRuinTileLayers = (tileType: TileType, x: number, y: number, time
       ]
 
     case TileType.RuinUnstable: {
-      // Floor with reddish tint suggesting instability
+      // Floor with reddish tint that blinks to signal danger
       const red = Math.floor(0x8b + (h % 30))
       const green = Math.floor(0x5e - (h % 20))
       const blue = Math.floor(0x4e - (h % 15))
+      // Each tile blinks at its own phase offset based on hash
+      const blinkPhase = (time * 0.002 + h * 0.7) % 1
+      const blinking = blinkPhase > 0.7 // blink on ~30% of the cycle
+      const blinkChar = blinking ? '!' : '.'
+      const blinkRed = blinking ? Math.min(255, red + 80) : red
+      const blinkGreen = blinking ? Math.max(0, green - 30) : green
+      const blinkBlue = blinking ? Math.max(0, blue - 20) : blue
       return [
-        { char: '.', color: `rgb(${String(red)},${String(green)},${String(blue)})`, dx: 0, dy: 0 },
+        { char: blinkChar, color: `rgb(${String(blinkRed)},${String(blinkGreen)},${String(blinkBlue)})`, dx: 0, dy: 0 },
       ]
     }
 

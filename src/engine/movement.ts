@@ -5,7 +5,7 @@ import { ComponentType } from './ecs/types'
 import { updateFacingEntity } from './interaction'
 import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
-import { Zone } from './types'
+import { TileType, Zone } from './types'
 
 import type { Direction, GameState, Position } from './types'
 
@@ -94,12 +94,22 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
     return false
   }
 
+  // Remember the tile the player is leaving for potential collapse
+  const prevX = state.player.x
+  const prevY = state.player.y
+  const prevTile = state.map[prevY]?.[prevX]
+
   state.trail.push({ x: state.player.x, y: state.player.y, time: performance.now() })
   if (state.trail.length > TRAIL_MAX_LENGTH) {
     state.trail.shift()
   }
   state.player.x = nx
   state.player.y = ny
+
+  // Collapse unstable ruin floor behind the player
+  if (prevTile?.type === TileType.RuinUnstable && state.currentZone === Zone.Ruin) {
+    state.map[prevY][prevX] = { type: TileType.Space }
+  }
   updateCamera(state)
   updateFacingEntity(state)
 

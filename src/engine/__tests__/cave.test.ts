@@ -224,12 +224,16 @@ describe('exitCave', () => {
     expect(getCharacterEntities(state)).toHaveLength(charsBefore)
   })
 
-  it('places player one tile south of cave entrance to avoid re-entry', () => {
+  it('places player on walkable tile adjacent to cave entrance', () => {
     const state = createTestState()
     enterCave(state)
     exitCave(state)
-    expect(state.player.x).toBe(state.caveEntranceOverworld.x)
-    expect(state.player.y).toBe(state.caveEntranceOverworld.y + 1)
+    const dx = Math.abs(state.player.x - state.caveEntranceOverworld.x)
+    const dy = Math.abs(state.player.y - state.caveEntranceOverworld.y)
+    expect(dx).toBeLessThanOrEqual(1)
+    expect(dy).toBeLessThanOrEqual(1)
+    const tile = state.map[state.player.y][state.player.x]
+    expect(isWalkableTile(tile.type)).toBe(true)
   })
 
   it('is a no-op when already on overworld', () => {
@@ -238,6 +242,23 @@ describe('exitCave', () => {
     // exitCave still runs (swaps map to overworld, which is already active)
     // but player gets repositioned to cave entrance south
     expect(state.currentZone).toBe(Zone.Overworld)
+  })
+
+  it('places player on walkable tile even when south of entrance is blocked', () => {
+    const state = createTestState()
+    const entrance = state.caveEntranceOverworld
+    // Block the tile south of the cave entrance
+    if (entrance.y + 1 < state.overworldMapHeight) {
+      state.overworldMap[entrance.y + 1][entrance.x] = { type: TileType.Space }
+    }
+    enterCave(state)
+    exitCave(state)
+    // Player should be on a walkable tile
+    const tile = state.map[state.player.y][state.player.x]
+    expect(isWalkableTile(tile.type)).toBe(true)
+    // Player should be within 1 tile of entrance
+    expect(Math.abs(state.player.x - entrance.x)).toBeLessThanOrEqual(1)
+    expect(Math.abs(state.player.y - entrance.y)).toBeLessThanOrEqual(1)
   })
 })
 

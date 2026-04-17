@@ -1,6 +1,6 @@
 import { TileType } from './types'
 
-import type { Direction, Position } from './types'
+import type { Direction, Position, Tile } from './types'
 
 export const posKey = (x: number, y: number): string => `${String(x)},${String(y)}`
 
@@ -49,3 +49,36 @@ export const isWalkableTile = (tileType: TileType): boolean =>
   tileType !== TileType.RuinDebris &&
   tileType !== TileType.RuinMachine &&
   tileType !== TileType.RuinMachineActive
+
+/** Find the nearest walkable tile adjacent to an entrance for safe exit placement.
+ *  Checks south first (preferred), then remaining cardinals, then diagonals.
+ *  Falls back to the entrance position itself if nothing is walkable. */
+export const findSafeExitPosition = (
+  entrance: Position,
+  map: Tile[][],
+  mapWidth: number,
+  mapHeight: number,
+): Position => {
+  // Priority order: south first (original behavior), then other cardinals, then diagonals
+  const offsets: Position[] = [
+    { x: 0, y: 1 },
+    { x: 0, y: -1 },
+    { x: -1, y: 0 },
+    { x: 1, y: 0 },
+    { x: -1, y: 1 },
+    { x: 1, y: 1 },
+    { x: -1, y: -1 },
+    { x: 1, y: -1 },
+  ]
+  for (const off of offsets) {
+    const nx = entrance.x + off.x
+    const ny = entrance.y + off.y
+    if (!isInBounds(nx, ny, mapWidth, mapHeight)) continue
+    const tile = map[ny]?.[nx]
+    if (tile && isWalkableTile(tile.type)) {
+      return { x: nx, y: ny }
+    }
+  }
+  // Fallback: entrance itself
+  return { x: entrance.x, y: entrance.y }
+}
