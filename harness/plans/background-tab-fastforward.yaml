@@ -1,0 +1,46 @@
+plan:
+  id: background-tab-fastforward
+  title: Remove per-frame delta clamp so backgrounded-tab returns catch up in one frame
+  created: 2026-04-17
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: remove-frame-delta-clamp
+    title: Pass raw rAF time to tick() without clamping per-frame delta
+    spec_id: background-tab-fastforward
+    spec_sections:
+      - single-frame-catchup-on-resume
+      - no-fast-forward-clamp
+      - normal-frame-behavior-unchanged
+    context_files:
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+
+  - id: add-regression-tests
+    title: Add regression tests for backgrounded-tab return behavior
+    spec_id: background-tab-fastforward
+    spec_sections:
+      - single-frame-catchup-on-resume
+      - no-fast-forward-clamp
+      - normal-frame-behavior-unchanged
+    context_files:
+      - src/engine/__tests__/gameLoop.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/__tests__/gameLoop.test.ts
+    depends_on:
+      - remove-frame-delta-clamp
+    verification:
+      - npx vitest run src/engine/__tests__/gameLoop.test.ts
+    repair: retry
+    tags: [test]
