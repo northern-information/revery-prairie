@@ -41,7 +41,9 @@ export const RECIPES: Recipe[] = [
           const ty = state.player.y + dy
           if (isInBounds(tx, ty, state.mapWidth, state.mapHeight)) {
             const t = state.map[ty][tx].type
-            if (t === TileType.Dirt || t === TileType.Clover || t === TileType.CaveFloor) {
+            const k = posKey(tx, ty)
+            const isWater = state.ponds.has(k) || state.rivers.has(k)
+            if (!isWater && (t === TileType.Dirt || t === TileType.Clover || t === TileType.CaveFloor)) {
               tiles.push({ pos: { x: tx, y: ty }, char: '#', color: ACTION_COLOR, isValid: true })
             }
           }
@@ -51,7 +53,12 @@ export const RECIPES: Recipe[] = [
     },
     execute: state => {
       const standingOn = state.map[state.player.y][state.player.x].type
-      if (standingOn !== TileType.Dirt && standingOn !== TileType.Clover && standingOn !== TileType.CaveFloor)
+      const standingKey = posKey(state.player.x, state.player.y)
+      const standingOnWater = state.ponds.has(standingKey) || state.rivers.has(standingKey)
+      if (
+        standingOnWater ||
+        (standingOn !== TileType.Dirt && standingOn !== TileType.Clover && standingOn !== TileType.CaveFloor)
+      )
         return false
 
       for (let dy = -1; dy <= 1; dy++) {
@@ -60,9 +67,11 @@ export const RECIPES: Recipe[] = [
           const ty = state.player.y + dy
           if (isInBounds(tx, ty, state.mapWidth, state.mapHeight)) {
             const t = state.map[ty][tx].type
-            if (t === TileType.Dirt || t === TileType.Clover || t === TileType.CaveFloor) {
+            const k = posKey(tx, ty)
+            const isWater = state.ponds.has(k) || state.rivers.has(k)
+            if (!isWater && (t === TileType.Dirt || t === TileType.Clover || t === TileType.CaveFloor)) {
               state.map[ty][tx] = { type: TileType.Clover }
-              state.cloverLifecycle.delete(posKey(tx, ty))
+              state.cloverLifecycle.delete(k)
             }
           }
         }

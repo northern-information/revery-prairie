@@ -240,10 +240,8 @@ export const createGameState = (
     }
   }
 
-  // Pre-compute reachable tiles from player spawn (belt-and-suspenders with genesis connectivity)
-  const waterBlocked = new Set<string>()
-  for (const pk of state.ponds) waterBlocked.add(pk)
-  for (const rk of state.rivers) waterBlocked.add(rk)
+  // Pre-compute reachable tiles from player spawn (belt-and-suspenders with genesis connectivity).
+  // Water is walkable, so it does not block reachability.
   const reachableSet = new Set<string>()
   const bfsQueue: string[] = [posKey(playerX, playerY)]
   reachableSet.add(posKey(playerX, playerY))
@@ -265,7 +263,6 @@ export const createGameState = (
       if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue
       const nk = posKey(nx, ny)
       if (reachableSet.has(nk)) continue
-      if (waterBlocked.has(nk)) continue
       if (!isWalkableTile(map[ny][nx].type)) continue
       reachableSet.add(nk)
       bfsQueue.push(nk)

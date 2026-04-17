@@ -1,0 +1,105 @@
+plan:
+  id: water-walkable
+  title: 'Make water tiles traversable by the player and all entities'
+  created: '2026-04-17'
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npm run test'
+
+tasks:
+  - id: remove-water-from-blocked-positions
+    title: 'Remove pond/river entries from getBlockedPositions'
+    spec_id: water-walkable
+    spec_sections:
+      - water-not-in-blocked-positions
+    context_files:
+      - src/engine/movement.ts
+      - harness/specs/water-walkable.yaml
+      - harness/specs/player-movement.yaml
+    output_files:
+      - src/engine/movement.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - engine
+
+  - id: remove-water-blocked-from-ghost-spawn-bfs
+    title: 'Remove waterBlocked set from ghost-spawn reachability BFS'
+    spec_id: water-walkable
+    spec_sections:
+      - ghost-spawn-bfs-traverses-water
+    context_files:
+      - src/engine/state.ts
+      - harness/specs/water-walkable.yaml
+    output_files:
+      - src/engine/state.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - engine
+
+  - id: reject-water-in-prairie-recipe
+    title: 'Prairie recipe preview and execute skip water tiles'
+    spec_id: water-walkable
+    spec_sections:
+      - clover-plant-rejects-water
+    context_files:
+      - src/engine/recipes.ts
+      - harness/specs/water-walkable.yaml
+    output_files:
+      - src/engine/recipes.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-water-walkable-tests
+    title: 'Add regression tests for water traversal and clover rejection'
+    spec_id: water-walkable
+    spec_sections:
+      - water-not-in-blocked-positions
+      - clover-plant-rejects-water
+      - clover-cannot-spawn-on-water
+      - harvest-adjacent-from-water
+    context_files:
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/movement.test.ts
+      - src/engine/movement.ts
+      - src/engine/recipes.ts
+      - harness/specs/water-walkable.yaml
+    output_files:
+      - src/engine/__tests__/water-walkable.test.ts
+    depends_on:
+      - remove-water-from-blocked-positions
+      - reject-water-in-prairie-recipe
+    verification:
+      - 'npx vitest run src/engine/__tests__/water-walkable.test.ts'
+    repair: retry
+    tags:
+      - test
+
+  - id: update-movement-test-for-water-walkable
+    title: 'Update movement tests that previously asserted water blocked movement'
+    spec_id: water-walkable
+    spec_sections:
+      - water-not-in-blocked-positions
+    context_files:
+      - src/engine/__tests__/movement.test.ts
+      - src/engine/movement.ts
+      - harness/specs/player-movement.yaml
+    output_files:
+      - src/engine/__tests__/movement.test.ts
+    depends_on:
+      - remove-water-from-blocked-positions
+    verification:
+      - 'npx vitest run src/engine/__tests__/movement.test.ts'
+    repair: retry
+    tags:
+      - test
