@@ -308,16 +308,60 @@ describe('coyote companion', () => {
       expect(state.backpack.items.length).toBeGreaterThan(0)
     })
 
-    it('idles when no collectibles exist', () => {
+    it('follows player when no collectibles exist', () => {
       const state = createCoyoteState()
       state.coyoteMode = CoyoteMode.Collect
       clearAroundPlayer(state, 10)
 
+      // Move coyote far from player so follow behavior triggers movement
+      const eid = requireValue(findCoyoteEntity(state))
+      state.world.moveEntity(eid, state.player.x + 6, state.player.y)
+
+      const posBefore = requireValue(getCoyotePosition(state))
+      const result = tickCoyote(state)
+      const posAfter = requireValue(getCoyotePosition(state))
+
+      expect(result.pickedUp).toBeNull()
+      expect(result.delivered).toBeNull()
+      // Should have moved toward the player (follow fallback)
+      expect(posAfter.x).toBeLessThan(posBefore.x)
+    })
+
+    it('stays near player in collect mode when no collectibles and already close', () => {
+      const state = createCoyoteState()
+      state.coyoteMode = CoyoteMode.Collect
+      clearAroundPlayer(state, 10)
+
+      // Coyote is already adjacent (1 tile away) — within follow min dist
       const posBefore = getCoyotePosition(state)
       const result = tickCoyote(state)
       expect(result.pickedUp).toBeNull()
       expect(result.delivered).toBeNull()
       expect(getCoyotePosition(state)).toEqual(posBefore)
+    })
+
+    it('switches from follow-fallback to collecting when item appears', () => {
+      const state = createCoyoteState()
+      state.coyoteMode = CoyoteMode.Collect
+      clearAroundPlayer(state, 10)
+
+      // Move coyote far from player — will follow
+      const eid = requireValue(findCoyoteEntity(state))
+      state.world.moveEntity(eid, state.player.x + 6, state.player.y)
+
+      // First tick: no items, follows player
+      tickCoyote(state)
+      const afterFollow = requireValue(getCoyotePosition(state))
+      expect(afterFollow.x).toBeLessThan(state.player.x + 6)
+
+      // Now drop an item near the coyote
+      createGroundItemEntity(state, 'honey', afterFollow.x + 1, afterFollow.y)
+
+      // Next tick: should move toward item, not player
+      const beforeCollect = requireValue(getCoyotePosition(state))
+      tickCoyote(state)
+      const afterCollect = requireValue(getCoyotePosition(state))
+      expect(afterCollect.x).toBeGreaterThan(beforeCollect.x)
     })
 
     it('walks toward meteorite when not on its tile', () => {

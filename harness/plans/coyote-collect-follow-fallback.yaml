@@ -1,0 +1,41 @@
+plan:
+  id: coyote-collect-follow-fallback
+  title: 'Coyote falls back to follow behavior when in collect mode with nothing to collect'
+  created: '2026-04-17'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: collect-follow-fallback
+    title: 'Call tickFollow when tickCollect finds no collectibles and coyote has no cargo'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-collect-behavior
+    context_files:
+      - src/engine/coyote.ts
+    output_files:
+      - src/engine/coyote.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/coyote.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: update-collect-follow-tests
+    title: 'Update existing idle test and add new test for follow-fallback in collect mode'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-collect-behavior
+    context_files:
+      - src/engine/__tests__/coyote.test.ts
+      - src/engine/coyote.ts
+    output_files:
+      - src/engine/__tests__/coyote.test.ts
+    depends_on:
+      - collect-follow-fallback
+    verification:
+      - npx vitest run src/engine/__tests__/coyote.test.ts
+    repair: retry
+    tags: [test]

@@ -94,8 +94,12 @@ behaviors:
       drops the item as a ground item entity near Gron (using the same
       DROP_DELTAS pattern as existing drop logic). after each delivery,
       the coyote resumes scanning for the next item. when no ground
-      items remain on the map, the coyote idles at its current position
-      until new items appear. each pickup and each delivery fires
+      items remain on the map and the coyote is not carrying cargo, the
+      coyote falls back to follow behavior (same logic as tickFollow —
+      trails the player at 2-3 tile path distance) until new items
+      appear. when a ground item spawns while the coyote is mid-follow-
+      step, the coyote finishes its current step before switching to
+      collect on the next tick. each pickup and each delivery fires
       addEvent with kind 'pickup', the item icon, and descriptive text.
       COYOTE_COLLECTIBLE_DEFINITIONS is removed — no allowlist filtering.
     inputs:
@@ -252,8 +256,8 @@ behaviors:
 
 edge_cases:
   - id: coyote-no-collectibles
-    description: 'coyote is in collect mode but no ground items exist on the map'
-    expected: 'coyote idles at current position, resumes when new items spawn'
+    description: 'coyote is in collect mode but no ground items exist on the map and not carrying cargo'
+    expected: 'coyote falls back to follow behavior (trails player at 2-3 tile distance), resumes collecting when new items spawn'
   - id: coyote-backpack-full-gron-area-full
     description: 'backpack is full and all drop positions near Gron are occupied by ground items or blocked'
     expected: 'coyote idles near Gron holding cargo until a drop position opens'
@@ -265,7 +269,7 @@ edge_cases:
     expected: 'coyote recalculates path to new player position on next tick'
   - id: coyote-collect-in-cave
     description: 'coyote in collect mode enters cave with player — cave has no ground items'
-    expected: 'coyote idles in cave until items appear or player exits'
+    expected: 'coyote follows player in cave until items appear or player exits'
   - id: coyote-summon-all-adjacent-blocked
     description: 'summon action but all tiles adjacent to player are blocked or unwalkable'
     expected: 'summon fails silently, coyote stays at current position'
