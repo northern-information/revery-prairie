@@ -257,7 +257,11 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                         .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'character')
                       if (charEid !== undefined) {
                         const identity = state.world.getComponent(charEid, ComponentType.CharacterIdentity)
-                        if (identity) return getCharacterDefinition(identity.definitionId).name.toLowerCase()
+                        if (identity) {
+                          const name = getCharacterDefinition(identity.definitionId).name.toLowerCase()
+                          const isSelected = state.selectedUnits.has(charEid)
+                          return isSelected ? `${name} [selected]` : name
+                        }
                       }
                       const hasBeeEcs = state.world.spatial
                         .at(cx, cy)

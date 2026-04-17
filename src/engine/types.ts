@@ -231,6 +231,10 @@ export interface GameState {
   currentRuinIndex: number | null
   caveFogExplored: Set<string>
   caveFogIllumination: Map<string, number>
+  selectedUnits: Set<number>
+  selectionBox: SelectionBox | null
+  unitCommands: Map<number, UnitCommand>
+  moveOrderMarkers: MoveOrderMarker[]
   devPanelOpen: boolean
   devPaintPreview: { x1: number; y1: number; x2: number; y2: number; tileType: string } | null
   devEntityPreview: { x: number; y: number; char: string; color: string } | null
@@ -426,4 +430,20 @@ export interface CharMetrics {
   charWidth: number
   charHeight: number
   font: string
+}
+
+export interface UnitCommand {
+  targetEntityId: number
+  target: Position
+  path: Position[] | null
+}
+
+export interface SelectionBox {
+  startScreen: { x: number; y: number }
+  endScreen: { x: number; y: number }
+}
+
+export interface MoveOrderMarker {
+  position: Position
+  time: number
 }

@@ -80,6 +80,7 @@ import {
   TILE_COLORS,
   getEntranceGlyph,
   TRAIL_DURATION_MS,
+  MOVE_ORDER_MARKER_DURATION_MS,
   WEATHER_RAIN_DENSITY,
   WILDFIRE_CHARS,
   WILDFIRE_COLORS,
@@ -92,6 +93,7 @@ import { getDefinition } from './items'
 import { isInBounds, posKey, tileHash } from './position'
 import { getReveryDefinition } from './reveries'
 import { getRuinTileLayers, isHiddenTile } from './ruins'
+import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
@@ -260,6 +262,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const reveryCastMap = _reveryCastMap
   const earthScanBgMap = _earthScanBgMap
   const crumbleMap = _crumbleMap
+
+  // Build selected unit position set for highlight rendering
+  const selectedPositions = getSelectedUnitPositions(state)
 
   // Build overworld entrance glyph map (posKey → Greek letter)
   _entranceGlyphMap.clear()
@@ -1196,6 +1201,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       } else if (state.devPanelOpen) {
         // Suppress cursor highlight when dev panel is open
         ctx.fillStyle = color
+      } else if (selectedPositions.has(tileKey)) {
+        ctx.fillStyle = ACTION_COLOR
+        ctx.fillRect(px, py, charWidth, charHeight)
+        ctx.fillStyle = BG_COLOR
       } else if (isAngelGroupHighlighted) {
         ctx.fillStyle = ACTION_COLOR
         ctx.fillRect(px, py, charWidth, charHeight)
@@ -1402,5 +1411,34 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const alpha = LIGHTNING_SCREEN_FLASH_OPACITY * (1 - angelFlashElapsed / LIGHTNING_SCREEN_FLASH_MS)
     ctx.fillStyle = `rgba(255, 255, 255, ${String(alpha)})`
     ctx.fillRect(0, 0, pxWidth, pxHeight)
+  }
+
+  // RTS selection box overlay
+  if (state.selectionBox) {
+    const box = state.selectionBox
+    const x = Math.min(box.startScreen.x, box.endScreen.x)
+    const y = Math.min(box.startScreen.y, box.endScreen.y)
+    const w = Math.abs(box.endScreen.x - box.startScreen.x)
+    const h = Math.abs(box.endScreen.y - box.startScreen.y)
+    ctx.fillStyle = 'rgba(255, 105, 180, 0.15)'
+    ctx.fillRect(x, y, w, h)
+    ctx.strokeStyle = ACTION_COLOR
+    ctx.lineWidth = 1
+    ctx.strokeRect(x, y, w, h)
+  }
+
+  // Move-order markers
+  for (const marker of state.moveOrderMarkers) {
+    const elapsed = time - marker.time
+    if (elapsed >= MOVE_ORDER_MARKER_DURATION_MS) continue
+    const alpha = 1 - elapsed / MOVE_ORDER_MARKER_DURATION_MS
+    const sx = (marker.position.x - camera.x) * charWidth
+    const sy = (marker.position.y - camera.y) * charHeight
+    ctx.globalAlpha = alpha
+    ctx.fillStyle = ACTION_COLOR
+    ctx.fillRect(sx, sy, charWidth, charHeight)
+    ctx.fillStyle = BG_COLOR
+    ctx.fillText('X', sx, sy)
+    ctx.globalAlpha = 1
   }
 }

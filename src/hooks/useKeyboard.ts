@@ -158,11 +158,7 @@ export const useKeyboard = ({
           const adjacent = getAdjacentCharacter(state)
           if (adjacent) {
             const result = interactWithCharacter(state)
-            if (result.coyoteToggled) {
-              const modeLabel = state.coyoteMode === 'follow' ? 'following' : 'collecting'
-              onDiscovery(`coyote: ${modeLabel}`, state.player.x, state.player.y, 'C', '#D4A054')
-              refreshUI()
-            } else if (result.opened) {
+            if (result.opened) {
               const def = getCharacterDefinition(adjacent.definitionId)
               onDialog(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
               refreshUI()

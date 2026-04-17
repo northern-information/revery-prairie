@@ -1,0 +1,273 @@
+id: rts-unit-selection
+name: 'RTS-style unit selection and control'
+status: planned
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/selection.ts
+  - src/engine/movement.ts
+  - src/engine/coyote.ts
+  - src/engine/characters.ts
+  - src/engine/interaction.ts
+  - src/engine/renderer.ts
+  - src/engine/pathfinding.ts
+  - src/hooks/useMouse.ts
+  - src/hooks/useKeyboard.ts
+  - src/components/CommandPanel.tsx
+  - src/components/ActionBar.tsx
+  - src/components/Sidebar.tsx
+dependencies:
+  - player-movement
+  - pathfinding
+  - coyote-companion
+
+behaviors:
+  - id: left-click-select-unit
+    description: >
+      left-clicking on a controllable unit (coyote or gron) selects it.
+      the click is intercepted before the existing click-to-move logic.
+      the selected unit is added to state.selectedUnits. if the unit was
+      already selected and is the only selection, it is deselected.
+      clicking a unit without shift replaces the current selection.
+    inputs:
+      - 'left click on a tile occupied by a controllable unit'
+    outputs:
+      - 'unit added to selectedUnits set'
+      - 'no player pathfinding initiated'
+    state_changes:
+      - field: selectedUnits
+        effect: 'set to contain the clicked unit entity id'
+    determinism: deterministic
+
+  - id: left-click-deselect
+    description: >
+      left-clicking on a non-unit tile (empty ground, terrain, etc.)
+      deselects all units and falls through to normal player click-to-move
+      behavior.
+    inputs:
+      - 'left click on a tile with no controllable unit'
+      - 'selectedUnits is non-empty'
+    outputs:
+      - 'selectedUnits cleared'
+      - 'normal click-to-move behavior resumes for the click'
+    state_changes:
+      - field: selectedUnits
+        effect: 'cleared to empty set'
+    determinism: deterministic
+
+  - id: drag-box-select
+    description: >
+      left-click and drag on the canvas draws a selection rectangle
+      (pink outline #ff69b4 with light pink fill rgba(255,105,180,0.15)).
+      on mouse-up, all controllable units whose tile position falls
+      within the rectangle are added to selectedUnits. if no units are
+      in the box, selection is cleared and no player move occurs.
+    inputs:
+      - 'left mouse down + drag on canvas (minimum 3px movement to
+        distinguish from click)'
+    outputs:
+      - 'selection rectangle rendered during drag'
+      - 'units within rectangle selected on mouse-up'
+    state_changes:
+      - field: selectionBox
+        effect: 'set during drag with start/end screen positions, cleared on mouse-up'
+      - field: selectedUnits
+        effect: 'set to all controllable units within the box area'
+    determinism: deterministic
+
+  - id: right-click-move-command
+    description: >
+      right-clicking on a walkable tile while units are selected issues
+      a move command. each selected unit independently pathfinds to the
+      target tile (or nearest walkable neighbor if multiple units).
+      a move-order marker is briefly shown at the target. the browser
+      context menu is always suppressed on the canvas.
+    inputs:
+      - 'right click on a walkable tile'
+      - 'selectedUnits is non-empty'
+    outputs:
+      - 'each selected unit begins pathfinding to target'
+      - 'move-order marker rendered at target tile'
+    state_changes:
+      - field: unitCommands
+        effect: 'move command queued for each selected unit with target position'
+    determinism: deterministic
+
+  - id: right-click-no-selection
+    description: >
+      right-clicking when no units are selected does nothing (no player
+      movement, no context menu). the browser context menu is suppressed.
+    inputs:
+      - 'right click on canvas'
+      - 'selectedUnits is empty'
+    outputs:
+      - 'no action taken'
+    state_changes: []
+    determinism: deterministic
+
+  - id: unit-command-execution
+    description: >
+      each tick, commanded units consume their path one tile at a time,
+      similar to player tickPath. units pathfind independently and avoid
+      each other and other blockers. when a unit reaches its destination,
+      the command is cleared.
+    inputs:
+      - 'unit has an active move command with path'
+    outputs:
+      - 'unit position advances one tile per tick along path'
+    state_changes:
+      - field: 'unit Position component'
+        effect: 'advances along path toward command target'
+      - field: unitCommands
+        effect: 'cleared when unit reaches destination'
+    determinism: deterministic
+
+  - id: selected-unit-highlight
+    description: >
+      selected units render with a pink (#ff69b4) highlight ring or
+      background tint on their tile, consistent with the game's cursor
+      highlight convention (inverted rendering).
+    inputs:
+      - 'unit entity id is in selectedUnits'
+    outputs:
+      - 'unit tile rendered with pink highlight'
+    state_changes: []
+    determinism: deterministic
+
+  - id: command-panel-display
+    description: >
+      when one or more units are selected, the action bar is replaced
+      by a command panel. for single selection, shows the unit's portrait
+      (character portrait image), name, and available commands. for
+      multi-selection, shows a grid of small portraits for each selected
+      unit. the command panel occupies the same screen position as the
+      action bar.
+    inputs:
+      - 'selectedUnits is non-empty'
+    outputs:
+      - 'action bar hidden'
+      - 'command panel shown with portrait(s) and commands'
+    state_changes: []
+    determinism: deterministic
+
+  - id: coyote-mode-via-command-panel
+    description: >
+      when coyote is selected (single selection), the command panel shows
+      Follow and Collect mode buttons. clicking a mode button switches
+      coyote's mode. the active mode is visually highlighted. this
+      replaces the previous [e] key toggle for coyote mode switching.
+    inputs:
+      - 'coyote is the sole selected unit'
+      - 'click on Follow or Collect button in command panel'
+    outputs:
+      - 'coyote mode changed'
+      - 'active mode button highlighted'
+    state_changes:
+      - field: coyoteMode
+        effect: 'set to the clicked mode'
+    determinism: deterministic
+
+  - id: gron-mobility
+    description: >
+      gron becomes a controllable mobile unit. gron does not wander
+      autonomously — he only moves when commanded via right-click.
+      gron still blocks movement and retains dialog interaction (via [e]
+      when adjacent, or left-click when not selected). gron pathfinds
+      using the same A* system as the player.
+    inputs:
+      - 'right-click move command issued while gron is selected'
+    outputs:
+      - 'gron pathfinds to target and moves tile-by-tile'
+    state_changes:
+      - field: unitCommands
+        effect: 'move command set for gron entity'
+    determinism: deterministic
+
+  - id: gron-dialog-preserved
+    description: >
+      gron retains dialog interaction. when no units are selected,
+      clicking gron triggers the existing click-to-interact behavior
+      (pathfind to gron, open dialog). when gron is selected, clicking
+      gron selects him instead. pressing [e] when adjacent to gron
+      still opens dialog regardless of selection state.
+    inputs:
+      - '[e] pressed while player is adjacent to gron'
+    outputs:
+      - 'dialog opens with gron'
+    state_changes:
+      - field: activeDialog
+        effect: 'set to gron dialog state'
+    determinism: deterministic
+
+  - id: player-controls-when-no-selection
+    description: >
+      when selectedUnits is empty, all existing player controls work
+      unchanged — left-click to move, WASD movement, shift+click
+      waypoints, [e] to interact, etc. the selection system is
+      transparent when nothing is selected.
+    inputs:
+      - 'selectedUnits is empty'
+      - 'any existing player input'
+    outputs:
+      - 'existing behavior unchanged'
+    state_changes: []
+    determinism: deterministic
+
+  - id: move-order-marker
+    description: >
+      when a right-click move command is issued, a brief visual marker
+      appears at the target tile — a pink ping/flash that fades over
+      500ms. this gives feedback that the command was received.
+    inputs:
+      - 'right-click move command issued'
+    outputs:
+      - 'pink marker rendered at target tile for 500ms'
+    state_changes:
+      - field: moveOrderMarkers
+        effect: 'marker added with position and timestamp'
+    determinism: time-based
+
+edge_cases:
+  - id: drag-vs-click-threshold
+    description: 'Mouse movement under 3px between mousedown and mouseup is treated as a click, not a drag-select'
+    expected: 'Normal click behavior fires (select unit or deselect+move)'
+  - id: box-select-empty-area
+    description: 'Drag-select box drawn over area with no controllable units'
+    expected: 'selectedUnits cleared, no player movement'
+  - id: move-command-blocked-tile
+    description: 'Right-click on non-walkable tile while units selected'
+    expected: 'No move command issued, no error'
+  - id: unit-path-blocked-midway
+    description: 'A commanded unit path becomes blocked by another entity mid-traversal'
+    expected: 'Unit stops and clears its command (does not repath automatically)'
+  - id: zone-transition-clears-selection
+    description: 'Player enters cave or ruin while units are selected in overworld'
+    expected: 'selectedUnits cleared on zone transition'
+  - id: dialog-blocks-selection
+    description: 'Left-click during active dialog should not select units'
+    expected: 'Click handled by dialog system, selection unchanged'
+  - id: coyote-follow-mode-with-command
+    description: 'Coyote is in follow mode but has a move command active'
+    expected: 'Move command takes priority over follow behavior until completed'
+  - id: multiple-units-same-destination
+    description: 'Two units commanded to same tile'
+    expected: 'First to arrive occupies tile, second stops at nearest walkable neighbor'
+  - id: select-during-player-path
+    description: 'Clicking a unit while player is mid-path'
+    expected: 'Player path cancelled, unit selected'
+
+failure_conditions:
+  - trigger: 'Right-click with no selected units'
+    expected: 'No action, context menu suppressed'
+  - trigger: 'Right-click on non-walkable tile'
+    expected: 'No move command issued'
+  - trigger: 'Left-click unit during active dialog'
+    expected: 'Dialog handles click, no selection change'
+  - trigger: 'Drag-select during inventory drag'
+    expected: 'Inventory drag takes priority, no canvas selection'
+
+verification:
+  test_file: src/engine/__tests__/selection.test.ts
+  test_pattern: 'selection'
+  command: 'npx vitest run src/engine/__tests__/selection.test.ts'

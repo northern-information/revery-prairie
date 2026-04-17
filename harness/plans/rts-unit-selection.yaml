@@ -1,0 +1,318 @@
+plan:
+  id: rts-unit-selection
+  title: 'RTS-style unit selection, command panel, and controllable Gron'
+  created: 2026-04-17
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-selection-state
+    title: 'Add selection, unit command, and move marker types/fields to GameState'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - left-click-select-unit
+      - right-click-move-command
+      - drag-box-select
+      - move-order-marker
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: selection-engine
+    title: 'Create selection.ts with select, deselect, box-hit-test, and controllable-unit queries'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - left-click-select-unit
+      - left-click-deselect
+      - drag-box-select
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ecs/world.ts
+      - src/engine/ecs/components.ts
+      - src/engine/characters.ts
+      - src/engine/coordinates.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/selection.ts
+    depends_on:
+      - add-selection-state
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: unit-command-system
+    title: 'Create unitCommands.ts with command queuing, per-unit pathfinding, and tick execution'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - right-click-move-command
+      - unit-command-execution
+      - move-order-marker
+    context_files:
+      - src/engine/types.ts
+      - src/engine/pathfinding.ts
+      - src/engine/movement.ts
+      - src/engine/position.ts
+      - src/engine/ecs/world.ts
+      - src/engine/ecs/components.ts
+    output_files:
+      - src/engine/unitCommands.ts
+    depends_on:
+      - add-selection-state
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: gron-mobility
+    title: 'Make Gron a commandable mobile unit that pathfinds on right-click command'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - gron-mobility
+      - gron-dialog-preserved
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/interaction.ts
+      - src/engine/coyote.ts
+      - src/engine/unitCommands.ts
+      - src/engine/ecs/components.ts
+      - src/engine/movement.ts
+    output_files:
+      - src/engine/characters.ts
+      - src/engine/interaction.ts
+    depends_on:
+      - unit-command-system
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: coyote-command-override
+    title: 'Update coyote tick to respect move commands over follow behavior'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - coyote-mode-via-command-panel
+      - unit-command-execution
+    context_files:
+      - src/engine/coyote.ts
+      - src/engine/unitCommands.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/coyote.ts
+    depends_on:
+      - unit-command-system
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: mouse-handler-selection
+    title: 'Update useMouse with left-click select, drag-box, and right-click move commands'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - left-click-select-unit
+      - left-click-deselect
+      - drag-box-select
+      - right-click-move-command
+      - right-click-no-selection
+      - player-controls-when-no-selection
+    context_files:
+      - src/hooks/useMouse.ts
+      - src/engine/selection.ts
+      - src/engine/unitCommands.ts
+      - src/engine/coordinates.ts
+      - src/engine/types.ts
+      - src/engine/pathfinding.ts
+      - src/engine/movement.ts
+    output_files:
+      - src/hooks/useMouse.ts
+    depends_on:
+      - selection-engine
+      - unit-command-system
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [hook]
+
+  - id: keyboard-handler-updates
+    title: 'Remove [e] coyote mode toggle from keyboard handler, preserve [e] for dialog/interaction'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - coyote-mode-via-command-panel
+      - gron-dialog-preserved
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/engine/interaction.ts
+      - src/engine/types.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+      - src/engine/interaction.ts
+    depends_on:
+      - selection-engine
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [hook]
+
+  - id: renderer-selection-visuals
+    title: 'Render selection highlights, drag-box rectangle, and move-order markers on canvas'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - selected-unit-highlight
+      - drag-box-select
+      - move-order-marker
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+      - src/engine/selection.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - selection-engine
+      - unit-command-system
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: command-panel-component
+    title: 'Create CommandPanel.tsx with portrait, name, and mode buttons for selected units'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - command-panel-display
+      - coyote-mode-via-command-panel
+    context_files:
+      - src/components/ActionBar.tsx
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+      - src/engine/characters.ts
+      - src/engine/selection.ts
+      - src/engine/coyote.ts
+      - src/hooks/useGameEngine.ts
+    output_files:
+      - src/components/CommandPanel.tsx
+    depends_on:
+      - selection-engine
+      - coyote-command-override
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: action-bar-integration
+    title: 'Swap ActionBar for CommandPanel when units are selected'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - command-panel-display
+    context_files:
+      - src/components/ActionBar.tsx
+      - src/components/CommandPanel.tsx
+      - src/components/GameScreen.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on:
+      - command-panel-component
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: game-loop-tick-integration
+    title: 'Wire unitCommands tick and move-marker cleanup into the game loop'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - unit-command-execution
+      - move-order-marker
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/unitCommands.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - unit-command-system
+      - coyote-command-override
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: zone-transition-cleanup
+    title: 'Clear selection and unit commands on zone transition'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - left-click-deselect
+    context_files:
+      - src/engine/movement.ts
+      - src/engine/types.ts
+      - src/engine/selection.ts
+    output_files:
+      - src/engine/movement.ts
+    depends_on:
+      - selection-engine
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: cursor-info-update
+    title: 'Update sidebar cursor info to show selection status for controllable units'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - selected-unit-highlight
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+      - src/engine/selection.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - selection-engine
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: selection-engine-tests
+    title: 'Unit tests for selection logic, unit commands, and box-hit-test'
+    spec_id: rts-unit-selection
+    spec_sections:
+      - left-click-select-unit
+      - left-click-deselect
+      - drag-box-select
+      - right-click-move-command
+      - unit-command-execution
+      - gron-mobility
+      - coyote-mode-via-command-panel
+    context_files:
+      - src/engine/selection.ts
+      - src/engine/unitCommands.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/coyote.test.ts
+    output_files:
+      - src/engine/__tests__/selection.test.ts
+    depends_on:
+      - selection-engine
+      - unit-command-system
+      - gron-mobility
+      - coyote-command-override
+    verification:
+      - 'npx vitest run src/engine/__tests__/selection.test.ts'
+    repair: retry
+    tags: [test]

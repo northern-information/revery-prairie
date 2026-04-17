@@ -4,6 +4,8 @@ import { findCoyoteEntity, transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { findSafeExitPosition, isWalkableTile, posKey, tileHash } from './position'
+import { deselectAll } from './selection'
+import { clearAllUnitCommands } from './unitCommands'
 import { RuinArchetype, TileType, Zone } from './types'
 
 import type { CivilizationRuin } from './genesisTypes'
@@ -1017,6 +1019,8 @@ const clearNavigationState = (state: GameState): void => {
   state.activeDialog = null
   state.trail = []
   state.cloverGrowthPreviews = new Set<string>()
+  deselectAll(state)
+  clearAllUnitCommands(state)
 }
 
 export const enterRuin = (state: GameState, ruinIndex: number): void => {
