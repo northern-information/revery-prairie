@@ -9,7 +9,7 @@ plan:
 
 tasks:
   - id: gamestate-field
-    title: 'Add devPanelOpen boolean to GameState and serialization whitelist'
+    title: 'Add devPanelOpen boolean to GameState and serialization allowlist'
     spec_id: dev-panel
     spec_sections:
       - toggle-visibility

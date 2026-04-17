@@ -234,7 +234,7 @@ tasks:
     repair: retry
     tags: [component, sidebar]
 
-  - id: coyote-schema-whitelist
+  - id: coyote-schema-allowlist
     title: 'Add new GameState fields to EXPECTED_FIELDS in schema test'
     spec_id: coyote-companion
     spec_sections:
