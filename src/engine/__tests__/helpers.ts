@@ -1,22 +1,45 @@
+import { MAP_WIDTH, MAP_HEIGHT } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { createCharacterEntity } from '../entities'
+import { createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis, completeGenesis } from '../genesis'
 import { isInBounds } from '../position'
 import { createGameState } from '../state'
-import { completeGenesis } from '../genesis'
 import { TileType } from '../types'
 
 import type { Entity } from '../ecs/types'
+import type { GenesisSimState } from '../genesisTypes'
 import type { CharacterBehavior, GameState, Zone } from '../types'
+
+// Run genesis once at module load — 174ms amortized across all tests in a file.
+const _cachedSim = (() => {
+  const seed = nameToSeed('Test')
+  const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
+  precomputeGenesis(sim, GENESIS_EPOCHS)
+  return sim
+})()
+
+// Clone the mutable parts of the cached genesis result (~1.8ms vs ~174ms).
+const cloneGenesis = (): GenesisSimState => ({
+  ..._cachedSim,
+  grid: _cachedSim.grid.map(row => row.map(t => ({ ...t }))),
+  soilHealth: new Map(_cachedSim.soilHealth),
+  elevation: new Map(_cachedSim.elevation),
+  ponds: new Set(_cachedSim.ponds),
+  riverPaths: new Set(_cachedSim.riverPaths),
+  burnScars: new Set(_cachedSim.burnScars),
+  ruins: _cachedSim.ruins.map(r => ({ ...r, aqueductPaths: r.aqueductPaths.map(p => [...p]), buildingFootprints: [...r.buildingFootprints] })),
+})
 
 /**
  * Creates a minimal game state for testing — empty backpack, no entities,
  * no shooting stars. Tests should explicitly add only what they need.
  *
  * Wraps createGameState to stay in sync with the state shape, then clears
- * gameplay-specific content.
+ * gameplay-specific content. Reuses a cached genesis result to avoid
+ * running the expensive geological simulation on every call.
  */
 export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?: number }): GameState => {
-  const state = createGameState('Test', opts?.viewportWidth ?? 20, opts?.viewportHeight ?? 20)
+  const state = createGameState('Test', opts?.viewportWidth ?? 20, opts?.viewportHeight ?? 20, cloneGenesis())
   // Complete genesis immediately so tests start in normal gameplay mode
   completeGenesis(state)
   state.backpack.items = []
