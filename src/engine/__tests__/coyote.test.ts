@@ -9,7 +9,7 @@ import {
   transitionCoyoteToZone,
 } from '../coyote'
 import { ComponentType } from '../ecs/types'
-import { getBlockedPositions } from '../movement'
+import { getBlockedPositions, getPathfindingBlockers, movePlayer } from '../movement'
 import { posKey } from '../position'
 import { CoyoteMode, TileType, Zone } from '../types'
 
@@ -340,11 +340,55 @@ describe('coyote companion', () => {
   })
 
   describe('blocking', () => {
-    it('coyote is included in blocked positions', () => {
+    it('coyote is included in default blocked positions (for other entities)', () => {
       const state = createCoyoteState()
       const blocked = getBlockedPositions(state)
       const coyotePos = requireValue(getCoyotePosition(state))
       expect(blocked.has(posKey(coyotePos.x, coyotePos.y))).toBe(true)
+    })
+
+    it('coyote is excluded from blocked positions with ignoreCoyote option', () => {
+      const state = createCoyoteState()
+      const blocked = getBlockedPositions(state, undefined, { ignoreCoyote: true })
+      const coyotePos = requireValue(getCoyotePosition(state))
+      expect(blocked.has(posKey(coyotePos.x, coyotePos.y))).toBe(false)
+    })
+
+    it('player can walk onto coyote tile', () => {
+      const state = createCoyoteState()
+      clearAroundPlayer(state, 10)
+      // Coyote is at player.x + 1, player.y
+      const coyotePos = requireValue(getCoyotePosition(state))
+      expect(coyotePos).toEqual({ x: state.player.x + 1, y: state.player.y })
+
+      const moved = movePlayer(state, 'right')
+      expect(moved).toBe(true)
+      expect(state.player.x).toBe(coyotePos.x)
+      expect(state.player.y).toBe(coyotePos.y)
+    })
+
+    it('coyote nudges off player tile on next follow tick', () => {
+      const state = createCoyoteState()
+      clearAroundPlayer(state, 10)
+      // Move player onto coyote tile
+      const coyotePos = requireValue(getCoyotePosition(state))
+      state.player = { x: coyotePos.x, y: coyotePos.y }
+
+      tickCoyote(state)
+
+      // Coyote should have moved off the player tile
+      const newCoyotePos = requireValue(getCoyotePosition(state))
+      expect(newCoyotePos.x !== state.player.x || newCoyotePos.y !== state.player.y).toBe(true)
+    })
+
+    it('A* pathfinding routes through coyote tile for player', () => {
+      const state = createCoyoteState()
+      clearAroundPlayer(state, 10)
+      // Coyote is at player.x + 1, player.y — blocking the path east
+      const blockers = getPathfindingBlockers(state)
+      const coyotePos = requireValue(getCoyotePosition(state))
+      // Coyote should NOT be in the pathfinding blocker set for player
+      expect(blockers.has(posKey(coyotePos.x, coyotePos.y))).toBe(false)
     })
   })
 

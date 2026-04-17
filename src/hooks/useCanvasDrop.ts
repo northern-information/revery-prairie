@@ -118,7 +118,7 @@ export const useCanvasDrop = ({
       }
 
       // Find an adjacent walkable tile to pathfind to
-      const blocked = getBlockedPositions(state)
+      const blocked = getBlockedPositions(state, undefined, { ignoreCoyote: true })
       let bestPath: ReturnType<typeof findPath> = null
       for (const d of ORDINAL) {
         const ax = mx + d.x

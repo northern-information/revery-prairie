@@ -213,6 +213,17 @@ const tickFollow = (
   pos: { x: number; y: number },
   blocked: Set<string>
 ): void => {
+  // Nudge: if overlapping the player, step to an adjacent walkable tile
+  if (pos.x === state.player.x && pos.y === state.player.y) {
+    const selfKey = posKey(pos.x, pos.y)
+    blocked.delete(selfKey)
+    const adjacent = findAdjacentWalkable(state, { x: pos.x, y: pos.y }, blocked)
+    if (adjacent) {
+      state.world.moveEntity(eid, adjacent.x, adjacent.y)
+    }
+    return
+  }
+
   // Temporarily remove player and self from blocked so we can pathfind to player
   const playerKey = posKey(state.player.x, state.player.y)
   const selfKey = posKey(pos.x, pos.y)

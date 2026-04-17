@@ -169,7 +169,7 @@ portable 5x5 containers (2x2 inventory footprint). created by combining meteorit
 
 ## movement blocking
 
-`getBlockedPositions(state)` returns all tiles blocked by ground omniboxes and characters. to add new blocking types, add them here — all movement systems use it automatically.
+`getBlockedPositions(state, zone?, opts?)` returns all tiles blocked by ground omniboxes and characters. pass `{ ignoreCoyote: true }` in opts to exclude the coyote — used by player movement and pathfinding so the player can walk through the coyote. other entities still see the coyote as blocking via the default call. to add new blocking types, add them here — all movement systems use it automatically.
 
 `isWalkableTile(tileType)` in `position.ts` centralizes tile walkability. non-walkable: `Space`, `CaveWall`, `CaveBreakableWall`.
 
