@@ -9,11 +9,19 @@ import { Zone } from './types'
 
 import type { Direction, GameState, Position } from './types'
 
-export const getBlockedPositions = (state: GameState, zone?: Zone): Set<string> => {
+export const getBlockedPositions = (
+  state: GameState,
+  zone?: Zone,
+  opts?: { ignoreCoyote?: boolean }
+): Set<string> => {
   const z = zone ?? state.currentZone
   const set = new Set<string>()
   for (const eid of state.world.query(ComponentType.Blocking, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== z) continue
+    if (opts?.ignoreCoyote) {
+      const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+      if (identity?.definitionId === 'coyote') continue
+    }
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (pos) {
       set.add(posKey(pos.x, pos.y))
@@ -44,7 +52,7 @@ export const getBlockedPositions = (state: GameState, zone?: Zone): Set<string> 
 // unless they are the target. Prevents accidental zone transitions when
 // clicking past the entrance.
 export const getPathfindingBlockers = (state: GameState, target?: Position): Set<string> => {
-  const set = getBlockedPositions(state)
+  const set = getBlockedPositions(state, undefined, { ignoreCoyote: true })
   const targetKey = target ? posKey(target.x, target.y) : null
 
   // Block cave entrance so paths don't route through it
@@ -80,7 +88,7 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
     updateFacingEntity(state)
     return false
   }
-  const blocked = getBlockedPositions(state)
+  const blocked = getBlockedPositions(state, undefined, { ignoreCoyote: true })
   if (blocked.has(posKey(nx, ny))) {
     updateFacingEntity(state)
     return false

@@ -135,18 +135,25 @@ behaviors:
         effect: "toggled between 'follow' and 'collect'"
     determinism: deterministic
 
-  - id: coyote-blocks-player
+  - id: coyote-non-blocking-for-player
     description: >
-      the coyote has a Blocking component, so it is included in
-      getBlockedPositions. movePlayer returns false when the target
-      tile is occupied by the coyote. A* routes around the coyote.
-      the player cannot walk through the coyote.
+      the coyote has a Blocking component but is excluded from
+      getBlockedPositions when the ignoreCoyote option is set.
+      movePlayer and getPathfindingBlockers use ignoreCoyote: true,
+      so the player can walk onto the coyote tile and A* routes
+      through it. other entities (ghosts, etc.) still see the coyote
+      as blocking via the default getBlockedPositions call. when the
+      player and coyote overlap, the coyote nudges to an adjacent
+      walkable tile on its next follow tick.
     inputs:
       - 'GameState with coyote adjacent to player'
       - 'direction toward coyote tile'
     outputs:
-      - 'boolean: false from movePlayer'
-    state_changes: []
+      - 'boolean: true from movePlayer (player walks onto coyote tile)'
+      - 'coyote nudges off player tile on next tick'
+    state_changes:
+      - field: 'world (coyote entity Position component)'
+        effect: 'moved to adjacent walkable tile when overlapping player'
     determinism: deterministic
 
   - id: coyote-cave-transition
@@ -276,11 +283,19 @@ edge_cases:
     description: 'Coyote movement rate is deterministic at 1 step per tick when distance > 3 tiles'
     expected: 'No random jitter; movement frequency is purely a function of distance'
 
+  - id: coyote-overlap-nudge
+    description: 'Player walks onto coyote tile, coyote and player overlap temporarily'
+    expected: 'Coyote nudges to an adjacent walkable unblocked tile on next follow tick'
+
+  - id: coyote-overlap-nudge-all-blocked
+    description: 'Player overlaps coyote but all adjacent tiles are blocked or unwalkable'
+    expected: 'Coyote stays overlapping — no crash, nudge retried on subsequent ticks'
+
 failure_conditions:
   - trigger: 'coyote walks onto a Space tile'
     expected: 'coyote position unchanged, Space never entered'
   - trigger: 'player walks onto coyote tile'
-    expected: 'movePlayer returns false, player position unchanged'
+    expected: 'movePlayer returns true, player overlaps coyote temporarily, coyote nudges away on next tick'
   - trigger: 'any ground item exists on the map while coyote is in collect mode'
     expected: 'coyote pathfinds to and picks up the item regardless of definitionId'
   - trigger: 'coyote and ghost collide during movement'
