@@ -114,12 +114,19 @@ behaviors:
       using state.deepTime.playerGlyph (the ghost glyph, currently
       set to the character o-diaeresis) and state.deepTime.playerGlyphColor
       instead of the normal PLAYER_CHAR and PLAYER_COLOR constants.
+      during deepTimeTransition, crossfades from o-diaeresis (white)
+      to @ (white) via complementary globalAlpha over
+      DEEP_TIME_TRANSITION_GLYPH_DURATION_MS (800ms): the old glyph
+      renders at (1 - t) alpha and the new glyph renders at t alpha,
+      where t is elapsed / 800ms clamped to [0, 1].
     inputs:
       - 'state.deepTime.active is true'
+      - 'state.deepTimeTransition with startTime (for crossfade phase)'
     outputs:
       - 'player rendered with ghost glyph and color'
+      - 'during deepTimeTransition, old glyph fades out and new glyph fades in over 800ms'
     state_changes: []
-    determinism: deterministic
+    determinism: time-based
 
   - id: deep-time-burning-overlay
     description: >

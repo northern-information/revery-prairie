@@ -148,6 +148,10 @@ behaviors:
         effect: 'SOIL_HEALTH_FIRE_REVERY_BONUS added'
       - field: manualDiscoveries
         effect: 'event:fire-revery recorded'
+      - field: world
+        effect: 'wildfire entity created with MultiPosition, TimedEffect, EntityTag, EntityZone when multiple tiles burn'
+      - field: manualDiscoveries
+        effect: 'event:wildfire recorded'
     determinism: deterministic
 
   - id: water-revery-effect
@@ -160,7 +164,7 @@ behaviors:
       - 'water revery activated, facing clover tiles'
     outputs: []
     state_changes:
-      - field: cloverLifecycle
+      - field: tileWater
         effect: 'water refilled at pattern positions, capped at WATER_MAX'
       - field: soilHealth
         effect: 'SOIL_HEALTH_WATER_REVERY_BONUS added'
@@ -209,6 +213,10 @@ behaviors:
         effect: 'lightning ECS entity created with LightningData, TimedEffect, EntityTag, EntityZone'
       - field: manualDiscoveries
         effect: 'event:lightning-revery recorded'
+      - field: world
+        effect: 'wildfire entity created with MultiPosition, TimedEffect, EntityTag, EntityZone when multiple tiles burn'
+      - field: manualDiscoveries
+        effect: 'event:wildfire recorded'
     determinism: deterministic
 
   - id: auto-assign-revery

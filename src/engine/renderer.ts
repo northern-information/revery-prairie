@@ -164,7 +164,7 @@ const _shootingStarMap = new Map<string, { char: string; color: string }>()
 const _targetedStarMap = new Map<string, { char: string; color: string }>()
 const _meteoritePositions = new Set<string>()
 const _beehivePositions = new Set<string>()
-const _characterMap = new Map<string, { glyph: string; color: string }>()
+const _characterMap = new Map<string, { glyph: string; color: string; id: string }>()
 const _angelMap = new Map<string, { char: string; color: string }>()
 const _angelTileToGroup = new Map<string, Set<string>>()
 const _trailMap = new Map<string, number>()
@@ -385,7 +385,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     // Hide characters in masked hidden chamber until wall is broken
     if (!state.caveRevealed && state.caveHiddenPositions.has(key)) continue
     const def = getCharacterDefinition(identity.definitionId)
-    characterMap.set(key, { glyph: def.glyph, color: def.glyphColor })
+    characterMap.set(key, { glyph: def.glyph, color: def.glyphColor, id: identity.definitionId })
   }
 
   // Populate angel body pixels (from ECS)
@@ -975,7 +975,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         color = ch?.color ?? '#FFFFFF'
         // Characters visible in genesis (Gron, coyote) stay at full opacity
         // during the transition — only fade entities not rendered in genesis
-        if (!isTransitioning) isEntity = true
+        if (isTransitioning) {
+          const isGenesisVisible = ch?.id === 'gron' || ch?.id === 'coyote'
+          if (!isGenesisVisible) isEntity = true
+        } else {
+          isEntity = true
+        }
       } else if (beehivePositions.has(tileKey)) {
         char = BEEHIVE_CHAR
         color = BEEHIVE_COLOR
