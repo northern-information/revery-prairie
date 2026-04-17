@@ -14,9 +14,9 @@ behaviors:
     description: >
       dialog box is fixed to the center of the viewport — both
       horizontally and vertically. width is 65% of viewport width
-      clamped between 400px and 800px. height is auto with a max
-      around 140px. uses z-30 to render above the action bar (z-10)
-      but below the drag cursor (z-50).
+      clamped between 400px and 800px. fixed height (240px) prevents
+      size jumping between dialog lines. uses z-30 to render above
+      the action bar (z-10) but below the drag cursor (z-50).
     inputs:
       - 'activeDialog is non-null'
     outputs:
@@ -27,18 +27,17 @@ behaviors:
 
   - id: minimal-chrome
     description: >
-      dialog box has no visible border, no close button, and no
-      action buttons (skip, next, close are all removed). background
-      is semi-transparent black (bg-black/85). all player interaction
-      is via [e] key — the component exposes no clickable UI controls
-      for dialog progression. the portrait (if present) renders inline
-      to the left of the text at a smaller size (48x48), vertically
-      centered. character name renders above the dialog text in the
-      existing lowercase style.
+      dialog box has no visible border and no close button. background
+      is semi-transparent black (bg-black/85). the portrait (if present)
+      renders centered above the text in a stacked layout (flex-col).
+      character name renders above the dialog text in the existing
+      lowercase style. advance button uses TextButton component from
+      PanelPrimitives, centered at bottom of dialog box. shows
+      'n[e]xt' or 'clos[e]' text.
     inputs:
       - 'activeDialog is non-null'
     outputs:
-      - 'dialog box with no buttons, no border, no close icon'
+      - 'dialog box with stacked portrait layout and TextButton advance control'
     state_changes: []
     determinism: deterministic
 
@@ -57,15 +56,16 @@ behaviors:
 
   - id: props-simplified
     description: >
-      DialogBox props are simplified. removed: onNext, onClose,
-      isLastLine, top, left. retained: characterName, portrait,
-      line, typingIndex, typingDone, isAngel. the component is
-      now purely presentational with no interactive callbacks —
-      all dialog advancement is handled by the keyboard hook.
+      DialogBox props: characterName, portrait, line, typingIndex,
+      typingDone, isAngel, isLastLine (optional), onAdvance (optional).
+      position props (top, left) were removed — the component is
+      fixed-positioned via CSS. onAdvance callback drives the
+      TextButton advance control. isLastLine toggles button text
+      between 'n[e]xt' and 'clos[e]'.
     inputs:
       - 'DialogBox rendered by GameScreen'
     outputs:
-      - 'component renders with simplified prop interface'
+      - 'component renders with current prop interface'
     state_changes: []
     determinism: deterministic
 
@@ -93,7 +93,7 @@ edge_cases:
     expected: 'text overflows hidden — lines should be authored to fit, but overflow is clipped not scrolled'
   - id: portrait-and-angel
     description: 'angel character with a portrait defined'
-    expected: 'portrait renders inline-left, HashGrid renders in the text area to the right'
+    expected: 'portrait renders centered above the HashGrid in a stacked layout'
   - id: no-portrait
     description: 'character without a portrait (e.g. ghosts)'
     expected: 'text area takes full width, no empty space on the left'

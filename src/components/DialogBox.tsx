@@ -1,4 +1,4 @@
-import { SectionHeader } from './PanelPrimitives'
+import { SectionHeader, TextButton } from './PanelPrimitives'
 
 interface DialogBoxProps {
   characterName: string
@@ -44,34 +44,32 @@ export const DialogBox = ({
   isLastLine,
   onAdvance,
 }: DialogBoxProps) => (
-  <div className="text-text fixed top-1/2 right-48 left-0 z-30 mx-auto flex min-h-[80px] w-[65vw] max-w-[min(800px,calc(100vw-12rem-1rem))] -translate-y-1/2 items-start gap-4 bg-black/85 px-6 py-4 font-mono text-xs">
+  <div className="text-text fixed top-1/2 right-48 left-0 z-30 mx-auto flex h-[240px] w-[65vw] max-w-[min(800px,calc(100vw-12rem-1rem))] -translate-y-1/2 flex-col items-center bg-black/85 px-6 py-4 font-mono text-xs">
     {portrait && (
       <img
         src={portrait}
         alt={`portrait of ${characterName.toLowerCase()}`}
-        className="h-32 w-32 shrink-0 self-center [image-rendering:pixelated]"
+        className="h-32 w-32 shrink-0 [image-rendering:pixelated]"
       />
     )}
-    <div className="flex min-w-0 flex-1 flex-col">
+    <div className="flex min-w-0 flex-1 flex-col self-stretch overflow-hidden">
       <SectionHeader className="shrink-0">{characterName.toLowerCase()}</SectionHeader>
       {isAngel ? (
         <HashGrid hash={line} revealCount={typingIndex} />
       ) : (
         <p className="leading-relaxed">{line.slice(0, typingIndex)}</p>
       )}
-      {typingDone && onAdvance && (
-        <button
-          type="button"
-          className="text-dim hover:text-pink mt-2 self-end text-xs transition-colors"
-          onClick={(e) => {
-            e.stopPropagation()
-            onAdvance()
-          }}
-          data-testid="dialog-advance-button"
-        >
-          {isLastLine ? 'clos[e]' : 'n[e]xt'}
-        </button>
-      )}
     </div>
+    {typingDone && onAdvance && (
+      <TextButton
+        onClick={() => {
+          onAdvance()
+        }}
+        data-testid="dialog-advance-button"
+        className="self-center"
+      >
+        {isLastLine ? 'clos[e]' : 'n[e]xt'}
+      </TextButton>
+    )}
   </div>
 )
