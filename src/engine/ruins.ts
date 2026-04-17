@@ -101,7 +101,7 @@ export const assignArchetype = (ruin: CivilizationRuin, _ruinIndex: number, rng:
   // Score each archetype based on ruin properties
   const scores: Record<RuinArchetype, number> = {
     [RuinArchetype.Subsidence]: ruin.radius * 2 + ruin.age / 1000,
-    [RuinArchetype.DormantGarden]: aqueductComplexity * 3 + ruin.radius,
+    [RuinArchetype.DormantGarden]: aqueductComplexity * 1.5 + ruin.radius,
     [RuinArchetype.HauntedThreshold]: (6 - ruin.radius) * 2 + (ruin.age > 2000 && ruin.age < 4500 ? 3 : 0),
     [RuinArchetype.Resonance]: ruin.radius * 2 + (footprintDensity < 0.5 ? 4 : 0),
   }

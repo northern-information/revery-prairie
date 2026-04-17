@@ -4,6 +4,7 @@ import { RuinArchetype, TileType, Zone } from '../types'
 import { createGameState } from '../state'
 import { isWalkableTile, posKey } from '../position'
 import { ITEM_DEFINITIONS } from '../items'
+import { ENTRANCE_GLYPHS, getEntranceGlyph } from '../constants'
 
 import type { CivilizationRuin } from '../genesisTypes'
 import type { Tile } from '../types'
@@ -389,6 +390,10 @@ describe('ruin infrastructure', () => {
       const sub = state.ruinInteriors[subIdx].subsidence
       if (!sub) return
 
+      // Ensure at least one tile has low integrity so collapse is guaranteed
+      const firstKey = sub.structuralIntegrity.keys().next().value
+      if (firstKey) sub.structuralIntegrity.set(firstKey, 10)
+
       const countFloor = () => {
         let count = 0
         const interior = state.ruinInteriors[subIdx]
@@ -402,8 +407,8 @@ describe('ruin infrastructure', () => {
       }
 
       const floorBefore = countFloor()
-      // Tick 30 seconds (60 ticks at 500ms)
-      for (let i = 0; i < 60; i++) {
+      // Tick 100 seconds (200 ticks at 500ms) — covers 10s wait + 90s full collapse window
+      for (let i = 0; i < 200; i++) {
         tickSubsidenceCollapse(state, 500)
       }
       const floorAfter = countFloor()
@@ -459,6 +464,61 @@ describe('ruin infrastructure', () => {
       expect(oldInterior.subsidence).toBeTruthy()
       if (!youngInterior.subsidence || !oldInterior.subsidence) return
       expect(oldInterior.subsidence.collapseRate).toBeLessThan(youngInterior.subsidence.collapseRate)
+    })
+  })
+
+  describe('archetype distribution balance', () => {
+    it('does not assign all ruins to DormantGarden when all have aqueduct paths', () => {
+      const makeRng = (seed: number) => {
+        let a = seed | 0
+        return () => {
+          a = (a + 0x6d2b79f5) | 0
+          let t = Math.imul(a ^ (a >>> 15), 1 | a)
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+        }
+      }
+
+      const archetypes = new Set<RuinArchetype>()
+      for (let i = 0; i < 10; i++) {
+        const ruin = makeRuin({
+          radius: 3 + (i % 3),
+          age: 1000 + i * 500,
+          aqueductPaths: [
+            [{ x: 50, y: 50 }, { x: 60, y: 50 }],
+            [{ x: 50, y: 50 }, { x: 50, y: 60 }],
+          ],
+          buildingFootprints: Array.from({ length: i + 1 }, (_, j) => ({ x: 50 + j, y: 50 })),
+        })
+        archetypes.add(assignArchetype(ruin, i, makeRng(i * 7 + 13)))
+      }
+      // With balanced scoring, 10 varied ruins should produce at least 2 distinct archetypes
+      expect(archetypes.size).toBeGreaterThanOrEqual(2)
+    })
+  })
+
+  describe('greek letter entrance glyphs', () => {
+    it('getEntranceGlyph returns unique letters for cave and ruin indices', () => {
+      const cave = getEntranceGlyph(0)
+      const ruin0 = getEntranceGlyph(1)
+      const ruin1 = getEntranceGlyph(2)
+      expect(cave).toBe('Ω')
+      expect(ruin0).toBe('Δ')
+      expect(ruin1).toBe('Φ')
+      expect(cave).not.toBe(ruin0)
+      expect(ruin0).not.toBe(ruin1)
+    })
+
+    it('cycles when index exceeds glyph count', () => {
+      const overflow = getEntranceGlyph(ENTRANCE_GLYPHS.length)
+      expect(overflow).toBe(ENTRANCE_GLYPHS[0])
+    })
+
+    it('no glyph resembles a Latin letter', () => {
+      const latinLike = new Set(['A', 'B', 'E', 'H', 'I', 'K', 'M', 'N', 'O', 'P', 'T', 'X', 'Y', 'Z'])
+      for (const glyph of ENTRANCE_GLYPHS) {
+        expect(latinLike.has(glyph)).toBe(false)
+      }
     })
   })
 })

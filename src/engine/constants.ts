@@ -327,4 +327,11 @@ export const CAVE_VISION_RADIUS = 3
 export const FOG_EXPLORED_BRIGHTNESS = 0.4 // dimmed brightness for explored-but-not-visible tiles
 export const REVERY_ILLUMINATION_RADIUS = 3 // fire/lightning reveal radius from impact point
 
+// Greek letter glyphs for overworld entrances (index 0 = cave, 1+ = ruins by ruinIndex)
+export const ENTRANCE_GLYPHS = ['Ω', 'Δ', 'Φ', 'Ψ', 'Σ', 'Λ', 'Θ', 'Π', 'Ξ', 'Γ'] as const
+
+/** Get the Greek letter for an entrance. Index 0 = cave, 1+ = ruin by ruinIndex. */
+export const getEntranceGlyph = (index: number): string =>
+  ENTRANCE_GLYPHS[index % ENTRANCE_GLYPHS.length]
+
 export const INVENTORY_CELL_SIZE = 28

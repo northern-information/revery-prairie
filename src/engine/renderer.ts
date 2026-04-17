@@ -78,6 +78,7 @@ import {
   SOIL_HEALTH_DEFAULT,
   TILE_CHARS,
   TILE_COLORS,
+  getEntranceGlyph,
   TRAIL_DURATION_MS,
   WEATHER_RAIN_DENSITY,
   WILDFIRE_CHARS,
@@ -172,6 +173,7 @@ const _pickupEffectMap = new Map<string, { char: string; color: string }>()
 const _reveryCastMap = new Map<string, { char: string; color: string }>()
 const _earthScanBgMap = new Map<string, { color: string; opacity: number }>()
 const _crumbleMap = new Map<string, { char: string; color: string }>()
+const _entranceGlyphMap = new Map<string, string>()
 
 export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   // Genesis mode — delegate to genesis renderer
@@ -256,6 +258,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const reveryCastMap = _reveryCastMap
   const earthScanBgMap = _earthScanBgMap
   const crumbleMap = _crumbleMap
+
+  // Build overworld entrance glyph map (posKey → Greek letter)
+  _entranceGlyphMap.clear()
+  if (state.currentZone === Zone.Overworld) {
+    _entranceGlyphMap.set(posKey(state.caveEntranceOverworld.x, state.caveEntranceOverworld.y), getEntranceGlyph(0))
+    for (const interior of state.ruinInteriors) {
+      const { x, y } = interior.entranceOverworld
+      _entranceGlyphMap.set(posKey(x, y), getEntranceGlyph(interior.ruinIndex + 1))
+    }
+  }
+  const entranceGlyphMap = _entranceGlyphMap
 
   // Populate bee positions (from ECS)
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
@@ -1020,7 +1033,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             groundEntry.definitionId === 'coin' && groundEntry.glinting === false ? COIN_DULL_COLOR : def.glyphColor
         } else {
           const tile = map[my][mx]
-          char = TILE_CHARS[tile.type]
+          char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[tile.type]
           color = TILE_COLORS[tile.type]
         }
       } else if (state.cloverGrowthPreviews.has(tileKey)) {
@@ -1031,8 +1044,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         color = CLOVER_PREVIEW_COLORS[colorIndex]
       } else if (pathPositions.has(tileKey)) {
         const pathTile = map[my][mx]
-        if (pathTile.type === TileType.CaveEntrance) {
-          char = TILE_CHARS[TileType.CaveEntrance]
+        if (pathTile.type === TileType.CaveEntrance || pathTile.type === TileType.RuinEntrance) {
+          char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[pathTile.type]
           color = ACTION_COLOR
         } else {
           char = waypointPositions.has(tileKey) ? '+' : '\u00b7'
@@ -1040,11 +1053,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         }
       } else if (hoverPathPositions.has(tileKey)) {
         const hoverTile = map[my][mx]
-        char = TILE_CHARS[hoverTile.type]
+        char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[hoverTile.type]
         color = HOVER_PATH_COLOR
       } else if (trailMap.has(tileKey)) {
         const tile = map[my][mx]
-        char = TILE_CHARS[tile.type]
+        char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[tile.type]
         const opacity = trailMap.get(tileKey) ?? 0
         const brightness = String(Math.round(opacity * 255))
         color = `rgb(${brightness}, ${brightness}, ${brightness})`
@@ -1075,7 +1088,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           color = POND_COLOR
         } else {
           const tile = map[my][mx]
-          char = TILE_CHARS[tile.type]
+          char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[tile.type]
           // Dying clover: override color based on lifecycle stage
           const lifecycle = tile.type === TileType.Clover ? state.cloverLifecycle.get(tileKey) : undefined
           if (lifecycle && lifecycle.stage !== CloverStage.Healthy) {
@@ -1186,6 +1199,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const tile = map[my]?.[mx]
       const isRuinMultilayer =
         state.currentZone === Zone.Ruin &&
+        !(mx === player.x && my === player.y) &&
         !isEntity &&
         !previewTile &&
         !(isAngelGroupHighlighted || ((isCursor && cursorable) || isFacingEntity || isPendingTarget)) &&
