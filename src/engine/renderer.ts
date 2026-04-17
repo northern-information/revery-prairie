@@ -93,7 +93,7 @@ import { isInBounds, posKey, tileHash } from './position'
 import { getReveryDefinition } from './reveries'
 import { getRuinTileLayers, isHiddenTile } from './ruins'
 import { isInRainFront } from './tileWater'
-import { computeCaveVisibility, dimColor, tickIllumination } from './visibility'
+import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 
 import type { VelocityKey } from './constants'
@@ -146,8 +146,10 @@ const soilHealthColor = (health: number): string => {
 }
 
 // Cave fog of war: last computed visible set, readable by sidebar
-let _lastCaveVisibleSet: Set<string> | null = null
-export const getLastCaveVisibleSet = (): Set<string> | null => _lastCaveVisibleSet
+let _lastVisibleSet: Set<string> | null = null
+export const getLastVisibleSet = (): Set<string> | null => _lastVisibleSet
+/** @deprecated Use getLastVisibleSet instead. */
+export const getLastCaveVisibleSet = getLastVisibleSet
 
 // ── Pooled render collections ──
 // Reused every frame to avoid per-frame allocation / GC pressure.
@@ -839,11 +841,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     ctx.globalAlpha = savedAlpha
   }
 
-  // Cave fog of war: compute visibility, tick illumination expiry
-  const inCave = state.currentZone === Zone.Cave
-  if (inCave) tickIllumination(state, time)
-  const caveVisibleSet = inCave ? computeCaveVisibility(state) : null
-  _lastCaveVisibleSet = caveVisibleSet
+  // Fog of war: compute visibility, tick illumination expiry
+  const fogActive = hasFogOfWar(state.currentZone)
+  if (fogActive) tickIllumination(state, time)
+  const visibleSet = fogActive ? computeZoneVisibility(state) : null
+  _lastVisibleSet = visibleSet
 
   for (let vy = 0; vy < viewportHeight; vy++) {
     for (let vx = 0; vx < viewportWidth; vx++) {
@@ -902,13 +904,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
       const tileKey = posKey(mx, my)
 
-      // Cave fog of war: skip unexplored tiles, dim explored tiles
-      const tileIsVisible = caveVisibleSet === null || caveVisibleSet.has(tileKey)
-      const tileIsExplored = !tileIsVisible && inCave && state.caveFogExplored.has(tileKey)
-      if (inCave && !tileIsVisible && !tileIsExplored) {
+      // Fog of war: skip unexplored tiles, dim explored tiles
+      const tileVis = fogActive ? getTileVisibility(state, mx, my, visibleSet ?? new Set()) : 'visible' as const
+      if (tileVis === 'unexplored') {
         // Unexplored — leave as dark background
         continue
       }
+      const tileIsExplored = tileVis === 'explored'
 
       const isCursor = mx === state.cursorTile?.x && my === state.cursorTile?.y
       const isFacingEntity = mx === state.facingEntityPos?.x && my === state.facingEntityPos?.y
@@ -922,12 +924,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // Used during genesis-to-gameplay crossfade to apply fade-in alpha
       let isEntity = false
 
-      // Explored-but-not-visible cave tiles: render terrain only at dimmed brightness
+      // Explored-but-not-visible tiles: render terrain only at dimmed brightness
       if (tileIsExplored) {
         const tile = map[my][mx]
-        // Mask hidden chamber tiles as CaveWall until revealed
+        // Mask hidden chamber tiles as CaveWall until revealed (cave only)
         const effectiveType =
-          !state.caveRevealed && state.caveHiddenPositions.has(tileKey) ? TileType.CaveWall : tile.type
+          state.currentZone === Zone.Cave && !state.caveRevealed && state.caveHiddenPositions.has(tileKey)
+            ? TileType.CaveWall
+            : tile.type
         const baseColor = TILE_COLORS[effectiveType]
         const baseChar = TILE_CHARS[effectiveType]
         ctx.fillStyle = dimColor(baseColor, FOG_EXPLORED_BRIGHTNESS)

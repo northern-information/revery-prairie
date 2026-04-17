@@ -374,6 +374,8 @@ export interface RuinInterior {
   dormantGarden: DormantGardenData | null
   hauntedThreshold: HauntedThresholdData | null
   resonance: ResonanceData | null
+  fogExplored: Set<string>
+  fogIllumination: Map<string, number>
 }
 
 export const DeepTimePhase = {

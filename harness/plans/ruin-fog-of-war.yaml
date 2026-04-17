@@ -1,0 +1,95 @@
+plan:
+  id: ruin-fog-of-war
+  title: 'Generalize fog of war from cave-only to support ruins'
+  created: 2026-04-17
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: generalize-visibility
+    title: 'Generalize visibility system to support both Cave and Ruin zones'
+    spec_id: ruin-fog-of-war
+    spec_sections:
+      - fov-computed-in-ruins
+      - ruin-wall-blocks-los
+      - per-ruin-fog-state
+      - ruin-entrance-always-visible
+      - revery-illumination-in-ruins
+    context_files:
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/ruins.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: update-renderer
+    title: 'Use hasFogOfWar helper in renderer instead of inCave boolean'
+    spec_id: ruin-fog-of-war
+    spec_sections:
+      - renderer-fog-gating-generalized
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/visibility.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - generalize-visibility
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: update-game-state-schema
+    title: 'Add new RuinInterior fog fields to EXPECTED_FIELDS in schema test'
+    spec_id: ruin-fog-of-war
+    spec_sections:
+      - per-ruin-fog-state
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - generalize-visibility
+    verification:
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: regression-test
+    title: 'Add tests for FOV in ruins, RuinWall blocking LOS, explored state persistence'
+    spec_id: ruin-fog-of-war
+    spec_sections:
+      - fov-computed-in-ruins
+      - ruin-wall-blocks-los
+      - per-ruin-fog-state
+      - ruin-entrance-always-visible
+      - revery-illumination-in-ruins
+    context_files:
+      - src/engine/visibility.ts
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/__tests__/visibility.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/visibility.test.ts
+    depends_on:
+      - generalize-visibility
+      - update-renderer
+    verification:
+      - 'npx vitest run src/engine/__tests__/visibility.test.ts'
+      - 'npm run test'
+    repair: retry
+    tags: [test]
