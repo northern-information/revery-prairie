@@ -1,4 +1,5 @@
 import { getCharacterDefinition } from '@/engine/characters'
+import { PLAYER_CHAR, PLAYER_COLOR } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { CoyoteMode } from '@/engine/types'
 
@@ -17,6 +18,14 @@ const getSelectedUnitInfo = (
   state: GameState
 ): { definitionId: string; name: string; glyph: string; glyphColor: string; portrait?: string }[] => {
   const units: { definitionId: string; name: string; glyph: string; glyphColor: string; portrait?: string }[] = []
+  if (state.playerSelected) {
+    units.push({
+      definitionId: 'player',
+      name: state.stewardName || 'you',
+      glyph: PLAYER_CHAR,
+      glyphColor: PLAYER_COLOR,
+    })
+  }
   for (const eid of state.selectedUnits) {
     if (!state.world.isAlive(eid)) continue
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)

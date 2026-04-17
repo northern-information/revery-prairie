@@ -1,0 +1,303 @@
+id: right-click-movement-and-player-selection
+name: 'Right-click movement and player selectability'
+status: partial
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/selection.ts
+  - src/engine/unitCommands.ts
+  - src/engine/renderer.ts
+  - src/hooks/useMouse.ts
+  - src/components/CommandPanel.tsx
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - rts-unit-selection
+  - player-movement
+  - pathfinding
+
+behaviors:
+  - id: right-click-moves-player
+    description: >
+      right-clicking a walkable tile while no units are selected pathfinds
+      the player to that tile using state.path, identical to the previous
+      left-click-to-move behavior. shift+right-click chains waypoints onto
+      the existing path. right-clicking on a non-walkable, non-interactable
+      tile does nothing.
+    inputs:
+      - 'right click on a walkable tile'
+      - 'selectedUnits is empty and playerSelected is false'
+    outputs:
+      - 'state.path set to A* path from player to target'
+      - 'pathWaypoints set to [target]'
+    state_changes:
+      - field: path
+        effect: 'set to pathfinding result toward clicked tile'
+      - field: pathWaypoints
+        effect: 'set to the clicked target tile'
+    determinism: deterministic
+
+  - id: right-click-interact
+    description: >
+      right-clicking on an interactable tile (character, clover, omnibox,
+      cave breakable wall, angel body) pathfinds the player to the nearest
+      adjacent walkable tile and queues pendingAction to execute the
+      interaction on arrival. this preserves the previous left-click
+      interaction behavior but on right-click.
+    inputs:
+      - 'right click on an interactable tile or entity'
+      - 'selectedUnits is empty and playerSelected is false'
+    outputs:
+      - 'player walks to adjacent tile and executes interaction'
+    state_changes:
+      - field: pendingAction
+        effect: 'set to interaction callback fired on arrival'
+      - field: pendingInteractionTarget
+        effect: 'set to the interactable tile for highlight rendering'
+    determinism: deterministic
+
+  - id: right-click-moves-selected-units
+    description: >
+      right-clicking a walkable tile while one or more units are selected
+      issues a move command. each selected NPC unit pathfinds independently
+      via unitCommands. if playerSelected is true, the player also moves
+      via state.path. non-selected entities (including the player when not
+      selected) are unaffected. this allows the player and NPC units to be
+      controlled independently.
+    inputs:
+      - 'right click on a walkable tile'
+      - 'one or more of playerSelected / selectedUnits is truthy/non-empty'
+    outputs:
+      - 'NPC selected units begin pathfinding via unitCommands'
+      - 'player begins pathfinding via state.path when playerSelected'
+      - 'move-order marker rendered at target tile'
+    state_changes:
+      - field: unitCommands
+        effect: 'move command queued for each selected NPC unit'
+      - field: path
+        effect: 'set for player when playerSelected is true'
+      - field: moveOrderMarkers
+        effect: 'marker added with position and timestamp'
+    determinism: deterministic
+
+  - id: left-click-selects-unit
+    description: >
+      left-clicking a tile occupied by a controllable unit (coyote, gron,
+      or the player) selects that unit. clicking the same single-selected
+      unit deselects it. clicking a unit replaces the current selection.
+      the player uses playerSelected boolean; NPC units use selectedUnits
+      set.
+    inputs:
+      - 'left click on a tile with a controllable unit'
+    outputs:
+      - 'unit selected (playerSelected or selectedUnits updated)'
+    state_changes:
+      - field: playerSelected
+        effect: 'true when clicked tile is player position; toggled off if was sole selection'
+      - field: selectedUnits
+        effect: 'set to the clicked NPC unit entity id; toggled off if was sole selection'
+    determinism: deterministic
+
+  - id: left-click-deselects-on-empty-tile
+    description: >
+      left-clicking on a non-unit, non-interactable tile with no drag
+      deselects all units (both playerSelected and selectedUnits are
+      cleared). this matches standard RTS conventions. no player movement
+      is initiated by a bare left-click.
+    inputs:
+      - 'left click on an empty walkable tile with no drag'
+    outputs:
+      - 'all selections cleared'
+      - 'no player movement'
+    state_changes:
+      - field: playerSelected
+        effect: 'set to false'
+      - field: selectedUnits
+        effect: 'cleared to empty set'
+    determinism: deterministic
+
+  - id: left-click-interactable-still-works
+    description: >
+      left-clicking an interactable (character, clover, omnibox, cave
+      breakable wall, angel) still pathfinds the player and executes the
+      interaction on arrival. left-click interaction is preserved from
+      the previous behavior; only pure movement (clicking empty ground)
+      is removed from left-click.
+    inputs:
+      - 'left click on an interactable tile or entity'
+      - 'no active drag'
+    outputs:
+      - 'player walks to adjacent tile and executes interaction'
+    state_changes:
+      - field: pendingAction
+        effect: 'set to interaction callback'
+      - field: path
+        effect: 'set to A* path toward adjacent walkable tile'
+    determinism: deterministic
+
+  - id: drag-select-includes-player
+    description: >
+      left-click-drag draws a selection rectangle. on release, all
+      controllable units (coyote, gron) within the rectangle are added to
+      selectedUnits. if the player's tile falls within the rectangle,
+      playerSelected is set to true. if no selectable entities are within
+      the box, all selections are cleared.
+    inputs:
+      - 'left mouse down + drag (>= 3px) + release on canvas'
+    outputs:
+      - 'NPC units within rectangle selected'
+      - 'player selected if player tile within rectangle'
+      - 'all selections cleared if no selectable entities in rectangle'
+    state_changes:
+      - field: selectionBox
+        effect: 'set during drag, cleared on release'
+      - field: selectedUnits
+        effect: 'set to NPC units within rectangle'
+      - field: playerSelected
+        effect: 'true if player tile within rectangle, else false'
+    determinism: deterministic
+
+  - id: drag-release-does-not-move-player
+    description: >
+      releasing a drag-select does not trigger player movement. previously,
+      because handleMouseUp reset isDragging to false before the click
+      event fired, the click handler fell through to click-to-move logic,
+      causing the player to walk to the drag endpoint. under the new
+      scheme, left-click no longer moves the player at all, so drag
+      release can only select or deselect.
+    inputs:
+      - 'left mouse down + drag + release anywhere on canvas'
+    outputs:
+      - 'state.path is not set by drag release'
+      - 'player does not begin walking'
+    state_changes:
+      - field: path
+        effect: 'unchanged by drag-select completion'
+    determinism: deterministic
+
+  - id: player-selected-highlight
+    description: >
+      when playerSelected is true, the player glyph renders with a pink
+      (#ff69b4) highlight ring matching the selection convention used for
+      NPC units. the highlight is applied during the tile resolution
+      phase, respecting the existing two-phase render pattern.
+    inputs:
+      - 'playerSelected is true'
+    outputs:
+      - 'player tile rendered with pink selection highlight'
+    state_changes: []
+    determinism: deterministic
+
+  - id: command-panel-shows-player
+    description: >
+      when playerSelected is true, the command panel includes the player
+      portrait alongside any selected NPC unit portraits. for single
+      selections, the portrait matches the selected entity. for
+      multi-selections (e.g. player + coyote), a grid of small portraits
+      is shown with no per-unit buttons.
+    inputs:
+      - 'playerSelected is true, or selectedUnits is non-empty'
+    outputs:
+      - 'command panel displayed with portrait(s) including player when selected'
+    state_changes: []
+    determinism: deterministic
+
+  - id: shift-right-click-chains-waypoints
+    description: >
+      shift+right-click with an existing player path extends the path by
+      pathfinding from the last waypoint to the clicked tile. this
+      replaces the previous shift+left-click chaining. only applies when
+      no NPC units are selected (player commands only) and respects
+      interactables for the final waypoint.
+    inputs:
+      - 'shift + right click on canvas'
+      - 'state.path is non-empty'
+      - 'selectedUnits is empty'
+    outputs:
+      - 'path extended with new segment from previous waypoint'
+      - 'pathWaypoints appended with new target'
+    state_changes:
+      - field: path
+        effect: 'extended with A* segment from last waypoint to new target'
+      - field: pathWaypoints
+        effect: 'appended with the new target'
+    determinism: deterministic
+
+  - id: lightning-targeting-remains-left-click
+    description: >
+      when state.targetingSlot is non-null (lightning revery active),
+      left-click on a valid target tile casts lightning. right-click
+      cancels targeting mode. this is unchanged from prior behavior.
+    inputs:
+      - 'state.targetingSlot is non-null'
+      - 'left click on a valid lightning target tile'
+    outputs:
+      - 'lightning cast at tile; targetingSlot cleared'
+    state_changes:
+      - field: targetingSlot
+        effect: 'cleared after cast'
+    determinism: deterministic
+
+  - id: context-menu-suppressed
+    description: >
+      the browser context menu is always suppressed on the canvas, since
+      right-click is reserved for movement and targeting cancel.
+    inputs:
+      - 'right click on canvas'
+    outputs:
+      - 'browser context menu does not appear'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: drag-then-release-on-player-tile
+    description: 'Drag-select over the player tile with no NPC units in the rectangle'
+    expected: 'playerSelected set to true, selectedUnits empty, no movement'
+  - id: drag-under-threshold-acts-as-click
+    description: 'Mouse movement under SELECTION_DRAG_THRESHOLD (3px) between mousedown and mouseup'
+    expected: 'Treated as click \u2014 select unit, deselect, or interact per left-click rules'
+  - id: right-click-on-player-tile
+    description: 'Right click on the player''s own tile with no selection'
+    expected: 'No movement (target equals player position)'
+  - id: right-click-on-non-walkable-non-interactable
+    description: 'Right click on space, cave wall, or other non-walkable, non-interactable tile'
+    expected: 'No movement, no error'
+  - id: right-click-during-dialog
+    description: 'Right click while a dialog is active'
+    expected: 'No movement or command issued; dialog remains active'
+  - id: right-click-with-only-player-selected
+    description: 'Right click with playerSelected=true and no NPC units selected'
+    expected: 'Player moves via state.path; no unitCommands issued'
+  - id: right-click-with-player-plus-npc-selected
+    description: 'Right click with playerSelected=true and coyote selected'
+    expected: 'Player moves via state.path; coyote receives a unitCommand; both advance independently'
+  - id: left-click-interactable-during-selection
+    description: 'Left-click on an interactable while units are selected'
+    expected: 'Selection cleared; player pathfinds and interacts as before'
+  - id: drag-select-empty-area-clears-selection
+    description: 'Drag-select a rectangle containing no units and not including the player'
+    expected: 'All selections cleared, no movement'
+  - id: zone-transition-clears-player-selected
+    description: 'Player enters cave or ruin while playerSelected is true'
+    expected: 'playerSelected reset to false on zone transition, matching selectedUnits behavior'
+  - id: shift-right-click-with-npc-selected
+    description: 'Shift + right click while NPC units are selected'
+    expected: 'Issues move command to NPC units at target; no player waypoint chaining'
+  - id: lightning-cancel-via-right-click
+    description: 'Right click while state.targetingSlot is non-null'
+    expected: 'targetingSlot cleared, no movement issued'
+
+failure_conditions:
+  - trigger: 'Drag-select release anywhere on canvas'
+    expected: 'state.path is NOT set; player does NOT begin walking'
+  - trigger: 'Left click on empty walkable tile with no drag'
+    expected: 'state.path is NOT set; selections cleared if any'
+  - trigger: 'Right click on non-walkable, non-interactable tile'
+    expected: 'No pathfinding, no unitCommands, no error'
+  - trigger: 'Right click during active dialog'
+    expected: 'No movement; dialog remains active'
+
+verification:
+  test_file: src/engine/__tests__/selection.test.ts
+  test_pattern: 'playerSelected|right-click|left-click deselect'
+  command: 'npx vitest run src/engine/__tests__/selection.test.ts'

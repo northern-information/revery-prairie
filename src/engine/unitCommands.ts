@@ -8,10 +8,12 @@ import type { GameState, Position, UnitCommand } from './types'
 
 /**
  * Issue a move command to all selected units.
- * Each unit independently pathfinds to the target or a nearby tile.
+ * Each NPC unit independently pathfinds to the target or a nearby tile.
+ * If the player is selected, the player is routed via state.path so the
+ * player and NPC units can be commanded independently from the same click.
  */
 export const issueMoveCommand = (state: GameState, target: Position): void => {
-  if (state.selectedUnits.size === 0) return
+  if (state.selectedUnits.size === 0 && !state.playerSelected) return
   if (!isInBounds(target.x, target.y, state.mapWidth, state.mapHeight)) return
   if (!isWalkableTile(state.map[target.y][target.x].type)) return
 
@@ -19,8 +21,33 @@ export const issueMoveCommand = (state: GameState, target: Position): void => {
   // Remove player from blocked — units should be able to walk through the player
   blocked.delete(posKey(state.player.x, state.player.y))
 
-  // Assign destinations — first unit gets exact target, others get nearby tiles
   const assignedTiles = new Set<string>()
+
+  // Route the player first (if selected) so NPC units claim neighboring tiles
+  if (state.playerSelected) {
+    const playerDest = findAvailableDestination(state, target, assignedTiles, blocked)
+    if (playerDest && !(playerDest.x === state.player.x && playerDest.y === state.player.y)) {
+      const playerPathBlocked = getBlockedPositions(state)
+      const path = findPath(
+        state.map,
+        state.mapWidth,
+        state.mapHeight,
+        { x: state.player.x, y: state.player.y },
+        playerDest,
+        playerPathBlocked
+      )
+      if (path) {
+        state.path = path
+        state.pathWaypoints = [playerDest]
+        state.pendingAction = null
+        state.pendingInteractionTarget = null
+        state.previewFn = null
+        assignedTiles.add(posKey(playerDest.x, playerDest.y))
+      }
+    }
+  }
+
+  // Assign destinations — first unit gets exact target, others get nearby tiles
   const units = [...state.selectedUnits]
 
   for (const eid of units) {

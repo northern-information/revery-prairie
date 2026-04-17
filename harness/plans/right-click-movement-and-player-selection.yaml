@@ -1,0 +1,187 @@
+plan:
+  id: right-click-movement-and-player-selection
+  title: Move player movement to right-click; make player selectable
+  created: '2026-04-17'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-player-selected-field
+    title: Add playerSelected boolean to GameState, initialize in state.ts, and update schema allowlist
+    spec_id: right-click-movement-and-player-selection
+    spec_sections:
+      - left-click-selects-unit
+      - drag-select-includes-player
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: extend-selection-for-player
+    title: Extend selection.ts with player-aware helpers (player rect-check, deselect-all clears playerSelected, hasSelection considers playerSelected)
+    spec_id: right-click-movement-and-player-selection
+    spec_sections:
+      - drag-select-includes-player
+      - left-click-selects-unit
+      - left-click-deselects-on-empty-tile
+      - player-selected-highlight
+    context_files:
+      - src/engine/selection.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/selection.ts
+    depends_on:
+      - add-player-selected-field
+    verification:
+      - npx vitest run src/engine/__tests__/selection.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: extend-unit-commands-for-player
+    title: Update issueMoveCommand so playerSelected routes to state.path while NPC units use unitCommands; both coexist independently
+    spec_id: right-click-movement-and-player-selection
+    spec_sections:
+      - right-click-moves-selected-units
+    context_files:
+      - src/engine/unitCommands.ts
+      - src/engine/selection.ts
+      - src/engine/pathfinding.ts
+      - src/engine/movement.ts
+    output_files:
+      - src/engine/unitCommands.ts
+    depends_on:
+      - extend-selection-for-player
+    verification:
+      - npx vitest run src/engine/__tests__/unitCommands.test.ts
+      - npx vitest run src/engine/__tests__/selection.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: swap-mouse-click-semantics
+    title: Rewrite useMouse.ts — left-click becomes select/interact/deselect; right-click becomes move/interact/command; shift+right-click chains waypoints
+    spec_id: right-click-movement-and-player-selection
+    spec_sections:
+      - right-click-moves-player
+      - right-click-interact
+      - right-click-moves-selected-units
+      - left-click-selects-unit
+      - left-click-deselects-on-empty-tile
+      - left-click-interactable-still-works
+      - drag-select-includes-player
+      - drag-release-does-not-move-player
+      - shift-right-click-chains-waypoints
+      - lightning-targeting-remains-left-click
+      - context-menu-suppressed
+    context_files:
+      - src/hooks/useMouse.ts
+      - src/engine/selection.ts
+      - src/engine/unitCommands.ts
+      - src/engine/interaction.ts
+      - src/engine/pathfinding.ts
+      - src/engine/movement.ts
+    output_files:
+      - src/hooks/useMouse.ts
+    depends_on:
+      - extend-unit-commands-for-player
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags:
+      - hook
+
+  - id: render-player-highlight-when-selected
+    title: Update renderer to draw the selection highlight on the player tile when playerSelected is true
+    spec_id: right-click-movement-and-player-selection
+    spec_sections:
+      - player-selected-highlight
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/selection.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - extend-selection-for-player
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: command-panel-player
+    title: Show player portrait in CommandPanel when playerSelected is true (single + multi selection)
+    spec_id: right-click-movement-and-player-selection
+    spec_sections:
+      - command-panel-shows-player
+    context_files:
+      - src/components/CommandPanel.tsx
+      - src/engine/selection.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/CommandPanel.tsx
+    depends_on:
+      - extend-selection-for-player
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - component
+
+  - id: regression-test-drag-release
+    title: Add regression test proving drag-select release does not set state.path (the original bug)
+    spec_id: right-click-movement-and-player-selection
+    spec_sections:
+      - drag-release-does-not-move-player
+    context_files:
+      - src/engine/__tests__/selection.test.ts
+      - src/engine/selection.ts
+      - src/engine/unitCommands.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/selection.test.ts
+    depends_on:
+      - extend-selection-for-player
+      - extend-unit-commands-for-player
+    verification:
+      - npx vitest run src/engine/__tests__/selection.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: player-selection-tests
+    title: Add tests covering drag-select over player, left-click selects/deselects player, right-click moves only playerSelected, right-click moves player+NPC independently
+    spec_id: right-click-movement-and-player-selection
+    spec_sections:
+      - drag-select-includes-player
+      - left-click-selects-unit
+      - left-click-deselects-on-empty-tile
+      - right-click-moves-player
+      - right-click-moves-selected-units
+    context_files:
+      - src/engine/__tests__/selection.test.ts
+      - src/engine/selection.ts
+      - src/engine/unitCommands.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/selection.test.ts
+    depends_on:
+      - regression-test-drag-release
+    verification:
+      - npx vitest run src/engine/__tests__/selection.test.ts
+    repair: retry
+    tags:
+      - test
