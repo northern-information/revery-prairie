@@ -1,0 +1,141 @@
+plan:
+  id: ruin-accessibility-bugs
+  title: 'Fix ruin reachability, exit safety, seed placement, unstable floor collapse, and sidebar ruin info'
+  created: '2026-04-17'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: clear-ruin-entrance-perimeter
+    title: 'Convert sand/space tiles adjacent to ruin entrances to dirt after placement'
+    spec_id: ruin-accessibility-bugs
+    spec_sections:
+      - ruin-entrance-walkable-perimeter
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: safe-exit-placement
+    title: 'Replace hardcoded y+1 exit with nearest-walkable-neighbor search in exitRuin and exitCave'
+    spec_id: ruin-accessibility-bugs
+    spec_sections:
+      - safe-exit-placement
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/cave.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/ruins.ts
+      - src/engine/cave.ts
+    depends_on:
+      - clear-ruin-entrance-perimeter
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: revalidate-seed-positions
+    title: 'Filter seed positions after placeVoidPonds removes floor tiles'
+    spec_id: ruin-accessibility-bugs
+    spec_sections:
+      - seed-position-revalidation
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: unstable-floor-blink
+    title: 'Add time-based blinking animation to RuinUnstable tile rendering'
+    spec_id: ruin-accessibility-bugs
+    spec_sections:
+      - unstable-floor-blink
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: unstable-floor-collapse
+    title: 'Collapse RuinUnstable tiles to Space when player walks on them'
+    spec_id: ruin-accessibility-bugs
+    spec_sections:
+      - unstable-floor-collapse
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/movement.ts
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/ruins.ts
+      - src/engine/movement.ts
+    depends_on:
+      - unstable-floor-blink
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: sidebar-ruin-info
+    title: 'Show ruin name and Greek glyph in sidebar stats when inside a ruin'
+    spec_id: ruin-accessibility-bugs
+    spec_sections:
+      - sidebar-ruin-name-and-glyph
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: regression-tests
+    title: 'Add regression tests for entrance perimeter, exit safety, seed validation, and floor collapse'
+    spec_id: ruin-accessibility-bugs
+    spec_sections:
+      - ruin-entrance-walkable-perimeter
+      - safe-exit-placement
+      - seed-position-revalidation
+      - unstable-floor-collapse
+    context_files:
+      - src/engine/__tests__/ruins.test.ts
+      - src/engine/__tests__/cave.test.ts
+      - src/engine/ruins.ts
+      - src/engine/cave.ts
+    output_files:
+      - src/engine/__tests__/ruins.test.ts
+      - src/engine/__tests__/cave.test.ts
+    depends_on:
+      - clear-ruin-entrance-perimeter
+      - safe-exit-placement
+      - revalidate-seed-positions
+      - unstable-floor-collapse
+      - sidebar-ruin-info
+    verification:
+      - npm run test -- --run
+    repair: retry
+    tags: [test]

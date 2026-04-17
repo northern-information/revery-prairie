@@ -1,5 +1,6 @@
 import { transitionCoyoteToZone } from './coyote'
 import { recordDiscovery } from './manual'
+import { findSafeExitPosition } from './position'
 import { checkRuinTransition } from './ruins'
 import { TileType, Zone } from './types'
 
@@ -204,11 +205,13 @@ export const exitCave = (state: GameState): void => {
   state.mapHeight = state.overworldMapHeight
   state.currentZone = Zone.Overworld
 
-  // Place player one tile south of the cave entrance to avoid re-entry loop
-  state.player = {
-    x: state.caveEntranceOverworld.x,
-    y: state.caveEntranceOverworld.y + 1,
-  }
+  // Place player on nearest walkable tile adjacent to entrance
+  state.player = findSafeExitPosition(
+    state.caveEntranceOverworld,
+    state.map,
+    state.mapWidth,
+    state.mapHeight,
+  )
 
   // Clear navigation state
   state.path = null

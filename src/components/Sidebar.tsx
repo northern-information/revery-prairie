@@ -425,10 +425,33 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                     : state.currentZone === 'cave'
                       ? `cave ${getEntranceGlyph(0)}`
                       : state.currentRuinIndex !== null
-                        ? `ruin ${getEntranceGlyph(state.currentRuinIndex + 1)}`
+                        ? `${state.ruinInteriors[state.currentRuinIndex]?.name ?? 'unknown'} ruins`
                         : state.currentZone}
                 </td>
               </tr>
+              {state.currentRuinIndex !== null && (() => {
+                const interior = state.ruinInteriors[state.currentRuinIndex]
+                const archetypeLabels: Record<string, string> = {
+                  subsidence: 'subsidence',
+                  dormantGarden: 'dormant garden',
+                  hauntedThreshold: 'haunted threshold',
+                  resonance: 'resonance',
+                }
+                return (
+                  <>
+                    <tr>
+                      <td className="text-muted py-0.5">glyph</td>
+                      <td className="py-0.5 text-right">{getEntranceGlyph(state.currentRuinIndex + 1)}</td>
+                    </tr>
+                    {interior && (
+                      <tr>
+                        <td className="text-muted py-0.5">type</td>
+                        <td className="py-0.5 text-right">{archetypeLabels[interior.archetype] ?? interior.archetype}</td>
+                      </tr>
+                    )}
+                  </>
+                )
+              })()}
               <tr>
                 <td className="text-muted py-0.5">total land</td>
                 <td className="py-0.5 text-right">{total.toLocaleString()}</td>

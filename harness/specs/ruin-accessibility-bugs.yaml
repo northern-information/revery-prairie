@@ -1,0 +1,115 @@
+id: ruin-accessibility-bugs
+name: 'Ruin accessibility, unstable floor collapse, seed placement, and sidebar ruin info'
+status: partial
+priority: high
+layer: integration
+source_files:
+  - src/engine/ruins.ts
+  - src/engine/genesis.ts
+  - src/engine/state.ts
+  - src/engine/renderer.ts
+  - src/engine/constants.ts
+  - src/engine/position.ts
+  - src/components/Sidebar.tsx
+dependencies:
+  - ruin-rendering-bugs
+
+behaviors:
+  - id: ruin-entrance-walkable-perimeter
+    description: 'All tiles adjacent to a ruin entrance on the overworld must be walkable dirt. After placeRuinEntrances, convert any sand/space neighbors to dirt so the player can always reach and leave.'
+    inputs:
+      - 'placeRuinEntrances is called during state initialization'
+    outputs:
+      - 'All 8 neighbors of each RuinEntrance tile are dirt (or already walkable)'
+      - 'Player can pathfind to every ruin entrance from the starting position'
+    state_changes:
+      - field: 'state.overworldMap'
+        effect: 'Sand/space tiles adjacent to ruin entrances converted to dirt'
+    determinism: deterministic
+
+  - id: safe-exit-placement
+    description: 'exitRuin and exitCave place the player on the nearest walkable tile instead of blindly using entrance.y+1. Search adjacent tiles in priority order for a walkable, unblocked tile.'
+    inputs:
+      - 'Player steps on cave exit entrance tile inside a ruin or cave'
+    outputs:
+      - 'Player placed on a walkable tile adjacent to the overworld entrance'
+      - 'Player is never placed on sand, space, or other non-walkable tile'
+    state_changes:
+      - field: 'state.player'
+        effect: 'Set to nearest walkable tile adjacent to entrance, not hardcoded y+1'
+    determinism: deterministic
+
+  - id: seed-position-revalidation
+    description: 'After all terrain modifications (debris, void ponds), seed positions are re-validated. Seeds on non-walkable tiles are removed from the seed list.'
+    inputs:
+      - 'generateRuinInterior completes all terrain passes including placeVoidPonds'
+    outputs:
+      - 'All seed positions are on walkable RuinFloor or RuinUnstable tiles'
+      - 'No seeds spawn inside walls, debris, void, or machines'
+    state_changes:
+      - field: 'subsidenceData.seedPositions'
+        effect: 'Positions on non-walkable tiles removed'
+      - field: 'dormantGardenData.seedDecayTimers'
+        effect: 'Entries on non-walkable tiles removed'
+    determinism: deterministic
+
+  - id: unstable-floor-blink
+    description: 'RuinUnstable tiles render with a time-based blinking animation — alternating between the reddish floor char and a warning char to signal danger.'
+    inputs:
+      - 'Renderer draws a RuinUnstable tile'
+    outputs:
+      - 'Tile visually blinks/pulses over time'
+    state_changes: []
+    determinism: time-based
+
+  - id: unstable-floor-collapse
+    description: 'When the player walks onto a RuinUnstable tile, it collapses into Space (void) after a short delay, becoming impassable. A crumble visual effect plays on collapse.'
+    inputs:
+      - 'Player moves onto a RuinUnstable tile'
+    outputs:
+      - 'Tile converts from RuinUnstable to Space after the player leaves or after a brief delay'
+      - 'Crumble visual effect plays at the collapsed position'
+      - 'Collapsed tile is no longer walkable'
+    state_changes:
+      - field: 'state.map[y][x]'
+        effect: 'RuinUnstable tile becomes Space tile'
+    determinism: time-based
+
+  - id: sidebar-ruin-name-and-glyph
+    description: 'When inside a ruin, the sidebar stats section shows the ruin name with age on the location row (e.g. "Ashhold Ruins") and the Greek glyph on its own line.'
+    inputs:
+      - 'Player is inside a ruin (state.currentRuinIndex !== null)'
+    outputs:
+      - 'Location row shows ruin name + "Ruins"'
+      - 'Separate row shows the Greek entrance glyph'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: ruin-at-map-edge
+    description: 'Ruin entrance near the map edge where some adjacent tiles are out of bounds'
+    expected: 'Only in-bounds neighbors are converted; out-of-bounds skipped gracefully'
+  - id: all-neighbors-blocked
+    description: 'Exit placement when all neighbors are somehow non-walkable'
+    expected: 'Fallback to entrance position itself rather than placing player on non-walkable tile'
+  - id: unstable-collapse-while-pathfinding
+    description: 'Player is click-to-move pathfinding through unstable tiles that collapse behind them'
+    expected: 'Path continues forward; collapsed tiles only affect future pathing, not current path in progress'
+  - id: seeds-all-removed
+    description: 'All seed positions invalid after void pond placement'
+    expected: 'Ruin has zero seeds — no crash, just an empty seed list'
+
+failure_conditions:
+  - trigger: 'Ruin entrance placed on sandbar surrounded by space'
+    expected: 'Adjacent tiles converted to dirt; player can walk to entrance'
+  - trigger: 'exitRuin when tile at entrance.y+1 is sand or space'
+    expected: 'Player placed on nearest walkable adjacent tile instead'
+  - trigger: 'Seed spawned at position later overwritten by RuinDebris'
+    expected: 'Seed position removed during revalidation; no unreachable ground item'
+  - trigger: 'Player walks onto RuinUnstable tile'
+    expected: 'Tile collapses to void after player steps off or after brief delay'
+
+verification:
+  test_file: src/engine/__tests__/ruins.test.ts
+  test_pattern: 'ruin accessibility'
+  command: npx vitest run src/engine/__tests__/ruins.test.ts
