@@ -957,6 +957,8 @@ export const generateRuinInterior = (
     dormantGarden: dormantGardenData,
     hauntedThreshold: hauntedThresholdData,
     resonance: resonanceData,
+    fogExplored: new Set<string>(),
+    fogIllumination: new Map<string, number>(),
   }
 }
 

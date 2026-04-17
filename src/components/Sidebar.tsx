@@ -28,7 +28,8 @@ import {
 } from '@/engine/genesis'
 import { getDefinition } from '@/engine/items'
 import { isInBounds, posKey } from '@/engine/position'
-import { getLastCaveVisibleSet } from '@/engine/renderer'
+import { getLastVisibleSet } from '@/engine/renderer'
+import { getTileVisibility, hasFogOfWar } from '@/engine/visibility'
 import { DEEP_TIME_TOTAL_YEARS } from '@/engine/constants'
 import { CloverStage, DeepTimePhase, TileType, Zone } from '@/engine/types'
 import { fToC, mphToKph } from '@/engine/weather'
@@ -244,11 +245,11 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                       const cy = cursorTile.y
                       if (cx < 0 || cx >= state.mapWidth || cy < 0 || cy >= state.mapHeight) return 'void'
                       // Fog of war: unexplored tiles show nothing, explored-not-visible show terrain only
-                      if (state.currentZone === Zone.Cave) {
-                        const fogKey = posKey(cx, cy)
-                        if (!state.caveFogExplored.has(fogKey)) return 'unexplored'
-                        const visibleSet = getLastCaveVisibleSet()
-                        if (visibleSet && !visibleSet.has(fogKey)) return 'unknown'
+                      if (hasFogOfWar(state.currentZone)) {
+                        const visibleSet = getLastVisibleSet()
+                        const vis = getTileVisibility(state, cx, cy, visibleSet ?? new Set())
+                        if (vis === 'unexplored') return 'unexplored'
+                        if (vis === 'explored') return 'unknown'
                       }
                       if (cx === state.player.x && cy === state.player.y) return state.stewardName.toLowerCase()
                       const charEid = state.world.spatial
@@ -300,9 +301,9 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                   </td>
                 </tr>
                 {(() => {
-                  // Fog of war: skip effects for non-visible cave tiles
-                  if (state.currentZone === Zone.Cave) {
-                    const visibleSet = getLastCaveVisibleSet()
+                  // Fog of war: skip effects for non-visible tiles
+                  if (hasFogOfWar(state.currentZone)) {
+                    const visibleSet = getLastVisibleSet()
                     if (visibleSet && !visibleSet.has(posKey(cursorTile.x, cursorTile.y))) {
                       return (
                         <tr>

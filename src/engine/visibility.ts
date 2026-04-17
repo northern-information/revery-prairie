@@ -1,4 +1,4 @@
-import { CAVE_VISION_RADIUS } from './constants'
+import { CAVE_VISION_RADIUS, RUIN_VISION_RADIUS } from './constants'
 import { isInBounds, posKey } from './position'
 import { TileType, Zone } from './types'
 
@@ -12,9 +12,15 @@ import type { GameState, Tile } from './types'
  */
 export type TileVisibility = 'unexplored' | 'explored' | 'visible'
 
-/** Returns true if a tile type blocks line-of-sight in the cave. */
+/** Returns true if the given zone has fog of war. */
+export const hasFogOfWar = (zone: string): boolean =>
+  zone === Zone.Cave || zone === Zone.Ruin
+
+/** Returns true if a tile type blocks line-of-sight. */
 export const blocksLOS = (tileType: TileType): boolean =>
-  tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall
+  tileType === TileType.CaveWall ||
+  tileType === TileType.CaveBreakableWall ||
+  tileType === TileType.RuinWall
 
 /**
  * Compute field of view from a given origin using symmetric shadowcasting.
@@ -135,7 +141,33 @@ const scanOctant = (
 }
 
 /**
- * Get the visibility state of a tile in the cave.
+ * Get the fog explored set and illumination map for the current zone.
+ * Cave uses GameState fields; Ruin uses per-interior fields.
+ * Returns null if the current zone has no fog of war.
+ */
+const getFogState = (
+  state: GameState,
+): { fogExplored: Set<string>; fogIllumination: Map<string, number> } | null => {
+  if (state.currentZone === Zone.Cave) {
+    return {
+      fogExplored: state.caveFogExplored,
+      fogIllumination: state.caveFogIllumination,
+    }
+  }
+  if (state.currentZone === Zone.Ruin && state.currentRuinIndex !== null) {
+    const interior = state.ruinInteriors[state.currentRuinIndex]
+    if (interior) {
+      return {
+        fogExplored: interior.fogExplored,
+        fogIllumination: interior.fogIllumination,
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Get the visibility state of a tile for fog of war.
  * Returns 'visible', 'explored', or 'unexplored'.
  */
 export const getTileVisibility = (
@@ -144,54 +176,74 @@ export const getTileVisibility = (
   y: number,
   visibleSet: Set<string>,
 ): TileVisibility => {
-  if (state.currentZone !== Zone.Cave) return 'visible'
+  if (!hasFogOfWar(state.currentZone)) return 'visible'
 
   const key = posKey(x, y)
   if (visibleSet.has(key)) return 'visible'
-  if (state.caveFogExplored.has(key)) return 'explored'
+
+  const fog = getFogState(state)
+  if (fog?.fogExplored.has(key)) return 'explored'
   return 'unexplored'
 }
 
 /**
- * Compute the full visible set for the current frame in the cave.
+ * Compute the full visible set for the current frame.
  * Unions player vision with any active illumination sources (revery effects).
- * Also updates caveFogExplored with newly visible tiles.
+ * Also updates the fog explored set with newly visible tiles.
  *
- * Returns an empty set if not in cave zone (caller should treat all tiles as visible).
+ * Returns an empty set if the current zone has no fog of war
+ * (caller should treat all tiles as visible).
  */
-export const computeCaveVisibility = (state: GameState): Set<string> => {
-  if (state.currentZone !== Zone.Cave) return new Set()
+export const computeZoneVisibility = (state: GameState): Set<string> => {
+  const fog = getFogState(state)
+  if (!fog) return new Set()
 
   const { player, map, mapWidth, mapHeight } = state
 
+  // Pick vision radius based on zone
+  const radius = state.currentZone === Zone.Ruin ? RUIN_VISION_RADIUS : CAVE_VISION_RADIUS
+
   // Player's natural vision
-  const visible = computeFOV(player.x, player.y, CAVE_VISION_RADIUS, map, mapWidth, mapHeight)
+  const visible = computeFOV(player.x, player.y, radius, map, mapWidth, mapHeight)
 
   // Add illumination from revery effects (fire, lightning)
-  for (const key of state.caveFogIllumination.keys()) {
+  for (const key of fog.fogIllumination.keys()) {
     visible.add(key)
   }
 
-  // Cave entrance is always visible (so player can always find the exit)
-  const entrance = state.caveEntranceInterior
-  visible.add(posKey(entrance.x, entrance.y))
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const ex = entrance.x + dx
-      const ey = entrance.y + dy
-      if (isInBounds(ex, ey, mapWidth, mapHeight)) {
-        visible.add(posKey(ex, ey))
+  // Entrance is always visible (so player can always find the exit)
+  let entrance: { x: number; y: number } | null = null
+  if (state.currentZone === Zone.Cave) {
+    entrance = state.caveEntranceInterior
+  } else if (state.currentZone === Zone.Ruin && state.currentRuinIndex !== null) {
+    const interior = state.ruinInteriors[state.currentRuinIndex]
+    if (interior) {
+      entrance = interior.entranceInterior
+    }
+  }
+  if (entrance) {
+    visible.add(posKey(entrance.x, entrance.y))
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const ex = entrance.x + dx
+        const ey = entrance.y + dy
+        if (isInBounds(ex, ey, mapWidth, mapHeight)) {
+          visible.add(posKey(ex, ey))
+        }
       }
     }
   }
 
   // Update explored set — tiles never revert to unexplored
   for (const key of visible) {
-    state.caveFogExplored.add(key)
+    fog.fogExplored.add(key)
   }
 
   return visible
 }
+
+/** @deprecated Use computeZoneVisibility instead. Alias kept for call-site compatibility. */
+export const computeCaveVisibility = computeZoneVisibility
 
 /**
  * Add illumination from a revery effect at a given origin.
@@ -207,17 +259,18 @@ export const addReveryIllumination = (
   radius: number,
   expiresAt: number,
 ): void => {
-  if (state.currentZone !== Zone.Cave) return
+  const fog = getFogState(state)
+  if (!fog) return
 
   const illuminated = computeFOV(originX, originY, radius, state.map, state.mapWidth, state.mapHeight)
 
   for (const key of illuminated) {
-    const existing = state.caveFogIllumination.get(key)
+    const existing = fog.fogIllumination.get(key)
     // Keep the later expiration if already illuminated
     if (existing === undefined || existing < expiresAt) {
-      state.caveFogIllumination.set(key, expiresAt)
+      fog.fogIllumination.set(key, expiresAt)
     }
-    state.caveFogExplored.add(key)
+    fog.fogExplored.add(key)
   }
 }
 
@@ -225,14 +278,17 @@ export const addReveryIllumination = (
  * Expire old illumination entries. Call once per frame.
  */
 export const tickIllumination = (state: GameState, time: number): void => {
+  const fog = getFogState(state)
+  if (!fog) return
+
   const expired: string[] = []
-  for (const [key, expiresAt] of state.caveFogIllumination) {
+  for (const [key, expiresAt] of fog.fogIllumination) {
     if (time >= expiresAt) {
       expired.push(key)
     }
   }
   for (const key of expired) {
-    state.caveFogIllumination.delete(key)
+    fog.fogIllumination.delete(key)
   }
 }
 
