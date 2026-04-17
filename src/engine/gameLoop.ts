@@ -1,6 +1,8 @@
 import { spawnAngel, tickAngelBeeAura, tickAngelCloverAura, tickAngelDrift, tickAngelLifespan } from './angels'
 import { spawnShootingStar, tickMeteorShower, tickShootingStars } from './celestial'
 import { tickCoyote } from './coyote'
+import { pruneSelection } from './selection'
+import { cleanupMoveOrderMarkers, tickUnitCommands } from './unitCommands'
 import { tickCloverGrowth, tickCloverHives } from './clover'
 import { tickCloverLifecycle } from './cloverLifecycle'
 import {
@@ -22,6 +24,7 @@ import {
   PATH_TICK_MS,
   SHOOTING_STAR_SPAWN_TICK_MS,
   SHOOTING_STAR_TICK_MS,
+  UNIT_COMMAND_TICK_MS,
   WEATHER_TICK_MS,
 } from './constants'
 import { tickDeepTime } from './deepTime'
@@ -264,6 +267,23 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           )
           callbacks.onRefreshUI?.()
         }
+      },
+    },
+    {
+      id: 'unit-commands',
+      intervalMs: UNIT_COMMAND_TICK_MS,
+      zone: 'always',
+      fn: (state) => {
+        tickUnitCommands(state)
+        pruneSelection(state)
+      },
+    },
+    {
+      id: 'move-order-markers',
+      intervalMs: 0,
+      zone: 'always',
+      fn: (state, time) => {
+        cleanupMoveOrderMarkers(state, time)
       },
     },
     {

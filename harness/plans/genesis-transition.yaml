@@ -109,7 +109,7 @@ tasks:
     repair: retry
     tags: [engine]
 
-  - id: schema-whitelist
+  - id: schema-allowlist
     title: 'Add genesisTransition to EXPECTED_FIELDS in schema test'
     spec_id: genesis-transition
     spec_sections:

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { ActionBar } from './ActionBar'
+import { CommandPanel } from './CommandPanel'
 import { CantosScreen } from './CantosScreen'
 import { CoyoteScreen } from './CoyoteScreen'
 import { DialogBox } from './DialogBox'
@@ -26,6 +27,7 @@ import {
 import { isDeepTimeLocked } from '@/engine/deepTime'
 import { canCast } from '@/engine/hexagram'
 import { getDefinition } from '@/engine/items'
+import { hasSelection } from '@/engine/selection'
 import { useEventLog } from '@/hooks/useEventLog'
 import { useGameEngine } from '@/hooks/useGameEngine'
 import { useKeyboard } from '@/hooks/useKeyboard'
@@ -254,14 +256,18 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
                 : undefined
           }
         >
-          <ActionBar
-            state={state}
-            refreshUI={refreshUI}
-            dragState={dragOverlayRef.current?.dragState ?? null}
-            onSetActionBarTarget={() => {
-              // Handled via drag system — placeholder for now
-            }}
-          />
+          {hasSelection(state) ? (
+            <CommandPanel state={state} refreshUI={refreshUI} />
+          ) : (
+            <ActionBar
+              state={state}
+              refreshUI={refreshUI}
+              dragState={dragOverlayRef.current?.dragState ?? null}
+              onSetActionBarTarget={() => {
+                // Handled via drag system — placeholder for now
+              }}
+            />
+          )}
         </div>
       )}
       {import.meta.env.DEV && state.devPanelOpen && (

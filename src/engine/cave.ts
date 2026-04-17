@@ -1,7 +1,9 @@
 import { transitionCoyoteToZone } from './coyote'
 import { recordDiscovery } from './manual'
 import { findSafeExitPosition } from './position'
+import { deselectAll } from './selection'
 import { checkRuinTransition } from './ruins'
+import { clearAllUnitCommands } from './unitCommands'
 import { TileType, Zone } from './types'
 
 import type { GameState, Position, Tile } from './types'
@@ -194,6 +196,10 @@ export const enterCave = (state: GameState): void => {
   state.trail = []
   state.cloverGrowthPreviews = new Set<string>()
 
+  // Clear selection and unit commands
+  deselectAll(state)
+  clearAllUnitCommands(state)
+
   // Teleport coyote to cave
   transitionCoyoteToZone(state, Zone.Cave)
 }
@@ -224,6 +230,10 @@ export const exitCave = (state: GameState): void => {
   state.activeDialog = null
   state.trail = []
   state.cloverGrowthPreviews = new Set<string>()
+
+  // Clear selection and unit commands
+  deselectAll(state)
+  clearAllUnitCommands(state)
 
   // Teleport coyote to overworld
   transitionCoyoteToZone(state, Zone.Overworld)

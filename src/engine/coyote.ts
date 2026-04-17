@@ -194,6 +194,9 @@ export const tickCoyote = (state: GameState, time?: number): CoyoteTickResult =>
   const pos = state.world.getComponent(eid, ComponentType.Position)
   if (!pos) return result
 
+  // If coyote has an active move command, skip autonomous behavior
+  if (state.unitCommands.has(eid)) return result
+
   const blocked = getBlockedPositions(state)
   blocked.add(posKey(state.player.x, state.player.y))
 

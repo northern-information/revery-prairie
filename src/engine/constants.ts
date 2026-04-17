@@ -312,6 +312,11 @@ export const COYOTE_TICK_MS = 150
 export const COYOTE_FOLLOW_MIN_DIST = 2
 export const COYOTE_FOLLOW_MAX_DIST = 3
 
+// rts unit selection
+export const MOVE_ORDER_MARKER_DURATION_MS = 500
+export const UNIT_COMMAND_TICK_MS = 150
+export const SELECTION_DRAG_THRESHOLD = 3 // px — minimum drag distance to start box select
+
 // genesis-to-gameplay transition
 export const GENESIS_TRANSITION_DURATION_MS = 1500
 export const GENESIS_TRANSITION_SIDEBAR_DURATION_MS = 1000

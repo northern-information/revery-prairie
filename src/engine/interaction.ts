@@ -1,7 +1,6 @@
 import { autoAssignRevery } from './actionBar'
 import { storeAngelCanto } from './angels'
 import { getCharacterDefinition, getCharacterDialog } from './characters'
-import { toggleCoyoteMode } from './coyote'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { recordDiscovery } from './manual'
@@ -119,10 +118,9 @@ export const interactWithCharacter = (
   if (!character) return { opened: false, gift: null, coyoteToggled: false }
   recordDiscovery(state, `character:${character.definitionId}`)
 
-  // Coyote uses mode toggle instead of dialog
+  // Coyote has no dialog — mode is controlled via the command panel
   if (character.definitionId === 'coyote') {
-    toggleCoyoteMode(state)
-    return { opened: false, gift: null, coyoteToggled: true }
+    return { opened: false, gift: null, coyoteToggled: false }
   }
 
   state.activeDialog = {
