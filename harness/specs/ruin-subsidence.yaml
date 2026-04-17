@@ -173,6 +173,9 @@ failure_conditions:
   - trigger: 'collapseRate is very fast (old ruin) and player enters with no time to react'
     expected: 'minimum 10 seconds before first wave regardless of age'
 
+# NOTE: test_file ruin-subsidence.test.ts does not exist yet — spec status
+# is 'planned'. subsidence behavior has no test coverage. when implementing,
+# create the test file and remove this note.
 verification:
   test_file: src/engine/__tests__/ruin-subsidence.test.ts
   test_pattern: 'ruin subsidence'

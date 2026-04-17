@@ -110,13 +110,14 @@ describe('genesis transition', () => {
   })
 
   describe('gron continuity during transition', () => {
-    it('renderer does not apply entity fade to characters during transition', () => {
-      // Source-level assertion: the characterMap branch must not set isEntity
-      // when isTransitioning is true. This prevents Gron from disappearing
-      // during the genesis-to-gameplay crossfade.
+    it('renderer fades in non-genesis characters during transition but keeps genesis characters visible', () => {
+      // Source-level assertion: during isTransitioning, characters not visible
+      // in genesis (e.g. ghosts) get isEntity = true so they fade in, while
+      // genesis-visible characters (gron, coyote) stay at full opacity.
       const rendererSource = readFileSync(join(__dirname, '../renderer.ts'), 'utf-8')
-      // The character branch should conditionally skip isEntity during transition
-      expect(rendererSource).toContain('if (!isTransitioning) isEntity = true')
+      // The character branch should check genesis visibility during transition
+      expect(rendererSource).toContain("const isGenesisVisible = ch?.id === 'gron' || ch?.id === 'coyote'")
+      expect(rendererSource).toContain('if (!isGenesisVisible) isEntity = true')
     })
 
     it('genesis presentDay renders Gron at his spawn position', () => {
