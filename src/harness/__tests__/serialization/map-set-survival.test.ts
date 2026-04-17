@@ -22,14 +22,14 @@ describe('Map and Set survival', () => {
     it('preserves all values', () => {
       const state = createSeededState()
       state.discoveredRecipes.add('prairie')
-      state.discoveredRecipes.add('omnibox')
+      state.discoveredRecipes.add('test-recipe')
 
       const json = serializeState(state)
       const restored = deserializeState(json)
 
       expect(restored.discoveredRecipes.size).toBe(2)
       expect(restored.discoveredRecipes.has('prairie')).toBe(true)
-      expect(restored.discoveredRecipes.has('omnibox')).toBe(true)
+      expect(restored.discoveredRecipes.has('test-recipe')).toBe(true)
     })
 
     it('preserves an empty Set', () => {

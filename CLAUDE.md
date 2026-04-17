@@ -81,14 +81,12 @@ recipes combine two items via drag-and-drop. defined in `src/engine/recipes.ts`.
 - `preserveIngredient`: optional definitionId of an ingredient that should NOT be consumed.
 - `discoveredRecipes: Set<string>` on GameState tracks which recipes the player has used. undiscovered recipes show `?` on grid cells.
 
-the permacomputer is never consumed by recipes. the omnibox recipe uses `preserveIngredient: 'permacomputer'` to enforce this.
-
 ## keybindings
 
 left-hand keyboard layout (modern roguelike standard). WASD movement + surrounding keys.
 
 - `wasd` — movement (works with inventory open, blocked in menu, during drag, and when a text input is focused)
-- `e` — context-dependent: pick up open ground omnibox / close open backpack omnibox / open hovered omnibox / open facing ground omnibox / talk to character / advance dialog / toss coins in divination / close divination result / break facing cave breakable wall
+- `e` — context-dependent: talk to character / advance dialog / toss coins in divination / close divination result / break facing cave breakable wall
 - `r` — toggle reveries screen (blocked when modifier held to avoid overriding Cmd+R / Ctrl+R browser refresh)
 - `f` — harvest facing clover tile (tile → dirt, clover item to backpack, no soil enrichment)
 - `x` — drop hovered item; also cuts facing clover when no item is hovered (tile → dirt, soil enrichment, no item)
@@ -129,7 +127,6 @@ hand-authored lore goes in `MANUAL_LORE` table in `manual.ts`. run `/maintain-ma
 - **coyote** — companion NPC. follows the player in `Follow` mode (stays 2-3 tiles behind). `Collect` mode: roams and picks up ground items, delivers them to the player's backpack. toggled via coyote screen. tracked via `state.coyoteMode`, `state.coyoteCargo`, `state.coyotePath`.
 - **shooting stars** — ambient space entities. streak across the void with animated trails. targeted stars land on the map and become meteorites.
 - **ground items** — dropped items on map. auto-pickup on walk-over if backpack has room.
-- **ground omniboxes** — tracked separately in `state.groundOmniboxes[]`. press `[e]` to open. auto-close when player walks >1 tile away.
 
 ## pickup bloom
 
@@ -157,19 +154,9 @@ characters have optional `gift` and `postGiftDialog` fields. gifts are one-time 
 
 bottom-center UI with 4 slots for reveries or items. `1-4` keybinds. new reveries auto-fill first empty slot. items can be dragged from inventory onto slots.
 
-## omniboxes
-
-portable 5x5 containers (2x2 inventory footprint). created by combining meteorite + permacomputer. inspired by diablo's horadric cube.
-
-- container data keyed by `ItemInstance.uid` in `state.omniboxContainers: Map<string, Container>`.
-- only one open at a time (`state.openContainer`). explicit `[e]` to toggle — no auto-open.
-- ground omniboxes are solid (block movement and pathfinding).
-- dragging an item onto an omnibox stores it inside and opens the omnibox.
-- omniboxes can be nested inside other omniboxes.
-
 ## movement blocking
 
-`getBlockedPositions(state, zone?, opts?)` returns all tiles blocked by ground omniboxes and characters. pass `{ ignoreCoyote: true }` in opts to exclude the coyote — used by player movement and pathfinding so the player can walk through the coyote. other entities still see the coyote as blocking via the default call. to add new blocking types, add them here — all movement systems use it automatically.
+`getBlockedPositions(state, zone?, opts?)` returns all tiles blocked by entities with the `Blocking` component (characters, etc.) plus overworld water tiles (ponds, rivers). pass `{ ignoreCoyote: true }` in opts to exclude the coyote — used by player movement and pathfinding so the player can walk through the coyote. other entities still see the coyote as blocking via the default call. to add new blocking types, add them here — all movement systems use it automatically.
 
 `isWalkableTile(tileType)` in `position.ts` centralizes tile walkability. non-walkable: `Space`, `CaveWall`, `CaveBreakableWall`.
 
@@ -195,7 +182,7 @@ mutable game state has no access control. these conventions document write patte
 
 - **single-owner**: one module writes meaningful values, others only read. most fields follow this.
 - **owner + clearers**: one module writes, others only null/reset (e.g. `pendingAction`, `previewFn`, `cursorTile`).
-- **multi-spawner, single lifecycle**: multiple modules create entries, one owns tick/removal (e.g. `bees[]`, `groundItems`, `groundOmniboxes`).
+- **multi-spawner, single lifecycle**: multiple modules create entries, one owns tick/removal (e.g. `bees[]`, `groundItems`).
 - **shared writers**: multiple modules write meaningful values. currently only `path`/`pathWaypoints` and `playerFacing`. _aspirational: introduce `setPath()` accessor in movement.ts._
 
 **convention for new fields**: prefer single-owner. if multiple modules must write, use owner+clearers or multi-spawner — never ad-hoc writes from arbitrary locations.
@@ -357,6 +344,6 @@ after `/new-feature`, `/bug-report`, or `/change-request` completes, prompt the 
 - for event handlers that read mutable game state, use refs (`containerRef.current`, `dragStateRef.current`) instead of closure-captured values. this avoids stale closures and prevents `useEffect` re-registration on every state change.
 - when a `useEffect` only needs to know if something is truthy (not its full value), extract a boolean (`const isDragging = dragState !== null`) and use that in the dependency array to reduce churn.
 - `as const satisfies Record<string, T>` pattern for typed registries that derive IDs from keys.
-- any code that re-creates `ItemInstance` objects (autoSort, merge, stack, split) must preserve the original `uid`. omnibox containers are keyed by item uid in `state.omniboxContainers` — generating a new uid breaks the link.
+- any code that re-creates `ItemInstance` objects (autoSort, merge, stack, split) must preserve the original `uid`. `state.glintingCoins` is keyed by item uid — generating a new uid orphans the glint state.
 - when mutating state before delegating to another function, check that the delegate can fail. if it can, validate before mutating (e.g. check standing tile before removing recipe ingredients).
 - avoid naming collisions between game concepts and source concepts. if a game entity and a code mechanism share a name (e.g. "ghost" for both NPC spirits and drag-preview phantoms), rename the code mechanism. overlapping terminology makes human understanding difficult.

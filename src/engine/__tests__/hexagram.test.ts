@@ -305,10 +305,9 @@ describe('glinting coins', () => {
     expect(getGlintingBackpackCoins(state)).toHaveLength(2)
   })
 
-  it('coins in omnibox do not count for canCast', () => {
+  it('coins outside the backpack do not count for canCast', () => {
     const state = createTestState()
-    // Place 3 coins in an omnibox container, not backpack
-    const container: Container = { id: 'test-omni', name: 'test', width: 5, height: 5, items: [] }
+    const container: Container = { id: 'test-container', name: 'test', width: 5, height: 5, items: [] }
     placeItem(container, 'coin', 0, 0)
     placeItem(container, 'coin', 1, 0)
     placeItem(container, 'coin', 2, 0)
