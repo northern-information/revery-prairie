@@ -1,0 +1,91 @@
+id: ruin-rendering-bugs
+name: 'Fix ruin rendering, archetype distribution, and entrance glyphs'
+status: partial
+priority: high
+layer: engine
+source_files:
+  - src/engine/renderer.ts
+  - src/engine/ruins.ts
+  - src/engine/constants.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/components/Sidebar.tsx
+  - src/engine/__tests__/ruins.test.ts
+dependencies:
+  - ruin-infrastructure
+  - ruin-visual-style
+
+behaviors:
+  - id: player-visible-on-ruin-tiles
+    description: >
+      The player character must always be visible when standing on a ruin tile.
+      The multilayer ruin rendering must skip the player's tile so the player
+      glyph (@) is drawn instead of the ruin tile layers.
+    inputs:
+      - 'Player position coincides with a ruin tile in a ruin zone'
+    outputs:
+      - 'Player glyph (@) is rendered at the player position'
+      - 'Ruin multilayer rendering is skipped for the player tile'
+    state_changes: []
+    determinism: deterministic
+
+  - id: balanced-archetype-distribution
+    description: >
+      The assignArchetype function must produce a reasonable mix of all four
+      archetypes (Subsidence, DormantGarden, HauntedThreshold, Resonance)
+      across typical ruin populations. No single archetype should dominate
+      due to an outsized scoring multiplier on aqueductComplexity.
+    inputs:
+      - 'Array of CivilizationRuin objects with varying properties'
+      - 'Seeded RNG function'
+    outputs:
+      - 'At least two distinct archetypes assigned across a typical set of 8-12 ruins'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: greek-letter-entrance-glyphs
+    description: >
+      Each entrance on the overworld (1 cave + N ruin entrances) renders as a
+      unique Greek letter instead of the generic O glyph. The cave entrance uses
+      a Greek letter on the overworld. Ruin entrances each get a distinct Greek
+      letter based on their ruinIndex. This lets players use the symbols as
+      landmarks ("delta was near the clover field"). When inside a cave or ruin,
+      the exit entrance tile remains the circle O glyph. The sidebar location
+      row shows the Greek letter next to the zone name when inside a cave or ruin.
+    inputs:
+      - 'Overworld map with cave entrance and ruin entrances placed'
+      - 'RuinInterior array with ruinIndex values'
+    outputs:
+      - 'Cave entrance renders as first Greek letter on overworld'
+      - 'Each ruin entrance renders as a unique Greek letter on overworld (indexed by ruinIndex)'
+      - 'Interior exit tiles remain O glyph'
+      - 'Sidebar location row includes the Greek letter when inside a cave or ruin'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: player-on-ruin-with-cursor
+    description: 'Player stands on a ruin tile while cursor is also on the player tile'
+    expected: 'Player glyph is visible with cursor highlight applied, ruin multilayer skipped'
+  - id: all-ruins-have-aqueducts
+    description: 'Every ruin in a genesis result has aqueduct paths (high connectivity)'
+    expected: 'Archetype distribution still includes non-DormantGarden types'
+  - id: no-ruins-have-aqueducts
+    description: 'No ruins have aqueduct connections (isolated ruins)'
+    expected: 'DormantGarden scores low, other archetypes dominate'
+  - id: more-entrances-than-letters
+    description: 'More than 12 ruins generated (exceeding Greek letter pool)'
+    expected: 'Extra entrances cycle back through the pool or use fallback glyph'
+
+failure_conditions:
+  - trigger: 'Player walks onto a ruin tile in a ruin zone'
+    expected: 'Player glyph must be drawn — multilayer ruin rendering must not overwrite it'
+  - trigger: 'assignArchetype called on 10 ruins all with 2+ aqueduct paths'
+    expected: 'Not all 10 ruins are assigned DormantGarden'
+  - trigger: 'Two entrances on the overworld share the same Greek letter'
+    expected: 'Each entrance has a unique Greek letter'
+
+verification:
+  test_file: src/engine/__tests__/ruins.test.ts
+  test_pattern: 'player visible|archetype distribution|greek'
+  command: npx vitest run src/engine/__tests__/ruins.test.ts

@@ -9,6 +9,7 @@ import {
   SOIL_HEALTH_DEFAULT,
   SPACE_BORDER,
   TILE_COLORS,
+  getEntranceGlyph,
   WATER_MAX,
   ZOOM_DEFAULT,
   ZOOM_MAX,
@@ -418,7 +419,13 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
               <tr>
                 <td className="text-muted py-0.5">location</td>
                 <td className="py-0.5 text-right">
-                  {state.currentZone === 'overworld' ? 'prairie' : state.currentZone}
+                  {state.currentZone === 'overworld'
+                    ? 'prairie'
+                    : state.currentZone === 'cave'
+                      ? `cave ${getEntranceGlyph(0)}`
+                      : state.currentRuinIndex !== null
+                        ? `ruin ${getEntranceGlyph(state.currentRuinIndex + 1)}`
+                        : state.currentZone}
                 </td>
               </tr>
               <tr>

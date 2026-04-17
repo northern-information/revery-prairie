@@ -1,0 +1,114 @@
+plan:
+  id: ruin-rendering-bugs
+  title: 'Fix player visibility, rebalance archetypes, and add Greek letter entrance glyphs'
+  created: '2026-04-17'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: fix-player-ruin-visibility
+    title: 'Skip multilayer ruin rendering on player tile'
+    spec_id: ruin-rendering-bugs
+    spec_sections:
+      - player-visible-on-ruin-tiles
+    context_files:
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: rebalance-archetype-scoring
+    title: 'Reduce DormantGarden aqueductComplexity multiplier from 3 to 1.5'
+    spec_id: ruin-rendering-bugs
+    spec_sections:
+      - balanced-archetype-distribution
+    context_files:
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: add-greek-letter-constants
+    title: 'Add ENTRANCE_GLYPHS array of Greek letters and getEntranceGlyph helper'
+    spec_id: ruin-rendering-bugs
+    spec_sections:
+      - greek-letter-entrance-glyphs
+    context_files:
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: render-greek-entrance-glyphs
+    title: 'Renderer uses Greek letters for overworld entrances, O for interior exits'
+    spec_id: ruin-rendering-bugs
+    spec_sections:
+      - greek-letter-entrance-glyphs
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-greek-letter-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: sidebar-greek-letter
+    title: 'Show Greek letter in sidebar location row when inside cave or ruin'
+    spec_id: ruin-rendering-bugs
+    spec_sections:
+      - greek-letter-entrance-glyphs
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - add-greek-letter-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: add-regression-tests
+    title: 'Add regression tests for player visibility, archetype balance, and Greek glyphs'
+    spec_id: ruin-rendering-bugs
+    spec_sections:
+      - player-visible-on-ruin-tiles
+      - balanced-archetype-distribution
+      - greek-letter-entrance-glyphs
+    context_files:
+      - src/engine/__tests__/ruins.test.ts
+      - src/engine/renderer.ts
+      - src/engine/ruins.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/ruins.test.ts
+    depends_on:
+      - fix-player-ruin-visibility
+      - rebalance-archetype-scoring
+      - add-greek-letter-constants
+    verification:
+      - npx vitest run src/engine/__tests__/ruins.test.ts
+    repair: retry
+    tags: [test]
