@@ -99,6 +99,8 @@ const EXPECTED_FIELDS = [
   'coyotePath',
   'ruinInteriors',
   'currentRuinIndex',
+  'caveFogExplored',
+  'caveFogIllumination',
   'devPanelOpen',
   'devPaintPreview',
   'devEntityPreview',

@@ -229,6 +229,8 @@ export interface GameState {
   coyotePath: Position[] | null
   ruinInteriors: RuinInterior[]
   currentRuinIndex: number | null
+  caveFogExplored: Set<string>
+  caveFogIllumination: Map<string, number>
   devPanelOpen: boolean
   devPaintPreview: { x1: number; y1: number; x2: number; y2: number; tileType: string } | null
   devEntityPreview: { x: number; y: number; char: string; color: string } | null

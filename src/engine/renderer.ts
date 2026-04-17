@@ -27,6 +27,7 @@ import {
   CRUMBLE_COLORS,
   CRUMBLE_DURATION_MS,
   DIRT_COLORS,
+  FOG_EXPLORED_BRIGHTNESS,
   EARTH_SCAN_COLOR_HIGH,
   EARTH_SCAN_COLOR_LOW,
   EARTH_SCAN_EXPAND_MS,
@@ -91,6 +92,7 @@ import { isInBounds, posKey, tileHash } from './position'
 import { getReveryDefinition } from './reveries'
 import { getRuinTileLayers, isHiddenTile } from './ruins'
 import { isInRainFront } from './tileWater'
+import { computeCaveVisibility, dimColor, tickIllumination } from './visibility'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 
 import type { VelocityKey } from './constants'
@@ -141,6 +143,10 @@ const soilHealthColor = (health: number): string => {
   const t = Math.max(0, Math.min(health / 100, 1))
   return lerpColor(EARTH_SCAN_COLOR_LOW, EARTH_SCAN_COLOR_HIGH, t)
 }
+
+// Cave fog of war: last computed visible set, readable by sidebar
+let _lastCaveVisibleSet: Set<string> | null = null
+export const getLastCaveVisibleSet = (): Set<string> | null => _lastCaveVisibleSet
 
 // ── Pooled render collections ──
 // Reused every frame to avoid per-frame allocation / GC pressure.
@@ -820,6 +826,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     ctx.globalAlpha = savedAlpha
   }
 
+  // Cave fog of war: compute visibility, tick illumination expiry
+  const inCave = state.currentZone === Zone.Cave
+  if (inCave) tickIllumination(state, time)
+  const caveVisibleSet = inCave ? computeCaveVisibility(state) : null
+  _lastCaveVisibleSet = caveVisibleSet
+
   for (let vy = 0; vy < viewportHeight; vy++) {
     for (let vx = 0; vx < viewportWidth; vx++) {
       const mx = camera.x + vx
@@ -872,6 +884,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
 
       const tileKey = posKey(mx, my)
+
+      // Cave fog of war: skip unexplored tiles, dim explored tiles
+      const tileIsVisible = caveVisibleSet === null || caveVisibleSet.has(tileKey)
+      const tileIsExplored = !tileIsVisible && inCave && state.caveFogExplored.has(tileKey)
+      if (inCave && !tileIsVisible && !tileIsExplored) {
+        // Unexplored — leave as dark background
+        continue
+      }
+
       const isCursor = mx === state.cursorTile?.x && my === state.cursorTile?.y
       const isFacingEntity = mx === state.facingEntityPos?.x && my === state.facingEntityPos?.y
       const isPendingTarget = mx === state.pendingInteractionTarget?.x && my === state.pendingInteractionTarget?.y
@@ -883,6 +904,19 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // isEntity: true for elements not visible during genesis (ghosts, bees, ground items, etc.)
       // Used during genesis-to-gameplay crossfade to apply fade-in alpha
       let isEntity = false
+
+      // Explored-but-not-visible cave tiles: render terrain only at dimmed brightness
+      if (tileIsExplored) {
+        const tile = map[my][mx]
+        // Mask hidden chamber tiles as CaveWall until revealed
+        const effectiveType =
+          !state.caveRevealed && state.caveHiddenPositions.has(tileKey) ? TileType.CaveWall : tile.type
+        const baseColor = TILE_COLORS[effectiveType]
+        const baseChar = TILE_CHARS[effectiveType]
+        ctx.fillStyle = dimColor(baseColor, FOG_EXPLORED_BRIGHTNESS)
+        ctx.fillText(baseChar, px, py)
+        continue
+      }
 
       const shootingStarOnLand = targetedStarMap.get(tileKey)
       const previewTile = previewMap.get(tileKey)
