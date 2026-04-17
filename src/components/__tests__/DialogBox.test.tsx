@@ -96,7 +96,7 @@ describe('DialogBox', () => {
     expect(screen.getByTestId('angel-hash-grid')).toBeTruthy()
   })
 
-  it('does not constrain height — content grows to fit', () => {
+  it('has fixed height to prevent size jumping between lines', () => {
     const { container } = render(
       <DialogBox
         characterName="Angel"
@@ -108,8 +108,7 @@ describe('DialogBox', () => {
     )
 
     const dialogRoot = container.firstElementChild as HTMLElement
-    expect(dialogRoot.className).not.toMatch(/max-h/)
-    expect(dialogRoot.className).not.toMatch(/overflow-hidden/)
+    expect(dialogRoot.className).toMatch(/h-\[240px\]/)
   })
 
   it('renders portrait at 128x128 when provided', () => {

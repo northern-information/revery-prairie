@@ -38,15 +38,25 @@ interface TextButtonProps {
   className?: string
   title?: string
   disabled?: boolean
+  'data-testid'?: string
 }
 
-export const TextButton = ({ onClick, children, variant = 'primary', className, title, disabled }: TextButtonProps) => (
+export const TextButton = ({
+  onClick,
+  children,
+  variant = 'primary',
+  className,
+  title,
+  disabled,
+  'data-testid': dataTestId,
+}: TextButtonProps) => (
   <button
     type="button"
     className={`${variant === 'primary' ? 'text-text' : 'text-dim'} border-border/50 hover:border-pink hover:text-pink rounded border px-2 py-1 text-left text-xs transition-colors ${className ?? ''}`}
     onClick={onClick}
     title={title}
     disabled={disabled}
+    data-testid={dataTestId}
   >
     {children}
   </button>
