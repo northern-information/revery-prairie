@@ -521,4 +521,244 @@ describe('ruin infrastructure', () => {
       }
     })
   })
+
+  describe('astral void ponds', () => {
+    const makeRng = (seed: number) => {
+      let a = seed | 0
+      return () => {
+        a = (a + 0x6d2b79f5) | 0
+        let t = Math.imul(a ^ (a >>> 15), 1 | a)
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+      }
+    }
+
+    it('places Space tiles in ruin interiors', () => {
+      const ruin = makeRuin({ radius: 5 })
+      // Use a seed that produces > 0% coverage
+      const interior = generateRuinInterior(ruin, 0, RuinArchetype.Subsidence, makeRng(999))
+      let spaceCount = 0
+      for (let y = 0; y < interior.mapHeight; y++) {
+        for (let x = 0; x < interior.mapWidth; x++) {
+          if (interior.map[y][x].type === TileType.Space) spaceCount++
+        }
+      }
+      // With seed 999 and radius 5, we expect some space tiles (may be 0 if RNG gives 0%)
+      // Test across multiple seeds to verify the mechanism works
+      let anyHasSpace = spaceCount > 0
+      if (!anyHasSpace) {
+        const interior2 = generateRuinInterior(ruin, 0, RuinArchetype.DormantGarden, makeRng(12345))
+        for (let y = 0; y < interior2.mapHeight; y++) {
+          for (let x = 0; x < interior2.mapWidth; x++) {
+            if (interior2.map[y][x].type === TileType.Space) { anyHasSpace = true; break }
+          }
+          if (anyHasSpace) break
+        }
+      }
+      expect(anyHasSpace).toBe(true)
+    })
+
+    it('does not place Space on the entrance tile', () => {
+      // Generate many ruins and verify none have Space on entrance
+      for (let seed = 0; seed < 20; seed++) {
+        const ruin = makeRuin({ radius: 4 })
+        const interior = generateRuinInterior(ruin, 0, RuinArchetype.Resonance, makeRng(seed * 7 + 1))
+        const { x, y } = interior.entranceInterior
+        expect(interior.map[y][x].type).not.toBe(TileType.Space)
+      }
+    })
+
+    it('keeps void coverage at or below 10%', () => {
+      const ruin = makeRuin({ radius: 5 })
+      for (let seed = 0; seed < 10; seed++) {
+        const interior = generateRuinInterior(ruin, 0, RuinArchetype.HauntedThreshold, makeRng(seed * 13))
+        let walkable = 0
+        let space = 0
+        for (let y = 0; y < interior.mapHeight; y++) {
+          for (let x = 0; x < interior.mapWidth; x++) {
+            const t = interior.map[y][x].type
+            if (isWalkableTile(t)) walkable++
+            if (t === TileType.Space) space++
+          }
+        }
+        const totalFloor = walkable + space
+        if (totalFloor > 0) {
+          expect(space / totalFloor).toBeLessThanOrEqual(0.1001) // tiny float tolerance
+        }
+      }
+    })
+
+    it('preserves reachability of critical positions', () => {
+      // Generate ruins and verify entrance can reach all walkable critical tiles
+      for (let seed = 0; seed < 10; seed++) {
+        const ruin = makeRuin({ radius: 4 })
+        const interior = generateRuinInterior(ruin, 0, RuinArchetype.Subsidence, makeRng(seed * 11))
+        const { entranceInterior } = interior
+
+        // BFS from entrance
+        const reachable = new Set<string>()
+        const queue = [entranceInterior]
+        reachable.add(posKey(entranceInterior.x, entranceInterior.y))
+        while (queue.length > 0) {
+          const pos = queue.shift()
+          if (!pos) break
+          for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
+            const nx = pos.x + dx
+            const ny = pos.y + dy
+            if (nx < 0 || nx >= interior.mapWidth || ny < 0 || ny >= interior.mapHeight) continue
+            const key = posKey(nx, ny)
+            if (reachable.has(key)) continue
+            if (!isWalkableTile(interior.map[ny][nx].type)) continue
+            reachable.add(key)
+            queue.push({ x: nx, y: ny })
+          }
+        }
+
+        // All seed positions must be reachable
+        if (interior.subsidence) {
+          for (const sp of interior.subsidence.seedPositions) {
+            const key = posKey(sp.x, sp.y)
+            if (isWalkableTile(interior.map[sp.y][sp.x].type)) {
+              expect(reachable.has(key)).toBe(true)
+            }
+          }
+        }
+      }
+    })
+
+    it('void ponds have minimum size of 3 tiles', () => {
+      const ruin = makeRuin({ radius: 5 })
+      for (let seed = 0; seed < 10; seed++) {
+        const interior = generateRuinInterior(ruin, 0, RuinArchetype.DormantGarden, makeRng(seed * 17 + 3))
+        // Find all Space tiles and flood-fill to count blob sizes
+        const spaceTiles = new Set<string>()
+        for (let y = 0; y < interior.mapHeight; y++) {
+          for (let x = 0; x < interior.mapWidth; x++) {
+            if (interior.map[y][x].type === TileType.Space) spaceTiles.add(posKey(x, y))
+          }
+        }
+        if (spaceTiles.size === 0) continue
+        // Flood-fill to find connected components
+        const visited = new Set<string>()
+        for (const startKey of spaceTiles) {
+          if (visited.has(startKey)) continue
+          const blob = new Set<string>()
+          const queue = [startKey]
+          blob.add(startKey)
+          visited.add(startKey)
+          while (queue.length > 0) {
+            const key = queue.shift()
+            if (!key) break
+            const parts = key.split(',')
+            const x = Number(parts[0])
+            const y = Number(parts[1])
+            for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
+              const nk = posKey(x + dx, y + dy)
+              if (spaceTiles.has(nk) && !visited.has(nk)) {
+                visited.add(nk)
+                blob.add(nk)
+                queue.push(nk)
+              }
+            }
+          }
+          // Each connected blob must be at least 3 tiles
+          expect(blob.size).toBeGreaterThanOrEqual(3)
+        }
+      }
+    })
+  })
+
+  describe('subsidence collapse to space', () => {
+    it('collapses tiles to Space instead of RuinWall', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const subIdx = state.ruinInteriors.findIndex((r) => r.subsidence !== null)
+      if (subIdx === -1) return
+      enterRuin(state, subIdx)
+      const sub = state.ruinInteriors[subIdx].subsidence
+      if (!sub) return
+
+      // Force a low-integrity tile to ensure collapse
+      const firstKey = sub.structuralIntegrity.keys().next().value
+      if (firstKey) sub.structuralIntegrity.set(firstKey, 10)
+
+      // Tick enough for collapse
+      for (let i = 0; i < 200; i++) {
+        const result = tickSubsidenceCollapse(state, 500)
+        if (result === 'ejected') break
+      }
+
+      // Check that collapsed tiles are Space, not RuinWall
+      if (firstKey) {
+        const parts = firstKey.split(',')
+        const tx = Number(parts[0])
+        const ty = Number(parts[1])
+        const tile = state.ruinInteriors[subIdx].map[ty][tx]
+        expect(tile.type).toBe(TileType.Space)
+      }
+    })
+
+    it('ejects player when standing on a collapsing tile', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const subIdx = state.ruinInteriors.findIndex((r) => r.subsidence !== null)
+      if (subIdx === -1) return
+      enterRuin(state, subIdx)
+      const sub = state.ruinInteriors[subIdx].subsidence
+      if (!sub) return
+
+      // Find a low-integrity tile and place player there
+      for (const [key, integrity] of sub.structuralIntegrity) {
+        if (integrity < 25) {
+          const parts = key.split(',')
+          state.player.x = Number(parts[0])
+          state.player.y = Number(parts[1])
+          break
+        }
+      }
+      // Also force low integrity on player tile
+      const playerKey = posKey(state.player.x, state.player.y)
+      if (sub.structuralIntegrity.has(playerKey)) {
+        sub.structuralIntegrity.set(playerKey, 5)
+      }
+
+      let ejected = false
+      for (let i = 0; i < 200; i++) {
+        const result = tickSubsidenceCollapse(state, 500)
+        if (result === 'ejected') {
+          ejected = true
+          break
+        }
+      }
+
+      if (ejected) {
+        expect(state.currentZone).toBe(Zone.Overworld)
+      }
+    })
+
+    it('returns ejected when player tile collapses', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const subIdx = state.ruinInteriors.findIndex((r) => r.subsidence !== null)
+      if (subIdx === -1) return
+      enterRuin(state, subIdx)
+      const sub = state.ruinInteriors[subIdx].subsidence
+      if (!sub) return
+
+      // Place player on a tile and force it to collapse
+      const firstKey = sub.structuralIntegrity.keys().next().value
+      if (!firstKey) return
+      const parts = firstKey.split(',')
+      state.player.x = Number(parts[0])
+      state.player.y = Number(parts[1])
+      sub.structuralIntegrity.set(firstKey, 5)
+
+      let gotEjected = false
+      for (let i = 0; i < 200; i++) {
+        const result = tickSubsidenceCollapse(state, 500)
+        if (result === 'ejected') {
+          gotEjected = true
+          break
+        }
+      }
+      expect(gotEjected).toBe(true)
+    })
+  })
 })

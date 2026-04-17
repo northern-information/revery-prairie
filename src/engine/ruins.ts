@@ -3,7 +3,7 @@ import { BUILDING_CHARS, CIV_COLORS, TILE_CHARS, TILE_COLORS } from './constants
 import { findCoyoteEntity, transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
-import { posKey, tileHash } from './position'
+import { isWalkableTile, posKey, tileHash } from './position'
 import { RuinArchetype, TileType, Zone } from './types'
 
 import type { CivilizationRuin } from './genesisTypes'
@@ -723,6 +723,195 @@ const generateResonance = (
 }
 
 // ---------------------------------------------------------------------------
+// Astral void pond generation
+// ---------------------------------------------------------------------------
+
+/** Flood-fill from a start position, returning all reachable walkable posKeys. */
+const floodFillReachable = (
+  map: Tile[][],
+  mapWidth: number,
+  mapHeight: number,
+  start: Position,
+): Set<string> => {
+  const reachable = new Set<string>()
+  const queue: Position[] = [start]
+  const startKey = posKey(start.x, start.y)
+  reachable.add(startKey)
+
+  while (queue.length > 0) {
+    const pos = queue.shift()
+    if (!pos) break
+    for (const [dx, dy] of CARDINAL_DELTAS) {
+      const nx = pos.x + dx
+      const ny = pos.y + dy
+      if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) continue
+      const key = posKey(nx, ny)
+      if (reachable.has(key)) continue
+      if (!isWalkableTile(map[ny][nx].type)) continue
+      reachable.add(key)
+      queue.push({ x: nx, y: ny })
+    }
+  }
+  return reachable
+}
+
+/** Collect critical positions that must remain reachable from the entrance. */
+const getCriticalPositions = (
+  entranceInterior: Position,
+  subsidence: SubsidenceData | null,
+  dormantGarden: DormantGardenData | null,
+  hauntedThreshold: HauntedThresholdData | null,
+  resonance: ResonanceData | null,
+): Set<string> => {
+  const critical = new Set<string>()
+  // Entrance + corridor
+  critical.add(posKey(entranceInterior.x, entranceInterior.y))
+  for (const [dx, dy] of CARDINAL_DELTAS) {
+    critical.add(posKey(entranceInterior.x + dx, entranceInterior.y + dy))
+  }
+  // 3 tiles below entrance (corridor)
+  for (let dy = 1; dy <= 3; dy++) {
+    critical.add(posKey(entranceInterior.x, entranceInterior.y + dy))
+  }
+  if (subsidence) {
+    for (const p of subsidence.seedPositions) critical.add(posKey(p.x, p.y))
+  }
+  if (dormantGarden) {
+    critical.add(posKey(dormantGarden.seedVault.x, dormantGarden.seedVault.y))
+    for (const p of dormantGarden.breakPoints) critical.add(posKey(p.x, p.y))
+    for (const key of dormantGarden.aqueductTiles) critical.add(key)
+    for (const p of dormantGarden.debrisPositions) critical.add(posKey(p.x, p.y))
+  }
+  if (hauntedThreshold) {
+    critical.add(posKey(hauntedThreshold.artifactPosition.x, hauntedThreshold.artifactPosition.y))
+    for (const f of hauntedThreshold.ghostFormations) {
+      for (const p of f.positions) critical.add(posKey(p.x, p.y))
+    }
+  }
+  if (resonance) {
+    for (const p of resonance.machinePositions) critical.add(posKey(p.x, p.y))
+    critical.add(posKey(resonance.vaultPosition.x, resonance.vaultPosition.y))
+  }
+  return critical
+}
+
+/**
+ * Place contiguous void ponds (Space tiles) on a ruin interior map.
+ * 0-10% of walkable floor is converted. Ponds that break reachability
+ * to critical positions are rejected.
+ */
+export const placeVoidPonds = (
+  map: Tile[][],
+  mapWidth: number,
+  mapHeight: number,
+  entranceInterior: Position,
+  subsidence: SubsidenceData | null,
+  dormantGarden: DormantGardenData | null,
+  hauntedThreshold: HauntedThresholdData | null,
+  resonance: ResonanceData | null,
+  rng: () => number,
+): void => {
+  // Count plain floor tiles eligible for void conversion
+  let walkableCount = 0
+  for (let y = 0; y < mapHeight; y++) {
+    for (let x = 0; x < mapWidth; x++) {
+      const t = map[y][x].type
+      if (t === TileType.RuinFloor || t === TileType.RuinUnstable) walkableCount++
+    }
+  }
+  if (walkableCount === 0) return
+
+  // Target 0-10% coverage
+  const coveragePct = rng() * 0.1
+  const targetTiles = Math.floor(walkableCount * coveragePct)
+  if (targetTiles < 3) return // not enough for a meaningful pond
+
+  const critical = getCriticalPositions(entranceInterior, subsidence, dormantGarden, hauntedThreshold, resonance)
+
+  // Generate 1-4 ponds
+  const pondCount = 1 + Math.floor(rng() * 4)
+  const tilesPerPond = Math.max(3, Math.floor(targetTiles / pondCount))
+  let totalPlaced = 0
+
+  for (let p = 0; p < pondCount && totalPlaced < targetTiles; p++) {
+    // Pick a random walkable non-critical seed tile
+    let seedX = -1
+    let seedY = -1
+    let attempts = 0
+    while (attempts < 100) {
+      attempts++
+      const x = Math.floor(rng() * mapWidth)
+      const y = Math.floor(rng() * mapHeight)
+      const seedType = map[y][x].type
+      if (seedType !== TileType.RuinFloor && seedType !== TileType.RuinUnstable) continue
+      if (critical.has(posKey(x, y))) continue
+      seedX = x
+      seedY = y
+      break
+    }
+    if (seedX < 0) continue // couldn't find a seed
+
+    // Grow blob from seed using random walk
+    const pondTiles: Position[] = [{ x: seedX, y: seedY }]
+    const pondSet = new Set<string>([posKey(seedX, seedY)])
+    const maxSize = Math.min(tilesPerPond, targetTiles - totalPlaced)
+    let growAttempts = 0
+    const maxGrowAttempts = maxSize * 10
+
+    while (pondTiles.length < maxSize && growAttempts < maxGrowAttempts) {
+      growAttempts++
+      // Pick a random tile from the pond and try to expand in a random direction
+      const base = pondTiles[Math.floor(rng() * pondTiles.length)]
+      const dirIdx = Math.floor(rng() * 4)
+      const [dx, dy] = CARDINAL_DELTAS[dirIdx]
+      const nx = base.x + dx
+      const ny = base.y + dy
+      if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) continue
+      const key = posKey(nx, ny)
+      if (pondSet.has(key)) continue
+      const nType = map[ny][nx].type
+      if (nType !== TileType.RuinFloor && nType !== TileType.RuinUnstable) continue
+      if (critical.has(key)) continue
+      pondTiles.push({ x: nx, y: ny })
+      pondSet.add(key)
+    }
+
+    // Skip tiny ponds that would appear as isolated specks
+    if (pondTiles.length < 3) continue
+
+    // Tentatively place the pond
+    for (const t of pondTiles) {
+      map[t.y][t.x] = { type: TileType.Space }
+    }
+
+    // Reachability check — all critical tiles must still be reachable from entrance
+    const reachable = floodFillReachable(map, mapWidth, mapHeight, entranceInterior)
+    let valid = true
+    for (const key of critical) {
+      // Only check critical tiles that are actually walkable (some may be on walls/special tiles)
+      const parts = key.split(',')
+      const cx = Number(parts[0])
+      const cy = Number(parts[1])
+      if (cx < 0 || cx >= mapWidth || cy < 0 || cy >= mapHeight) continue
+      if (!isWalkableTile(map[cy][cx].type)) continue
+      if (!reachable.has(key)) {
+        valid = false
+        break
+      }
+    }
+
+    if (valid) {
+      totalPlaced += pondTiles.length
+    } else {
+      // Revert — restore floor tiles
+      for (const t of pondTiles) {
+        map[t.y][t.x] = { type: TileType.RuinFloor }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Generic ruin interior generation (dispatches to archetype-specific)
 // ---------------------------------------------------------------------------
 
@@ -750,6 +939,9 @@ export const generateRuinInterior = (
   } else if (archetype === RuinArchetype.Resonance) {
     resonanceData = generateResonance(map, mapWidth, mapHeight, entranceX, entranceY, ruin, rng)
   }
+
+  // Place astral void ponds after archetype generation
+  placeVoidPonds(map, mapWidth, mapHeight, entranceInterior, subsidenceData, dormantGardenData, hauntedThresholdData, resonanceData, rng)
 
   return {
     ruinIndex,
@@ -983,17 +1175,17 @@ const findNearestWalkable = (
   return null
 }
 
-export const tickSubsidenceCollapse = (state: GameState, dt: number): void => {
-  if (state.currentRuinIndex === null) return
+export const tickSubsidenceCollapse = (state: GameState, dt: number): 'ejected' | null => {
+  if (state.currentRuinIndex === null) return null
   const interior = state.ruinInteriors[state.currentRuinIndex]
-  if (!interior?.subsidence) return
-  if (interior.subsidence.collapsed) return
+  if (!interior?.subsidence) return null
+  if (interior.subsidence.collapsed) return null
 
   const sub = interior.subsidence
   sub.collapseTimer += dt
 
   // Don't collapse for the first N ms to give the player time to orient
-  if (sub.collapseTimer < SUBSIDENCE_MIN_FIRST_WAVE_MS) return
+  if (sub.collapseTimer < SUBSIDENCE_MIN_FIRST_WAVE_MS) return null
 
   // Calculate current threshold — rises from 20 to 80 over the collapse duration
   const elapsed = sub.collapseTimer - SUBSIDENCE_MIN_FIRST_WAVE_MS
@@ -1003,10 +1195,9 @@ export const tickSubsidenceCollapse = (state: GameState, dt: number): void => {
   // Check if it's time for a collapse wave
   const waveIndex = Math.floor(elapsed / sub.collapseRate)
   const lastWaveIndex = Math.floor(Math.max(0, elapsed - dt) / sub.collapseRate)
-  if (waveIndex <= lastWaveIndex) return // not time for a new wave
+  if (waveIndex <= lastWaveIndex) return null // not time for a new wave
 
   // Collapse tiles below the current threshold
-  let playerDisplaced = false
   const collapsedPositions = new Set<string>()
   const { map, mapWidth, mapHeight } = interior
 
@@ -1020,27 +1211,16 @@ export const tickSubsidenceCollapse = (state: GameState, dt: number): void => {
     if (!tile) continue
     if (tile.type !== TileType.RuinFloor && tile.type !== TileType.RuinUnstable) continue
 
-    // Collapse this tile to rubble
-    map[ty][tx] = { type: TileType.RuinWall }
+    // Collapse this tile to astral void
+    map[ty][tx] = { type: TileType.Space }
     sub.structuralIntegrity.delete(key)
     collapsedPositions.add(key)
 
-    // Check if player is on this tile
+    // Player standing on a collapsing tile — eject immediately
     if (state.player.x === tx && state.player.y === ty) {
-      playerDisplaced = true
-    }
-  }
-
-  // Push displaced player to nearest walkable tile
-  if (playerDisplaced) {
-    const safe = findNearestWalkable(map, mapWidth, mapHeight, state.player.x, state.player.y)
-    if (safe) {
-      state.player.x = safe.x
-      state.player.y = safe.y
-    } else {
-      // No walkable tile found — eject to overworld
+      sub.collapsed = true
       exitRuin(state)
-      return
+      return 'ejected' as const
     }
   }
 
@@ -1064,9 +1244,8 @@ export const tickSubsidenceCollapse = (state: GameState, dt: number): void => {
     const nx = entranceX + dx
     const ny = entranceY + dy
     const tile = map[ny]?.[nx]
-    if (tile?.type === TileType.RuinWall) {
-      // Check if this was recently a floor tile (it's in our integrity map no more)
-      // A wall tile adjacent to the entrance means collapse is closing in
+    if (tile?.type === TileType.RuinWall || tile?.type === TileType.Space) {
+      // A wall or void tile adjacent to the entrance means collapse is closing in
       entranceThreatened = true
     }
   }
@@ -1081,14 +1260,18 @@ export const tickSubsidenceCollapse = (state: GameState, dt: number): void => {
         wallCount++
         continue
       }
-      if (map[ny][nx].type === TileType.RuinWall) wallCount++
+      const t = map[ny][nx].type
+      if (t === TileType.RuinWall || t === TileType.Space) wallCount++
     }
     if (wallCount >= 3) {
       // Entrance is nearly closed — eject player
       sub.collapsed = true
       exitRuin(state)
+      return 'ejected' as const
     }
   }
+
+  return null
 }
 
 // ---------------------------------------------------------------------------

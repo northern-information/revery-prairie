@@ -856,8 +856,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // Out-of-bounds and Space tiles render as twinkling stars (overworld) or dark void (cave)
       const isOutOfBounds = !isInBounds(mx, my, state.mapWidth, state.mapHeight)
       if (isOutOfBounds || map[my][mx].type === TileType.Space) {
-        if (state.currentZone === Zone.Cave || state.currentZone === Zone.Ruin) {
-          // Cave/Ruin: just leave the dark background
+        if (state.currentZone === Zone.Cave) {
+          // Cave: just leave the dark background
+          continue
+        }
+        if (state.currentZone === Zone.Ruin && isOutOfBounds) {
+          // Ruin out-of-bounds: dark background. In-bounds Space tiles fall through to star rendering.
           continue
         }
 
