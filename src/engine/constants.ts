@@ -104,6 +104,7 @@ export const METEOR_SHOWER_SPAWN_WINDOW_MS = 4000
 // meteorites
 export const METEORITE_CHAR = '\u2726' // ✦ black four-pointed star
 export const METEORITE_COLOR = '#FFE4B5' // moccasin — warm pale gold
+export const METEORITE_GROUND_MAX = 20
 
 // landing explosion
 export const EXPLOSION_DURATION_MS = 500 // total explosion lifetime

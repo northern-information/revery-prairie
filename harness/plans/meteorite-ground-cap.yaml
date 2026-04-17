@@ -1,0 +1,63 @@
+plan:
+  id: meteorite-ground-cap
+  title: 'Cap ambient shooting stars when 20+ meteorites are on the overworld ground'
+  created: 2026-04-17
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-meteorite-ground-max-constant
+    title: 'Add METEORITE_GROUND_MAX = 20 constant to constants.ts'
+    spec_id: shooting-stars
+    spec_sections:
+      - ambient-star-spawning
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: gate-spawn-on-meteorite-count
+    title: 'Make spawnShootingStar return early when ECS has >= METEORITE_GROUND_MAX overworld meteorite entities'
+    spec_id: shooting-stars
+    spec_sections:
+      - ambient-star-spawning
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/celestial.ts
+    depends_on:
+      - add-meteorite-ground-max-constant
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: regression-tests-for-ground-cap
+    title: 'Add tests: spawn suppressed at cap; resumes after pickup; targeted/chain spawns ignore cap; backpack/cave meteorites not counted'
+    spec_id: shooting-stars
+    spec_sections:
+      - ambient-star-spawning
+    context_files:
+      - src/engine/__tests__/shootingStars.test.ts
+      - src/engine/celestial.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/shootingStars.test.ts
+    depends_on:
+      - gate-spawn-on-meteorite-count
+    verification:
+      - 'npx vitest run src/engine/__tests__/shootingStars.test.ts'
+    repair: retry
+    tags: [test]
