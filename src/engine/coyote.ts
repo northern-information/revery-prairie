@@ -259,7 +259,11 @@ const tickCollect = (
   if (state.coyoteCargo === null) {
     // Not carrying — seek nearest collectible
     const target = findNearestCollectible(state, coyotePos)
-    if (!target) return // idle
+    if (!target) {
+      // No collectibles — fall back to follow behavior
+      tickFollow(state, eid, pos, blocked)
+      return
+    }
 
     // If on the item tile, pick it up
     if (target.pos.x === pos.x && target.pos.y === pos.y) {
