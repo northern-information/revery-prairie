@@ -1,0 +1,121 @@
+id: ruin-astral-void
+name: 'Astral void in ruin interiors'
+status: planned
+priority: medium
+layer: engine
+source_files:
+  - src/engine/ruins.ts
+  - src/engine/renderer.ts
+  - src/engine/gameLoop.ts
+  - src/engine/__tests__/ruins.test.ts
+dependencies:
+  - ruin-infrastructure
+  - ruin-visual-style
+
+behaviors:
+  - id: void-pond-generation
+    description: >
+      Each ruin interior generates 0-10% of its walkable floor area as Space
+      tiles arranged in contiguous "ponds" (blob-shaped clusters, not scattered
+      1x1 tiles). Ponds are placed after the archetype-specific generation pass
+      so they coexist with all four archetypes. Pond count and size are derived
+      from the ruin's seeded RNG. Ponds must not overlap the entrance tile, the
+      entrance corridor (3 tiles around entrance), or archetype-critical tiles
+      (machines, aqueducts, seed positions, artifact positions). Space tiles
+      block movement and pathfinding (already handled by isWalkableTile).
+    inputs:
+      - 'RNG function from ruin seed'
+      - 'Completed ruin interior map after archetype generation'
+    outputs:
+      - 'Space tiles placed in contiguous blob-shaped clusters on the ruin map'
+      - '0-10% of original walkable floor area converted to Space'
+    state_changes:
+      - field: ruinInteriors[i].map
+        effect: 'Some RuinFloor tiles replaced with Space tiles'
+    determinism: probabilistic
+
+  - id: reachability-validation
+    description: >
+      After void ponds are placed, a flood-fill reachability check runs from
+      the entrance tile. Every gameplay-critical tile must be reachable via
+      walkable tiles: the entrance itself, all seed positions (subsidence,
+      dormant garden), artifact positions (haunted threshold), machine
+      positions (resonance), aqueduct tiles, and any ground item spawn
+      points. If a pond placement would create an unreachable critical tile,
+      the pond is rejected and not placed. This guarantees no ruin is
+      rendered unsolvable by void placement.
+    inputs:
+      - 'Ruin interior map with void ponds placed'
+      - 'Entrance position and archetype-specific critical positions'
+    outputs:
+      - 'All critical tiles reachable from entrance via walkable path'
+      - 'Ponds that would break reachability are discarded'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ruin-space-tile-rendering
+    description: >
+      Space tiles inside ruin interiors render with the same twinkling star
+      animation used on the overworld. The renderer reuses the existing
+      tileHash-based star density, character, and color cycling logic. This
+      replaces the current behavior of rendering Space in ruins as dark void.
+    inputs:
+      - 'Ruin zone with Space tiles in the interior map'
+      - 'Current time for animation'
+    outputs:
+      - 'Twinkling stars rendered on Space tiles inside ruins'
+      - 'Same visual appearance as overworld space'
+    state_changes: []
+    determinism: time-based
+
+  - id: subsidence-collapse-to-space
+    description: >
+      When subsidence collapse converts tiles, they become Space (twinkling
+      void) instead of RuinWall. If the player is standing on a tile when it
+      collapses, they are immediately ejected to the overworld and a toast
+      displays "the ruins crumbled". The existing entrance-closure ejection
+      also uses Space tiles and fires the same toast.
+    inputs:
+      - 'Subsidence collapse wave fires with player on a collapsing tile'
+    outputs:
+      - 'Collapsed tiles become TileType.Space instead of RuinWall'
+      - 'Player ejected to overworld'
+      - 'Toast "the ruins crumbled" displayed'
+    state_changes:
+      - field: ruinInteriors[i].map
+        effect: 'Collapsed tiles set to TileType.Space'
+      - field: currentZone
+        effect: 'Set to overworld on player ejection'
+    determinism: time-based
+
+edge_cases:
+  - id: entrance-not-voided
+    description: 'Void pond generation must never place Space on the entrance tile or its corridor'
+    expected: 'Entrance and 3-tile corridor around it remain walkable RuinFloor'
+  - id: zero-percent-void
+    description: 'RNG produces 0% void coverage for a ruin'
+    expected: 'No Space tiles placed, ruin functions normally'
+  - id: player-on-collapse-tile
+    description: 'Player stands on a tile that collapses to Space during subsidence'
+    expected: 'Player ejected to overworld immediately with toast'
+  - id: pathfinding-around-void
+    description: 'Player clicks to move to a tile on the other side of a void pond'
+    expected: 'Pathfinding routes around Space tiles (already non-walkable)'
+  - id: void-blocks-critical-path
+    description: 'Randomly placed void pond would cut off a machine, seed, or artifact from the entrance'
+    expected: 'Pond is rejected by reachability check and not placed'
+
+failure_conditions:
+  - trigger: 'Void pond placed on entrance tile'
+    expected: 'Generation must exclude entrance zone — entrance always remains accessible'
+  - trigger: 'All floor tiles converted to Space leaving no walkable area'
+    expected: '10% cap prevents this — ruin always has 90%+ walkable floor'
+  - trigger: 'Subsidence collapses tile under player but no toast fires'
+    expected: 'Toast "the ruins crumbled" always fires on collapse ejection'
+  - trigger: 'Void pond isolates a seed position from the entrance'
+    expected: 'Reachability validation rejects the pond — seed remains accessible'
+
+verification:
+  test_file: src/engine/__tests__/ruins.test.ts
+  test_pattern: 'astral void|collapse to space|void pond|reachability'
+  command: npx vitest run src/engine/__tests__/ruins.test.ts

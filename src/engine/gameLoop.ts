@@ -517,7 +517,11 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: 500,
       zone: 'ruin',
       fn: (state: GameState, _time: number) => {
-        tickSubsidenceCollapse(state, 500)
+        const result = tickSubsidenceCollapse(state, 500)
+        if (result === 'ejected') {
+          callbacks.onDiscovery?.('the ruins crumbled', state.player.x, state.player.y, '!', '#FF6B6B')
+          callbacks.onRefreshUI?.()
+        }
       },
     },
     {
