@@ -19,11 +19,19 @@ import { generateWeather } from './weather'
 import type { GenesisSimState } from './genesisTypes'
 import type { GameState, Position } from './types'
 
-export const createGameState = (stewardName: string, viewportWidth: number, viewportHeight: number): GameState => {
+export const createGameState = (
+  stewardName: string,
+  viewportWidth: number,
+  viewportHeight: number,
+  genesisResult?: GenesisSimState
+): GameState => {
   // Create genesis state, precompute all epochs, extract terrain
-  const seed = nameToSeed(stewardName)
-  const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
-  precomputeGenesis(sim, GENESIS_EPOCHS)
+  const sim = genesisResult ?? (() => {
+    const seed = nameToSeed(stewardName)
+    const s = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
+    precomputeGenesis(s, GENESIS_EPOCHS)
+    return s
+  })()
   const map = sim.grid
   const genesisData: GenesisSimState = sim
 
