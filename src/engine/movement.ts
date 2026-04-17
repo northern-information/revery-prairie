@@ -27,15 +27,6 @@ export const getBlockedPositions = (
       set.add(posKey(pos.x, pos.y))
     }
   }
-  // Water tiles block movement (overworld only — ponds/rivers don't exist in cave)
-  if (z === Zone.Overworld) {
-    for (const key of state.ponds) {
-      set.add(key)
-    }
-    for (const key of state.rivers) {
-      set.add(key)
-    }
-  }
   // Angel body tiles block movement
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.MultiPosition)) {
     if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== z) continue

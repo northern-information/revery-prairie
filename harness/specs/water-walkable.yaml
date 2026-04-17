@@ -1,0 +1,149 @@
+id: water-walkable
+name: 'Water tiles are walkable by all entities'
+status: planned
+priority: high
+layer: engine
+source_files:
+  - src/engine/movement.ts
+  - src/engine/state.ts
+  - src/engine/recipes.ts
+  - src/engine/__tests__/movement.test.ts
+  - src/engine/__tests__/water-walkable.test.ts
+dependencies:
+  - player-movement
+  - tile-water
+
+behaviors:
+  - id: water-not-in-blocked-positions
+    description: >
+      getBlockedPositions does not add state.ponds or state.rivers
+      entries for any zone. Water tiles are traversable by the player,
+      the coyote, bees, ghosts, angels, and any other entity whose
+      movement checks go through getBlockedPositions. The
+      Zone.Overworld water-blocking branch is removed entirely.
+    inputs:
+      - 'getBlockedPositions called for any zone'
+    outputs:
+      - 'returned Set<string> contains no pond or river keys'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ghost-spawn-bfs-traverses-water
+    description: >
+      The ghost-spawn reachability BFS in createGameState treats water
+      as walkable. The waterBlocked set is removed from the BFS — ghosts
+      may spawn on any tile reachable via any walkable terrain,
+      including across ponds and rivers. This does not change which
+      tiles ghosts stand on (they still spawn on dirt/clover only via
+      the candidate filter), only the reachability graph.
+    inputs:
+      - 'createGameState runs with a genesis result that produces water features'
+    outputs:
+      - 'reachableSet in state.ts ghost-spawn BFS contains tiles on both sides of any water body'
+    state_changes: []
+    determinism: deterministic
+
+  - id: clover-plant-rejects-water
+    description: >
+      The prairie recipe (bee + clover) must not plant clover on pond
+      or river tiles. Both recipe.preview and recipe.execute check
+      state.ponds and state.rivers for each candidate tile in the 3x3
+      stamp and skip tiles where water is present. The underlying tile
+      type at water positions is Dirt, so without this explicit check
+      water tiles would be planted.
+    inputs:
+      - 'player casts bee+clover combine while standing adjacent to water'
+    outputs:
+      - 'preview shows planting marks only on non-water dirt/clover/caveFloor tiles in 3x3 area'
+      - 'execute converts only non-water tiles to Clover'
+    state_changes:
+      - field: map
+        effect: 'only non-water tiles within the 3x3 stamp transition to TileType.Clover'
+    determinism: deterministic
+
+  - id: clover-cannot-spawn-on-water
+    description: >
+      Clover cannot grow on water tiles regardless of source. This
+      applies to angel clover aura, bee-and-clover combine, natural
+      regrowth, and any future clover-spawning mechanic. All callers
+      must filter out state.ponds and state.rivers before placing
+      TileType.Clover on the map.
+    inputs:
+      - 'any clover-spawning code path evaluates a water tile'
+    outputs:
+      - 'the water tile is not converted to clover'
+    state_changes: []
+    determinism: deterministic
+
+  - id: harvest-adjacent-from-water
+    description: >
+      While standing on a water tile, the player can still harvest
+      clover on an adjacent land tile. The [f] keybind and [x] cut
+      operate on the tile the player is facing, not the tile they
+      stand on — standing on water does not disable facing-based
+      interactions. This scenario is rare because water bodies are
+      usually ringed by sand, but it must be supported.
+    inputs:
+      - 'player stands on a water tile with clover on an adjacent land tile'
+      - "player presses [f] or [x] facing the clover"
+    outputs:
+      - 'clover is harvested or cut normally'
+    state_changes:
+      - field: map
+        effect: 'facing clover tile becomes Dirt'
+      - field: backpack.items
+        effect: 'clover item added (for [f] harvest; [x] cut adds soil health but no item)'
+    determinism: deterministic
+
+edge_cases:
+  - id: water-in-cave-does-not-exist
+    description: >
+      Cave zone has no ponds or rivers. The existing
+      Zone.Overworld guard in getBlockedPositions is now obsolete
+      because water is walkable everywhere. Tests must confirm cave
+      movement is unchanged.
+    expected: 'cave movement behaves identically before and after the change'
+
+  - id: pathfinding-prefers-direct-route-through-water
+    description: >
+      A* with equal-cost water tiles finds the geometrically shortest
+      path, which may cut straight through a pond instead of walking
+      around it.
+    expected: 'path length is minimized; water tiles appear in path when they are on the shortest route'
+
+  - id: prairie-recipe-adjacent-to-water
+    description: >
+      Player stands on dirt adjacent to a pond and casts bee+clover.
+      The 3x3 stamp overlaps water. Water tiles in the stamp are
+      skipped; dirt tiles in the stamp become clover.
+    expected: 'only non-water tiles in the 3x3 are converted to Clover; ponds remain water'
+
+  - id: prairie-recipe-standing-on-water
+    description: >
+      Player stands on a water tile and casts bee+clover. The standing
+      tile is water (underlying type Dirt) so the current guard
+      (standingOn !== Dirt) would still accept it — the new water
+      check must reject the cast when the player stands on water.
+    expected: 'recipe execute returns false; no tiles are converted; ingredients are not consumed'
+
+  - id: coyote-crosses-water
+    description: >
+      Coyote pathfinding uses the same walkability rules. In Collect
+      mode the coyote may cross ponds to reach ground items on the
+      far side.
+    expected: 'coyote path includes water tiles when they are on the shortest route'
+
+failure_conditions:
+  - trigger: 'getBlockedPositions adds state.ponds or state.rivers entries'
+    expected: 'TypeScript compiles, but movement test "player can walk onto water" fails'
+
+  - trigger: 'prairie recipe plants clover on a pond or river tile'
+    expected: 'water-walkable test "prairie recipe skips water tiles" fails'
+
+  - trigger: 'ghost-spawn BFS treats water as a wall'
+    expected: 'reachable tiles on the far side of a water body are missed; test asserting reachability across water fails'
+
+verification:
+  test_file: src/engine/__tests__/water-walkable.test.ts
+  test_pattern: 'water walkable'
+  command: 'npx vitest run src/engine/__tests__/water-walkable.test.ts'

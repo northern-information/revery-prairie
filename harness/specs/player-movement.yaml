@@ -46,9 +46,9 @@ behaviors:
     description: >
       movePlayer returns false and does not mutate position when the
       target tile is non-walkable. isWalkableTile rejects Space,
-      CaveWall, and CaveBreakableWall tile types. additionally,
-      getBlockedPositions includes water tiles (ponds and rivers) in
-      the overworld, which also block movement.
+      CaveWall, and CaveBreakableWall tile types. water tiles (ponds
+      and rivers) are freely traversable — they are NOT added to
+      getBlockedPositions.
     inputs:
       - 'GameState with player adjacent to a non-walkable tile'
       - 'Direction toward the non-walkable tile'
@@ -59,6 +59,26 @@ behaviors:
         effect: 'set to dir (see facing-entity-update)'
       - field: facingEntityPos
         effect: 'recalculated (see facing-entity-update)'
+    determinism: deterministic
+
+  - id: water-traversable
+    description: >
+      Water tiles (ponds and rivers) are fully traversable by the
+      player. movePlayer succeeds when stepping onto a pond or river
+      tile. getBlockedPositions does not add state.ponds or
+      state.rivers entries in the overworld. Pathfinding treats water
+      at equal cost to any other walkable tile — no weighting or
+      avoidance. No visual effect, no movement cost penalty.
+    inputs:
+      - 'GameState with player adjacent to a pond or river tile'
+      - 'Direction toward the water tile'
+    outputs:
+      - 'boolean: true'
+    state_changes:
+      - field: player.x
+        effect: 'changes by DIRECTIONS[dir].x, landing on water tile'
+      - field: player.y
+        effect: 'changes by DIRECTIONS[dir].y, landing on water tile'
     determinism: deterministic
 
   - id: movement-blocked-by-character
@@ -121,9 +141,15 @@ edge_cases:
   - id: deep-time-wandering-allows-movement
     description: 'During deep time Wandering phase, movement is not suppressed'
     expected: 'path and keyboard-move tick systems process movement normally'
+  - id: player-can-walk-onto-water
+    description: 'Player walks onto a pond or river tile'
+    expected: 'movePlayer returns true, player position updates to the water tile'
+  - id: pathfinding-routes-through-water
+    description: 'Click-to-move target is on the far side of a pond with no dry path'
+    expected: 'A* finds a path straight through the water tiles; pathfinding treats water as walkable'
 
 failure_conditions:
-  - trigger: 'Target tile is non-walkable (Space, CaveWall, CaveBreakableWall) or is a water tile (pond/river)'
+  - trigger: 'Target tile is non-walkable (Space, CaveWall, CaveBreakableWall)'
     expected: 'movePlayer returns false, no state mutation to player position'
   - trigger: 'Target position is out of map bounds'
     expected: 'movePlayer returns false, no state mutation to player position'

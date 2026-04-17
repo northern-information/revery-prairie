@@ -138,12 +138,12 @@ describe('tickPath', () => {
     expect(state.path).toBeNull()
   })
 
-  it('cancels path when next step is blocked by water', () => {
+  it('cancels path when next step is blocked by space', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     const startX = state.player.x
     const startY = state.player.y
-    // Place water at the next step
+    // Place space (void) at the next step
     state.map[startY][startX + 1] = { type: TileType.Space }
     state.path = [
       { x: startX + 1, y: startY },
