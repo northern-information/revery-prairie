@@ -132,7 +132,8 @@ behaviors:
       heldDirection, previewFn, facingEntityPos, activeDialog, trail,
       cloverGrowthPreviews. calls transitionCoyoteToZone. sets
       explored to true on the RuinInterior. records discovery for
-      zone:ruin-{ruinIndex}. adds event toast with ruin name.
+      zone:ruin-{ruinIndex}. emits an archetype-specific entry toast
+      (see ruin-collapse-trap-and-ejection ruin-entry-toast).
     inputs:
       - 'player steps on RuinEntrance tile while in overworld'
     outputs:

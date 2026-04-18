@@ -1,4 +1,4 @@
-import { TileType } from './types'
+import { RuinArchetype, TileType } from './types'
 
 export const MAP_WIDTH = 170
 export const MAP_HEIGHT = 95
@@ -342,3 +342,18 @@ export const getEntranceGlyph = (index: number): string =>
   ENTRANCE_GLYPHS[index % ENTRANCE_GLYPHS.length]
 
 export const INVENTORY_CELL_SIZE = 28
+
+// ruin ejection sequence
+export const RUIN_EJECTION_SHAKE_MS = 1500
+export const RUIN_EJECTION_FADE_MS = 1200
+export const RUIN_EJECTION_HOLD_MS = 400
+export const RUIN_EJECTION_NOTIFICATION_MS = 4000
+export const RUIN_EJECTION_NOTIFICATION_FADE_MS = 600
+export const RUIN_EJECTION_SHAKE_AMPLITUDE = 6 // pixels
+
+export const RUIN_ENTRY_TOASTS: Record<RuinArchetype, string> = {
+  [RuinArchetype.Subsidence]: 'crumbling ruins! hurry before it collapses!',
+  [RuinArchetype.DormantGarden]: 'a dormant garden stirs beneath the dust.',
+  [RuinArchetype.HauntedThreshold]: 'you feel watched. haunted threshold.',
+  [RuinArchetype.Resonance]: 'resonant chambers hum around you.',
+}
