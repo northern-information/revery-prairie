@@ -1,0 +1,72 @@
+id: crater-prairie-combine
+name: 'Bee+clover combine works on crater tiles'
+status: partial
+priority: high
+layer: engine
+source_files:
+  - src/engine/recipes.ts
+  - src/engine/combine.ts
+  - src/engine/__tests__/combine.test.ts
+dependencies:
+  - satellite-impacts
+
+behaviors:
+  - id: prairie-on-crater
+    description: >
+      When the player combines a bee and clover while standing on a
+      Crater tile, the recipe executes normally — the 3x3 area around
+      the player is converted to Clover, a bee entity spawns, and the
+      ingredients are consumed. Crater tiles are treated identically
+      to Dirt for the purpose of this recipe.
+    inputs:
+      - 'Player standing on TileType.Crater'
+      - 'Backpack contains at least one bee and one clover item'
+      - 'Combine action triggered (drag-and-drop or combineBeeAndClover)'
+    outputs:
+      - '3x3 area around player converted to TileType.Clover'
+      - 'Bee entity spawned at player position'
+      - 'One bee and one clover removed from backpack'
+    state_changes:
+      - field: map
+        effect: 'up to 9 tiles in 3x3 area set to TileType.Clover (Crater tiles included)'
+      - field: backpack
+        effect: 'one bee and one clover item removed'
+      - field: world
+        effect: 'new bee entity created at player position'
+    determinism: deterministic
+
+  - id: crater-tiles-in-3x3-convert
+    description: >
+      Crater tiles within the 3x3 prairie area are converted to Clover
+      just like Dirt tiles. The recipe loop includes TileType.Crater in
+      its allowlist of convertible tile types.
+    inputs:
+      - 'Combine executes with Crater tiles in the 3x3 neighborhood'
+    outputs:
+      - 'Crater tiles in range become TileType.Clover'
+    state_changes:
+      - field: map
+        effect: 'Crater tiles within 3x3 area set to TileType.Clover'
+    determinism: deterministic
+
+edge_cases:
+  - id: mixed-crater-and-dirt
+    description: '3x3 area contains a mix of Crater, Dirt, and Sand tiles'
+    expected: 'Crater and Dirt tiles convert to Clover; Sand tiles remain unchanged'
+  - id: all-crater-3x3
+    description: 'All 9 tiles in the 3x3 area are Crater'
+    expected: 'All 9 tiles convert to Clover'
+  - id: standing-on-crater-with-water-neighbor
+    description: 'Player on Crater, some neighbors are pond/river tiles'
+    expected: 'Water tiles skipped, non-water convertible tiles become Clover'
+
+failure_conditions:
+  - trigger: 'Player combines bee+clover while standing on Crater tile'
+    expected: 'Recipe executes successfully (previously returned false due to missing Crater in allowlist)'
+  - trigger: 'Crater tile in 3x3 range during prairie combine'
+    expected: 'Crater tile converts to Clover (previously skipped due to missing Crater in tile check)'
+
+verification:
+  test_file: src/engine/__tests__/combine.test.ts
+  test_pattern: 'crater'
+  command: 'npx vitest run src/engine/__tests__/combine.test.ts'
