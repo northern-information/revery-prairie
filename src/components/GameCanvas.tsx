@@ -17,7 +17,7 @@ const resizeState = (state: GameState, charWidth: number, charHeight: number) =>
   state.viewportWidth = vw
   state.viewportHeight = vh
   state.rightInsetTiles = Math.ceil(SIDEBAR_WIDTH_PX / charWidth)
-  updateCamera(state)
+  updateCamera(state, true)
 }
 
 interface GameCanvasProps {

@@ -1,0 +1,109 @@
+id: camera-deadzone
+name: 'Camera deadzone'
+status: planned
+priority: high
+layer: engine
+source_files:
+  - src/engine/camera.ts
+  - src/engine/types.ts
+  - src/engine/__tests__/camera.test.ts
+dependencies:
+  - player-movement
+
+behaviors:
+  - id: overworld-deadzone
+    description: >
+      In the overworld zone, updateCamera maintains a deadzone — a centered
+      rectangle 66% of the visible viewport width and height. The camera
+      does not move while the player remains inside this rectangle. When
+      the player crosses the deadzone boundary, the camera shifts just
+      enough to keep the player at the deadzone edge. Map-bound clamping
+      still applies after the deadzone calculation.
+    inputs:
+      - 'GameState with currentZone = overworld'
+      - 'Player position within or crossing the deadzone boundary'
+    outputs:
+      - 'camera.x and camera.y updated only when player exits the deadzone rectangle'
+    state_changes:
+      - field: camera.x
+        effect: 'unchanged while player is inside deadzone; shifts minimum amount to keep player at deadzone edge when player crosses boundary; clamped to [0, mapWidth - visibleWidth]'
+      - field: camera.y
+        effect: 'unchanged while player is inside deadzone; shifts minimum amount to keep player at deadzone edge when player crosses boundary; clamped to [0, mapHeight - viewportHeight]'
+    determinism: deterministic
+
+  - id: cave-center-tracking
+    description: >
+      In cave and ruin zones, updateCamera retains the existing
+      center-on-player behavior with no deadzone. The camera centers on
+      the player every frame, clamped to map bounds, preserving the
+      claustrophobic feeling of enclosed spaces.
+    inputs:
+      - 'GameState with currentZone = cave or ruin'
+      - 'Player position'
+    outputs:
+      - 'camera.x and camera.y centered on player, clamped to map bounds'
+    state_changes:
+      - field: camera.x
+        effect: 'player.x - floor(visibleWidth / 2), clamped to [0, mapWidth - visibleWidth]; or map-centered when map is smaller than viewport'
+      - field: camera.y
+        effect: 'player.y - floor(viewportHeight / 2), clamped to [0, mapHeight - viewportHeight]; or map-centered when map is smaller than viewport'
+    determinism: deterministic
+
+  - id: deadzone-initialization
+    description: >
+      When the player first enters the overworld (game start or exiting
+      cave), the camera initializes centered on the player. The deadzone
+      then takes effect from that position — subsequent moves within the
+      deadzone do not pan the camera.
+    inputs:
+      - 'Zone transition to overworld or initial game state creation'
+    outputs:
+      - 'Camera centered on player as starting position'
+    state_changes:
+      - field: camera.x
+        effect: 'set to player-centered value, clamped to map bounds'
+      - field: camera.y
+        effect: 'set to player-centered value, clamped to map bounds'
+    determinism: deterministic
+
+  - id: resize-recenters
+    description: >
+      When the viewport resizes (window resize), the camera recenters on
+      the player regardless of zone. This prevents the player from ending
+      up outside the visible area after a resize. The deadzone resumes
+      from the new centered position on the next move.
+    inputs:
+      - 'Window resize event changing viewportWidth or viewportHeight'
+    outputs:
+      - 'Camera recentered on player'
+    state_changes:
+      - field: camera.x
+        effect: 'recentered on player, clamped to map bounds'
+      - field: camera.y
+        effect: 'recentered on player, clamped to map bounds'
+    determinism: deterministic
+
+edge_cases:
+  - id: player-at-map-edge-with-deadzone
+    description: 'Player walks toward map edge where deadzone boundary would place camera beyond map bounds'
+    expected: 'Camera clamps to map bounds; deadzone contracts naturally against the edge — no void tiles shown'
+  - id: zone-transition-resets-camera
+    description: 'Player enters cave from overworld, then exits back to overworld'
+    expected: 'Cave uses center-tracking; on return to overworld, camera recenters on player and deadzone resumes from that position'
+  - id: small-map-no-deadzone
+    description: 'When map dimensions are smaller than viewport (e.g. cave), deadzone logic is irrelevant'
+    expected: 'Map is centered in viewport with negative camera offset, same as current behavior'
+  - id: sidebar-inset-respected
+    description: 'Deadzone width calculated from visibleWidth (viewportWidth - rightInsetTiles), not raw viewportWidth'
+    expected: 'Deadzone rectangle accounts for sidebar; player does not get hidden behind sidebar before camera pans'
+
+failure_conditions:
+  - trigger: 'Player moves but camera state is undefined or missing'
+    expected: 'updateCamera handles gracefully — falls back to center-on-player behavior'
+  - trigger: 'Deadzone size exceeds map size (very small map or very large viewport)'
+    expected: 'Camera falls through to small-map centering logic; no division by zero or negative deadzone'
+
+verification:
+  test_file: src/engine/__tests__/camera.test.ts
+  test_pattern: 'deadzone'
+  command: 'npx vitest run src/engine/__tests__/camera.test.ts'
