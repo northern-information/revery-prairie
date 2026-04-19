@@ -282,8 +282,8 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       id: 'monarch',
       intervalMs: MONARCH_TICK_MS,
       zone: 'overworld',
-      fn: state => {
-        tickMonarchs(state, Zone.Overworld)
+      fn: (state, time) => {
+        tickMonarchs(state, time, Zone.Overworld)
       },
     },
     {

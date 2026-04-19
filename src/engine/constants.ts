@@ -367,14 +367,15 @@ export const getEntranceGlyph = (index: number): string =>
 export const MONARCH_CHAR = '*'
 export const MONARCH_COLOR = '#FF8C00' // dark orange
 export const MONARCH_SPAWN_CHANCE = 0.1 // 10% chance during rain
-export const MONARCH_PRAIRIE_SIZE = 10 // 10x10 clover patch
-export const MONARCH_HEAL_SIZE = 20 // 20x20 soil heal area
-export const MONARCH_HEAL_CENTER_PCT = 1.0 // 100% heal at center
-export const MONARCH_HEAL_EDGE_PCT = 0.2 // 20% heal at edge
-export const MONARCH_SEARCH_RADIUS = 30 // tiles to search for healthy soil
+export const MONARCH_TICK_MS = 200 // movement tick (same as bees)
+export const MONARCH_ZIGZAG_MIN = 5 // min tiles per zig-zag leg
+export const MONARCH_ZIGZAG_MAX = 10 // max tiles per zig-zag leg
+export const MONARCH_FLEE_RADIUS = 4 // player proximity triggers flee
+export const MONARCH_SEARCH_RADIUS = 30 // tiles to search for fertile soil
 export const MONARCH_SOIL_THRESHOLD_HIGH = 80 // preferred soil health
 export const MONARCH_SOIL_THRESHOLD_LOW = 50 // fallback soil health
-export const MONARCH_TICK_MS = 200 // same as bees
+export const MONARCH_POLLINATE_MS = 5000 // ms between pollination events
+export const MONARCH_SETTLE_RADIUS = 3 // wander radius when settled
 
 export const INVENTORY_CELL_SIZE = 28
 
