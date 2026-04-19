@@ -82,7 +82,9 @@ export interface ComponentDataMap {
     payloadType: 'destructive' | 'seeds'
   }
   [ComponentType.MonarchState]: {
-    phase: 'wandering' | 'spawning' | 'idle'
+    phase: 'wandering' | 'fleeing' | 'settled'
     target: Position | null
+    waypoint: Position | null
+    lastPollinateTime: number
   }
 }

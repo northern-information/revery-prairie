@@ -1,26 +1,28 @@
 import {
   BEE_STARVATION_MS,
-  MONARCH_HEAL_CENTER_PCT,
-  MONARCH_HEAL_EDGE_PCT,
-  MONARCH_HEAL_SIZE,
-  MONARCH_PRAIRIE_SIZE,
+  MONARCH_FLEE_RADIUS,
+  MONARCH_POLLINATE_MS,
   MONARCH_SEARCH_RADIUS,
+  MONARCH_SETTLE_RADIUS,
   MONARCH_SOIL_THRESHOLD_HIGH,
   MONARCH_SOIL_THRESHOLD_LOW,
   MONARCH_SPAWN_CHANCE,
   MONARCH_TICK_MS,
+  MONARCH_ZIGZAG_MAX,
+  MONARCH_ZIGZAG_MIN,
   SOIL_HEALTH_DEFAULT,
-  SOIL_HEALTH_MAX,
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { tickCreatureHunger } from './hunger'
 import { findPath } from './pathfinding'
-import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
+import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
 import { CloverStage, Sky, TileType, Zone } from './types'
 
 import type { Entity } from './ecs/types'
 import type { GameState, Position } from './types'
+
+// --- Spawn ---
 
 /** Returns true if the current weather is rain — the only condition under which monarchs spawn. */
 export const isMonarchSpawnCondition = (state: GameState): boolean =>
@@ -37,7 +39,12 @@ export const spawnMonarch = (state: GameState, x: number, y: number): Entity => 
   state.world.addComponent(e, ComponentType.EntityTag, 'monarch')
   state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
-  state.world.addComponent(e, ComponentType.MonarchState, { phase: 'wandering', target: null })
+  state.world.addComponent(e, ComponentType.MonarchState, {
+    phase: 'wandering',
+    target: null,
+    waypoint: null,
+    lastPollinateTime: 0,
+  })
   return e
 }
 
@@ -62,7 +69,7 @@ export const spawnBeeOrMonarch = (state: GameState, x: number, y: number, zone?:
   return spawnBee(state, x, y, zone)
 }
 
-// --- Wandering (shared with bees) ---
+// --- Hunger helper ---
 
 const isMonarchNearFood = (state: GameState, pos: Position): boolean => {
   if (isInBounds(pos.x, pos.y, state.mapWidth, state.mapHeight) && state.map[pos.y][pos.x].type === TileType.Clover)
@@ -75,70 +82,126 @@ const isMonarchNearFood = (state: GameState, pos: Position): boolean => {
   return false
 }
 
-const wanderMonarch = (state: GameState, eid: Entity): void => {
-  const pos = state.world.getComponent(eid, ComponentType.Position)
-  if (!pos) return
+// --- Zig-zag waypoint generation ---
 
-  if (Math.random() > 0.3) return
+/** Pick a random waypoint 5-10 tiles away, biased toward nearby clover. */
+const pickZigzagWaypoint = (
+  state: GameState,
+  from: Position,
+  biasTarget?: Position | null,
+): Position | null => {
+  const dist = MONARCH_ZIGZAG_MIN + Math.floor(Math.random() * (MONARCH_ZIGZAG_MAX - MONARCH_ZIGZAG_MIN + 1))
 
-  const cloverCandidates: Position[] = []
-  const walkableCandidates: Position[] = []
-  for (const d of ORDINAL) {
-    const nx = pos.x + d.x
-    const ny = pos.y + d.y
-    if (isInBounds(nx, ny, state.mapWidth, state.mapHeight)) {
-      const tile = state.map[ny][nx]
-      if (tile.type === TileType.Clover) {
-        cloverCandidates.push({ x: nx, y: ny })
-      } else if (isWalkableTile(tile.type)) {
-        walkableCandidates.push({ x: nx, y: ny })
+  // If biased toward a target (clover or flee destination), 70% chance to head that direction
+  if (biasTarget && Math.random() < 0.7) {
+    const dx = biasTarget.x - from.x
+    const dy = biasTarget.y - from.y
+    const len = Math.sqrt(dx * dx + dy * dy)
+    if (len > 0) {
+      // Add some randomness to the direction (±30 degrees worth of jitter)
+      const jitter = (Math.random() - 0.5) * 1.0
+      const nx = Math.round(from.x + (dx / len + jitter) * dist)
+      const ny = Math.round(from.y + (dy / len + jitter) * dist)
+      if (isInBounds(nx, ny, state.mapWidth, state.mapHeight) && isWalkableTile(state.map[ny][nx].type)) {
+        return { x: nx, y: ny }
       }
     }
   }
 
-  const candidates = cloverCandidates.length > 0 ? cloverCandidates : walkableCandidates
-  if (candidates.length > 0) {
-    const target = candidates[Math.floor(Math.random() * candidates.length)]
-    state.world.moveEntity(eid, target.x, target.y)
+  // Random direction fallback — try a few times to find a walkable target
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const angle = Math.random() * Math.PI * 2
+    const nx = Math.round(from.x + Math.cos(angle) * dist)
+    const ny = Math.round(from.y + Math.sin(angle) * dist)
+    if (isInBounds(nx, ny, state.mapWidth, state.mapHeight) && isWalkableTile(state.map[ny][nx].type)) {
+      return { x: nx, y: ny }
+    }
   }
+
+  return null
 }
 
-// --- Activation (player touch) ---
+/** Find the nearest clover patch center within search radius. */
+const findNearbyClover = (state: GameState, from: Position, radius: number): Position | null => {
+  let best: Position | null = null
+  let bestDist = Infinity
 
-/** Called when the player walks over a wandering monarch. */
-export const activateMonarch = (state: GameState, eid: Entity, time: number): void => {
-  const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
-  if (monarchState?.phase !== 'wandering') return
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const x = from.x + dx
+      const y = from.y + dy
+      if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
+      if (state.map[y][x].type !== TileType.Clover) continue
+      const d = dx * dx + dy * dy
+      if (d < bestDist) {
+        bestDist = d
+        best = { x, y }
+      }
+    }
+  }
 
+  return best
+}
+
+// --- Wandering phase ---
+
+const tickWandering = (state: GameState, eid: Entity): void => {
   const pos = state.world.getComponent(eid, ComponentType.Position)
-  if (!pos) return
+  const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
+  if (!pos || !monarchState) return
 
-  // Find a target tile with healthy soil
-  const target = findHealthySoilTarget(state, pos)
-
-  if (target) {
-    monarchState.phase = 'spawning'
-    monarchState.target = target
+  // Check player proximity — flee if player gets close
+  const dx = state.player.x - pos.x
+  const dy = state.player.y - pos.y
+  const playerDist = Math.sqrt(dx * dx + dy * dy)
+  if (playerDist <= MONARCH_FLEE_RADIUS) {
+    triggerFlee(state, eid, pos)
+    // Inline discovery to avoid circular import (monarch → manual → recipes → monarch)
+    state.manualDiscoveries.add('entity:monarch')
+    spawnPickupBloom(state, state.player.x, state.player.y, performance.now())
+    return
   }
-  // If no target found, monarch stays in wandering — can be activated again later
 
-  spawnPickupBloom(state, state.player.x, state.player.y, time)
+  // If we have a waypoint, move toward it
+  if (monarchState.waypoint) {
+    if (pos.x === monarchState.waypoint.x && pos.y === monarchState.waypoint.y) {
+      // Reached waypoint — pick a new one
+      monarchState.waypoint = null
+    } else {
+      moveTowardWaypoint(state, eid, pos, monarchState.waypoint)
+      return
+    }
+  }
+
+  // Pick a new zig-zag waypoint, biased toward nearby clover
+  const nearbyClover = findNearbyClover(state, pos, 15)
+  monarchState.waypoint = pickZigzagWaypoint(state, pos, nearbyClover)
 }
 
-/** Search for a dirt tile with soil health >= threshold within radius. */
-const findHealthySoilTarget = (state: GameState, from: Position): Position | null => {
-  // First pass: high threshold
-  const high = searchForSoilTile(state, from, MONARCH_SOIL_THRESHOLD_HIGH)
+// --- Flee phase ---
+
+const triggerFlee = (state: GameState, eid: Entity, pos: Position): void => {
+  const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
+  if (!monarchState) return
+
+  // Find fertile soil target away from the player
+  const target = findFertileSoilTarget(state, pos)
+  monarchState.phase = 'fleeing'
+  monarchState.target = target
+  monarchState.waypoint = null
+}
+
+/** Search for a dirt/clover tile with good soil health, preferring areas away from the player. */
+const findFertileSoilTarget = (state: GameState, from: Position): Position | null => {
+  const high = searchForFertileTile(state, from, MONARCH_SOIL_THRESHOLD_HIGH)
   if (high) return high
-
-  // Second pass: lower threshold
-  return searchForSoilTile(state, from, MONARCH_SOIL_THRESHOLD_LOW)
+  return searchForFertileTile(state, from, MONARCH_SOIL_THRESHOLD_LOW)
 }
 
-const searchForSoilTile = (
+const searchForFertileTile = (
   state: GameState,
   from: Position,
-  threshold: number
+  threshold: number,
 ): Position | null => {
   const candidates: Position[] = []
   const r = MONARCH_SEARCH_RADIUS
@@ -149,7 +212,9 @@ const searchForSoilTile = (
       const y = from.y + dy
       if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
       if (dx * dx + dy * dy > r * r) continue
-      if (state.map[y][x].type !== TileType.Dirt) continue
+      const tile = state.map[y][x].type
+      // Accept clover or dirt with good soil
+      if (tile !== TileType.Dirt && tile !== TileType.Clover) continue
       const health = state.soilHealth.get(posKey(x, y)) ?? SOIL_HEALTH_DEFAULT
       if (health >= threshold) {
         candidates.push({ x, y })
@@ -158,88 +223,158 @@ const searchForSoilTile = (
   }
 
   if (candidates.length === 0) return null
-  return candidates[Math.floor(Math.random() * candidates.length)]
+
+  // Prefer tiles farther from the player (sort by distance descending, pick from top quarter)
+  candidates.sort((a, b) => {
+    const da = (a.x - state.player.x) ** 2 + (a.y - state.player.y) ** 2
+    const db = (b.x - state.player.x) ** 2 + (b.y - state.player.y) ** 2
+    return db - da
+  })
+
+  const topSlice = Math.max(1, Math.floor(candidates.length / 4))
+  return candidates[Math.floor(Math.random() * topSlice)]
 }
 
-// --- Spawner movement ---
-
-const tickSpawningMonarch = (state: GameState, eid: Entity): void => {
-  const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
+const tickFleeing = (state: GameState, eid: Entity): void => {
   const pos = state.world.getComponent(eid, ComponentType.Position)
-  if (!monarchState || !pos || monarchState.phase !== 'spawning' || !monarchState.target) return
+  const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
+  if (!pos || !monarchState) return
 
-  const target = monarchState.target
-
-  // Already at target — plant the prairie
-  if (pos.x === target.x && pos.y === target.y) {
-    plantPrairie(state, target)
-    monarchState.phase = 'idle'
-    monarchState.target = null
+  // No target — settle wherever we are
+  if (!monarchState.target) {
+    monarchState.phase = 'settled'
+    monarchState.target = { x: pos.x, y: pos.y }
+    monarchState.waypoint = null
+    monarchState.lastPollinateTime = performance.now()
     return
   }
 
-  // Move toward target via pathfinding (one step per tick)
-  const path = findPath(state.map, state.mapWidth, state.mapHeight, pos, target)
-  if (path && path.length > 0) {
-    const next = path[0]
-    state.world.moveEntity(eid, next.x, next.y)
-  } else {
-    // Can't reach target — revert to wandering
-    monarchState.phase = 'wandering'
-    monarchState.target = null
+  const target = monarchState.target
+
+  // Reached the target — settle here
+  if (pos.x === target.x && pos.y === target.y) {
+    monarchState.phase = 'settled'
+    monarchState.waypoint = null
+    monarchState.lastPollinateTime = performance.now()
+    return
+  }
+
+  // Zig-zag toward target via waypoints
+  if (monarchState.waypoint) {
+    if (pos.x === monarchState.waypoint.x && pos.y === monarchState.waypoint.y) {
+      monarchState.waypoint = null
+    } else {
+      moveTowardWaypoint(state, eid, pos, monarchState.waypoint)
+      return
+    }
+  }
+
+  // Pick next zig-zag leg biased toward the flee target
+  monarchState.waypoint = pickZigzagWaypoint(state, pos, target)
+
+  // If we can't find a waypoint, try direct path
+  if (!monarchState.waypoint) {
+    moveTowardWaypoint(state, eid, pos, target)
   }
 }
 
-// --- Prairie planting ---
+// --- Settled phase ---
 
-/** Plant a 10x10 clover patch and heal soil in 20x20 area. */
-export const plantPrairie = (state: GameState, center: Position): void => {
-  const halfPrairie = Math.floor(MONARCH_PRAIRIE_SIZE / 2)
-  const halfHeal = Math.floor(MONARCH_HEAL_SIZE / 2)
-  const maxDist = Math.sqrt(halfHeal * halfHeal + halfHeal * halfHeal)
+const tickSettled = (state: GameState, eid: Entity, now: number): void => {
+  const pos = state.world.getComponent(eid, ComponentType.Position)
+  const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
+  if (!pos || !monarchState?.target) return
 
-  // Plant clover in 10x10 area (only on dirt)
-  for (let dy = -halfPrairie; dy < halfPrairie; dy++) {
-    for (let dx = -halfPrairie; dx < halfPrairie; dx++) {
+  // Wander in small area around settle point
+  if (Math.random() < 0.15) {
+    const candidates: Position[] = []
+    for (const d of CARDINAL) {
+      const nx = pos.x + d.x
+      const ny = pos.y + d.y
+      if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
+      if (!isWalkableTile(state.map[ny][nx].type)) continue
+      // Stay within settle radius
+      const dxS = nx - monarchState.target.x
+      const dyS = ny - monarchState.target.y
+      if (dxS * dxS + dyS * dyS > MONARCH_SETTLE_RADIUS * MONARCH_SETTLE_RADIUS) continue
+      candidates.push({ x: nx, y: ny })
+    }
+    if (candidates.length > 0) {
+      // Prefer clover tiles
+      const clover = candidates.filter(c => state.map[c.y][c.x].type === TileType.Clover)
+      const pick = clover.length > 0 ? clover : candidates
+      const target = pick[Math.floor(Math.random() * pick.length)]
+      state.world.moveEntity(eid, target.x, target.y)
+    }
+  }
+
+  // Pollinate: spread clover to one adjacent dirt tile near existing clover
+  if (now - monarchState.lastPollinateTime >= MONARCH_POLLINATE_MS) {
+    monarchState.lastPollinateTime = now
+    pollinate(state, monarchState.target)
+  }
+}
+
+/** Spread clover to one dirt tile adjacent to existing clover within the settle area. */
+export const pollinate = (state: GameState, center: Position): boolean => {
+  const r = MONARCH_SETTLE_RADIUS
+  const candidates: Position[] = []
+
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
       const x = center.x + dx
       const y = center.y + dy
       if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
       if (state.map[y][x].type !== TileType.Dirt) continue
-      state.map[y][x] = { type: TileType.Clover }
-      const key = posKey(x, y)
-      state.cloverLifecycle.set(key, {
-        stage: CloverStage.Healthy,
-        stageStartTime: Date.now(),
-        hasLight: state.currentZone === Zone.Overworld,
-      })
+
+      // Only spread to dirt tiles adjacent to existing clover
+      let adjacentToClover = false
+      for (const d of CARDINAL) {
+        const nx = x + d.x
+        const ny = y + d.y
+        if (isInBounds(nx, ny, state.mapWidth, state.mapHeight) && state.map[ny][nx].type === TileType.Clover) {
+          adjacentToClover = true
+          break
+        }
+      }
+      if (adjacentToClover) {
+        candidates.push({ x, y })
+      }
     }
   }
 
-  // Heal soil in 20x20 area with gradient
-  for (let dy = -halfHeal; dy < halfHeal; dy++) {
-    for (let dx = -halfHeal; dx < halfHeal; dx++) {
-      const x = center.x + dx
-      const y = center.y + dy
-      if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
-      if (!isWalkableTile(state.map[y][x].type)) continue
+  if (candidates.length === 0) return false
 
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      // Linear gradient: center = MONARCH_HEAL_CENTER_PCT, edge = MONARCH_HEAL_EDGE_PCT
-      const t = Math.min(dist / maxDist, 1)
-      const healPct = MONARCH_HEAL_CENTER_PCT + t * (MONARCH_HEAL_EDGE_PCT - MONARCH_HEAL_CENTER_PCT)
-      const healAmount = healPct * SOIL_HEALTH_MAX
+  const tile = candidates[Math.floor(Math.random() * candidates.length)]
+  state.map[tile.y][tile.x] = { type: TileType.Clover }
+  state.cloverLifecycle.set(posKey(tile.x, tile.y), {
+    stage: CloverStage.Healthy,
+    stageStartTime: Date.now(),
+    hasLight: state.currentZone === Zone.Overworld,
+  })
+  return true
+}
 
-      const key = posKey(x, y)
-      const current = state.soilHealth.get(key) ?? SOIL_HEALTH_DEFAULT
-      state.soilHealth.set(key, Math.min(current + healAmount, SOIL_HEALTH_MAX))
+// --- Movement helper ---
+
+const moveTowardWaypoint = (state: GameState, eid: Entity, pos: Position, waypoint: Position): void => {
+  const path = findPath(state.map, state.mapWidth, state.mapHeight, pos, waypoint)
+  if (path && path.length > 0) {
+    const next = path[0]
+    state.world.moveEntity(eid, next.x, next.y)
+  } else {
+    // Can't reach waypoint — clear it so a new one is picked next tick
+    const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
+    if (monarchState) {
+      monarchState.waypoint = null
     }
   }
 }
 
-// --- Tick ---
+// --- Main tick ---
 
 /** Main tick function for all monarchs. Called from gameLoop. */
-export const tickMonarchs = (state: GameState, zone?: Zone): void => {
+export const tickMonarchs = (state: GameState, now: number, zone?: Zone): void => {
   const z = zone ?? state.currentZone
 
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
@@ -251,11 +386,13 @@ export const tickMonarchs = (state: GameState, zone?: Zone): void => {
 
     switch (monarchState.phase) {
       case 'wandering':
-      case 'idle':
-        wanderMonarch(state, eid)
+        tickWandering(state, eid)
         break
-      case 'spawning':
-        tickSpawningMonarch(state, eid)
+      case 'fleeing':
+        tickFleeing(state, eid)
+        break
+      case 'settled':
+        tickSettled(state, eid, now)
         break
     }
   }

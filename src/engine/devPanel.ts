@@ -144,7 +144,7 @@ export const COMPONENT_META: ComponentMeta[] = [
     type: ComponentType.MonarchState,
     label: 'MonarchState',
     fields: [
-      select('phase', ['wandering', 'spawning', 'idle']),
+      select('phase', ['wandering', 'fleeing', 'settled']),
     ],
   },
 ]
@@ -199,7 +199,7 @@ const componentDefaults = (type: ComponentType, now: number, zone: Zone): Record
         lastCloverGrowTime: 0,
       }
     case ComponentType.MonarchState:
-      return { phase: 'wandering', target: null }
+      return { phase: 'wandering', target: null, waypoint: null, lastPollinateTime: 0 }
     default:
       return {}
   }

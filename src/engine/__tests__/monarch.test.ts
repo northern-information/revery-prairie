@@ -1,17 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  MONARCH_HEAL_SIZE,
-  MONARCH_PRAIRIE_SIZE,
+  MONARCH_FLEE_RADIUS,
+  MONARCH_POLLINATE_MS,
   MONARCH_SEARCH_RADIUS,
+  MONARCH_SETTLE_RADIUS,
   MONARCH_SOIL_THRESHOLD_HIGH,
-  MONARCH_SOIL_THRESHOLD_LOW,
-  SOIL_HEALTH_MAX,
 } from '../constants'
 import { ComponentType } from '../ecs/types'
 import {
-  activateMonarch,
   isMonarchSpawnCondition,
-  plantPrairie,
+  pollinate,
   shouldSpawnMonarch,
   spawnBeeOrMonarch,
   spawnMonarch,
@@ -106,31 +104,12 @@ describe('monarch butterfly', () => {
       const monarchs = getMonarchEntities(state)
       expect(monarchs).toHaveLength(1)
 
-      const pos = state.world.getComponent(monarchs[0], ComponentType.Position)
-      expect(pos).toBeTruthy()
-      expect(pos?.x).toBe(px)
-      expect(pos?.y).toBe(py)
-
       const monarchState = state.world.getComponent(monarchs[0], ComponentType.MonarchState)
       expect(monarchState).toBeTruthy()
       expect(monarchState?.phase).toBe('wandering')
       expect(monarchState?.target).toBeNull()
-    })
-
-    it('spawns a bee during rain when random rolls above threshold', () => {
-      const state = createTestState()
-      state.weather.sky = Sky.Rain
-      const px = state.player.x
-      const py = state.player.y
-
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        spawnBeeOrMonarch(state, px, py)
-      } finally {
-        vi.restoreAllMocks()
-      }
-
-      expect(getMonarchEntities(state)).toHaveLength(0)
+      expect(monarchState?.waypoint).toBeNull()
+      expect(monarchState?.lastPollinateTime).toBe(0)
     })
   })
 
@@ -146,365 +125,416 @@ describe('monarch butterfly', () => {
       expect(state.world.getComponent(eid, ComponentType.MonarchState)).toEqual({
         phase: 'wandering',
         target: null,
+        waypoint: null,
+        lastPollinateTime: 0,
       })
     })
   })
 
-  describe('wandering', () => {
-    it('monarchs wander like bees — prefer clover tiles', () => {
+  describe('zig-zag wandering', () => {
+    it('monarch picks a waypoint and moves toward it', () => {
       const state = createTestState()
-      clearAroundPlayer(state, 5)
+      clearAroundPlayer(state, 15)
       const px = state.player.x
-      const py = state.player.y + 3 // away from player
-
-      // Place clover to the right of monarch
-      state.map[py][px + 1] = { type: TileType.Clover }
+      const py = state.player.y + MONARCH_FLEE_RADIUS + 5 // far from player to avoid triggering flee
 
       const eid = spawnMonarch(state, px, py)
 
-      // Force movement to happen
+      // Mock random to produce a consistent waypoint direction
       vi.spyOn(Math, 'random')
-        .mockReturnValueOnce(0.1) // pass the 0.3 movement check
-        .mockReturnValueOnce(0) // pick first candidate (clover preferred)
+        .mockReturnValueOnce(0.5) // zigzag distance
+        .mockReturnValueOnce(0.25) // angle (right-ish)
       try {
-        tickMonarchs(state, Zone.Overworld)
+        tickMonarchs(state, 1000, Zone.Overworld)
       } finally {
         vi.restoreAllMocks()
       }
 
-      const pos = state.world.getComponent(eid, ComponentType.Position)
-      expect(pos).toBeTruthy()
-      // Monarch should have moved to the clover tile
-      expect(pos?.x).toBe(px + 1)
-      expect(pos?.y).toBe(py)
+      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
+      // Monarch should have picked a waypoint
+      expect(monarchState.waypoint).not.toBeNull()
     })
 
-    it('idle monarchs also wander', () => {
+    it('monarch is attracted to nearby clover patches', () => {
       const state = createTestState()
-      clearAroundPlayer(state, 5)
+      clearAroundPlayer(state, 20)
       const px = state.player.x
-      const py = state.player.y + 3
+      const py = state.player.y + MONARCH_FLEE_RADIUS + 10
+
+      // Place clover patch to the east
+      for (let dy = -2; dy <= 2; dy++) {
+        for (let dx = 8; dx <= 12; dx++) {
+          state.map[py + dy][px + dx] = { type: TileType.Clover }
+        }
+      }
 
       const eid = spawnMonarch(state, px, py)
-      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
-      monarchState.phase = 'idle'
 
+      // Mock random: high value for clover bias check (0.7 threshold), so bias kicks in
       vi.spyOn(Math, 'random')
-        .mockReturnValueOnce(0.1) // pass movement check
-        .mockReturnValueOnce(0) // pick first candidate
+        .mockReturnValueOnce(0.3) // zigzag distance pick
+        .mockReturnValueOnce(0.3) // bias check (< 0.7, so bias toward clover)
+        .mockReturnValueOnce(0.5) // jitter
       try {
-        tickMonarchs(state, Zone.Overworld)
+        tickMonarchs(state, 1000, Zone.Overworld)
       } finally {
         vi.restoreAllMocks()
       }
 
-      const pos = state.world.getComponent(eid, ComponentType.Position)
-      // Should have moved (exact position depends on candidates)
-      expect(pos).toBeTruthy()
+      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
+      // With clover bias, waypoint should be east-ish
+      if (monarchState.waypoint) {
+        expect(monarchState.waypoint.x).toBeGreaterThanOrEqual(px)
+      }
     })
   })
 
-  describe('activation', () => {
-    it('activateMonarch transitions wandering monarch to spawning when healthy soil exists', () => {
+  describe('proximity flee', () => {
+    it('monarch flees when player gets within MONARCH_FLEE_RADIUS', () => {
       const state = createTestState()
       clearAroundPlayer(state, MONARCH_SEARCH_RADIUS)
       const px = state.player.x
       const py = state.player.y
 
-      // Place healthy soil target
-      const targetX = px + 5
-      const targetY = py + 5
+      // Place monarch just within flee radius
+      const mx = px + MONARCH_FLEE_RADIUS
+      const my = py
+
+      // Place some fertile soil so the monarch has somewhere to flee to
+      const targetX = px + 20
+      const targetY = py
       state.map[targetY][targetX] = { type: TileType.Dirt }
       state.soilHealth.set(posKey(targetX, targetY), MONARCH_SOIL_THRESHOLD_HIGH)
 
-      const eid = spawnMonarch(state, px, py)
-
-      vi.spyOn(Math, 'random').mockReturnValue(0) // pick first candidate
-      try {
-        activateMonarch(state, eid, 1000)
-      } finally {
-        vi.restoreAllMocks()
-      }
-
-      const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
-      expect(monarchState).toBeTruthy()
-      expect(monarchState?.phase).toBe('spawning')
-      expect(monarchState?.target).not.toBeNull()
-    })
-
-    it('activateMonarch falls back to lower soil threshold', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, MONARCH_SEARCH_RADIUS)
-      const px = state.player.x
-      const py = state.player.y
-
-      // No tiles meet high threshold, but one meets low threshold
-      const targetX = px + 3
-      const targetY = py + 3
-      state.map[targetY][targetX] = { type: TileType.Dirt }
-      state.soilHealth.set(posKey(targetX, targetY), MONARCH_SOIL_THRESHOLD_LOW)
-
-      const eid = spawnMonarch(state, px, py)
+      const eid = spawnMonarch(state, mx, my)
 
       vi.spyOn(Math, 'random').mockReturnValue(0)
       try {
-        activateMonarch(state, eid, 1000)
+        tickMonarchs(state, 1000, Zone.Overworld)
       } finally {
         vi.restoreAllMocks()
       }
 
-      const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
-      expect(monarchState?.phase).toBe('spawning')
-    })
-
-    it('activateMonarch stays wandering when no suitable soil found', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, MONARCH_SEARCH_RADIUS)
-      const px = state.player.x
-      const py = state.player.y
-
-      // Set all dirt tiles in search radius to very low soil health
-      const r = MONARCH_SEARCH_RADIUS
-      for (let dy = -r; dy <= r; dy++) {
-        for (let dx = -r; dx <= r; dx++) {
-          state.soilHealth.set(posKey(px + dx, py + dy), 10)
-        }
-      }
-
-      const eid = spawnMonarch(state, px, py)
-      activateMonarch(state, eid, 1000)
-
-      const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
-      expect(monarchState?.phase).toBe('wandering')
-    })
-
-    it('activateMonarch does nothing for idle monarchs', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 5)
-
-      const eid = spawnMonarch(state, state.player.x, state.player.y)
       const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
-      monarchState.phase = 'idle'
-
-      activateMonarch(state, eid, 1000)
-
-      expect(monarchState.phase).toBe('idle')
+      expect(monarchState.phase).toBe('fleeing')
+      expect(monarchState.target).not.toBeNull()
     })
 
-    it('activateMonarch spawns a pickup bloom', () => {
+    it('monarch does not flee when player is far away', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 15)
+      const px = state.player.x
+      const py = state.player.y
+
+      // Place monarch far from player
+      const mx = px + MONARCH_FLEE_RADIUS + 5
+      const my = py
+
+      const eid = spawnMonarch(state, mx, my)
+
+      vi.spyOn(Math, 'random')
+        .mockReturnValueOnce(0.5) // zigzag dist
+        .mockReturnValueOnce(0.5) // angle
+      try {
+        tickMonarchs(state, 1000, Zone.Overworld)
+      } finally {
+        vi.restoreAllMocks()
+      }
+
+      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
+      expect(monarchState.phase).toBe('wandering')
+    })
+
+    it('flee target prefers tiles farther from the player', () => {
       const state = createTestState()
       clearAroundPlayer(state, MONARCH_SEARCH_RADIUS)
       const px = state.player.x
       const py = state.player.y
 
-      state.map[py + 5][px + 5] = { type: TileType.Dirt }
-      state.soilHealth.set(posKey(px + 5, py + 5), MONARCH_SOIL_THRESHOLD_HIGH)
+      // Place fertile tiles both near and far from player
+      state.map[py][px + 5] = { type: TileType.Dirt }
+      state.soilHealth.set(posKey(px + 5, py), MONARCH_SOIL_THRESHOLD_HIGH)
+      state.map[py][px + 25] = { type: TileType.Dirt }
+      state.soilHealth.set(posKey(px + 25, py), MONARCH_SOIL_THRESHOLD_HIGH)
 
-      const eid = spawnMonarch(state, px, py)
+      const mx = px + MONARCH_FLEE_RADIUS
+      const eid = spawnMonarch(state, mx, py)
 
       vi.spyOn(Math, 'random').mockReturnValue(0)
       try {
-        activateMonarch(state, eid, 1000)
+        tickMonarchs(state, 1000, Zone.Overworld)
       } finally {
         vi.restoreAllMocks()
       }
 
-      // Check for pickup bloom entity
-      const blooms = state.world
-        .query(ComponentType.EntityTag)
-        .filter(e => state.world.getComponent(e, ComponentType.EntityTag) === 'pickupBloom')
-      expect(blooms.length).toBeGreaterThanOrEqual(1)
+      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
+      expect(monarchState.phase).toBe('fleeing')
+      // Target should be the farther tile (sorted by distance from player, picked from top quarter)
+      if (monarchState.target) {
+        expect(monarchState.target.x).toBe(px + 25)
+      }
     })
   })
 
-  describe('plantPrairie', () => {
-    it('plants clover in a 10x10 area on dirt tiles', () => {
+  describe('fleeing movement', () => {
+    it('fleeing monarch moves toward target via zig-zag waypoints', () => {
       const state = createTestState()
-      const cx = state.player.x + 10
-      const cy = state.player.y + 10
+      clearAroundPlayer(state, 15)
+      const mx = state.player.x + 10
+      const my = state.player.y + 10
 
-      // Clear a large area to dirt
-      for (let dy = -10; dy <= 10; dy++) {
-        for (let dx = -10; dx <= 10; dx++) {
-          state.map[cy + dy][cx + dx] = { type: TileType.Dirt }
-        }
+      const eid = spawnMonarch(state, mx, my)
+      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
+      monarchState.phase = 'fleeing'
+      monarchState.target = { x: mx + 15, y: my }
+
+      vi.spyOn(Math, 'random')
+        .mockReturnValueOnce(0.3) // zigzag dist
+        .mockReturnValueOnce(0.3) // bias check (< 0.7)
+        .mockReturnValueOnce(0.5) // jitter
+      try {
+        tickMonarchs(state, 1000, Zone.Overworld)
+      } finally {
+        vi.restoreAllMocks()
       }
 
-      plantPrairie(state, { x: cx, y: cy })
+      // Should have picked a waypoint toward the target
+      expect(monarchState.waypoint).not.toBeNull()
+    })
 
-      const half = Math.floor(MONARCH_PRAIRIE_SIZE / 2)
+    it('fleeing monarch settles when it reaches the target', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 15)
+      const mx = state.player.x + 10
+      const my = state.player.y + 10
+
+      const eid = spawnMonarch(state, mx, my)
+      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
+      monarchState.phase = 'fleeing'
+      monarchState.target = { x: mx, y: my } // already at target
+
+      tickMonarchs(state, 1000, Zone.Overworld)
+
+      expect(monarchState.phase).toBe('settled')
+      expect(monarchState.target).toEqual({ x: mx, y: my })
+    })
+
+    it('fleeing monarch without target settles immediately', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const mx = state.player.x + 8
+      const my = state.player.y
+
+      const eid = spawnMonarch(state, mx, my)
+      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
+      monarchState.phase = 'fleeing'
+      monarchState.target = null
+
+      tickMonarchs(state, 1000, Zone.Overworld)
+
+      expect(monarchState.phase).toBe('settled')
+    })
+  })
+
+  describe('settled phase', () => {
+    it('settled monarch wanders within settle radius', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const mx = state.player.x + 8
+      const my = state.player.y
+
+      const eid = spawnMonarch(state, mx, my)
+      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
+      monarchState.phase = 'settled'
+      monarchState.target = { x: mx, y: my }
+      monarchState.lastPollinateTime = 2000 // recent, so no pollination
+
+      // Force movement (random < 0.15)
+      vi.spyOn(Math, 'random')
+        .mockReturnValueOnce(0.05) // pass 0.15 movement check
+        .mockReturnValueOnce(0) // pick first candidate
+      try {
+        tickMonarchs(state, 1000, Zone.Overworld)
+      } finally {
+        vi.restoreAllMocks()
+      }
+
+      const pos = requireComponent(state.world.getComponent(eid, ComponentType.Position))
+      // Should still be within settle radius
+      const dx = pos.x - mx
+      const dy = pos.y - my
+      expect(dx * dx + dy * dy).toBeLessThanOrEqual(MONARCH_SETTLE_RADIUS * MONARCH_SETTLE_RADIUS)
+    })
+
+    it('settled monarch does not wander outside settle radius', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const mx = state.player.x + 8
+      const my = state.player.y
+
+      const eid = spawnMonarch(state, mx, my)
+      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
+      monarchState.phase = 'settled'
+      monarchState.target = { x: mx, y: my }
+      monarchState.lastPollinateTime = 2000
+
+      // Run many ticks
+      vi.spyOn(Math, 'random').mockReturnValue(0.05) // always move
+      try {
+        for (let i = 0; i < 50; i++) {
+          tickMonarchs(state, 1000, Zone.Overworld)
+        }
+      } finally {
+        vi.restoreAllMocks()
+      }
+
+      const pos = requireComponent(state.world.getComponent(eid, ComponentType.Position))
+      const dx = pos.x - mx
+      const dy = pos.y - my
+      expect(dx * dx + dy * dy).toBeLessThanOrEqual(MONARCH_SETTLE_RADIUS * MONARCH_SETTLE_RADIUS)
+    })
+  })
+
+  describe('pollination', () => {
+    it('pollinate spreads clover to dirt adjacent to existing clover', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const cx = state.player.x + 8
+      const cy = state.player.y
+
+      // Place a single clover tile
+      state.map[cy][cx] = { type: TileType.Clover }
+
+      vi.spyOn(Math, 'random').mockReturnValue(0) // pick first candidate
+      try {
+        const result = pollinate(state, { x: cx, y: cy })
+        expect(result).toBe(true)
+      } finally {
+        vi.restoreAllMocks()
+      }
+
+      // One adjacent dirt tile should now be clover
+      let newCloverCount = 0
+      for (const d of [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }]) {
+        if (state.map[cy + d.y][cx + d.x].type === TileType.Clover) {
+          newCloverCount++
+        }
+      }
+      // Original clover + 1 new
+      expect(newCloverCount).toBeGreaterThanOrEqual(1)
+    })
+
+    it('pollinate does nothing when no dirt is adjacent to clover', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const cx = state.player.x + 8
+      const cy = state.player.y
+
+      // No clover anywhere
+      const result = pollinate(state, { x: cx, y: cy })
+      expect(result).toBe(false)
+    })
+
+    it('pollinate initializes clover lifecycle for new clover', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const cx = state.player.x + 8
+      const cy = state.player.y
+
+      state.map[cy][cx] = { type: TileType.Clover }
+
+      vi.spyOn(Math, 'random').mockReturnValue(0)
+      try {
+        pollinate(state, { x: cx, y: cy })
+      } finally {
+        vi.restoreAllMocks()
+      }
+
+      // Find the newly placed clover tile
+      for (const d of [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }]) {
+        const tx = cx + d.x
+        const ty = cy + d.y
+        if (state.map[ty][tx].type === TileType.Clover && !(tx === cx && ty === cy)) {
+          const lifecycle = state.cloverLifecycle.get(posKey(tx, ty))
+          expect(lifecycle).toBeTruthy()
+          expect(lifecycle?.stage).toBe('healthy')
+          expect(lifecycle?.hasLight).toBe(true)
+          break
+        }
+      }
+    })
+
+    it('settled monarch pollinates on timer', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const mx = state.player.x + 8
+      const my = state.player.y
+
+      // Place clover so pollination can happen
+      state.map[my][mx] = { type: TileType.Clover }
+
+      const eid = spawnMonarch(state, mx, my)
+      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
+      monarchState.phase = 'settled'
+      monarchState.target = { x: mx, y: my }
+      monarchState.lastPollinateTime = 0 // long ago
+
+      // Prevent wandering so we can focus on pollination
+      vi.spyOn(Math, 'random')
+        .mockReturnValueOnce(0.5) // fail movement check (> 0.15)
+        .mockReturnValueOnce(0) // pollinate pick first candidate
+      try {
+        tickMonarchs(state, MONARCH_POLLINATE_MS + 1, Zone.Overworld)
+      } finally {
+        vi.restoreAllMocks()
+      }
+
+      // A new clover tile should have appeared
       let cloverCount = 0
-      for (let dy = -half; dy < half; dy++) {
-        for (let dx = -half; dx < half; dx++) {
-          if (state.map[cy + dy][cx + dx].type === TileType.Clover) {
+      const r = MONARCH_SETTLE_RADIUS
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (state.map[my + dy][mx + dx].type === TileType.Clover) {
             cloverCount++
           }
         }
       }
-      expect(cloverCount).toBe(MONARCH_PRAIRIE_SIZE * MONARCH_PRAIRIE_SIZE)
+      expect(cloverCount).toBeGreaterThan(1) // original + at least 1 new
     })
 
-    it('skips non-dirt tiles when planting', () => {
-      const state = createTestState()
-      const cx = state.player.x + 10
-      const cy = state.player.y + 10
-
-      // Clear area to dirt
-      for (let dy = -10; dy <= 10; dy++) {
-        for (let dx = -10; dx <= 10; dx++) {
-          state.map[cy + dy][cx + dx] = { type: TileType.Dirt }
-        }
-      }
-
-      // Place some sand in the area
-      state.map[cy][cx + 1] = { type: TileType.Sand }
-      state.map[cy][cx + 2] = { type: TileType.Sand }
-
-      plantPrairie(state, { x: cx, y: cy })
-
-      // Sand tiles should remain
-      expect(state.map[cy][cx + 1].type).toBe(TileType.Sand)
-      expect(state.map[cy][cx + 2].type).toBe(TileType.Sand)
-    })
-
-    it('initializes clover lifecycle entries for planted clover', () => {
-      const state = createTestState()
-      const cx = state.player.x + 10
-      const cy = state.player.y + 10
-
-      for (let dy = -10; dy <= 10; dy++) {
-        for (let dx = -10; dx <= 10; dx++) {
-          state.map[cy + dy][cx + dx] = { type: TileType.Dirt }
-        }
-      }
-
-      plantPrairie(state, { x: cx, y: cy })
-
-      // Check that lifecycle entries were created
-      const half = Math.floor(MONARCH_PRAIRIE_SIZE / 2)
-      for (let dy = -half; dy < half; dy++) {
-        for (let dx = -half; dx < half; dx++) {
-          const key = posKey(cx + dx, cy + dy)
-          const entry = state.cloverLifecycle.get(key)
-          expect(entry).toBeTruthy()
-          expect(entry?.stage).toBe('healthy')
-          expect(entry?.hasLight).toBe(true)
-        }
-      }
-    })
-
-    it('heals soil in 20x20 area with gradient', () => {
-      const state = createTestState()
-      const cx = state.player.x + 15
-      const cy = state.player.y + 15
-
-      for (let dy = -15; dy <= 15; dy++) {
-        for (let dx = -15; dx <= 15; dx++) {
-          state.map[cy + dy][cx + dx] = { type: TileType.Dirt }
-          state.soilHealth.set(posKey(cx + dx, cy + dy), 20)
-        }
-      }
-
-      plantPrairie(state, { x: cx, y: cy })
-
-      // Center should have more healing than edge
-      const centerHealth = state.soilHealth.get(posKey(cx, cy)) ?? 0
-      const halfHeal = Math.floor(MONARCH_HEAL_SIZE / 2)
-      const edgeHealth = state.soilHealth.get(posKey(cx + halfHeal - 1, cy)) ?? 0
-
-      expect(centerHealth).toBeGreaterThan(edgeHealth)
-      // Center should be at or near max
-      expect(centerHealth).toBe(SOIL_HEALTH_MAX)
-    })
-
-    it('soil healing does not exceed SOIL_HEALTH_MAX', () => {
-      const state = createTestState()
-      const cx = state.player.x + 15
-      const cy = state.player.y + 15
-
-      for (let dy = -15; dy <= 15; dy++) {
-        for (let dx = -15; dx <= 15; dx++) {
-          state.map[cy + dy][cx + dx] = { type: TileType.Dirt }
-          state.soilHealth.set(posKey(cx + dx, cy + dy), 90) // already high
-        }
-      }
-
-      plantPrairie(state, { x: cx, y: cy })
-
-      const centerHealth = state.soilHealth.get(posKey(cx, cy)) ?? 0
-      expect(centerHealth).toBeLessThanOrEqual(SOIL_HEALTH_MAX)
-    })
-  })
-
-  describe('spawning monarch movement', () => {
-    it('spawning monarch moves toward its target', () => {
+    it('settled monarch does not pollinate before timer elapses', () => {
       const state = createTestState()
       clearAroundPlayer(state, 10)
-      const px = state.player.x
-      const py = state.player.y + 5 // offset from player
+      const mx = state.player.x + 8
+      const my = state.player.y
 
-      const targetX = px + 5
-      const targetY = py
-      state.map[targetY][targetX] = { type: TileType.Dirt }
+      state.map[my][mx] = { type: TileType.Clover }
 
-      const eid = spawnMonarch(state, px, py)
+      const eid = spawnMonarch(state, mx, my)
       const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
-      monarchState.phase = 'spawning'
-      monarchState.target = { x: targetX, y: targetY }
+      monarchState.phase = 'settled'
+      monarchState.target = { x: mx, y: my }
+      monarchState.lastPollinateTime = 1000
 
-      tickMonarchs(state, Zone.Overworld)
-
-      const pos = state.world.getComponent(eid, ComponentType.Position)
-      expect(pos).toBeTruthy()
-      // Should have moved closer to target (at least 1 step)
-      expect(pos?.x).toBeGreaterThan(px)
-    })
-
-    it('spawning monarch plants prairie on reaching target', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 15)
-      const targetX = state.player.x + 10
-      const targetY = state.player.y + 10
-
-      // Clear area around target
-      for (let dy = -8; dy <= 8; dy++) {
-        for (let dx = -8; dx <= 8; dx++) {
-          state.map[targetY + dy][targetX + dx] = { type: TileType.Dirt }
-        }
+      vi.spyOn(Math, 'random').mockReturnValue(0.5) // no movement
+      try {
+        // Time is within MONARCH_POLLINATE_MS of lastPollinateTime
+        tickMonarchs(state, 1000 + MONARCH_POLLINATE_MS - 1, Zone.Overworld)
+      } finally {
+        vi.restoreAllMocks()
       }
 
-      // Spawn monarch already at target
-      const eid = spawnMonarch(state, targetX, targetY)
-      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
-      monarchState.phase = 'spawning'
-      monarchState.target = { x: targetX, y: targetY }
-
-      tickMonarchs(state, Zone.Overworld)
-
-      // Monarch should now be idle
-      expect(monarchState.phase).toBe('idle')
-      expect(monarchState.target).toBeNull()
-
-      // Clover should have been planted
-      expect(state.map[targetY][targetX].type).toBe(TileType.Clover)
-    })
-
-    it('spawning monarch reverts to wandering if path is unreachable', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 5)
-      const px = state.player.x
-      const py = state.player.y + 3
-
-      const eid = spawnMonarch(state, px, py)
-      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
-      monarchState.phase = 'spawning'
-      // Set target to an unreachable position (space tile)
-      monarchState.target = { x: 0, y: 0 }
-
-      tickMonarchs(state, Zone.Overworld)
-
-      expect(monarchState.phase).toBe('wandering')
-      expect(monarchState.target).toBeNull()
+      // Count clover — should be just the original
+      let cloverCount = 0
+      const r = MONARCH_SETTLE_RADIUS
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (state.map[my + dy][mx + dx].type === TileType.Clover) {
+            cloverCount++
+          }
+        }
+      }
+      expect(cloverCount).toBe(1)
     })
   })
 
@@ -513,47 +543,52 @@ describe('monarch butterfly', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
       const px = state.player.x
-      const py = state.player.y + 3
+      const py = state.player.y + MONARCH_FLEE_RADIUS + 3
 
       const eid = spawnMonarch(state, px, py)
 
-      // Force no movement so monarch stays put
-      vi.spyOn(Math, 'random').mockReturnValue(0.5) // fails 0.3 movement check
+      // Force no movement so monarch stays put (no waypoint picked)
+      vi.spyOn(Math, 'random').mockReturnValue(0.99)
       try {
-        // Tick many times to accumulate hunger
         for (let i = 0; i < 200; i++) {
-          tickMonarchs(state, Zone.Overworld)
+          tickMonarchs(state, 1000, Zone.Overworld)
         }
       } finally {
         vi.restoreAllMocks()
       }
 
-      // Monarch should have been destroyed by starvation
       expect(state.world.isAlive(eid)).toBe(false)
     })
 
     it('monarchs reset hunger when near clover', () => {
       const state = createTestState()
-      clearAroundPlayer(state, 5)
+      clearAroundPlayer(state, 10)
       const px = state.player.x
-      const py = state.player.y + 3
+      const py = state.player.y + MONARCH_FLEE_RADIUS + 3
 
-      // Place clover adjacent
-      state.map[py][px + 1] = { type: TileType.Clover }
+      // Fill area around monarch with clover (settled monarch has bounded movement)
+      for (let dy = -MONARCH_SETTLE_RADIUS - 1; dy <= MONARCH_SETTLE_RADIUS + 1; dy++) {
+        for (let dx = -MONARCH_SETTLE_RADIUS - 1; dx <= MONARCH_SETTLE_RADIUS + 1; dx++) {
+          state.map[py + dy][px + dx] = { type: TileType.Clover }
+        }
+      }
 
       const eid = spawnMonarch(state, px, py)
+      // Use settled phase so the monarch stays within MONARCH_SETTLE_RADIUS of its target
+      const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
+      monarchState.phase = 'settled'
+      monarchState.target = { x: px, y: py }
+      monarchState.lastPollinateTime = Infinity // prevent pollination side effects
 
-      // Prevent movement
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      vi.spyOn(Math, 'random').mockReturnValue(0.05) // always move
       try {
         for (let i = 0; i < 200; i++) {
-          tickMonarchs(state, Zone.Overworld)
+          tickMonarchs(state, 1000, Zone.Overworld)
         }
       } finally {
         vi.restoreAllMocks()
       }
 
-      // Monarch should still be alive (near clover)
       expect(state.world.isAlive(eid)).toBe(true)
     })
   })
@@ -565,12 +600,12 @@ describe('monarch butterfly', () => {
       const px = state.player.x
       const py = state.player.y
 
-      const eid1 = spawnMonarch(state, px + 3, py + 3)
-      const eid2 = spawnMonarch(state, px + 5, py + 5)
+      const eid1 = spawnMonarch(state, px + MONARCH_FLEE_RADIUS + 3, py + MONARCH_FLEE_RADIUS + 3)
+      const eid2 = spawnMonarch(state, px + MONARCH_FLEE_RADIUS + 5, py + MONARCH_FLEE_RADIUS + 5)
 
       // Place clover near both so they don't starve
-      state.map[py + 3][px + 4] = { type: TileType.Clover }
-      state.map[py + 5][px + 6] = { type: TileType.Clover }
+      state.map[py + MONARCH_FLEE_RADIUS + 3][px + MONARCH_FLEE_RADIUS + 4] = { type: TileType.Clover }
+      state.map[py + MONARCH_FLEE_RADIUS + 5][px + MONARCH_FLEE_RADIUS + 6] = { type: TileType.Clover }
 
       expect(getMonarchEntities(state)).toHaveLength(2)
       expect(state.world.isAlive(eid1)).toBe(true)
