@@ -179,4 +179,53 @@ describe('combineBeeAndClover', () => {
     const result = combineBeeAndClover(state)
     expect(result).toBe(false)
   })
+
+  it('returns true and plants clover on crater tiles', () => {
+    const state = createTestState()
+    placeItem(state.backpack, 'bee', 0, 0)
+    placeItem(state.backpack, 'clover', 1, 0)
+    clearAroundPlayer(state, 1)
+
+    const px = state.player.x
+    const py = state.player.y
+
+    // Set player tile and all neighbors to Crater
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        state.map[py + dy][px + dx] = { type: TileType.Crater }
+      }
+    }
+
+    const result = combineBeeAndClover(state)
+    expect(result).toBe(true)
+
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        expect(state.map[py + dy][px + dx].type).toBe(TileType.Clover)
+      }
+    }
+  })
+
+  it('converts crater tiles in mixed 3x3 area', () => {
+    const state = createTestState()
+    placeItem(state.backpack, 'bee', 0, 0)
+    placeItem(state.backpack, 'clover', 1, 0)
+    clearAroundPlayer(state, 1)
+
+    const px = state.player.x
+    const py = state.player.y
+
+    // Mix of crater and dirt — both should become clover
+    state.map[py][px] = { type: TileType.Crater }
+    state.map[py - 1][px] = { type: TileType.Crater }
+    state.map[py][px + 1] = { type: TileType.Sand }
+
+    const result = combineBeeAndClover(state)
+    expect(result).toBe(true)
+
+    expect(state.map[py][px].type).toBe(TileType.Clover)
+    expect(state.map[py - 1][px].type).toBe(TileType.Clover)
+    // Sand should remain unchanged
+    expect(state.map[py][px + 1].type).toBe(TileType.Sand)
+  })
 })

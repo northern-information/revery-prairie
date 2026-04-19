@@ -1,0 +1,46 @@
+plan:
+  id: crater-prairie-combine
+  title: 'Fix bee+clover combine to work on satellite crater tiles'
+  created: '2026-04-18'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: fix-recipe-execute
+    title: 'Add TileType.Crater to both allowlists in recipe execute function'
+    spec_id: crater-prairie-combine
+    spec_sections:
+      - prairie-on-crater
+      - crater-tiles-in-3x3-convert
+    context_files:
+      - src/engine/recipes.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/recipes.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: regression-test
+    title: 'Add regression tests for bee+clover combine on crater tiles'
+    spec_id: crater-prairie-combine
+    spec_sections:
+      - prairie-on-crater
+      - crater-tiles-in-3x3-convert
+    context_files:
+      - src/engine/__tests__/combine.test.ts
+      - src/engine/combine.ts
+      - src/engine/recipes.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/combine.test.ts
+    depends_on:
+      - fix-recipe-execute
+    verification:
+      - npx vitest run src/engine/__tests__/combine.test.ts
+    repair: retry
+    tags: [test]
