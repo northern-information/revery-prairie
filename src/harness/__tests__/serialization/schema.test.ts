@@ -107,6 +107,8 @@ const EXPECTED_FIELDS = [
   'selectionBox',
   'unitCommands',
   'moveOrderMarkers',
+  'autoHidePanels',
+  'panelOpenMoveCount',
   'devPanelOpen',
   'devPaintPreview',
   'devEntityPreview',

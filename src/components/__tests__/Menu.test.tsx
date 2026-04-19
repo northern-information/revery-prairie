@@ -12,6 +12,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        autoHidePanels={true}
+        onToggleAutoHidePanels={vi.fn()}
         fontScale={1}
         onCycleFontScale={vi.fn()}
       />
@@ -33,6 +35,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        autoHidePanels={true}
+        onToggleAutoHidePanels={vi.fn()}
         fontScale={1}
         onCycleFontScale={vi.fn()}
       />
@@ -53,6 +57,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        autoHidePanels={true}
+        onToggleAutoHidePanels={vi.fn()}
         fontScale={1}
         onCycleFontScale={vi.fn()}
       />
@@ -75,6 +81,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        autoHidePanels={true}
+        onToggleAutoHidePanels={vi.fn()}
         fontScale={1}
         onCycleFontScale={vi.fn()}
       />
@@ -96,6 +104,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        autoHidePanels={true}
+        onToggleAutoHidePanels={vi.fn()}
         fontScale={1}
         onCycleFontScale={vi.fn()}
       />
@@ -117,6 +127,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        autoHidePanels={true}
+        onToggleAutoHidePanels={vi.fn()}
         fontScale={1}
         onCycleFontScale={vi.fn()}
       />
@@ -135,6 +147,8 @@ describe('Menu', () => {
         onToggleUnits={onToggleUnits}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        autoHidePanels={true}
+        onToggleAutoHidePanels={vi.fn()}
         fontScale={1}
         onCycleFontScale={vi.fn()}
       />
@@ -154,6 +168,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        autoHidePanels={true}
+        onToggleAutoHidePanels={vi.fn()}
         fontScale={1}
         onCycleFontScale={vi.fn()}
       />
@@ -171,6 +187,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={false}
         onToggleMusic={vi.fn()}
+        autoHidePanels={true}
+        onToggleAutoHidePanels={vi.fn()}
         fontScale={1}
         onCycleFontScale={vi.fn()}
       />
@@ -189,6 +207,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={onToggleMusic}
+        autoHidePanels={true}
+        onToggleAutoHidePanels={vi.fn()}
         fontScale={1}
         onCycleFontScale={vi.fn()}
       />
@@ -208,6 +228,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        autoHidePanels={true}
+        onToggleAutoHidePanels={vi.fn()}
         fontScale={1}
         onCycleFontScale={vi.fn()}
       />
@@ -226,6 +248,8 @@ describe('Menu', () => {
         onToggleUnits={vi.fn()}
         musicEnabled={true}
         onToggleMusic={vi.fn()}
+        autoHidePanels={true}
+        onToggleAutoHidePanels={vi.fn()}
         fontScale={1}
         onCycleFontScale={onCycleFontScale}
       />

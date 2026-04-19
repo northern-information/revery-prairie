@@ -62,6 +62,7 @@ export interface GameLoopCallbacks {
   onPickup?: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   onDiscovery?: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
   onBeeDeath?: (worldX: number, worldY: number) => void
+  onAutoHidePanel?: () => void
   onFrame?: (time: number) => void
 }
 
@@ -80,6 +81,15 @@ export interface GameLoop {
 interface TickEntry {
   system: TickSystem
   lastTick: number
+}
+
+export const AUTO_HIDE_THRESHOLD = 5
+
+const checkAutoHide = (state: GameState, callbacks: GameLoopCallbacks) => {
+  state.panelOpenMoveCount++
+  if (state.autoHidePanels && state.panelOpenMoveCount >= AUTO_HIDE_THRESHOLD) {
+    callbacks.onAutoHidePanel?.()
+  }
 }
 
 const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
@@ -152,6 +162,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           if (!state.path) break
           if (tickPath(state)) {
             moved = true
+            checkAutoHide(state, callbacks)
             const result = pickUpGroundItems(state, time)
             for (const defId of result.pickedUp) {
               const def = getDefinition(defId)
@@ -190,6 +201,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           if (!state.heldDirection) break
           if (movePlayer(state, state.heldDirection)) {
             moved = true
+            checkAutoHide(state, callbacks)
             const result = pickUpGroundItems(state, time)
             for (const defId of result.pickedUp) {
               const def = getDefinition(defId)

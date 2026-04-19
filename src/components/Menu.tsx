@@ -15,6 +15,8 @@ interface MenuProps {
   onToggleUnits: () => void
   musicEnabled: boolean
   onToggleMusic: () => void
+  autoHidePanels: boolean
+  onToggleAutoHidePanels: () => void
   fontScale: number
   onCycleFontScale: () => void
 }
@@ -26,6 +28,8 @@ export const Menu = ({
   onToggleUnits,
   musicEnabled,
   onToggleMusic,
+  autoHidePanels,
+  onToggleAutoHidePanels,
   fontScale,
   onCycleFontScale,
 }: MenuProps) => {
@@ -58,6 +62,9 @@ export const Menu = ({
         )}
         <TextButton onClick={onToggleUnits}>units: {metric ? 'metric' : 'imperial'}</TextButton>
         <TextButton onClick={onToggleMusic}>music: {musicEnabled ? 'on' : 'off'}</TextButton>
+        <TextButton onClick={onToggleAutoHidePanels}>
+          auto-hide panels: {autoHidePanels ? 'on' : 'off'}
+        </TextButton>
         <TextButton onClick={onCycleFontScale}>font: {FONT_SCALE_LABELS[fontScale] ?? 'medium'}</TextButton>
       </div>
     </div>

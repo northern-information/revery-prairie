@@ -190,6 +190,11 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenPr
                 setMusicEnabled(state.musicEnabled)
                 refreshUI()
               }}
+              autoHidePanels={state.autoHidePanels}
+              onToggleAutoHidePanels={() => {
+                state.autoHidePanels = !state.autoHidePanels
+                refreshUI()
+              }}
               fontScale={state.fontScale}
               onCycleFontScale={() => {
                 const scales = [1, 1.25, 1.5]

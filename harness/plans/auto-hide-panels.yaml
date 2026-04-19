@@ -1,0 +1,110 @@
+plan:
+  id: auto-hide-panels
+  title: 'Add auto-hide panels on player movement with SYS menu toggle'
+  created: '2026-04-18'
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-state-fields
+    title: 'Add autoHidePanels and panelOpenMoveCount to GameState'
+    spec_id: auto-hide-panels
+    spec_sections:
+      - move-counter-increments
+      - setting-toggle-in-system-menu
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: increment-counter-in-gameloop
+    title: 'Increment panelOpenMoveCount on successful moves in both tick systems'
+    spec_id: auto-hide-panels
+    spec_sections:
+      - move-counter-increments
+      - auto-hide-triggers-at-threshold
+      - disabled-setting-suppresses-auto-hide
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - add-state-fields
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: add-menu-toggle
+    title: 'Add auto-hide panels toggle to the system menu'
+    spec_id: auto-hide-panels
+    spec_sections:
+      - setting-toggle-in-system-menu
+    context_files:
+      - src/components/Menu.tsx
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/components/Menu.tsx
+      - src/components/GameScreen.tsx
+    depends_on:
+      - add-state-fields
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: wire-auto-hide-react
+    title: 'Wire counter resets and auto-hide callback in GameScreen and useKeyboard'
+    spec_id: auto-hide-panels
+    spec_sections:
+      - auto-hide-triggers-at-threshold
+      - counter-resets-on-panel-open
+      - counter-resets-on-manual-close
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/hooks/useKeyboard.ts
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/GameScreen.tsx
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - increment-counter-in-gameloop
+      - add-menu-toggle
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: add-tests
+    title: 'Add engine tests for move counter and auto-hide callback logic'
+    spec_id: auto-hide-panels
+    spec_sections:
+      - move-counter-increments
+      - auto-hide-triggers-at-threshold
+      - disabled-setting-suppresses-auto-hide
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/__tests__/movement.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/autoHidePanels.test.ts
+    depends_on:
+      - wire-auto-hide-react
+    verification:
+      - 'npx vitest run src/engine/__tests__/autoHidePanels.test.ts'
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [test]
