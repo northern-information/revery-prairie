@@ -115,6 +115,8 @@ export const createGameState = (
     rainSeed,
     metric: true,
     musicEnabled: true,
+    autoHidePanels: true,
+    panelOpenMoveCount: 0,
     fontScale: 1.25,
     zoom: ZOOM_DEFAULT,
     currentZone: Zone.Overworld,

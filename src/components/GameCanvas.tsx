@@ -50,6 +50,10 @@ export const GameCanvas = ({
   onPickupRef.current = onPickup
   const onDiscoveryRef = useRef(onDiscovery)
   onDiscoveryRef.current = onDiscovery
+  const setActiveScreenRef = useRef(setActiveScreen)
+  setActiveScreenRef.current = setActiveScreen
+  const activeScreenRef = useRef(activeScreen)
+  activeScreenRef.current = activeScreen
 
   useMouse({ canvasRef, state, metricsRef, activeScreen, setActiveScreen, refreshUI, onDialog, onDiscovery, onGift })
 
@@ -109,6 +113,11 @@ export const GameCanvas = ({
       },
       onDiscovery: (text, wx, wy, icon, iconColor) => {
         onDiscoveryRef.current(text, wx, wy, icon, iconColor)
+      },
+      onAutoHidePanel: () => {
+        if (activeScreenRef.current && activeScreenRef.current !== 'system') {
+          setActiveScreenRef.current(null)
+        }
       },
       onFrame: time => {
         if (state.zoom !== lastZoom) {

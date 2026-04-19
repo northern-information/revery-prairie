@@ -236,6 +236,8 @@ export interface GameState {
   selectionBox: SelectionBox | null
   unitCommands: Map<number, UnitCommand>
   moveOrderMarkers: MoveOrderMarker[]
+  autoHidePanels: boolean
+  panelOpenMoveCount: number
   devPanelOpen: boolean
   devPaintPreview: { x1: number; y1: number; x2: number; y2: number; tileType: string } | null
   devEntityPreview: { x: number; y: number; char: string; color: string } | null

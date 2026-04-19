@@ -1,0 +1,139 @@
+id: auto-hide-panels
+name: 'Auto-hide panels on movement'
+status: planned
+priority: medium
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/gameLoop.ts
+  - src/components/Menu.tsx
+  - src/components/GameScreen.tsx
+  - src/hooks/useKeyboard.ts
+  - src/engine/__tests__/autoHidePanels.test.ts
+  - src/components/__tests__/Menu.test.tsx
+dependencies:
+  - player-movement
+
+behaviors:
+  - id: move-counter-increments
+    description: >
+      each successful player move (WASD or click-to-move path step)
+      increments state.panelOpenMoveCount by 1. sprint moves that
+      produce 2 steps in one tick increment by 2.
+    inputs:
+      - 'movePlayer returns true in keyboard-move or path tick system'
+    outputs:
+      - 'state.panelOpenMoveCount increases by 1 per successful step'
+    state_changes:
+      - field: panelOpenMoveCount
+        effect: 'incremented by 1 for each successful movePlayer call'
+    determinism: deterministic
+
+  - id: auto-hide-triggers-at-threshold
+    description: >
+      when autoHidePanels is true and panelOpenMoveCount reaches 5,
+      the game loop fires the onAutoHidePanel callback. the React
+      layer closes the active panel (sets activeScreen to null) and
+      resets panelOpenMoveCount to 0. the system menu is exempt —
+      auto-hide never fires when activeScreen is 'system'.
+    inputs:
+      - 'state.autoHidePanels is true'
+      - 'state.panelOpenMoveCount >= 5 after a successful move'
+      - 'a non-system panel is open (activeScreen is pack, manual, divination, reveries, cantos, or coyote)'
+    outputs:
+      - 'onAutoHidePanel callback fires'
+      - 'activeScreen set to null in React'
+    state_changes:
+      - field: panelOpenMoveCount
+        effect: 'reset to 0'
+    determinism: deterministic
+
+  - id: counter-resets-on-panel-open
+    description: >
+      when any panel is opened (activeScreen transitions from null
+      to a non-null value), panelOpenMoveCount resets to 0. this
+      ensures the 5-tile countdown starts fresh each time.
+    inputs:
+      - 'activeScreen changes from null to any panel screen'
+    outputs:
+      - 'panelOpenMoveCount is 0'
+    state_changes:
+      - field: panelOpenMoveCount
+        effect: 'reset to 0'
+    determinism: deterministic
+
+  - id: counter-resets-on-manual-close
+    description: >
+      when a panel is closed manually (via keybind or ESC),
+      panelOpenMoveCount resets to 0. this prevents immediate
+      re-hide if the player reopens a panel shortly after closing.
+    inputs:
+      - 'activeScreen transitions from a non-null value to null via user input'
+    outputs:
+      - 'panelOpenMoveCount is 0'
+    state_changes:
+      - field: panelOpenMoveCount
+        effect: 'reset to 0'
+    determinism: deterministic
+
+  - id: setting-toggle-in-system-menu
+    description: >
+      the system (ESC) menu displays a toggle for auto-hide panels.
+      clicking it flips state.autoHidePanels between true and false.
+      displays as "auto-hide panels: on" or "auto-hide panels: off".
+      enabled by default (true in createGameState).
+    inputs:
+      - 'player clicks the auto-hide panels toggle in the system menu'
+    outputs:
+      - 'toggle label updates to reflect new state'
+    state_changes:
+      - field: autoHidePanels
+        effect: 'flipped between true and false'
+    determinism: deterministic
+
+  - id: disabled-setting-suppresses-auto-hide
+    description: >
+      when autoHidePanels is false, the move counter still
+      increments (no branching in the hot movement path) but the
+      onAutoHidePanel callback never fires. the counter is inert.
+    inputs:
+      - 'state.autoHidePanels is false'
+      - 'player moves 5+ tiles with a panel open'
+    outputs:
+      - 'panel remains open'
+      - 'onAutoHidePanel callback does not fire'
+    state_changes:
+      - field: panelOpenMoveCount
+        effect: 'continues incrementing (no reset)'
+    determinism: deterministic
+
+edge_cases:
+  - id: sprint-counts-each-step
+    description: 'sprinting moves 2 tiles per tick — counter increments by 2, so 3 ticks of sprint triggers auto-hide'
+    expected: 'panelOpenMoveCount reaches 6 after 3 sprint ticks, auto-hide fires'
+  - id: system-menu-exempt
+    description: 'system menu is open and player moves 5+ tiles via click-to-move path set before opening menu'
+    expected: 'auto-hide does not fire, system menu stays open'
+  - id: path-interrupted-resets-nothing
+    description: 'player starts click-to-move, moves 3 tiles, then presses WASD to cancel path'
+    expected: 'counter is at 3, continues from 3 with WASD movement — no reset on path cancel'
+  - id: panel-reopen-after-auto-hide
+    description: 'auto-hide fires, player immediately reopens the same panel'
+    expected: 'counter resets to 0 on reopen, full 5-tile countdown starts again'
+  - id: zone-transition-during-countdown
+    description: 'player walks onto cave entrance at move count 4'
+    expected: 'zone transition fires normally, counter is now 5, auto-hide fires'
+
+failure_conditions:
+  - trigger: 'no panel is open (activeScreen is null) and player moves'
+    expected: 'counter increments but onAutoHidePanel never fires (no panel to hide)'
+  - trigger: 'autoHidePanels is false and player moves 10+ tiles with panel open'
+    expected: 'panel remains open, no callback fires'
+  - trigger: 'player is stationary with panel open (no movement input)'
+    expected: 'counter stays at 0, panel remains open indefinitely'
+
+verification:
+  test_file: src/engine/__tests__/autoHidePanels.test.ts
+  test_pattern: 'auto-hide'
+  command: 'npx vitest run src/engine/__tests__/autoHidePanels.test.ts'
