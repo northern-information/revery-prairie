@@ -91,10 +91,11 @@ behaviors:
     description: >
       when tiles adjacent to the entrance position have collapsed,
       the entrance is considered threatened. a warning toast displays
-      to the player. 5 seconds after the warning, the player is
-      auto-ejected to the overworld via exitRuin with a fade
-      transition. the player keeps any items already picked up but
-      gains nothing else from this visit. sets collapsed to true.
+      to the player. 5 seconds after the warning, the ruin ejection
+      sequence (see ruin-collapse-trap-and-ejection) is initiated
+      with reason 'entrance-collapse'. the player keeps any items
+      already picked up but gains nothing else from this visit.
+      sets collapsed to true.
     inputs:
       - 'tiles adjacent to entrance have collapsed'
     outputs:
@@ -109,8 +110,9 @@ behaviors:
   - id: player-on-collapsing-tile
     description: >
       if a tile collapses while the player is standing on it, the
-      player is pushed to the nearest walkable tile. if no adjacent
-      walkable tile exists, the player is auto-ejected to the overworld.
+      ruin ejection sequence (see ruin-collapse-trap-and-ejection)
+      is initiated with reason 'floor-collapse'. the player is not
+      repositioned — the sequence handles exit.
     inputs:
       - 'collapse wave converts tile under player to RuinWall'
     outputs:
@@ -152,7 +154,7 @@ behaviors:
 edge_cases:
   - id: all-paths-blocked
     description: 'all paths from player to entrance are blocked by rubble'
-    expected: 'auto-eject player to overworld with fade transition'
+    expected: 'BFS reachability check (see ruin-collapse-trap-and-ejection) fires ejection sequence with reason sealed-in'
 
   - id: seeds-on-collapsed-tiles
     description: 'a seed ground item sits on a tile that collapses'

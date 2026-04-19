@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { assignArchetype, checkRuinTransition, enterRuin, exitRuin, generateAllRuinInteriors, generateRuinInterior, getRuinTileLayers, isInCurrentZone, placeRuinEntrances, tickSubsidenceCollapse } from '../ruins'
-import { RuinArchetype, TileType, Zone } from '../types'
+import { assignArchetype, beginRuinEjection, checkRuinTransition, enterRuin, exitRuin, generateAllRuinInteriors, generateRuinInterior, getRuinTileLayers, isInCurrentZone, placeRuinEntrances, tickRuinEjection, tickSubsidenceCollapse } from '../ruins'
+import { RuinArchetype, RuinEjectionPhase, RuinEjectionReason, TileType, Zone } from '../types'
 import { createGameState } from '../state'
 import { findSafeExitPosition, isWalkableTile, posKey } from '../position'
 import { movePlayer } from '../movement'
 import { ITEM_DEFINITIONS } from '../items'
-import { ENTRANCE_GLYPHS, getEntranceGlyph } from '../constants'
+import { ComponentType } from '../ecs/types'
+import { ENTRANCE_GLYPHS, RUIN_EJECTION_FADE_MS, RUIN_EJECTION_HOLD_MS, RUIN_EJECTION_NOTIFICATION_MS, RUIN_EJECTION_SHAKE_MS, RUIN_ENTRY_TOASTS, getEntranceGlyph } from '../constants'
 
 import type { CivilizationRuin } from '../genesisTypes'
 import type { Tile } from '../types'
@@ -383,7 +384,7 @@ describe('ruin infrastructure', () => {
       const floorBefore = countFloor()
       // Tick 5 seconds — should not collapse yet (min is 10s)
       for (let i = 0; i < 10; i++) {
-        tickSubsidenceCollapse(state, 500)
+        tickSubsidenceCollapse(state, 500, 0)
       }
       const floorAfter = countFloor()
       expect(floorAfter).toBe(floorBefore)
@@ -416,7 +417,7 @@ describe('ruin infrastructure', () => {
       const floorBefore = countFloor()
       // Tick 100 seconds (200 ticks at 500ms) — covers 10s wait + 90s full collapse window
       for (let i = 0; i < 200; i++) {
-        tickSubsidenceCollapse(state, 500)
+        tickSubsidenceCollapse(state, 500, 0)
       }
       const floorAfter = countFloor()
       expect(floorAfter).toBeLessThan(floorBefore)
@@ -442,7 +443,7 @@ describe('ruin infrastructure', () => {
 
       // Tick enough to trigger collapse of the low-integrity tile
       for (let i = 0; i < 80; i++) {
-        tickSubsidenceCollapse(state, 500)
+        tickSubsidenceCollapse(state, 500, 0)
         // Check if player moved or was ejected
         if (state.currentZone !== Zone.Ruin) break
       }
@@ -690,7 +691,7 @@ describe('ruin infrastructure', () => {
 
       // Tick enough for collapse
       for (let i = 0; i < 200; i++) {
-        const result = tickSubsidenceCollapse(state, 500)
+        const result = tickSubsidenceCollapse(state, 500, 0)
         if (result === 'ejected') break
       }
 
@@ -729,7 +730,7 @@ describe('ruin infrastructure', () => {
 
       let ejected = false
       for (let i = 0; i < 200; i++) {
-        const result = tickSubsidenceCollapse(state, 500)
+        const result = tickSubsidenceCollapse(state, 500, 0)
         if (result === 'ejected') {
           ejected = true
           break
@@ -737,7 +738,7 @@ describe('ruin infrastructure', () => {
       }
 
       if (ejected) {
-        expect(state.currentZone).toBe(Zone.Overworld)
+        expect(state.ruinEjection).toBeTruthy()
       }
     })
 
@@ -759,7 +760,7 @@ describe('ruin infrastructure', () => {
 
       let gotEjected = false
       for (let i = 0; i < 200; i++) {
-        const result = tickSubsidenceCollapse(state, 500)
+        const result = tickSubsidenceCollapse(state, 500, 0)
         if (result === 'ejected') {
           gotEjected = true
           break
@@ -979,6 +980,232 @@ describe('ruin infrastructure', () => {
 
       // Should remain RuinFloor
       expect(state.map[floorPos.y][floorPos.x].type).toBe(TileType.RuinFloor)
+    })
+  })
+})
+
+describe('ruin collapse trap and ejection', () => {
+  const findSubsidenceRuin = (state: ReturnType<typeof createGameState>): number => {
+    return state.ruinInteriors.findIndex((r) => r.subsidence !== null)
+  }
+
+  describe('entry toast', () => {
+    it('queues an archetype-specific toast on enterRuin', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const idx = state.ruinInteriors.findIndex((r) => r.archetype === RuinArchetype.Subsidence)
+      if (idx === -1) return
+      state.queuedToasts = []
+      enterRuin(state, idx)
+      const toast = state.queuedToasts.find((t) => t.text === RUIN_ENTRY_TOASTS[RuinArchetype.Subsidence])
+      expect(toast).toBeTruthy()
+    })
+
+    it('each archetype has a defined entry toast', () => {
+      expect(RUIN_ENTRY_TOASTS[RuinArchetype.Subsidence]).toContain('crumbling')
+      expect(RUIN_ENTRY_TOASTS[RuinArchetype.DormantGarden]).toBeTruthy()
+      expect(RUIN_ENTRY_TOASTS[RuinArchetype.HauntedThreshold]).toBeTruthy()
+      expect(RUIN_ENTRY_TOASTS[RuinArchetype.Resonance]).toBeTruthy()
+    })
+  })
+
+  describe('beginRuinEjection', () => {
+    it('captures lost items filtered by current ruin', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const idx = findSubsidenceRuin(state)
+      if (idx === -1) return
+      enterRuin(state, idx)
+
+      // Drop a seed ground item tagged to this ruin
+      const e = state.world.createEntity()
+      state.world.addComponent(e, ComponentType.Position, { x: state.player.x, y: state.player.y })
+      state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: 'wildflowerSeeds' })
+      state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
+      state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex: idx })
+
+      beginRuinEjection(state, RuinEjectionReason.SealedIn, 1000)
+
+      expect(state.ruinEjection).toBeTruthy()
+      expect(state.ruinEjection?.reason).toBe(RuinEjectionReason.SealedIn)
+      const summary = state.ruinEjection?.lostItems
+      expect(summary).toBeTruthy()
+      if (!summary) return
+      const found = summary.items.find((i) => i.definitionId === 'wildflowerSeeds')
+      expect(found).toBeTruthy()
+      expect(found?.count).toBeGreaterThanOrEqual(1)
+    })
+
+    it('noops if ejection is already set', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const idx = findSubsidenceRuin(state)
+      if (idx === -1) return
+      enterRuin(state, idx)
+
+      beginRuinEjection(state, RuinEjectionReason.SealedIn, 1000)
+      const first = state.ruinEjection
+      beginRuinEjection(state, RuinEjectionReason.FloorCollapse, 2000)
+      expect(state.ruinEjection).toBe(first)
+      expect(state.ruinEjection?.reason).toBe(RuinEjectionReason.SealedIn)
+    })
+
+    it('noops outside a ruin', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      state.currentRuinIndex = null
+      beginRuinEjection(state, RuinEjectionReason.SealedIn, 0)
+      expect(state.ruinEjection).toBeNull()
+    })
+  })
+
+  describe('tickRuinEjection phase progression', () => {
+    it('progresses shake -> fade -> hold -> notification and calls exitRuin', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const idx = findSubsidenceRuin(state)
+      if (idx === -1) return
+      enterRuin(state, idx)
+
+      beginRuinEjection(state, RuinEjectionReason.SealedIn, 0)
+      expect(state.ruinEjection?.phase).toBe(RuinEjectionPhase.Shake)
+      expect(state.currentZone).toBe(Zone.Ruin)
+
+      tickRuinEjection(state, 100)
+      expect(state.ruinEjection?.phase).toBe(RuinEjectionPhase.Shake)
+
+      tickRuinEjection(state, RUIN_EJECTION_SHAKE_MS + 100)
+      expect(state.ruinEjection?.phase).toBe(RuinEjectionPhase.Fade)
+
+      tickRuinEjection(state, RUIN_EJECTION_SHAKE_MS + RUIN_EJECTION_FADE_MS + 100)
+      expect(state.ruinEjection?.phase).toBe(RuinEjectionPhase.Hold)
+
+      tickRuinEjection(state, RUIN_EJECTION_SHAKE_MS + RUIN_EJECTION_FADE_MS + RUIN_EJECTION_HOLD_MS + 10)
+      expect(state.currentZone).toBe(Zone.Overworld)
+      expect(state.ruinEjection?.exited).toBe(true)
+      expect(state.ruinEjection?.phase).toBe(RuinEjectionPhase.Notification)
+    })
+
+    it('clears ruinEjection after notification duration', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const idx = findSubsidenceRuin(state)
+      if (idx === -1) return
+      enterRuin(state, idx)
+
+      beginRuinEjection(state, RuinEjectionReason.SealedIn, 0)
+      const exitTime = RUIN_EJECTION_SHAKE_MS + RUIN_EJECTION_FADE_MS + RUIN_EJECTION_HOLD_MS + 10
+      tickRuinEjection(state, exitTime)
+      expect(state.ruinEjection?.exited).toBe(true)
+
+      tickRuinEjection(state, exitTime + RUIN_EJECTION_NOTIFICATION_MS + 10)
+      expect(state.ruinEjection).toBeNull()
+    })
+
+    it('suppresses held direction during ejection', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const idx = findSubsidenceRuin(state)
+      if (idx === -1) return
+      enterRuin(state, idx)
+      state.heldDirection = 'up'
+      beginRuinEjection(state, RuinEjectionReason.SealedIn, 0)
+      tickRuinEjection(state, 100)
+      expect(state.heldDirection).toBeNull()
+    })
+  })
+
+  describe('lost items toast', () => {
+    it('queues a notification toast after exit', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const idx = findSubsidenceRuin(state)
+      if (idx === -1) return
+      enterRuin(state, idx)
+      state.queuedToasts = []
+      beginRuinEjection(state, RuinEjectionReason.SealedIn, 0)
+      const exitTime = RUIN_EJECTION_SHAKE_MS + RUIN_EJECTION_FADE_MS + RUIN_EJECTION_HOLD_MS + 10
+      tickRuinEjection(state, exitTime)
+      const toast = state.queuedToasts.find(
+        (t) => t.text.startsWith('lost items in') || t.text.includes('collapsed behind you'),
+      )
+      expect(toast).toBeTruthy()
+    })
+
+    it('uses empty-list phrasing when no items were left', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const idx = findSubsidenceRuin(state)
+      if (idx === -1) return
+      enterRuin(state, idx)
+      // Remove any existing ground items in the ruin
+      for (const eid of [...state.world.query(ComponentType.EntityTag)]) {
+        const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+        const zone = state.world.getComponent(eid, ComponentType.EntityZone)
+        if (tag === 'groundItem' && zone?.zone === Zone.Ruin && zone.ruinIndex === idx) {
+          state.world.destroyEntity(eid)
+        }
+      }
+      state.queuedToasts = []
+      beginRuinEjection(state, RuinEjectionReason.SealedIn, 0)
+      const exitTime = RUIN_EJECTION_SHAKE_MS + RUIN_EJECTION_FADE_MS + RUIN_EJECTION_HOLD_MS + 10
+      tickRuinEjection(state, exitTime)
+      const toast = state.queuedToasts.find((t) => t.text.includes('collapsed behind you'))
+      expect(toast).toBeTruthy()
+    })
+  })
+
+  describe('reachability trap detection', () => {
+    it('fires sealed-in ejection when player is cut off from entrance', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const idx = findSubsidenceRuin(state)
+      if (idx === -1) return
+      enterRuin(state, idx)
+      const interior = state.ruinInteriors[idx]
+      const { mapWidth, mapHeight } = interior
+
+      // Build a clean synthetic interior: floor everywhere, walls around player,
+      // entrance at bottom center unreachable.
+      const cleanMap: Tile[][] = Array.from({ length: mapHeight }, () =>
+        Array.from({ length: mapWidth }, () => ({ type: TileType.RuinFloor }) as Tile),
+      )
+      const entX = interior.entranceInterior.x
+      const entY = interior.entranceInterior.y + 1
+      cleanMap[entY][entX] = { type: TileType.RuinEntrance }
+      // Place player far from entrance
+      const px = 5
+      const py = 5
+      state.player = { x: px, y: py }
+      // Completely seal player in with Space in 4 directions AND diagonals
+      // to ensure no cardinal path exists
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue
+          cleanMap[py + dy][px + dx] = { type: TileType.Space }
+        }
+      }
+      interior.map = cleanMap
+      state.map = cleanMap
+
+      // Force collapse timer past threshold and clear integrity so the
+      // collapse loop runs but doesn't match any tiles (no floor collapse
+      // nor entrance collapse — only the reachability check fires).
+      const sub = interior.subsidence
+      if (!sub) return
+      sub.collapseTimer = 999999
+      sub.structuralIntegrity.clear()
+
+      tickSubsidenceCollapse(state, 500, 0)
+
+      expect(state.ruinEjection).toBeTruthy()
+      expect(state.ruinEjection?.reason).toBe(RuinEjectionReason.SealedIn)
+    })
+
+    it('does not fire when entrance is reachable', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      const idx = findSubsidenceRuin(state)
+      if (idx === -1) return
+      enterRuin(state, idx)
+      const interior = state.ruinInteriors[idx]
+      // Player is placed at entrance on enter — entrance is trivially reachable
+      tickSubsidenceCollapse(state, 100, 0)
+      // no ejection
+      if (state.ruinEjection) {
+        // If an ejection fired, it should not be sealed-in (floor or entrance collapse possible)
+        expect(state.ruinEjection.reason).not.toBe(RuinEjectionReason.SealedIn)
+      }
+      expect(interior).toBeTruthy()
     })
   })
 })

@@ -12,6 +12,11 @@ import {
   BG_COLOR,
   DEEP_TIME_SHAKE_AMPLITUDE,
   DEEP_TIME_TRANSITION_GLYPH_DURATION_MS,
+  RUIN_EJECTION_FADE_MS,
+  RUIN_EJECTION_HOLD_MS,
+  RUIN_EJECTION_NOTIFICATION_FADE_MS,
+  RUIN_EJECTION_SHAKE_AMPLITUDE,
+  RUIN_EJECTION_SHAKE_MS,
   BUILDING_CHARS,
   BURN_SCAR_COLORS,
   CLOVER_BLACK_COLOR,
@@ -210,10 +215,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   ctx.textBaseline = 'top'
 
   // Camera shake — translate entire canvas during deep time lightning strikes
-  const shakeActive = state.deepTime?.active === true && time < state.deepTime.shakeUntil
+  // or the first phase of a ruin ejection sequence
+  const ejection = state.ruinEjection
+  const ejectionElapsed = ejection ? time - ejection.startTime : 0
+  const ejectionShake =
+    ejection != null && !ejection.exited && ejectionElapsed < RUIN_EJECTION_SHAKE_MS
+  const deepTimeShake = state.deepTime?.active === true && time < state.deepTime.shakeUntil
+  const shakeActive = deepTimeShake || ejectionShake
   if (shakeActive) {
-    const sx = (Math.random() * 2 - 1) * DEEP_TIME_SHAKE_AMPLITUDE
-    const sy = (Math.random() * 2 - 1) * DEEP_TIME_SHAKE_AMPLITUDE
+    const amplitude = ejectionShake ? RUIN_EJECTION_SHAKE_AMPLITUDE : DEEP_TIME_SHAKE_AMPLITUDE
+    const sx = (Math.random() * 2 - 1) * amplitude
+    const sy = (Math.random() * 2 - 1) * amplitude
     ctx.save()
     ctx.translate(sx, sy)
   }
@@ -1506,6 +1518,34 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const alpha = LIGHTNING_SCREEN_FLASH_OPACITY * (1 - angelFlashElapsed / LIGHTNING_SCREEN_FLASH_MS)
     ctx.fillStyle = `rgba(255, 255, 255, ${String(alpha)})`
     ctx.fillRect(0, 0, pxWidth, pxHeight)
+  }
+
+  // Ruin ejection fade-to-black overlay
+  if (ejection) {
+    let fadeAlpha = 0
+    if (!ejection.exited) {
+      const afterShake = ejectionElapsed - RUIN_EJECTION_SHAKE_MS
+      if (afterShake < 0) {
+        fadeAlpha = 0
+      } else if (afterShake < RUIN_EJECTION_FADE_MS) {
+        fadeAlpha = afterShake / RUIN_EJECTION_FADE_MS
+      } else if (afterShake < RUIN_EJECTION_FADE_MS + RUIN_EJECTION_HOLD_MS) {
+        fadeAlpha = 1
+      } else {
+        fadeAlpha = 1
+      }
+    } else {
+      const notifElapsed = time - ejection.startTime
+      if (notifElapsed < RUIN_EJECTION_NOTIFICATION_FADE_MS) {
+        fadeAlpha = 1 - notifElapsed / RUIN_EJECTION_NOTIFICATION_FADE_MS
+      } else {
+        fadeAlpha = 0
+      }
+    }
+    if (fadeAlpha > 0) {
+      ctx.fillStyle = `rgba(0, 0, 0, ${String(fadeAlpha)})`
+      ctx.fillRect(0, 0, pxWidth, pxHeight)
+    }
   }
 
   // RTS selection box overlay

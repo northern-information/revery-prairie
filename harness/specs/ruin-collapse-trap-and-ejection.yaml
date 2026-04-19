@@ -1,0 +1,244 @@
+id: ruin-collapse-trap-and-ejection
+name: 'Ruin collapse trap detection, entry toasts, and ejection sequence'
+status: planned
+priority: high
+layer: integration
+source_files:
+  - src/engine/ruins.ts
+  - src/engine/types.ts
+  - src/engine/constants.ts
+  - src/engine/renderer.ts
+  - src/engine/gameLoop.ts
+  - src/components/GameScreen.tsx
+dependencies:
+  - ruin-infrastructure
+  - ruin-subsidence
+  - ruin-dormant-garden
+  - ruin-haunted-threshold
+  - ruin-resonance
+
+behaviors:
+  - id: ruin-entry-toast
+    description: >
+      On enterRuin, emit an archetype-specific toast via addEvent. Each
+      archetype has a single hardcoded entry message. Subsidence:
+      'crumbling ruins! hurry before it collapses!'. DormantGarden:
+      'a dormant garden stirs beneath the dust.'. HauntedThreshold:
+      'you feel watched. haunted threshold.'. Resonance: 'resonant
+      chambers hum around you.'. Toast fires once per enterRuin call
+      (re-entry re-fires). Toast text is defined by a
+      RUIN_ENTRY_TOASTS map keyed by RuinArchetype in constants.ts.
+    inputs:
+      - 'enterRuin called with a ruinIndex'
+    outputs:
+      - 'addEvent called with archetype-specific toast message'
+    state_changes:
+      - field: events
+        effect: 'new event appended with toast message'
+    determinism: deterministic
+
+  - id: reachability-trap-detection
+    description: >
+      After every subsidence collapse wave (in tickSubsidenceCollapse),
+      run a BFS from the player position across walkable tiles
+      (RuinFloor, RuinUnstable, RuinEntrance). If the entrance tile
+      is not reachable from the player, the player is considered
+      trapped. Trigger beginRuinEjection with reason 'sealed-in' and
+      addEvent 'sealed in by rubble!'. BFS uses CARDINAL_DELTAS only
+      and stops as soon as the entrance is reached, bounded by the
+      ruin map size. Does not fire if the player is already standing
+      on the entrance or if the ruin is already collapsed.
+    inputs:
+      - 'collapse wave completes in tickSubsidenceCollapse'
+    outputs:
+      - 'beginRuinEjection fired when no path from player to entrance'
+    state_changes:
+      - field: ruinEjection
+        effect: 'set to { phase: shake, startTime, reason, ruinIndex } on trap'
+    determinism: deterministic
+
+  - id: ejection-sequence-state
+    description: >
+      GameState gains ruinEjection: RuinEjection | null. RuinEjection
+      interface: { startTime: number, ruinIndex: number, reason:
+      'sealed-in' | 'entrance-collapse' | 'floor-collapse', lostItems:
+      LostItemSummary }. LostItemSummary: { ruinName: string,
+      archetype: RuinArchetype, items: { definitionId: string,
+      count: number }[] }. ruinEjection defaults to null on
+      createGameState and is excluded from persistence (transient
+      UI state). Added to EXPECTED_FIELDS in schema allowlist.
+    inputs:
+      - 'game state initialization'
+    outputs:
+      - 'ruinEjection field available on GameState'
+    state_changes:
+      - field: ruinEjection
+        effect: 'initialized to null'
+    determinism: deterministic
+
+  - id: begin-ruin-ejection
+    description: >
+      beginRuinEjection(state, reason, time) captures lost items for
+      the current ruin before any state swap. Walks
+      state.groundItems and state.groundOmniboxes filtering by the
+      current ruin's entity zone (EntityZone.ruinIndex matches
+      currentRuinIndex). Counts items by definitionId into
+      LostItemSummary. Stores ruinEjection with phase startTime =
+      time. Does not yet exit the ruin — tick advances the sequence.
+      Noop if ruinEjection is already set (prevents re-trigger).
+    inputs:
+      - 'trap detected, entrance collapsed, or player on collapsing tile'
+    outputs:
+      - 'ruinEjection populated with lost items and start time'
+    state_changes:
+      - field: ruinEjection
+        effect: 'set to populated RuinEjection object'
+    determinism: deterministic
+
+  - id: ejection-phase-timings
+    description: >
+      Ejection sequence has three phases tracked by elapsed =
+      time - ruinEjection.startTime. Phase boundaries defined in
+      constants.ts. RUIN_EJECTION_SHAKE_MS = 1500: screen shake and
+      rumble (subsidence only — audio tick plays deep rumble via
+      existing audio layer, screen shake via renderer using the same
+      mechanism as deep time shake, amplitude
+      RUIN_EJECTION_SHAKE_AMPLITUDE = 6). RUIN_EJECTION_FADE_MS =
+      1200: fade to black overlay (alpha ramps 0 -> 1, linear).
+      RUIN_EJECTION_HOLD_MS = 400: hold on black. At
+      shake+fade+hold, call exitRuin(state), then set ruinEjection
+      to a post-exit phase (see lost-items-notification).
+    inputs:
+      - 'tickRuinEjection called each frame with current time'
+    outputs:
+      - 'phase progresses through shake, fade, hold, then triggers exitRuin'
+    state_changes:
+      - field: map
+        effect: 'swapped to overworld via exitRuin at end of hold phase'
+    determinism: time-based
+
+  - id: tick-ruin-ejection
+    description: >
+      tickRuinEjection(state, time) advances the sequence when
+      ruinEjection is non-null. Runs as a zone-agnostic tick system
+      (added to gameLoop tick registry with zone: null). Suppresses
+      player input while ruinEjection is active (input hook checks
+      state.ruinEjection). Once exitRuin has fired, transitions the
+      ruinEjection object to the post-exit notification state with
+      a new startTime.
+    inputs:
+      - 'game loop tick'
+    outputs:
+      - 'phase progression, then exitRuin call, then notification state'
+    state_changes:
+      - field: ruinEjection
+        effect: 'startTime reset after exit; reason preserved'
+      - field: heldDirection
+        effect: 'cleared during ejection to prevent movement'
+    determinism: time-based
+
+  - id: lost-items-notification
+    description: >
+      After exitRuin fires, ruinEjection enters 'notification' state
+      and a toast is emitted listing lost items for that ruin only.
+      Format: 'lost items in {ruinName} ruins:' followed by
+      comma-separated counts (e.g. 'wildflower seeds x3, stone
+      tablet x1'). If lostItems is empty, emit a simpler
+      '{ruinName} ruins collapsed behind you.' toast. Uses item
+      display names from ITEM_DEFINITIONS. Notification auto-clears
+      ruinEjection after RUIN_EJECTION_NOTIFICATION_MS = 4000 so the
+      player regains full control and the fade overlay fully
+      dismisses.
+    inputs:
+      - 'exitRuin completes during ejection sequence'
+    outputs:
+      - 'toast emitted with lost item summary'
+      - 'ruinEjection cleared after notification duration'
+    state_changes:
+      - field: events
+        effect: 'new event appended with lost items toast'
+      - field: ruinEjection
+        effect: 'set to null after notification duration'
+    determinism: time-based
+
+  - id: ejection-fade-rendering
+    description: >
+      Renderer draws a black overlay over the entire canvas when
+      ruinEjection is active. Alpha computed from phase. Shake phase:
+      alpha 0. Fade phase: alpha = elapsed-in-phase /
+      RUIN_EJECTION_FADE_MS. Hold phase: alpha 1. Notification phase:
+      alpha eases 1 -> 0 over the first 600ms, then 0 for the
+      remainder. Shake only applies during the shake phase; uses
+      the existing ctx.translate pattern from deep time shake.
+    inputs:
+      - 'renderer frame with state.ruinEjection non-null'
+    outputs:
+      - 'black overlay drawn at computed alpha, shake applied in shake phase'
+    state_changes: []
+    determinism: time-based
+
+  - id: player-collapsing-tile-uses-ejection
+    description: >
+      The existing player-on-collapsing-tile behavior in
+      tickSubsidenceCollapse is updated to call beginRuinEjection
+      with reason 'floor-collapse' instead of exitRuin directly.
+      Existing entrance-collapse path calls beginRuinEjection with
+      reason 'entrance-collapse'. These replace the immediate
+      exitRuin calls so the ejection sequence plays for all three
+      eject reasons.
+    inputs:
+      - 'subsidence tick detects player on collapsing tile or entrance sealed'
+    outputs:
+      - 'ejection sequence begins instead of instant exit'
+    state_changes:
+      - field: ruinEjection
+        effect: 'set via beginRuinEjection'
+    determinism: deterministic
+
+edge_cases:
+  - id: player-on-entrance-no-trap
+    description: 'player standing on entrance tile when collapse wave fires'
+    expected: 'BFS trivially finds entrance, no trap fires, ejection not triggered'
+
+  - id: unreachable-entrance-at-generation
+    description: 'ruin is generated with rubble already isolating regions (should be rare)'
+    expected: 'on first entry, if entrance not reachable from player spawn, ejection fires immediately after SUBSIDENCE_MIN_FIRST_WAVE_MS grace'
+
+  - id: trap-and-entrance-collapse-same-frame
+    description: 'collapse wave both seals entrance and isolates player'
+    expected: 'beginRuinEjection noops the second call — first reason wins'
+
+  - id: lost-items-empty
+    description: 'player picked up everything before being trapped'
+    expected: 'toast reads "{ruinName} ruins collapsed behind you." with no item list'
+
+  - id: multiple-ruins-lost-items
+    description: 'player is trapped in ruin B after losing items in ruin A previously'
+    expected: 'lost items toast lists only items from ruin B; ruin A items remain in their ruin interior'
+
+  - id: coyote-in-ejecting-ruin
+    description: 'coyote is inside a ruin when ejection fires'
+    expected: 'coyote follows via transitionCoyoteToZone in exitRuin as normal; coyote cargo not in lost items'
+
+  - id: ejection-during-dialog
+    description: 'player is in dialog when trap triggers (should not happen inside ruins, but defensively)'
+    expected: 'dialog cleared by exitRuin navigation clear; ejection proceeds'
+
+  - id: non-subsidence-archetype-entry-toast
+    description: 'player enters a dormant-garden, haunted-threshold, or resonance ruin'
+    expected: 'entry toast fires with archetype-specific message; no collapse or trap logic'
+
+failure_conditions:
+  - trigger: 'BFS invoked with player position off-map (should not happen)'
+    expected: 'BFS returns no path; ejection fires with sealed-in reason'
+
+  - trigger: 'ruinEjection already set when beginRuinEjection called again'
+    expected: 'noop; reason and lost items from first call are preserved'
+
+  - trigger: 'tickRuinEjection runs with currentRuinIndex null but ruinEjection set (post-exit)'
+    expected: 'proceed with notification phase using ruinEjection.ruinIndex for name lookup'
+
+verification:
+  test_file: src/engine/__tests__/ruins.test.ts
+  test_pattern: 'ruin collapse trap'
+  command: 'npx vitest run src/engine/__tests__/ruins.test.ts'

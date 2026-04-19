@@ -231,6 +231,8 @@ export interface GameState {
   coyotePath: Position[] | null
   ruinInteriors: RuinInterior[]
   currentRuinIndex: number | null
+  ruinEjection: RuinEjection | null
+  queuedToasts: QueuedToast[]
   caveFogExplored: Set<string>
   caveFogIllumination: Map<string, number>
   selectedUnits: Set<number>
@@ -366,6 +368,46 @@ export interface ResonanceData {
   vaultPosition: Position
   vaultRevealed: boolean
   revealedTiles: Set<string>
+}
+
+export const RuinEjectionReason = {
+  SealedIn: 'sealed-in',
+  EntranceCollapse: 'entrance-collapse',
+  FloorCollapse: 'floor-collapse',
+} as const
+
+export type RuinEjectionReason = (typeof RuinEjectionReason)[keyof typeof RuinEjectionReason]
+
+export const RuinEjectionPhase = {
+  Shake: 'shake',
+  Fade: 'fade',
+  Hold: 'hold',
+  Notification: 'notification',
+} as const
+
+export type RuinEjectionPhase = (typeof RuinEjectionPhase)[keyof typeof RuinEjectionPhase]
+
+export interface LostItemSummary {
+  ruinName: string
+  archetype: RuinArchetype
+  items: { definitionId: string; count: number }[]
+}
+
+export interface RuinEjection {
+  startTime: number
+  phase: RuinEjectionPhase
+  reason: RuinEjectionReason
+  ruinIndex: number
+  lostItems: LostItemSummary
+  exited: boolean
+}
+
+export interface QueuedToast {
+  text: string
+  icon: string
+  iconColor: string
+  worldX: number
+  worldY: number
 }
 
 export interface RuinInterior {

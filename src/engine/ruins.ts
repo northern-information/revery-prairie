@@ -1,12 +1,23 @@
 import { CHARACTER_DEFINITIONS } from './characters'
-import { BUILDING_CHARS, CIV_COLORS, TILE_CHARS, TILE_COLORS } from './constants'
+import {
+  BUILDING_CHARS,
+  CIV_COLORS,
+  RUIN_EJECTION_FADE_MS,
+  RUIN_EJECTION_HOLD_MS,
+  RUIN_EJECTION_NOTIFICATION_MS,
+  RUIN_EJECTION_SHAKE_MS,
+  RUIN_ENTRY_TOASTS,
+  TILE_CHARS,
+  TILE_COLORS,
+} from './constants'
 import { findCoyoteEntity, transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
+import { getDefinition } from './items'
 import { recordDiscovery } from './manual'
 import { findSafeExitPosition, isWalkableTile, posKey, tileHash } from './position'
 import { deselectAll } from './selection'
 import { clearAllUnitCommands } from './unitCommands'
-import { RuinArchetype, TileType, Zone } from './types'
+import { RuinArchetype, RuinEjectionPhase, TileType, Zone } from './types'
 
 import type { CivilizationRuin } from './genesisTypes'
 import type {
@@ -14,12 +25,29 @@ import type {
   GameState,
   GhostFormation,
   HauntedThresholdData,
+  LostItemSummary,
   Position,
   ResonanceData,
+  RuinEjectionReason,
   RuinInterior,
   SubsidenceData,
   Tile,
 } from './types'
+
+const queueToast = (
+  state: GameState,
+  text: string,
+  icon: string,
+  iconColor: string,
+): void => {
+  state.queuedToasts.push({
+    text,
+    icon,
+    iconColor,
+    worldX: state.player.x,
+    worldY: state.player.y,
+  })
+}
 
 // ---------------------------------------------------------------------------
 // PRNG (same mulberry32 used in genesis.ts)
@@ -1079,6 +1107,13 @@ export const enterRuin = (state: GameState, ruinIndex: number): void => {
   if (discoveryKey) {
     recordDiscovery(state, discoveryKey)
   }
+
+  const entryToast = RUIN_ENTRY_TOASTS[interior.archetype]
+  if (entryToast) {
+    const glyph = interior.archetype === RuinArchetype.Subsidence ? '!' : '☒'
+    const color = interior.archetype === RuinArchetype.Subsidence ? '#ff4422' : '#d8a860'
+    queueToast(state, entryToast, glyph, color)
+  }
 }
 
 export const exitRuin = (state: GameState): void => {
@@ -1217,7 +1252,45 @@ const findNearestWalkable = (
   return null
 }
 
-export const tickSubsidenceCollapse = (state: GameState, dt: number): 'ejected' | null => {
+const isRuinWalkable = (tileType: TileType): boolean =>
+  tileType === TileType.RuinFloor ||
+  tileType === TileType.RuinUnstable ||
+  tileType === TileType.RuinEntrance
+
+const canReachEntrance = (
+  map: Tile[][],
+  mapWidth: number,
+  mapHeight: number,
+  from: Position,
+  target: Position,
+): boolean => {
+  if (from.x === target.x && from.y === target.y) return true
+  const startTile = map[from.y]?.[from.x]
+  if (!startTile || !isRuinWalkable(startTile.type)) return false
+  const visited = new Set<string>()
+  const queue: Position[] = [from]
+  visited.add(posKey(from.x, from.y))
+  while (queue.length > 0) {
+    const pos = queue.shift()
+    if (!pos) break
+    if (pos.x === target.x && pos.y === target.y) return true
+    for (const [dx, dy] of CARDINAL_DELTAS) {
+      const nx = pos.x + dx
+      const ny = pos.y + dy
+      if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) continue
+      const key = posKey(nx, ny)
+      if (visited.has(key)) continue
+      const tile = map[ny]?.[nx]
+      if (!tile || !isRuinWalkable(tile.type)) continue
+      visited.add(key)
+      queue.push({ x: nx, y: ny })
+    }
+  }
+  return false
+}
+
+export const tickSubsidenceCollapse = (state: GameState, dt: number, time: number): 'ejected' | null => {
+  if (state.ruinEjection) return null
   if (state.currentRuinIndex === null) return null
   const interior = state.ruinInteriors[state.currentRuinIndex]
   if (!interior?.subsidence) return null
@@ -1258,10 +1331,10 @@ export const tickSubsidenceCollapse = (state: GameState, dt: number): 'ejected' 
     sub.structuralIntegrity.delete(key)
     collapsedPositions.add(key)
 
-    // Player standing on a collapsing tile — eject immediately
+    // Player standing on a collapsing tile — begin ejection sequence
     if (state.player.x === tx && state.player.y === ty) {
       sub.collapsed = true
-      exitRuin(state)
+      beginRuinEjection(state, 'floor-collapse', time)
       return 'ejected' as const
     }
   }
@@ -1308,9 +1381,17 @@ export const tickSubsidenceCollapse = (state: GameState, dt: number): 'ejected' 
     if (wallCount >= 3) {
       // Entrance is nearly closed — eject player
       sub.collapsed = true
-      exitRuin(state)
+      beginRuinEjection(state, 'entrance-collapse', time)
       return 'ejected' as const
     }
+  }
+
+  // Reachability trap: player cannot reach entrance from current position
+  const entrancePos: Position = { x: entranceX, y: entranceY }
+  if (!canReachEntrance(map, mapWidth, mapHeight, state.player, entrancePos)) {
+    beginRuinEjection(state, 'sealed-in', time)
+    queueToast(state, 'sealed in by rubble!', '!', '#ff4422')
+    return 'ejected' as const
   }
 
   return null
@@ -1835,4 +1916,92 @@ export const getRuinTileLayers = (tileType: TileType, x: number, y: number, time
       // Non-ruin tiles: single layer using standard chars/colors
       return [{ char: TILE_CHARS[tileType] ?? '.', color: TILE_COLORS[tileType] ?? '#666', dx: 0, dy: 0 }]
   }
+}
+
+// ---------------------------------------------------------------------------
+// Ruin ejection sequence
+// ---------------------------------------------------------------------------
+
+const buildLostItemSummary = (state: GameState, ruinIndex: number): LostItemSummary => {
+  const interior = state.ruinInteriors[ruinIndex]
+  const ruinName = interior ? interior.name : ''
+  const archetype = interior ? interior.archetype : RuinArchetype.Subsidence
+  const counts = new Map<string, number>()
+  for (const eid of state.world.query(ComponentType.ItemDrop, ComponentType.EntityTag)) {
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'groundItem') continue
+    const zone = state.world.getComponent(eid, ComponentType.EntityZone)
+    if (!zone) continue
+    if (zone.zone !== Zone.Ruin) continue
+    if (zone.ruinIndex !== ruinIndex) continue
+    const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
+    if (!drop) continue
+    counts.set(drop.definitionId, (counts.get(drop.definitionId) ?? 0) + 1)
+  }
+  const items = [...counts.entries()].map(([definitionId, count]) => ({ definitionId, count }))
+  return { ruinName, archetype, items }
+}
+
+export const beginRuinEjection = (
+  state: GameState,
+  reason: RuinEjectionReason,
+  time: number,
+): void => {
+  if (state.ruinEjection) return
+  if (state.currentRuinIndex === null) return
+  const ruinIndex = state.currentRuinIndex
+  const lostItems = buildLostItemSummary(state, ruinIndex)
+  state.ruinEjection = {
+    startTime: time,
+    phase: RuinEjectionPhase.Shake,
+    reason,
+    ruinIndex,
+    lostItems,
+    exited: false,
+  }
+}
+
+const formatLostItemsText = (summary: LostItemSummary): string => {
+  if (summary.items.length === 0) {
+    return `${summary.ruinName} ruins collapsed behind you.`
+  }
+  const parts = summary.items.map(({ definitionId, count }) => {
+    const def = getDefinition(definitionId)
+    const name = def ? def.name.toLowerCase() : definitionId
+    return count > 1 ? `${name} x${String(count)}` : name
+  })
+  return `lost items in ${summary.ruinName} ruins: ${parts.join(', ')}`
+}
+
+export const tickRuinEjection = (state: GameState, time: number): void => {
+  const ej = state.ruinEjection
+  if (!ej) return
+
+  const elapsed = time - ej.startTime
+  const shakeEnd = RUIN_EJECTION_SHAKE_MS
+  const fadeEnd = shakeEnd + RUIN_EJECTION_FADE_MS
+  const holdEnd = fadeEnd + RUIN_EJECTION_HOLD_MS
+
+  if (!ej.exited) {
+    if (elapsed < shakeEnd) {
+      ej.phase = RuinEjectionPhase.Shake
+    } else if (elapsed < fadeEnd) {
+      ej.phase = RuinEjectionPhase.Fade
+    } else if (elapsed < holdEnd) {
+      ej.phase = RuinEjectionPhase.Hold
+    } else {
+      exitRuin(state)
+      ej.exited = true
+      ej.phase = RuinEjectionPhase.Notification
+      ej.startTime = time
+      const toast = formatLostItemsText(ej.lostItems)
+      queueToast(state, toast, '!', '#d8a860')
+    }
+  } else if (time - ej.startTime >= RUIN_EJECTION_NOTIFICATION_MS) {
+    state.ruinEjection = null
+  }
+
+  state.heldDirection = null
+  state.path = null
+  state.pathWaypoints = []
 }

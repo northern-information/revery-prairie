@@ -62,6 +62,9 @@ export const useKeyboard = ({
         if (e.key !== 'Escape' && e.key !== 'Tab') return
       }
 
+      // Ruin ejection: block all input while the sequence is playing
+      if (state.ruinEjection) return
+
       // During genesis, Escape/Space/Enter skip; block all other keys
       if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
         if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
@@ -317,6 +320,9 @@ export const useKeyboard = ({
 
   const handleKeyUp = useCallback(
     (e: KeyboardEvent) => {
+      // Ruin ejection: block all input while the sequence is playing
+      if (state.ruinEjection) return
+
       const dir = keyToDirection(e.key)
       if (dir && dir === state.heldDirection) {
         state.heldDirection = null
