@@ -1,0 +1,53 @@
+plan:
+  id: camera-deadzone
+  title: 'Add camera deadzone to overworld viewport'
+  created: '2026-04-18'
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-deadzone-constant-and-zone-awareness
+    title: 'Add DEADZONE_RATIO constant and zone-aware branching to updateCamera'
+    spec_id: camera-deadzone
+    spec_sections:
+      - overworld-deadzone
+      - cave-center-tracking
+      - deadzone-initialization
+      - resize-recenters
+    context_files:
+      - src/engine/camera.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/camera.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/camera.test.ts'
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-deadzone-tests
+    title: 'Add tests for deadzone behavior, zone branching, and edge cases'
+    spec_id: camera-deadzone
+    spec_sections:
+      - overworld-deadzone
+      - cave-center-tracking
+      - deadzone-initialization
+      - resize-recenters
+    context_files:
+      - src/engine/camera.ts
+      - src/engine/__tests__/camera.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/camera.test.ts
+    depends_on:
+      - add-deadzone-constant-and-zone-awareness
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/camera.test.ts'
+    repair: retry
+    tags:
+      - test
