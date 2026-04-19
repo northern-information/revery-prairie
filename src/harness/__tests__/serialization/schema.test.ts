@@ -47,6 +47,7 @@ const EXPECTED_FIELDS = [
   'caveNpcSpot',
   'caveBreakableWallPositions',
   'meteorShower',
+  'lastSatelliteSpawnTime',
   'lightning',
   'cloverGrowthPreviews',
   'cloverLifecycle',

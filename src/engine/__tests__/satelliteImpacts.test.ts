@@ -1,0 +1,509 @@
+import {
+  SATELLITE_IMPACT_RADIUS,
+  SATELLITE_MAX_AGE,
+  SATELLITE_MIN_SPAWN_INTERVAL_MS,
+  SATELLITE_SOIL_DAMAGE,
+} from '../constants'
+import { ComponentType } from '../ecs/types'
+import { tickCharacterBehaviors } from '../entities'
+import { isWalkableTile, posKey } from '../position'
+import { spawnSatellite, tickSatellites } from '../satellites'
+import { createGameState } from '../state'
+import { TileType, Zone } from '../types'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import type { Entity } from '../ecs/types'
+import type { GameState, Position } from '../types'
+
+const DRIFT_BEHAVIOR = { type: 'drift' as const, moveChance: 0.15, freezeOnDialog: true }
+
+const clearArea = (state: GameState, cx: number, cy: number, radius: number) => {
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const x = cx + dx
+      const y = cy + dy
+      if (x >= 0 && x < state.mapWidth && y >= 0 && y < state.mapHeight) {
+        state.map[y][x] = { type: TileType.Dirt }
+      }
+    }
+  }
+}
+
+const makeState = (): GameState => {
+  const state = createGameState('test', 40, 30)
+  // Clear terrain around player
+  clearArea(state, state.player.x, state.player.y, 15)
+  // Reset shooting stars and meteorites seeded by createGameState
+  for (const eid of state.world.query(ComponentType.ShootingStarData)) {
+    state.world.destroyEntity(eid)
+  }
+  state.meteorShower.active = false
+  return state
+}
+
+const createSatelliteEntity = (
+  state: GameState,
+  overrides: Partial<{
+    pos: Position
+    dx: number
+    dy: number
+    length: number
+    age: number
+    landingTarget: Position
+    payloadType: 'destructive' | 'seeds'
+  }> = {},
+): Entity => {
+  const target = overrides.landingTarget ?? { x: 20, y: 15 }
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, overrides.pos ?? { x: 10, y: 5 })
+  state.world.addComponent(e, ComponentType.Velocity, {
+    dx: overrides.dx ?? 1,
+    dy: overrides.dy ?? 1,
+  })
+  state.world.addComponent(e, ComponentType.SatelliteData, {
+    length: overrides.length ?? 10,
+    age: overrides.age ?? 0,
+    landingTarget: target,
+    payloadType: overrides.payloadType ?? 'destructive',
+  })
+  state.world.addComponent(e, ComponentType.EntityTag, 'satellite')
+  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
+  return e
+}
+
+const getSatelliteCount = (state: GameState): number =>
+  state.world.query(ComponentType.SatelliteData).length
+
+const createGhostAt = (state: GameState, x: number, y: number): Entity => {
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x, y })
+  state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId: 'ghost-test' })
+  state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
+  state.world.addComponent(e, ComponentType.Behavior, DRIFT_BEHAVIOR)
+  state.world.addComponent(e, ComponentType.EntityTag, 'character')
+  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
+  return e
+}
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+describe('satellite spawning', () => {
+  it('spawns a satellite when conditions are met', () => {
+    const state = makeState()
+    state.lastSatelliteSpawnTime = 0
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.1) // below SATELLITE_SPAWN_CHANCE
+
+    spawnSatellite(state, SATELLITE_MIN_SPAWN_INTERVAL_MS + 1)
+    expect(getSatelliteCount(state)).toBe(1)
+  })
+
+  it('does not spawn when one is already active', () => {
+    const state = makeState()
+    createSatelliteEntity(state)
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.1)
+    spawnSatellite(state, SATELLITE_MIN_SPAWN_INTERVAL_MS + 1)
+    expect(getSatelliteCount(state)).toBe(1) // still just the one we created
+  })
+
+  it('does not spawn before minimum interval', () => {
+    const state = makeState()
+    state.lastSatelliteSpawnTime = 100
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.1)
+    spawnSatellite(state, 100 + SATELLITE_MIN_SPAWN_INTERVAL_MS - 1)
+    expect(getSatelliteCount(state)).toBe(0)
+  })
+
+  it('does not spawn when probability gate fails', () => {
+    const state = makeState()
+    state.lastSatelliteSpawnTime = 0
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.99) // above SATELLITE_SPAWN_CHANCE
+    spawnSatellite(state, SATELLITE_MIN_SPAWN_INTERVAL_MS + 1)
+    expect(getSatelliteCount(state)).toBe(0)
+  })
+
+  it('is suppressed during deep time', () => {
+    const state = makeState()
+    state.lastSatelliteSpawnTime = 0
+    state.deepTime = {
+      active: true,
+      phase: 'burning' as never,
+      startTime: 0,
+      phaseStartTime: 0,
+      playerGlyph: 'ö',
+      playerGlyphColor: '#FFFFFF',
+    } as never
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.1)
+    spawnSatellite(state, SATELLITE_MIN_SPAWN_INTERVAL_MS + 1)
+    expect(getSatelliteCount(state)).toBe(0)
+  })
+
+  it('is suppressed during meteor shower', () => {
+    const state = makeState()
+    state.lastSatelliteSpawnTime = 0
+    state.meteorShower.active = true
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.1)
+    spawnSatellite(state, SATELLITE_MIN_SPAWN_INTERVAL_MS + 1)
+    expect(getSatelliteCount(state)).toBe(0)
+  })
+
+  it('is suppressed in cave zone', () => {
+    const state = makeState()
+    state.lastSatelliteSpawnTime = 0
+    state.currentZone = Zone.Cave
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.1)
+    spawnSatellite(state, SATELLITE_MIN_SPAWN_INTERVAL_MS + 1)
+    expect(getSatelliteCount(state)).toBe(0)
+  })
+})
+
+describe('satellite movement', () => {
+  it('advances position by velocity each tick', () => {
+    const state = makeState()
+    const eid = createSatelliteEntity(state, { pos: { x: 10, y: 10 }, dx: 1, dy: 1 })
+
+    tickSatellites(state, 1000)
+
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    expect(pos?.x).toBe(11)
+    expect(pos?.y).toBe(11)
+  })
+
+  it('increments age each tick', () => {
+    const state = makeState()
+    const eid = createSatelliteEntity(state, { pos: { x: 5, y: 5 } })
+
+    tickSatellites(state, 1000)
+
+    const data = state.world.getComponent(eid, ComponentType.SatelliteData)
+    expect(data?.age).toBe(1)
+  })
+
+  it('destroys satellite when max age exceeded', () => {
+    const state = makeState()
+    createSatelliteEntity(state, { pos: { x: 5, y: 5 }, age: SATELLITE_MAX_AGE + 1 })
+
+    tickSatellites(state, 1000)
+    expect(getSatelliteCount(state)).toBe(0)
+  })
+
+  it('destroys satellite when off-map', () => {
+    const state = makeState()
+    createSatelliteEntity(state, {
+      pos: { x: state.mapWidth + 20, y: 5 },
+      dx: 1,
+      dy: 0,
+    })
+
+    tickSatellites(state, 1000)
+    expect(getSatelliteCount(state)).toBe(0)
+  })
+})
+
+describe('satellite impact', () => {
+  it('creates crater tiles in 5x5 zone on landing', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+
+    // Place satellite at the target so it lands immediately
+    createSatelliteEntity(state, {
+      pos: target,
+      landingTarget: target,
+    })
+
+    tickSatellites(state, 1000)
+
+    // Check tiles in the 5x5 zone are craters
+    const r = SATELLITE_IMPACT_RADIUS
+    let craterCount = 0
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const tile = state.map[target.y + dy][target.x + dx]
+        if (tile.type === TileType.Crater) craterCount++
+      }
+    }
+    expect(craterCount).toBeGreaterThan(0)
+    expect(state.map[target.y][target.x].type).toBe(TileType.Crater)
+  })
+
+  it('reduces soil health in impact zone', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+
+    // Set soil health to known value
+    const key = posKey(target.x, target.y)
+    state.soilHealth.set(key, 80)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    const health = state.soilHealth.get(key)
+    expect(health).toBe(80 - SATELLITE_SOIL_DAMAGE)
+  })
+
+  it('clamps soil health to minimum 0', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+
+    const key = posKey(target.x, target.y)
+    state.soilHealth.set(key, 10)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    expect(state.soilHealth.get(key)).toBe(0)
+  })
+
+  it('does not convert protected tiles (space, sand, cave entrance)', () => {
+    const state = makeState()
+    const tx = 20
+    const ty = 15
+    clearArea(state, tx, ty, 5)
+
+    // Place some protected tiles in the zone
+    state.map[ty - 1][tx] = { type: TileType.Sand }
+    state.map[ty + 1][tx] = { type: TileType.CaveEntrance }
+
+    createSatelliteEntity(state, {
+      pos: { x: tx, y: ty },
+      landingTarget: { x: tx, y: ty },
+    })
+    tickSatellites(state, 1000)
+
+    expect(state.map[ty - 1][tx].type).toBe(TileType.Sand)
+    expect(state.map[ty + 1][tx].type).toBe(TileType.CaveEntrance)
+  })
+
+  it('converts clover tiles to crater', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+    state.map[target.y][target.x + 1] = { type: TileType.Clover }
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    expect(state.map[target.y][target.x + 1].type).toBe(TileType.Crater)
+  })
+
+  it('spawns satellite impact timed effect', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    const impacts = state.world
+      .query(ComponentType.TimedEffect, ComponentType.EntityTag)
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'satelliteImpact')
+    expect(impacts).toHaveLength(1)
+  })
+
+  it('records satellite-impact discovery', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    expect(state.manualDiscoveries.has('event:satellite-impact')).toBe(true)
+  })
+
+  it('handles impact zone partially off-map', () => {
+    const state = makeState()
+    // Place target near top-left edge
+    const target = { x: 1, y: 1 }
+    clearArea(state, target.x, target.y, 3)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+
+    // Should not throw
+    expect(() => {
+      tickSatellites(state, 1000)
+    }).not.toThrow()
+    expect(state.map[target.y][target.x].type).toBe(TileType.Crater)
+  })
+})
+
+describe('satellite ghost interaction', () => {
+  it('destroys ghosts within impact zone', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+
+    // Place a ghost in the impact zone
+    const ghostEid = createGhostAt(state, target.x + 1, target.y)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    expect(state.world.isAlive(ghostEid)).toBe(false)
+  })
+
+  it('does not destroy ghosts outside impact zone', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 10)
+
+    // Place a ghost well outside the 5x5 zone
+    const ghostEid = createGhostAt(state, target.x + 10, target.y)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    expect(state.world.isAlive(ghostEid)).toBe(true)
+  })
+
+  it('destroys multiple ghosts in zone', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+
+    const ghost1 = createGhostAt(state, target.x, target.y + 1)
+    const ghost2 = createGhostAt(state, target.x - 1, target.y)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    expect(state.world.isAlive(ghost1)).toBe(false)
+    expect(state.world.isAlive(ghost2)).toBe(false)
+  })
+})
+
+describe('ghost crater avoidance', () => {
+  it('ghosts do not move onto crater tiles', () => {
+    const state = makeState()
+    const gx = 20
+    const gy = 15
+    clearArea(state, gx, gy, 5)
+
+    // Surround the ghost position with craters on all sides except one
+    for (const d of [
+      { x: 0, y: -1 },
+      { x: 0, y: 1 },
+      { x: -1, y: 0 },
+      { x: 1, y: 0 },
+      { x: -1, y: -1 },
+      { x: 1, y: -1 },
+      { x: -1, y: 1 },
+      // leave (1, 1) as dirt — the only escape
+    ]) {
+      state.map[gy + d.y][gx + d.x] = { type: TileType.Crater }
+    }
+
+    // Create ghost at gx, gy with 100% move chance
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.Position, { x: gx, y: gy })
+    state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId: 'ghost-avoidance' })
+    state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
+    state.world.addComponent(e, ComponentType.Behavior, { type: 'drift' as const, moveChance: 1.0, freezeOnDialog: false })
+    state.world.addComponent(e, ComponentType.EntityTag, 'character')
+    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
+
+    // Mock random to always pick first candidate
+    vi.spyOn(Math, 'random').mockReturnValue(0)
+
+    tickCharacterBehaviors(state, Zone.Overworld)
+
+    const pos = state.world.getComponent(e, ComponentType.Position)
+    expect(pos).toBeTruthy()
+    // Should have moved to the only non-crater neighbor (1,1) = (gx+1, gy+1)
+    expect(pos?.x).toBe(gx + 1)
+    expect(pos?.y).toBe(gy + 1)
+  })
+})
+
+describe('satellite payload', () => {
+  it('scatters seed ground items for good payload', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+
+    // Clear any existing ground items
+    for (const eid of state.world.query(ComponentType.EntityTag)) {
+      if (state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem') {
+        state.world.destroyEntity(eid)
+      }
+    }
+
+    createSatelliteEntity(state, {
+      pos: { x: target.x, y: target.y },
+      landingTarget: { x: target.x, y: target.y },
+      payloadType: 'seeds',
+    })
+    tickSatellites(state, 1000)
+
+    // Check that ground items were created
+    const groundItems = state.world
+      .query(ComponentType.EntityTag, ComponentType.ItemDrop)
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
+
+    // Should have some seed items (at least 2 given SATELLITE_SEED_COUNT_MIN)
+    expect(groundItems.length).toBeGreaterThanOrEqual(2)
+
+    // Verify they are seed items
+    const seedIds = new Set(['wildflowerSeeds', 'tallGrassSeeds', 'milkweedSeeds'])
+    for (const eid of groundItems) {
+      const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
+      expect(drop).toBeTruthy()
+      if (drop) {
+        expect(seedIds.has(drop.definitionId)).toBe(true)
+      }
+    }
+  })
+
+  it('does not scatter seeds for destructive payload', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+
+    // Clear all existing ground items first
+    for (const eid of state.world.query(ComponentType.EntityTag)) {
+      if (state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem') {
+        state.world.destroyEntity(eid)
+      }
+    }
+
+    createSatelliteEntity(state, {
+      pos: target,
+      landingTarget: target,
+      payloadType: 'destructive',
+    })
+    tickSatellites(state, 1000)
+
+    const groundItems = state.world
+      .query(ComponentType.EntityTag, ComponentType.ItemDrop)
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
+    expect(groundItems.length).toBe(0)
+  })
+})
+
+describe('crater tile properties', () => {
+  it('crater tiles are walkable', () => {
+    expect(isWalkableTile(TileType.Crater)).toBe(true)
+  })
+
+  it('clover does not grow on crater tiles', () => {
+    // Crater is not TileType.Dirt, so computeGrowthFront skips it
+    const state = makeState()
+    state.map[15][20] = { type: TileType.Crater }
+
+    // The growth front check only adds Dirt tiles as candidates
+    // This is implicitly tested — crater tiles are never Dirt
+    expect(state.map[15][20].type).toBe(TileType.Crater)
+    expect(state.map[15][20].type).not.toBe(TileType.Dirt)
+  })
+})

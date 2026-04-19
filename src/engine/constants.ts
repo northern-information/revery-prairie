@@ -37,6 +37,7 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.RuinMachine]: '⚡',
   [TileType.RuinMachineActive]: '⚡',
   [TileType.RuinHiddenFloor]: '.',
+  [TileType.Crater]: '░',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -59,6 +60,7 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.RuinMachine]: '#B87333',
   [TileType.RuinMachineActive]: '#FFD700',
   [TileType.RuinHiddenFloor]: '#7A7A6E',
+  [TileType.Crater]: '#8B4513',
 }
 
 // Ruin visual palette — shared with genesis civilization rendering
@@ -111,6 +113,24 @@ export const EXPLOSION_DURATION_MS = 500 // total explosion lifetime
 export const EXPLOSION_RADIUS = 3 // max radius in tiles
 export const EXPLOSION_CHARS = ['*', '+', '.', '\u00b7'] // particles shrink as they fade
 export const EXPLOSION_COLORS = ['#FFD700', '#FFC125', '#DAA520', '#B8860B', '#8B6914'] // gold → dark gold fade
+
+// satellites
+export const SATELLITE_TICK_MS = 150 // slower than shooting stars (80ms)
+export const SATELLITE_SPAWN_TICK_MS = 10_000 // check every 10s
+export const SATELLITE_SPAWN_CHANCE = 0.2 // ~1 every 50s of checks → ~3-5 min avg
+export const SATELLITE_MIN_SPAWN_INTERVAL_MS = 180_000 // minimum 3 min between satellites
+export const SATELLITE_MAX_AGE = 500
+export const SATELLITE_MIN_LENGTH = 8
+export const SATELLITE_MAX_LENGTH = 12
+export const SATELLITE_IMPACT_RADIUS = 2 // 5x5 zone (center ± 2)
+export const SATELLITE_SOIL_DAMAGE = 30
+export const SATELLITE_GOOD_PAYLOAD_CHANCE = 0.3 // 30% chance for seeds
+export const SATELLITE_SEED_COUNT_MIN = 2
+export const SATELLITE_SEED_COUNT_MAX = 4
+export const SATELLITE_IMPACT_DURATION_MS = 800 // larger explosion
+export const SATELLITE_IMPACT_RADIUS_VISUAL = 4 // visual explosion radius
+export const SATELLITE_HEAD_COLORS = ['#FF4444', '#CC3333', '#AA2222'] // red palette
+export const SATELLITE_TRAIL_COLORS = ['#CC3333', '#AA2222', '#882222', '#661111', '#441111'] // red fade
 
 // lightning
 export const LIGHTNING_TICK_MS = 10_000
