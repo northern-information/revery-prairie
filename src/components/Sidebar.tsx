@@ -275,6 +275,10 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                         .at(cx, cy)
                         .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'beehive')
                       if (hasBeehiveEcs) return 'beehive'
+                      const hasSatelliteEcs = state.world.spatial
+                        .at(cx, cy)
+                        .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'satellite')
+                      if (hasSatelliteEcs) return 'satellite'
                       const groundItemEid = state.world.spatial
                         .at(cx, cy)
                         .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
@@ -300,6 +304,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                       if (tileType === TileType.RuinMachine) return 'ancient machine'
                       if (tileType === TileType.RuinMachineActive) return 'active machine'
                       if (tileType === TileType.RuinHiddenFloor) return 'ruin floor'
+                      if (tileType === TileType.Crater) return 'crater'
                       return tileType ?? 'void'
                     })()}
                   </td>

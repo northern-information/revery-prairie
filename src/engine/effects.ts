@@ -77,6 +77,21 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
     }
   }
 
+  // Satellite impact effects
+  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== zone) continue
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'satelliteImpact') continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (!pos) continue
+    const dx = x - pos.x
+    const dy = y - pos.y
+    if (Math.abs(dx) <= 4 && Math.abs(dy) <= 4) {
+      seen.add('satellite impact')
+      break
+    }
+  }
+
   // Glinting zones (overworld only)
   if (zone === Zone.Overworld && state.glintZones.has(posKey(x, y))) {
     seen.add('glinting')

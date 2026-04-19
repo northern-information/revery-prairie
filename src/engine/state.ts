@@ -147,6 +147,7 @@ export const createGameState = (
       nextStrikeTime: 60_000,
       lastStrikeTime: 0,
     },
+    lastSatelliteSpawnTime: 0,
     cloverGrowthPreviews: new Set<string>(),
     cloverLifecycle: new Map(),
     tileWater: new Map<string, number>(),

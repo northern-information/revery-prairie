@@ -33,6 +33,8 @@ export const ENTITY_TAG_SUGGESTIONS = [
   'meteorite',
   'pickupBloom',
   'reveryCast',
+  'satellite',
+  'satelliteImpact',
   'shootingStar',
   'wildfire',
 ] as const
@@ -79,7 +81,7 @@ export const COMPONENT_META: ComponentMeta[] = [
     type: ComponentType.TimedEffect,
     label: 'TimedEffect',
     fields: [
-      select('kind', ['explosion', 'pickupBloom', 'crumble', 'reveryCast', 'lightning', 'wildfire']),
+      select('kind', ['explosion', 'pickupBloom', 'crumble', 'reveryCast', 'lightning', 'wildfire', 'satelliteImpact']),
       pos('startTime'),
       str('reveryId'),
     ],
@@ -120,6 +122,15 @@ export const COMPONENT_META: ComponentMeta[] = [
       pos('seed'),
       pos('lastBeeSpawnTime'),
       pos('lastCloverGrowTime'),
+    ],
+  },
+  {
+    type: ComponentType.SatelliteData,
+    label: 'SatelliteData',
+    fields: [
+      pos('length'),
+      pos('age'),
+      select('payloadType', ['destructive', 'seeds']),
     ],
   },
 ]

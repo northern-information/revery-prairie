@@ -21,6 +21,7 @@ export const TileType = {
   RuinMachine: 'ruinMachine',
   RuinMachineActive: 'ruinMachineActive',
   RuinHiddenFloor: 'ruinHiddenFloor',
+  Crater: 'crater',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
@@ -201,6 +202,7 @@ export interface GameState {
   tileWater: Map<string, number>
   burnScars: Set<string>
   meteorShower: MeteorShowerState
+  lastSatelliteSpawnTime: number
   lightning: LightningState
   manualDiscoveries: Set<string>
   manualState: ManualState
