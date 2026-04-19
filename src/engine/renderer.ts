@@ -17,6 +17,7 @@ import {
   RUIN_EJECTION_NOTIFICATION_FADE_MS,
   RUIN_EJECTION_SHAKE_AMPLITUDE,
   RUIN_EJECTION_SHAKE_MS,
+  BUILDING_CHARS,
   BURN_SCAR_COLORS,
   CLOVER_BLACK_COLOR,
   CLOVER_BROWN_COLOR,
@@ -76,6 +77,10 @@ import {
   RAIN_AURA_SPEED,
   RIVER_COLOR,
   SAND_COLORS,
+  SATELLITE_HEAD_COLORS,
+  SATELLITE_IMPACT_DURATION_MS,
+  SATELLITE_IMPACT_RADIUS_VISUAL,
+  SATELLITE_TRAIL_COLORS,
   SHOOTING_STAR_HEAD_CHAR,
   SHOOTING_STAR_HEAD_COLOR,
   SHOOTING_STAR_TRAIL_CHARS,
@@ -167,6 +172,8 @@ const _pathPositions = new Set<string>()
 const _waypointPositions = new Set<string>()
 const _hoverPathPositions = new Set<string>()
 const _devPaintPositions = new Set<string>()
+const _satelliteMap = new Map<string, { char: string; color: string }>()
+const _satelliteImpactMap = new Map<string, { char: string; color: string }>()
 const _shootingStarMap = new Map<string, { char: string; color: string }>()
 const _targetedStarMap = new Map<string, { char: string; color: string }>()
 const _meteoritePositions = new Set<string>()
@@ -235,6 +242,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   _waypointPositions.clear()
   _hoverPathPositions.clear()
   _devPaintPositions.clear()
+  _satelliteMap.clear()
+  _satelliteImpactMap.clear()
   _shootingStarMap.clear()
   _targetedStarMap.clear()
   _meteoritePositions.clear()
@@ -259,6 +268,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const waypointPositions = _waypointPositions
   const hoverPathPositions = _hoverPathPositions
   const devPaintPositions = _devPaintPositions
+  const satelliteMap = _satelliteMap
+  const satelliteImpactMap = _satelliteImpactMap
   const shootingStarMap = _shootingStarMap
   const targetedStarMap = _targetedStarMap
   const meteoritePositions = _meteoritePositions
@@ -373,6 +384,64 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         char: trailChar,
         color: SHOOTING_STAR_TRAIL_COLORS[colorIndex],
       })
+    }
+  }
+
+  // Populate satellite pixel maps — render over both space and land
+  for (const eid of state.world.query(ComponentType.SatelliteData, ComponentType.Position, ComponentType.Velocity)) {
+    if (!inZone(eid)) continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const vel = state.world.getComponent(eid, ComponentType.Velocity)
+    const data = state.world.getComponent(eid, ComponentType.SatelliteData)
+    if (!pos || !vel || !data) continue
+    // Head — cycle through BUILDING_CHARS with red palette
+    const headHash = tileHash(pos.x, pos.y)
+    const headChar = BUILDING_CHARS[headHash % BUILDING_CHARS.length]
+    const headColor = SATELLITE_HEAD_COLORS[headHash % SATELLITE_HEAD_COLORS.length]
+    satelliteMap.set(posKey(pos.x, pos.y), { char: headChar, color: headColor })
+    // Trail — BUILDING_CHARS with fading red
+    for (let t = 1; t <= data.length; t++) {
+      const tx = pos.x - vel.dx * t
+      const ty = pos.y - vel.dy * t
+      const th = tileHash(tx, ty)
+      const trailChar = BUILDING_CHARS[th % BUILDING_CHARS.length]
+      const colorIndex = Math.min(t - 1, SATELLITE_TRAIL_COLORS.length - 1)
+      satelliteMap.set(posKey(tx, ty), { char: trailChar, color: SATELLITE_TRAIL_COLORS[colorIndex] })
+    }
+  }
+
+  // Populate satellite impact effect pixels (from ECS)
+  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+    if (!inZone(eid)) continue
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'satelliteImpact') continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+    if (!pos || !effect) continue
+
+    const elapsed = time - effect.startTime
+    const progress = Math.min(elapsed / SATELLITE_IMPACT_DURATION_MS, 1)
+    const currentRadius = Math.floor(progress * SATELLITE_IMPACT_RADIUS_VISUAL)
+    const impactChars = BUILDING_CHARS
+    const impactColors = SATELLITE_HEAD_COLORS
+
+    if (currentRadius === 0) {
+      const ch = impactChars[tileHash(pos.x, pos.y) % impactChars.length]
+      satelliteImpactMap.set(posKey(pos.x, pos.y), { char: ch, color: impactColors[0] })
+    } else {
+      for (let dy = -currentRadius; dy <= currentRadius; dy++) {
+        for (let dx = -currentRadius; dx <= currentRadius; dx++) {
+          if (Math.abs(dx) !== currentRadius && Math.abs(dy) !== currentRadius) continue
+          const ex = pos.x + dx
+          const ey = pos.y + dy
+          if (isInBounds(ex, ey, state.mapWidth, state.mapHeight)) {
+            const h = tileHash(ex, ey)
+            const charIdx = (h + Math.floor(progress * impactChars.length)) % impactChars.length
+            const colorIdx = Math.min(Math.floor(progress * impactColors.length), impactColors.length - 1)
+            satelliteImpactMap.set(posKey(ex, ey), { char: impactChars[charIdx], color: impactColors[colorIdx] })
+          }
+        }
+      }
     }
   }
 
@@ -903,11 +972,20 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         }
 
         const spaceKey = posKey(mx, my)
+        const satellite = satelliteMap.get(spaceKey)
+        if (satellite) {
+          ctx.fillStyle = satellite.color
+          ctx.fillText(satellite.char, px, py)
+        } else if (satelliteImpactMap.has(spaceKey)) {
+          const si = satelliteImpactMap.get(spaceKey)
+          ctx.fillStyle = si?.color ?? '#FF4444'
+          ctx.fillText(si?.char ?? '░', px, py)
+        }
         const shootingStar = shootingStarMap.get(spaceKey) ?? targetedStarMap.get(spaceKey)
-        if (shootingStar) {
+        if (!satellite && !satelliteImpactMap.has(spaceKey) && shootingStar) {
           ctx.fillStyle = shootingStar.color
           ctx.fillText(shootingStar.char, px, py)
-        } else {
+        } else if (!satellite && !satelliteImpactMap.has(spaceKey)) {
           const h = tileHash(mx, my)
           if (h % STAR_DENSITY === 0) {
             const phase = (h >> 8) % STAR_COLORS.length
@@ -1023,6 +1101,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         char = BEE_CHAR
         color = BEE_COLOR
         isEntity = true
+      } else if (satelliteMap.has(tileKey)) {
+        const sat = satelliteMap.get(tileKey)
+        char = sat?.char ?? '░'
+        color = sat?.color ?? '#FF4444'
+      } else if (satelliteImpactMap.has(tileKey)) {
+        const si = satelliteImpactMap.get(tileKey)
+        char = si?.char ?? '░'
+        color = si?.color ?? '#FF4444'
       } else if (explosionMap.has(tileKey)) {
         const ep = explosionMap.get(tileKey)
         char = ep?.char ?? '*'
@@ -1161,6 +1247,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             }
           } else if (tile.type === TileType.Sand) {
             color = SAND_COLORS[tileHash(mx, my) % SAND_COLORS.length]
+          } else if (tile.type === TileType.Crater) {
+            const h = tileHash(mx, my)
+            char = BUILDING_CHARS[h % BUILDING_CHARS.length]
+            const craterColors = ['#8B4513', '#7A3B10', '#6B320D', '#5C290A', '#4D2007']
+            color = craterColors[h % craterColors.length]
           } else {
             color = TILE_COLORS[tile.type]
           }

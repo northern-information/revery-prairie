@@ -44,7 +44,15 @@ export const useKeyboard = ({
   onGift,
   isDraggingRef,
 }: UseKeyboardOptions) => {
-  const [activeScreen, setActiveScreen] = useState<PermacomputerScreen>(null)
+  const [activeScreen, setActiveScreenRaw] = useState<PermacomputerScreen>(null)
+
+  const setActiveScreen = useCallback(
+    (screen: PermacomputerScreen | ((prev: PermacomputerScreen) => PermacomputerScreen)) => {
+      state.panelOpenMoveCount = 0
+      setActiveScreenRaw(screen)
+    },
+    [state]
+  )
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -307,7 +315,7 @@ export const useKeyboard = ({
         }
       }
     },
-    [state, refreshUI, activeScreen, itemInfoRef, onPickup, onDrop, onDialog, onDiscovery, onGift, isDraggingRef]
+    [state, refreshUI, activeScreen, setActiveScreen, itemInfoRef, onPickup, onDrop, onDialog, onDiscovery, onGift, isDraggingRef]
   )
 
   const handleKeyUp = useCallback(

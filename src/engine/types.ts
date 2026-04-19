@@ -21,6 +21,7 @@ export const TileType = {
   RuinMachine: 'ruinMachine',
   RuinMachineActive: 'ruinMachineActive',
   RuinHiddenFloor: 'ruinHiddenFloor',
+  Crater: 'crater',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
@@ -201,6 +202,7 @@ export interface GameState {
   tileWater: Map<string, number>
   burnScars: Set<string>
   meteorShower: MeteorShowerState
+  lastSatelliteSpawnTime: number
   lightning: LightningState
   manualDiscoveries: Set<string>
   manualState: ManualState
@@ -238,6 +240,8 @@ export interface GameState {
   selectionBox: SelectionBox | null
   unitCommands: Map<number, UnitCommand>
   moveOrderMarkers: MoveOrderMarker[]
+  autoHidePanels: boolean
+  panelOpenMoveCount: number
   devPanelOpen: boolean
   devPaintPreview: { x1: number; y1: number; x2: number; y2: number; tileType: string } | null
   devEntityPreview: { x: number; y: number; char: string; color: string } | null

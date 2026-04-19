@@ -1,0 +1,218 @@
+plan:
+  id: satellite-impacts
+  title: 'Add satellite impact events with craters, ghost interactions, and seed payloads'
+  created: '2026-04-18'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: types-and-constants
+    title: 'Add TileType.Crater, SatelliteData component type, and satellite constants'
+    spec_id: satellite-impacts
+    spec_sections:
+      - satellite-spawning
+      - satellite-impact-crater
+      - crater-tile-rendering
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: game-state-fields
+    title: 'Add satellite tracking fields to GameState and createGameState'
+    spec_id: satellite-impacts
+    spec_sections:
+      - satellite-spawning
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - types-and-constants
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: core-satellite-logic
+    title: 'Create satellites.ts with spawn, tick, and impact functions'
+    spec_id: satellite-impacts
+    spec_sections:
+      - satellite-spawning
+      - satellite-descent-visual
+      - satellite-impact-crater
+      - satellite-ghost-destruction
+      - satellite-good-payload
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+      - src/engine/effects.ts
+      - src/engine/position.ts
+      - src/engine/entities.ts
+      - src/engine/items.ts
+      - src/engine/cloverLifecycle.ts
+    output_files:
+      - src/engine/satellites.ts
+    depends_on:
+      - types-and-constants
+      - game-state-fields
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: ghost-crater-avoidance
+    title: 'Modify ghost drift behavior to exclude Crater tiles from movement candidates'
+    spec_id: satellite-impacts
+    spec_sections:
+      - ghost-crater-avoidance
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on:
+      - types-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: game-loop-integration
+    title: 'Register satellite spawn and tick systems in the game loop'
+    spec_id: satellite-impacts
+    spec_sections:
+      - satellite-spawning
+      - satellite-descent-visual
+      - satellite-impact-crater
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/satellites.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - core-satellite-logic
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: crater-lifecycle
+    title: 'Block clover growth on Crater tiles and add soil health damage'
+    spec_id: satellite-impacts
+    spec_sections:
+      - crater-blocks-clover
+      - satellite-impact-crater
+    context_files:
+      - src/engine/cloverLifecycle.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/cloverLifecycle.ts
+    depends_on:
+      - types-and-constants
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/cloverLifecycle.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: renderer-satellite-and-crater
+    title: 'Add satellite descent rendering and crater tile rendering to renderer'
+    spec_id: satellite-impacts
+    spec_sections:
+      - satellite-descent-visual
+      - crater-tile-rendering
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+    depends_on:
+      - types-and-constants
+      - core-satellite-logic
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: cursor-info-and-manual
+    title: 'Add crater sidebar label, satellite cursor info, and manual entry'
+    spec_id: satellite-impacts
+    spec_sections:
+      - satellite-cursor-info
+      - satellite-manual-entry
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/effects.ts
+      - src/engine/manual.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+      - src/engine/effects.ts
+      - src/engine/manual.ts
+    depends_on:
+      - types-and-constants
+      - core-satellite-logic
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, component]
+
+  - id: tests
+    title: 'Write comprehensive tests for satellite spawning, impact, ghost interactions, and payloads'
+    spec_id: satellite-impacts
+    spec_sections:
+      - satellite-spawning
+      - satellite-impact-crater
+      - satellite-ghost-destruction
+      - ghost-crater-avoidance
+      - satellite-good-payload
+      - crater-blocks-clover
+      - satellite-manual-entry
+    context_files:
+      - src/engine/satellites.ts
+      - src/engine/entities.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/shootingStars.test.ts
+      - src/engine/__tests__/ghosts.test.ts
+    output_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+    depends_on:
+      - core-satellite-logic
+      - ghost-crater-avoidance
+      - crater-lifecycle
+      - game-loop-integration
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/satelliteImpacts.test.ts
+    repair: retry
+    tags: [test]

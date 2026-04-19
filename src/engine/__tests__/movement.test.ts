@@ -49,11 +49,15 @@ describe('movePlayer', () => {
   })
 
   it('updates the camera after moving', () => {
+    // Use a small viewport so the player quickly reaches the deadzone edge
     const state = createTestState({ viewportWidth: 10, viewportHeight: 10 })
     clearAroundPlayer(state)
+    // Walk right until the camera pans (player crosses deadzone boundary)
     const camBefore = { ...state.camera }
-    movePlayer(state, 'right')
-    expect(state.camera.x).toBe(camBefore.x + 1)
+    for (let i = 0; i < 10; i++) {
+      movePlayer(state, 'right')
+    }
+    expect(state.camera.x).toBeGreaterThan(camBefore.x)
   })
 
   it('updates playerFacing even when move is blocked', () => {

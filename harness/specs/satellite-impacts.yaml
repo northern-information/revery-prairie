@@ -1,0 +1,231 @@
+id: satellite-impacts
+name: 'Satellite impacts'
+status: planned
+priority: medium
+layer: engine
+source_files:
+  - src/engine/satellites.ts
+  - src/engine/types.ts
+  - src/engine/constants.ts
+  - src/engine/entities.ts
+  - src/engine/effects.ts
+  - src/engine/renderer.ts
+  - src/engine/position.ts
+  - src/engine/movement.ts
+  - src/engine/ecs/types.ts
+  - src/engine/cloverLifecycle.ts
+  - src/engine/__tests__/satelliteImpacts.test.ts
+dependencies: []
+
+behaviors:
+  - id: satellite-spawning
+    description: >
+      Satellites spawn at rare intervals (~180-300s), much rarer than
+      shooting stars. Only one satellite may be active at a time. Spawns
+      from a random edge of the map with slow velocity toward a
+      pre-selected walkable overworld land target. Suppressed in cave
+      zone, during deep time, and during meteor showers.
+    inputs:
+      - 'GameState with currentZone === overworld'
+      - 'Elapsed time since last satellite spawn >= SATELLITE_SPAWN_INTERVAL_MS'
+      - 'No active satellite currently in flight'
+    outputs:
+      - 'New satellite entity created with SatelliteData component'
+    state_changes:
+      - field: world
+        effect: 'new entity with Position, Velocity, Renderable, SatelliteData, EntityTag=satellite, EntityZone=overworld'
+    determinism: probabilistic
+
+  - id: satellite-descent-visual
+    description: >
+      Satellites render as a larger celestial body using civilization
+      ruin glyphs (BUILDING_CHARS) with a red-shifted color palette.
+      Trail is longer than shooting stars (8-12 tiles). Head glyph
+      cycles through BUILDING_CHARS. Trail chars use the same
+      BUILDING_CHARS set, fading from red (#FF4444) to dark red
+      (#661111). Velocity is slower than shooting stars to give a
+      sense of mass.
+    inputs:
+      - 'Active satellite entity with SatelliteData component'
+      - 'Satellite tick interval elapsed'
+    outputs:
+      - 'Satellite position advances by velocity'
+      - 'Trail rendered behind satellite using civ ruin glyphs in red palette'
+    state_changes:
+      - field: satellite entity Position
+        effect: 'advances by Velocity each tick'
+      - field: SatelliteData.age
+        effect: 'incremented each tick'
+    determinism: deterministic
+
+  - id: satellite-impact-crater
+    description: >
+      When a satellite reaches its landing target, it creates a 5x5
+      impact zone centered on the target. All clover and dirt tiles
+      within the zone become Crater tiles. Soil health is reduced by
+      SATELLITE_SOIL_DAMAGE (30) for each affected tile, clamped to
+      minimum 0. Crater tiles are walkable but block clover regrowth.
+      Space, sand, cave entrances, and ruin entrances within the zone
+      are unaffected. A large explosion effect spawns at the impact
+      center.
+    inputs:
+      - 'Satellite entity reaches its landingTarget position'
+    outputs:
+      - 'Satellite entity destroyed'
+      - '5x5 area of tiles converted to Crater'
+      - 'Soil health reduced in impact zone'
+      - 'Large explosion TimedEffect spawned at impact center'
+    state_changes:
+      - field: map
+        effect: 'tiles within 5x5 zone changed to TileType.Crater (dirt and clover only)'
+      - field: soilHealth
+        effect: 'reduced by SATELLITE_SOIL_DAMAGE for each tile in zone, clamped to 0'
+      - field: world
+        effect: 'satellite entity destroyed, explosion TimedEffect entity created'
+    determinism: deterministic
+
+  - id: satellite-ghost-destruction
+    description: >
+      When a satellite impacts, any ghost entities whose position is
+      within the 5x5 impact zone are destroyed. Ghosts are removed from
+      the world entirely (entity destroyed). This check happens at
+      impact time before the explosion effect spawns.
+    inputs:
+      - 'Satellite impact at target position'
+      - 'Ghost entities with positions within 5x5 zone'
+    outputs:
+      - 'Ghost entities within impact zone destroyed'
+    state_changes:
+      - field: world
+        effect: 'ghost entities within impact zone removed via destroyEntity'
+    determinism: deterministic
+
+  - id: ghost-crater-avoidance
+    description: >
+      Ghost drift behavior avoids Crater tiles. When collecting valid
+      neighbor tiles for drift movement, Crater tiles are excluded from
+      the candidate set. Ghosts already on a crater tile (e.g. a crater
+      formed around them) can move off it but never onto one.
+    inputs:
+      - 'Ghost entity drift tick'
+      - 'Neighbor tiles include one or more Crater tiles'
+    outputs:
+      - 'Crater tiles excluded from movement candidates'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: satellite-good-payload
+    description: >
+      Approximately 30% of satellites carry a beneficial payload. When
+      a good satellite impacts, it scatters 2-4 seed items (randomly
+      selected from wildflowerSeeds, tallGrassSeeds, milkweedSeeds) as
+      ground items on walkable tiles within the 5x5 impact zone. Items
+      are placed on Crater tiles that are not already occupied by ground
+      items. The crater damage still occurs — seeds land in the crater.
+    inputs:
+      - 'Satellite impact with payloadType === seeds'
+    outputs:
+      - '2-4 ground item entities created within impact zone'
+    state_changes:
+      - field: world
+        effect: '2-4 groundItem entities with ItemDrop component created at crater positions'
+    determinism: probabilistic
+
+  - id: crater-tile-rendering
+    description: >
+      Crater tiles render using civilization ruin glyphs (BUILDING_CHARS)
+      with a reddish-brown color palette to visually link them to the
+      fallen civilization aesthetic while showing destruction. The glyph
+      and color are deterministic per-tile based on position hash, same
+      pattern as ruin rendering.
+    inputs:
+      - 'Tile at position is TileType.Crater'
+    outputs:
+      - 'Tile rendered with BUILDING_CHARS glyph and reddish-brown color'
+    state_changes: []
+    determinism: deterministic
+
+  - id: crater-blocks-clover
+    description: >
+      Clover cannot grow on Crater tiles. The clover lifecycle system
+      skips Crater tiles when checking for clover growth conditions.
+      This prepares for a future tilling mechanic that will restore
+      craters to dirt.
+    inputs:
+      - 'Clover growth check on a Crater tile'
+    outputs:
+      - 'Growth check skipped, tile remains Crater'
+    state_changes: []
+    determinism: deterministic
+
+  - id: satellite-cursor-info
+    description: >
+      Crater tiles display as "crater" in the sidebar tile type label.
+      Active satellite entities display in the sidebar contents row
+      when hovered. The satellite impact effect displays in the
+      effects row via getTileEffects.
+    inputs:
+      - 'Mouse hover over a Crater tile or satellite entity'
+    outputs:
+      - 'Sidebar displays appropriate label for crater tile or satellite entity'
+    state_changes: []
+    determinism: deterministic
+
+  - id: satellite-manual-entry
+    description: >
+      Satellite impacts are recorded in the prairie manual as an event
+      discovery. Discovery key event:satellite-impact is recorded on
+      first impact witnessed by the player. A manual-only entry
+      describes the phenomenon.
+    inputs:
+      - 'First satellite impact occurs'
+    outputs:
+      - 'event:satellite-impact added to manualDiscoveries'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'event:satellite-impact added to Set'
+    determinism: deterministic
+
+edge_cases:
+  - id: impact-zone-partially-off-map
+    description: 'Satellite target is near map edge so 5x5 zone extends beyond bounds'
+    expected: 'Only in-bounds tiles are affected, out-of-bounds positions skipped'
+  - id: impact-on-player-position
+    description: 'Satellite lands directly on the player tile'
+    expected: 'Crater forms around player, player is not damaged (no health system). Player stands on crater tile.'
+  - id: impact-on-space-or-sand
+    description: 'Some tiles in the 5x5 zone are space or sand'
+    expected: 'Space and sand tiles are unaffected, only dirt and clover convert to crater'
+  - id: impact-on-cave-entrance
+    description: 'Cave entrance tile is within the 5x5 impact zone'
+    expected: 'Cave entrance tile is preserved, not converted to crater'
+  - id: no-room-for-seed-payload
+    description: 'Good satellite payload has no valid empty crater tiles for item placement'
+    expected: 'Fewer items placed (or zero if all tiles occupied), no error'
+  - id: multiple-ghosts-in-zone
+    description: 'Two or more ghosts are within the 5x5 impact zone'
+    expected: 'All ghosts in zone are destroyed'
+  - id: ghost-on-crater-edge
+    description: 'Ghost is surrounded by craters on most sides'
+    expected: 'Ghost only moves to non-crater walkable neighbors, may become trapped (no special escape logic)'
+  - id: satellite-spawns-during-deep-time
+    description: 'Deep time sequence is active when satellite spawn timer fires'
+    expected: 'Satellite spawn suppressed, no satellite created'
+  - id: soil-health-already-zero
+    description: 'Tile in impact zone already has 0 soil health'
+    expected: 'Soil health stays at 0, no negative values'
+
+failure_conditions:
+  - trigger: 'Satellite landing target resolves to non-walkable tile (space, sand, cave wall)'
+    expected: 'Target selection rejects non-walkable tiles at spawn time. If no valid target found, satellite is not spawned.'
+  - trigger: 'Satellite spawn attempted while one is already in flight'
+    expected: 'Spawn blocked, no new satellite created'
+  - trigger: 'Satellite reaches max age without landing (flew off map)'
+    expected: 'Satellite entity destroyed, no impact occurs'
+  - trigger: 'Player is in cave zone when satellite spawns'
+    expected: 'Satellite spawn suppressed entirely while in cave'
+
+verification:
+  test_file: src/engine/__tests__/satelliteImpacts.test.ts
+  test_pattern: 'satellite'
+  command: 'npx vitest run src/engine/__tests__/satelliteImpacts.test.ts'

@@ -602,6 +602,17 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     sourceKind: 'event',
     crossRefs: ['event:angel'],
   },
+  {
+    id: 'event:satellite-impact',
+    name: 'Satellite Impact',
+    category: ManualCategory.Celestial,
+    glyph: '░',
+    glyphColor: '#FF4444',
+    lore: MANUAL_LORE['event:satellite-impact']?.lore ?? 'TODO',
+    hints: MANUAL_LORE['event:satellite-impact']?.hints ?? [],
+    unlockKey: 'event:satellite-impact',
+    sourceKind: 'event',
+  },
 ]
 
 // --- Registry assembly ---

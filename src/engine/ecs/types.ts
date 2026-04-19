@@ -22,6 +22,7 @@ export const ComponentType = {
   EntityZone: 'entityZone',
   HungerTimer: 'hungerTimer',
   AngelData: 'angelData',
+  SatelliteData: 'satelliteData',
 } as const
 
 export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType]
@@ -32,7 +33,14 @@ export interface ComponentDataMap {
   [ComponentType.Renderable]: { char: string; color: string; zIndex: number }
   [ComponentType.Behavior]: CharacterBehavior
   [ComponentType.TimedEffect]: {
-    kind: 'explosion' | 'pickupBloom' | 'crumble' | 'reveryCast' | 'lightning' | 'wildfire'
+    kind:
+      | 'explosion'
+      | 'pickupBloom'
+      | 'crumble'
+      | 'reveryCast'
+      | 'lightning'
+      | 'wildfire'
+      | 'satelliteImpact'
     startTime: number
     reveryId?: string
   }
@@ -65,5 +73,11 @@ export interface ComponentDataMap {
     seed: number
     lastBeeSpawnTime: number
     lastCloverGrowTime: number
+  }
+  [ComponentType.SatelliteData]: {
+    length: number
+    age: number
+    landingTarget: Position
+    payloadType: 'destructive' | 'seeds'
   }
 }
