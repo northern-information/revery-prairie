@@ -203,6 +203,7 @@ export interface GameState {
   burnScars: Set<string>
   meteorShower: MeteorShowerState
   lastSatelliteSpawnTime: number
+  screenShakeUntil: number
   lightning: LightningState
   manualDiscoveries: Set<string>
   manualState: ManualState

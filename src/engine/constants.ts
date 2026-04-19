@@ -131,6 +131,8 @@ export const SATELLITE_IMPACT_DURATION_MS = 800 // larger explosion
 export const SATELLITE_IMPACT_RADIUS_VISUAL = 4 // visual explosion radius
 export const SATELLITE_HEAD_COLORS = ['#FF4444', '#CC3333', '#AA2222'] // red palette
 export const SATELLITE_TRAIL_COLORS = ['#CC3333', '#AA2222', '#882222', '#661111', '#441111'] // red fade
+export const SATELLITE_SHAKE_DURATION_MS = 400
+export const SATELLITE_SHAKE_AMPLITUDE = 4
 
 // lightning
 export const LIGHTNING_TICK_MS = 10_000
