@@ -23,6 +23,7 @@ import {
   LIGHTNING_TICK_MS,
   METEOR_SHOWER_TICK_MS,
   PATH_TICK_MS,
+  SATELLITE_SHAKE_DURATION_MS,
   SATELLITE_SPAWN_TICK_MS,
   SATELLITE_TICK_MS,
   SHOOTING_STAR_SPAWN_TICK_MS,
@@ -371,7 +372,16 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: SATELLITE_TICK_MS,
       zone: 'overworld',
       fn: (state, time) => {
-        tickSatellites(state, time)
+        const impact = tickSatellites(state, time)
+        if (impact && state.currentZone === Zone.Overworld) {
+          const vx = impact.x - state.camera.x
+          const vy = impact.y - state.camera.y
+          const inViewport = vx >= 0 && vx < state.viewportWidth && vy >= 0 && vy < state.viewportHeight
+          if (inViewport) {
+            state.screenShakeUntil = time + SATELLITE_SHAKE_DURATION_MS
+            callbacks.onDiscovery?.('satellite impact!', impact.x, impact.y, '░', '#FF4444')
+          }
+        }
       },
     },
     {

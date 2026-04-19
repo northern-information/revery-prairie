@@ -188,7 +188,8 @@ const scatterSeeds = (state: GameState, center: Position): void => {
   }
 }
 
-export const tickSatellites = (state: GameState, time: number): void => {
+export const tickSatellites = (state: GameState, time: number): Position | null => {
+  let impactPos: Position | null = null
   const satellites = state.world.query(
     ComponentType.SatelliteData,
     ComponentType.Position,
@@ -203,6 +204,7 @@ export const tickSatellites = (state: GameState, time: number): void => {
 
     // Check if satellite reached its target before advancing
     if (pos.x === data.landingTarget.x && pos.y === data.landingTarget.y) {
+      impactPos = { x: data.landingTarget.x, y: data.landingTarget.y }
       applyImpact(state, data.landingTarget, time)
       if (data.payloadType === 'seeds') {
         scatterSeeds(state, data.landingTarget)
@@ -217,6 +219,7 @@ export const tickSatellites = (state: GameState, time: number): void => {
 
     // Check again after moving (in case it just arrived)
     if (pos.x === data.landingTarget.x && pos.y === data.landingTarget.y) {
+      impactPos = { x: data.landingTarget.x, y: data.landingTarget.y }
       applyImpact(state, data.landingTarget, time)
       if (data.payloadType === 'seeds') {
         scatterSeeds(state, data.landingTarget)
@@ -248,4 +251,6 @@ export const tickSatellites = (state: GameState, time: number): void => {
       state.world.destroyEntity(eid)
     }
   }
+
+  return impactPos
 }
