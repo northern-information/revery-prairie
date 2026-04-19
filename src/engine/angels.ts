@@ -15,6 +15,7 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
+import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
 import { CloverStage, TileType, Zone } from './types'
 
@@ -288,11 +289,7 @@ export const tickAngelBeeAura = (state: GameState, time: number): void => {
       if (state.map[oy][ox].type === TileType.Sand) continue
       if (isWaterTile(state, ox, oy)) continue
 
-      const bee = state.world.createEntity()
-      state.world.addComponent(bee, ComponentType.Position, { x: ox, y: oy })
-      state.world.addComponent(bee, ComponentType.EntityTag, 'bee')
-      state.world.addComponent(bee, ComponentType.EntityZone, { zone: Zone.Overworld })
-      state.world.addComponent(bee, ComponentType.HungerTimer, { hungerMs: 0 })
+      spawnBeeOrMonarch(state, ox, oy, Zone.Overworld)
       data.lastBeeSpawnTime = time
       break
     }

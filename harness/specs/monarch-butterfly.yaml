@@ -1,0 +1,201 @@
+id: monarch-butterfly
+name: 'Monarch butterfly'
+status: planned
+priority: medium
+layer: engine
+source_files:
+  - src/engine/monarch.ts
+  - src/engine/entities.ts
+  - src/engine/gameLoop.ts
+  - src/engine/renderer.ts
+  - src/engine/constants.ts
+  - src/engine/types.ts
+  - src/engine/effects.ts
+  - src/engine/cloverLifecycle.ts
+  - src/engine/manual.ts
+  - src/components/Sidebar.tsx
+dependencies:
+  - bee-starvation
+  - clover-lifecycle
+  - tile-water
+  - weather
+
+behaviors:
+  - id: monarch-spawn-during-rain
+    description: >
+      When a bee entity would spawn from any source (bee+clover recipe,
+      angel bee aura, bee item drop) and it is currently raining
+      (state.weather.sky === Sky.Rain), there is a 10% chance the spawned
+      entity becomes a monarch butterfly instead of a bee. The monarch
+      uses EntityTag 'monarch' and is rendered as '*' in orange (#FF8C00).
+      No toast or notification — the player must notice the color change.
+    inputs:
+      - 'Bee spawn event from any source (recipe, angel aura, item drop)'
+      - 'state.weather.sky === Sky.Rain'
+    outputs:
+      - 'Monarch entity created with Position, EntityTag monarch, EntityZone, HungerTimer'
+      - 'Rendered as orange * instead of gold *'
+    state_changes:
+      - field: world
+        effect: 'monarch entity created with tag monarch instead of bee'
+    determinism: probabilistic
+
+  - id: monarch-wandering
+    description: >
+      Monarchs wander identically to bees. They move every BEE_TICK_MS
+      (200ms) with a 30% movement chance. They prefer clover tiles when
+      adjacent, otherwise wander to any walkable neighbor. They use the
+      same hunger system — starving after BEE_STARVATION_MS (30s) without
+      being near clover.
+    inputs:
+      - 'Monarch entity exists in current zone'
+      - 'Tick interval elapsed'
+    outputs:
+      - 'Monarch moves to adjacent tile (clover-preferring)'
+    state_changes:
+      - field: 'world.Position(monarch)'
+        effect: 'updated to adjacent walkable tile'
+      - field: 'world.HungerTimer(monarch)'
+        effect: 'reset to 0 when near clover, incremented otherwise'
+    determinism: probabilistic
+
+  - id: monarch-activation-on-touch
+    description: >
+      When the player walks over a wandering monarch (same tile), instead
+      of being captured to the backpack like a bee, the monarch transitions
+      to spawner mode. The monarch entity gains a MonarchState component
+      set to 'spawning'. A pickup bloom spawns at the player position to
+      signal the interaction. The monarch then pathfinds away from its
+      current position to find a dirt tile with soil health >= 80 within
+      a 30-tile search radius.
+    inputs:
+      - 'Player moves onto tile occupied by a monarch with state wandering'
+    outputs:
+      - 'Monarch enters spawning mode'
+      - 'Pickup bloom spawned at player position'
+    state_changes:
+      - field: 'world.MonarchState(monarch)'
+        effect: 'set to spawning with target search initiated'
+    determinism: deterministic
+
+  - id: monarch-prairie-spawn
+    description: >
+      Once a spawning monarch reaches its target tile (dirt with soil
+      health >= 80), it plants a 10x10 clover patch centered on the
+      target. Only dirt tiles within the 10x10 area are converted to
+      clover. It also heals soil in a 20x20 area centered on the same
+      tile. Soil healing uses a graduating percentage: tiles at the
+      center receive full healing to SOIL_HEALTH_MAX (100), tiles at
+      the edge receive 20% healing. The gradient is linear based on
+      distance from center. After planting, the monarch transitions to
+      idle state and remains in the world as a persistent entity.
+    inputs:
+      - 'Spawning monarch reaches target tile'
+    outputs:
+      - 'Up to 100 dirt tiles converted to clover in 10x10 area'
+      - 'Soil healed in 20x20 area with distance-based gradient'
+      - 'Clover lifecycle entries initialized for new clover tiles'
+      - 'Monarch enters idle state'
+    state_changes:
+      - field: map
+        effect: 'dirt tiles in 10x10 area set to TileType.Clover'
+      - field: cloverLifecycle
+        effect: 'new entries for each planted clover tile (stage: Healthy)'
+      - field: soilHealth
+        effect: 'healed in 20x20 area, gradient from 100% at center to 20% at edge'
+      - field: 'world.MonarchState(monarch)'
+        effect: 'set to idle'
+    determinism: deterministic
+
+  - id: monarch-idle-persistence
+    description: >
+      After planting its prairie, the monarch enters idle state. It
+      continues to wander like a normal bee (clover-preferring, same
+      tick rate) but can no longer be activated by the player. It
+      persists indefinitely and still uses the hunger system. Future
+      feature will allow it to join the player's party.
+    inputs:
+      - 'Monarch in idle state'
+    outputs:
+      - 'Monarch wanders near clover, rendered as orange *'
+    state_changes:
+      - field: 'world.Position(monarch)'
+        effect: 'updated via wandering behavior'
+      - field: 'world.HungerTimer(monarch)'
+        effect: 'standard hunger tracking'
+    determinism: probabilistic
+
+  - id: monarch-cursor-info
+    description: >
+      The sidebar cursor info panel shows 'monarch butterfly' in the
+      contents row when the mouse hovers over a tile occupied by a
+      monarch entity. Follows the same pattern as bee cursor info.
+    inputs:
+      - 'Mouse hovers over tile with monarch entity'
+    outputs:
+      - 'Sidebar contents row shows monarch butterfly label'
+    state_changes: []
+    determinism: deterministic
+
+  - id: monarch-manual-entry
+    description: >
+      Monarchs appear in the prairie manual. Discovery is tracked via
+      manualDiscoveries with key item:monarch. Recorded when the player
+      first touches a monarch (activation event). Manual entry is added
+      to MANUAL_ONLY_ENTRIES since monarchs are not items or recipes.
+    inputs:
+      - 'Player touches a monarch for the first time'
+    outputs:
+      - 'Manual discovery recorded'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'item:monarch added to set'
+    determinism: deterministic
+
+edge_cases:
+  - id: no-healthy-soil-in-range
+    description: >
+      Spawning monarch cannot find a dirt tile with soil health >= 80
+      within the 30-tile search radius
+    expected: >
+      Monarch lowers threshold to 50 and searches again. If still no
+      tile found, monarch returns to wandering state and can be
+      activated again on next player touch.
+  - id: monarch-spawn-outside-rain
+    description: >
+      Bee spawns when it is not raining (sky is sun or cloudy)
+    expected: >
+      Normal bee entity created, never a monarch. Rain check is strict
+      (Sky.Rain only, not cloudy).
+  - id: monarch-starvation-during-spawn
+    description: >
+      Monarch starves while pathfinding to its target tile in spawner mode
+    expected: >
+      Monarch dies like a bee would. Prairie is not planted. Hunger
+      system applies equally to all monarch states.
+  - id: prairie-overlaps-non-dirt
+    description: >
+      The 10x10 planting area includes sand, space, water, burnt clover,
+      or cave tiles
+    expected: >
+      Only dirt tiles are converted to clover. Non-dirt tiles are
+      skipped. The patch may be smaller than 10x10.
+  - id: multiple-monarchs
+    description: >
+      Multiple monarchs exist simultaneously (e.g. multiple rain-spawned bees)
+    expected: >
+      Each monarch operates independently. Multiple prairies can be
+      planted. No global monarch limit.
+
+failure_conditions:
+  - trigger: 'Bee spawns during rain but random roll exceeds 10% threshold'
+    expected: 'Normal bee created, no monarch'
+  - trigger: 'Player walks over an idle (post-spawn) monarch'
+    expected: 'No activation, no capture, monarch continues wandering'
+  - trigger: 'Monarch spawner pathfind target is unreachable (surrounded by non-walkable tiles)'
+    expected: 'Monarch reverts to wandering state after pathfinding failure'
+
+verification:
+  test_file: src/engine/__tests__/monarch.test.ts
+  test_pattern: 'monarch'
+  command: 'npx vitest run src/engine/__tests__/monarch.test.ts'

@@ -263,6 +263,10 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                           return isSelected ? `${name} [selected]` : name
                         }
                       }
+                      const hasMonarchEcs = state.world.spatial
+                        .at(cx, cy)
+                        .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'monarch')
+                      if (hasMonarchEcs) return 'monarch butterfly'
                       const hasBeeEcs = state.world.spatial
                         .at(cx, cy)
                         .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')

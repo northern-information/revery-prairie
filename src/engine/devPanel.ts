@@ -13,6 +13,8 @@ import {
   MAP_WIDTH,
   METEORITE_CHAR,
   METEORITE_COLOR,
+  MONARCH_CHAR,
+  MONARCH_COLOR,
   SATELLITE_MAX_LENGTH,
   SATELLITE_MIN_LENGTH,
 } from './constants'
@@ -35,6 +37,7 @@ export const ENTITY_TAG_SUGGESTIONS = [
   'groundItem',
   'lightning',
   'meteorite',
+  'monarch',
   'pickupBloom',
   'reveryCast',
   'satellite',
@@ -137,6 +140,13 @@ export const COMPONENT_META: ComponentMeta[] = [
       select('payloadType', ['destructive', 'seeds']),
     ],
   },
+  {
+    type: ComponentType.MonarchState,
+    label: 'MonarchState',
+    fields: [
+      select('phase', ['wandering', 'spawning', 'idle']),
+    ],
+  },
 ]
 
 // --- Default values per component ---
@@ -188,6 +198,8 @@ const componentDefaults = (type: ComponentType, now: number, zone: Zone): Record
         lastBeeSpawnTime: 0,
         lastCloverGrowTime: 0,
       }
+    case ComponentType.MonarchState:
+      return { phase: 'wandering', target: null }
     default:
       return {}
   }
@@ -214,6 +226,16 @@ export const DEV_PRESETS: Record<string, DevPreset> = {
       { type: ComponentType.EntityTag, overrides: { value: 'bee' } },
       { type: ComponentType.EntityZone },
       { type: ComponentType.HungerTimer },
+    ],
+  },
+  monarch: {
+    label: 'Monarch Butterfly',
+    components: [
+      { type: ComponentType.Position },
+      { type: ComponentType.EntityTag, overrides: { value: 'monarch' } },
+      { type: ComponentType.EntityZone },
+      { type: ComponentType.HungerTimer },
+      { type: ComponentType.MonarchState },
     ],
   },
   angel: {
@@ -425,6 +447,7 @@ const ENTITY_TAG_GLYPHS: Record<string, { char: string; color: string }> = {
   beehive: { char: BEEHIVE_CHAR, color: BEEHIVE_COLOR },
   character: { char: GHOST_CHAR, color: GHOST_COLOR },
   meteorite: { char: METEORITE_CHAR, color: METEORITE_COLOR },
+  monarch: { char: MONARCH_CHAR, color: MONARCH_COLOR },
   angel: { char: 'A', color: '#FFFFFF' },
   shootingStar: { char: '*', color: '#FFFFFF' },
   explosion: { char: '*', color: '#FFD700' },
