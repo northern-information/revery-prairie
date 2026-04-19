@@ -363,6 +363,19 @@ export const ENTRANCE_GLYPHS = ['Ω', 'Δ', 'Φ', 'Ψ', 'Σ', 'Λ', 'Θ', 'Π', 
 export const getEntranceGlyph = (index: number): string =>
   ENTRANCE_GLYPHS[index % ENTRANCE_GLYPHS.length]
 
+// monarch butterfly
+export const MONARCH_CHAR = '*'
+export const MONARCH_COLOR = '#FF8C00' // dark orange
+export const MONARCH_SPAWN_CHANCE = 0.1 // 10% chance during rain
+export const MONARCH_PRAIRIE_SIZE = 10 // 10x10 clover patch
+export const MONARCH_HEAL_SIZE = 20 // 20x20 soil heal area
+export const MONARCH_HEAL_CENTER_PCT = 1.0 // 100% heal at center
+export const MONARCH_HEAL_EDGE_PCT = 0.2 // 20% heal at edge
+export const MONARCH_SEARCH_RADIUS = 30 // tiles to search for healthy soil
+export const MONARCH_SOIL_THRESHOLD_HIGH = 80 // preferred soil health
+export const MONARCH_SOIL_THRESHOLD_LOW = 50 // fallback soil health
+export const MONARCH_TICK_MS = 200 // same as bees
+
 export const INVENTORY_CELL_SIZE = 28
 
 // ruin ejection sequence

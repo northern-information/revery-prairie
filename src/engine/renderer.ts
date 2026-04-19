@@ -62,6 +62,8 @@ import {
   LIGHTNING_SCREEN_FLASH_OPACITY,
   METEORITE_CHAR,
   METEORITE_COLOR,
+  MONARCH_CHAR,
+  MONARCH_COLOR,
   PICKUP_EFFECT_BLOOM_MS,
   PICKUP_EFFECT_CHARS_FILL,
   PICKUP_EFFECT_CHARS_RING,
@@ -167,6 +169,7 @@ export const getLastCaveVisibleSet = getLastVisibleSet
 // ── Pooled render collections ──
 // Reused every frame to avoid per-frame allocation / GC pressure.
 const _beePositions = new Set<string>()
+const _monarchPositions = new Set<string>()
 const _groundItemMap = new Map<string, { definitionId: string; glinting?: boolean }>()
 const _previewMap = new Map<string, { char: string; color: string; isValid: boolean }>()
 const _pathPositions = new Set<string>()
@@ -241,6 +244,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Clear pooled collections for this frame
   _beePositions.clear()
+  _monarchPositions.clear()
   _groundItemMap.clear()
   _previewMap.clear()
   _pathPositions.clear()
@@ -267,6 +271,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Alias pooled collections for readability
   const beePositions = _beePositions
+  const monarchPositions = _monarchPositions
   const groundItemMap = _groundItemMap
   const previewMap = _previewMap
   const pathPositions = _pathPositions
@@ -311,6 +316,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (!inZone(eid)) continue
     const bpos = state.world.getComponent(eid, ComponentType.Position)
     if (bpos) beePositions.add(posKey(bpos.x, bpos.y))
+  }
+
+  // Populate monarch positions (from ECS)
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'monarch') continue
+    if (!inZone(eid)) continue
+    const mpos = state.world.getComponent(eid, ComponentType.Position)
+    if (mpos) monarchPositions.add(posKey(mpos.x, mpos.y))
   }
 
   // Populate ground item positions (from ECS)
@@ -1102,6 +1115,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       } else if (previewTile) {
         char = previewTile.char
         color = previewTile.color
+      } else if (monarchPositions.has(tileKey)) {
+        char = MONARCH_CHAR
+        color = MONARCH_COLOR
+        isEntity = true
       } else if (beePositions.has(tileKey)) {
         char = BEE_CHAR
         color = BEE_COLOR

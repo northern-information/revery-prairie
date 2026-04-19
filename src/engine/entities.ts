@@ -5,6 +5,7 @@ import { AURA_RADIUS, spawnPickupBloom } from './effects'
 import { tickCreatureHunger } from './hunger'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
 import { recordDiscovery } from './manual'
+import { activateMonarch, spawnBeeOrMonarch } from './monarch'
 import { getBlockedPositions } from './movement'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 import { TileType, Zone } from './types'
@@ -76,6 +77,17 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
       state.world.destroyEntity(eid)
       recordDiscovery(state, 'item:bee')
       pickedUp.push('bee')
+    }
+  }
+
+  // Monarch activation: touching a wandering monarch triggers spawner mode (not capture)
+  if (time !== undefined) {
+    const monarchsAtPlayer = state.world.spatial
+      .at(px, py)
+      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'monarch')
+    for (const eid of monarchsAtPlayer) {
+      activateMonarch(state, eid, time)
+      recordDiscovery(state, 'entity:monarch')
     }
   }
 
@@ -281,11 +293,7 @@ export const dropItem = (state: GameState, definitionId: string): boolean => {
       removeItem(sourceContainer, droppedUid)
       // Bees are released as world entities instead of ground items
       if (definitionId === 'bee') {
-        const e = state.world.createEntity()
-        state.world.addComponent(e, ComponentType.Position, { x: tx, y: ty })
-        state.world.addComponent(e, ComponentType.EntityTag, 'bee')
-        state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
-        state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
+        spawnBeeOrMonarch(state, tx, ty)
       } else {
         const ge = state.world.createEntity()
         state.world.addComponent(ge, ComponentType.Position, { x: tx, y: ty })

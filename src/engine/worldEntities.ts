@@ -14,6 +14,13 @@ const WORLD_ENTITIES = {
     category: 'fauna',
     unlockKey: 'event:beehive-built',
   },
+  monarch: {
+    name: 'Monarch Butterfly',
+    glyph: '*',
+    glyphColor: '#FF8C00',
+    category: 'fauna',
+    unlockKey: 'entity:monarch',
+  },
 } as const satisfies Record<string, WorldEntityEntry>
 
 export interface WorldEntityDefinition extends WorldEntityEntry {

@@ -23,6 +23,7 @@ export const ComponentType = {
   HungerTimer: 'hungerTimer',
   AngelData: 'angelData',
   SatelliteData: 'satelliteData',
+  MonarchState: 'monarchState',
 } as const
 
 export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType]
@@ -79,5 +80,9 @@ export interface ComponentDataMap {
     age: number
     landingTarget: Position
     payloadType: 'destructive' | 'seeds'
+  }
+  [ComponentType.MonarchState]: {
+    phase: 'wandering' | 'spawning' | 'idle'
+    target: Position | null
   }
 }

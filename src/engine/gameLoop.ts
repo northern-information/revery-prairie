@@ -22,6 +22,7 @@ import {
   KEYBOARD_MOVE_TICK_MS,
   LIGHTNING_TICK_MS,
   METEOR_SHOWER_TICK_MS,
+  MONARCH_TICK_MS,
   PATH_TICK_MS,
   SATELLITE_SHAKE_DURATION_MS,
   SATELLITE_SPAWN_TICK_MS,
@@ -39,6 +40,7 @@ import { tickGlintZones } from './glintZones'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { getDefinition } from './items'
 import { spawnLightningStrike, tickLightning } from './lightning'
+import { tickMonarchs } from './monarch'
 import { movePlayer, tickPath } from './movement'
 import { getReveryDefinition } from './reveries'
 import { tickTileWater } from './tileWater'
@@ -274,6 +276,14 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         for (const pos of deaths) {
           callbacks.onBeeDeath?.(pos.x, pos.y)
         }
+      },
+    },
+    {
+      id: 'monarch',
+      intervalMs: MONARCH_TICK_MS,
+      zone: 'overworld',
+      fn: state => {
+        tickMonarchs(state, Zone.Overworld)
       },
     },
     {

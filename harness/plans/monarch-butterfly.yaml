@@ -1,0 +1,219 @@
+plan:
+  id: monarch-butterfly
+  title: 'Add monarch butterfly that spawns during rain and plants prairies'
+  created: 2026-04-18
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: monarch-types
+    title: 'Add MonarchState component type and constants for monarch butterfly'
+    spec_id: monarch-butterfly
+    spec_sections:
+      - monarch-spawn-during-rain
+      - monarch-wandering
+      - monarch-activation-on-touch
+      - monarch-prairie-spawn
+    context_files:
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, types]
+
+  - id: monarch-engine-module
+    title: 'Create src/engine/monarch.ts with spawn logic, wandering, activation, prairie planting, and soil healing'
+    spec_id: monarch-butterfly
+    spec_sections:
+      - monarch-spawn-during-rain
+      - monarch-wandering
+      - monarch-activation-on-touch
+      - monarch-prairie-spawn
+      - monarch-idle-persistence
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/entities.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+      - src/engine/pathfinding.ts
+      - src/engine/cloverLifecycle.ts
+      - src/engine/effects.ts
+      - src/engine/manual.ts
+      - src/engine/hunger.ts
+    output_files:
+      - src/engine/monarch.ts
+    depends_on:
+      - monarch-types
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: monarch-spawn-integration
+    title: 'Hook monarch spawn chance into bee creation sites (recipes, angels, drops)'
+    spec_id: monarch-butterfly
+    spec_sections:
+      - monarch-spawn-during-rain
+    context_files:
+      - src/engine/monarch.ts
+      - src/engine/recipes.ts
+      - src/engine/angels.ts
+      - src/engine/entities.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/recipes.ts
+      - src/engine/angels.ts
+      - src/engine/entities.ts
+    depends_on:
+      - monarch-engine-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: monarch-pickup-integration
+    title: 'Add monarch touch detection to pickUpGroundItems that triggers activation instead of capture'
+    spec_id: monarch-butterfly
+    spec_sections:
+      - monarch-activation-on-touch
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/monarch.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/effects.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on:
+      - monarch-engine-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: monarch-tick-integration
+    title: 'Register monarch tick systems in game loop (wandering, spawner pathfinding, prairie planting)'
+    spec_id: monarch-butterfly
+    spec_sections:
+      - monarch-wandering
+      - monarch-prairie-spawn
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/monarch.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - monarch-engine-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, gameloop]
+
+  - id: monarch-renderer
+    title: 'Add monarch rendering as orange * in the renderer'
+    spec_id: monarch-butterfly
+    spec_sections:
+      - monarch-spawn-during-rain
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - monarch-types
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, renderer]
+
+  - id: monarch-cursor-info
+    title: 'Add monarch butterfly to sidebar cursor info contents row'
+    spec_id: monarch-butterfly
+    spec_sections:
+      - monarch-cursor-info
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - monarch-types
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component, sidebar]
+
+  - id: monarch-manual-entry
+    title: 'Add monarch to MANUAL_ONLY_ENTRIES and MANUAL_LORE with TODO placeholder'
+    spec_id: monarch-butterfly
+    spec_sections:
+      - monarch-manual-entry
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, manual]
+
+  - id: monarch-schema-allowlist
+    title: 'Add any new GameState fields to EXPECTED_FIELDS in schema test'
+    spec_id: monarch-butterfly
+    spec_sections:
+      - monarch-spawn-during-rain
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - monarch-types
+    verification:
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [test, schema]
+
+  - id: monarch-engine-tests
+    title: 'Add monarch unit tests: spawn chance, rain gating, wandering, activation, prairie planting, soil gradient, edge cases'
+    spec_id: monarch-butterfly
+    spec_sections:
+      - monarch-spawn-during-rain
+      - monarch-wandering
+      - monarch-activation-on-touch
+      - monarch-prairie-spawn
+      - monarch-idle-persistence
+    context_files:
+      - src/engine/monarch.ts
+      - src/engine/entities.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/entities.test.ts
+    output_files:
+      - src/engine/__tests__/monarch.test.ts
+    depends_on:
+      - monarch-engine-module
+      - monarch-spawn-integration
+      - monarch-pickup-integration
+      - monarch-tick-integration
+    verification:
+      - 'npx vitest run src/engine/__tests__/monarch.test.ts'
+    repair: retry
+    tags: [test]

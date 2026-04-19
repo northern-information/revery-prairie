@@ -85,6 +85,8 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
       '— emily dickinson',
     ].join('\n'),
   },
+  // Entities
+  'entity:monarch': { lore: 'TODO' },
   // Events
   'event:glint-zone': { lore: 'TODO' },
   'event:angel': { lore: 'TODO' },

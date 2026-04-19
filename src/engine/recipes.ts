@@ -1,5 +1,5 @@
 import { ACTION_COLOR } from './constants'
-import { ComponentType } from './ecs/types'
+import { spawnBeeOrMonarch } from './monarch'
 import { isInBounds, posKey } from './position'
 import { TileType } from './types'
 
@@ -77,11 +77,7 @@ export const RECIPES: Recipe[] = [
         }
       }
 
-      const beeEntity = state.world.createEntity()
-      state.world.addComponent(beeEntity, ComponentType.Position, { x: state.player.x, y: state.player.y })
-      state.world.addComponent(beeEntity, ComponentType.EntityTag, 'bee')
-      state.world.addComponent(beeEntity, ComponentType.EntityZone, { zone: state.currentZone })
-      state.world.addComponent(beeEntity, ComponentType.HungerTimer, { hungerMs: 0 })
+      spawnBeeOrMonarch(state, state.player.x, state.player.y)
       return true
     },
   },

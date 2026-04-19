@@ -4,7 +4,7 @@ import { createCharacterEntity } from '../entities'
 import { createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis, completeGenesis } from '../genesis'
 import { isInBounds } from '../position'
 import { createGameState } from '../state'
-import { TileType } from '../types'
+import { Sky, TileType } from '../types'
 
 import type { Entity } from '../ecs/types'
 import type { GenesisSimState } from '../genesisTypes'
@@ -74,6 +74,8 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   state.cloverLifecycle = new Map()
   state.soilHealth = new Map()
   state.tileWater = new Map()
+  // Ensure no rain so spawnBeeOrMonarch always creates bees in existing tests
+  state.weather.sky = Sky.Sun
   return state
 }
 
