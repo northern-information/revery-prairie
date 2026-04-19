@@ -78,6 +78,7 @@ import {
   RIVER_COLOR,
   SAND_COLORS,
   SATELLITE_HEAD_COLORS,
+  SATELLITE_SHAKE_AMPLITUDE,
   SATELLITE_IMPACT_DURATION_MS,
   SATELLITE_IMPACT_RADIUS_VISUAL,
   SATELLITE_TRAIL_COLORS,
@@ -214,16 +215,20 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   ctx.font = metrics.font
   ctx.textBaseline = 'top'
 
-  // Camera shake — translate entire canvas during deep time lightning strikes
-  // or the first phase of a ruin ejection sequence
+  // Camera shake — translate entire canvas during impacts, deep time, or ruin ejection
   const ejection = state.ruinEjection
   const ejectionElapsed = ejection ? time - ejection.startTime : 0
   const ejectionShake =
     ejection != null && !ejection.exited && ejectionElapsed < RUIN_EJECTION_SHAKE_MS
   const deepTimeShake = state.deepTime?.active === true && time < state.deepTime.shakeUntil
-  const shakeActive = deepTimeShake || ejectionShake
+  const satelliteShake = time < state.screenShakeUntil
+  const shakeActive = deepTimeShake || ejectionShake || satelliteShake
   if (shakeActive) {
-    const amplitude = ejectionShake ? RUIN_EJECTION_SHAKE_AMPLITUDE : DEEP_TIME_SHAKE_AMPLITUDE
+    const amplitude = ejectionShake
+      ? RUIN_EJECTION_SHAKE_AMPLITUDE
+      : satelliteShake
+        ? SATELLITE_SHAKE_AMPLITUDE
+        : DEEP_TIME_SHAKE_AMPLITUDE
     const sx = (Math.random() * 2 - 1) * amplitude
     const sy = (Math.random() * 2 - 1) * amplitude
     ctx.save()

@@ -48,6 +48,7 @@ const EXPECTED_FIELDS = [
   'caveBreakableWallPositions',
   'meteorShower',
   'lastSatelliteSpawnTime',
+  'screenShakeUntil',
   'lightning',
   'cloverGrowthPreviews',
   'cloverLifecycle',

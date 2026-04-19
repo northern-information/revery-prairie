@@ -9,8 +9,12 @@ import {
   LIGHTNING_BOLT_COLOR_BRIGHT,
   LIGHTNING_BOLT_MIN_LENGTH,
   LIGHTNING_BOLT_MAX_LENGTH,
+  MAP_HEIGHT,
+  MAP_WIDTH,
   METEORITE_CHAR,
   METEORITE_COLOR,
+  SATELLITE_MAX_LENGTH,
+  SATELLITE_MIN_LENGTH,
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
@@ -280,6 +284,16 @@ export const DEV_PRESETS: Record<string, DevPreset> = {
       { type: ComponentType.EntityZone },
     ],
   },
+  satellite: {
+    label: 'Satellite',
+    components: [
+      { type: ComponentType.Position },
+      { type: ComponentType.Velocity, overrides: { dx: 1, dy: 1 } },
+      { type: ComponentType.SatelliteData, overrides: { length: 10, age: 0, payloadType: 'destructive' } },
+      { type: ComponentType.EntityTag, overrides: { value: 'satellite' } },
+      { type: ComponentType.EntityZone },
+    ],
+  },
   explosion: {
     label: 'Explosion',
     components: [
@@ -329,6 +343,30 @@ export const spawnDevEntity = (
     if (type === ComponentType.EntityZone) {
       const zone = (values.zone as string | undefined) ?? state.currentZone
       state.world.addComponent(e, ComponentType.EntityZone, { zone: zone as Zone })
+      continue
+    }
+
+    // SatelliteData: drop position becomes the landing target, satellite starts off-screen
+    if (type === ComponentType.SatelliteData) {
+      const length = SATELLITE_MIN_LENGTH + Math.floor(Math.random() * (SATELLITE_MAX_LENGTH - SATELLITE_MIN_LENGTH + 1))
+      const payloadType = (values.payloadType as string) ?? 'destructive'
+      state.world.addComponent(e, ComponentType.SatelliteData, {
+        length,
+        age: 0,
+        landingTarget: { x: position.x, y: position.y },
+        payloadType: payloadType as 'destructive' | 'seeds',
+      })
+      // Override position: trace backward from target to map edge
+      const vel = state.world.getComponent(e, ComponentType.Velocity)
+      const dx = vel?.dx ?? 1
+      const dy = vel?.dy ?? 1
+      let sx = position.x
+      let sy = position.y
+      while (sx >= 0 && sx < MAP_WIDTH && sy >= 0 && sy < MAP_HEIGHT) {
+        sx -= dx
+        sy -= dy
+      }
+      state.world.moveEntity(e, sx, sy)
       continue
     }
 
