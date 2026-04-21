@@ -1,0 +1,100 @@
+id: sidebar-backdrop-continuity
+name: 'Sidebar black backdrop stays opaque through genesis-to-gameplay transition'
+status: partial
+priority: high
+layer: component
+source_files:
+  - src/components/Sidebar.tsx
+  - src/engine/__tests__/genesisTransition.test.ts
+dependencies:
+  - genesis-transition
+
+behaviors:
+  - id: backdrop-persistent-opacity
+    description: >
+      the sidebar's bg-black/70 backdrop must remain at full (CSS) opacity
+      throughout the entire genesis-to-gameplay transition. across all
+      three sidebar render branches — genesis HUD, deep time HUD, and
+      gameplay sidebar — the outer container that paints the black panel
+      renders at opacity 1 at all times. only the inner content (stats
+      table, cursor info, weather, etc.) animates opacity from 0 to 1
+      during the genesisTransition and deepTimeTransition windows.
+      this prevents the visual artifact where the black panel disappears
+      for a frame and fades back in when state.genesis transitions from
+      truthy to null.
+    inputs:
+      - 'state.genesis transitions from truthy to null (completeGenesis fires)'
+      - 'state.genesisTransition is set with startTime and duration'
+    outputs:
+      - 'black backdrop div stays at full opacity with no flicker'
+      - 'inner stats content fades in smoothly from opacity 0 to 1 over ~1000ms'
+    state_changes: []
+    determinism: time-based
+
+  - id: shared-backdrop-shell
+    description: >
+      the outer sidebar container (data-panel="sidebar", bg-black/70,
+      fixed positioning, width w-48, full height) is structurally
+      identical across all three render branches. react treats it as
+      the same element so no unmount/remount occurs at the transition
+      boundary. content-level fade styles apply to a nested wrapper,
+      not the outer backdrop.
+    inputs:
+      - 'Sidebar component renders in genesis, deep time, or gameplay mode'
+    outputs:
+      - 'outer div classes and structure match across all three branches'
+      - 'no opacity style applied to outer div at any time'
+    state_changes: []
+    determinism: deterministic
+
+  - id: content-fade-in
+    description: >
+      during genesisTransition, the gameplay sidebar's inner content
+      wrapper starts at opacity 0 and animates to opacity 1 over
+      GENESIS_TRANSITION_SIDEBAR_DURATION_MS (~1000ms). during
+      deepTimeTransition, the same wrapper fades over
+      DEEP_TIME_TRANSITION_DURATION_MS. outside of either transition
+      window, the content wrapper renders with no opacity style.
+    inputs:
+      - 'gameplay sidebar branch renders (state.genesis is null)'
+      - 'state.genesisTransition or state.deepTimeTransition is truthy'
+    outputs:
+      - 'inner content wrapper has { opacity: 0, animation: fade-in ... forwards } during transition'
+    state_changes: []
+    determinism: time-based
+
+edge_cases:
+  - id: skip-genesis-no-fade
+    description: >
+      when genesis is skipped via ?skipGenesis=true, genesisTransition
+      never fires. the gameplay sidebar renders immediately with no
+      content fade — both backdrop and content at full opacity.
+    expected: 'sidebar renders at full opacity with no fade animation when genesis is skipped'
+
+  - id: transition-cleared-mid-animation
+    description: >
+      the game loop clears genesisTransition to null after the duration
+      elapses. on the next render, the content wrapper no longer applies
+      the fade style. because the animation uses `forwards`, the content
+      stays at opacity 1 without a visual jump.
+    expected: 'content remains visible at opacity 1 after genesisTransition is cleared'
+
+  - id: genesis-hud-backdrop
+    description: >
+      during genesis, the sidebar shows the year/epoch/commentary HUD
+      inside the same black backdrop shell. the backdrop is fully
+      opaque throughout genesis — it only ever becomes the gameplay
+      sidebar's backdrop without ever dropping opacity.
+    expected: 'genesis HUD backdrop is visually identical to gameplay sidebar backdrop'
+
+failure_conditions:
+  - trigger: 'outer sidebar div has style={{ opacity: 0, ... }} during genesisTransition'
+    expected: 'the fade must move to an inner content wrapper; outer backdrop stays opaque'
+
+  - trigger: 'React unmounts and remounts the outer sidebar div across branches'
+    expected: 'branches must share the same outer element structure so React reuses the DOM node'
+
+verification:
+  test_file: src/engine/__tests__/genesisTransition.test.ts
+  test_pattern: 'sidebar flash prevention'
+  command: npx vitest run src/engine/__tests__/genesisTransition.test.ts
