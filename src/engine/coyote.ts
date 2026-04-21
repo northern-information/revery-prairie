@@ -6,6 +6,7 @@ import { getBlockedPositions } from './movement'
 import { findPath } from './pathfinding'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
 import { CoyoteMode, Zone } from './types'
+import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
 import type { GameState, Position } from './types'
@@ -15,8 +16,7 @@ export const findCoyoteEntity = (state: GameState): Entity | null => {
   for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
     if (identity?.definitionId !== 'coyote') continue
-    const ez = state.world.getComponent(eid, ComponentType.EntityZone)
-    if (ez?.zone !== state.currentZone) continue
+    if (!isEntityInCurrentZone(state, eid)) continue
     return eid
   }
   return null
@@ -55,8 +55,7 @@ const findNearestCollectible = (
   let bestDist = Infinity
 
   const consider = (eid: Entity, definitionId: string): void => {
-    const ez = state.world.getComponent(eid, ComponentType.EntityZone)
-    if (ez?.zone !== state.currentZone) return
+    if (!isEntityInCurrentZone(state, eid)) return
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!pos) return
     const dist = Math.abs(pos.x - coyotePos.x) + Math.abs(pos.y - coyotePos.y)
@@ -115,7 +114,7 @@ const dropGroundItemNear = (state: GameState, center: Position, definitionId: st
     const ty = center.y + d.y
     if (!isInBounds(tx, ty, state.mapWidth, state.mapHeight)) continue
     if (!isWalkableTile(state.map[ty][tx].type)) continue
-    const occupied = state.world.spatial.at(tx, ty).some(eid => {
+    const occupied = spatialAtInCurrentZone(state, tx, ty).some(eid => {
       const tag = state.world.getComponent(eid, ComponentType.EntityTag)
       return tag === 'groundItem'
     })
@@ -125,7 +124,7 @@ const dropGroundItemNear = (state: GameState, center: Position, definitionId: st
     state.world.addComponent(ge, ComponentType.Position, { x: tx, y: ty })
     state.world.addComponent(ge, ComponentType.ItemDrop, { definitionId })
     state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
-    state.world.addComponent(ge, ComponentType.EntityZone, { zone: state.currentZone })
+    state.world.addComponent(ge, ComponentType.EntityZone, getCurrentEntityZone(state))
     return true
   }
   return false
@@ -174,7 +173,7 @@ export const summonCoyote = (state: GameState): boolean => {
 
   state.world.moveEntity(eid, adjacent.x, adjacent.y)
   // Update zone in case coyote was in a different zone
-  state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
+  state.world.addComponent(eid, ComponentType.EntityZone, getCurrentEntityZone(state))
   state.coyotePath = null
   return true
 }
@@ -340,8 +339,8 @@ export const transitionCoyoteToZone = (state: GameState, zone: Zone): void => {
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
     if (identity?.definitionId !== 'coyote') continue
 
-    // Update zone
-    state.world.addComponent(eid, ComponentType.EntityZone, { zone })
+    // Update zone — caller has already set state.currentZone/currentRuinIndex
+    state.world.addComponent(eid, ComponentType.EntityZone, getCurrentEntityZone(state))
 
     // Find adjacent walkable tile near player
     const blocked = getBlockedPositions(state, zone)

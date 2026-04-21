@@ -110,6 +110,7 @@ import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
+import { isEntityInCurrentZone } from './zone'
 
 import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState, TransitionFade } from './types'
@@ -238,9 +239,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     ctx.translate(sx, sy)
   }
 
-  // Zone filter helper — only render entities in the current zone
+  // Zone filter helper — only render entities in the current zone (including ruinIndex match)
   const zone = state.currentZone
-  const inZone = (eid: number): boolean => state.world.getComponent(eid, ComponentType.EntityZone)?.zone === zone
+  const inZone = (eid: number): boolean => isEntityInCurrentZone(state, eid)
 
   // Clear pooled collections for this frame
   _beePositions.clear()

@@ -11,12 +11,17 @@ import {
 import { ComponentType } from './ecs/types'
 import { tileHash } from './position'
 import { WindDirection, Zone } from './types'
+import { isEntityInCurrentZone } from './zone'
 
 import type { GameState, Zone as ZoneType } from './types'
 
 const isInRainAura = (state: GameState, zone: ZoneType, x: number, y: number): boolean => {
+  const matchesZone = (eid: number): boolean =>
+    zone === state.currentZone
+      ? isEntityInCurrentZone(state, eid)
+      : state.world.getComponent(eid, ComponentType.EntityZone)?.zone === zone
   for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== zone) continue
+    if (!matchesZone(eid)) continue
     const aura = state.world.getComponent(eid, ComponentType.Aura)
     if (aura?.kind !== 'rain') continue
     const pos = state.world.getComponent(eid, ComponentType.Position)

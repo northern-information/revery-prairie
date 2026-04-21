@@ -7,12 +7,13 @@ import { recordDiscovery } from './manual'
 import { CARDINAL, DIRECTIONS, isInBounds, posKey } from './position'
 import { getReveryDefinition } from './reveries'
 import { TileType, Zone } from './types'
+import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
 
 import type { GameState, ReveryDefinition } from './types'
 
 export const isInteractableAt = (state: GameState, x: number, y: number): boolean => {
   if (
-    state.world.spatial.at(x, y).some(eid => {
+    spatialAtInCurrentZone(state, x, y).some(eid => {
       const tag = state.world.getComponent(eid, ComponentType.EntityTag)
       return tag === 'character'
     })
@@ -67,7 +68,7 @@ export const getAdjacentCharacter = (
   const py = state.player.y
 
   const findCharAt = (x: number, y: number): { definitionId: string; pos: { x: number; y: number } } | null => {
-    for (const eid of state.world.spatial.at(x, y)) {
+    for (const eid of spatialAtInCurrentZone(state, x, y)) {
       if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'character') continue
       const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
       const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -274,7 +275,7 @@ export const breakWall = (state: GameState, time: number): boolean => {
     startTime: time,
   })
   state.world.addComponent(crumbleEntity, ComponentType.EntityTag, 'crumble')
-  state.world.addComponent(crumbleEntity, ComponentType.EntityZone, { zone: state.currentZone })
+  state.world.addComponent(crumbleEntity, ComponentType.EntityZone, getCurrentEntityZone(state))
 
   // Convert breakable wall tiles to CaveFloor
   for (const pos of state.caveBreakableWallPositions) {

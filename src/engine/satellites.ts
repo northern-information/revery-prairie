@@ -18,6 +18,7 @@ import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { isInBounds, isWalkableTile, posKey } from './position'
 import { TileType, Zone } from './types'
+import { spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
 
@@ -161,7 +162,7 @@ const scatterSeeds = (state: GameState, center: Position): void => {
       if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
       if (!isWalkableTile(state.map[y][x].type)) continue
       // Check no ground items already here
-      const entities = state.world.spatial.at(x, y)
+      const entities = spatialAtInCurrentZone(state, x, y)
       const hasGroundItem = entities.some(
         (eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem',
       )

@@ -1,0 +1,173 @@
+plan:
+  id: cross-zone-entity-bleed
+  title: 'Close cross-zone entity bleed: centralize zone helpers, fix producers and consumers'
+  created: 2026-04-21
+  global_verification:
+    - 'npm run build'
+    - 'npm run lint'
+    - 'npm run test'
+
+tasks:
+  - id: zone-helpers
+    title: 'Implement src/engine/zone.ts with getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone'
+    spec_id: cross-zone-entity-bleed
+    spec_sections:
+      - zone-helpers-exist
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ruins.ts
+      - src/engine/ecs/types.ts
+      - src/engine/ecs/spatial.ts
+    output_files:
+      - src/engine/zone.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, helpers]
+
+  - id: migrate-producers
+    title: 'Migrate every EntityZone component creation to use getCurrentEntityZone(state)'
+    spec_id: cross-zone-entity-bleed
+    spec_sections:
+      - producer-contract
+    context_files:
+      - src/engine/zone.ts
+      - src/engine/effects.ts
+      - src/engine/interaction.ts
+      - src/engine/actionBar.ts
+      - src/engine/coyote.ts
+      - src/engine/entities.ts
+      - src/engine/monarch.ts
+      - src/hooks/useCanvasDrop.ts
+    output_files:
+      - src/engine/effects.ts
+      - src/engine/interaction.ts
+      - src/engine/actionBar.ts
+      - src/engine/coyote.ts
+      - src/engine/entities.ts
+      - src/engine/monarch.ts
+      - src/hooks/useCanvasDrop.ts
+    depends_on:
+      - zone-helpers
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, producers]
+
+  - id: migrate-spatial-consumers
+    title: 'Migrate gameplay spatial.at callsites to spatialAtInCurrentZone'
+    spec_id: cross-zone-entity-bleed
+    spec_sections:
+      - consumer-contract-spatial
+      - moab-isolation
+      - cross-ruin-isolation
+    context_files:
+      - src/engine/zone.ts
+      - src/engine/interaction.ts
+      - src/engine/actionBar.ts
+      - src/engine/entities.ts
+      - src/engine/coyote.ts
+      - src/engine/satellites.ts
+      - src/engine/clover.ts
+      - src/engine/celestial.ts
+      - src/engine/effects.ts
+      - src/hooks/useCanvasDrop.ts
+    output_files:
+      - src/engine/interaction.ts
+      - src/engine/actionBar.ts
+      - src/engine/entities.ts
+      - src/engine/coyote.ts
+      - src/engine/satellites.ts
+      - src/engine/clover.ts
+      - src/engine/celestial.ts
+      - src/engine/effects.ts
+      - src/hooks/useCanvasDrop.ts
+    depends_on:
+      - zone-helpers
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, consumers]
+
+  - id: migrate-query-consumers
+    title: 'Migrate ECS query zone filters to isEntityInCurrentZone'
+    spec_id: cross-zone-entity-bleed
+    spec_sections:
+      - consumer-contract-queries
+      - cross-ruin-isolation
+    context_files:
+      - src/engine/zone.ts
+      - src/engine/renderer.ts
+      - src/engine/movement.ts
+      - src/engine/entities.ts
+      - src/engine/monarch.ts
+      - src/engine/effects.ts
+      - src/engine/selection.ts
+      - src/engine/tileWater.ts
+      - src/engine/actionBar.ts
+    output_files:
+      - src/engine/renderer.ts
+      - src/engine/movement.ts
+      - src/engine/entities.ts
+      - src/engine/monarch.ts
+      - src/engine/effects.ts
+      - src/engine/selection.ts
+      - src/engine/tileWater.ts
+      - src/engine/actionBar.ts
+    depends_on:
+      - zone-helpers
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, consumers]
+
+  - id: zone-isolation-regression-tests
+    title: 'Write regression tests for Moab isolation, cross-ruin isolation, and producer correctness'
+    spec_id: cross-zone-entity-bleed
+    spec_sections:
+      - moab-isolation
+      - cross-ruin-isolation
+      - producer-contract
+      - consumer-contract-spatial
+      - consumer-contract-queries
+    context_files:
+      - src/engine/zone.ts
+      - src/engine/interaction.ts
+      - src/engine/entities.ts
+      - src/engine/actionBar.ts
+      - src/engine/movement.ts
+      - src/engine/state.ts
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+      - src/engine/__tests__/visibility.test.ts
+      - src/engine/__tests__/moab-colde.test.ts
+    output_files:
+      - src/engine/__tests__/zoneIsolation.test.ts
+    depends_on:
+      - migrate-producers
+      - migrate-spatial-consumers
+      - migrate-query-consumers
+    verification:
+      - 'npx vitest run src/engine/__tests__/zoneIsolation.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: verify-full
+    title: 'Run full verification (typecheck + lint + test)'
+    spec_id: cross-zone-entity-bleed
+    spec_sections:
+      - zone-helpers-exist
+      - producer-contract
+      - consumer-contract-spatial
+      - consumer-contract-queries
+      - moab-isolation
+      - cross-ruin-isolation
+    context_files: []
+    output_files: []
+    depends_on:
+      - zone-isolation-regression-tests
+    verification:
+      - 'npm run verify'
+    repair: retry
+    tags: [verification]

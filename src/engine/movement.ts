@@ -6,8 +6,17 @@ import { updateFacingEntity } from './interaction'
 import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { TileType, Zone } from './types'
+import { isEntityInCurrentZone } from './zone'
 
 import type { Direction, GameState, Position } from './types'
+
+// Filter matching the current zone (with ruinIndex) when zone arg is omitted
+// or matches state.currentZone; otherwise falls back to zone-only comparison
+// for callers that ask about a different zone than the active one.
+const inZoneForBlocking = (state: GameState, eid: number, zone: Zone): boolean => {
+  if (zone === state.currentZone) return isEntityInCurrentZone(state, eid)
+  return state.world.getComponent(eid, ComponentType.EntityZone)?.zone === zone
+}
 
 export const getBlockedPositions = (
   state: GameState,
@@ -17,7 +26,7 @@ export const getBlockedPositions = (
   const z = zone ?? state.currentZone
   const set = new Set<string>()
   for (const eid of state.world.query(ComponentType.Blocking, ComponentType.Position)) {
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== z) continue
+    if (!inZoneForBlocking(state, eid, z)) continue
     if (opts?.ignoreCoyote) {
       const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
       if (identity?.definitionId === 'coyote') continue
@@ -29,7 +38,7 @@ export const getBlockedPositions = (
   }
   // Angel body tiles block movement
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.MultiPosition)) {
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== z) continue
+    if (!inZoneForBlocking(state, eid, z)) continue
     const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
     if (!multi) continue
     for (const p of multi.positions) {

@@ -21,6 +21,7 @@ import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { isInBounds, isWalkableTile, posKey } from './position'
 import { TileType, Zone } from './types'
+import { spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
 
@@ -30,7 +31,7 @@ const CHAIN_EXPLOSION_COUNT = 3
 
 const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
   if (state.player.x === x && state.player.y === y) return true
-  if (state.world.spatial.at(x, y).length > 0) return true
+  if (spatialAtInCurrentZone(state, x, y).length > 0) return true
   return false
 }
 

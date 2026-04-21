@@ -28,6 +28,7 @@ import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { getReveryDefinition } from './reveries'
 import { addReveryIllumination } from './visibility'
 import { TileType, Zone } from './types'
+import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { ActionBarSlot, GameState, Position } from './types'
 
@@ -58,7 +59,7 @@ const canCastAtTile = (state: GameState, pos: Position): boolean => {
   if (!isWalkableTile(state.map[pos.y][pos.x].type)) return false
 
   // Block casting on tiles occupied by characters
-  for (const eid of state.world.spatial.at(pos.x, pos.y)) {
+  for (const eid of spatialAtInCurrentZone(state, pos.x, pos.y)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) === 'character') return false
   }
   return true
@@ -130,7 +131,7 @@ const applyReveryCastEffects = (state: GameState, reveryId: string, positions: P
           })
           state.world.addComponent(we, ComponentType.TimedEffect, { kind: 'wildfire', startTime: now })
           state.world.addComponent(we, ComponentType.EntityTag, 'wildfire')
-          state.world.addComponent(we, ComponentType.EntityZone, { zone: state.currentZone })
+          state.world.addComponent(we, ComponentType.EntityZone, getCurrentEntityZone(state))
           recordDiscovery(state, 'event:wildfire')
         }
       }
@@ -170,7 +171,7 @@ export const activateActionBarSlot = (state: GameState, slotIndex: number, now: 
         reveryId: slot.id,
       })
       state.world.addComponent(eid, ComponentType.EntityTag, 'reveryCast')
-      state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
+      state.world.addComponent(eid, ComponentType.EntityZone, getCurrentEntityZone(state))
 
       recordDiscovery(state, 'event:earth-revery')
 
@@ -202,7 +203,7 @@ export const activateActionBarSlot = (state: GameState, slotIndex: number, now: 
       reveryId: slot.id,
     })
     state.world.addComponent(eid, ComponentType.EntityTag, 'reveryCast')
-    state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
+    state.world.addComponent(eid, ComponentType.EntityZone, getCurrentEntityZone(state))
 
     return true
   }
@@ -222,8 +223,7 @@ export const isValidLightningTarget = (state: GameState, target: Position): bool
 
   // Check characters at target position (same zone)
   for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
-    const zone = state.world.getComponent(eid, ComponentType.EntityZone)
-    if (zone?.zone !== state.currentZone) continue
+    if (!isEntityInCurrentZone(state, eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (pos && posKey(pos.x, pos.y) === targetKey) return false
   }
@@ -232,8 +232,7 @@ export const isValidLightningTarget = (state: GameState, target: Position): bool
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'bee' && tag !== 'beehive') continue
-    const zone = state.world.getComponent(eid, ComponentType.EntityZone)
-    if (zone?.zone !== state.currentZone) continue
+    if (!isEntityInCurrentZone(state, eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (pos && posKey(pos.x, pos.y) === targetKey) return false
   }
@@ -286,7 +285,7 @@ export const castLightningAtTarget = (state: GameState, target: Position, slotIn
   state.world.addComponent(eid, ComponentType.TimedEffect, { kind: 'lightning', startTime: now })
   state.world.addComponent(eid, ComponentType.LightningData, { path, branch })
   state.world.addComponent(eid, ComponentType.EntityTag, 'lightning')
-  state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
+  state.world.addComponent(eid, ComponentType.EntityZone, getCurrentEntityZone(state))
 
   // Set cooldown
   slot.cooldownEndTime = now + def.cooldownMs
@@ -324,7 +323,7 @@ export const castLightningAtTarget = (state: GameState, target: Position, slotIn
     })
     state.world.addComponent(we, ComponentType.TimedEffect, { kind: 'wildfire', startTime: now })
     state.world.addComponent(we, ComponentType.EntityTag, 'wildfire')
-    state.world.addComponent(we, ComponentType.EntityZone, { zone: state.currentZone })
+    state.world.addComponent(we, ComponentType.EntityZone, getCurrentEntityZone(state))
     recordDiscovery(state, 'event:wildfire')
   }
 
