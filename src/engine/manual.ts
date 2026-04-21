@@ -72,6 +72,12 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'character:gron': { lore: 'TODO' },
   'character:moab': { lore: 'TODO' },
   'character:coyote': { lore: 'TODO' },
+  // Zones
+  'zone:ruin-subsidence': { lore: 'TODO' },
+  'zone:ruin-dormant-garden': { lore: 'TODO' },
+  'zone:ruin-haunted-threshold': { lore: 'TODO' },
+  'zone:ruin-resonance': { lore: 'TODO' },
+  'event:cave-fog': { lore: 'TODO' },
   // Recipes
   'recipe:bee+clover': {
     lore: [
@@ -91,6 +97,7 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'event:glint-zone': { lore: 'TODO' },
   'event:angel': { lore: 'TODO' },
   'event:angel-canto': { lore: 'TODO' },
+  'event:satellite-impact': { lore: 'TODO' },
 }
 
 // --- Lore lookup for UI components ---
