@@ -1,6 +1,6 @@
 id: camera-deadzone
 name: 'Camera deadzone'
-status: planned
+status: implemented
 priority: high
 layer: engine
 source_files:

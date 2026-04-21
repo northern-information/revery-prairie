@@ -43,7 +43,8 @@ behaviors:
       Trail is longer than shooting stars (8-12 tiles). Head glyph
       cycles through BUILDING_CHARS. Trail chars use the same
       BUILDING_CHARS set, fading from red (#FF4444) to dark red
-      (#661111). Velocity is slower than shooting stars to give a
+      (#661111). Movement uses a tick interval
+      (SATELLITE_TICK_MS) longer than shooting stars to give a
       sense of mass.
     inputs:
       - 'Active satellite entity with SatelliteData component'
