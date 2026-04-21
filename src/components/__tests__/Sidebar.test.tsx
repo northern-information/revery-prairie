@@ -108,6 +108,12 @@ describe('Sidebar', () => {
   it('shows bee count after combining', () => {
     const state = createGameState('Test', 20, 20)
     completeGenesis(state)
+    // Ensure 3x3 around player is dirt so combine succeeds on small maps
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
+      }
+    }
     combineBeeAndClover(state)
     render(
       <Sidebar
