@@ -58,6 +58,7 @@ const EXPECTED_FIELDS = [
   'rivers',
   'tileWater',
   'burnScars',
+  'craters',
   'manualDiscoveries',
   'manualState',
   'reveries',

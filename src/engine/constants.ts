@@ -37,7 +37,6 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.RuinMachine]: '⚡',
   [TileType.RuinMachineActive]: '⚡',
   [TileType.RuinHiddenFloor]: '.',
-  [TileType.Crater]: '░',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -60,7 +59,6 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.RuinMachine]: '#B87333',
   [TileType.RuinMachineActive]: '#FFD700',
   [TileType.RuinHiddenFloor]: '#7A7A6E',
-  [TileType.Crater]: '#8B4513',
 }
 
 // Ruin visual palette — shared with genesis civilization rendering

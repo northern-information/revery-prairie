@@ -5,8 +5,10 @@ import {
   SATELLITE_SOIL_DAMAGE,
 } from '../constants'
 import { ComponentType } from '../ecs/types'
+import { getTileEffects } from '../effects'
 import { tickCharacterBehaviors } from '../entities'
-import { isWalkableTile, posKey } from '../position'
+import { posKey } from '../position'
+import { findRecipe } from '../recipes'
 import { spawnSatellite, tickSatellites } from '../satellites'
 import { createGameState } from '../state'
 import { TileType, Zone } from '../types'
@@ -209,7 +211,7 @@ describe('satellite movement', () => {
 })
 
 describe('satellite impact', () => {
-  it('creates crater tiles in 5x5 zone on landing', () => {
+  it('marks tiles in 5x5 zone as craters on landing (tile type unchanged)', () => {
     const state = makeState()
     const target = { x: 20, y: 15 }
     clearArea(state, target.x, target.y, 5)
@@ -222,17 +224,19 @@ describe('satellite impact', () => {
 
     tickSatellites(state, 1000)
 
-    // Check tiles in the 5x5 zone are craters
+    // Check tiles in the 5x5 zone are in state.craters and still Dirt
     const r = SATELLITE_IMPACT_RADIUS
     let craterCount = 0
     for (let dy = -r; dy <= r; dy++) {
       for (let dx = -r; dx <= r; dx++) {
-        const tile = state.map[target.y + dy][target.x + dx]
-        if (tile.type === TileType.Crater) craterCount++
+        const tx = target.x + dx
+        const ty = target.y + dy
+        if (state.craters.has(posKey(tx, ty))) craterCount++
       }
     }
     expect(craterCount).toBeGreaterThan(0)
-    expect(state.map[target.y][target.x].type).toBe(TileType.Crater)
+    expect(state.craters.has(posKey(target.x, target.y))).toBe(true)
+    expect(state.map[target.y][target.x].type).toBe(TileType.Dirt)
   })
 
   it('reduces soil health in impact zone', () => {
@@ -285,7 +289,7 @@ describe('satellite impact', () => {
     expect(state.map[ty + 1][tx].type).toBe(TileType.CaveEntrance)
   })
 
-  it('converts clover tiles to crater', () => {
+  it('marks clover tiles as craters without changing their tile type', () => {
     const state = makeState()
     const target = { x: 20, y: 15 }
     clearArea(state, target.x, target.y, 5)
@@ -294,7 +298,8 @@ describe('satellite impact', () => {
     createSatelliteEntity(state, { pos: target, landingTarget: target })
     tickSatellites(state, 1000)
 
-    expect(state.map[target.y][target.x + 1].type).toBe(TileType.Crater)
+    expect(state.map[target.y][target.x + 1].type).toBe(TileType.Clover)
+    expect(state.craters.has(posKey(target.x + 1, target.y))).toBe(true)
   })
 
   it('spawns satellite impact timed effect', () => {
@@ -334,7 +339,8 @@ describe('satellite impact', () => {
     expect(() => {
       tickSatellites(state, 1000)
     }).not.toThrow()
-    expect(state.map[target.y][target.x].type).toBe(TileType.Crater)
+    expect(state.craters.has(posKey(target.x, target.y))).toBe(true)
+    expect(state.map[target.y][target.x].type).toBe(TileType.Dirt)
   })
 })
 
@@ -399,9 +405,9 @@ describe('ghost crater avoidance', () => {
       { x: -1, y: -1 },
       { x: 1, y: -1 },
       { x: -1, y: 1 },
-      // leave (1, 1) as dirt — the only escape
+      // leave (1, 1) as uncratered dirt — the only escape
     ]) {
-      state.map[gy + d.y][gx + d.x] = { type: TileType.Crater }
+      state.craters.add(posKey(gx + d.x, gy + d.y))
     }
 
     // Create ghost at gx, gy with 100% move chance
@@ -491,19 +497,69 @@ describe('satellite payload', () => {
   })
 })
 
-describe('crater tile properties', () => {
-  it('crater tiles are walkable', () => {
-    expect(isWalkableTile(TileType.Crater)).toBe(true)
+describe('crater effect semantics', () => {
+  it('cratered tiles are still walkable dirt', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    expect(state.map[target.y][target.x].type).toBe(TileType.Dirt)
+    expect(state.craters.has(posKey(target.x, target.y))).toBe(true)
   })
 
-  it('clover does not grow on crater tiles', () => {
-    // Crater is not TileType.Dirt, so computeGrowthFront skips it
+  it('hovering a cratered tile surfaces "crater" via getTileEffects', () => {
     const state = makeState()
-    state.map[15][20] = { type: TileType.Crater }
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
 
-    // The growth front check only adds Dirt tiles as candidates
-    // This is implicitly tested — crater tiles are never Dirt
-    expect(state.map[15][20].type).toBe(TileType.Crater)
-    expect(state.map[15][20].type).not.toBe(TileType.Dirt)
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    const effects = getTileEffects(state, target.x, target.y)
+    expect(effects).toContain('crater')
+  })
+
+  it('soil health on a cratered dirt tile remains readable via map key', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+
+    const key = posKey(target.x, target.y)
+    state.soilHealth.set(key, 80)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    // Tile type is still Dirt (so Sidebar renders the soil row) and soil value is damaged
+    expect(state.map[target.y][target.x].type).toBe(TileType.Dirt)
+    expect(state.soilHealth.get(key)).toBe(80 - SATELLITE_SOIL_DAMAGE)
+  })
+
+  it('planting clover on a cratered tile preserves the crater entry', () => {
+    const state = makeState()
+    const target = { x: 20, y: 15 }
+    clearArea(state, target.x, target.y, 5)
+    // Move player to the impact center so the prairie combine runs there
+    state.player.x = target.x
+    state.player.y = target.y
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    const key = posKey(target.x, target.y)
+    expect(state.craters.has(key)).toBe(true)
+
+    const recipe = findRecipe('bee', 'clover')
+    expect(recipe).not.toBeNull()
+    if (!recipe) return
+    const ok = recipe.execute(state)
+    expect(ok).toBe(true)
+
+    // Tile becomes Clover; crater entry persists beneath it
+    expect(state.map[target.y][target.x].type).toBe(TileType.Clover)
+    expect(state.craters.has(key)).toBe(true)
   })
 })

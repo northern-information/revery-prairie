@@ -125,13 +125,13 @@ const applyImpact = (state: GameState, center: Position, time: number): void => 
       const tile = state.map[y][x]
       if (PROTECTED_TILES.has(tile.type)) continue
 
-      // Only convert dirt and clover to crater
+      // Mark the tile as cratered (persistent effect; tile type is unchanged)
+      const key = posKey(x, y)
       if (tile.type === TileType.Dirt || tile.type === TileType.Clover) {
-        tile.type = TileType.Crater
+        state.craters.add(key)
       }
 
       // Reduce soil health for all non-protected tiles in zone
-      const key = posKey(x, y)
       const current = state.soilHealth.get(key) ?? 50
       state.soilHealth.set(key, Math.max(0, current - SATELLITE_SOIL_DAMAGE))
     }

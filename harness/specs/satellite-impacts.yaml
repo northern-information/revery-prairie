@@ -1,6 +1,6 @@
 id: satellite-impacts
 name: 'Satellite impacts'
-status: planned
+status: implemented
 priority: medium
 layer: engine
 source_files:
@@ -61,23 +61,26 @@ behaviors:
   - id: satellite-impact-crater
     description: >
       When a satellite reaches its landing target, it creates a 5x5
-      impact zone centered on the target. All clover and dirt tiles
-      within the zone become Crater tiles. Soil health is reduced by
+      impact zone centered on the target. Dirt and clover tiles within
+      the zone are added to state.craters as a persistent effect —
+      their tile types are NOT changed. Soil health is reduced by
       SATELLITE_SOIL_DAMAGE (30) for each affected tile, clamped to
-      minimum 0. Crater tiles are walkable but block clover regrowth.
-      Space, sand, cave entrances, and ruin entrances within the zone
-      are unaffected. A large explosion effect spawns at the impact
-      center.
+      minimum 0. Cratered tiles remain walkable dirt (or clover) and
+      clover may still be planted on them; the crater marker persists
+      beneath. Space, sand, cave entrances, and ruin entrances within
+      the zone are unaffected. A large explosion effect spawns at the
+      impact center. See satellite-crater-as-effect for the full
+      crater-as-effect model.
     inputs:
       - 'Satellite entity reaches its landingTarget position'
     outputs:
       - 'Satellite entity destroyed'
-      - '5x5 area of tiles converted to Crater'
+      - 'posKeys for dirt/clover tiles in 5x5 zone added to state.craters'
       - 'Soil health reduced in impact zone'
       - 'Large explosion TimedEffect spawned at impact center'
     state_changes:
-      - field: map
-        effect: 'tiles within 5x5 zone changed to TileType.Crater (dirt and clover only)'
+      - field: craters
+        effect: 'posKey added for each dirt/clover tile in 5x5 zone'
       - field: soilHealth
         effect: 'reduced by SATELLITE_SOIL_DAMAGE for each tile in zone, clamped to 0'
       - field: world
@@ -102,15 +105,16 @@ behaviors:
 
   - id: ghost-crater-avoidance
     description: >
-      Ghost drift behavior avoids Crater tiles. When collecting valid
-      neighbor tiles for drift movement, Crater tiles are excluded from
-      the candidate set. Ghosts already on a crater tile (e.g. a crater
-      formed around them) can move off it but never onto one.
+      Ghost drift behavior avoids cratered tiles. When collecting valid
+      neighbor tiles for drift movement, tiles whose posKey is in
+      state.craters are excluded from the candidate set. Ghosts already
+      on a cratered tile (e.g. a crater formed around them) can move
+      off it but never onto one.
     inputs:
       - 'Ghost entity drift tick'
-      - 'Neighbor tiles include one or more Crater tiles'
+      - 'One or more neighbor posKeys are in state.craters'
     outputs:
-      - 'Crater tiles excluded from movement candidates'
+      - 'Cratered neighbors excluded from movement candidates'
     state_changes: []
     determinism: probabilistic
 
@@ -133,41 +137,48 @@ behaviors:
 
   - id: crater-tile-rendering
     description: >
-      Crater tiles render using civilization ruin glyphs (BUILDING_CHARS)
-      with a reddish-brown color palette to visually link them to the
-      fallen civilization aesthetic while showing destruction. The glyph
-      and color are deterministic per-tile based on position hash, same
-      pattern as ruin rendering.
+      Cratered dirt tiles render using civilization ruin glyphs
+      (BUILDING_CHARS) with a reddish-brown color palette, visually
+      linking them to the fallen civilization aesthetic. The glyph
+      and color are deterministic per-tile based on position hash.
+      The renderer keys this appearance off state.craters.has(tileKey)
+      while the tile itself remains TileType.Dirt. Cratered clover
+      tiles render as clover (the plant covers the scar); the crater
+      effect is still reported via the sidebar.
     inputs:
-      - 'Tile at position is TileType.Crater'
+      - 'Tile at position is TileType.Dirt and posKey is in state.craters'
     outputs:
       - 'Tile rendered with BUILDING_CHARS glyph and reddish-brown color'
     state_changes: []
     determinism: deterministic
 
-  - id: crater-blocks-clover
+  - id: crater-allows-clover
     description: >
-      Clover cannot grow on Crater tiles. The clover lifecycle system
-      skips Crater tiles when checking for clover growth conditions.
-      This prepares for a future tilling mechanic that will restore
-      craters to dirt.
+      Cratered tiles are regular dirt as far as clover growth is
+      concerned — clover can be planted on them and may grow on them.
+      The crater marker is a soil-condition effect, not a growth
+      barrier. Low soil health naturally discourages clover survival
+      without requiring the lifecycle system to special-case craters.
     inputs:
-      - 'Clover growth check on a Crater tile'
+      - 'Clover growth check on a cratered dirt tile'
     outputs:
-      - 'Growth check skipped, tile remains Crater'
+      - 'Growth check proceeds as for any dirt tile'
     state_changes: []
     determinism: deterministic
 
   - id: satellite-cursor-info
     description: >
-      Crater tiles display as "crater" in the sidebar tile type label.
-      Active satellite entities display in the sidebar contents row
-      when hovered. The satellite impact effect displays in the
-      effects row via getTileEffects.
+      Cratered tiles display their underlying tile type ("dirt" or
+      "clover") as the sidebar tile-type label. The persistent
+      "crater" effect appears in the sidebar effects row via
+      getTileEffects when state.craters.has(posKey). Active satellite
+      entities display in the sidebar contents row when hovered, and
+      the short-lived "satellite impact" explosion also appears in the
+      effects row during its lifetime.
     inputs:
-      - 'Mouse hover over a Crater tile or satellite entity'
+      - 'Mouse hover over a cratered tile or satellite entity'
     outputs:
-      - 'Sidebar displays appropriate label for crater tile or satellite entity'
+      - 'Sidebar tile-type label shows dirt/clover; effects row includes crater'
     state_changes: []
     determinism: deterministic
 

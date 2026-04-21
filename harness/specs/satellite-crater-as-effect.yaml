@@ -1,0 +1,178 @@
+id: satellite-crater-as-effect
+name: 'Satellite craters are a dirt-tile effect, not a tile type'
+status: partial
+priority: high
+layer: engine
+source_files:
+  - src/engine/satellites.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/renderer.ts
+  - src/engine/effects.ts
+  - src/engine/entities.ts
+  - src/engine/recipes.ts
+  - src/components/Sidebar.tsx
+  - src/harness/__tests__/serialization/schema.test.ts
+  - src/engine/__tests__/satelliteImpacts.test.ts
+  - src/engine/__tests__/combine.test.ts
+dependencies:
+  - satellite-impacts
+
+behaviors:
+  - id: crater-is-effect-on-dirt
+    description: >
+      When a satellite impacts, affected tiles remain TileType.Dirt (or
+      TileType.Clover if clover was present). Each affected tile's posKey
+      is added to a new state.craters Set<string>. The tile type itself
+      is never changed to a dedicated crater type. Space, sand, cave
+      entrances, ruin entrances, and walls are excluded from the crater
+      set (same protections as before).
+    inputs:
+      - 'Satellite entity reaches its landingTarget position'
+      - 'Tile within 5x5 impact zone is not protected (not space/sand/walls/entrances)'
+    outputs:
+      - 'Tile type remains Dirt or Clover'
+      - 'posKey for the tile added to state.craters'
+      - 'Soil health reduced by SATELLITE_SOIL_DAMAGE (unchanged)'
+    state_changes:
+      - field: craters
+        effect: 'posKey for each affected tile added to Set'
+      - field: map
+        effect: 'no tile type conversion (tiles remain Dirt or Clover)'
+      - field: soilHealth
+        effect: 'reduced by SATELLITE_SOIL_DAMAGE for each tile in zone, clamped to 0'
+    determinism: deterministic
+
+  - id: crater-persists-through-planting
+    description: >
+      When the player plants clover on a cratered dirt tile (e.g. via
+      bee+clover combine), the tile becomes Clover but the crater entry
+      in state.craters is NOT removed. The pollution persists beneath the
+      clover, and the soil health value remains the damaged value. If
+      the clover later dies and returns to dirt, the tile is still
+      cratered.
+    inputs:
+      - 'Cratered tile (posKey in state.craters) is converted to Clover'
+    outputs:
+      - 'Tile becomes Clover'
+      - 'state.craters still contains the posKey'
+    state_changes:
+      - field: map
+        effect: 'tile set to TileType.Clover'
+      - field: craters
+        effect: 'unchanged (posKey remains)'
+    determinism: deterministic
+
+  - id: crater-sidebar-effects
+    description: >
+      When the player hovers a cratered tile, the sidebar "effects" row
+      shows "crater" as a persistent effect (distinct from the
+      short-lived "satellite impact" explosion effect). This is
+      implemented by getTileEffects checking state.craters.has(posKey).
+      Because the tile type is Dirt or Clover, the existing sidebar
+      soil-health row renders correctly showing the damaged value.
+    inputs:
+      - 'Mouse hover over a tile whose posKey is in state.craters'
+    outputs:
+      - 'Sidebar effects row includes "crater"'
+      - 'Sidebar soil row renders showing the damaged soil health value'
+      - 'Sidebar tile-type label shows "dirt" or "clover" (whichever the tile is)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: crater-renders-visually
+    description: >
+      Cratered dirt tiles render using civilization ruin glyphs
+      (BUILDING_CHARS) with a reddish-brown color palette — the same
+      visual as before, but gated on state.craters.has(tileKey) rather
+      than tile.type === TileType.Crater. Cratered clover tiles render
+      as clover (the plant covers the scar visually); the crater effect
+      is still tracked and shown in the sidebar.
+    inputs:
+      - 'Tile at position is Dirt and posKey is in state.craters'
+    outputs:
+      - 'Tile rendered with BUILDING_CHARS glyph and reddish-brown color'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ghost-crater-avoidance-via-set
+    description: >
+      Ghost drift behavior avoids cratered tiles. When collecting valid
+      neighbor tiles for drift movement, tiles whose posKey is in
+      state.craters are excluded from the candidate set. This replaces
+      the previous check against TileType.Crater with a check against
+      state.craters.has(posKey(nx, ny)).
+    inputs:
+      - 'Ghost entity drift tick'
+      - 'One or more neighbor posKeys are in state.craters'
+    outputs:
+      - 'Cratered neighbors excluded from movement candidates'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: clover-growth-on-craters
+    description: >
+      Clover growth/lifecycle treats cratered dirt tiles as regular dirt.
+      Clover may be planted on them (via bee+clover combine) and may
+      grow on them (via normal growth front logic) because the tile type
+      is Dirt. The crater set entry does not block regrowth — this
+      matches the desired behavior where the crater is a soil condition,
+      not a barrier, and low soil health naturally discourages growth.
+    inputs:
+      - 'Cratered Dirt tile with growing clover conditions'
+    outputs:
+      - 'Clover may grow or be planted on cratered dirt'
+      - 'state.craters entry persists beneath the clover'
+    state_changes:
+      - field: map
+        effect: 'tile transitions Dirt -> Clover when clover grows'
+      - field: craters
+        effect: 'unchanged'
+    determinism: deterministic
+
+  - id: crater-serialization
+    description: >
+      state.craters is a Set<string> persisted alongside other per-tile
+      sets like burnScars. It is initialized to an empty Set in
+      createGameState and listed in the serialization schema allowlist.
+    inputs:
+      - 'GameState created via createGameState'
+    outputs:
+      - 'state.craters exists and is an empty Set<string>'
+    state_changes:
+      - field: craters
+        effect: 'initialized as new Set<string>()'
+    determinism: deterministic
+
+edge_cases:
+  - id: impact-on-clover-tile
+    description: 'Satellite impact zone contains a Clover tile'
+    expected: 'Tile stays Clover (not converted to dirt); posKey added to state.craters; soil health reduced'
+  - id: hover-cratered-dirt
+    description: 'Player hovers a dirt tile that was previously impacted'
+    expected: 'Sidebar shows tile type "dirt", soil row with damaged value, effects row includes "crater"'
+  - id: hover-cratered-clover
+    description: 'Player hovers a clover tile that was planted on a former crater'
+    expected: 'Sidebar shows tile type "clover", soil row with damaged value, effects row includes "crater" (and "healthy" status for the clover)'
+  - id: plant-clover-on-crater
+    description: 'Player stands on a cratered dirt tile and triggers bee+clover combine'
+    expected: '3x3 area becomes Clover, bee spawns, crater entries beneath planted tiles persist in state.craters'
+  - id: clover-dies-on-crater
+    description: 'Clover planted on a crater dies and decomposes back to Dirt'
+    expected: 'Tile becomes Dirt, state.craters still contains the posKey, the crater visual re-appears'
+  - id: protected-tiles-in-zone
+    description: '5x5 impact zone contains sand, cave entrance, or walls'
+    expected: 'Protected tiles are not added to state.craters and are not visually changed'
+
+failure_conditions:
+  - trigger: 'Player hovers a satellite impact site after the impact explosion fades'
+    expected: 'Sidebar shows "dirt" tile type with soil row populated and "crater" listed in effects (regression: previously showed "crater" tile type with no soil row)'
+  - trigger: 'Player plants clover on a cratered tile'
+    expected: 'Tile becomes Clover, crater entry persists, soil health remains damaged (regression: previously tile-type change masked the soil data)'
+  - trigger: 'Code references TileType.Crater after migration'
+    expected: 'TypeScript build fails (TileType.Crater removed from types.ts)'
+
+verification:
+  test_file: src/engine/__tests__/satelliteImpacts.test.ts
+  test_pattern: 'crater'
+  command: 'npx vitest run src/engine/__tests__/satelliteImpacts.test.ts'
