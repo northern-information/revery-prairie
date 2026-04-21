@@ -1,0 +1,266 @@
+plan:
+  id: satellite-crater-as-effect
+  title: 'Convert satellite craters from a tile type to a dirt-tile effect'
+  created: '2026-04-21'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-craters-set-to-state
+    title: 'Add state.craters: Set<string> to GameState and createGameState, and register in serialization schema'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-serialization
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: satellite-impact-uses-crater-set
+    title: 'Satellite impact adds posKeys to state.craters instead of converting tiles to TileType.Crater'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-is-effect-on-dirt
+    context_files:
+      - src/engine/satellites.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/satellites.ts
+    depends_on:
+      - add-craters-set-to-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: renderer-reads-craters-set
+    title: 'Renderer paints cratered dirt via state.craters.has(tileKey) instead of TileType.Crater'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-renders-visually
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-craters-set-to-state
+      - satellite-impact-uses-crater-set
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: effects-emit-crater-tag
+    title: 'getTileEffects emits "crater" when state.craters.has(posKey)'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-sidebar-effects
+    context_files:
+      - src/engine/effects.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/effects.ts
+    depends_on:
+      - add-craters-set-to-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: ghost-avoidance-uses-crater-set
+    title: 'Ghost drift avoidance uses state.craters.has(posKey) instead of TileType.Crater'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - ghost-crater-avoidance-via-set
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on:
+      - add-craters-set-to-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: recipes-drop-crater-special-case
+    title: 'Remove TileType.Crater branches from recipes.ts (collapses into Dirt/Clover cases)'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-persists-through-planting
+      - clover-growth-on-craters
+    context_files:
+      - src/engine/recipes.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/recipes.ts
+    depends_on:
+      - add-craters-set-to-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: sidebar-label-cleanup
+    title: 'Remove the "crater" tile-type label branch in Sidebar (tile type is now Dirt/Clover; "crater" appears in effects row)'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-sidebar-effects
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - add-craters-set-to-state
+      - effects-emit-crater-tag
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: remove-crater-tile-type
+    title: 'Remove TileType.Crater from types.ts and any remaining stragglers (renderer, recipes, Sidebar, entities, satellites must all be migrated first)'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-is-effect-on-dirt
+    context_files:
+      - src/engine/types.ts
+      - src/engine/renderer.ts
+      - src/engine/recipes.ts
+      - src/engine/entities.ts
+      - src/engine/satellites.ts
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/engine/types.ts
+    depends_on:
+      - satellite-impact-uses-crater-set
+      - renderer-reads-craters-set
+      - recipes-drop-crater-special-case
+      - sidebar-label-cleanup
+      - ghost-avoidance-uses-crater-set
+    verification:
+      - npx tsc -b --noEmit
+      - npm run lint
+    repair: retry
+    tags: [engine]
+
+  - id: update-satellite-impact-tests
+    title: 'Update existing satelliteImpacts.test.ts assertions: check state.craters.has(key) instead of tile.type === TileType.Crater; verify soil row visible and tile type still Dirt; ghost avoidance test uses state.craters.add'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-is-effect-on-dirt
+      - ghost-crater-avoidance-via-set
+      - crater-renders-visually
+    context_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+      - src/engine/satellites.ts
+      - src/engine/entities.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+    depends_on:
+      - satellite-impact-uses-crater-set
+      - ghost-avoidance-uses-crater-set
+      - remove-crater-tile-type
+    verification:
+      - npx vitest run src/engine/__tests__/satelliteImpacts.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: update-combine-tests
+    title: 'Update combine.test.ts crater cases: set up cratered dirt via state.craters.add instead of TileType.Crater; assert crater entry persists after planting'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-persists-through-planting
+    context_files:
+      - src/engine/__tests__/combine.test.ts
+      - src/engine/recipes.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/combine.test.ts
+    depends_on:
+      - recipes-drop-crater-special-case
+      - remove-crater-tile-type
+    verification:
+      - npx vitest run src/engine/__tests__/combine.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: add-regression-tests
+    title: 'Add regression tests: (1) cratered dirt hover shows soil row and "crater" effect; (2) cratered tile planted with clover retains crater entry; (3) dead clover on crater reveals Dirt tile with crater visual'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-sidebar-effects
+      - crater-persists-through-planting
+      - crater-renders-visually
+    context_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+      - src/engine/effects.ts
+      - src/engine/satellites.ts
+      - src/engine/recipes.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+    depends_on:
+      - update-satellite-impact-tests
+      - effects-emit-crater-tag
+      - recipes-drop-crater-special-case
+    verification:
+      - npx vitest run src/engine/__tests__/satelliteImpacts.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: update-satellite-impacts-spec
+    title: 'Update harness/specs/satellite-impacts.yaml: rewrite satellite-impact-crater, crater-tile-rendering, ghost-crater-avoidance, crater-blocks-clover, and satellite-cursor-info behaviors to describe the dirt+set model; note dependency on satellite-crater-as-effect'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-is-effect-on-dirt
+    context_files:
+      - harness/specs/satellite-impacts.yaml
+      - harness/specs/satellite-crater-as-effect.yaml
+    output_files:
+      - harness/specs/satellite-impacts.yaml
+    depends_on:
+      - remove-crater-tile-type
+    verification:
+      - npm run spec:validate
+    repair: retry
+    tags: [spec]
+
+  - id: update-crater-prairie-combine-spec
+    title: 'Update harness/specs/crater-prairie-combine.yaml: rewrite behaviors to describe cratered-dirt semantics (no crater tile type); status stays implemented since behavior is now trivially correct'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-persists-through-planting
+    context_files:
+      - harness/specs/crater-prairie-combine.yaml
+      - harness/specs/satellite-crater-as-effect.yaml
+    output_files:
+      - harness/specs/crater-prairie-combine.yaml
+    depends_on:
+      - remove-crater-tile-type
+      - update-combine-tests
+    verification:
+      - npm run spec:validate
+    repair: retry
+    tags: [spec]

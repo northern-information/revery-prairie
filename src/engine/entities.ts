@@ -192,7 +192,7 @@ const tickDrift = (
     const ny = pos.y + d.y
     if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
     if (!isWalkableTile(state.map[ny][nx].type)) continue
-    if (state.map[ny][nx].type === TileType.Crater) continue
+    if (state.craters.has(posKey(nx, ny))) continue
     if (blocked.has(posKey(nx, ny))) continue
     candidates.push({ x: nx, y: ny })
   }

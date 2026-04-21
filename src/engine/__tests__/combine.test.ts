@@ -1,6 +1,7 @@
 import { checkCombine, combineBeeAndClover } from '../combine'
 import { ComponentType } from '../ecs/types'
 import { containerHasItem, placeItem } from '../inventory'
+import { posKey } from '../position'
 import { TileType } from '../types'
 import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
@@ -180,7 +181,7 @@ describe('combineBeeAndClover', () => {
     expect(result).toBe(false)
   })
 
-  it('returns true and plants clover on crater tiles', () => {
+  it('plants clover on cratered dirt and preserves the crater entries', () => {
     const state = createTestState()
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
@@ -189,10 +190,10 @@ describe('combineBeeAndClover', () => {
     const px = state.player.x
     const py = state.player.y
 
-    // Set player tile and all neighbors to Crater
+    // Mark the 3x3 around the player as cratered dirt
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        state.map[py + dy][px + dx] = { type: TileType.Crater }
+        state.craters.add(posKey(px + dx, py + dy))
       }
     }
 
@@ -202,11 +203,12 @@ describe('combineBeeAndClover', () => {
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         expect(state.map[py + dy][px + dx].type).toBe(TileType.Clover)
+        expect(state.craters.has(posKey(px + dx, py + dy))).toBe(true)
       }
     }
   })
 
-  it('converts crater tiles in mixed 3x3 area', () => {
+  it('converts cratered dirt in a mixed 3x3 area to clover (sand untouched)', () => {
     const state = createTestState()
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
@@ -215,9 +217,9 @@ describe('combineBeeAndClover', () => {
     const px = state.player.x
     const py = state.player.y
 
-    // Mix of crater and dirt — both should become clover
-    state.map[py][px] = { type: TileType.Crater }
-    state.map[py - 1][px] = { type: TileType.Crater }
+    // Two cratered dirt tiles and one sand tile
+    state.craters.add(posKey(px, py))
+    state.craters.add(posKey(px, py - 1))
     state.map[py][px + 1] = { type: TileType.Sand }
 
     const result = combineBeeAndClover(state)
@@ -225,7 +227,10 @@ describe('combineBeeAndClover', () => {
 
     expect(state.map[py][px].type).toBe(TileType.Clover)
     expect(state.map[py - 1][px].type).toBe(TileType.Clover)
-    // Sand should remain unchanged
+    // Sand is unchanged
     expect(state.map[py][px + 1].type).toBe(TileType.Sand)
+    // Crater entries persist beneath the new clover
+    expect(state.craters.has(posKey(px, py))).toBe(true)
+    expect(state.craters.has(posKey(px, py - 1))).toBe(true)
   })
 })

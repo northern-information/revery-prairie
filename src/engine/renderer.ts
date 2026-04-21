@@ -1262,18 +1262,18 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           } else if (tile.type === TileType.Clover) {
             color = CLOVER_HEALTHY_COLORS[tileHash(mx, my) % CLOVER_HEALTHY_COLORS.length]
           } else if (tile.type === TileType.Dirt) {
-            if (state.burnScars.has(tileKey)) {
+            if (state.craters.has(tileKey)) {
+              const h = tileHash(mx, my)
+              char = BUILDING_CHARS[h % BUILDING_CHARS.length]
+              const craterColors = ['#8B4513', '#7A3B10', '#6B320D', '#5C290A', '#4D2007']
+              color = craterColors[h % craterColors.length]
+            } else if (state.burnScars.has(tileKey)) {
               color = BURN_SCAR_COLORS[tileHash(mx, my) % BURN_SCAR_COLORS.length]
             } else {
               color = DIRT_COLORS[tileHash(mx, my) % DIRT_COLORS.length]
             }
           } else if (tile.type === TileType.Sand) {
             color = SAND_COLORS[tileHash(mx, my) % SAND_COLORS.length]
-          } else if (tile.type === TileType.Crater) {
-            const h = tileHash(mx, my)
-            char = BUILDING_CHARS[h % BUILDING_CHARS.length]
-            const craterColors = ['#8B4513', '#7A3B10', '#6B320D', '#5C290A', '#4D2007']
-            color = craterColors[h % craterColors.length]
           } else {
             color = TILE_COLORS[tile.type]
           }

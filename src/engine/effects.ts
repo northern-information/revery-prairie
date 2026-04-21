@@ -97,6 +97,11 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
     seen.add('glinting')
   }
 
+  // Satellite craters (persistent pollution, overworld only)
+  if (zone === Zone.Overworld && state.craters.has(posKey(x, y))) {
+    seen.add('crater')
+  }
+
   // Coyote mode indicator
   for (const eid of state.world.spatial.at(x, y)) {
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
