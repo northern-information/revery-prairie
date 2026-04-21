@@ -1,0 +1,161 @@
+id: cross-zone-entity-bleed
+name: 'Cross-Zone Entity Isolation'
+status: partial
+priority: high
+layer: engine
+source_files:
+  - src/engine/zone.ts
+  - src/engine/ruins.ts
+  - src/engine/ecs/spatial.ts
+  - src/engine/interaction.ts
+  - src/engine/actionBar.ts
+  - src/engine/entities.ts
+  - src/engine/coyote.ts
+  - src/engine/satellites.ts
+  - src/engine/clover.ts
+  - src/engine/celestial.ts
+  - src/engine/effects.ts
+  - src/engine/renderer.ts
+  - src/engine/movement.ts
+  - src/engine/monarch.ts
+  - src/engine/selection.ts
+  - src/engine/tileWater.ts
+  - src/hooks/useCanvasDrop.ts
+dependencies:
+  - moab-colde
+  - persistent-dual-zone
+  - ruin-infrastructure
+
+behaviors:
+  - id: zone-helpers-exist
+    description: >
+      src/engine/zone.ts exports three canonical helpers that centralize
+      zone filtering. getCurrentEntityZone(state) returns the EntityZone
+      component value for entities created in the current zone. When
+      currentZone is Zone.Ruin, ruinIndex is set to state.currentRuinIndex.
+      When currentZone is Zone.Overworld or Zone.Cave, ruinIndex is omitted.
+      isEntityInCurrentZone(state, eid) returns true iff the entity has an
+      EntityZone component matching the current zone (and, for Zone.Ruin,
+      matching the current ruinIndex). Entities without an EntityZone
+      component return false (strict). spatialAtInCurrentZone(state, x, y)
+      returns only those entities at (x, y) that pass isEntityInCurrentZone.
+    inputs:
+      - 'GameState with currentZone and optional currentRuinIndex'
+    outputs:
+      - 'getCurrentEntityZone returns { zone, ruinIndex? }'
+      - 'isEntityInCurrentZone returns true for same-zone entities, false otherwise'
+      - 'spatialAtInCurrentZone returns zone-filtered entity list'
+    state_changes: []
+    determinism: deterministic
+
+  - id: producer-contract
+    description: >
+      Every call site that adds an EntityZone component to a newly created
+      entity must derive the zone value from getCurrentEntityZone(state).
+      This guarantees that entities spawned while in a ruin carry the
+      current ruinIndex, so downstream consumers using isInCurrentZone can
+      match them correctly. Covers pickup blooms, revery cast effects,
+      lightning, wildfire, crumble, dropped items, bee releases, coyote
+      drops, and all other in-zone entity creation.
+    inputs:
+      - 'Any function that creates an ECS entity while GameState has a currentZone'
+    outputs:
+      - 'new entity has EntityZone { zone: state.currentZone, ruinIndex: state.currentRuinIndex | undefined }'
+    state_changes:
+      - field: world
+        effect: 'spawned entities carry zone AND ruinIndex (when in ruin)'
+    determinism: deterministic
+
+  - id: consumer-contract-spatial
+    description: >
+      Every call site that iterates state.world.spatial.at(x, y) to find
+      entities at a tile for gameplay logic (interaction, cast blocking,
+      drop collision, occupancy checks) must filter by the current zone
+      using spatialAtInCurrentZone or an equivalent isEntityInCurrentZone
+      check. Raw spatial.at remains available for zone-agnostic use cases
+      (the spatial index itself, ruin-specific summaries) but gameplay
+      consumers must not use it without filtering.
+    inputs:
+      - 'Any gameplay function that resolves entities at a given tile'
+    outputs:
+      - 'no cross-zone entity is returned to the consumer'
+    state_changes: []
+    determinism: deterministic
+
+  - id: consumer-contract-queries
+    description: >
+      Every ECS query that filters by EntityZone to constrain results to
+      the current zone must use isEntityInCurrentZone(state, eid) rather
+      than an ad-hoc comparison of EntityZone.zone to state.currentZone.
+      This ensures ruinIndex is honored when the current zone is
+      Zone.Ruin. Covers renderer, movement blocking, creature ticks,
+      tile-effect surveys, unit selection, and targeting validation.
+    inputs:
+      - 'Any ECS query that needs to be scoped to the current zone'
+    outputs:
+      - 'entities from other ruins are excluded'
+    state_changes: []
+    determinism: deterministic
+
+  - id: moab-isolation
+    description: >
+      Moab Coldë, tagged with Zone.Cave, is not interactable when the
+      player is in any zone other than the cave. isInteractableAt and
+      getAdjacentCharacter consult only entities in the current zone,
+      so facing Moab's cave coordinates from a ruin or the overworld
+      does not open dialog and does not grant the fire revery.
+    inputs:
+      - "Player in Zone.Ruin or Zone.Overworld adjacent to Moab's cave coordinates"
+    outputs:
+      - 'interactWithCharacter returns opened: false'
+      - "activeDialog is not set to { characterId: 'moab' }"
+      - 'state.reveries does not contain fire revery (unless separately obtained)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cross-ruin-isolation
+    description: >
+      Entities tagged with Zone.Ruin and ruinIndex=N do not affect
+      gameplay in ruinIndex=M (N !== M). Ground items in ruin N are
+      not visible from ruin M, do not block drops in ruin M, and do
+      not block casts in ruin M. NPC/ghost entities in ruin N do not
+      block movement in ruin M. This holds across all consumers listed
+      in consumer-contract-spatial and consumer-contract-queries.
+    inputs:
+      - 'Player in ruin M with entity tagged ruinIndex=N present at a shared coordinate'
+    outputs:
+      - 'canDropAt returns true on the shared coordinate'
+      - 'canCastAtTile returns true on the shared coordinate'
+      - 'getBlockedPositions does not include the shared coordinate'
+      - 'renderer does not draw the ruin-N entity'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: entity-without-zone-component
+    description: 'ECS entity exists with a Position component but no EntityZone component'
+    expected: 'isEntityInCurrentZone returns false (strict). The entity is invisible to all zone-scoped consumers. This is the intended strict-mode behavior.'
+  - id: ruin-entity-outside-any-ruin
+    description: 'Entity tagged { zone: Zone.Ruin, ruinIndex: undefined } exists while player is in ruin 0'
+    expected: 'isEntityInCurrentZone returns false because undefined !== 0. Producer-contract prevents this state in practice by always writing currentRuinIndex when the current zone is Zone.Ruin.'
+  - id: leaving-and-reentering-same-ruin
+    description: 'Player exits ruin 0 to overworld, then re-enters ruin 0'
+    expected: 'Entities tagged ruinIndex=0 resume being visible and interactable. Entities tagged with other ruinIndex values remain hidden.'
+  - id: coyote-transition-across-zones
+    description: 'Coyote entity is teleported across zones via transitionCoyoteToZone'
+    expected: 'After transition, coyote EntityZone matches state.currentZone and (if applicable) state.currentRuinIndex. Cursor indicator and follow/collect behavior apply only in the new zone.'
+
+failure_conditions:
+  - trigger: "Player in a ruin interior whose walkable tiles overlap Moab's cave npcSpot coordinates; player presses [e] while facing those coordinates"
+    expected: 'No dialog opens. No fire revery is granted. The reported Moab bug does not reproduce.'
+  - trigger: 'Player in ruin 1 drops an item at coordinate (x, y); ruin 0 also has a ground item at (x, y)'
+    expected: 'The drop succeeds in ruin 1. The ruin-0 item is unaffected. Both items persist tagged to their respective ruinIndex values.'
+  - trigger: 'Producer code is added that calls world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone }) without including ruinIndex'
+    expected: 'This is a contract violation. The entity will be filtered out by isEntityInCurrentZone when in a ruin. Code review must reject this pattern; producers must use getCurrentEntityZone(state).'
+  - trigger: 'Consumer code is added that calls state.world.spatial.at(x, y) for gameplay without zone filtering'
+    expected: 'This is a contract violation. The consumer can receive cross-zone entities. Code review must reject this pattern; consumers must use spatialAtInCurrentZone(state, x, y) or apply isEntityInCurrentZone to each result.'
+
+verification:
+  test_file: src/engine/__tests__/zoneIsolation.test.ts
+  test_pattern: 'zone isolation'
+  command: 'npx vitest run src/engine/__tests__/zoneIsolation.test.ts'

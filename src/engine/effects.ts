@@ -3,6 +3,7 @@ import { ComponentType } from './ecs/types'
 import { posKey } from './position'
 import { getReveryDefinition } from './reveries'
 import { Sky, WindDirection, Zone } from './types'
+import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { GameState } from './types'
 
@@ -12,7 +13,7 @@ export const spawnPickupBloom = (state: GameState, x: number, y: number, time: n
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pickupBloom', startTime: time })
   state.world.addComponent(e, ComponentType.EntityTag, 'pickupBloom')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
+  state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
 }
 
 export const AURA_RADIUS: Record<string, number> = {
@@ -28,7 +29,7 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
 
   // Aura effects (e.g. Gron's rain)
   for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== zone) continue
+    if (!isEntityInCurrentZone(state, eid)) continue
     const aura = state.world.getComponent(eid, ComponentType.Aura)
     if (!aura) continue
     const r = aura.radius
@@ -43,7 +44,7 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
 
   // Revery cast effects
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== zone) continue
+    if (!isEntityInCurrentZone(state, eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'reveryCast') continue
     const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
@@ -79,7 +80,7 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
 
   // Satellite impact effects
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== zone) continue
+    if (!isEntityInCurrentZone(state, eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'satelliteImpact') continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -103,7 +104,7 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
   }
 
   // Coyote mode indicator
-  for (const eid of state.world.spatial.at(x, y)) {
+  for (const eid of spatialAtInCurrentZone(state, x, y)) {
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
     if (identity?.definitionId === 'coyote') {
       seen.add(state.coyoteMode === 'follow' ? 'following' : 'collecting')

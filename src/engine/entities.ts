@@ -9,6 +9,7 @@ import { spawnBeeOrMonarch } from './monarch'
 import { getBlockedPositions } from './movement'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 import { TileType, Zone } from './types'
+import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
 import type { CharacterBehavior, DriftBehavior, GameState, Position } from './types'
@@ -24,10 +25,11 @@ export const createCharacterEntity = (
   state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId })
   state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
   state.world.addComponent(e, ComponentType.EntityTag, 'character')
-  state.world.addComponent(e, ComponentType.EntityZone, {
-    zone: opts?.zone ?? state.currentZone,
-    ruinIndex: opts?.ruinIndex,
-  })
+  const entityZone =
+    opts?.zone !== undefined
+      ? { zone: opts.zone, ruinIndex: opts.ruinIndex }
+      : getCurrentEntityZone(state)
+  state.world.addComponent(e, ComponentType.EntityZone, entityZone)
   if (opts?.aura) {
     const radius = AURA_RADIUS[opts.aura] ?? 6
     state.world.addComponent(e, ComponentType.Aura, { kind: opts.aura, radius })
@@ -132,9 +134,13 @@ const isBeeNearFood = (state: GameState, pos: Position): boolean => {
 
 export const tickBees = (state: GameState, zone?: Zone): Position[] => {
   const z = zone ?? state.currentZone
+  const matchesZone = (eid: number): boolean =>
+    z === state.currentZone
+      ? isEntityInCurrentZone(state, eid)
+      : state.world.getComponent(eid, ComponentType.EntityZone)?.zone === z
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== z) continue
+    if (!matchesZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!pos) continue
 
@@ -213,12 +219,16 @@ export const tickCharacterBehaviors = (state: GameState, zone?: Zone): void => {
   const blocked = getBlockedPositions(state, z)
   blocked.add(posKey(state.player.x, state.player.y))
 
+  const matchesZone = (eid: number): boolean =>
+    z === state.currentZone
+      ? isEntityInCurrentZone(state, eid)
+      : state.world.getComponent(eid, ComponentType.EntityZone)?.zone === z
   for (const eid of state.world.query(
     ComponentType.Behavior,
     ComponentType.CharacterIdentity,
     ComponentType.Position
   )) {
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== z) continue
+    if (!matchesZone(eid)) continue
     const behavior = state.world.getComponent(eid, ComponentType.Behavior)
     if (!behavior) continue
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
@@ -247,7 +257,7 @@ const canDropAt = (state: GameState, x: number, y: number): boolean => {
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
   if (!isWalkableTile(state.map[y][x].type)) return false
   if (
-    state.world.spatial.at(x, y).some(eid => {
+    spatialAtInCurrentZone(state, x, y).some(eid => {
       const tag = state.world.getComponent(eid, ComponentType.EntityTag)
       return tag === 'groundItem'
     })
@@ -293,7 +303,7 @@ export const dropItem = (state: GameState, definitionId: string): boolean => {
         }
         state.world.addComponent(ge, ComponentType.ItemDrop, dropData)
         state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
-        state.world.addComponent(ge, ComponentType.EntityZone, { zone: state.currentZone })
+        state.world.addComponent(ge, ComponentType.EntityZone, getCurrentEntityZone(state))
       }
       return true
     }

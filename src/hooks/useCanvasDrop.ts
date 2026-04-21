@@ -7,6 +7,7 @@ import { getBlockedPositions } from '@/engine/movement'
 import { findPath } from '@/engine/pathfinding'
 import { ORDINAL } from '@/engine/position'
 import { TileType } from '@/engine/types'
+import { getCurrentEntityZone, spatialAtInCurrentZone } from '@/engine/zone'
 import type { DragState } from '@/engine/drag'
 import type { CharMetrics, Container, GameState } from '@/engine/types'
 
@@ -83,7 +84,7 @@ export const useCanvasDrop = ({
         const item = container.items.find(i => i.uid === itemUid)
         if (!item) return
         if (
-          state.world.spatial.at(mx, my).some(eid => {
+          spatialAtInCurrentZone(state, mx, my).some(eid => {
             const tag = state.world.getComponent(eid, ComponentType.EntityTag)
             return tag === 'groundItem'
           })
@@ -94,13 +95,13 @@ export const useCanvasDrop = ({
           const beeEntity = state.world.createEntity()
           state.world.addComponent(beeEntity, ComponentType.Position, { x: mx, y: my })
           state.world.addComponent(beeEntity, ComponentType.EntityTag, 'bee')
-          state.world.addComponent(beeEntity, ComponentType.EntityZone, { zone: state.currentZone })
+          state.world.addComponent(beeEntity, ComponentType.EntityZone, getCurrentEntityZone(state))
         } else {
           const ge = state.world.createEntity()
           state.world.addComponent(ge, ComponentType.Position, { x: mx, y: my })
           state.world.addComponent(ge, ComponentType.ItemDrop, { definitionId: defId })
           state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
-          state.world.addComponent(ge, ComponentType.EntityZone, { zone: state.currentZone })
+          state.world.addComponent(ge, ComponentType.EntityZone, getCurrentEntityZone(state))
         }
         onDropLog(defId, mx, my)
         refreshUI()

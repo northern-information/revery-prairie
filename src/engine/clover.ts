@@ -11,6 +11,7 @@ import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { CARDINAL, isInBounds, posKey, tileHash } from './position'
 import { TileType, Zone } from './types'
+import { spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
 
@@ -321,7 +322,7 @@ export const tickCloverHives = (state: GameState): void => {
           const pos = { x, y }
 
           if (x === state.player.x && y === state.player.y) continue
-          if (state.world.spatial.at(x, y).length > 0) continue
+          if (spatialAtInCurrentZone(state, x, y).length > 0) continue
 
           allTiles.push(pos)
 
@@ -359,7 +360,7 @@ export const tickCloverHives = (state: GameState): void => {
         const tile = state.map[ny][nx]
         if (tile.type === TileType.Space || tile.type === TileType.Sand) continue
         if (tile.type === TileType.CaveWall || tile.type === TileType.CaveBreakableWall) continue
-        if (state.world.spatial.at(nx, ny).length > 0) continue
+        if (spatialAtInCurrentZone(state, nx, ny).length > 0) continue
         spawnHoney(state, { x: nx, y: ny })
         break
       }

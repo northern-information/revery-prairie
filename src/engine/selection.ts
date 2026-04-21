@@ -1,5 +1,6 @@
 import { ComponentType } from './ecs/types'
 import { posKey } from './position'
+import { isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
 import type { GameState, Position } from './types'
@@ -16,11 +17,8 @@ export const isControllableUnit = (state: GameState, eid: Entity): boolean => {
 
 /** Find the controllable unit entity at a tile position, or null. */
 export const getControllableUnitAt = (state: GameState, pos: Position): Entity | null => {
-  const entities = state.world.spatial.at(pos.x, pos.y)
-  for (const eid of entities) {
+  for (const eid of spatialAtInCurrentZone(state, pos.x, pos.y)) {
     if (!isControllableUnit(state, eid)) continue
-    const ez = state.world.getComponent(eid, ComponentType.EntityZone)
-    if (ez?.zone !== state.currentZone) continue
     return eid
   }
   return null
@@ -35,8 +33,7 @@ export const getControllableUnitsInRect = (
   const result: Entity[] = []
   for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
     if (!isControllableUnit(state, eid)) continue
-    const ez = state.world.getComponent(eid, ComponentType.EntityZone)
-    if (ez?.zone !== state.currentZone) continue
+    if (!isEntityInCurrentZone(state, eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!pos) continue
     if (pos.x >= topLeft.x && pos.x <= bottomRight.x && pos.y >= topLeft.y && pos.y <= bottomRight.y) {

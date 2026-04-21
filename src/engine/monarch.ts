@@ -18,6 +18,7 @@ import { tickCreatureHunger } from './hunger'
 import { findPath } from './pathfinding'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
 import { CloverStage, Sky, TileType, Zone } from './types'
+import { getCurrentEntityZone, isEntityInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
 import type { GameState, Position } from './types'
@@ -37,7 +38,7 @@ export const spawnMonarch = (state: GameState, x: number, y: number): Entity => 
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.EntityTag, 'monarch')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
+  state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
   state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
   state.world.addComponent(e, ComponentType.MonarchState, {
     phase: 'wandering',
@@ -53,7 +54,7 @@ export const spawnBee = (state: GameState, x: number, y: number, zone?: Zone): E
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.EntityTag, 'bee')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: zone ?? state.currentZone })
+  state.world.addComponent(e, ComponentType.EntityZone, zone !== undefined ? { zone } : getCurrentEntityZone(state))
   state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
   return e
 }
@@ -376,10 +377,14 @@ const moveTowardWaypoint = (state: GameState, eid: Entity, pos: Position, waypoi
 /** Main tick function for all monarchs. Called from gameLoop. */
 export const tickMonarchs = (state: GameState, now: number, zone?: Zone): void => {
   const z = zone ?? state.currentZone
+  const matchesZone = (eid: number): boolean =>
+    z === state.currentZone
+      ? isEntityInCurrentZone(state, eid)
+      : state.world.getComponent(eid, ComponentType.EntityZone)?.zone === z
 
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'monarch') continue
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== z) continue
+    if (!matchesZone(eid)) continue
 
     const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
     if (!monarchState) continue

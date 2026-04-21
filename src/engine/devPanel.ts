@@ -21,6 +21,7 @@ import {
 import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
 import { TileType, Zone } from './types'
+import { getCurrentEntityZone } from './zone'
 
 import type { ComponentDataMap } from './ecs/types'
 import type { GameState, Position } from './types'
@@ -363,8 +364,16 @@ export const spawnDevEntity = (
     }
 
     if (type === ComponentType.EntityZone) {
-      const zone = (values.zone as string | undefined) ?? state.currentZone
-      state.world.addComponent(e, ComponentType.EntityZone, { zone: zone as Zone })
+      const zoneOverride = values.zone as string | undefined
+      if (zoneOverride !== undefined) {
+        const ruinIndexOverride = values.ruinIndex as number | undefined
+        state.world.addComponent(e, ComponentType.EntityZone, {
+          zone: zoneOverride as Zone,
+          ruinIndex: ruinIndexOverride,
+        })
+      } else {
+        state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
+      }
       continue
     }
 
