@@ -1,0 +1,46 @@
+plan:
+  id: sidebar-backdrop-continuity
+  title: 'Keep the sidebar black backdrop fully opaque through genesis-to-gameplay transition by extracting a shared shell'
+  created: '2026-04-21'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: extract-sidebar-shell
+    title: 'Extract SidebarShell wrapper and move transition fade to inner content wrapper'
+    spec_id: sidebar-backdrop-continuity
+    spec_sections:
+      - backdrop-persistent-opacity
+      - shared-backdrop-shell
+      - content-fade-in
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: update-source-assertions
+    title: 'Update existing source-level sidebar flash tests to match the new inner-wrapper location and add a regression test for backdrop opacity'
+    spec_id: sidebar-backdrop-continuity
+    spec_sections:
+      - backdrop-persistent-opacity
+      - shared-backdrop-shell
+    context_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+    depends_on:
+      - extract-sidebar-shell
+    verification:
+      - npx vitest run src/engine/__tests__/genesisTransition.test.ts
+    repair: retry
+    tags: [test]

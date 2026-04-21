@@ -185,4 +185,73 @@ describe('Sidebar', () => {
     expect(scrollContainer).toBeInTheDocument()
     expect(scrollContainer?.className).toMatch(/pointer-events-auto/)
   })
+
+  describe('genesis transition backdrop continuity', () => {
+    it('keeps the outer backdrop at full opacity during genesisTransition', () => {
+      const state = createGameState('Test', 80, 40)
+      completeGenesis(state)
+      expect(state.genesisTransition).not.toBeNull()
+
+      const { container } = render(
+        <Sidebar
+          state={state}
+          activeScreen={null}
+          itemInfoRef={defaultInfoRef}
+          eventLog={[]}
+          metricsRef={createRef()}
+          refreshUI={noop}
+        />
+      )
+
+      const backdrop = container.querySelector<HTMLElement>('[data-panel="sidebar"]')
+      expect(backdrop).not.toBeNull()
+      expect(backdrop?.style.opacity).toBe('')
+      expect(backdrop?.style.animation).toBe('')
+    })
+
+    it('applies the fade-in to the inner content wrapper during genesisTransition', () => {
+      const state = createGameState('Test', 80, 40)
+      completeGenesis(state)
+
+      const { container } = render(
+        <Sidebar
+          state={state}
+          activeScreen={null}
+          itemInfoRef={defaultInfoRef}
+          eventLog={[]}
+          metricsRef={createRef()}
+          refreshUI={noop}
+        />
+      )
+
+      const backdrop = container.querySelector<HTMLElement>('[data-panel="sidebar"]')
+      const content = backdrop?.querySelector<HTMLElement>(':scope > div')
+      expect(content).not.toBeNull()
+      expect(content?.style.opacity).toBe('0')
+      expect(content?.style.animation).toContain('fade-in')
+    })
+
+    it('applies no fade style once genesisTransition is cleared', () => {
+      const state = createGameState('Test', 80, 40)
+      completeGenesis(state)
+      state.genesisTransition = null
+
+      const { container } = render(
+        <Sidebar
+          state={state}
+          activeScreen={null}
+          itemInfoRef={defaultInfoRef}
+          eventLog={[]}
+          metricsRef={createRef()}
+          refreshUI={noop}
+        />
+      )
+
+      const backdrop = container.querySelector<HTMLElement>('[data-panel="sidebar"]')
+      const content = backdrop?.querySelector<HTMLElement>(':scope > div')
+      expect(backdrop?.style.opacity).toBe('')
+      expect(content?.style.opacity).toBe('')
+      expect(content?.style.animation).toBe('')
+    })
+  })
 })

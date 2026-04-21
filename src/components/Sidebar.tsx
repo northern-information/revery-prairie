@@ -54,6 +54,13 @@ const SKY_LABEL = {
   rain: 'rain',
 } as const
 
+// Persistent outer shell for the sidebar. The black backdrop must never drop
+// opacity across branch swaps (genesis → gameplay, gameplay → deep time),
+// so all three render modes share this element. Content-level fades apply
+// to a wrapper nested inside — never to this outer div.
+const SIDEBAR_SHELL_CLASSES =
+  'text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs'
+
 interface SidebarProps {
   state: GameState
   activeScreen: PermacomputerScreen
@@ -120,10 +127,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
     const overallProgress = (state.genesis.epochIndex + epochProgress) / GENESIS_EPOCHS.length
 
     return (
-      <div
-        data-panel="sidebar"
-        className="text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
-      >
+      <div data-panel="sidebar" className={SIDEBAR_SHELL_CLASSES}>
         <div className="flex flex-col gap-4">
           <PanelTitle>revery prairie</PanelTitle>
           <div>
@@ -167,10 +171,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
     const progress = state.deepTime.elapsedYears / DEEP_TIME_TOTAL_YEARS
 
     return (
-      <div
-        data-panel="sidebar"
-        className="text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
-      >
+      <div data-panel="sidebar" className={SIDEBAR_SHELL_CLASSES}>
         <div className="flex flex-col gap-4">
           <PanelTitle>revery prairie</PanelTitle>
           <div>
@@ -209,19 +210,17 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
     ? `${String(mphToKph(weather.windSpeed))} kph ${weather.windDirection}`
     : `${String(weather.windSpeed)} mph ${weather.windDirection}`
 
-  const sidebarFadeStyle = state.genesisTransition
+  // Fade lives on the inner content wrapper, not the outer shell — so the
+  // black backdrop stays fully opaque through the genesis→gameplay swap.
+  const contentFadeStyle = state.genesisTransition
     ? { opacity: 0, animation: `fade-in ${String(GENESIS_TRANSITION_SIDEBAR_DURATION_MS)}ms ease-in forwards` }
     : state.deepTimeTransition
       ? { opacity: 0, animation: `fade-in ${String(DEEP_TIME_TRANSITION_DURATION_MS)}ms ease-in forwards` }
       : undefined
 
   return (
-    <div
-      data-panel="sidebar"
-      className="text-text pointer-events-none fixed top-0 right-0 z-10 flex h-full w-48 flex-col justify-between bg-black/70 px-4 py-4 font-mono text-xs"
-      style={sidebarFadeStyle}
-    >
-      <div className="flex flex-col gap-4">
+    <div data-panel="sidebar" className={SIDEBAR_SHELL_CLASSES}>
+      <div className="flex flex-col gap-4" style={contentFadeStyle}>
         <PanelTitle>revery prairie</PanelTitle>
 
         {cursorTile && (
