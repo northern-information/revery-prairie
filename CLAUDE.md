@@ -2,6 +2,13 @@
 
 browser-based prairie game. ASCII rendered on HTML canvas via React + TypeScript + Vite + Tailwind.
 
+## writing style
+
+- Use sentence case for all prose — PR titles and bodies, commit messages, comments, chat replies. Capitalize the first word and proper nouns only.
+- Wrap code, identifiers, file paths, and commands in backticks. Use triple-backtick code fences for multi-line snippets with a language tag.
+- Preserve original casing for identifiers (PascalCase, camelCase, SCREAMING_SNAKE_CASE) and product names (GitHub, React, Vite, Tailwind).
+- Exception: the existing body of this CLAUDE.md uses lowercase headings and prose. That's intentional for this repo — match it when editing this file.
+
 ## architecture
 
 two distinct layers — keep them separate:
