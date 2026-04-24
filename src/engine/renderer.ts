@@ -105,7 +105,7 @@ import { renderGenesis } from './genesisRenderer'
 import { getDefinition } from './items'
 import { isInBounds, posKey, tileHash } from './position'
 import { getReveryDefinition } from './reveries'
-import { getRuinTileLayers, isHiddenTile } from './ruins'
+import { getRuinTileLayers, isHiddenTile, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
@@ -1347,15 +1347,19 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         ctx.fillStyle = color
       }
 
-      // Multilayer drawing for ruin tiles (non-entity, non-highlighted)
+      // Multilayer drawing for ruin tiles (non-entity, non-highlighted, no overlay)
       const tile = map[my]?.[mx]
-      const isRuinMultilayer =
-        state.currentZone === Zone.Ruin &&
-        !(mx === player.x && my === player.y) &&
-        !isEntity &&
-        !previewTile &&
-        !(isAngelGroupHighlighted || ((isCursor && cursorable) || isFacingEntity || isPendingTarget)) &&
-        (tile?.type.startsWith('ruin') ?? false)
+      const isRuinMultilayer = shouldRenderRuinMultilayer({
+        zone: state.currentZone,
+        tileType: tile?.type,
+        isPlayer: mx === player.x && my === player.y,
+        isEntity,
+        hasPreview: previewTile !== undefined,
+        isHighlighted:
+          isAngelGroupHighlighted || (isCursor && cursorable) || isFacingEntity || isPendingTarget,
+        hasOverlay:
+          pathPositions.has(tileKey) || hoverPathPositions.has(tileKey) || trailMap.has(tileKey),
+      })
       if (isRuinMultilayer) {
         const layers = getRuinTileLayers(tile.type, mx, my, time)
         const offsetScale = charWidth * 0.25

@@ -1,0 +1,46 @@
+plan:
+  id: ruin-path-overlay
+  title: 'Render path dots, hover preview, and player trail on top of ruin tiles'
+  created: '2026-04-24'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: skip-multilayer-on-path-tiles
+    title: 'Exclude path, hover-path, and trail tiles from ruin multilayer rendering'
+    spec_id: ruin-path-overlay
+    spec_sections:
+      - path-dots-visible-on-ruin-tiles
+      - hover-path-preview-visible-on-ruin-tiles
+      - player-trail-visible-on-ruin-tiles
+    context_files:
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: regression-test-ruin-path-overlay
+    title: 'Add regression test verifying path, hover-path, and trail overlays survive in ruin zones'
+    spec_id: ruin-path-overlay
+    spec_sections:
+      - path-dots-visible-on-ruin-tiles
+      - hover-path-preview-visible-on-ruin-tiles
+      - player-trail-visible-on-ruin-tiles
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/__tests__/ruin-path-overlay.test.ts
+    output_files:
+      - src/engine/__tests__/ruin-path-overlay.test.ts
+      - src/engine/renderer.ts
+    depends_on:
+      - skip-multilayer-on-path-tiles
+    verification:
+      - npx vitest run src/engine/__tests__/ruin-path-overlay.test.ts
+    repair: retry
+    tags: [engine, test]
