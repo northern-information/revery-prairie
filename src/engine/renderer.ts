@@ -238,35 +238,29 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const deepTimeShake = state.deepTime?.active === true && time < state.deepTime.shakeUntil
   const satelliteShake = time < state.screenShakeUntil
   const shakeActive = deepTimeShake || ejectionShake || satelliteShake
+  if (shakeActive) {
+    const amplitude = ejectionShake
+      ? RUIN_EJECTION_SHAKE_AMPLITUDE
+      : satelliteShake
+        ? SATELLITE_SHAKE_AMPLITUDE
+        : DEEP_TIME_SHAKE_AMPLITUDE
+    const sx = (Math.random() * 2 - 1) * amplitude
+    const sy = (Math.random() * 2 - 1) * amplitude
+    ctx.save()
+    ctx.translate(sx, sy)
+  }
 
-  // Player tween: world glides under stationary player glyph via fractional camera offset
-  let cameraOffsetX = 0
-  let cameraOffsetY = 0
+  // Player tween: glyph draws at sub-tile pixel offset within its destination cell;
+  // selection/cursor highlights stay anchored to the integer player tile.
+  let playerDrawOffsetX = 0
+  let playerDrawOffsetY = 0
   if (state.playerTween) {
     const lerp = getTweenLerp(state.playerTween, time, player.x, player.y)
     if (lerp.t >= 1) {
       state.playerTween = null
     } else {
-      cameraOffsetX = (lerp.x - player.x) * charWidth
-      cameraOffsetY = (lerp.y - player.y) * charHeight
-    }
-  }
-
-  const worldTransformActive = shakeActive || cameraOffsetX !== 0 || cameraOffsetY !== 0
-  if (worldTransformActive) {
-    ctx.save()
-    if (shakeActive) {
-      const amplitude = ejectionShake
-        ? RUIN_EJECTION_SHAKE_AMPLITUDE
-        : satelliteShake
-          ? SATELLITE_SHAKE_AMPLITUDE
-          : DEEP_TIME_SHAKE_AMPLITUDE
-      const sx = (Math.random() * 2 - 1) * amplitude
-      const sy = (Math.random() * 2 - 1) * amplitude
-      ctx.translate(sx, sy)
-    }
-    if (cameraOffsetX !== 0 || cameraOffsetY !== 0) {
-      ctx.translate(cameraOffsetX, cameraOffsetY)
+      playerDrawOffsetX = (lerp.x - player.x) * charWidth
+      playerDrawOffsetY = (lerp.y - player.y) * charHeight
     }
   }
 
@@ -1182,11 +1176,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           // Draw old glyph fading out
           ctx.globalAlpha = 1 - glyphT
           ctx.fillStyle = state.deepTime.playerGlyphColor
-          ctx.fillText(state.deepTime.playerGlyph, px, py)
+          ctx.fillText(state.deepTime.playerGlyph, px + playerDrawOffsetX, py + playerDrawOffsetY)
           // Draw new glyph fading in
           ctx.globalAlpha = glyphT
           ctx.fillStyle = sessionColor
-          ctx.fillText(PLAYER_CHAR, px, py)
+          ctx.fillText(PLAYER_CHAR, px + playerDrawOffsetX, py + playerDrawOffsetY)
           ctx.globalAlpha = 1
           // Skip the normal draw path for this tile
           char = PLAYER_CHAR
@@ -1486,6 +1480,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           ctx.fillStyle = layer.color
           ctx.fillText(layer.char, px + layer.dx * offsetScale, py + layer.dy * offsetScale)
         }
+      } else if (mx === player.x && my === player.y) {
+        ctx.fillText(char, px + playerDrawOffsetX, py + playerDrawOffsetY)
       } else {
         ctx.fillText(char, px, py)
       }
@@ -1689,7 +1685,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Deep Time year counter moved to Sidebar.tsx
 
   // Restore canvas transform before screen-level overlays
-  if (worldTransformActive) {
+  if (shakeActive) {
     ctx.restore()
   }
 

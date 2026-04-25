@@ -127,23 +127,26 @@ behaviors:
         effect: 'set to null when progress reaches t >= 1'
     determinism: time-based
 
-  - id: camera-follows-tween
+  - id: player-glyph-sub-tile-render
     description: >
-      The camera tracks the player's interpolated render position so the world
-      glides smoothly under the player rather than snapping. updateCamera
-      continues to use integer player.x and player.y for clamping the camera
-      to map bounds (the discrete logical position is the source of truth for
-      visibility math). The renderer applies an additional fractional camera
-      offset of (lerpX - player.x, lerpY - player.y) when drawing all tiles,
-      so when the player tween is in flight, the entire grid scrolls
-      smoothly while the player glyph itself stays at the visual center.
+      The player glyph itself is drawn at sub-tile pixel offsets while the
+      tween is in flight. The world (tiles, terrain, other entities, cursor
+      and selection highlights) stays anchored to integer tile coordinates.
+      updateCamera continues to use integer player.x and player.y for
+      deadzone tracking and bounds clamping. The renderer computes a
+      pixel offset (playerDrawOffsetX, playerDrawOffsetY) =
+      (lerpX - player.x, lerpY - player.y) * (charWidth, charHeight) and
+      applies it ONLY to the player glyph fillText calls (normal draw,
+      deep-time crossfade old glyph, deep-time crossfade new glyph).
+      Cursor inversion bg, selection ring, fog tint, and any tile-cell
+      decoration remain at the integer player tile.
     inputs:
       - 'state.playerTween (when active)'
       - 'state.player.x, state.player.y'
     outputs: []
     state_changes:
       - field: 'render-only, no game state mutation'
-        effect: 'tile draw positions shifted by fractional camera offset during active player tween'
+        effect: 'player glyph fillText receives a sub-tile pixel offset during active tween; all other draws unaffected'
     determinism: time-based
 
   - id: zone-transition-clears-tweens
