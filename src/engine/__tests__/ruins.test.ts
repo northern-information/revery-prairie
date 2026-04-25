@@ -476,17 +476,17 @@ describe('ruin infrastructure', () => {
   })
 
   describe('archetype distribution balance', () => {
-    it('does not assign all ruins to DormantGarden when all have aqueduct paths', () => {
-      const makeRng = (seed: number) => {
-        let a = seed | 0
-        return () => {
-          a = (a + 0x6d2b79f5) | 0
-          let t = Math.imul(a ^ (a >>> 15), 1 | a)
-          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-          return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-        }
+    const makeRng = (seed: number) => {
+      let a = seed | 0
+      return () => {
+        a = (a + 0x6d2b79f5) | 0
+        let t = Math.imul(a ^ (a >>> 15), 1 | a)
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
       }
+    }
 
+    it('does not assign all ruins to DormantGarden when all have aqueduct paths', () => {
       const archetypes = new Set<RuinArchetype>()
       for (let i = 0; i < 10; i++) {
         const ruin = makeRuin({
@@ -500,8 +500,73 @@ describe('ruin infrastructure', () => {
         })
         archetypes.add(assignArchetype(ruin, i, makeRng(i * 7 + 13)))
       }
-      // With balanced scoring, 10 varied ruins should produce at least 2 distinct archetypes
       expect(archetypes.size).toBeGreaterThanOrEqual(2)
+    })
+
+    it('produces a balanced distribution across many seeded ruins (each archetype 10-50%)', () => {
+      const counts: Record<string, number> = {
+        [RuinArchetype.Subsidence]: 0,
+        [RuinArchetype.DormantGarden]: 0,
+        [RuinArchetype.HauntedThreshold]: 0,
+        [RuinArchetype.Resonance]: 0,
+      }
+      const samples = 10000
+      for (let i = 0; i < samples; i++) {
+        const rng = makeRng(i * 37 + 1)
+        const radius = 3 + Math.floor(rng() * 3)
+        const area = Math.PI * radius * radius
+        const numFootprints = Math.floor(area * (0.85 + rng() * 0.15))
+        const buildingFootprints = Array.from({ length: numFootprints }, () => ({ x: 0, y: 0 }))
+        const numAqueducts = Math.floor(rng() * 8)
+        const aqueductPaths = Array.from({ length: numAqueducts }, () => [
+          { x: 50, y: 50 },
+          { x: 60, y: 50 },
+        ])
+        const ruin = makeRuin({
+          radius,
+          age: Math.floor(rng() * 5000) + 1000,
+          buildingFootprints,
+          aqueductPaths,
+        })
+        counts[assignArchetype(ruin, i, rng)]++
+      }
+
+      const total = Object.values(counts).reduce((a, b) => a + b, 0)
+      for (const archetype of Object.values(RuinArchetype)) {
+        const share = counts[archetype] / total
+        expect(share).toBeGreaterThanOrEqual(0.1)
+        expect(share).toBeLessThanOrEqual(0.5)
+      }
+    })
+
+    it('typical 10-ruin worlds contain at least 3 distinct archetypes in the majority of seeds', () => {
+      const trials = 200
+      const ruinsPerWorld = 10
+      let worldsWithThreeOrMore = 0
+      for (let w = 0; w < trials; w++) {
+        const rng = makeRng(w * 101 + 5)
+        const archetypes = new Set<RuinArchetype>()
+        for (let i = 0; i < ruinsPerWorld; i++) {
+          const radius = 3 + Math.floor(rng() * 3)
+          const area = Math.PI * radius * radius
+          const numFootprints = Math.floor(area * (0.85 + rng() * 0.15))
+          const buildingFootprints = Array.from({ length: numFootprints }, () => ({ x: 0, y: 0 }))
+          const numAqueducts = Math.floor(rng() * 8)
+          const aqueductPaths = Array.from({ length: numAqueducts }, () => [
+            { x: 50, y: 50 },
+            { x: 60, y: 50 },
+          ])
+          const ruin = makeRuin({
+            radius,
+            age: Math.floor(rng() * 5000) + 1000,
+            buildingFootprints,
+            aqueductPaths,
+          })
+          archetypes.add(assignArchetype(ruin, i, rng))
+        }
+        if (archetypes.size >= 3) worldsWithThreeOrMore++
+      }
+      expect(worldsWithThreeOrMore / trials).toBeGreaterThan(0.7)
     })
   })
 
