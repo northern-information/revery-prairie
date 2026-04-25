@@ -119,6 +119,42 @@ describe('player spawn ceremony', () => {
         .filter(e => state.world.getComponent(e, ComponentType.EntityTag) === 'explosion')
       expect(explosions.length).toBeGreaterThan(0)
     })
+
+    it('queues a "falls to the prairie" toast on impact, with the steward name', () => {
+      const state = createGameState('Bramble', 40, 30)
+      destroyAllStars(state)
+      state.queuedToasts = []
+      clearAroundTile(state, state.player)
+      const eid = spawnShootingStarAtTarget(state, state.player, { dx: 1, dy: 0 }, {
+        forPlayerSpawn: true,
+        backtrackTiles: 1,
+      })
+      state.playerSpawn.meteorEntityId = eid
+      state.playerSpawn.spawnPos = { ...state.player }
+      state.playerSpawn.triggeredAt = 100
+      state.playerSpawn.visible = false
+
+      tickShootingStars(state, 200)
+
+      const fallToast = state.queuedToasts.find(t => t.text.includes('falls to the prairie'))
+      expect(fallToast).toBeDefined()
+      expect(fallToast?.text).toBe('steward Bramble falls to the prairie')
+    })
+  })
+
+  describe('shower direction matches player meteor', () => {
+    it('player-spawn star uses the shower radiant direction', () => {
+      const state = createGameState('Test', 40, 30)
+      destroyAllStars(state)
+
+      triggerPlayerSpawnShower(state, state.player, 100)
+      const eid = state.playerSpawn.meteorEntityId
+      expect(eid).not.toBeNull()
+      if (eid === null) return
+      const vel = state.world.getComponent(eid, ComponentType.Velocity)
+      expect(vel?.dx).toBe(state.meteorShower.radiantDx)
+      expect(vel?.dy).toBe(state.meteorShower.radiantDy)
+    })
   })
 
   describe('off-map fallback', () => {
