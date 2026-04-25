@@ -105,6 +105,7 @@ const EXPECTED_FIELDS = [
   'ruinEjection',
   'queuedToasts',
   'caveFogExplored',
+  'caveFogDiscovered',
   'caveFogIllumination',
   'selectedUnits',
   'playerSelected',

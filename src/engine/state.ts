@@ -194,6 +194,7 @@ export const createGameState = (
     ruinEjection: null,
     queuedToasts: [],
     caveFogExplored: new Set<string>(),
+    caveFogDiscovered: new Set<string>(),
     caveFogIllumination: new Map<string, number>(),
     selectedUnits: new Set<number>(),
     playerSelected: false,

@@ -45,6 +45,7 @@ const makeRuinInterior = (ruinIndex: number, w: number, h: number): RuinInterior
   hauntedThreshold: null,
   resonance: null,
   fogExplored: new Set<string>(),
+  fogDiscovered: new Set<string>(),
   fogIllumination: new Map<string, number>(),
 })
 

@@ -1025,13 +1025,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
       const tileKey = posKey(mx, my)
 
-      // Fog of war: skip unexplored tiles, dim explored tiles
+      // Fog of war: skip unexplored tiles, dim partiallyDiscovered tiles.
+      // fullyDiscovered tiles fall through to the full render path so live
+      // entities show even when out of LOS.
       const tileVis = fogActive ? getTileVisibility(state, mx, my, visibleSet ?? new Set()) : 'visible' as const
       if (tileVis === 'unexplored') {
         // Unexplored — leave as dark background
         continue
       }
-      const tileIsExplored = tileVis === 'explored'
+      const tileIsPartiallyDiscovered = tileVis === 'partiallyDiscovered'
 
       const isCursor = mx === state.cursorTile?.x && my === state.cursorTile?.y
       const isFacingEntity = mx === state.facingEntityPos?.x && my === state.facingEntityPos?.y
@@ -1045,8 +1047,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // Used during genesis-to-gameplay crossfade to apply fade-in alpha
       let isEntity = false
 
-      // Explored-but-not-visible tiles: render terrain only at dimmed brightness
-      if (tileIsExplored) {
+      // partiallyDiscovered tiles: render terrain only at dimmed brightness.
+      // fullyDiscovered tiles fall through and are rendered like visible.
+      if (tileIsPartiallyDiscovered) {
         const tile = map[my][mx]
         // Mask hidden chamber tiles as CaveWall until revealed (cave only)
         const effectiveType =

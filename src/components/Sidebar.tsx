@@ -243,12 +243,15 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                       const cx = cursorTile.x
                       const cy = cursorTile.y
                       if (cx < 0 || cx >= state.mapWidth || cy < 0 || cy >= state.mapHeight) return 'void'
-                      // Fog of war: unexplored tiles show nothing, explored-not-visible show terrain only
+                      // Fog of war: unexplored tiles show nothing,
+                      // partiallyDiscovered tiles show terrain only ("unknown"
+                      // contents). fullyDiscovered and visible tiles fall
+                      // through to the live entity lookup below.
                       if (hasFogOfWar(state.currentZone)) {
                         const visibleSet = getLastVisibleSet()
                         const vis = getTileVisibility(state, cx, cy, visibleSet ?? new Set())
                         if (vis === 'unexplored') return 'unexplored'
-                        if (vis === 'explored') return 'unknown'
+                        if (vis === 'partiallyDiscovered') return 'unknown'
                       }
                       if (cx === state.player.x && cy === state.player.y) return state.stewardName.toLowerCase()
                       const charEid = state.world.spatial
