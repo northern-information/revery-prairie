@@ -1,0 +1,65 @@
+plan:
+  id: ruin-entrance-color
+  title: Recolor RuinEntrance to verdigris and paint a 3x3 dark halo on the overworld
+  created: 2026-04-25
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: update-ruin-entrance-color-and-halo-constant
+    title: Change RuinEntrance color to #5FD3BC and add RUIN_ENTRANCE_HALO_COLOR (#2E1F12)
+    spec_id: ruin-infrastructure
+    spec_sections:
+      - ruin-tile-types
+      - overworld-entrance-halo
+    context_files:
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npm run build
+    repair: retry
+    tags: [engine]
+
+  - id: render-overworld-entrance-halo
+    title: Add a pre-pass in renderer.ts that paints a 3x3 RUIN_ENTRANCE_HALO_COLOR fillRect around each visible RuinEntrance while currentZone is Zone.Overworld
+    spec_id: ruin-infrastructure
+    spec_sections:
+      - overworld-entrance-halo
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/zoneTypes.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - update-ruin-entrance-color-and-halo-constant
+    verification:
+      - npm run build
+      - npm run lint
+    repair: retry
+    tags: [engine]
+
+  - id: add-halo-regression-tests
+    title: Add tests asserting the halo only paints in Zone.Overworld, skips Space tiles and out-of-bounds cells, and that overlapping entrances are idempotent
+    spec_id: ruin-infrastructure
+    spec_sections:
+      - overworld-entrance-halo
+      - ruin-tile-types
+    context_files:
+      - src/engine/__tests__/ruins.test.ts
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/ruins.test.ts
+    depends_on:
+      - render-overworld-entrance-halo
+    verification:
+      - npx vitest run src/engine/__tests__/ruins.test.ts
+    repair: retry
+    tags: [test]

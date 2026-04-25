@@ -79,6 +79,7 @@ import {
   RAIN_AURA_DENSITY,
   RAIN_AURA_SPEED,
   RIVER_COLOR,
+  RUIN_ENTRANCE_HALO_COLOR,
   SAND_COLORS,
   SATELLITE_HEAD_COLORS,
   SATELLITE_SHAKE_AMPLITUDE,
@@ -113,7 +114,7 @@ import {
 import { getTweenLerp } from './movementTween'
 import { isInBounds, posKey, tileHash } from './position'
 import { getReveryDefinition } from './reveries'
-import { getRuinTileLayers, isHiddenTile, shouldRenderRuinMultilayer } from './ruins'
+import { getEntranceHaloCells, getRuinTileLayers, isHiddenTile, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
@@ -981,6 +982,27 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           }
           ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
         }
+      }
+    }
+  }
+
+  // Pre-pass: ruin entrance halo (overworld only). Paints a 3x3 dark backdrop
+  // around each visible RuinEntrance so it reads as a doorway-in-shadow.
+  if (state.currentZone === Zone.Overworld && state.ruinInteriors.length > 0) {
+    ctx.fillStyle = RUIN_ENTRANCE_HALO_COLOR
+    for (const interior of state.ruinInteriors) {
+      const cells = getEntranceHaloCells(
+        map,
+        state.mapWidth,
+        state.mapHeight,
+        interior.entranceOverworld.x,
+        interior.entranceOverworld.y,
+      )
+      for (const cell of cells) {
+        const vx = cell.x - camera.x
+        const vy = cell.y - camera.y
+        if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
+        ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
       }
     }
   }

@@ -45,7 +45,8 @@ behaviors:
       and RuinEntrance are walkable. RuinWall is not walkable.
       TILE_CHARS and TILE_COLORS in constants.ts map each type to a
       char and color. RuinFloor: '.', #7A7A6E. RuinWall: '#', #555555.
-      RuinEntrance: 'O', #C9A040.
+      RuinEntrance: 'O', #5FD3BC (verdigris — chosen so the entrance
+      reads against the warm prairie palette of dirt, sand, and clover).
     inputs:
       - 'tile rendering and walkability checks'
     outputs:
@@ -119,6 +120,30 @@ behaviors:
     state_changes:
       - field: map
         effect: 'tiles at ruin positions set to RuinEntrance'
+    determinism: deterministic
+
+  - id: overworld-entrance-halo
+    description: >
+      when currentZone is Zone.Overworld, the renderer paints a 3x3
+      backdrop fillRect (#2E1F12 deep umber) centered on every
+      RuinEntrance tile before glyphs are drawn. the halo extends one
+      tile in each direction (dx -1..+1, dy -1..+1) so the entrance
+      reads as a doorway-in-shadow against the warm prairie palette.
+      the halo is painted in a pre-pass after the earth-scan
+      backgrounds and before the lightning targeting highlight, so
+      glyphs (terrain, player, entities, cursor) draw cleanly on top
+      and existing pre-pass overlays still composite correctly.
+      the halo is suppressed inside ruin and cave zones — it is an
+      overworld-only readability aid. cave entrances do not get a halo.
+      tiles in the 3x3 footprint that fall outside map bounds, or on
+      Space tiles, are skipped (no fillRect drawn there) so the halo
+      never bleeds into the void.
+    inputs:
+      - 'renderer pre-pass while currentZone is Zone.Overworld'
+      - 'one or more RuinEntrance tiles within the camera viewport'
+    outputs:
+      - '3x3 dark backdrop drawn around each visible RuinEntrance'
+    state_changes: []
     determinism: deterministic
 
   - id: enter-ruin-transition
@@ -209,7 +234,7 @@ behaviors:
       chars and colors per tile for deterministic variety. RuinWall
       tiles render 2-3 layers of building chars in grays with pixel
       offsets. RuinFloor tiles render 1-2 layers with debris dots.
-      RuinEntrance renders amber O with subtle offset glyph.
+      RuinEntrance renders verdigris O with subtle offset glyph.
       overworld overlays (rain, glinting, weather) are suppressed
       in ruin zones. out-of-bounds rendering uses dark void (no stars),
       same as cave zone.
@@ -301,6 +326,18 @@ edge_cases:
     description: 'player enters ruin A, exits, enters ruin B'
     expected: 'currentRuinIndex correctly tracks each ruin, maps swap correctly, no state leakage between ruins'
 
+  - id: halo-near-map-edge
+    description: 'RuinEntrance sits on or near the SPACE_BORDER edge so part of its 3x3 halo footprint falls on Space tiles or out of bounds'
+    expected: 'halo cells outside bounds or on Space tiles are skipped — the visible portion of the halo still renders, no fillRect leaks into the starfield'
+
+  - id: halo-overlapping-entrances
+    description: 'two ruin entrances are placed within 2 tiles of each other so their 3x3 halos overlap'
+    expected: 'overlapping cells get the same fillRect color drawn twice (idempotent) — visually identical to a single halo, no flicker or compositing artifact'
+
+  - id: halo-with-cursor-on-entrance
+    description: 'cursor hovers directly over a RuinEntrance tile'
+    expected: 'halo paints first (pre-pass), then cursor inversion (pink fillRect + dark glyph) overrides the entrance cell — the surrounding 8 halo cells remain visible'
+
 failure_conditions:
   - trigger: 'player enters ruin with currentRuinIndex already set (should not happen)'
     expected: 'enterRuin overwrites with new index, previous ruin state preserved in ruinInteriors array'
@@ -310,6 +347,9 @@ failure_conditions:
 
   - trigger: 'ruinInteriors array is empty but RuinEntrance tile exists on map'
     expected: 'checkRuinTransition finds no matching ruin, returns false, player walks over tile normally'
+
+  - trigger: 'halo pre-pass runs in Zone.Ruin or Zone.Cave by mistake'
+    expected: 'visual regression — dark backdrops appear inside interiors. the pre-pass must early-return when currentZone is not Zone.Overworld'
 
 verification:
   test_file: src/engine/__tests__/ruins.test.ts
