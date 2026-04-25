@@ -1796,6 +1796,28 @@ export interface RuinTileLayer {
 const BOX_HORIZONTAL = '─'
 const BOX_VERTICAL = '│'
 
+export interface RuinMultilayerArgs {
+  zone: Zone
+  tileType: TileType | undefined
+  isPlayer: boolean
+  isEntity: boolean
+  hasPreview: boolean
+  isHighlighted: boolean
+  hasOverlay: boolean
+}
+
+export const shouldRenderRuinMultilayer = (args: RuinMultilayerArgs): boolean => {
+  return (
+    args.zone === Zone.Ruin &&
+    !args.isPlayer &&
+    !args.isEntity &&
+    !args.hasPreview &&
+    !args.isHighlighted &&
+    !args.hasOverlay &&
+    (args.tileType?.startsWith('ruin') ?? false)
+  )
+}
+
 export const getRuinTileLayers = (tileType: TileType, x: number, y: number, time: number): RuinTileLayer[] => {
   const h = tileHash(x, y)
 
