@@ -51,7 +51,7 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.CaveEntrance]: '#AAAAAA',
   [TileType.RuinFloor]: '#7A7A6E',
   [TileType.RuinWall]: '#555555',
-  [TileType.RuinEntrance]: '#C9A040',
+  [TileType.RuinEntrance]: '#5FD3BC',
   [TileType.RuinUnstable]: '#8B6E5E',
   [TileType.RuinAqueduct]: '#6688AA',
   [TileType.RuinAqueductBroken]: '#5A4A3A',
@@ -64,6 +64,11 @@ export const TILE_COLORS: Record<TileType, string> = {
 // Ruin visual palette — shared with genesis civilization rendering
 export const BUILDING_CHARS = ['▓', '▒', '░', '█', '#', '+', 'H', 'T', '=']
 export const CIV_COLORS = ['#666', '#777', '#888', '#999', '#AAA']
+
+// Dark backdrop painted in a 3x3 footprint behind RuinEntrance tiles on the
+// overworld so the entrance reads as a doorway-in-shadow against the warm
+// prairie palette. Overworld-only — never painted in cave or ruin zones.
+export const RUIN_ENTRANCE_HALO_COLOR = '#2E1F12'
 
 // shooting stars
 export const SHOOTING_STAR_TICK_MS = 80

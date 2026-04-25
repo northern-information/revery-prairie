@@ -1185,6 +1185,26 @@ export const isInCurrentZone = (state: GameState, entityZone: { zone: Zone; ruin
 // Place ruin entrances on overworld map
 // ---------------------------------------------------------------------------
 
+export const getEntranceHaloCells = (
+  map: Tile[][],
+  mapWidth: number,
+  mapHeight: number,
+  entranceX: number,
+  entranceY: number,
+): Position[] => {
+  const cells: Position[] = []
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const x = entranceX + dx
+      const y = entranceY + dy
+      if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) continue
+      if (map[y][x].type === TileType.Space) continue
+      cells.push({ x, y })
+    }
+  }
+  return cells
+}
+
 export const placeRuinEntrances = (
   map: Tile[][],
   ruinInteriors: RuinInterior[],

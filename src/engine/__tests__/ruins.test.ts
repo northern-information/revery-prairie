@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { assignArchetype, beginRuinEjection, checkRuinTransition, enterRuin, exitRuin, generateAllRuinInteriors, generateRuinInterior, getRuinTileLayers, isInCurrentZone, placeRuinEntrances, tickRuinEjection, tickSubsidenceCollapse } from '../ruins'
+import { assignArchetype, beginRuinEjection, checkRuinTransition, enterRuin, exitRuin, generateAllRuinInteriors, generateRuinInterior, getEntranceHaloCells, getRuinTileLayers, isInCurrentZone, placeRuinEntrances, tickRuinEjection, tickSubsidenceCollapse } from '../ruins'
 import { RuinArchetype, RuinEjectionPhase, RuinEjectionReason, TileType, Zone } from '../types'
 import { createGameState } from '../state'
 import { findSafeExitPosition, isWalkableTile, posKey } from '../position'
 import { movePlayer } from '../movement'
 import { ITEM_DEFINITIONS } from '../items'
 import { ComponentType } from '../ecs/types'
-import { ENTRANCE_GLYPHS, RUIN_EJECTION_FADE_MS, RUIN_EJECTION_HOLD_MS, RUIN_EJECTION_NOTIFICATION_MS, RUIN_EJECTION_SHAKE_MS, RUIN_ENTRY_TOASTS, getEntranceGlyph } from '../constants'
+import { ENTRANCE_GLYPHS, RUIN_EJECTION_FADE_MS, RUIN_EJECTION_HOLD_MS, RUIN_EJECTION_NOTIFICATION_MS, RUIN_EJECTION_SHAKE_MS, RUIN_ENTRANCE_HALO_COLOR, RUIN_ENTRY_TOASTS, TILE_COLORS, getEntranceGlyph } from '../constants'
 
 import type { CivilizationRuin } from '../genesisTypes'
 import type { Tile } from '../types'
@@ -1045,6 +1045,79 @@ describe('ruin infrastructure', () => {
 
       // Should remain RuinFloor
       expect(state.map[floorPos.y][floorPos.x].type).toBe(TileType.RuinFloor)
+    })
+  })
+
+  describe('overworld entrance halo', () => {
+    const buildMap = (w: number, h: number, fill: TileType = TileType.Dirt): Tile[][] =>
+      Array.from({ length: h }, () => Array.from({ length: w }, () => ({ type: fill })))
+
+    it('RuinEntrance color is verdigris and halo color is deep umber', () => {
+      expect(TILE_COLORS[TileType.RuinEntrance]).toBe('#5FD3BC')
+      expect(RUIN_ENTRANCE_HALO_COLOR).toBe('#2E1F12')
+    })
+
+    it('returns the full 3x3 footprint for an entrance away from edges', () => {
+      const map = buildMap(10, 10)
+      const cells = getEntranceHaloCells(map, 10, 10, 5, 5)
+      expect(cells).toHaveLength(9)
+      const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          expect(keys.has(`${String(5 + dx)},${String(5 + dy)}`)).toBe(true)
+        }
+      }
+    })
+
+    it('clips cells that fall outside map bounds', () => {
+      const map = buildMap(5, 5)
+      // Top-left corner: only the SE quadrant of the 3x3 is inside bounds
+      const cells = getEntranceHaloCells(map, 5, 5, 0, 0)
+      expect(cells).toHaveLength(4)
+      const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
+      expect(keys).toEqual(new Set(['0,0', '1,0', '0,1', '1,1']))
+    })
+
+    it('skips Space tiles inside the 3x3 footprint', () => {
+      const map = buildMap(5, 5)
+      // Border the entrance with space on the north row
+      map[0][1] = { type: TileType.Space }
+      map[0][2] = { type: TileType.Space }
+      map[0][3] = { type: TileType.Space }
+      const cells = getEntranceHaloCells(map, 5, 5, 2, 1)
+      const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
+      // 6 in-bounds non-space cells (the 3 north tiles are skipped)
+      expect(cells).toHaveLength(6)
+      expect(keys.has('1,0')).toBe(false)
+      expect(keys.has('2,0')).toBe(false)
+      expect(keys.has('3,0')).toBe(false)
+      expect(keys.has('1,1')).toBe(true)
+      expect(keys.has('2,1')).toBe(true)
+      expect(keys.has('3,1')).toBe(true)
+    })
+
+    it('handles overlapping entrances by returning each halo independently (idempotent in render)', () => {
+      const map = buildMap(10, 10)
+      // Two entrances 2 tiles apart — their 3x3 halos overlap on a single column
+      const a = getEntranceHaloCells(map, 10, 10, 4, 5)
+      const b = getEntranceHaloCells(map, 10, 10, 6, 5)
+      expect(a).toHaveLength(9)
+      expect(b).toHaveLength(9)
+      const aKeys = new Set(a.map((c) => `${String(c.x)},${String(c.y)}`))
+      const bKeys = new Set(b.map((c) => `${String(c.x)},${String(c.y)}`))
+      // Overlap column at x=5
+      expect(aKeys.has('5,4')).toBe(true)
+      expect(aKeys.has('5,5')).toBe(true)
+      expect(aKeys.has('5,6')).toBe(true)
+      expect(bKeys.has('5,4')).toBe(true)
+      expect(bKeys.has('5,5')).toBe(true)
+      expect(bKeys.has('5,6')).toBe(true)
+    })
+
+    it('returns no cells when the entrance sits in a fully-Space region', () => {
+      const map = buildMap(5, 5, TileType.Space)
+      const cells = getEntranceHaloCells(map, 5, 5, 2, 2)
+      expect(cells).toHaveLength(0)
     })
   })
 })
