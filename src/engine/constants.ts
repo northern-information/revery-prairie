@@ -101,6 +101,9 @@ export const METEOR_SHOWER_STAR_COUNT_MIN = 8
 export const METEOR_SHOWER_STAR_COUNT_MAX = 12
 export const METEOR_SHOWER_SPAWN_WINDOW_MS = 4000
 
+// player spawn meteor — descent target window
+export const PLAYER_SPAWN_DESCENT_TARGET_MS = 2000
+
 // meteorites
 export const METEORITE_CHAR = '\u2726' // ✦ black four-pointed star
 export const METEORITE_COLOR = '#FFE4B5' // moccasin — warm pale gold

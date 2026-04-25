@@ -56,24 +56,31 @@ behaviors:
       spawnShootingStarAtTarget creates a star guaranteed to land on
       a specific position. traces backward from target to find starting
       edge outside map bounds. sets willLand true and landingTarget.
-      used by meteor showers.
+      used by meteor showers. an optional forPlayerSpawn flag marks the
+      star as a player-emergence beacon — on landing it suppresses the
+      meteorite ground-item drop and notifies the player-spawn system
+      so the corresponding player becomes visible on impact.
     inputs:
-      - 'GameState, target Position, optional direction'
+      - 'GameState, target Position, optional direction, optional forPlayerSpawn flag'
     outputs: []
     state_changes:
       - field: world
-        effect: 'targeted shooting star ECS entity created'
+        effect: 'targeted shooting star ECS entity created (with PlayerSpawnTarget tag when forPlayerSpawn is set)'
     determinism: deterministic
 
   - id: meteor-shower-scheduling
     description: >
       tickMeteorShower manages shower state machine. suppressed during
-      deep time (deepTime.active). first shower scheduled at random
-      interval [120s, 240s]. when time arrives: active=true, pick
-      radiant direction, calculate remainingStars (8-12), spread over
-      4-second window. each interval tick spawns one targeted star.
-      when remainingStars=0: active=false, schedule next shower.
-      records event:meteor-shower discovery on first shower.
+      deep time (deepTime.active). the very first shower is NOT scheduled
+      by elapsed time — it is initiated by the player-spawn system via
+      triggerPlayerSpawnShower (see player-spawn spec). once that first
+      shower completes, subsequent showers schedule on the existing random
+      interval [120s, 240s]. when time arrives: active=true, pick radiant
+      direction, calculate remainingStars (8-12), spread over 4-second
+      window. each interval tick spawns one targeted star. when
+      remainingStars=0: active=false, schedule next shower.
+      records event:meteor-shower discovery on first shower regardless
+      of trigger source.
     inputs:
       - 'tickMeteorShower called with time'
     outputs: []
@@ -84,6 +91,29 @@ behaviors:
         effect: 'targeted shooting star entities created during active shower'
       - field: manualDiscoveries
         effect: 'event:meteor-shower recorded on first shower'
+    determinism: probabilistic
+
+  - id: player-spawn-shower-trigger
+    description: >
+      triggerPlayerSpawnShower(state, playerPos, time) starts a meteor
+      shower immediately and pre-targets one of its stars at playerPos
+      so the star lands within ~2000ms of the trigger. the shower
+      otherwise behaves like a normal shower (8-12 stars, 4s spawn window,
+      random radiant direction). the player-targeted star is flagged
+      forPlayerSpawn so it produces no meteorite item on landing. the
+      remaining stars target tiles via findShowerTargets and behave
+      normally (drop meteorites). this is the only path that initiates
+      the first shower of the game; it generalizes to multiplayer — every
+      newly-spawned player triggers their own shower with a star aimed
+      at their spawn tile.
+    inputs:
+      - 'GameState, player spawn Position, time'
+    outputs: []
+    state_changes:
+      - field: meteorShower
+        effect: 'active=true, remainingStars set, spawn window primed; nextShowerTime advanced past the active window'
+      - field: world
+        effect: 'one targeted player-spawn star created immediately at playerPos with forPlayerSpawn flag; further targeted stars spawn over the 4s window'
     determinism: probabilistic
 
   - id: shower-target-selection

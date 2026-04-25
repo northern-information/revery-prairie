@@ -1148,7 +1148,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
       const sessionColor = state.multiplayerSession ? PLAYER_COLORS[state.multiplayerSession.color].hex : PLAYER_COLOR
 
-      if (mx === player.x && my === player.y) {
+      if (mx === player.x && my === player.y && state.playerSpawn.visible) {
         if (previewTile) {
           ctx.fillStyle = previewTile.color
           ctx.fillText(previewTile.char, px, py)
@@ -1428,7 +1428,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         ctx.fillStyle = ACTION_COLOR
         ctx.fillRect(px, py, charWidth, charHeight)
         ctx.fillStyle = BG_COLOR
-      } else if (state.playerSelected && mx === player.x && my === player.y) {
+      } else if (state.playerSelected && state.playerSpawn.visible && mx === player.x && my === player.y) {
         ctx.fillStyle = ACTION_COLOR
         ctx.fillRect(px, py, charWidth, charHeight)
         ctx.fillStyle = BG_COLOR
@@ -1449,7 +1449,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const isRuinMultilayer = shouldRenderRuinMultilayer({
         zone: state.currentZone,
         tileType: tile?.type,
-        isPlayer: mx === player.x && my === player.y,
+        isPlayer: mx === player.x && my === player.y && state.playerSpawn.visible,
         isEntity,
         hasPreview: previewTile !== undefined,
         isHighlighted:

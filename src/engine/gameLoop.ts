@@ -1,5 +1,5 @@
 import { spawnAngel, tickAngelBeeAura, tickAngelCloverAura, tickAngelDrift, tickAngelLifespan } from './angels'
-import { spawnShootingStar, tickMeteorShower, tickShootingStars } from './celestial'
+import { spawnShootingStar, tickMeteorShower, tickShootingStars, triggerPlayerSpawnShower } from './celestial'
 import { spawnSatellite, tickSatellites } from './satellites'
 import { tickCoyote } from './coyote'
 import { pruneSelection } from './selection'
@@ -339,6 +339,17 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'always',
       fn: (state, time) => {
         cleanupMoveOrderMarkers(state, time)
+      },
+    },
+    {
+      id: 'player-spawn-trigger',
+      intervalMs: 0,
+      zone: 'always' as const,
+      phase: 'gameplay' as const,
+      priority: -19,
+      fn: (state: GameState, time: number) => {
+        if (state.playerSpawn.triggeredAt !== 0) return
+        triggerPlayerSpawnShower(state, state.player, time)
       },
     },
     {

@@ -1,6 +1,11 @@
 import { withSeededRandom } from '@/harness/prng'
 
-import { spawnShootingStarAtTarget, tickMeteorShower, tickShootingStars } from '@/engine/celestial'
+import {
+  spawnShootingStarAtTarget,
+  tickMeteorShower,
+  tickShootingStars,
+  triggerPlayerSpawnShower,
+} from '@/engine/celestial'
 import { ComponentType } from '@/engine/ecs/types'
 import { createGameState } from '@/engine/state'
 import type { GameState } from '@/engine/types'
@@ -14,10 +19,10 @@ const getMeteoriteEntities = (state: GameState) =>
     .query(ComponentType.EntityTag)
     .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
 
-/** Trigger the opening meteor shower and spawn all its stars */
+/** Trigger the opening meteor shower (via the player-spawn ceremony) and spawn all its stars */
 const spawnOpeningShower = (state: GameState): number => {
-  // Fire the meteor shower (nextShowerTime is 1, so any time > 1 starts it)
-  tickMeteorShower(state, 1000)
+  // The first shower is initiated by the player-spawn ceremony.
+  triggerPlayerSpawnShower(state, state.player, 1000)
 
   // Drain all remaining stars in the shower
   const interval = Math.ceil(state.meteorShower.spawnIntervalMs) + 1

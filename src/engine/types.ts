@@ -234,6 +234,7 @@ export interface GameState {
   burnScars: Set<string>
   craters: Set<string>
   meteorShower: MeteorShowerState
+  playerSpawn: PlayerSpawn
   lastSatelliteSpawnTime: number
   screenShakeUntil: number
   lightning: LightningState
@@ -495,6 +496,13 @@ export interface MeteorShowerState {
   spawnIntervalMs: number
   radiantDx: number
   radiantDy: number
+}
+
+export interface PlayerSpawn {
+  visible: boolean
+  spawnPos: Position
+  meteorEntityId: number | null
+  triggeredAt: number
 }
 
 export interface LightningState {

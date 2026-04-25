@@ -1,0 +1,214 @@
+plan:
+  id: player-spawn-meteor
+  title: 'Player spawn meteor ceremony — replace first scheduled shower with a spawn-triggered shower; player emerges from impact'
+  created: '2026-04-25'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: state-and-types
+    title: 'Add PlayerSpawn record to GameState; add PlayerSpawnTarget marker to ShootingStarData payload'
+    spec_id: player-spawn
+    spec_sections:
+      - spawn-state-record
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization
+    repair: retry
+    tags: [engine]
+
+  - id: shooting-star-spawn-flag
+    title: 'Extend spawnShootingStarAtTarget with forPlayerSpawn flag; teach tickShootingStars to suppress the meteorite drop and flip playerSpawn.visible on impact for the marked star'
+    spec_id: shooting-stars
+    spec_sections:
+      - targeted-star-spawning
+      - star-tick-movement
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/celestial.ts
+      - src/engine/types.ts
+    depends_on:
+      - state-and-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: trigger-player-spawn-shower
+    title: 'Add triggerPlayerSpawnShower(state, spawnPos, time) in celestial.ts; remove the time-based first-shower auto-schedule from tickMeteorShower so the first shower only starts via the trigger'
+    spec_id: shooting-stars
+    spec_sections:
+      - meteor-shower-scheduling
+      - player-spawn-shower-trigger
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/celestial.ts
+    depends_on:
+      - shooting-star-spawn-flag
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: gameloop-trigger-on-first-tick
+    title: 'Call triggerPlayerSpawnShower on the first gameLoop tick where playerSpawn.triggeredAt === 0; idempotent guard'
+    spec_id: player-spawn
+    spec_sections:
+      - trigger-on-game-start
+      - idempotent-trigger
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/celestial.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - trigger-player-spawn-shower
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: hide-player-during-descent
+    title: 'Renderer: skip player glyph and player cursor highlight when playerSpawn.visible is false; remove player render from genesis presentDay epoch'
+    spec_id: player-spawn
+    spec_sections:
+      - hidden-during-descent
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/genesis.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/renderer.ts
+      - src/engine/genesis.ts
+    depends_on:
+      - state-and-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: short-circuit-input-while-invisible
+    title: 'Movement and click-to-move ignore input while playerSpawn.visible is false (player cannot leave their landing tile)'
+    spec_id: player-spawn
+    spec_sections:
+      - hidden-during-descent
+    context_files:
+      - src/engine/movement.ts
+      - src/engine/interaction.ts
+      - src/engine/gameLoop.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/movement.ts
+      - src/engine/interaction.ts
+    depends_on:
+      - state-and-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: emerge-fallbacks
+    title: 'Safety: if the spawn-targeted star is destroyed off-map or its entity id is invalid on a later tick, flip playerSpawn.visible to true to avoid stranding the player; clear meteorEntityId'
+    spec_id: player-spawn
+    spec_sections:
+      - emerge-on-impact
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/celestial.ts
+    depends_on:
+      - shooting-star-spawn-flag
+      - trigger-player-spawn-shower
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: tests-player-spawn
+    title: 'New test file src/engine/__tests__/playerSpawn.test.ts covering: trigger initializes state; star marked forPlayerSpawn drops no meteorite; visible flips on impact; multiplayer-style trigger with arbitrary spawnPos; off-map fallback; idempotent guard'
+    spec_id: player-spawn
+    spec_sections:
+      - spawn-state-record
+      - trigger-on-game-start
+      - hidden-during-descent
+      - emerge-on-impact
+      - multiplayer-generic-trigger
+      - idempotent-trigger
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/shootingStars.test.ts
+    output_files:
+      - src/engine/__tests__/playerSpawn.test.ts
+    depends_on:
+      - shooting-star-spawn-flag
+      - trigger-player-spawn-shower
+      - gameloop-trigger-on-first-tick
+      - emerge-fallbacks
+    verification:
+      - npx vitest run src/engine/__tests__/playerSpawn.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: tests-shooting-stars-update
+    title: 'Update existing shooting-stars tests: first shower no longer auto-schedules from elapsed time; meteor-shower-scheduling tests must drive the first shower via triggerPlayerSpawnShower'
+    spec_id: shooting-stars
+    spec_sections:
+      - meteor-shower-scheduling
+      - player-spawn-shower-trigger
+    context_files:
+      - src/engine/__tests__/shootingStars.test.ts
+      - src/engine/celestial.ts
+    output_files:
+      - src/engine/__tests__/shootingStars.test.ts
+    depends_on:
+      - trigger-player-spawn-shower
+    verification:
+      - npx vitest run src/engine/__tests__/shootingStars.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: tests-genesis-transition-update
+    title: 'Update genesis-transition tests: player is no longer continuously visible across the transition; assert player tile is empty until spawn meteor lands'
+    spec_id: genesis-transition
+    spec_sections:
+      - entity-fade-in
+      - player-absent-until-spawn-meteor
+    context_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+      - src/engine/renderer.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+    depends_on:
+      - hide-player-during-descent
+      - gameloop-trigger-on-first-tick
+    verification:
+      - npx vitest run src/engine/__tests__/genesisTransition.test.ts
+    repair: retry
+    tags: [test]

@@ -1,0 +1,175 @@
+id: player-spawn
+name: 'Player spawn meteor ceremony'
+status: planned
+priority: high
+layer: engine
+source_files:
+  - src/engine/state.ts
+  - src/engine/celestial.ts
+  - src/engine/gameLoop.ts
+  - src/engine/renderer.ts
+  - src/engine/types.ts
+  - src/engine/constants.ts
+dependencies:
+  - shooting-stars
+  - genesis-transition
+
+behaviors:
+  - id: spawn-state-record
+    description: >
+      every player carries a spawn record describing whether the player
+      is currently visible and which incoming meteor is bound for them.
+      shape: { visible: boolean, spawnPos: Position, meteorEntityId: number | null,
+      triggeredAt: number }. the local (single-player) spawn record lives
+      at state.playerSpawn so the design generalizes to a per-player map
+      when multiplayer lands. visible defaults to false at game start.
+    inputs:
+      - 'createGameState called'
+    outputs: []
+    state_changes:
+      - field: playerSpawn
+        effect: 'initialized with visible=false, spawnPos=player position, meteorEntityId=null, triggeredAt=0'
+    determinism: deterministic
+
+  - id: trigger-on-game-start
+    description: >
+      on the first gameLoop tick after createGameState (or after the
+      genesis crossfade in the genesis path), triggerPlayerSpawnShower
+      is called with the player's position and the current time. this
+      kicks off the first meteor shower of the run with one star
+      pre-targeted at the player. the call is idempotent (guarded by
+      playerSpawn.triggeredAt !== 0). the shower targets the player
+      with a path length chosen so the star lands within ~2000ms.
+    inputs:
+      - 'first gameLoop tick where playerSpawn.triggeredAt is 0'
+    outputs: []
+    state_changes:
+      - field: playerSpawn.triggeredAt
+        effect: 'set to current time'
+      - field: playerSpawn.meteorEntityId
+        effect: 'set to the entity id of the spawn-targeted shooting star'
+      - field: meteorShower
+        effect: 'shower transitions to active immediately (see player-spawn-shower-trigger in shooting-stars spec)'
+    determinism: time-based
+
+  - id: hidden-during-descent
+    description: >
+      while playerSpawn.visible is false, the renderer must not draw
+      the player glyph. cursor highlight on the player tile is
+      suppressed (the tile reads as empty terrain). other entities
+      (ghosts, bees, coyote) treat the player tile as occupied via
+      getBlockedPositions so nothing else lands on the spawn tile.
+      keyboard input is accepted but movement is short-circuited
+      while invisible — the player cannot walk away from their
+      meteor's landing target.
+    inputs:
+      - 'playerSpawn.visible === false'
+      - 'render frame, input tick'
+    outputs:
+      - 'player glyph not drawn'
+      - 'player tile not cursorable'
+      - 'WASD/click-to-move ignored'
+    state_changes: []
+    determinism: deterministic
+
+  - id: emerge-on-impact
+    description: >
+      when the spawn-targeted shooting star lands (matched via
+      playerSpawn.meteorEntityId), the star's tickShootingStars
+      handler suppresses the meteorite ground-item drop, still spawns
+      the explosion TimedEffect entity, and flips
+      playerSpawn.visible to true. a pickupBloom is NOT spawned —
+      the explosion alone marks the arrival. immediately afterward
+      the player becomes interactable: the renderer draws the glyph,
+      the cursor recognizes the tile, and movement is accepted.
+    inputs:
+      - 'tickShootingStars resolves a star whose entity id matches playerSpawn.meteorEntityId'
+    outputs:
+      - 'explosion entity created at the spawn tile'
+      - 'no meteorite ground-item entity created'
+    state_changes:
+      - field: playerSpawn.visible
+        effect: 'flipped to true'
+      - field: playerSpawn.meteorEntityId
+        effect: 'cleared to null'
+      - field: world
+        effect: 'shooting star entity destroyed; explosion entity created'
+    determinism: time-based
+
+  - id: multiplayer-generic-trigger
+    description: >
+      triggerPlayerSpawnShower(state, spawnPos, time) is the only entry
+      point for spawn ceremonies. it does not assume the local player.
+      when multiplayer lands, the per-player spawn record (or its
+      ECS-component equivalent) feeds spawnPos into the same call —
+      every joining player gets their own meteor shower with one star
+      aimed at their tile. concurrent showers triggered by overlapping
+      joins are not required to interleave gracefully in this iteration;
+      the trigger may no-op if a shower is already active and record a
+      followup-needed flag for the joining player (out of scope for
+      single-player but documented so the implementation does not
+      foreclose it).
+    inputs:
+      - 'GameState, spawn Position for any player, time'
+    outputs: []
+    state_changes:
+      - field: meteorShower
+        effect: 'active when triggered with no prior shower running'
+      - field: playerSpawn (or per-player equivalent)
+        effect: 'triggeredAt and meteorEntityId set for the spawning player'
+    determinism: time-based
+
+edge_cases:
+  - id: skip-genesis-still-spawns-via-meteor
+    description: >
+      ?skipGenesis=true bypasses the crossfade. the spawn meteor still
+      runs — the trigger fires on the first gameplay tick regardless
+      of whether genesisTransition was active.
+    expected: 'spawn shower starts on first tick; player appears ~2s later'
+
+  - id: spawn-tile-on-water-or-edge
+    description: >
+      the player spawns on the deterministic center tile, which is
+      expected to be Dirt. if a future change places the spawn on an
+      unwalkable tile, the trigger still fires but the targeted star
+      lands per the targeted-star-spawning rules (water tiles produce
+      no meteorite; explosion only).
+    expected: 'spawn ceremony tolerates non-Dirt spawn tiles by skipping the meteorite drop and still emerging the player'
+
+  - id: shower-already-active-when-triggered
+    description: >
+      another player joins (multiplayer) while a shower is already
+      active. triggerPlayerSpawnShower should still spawn a single
+      forPlayerSpawn star aimed at the new player without resetting
+      remainingStars on the active shower.
+    expected: 'one targeted spawn star created immediately; active shower state untouched'
+
+  - id: deep-time-suppression
+    description: >
+      deep-time activation should never coincide with player spawn in
+      single-player, but deep-time suppresses tickMeteorShower. if a
+      spawn ceremony is in progress when deep-time activates, the
+      shower aborts; playerSpawn.visible flips to true regardless so
+      the player is not stranded invisible.
+    expected: 'invisible-state cleared on deep-time activation as a safety; spawn ceremony may end without explosion'
+
+  - id: idempotent-trigger
+    description: >
+      multiple gameLoop ticks fire before triggeredAt is observed by
+      the next tick.
+    expected: 'guard on playerSpawn.triggeredAt !== 0 prevents a second shower trigger'
+
+failure_conditions:
+  - trigger: 'spawn-targeted star is destroyed off-map before reaching its target'
+    expected: 'tickShootingStars detects entity destruction without impact on the player tile and flips playerSpawn.visible to true as a fallback so the player is never stranded invisible'
+
+  - trigger: 'playerSpawn.meteorEntityId references an entity id that no longer exists'
+    expected: 'next tick clears meteorEntityId to null and flips visible to true'
+
+  - trigger: 'triggerPlayerSpawnShower called with no valid landing tile (entire map blocked)'
+    expected: 'spawn-targeted star still spawns at spawnPos directly via spawnShootingStarAtTarget; the function never throws'
+
+verification:
+  test_file: src/engine/__tests__/playerSpawn.test.ts
+  test_pattern: 'player spawn'
+  command: 'npx vitest run src/engine/__tests__/playerSpawn.test.ts'

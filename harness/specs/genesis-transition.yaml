@@ -40,17 +40,21 @@ behaviors:
       during the crossfade window, entities that were not visible in
       genesis (ghosts, bees, beehives, coyote, ground items, meteorites,
       angels) render with opacity ramping from 0 to 1 over the crossfade
-      duration. gron and the player are excluded from the entity fade
-      because they are already rendered in the presentDay genesis epoch
-      and must remain continuously visible. the isEntity flag is not set
-      for the player tile or for character tiles whose characterId
-      matches a character rendered in genesis (currently only gron).
+      duration. gron is excluded from the entity fade because he is
+      rendered in the presentDay genesis epoch and must remain
+      continuously visible. the player is NOT rendered in genesis
+      presentDay and is NOT rendered at the start of the crossfade —
+      the player emerges via the spawn-meteor sequence (see player-spawn
+      spec). the isEntity flag is not set for character tiles whose
+      characterId matches a character rendered in genesis (currently
+      only gron).
     inputs:
       - 'genesisTransition active with startTime and duration'
       - 'entities present in game state (ghosts, bees, coyote, etc.)'
     outputs:
       - 'non-genesis entities render at fractional opacity during crossfade'
-      - 'gron and player remain at full opacity throughout the transition'
+      - 'gron remains at full opacity throughout the transition'
+      - 'player is not rendered until the spawn meteor lands'
     state_changes: []
     determinism: time-based
 
@@ -161,6 +165,14 @@ edge_cases:
       position. when the game renderer takes over, gron must not
       disappear or flash — he remains at full opacity throughout.
     expected: 'gron is visible before, during, and after the transition with no opacity change'
+
+  - id: player-absent-until-spawn-meteor
+    description: >
+      the player must NOT be rendered during genesis presentDay, the
+      crossfade window, or the brief window before the spawn meteor lands.
+      the player tile remains empty terrain until the player-spawn star
+      impacts.
+    expected: 'no player glyph visible at the start of the gameplay screen; player appears only when the spawn meteor lands (~2s in)'
 
   - id: stars-no-shift
     description: >
