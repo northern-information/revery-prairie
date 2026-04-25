@@ -2642,7 +2642,7 @@ const presentDay: GenesisEpoch = {
     // Remove disconnected walkable islands unreachable from player spawn
     enforceConnectivity(sim)
   },
-  renderTile: (sim, x, y, progress, time) => {
+  renderTile: (sim, x, y, _progress, time) => {
     const h = tileHash(x, y)
     const tile = sim.grid[y]?.[x]
 
@@ -2689,12 +2689,8 @@ const presentDay: GenesisEpoch = {
       return [{ char: gron.glyph, color: gron.glyphColor, dx: 0, dy: 0 }]
     }
 
-    // Player fades in
-    const playerX = Math.floor(sim.width / 2)
-    const playerY = Math.floor(sim.height / 2)
-    if (x === playerX && y === playerY && progress > 0.5) {
-      return [{ char: '@', color: '#FFFFFF', dx: 0, dy: 0 }]
-    }
+    // Player intentionally not rendered in genesis presentDay — the steward
+    // arrives via the spawn-meteor ceremony after the genesis crossfade.
 
     // Base terrain
     const baseTile: GenesisTileRender = sim.burnScars.has(key)

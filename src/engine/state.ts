@@ -139,12 +139,21 @@ export const createGameState = (
     world: createWorld(),
     meteorShower: {
       active: false,
-      nextShowerTime: 1,
+      nextShowerTime: 0,
       remainingStars: 0,
       lastSpawnTime: 0,
       spawnIntervalMs: 0,
       radiantDx: 0,
       radiantDy: 0,
+    },
+    playerSpawn: {
+      // visible defaults to true so headless tests/setups (no gameloop) work.
+      // The gameloop's player-spawn-trigger tick runs before the first render
+      // and flips this to false, kicking off the spawn ceremony.
+      visible: true,
+      spawnPos: { x: playerX, y: playerY },
+      meteorEntityId: null,
+      triggeredAt: 0,
     },
     lightning: {
       nextStrikeTime: 60_000,

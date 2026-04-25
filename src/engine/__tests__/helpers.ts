@@ -76,6 +76,14 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   state.tileWater = new Map()
   // Ensure no rain so spawnBeeOrMonarch always creates bees in existing tests
   state.weather.sky = Sky.Sun
+  // Mark the spawn ceremony as already completed — tests that don't exercise
+  // it should see a visible, movable player even when running the game loop.
+  state.playerSpawn = {
+    visible: true,
+    spawnPos: { ...state.player },
+    meteorEntityId: null,
+    triggeredAt: 1,
+  }
   return state
 }
 

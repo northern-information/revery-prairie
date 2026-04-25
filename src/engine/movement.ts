@@ -72,6 +72,9 @@ export const getPathfindingBlockers = (state: GameState, target?: Position): Set
 }
 
 export const movePlayer = (state: GameState, dir: Direction): boolean => {
+  // Player cannot leave their landing tile until the spawn meteor lands.
+  if (!state.playerSpawn.visible) return false
+
   const d = DIRECTIONS[dir]
   const nx = state.player.x + d.x
   const ny = state.player.y + d.y

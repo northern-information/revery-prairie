@@ -31,25 +31,16 @@ afterEach(() => {
 
 describe('meteor shower', () => {
   describe('scheduling', () => {
-    it('schedules first shower via nextShowerTime when set to 0', () => {
+    it('stays idle when nextShowerTime is 0 — the first shower must be triggered by triggerPlayerSpawnShower', () => {
       const state = createTestState()
-      // Override to 0 to test the "first tick" scheduling path
-      state.meteorShower.nextShowerTime = 0
+      // Fresh state: nextShowerTime is 0 because the player has not yet spawned.
+      expect(state.meteorShower.nextShowerTime).toBe(0)
 
       tickMeteorShower(state, 1000)
+      tickMeteorShower(state, 200_000)
 
-      expect(state.meteorShower.nextShowerTime).toBeGreaterThan(1000)
       expect(state.meteorShower.active).toBe(false)
-    })
-
-    it('fires immediately when nextShowerTime is 1 (game start)', () => {
-      const state = createTestState()
-      expect(state.meteorShower.nextShowerTime).toBe(1)
-
-      // Any rAF timestamp > 1 triggers the shower
-      tickMeteorShower(state, 1000)
-
-      expect(state.meteorShower.active).toBe(true)
+      expect(state.meteorShower.nextShowerTime).toBe(0)
     })
 
     it('does not start before nextShowerTime', () => {

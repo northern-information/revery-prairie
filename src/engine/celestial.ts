@@ -9,12 +9,14 @@ import {
   METEOR_SHOWER_STAR_COUNT_MIN,
   METEORITE_GROUND_MAX,
   PICKUP_EFFECT_DURATION_MS,
+  PLAYER_SPAWN_DESCENT_TARGET_MS,
   SHOOTING_STAR_LAND_CHANCE,
   SHOOTING_STAR_MAX_ACTIVE,
   SHOOTING_STAR_MAX_AGE,
   SHOOTING_STAR_MAX_LENGTH,
   SHOOTING_STAR_MIN_LENGTH,
   SHOOTING_STAR_SPAWN_CHANCE,
+  SHOOTING_STAR_TICK_MS,
   SPACE_BORDER,
 } from './constants'
 import { ComponentType } from './ecs/types'
@@ -163,17 +165,23 @@ export const spawnShootingStar = (state: GameState): void => {
 export const spawnShootingStarAtTarget = (
   state: GameState,
   target: Position,
-  direction?: { dx: number; dy: number }
-): void => {
+  direction?: { dx: number; dy: number },
+  opts?: { forPlayerSpawn?: boolean; backtrackTiles?: number }
+): number => {
   const dx = direction?.dx ?? (Math.random() < 0.5 ? 1 : -1)
   const dy = direction?.dy ?? (Math.random() < 0.5 ? 1 : -1)
 
-  // Trace backward from target to find the starting edge position
+  // Starting position: either trace back to off-map (default), or back N tiles
   let sx = target.x
   let sy = target.y
-  while (isInBounds(sx, sy, MAP_WIDTH, MAP_HEIGHT)) {
-    sx -= dx
-    sy -= dy
+  if (opts?.backtrackTiles !== undefined) {
+    sx = target.x - dx * opts.backtrackTiles
+    sy = target.y - dy * opts.backtrackTiles
+  } else {
+    while (isInBounds(sx, sy, MAP_WIDTH, MAP_HEIGHT)) {
+      sx -= dx
+      sy -= dy
+    }
   }
 
   const length =
@@ -187,9 +195,11 @@ export const spawnShootingStarAtTarget = (
     age: 0,
     willLand: true,
     landingTarget: target,
+    forPlayerSpawn: opts?.forPlayerSpawn === true ? true : undefined,
   })
   state.world.addComponent(e, ComponentType.EntityTag, 'shootingStar')
   state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
+  return e
 }
 
 export const tickShootingStars = (state: GameState, time: number): void => {
@@ -211,7 +221,7 @@ export const tickShootingStars = (state: GameState, time: number): void => {
       if (data.landingTarget) {
         // Targeted landing — only land on the exact target tile
         if (x === data.landingTarget.x && y === data.landingTarget.y) {
-          if (!isWaterTile(state, x, y)) {
+          if (!data.forPlayerSpawn && !isWaterTile(state, x, y)) {
             const me = state.world.createEntity()
             state.world.addComponent(me, ComponentType.Position, { x, y })
             state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
@@ -223,6 +233,10 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
           state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
           state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
+          if (data.forPlayerSpawn && state.playerSpawn.meteorEntityId === eid) {
+            state.playerSpawn.visible = true
+            state.playerSpawn.meteorEntityId = null
+          }
           state.world.destroyEntity(eid)
           continue
         }
@@ -257,7 +271,22 @@ export const tickShootingStars = (state: GameState, time: number): void => {
       pos.y >= MAP_HEIGHT + buffer ||
       data.age > SHOOTING_STAR_MAX_AGE
     ) {
+      if (data.forPlayerSpawn && state.playerSpawn.meteorEntityId === eid) {
+        state.playerSpawn.visible = true
+        state.playerSpawn.meteorEntityId = null
+      }
       state.world.destroyEntity(eid)
+    }
+  }
+
+  // Stale meteorEntityId fallback: if the player-spawn star was destroyed
+  // by another path without flipping visible, recover here.
+  const spawn = state.playerSpawn
+  if (!spawn.visible && spawn.meteorEntityId !== null) {
+    const data = state.world.getComponent(spawn.meteorEntityId, ComponentType.ShootingStarData)
+    if (!data) {
+      spawn.visible = true
+      spawn.meteorEntityId = null
     }
   }
 
@@ -325,14 +354,9 @@ export const tickMeteorShower = (state: GameState, time: number): void => {
   if (state.deepTime?.active) return
   const shower = state.meteorShower
 
-  // First tick: schedule the first shower
-  if (shower.nextShowerTime === 0) {
-    shower.nextShowerTime =
-      time +
-      METEOR_SHOWER_MIN_INTERVAL_MS +
-      Math.random() * (METEOR_SHOWER_MAX_INTERVAL_MS - METEOR_SHOWER_MIN_INTERVAL_MS)
-    return
-  }
+  // The first shower is initiated by triggerPlayerSpawnShower (player-spawn ceremony).
+  // While nextShowerTime is 0 we have not yet had a spawn ceremony — stay idle.
+  if (!shower.active && shower.nextShowerTime === 0) return
 
   // Idle: waiting for next shower
   if (!shower.active && time < shower.nextShowerTime) return
@@ -373,4 +397,47 @@ export const tickMeteorShower = (state: GameState, time: number): void => {
       METEOR_SHOWER_MIN_INTERVAL_MS +
       Math.random() * (METEOR_SHOWER_MAX_INTERVAL_MS - METEOR_SHOWER_MIN_INTERVAL_MS)
   }
+}
+
+// Initiates a meteor shower whose first star is aimed at the spawning player.
+// Generic over any player position so multiplayer joins can call this with
+// each new player's spawn tile.
+export const triggerPlayerSpawnShower = (state: GameState, spawnPos: Position, time: number): void => {
+  if (state.deepTime?.active) return
+  const shower = state.meteorShower
+
+  // Pick a radiant for the rest of the shower (not used for the player star itself).
+  const radiant = pickRadiantDirection()
+
+  // If a shower is not already active, start one. If one is active, leave it alone
+  // and just append the player-spawn star (multiplayer concurrent-join case).
+  if (!shower.active) {
+    const count =
+      METEOR_SHOWER_STAR_COUNT_MIN +
+      Math.floor(Math.random() * (METEOR_SHOWER_STAR_COUNT_MAX - METEOR_SHOWER_STAR_COUNT_MIN + 1))
+    shower.active = true
+    shower.remainingStars = count
+    shower.spawnIntervalMs = METEOR_SHOWER_SPAWN_WINDOW_MS / count
+    shower.lastSpawnTime = time
+    shower.radiantDx = radiant.dx
+    shower.radiantDy = radiant.dy
+    recordDiscovery(state, 'event:meteor-shower')
+  }
+
+  // Pick a downward-ish diagonal direction for the player-spawn star.
+  // Velocity (1, 1) keeps the trail contiguous; backtracking N tiles
+  // controls the descent time.
+  const sign = Math.random() < 0.5 ? -1 : 1
+  const dir = { dx: sign, dy: 1 }
+  const backtrack = Math.max(1, Math.round(PLAYER_SPAWN_DESCENT_TARGET_MS / SHOOTING_STAR_TICK_MS))
+
+  const eid = spawnShootingStarAtTarget(state, spawnPos, dir, {
+    forPlayerSpawn: true,
+    backtrackTiles: backtrack,
+  })
+
+  state.playerSpawn.spawnPos = spawnPos
+  state.playerSpawn.meteorEntityId = eid
+  state.playerSpawn.triggeredAt = time
+  state.playerSpawn.visible = false
 }

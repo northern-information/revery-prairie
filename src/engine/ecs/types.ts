@@ -55,6 +55,7 @@ export interface ComponentDataMap {
     age: number
     willLand: boolean
     landingTarget: Position | null
+    forPlayerSpawn?: boolean
   }
   [ComponentType.MultiPosition]: { positions: Position[] }
 

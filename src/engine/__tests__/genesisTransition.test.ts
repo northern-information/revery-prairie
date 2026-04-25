@@ -135,6 +135,29 @@ describe('genesis transition', () => {
       expect(tiles).toHaveLength(1)
       expect(tiles[0].char).toBe('G')
     })
+
+    it('genesis presentDay does NOT render the player — the player arrives via the spawn meteor', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
+      const sim = state.genesis
+      expect(sim).not.toBeNull()
+      if (!sim) return
+
+      const playerX = Math.floor(sim.width / 2)
+      const playerY = Math.floor(sim.height / 2)
+      const lastEpoch = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
+      const tiles = lastEpoch.renderTile(sim, playerX, playerY, 1, 1000)
+
+      // No '@' glyph at the player tile
+      for (const t of tiles) {
+        expect(t.char).not.toBe('@')
+      }
+    })
+
+    it('createGameState initializes playerSpawn with triggeredAt=0 — the gameloop trigger has not fired yet', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
+      expect(state.playerSpawn.triggeredAt).toBe(0)
+      expect(state.playerSpawn.meteorEntityId).toBeNull()
+    })
   })
 
   describe('rain aura seed continuity', () => {
