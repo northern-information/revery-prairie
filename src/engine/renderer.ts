@@ -118,6 +118,7 @@ import { isInRainFront } from './tileWater'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
+import { PLAYER_COLORS } from '@revery-prairie/shared'
 
 import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState, TransitionFade } from './types'
@@ -191,6 +192,7 @@ const _targetedStarMap = new Map<string, { char: string; color: string }>()
 const _meteoritePositions = new Set<string>()
 const _beehivePositions = new Set<string>()
 const _characterMap = new Map<string, { glyph: string; color: string; id: string }>()
+const _remotePlayerMap = new Map<string, { color: string; sessionId: string }>()
 const _angelMap = new Map<string, { char: string; color: string }>()
 const _angelTileToGroup = new Map<string, Set<string>>()
 const _trailMap = new Map<string, number>()
@@ -266,6 +268,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   _meteoritePositions.clear()
   _beehivePositions.clear()
   _characterMap.clear()
+  _remotePlayerMap.clear()
   _angelMap.clear()
   _angelTileToGroup.clear()
   _trailMap.clear()
@@ -293,6 +296,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const meteoritePositions = _meteoritePositions
   const beehivePositions = _beehivePositions
   const characterMap = _characterMap
+  const remotePlayerMap = _remotePlayerMap
   const angelMap = _angelMap
   const angelTileToGroup = _angelTileToGroup
   const trailMap = _trailMap
@@ -485,6 +489,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (!inZone(eid)) continue
     const hpos = state.world.getComponent(eid, ComponentType.Position)
     if (hpos) beehivePositions.add(posKey(hpos.x, hpos.y))
+  }
+
+  // Populate remote player positions (multiplayer). Overworld only in MVP.
+  if (state.currentZone === Zone.Overworld) {
+    for (const remote of state.remotePlayers.values()) {
+      const hex = PLAYER_COLORS[remote.color].hex
+      remotePlayerMap.set(posKey(remote.x, remote.y), { color: hex, sessionId: remote.sessionId })
+    }
   }
 
   // Populate character positions (from ECS)
@@ -1066,6 +1078,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const shootingStarOnLand = targetedStarMap.get(tileKey)
       const previewTile = previewMap.get(tileKey)
 
+      const sessionColor = state.multiplayerSession ? PLAYER_COLORS[state.multiplayerSession.color].hex : PLAYER_COLOR
+
       if (mx === player.x && my === player.y) {
         if (previewTile) {
           ctx.fillStyle = previewTile.color
@@ -1081,18 +1095,23 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           ctx.fillText(state.deepTime.playerGlyph, px, py)
           // Draw new glyph fading in
           ctx.globalAlpha = glyphT
-          ctx.fillStyle = PLAYER_COLOR
+          ctx.fillStyle = sessionColor
           ctx.fillText(PLAYER_CHAR, px, py)
           ctx.globalAlpha = 1
           // Skip the normal draw path for this tile
           char = PLAYER_CHAR
-          color = PLAYER_COLOR
+          color = sessionColor
           cursorable = false
           continue
         }
         char = state.deepTime?.active ? state.deepTime.playerGlyph : PLAYER_CHAR
-        color = state.deepTime?.active ? state.deepTime.playerGlyphColor : PLAYER_COLOR
+        color = state.deepTime?.active ? state.deepTime.playerGlyphColor : sessionColor
         cursorable = false
+      } else if (remotePlayerMap.has(tileKey)) {
+        const rp = remotePlayerMap.get(tileKey)
+        char = PLAYER_CHAR
+        color = rp?.color ?? PLAYER_COLOR
+        isEntity = true
       } else if (characterMap.has(tileKey)) {
         const ch = characterMap.get(tileKey)
         char = ch?.glyph ?? 'G'

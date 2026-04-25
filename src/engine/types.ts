@@ -1,3 +1,5 @@
+import type { ColorId } from '@revery-prairie/shared'
+
 import type { World } from './ecs/world'
 import type { CivilizationRuin, GenesisSimState } from './genesisTypes'
 
@@ -130,6 +132,28 @@ export interface TransitionFade {
   duration: number
 }
 
+export type MultiplayerStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
+
+export interface MultiplayerSession {
+  prairieId: string
+  ownerToken: string | null
+  sessionId: string | null
+  stewardName: string
+  color: ColorId
+  role: 'host' | 'visitor'
+  status: MultiplayerStatus
+}
+
+export interface RemotePlayer {
+  sessionId: string
+  stewardName: string
+  color: ColorId
+  x: number
+  y: number
+  facing: Direction
+  lastUpdateMs: number
+}
+
 export interface GameState {
   stewardName: string
   map: Tile[][]
@@ -247,6 +271,9 @@ export interface GameState {
   devPanelOpen: boolean
   devPaintPreview: { x1: number; y1: number; x2: number; y2: number; tileType: string } | null
   devEntityPreview: { x: number; y: number; char: string; color: string } | null
+  multiplayerSession: MultiplayerSession | null
+  remotePlayers: Map<string, RemotePlayer>
+  onPlayerMoved: (() => void) | null
 }
 
 export const CloverStage = {

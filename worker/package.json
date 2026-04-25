@@ -1,0 +1,22 @@
+{
+  "name": "@revery-prairie/worker",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@revery-prairie/shared": "*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20250109.0",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4",
+    "wrangler": "3.99.0"
+  }
+}

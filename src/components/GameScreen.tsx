@@ -29,7 +29,7 @@ import { canCast } from '@/engine/hexagram'
 import { getDefinition } from '@/engine/items'
 import { hasSelection } from '@/engine/selection'
 import { useEventLog } from '@/hooks/useEventLog'
-import { useGameEngine } from '@/hooks/useGameEngine'
+import { useGameEngine, type MultiplayerHookArgs } from '@/hooks/useGameEngine'
 import { useKeyboard } from '@/hooks/useKeyboard'
 import { useMusic } from '@/hooks/useMusic'
 import type { DragOverlayData } from './InventoryPanel'
@@ -40,12 +40,13 @@ interface GameScreenProps {
   stewardName: string
   skipGenesis?: boolean
   onRestart: () => void
+  multiplayer?: MultiplayerHookArgs
 }
 
-export const GameScreen = ({ stewardName, skipGenesis, onRestart }: GameScreenProps) => {
+export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }: GameScreenProps) => {
   // uiVersion is destructured to subscribe GameScreen to the useState counter.
   // refreshUI() increments it, triggering re-renders when engine state mutates.
-  const { state, refreshUI, uiVersion } = useGameEngine(stewardName, 80, 40, skipGenesis)
+  const { state, refreshUI, uiVersion } = useGameEngine(stewardName, 80, 40, skipGenesis, multiplayer)
   void uiVersion
 
   // Apply font scale on mount

@@ -1,7 +1,16 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { completeGenesis } from '@/engine/genesis'
 import { createGameState } from '@/engine/state'
+
+import type { NetworkClient } from '@/network/client'
+import type {
+  ColorId,
+  PeerJoinedFrame,
+  PeerLeftFrame,
+  PeerPositionFrame,
+  WelcomeFrame,
+} from '@revery-prairie/shared'
 import type { GameState } from '@/engine/types'
 
 // Game state lives outside React's render cycle.
@@ -12,17 +21,58 @@ export const resetGameState = (): void => {
   gameState = null
 }
 
+export interface MultiplayerHookArgs {
+  client: NetworkClient
+  welcome: WelcomeFrame
+  prairieId: string
+  ownerToken: string | null
+  color: ColorId
+}
+
 export const useGameEngine = (
   stewardName: string,
   viewportWidth: number,
   viewportHeight: number,
-  skipGenesis?: boolean
+  skipGenesis?: boolean,
+  multiplayer?: MultiplayerHookArgs
 ) => {
   const [uiVersion, setUiVersion] = useState(0)
 
   const initializedRef = useRef(false)
   if (!initializedRef.current) {
-    gameState ??= createGameState(stewardName, viewportWidth, viewportHeight)
+    if (multiplayer) {
+      const seed = multiplayer.welcome.world.genesisSeed
+      const initial = createGameState(seed, viewportWidth, viewportHeight)
+      initial.stewardName = stewardName
+      initial.multiplayerSession = {
+        prairieId: multiplayer.prairieId,
+        ownerToken: multiplayer.ownerToken,
+        sessionId: multiplayer.welcome.sessionId,
+        stewardName,
+        color: multiplayer.color,
+        role: multiplayer.welcome.isOwner ? 'host' : 'visitor',
+        status: 'connected',
+      }
+      for (const peer of multiplayer.welcome.peers) {
+        initial.remotePlayers.set(peer.sessionId, {
+          sessionId: peer.sessionId,
+          stewardName: peer.stewardName,
+          color: peer.color,
+          x: peer.x,
+          y: peer.y,
+          facing: peer.facing,
+          lastUpdateMs: Date.now(),
+        })
+      }
+      const client = multiplayer.client
+      initial.onPlayerMoved = () => {
+        if (!gameState) return
+        client.sendPosition(gameState.player.x, gameState.player.y, gameState.playerFacing)
+      }
+      gameState = initial
+    } else {
+      gameState ??= createGameState(stewardName, viewportWidth, viewportHeight)
+    }
     if (skipGenesis && gameState.genesis) {
       completeGenesis(gameState)
     }
@@ -34,6 +84,56 @@ export const useGameEngine = (
   const refreshUI = useCallback(() => {
     setUiVersion(v => v + 1)
   }, [])
+
+  useEffect(() => {
+    if (!multiplayer) return undefined
+    const client = multiplayer.client
+
+    const onPeerJoined = (frame: PeerJoinedFrame) => {
+      state.remotePlayers.set(frame.sessionId, {
+        sessionId: frame.sessionId,
+        stewardName: frame.stewardName,
+        color: frame.color,
+        x: frame.x,
+        y: frame.y,
+        facing: frame.facing,
+        lastUpdateMs: Date.now(),
+      })
+      refreshUI()
+    }
+    const onPeerPosition = (frame: PeerPositionFrame) => {
+      const remote = state.remotePlayers.get(frame.sessionId)
+      if (remote) {
+        remote.x = frame.x
+        remote.y = frame.y
+        remote.facing = frame.facing
+        remote.lastUpdateMs = Date.now()
+      }
+      refreshUI()
+    }
+    const onPeerLeft = (frame: PeerLeftFrame) => {
+      state.remotePlayers.delete(frame.sessionId)
+      refreshUI()
+    }
+    const onStatusChange = (status: 'connecting' | 'connected' | 'reconnecting' | 'disconnected') => {
+      if (state.multiplayerSession) {
+        state.multiplayerSession.status = status
+        refreshUI()
+      }
+    }
+
+    client.on('peer-joined', onPeerJoined)
+    client.on('peer-position', onPeerPosition)
+    client.on('peer-left', onPeerLeft)
+    client.on('status-change', onStatusChange)
+
+    return () => {
+      client.off('peer-joined', onPeerJoined)
+      client.off('peer-position', onPeerPosition)
+      client.off('peer-left', onPeerLeft)
+      client.off('status-change', onStatusChange)
+    }
+  }, [multiplayer, state, refreshUI])
 
   return {
     state,
