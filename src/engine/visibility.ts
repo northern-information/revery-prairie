@@ -1,4 +1,4 @@
-import { CAVE_VISION_RADIUS, RUIN_VISION_RADIUS } from './constants'
+import { CAVE_VISION_RADIUS, DISCOVERY_RADIUS, RUIN_VISION_RADIUS } from './constants'
 import { isInBounds, posKey } from './position'
 import { TileType, Zone } from './types'
 
@@ -7,10 +7,17 @@ import type { GameState, Tile } from './types'
 /**
  * Tile visibility state for fog of war.
  * - 'unexplored': never seen — renders as black
- * - 'explored': previously seen — terrain at reduced brightness, no entities
- * - 'visible': currently in line-of-sight — full rendering
+ * - 'partiallyDiscovered': was once in player FOV but never within DISCOVERY_RADIUS
+ *   — terrain at reduced brightness, entities/effects hidden ("dim memory")
+ * - 'fullyDiscovered': was once within DISCOVERY_RADIUS of the player AND in LOS
+ *   — terrain and live entities at full brightness even when out of LOS (permanent)
+ * - 'visible': currently in line-of-sight — full rendering with cursor/effects
  */
-export type TileVisibility = 'unexplored' | 'explored' | 'visible'
+export type TileVisibility =
+  | 'unexplored'
+  | 'partiallyDiscovered'
+  | 'fullyDiscovered'
+  | 'visible'
 
 /** Returns true if the given zone has fog of war. */
 export const hasFogOfWar = (zone: string): boolean =>
@@ -141,16 +148,25 @@ const scanOctant = (
 }
 
 /**
- * Get the fog explored set and illumination map for the current zone.
+ * Get the fog state sets and illumination map for the current zone.
  * Cave uses GameState fields; Ruin uses per-interior fields.
  * Returns null if the current zone has no fog of war.
+ *
+ * - fogExplored: tiles ever in player FOV (drives partiallyDiscovered)
+ * - fogDiscovered: tiles ever within DISCOVERY_RADIUS AND in LOS (drives fullyDiscovered)
+ * - fogIllumination: temporary revery illumination → expiration time
  */
 const getFogState = (
   state: GameState,
-): { fogExplored: Set<string>; fogIllumination: Map<string, number> } | null => {
+): {
+  fogExplored: Set<string>
+  fogDiscovered: Set<string>
+  fogIllumination: Map<string, number>
+} | null => {
   if (state.currentZone === Zone.Cave) {
     return {
       fogExplored: state.caveFogExplored,
+      fogDiscovered: state.caveFogDiscovered,
       fogIllumination: state.caveFogIllumination,
     }
   }
@@ -159,6 +175,7 @@ const getFogState = (
     if (interior) {
       return {
         fogExplored: interior.fogExplored,
+        fogDiscovered: interior.fogDiscovered,
         fogIllumination: interior.fogIllumination,
       }
     }
@@ -168,7 +185,11 @@ const getFogState = (
 
 /**
  * Get the visibility state of a tile for fog of war.
- * Returns 'visible', 'explored', or 'unexplored'.
+ * Returns 'visible', 'fullyDiscovered', 'partiallyDiscovered', or 'unexplored'.
+ *
+ * Priority: visible (currently in LOS / illuminated) wins over fullyDiscovered;
+ * fullyDiscovered (was within DISCOVERY_RADIUS in LOS) wins over
+ * partiallyDiscovered (was once in FOV); else unexplored.
  */
 export const getTileVisibility = (
   state: GameState,
@@ -182,7 +203,8 @@ export const getTileVisibility = (
   if (visibleSet.has(key)) return 'visible'
 
   const fog = getFogState(state)
-  if (fog?.fogExplored.has(key)) return 'explored'
+  if (fog?.fogDiscovered.has(key)) return 'fullyDiscovered'
+  if (fog?.fogExplored.has(key)) return 'partiallyDiscovered'
   return 'unexplored'
 }
 
@@ -203,8 +225,10 @@ export const computeZoneVisibility = (state: GameState): Set<string> => {
   // Pick vision radius based on zone
   const radius = state.currentZone === Zone.Ruin ? RUIN_VISION_RADIUS : CAVE_VISION_RADIUS
 
-  // Player's natural vision
-  const visible = computeFOV(player.x, player.y, radius, map, mapWidth, mapHeight)
+  // Player's natural vision (separate from total visible — used below for
+  // fullyDiscovered promotion, since revery illumination must not promote)
+  const playerFOV = computeFOV(player.x, player.y, radius, map, mapWidth, mapHeight)
+  const visible = new Set(playerFOV)
 
   // Add illumination from revery effects (fire, lightning)
   for (const key of fog.fogIllumination.keys()) {
@@ -237,6 +261,24 @@ export const computeZoneVisibility = (state: GameState): Set<string> => {
   // Update explored set — tiles never revert to unexplored
   for (const key of visible) {
     fog.fogExplored.add(key)
+  }
+
+  // Promote tiles within DISCOVERY_RADIUS of the player AND in the player's
+  // natural FOV (LOS-checked) to fullyDiscovered. Permanent — never reverts.
+  // Revery illumination is excluded by checking playerFOV (not visible),
+  // so remote casts cannot full-discover tiles.
+  const minX = player.x - DISCOVERY_RADIUS
+  const maxX = player.x + DISCOVERY_RADIUS
+  const minY = player.y - DISCOVERY_RADIUS
+  const maxY = player.y + DISCOVERY_RADIUS
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      if (!isInBounds(x, y, mapWidth, mapHeight)) continue
+      const key = posKey(x, y)
+      if (playerFOV.has(key)) {
+        fog.fogDiscovered.add(key)
+      }
+    }
   }
 
   return visible

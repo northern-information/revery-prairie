@@ -1,0 +1,195 @@
+plan:
+  id: fog-of-war-permanent
+  title: 'Add fullyDiscovered state — tiles within DISCOVERY_RADIUS stay bright forever'
+  created: 2026-04-25
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-discovery-state-fields
+    title: 'Add caveFogDiscovered to GameState and fogDiscovered to RuinInterior; add DISCOVERY_RADIUS constant'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - four-state-visibility
+      - discovery-radius-promotion
+      - fog-persists-across-visits
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/engine/ruins.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/__tests__/zoneIsolation.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/engine/ruins.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/__tests__/zoneIsolation.test.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: extend-tile-visibility-type
+    title: 'Replace TileVisibility "explored" with "partiallyDiscovered" + "fullyDiscovered"'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - four-state-visibility
+    context_files:
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/visibility.ts
+    depends_on:
+      - add-discovery-state-fields
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: discovery-promotion-logic
+    title: 'Promote tiles to fogDiscovered in computeZoneVisibility when within DISCOVERY_RADIUS AND in LOS'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - discovery-radius-promotion
+      - fog-updates-on-movement
+    context_files:
+      - src/engine/visibility.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/visibility.ts
+    depends_on:
+      - extend-tile-visibility-type
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: getTileVisibility-four-state
+    title: 'Update getTileVisibility to return partiallyDiscovered or fullyDiscovered based on which set the tile is in'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - four-state-visibility
+    context_files:
+      - src/engine/visibility.ts
+    output_files:
+      - src/engine/visibility.ts
+    depends_on:
+      - discovery-promotion-logic
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: renderer-four-state
+    title: 'Update renderer to dim only partiallyDiscovered; render fullyDiscovered + visible at full brightness with live entities'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - four-state-visibility
+      - entity-visibility-culling
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - getTileVisibility-four-state
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: revery-illumination-no-discovery
+    title: 'Confirm addReveryIllumination does NOT add to fogDiscovered (only fogExplored). Update actionBar earth-scan path to match.'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - earth-revery-reveals-fog
+      - fire-revery-illumination
+      - lightning-revery-illumination
+    context_files:
+      - src/engine/visibility.ts
+      - src/engine/actionBar.ts
+      - src/engine/reveries.ts
+    output_files:
+      - src/engine/visibility.ts
+      - src/engine/actionBar.ts
+    depends_on:
+      - discovery-promotion-logic
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: sidebar-fog-awareness
+    title: 'Update sidebar cursor info: fullyDiscovered shows full info (live entities + effects); partiallyDiscovered shows terrain only'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - cursor-info-fog-awareness
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/visibility.ts
+      - src/engine/effects.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - getTileVisibility-four-state
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: cave-discovery-tests
+    title: 'Add tests for fullyDiscovered promotion (radius+LOS), entity rendering on fullyDiscovered, revery does not promote, and persistence across cave entry/exit'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - discovery-radius-promotion
+      - four-state-visibility
+      - earth-revery-reveals-fog
+      - fire-revery-illumination
+      - lightning-revery-illumination
+      - fog-persists-across-visits
+      - entity-visibility-culling
+    context_files:
+      - src/engine/__tests__/visibility.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/visibility.test.ts
+    depends_on:
+      - discovery-promotion-logic
+      - revery-illumination-no-discovery
+    verification:
+      - 'npx vitest run src/engine/__tests__/visibility.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: ruin-discovery-tests
+    title: 'Add tests for fullyDiscovered in ruins: per-ruin fogDiscovered isolation, persistence across ruin entry/exit, revery does not promote'
+    spec_id: ruin-fog-of-war
+    spec_sections:
+      - fov-computed-in-ruins
+      - per-ruin-fog-state
+      - revery-illumination-in-ruins
+    context_files:
+      - src/engine/__tests__/visibility.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/visibility.test.ts
+    depends_on:
+      - cave-discovery-tests
+    verification:
+      - 'npx vitest run src/engine/__tests__/visibility.test.ts'
+    repair: retry
+    tags: [test]

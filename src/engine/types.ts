@@ -235,6 +235,7 @@ export interface GameState {
   ruinEjection: RuinEjection | null
   queuedToasts: QueuedToast[]
   caveFogExplored: Set<string>
+  caveFogDiscovered: Set<string>
   caveFogIllumination: Map<string, number>
   selectedUnits: Set<number>
   playerSelected: boolean
@@ -427,6 +428,7 @@ export interface RuinInterior {
   hauntedThreshold: HauntedThresholdData | null
   resonance: ResonanceData | null
   fogExplored: Set<string>
+  fogDiscovered: Set<string>
   fogIllumination: Map<string, number>
 }
 

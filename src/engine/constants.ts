@@ -360,8 +360,9 @@ export const DEEP_TIME_TRANSITION_GLYPH_DURATION_MS = 800
 // fog of war
 export const CAVE_VISION_RADIUS = 3
 export const RUIN_VISION_RADIUS = 3
-export const FOG_EXPLORED_BRIGHTNESS = 0.4 // dimmed brightness for explored-but-not-visible tiles
+export const FOG_EXPLORED_BRIGHTNESS = 0.4 // dimmed brightness for partiallyDiscovered tiles
 export const REVERY_ILLUMINATION_RADIUS = 3 // fire/lightning reveal radius from impact point
+export const DISCOVERY_RADIUS = 2 // Chebyshev distance for player-proximity full-discovery promotion
 
 // Greek letter glyphs for overworld entrances (index 0 = cave, 1+ = ruins by ruinIndex)
 export const ENTRANCE_GLYPHS = ['Ω', 'Δ', 'Φ', 'Ψ', 'Σ', 'Λ', 'Θ', 'Π', 'Ξ', 'Γ'] as const
