@@ -110,6 +110,7 @@ import {
   tileBeamMaxOpacity,
   tileHasBeam,
 } from './glintZones'
+import { getTweenLerp } from './movementTween'
 import { isInBounds, posKey, tileHash } from './position'
 import { getReveryDefinition } from './reveries'
 import { getRuinTileLayers, isHiddenTile, shouldRenderRuinMultilayer } from './ruins'
@@ -234,16 +235,36 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const deepTimeShake = state.deepTime?.active === true && time < state.deepTime.shakeUntil
   const satelliteShake = time < state.screenShakeUntil
   const shakeActive = deepTimeShake || ejectionShake || satelliteShake
-  if (shakeActive) {
-    const amplitude = ejectionShake
-      ? RUIN_EJECTION_SHAKE_AMPLITUDE
-      : satelliteShake
-        ? SATELLITE_SHAKE_AMPLITUDE
-        : DEEP_TIME_SHAKE_AMPLITUDE
-    const sx = (Math.random() * 2 - 1) * amplitude
-    const sy = (Math.random() * 2 - 1) * amplitude
+
+  // Player tween: world glides under stationary player glyph via fractional camera offset
+  let cameraOffsetX = 0
+  let cameraOffsetY = 0
+  if (state.playerTween) {
+    const lerp = getTweenLerp(state.playerTween, time, player.x, player.y)
+    if (lerp.t >= 1) {
+      state.playerTween = null
+    } else {
+      cameraOffsetX = (lerp.x - player.x) * charWidth
+      cameraOffsetY = (lerp.y - player.y) * charHeight
+    }
+  }
+
+  const worldTransformActive = shakeActive || cameraOffsetX !== 0 || cameraOffsetY !== 0
+  if (worldTransformActive) {
     ctx.save()
-    ctx.translate(sx, sy)
+    if (shakeActive) {
+      const amplitude = ejectionShake
+        ? RUIN_EJECTION_SHAKE_AMPLITUDE
+        : satelliteShake
+          ? SATELLITE_SHAKE_AMPLITUDE
+          : DEEP_TIME_SHAKE_AMPLITUDE
+      const sx = (Math.random() * 2 - 1) * amplitude
+      const sy = (Math.random() * 2 - 1) * amplitude
+      ctx.translate(sx, sy)
+    }
+    if (cameraOffsetX !== 0 || cameraOffsetY !== 0) {
+      ctx.translate(cameraOffsetX, cameraOffsetY)
+    }
   }
 
   // Zone filter helper — only render entities in the current zone (including ruinIndex match)
@@ -318,10 +339,55 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   }
   const entranceGlyphMap = _entranceGlyphMap
 
+  // ECS movement tweens — collect entities currently interpolating between tiles.
+  // Suppressed entities skip the integer-tile maps and are drawn at fractional
+  // pixel positions in a post-pass. Completed tweens are removed lazily.
+  interface TweenedEntity {
+    eid: number
+    char: string
+    color: string
+    lerpX: number
+    lerpY: number
+  }
+  const tweenedEntities: TweenedEntity[] = []
+  const suppressedEntities = new Set<number>()
+  for (const eid of state.world.query(ComponentType.MovementTween, ComponentType.Position)) {
+    if (!inZone(eid)) continue
+    const tween = state.world.getComponent(eid, ComponentType.MovementTween)
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (!tween || !pos) continue
+    const lerp = getTweenLerp(tween, time, pos.x, pos.y)
+    if (lerp.t >= 1) {
+      state.world.removeComponent(eid, ComponentType.MovementTween)
+      continue
+    }
+    let char: string | null = null
+    let color: string | null = null
+    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    if (identity) {
+      const def = getCharacterDefinition(identity.definitionId)
+      char = def.glyph
+      color = def.glyphColor
+    } else {
+      const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+      if (tag === 'bee') {
+        char = BEE_CHAR
+        color = BEE_COLOR
+      } else if (tag === 'monarch') {
+        char = MONARCH_CHAR
+        color = MONARCH_COLOR
+      }
+    }
+    if (char === null || color === null) continue
+    tweenedEntities.push({ eid, char, color, lerpX: lerp.x, lerpY: lerp.y })
+    suppressedEntities.add(eid)
+  }
+
   // Populate bee positions (from ECS)
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
     if (!inZone(eid)) continue
+    if (suppressedEntities.has(eid)) continue
     const bpos = state.world.getComponent(eid, ComponentType.Position)
     if (bpos) beePositions.add(posKey(bpos.x, bpos.y))
   }
@@ -330,6 +396,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'monarch') continue
     if (!inZone(eid)) continue
+    if (suppressedEntities.has(eid)) continue
     const mpos = state.world.getComponent(eid, ComponentType.Position)
     if (mpos) monarchPositions.add(posKey(mpos.x, mpos.y))
   }
@@ -490,6 +557,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Populate character positions (from ECS)
   for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
     if (!inZone(eid)) continue
+    if (suppressedEntities.has(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
     if (!pos || !identity) continue
@@ -1385,6 +1453,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
+  // Smooth-movement post-pass — draw tweening ECS entities at fractional pixel positions
+  for (const t of tweenedEntities) {
+    const px = (t.lerpX - camera.x) * charWidth
+    const py = (t.lerpY - camera.y) * charHeight
+    ctx.fillStyle = t.color
+    ctx.fillText(t.char, px, py)
+  }
+
   // Rain overlay pass — draw animated rain near entities with rain aura (from ECS)
   for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
     if (!inZone(eid)) continue
@@ -1572,7 +1648,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Deep Time year counter moved to Sidebar.tsx
 
   // Restore canvas transform before screen-level overlays
-  if (shakeActive) {
+  if (worldTransformActive) {
     ctx.restore()
   }
 

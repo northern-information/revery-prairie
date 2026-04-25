@@ -1,3 +1,4 @@
+import { MOVEMENT_TWEEN_DEFAULT_MS } from '../constants'
 import { createSpatialIndex } from './spatial'
 import { ComponentType } from './types'
 
@@ -13,7 +14,7 @@ export interface World {
   getComponent: <K extends ComponentType>(entity: Entity, type: K) => ComponentDataMap[K] | undefined
   hasComponent: (entity: Entity, type: ComponentType) => boolean
   query: (...types: ComponentType[]) => Entity[]
-  moveEntity: (entity: Entity, newX: number, newY: number) => void
+  moveEntity: (entity: Entity, newX: number, newY: number, durationMs?: number) => void
   readonly spatial: SpatialIndex
 }
 
@@ -132,14 +133,26 @@ export const createWorld = (): World => {
     return result
   }
 
-  const moveEntity = (entity: Entity, newX: number, newY: number): void => {
+  const moveEntity = (entity: Entity, newX: number, newY: number, durationMs?: number): void => {
     const store = stores.get(ComponentType.Position)
     if (!store) return
     const pos = store.get(entity) as ComponentDataMap[typeof ComponentType.Position] | undefined
     if (!pos) return
-    spatial.move(entity, pos.x, pos.y, newX, newY)
+    const prevX = pos.x
+    const prevY = pos.y
+    spatial.move(entity, prevX, prevY, newX, newY)
     pos.x = newX
     pos.y = newY
+
+    if (prevX === newX && prevY === newY) return
+
+    const tweenStore = getStore(ComponentType.MovementTween)
+    tweenStore.set(entity, {
+      fromX: prevX,
+      fromY: prevY,
+      startTime: performance.now(),
+      durationMs: durationMs ?? MOVEMENT_TWEEN_DEFAULT_MS,
+    })
   }
 
   return {

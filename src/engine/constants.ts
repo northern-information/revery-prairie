@@ -267,6 +267,10 @@ export const PLAYER_CHAR = '@'
 export const PLAYER_COLOR = '#FFFFFF'
 export const TRAIL_DURATION_MS = 1000
 export const TRAIL_MAX_LENGTH = 20
+
+// movement tween (smooth tile-to-tile interpolation)
+export const MOVEMENT_TWEEN_DEFAULT_MS = 100
+export const MOVEMENT_TWEEN_SPRINT_MS = 50
 export const BEE_CHAR = '*'
 export const BEE_COLOR = '#FFD700'
 export const BG_COLOR = '#1a1a1a'

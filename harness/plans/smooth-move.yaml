@@ -1,0 +1,188 @@
+plan:
+  id: smooth-move
+  title: 'Smooth tile-to-tile movement tween'
+  created: '2026-04-25'
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-tween-constants-and-type
+    title: 'Add MOVEMENT_TWEEN_* constants and MovementTween type'
+    spec_id: smooth-move
+    spec_sections:
+      - tween-component-shape
+      - player-tween-on-move
+    context_files:
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: ['engine', 'types']
+
+  - id: add-movement-tween-component
+    title: 'Register MovementTween in ComponentType and ComponentDataMap'
+    spec_id: smooth-move
+    spec_sections:
+      - tween-component-shape
+    context_files:
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/ecs/types.ts
+    depends_on:
+      - add-tween-constants-and-type
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: ['engine', 'ecs']
+
+  - id: hook-tween-into-world-move-entity
+    title: 'world.moveEntity captures prev position and writes MovementTween'
+    spec_id: smooth-move
+    spec_sections:
+      - ecs-tween-on-move
+      - tween-component-shape
+    context_files:
+      - src/engine/ecs/world.ts
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/ecs/world.ts
+    depends_on:
+      - add-movement-tween-component
+      - add-tween-constants-and-type
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/ecs/__tests__'
+    repair: retry
+    tags: ['engine', 'ecs']
+
+  - id: add-player-tween-state-field
+    title: 'Add state.playerTween field and initialize in createGameState'
+    spec_id: smooth-move
+    spec_sections:
+      - player-tween-on-move
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - add-tween-constants-and-type
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: ['engine', 'state']
+
+  - id: hook-tween-into-move-player
+    title: 'movePlayer captures prev player position and sets state.playerTween'
+    spec_id: smooth-move
+    spec_sections:
+      - player-tween-on-move
+    context_files:
+      - src/engine/movement.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/movement.ts
+    depends_on:
+      - add-player-tween-state-field
+      - add-tween-constants-and-type
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/movement.test.ts'
+    repair: retry
+    tags: ['engine', 'movement']
+
+  - id: clear-tweens-on-zone-transition
+    title: 'Add clearMovementTweens helper and call from cave enter/exit and deep time'
+    spec_id: smooth-move
+    spec_sections:
+      - zone-transition-clears-tweens
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/movement.ts
+      - src/engine/ecs/world.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+      - src/engine/deepTime.ts
+    output_files:
+      - src/engine/cave.ts
+      - src/engine/movement.ts
+      - src/engine/deepTime.ts
+    depends_on:
+      - hook-tween-into-world-move-entity
+      - hook-tween-into-move-player
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/cave.test.ts'
+    repair: retry
+    tags: ['engine', 'zone']
+
+  - id: renderer-interpolates-tweens
+    title: 'Renderer reads tween state and draws fractional positions for tweening entities + fractional camera offset'
+    spec_id: smooth-move
+    spec_sections:
+      - tween-render-interpolation
+      - tween-completion-cleanup
+      - camera-follows-tween
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/camera.ts
+      - src/engine/ecs/types.ts
+      - src/engine/ecs/world.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+      - src/engine/camera.ts
+    depends_on:
+      - hook-tween-into-world-move-entity
+      - hook-tween-into-move-player
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__'
+    repair: retry
+    tags: ['engine', 'renderer']
+
+  - id: write-smooth-move-tests
+    title: 'Author engine tests covering tween component, world.moveEntity hook, movePlayer hook, zone clearing, and edge cases'
+    spec_id: smooth-move
+    spec_sections:
+      - tween-component-shape
+      - ecs-tween-on-move
+      - player-tween-on-move
+      - tween-completion-cleanup
+      - zone-transition-clears-tweens
+    context_files:
+      - src/engine/ecs/world.ts
+      - src/engine/ecs/types.ts
+      - src/engine/movement.ts
+      - src/engine/state.ts
+      - src/engine/cave.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/__tests__/movement.test.ts
+      - src/engine/__tests__/angels.test.ts
+    output_files:
+      - src/engine/__tests__/smoothMove.test.ts
+    depends_on:
+      - hook-tween-into-world-move-entity
+      - hook-tween-into-move-player
+      - clear-tweens-on-zone-transition
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/smoothMove.test.ts'
+    repair: retry
+    tags: ['engine', 'test']

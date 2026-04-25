@@ -1,5 +1,6 @@
 import { transitionCoyoteToZone } from './coyote'
 import { recordDiscovery } from './manual'
+import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition } from './position'
 import { deselectAll } from './selection'
 import { checkRuinTransition } from './ruins'
@@ -195,6 +196,7 @@ export const enterCave = (state: GameState): void => {
   state.activeDialog = null
   state.trail = []
   state.cloverGrowthPreviews = new Set<string>()
+  clearMovementTweens(state)
 
   // Clear selection and unit commands
   deselectAll(state)
@@ -230,6 +232,7 @@ export const exitCave = (state: GameState): void => {
   state.activeDialog = null
   state.trail = []
   state.cloverGrowthPreviews = new Set<string>()
+  clearMovementTweens(state)
 
   // Clear selection and unit commands
   deselectAll(state)
