@@ -290,6 +290,15 @@ export const GLINT_ZONE_DRIFT_MS = 10_000
 export const GLINT_ZONE_SPAWN_MS = 15_000
 export const GLINT_ZONE_TICK_MS = 5_000
 
+// glinting beams (light pouring through cloud cracks above ~30% of glinting tiles)
+export const GLINT_BEAM_CHAR = '/'
+export const GLINT_BEAM_LENGTH_MIN = 3
+export const GLINT_BEAM_LENGTH_MAX = 5
+export const GLINT_BEAM_CHANCE = 0.3 // ~30% of glinting tiles get a beam
+export const GLINT_BEAM_CYCLE_MS = 1500
+export const GLINT_BEAM_MAX_OPACITY = 0.4 // each beam picks a random cap in [0, this]
+export const GLINT_BEAM_TAIL_OPACITY = 0.5 // bottom segment dims to this fraction of the top
+
 // angels
 export const ANGEL_SPAWN_INTERVAL_MS = 90_000 // ~90s between spawns
 export const ANGEL_SPAWN_JITTER_MS = 30_000 // ±30s random jitter

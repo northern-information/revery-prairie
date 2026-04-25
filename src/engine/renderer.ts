@@ -44,6 +44,7 @@ import {
   EXPLOSION_COLORS,
   EXPLOSION_DURATION_MS,
   EXPLOSION_RADIUS,
+  GLINT_BEAM_CHAR,
   GLINT_ZONE_CHARS,
   GLINT_ZONE_COLORS,
   GLINT_ZONE_DENSITY,
@@ -103,6 +104,12 @@ import { ComponentType } from './ecs/types'
 import { GENESIS_EPOCHS } from './genesis'
 import { renderGenesis } from './genesisRenderer'
 import { getDefinition } from './items'
+import {
+  computeBeamSegmentOpacity,
+  tileBeamLength,
+  tileBeamMaxOpacity,
+  tileHasBeam,
+} from './glintZones'
 import { isInBounds, posKey, tileHash } from './position'
 import { getReveryDefinition } from './reveries'
 import { getRuinTileLayers, isHiddenTile, shouldRenderRuinMultilayer } from './ruins'
@@ -1498,6 +1505,40 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         ctx.fillText(GLINT_ZONE_CHARS[glintPhase], gpx, gpy)
       }
     }
+
+    // Glinting beam overlay — '/' beams pour from upper-right to ~30% of glinting tiles
+    const savedAlpha = ctx.globalAlpha
+    for (const key of state.glintZones) {
+      const sep = key.indexOf(',')
+      if (sep < 0) continue
+      const sx = Number(key.slice(0, sep))
+      const sy = Number(key.slice(sep + 1))
+      if (!tileHasBeam(sx, sy, state.rainSeed)) continue
+      const patchOpacity = state.glintOpacity.get(key) ?? 0
+      if (patchOpacity <= 0) continue
+
+      const length = tileBeamLength(sx, sy, state.rainSeed)
+      const beamMax = tileBeamMaxOpacity(sx, sy, state.rainSeed)
+      if (beamMax <= 0) continue
+      const colorIndex = tileHash(sx + state.rainSeed, sy + 1) % GLINT_ZONE_COLORS.length
+
+      for (let i = 0; i < length; i++) {
+        const wx = sx + i + 1
+        const wy = sy - i - 1
+        const vx = wx - camera.x
+        const vy = wy - camera.y
+        if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
+
+        const segOpacity = computeBeamSegmentOpacity(i, length, time)
+        const finalOpacity = patchOpacity * segOpacity * beamMax
+        if (finalOpacity <= 0) continue
+
+        ctx.globalAlpha = finalOpacity
+        ctx.fillStyle = GLINT_ZONE_COLORS[colorIndex]
+        ctx.fillText(GLINT_BEAM_CHAR, vx * charWidth, vy * charHeight)
+      }
+    }
+    ctx.globalAlpha = savedAlpha
   }
 
   // Deep Time burning overlay — fire characters on burning tiles

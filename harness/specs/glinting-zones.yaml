@@ -118,10 +118,45 @@ behaviors:
       and fade-out, fewer tiles sparkle. the renderer looks up the
       patch opacity for each zone tile via a glintOpacity map
       (Map<string, number>) rebuilt alongside glintZones each tick.
+      sparkles render only in the overworld; cave never shows sparkles.
     inputs:
       - 'state.glintZones set, state.glintOpacity map, current animation time'
+      - 'current zone is Zone.Overworld'
     outputs:
       - 'sparkle glyphs rendered with phase-modulated density'
+    state_changes: []
+    determinism: time-based
+
+  - id: beam-rendering
+    description: >
+      a deterministic ~30% subset of tiles in state.glintZones display
+      a downward-slanting beam of '/' characters above them, suggesting
+      light pouring through cracks in the clouds. each beam's length is
+      a stable per-tile random integer between GLINT_BEAM_LENGTH_MIN
+      and GLINT_BEAM_LENGTH_MAX (inclusive), and each beam picks a
+      stable per-tile peak opacity in [0, GLINT_BEAM_MAX_OPACITY] so
+      individual beams vary in brightness (some beams are nearly
+      invisible). segments extend diagonally up-and-to-the-right from
+      the glinting tile (segment i renders at world position
+      (tileX + i + 1, tileY - i - 1) for i in 0..length-1). whether a
+      given tile has a beam is decided by a stable per-tile hash so the
+      same tile consistently has or lacks a beam. segments animate in
+      a "pouring" pattern: the topmost segment (furthest from the
+      ground) phases in first, then each lower segment phases in over
+      the cycle, creating a top-down descent that loops continuously
+      (cycle length GLINT_BEAM_CYCLE_MS). intensity also decays as the
+      light pours: the topmost segment runs at the beam's peak opacity,
+      and each successive segment toward the ground is dimmer, scaling
+      linearly down to GLINT_BEAM_TAIL_OPACITY of the peak at the
+      bottom segment. beam color is drawn from GLINT_ZONE_COLORS (gold).
+      final per-segment alpha = patch phase opacity × pour-phase opacity
+      × top-down falloff × beam peak opacity. beams render only in the
+      overworld; cave never shows beams.
+    inputs:
+      - 'state.glintZones set, state.glintOpacity map, current animation time'
+      - 'current zone is Zone.Overworld'
+    outputs:
+      - 'diagonal "/" beams rendered above ~30% of glinting tiles'
     state_changes: []
     determinism: time-based
 
@@ -151,7 +186,11 @@ edge_cases:
     expected: 'fewer than target patches placed; no error'
   - id: cave-zone-suppression
     description: 'player is in the cave'
-    expected: 'tick spawning suppressed; discovery check only runs for Zone.Overworld'
+    expected: >
+      glinting never happens in the cave: tick spawning is suppressed,
+      sparkle rendering and beam rendering are skipped, the coin
+      reglint check is gated on Zone.Overworld, and getTileEffects
+      only reports "glinting" when in the overworld.
   - id: drift-to-edge
     description: 'patch drifts near map edge or coastline'
     expected: 'drift step skipped if center would land on non-land tile; patch stays in place'
@@ -165,6 +204,35 @@ edge_cases:
   - id: patch-spawn-max-attempts-bounds
     description: 'Patch spawn attempts capped at 50; 0% chance of infinite loop'
     expected: 'If no valid center found after 50 attempts, spawn is skipped for that cycle'
+
+  - id: beam-selection-deterministic
+    description: 'whether a glinting tile has a beam, its length, and its peak opacity'
+    expected: >
+      presence (yes/no), length (in [GLINT_BEAM_LENGTH_MIN,
+      GLINT_BEAM_LENGTH_MAX]), and peak opacity (in [0,
+      GLINT_BEAM_MAX_OPACITY]) are all determined by stable per-tile
+      hashes, so the same tile consistently has the same beam across
+      frames; ~30% of glinting tiles have beams in aggregate, and beam
+      peak opacities vary across the field.
+
+  - id: beam-segments-off-screen
+    description: 'glinting tile is near the top or right edge of the viewport'
+    expected: >
+      beam segments outside the viewport are skipped; on-screen segments
+      render normally. no crash when segment world coords go out of bounds.
+
+  - id: beam-over-non-land
+    description: 'beam segments overlap sand, space, water, or other terrain'
+    expected: >
+      beam segments render as a visual overlay over any tile type; the
+      underlying tile is not modified, and beam selection does not
+      consider what is above the glinting tile.
+
+  - id: beam-fade-with-patch
+    description: 'patch is in fade-in or fade-out phase'
+    expected: >
+      beam segment opacity is multiplied by the patch phase opacity, so
+      beams fade in and out together with their sparkles.
 
 failure_conditions:
   - trigger: 'map has no Dirt or Clover tiles (all Space/Sand)'

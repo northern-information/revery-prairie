@@ -1,0 +1,87 @@
+plan:
+  id: glint-beams
+  title: Add light beams pouring above ~30% of glinting zone tiles
+  created: '2026-04-24'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+    - npm run build
+
+tasks:
+  - id: add-beam-constants
+    title: Add GLINT_BEAM_LENGTH, GLINT_BEAM_CHANCE, GLINT_BEAM_CYCLE_MS constants
+    spec_id: glinting-zones
+    spec_sections:
+      - beam-rendering
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-beam-helpers
+    title: Add pure tileHasBeam + computeBeamSegmentOpacity helpers in glintZones.ts
+    spec_id: glinting-zones
+    spec_sections:
+      - beam-rendering
+    context_files:
+      - src/engine/glintZones.ts
+      - src/engine/constants.ts
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/glintZones.ts
+    depends_on:
+      - add-beam-constants
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: render-beams
+    title: Wire beam rendering into the glinting zone overlay (overworld only)
+    spec_id: glinting-zones
+    spec_sections:
+      - beam-rendering
+      - sparkle-rendering
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/glintZones.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-beam-helpers
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags:
+      - engine
+      - render
+
+  - id: test-beam-helpers
+    title: Add tests for tileHasBeam selection + pour-phase opacity behavior
+    spec_id: glinting-zones
+    spec_sections:
+      - beam-rendering
+    context_files:
+      - src/engine/__tests__/glintZones.test.ts
+      - src/engine/glintZones.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/glintZones.test.ts
+    depends_on:
+      - render-beams
+    verification:
+      - npx vitest run src/engine/__tests__/glintZones.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
