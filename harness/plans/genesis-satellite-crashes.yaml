@@ -1,0 +1,131 @@
+plan:
+  id: genesis-satellite-crashes
+  title: 'Persistent satellite crashes during the fall of civilizations epoch'
+  created: '2026-04-25'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: extend-genesis-types
+    title: 'Add GenesisSatelliteCrash interface; add satelliteCrashes and craters fields to GenesisSimState; add craters to GenesisResult'
+    spec_id: genesis-satellite-crashes
+    spec_sections:
+      - crashes-spawn-during-fall
+      - crashes-persist-into-gameplay
+    context_files:
+      - src/engine/genesisTypes.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesisTypes.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: place-crashes-in-fall-epoch
+    title: 'Generate 3-9 satellite crashes in FallOfCivilizations.mutate; populate sim.satelliteCrashes, sim.craters, and apply soil damage with the same protected-tile rules as gameplay satellites'
+    spec_id: genesis-satellite-crashes
+    spec_sections:
+      - crashes-spawn-during-fall
+      - crash-creates-crater-zone
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/satellites.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: [extend-genesis-types]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: export-craters-from-genesis-result
+    title: 'Populate GenesisResult.craters from sim.craters in finalizeGenesisResult; ensure both the live and runAllMutations paths include the field'
+    spec_id: genesis-satellite-crashes
+    spec_sections:
+      - crashes-persist-into-gameplay
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: [place-crashes-in-fall-epoch]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: consume-craters-in-create-game-state
+    title: 'Initialize state.craters from genesisData.craters in createGameState; fall back to empty Set when absent'
+    spec_id: genesis-satellite-crashes
+    spec_sections:
+      - crashes-persist-into-gameplay
+    context_files:
+      - src/engine/state.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on: [export-craters-from-genesis-result]
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization
+    repair: retry
+    tags: [engine]
+
+  - id: render-crash-streaks
+    title: 'Render satellite crash streaks during the FallOfCivilizations epoch using BUILDING_CHARS in red palette; render crater glyphs at impact positions after streak landing'
+    spec_id: genesis-satellite-crashes
+    spec_sections:
+      - crash-streaks-render-during-epoch
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/satellites.ts
+    output_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
+    depends_on: [place-crashes-in-fall-epoch]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: tests-for-genesis-crashes
+    title: 'Add src/engine/__tests__/satelliteCrashes.test.ts covering count bounds, determinism by name, protected-tile exclusion, soil damage, GenesisResult round-trip, and skipGenesis path'
+    spec_id: genesis-satellite-crashes
+    spec_sections:
+      - crashes-spawn-during-fall
+      - crash-creates-crater-zone
+      - crashes-persist-into-gameplay
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/__tests__/satelliteImpacts.test.ts
+    output_files:
+      - src/engine/__tests__/satelliteCrashes.test.ts
+    depends_on: [consume-craters-in-create-game-state, render-crash-streaks]
+    verification:
+      - npx vitest run src/engine/__tests__/satelliteCrashes.test.ts
+    repair: retry
+    tags: [engine, test]
+
+  - id: regression-existing-genesis-tests
+    title: 'Run existing genesis and satellite tests to confirm no regressions in epoch behavior, ruin generation, or in-game satellites'
+    spec_id: genesis-satellite-crashes
+    spec_sections:
+      - crashes-persist-into-gameplay
+    context_files: []
+    output_files: []
+    depends_on: [tests-for-genesis-crashes]
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+      - npx vitest run src/engine/__tests__/satelliteImpacts.test.ts
+    repair: retry
+    tags: [test]

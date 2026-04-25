@@ -1163,6 +1163,8 @@ describe('water continuity at genesis-to-game transition', () => {
     sim.tileData = fallSnapshot.tileData
     sim.aqueductNetwork = fallSnapshot.aqueductNetwork
     sim.ruins = fallSnapshot.ruins
+    sim.satelliteCrashes = fallSnapshot.satelliteCrashes
+    sim.craters = fallSnapshot.craters
 
     const time = 5000
     const progress = 0.99 // near end of epoch (crossfade window)
@@ -1175,6 +1177,9 @@ describe('water continuity at genesis-to-game transition', () => {
 
     // Check all land tiles — any water rendered should be in tracked sets
     for (const key of sim.landMask) {
+      // Cratered tiles render with BUILDING_CHARS which overlaps the water
+      // glyph set ('=' is in both); craters are tracked state, not phantom water.
+      if (sim.craters.has(key)) continue
       const [xStr, yStr] = key.split(',')
       const x = Number(xStr)
       const y = Number(yStr)

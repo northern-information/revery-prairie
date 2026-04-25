@@ -15,6 +15,9 @@ import {
   GENESIS_TRANSITION_DURATION_MS,
   SAND_BORDER,
   SAND_COLORS,
+  SATELLITE_HEAD_COLORS,
+  SATELLITE_SOIL_DAMAGE,
+  SATELLITE_TRAIL_COLORS,
   SOIL_HEALTH_MAX,
   SPACE_BORDER,
   WATER_SAND_BORDER_MAX,
@@ -33,6 +36,7 @@ import type {
   GenesisEpoch,
   GenesisMeteorStreak,
   GenesisResult,
+  GenesisSatelliteCrash,
   GenesisSimState,
   GenesisTileRender,
 } from './genesisTypes'
@@ -662,6 +666,43 @@ const emergenceOfLife: GenesisEpoch = {
 // ---------------------------------------------------------------------------
 // Epoch: Fire Season
 // ---------------------------------------------------------------------------
+
+const SATELLITE_CRASH_RADIUS = 2 // 5x5 zone
+const SATELLITE_CRASH_MIN = 3
+const SATELLITE_CRASH_MAX = 9
+
+/** Generate a satellite crash streak targeting a specific land position. */
+const createSatelliteCrashStreak = (
+  sim: GenesisSimState,
+  impactX: number,
+  impactY: number,
+  index: number,
+  total: number
+): GenesisSatelliteCrash => {
+  const directions = [
+    { dx: 1, dy: 1 },
+    { dx: 1, dy: -1 },
+    { dx: -1, dy: 1 },
+    { dx: -1, dy: -1 },
+    { dx: 1, dy: 0 },
+    { dx: -1, dy: 0 },
+  ]
+  const dir = directions[Math.floor(sim.rng() * directions.length)]
+
+  let sx = impactX
+  let sy = impactY
+  while (sx >= -5 && sx < sim.width + 5 && sy >= -5 && sy < sim.height + 5) {
+    sx -= dir.dx
+    sy -= dir.dy
+  }
+
+  // Satellites are heavier than meteorites — longer trails
+  const length = 8 + Math.floor(sim.rng() * 5)
+  // Stagger across the first 70% of the epoch so crashes finish before crossfade
+  const startTime = total > 1 ? (index / (total - 1)) * 0.7 : 0.1
+
+  return { startX: sx, startY: sy, dx: dir.dx, dy: dir.dy, impactX, impactY, length, startTime }
+}
 
 /** Generate a meteorite streak targeting a specific land position. */
 const createMeteorStreak = (
@@ -2184,10 +2225,147 @@ const fallOfCivilizations: GenesisEpoch = {
       sim.vegetationMap.set(key, 0)
       sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 3)
     }
+
+    // Satellite crashes — 3-9 satellite impacts as the empires fall.
+    // Each impact creates a 5x5 crater zone tracked in sim.craters and
+    // reduces soil health (matching gameplay satellite-impacts contract).
+    // Protected tiles (space, sand, ponds, rivers, ruin entrances, ruin
+    // building footprints, cave entrance) are excluded.
+    const numCrashes =
+      SATELLITE_CRASH_MIN + Math.floor(sim.rng() * (SATELLITE_CRASH_MAX - SATELLITE_CRASH_MIN + 1))
+
+    // Build a fast-lookup set of ruin building footprints for protection
+    const ruinProtected = new Set<string>()
+    for (const ruin of sim.ruins) {
+      for (const fp of ruin.buildingFootprints) {
+        ruinProtected.add(posKey(fp.x, fp.y))
+      }
+    }
+
+    const candidateKeys: string[] = []
+    for (const key of sim.landMask) {
+      if (sim.ponds.has(key)) continue
+      if (sim.riverPaths.has(key)) continue
+      const [xStr, yStr] = key.split(',')
+      const cx = Number(xStr)
+      const cy = Number(yStr)
+      const tileType = sim.grid[cy][cx].type
+      if (tileType !== TileType.Dirt && tileType !== TileType.Clover) continue
+      candidateKeys.push(key)
+    }
+
+    const placedTargets = new Set<string>()
+    for (let i = 0; i < numCrashes; i++) {
+      let chosen: string | null = null
+      // Try a bounded number of attempts to find a non-protected target
+      // that hasn't already been used as an impact center.
+      for (let attempt = 0; attempt < 50; attempt++) {
+        if (candidateKeys.length === 0) break
+        const candidate = candidateKeys[Math.floor(sim.rng() * candidateKeys.length)]
+        if (placedTargets.has(candidate)) continue
+        if (ruinProtected.has(candidate)) continue
+        chosen = candidate
+        break
+      }
+      if (!chosen) continue
+      placedTargets.add(chosen)
+
+      const [cxStr, cyStr] = chosen.split(',')
+      const impactX = Number(cxStr)
+      const impactY = Number(cyStr)
+
+      sim.satelliteCrashes.push(
+        createSatelliteCrashStreak(sim, impactX, impactY, i, numCrashes)
+      )
+
+      // Apply 5x5 crater zone
+      for (let dy = -SATELLITE_CRASH_RADIUS; dy <= SATELLITE_CRASH_RADIUS; dy++) {
+        for (let dx = -SATELLITE_CRASH_RADIUS; dx <= SATELLITE_CRASH_RADIUS; dx++) {
+          const tx = impactX + dx
+          const ty = impactY + dy
+          if (tx < 0 || tx >= sim.width || ty < 0 || ty >= sim.height) continue
+          const tk = posKey(tx, ty)
+          const tileType = sim.grid[ty][tx].type
+          // Skip protected tiles
+          if (
+            tileType === TileType.Space ||
+            tileType === TileType.Sand ||
+            tileType === TileType.CaveEntrance ||
+            tileType === TileType.CaveWall ||
+            tileType === TileType.CaveBreakableWall
+          ) {
+            continue
+          }
+          if (sim.ponds.has(tk) || sim.riverPaths.has(tk)) continue
+          if (ruinProtected.has(tk)) continue
+          if (tileType !== TileType.Dirt && tileType !== TileType.Clover) continue
+
+          sim.craters.add(tk)
+          const current = sim.soilHealth.get(tk) ?? 30
+          sim.soilHealth.set(tk, Math.max(0, current - SATELLITE_SOIL_DAMAGE))
+        }
+      }
+    }
   },
   renderTile: (sim, x, y, progress, time) => {
     const key = posKey(x, y)
     const h = tileHash(x, y)
+
+    // Satellite crash streaks — render over everything (including space).
+    // Animates across ~20% of epoch from each crash.startTime; after the
+    // streak completes, the crater glyph paints in place for the rest of
+    // the epoch via the state.craters check below.
+    for (const crash of sim.satelliteCrashes) {
+      const crashProgress = clamp((progress - crash.startTime) / 0.2, 0, 1)
+      if (crashProgress <= 0 || crashProgress >= 1) continue
+
+      const totalSteps = Math.abs(crash.impactX - crash.startX) + Math.abs(crash.impactY - crash.startY)
+      const currentStep = Math.floor(crashProgress * totalSteps)
+      const headX = crash.startX + crash.dx * currentStep
+      const headY = crash.startY + crash.dy * currentStep
+
+      for (let t = 0; t < crash.length; t++) {
+        const tx = headX - crash.dx * t
+        const ty = headY - crash.dy * t
+        if (tx === x && ty === y) {
+          if (t === 0) {
+            const headChar = BUILDING_CHARS[(h + Math.floor(time * 0.02)) % BUILDING_CHARS.length]
+            const headColor = SATELLITE_HEAD_COLORS[Math.floor(time * 0.005) % SATELLITE_HEAD_COLORS.length]
+            return [{ char: headChar, color: headColor, dx: 0, dy: 0 }]
+          }
+          const trailIdx = Math.min(t - 1, SATELLITE_TRAIL_COLORS.length - 1)
+          const trailChar = BUILDING_CHARS[(h + t) % BUILDING_CHARS.length]
+          return [{ char: trailChar, color: SATELLITE_TRAIL_COLORS[trailIdx], dx: 0, dy: 0 }]
+        }
+      }
+
+      // Impact flash for 5x5 zone in the last 10% of the streak's progress
+      if (crashProgress > 0.9) {
+        const dx = x - crash.impactX
+        const dy = y - crash.impactY
+        if (Math.abs(dx) <= SATELLITE_CRASH_RADIUS && Math.abs(dy) <= SATELLITE_CRASH_RADIUS) {
+          const d = Math.abs(dx) + Math.abs(dy)
+          const flashChars = ['*', '+', '·']
+          const flashColors = ['#FFFFFF', '#FFD700', '#FF4500']
+          return [
+            {
+              char: flashChars[d % flashChars.length],
+              color: flashColors[d % flashColors.length],
+              dx: 0,
+              dy: 0,
+            },
+          ]
+        }
+      }
+    }
+
+    // Persistent crater glyphs from completed crashes — paint over dirt
+    // until the cross-fade hands them off to the gameplay renderer.
+    if (sim.craters.has(key)) {
+      const buildingChar = BUILDING_CHARS[h % BUILDING_CHARS.length]
+      const craterColor = SATELLITE_TRAIL_COLORS[h % SATELLITE_TRAIL_COLORS.length]
+      return [{ char: buildingChar, color: craterColor, dx: 0, dy: 0 }]
+    }
 
     const space = renderSpace(sim, key, h, time)
     if (space) return space
@@ -2606,6 +2784,8 @@ export const createGenesisState = (width: number, height: number, seed: number):
     glacialEdgeNoise: { top: [], bottom: [] },
     meteorites: [],
     lightningBolts: [],
+    satelliteCrashes: [],
+    craters: new Set(),
     riverPathsOrdered: [],
     meltPools: new Set(),
     ponds: new Set(),
@@ -2659,6 +2839,7 @@ export const extractGenesisResult = (sim: GenesisSimState): GenesisResult => ({
   ponds: sim.ponds,
   rivers: sim.riverPaths,
   burnScars: sim.burnScars,
+  craters: sim.craters,
 })
 
 export const completeGenesis = (state: GameState): void => {
@@ -2771,6 +2952,8 @@ export const precomputeGenesis = (sim: GenesisSimState, epochs: GenesisEpoch[]):
       tileData: new Map(sim.tileData),
       aqueductNetwork: new Map(sim.aqueductNetwork),
       ruins: [...sim.ruins],
+      satelliteCrashes: [...sim.satelliteCrashes],
+      craters: new Set(sim.craters),
     })
   }
   sim.mutationsPrecomputed = true

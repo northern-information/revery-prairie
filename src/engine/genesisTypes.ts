@@ -61,6 +61,8 @@ export interface EpochSnapshot {
   tileData: Map<string, { char: string; baseColor: string; intensity: number }>
   aqueductNetwork: Map<string, string>
   ruins: CivilizationRuin[]
+  satelliteCrashes: GenesisSatelliteCrash[]
+  craters: Set<string>
 }
 
 export interface GenesisSimState {
@@ -100,6 +102,10 @@ export interface GenesisSimState {
   meteorites: GenesisMeteorStreak[]
   /** Lightning bolt data for fire season animation */
   lightningBolts: GenesisLightningBolt[]
+  /** Satellite crash streak data for fall-of-civilizations animation */
+  satelliteCrashes: GenesisSatelliteCrash[]
+  /** Crater posKeys accumulated by satellite crashes (carries into game state) */
+  craters: Set<string>
   /** River paths as ordered arrays for progressive reveal */
   riverPathsOrdered: { x: number; y: number }[][]
   /** Glacier meltwater pool positions */
@@ -139,6 +145,22 @@ export interface GenesisLightningBolt {
   startTime: number
 }
 
+export interface GenesisSatelliteCrash {
+  /** Off-map start position */
+  startX: number
+  startY: number
+  /** Velocity per step */
+  dx: number
+  dy: number
+  /** Impact position on land */
+  impactX: number
+  impactY: number
+  /** Trail length in tiles */
+  length: number
+  /** Normalized time (0-1) within the epoch when this streak begins */
+  startTime: number
+}
+
 export interface GenesisResult {
   terrain: Tile[][]
   soilHealth: Map<string, number>
@@ -147,4 +169,5 @@ export interface GenesisResult {
   ponds: Set<string>
   rivers: Set<string>
   burnScars: Set<string>
+  craters: Set<string>
 }

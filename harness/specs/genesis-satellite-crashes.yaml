@@ -1,0 +1,153 @@
+id: genesis-satellite-crashes
+name: Satellite crashes during fall of civilizations epoch
+status: planned
+priority: medium
+layer: engine
+source_files:
+  - src/engine/genesis.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/genesisRenderer.ts
+  - src/engine/state.ts
+  - src/engine/__tests__/genesis.test.ts
+  - src/engine/__tests__/satelliteCrashes.test.ts
+dependencies:
+  - satellite-impacts
+  - satellite-crater-as-effect
+  - genesis-enhancements
+
+behaviors:
+  - id: crashes-spawn-during-fall
+    description: >
+      The FallOfCivilizations epoch mutate generates 3-9 satellite crash
+      events, count and positions seeded from sim.rng. Each crash has a
+      randomly selected impact position on a non-water land tile (Dirt
+      or Clover). The epoch commentary is unchanged; crashes happen
+      underneath the existing decay, water consolidation, and soil
+      enrichment behaviors.
+    inputs:
+      - 'FallOfCivilizations epoch mutate runs during genesis simulation'
+    outputs:
+      - 'sim.satelliteCrashes contains between 3 and 9 GenesisSatelliteCrash entries inclusive'
+      - 'Each entry has an impactX/impactY landing on a Dirt or Clover tile'
+      - 'Each entry has streak data (startX, startY, dx, dy, length, startTime) for render'
+    state_changes:
+      - field: sim.satelliteCrashes
+        effect: 'New field populated with 3-9 GenesisSatelliteCrash entries'
+    determinism: probabilistic
+
+  - id: crash-creates-crater-zone
+    description: >
+      Each genesis satellite crash creates a 5x5 crater zone centered on
+      its impact position, mirroring the in-game satellite-impacts
+      contract. Dirt and Clover tile posKeys within the zone are added
+      to sim.craters. Soil health for affected tiles is reduced by
+      SATELLITE_SOIL_DAMAGE (30), clamped to minimum 0. Tile types are
+      not changed. Space, sand, ponds, rivers, cave entrances, ruin
+      entrances, and ruin building footprints are excluded from both
+      the crater set and the soil damage.
+    inputs:
+      - 'Genesis satellite crash with impact position (impactX, impactY)'
+    outputs:
+      - 'Up to 25 dirt/clover posKeys per crash added to sim.craters'
+      - 'Soil health reduced by SATELLITE_SOIL_DAMAGE for each affected tile'
+    state_changes:
+      - field: sim.craters
+        effect: 'New Set<string> field; posKeys added per affected tile'
+      - field: sim.soilHealth
+        effect: 'Reduced by SATELLITE_SOIL_DAMAGE per affected tile, clamped to 0'
+    determinism: deterministic
+
+  - id: crashes-persist-into-gameplay
+    description: >
+      Genesis crater data is exported via GenesisResult.craters
+      (Set<string>) and consumed by createGameState. state.craters is
+      initialized from genesisData.craters when present, falling back
+      to an empty Set when the genesis result has no crater field
+      (legacy, tests, or skipGenesis fallback path). Cratered tiles
+      are visible at game start with the existing BUILDING_CHARS
+      reddish-brown rendering defined by satellite-crater-as-effect.
+    inputs:
+      - 'createGameState called with a GenesisResult containing crater data'
+    outputs:
+      - 'state.craters populated with the union of all crash posKeys'
+    state_changes:
+      - field: GenesisResult.craters
+        effect: 'New Set<string> field carrying crater posKeys out of genesis'
+      - field: state.craters
+        effect: 'Initialized from genesisData.craters (or empty Set if absent)'
+    determinism: deterministic
+
+  - id: crash-streaks-render-during-epoch
+    description: >
+      During the FallOfCivilizations epoch, each satellite crash renders
+      as a falling streak similar to genesis meteorites in FireSeason
+      but using BUILDING_CHARS in a red-shifted palette consistent with
+      the gameplay satellite descent visual. Streaks animate from an
+      off-map edge toward their impact position over a portion of the
+      epoch driven by progress. After a streak reaches its impact, the
+      crater glyphs render in place for the remainder of the epoch and
+      across the cross-fade into PresentDay.
+    inputs:
+      - 'FallOfCivilizations epoch renders with progress in [0, 1]'
+    outputs:
+      - 'Up to 9 satellite streaks visible during the epoch'
+      - 'Streaks use BUILDING_CHARS with red palette (#FF4444 -> #661111 fade)'
+      - 'Crater glyphs render at impact positions after streak landing'
+    state_changes: []
+    determinism: deterministic
+
+  - id: crash-discovery-via-cursor
+    description: >
+      Discovery of event:satellite-impact via cursor hover already exists
+      for in-game satellite craters. This behavior confirms the same
+      hover-to-discover path also fires for genesis-era craters, so
+      players who never witness a live satellite still discover the
+      manual entry by exploring crash sites placed at world generation.
+      No new discovery key is introduced; genesis crashes share the
+      satellite-impact event lineage.
+    inputs:
+      - 'Mouse hover over a tile whose posKey is in state.craters at game start'
+    outputs:
+      - 'event:satellite-impact added to state.manualDiscoveries on first hover'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'event:satellite-impact added to Set on first cursor interaction'
+    determinism: deterministic
+
+edge_cases:
+  - id: small-island-few-land-tiles
+    description: 'Crash candidate position sits on a tile that has very few non-protected neighbors (near coast)'
+    expected: 'Crash places fewer crater entries; in-bounds dirt/clover tiles in the 5x5 zone are cratered, others skipped'
+  - id: crash-overlaps-ruin
+    description: 'A crash 5x5 zone overlaps a civilization ruin building footprint'
+    expected: 'Building footprint and ruin entrance tiles in the zone are excluded; non-ruin dirt/clover tiles in the same zone are still cratered'
+  - id: crash-near-water
+    description: 'A crash 5x5 zone overlaps a pond or river'
+    expected: 'Water tiles are not cratered and not soil-damaged; dirt/clover tiles in the same zone still are'
+  - id: crash-on-cave-entrance
+    description: 'A crash candidate position is the cave entrance tile'
+    expected: 'Position rejected at selection; another candidate chosen so the cave entrance remains intact'
+  - id: same-name-same-crashes
+    description: 'Two genesis runs with the same steward name'
+    expected: 'Identical crash count and identical impact positions (RNG seeded by name)'
+  - id: skip-genesis-includes-crashes
+    description: 'Player presses any key during genesis or uses ?skipGenesis=true'
+    expected: 'All crash mutations run synchronously via runAllMutations(); state.craters reflects all 3-9 crashes at game start'
+  - id: crash-overlaps-another-crash
+    description: 'Two crash zones overlap (within 4 tiles of each other)'
+    expected: 'Overlapping posKeys are deduplicated by the Set; soil health damage applies once per tile per crash (so overlap can stack toward 0)'
+
+failure_conditions:
+  - trigger: 'Crash count outside [3, 9] inclusive'
+    expected: 'Test failure (count must satisfy 3 <= n <= 9)'
+  - trigger: 'Crash impact position resolves to space, sand, pond, river, or cave entrance'
+    expected: 'Selection rejects the candidate and retries; if no valid candidate after a bounded number of attempts, that crash is skipped (count may dip below 3 only in degenerate worlds)'
+  - trigger: 'GenesisResult.craters undefined when consumed by createGameState'
+    expected: 'state.craters falls back to empty Set; no runtime error'
+  - trigger: 'Code attempts to convert cratered tile types to a TileType.Crater value'
+    expected: 'TypeScript build fails (TileType.Crater does not exist; tiles remain Dirt or Clover per satellite-crater-as-effect)'
+
+verification:
+  test_file: src/engine/__tests__/satelliteCrashes.test.ts
+  test_pattern: 'genesis satellite crashes'
+  command: 'npx vitest run src/engine/__tests__/satelliteCrashes.test.ts'
