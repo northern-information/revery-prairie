@@ -70,6 +70,11 @@ const select = (name: string, options: string[]): FieldMeta => ({ name, kind: 's
 
 export const COMPONENT_META: ComponentMeta[] = [
   { type: ComponentType.Position, label: 'Position', fields: [pos('x'), pos('y')] },
+  {
+    type: ComponentType.MovementTween,
+    label: 'MovementTween',
+    fields: [pos('fromX'), pos('fromY'), pos('startTime'), pos('durationMs')],
+  },
   { type: ComponentType.Velocity, label: 'Velocity', fields: [pos('dx'), pos('dy')] },
   {
     type: ComponentType.Renderable,
@@ -156,6 +161,8 @@ const componentDefaults = (type: ComponentType, now: number, zone: Zone): Record
   switch (type) {
     case ComponentType.Position:
       return { x: 0, y: 0 }
+    case ComponentType.MovementTween:
+      return { fromX: 0, fromY: 0, startTime: now, durationMs: 100 }
     case ComponentType.Velocity:
       return { dx: 0, dy: 0 }
     case ComponentType.Renderable:

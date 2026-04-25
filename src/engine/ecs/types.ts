@@ -1,9 +1,10 @@
-import type { CharacterBehavior, Position, Zone } from '../types'
+import type { CharacterBehavior, MovementTween, Position, Zone } from '../types'
 
 export type Entity = number
 
 export const ComponentType = {
   Position: 'position',
+  MovementTween: 'movementTween',
   Velocity: 'velocity',
   Renderable: 'renderable',
   Behavior: 'behavior',
@@ -30,6 +31,7 @@ export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType]
 
 export interface ComponentDataMap {
   [ComponentType.Position]: { x: number; y: number }
+  [ComponentType.MovementTween]: MovementTween
   [ComponentType.Velocity]: { dx: number; dy: number }
   [ComponentType.Renderable]: { char: string; color: string; zIndex: number }
   [ComponentType.Behavior]: CharacterBehavior

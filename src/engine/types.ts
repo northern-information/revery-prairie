@@ -42,6 +42,13 @@ export interface TrailPoint {
   time: number
 }
 
+export interface MovementTween {
+  fromX: number
+  fromY: number
+  startTime: number
+  durationMs: number
+}
+
 export const ItemCategory = {
   Fauna: 'fauna',
   Flora: 'flora',
@@ -190,6 +197,7 @@ export interface GameState {
   targetingSlot: number | null
   sprinting: boolean
   trail: TrailPoint[]
+  playerTween: MovementTween | null
   cursorTile: Position | null
   cursorScreenPos: { x: number; y: number } | null
   hoverPath: Position[] | null

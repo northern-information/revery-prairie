@@ -14,6 +14,7 @@ import { findCoyoteEntity, transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
 import { recordDiscovery } from './manual'
+import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition, isWalkableTile, posKey, tileHash } from './position'
 import { deselectAll } from './selection'
 import { clearAllUnitCommands } from './unitCommands'
@@ -1050,6 +1051,7 @@ const clearNavigationState = (state: GameState): void => {
   state.activeDialog = null
   state.trail = []
   state.cloverGrowthPreviews = new Set<string>()
+  clearMovementTweens(state)
   deselectAll(state)
   clearAllUnitCommands(state)
 }

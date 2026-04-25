@@ -1,0 +1,236 @@
+id: smooth-move
+name: 'Smooth tile-to-tile movement tween'
+status: planned
+priority: medium
+layer: engine
+source_files:
+  - src/engine/ecs/types.ts
+  - src/engine/ecs/world.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/constants.ts
+  - src/engine/movement.ts
+  - src/engine/camera.ts
+  - src/engine/renderer.ts
+  - src/engine/cave.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - player-movement
+  - renderer
+  - camera-viewport
+
+behaviors:
+  - id: tween-component-shape
+    description: >
+      A new ECS component MovementTween is added with shape
+      { fromX: number, fromY: number, startTime: number, durationMs: number }
+      via the standard ComponentType / ComponentDataMap pattern. fromX/fromY
+      are the tile the entity is leaving, startTime is captured from
+      performance.now() at the moment the move is committed, durationMs is
+      the wall-clock duration the renderer should interpolate over.
+    inputs:
+      - 'No direct caller — the component type is registered for use by world.moveEntity and the renderer'
+    outputs:
+      - 'ComponentType.MovementTween is exported and queryable like any other component'
+    state_changes:
+      - field: ComponentType
+        effect: 'extended with MovementTween: "movementTween"'
+      - field: ComponentDataMap
+        effect: 'extended with MovementTween entry containing fromX, fromY, startTime, durationMs'
+    determinism: deterministic
+
+  - id: ecs-tween-on-move
+    description: >
+      world.moveEntity captures the entity's current Position before mutating it
+      and writes a MovementTween component with fromX, fromY set to the prior
+      coords, startTime set to performance.now(), and durationMs set to the
+      caller-supplied duration (or MOVEMENT_TWEEN_DEFAULT_MS when omitted). If
+      the entity already has a MovementTween component, the existing component
+      is overwritten in place — there is at most one tween per entity. If the
+      target tile equals the source tile, no tween is written. The signature of
+      world.moveEntity becomes (entity, newX, newY, durationMs?).
+    inputs:
+      - 'entity: Entity with a Position component'
+      - 'newX, newY: integer destination tile coordinates'
+      - 'durationMs?: optional number — defaults to MOVEMENT_TWEEN_DEFAULT_MS when omitted'
+    outputs:
+      - 'void'
+    state_changes:
+      - field: ComponentType.Position
+        effect: 'x and y updated to newX, newY (existing behavior)'
+      - field: ComponentType.MovementTween
+        effect: 'written or overwritten with { fromX: prevX, fromY: prevY, startTime: performance.now(), durationMs }'
+      - field: spatial index
+        effect: 'updated via spatial.move (existing behavior)'
+    determinism: time-based
+
+  - id: player-tween-on-move
+    description: >
+      A new field state.playerTween: MovementTween | null is added to GameState
+      and initialized to null by createGameState. movePlayer captures the prior
+      player.x and player.y before mutating them and assigns state.playerTween =
+      { fromX: prevX, fromY: prevY, startTime: performance.now(), durationMs }.
+      durationMs is MOVEMENT_TWEEN_DEFAULT_MS by default and
+      MOVEMENT_TWEEN_SPRINT_MS when state.sprintEnabled is true. The tween is
+      written only when the move succeeds (after the bounds, walkability, and
+      blocking checks pass) — failed moves do not write a tween. The tween is
+      written before checkTransition runs.
+    inputs:
+      - 'state: GameState'
+      - 'dir: Direction'
+    outputs:
+      - 'boolean: true on successful move, false otherwise (unchanged from existing movePlayer signature)'
+    state_changes:
+      - field: state.playerTween
+        effect: 'set to { fromX, fromY, startTime: performance.now(), durationMs } on successful move; unchanged on failed move'
+    determinism: time-based
+
+  - id: tween-render-interpolation
+    description: >
+      During render, for the player and for every ECS entity with a
+      MovementTween component, the renderer computes
+      t = clamp((time - tween.startTime) / tween.durationMs, 0, 1)
+      and renders the entity at the lerped tile position
+      (fromX + (toX - fromX) * t, fromY + (toY - fromY) * t)
+      where toX/toY come from the entity's Position (or state.player). The
+      lerped position is converted to pixel space using charWidth and
+      charHeight, producing fractional pixel offsets — the entity is no longer
+      drawn aligned to the tile grid. Easing is linear. When t reaches 1, the
+      entity is drawn at the integer destination tile (no sub-pixel residue).
+      The underlying tile glyph at the destination is still drawn during the
+      tween — only the moving entity glyph is interpolated.
+    inputs:
+      - 'state: GameState'
+      - 'time: number (rAF timestamp passed into render)'
+    outputs:
+      - 'canvas pixels written via ctx.fillText at fractional positions for tweening entities'
+    state_changes: []
+    determinism: time-based
+
+  - id: tween-completion-cleanup
+    description: >
+      When a tween's normalized progress reaches t >= 1, the renderer's
+      interpolation collapses to the integer destination tile. The
+      MovementTween component is also lazily removed by the renderer (or by a
+      dedicated tween-cleanup pass in gameLoop) so completed tweens do not
+      accumulate. For the player, state.playerTween is set to null when its
+      progress reaches t >= 1. Cleanup is idempotent — clearing an already-null
+      tween is a no-op.
+    inputs:
+      - 'time: number'
+      - 'state: GameState'
+    outputs: []
+    state_changes:
+      - field: ComponentType.MovementTween
+        effect: 'removed from entities whose tween has reached t >= 1'
+      - field: state.playerTween
+        effect: 'set to null when progress reaches t >= 1'
+    determinism: time-based
+
+  - id: camera-follows-tween
+    description: >
+      The camera tracks the player's interpolated render position so the world
+      glides smoothly under the player rather than snapping. updateCamera
+      continues to use integer player.x and player.y for clamping the camera
+      to map bounds (the discrete logical position is the source of truth for
+      visibility math). The renderer applies an additional fractional camera
+      offset of (lerpX - player.x, lerpY - player.y) when drawing all tiles,
+      so when the player tween is in flight, the entire grid scrolls
+      smoothly while the player glyph itself stays at the visual center.
+    inputs:
+      - 'state.playerTween (when active)'
+      - 'state.player.x, state.player.y'
+    outputs: []
+    state_changes:
+      - field: 'render-only, no game state mutation'
+        effect: 'tile draw positions shifted by fractional camera offset during active player tween'
+    determinism: time-based
+
+  - id: zone-transition-clears-tweens
+    description: >
+      When the player crosses a zone boundary (cave entrance, cave exit, deep
+      time transition), state.playerTween is cleared and any in-flight ECS
+      MovementTween components are removed. This prevents a tween that began
+      in zone A from rendering across zone B. Specifically, enterCave,
+      exitCave, and any future zone-swap path must call clearMovementTweens
+      (or directly null the player tween and remove component instances).
+    inputs:
+      - 'zone transition triggered by walking onto CaveEntrance, by exitCave, or by deep time phase change'
+    outputs: []
+    state_changes:
+      - field: state.playerTween
+        effect: 'set to null'
+      - field: ComponentType.MovementTween
+        effect: 'removed from all entities'
+    determinism: deterministic
+
+edge_cases:
+  - id: tween-overshoot-on-tab-backgrounded
+    description: >
+      The browser tab is backgrounded for several seconds during a tween.
+      time - startTime exceeds durationMs by a large margin. The renderer
+      clamps t to 1.
+    expected: 'Entity renders at the integer destination tile (no overshoot past the target). Tween cleanup removes the component on the next render.'
+
+  - id: tween-clock-skew-negative-progress
+    description: >
+      time < startTime due to clock skew between the rAF loop and
+      performance.now (theoretically impossible but defensively handled).
+    expected: 't is clamped to 0 (entity renders at fromX, fromY rather than being drawn off-screen).'
+
+  - id: rapid-successive-moves
+    description: >
+      Player presses WASD twice in 30ms (faster than MOVEMENT_TWEEN_DEFAULT_MS).
+      The first tween is still in flight when the second move commits.
+    expected: 'state.playerTween is overwritten with a fresh tween whose fromX/fromY equal the player.x/player.y at the moment of the second move (not the visually interpolated mid-air position). The visual jumps to the new fromX/fromY at the start of the new tween. This is acceptable — held-key movement at the standard cadence (>= 100ms) avoids it; rapid typing is a known visual cost.'
+
+  - id: ecs-entity-destroyed-mid-tween
+    description: >
+      An ECS entity with an active MovementTween is destroyed (e.g. ghost
+      despawned, bee captured, monarch settled and removed).
+    expected: 'destroyEntity removes all components including MovementTween — no orphaned tween state. The renderer never sees the destroyed entity in its query.'
+
+  - id: sprint-toggle-mid-tween
+    description: >
+      The player toggles sprint while a tween is in flight.
+    expected: 'The in-flight tween completes at its original durationMs. The next move uses the new sprint duration. No retroactive tween rescaling.'
+
+  - id: zero-distance-move
+    description: >
+      world.moveEntity is called with newX, newY equal to the entity's current
+      position (no-op move).
+    expected: 'No MovementTween is written. Position is unchanged. spatial.move still runs but is a no-op for unchanged coords.'
+
+  - id: tween-during-deep-time-burning
+    description: >
+      Player movement is suppressed during deep time Burning and Simulating
+      phases. No new tweens should be started in those phases.
+    expected: 'Movement-suppression check in tickPath / keyboard-move tick happens before movePlayer is invoked, so no tween is written. Existing tweens (started before the phase change) complete normally.'
+
+  - id: serialization-excludes-tween
+    description: >
+      MovementTween components and state.playerTween are transient render-only
+      state. They must not appear in serialized save data, and they must not
+      cause schema-allowlist test failures.
+    expected: 'state.playerTween is added to EXPECTED_FIELDS in the schema test; the serialization layer either skips MovementTween components (preferred) or includes them harmlessly. After load, all tweens are absent (rehydrated state has no tweens).'
+
+failure_conditions:
+  - trigger: 'world.moveEntity is called on an entity without a Position component'
+    expected: 'Existing early return preserved — no tween is written, no error thrown. Returns void.'
+
+  - trigger: 'render is called with time < state.playerTween.startTime'
+    expected: 't clamps to 0, entity renders at fromX, fromY. No exception.'
+
+  - trigger: 'render is called with state.playerTween.durationMs <= 0'
+    expected: 'Treated as already-complete: t = 1, entity renders at integer destination, tween is cleared.'
+
+  - trigger: 'A tween component references coordinates outside the current map (e.g. tween started before a zone swap that was missed by clearMovementTweens)'
+    expected: 'The renderer still computes the lerp safely; off-map pixel positions are simply outside the visible viewport. No crash. zone-transition-clears-tweens prevents this in practice.'
+
+  - trigger: 'rAF time argument is undefined or NaN'
+    expected: 'Tween rendering is skipped for that frame — entity falls back to integer-tile rendering. No NaN propagates into ctx.fillText positions.'
+
+verification:
+  test_file: src/engine/__tests__/smoothMove.test.ts
+  test_pattern: 'smooth move'
+  command: 'npx vitest run src/engine/__tests__/smoothMove.test.ts -t "smooth move"'

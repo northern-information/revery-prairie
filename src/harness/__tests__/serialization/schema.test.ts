@@ -72,6 +72,7 @@ const EXPECTED_FIELDS = [
   'targetingSlot',
   'sprinting',
   'trail',
+  'playerTween',
   'musicEnabled',
   'fontScale',
   'rightInsetTiles',

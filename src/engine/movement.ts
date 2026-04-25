@@ -1,6 +1,6 @@
 import { updateCamera } from './camera'
 import { checkTransition } from './cave'
-import { TRAIL_MAX_LENGTH } from './constants'
+import { MOVEMENT_TWEEN_DEFAULT_MS, MOVEMENT_TWEEN_SPRINT_MS, TRAIL_MAX_LENGTH } from './constants'
 import { ComponentType } from './ecs/types'
 import { updateFacingEntity } from './interaction'
 import { recordDiscovery } from './manual'
@@ -105,6 +105,13 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   }
   state.player.x = nx
   state.player.y = ny
+
+  state.playerTween = {
+    fromX: prevX,
+    fromY: prevY,
+    startTime: performance.now(),
+    durationMs: state.sprinting ? MOVEMENT_TWEEN_SPRINT_MS : MOVEMENT_TWEEN_DEFAULT_MS,
+  }
 
   // Collapse unstable ruin floor behind the player
   if (prevTile?.type === TileType.RuinUnstable && state.currentZone === Zone.Ruin) {
