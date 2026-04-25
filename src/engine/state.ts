@@ -159,7 +159,7 @@ export const createGameState = (
     ponds: genesisData.ponds,
     rivers: genesisData.riverPaths,
     burnScars: genesisData.burnScars,
-    craters: new Set<string>(),
+    craters: new Set<string>(genesisData.craters),
     manualDiscoveries: new Set<string>(['item:bee', 'item:clover']),
     manualState: {
       activeCategory: null,
