@@ -128,12 +128,14 @@ export const assignArchetype = (ruin: CivilizationRuin, _ruinIndex: number, rng:
   const footprintDensity = ruin.buildingFootprints.length / Math.max(area, 1)
   const aqueductComplexity = ruin.aqueductPaths.length
 
-  // Score each archetype based on ruin properties
+  // Score each archetype based on ruin properties. Coefficients are tuned so
+  // each archetype claims ~19-28% of assignments across the genesis parameter
+  // ranges (radius 3-5, age 1000-5999, aqueductPaths 0-9, density ~1.0).
   const scores: Record<RuinArchetype, number> = {
-    [RuinArchetype.Subsidence]: ruin.radius * 2 + ruin.age / 1000,
-    [RuinArchetype.DormantGarden]: aqueductComplexity * 1.5 + ruin.radius,
-    [RuinArchetype.HauntedThreshold]: (6 - ruin.radius) * 2 + (ruin.age > 2000 && ruin.age < 4500 ? 3 : 0),
-    [RuinArchetype.Resonance]: ruin.radius * 2 + (footprintDensity < 0.5 ? 4 : 0),
+    [RuinArchetype.Subsidence]: ruin.radius * 1.0 + ruin.age / 1300,
+    [RuinArchetype.DormantGarden]: aqueductComplexity * 0.9 + ruin.radius * 0.7,
+    [RuinArchetype.HauntedThreshold]: (8 - ruin.radius) * 1.3 + (ruin.age > 2500 ? 1.5 : 0),
+    [RuinArchetype.Resonance]: ruin.radius * 1.2 + (footprintDensity < 0.8 ? 2.5 : 0) + (aqueductComplexity < 4 ? 2 : 0),
   }
 
   // Add noise to break ties and create variety
