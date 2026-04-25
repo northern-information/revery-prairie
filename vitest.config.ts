@@ -18,6 +18,7 @@ export default defineConfig({
           globals: true,
           include: [
             'src/engine/**/*.test.ts',
+            'src/network/**/*.test.ts',
             'harness/**/*.test.ts',
             'src/harness/**/*.test.ts',
           ],

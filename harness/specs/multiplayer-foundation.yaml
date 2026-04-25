@@ -1,0 +1,329 @@
+id: multiplayer-foundation
+name: 'Multiplayer foundation'
+status: planned
+priority: high
+layer: integration
+source_files:
+  - package.json
+  - shared/package.json
+  - shared/tsconfig.json
+  - shared/src/index.ts
+  - shared/src/protocol.ts
+  - worker/wrangler.toml
+  - worker/package.json
+  - worker/tsconfig.json
+  - worker/src/index.ts
+  - worker/src/PrairieDO.ts
+  - src/network/client.ts
+  - src/network/types.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/renderer.ts
+  - src/engine/movement.ts
+  - src/App.tsx
+  - src/components/NamePrompt.tsx
+  - src/components/NetworkConnect.tsx
+  - src/hooks/useGameEngine.ts
+  - src/network/__tests__/client.test.ts
+  - src/engine/__tests__/remote-players.test.ts
+  - worker/test/PrairieDO.test.ts
+dependencies:
+  - player-movement
+
+behaviors:
+  - id: prairie-creation
+    description: >
+      Host fills out a creation form with stewardName and a color
+      pick from the PLAYER_COLORS palette, then submits. Client
+      POSTs to the worker. Server allocates a Durable Object
+      instance keyed by a freshly generated opaque prairieId,
+      persists the steward name as the genesis seed plus the issued
+      ownerToken to DO storage, and returns both ids to the client.
+      Client stores ownerToken in localStorage under key
+      `prairie:{prairieId}:ownerToken`, stores the picked color
+      under `prairie:lastColor` (autofill for next session), and
+      navigates the browser to `/p/{prairieId}`.
+    inputs:
+      - 'POST /api/prairies with body `{ stewardName: string, color: ColorId }`'
+      - 'VITE_WORKER_URL configured at build time'
+    outputs:
+      - 'HTTP 201 with body `{ prairieId: string, ownerToken: string }`'
+      - 'browser URL set to `/p/{prairieId}`'
+      - 'localStorage entry `prairie:{prairieId}:ownerToken` written'
+      - 'localStorage entry `prairie:lastColor` written'
+    state_changes:
+      - field: 'DO storage `meta`'
+        effect: 'set to `{ prairieId, ownerToken, stewardName, createdAt }`'
+      - field: 'GameState.multiplayerSession'
+        effect: 'set to `{ prairieId, ownerToken, sessionId: null, stewardName, color, role: "host", status: "connecting" }` after creation, before websocket connect'
+    determinism: deterministic
+
+  - id: color-palette
+    description: >
+      PLAYER_COLORS is a fixed const-as registry of selectable
+      avatar colors defined in shared/src/protocol.ts and exported
+      via shared/src/index.ts. The shared package is consumed via
+      npm workspaces by both the client (`src/network/`) and the
+      worker (`worker/src/`); there is no duplicated copy. Eight
+      entries chosen for contrast on the dirt-tan background and
+      against each other. Hot pink (#ff69b4) is excluded
+      (reserved for user actions per project conventions). Each
+      entry is `{ id: ColorId, label: string, hex: string }`.
+      ColorId is the union of the eight string keys (e.g.
+      "amber" | "rose" | "violet" | ...). All wire-protocol color
+      fields carry ColorId, never raw hex.
+    inputs:
+      - 'static const definition imported by client and worker'
+    outputs:
+      - 'array of 8 entries used to populate the color picker UI and validate incoming color values'
+    state_changes: []
+    determinism: deterministic
+
+  - id: prairie-join-via-websocket
+    description: >
+      Visitor lands on `/p/{prairieId}` with no prior session for
+      this prairie, fills a join form (stewardName + color picker
+      autofilled from `prairie:lastColor` if present), and submits.
+      Client opens a websocket to
+      `/api/prairies/{prairieId}/connect` and sends a `hello` frame
+      containing `{ stewardName, color, ownerToken? }`. Host
+      reconnect path uses the same flow but with the stored
+      ownerToken from localStorage. Server validates prairieId
+      resolves to a live DO, validates color against PLAYER_COLORS,
+      accepts the socket via the hibernation API, allocates a
+      sessionId, marks the session as host iff the supplied
+      ownerToken matches the stored token, and replies with a
+      `welcome` frame containing
+      `{ sessionId, isOwner, world: { genesisSeed }, peers: RemotePlayer[] }`
+      where each peers entry includes color.
+    inputs:
+      - 'websocket open against `/api/prairies/{prairieId}/connect`'
+      - 'first client frame: `{ type: "hello", stewardName: string, color: ColorId, ownerToken?: string }`'
+    outputs:
+      - 'first server frame: `{ type: "welcome", sessionId: string, isOwner: boolean, world: { genesisSeed: string }, peers: RemotePlayer[] }`'
+      - 'server broadcasts `{ type: "peer-joined", sessionId, stewardName, color, x, y, facing }` to all other connected sessions'
+    state_changes:
+      - field: 'DO in-memory roster'
+        effect: 'sessionId added with `{ socket, stewardName, color, isOwner, x, y, facing }`'
+      - field: 'GameState.multiplayerSession'
+        effect: 'updated with `{ sessionId, role, status: "connected" }`'
+      - field: 'GameState.remotePlayers'
+        effect: 'populated from `welcome.peers` array, keyed by sessionId; each entry includes color'
+    determinism: deterministic
+
+  - id: position-broadcast-outgoing
+    description: >
+      After every successful local movePlayer call in online mode, the
+      network client sends a `{ type: "position", x, y, facing }` frame
+      to the server. Frames are not coalesced in the MVP (one frame
+      per tile step). Frames are not sent in offline mode.
+    inputs:
+      - 'GameState.multiplayerSession.status === "connected"'
+      - 'movePlayer returned true (player position changed)'
+    outputs:
+      - 'websocket frame `{ type: "position", x: number, y: number, facing: Direction }` sent to server'
+    state_changes: []
+    determinism: deterministic
+
+  - id: position-broadcast-incoming
+    description: >
+      Server, on receipt of a position frame from a session, updates
+      that session entry in the DO roster and fans the message out
+      to all other connected sessions as
+      `{ type: "peer-position", sessionId, x, y, facing }`. Clients
+      receiving a peer-position frame update
+      `state.remotePlayers[sessionId]` with the new fields and
+      `lastUpdateMs: Date.now()`.
+    inputs:
+      - 'server receives `{ type: "position", ... }` from session A'
+    outputs:
+      - 'every other connected session receives `{ type: "peer-position", sessionId: A, x, y, facing }`'
+    state_changes:
+      - field: 'DO roster entry for session A'
+        effect: 'x, y, facing updated to received values'
+      - field: 'GameState.remotePlayers (peer clients)'
+        effect: 'entry for sessionId mutated in place; lastUpdateMs set to Date.now()'
+    determinism: deterministic
+
+  - id: remote-player-render
+    description: >
+      Renderer draws each entry of state.remotePlayers as a single
+      `@` glyph at its tile — same glyph as the local player.
+      Color is the only differentiator between local and remote
+      avatars and between peers. Color comes from each player's
+      chosen ColorId resolved through PLAYER_COLORS. Hover over the
+      tile reveals the remote stewardName in the cursor info panel
+      contents row.
+    inputs:
+      - 'GameState.remotePlayers contains one or more entries'
+      - 'render frame in current zone (overworld only in MVP)'
+    outputs:
+      - 'glyph `@` drawn per remote player at tile (x, y) with the resolved hex color'
+      - 'cursor info contents row reads "remote steward: {stewardName}" when hovered'
+    state_changes: []
+    determinism: deterministic
+
+  - id: local-player-render-color
+    description: >
+      In online mode, the local player `@` glyph is rendered using
+      the hex color resolved from
+      `state.multiplayerSession.color` via PLAYER_COLORS. In
+      offline mode the local player uses the existing default
+      color (no behavior change). All eight PLAYER_COLORS entries
+      remain readable against the dirt-tan background and against
+      cursor-highlight pink.
+    inputs:
+      - 'GameState.multiplayerSession is non-null with a valid color'
+      - 'render frame'
+    outputs:
+      - 'local player `@` glyph drawn with PLAYER_COLORS[color].hex instead of the offline default'
+    state_changes: []
+    determinism: deterministic
+
+  - id: disconnect-cleanup
+    description: >
+      When a websocket closes, the server removes that session from
+      the DO roster and broadcasts `{ type: "peer-left", sessionId }`
+      to all remaining connected sessions. Receiving clients delete
+      `state.remotePlayers[sessionId]`. The local client treats its
+      own close event as a transition to status "reconnecting" and
+      retries (see reconnect-with-backoff).
+    inputs:
+      - 'websocket close event for session A on the server'
+    outputs:
+      - 'every other connected session receives `{ type: "peer-left", sessionId: A }`'
+    state_changes:
+      - field: 'DO roster'
+        effect: 'session A entry removed via Reflect.deleteProperty'
+      - field: 'GameState.remotePlayers (peer clients)'
+        effect: 'sessionId entry deleted'
+      - field: 'GameState.multiplayerSession.status (own client)'
+        effect: 'set to "reconnecting" if close was unexpected, "disconnected" if explicit'
+    determinism: deterministic
+
+  - id: world-snapshot-on-join
+    description: >
+      Joining clients seed terrain by running the existing genesis
+      pipeline against `world.genesisSeed` from the welcome frame.
+      Server stores only the genesisSeed (the steward name supplied
+      at prairie-creation time). Determinism of nameToSeed +
+      mulberry32 means every joiner generates identical terrain,
+      soil health, and ruins.
+    inputs:
+      - 'welcome frame received with `world: { genesisSeed: string }`'
+    outputs:
+      - 'GenesisScreen runs `runAllMutations` synchronously on the joiner with seed = genesisSeed'
+      - 'GameState seeded with identical terrain, soil health, civilizationRuins as host'
+    state_changes:
+      - field: 'GameState.map, GameState.soilHealth, GameState.civilizationRuins'
+        effect: 'set from genesis output for the supplied seed'
+    determinism: deterministic
+
+  - id: world-persistence-across-do-hibernation
+    description: >
+      Cloudflare Durable Object hibernates after a period with no
+      active websockets. On wake, the DO reads `meta` from storage
+      and resumes serving the same prairieId, ownerToken, and
+      genesisSeed. In-memory roster is empty after wake (all sockets
+      were closed during hibernation), but persistent fields survive.
+    inputs:
+      - 'DO has stored meta via storage.put during prairie-creation'
+      - 'DO wakes from hibernation due to incoming HTTP/WS request'
+    outputs:
+      - 'storage.get("meta") returns the original `{ prairieId, ownerToken, stewardName, createdAt }`'
+      - 'incoming requests succeed against the woken DO'
+    state_changes: []
+    determinism: deterministic
+
+  - id: reconnect-with-backoff
+    description: >
+      On unexpected websocket close, the network client retries
+      with exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s (cap).
+      Each attempt opens a new socket and sends `hello` with the
+      stored ownerToken if present. Successful reconnect snaps
+      local player position to the server-confirmed value from the
+      welcome frame's roster entry for the reissued sessionId
+      (server may issue a new sessionId per attempt).
+    inputs:
+      - 'websocket close with unexpected code (not 1000 / 1001)'
+      - 'GameState.multiplayerSession is not null'
+    outputs:
+      - 'reconnect attempts at 1s, 2s, 4s, 8s, 16s, 30s offsets after the close'
+      - 'GameState.multiplayerSession.status set to "reconnecting"'
+    state_changes:
+      - field: 'GameState.multiplayerSession.sessionId'
+        effect: 'replaced with new sessionId after successful reconnect'
+      - field: 'GameState.multiplayerSession.status'
+        effect: 'transitions reconnecting → connected on success, reconnecting → disconnected after final retry exhausted'
+    determinism: time-based
+
+  - id: online-mode-vs-offline-mode-isolation
+    description: >
+      The app distinguishes two top-level modes via URL: offline
+      mode at `/` (existing behavior, localStorage save/load) and
+      online mode at `/p/{prairieId}` (websocket, server-authoritative
+      position, no save/load UI). In online mode the existing save
+      slot is neither read nor written. In offline mode no
+      websocket is opened. The two modes do not share state.
+    inputs:
+      - 'browser location pathname matches one of: `/`, `/p/{prairieId}`'
+    outputs:
+      - 'offline: NamePrompt → GenesisScreen → GameScreen, save/load enabled'
+      - 'online: NetworkConnect → GenesisScreen → GameScreen, save/load disabled, multiplayerSession populated'
+    state_changes:
+      - field: 'GameState.multiplayerSession'
+        effect: 'null in offline mode, populated in online mode'
+    determinism: deterministic
+
+edge_cases:
+  - id: invalid-prairie-id
+    description: 'URL `/p/{prairieId}` references a prairieId that has no DO storage entry'
+    expected: 'HTTP 404 from worker on websocket upgrade attempt; client shows "this prairie does not exist" screen with options to create new prairie or return offline'
+  - id: missing-owner-token-on-host-url
+    description: 'User opens `/p/{prairieId}` with no localStorage entry for that id (e.g. shared URL or cleared cache)'
+    expected: 'client connects as visitor (ownerToken omitted from hello frame); server replies with `isOwner: false`; visitor can play but cannot perform owner-only actions in future specs'
+  - id: stale-owner-token
+    description: 'localStorage holds a token that no longer matches the DO meta (token rotated, future spec)'
+    expected: 'server replies with `isOwner: false`; client treats session as visitor and clears the stale token from localStorage'
+  - id: simultaneous-occupy-same-tile
+    description: 'Two players walk onto the same tile in the same render frame'
+    expected: 'both occupy the tile; remote-player render draws both glyphs stacked (last-drawn wins); no movement blocking between players in MVP'
+  - id: host-closes-tab-visitors-keep-playing
+    description: 'Host closes browser while visitors remain connected'
+    expected: 'host websocket closes, host removed from roster via disconnect-cleanup, visitors continue without interruption; DO remains active while any websocket open'
+  - id: last-visitor-leaves-do-hibernates
+    description: 'All websockets close; DO has no active connections'
+    expected: 'DO hibernates per Cloudflare runtime rules; storage.meta persists; server-side game ticks (entity ticks, weather, clover lifecycle in future specs) only run while at least one websocket is open — there is no Cron Trigger or alarm() keeping the world ticking 24/7 in this spec; next connect wakes the DO and resumes service from the persisted snapshot'
+  - id: rapid-movement-frame-storm
+    description: 'Player holds a movement key and triggers many moves per second'
+    expected: 'one position frame sent per successful movePlayer call; no client-side coalescing in MVP; server fans each out individually'
+  - id: prairie-id-collision
+    description: 'Two POST /api/prairies requests generate the same opaque prairieId'
+    expected: 'prairieId generated via crypto.randomUUID — collision probability negligible; if storage.get(prairieId) returns existing meta, worker returns HTTP 409 and client retries POST'
+  - id: viewport-clipped-remote-player
+    description: 'Remote player position is outside the local viewport'
+    expected: 'render skips the glyph (camera-clipped); state.remotePlayers entry remains, glyph reappears when camera scrolls into view'
+  - id: cave-zone-remote-player
+    description: 'Local client is in cave zone; remote player is in overworld (or vice versa)'
+    expected: 'remote player not rendered (cross-zone rendering deferred to multiplayer-cave-zones spec); state.remotePlayers entry remains in memory'
+
+failure_conditions:
+  - trigger: 'VITE_WORKER_URL not set at build time'
+    expected: 'create-prairie button on NamePrompt is disabled with tooltip "multiplayer not available in this build"; offline mode unaffected'
+  - trigger: 'POST /api/prairies returns non-2xx'
+    expected: 'NamePrompt surfaces error toast with status code; NamePrompt remains on screen; no localStorage write'
+  - trigger: 'Websocket handshake rejected (HTTP 4xx during upgrade)'
+    expected: 'client treats as terminal (no reconnect); shows error screen with prairie-not-found or rate-limited copy; multiplayerSession.status = "disconnected"'
+  - trigger: 'hello frame omitted or malformed (server-side validation fails)'
+    expected: 'server closes socket with code 4001; client logs error and surfaces "connection rejected" toast'
+  - trigger: 'hello frame supplies a color value not present in PLAYER_COLORS'
+    expected: 'server rejects with code 4002; client clears the invalid color from localStorage and re-prompts the user'
+  - trigger: 'DO storage write failure on prairie-creation'
+    expected: 'POST /api/prairies returns HTTP 500; client surfaces error toast; no DO created (atomic via storage.transaction)'
+  - trigger: 'Reconnect attempts exhausted after 30s cap reached six times in a row'
+    expected: 'multiplayerSession.status set to "disconnected"; client shows persistent banner with manual retry button; local input still works for inspection but warns position is no longer authoritative'
+
+verification:
+  test_file: src/network/__tests__/client.test.ts
+  test_pattern: 'multiplayer foundation'
+  command: 'npx vitest run src/network/__tests__/client.test.ts -t "multiplayer foundation"'

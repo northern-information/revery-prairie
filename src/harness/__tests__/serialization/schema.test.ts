@@ -117,6 +117,9 @@ const EXPECTED_FIELDS = [
   'devPanelOpen',
   'devPaintPreview',
   'devEntityPreview',
+  'multiplayerSession',
+  'remotePlayers',
+  'onPlayerMoved',
 ].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {

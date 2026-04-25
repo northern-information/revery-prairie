@@ -254,6 +254,11 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                         if (vis === 'partiallyDiscovered') return 'unknown'
                       }
                       if (cx === state.player.x && cy === state.player.y) return state.stewardName.toLowerCase()
+                      for (const remote of state.remotePlayers.values()) {
+                        if (remote.x === cx && remote.y === cy) {
+                          return `remote steward: ${remote.stewardName.toLowerCase()}`
+                        }
+                      }
                       const charEid = state.world.spatial
                         .at(cx, cy)
                         .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'character')

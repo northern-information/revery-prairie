@@ -204,6 +204,9 @@ export const createGameState = (
     devPanelOpen: false,
     devPaintPreview: null,
     devEntityPreview: null,
+    multiplayerSession: null,
+    remotePlayers: new Map(),
+    onPlayerMoved: null,
   }
 
   // Seed glinting zone patches with staggered birth times

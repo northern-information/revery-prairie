@@ -1,0 +1,366 @@
+plan:
+  id: multiplayer-foundation
+  title: 'Add server-authoritative multiplayer with shareable prairie URLs and position-only sync'
+  created: '2026-04-25'
+  global_verification:
+    - npm install
+    - npm run build
+    - npm run test
+    - npm run lint
+    - npx tsc -b --noEmit -p shared/tsconfig.json
+    - npx tsc --noEmit -p worker/tsconfig.json
+
+tasks:
+  - id: workspaces-setup
+    title: 'Configure npm workspaces and scaffold shared/ and worker/ packages (no source code yet)'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - color-palette
+      - prairie-creation
+      - world-persistence-across-do-hibernation
+    context_files:
+      - package.json
+      - tsconfig.json
+      - tsconfig.app.json
+      - tsconfig.node.json
+      - vite.config.ts
+    output_files:
+      - package.json
+      - shared/package.json
+      - shared/tsconfig.json
+      - worker/package.json
+      - worker/tsconfig.json
+      - worker/wrangler.toml
+    depends_on: []
+    verification:
+      - npm install
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [integration]
+
+  - id: shared-protocol
+    title: 'Implement wire protocol, RemotePlayer wire shape, ColorId, and PLAYER_COLORS in the shared workspace'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - prairie-creation
+      - prairie-join-via-websocket
+      - position-broadcast-outgoing
+      - position-broadcast-incoming
+      - color-palette
+      - disconnect-cleanup
+    context_files:
+      - shared/package.json
+      - shared/tsconfig.json
+      - src/engine/position.ts
+    output_files:
+      - shared/src/protocol.ts
+      - shared/src/index.ts
+    depends_on:
+      - workspaces-setup
+    verification:
+      - npx tsc -b --noEmit -p shared/tsconfig.json
+    repair: retry
+    tags: [integration]
+
+  - id: engine-state
+    title: 'Add MultiplayerSession, RemotePlayer, and onPlayerMoved fields to GameState'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - prairie-creation
+      - prairie-join-via-websocket
+      - position-broadcast-incoming
+      - online-mode-vs-offline-mode-isolation
+      - reconnect-with-backoff
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - shared/src/index.ts
+      - shared/src/protocol.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - shared-protocol
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization
+    repair: retry
+    tags: [engine]
+
+  - id: worker-prairie-do
+    title: 'Implement PrairieDO: hello validation, welcome frame, position fan-out, peer-joined, peer-left, hibernation'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - prairie-creation
+      - prairie-join-via-websocket
+      - position-broadcast-incoming
+      - disconnect-cleanup
+      - world-snapshot-on-join
+      - world-persistence-across-do-hibernation
+    context_files:
+      - shared/src/protocol.ts
+      - shared/src/index.ts
+      - worker/wrangler.toml
+      - worker/tsconfig.json
+      - worker/package.json
+    output_files:
+      - worker/src/PrairieDO.ts
+    depends_on:
+      - shared-protocol
+    verification:
+      - npx tsc --noEmit -p worker/tsconfig.json
+    repair: retry
+    tags: [worker]
+
+  - id: worker-router
+    title: 'Wire HTTP routes (POST /api/prairies, WS /api/prairies/:id/connect) to PrairieDO'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - prairie-creation
+      - prairie-join-via-websocket
+    context_files:
+      - shared/src/index.ts
+      - shared/src/protocol.ts
+      - worker/src/PrairieDO.ts
+      - worker/wrangler.toml
+    output_files:
+      - worker/src/index.ts
+    depends_on:
+      - worker-prairie-do
+    verification:
+      - npx tsc --noEmit -p worker/tsconfig.json
+    repair: retry
+    tags: [worker]
+
+  - id: network-client
+    title: 'Implement NetworkClient class for websocket connect, hello/welcome, position emit, peer event handling, and reconnect-with-backoff'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - prairie-creation
+      - prairie-join-via-websocket
+      - position-broadcast-outgoing
+      - position-broadcast-incoming
+      - disconnect-cleanup
+      - reconnect-with-backoff
+    context_files:
+      - shared/src/index.ts
+      - shared/src/protocol.ts
+      - src/engine/types.ts
+    output_files:
+      - src/network/client.ts
+      - src/network/types.ts
+    depends_on:
+      - engine-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [integration]
+
+  - id: engine-movement-emit
+    title: 'Invoke state.onPlayerMoved callback after successful movePlayer mutation'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - position-broadcast-outgoing
+    context_files:
+      - src/engine/movement.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/movement.ts
+    depends_on:
+      - engine-state
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/movement.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: engine-renderer-remote-players
+    title: 'Render remote players as colored @ glyphs and apply chosen color to local player in online mode'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - remote-player-render
+      - local-player-render-color
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+      - shared/src/index.ts
+      - shared/src/protocol.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - engine-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: cursor-info-remote-players
+    title: 'Add remote-player contents row to Sidebar cursor info panel'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - remote-player-render
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - engine-state
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags: [component]
+
+  - id: connect-screen
+    title: 'Build NetworkConnect component with stewardName field, color picker, and create/join modes'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - prairie-creation
+      - prairie-join-via-websocket
+      - color-palette
+      - online-mode-vs-offline-mode-isolation
+    context_files:
+      - src/components/NamePrompt.tsx
+      - shared/src/index.ts
+      - shared/src/protocol.ts
+      - src/network/client.ts
+      - src/network/types.ts
+    output_files:
+      - src/components/NetworkConnect.tsx
+    depends_on:
+      - network-client
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: engine-integration
+    title: 'Wire NetworkClient into useGameEngine: bind onPlayerMoved, handle peer events, mutate remotePlayers, manage session status'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - prairie-join-via-websocket
+      - position-broadcast-outgoing
+      - position-broadcast-incoming
+      - disconnect-cleanup
+      - reconnect-with-backoff
+      - online-mode-vs-offline-mode-isolation
+    context_files:
+      - src/hooks/useGameEngine.ts
+      - src/network/client.ts
+      - src/network/types.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/hooks/useGameEngine.ts
+    depends_on:
+      - network-client
+      - engine-movement-emit
+      - engine-renderer-remote-players
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [hook, integration]
+
+  - id: app-routing
+    title: 'Route browser URL: /p/new and /p/{id} go to NetworkConnect; root stays on NamePrompt with optional online link'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - prairie-creation
+      - prairie-join-via-websocket
+      - online-mode-vs-offline-mode-isolation
+    context_files:
+      - src/App.tsx
+      - src/components/NamePrompt.tsx
+      - src/components/NetworkConnect.tsx
+      - src/hooks/useGameEngine.ts
+    output_files:
+      - src/App.tsx
+      - src/components/NamePrompt.tsx
+    depends_on:
+      - engine-integration
+      - connect-screen
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: network-client-tests
+    title: 'Write NetworkClient tests for hello/welcome, position emit, peer events, reconnect backoff, and invalid color rejection'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - prairie-join-via-websocket
+      - position-broadcast-outgoing
+      - position-broadcast-incoming
+      - disconnect-cleanup
+      - reconnect-with-backoff
+      - color-palette
+    context_files:
+      - src/network/client.ts
+      - shared/src/index.ts
+      - shared/src/protocol.ts
+      - src/network/types.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/network/__tests__/client.test.ts
+    depends_on:
+      - network-client
+    verification:
+      - npx vitest run src/network/__tests__/client.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: engine-remote-players-tests
+    title: 'Write engine tests for remotePlayers state mutation, render glyph color, and onPlayerMoved emission'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - position-broadcast-outgoing
+      - position-broadcast-incoming
+      - remote-player-render
+      - local-player-render-color
+    context_files:
+      - src/engine/movement.ts
+      - src/engine/renderer.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - shared/src/index.ts
+      - shared/src/protocol.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/remote-players.test.ts
+    depends_on:
+      - engine-movement-emit
+      - engine-renderer-remote-players
+    verification:
+      - npx vitest run src/engine/__tests__/remote-players.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: worker-prairie-do-tests
+    title: 'Write Cloudflare Worker tests for PrairieDO create, join, position fan-out, disconnect, hibernation persistence'
+    spec_id: multiplayer-foundation
+    spec_sections:
+      - prairie-creation
+      - prairie-join-via-websocket
+      - position-broadcast-incoming
+      - disconnect-cleanup
+      - world-persistence-across-do-hibernation
+    context_files:
+      - worker/src/PrairieDO.ts
+      - worker/src/index.ts
+      - shared/src/index.ts
+      - shared/src/protocol.ts
+      - worker/wrangler.toml
+    output_files:
+      - worker/test/PrairieDO.test.ts
+    depends_on:
+      - worker-router
+    verification:
+      - npx vitest run -c worker/vitest.config.ts worker/test/PrairieDO.test.ts
+    repair: retry
+    tags: [test, worker]
