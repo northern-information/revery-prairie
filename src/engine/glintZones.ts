@@ -1,4 +1,10 @@
 import {
+  GLINT_BEAM_CHANCE,
+  GLINT_BEAM_CYCLE_MS,
+  GLINT_BEAM_LENGTH_MAX,
+  GLINT_BEAM_LENGTH_MIN,
+  GLINT_BEAM_MAX_OPACITY,
+  GLINT_BEAM_TAIL_OPACITY,
   GLINT_ZONE_COUNT,
   GLINT_ZONE_DRIFT_MS,
   GLINT_ZONE_FADE_IN_MS,
@@ -9,7 +15,7 @@ import {
   GLINT_ZONE_SPAWN_MS,
   SPACE_BORDER,
 } from './constants'
-import { posKey } from './position'
+import { posKey, tileHash } from './position'
 import { TileType } from './types'
 
 import type { GameState, GlintPatch, Tile } from './types'
@@ -168,4 +174,94 @@ export const tickGlintZones = (state: GameState, time: number): void => {
 
   // 4. Rebuild glint zones from patches
   rebuildGlintZones(state, time)
+}
+
+// Beam offsets keep beam selection decorrelated from the sparkle hash
+// (which uses a different seed combination in the renderer).
+const BEAM_PRESENCE_OFFSET = 9173
+const BEAM_LENGTH_OFFSET = 4099
+const BEAM_MAX_OPACITY_OFFSET = 7919
+
+/**
+ * Stable per-tile decision: does this tile show a light beam? ~30% true.
+ * Same (x, y, seed) always returns the same result.
+ */
+export const tileHasBeam = (x: number, y: number, seed: number): boolean => {
+  const h = tileHash(x + seed, y + BEAM_PRESENCE_OFFSET)
+  // Use modulo bucketing for a robust uniform distribution; tileHash's
+  // higher bits show bias due to JS multiplication precision loss.
+  return h % 1000 < Math.round(GLINT_BEAM_CHANCE * 1000)
+}
+
+/**
+ * Stable per-tile beam length in [GLINT_BEAM_LENGTH_MIN, GLINT_BEAM_LENGTH_MAX].
+ */
+export const tileBeamLength = (x: number, y: number, seed: number): number => {
+  const h = tileHash(x + seed + BEAM_LENGTH_OFFSET, y)
+  const range = GLINT_BEAM_LENGTH_MAX - GLINT_BEAM_LENGTH_MIN + 1
+  return GLINT_BEAM_LENGTH_MIN + (h % range)
+}
+
+/**
+ * Stable per-tile peak opacity for the beam's brightest segment, in
+ * [0, GLINT_BEAM_MAX_OPACITY]. Each beam picks its own cap so the
+ * field of beams varies subtly in intensity.
+ */
+export const tileBeamMaxOpacity = (x: number, y: number, seed: number): number => {
+  const h = tileHash(x + seed + BEAM_MAX_OPACITY_OFFSET, y)
+  return ((h % 1000) / 1000) * GLINT_BEAM_MAX_OPACITY
+}
+
+const BEAM_BUILD_FRACTION = 0.55
+const BEAM_HOLD_FRACTION = 0.15
+
+/**
+ * Pour-phase opacity for a beam segment, in [0, 1]. The beam builds
+ * top-down for the first BEAM_BUILD_FRACTION of the cycle, holds briefly,
+ * then collapses top-down over the remainder. Intensity also falls off
+ * from the top of the beam (full strength) to the bottom (scaled to
+ * GLINT_BEAM_TAIL_OPACITY) — light dims as it pours toward the ground.
+ *
+ * The returned value is the unscaled pour profile; callers multiply by
+ * the per-beam max opacity (tileBeamMaxOpacity) and patch phase opacity
+ * to get final alpha.
+ *
+ * @param segmentIndex 0 = closest to glinting tile (bottom), length-1 = topmost
+ * @param length total beam segments
+ * @param time current animation time (ms)
+ */
+export const computeBeamSegmentOpacity = (
+  segmentIndex: number,
+  length: number,
+  time: number,
+): number => {
+  if (length <= 0) return 0
+  const distFromTop = length - 1 - segmentIndex
+  const cyclePhase = (time % GLINT_BEAM_CYCLE_MS) / GLINT_BEAM_CYCLE_MS
+
+  const collapseFraction = 1 - BEAM_BUILD_FRACTION - BEAM_HOLD_FRACTION
+  const buildStart = (distFromTop / length) * BEAM_BUILD_FRACTION
+  const buildEnd = ((distFromTop + 1) / length) * BEAM_BUILD_FRACTION
+  const collapseBase = BEAM_BUILD_FRACTION + BEAM_HOLD_FRACTION
+  const collapseStart = collapseBase + (distFromTop / length) * collapseFraction
+  const collapseEnd = collapseBase + ((distFromTop + 1) / length) * collapseFraction
+
+  let phaseOpacity: number
+  if (cyclePhase < buildStart) {
+    phaseOpacity = 0
+  } else if (cyclePhase < buildEnd) {
+    phaseOpacity = (cyclePhase - buildStart) / (buildEnd - buildStart)
+  } else if (cyclePhase < collapseStart) {
+    phaseOpacity = 1
+  } else if (cyclePhase < collapseEnd) {
+    phaseOpacity = 1 - (cyclePhase - collapseStart) / (collapseEnd - collapseStart)
+  } else {
+    phaseOpacity = 0
+  }
+
+  // Top-to-bottom falloff: top is full strength, bottom dims to TAIL_OPACITY.
+  const topness = length === 1 ? 1 : 1 - distFromTop / (length - 1)
+  const falloff = GLINT_BEAM_TAIL_OPACITY + topness * (1 - GLINT_BEAM_TAIL_OPACITY)
+
+  return Math.max(0, Math.min(1, phaseOpacity * falloff))
 }

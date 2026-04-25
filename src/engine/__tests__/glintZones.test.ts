@@ -1,10 +1,20 @@
 import {
+  computeBeamSegmentOpacity,
   rebuildGlintZones,
   seedGlintPatches,
   spawnGlintPatch,
   tickGlintZones,
+  tileBeamLength,
+  tileBeamMaxOpacity,
+  tileHasBeam,
 } from '../glintZones'
 import {
+  GLINT_BEAM_CHANCE,
+  GLINT_BEAM_CYCLE_MS,
+  GLINT_BEAM_LENGTH_MAX,
+  GLINT_BEAM_LENGTH_MIN,
+  GLINT_BEAM_MAX_OPACITY,
+  GLINT_BEAM_TAIL_OPACITY,
   GLINT_ZONE_COUNT,
   GLINT_ZONE_DRIFT_MS,
   GLINT_ZONE_FADE_IN_MS,
@@ -261,5 +271,171 @@ describe('drift edge cases', () => {
 
     // Patch should still exist (in hold phase) and not have crashed
     expect(state.glintPatches.length).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe('tileHasBeam', () => {
+  it('is stable across calls for the same (x, y, seed)', () => {
+    const seed = 12345
+    for (let i = 0; i < 20; i++) {
+      const x = i * 7
+      const y = i * 13 + 3
+      expect(tileHasBeam(x, y, seed)).toBe(tileHasBeam(x, y, seed))
+    }
+  })
+
+  it('selects approximately GLINT_BEAM_CHANCE of tiles in aggregate', () => {
+    const seed = 999
+    let beamCount = 0
+    const total = 4000
+    for (let i = 0; i < total; i++) {
+      const x = i % 200
+      const y = Math.floor(i / 200)
+      if (tileHasBeam(x, y, seed)) beamCount++
+    }
+    const rate = beamCount / total
+    // Expected ~30%; allow ±5 percentage points for hash variance over this sample
+    expect(rate).toBeGreaterThan(GLINT_BEAM_CHANCE - 0.05)
+    expect(rate).toBeLessThan(GLINT_BEAM_CHANCE + 0.05)
+  })
+
+  it('different seeds produce different selections', () => {
+    let differences = 0
+    for (let i = 0; i < 200; i++) {
+      const x = i % 20
+      const y = Math.floor(i / 20)
+      if (tileHasBeam(x, y, 1) !== tileHasBeam(x, y, 2)) differences++
+    }
+    expect(differences).toBeGreaterThan(0)
+  })
+})
+
+describe('tileBeamLength', () => {
+  it('returns a stable length in [MIN, MAX] for the same (x, y, seed)', () => {
+    const seed = 42
+    for (let i = 0; i < 50; i++) {
+      const x = i
+      const y = i * 3
+      const length = tileBeamLength(x, y, seed)
+      expect(length).toBeGreaterThanOrEqual(GLINT_BEAM_LENGTH_MIN)
+      expect(length).toBeLessThanOrEqual(GLINT_BEAM_LENGTH_MAX)
+      expect(tileBeamLength(x, y, seed)).toBe(length)
+    }
+  })
+
+  it('produces a range of lengths across many tiles', () => {
+    const seed = 7
+    const observed = new Set<number>()
+    for (let x = 0; x < 50; x++) {
+      for (let y = 0; y < 50; y++) {
+        observed.add(tileBeamLength(x, y, seed))
+      }
+    }
+    // We should see more than one distinct length value
+    expect(observed.size).toBeGreaterThan(1)
+    // Every value should be in range
+    for (const v of observed) {
+      expect(v).toBeGreaterThanOrEqual(GLINT_BEAM_LENGTH_MIN)
+      expect(v).toBeLessThanOrEqual(GLINT_BEAM_LENGTH_MAX)
+    }
+  })
+})
+
+describe('computeBeamSegmentOpacity', () => {
+  const length = 4
+
+  it('returns 0 at the very start of the cycle for the bottom segment', () => {
+    // segmentIndex=0 is the bottom (closest to the glinting tile, last to light up)
+    const opacity = computeBeamSegmentOpacity(0, length, 0)
+    expect(opacity).toBe(0)
+  })
+
+  it('lights the topmost segment first', () => {
+    // Just after t=0, the top segment (index length-1) should be the only one lit
+    const epsilon = GLINT_BEAM_CYCLE_MS * 0.05
+    const top = computeBeamSegmentOpacity(length - 1, length, epsilon)
+    const bottom = computeBeamSegmentOpacity(0, length, epsilon)
+    expect(top).toBeGreaterThan(0)
+    expect(bottom).toBe(0)
+  })
+
+  it('returns values clamped to [0, 1] across the full cycle', () => {
+    for (let i = 0; i < length; i++) {
+      for (let t = 0; t < GLINT_BEAM_CYCLE_MS; t += 50) {
+        const o = computeBeamSegmentOpacity(i, length, t)
+        expect(o).toBeGreaterThanOrEqual(0)
+        expect(o).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+
+  it('repeats every cycle (time + cycle yields same opacity)', () => {
+    for (let i = 0; i < length; i++) {
+      for (let t = 0; t < GLINT_BEAM_CYCLE_MS; t += 137) {
+        const a = computeBeamSegmentOpacity(i, length, t)
+        const b = computeBeamSegmentOpacity(i, length, t + GLINT_BEAM_CYCLE_MS)
+        expect(b).toBeCloseTo(a, 6)
+      }
+    }
+  })
+
+  it('returns 0 for length <= 0', () => {
+    expect(computeBeamSegmentOpacity(0, 0, 100)).toBe(0)
+  })
+
+  it('peaks higher for the top segment than the bottom (top-down decay)', () => {
+    let topMax = 0
+    let bottomMax = 0
+    for (let t = 0; t < GLINT_BEAM_CYCLE_MS; t += 5) {
+      topMax = Math.max(topMax, computeBeamSegmentOpacity(length - 1, length, t))
+      bottomMax = Math.max(bottomMax, computeBeamSegmentOpacity(0, length, t))
+    }
+    expect(topMax).toBeCloseTo(1, 1)
+    expect(bottomMax).toBeCloseTo(GLINT_BEAM_TAIL_OPACITY, 2)
+    expect(topMax).toBeGreaterThan(bottomMax)
+  })
+
+  it('intermediate segments scale linearly between top and tail', () => {
+    // Each segment's peak should sit on the line from 1.0 (top) to TAIL (bottom)
+    const peaks: number[] = []
+    for (let i = 0; i < length; i++) {
+      let m = 0
+      for (let t = 0; t < GLINT_BEAM_CYCLE_MS; t += 5) {
+        m = Math.max(m, computeBeamSegmentOpacity(i, length, t))
+      }
+      peaks.push(m)
+    }
+    // Iterate from top (length-1) down to bottom (0); each next peak should be lower
+    for (let i = length - 1; i > 0; i--) {
+      expect(peaks[i]).toBeGreaterThan(peaks[i - 1])
+    }
+  })
+})
+
+describe('tileBeamMaxOpacity', () => {
+  it('returns a stable value in [0, GLINT_BEAM_MAX_OPACITY]', () => {
+    const seed = 13
+    for (let i = 0; i < 50; i++) {
+      const x = i * 5
+      const y = i * 11
+      const op = tileBeamMaxOpacity(x, y, seed)
+      expect(op).toBeGreaterThanOrEqual(0)
+      expect(op).toBeLessThanOrEqual(GLINT_BEAM_MAX_OPACITY)
+      expect(tileBeamMaxOpacity(x, y, seed)).toBe(op)
+    }
+  })
+
+  it('produces a varied distribution across many tiles', () => {
+    const samples: number[] = []
+    for (let x = 0; x < 60; x++) {
+      for (let y = 0; y < 60; y++) {
+        samples.push(tileBeamMaxOpacity(x, y, 99))
+      }
+    }
+    const min = Math.min(...samples)
+    const max = Math.max(...samples)
+    // Cover most of the [0, MAX] range
+    expect(min).toBeLessThan(GLINT_BEAM_MAX_OPACITY * 0.1)
+    expect(max).toBeGreaterThan(GLINT_BEAM_MAX_OPACITY * 0.9)
   })
 })
