@@ -698,8 +698,11 @@ const createSatelliteCrashStreak = (
 
   // Satellites are heavier than meteorites — longer trails
   const length = 8 + Math.floor(sim.rng() * 5)
-  // Stagger across the first 70% of the epoch so crashes finish before crossfade
-  const startTime = total > 1 ? (index / (total - 1)) * 0.7 : 0.1
+  // Each crash animates over 50% of the epoch (see renderTile). Stagger
+  // starts across the first 50% so the latest crash still finishes by
+  // the crossfade boundary while the per-streak fall remains slow and
+  // dramatic regardless of crash count.
+  const startTime = total > 1 ? (index / (total - 1)) * 0.5 : 0.1
 
   return { startX: sx, startY: sy, dx: dir.dx, dy: dir.dy, impactX, impactY, length, startTime }
 }
@@ -2312,11 +2315,13 @@ const fallOfCivilizations: GenesisEpoch = {
     const h = tileHash(x, y)
 
     // Satellite crash streaks — render over everything (including space).
-    // Animates across ~20% of epoch from each crash.startTime; after the
-    // streak completes, the crater glyph paints in place for the rest of
-    // the epoch via the state.craters check below.
+    // Animates across ~50% of the epoch from each crash.startTime so each
+    // streak falls slowly enough to be dramatic regardless of how many
+    // crashes are happening. After the streak completes, the crater glyph
+    // paints in place for the rest of the epoch via the state.craters
+    // check below.
     for (const crash of sim.satelliteCrashes) {
-      const crashProgress = clamp((progress - crash.startTime) / 0.2, 0, 1)
+      const crashProgress = clamp((progress - crash.startTime) / 0.5, 0, 1)
       if (crashProgress <= 0 || crashProgress >= 1) continue
 
       const totalSteps = Math.abs(crash.impactX - crash.startX) + Math.abs(crash.impactY - crash.startY)
