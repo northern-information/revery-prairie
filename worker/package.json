@@ -14,9 +14,9 @@
     "@revery-prairie/shared": "*"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "4.20250109.0",
+    "@cloudflare/workers-types": "^4.20260401.0",
     "typescript": "5.9.3",
     "vitest": "3.2.4",
-    "wrangler": "3.99.0"
+    "wrangler": "^4.85.0"
   }
 }

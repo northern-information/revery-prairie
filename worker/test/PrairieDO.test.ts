@@ -221,7 +221,7 @@ describe('multiplayer foundation: PrairieDO', () => {
     )
 
     const beforeA = wsA.sent.length
-    await do_.webSocketClose(wsB as unknown as WebSocket)
+    await do_.webSocketClose(wsB as unknown as WebSocket, 1006, 'abnormal', false)
     const left = JSON.parse(wsA.sent[beforeA]) as PeerLeftFrame
     expect(left.type).toBe('peer-left')
   })
