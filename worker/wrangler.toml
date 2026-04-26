@@ -2,6 +2,14 @@ name = "revery-prairie-worker"
 main = "src/index.ts"
 compatibility_date = "2026-04-25"
 
+# Static client bundle. Vite builds the SPA to <repo>/dist; the worker serves
+# everything that does not match an /api/* route, with index.html returned for
+# unknown paths so SPA routes like /p/{id} resolve correctly.
+[assets]
+directory = "../dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
 [[durable_objects.bindings]]
 name = "PRAIRIE"
 class_name = "PrairieDO"
