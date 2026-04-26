@@ -7,6 +7,8 @@ import {
   METEOR_SHOWER_SPAWN_WINDOW_MS,
   METEOR_SHOWER_STAR_COUNT_MAX,
   METEOR_SHOWER_STAR_COUNT_MIN,
+  METEORITE_CHAR,
+  METEORITE_COLOR,
   METEORITE_GROUND_MAX,
   PICKUP_EFFECT_DURATION_MS,
   PLAYER_SPAWN_DESCENT_TARGET_MS,
@@ -236,6 +238,13 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           if (data.forPlayerSpawn && state.playerSpawn.meteorEntityId === eid) {
             state.playerSpawn.visible = true
             state.playerSpawn.meteorEntityId = null
+            state.queuedToasts.push({
+              text: `steward ${state.stewardName} falls to the prairie`,
+              icon: METEORITE_CHAR,
+              iconColor: METEORITE_COLOR,
+              worldX: x,
+              worldY: y,
+            })
           }
           state.world.destroyEntity(eid)
           continue
@@ -424,11 +433,10 @@ export const triggerPlayerSpawnShower = (state: GameState, spawnPos: Position, t
     recordDiscovery(state, 'event:meteor-shower')
   }
 
-  // Pick a downward-ish diagonal direction for the player-spawn star.
-  // Velocity (1, 1) keeps the trail contiguous; backtracking N tiles
+  // Use the shower's radiant direction so the player-spawn star comes in
+  // from the same heading as the rest of the shower. Backtracking N tiles
   // controls the descent time.
-  const sign = Math.random() < 0.5 ? -1 : 1
-  const dir = { dx: sign, dy: 1 }
+  const dir = { dx: shower.radiantDx, dy: shower.radiantDy }
   const backtrack = Math.max(1, Math.round(PLAYER_SPAWN_DESCENT_TARGET_MS / SHOOTING_STAR_TICK_MS))
 
   const eid = spawnShootingStarAtTarget(state, spawnPos, dir, {
