@@ -1,12 +1,10 @@
 name = "revery-prairie-worker"
 main = "src/index.ts"
-compatibility_date = "2025-01-15"
-compatibility_flags = ["nodejs_compat"]
+compatibility_date = "2026-04-25"
 
-[durable_objects]
-bindings = [
-  { name = "PRAIRIE", class_name = "PrairieDO" }
-]
+[[durable_objects.bindings]]
+name = "PRAIRIE"
+class_name = "PrairieDO"
 
 [[migrations]]
 tag = "v1"

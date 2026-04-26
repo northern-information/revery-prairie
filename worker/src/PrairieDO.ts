@@ -145,7 +145,12 @@ export class PrairieDO implements DurableObject {
     ws.close(WS_CLOSE_CODES.malformedHello, 'unexpected message type after hello')
   }
 
-  async webSocketClose(ws: WebSocket): Promise<void> {
+  async webSocketClose(
+    ws: WebSocket,
+    _code: number,
+    _reason: string,
+    _wasClean: boolean
+  ): Promise<void> {
     const attachment = ws.deserializeAttachment() as Attachment | null
     if (!attachment) return
     const frame: PeerLeftFrame = {
@@ -153,10 +158,6 @@ export class PrairieDO implements DurableObject {
       sessionId: attachment.sessionId,
     }
     this.broadcast(frame, ws)
-  }
-
-  async webSocketError(ws: WebSocket): Promise<void> {
-    await this.webSocketClose(ws)
   }
 
   private async handleHello(ws: WebSocket, hello: HelloFrame): Promise<void> {
