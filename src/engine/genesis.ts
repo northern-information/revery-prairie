@@ -20,6 +20,7 @@ import {
   SATELLITE_TRAIL_COLORS,
   SOIL_HEALTH_MAX,
   SPACE_BORDER,
+  TILE_COLORS,
   WATER_SAND_BORDER_MAX,
   WATER_SAND_PASS_CHANCES,
 } from './constants'
@@ -185,6 +186,13 @@ const BOX_DOUBLE_V = '║'
 
 const BUILDING_CHARS = ['▓', '▒', '░', '█', '#', '+', 'H', 'T', '=']
 const CIV_COLORS = ['#666', '#777', '#888', '#999', '#AAA']
+
+// Crater palette — must match the brown palette in renderer.ts (state.craters
+// rendering branch). Kept here so the genesis presentDay epoch can paint
+// craters in their post-impact resting color, letting the cross-fade from
+// fallOfCivilizations smoothly blend the red SATELLITE_TRAIL_COLORS into
+// the brown resting state with no pop on the genesis-to-game handoff.
+const CRATER_COLORS = ['#8B4513', '#7A3B10', '#6B320D', '#5C290A', '#4D2007']
 
 // Genesis rendering constants
 const ROCK_COLORS = ['#696969', '#6B4226', '#808080', '#7B6B55']
@@ -2365,10 +2373,14 @@ const fallOfCivilizations: GenesisEpoch = {
     }
 
     // Persistent crater glyphs from completed crashes — paint over dirt
-    // until the cross-fade hands them off to the gameplay renderer.
+    // until the cross-fade hands them off to presentDay. Glyph keyed by
+    // rendererTileHash so the char does NOT snap at the cross-fade
+    // midpoint when presentDay (which also uses rendererTileHash) takes
+    // over the same crater tile.
     if (sim.craters.has(key)) {
-      const buildingChar = BUILDING_CHARS[h % BUILDING_CHARS.length]
-      const craterColor = SATELLITE_TRAIL_COLORS[h % SATELLITE_TRAIL_COLORS.length]
+      const craterH = rendererTileHash(x, y)
+      const buildingChar = BUILDING_CHARS[craterH % BUILDING_CHARS.length]
+      const craterColor = SATELLITE_TRAIL_COLORS[craterH % SATELLITE_TRAIL_COLORS.length]
       return [{ char: buildingChar, color: craterColor, dx: 0, dy: 0 }]
     }
 
@@ -2648,7 +2660,13 @@ const presentDay: GenesisEpoch = {
     enforceConnectivity(sim)
   },
   renderTile: (sim, x, y, _progress, time) => {
-    const h = tileHash(x, y)
+    // Use rendererTileHash (from position.ts) — the same hash function the
+    // game renderer keys terrain colors with. Local genesis tileHash and
+    // rendererTileHash mix bits differently, so using local would shift
+    // every sand/dirt/burn-scar/crater tile's palette index at the
+    // genesis-to-game handoff. Stars and rain aura already used
+    // rendererTileHash directly.
+    const h = rendererTileHash(x, y)
     const tile = sim.grid[y]?.[x]
 
     // Stars — use rendererTileHash to match game renderer exactly
@@ -2686,6 +2704,17 @@ const presentDay: GenesisEpoch = {
       return [{ char: ':', color: SAND_COLORS[h % SAND_COLORS.length], dx: 0, dy: 0 }]
     }
 
+    // Ruin and cave entrances — match the game renderer so the glyph and
+    // color are continuous across the genesis-to-game handoff. The 3x3
+    // dark halo backdrop behind RuinEntrance is painted in a separate
+    // pre-pass in genesisRenderer.ts.
+    if (tile.type === TileType.RuinEntrance) {
+      return [{ char: 'O', color: TILE_COLORS[TileType.RuinEntrance], dx: 0, dy: 0 }]
+    }
+    if (tile.type === TileType.CaveEntrance) {
+      return [{ char: 'O', color: TILE_COLORS[TileType.CaveEntrance], dx: 0, dy: 0 }]
+    }
+
     // Gron
     const gronX = Math.floor(sim.width / 2) + 5
     const gronY = Math.floor(sim.height / 2)
@@ -2697,8 +2726,15 @@ const presentDay: GenesisEpoch = {
     // Player intentionally not rendered in genesis presentDay — the steward
     // arrives via the spawn-meteor ceremony after the genesis crossfade.
 
-    // Base terrain
-    const baseTile: GenesisTileRender = sim.burnScars.has(key)
+    // Base terrain — craters take priority over burn scars and dirt so
+    // post-impact craters render in their resting brown matching
+    // renderer.ts (state.craters branch). All three branches key off
+    // rendererTileHash via `h`, matching the game renderer exactly. The
+    // fallOfCivilizations -> presentDay crossfade smoothly blends red
+    // SATELLITE_TRAIL_COLORS into this brown.
+    const baseTile: GenesisTileRender = sim.craters.has(key)
+      ? { char: BUILDING_CHARS[h % BUILDING_CHARS.length], color: CRATER_COLORS[h % CRATER_COLORS.length], dx: 0, dy: 0 }
+      : sim.burnScars.has(key)
       ? { char: '.', color: GAME_BURN_SCAR_COLORS[h % GAME_BURN_SCAR_COLORS.length], dx: 0, dy: 0 }
       : { char: '.', color: GAME_DIRT_COLORS[h % GAME_DIRT_COLORS.length], dx: 0, dy: 0 }
 

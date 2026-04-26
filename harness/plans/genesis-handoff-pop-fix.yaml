@@ -1,0 +1,179 @@
+plan:
+  id: genesis-handoff-pop-fix
+  title: 'Fix entity/tile pop on genesis-to-gameplay handoff'
+  created: 2026-04-25
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: add-presentday-crater-rendering
+    title: 'Render satellite craters in genesis presentDay matching the game renderer'
+    spec_id: genesis-transition
+    spec_sections:
+      - crater-continuity
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+    notes: >
+      In `presentDay.renderTile` (genesis.ts ~line 2645), add a check for
+      `sim.craters.has(key)` before the base dirt fallthrough. When the tile
+      is a crater, return a single GenesisTileRender with:
+        char: BUILDING_CHARS[h % BUILDING_CHARS.length]   (h = tileHash(x, y))
+        color: craterColors[h % craterColors.length]
+      where craterColors matches renderer.ts:1388 exactly:
+        ['#8B4513', '#7A3B10', '#6B320D', '#5C290A', '#4D2007']
+      Define craterColors as a module-level const at the top of genesis.ts
+      next to BUILDING_CHARS so it is shared with any future caller. The
+      check must come BEFORE the burnScars/dirt branch so a tile that is
+      both a crater and a burn scar renders as a crater. The cross-fade
+      from fallOfCivilizations -> presentDay (genesisRenderer.ts:140) will
+      automatically blend red SATELLITE_TRAIL_COLORS into brown craterColors
+      via the existing lerpColor pass — no genesisRenderer changes needed.
+
+  - id: add-presentday-entrance-rendering
+    title: 'Render ruin and cave entrances in genesis presentDay matching the game renderer'
+    spec_id: genesis-transition
+    spec_sections:
+      - ruin-entrance-continuity
+      - cave-entrance-continuity
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+    notes: >
+      In `presentDay.renderTile` (genesis.ts ~line 2645), after the existing
+      Sand check and before the base terrain return, add explicit handling
+      for `tile.type === TileType.RuinEntrance` and
+      `tile.type === TileType.CaveEntrance`:
+        RuinEntrance:  { char: 'O', color: TILE_COLORS[TileType.RuinEntrance], dx: 0, dy: 0 }
+        CaveEntrance:  { char: 'O', color: TILE_COLORS[TileType.CaveEntrance], dx: 0, dy: 0 }
+      Use TILE_COLORS imported from './constants' so values stay in sync
+      with the game renderer (#5FD3BC verdigris and #AAAAAA gray). Place
+      the checks before any vegetation/rain-aura overlay returns since
+      neither overlay should paint on top of an entrance. Both are
+      single-layer renders — no halo here; halo is handled in the next task.
+
+  - id: add-presentday-ruin-entrance-halo
+    title: 'Paint ruin-entrance dark halo during genesis presentDay and crossfade'
+    spec_id: genesis-transition
+    spec_sections:
+      - ruin-entrance-continuity
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/renderer.ts
+      - src/engine/ruins.ts
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+    depends_on:
+      - add-presentday-entrance-rendering
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+    notes: >
+      The 3x3 dark halo backdrop behind RuinEntrance tiles is a fillRect
+      pass in renderer.ts (~lines 989-1007), drawn once per entrance, not
+      per tile. The genesis renderer needs an equivalent pre-pass so the
+      halo is visible during presentDay (and fades in across the
+      fallOfCivilizations -> presentDay crossfade) instead of popping in
+      when the game renderer takes over. Implementation:
+
+      In `renderGenesis` (genesisRenderer.ts), AFTER the canvas clear and
+      BEFORE the main viewport loop, scan `sim.grid` for tiles of type
+      RuinEntrance within the visible camera window. Reuse
+      `getEntranceHaloCells(sim.grid, sim.width, sim.height, ex, ey)` from
+      ruins.ts to compute the 3x3 footprint (skipping space tiles). Paint
+      RUIN_ENTRANCE_HALO_COLOR with fillRect.
+
+      Alpha logic — gate the halo so it does not appear during earlier
+      epochs (it would conflict with lava/ice/civilization visuals):
+        - sim.epochIndex < fallOfCivilizationsIndex: skip halo entirely
+        - sim.epochIndex === fallOfCivilizationsIndex && progress > CROSSFADE_START:
+            alpha = blendT (the same value used for the inter-epoch fade)
+        - sim.epochIndex >= presentDayIndex: alpha = 1
+      Apply via ctx.globalAlpha around the fillRects, then reset to 1.
+
+      Indexes: GENESIS_EPOCHS is exported from genesis.ts; lookup the
+      indexes by id (GenesisEpochId.FallOfCivilizations and PresentDay)
+      once at module scope. Do not hardcode numeric indexes.
+
+      The halo lookups should be camera-clipped (skip cells outside the
+      visible window) to keep the cost proportional to viewport size.
+
+  - id: add-handoff-continuity-tests
+    title: 'Add regression tests for genesis-to-game handoff continuity'
+    spec_id: genesis-transition
+    spec_sections:
+      - crater-continuity
+      - ruin-entrance-continuity
+      - cave-entrance-continuity
+    context_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+    depends_on:
+      - add-presentday-crater-rendering
+      - add-presentday-entrance-rendering
+      - add-presentday-ruin-entrance-halo
+    verification:
+      - npx vitest run src/engine/__tests__/genesisTransition.test.ts
+    repair: retry
+    tags: [test, engine]
+    notes: >
+      Add a new describe block "presentDay continuity with game renderer"
+      to genesisTransition.test.ts. Use the existing pattern: build a
+      genesis sim via createGenesisState + precomputeGenesis, then call
+      the presentDay epoch's renderTile directly (last entry in
+      GENESIS_EPOCHS). Cases:
+
+      1) crater-continuity: pick a key from sim.craters (precomputed has
+         craters from fallOfCivilizations). Call presentDay.renderTile
+         on that tile and assert the returned glyph is BUILDING_CHARS[
+         tileHash(x,y) % BUILDING_CHARS.length] and the color is one of
+         craterColors. Compare against the brown palette literal — any
+         red SATELLITE_TRAIL_COLORS value must be rejected.
+
+      2) ruin-entrance-continuity: place a RuinEntrance tile on
+         sim.grid at a known position (or use placeRuinEntrances output).
+         Call presentDay.renderTile and assert char === 'O' and
+         color === TILE_COLORS[TileType.RuinEntrance].
+
+      3) cave-entrance-continuity: place a CaveEntrance on sim.grid at
+         a known position and assert char === 'O' and
+         color === TILE_COLORS[TileType.CaveEntrance].
+
+      Halo tests are deliberately omitted — fillRect on canvas is not
+      observable from a unit test without a jsdom canvas mock. The
+      halo is covered by the spec's edge-case `ruin-entrance-no-blink`
+      and is a manual-verification item.
+
+      Pattern guidance: see existing "rain aura seed continuity"
+      describe block (line ~163) for the shape of a continuity test
+      that compares genesis rendering output against game-renderer
+      constants. The new tests should follow the same pattern of
+      asserting against the imported constant from constants.ts so
+      future drift is caught.
