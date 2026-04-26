@@ -4,6 +4,7 @@ import {
   BEE_COLOR,
   BEEHIVE_CHAR,
   BEEHIVE_COLOR,
+  ENTRANCE_GLYPHS,
   GHOST_CHAR,
   GHOST_COLOR,
   LIGHTNING_BOLT_COLOR_BRIGHT,
@@ -20,10 +21,13 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
-import { TileType, Zone } from './types'
+import { posKey } from './position'
+import { generateRuinInterior } from './ruins'
+import { RuinArchetype, TileType, Zone } from './types'
 import { getCurrentEntityZone } from './zone'
 
 import type { ComponentDataMap } from './ecs/types'
+import type { CivilizationRuin } from './genesisTypes'
 import type { GameState, Position } from './types'
 
 // --- Known entity tags: must include every EntityTag string used in src/engine/ ---
@@ -509,4 +513,77 @@ export const getEntityPreviewGlyph = (
   }
 
   return { char: '?', color: '#ff69b4' }
+}
+
+// --- Ruin preset (non-ECS, drag-to-place spawns a ruin entrance + interior) ---
+
+export const RUIN_PRESET_KEY = 'ruin'
+export const RUIN_PRESET_LABEL = 'Ruin'
+
+export const RUIN_GLYPH_RANDOM = 'random'
+
+export const RUIN_ARCHETYPE_OPTIONS: readonly { value: RuinArchetype; label: string }[] = [
+  { value: RuinArchetype.Subsidence, label: 'subsidence' },
+  { value: RuinArchetype.DormantGarden, label: 'dormant garden' },
+  { value: RuinArchetype.HauntedThreshold, label: 'haunted threshold' },
+  { value: RuinArchetype.Resonance, label: 'resonance' },
+]
+
+export const RUIN_GLYPH_OPTIONS: readonly string[] = [RUIN_GLYPH_RANDOM, ...ENTRANCE_GLYPHS]
+
+export const RUIN_ENTRANCE_COLOR = '#cccccc'
+
+const RUIN_PREVIEW_GLYPH_FALLBACK = ENTRANCE_GLYPHS[0]
+
+export const getRuinPreviewGlyph = (glyph: string): { char: string; color: string } => {
+  const char = glyph === RUIN_GLYPH_RANDOM ? RUIN_PREVIEW_GLYPH_FALLBACK : glyph
+  return { char, color: RUIN_ENTRANCE_COLOR }
+}
+
+const isValidRuinDropTile = (state: GameState, x: number, y: number): boolean => {
+  if (state.currentZone !== Zone.Overworld) return false
+  if (x < 0 || x >= state.mapWidth || y < 0 || y >= state.mapHeight) return false
+  const tile = state.map[y][x]
+  if (tile.type === TileType.Space) return false
+  if (tile.type === TileType.RuinEntrance) return false
+  if (tile.type === TileType.CaveEntrance) return false
+  const key = posKey(x, y)
+  if (state.ponds.has(key) || state.rivers.has(key)) return false
+  return true
+}
+
+const buildPlaceholderRuin = (position: Position, ruinIndex: number): CivilizationRuin => ({
+  position,
+  name: `dev-ruin-${String(ruinIndex)}`,
+  radius: 4,
+  age: 1500,
+  aqueductPaths: [],
+  buildingFootprints: [],
+})
+
+export const spawnDevRuin = (
+  state: GameState,
+  position: Position,
+  archetype: RuinArchetype,
+  glyph: string,
+): boolean => {
+  if (!isValidRuinDropTile(state, position.x, position.y)) return false
+
+  const ruinIndex = state.ruinInteriors.length
+  const ruin = buildPlaceholderRuin(position, ruinIndex)
+  const interior = generateRuinInterior(ruin, ruinIndex, archetype, Math.random)
+
+  const resolvedGlyph =
+    glyph === RUIN_GLYPH_RANDOM
+      ? ENTRANCE_GLYPHS[Math.floor(Math.random() * ENTRANCE_GLYPHS.length)]
+      : glyph
+
+  state.ruinInteriors.push({
+    ...interior,
+    entranceOverworld: { x: position.x, y: position.y },
+    glyph: resolvedGlyph,
+  })
+
+  state.map[position.y][position.x] = { type: TileType.RuinEntrance }
+  return true
 }

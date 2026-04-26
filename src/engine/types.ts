@@ -466,6 +466,7 @@ export interface RuinInterior {
   fogExplored: Set<string>
   fogDiscovered: Set<string>
   fogIllumination: Map<string, number>
+  glyph?: string
 }
 
 export const DeepTimePhase = {
