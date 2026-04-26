@@ -6,12 +6,20 @@ import {
   DEV_PRESETS,
   ENTITY_TAG_SUGGESTIONS,
   getEntityPreviewGlyph,
+  getRuinPreviewGlyph,
   paintRect,
+  RUIN_ARCHETYPE_OPTIONS,
+  RUIN_GLYPH_OPTIONS,
+  RUIN_GLYPH_RANDOM,
+  RUIN_PRESET_KEY,
+  RUIN_PRESET_LABEL,
   spawnDevEntity,
+  spawnDevRuin,
   TILE_TYPE_LIST,
   getComponentDefaults,
 } from '@/engine/devPanel'
 import { ComponentType } from '@/engine/ecs/types'
+import { RuinArchetype } from '@/engine/types'
 
 import type { ComponentMeta, FieldMeta } from '@/engine/devPanel'
 import type { CharMetrics, GameState, Position } from '@/engine/types'
@@ -277,6 +285,9 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
   const [checked, setChecked] = useState(() => new Set<ComponentType>())
   const [values, setValues] = useState(() => new Map<ComponentType, Record<string, unknown>>())
   const [filter, setFilter] = useState('')
+  const [ruinMode, setRuinMode] = useState(false)
+  const [ruinArchetype, setRuinArchetype] = useState<RuinArchetype>(RuinArchetype.Subsidence)
+  const [ruinGlyph, setRuinGlyph] = useState(RUIN_GLYPH_RANDOM)
 
   const getValues = (type: ComponentType): Record<string, unknown> => {
     const existing = values.get(type)
@@ -287,8 +298,15 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
   }
 
   const applyPreset = (presetKey: string) => {
+    if (presetKey === RUIN_PRESET_KEY) {
+      setRuinMode(true)
+      setChecked(new Set<ComponentType>())
+      setValues(new Map<ComponentType, Record<string, unknown>>())
+      return
+    }
     const preset = DEV_PRESETS[presetKey]
     if (!preset) return
+    setRuinMode(false)
     const newChecked = new Set<ComponentType>()
     const newValues = new Map<ComponentType, Record<string, unknown>>()
     const now = performance.now()
@@ -314,17 +332,22 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
   }
 
   const spawn = (x: number, y: number) => {
-    spawnDevEntity(state, buildComponentMap(), { x, y })
+    if (ruinMode) {
+      spawnDevRuin(state, { x, y }, ruinArchetype, ruinGlyph)
+    } else {
+      spawnDevEntity(state, buildComponentMap(), { x, y })
+    }
     refreshUI()
   }
 
   const handleDragStart = useCallback(
     (e: React.MouseEvent) => {
-      if (checked.size === 0) return
+      if (!ruinMode && checked.size === 0) return
       e.preventDefault()
 
-      const componentMap = buildComponentMap()
-      const glyph = getEntityPreviewGlyph(componentMap)
+      const glyph = ruinMode
+        ? getRuinPreviewGlyph(ruinGlyph)
+        : getEntityPreviewGlyph(buildComponentMap())
 
       const handleUp = (ue: MouseEvent) => {
         window.removeEventListener('mousemove', handleMove)
@@ -360,14 +383,14 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
       window.addEventListener('mouseup', handleUp)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [checked, values, state, refreshUI, metricsRef]
+    [checked, values, state, refreshUI, metricsRef, ruinMode, ruinArchetype, ruinGlyph]
   )
 
   const filteredMeta = filter
     ? COMPONENT_META.filter(m => m.label.toLowerCase().includes(filter.toLowerCase()))
     : COMPONENT_META
 
-  const canSpawn = checked.size > 0
+  const canSpawn = ruinMode || checked.size > 0
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
@@ -386,43 +409,83 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
               {preset.label}
             </option>
           ))}
+          <option value={RUIN_PRESET_KEY}>{RUIN_PRESET_LABEL}</option>
         </select>
       </div>
 
-      <input
-        type="text"
-        placeholder="filter..."
-        value={filter}
-        onChange={e => {
-          setFilter(e.target.value)
-        }}
-        className="bg-bg border-border-dim shrink-0 rounded border px-2 py-1 text-xs"
-      />
-
-      <div className="scrollbar-custom min-h-0 flex-1 overflow-y-auto">
-        {filteredMeta.map(meta => (
-          <ComponentSection
-            key={meta.type}
-            meta={meta}
-            checked={checked.has(meta.type)}
-            values={getValues(meta.type)}
-            onToggle={() => {
-              const next = new Set(checked)
-              if (next.has(meta.type)) {
-                next.delete(meta.type)
-              } else {
-                next.add(meta.type)
-              }
-              setChecked(next)
+      {ruinMode ? (
+        <div className="scrollbar-custom flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+          <label className="flex items-center justify-between gap-2 text-xs">
+            <span className="text-muted">archetype</span>
+            <select
+              value={ruinArchetype}
+              onChange={e => {
+                setRuinArchetype(e.target.value as RuinArchetype)
+              }}
+              className="bg-bg border-border-dim min-w-0 flex-1 rounded border px-1 py-0.5 text-xs"
+            >
+              {RUIN_ARCHETYPE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center justify-between gap-2 text-xs">
+            <span className="text-muted">glyph</span>
+            <select
+              value={ruinGlyph}
+              onChange={e => {
+                setRuinGlyph(e.target.value)
+              }}
+              className="bg-bg border-border-dim min-w-0 flex-1 rounded border px-1 py-0.5 text-xs"
+            >
+              {RUIN_GLYPH_OPTIONS.map(g => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      ) : (
+        <>
+          <input
+            type="text"
+            placeholder="filter..."
+            value={filter}
+            onChange={e => {
+              setFilter(e.target.value)
             }}
-            onFieldChange={(fieldName, value) => {
-              const current = getValues(meta.type)
-              const updated = { ...current, [fieldName]: value }
-              setValues(new Map(values).set(meta.type, updated))
-            }}
+            className="bg-bg border-border-dim shrink-0 rounded border px-2 py-1 text-xs"
           />
-        ))}
-      </div>
+
+          <div className="scrollbar-custom min-h-0 flex-1 overflow-y-auto">
+            {filteredMeta.map(meta => (
+              <ComponentSection
+                key={meta.type}
+                meta={meta}
+                checked={checked.has(meta.type)}
+                values={getValues(meta.type)}
+                onToggle={() => {
+                  const next = new Set(checked)
+                  if (next.has(meta.type)) {
+                    next.delete(meta.type)
+                  } else {
+                    next.add(meta.type)
+                  }
+                  setChecked(next)
+                }}
+                onFieldChange={(fieldName, value) => {
+                  const current = getValues(meta.type)
+                  const updated = { ...current, [fieldName]: value }
+                  setValues(new Map(values).set(meta.type, updated))
+                }}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       <button
         type="button"

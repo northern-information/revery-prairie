@@ -333,7 +333,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     _entranceGlyphMap.set(posKey(state.caveEntranceOverworld.x, state.caveEntranceOverworld.y), getEntranceGlyph(0))
     for (const interior of state.ruinInteriors) {
       const { x, y } = interior.entranceOverworld
-      _entranceGlyphMap.set(posKey(x, y), getEntranceGlyph(interior.ruinIndex + 1))
+      _entranceGlyphMap.set(posKey(x, y), interior.glyph ?? getEntranceGlyph(interior.ruinIndex + 1))
     }
   }
   const entranceGlyphMap = _entranceGlyphMap
