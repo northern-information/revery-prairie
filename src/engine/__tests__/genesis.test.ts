@@ -1,9 +1,11 @@
 import {
   MAP_HEIGHT,
   MAP_WIDTH,
+  POND_COLOR,
   RAIN_AURA_CHARS,
   RAIN_AURA_COLORS,
   RAIN_AURA_DENSITY,
+  RIVER_COLOR,
   SOIL_HEALTH_MAX,
 } from '../constants'
 import {
@@ -1110,8 +1112,11 @@ describe('water continuity at genesis-to-game transition', () => {
     const time = 5000
     const progress = 0.5
     const waterChars = new Set(['~', '=', '-'])
+    const waterColors = new Set([RIVER_COLOR, POND_COLOR])
 
-    // Track which tiles renderTile shows as water vs which are in the sets
+    // Track which tiles renderTile shows as water vs which are in the sets.
+    // Water is identified by char AND color so non-water glyphs that share
+    // a char (e.g. crater BUILDING_CHARS containing '=') are not misread as water.
     const renderedWater = new Set<string>()
     const trackedWater = new Set<string>()
 
@@ -1124,7 +1129,7 @@ describe('water continuity at genesis-to-game transition', () => {
       const x = Number(xStr)
       const y = Number(yStr)
       const renders = presentDayEpoch.renderTile(sim, x, y, progress, time)
-      if (renders.length > 0 && waterChars.has(renders[0].char)) {
+      if (renders.length > 0 && waterChars.has(renders[0].char) && waterColors.has(renders[0].color)) {
         renderedWater.add(key)
       }
     }

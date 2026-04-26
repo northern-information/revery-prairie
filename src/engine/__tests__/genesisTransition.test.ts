@@ -2,11 +2,20 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import { describe, expect, it } from 'vitest'
 
-import { GENESIS_TRANSITION_DURATION_MS, RAIN_AURA_DENSITY } from '../constants'
+import {
+  BUILDING_CHARS,
+  GENESIS_TRANSITION_DURATION_MS,
+  RAIN_AURA_DENSITY,
+  SATELLITE_TRAIL_COLORS,
+  TILE_COLORS,
+} from '../constants'
 import { GENESIS_EPOCHS, completeGenesis } from '../genesis'
 import { tileHash } from '../position'
 import { createGameState } from '../state'
+import { TileType } from '../types'
 import { withSeededRandom } from '@/harness/prng'
+
+const CRATER_COLORS = ['#8B4513', '#7A3B10', '#6B320D', '#5C290A', '#4D2007']
 
 const SEED = 42
 
@@ -251,6 +260,79 @@ describe('genesis transition', () => {
         }
       }
       expect(starCount).toBeGreaterThan(0)
+    })
+  })
+
+  describe('presentDay continuity with game renderer', () => {
+    it('renders satellite craters with the brown game-renderer palette, not red trail colors', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
+      const sim = state.genesis
+      expect(sim).not.toBeNull()
+      if (!sim) return
+      expect(sim.craters.size).toBeGreaterThan(0)
+
+      const presentDay = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
+      let assertedAny = false
+
+      for (const key of sim.craters) {
+        const [xStr, yStr] = key.split(',')
+        const x = Number(xStr)
+        const y = Number(yStr)
+        const tile = sim.grid[y]?.[x]
+        // Skip tiles where another override (gron, water, sand, entrance) wins —
+        // those positions are excluded from satellite crashes by construction,
+        // but the test should still tolerate any unexpected overlap rather
+        // than asserting against an unrelated render branch.
+        if (tile?.type !== TileType.Dirt) continue
+
+        const renders = presentDay.renderTile(sim, x, y, 1, 0)
+        expect(renders.length).toBe(1)
+        const r = renders[0]
+
+        const h = tileHash(x, y)
+        expect(r.char).toBe(BUILDING_CHARS[h % BUILDING_CHARS.length])
+        expect(CRATER_COLORS).toContain(r.color)
+        expect(SATELLITE_TRAIL_COLORS).not.toContain(r.color)
+        assertedAny = true
+      }
+
+      expect(assertedAny).toBe(true)
+    })
+
+    it('renders RuinEntrance tiles with the game-renderer glyph and color', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
+      const sim = state.genesis
+      expect(sim).not.toBeNull()
+      if (!sim) return
+      expect(state.ruinInteriors.length).toBeGreaterThan(0)
+
+      const presentDay = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
+      const interior = state.ruinInteriors[0]
+      const ex = interior.entranceOverworld.x
+      const ey = interior.entranceOverworld.y
+      expect(sim.grid[ey][ex].type).toBe(TileType.RuinEntrance)
+
+      const renders = presentDay.renderTile(sim, ex, ey, 1, 0)
+      expect(renders.length).toBe(1)
+      expect(renders[0].char).toBe('O')
+      expect(renders[0].color).toBe(TILE_COLORS[TileType.RuinEntrance])
+    })
+
+    it('renders CaveEntrance with the game-renderer glyph and color', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
+      const sim = state.genesis
+      expect(sim).not.toBeNull()
+      if (!sim) return
+
+      const presentDay = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
+      const cx = state.caveEntranceOverworld.x
+      const cy = state.caveEntranceOverworld.y
+      expect(sim.grid[cy][cx].type).toBe(TileType.CaveEntrance)
+
+      const renders = presentDay.renderTile(sim, cx, cy, 1, 0)
+      expect(renders.length).toBe(1)
+      expect(renders[0].char).toBe('O')
+      expect(renders[0].color).toBe(TILE_COLORS[TileType.CaveEntrance])
     })
   })
 

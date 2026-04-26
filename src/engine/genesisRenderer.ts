@@ -2,9 +2,12 @@ import {
   BG_COLOR,
   LIGHTNING_SCREEN_FLASH_MS,
   LIGHTNING_SCREEN_FLASH_OPACITY,
+  RUIN_ENTRANCE_HALO_COLOR,
 } from './constants'
 import { getEpochProgress } from './genesis'
 import { GenesisEpochId } from './genesisTypes'
+import { getEntranceHaloCells } from './ruins'
+import { TileType } from './types'
 
 import type { EpochSnapshot, GenesisEpoch, GenesisSimState } from './genesisTypes'
 import type { CharMetrics } from './types'
@@ -41,6 +44,24 @@ const lerpColor = (from: string, to: string, t: number): string => {
   const g = Math.round(fg + (tg - fg) * t)
   const b = Math.round(fb + (tb - fb) * t)
   return `rgb(${String(r)},${String(g)},${String(b)})`
+}
+
+/** Decide how visible the ruin-entrance halo should be in the current frame.
+ *  Invisible during earlier epochs (their visuals would conflict), fades in
+ *  during the fallOfCivilizations -> presentDay crossfade, and holds at full
+ *  opacity once presentDay is the active epoch. */
+const computeHaloAlpha = (
+  epochIndex: number,
+  currentEpochId: GenesisEpochId,
+  blendT: number,
+  nextEpochId: GenesisEpochId | undefined,
+): number => {
+  if (currentEpochId === GenesisEpochId.PresentDay) return 1
+  if (epochIndex >= 0 && currentEpochId === GenesisEpochId.FallOfCivilizations
+      && nextEpochId === GenesisEpochId.PresentDay) {
+    return blendT
+  }
+  return 0
 }
 
 /** Capture a snapshot of all mutable sim fields that renderTile reads. */
@@ -146,6 +167,34 @@ export const renderGenesis = (
     needsBlend && sim.epochSnapshots.length > sim.epochIndex + 1
       ? sim.epochSnapshots[sim.epochIndex + 1]
       : null
+
+  // Ruin-entrance halo pre-pass — paints the 3x3 dark backdrop behind each
+  // RuinEntrance tile so it reads as a doorway-in-shadow, matching the game
+  // renderer (renderer.ts ruin-entrance halo pass). Gated by epoch so it
+  // does not conflict with lava/ice/civilization visuals in earlier epochs.
+  // Fades in across the fallOfCivilizations -> presentDay crossfade and
+  // holds at full opacity through presentDay, so the halo is already present
+  // when the game renderer takes over.
+  const haloAlpha = computeHaloAlpha(sim.epochIndex, epoch.id, blendT, nextEpoch?.id)
+  if (haloAlpha > 0) {
+    const prevAlpha = ctx.globalAlpha
+    ctx.globalAlpha = haloAlpha
+    ctx.fillStyle = RUIN_ENTRANCE_HALO_COLOR
+    for (let gy = 0; gy < sim.height; gy++) {
+      const row = sim.grid[gy]
+      for (let gx = 0; gx < sim.width; gx++) {
+        if (row[gx].type !== TileType.RuinEntrance) continue
+        const cells = getEntranceHaloCells(sim.grid, sim.width, sim.height, gx, gy)
+        for (const cell of cells) {
+          const vx = cell.x - cameraX
+          const vy = cell.y - cameraY
+          if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
+          ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
+        }
+      }
+    }
+    ctx.globalAlpha = prevAlpha
+  }
 
   for (let vy = 0; vy < viewportHeight; vy++) {
     for (let vx = 0; vx < viewportWidth; vx++) {

@@ -1,6 +1,6 @@
 id: genesis-transition
 name: 'Seamless genesis-to-gameplay transition'
-status: implemented
+status: partial
 priority: high
 layer: integration
 source_files:
@@ -87,6 +87,63 @@ behaviors:
       - 'game renderer rain aura overlay pass runs after genesis ends'
     outputs:
       - 'rain aura drops appear at identical tile positions before and after transition'
+    state_changes: []
+    determinism: deterministic
+
+  - id: crater-continuity
+    description: >
+      the genesis presentDay epoch renders satellite-impact craters with
+      the same glyphs and palette the game renderer uses for state.craters.
+      both use BUILDING_CHARS keyed by tileHash, with the brown crater
+      palette ['#8B4513','#7A3B10','#6B320D','#5C290A','#4D2007']. the
+      cross-fade window in genesisRenderer (last 10% of fallOfCivilizations
+      blending into presentDay) handles the color shift from the red
+      SATELLITE_TRAIL_COLORS used during the crash animation to the brown
+      crater palette used at rest. this prevents craters from disappearing
+      during presentDay and reappearing in a different color after the
+      handoff.
+    inputs:
+      - 'genesis presentDay renderTile called on a tile in sim.craters'
+      - 'game renderer renders the same tile with state.craters set after handoff'
+    outputs:
+      - 'crater glyph and color are identical at the last frame of presentDay and the first frame of gameplay'
+      - 'crater glyphs remain visible continuously through the crossfade with no blank-dirt gap'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ruin-entrance-continuity
+    description: >
+      the genesis presentDay epoch renders RuinEntrance tiles with the
+      same glyph, color, and 3x3 dark halo backdrop the game renderer
+      uses. both render the 'O' glyph in TILE_COLORS[RuinEntrance]
+      (#5FD3BC verdigris) and paint RUIN_ENTRANCE_HALO_COLOR (#2E1F12)
+      across the 3x3 footprint behind the entrance. RuinEntrance tiles
+      are placed on sim.grid by placeRuinEntrances during createGameState
+      before genesis renders, so they exist in sim.grid throughout
+      genesis. only the presentDay epoch must reproduce the gameplay
+      visual, since earlier epochs intentionally paint epoch-specific
+      visuals (lava, ice, etc.) over the underlying grid.
+    inputs:
+      - 'genesis presentDay renderTile called on a tile of type RuinEntrance'
+      - 'game renderer renders the same RuinEntrance tile after handoff'
+    outputs:
+      - 'RuinEntrance glyph, color, and halo are identical at the last frame of presentDay and the first frame of gameplay'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cave-entrance-continuity
+    description: >
+      the genesis presentDay epoch renders CaveEntrance tiles with the
+      same glyph and color the game renderer uses — 'O' in
+      TILE_COLORS[CaveEntrance] (#AAAAAA). the cave entrance is placed
+      on sim.grid by createGameState before genesis renders, so it exists
+      in sim.grid throughout genesis. only the presentDay epoch must
+      reproduce the gameplay visual.
+    inputs:
+      - 'genesis presentDay renderTile called on a tile of type CaveEntrance'
+      - 'game renderer renders the same CaveEntrance tile after handoff'
+    outputs:
+      - 'CaveEntrance glyph and color are identical at the last frame of presentDay and the first frame of gameplay'
     state_changes: []
     determinism: deterministic
 
@@ -188,12 +245,46 @@ edge_cases:
       same tile hash seed ensures drop positions are identical.
     expected: 'rain drops stay in the same tile positions across the transition boundary'
 
+  - id: crater-no-blink
+    description: >
+      satellite craters created during the fallOfCivilizations epoch
+      must remain visible without disappearing during presentDay or
+      reappearing after the genesis-to-game handoff. they may shift
+      color smoothly during the fallOfCivilizations -> presentDay
+      crossfade (red trail palette -> brown crater palette) but must
+      hold the brown palette continuously from the start of presentDay
+      onward.
+    expected: 'no frame in the genesis-to-game handoff renders a known crater tile as plain dirt'
+
+  - id: ruin-entrance-no-blink
+    description: >
+      RuinEntrance tiles placed on the overworld map must be visible
+      with their 'O' glyph, verdigris color, and dark halo throughout
+      the genesis presentDay epoch and the genesis-to-game handoff.
+    expected: 'RuinEntrance glyph and halo are visible during presentDay and remain visible through the crossfade with no pop'
+
+  - id: cave-entrance-no-blink
+    description: >
+      the CaveEntrance tile placed on the overworld map must be visible
+      with its 'O' glyph and gray color throughout the genesis presentDay
+      epoch and the genesis-to-game handoff.
+    expected: 'CaveEntrance glyph is visible during presentDay and remains visible through the crossfade with no pop'
+
 failure_conditions:
   - trigger: 'genesisTransition.startTime is in the future (clock skew)'
     expected: 'clamp progress to 0, crossfade starts immediately on next frame'
 
   - trigger: 'genesisTransition is somehow still active after 2x duration'
     expected: 'force-clear genesisTransition to null, render at full opacity'
+
+  - trigger: 'a tile in sim.craters is rendered by genesis presentDay'
+    expected: 'renders crater glyph and brown crater color matching the game renderer (BUILDING_CHARS keyed by tileHash, brown palette), not plain dirt'
+
+  - trigger: 'a RuinEntrance tile is rendered by genesis presentDay'
+    expected: 'renders the O glyph in verdigris with the 3x3 dark halo backdrop matching the game renderer, not plain dirt'
+
+  - trigger: 'a CaveEntrance tile is rendered by genesis presentDay'
+    expected: 'renders the O glyph in light gray matching the game renderer, not plain dirt'
 
 verification:
   test_file: src/engine/__tests__/genesisTransition.test.ts
