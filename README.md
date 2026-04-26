@@ -14,12 +14,26 @@ a browser-based game about tending a prairie. ASCII on canvas now, isometric spr
 
 each new game begins with a geological genesis sequence — a billion years of planetary history compressed into 25 seconds. magma cools, oceans form, life emerges, glaciers advance and recede, wildfires sweep the plains, civilizations rise and fall. the soil you tend is the sum of all these forces.
 
+prairies can be tended alone or shared with friends. visit `/p/new` to plant a prairie hosted on a Cloudflare Worker; share the resulting `/p/{id}` URL and other stewards walk the same land.
+
 ## setup
 
 ```zsh
 npm install
 npm run dev
 ```
+
+## deploy
+
+multiplayer ships as a single Cloudflare Worker that serves both the React SPA and the `/api/*` endpoints from one origin (no CORS, no second deploy URL).
+
+```zsh
+cd worker && npx wrangler login   # first time only, opens browser
+cd ..                             # back to repo root
+npm run deploy                    # vite build + wrangler deploy
+```
+
+worker URL is printed by wrangler on success — share that origin with friends to play together. see CLAUDE.md `multiplayer` section for the architecture and wire protocol.
 
 ## how development works
 
@@ -74,10 +88,11 @@ slash commands start the pipeline. each is conversational — the AI gathers req
 
 | command              | description                   |
 | -------------------- | ----------------------------- |
-| `npm run dev`        | start dev server              |
-| `npm run build`      | type-check + production build |
-| `npm run lint`       | eslint                        |
-| `npm run format`     | prettier                      |
-| `npm run test`       | run tests                     |
-| `npm run test:watch` | run tests in watch mode       |
-| `npm run preview`    | preview production build      |
+| `npm run dev`        | start dev server                          |
+| `npm run build`      | type-check + production build             |
+| `npm run lint`       | eslint                                    |
+| `npm run format`     | prettier                                  |
+| `npm run test`       | run tests                                 |
+| `npm run test:watch` | run tests in watch mode                   |
+| `npm run preview`    | preview production build                  |
+| `npm run deploy`     | build + ship to Cloudflare (multiplayer)  |
