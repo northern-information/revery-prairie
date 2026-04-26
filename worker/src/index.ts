@@ -6,6 +6,7 @@ export { PrairieDO }
 
 interface Env {
   PRAIRIE: DurableObjectNamespace
+  ASSETS: Fetcher
 }
 
 const CONNECT_PATTERN = /^\/api\/prairies\/([^/]+)\/connect$/
@@ -73,6 +74,10 @@ export default {
       return stub.fetch(connectReq)
     }
 
-    return withCors(new Response('not found', { status: 404 }))
+    // Anything that isn't an /api/* route falls through to the static assets
+    // binding so the SPA's index.html (and any matching files) can serve it.
+    // not_found_handling = "single-page-application" in wrangler.toml ensures
+    // unknown paths like /p/{id} resolve to index.html for client-side routing.
+    return env.ASSETS.fetch(request)
   },
 } satisfies ExportedHandler<Env>
