@@ -113,6 +113,21 @@ describe('multiplayer foundation: NetworkClient', () => {
     expect(body).toEqual({ stewardName: 'alice', color: 'amber' })
   })
 
+  it('empty workerUrl derives ws scheme and host from window.location (same-origin)', () => {
+    // Engine test runs in node env; stub a minimal window.location.
+    ;(globalThis as { window?: unknown }).window = {
+      location: { protocol: 'https:', host: 'example.com' },
+    }
+
+    const client = new NetworkClient('')
+    client.connect({ prairieId: 'p1', stewardName: 'bob', color: 'cyan' })
+
+    const ws = MockWebSocket.instances[0]
+    expect(ws.url).toBe('wss://example.com/api/prairies/p1/connect')
+
+    delete (globalThis as { window?: unknown }).window
+  })
+
   it('connect sends hello on open and emits welcome+peer events', () => {
     const client = new NetworkClient('https://worker.example')
     const events: string[] = []

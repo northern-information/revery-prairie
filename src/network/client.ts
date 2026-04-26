@@ -119,7 +119,10 @@ export class NetworkClient {
     if (!args) return
     this.setStatus(this.attempt === 0 ? 'connecting' : 'reconnecting')
 
-    const wsBase = this.workerUrl.replace(/^http/, 'ws')
+    const wsBase =
+      this.workerUrl === ''
+        ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+        : this.workerUrl.replace(/^http/, 'ws')
     const wsUrl = `${wsBase}${prairieConnectPath(args.prairieId)}`
     const ws = new WebSocket(wsUrl)
     this.ws = ws

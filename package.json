@@ -20,6 +20,7 @@
     "test:components": "vitest run src/components/",
     "test:harness": "vitest run src/harness/ harness/",
     "preview": "vite preview",
+    "deploy": "npm run build && npm --workspace @revery-prairie/worker run deploy",
     "spec:validate": "tsx harness/src/validate-cli.ts harness/specs",
     "harness:run": "tsx harness/src/plan-cli.ts run",
     "harness:status": "tsx harness/src/plan-cli.ts status",

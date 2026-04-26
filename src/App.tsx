@@ -26,9 +26,20 @@ const detectRoute = (): Route => {
   return { type: 'online-join', prairieId: id }
 }
 
+// VITE_WORKER_URL may be:
+//   - explicit URL (dev pointing at deployed worker, e.g. https://...workers.dev)
+//   - empty string (dev pointing at same origin)
+//   - undefined (production same-origin build, no env file)
+// All three cases mean multiplayer is available; the network client
+// derives the websocket URL from window.location when the value is empty.
+const resolveWorkerUrl = (): string => {
+  const raw: unknown = import.meta.env.VITE_WORKER_URL
+  return typeof raw === 'string' ? raw : ''
+}
+
 const App = () => {
   const route = detectRoute()
-  const workerUrl = import.meta.env.VITE_WORKER_URL as string | undefined
+  const workerUrl = resolveWorkerUrl()
 
   const [stewardName, setStewardName] = useState(
     import.meta.env.DEV && route.type === 'offline' ? generateDevName() : null

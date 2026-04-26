@@ -46,11 +46,9 @@ export const NamePrompt = ({ onSubmit }: NamePromptProps) => {
           maxLength={24}
           className="border-border text-text w-64 rounded-sm border bg-transparent px-4 py-2 text-center font-mono text-base outline-none"
         />
-        {import.meta.env.VITE_WORKER_URL && (
-          <a href="/p/new" className="text-dim text-xs underline">
-            or plant an online prairie
-          </a>
-        )}
+        <a href="/p/new" className="text-dim text-xs underline">
+          or plant an online prairie
+        </a>
       </form>
     </div>
   )

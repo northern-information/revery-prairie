@@ -29,7 +29,7 @@ export interface NetworkConnectResult {
 }
 
 interface NetworkConnectProps {
-  workerUrl: string | undefined
+  workerUrl: string
   prairieId: string | null
   onConnected: (result: NetworkConnectResult) => void
 }
@@ -55,17 +55,6 @@ export const NetworkConnect = ({ workerUrl, prairieId, onConnected }: NetworkCon
       setStoredOwnerToken(null)
     }
   }, [prairieId])
-
-  if (workerUrl === undefined) {
-    return (
-      <div className="text-text flex h-full w-full flex-col items-center justify-center gap-4 font-mono">
-        <div className="text-muted">multiplayer not available in this build</div>
-        <a href="/" className="text-dim text-xs underline">
-          return offline
-        </a>
-      </div>
-    )
-  }
 
   const submitImpl = async (): Promise<void> => {
     const trimmed = name.trim()
