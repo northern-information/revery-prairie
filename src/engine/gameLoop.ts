@@ -303,7 +303,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         if (result.pickedUp) {
           const def = getDefinition(result.pickedUp.definitionId)
           callbacks.onDiscovery?.(
-            `Coyote found ${def.name.toLowerCase()}.`,
+            `Coyote found ${def.name}.`,
             result.pickedUp.x,
             result.pickedUp.y,
             def.glyph,
@@ -314,7 +314,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           const def = getDefinition(result.delivered.definitionId)
           const dest = result.delivered.toGron ? 'near gron' : 'to backpack'
           callbacks.onDiscovery?.(
-            `Coyote delivered ${def.name.toLowerCase()} ${dest}.`,
+            `Coyote delivered ${def.name} ${dest}.`,
             result.delivered.x,
             result.delivered.y,
             def.glyph,

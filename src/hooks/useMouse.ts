@@ -266,7 +266,7 @@ export const useMouse = ({
         const result = advanceDialog(state, performance.now())
         if (result.gift) {
           onGift(
-            `Received ${result.gift.name.toLowerCase()}.`,
+            `Received ${result.gift.name}.`,
             result.gift.glyphs[0],
             result.gift.glyphColor,
             state.player.x,

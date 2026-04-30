@@ -66,7 +66,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
 
   const onPickup = useCallback(
     (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => {
-      addEvent('pickup', `Picked up ${name.toLowerCase()}.`, icon, iconColor, worldX, worldY)
+      addEvent('pickup', `Picked up ${name}.`, icon, iconColor, worldX, worldY)
     },
     [addEvent]
   )
@@ -74,14 +74,14 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
   const onDrop = useCallback(
     (definitionId: string, worldX: number, worldY: number) => {
       const def = getDefinition(definitionId)
-      addEvent('drop', `Dropped ${def.name.toLowerCase()}.`, def.glyph, def.glyphColor, worldX, worldY)
+      addEvent('drop', `Dropped ${def.name}.`, def.glyph, def.glyphColor, worldX, worldY)
     },
     [addEvent]
   )
 
   const onDialog = useCallback(
     (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => {
-      addEvent('dialog', `Talked to ${characterName.toLowerCase()}.`, glyph, glyphColor, worldX, worldY)
+      addEvent('dialog', `Talked to ${characterName}.`, glyph, glyphColor, worldX, worldY)
     },
     [addEvent]
   )
@@ -228,7 +228,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
                 const result = advanceDialog(state, performance.now())
                 if (result.gift) {
                   onGift(
-                    `Received ${result.gift.name.toLowerCase()}.`,
+                    `Received ${result.gift.name}.`,
                     result.gift.glyphs[0],
                     result.gift.glyphColor,
                     state.player.x,

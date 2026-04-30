@@ -13,7 +13,7 @@ interface CoyoteScreenProps {
 
 export const CoyoteScreen = ({ state, refreshUI }: CoyoteScreenProps) => {
   const modeLabel = state.coyoteMode === 'follow' ? 'Following' : 'Collecting'
-  const cargoLabel = state.coyoteCargo ? getDefinition(state.coyoteCargo).name.toLowerCase() : 'Empty'
+  const cargoLabel = state.coyoteCargo ? getDefinition(state.coyoteCargo).name : 'Empty'
   const coyotePos = getCoyotePosition(state)
 
   const handleSummon = () => {
