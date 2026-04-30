@@ -327,6 +327,17 @@ export const ANGEL_MIN_PLAYER_DIST = 30
 export const ANGEL_CANTOS_MAX = 64 // 8x8 grid
 export const ANGEL_AURA_KINDS = ['rain', 'bees', 'clover'] as const
 
+// prairie halo: subtle warm glow over space tiles adjacent to land
+export const PRAIRIE_HALO_RADIUS = 4 // tiles of falloff into space from nearest land
+export const PRAIRIE_HALO_COLOR = '#FFC078' // muted amber, distinct from angel gold and reserved hot pink
+export const PRAIRIE_HALO_MIN_ALPHA = 0.048
+export const PRAIRIE_HALO_MAX_ALPHA = 0.168
+export const PRAIRIE_HALO_PULSE_SPEED = 0.0015 // radians per ms; gentle breath
+// crisp 1px outline at the land/space border, drawn on top of the halo glow
+export const PRAIRIE_OUTLINE_COLOR = '#FFC078'
+export const PRAIRIE_OUTLINE_ALPHA = 0.55
+export const PRAIRIE_OUTLINE_WIDTH = 1
+
 // deep time endgame
 export const BEE_STARVATION_MS = 30_000
 export const BURNT_CLOVER_RECOVERY_MS = 60_000

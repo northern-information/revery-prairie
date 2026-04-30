@@ -1,0 +1,143 @@
+id: prairie-halo
+name: 'Prairie halo: subtle glow around the land in space'
+status: planned
+priority: low
+layer: engine
+source_files:
+  - src/engine/renderer.ts
+  - src/engine/constants.ts
+  - src/engine/__tests__/prairie-halo.test.ts
+dependencies:
+  - renderer
+
+behaviors:
+  - id: halo-renders-on-space-tiles-adjacent-to-land
+    description: >
+      A subtle pulsing halo is drawn over space tiles within
+      PRAIRIE_HALO_RADIUS (in tiles) of the nearest non-space tile.
+      The halo is drawn as a pre-pass over space cells before the
+      tile pass, similar in structure to the angel gold aura pre-pass
+      in renderer.ts. Sand and dirt tiles never receive the halo;
+      it lives entirely in space.
+    inputs:
+      - 'GameState with currentZone == Zone.Overworld'
+      - 'Camera viewport contains space tiles within PRAIRIE_HALO_RADIUS of land'
+    outputs:
+      - 'fillRect calls on space cells in the viewport with PRAIRIE_HALO_COLOR and computed alpha'
+    state_changes: []
+    determinism: time-based
+
+  - id: halo-falloff-and-pulse
+    description: >
+      Halo alpha is the product of two factors. (1) A radial falloff
+      based on chebyshev (or euclidean) distance from the nearest
+      land tile — alpha is strongest at distance 1 and reaches zero
+      at PRAIRIE_HALO_RADIUS. (2) A subtle global pulse using a sine
+      wave of the form sin(time * PRAIRIE_HALO_PULSE_SPEED) * 0.5 +
+      0.5 mapped into a small alpha range so the effect breathes
+      rather than flashes. Final alpha is clamped to
+      [PRAIRIE_HALO_MIN_ALPHA, PRAIRIE_HALO_MAX_ALPHA] which sit in
+      the same gentle range used by the angel aura (~0.04 .. ~0.14).
+    inputs:
+      - 'tile distance to nearest land tile'
+      - 'current animation time (ms)'
+    outputs:
+      - 'alpha in [PRAIRIE_HALO_MIN_ALPHA, PRAIRIE_HALO_MAX_ALPHA]'
+    state_changes: []
+    determinism: time-based
+
+  - id: halo-color
+    description: >
+      The halo uses a single warm tone defined as PRAIRIE_HALO_COLOR
+      in constants.ts. The color must contrast with the black space
+      background while not stealing attention from gameplay or
+      conflicting with the gold (#FFD700) angel aura or the reserved
+      hot pink (#ff69b4). Pick a soft warm tone (e.g. a muted amber
+      such as '#FFC078') and define it once as PRAIRIE_HALO_COLOR.
+      Renderer must read from the constant — no inline color literal.
+    inputs: []
+    outputs:
+      - 'PRAIRIE_HALO_COLOR is a single exported const string used by the renderer'
+    state_changes: []
+    determinism: deterministic
+
+  - id: halo-suppressed-outside-overworld
+    description: >
+      The halo pre-pass is skipped when state.currentZone is not
+      Zone.Overworld. Cave, Ruin, and any future zones do not draw
+      it. This matches the existing pattern where space-tile twinkle
+      and angel aura are conditioned on zone.
+    inputs:
+      - 'state.currentZone != Zone.Overworld'
+    outputs:
+      - 'no halo fillRect calls'
+    state_changes: []
+    determinism: deterministic
+
+  - id: halo-suppressed-during-deep-time-locked-phases
+    description: >
+      When state.deepTime?.active is true and the phase is not
+      Wandering (i.e. Burning or Simulating), space already turns
+      crimson via existing rendering. The halo pre-pass must skip
+      these phases so it does not fight the crimson void. During
+      Wandering and when deep time is inactive, the halo renders
+      normally.
+    inputs:
+      - 'state.deepTime.active is true and phase is Burning or Simulating'
+    outputs:
+      - 'no halo fillRect calls'
+    state_changes: []
+    determinism: deterministic
+
+  - id: halo-respects-camera-and-bounds
+    description: >
+      The halo only computes for tile cells inside the current
+      viewport. Tiles outside the viewport are not iterated. Distance
+      is measured against actual map land tiles — not against
+      out-of-bounds positions. Out-of-bounds cells (mx, my outside
+      [0..mapWidth) x [0..mapHeight)) are treated as space with no
+      halo contribution; they continue to render as twinkling stars
+      via the existing path.
+    inputs:
+      - 'camera position and viewport dimensions'
+      - 'map dimensions'
+    outputs:
+      - 'iteration is bounded to viewport tiles; out-of-bounds tiles unaffected'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: small-island
+    description: 'a tiny dirt island only a few tiles wide is fully surrounded by halo'
+    expected: 'every space tile within PRAIRIE_HALO_RADIUS of any land tile receives halo with the correct falloff; no errors'
+
+  - id: viewport-fully-over-land
+    description: 'player is centered well inland and no space tiles are visible'
+    expected: 'halo pre-pass iterates the viewport, finds no space tiles, exits with no fillRect calls and no measurable performance impact'
+
+  - id: viewport-fully-over-space
+    description: 'tested in isolation: a viewport positioned far from land such that all visible space tiles are beyond PRAIRIE_HALO_RADIUS'
+    expected: 'halo pre-pass produces zero fillRect calls; existing twinkling-star rendering is unaffected'
+
+  - id: angel-aura-on-land-near-coast
+    description: 'an angel aura center sits on land near the coast, so its aura overlaps land tiles while the halo overlaps adjacent space tiles'
+    expected: 'angel aura keeps its existing land-only behavior (skips Space tiles); halo keeps its space-only behavior; the two passes do not double-up on the same cell'
+
+  - id: cursor-on-haloed-space-tile
+    description: 'cursor hovers over a space tile that is also receiving halo'
+    expected: 'cursor inversion still wins via the existing resolve-then-draw pattern; halo is a background pre-pass and does not interfere with cursor highlight'
+
+failure_conditions:
+  - trigger: 'PRAIRIE_HALO_RADIUS, PRAIRIE_HALO_COLOR, PRAIRIE_HALO_MIN_ALPHA, PRAIRIE_HALO_MAX_ALPHA, or PRAIRIE_HALO_PULSE_SPEED missing from constants.ts'
+    expected: 'compilation error — renderer must import these and not inline literals'
+
+  - trigger: 'Halo alpha computed outside [0, 1]'
+    expected: 'value is clamped before being passed to ctx.globalAlpha'
+
+  - trigger: 'Halo pre-pass runs in cave or ruin zone'
+    expected: 'spec violation — the zone gate must skip the pass'
+
+verification:
+  test_file: src/engine/__tests__/prairie-halo.test.ts
+  test_pattern: 'prairie halo'
+  command: 'npx vitest run src/engine/__tests__/prairie-halo.test.ts'

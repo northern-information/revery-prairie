@@ -74,6 +74,14 @@ import {
   PLAYER_CHAR,
   PLAYER_COLOR,
   POND_COLOR,
+  PRAIRIE_HALO_COLOR,
+  PRAIRIE_HALO_MAX_ALPHA,
+  PRAIRIE_HALO_MIN_ALPHA,
+  PRAIRIE_HALO_PULSE_SPEED,
+  PRAIRIE_HALO_RADIUS,
+  PRAIRIE_OUTLINE_ALPHA,
+  PRAIRIE_OUTLINE_COLOR,
+  PRAIRIE_OUTLINE_WIDTH,
   RAIN_AURA_CHARS,
   RAIN_AURA_COLORS,
   RAIN_AURA_DENSITY,
@@ -141,6 +149,53 @@ const STAR_DENSITY = 12 // ~1 in 12 tiles gets a star
 const TWINKLE_SPEED = 0.0015 // cycles per millisecond
 
 export { type CharMetrics } from './types'
+
+// Prairie halo helpers (exported for tests).
+// nearestLandDistance returns the chebyshev distance from (x, y) to the
+// nearest non-Space, in-bounds tile, capped at maxRadius. Returns Infinity
+// if no land is found within the radius. (x, y) itself is treated as space
+// when the caller has already determined it is — callers pass space cells
+// only.
+export const nearestLandDistance = (
+  map: { type: TileType }[][],
+  mapWidth: number,
+  mapHeight: number,
+  x: number,
+  y: number,
+  maxRadius: number,
+): number => {
+  for (let r = 1; r <= maxRadius; r++) {
+    const x0 = x - r
+    const x1 = x + r
+    const y0 = y - r
+    const y1 = y + r
+    for (let ny = y0; ny <= y1; ny++) {
+      if (ny < 0 || ny >= mapHeight) continue
+      for (let nx = x0; nx <= x1; nx++) {
+        if (nx < 0 || nx >= mapWidth) continue
+        // Only inspect the ring at chebyshev distance r
+        if (Math.max(Math.abs(nx - x), Math.abs(ny - y)) !== r) continue
+        if (map[ny][nx].type !== TileType.Space) return r
+      }
+    }
+  }
+  return Infinity
+}
+
+// computePrairieHaloAlpha maps (distance to nearest land, time) to a halo
+// alpha in [0, PRAIRIE_HALO_MAX_ALPHA]. Returns 0 when distance is beyond
+// PRAIRIE_HALO_RADIUS or non-finite. Alpha is the product of a radial
+// falloff (1 at distance 1, 0 at the radius) and a global breathing pulse,
+// clamped to the configured min/max range. Pure function; no DOM.
+export const computePrairieHaloAlpha = (distance: number, time: number): number => {
+  if (!Number.isFinite(distance)) return 0
+  if (distance < 1 || distance > PRAIRIE_HALO_RADIUS) return 0
+  const falloff = 1 - (distance - 1) / PRAIRIE_HALO_RADIUS
+  const pulse = Math.sin(time * PRAIRIE_HALO_PULSE_SPEED) * 0.5 + 0.5
+  const span = PRAIRIE_HALO_MAX_ALPHA - PRAIRIE_HALO_MIN_ALPHA
+  const raw = PRAIRIE_HALO_MIN_ALPHA + span * falloff * pulse
+  return Math.max(0, Math.min(PRAIRIE_HALO_MAX_ALPHA, raw))
+}
 
 export const measureChar = (ctx: CanvasRenderingContext2D, zoom = 1): CharMetrics => {
   const font = `${String(Math.round(BASE_FONT_SIZE * zoom))}px monospace`
@@ -1047,6 +1102,91 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
     }
     ctx.globalAlpha = savedAlpha
+  }
+
+  // Pre-pass: prairie halo over space tiles adjacent to land. Overworld only,
+  // skipped during deep time Burning/Simulating (crimson void already covers
+  // space).
+  {
+    const deepTimeLocked =
+      state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
+    if (state.currentZone === Zone.Overworld && !deepTimeLocked) {
+      const savedAlpha = ctx.globalAlpha
+      ctx.fillStyle = PRAIRIE_HALO_COLOR
+      for (let vy = 0; vy < viewportHeight; vy++) {
+        for (let vx = 0; vx < viewportWidth; vx++) {
+          const mx = camera.x + vx
+          const my = camera.y + vy
+          if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+          if (map[my][mx].type !== TileType.Space) continue
+          const dist = nearestLandDistance(
+            map,
+            state.mapWidth,
+            state.mapHeight,
+            mx,
+            my,
+            PRAIRIE_HALO_RADIUS,
+          )
+          const alpha = computePrairieHaloAlpha(dist, time)
+          if (alpha <= 0) continue
+          ctx.globalAlpha = alpha
+          ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
+        }
+      }
+      ctx.globalAlpha = savedAlpha
+    }
+  }
+
+  // Pre-pass: 1px solid outline at the land/space border. Same zone gating
+  // as the halo. Iterates land tiles in the viewport and strokes only the
+  // edges that face a space tile (or out-of-bounds), which puts the line
+  // right on the boundary on the land side.
+  {
+    const deepTimeLocked =
+      state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
+    if (state.currentZone === Zone.Overworld && !deepTimeLocked) {
+      const savedAlpha = ctx.globalAlpha
+      const savedStroke = ctx.strokeStyle
+      const savedLineWidth = ctx.lineWidth
+      ctx.strokeStyle = PRAIRIE_OUTLINE_COLOR
+      ctx.globalAlpha = PRAIRIE_OUTLINE_ALPHA
+      ctx.lineWidth = PRAIRIE_OUTLINE_WIDTH
+      const isSpaceOrOOB = (nx: number, ny: number): boolean => {
+        if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) return true
+        return map[ny][nx].type === TileType.Space
+      }
+      for (let vy = 0; vy < viewportHeight; vy++) {
+        for (let vx = 0; vx < viewportWidth; vx++) {
+          const mx = camera.x + vx
+          const my = camera.y + vy
+          if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+          if (map[my][mx].type === TileType.Space) continue
+          const px = vx * charWidth
+          const py = vy * charHeight
+          ctx.beginPath()
+          if (isSpaceOrOOB(mx, my - 1)) {
+            ctx.moveTo(px, py + 0.5)
+            ctx.lineTo(px + charWidth, py + 0.5)
+          }
+          if (isSpaceOrOOB(mx, my + 1)) {
+            ctx.moveTo(px, py + charHeight - 0.5)
+            ctx.lineTo(px + charWidth, py + charHeight - 0.5)
+          }
+          if (isSpaceOrOOB(mx - 1, my)) {
+            ctx.moveTo(px + 0.5, py)
+            ctx.lineTo(px + 0.5, py + charHeight)
+          }
+          if (isSpaceOrOOB(mx + 1, my)) {
+            ctx.moveTo(px + charWidth - 0.5, py)
+            ctx.lineTo(px + charWidth - 0.5, py + charHeight)
+          }
+          ctx.stroke()
+        }
+      }
+      ctx.globalAlpha = savedAlpha
+      ctx.strokeStyle = savedStroke
+      ctx.lineWidth = savedLineWidth
+    }
   }
 
   // Fog of war: compute visibility, tick illumination expiry
