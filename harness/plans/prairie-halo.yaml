@@ -1,0 +1,77 @@
+plan:
+  id: prairie-halo
+  title: Render a subtle pulsing halo over space tiles adjacent to the prairie
+  created: '2026-04-30'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-halo-constants
+    title: Add prairie halo constants to src/engine/constants.ts
+    spec_id: prairie-halo
+    spec_sections:
+      - halo-color
+      - halo-falloff-and-pulse
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: implement-halo-prepass
+    title: Add the halo pre-pass to the overworld renderer
+    spec_id: prairie-halo
+    spec_sections:
+      - halo-renders-on-space-tiles-adjacent-to-land
+      - halo-falloff-and-pulse
+      - halo-suppressed-outside-overworld
+      - halo-suppressed-during-deep-time-locked-phases
+      - halo-respects-camera-and-bounds
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/zone.ts
+      - src/engine/deepTime.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-halo-constants
+    verification:
+      - npx tsc -b --noEmit
+      - npm run lint
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-halo-tests
+    title: Add unit tests for the halo computation
+    spec_id: prairie-halo
+    spec_sections:
+      - halo-renders-on-space-tiles-adjacent-to-land
+      - halo-falloff-and-pulse
+      - halo-suppressed-outside-overworld
+      - halo-suppressed-during-deep-time-locked-phases
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/zone.ts
+    output_files:
+      - src/engine/__tests__/prairie-halo.test.ts
+    depends_on:
+      - implement-halo-prepass
+    verification:
+      - npx vitest run src/engine/__tests__/prairie-halo.test.ts
+    repair: retry
+    tags:
+      - test
+      - engine
