@@ -1,4 +1,4 @@
-import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
+import { CARDINAL, ORDINAL, isInBounds, isWalkableTile, posKey } from './position'
 
 import type { Position, Tile } from './types'
 
@@ -47,8 +47,11 @@ export const findPath = (
   mapHeight: number,
   from: Position,
   to: Position,
-  blockedPositions?: Set<string>
+  blockedPositions?: Set<string>,
+  options: { allowDiagonal?: boolean } = {}
 ): Position[] | null => {
+  const allowDiagonal = options.allowDiagonal === true
+  const neighbors = allowDiagonal ? ORDINAL : CARDINAL
   // Reject out-of-bounds or unwalkable destination
   if (!isInBounds(to.x, to.y, mapWidth, mapHeight)) return null
   if (!isWalkableTile(map[to.y][to.x].type)) return null
@@ -60,6 +63,11 @@ export const findPath = (
   const size = mapWidth * mapHeight
   const toIndex = (p: Position): number => p.y * mapWidth + p.x
   const manhattan = (a: Position, b: Position): number => Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
+  const octile = (a: Position, b: Position): number => {
+    const dx = Math.abs(a.x - b.x)
+    const dy = Math.abs(a.y - b.y)
+    return Math.max(dx, dy) + (Math.SQRT2 - 1) * Math.min(dx, dy)
+  }
 
   const fromIdx = toIndex(from)
   const toIdx = toIndex(to)
@@ -97,22 +105,37 @@ export const findPath = (
     const cx = current.index % mapWidth
     const cy = Math.floor(current.index / mapWidth)
 
-    for (const d of CARDINAL) {
+    for (const d of neighbors) {
       const nx = cx + d.x
       const ny = cy + d.y
       if (!isInBounds(nx, ny, mapWidth, mapHeight)) continue
       if (!isWalkableTile(map[ny][nx].type)) continue
       if (blockedPositions?.has(posKey(nx, ny))) continue
 
+      // Corner-cutting prevention for diagonals: both adjacent cardinal
+      // tiles must be walkable, otherwise the path slips through walls.
+      const isDiagonal = d.x !== 0 && d.y !== 0
+      if (isDiagonal) {
+        const t1 = map[cy]?.[cx + d.x]
+        const t2 = map[cy + d.y]?.[cx]
+        if (!t1 || !t2 || !isWalkableTile(t1.type) || !isWalkableTile(t2.type)) continue
+        if (blockedPositions?.has(posKey(cx + d.x, cy)) || blockedPositions?.has(posKey(cx, cy + d.y))) continue
+      }
+
       const nIdx = ny * mapWidth + nx
       if (visited[nIdx]) continue
 
-      const tentativeG = gScore[current.index] + 1
+      // Diagonal cost = √2 ≈ 1.414, cardinal cost = 1. Keeps the path
+      // honest so A* doesn't prefer zig-zag cardinal over straight diagonal.
+      const stepCost = isDiagonal ? Math.SQRT2 : 1
+      const tentativeG = gScore[current.index] + stepCost
       if (tentativeG < gScore[nIdx]) {
         gScore[nIdx] = tentativeG
         cameFrom[nIdx] = current.index
         const neighbor = { x: nx, y: ny }
-        heapPush(open, { index: nIdx, f: tentativeG + manhattan(neighbor, to) })
+        // Octile heuristic: better admissible heuristic for 8-way grids.
+        const heuristic = allowDiagonal ? octile(neighbor, to) : manhattan(neighbor, to)
+        heapPush(open, { index: nIdx, f: tentativeG + heuristic })
       }
     }
   }

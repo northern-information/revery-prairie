@@ -40,6 +40,10 @@ const cloneGenesis = (): GenesisSimState => ({
  */
 export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?: number }): GameState => {
   const state = createGameState('Test', opts?.viewportWidth ?? 20, opts?.viewportHeight ?? 20, cloneGenesis())
+  // Tests use orthogonal projection by default — cursor/coordinate math
+  // assertions assume the simple integer grid mapping. Tests that exercise
+  // iso behavior set state.isometricProjection = true explicitly.
+  state.isometricProjection = false
   // Complete genesis immediately so tests start in normal gameplay mode
   completeGenesis(state)
   state.backpack.items = []

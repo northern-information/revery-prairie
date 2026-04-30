@@ -10,6 +10,15 @@ export const ZOOM_MAX = 3.0
 export const ZOOM_STEP = 0.125
 export const ZOOM_DEFAULT = 1.0
 
+// RTS-style edge-scroll: cursor within EDGE_SCROLL_ZONE_PX of any canvas edge
+// pans the camera at EDGE_SCROLL_SPEED_TILES_PER_SEC tiles per second.
+// 80px is a generous hitbox — easier to hit accidentally than miss.
+export const EDGE_SCROLL_ZONE_PX = 80
+export const EDGE_SCROLL_SPEED_TILES_PER_SEC = 18
+// Width of the hot-pink "active edge" indicator line drawn when the
+// cursor is in the scroll zone, so the user gets clear feedback.
+export const EDGE_SCROLL_INDICATOR_THICKNESS_PX = 3
+
 export const SAND_BORDER = 1
 export const WATER_SAND_BORDER_MAX = 2
 export const WATER_SAND_PASS_CHANCES = [100, 50]
@@ -19,15 +28,15 @@ export const CAVE_HEIGHT = 25
 
 export const TILE_CHARS: Record<TileType, string> = {
   [TileType.Space]: ' ',
-  [TileType.Dirt]: '.',
+  [TileType.Dirt]: '·',
   [TileType.Clover]: '%',
   [TileType.BurntClover]: '%',
   [TileType.Sand]: ':',
-  [TileType.CaveFloor]: '.',
+  [TileType.CaveFloor]: '·',
   [TileType.CaveWall]: '#',
   [TileType.CaveBreakableWall]: '#',
   [TileType.CaveEntrance]: 'O',
-  [TileType.RuinFloor]: '.',
+  [TileType.RuinFloor]: '·',
   [TileType.RuinWall]: '#',
   [TileType.RuinEntrance]: 'O',
   [TileType.RuinAqueduct]: '~',

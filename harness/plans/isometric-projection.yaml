@@ -1,0 +1,184 @@
+plan:
+  id: isometric-projection
+  title: 'Add toggleable isometric projection rendering mode'
+  created: '2026-04-30'
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-state-field
+    title: 'Add isometricProjection to GameState and createGameState defaults'
+    spec_id: isometric-projection
+    spec_sections:
+      - projection-state-default
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: create-projection-module
+    title: 'Create src/engine/projection.ts with tileToScreen, screenToTile, drawCellBackground'
+    spec_id: isometric-projection
+    spec_sections:
+      - tile-to-screen-orthogonal
+      - tile-to-screen-isometric
+      - screen-to-tile-roundtrip
+      - cursor-highlight-diamond
+    context_files:
+      - src/engine/types.ts
+      - src/engine/coordinates.ts
+    output_files:
+      - src/engine/projection.ts
+    depends_on:
+      - add-state-field
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: rewire-coordinates
+    title: 'Rewire src/engine/coordinates.ts to delegate to projection module'
+    spec_id: isometric-projection
+    spec_sections:
+      - screen-to-tile-roundtrip
+      - cursor-and-mouse-iso-aware
+    context_files:
+      - src/engine/coordinates.ts
+      - src/engine/projection.ts
+    output_files:
+      - src/engine/coordinates.ts
+    depends_on:
+      - create-projection-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: thread-iso-flag-cursor-mouse
+    title: 'Pass state.isometricProjection through cursor.ts and useMouse.ts to screenToTile'
+    spec_id: isometric-projection
+    spec_sections:
+      - cursor-and-mouse-iso-aware
+      - screen-to-tile-roundtrip
+    context_files:
+      - src/engine/cursor.ts
+      - src/hooks/useMouse.ts
+      - src/engine/coordinates.ts
+      - src/engine/projection.ts
+    output_files:
+      - src/engine/cursor.ts
+      - src/hooks/useMouse.ts
+    depends_on:
+      - rewire-coordinates
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: rewrite-renderer
+    title: 'Replace inline tile-to-pixel math in renderer.ts with tileToScreen and drawCellBackground'
+    spec_id: isometric-projection
+    spec_sections:
+      - renderer-projects-all-layers
+      - viewport-loop-expands-in-iso
+      - cursor-highlight-diamond
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/projection.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - create-projection-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: wire-menu-toggle
+    title: 'Add projection toggle row to ESC menu and wire through GameScreen'
+    spec_id: isometric-projection
+    spec_sections:
+      - menu-toggle-row
+      - projection-state-default
+    context_files:
+      - src/components/Menu.tsx
+      - src/components/GameScreen.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/Menu.tsx
+      - src/components/GameScreen.tsx
+    depends_on:
+      - add-state-field
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: add-projection-tests
+    title: 'Add unit tests for projection module (tileToScreen, drawCellBackground)'
+    spec_id: isometric-projection
+    spec_sections:
+      - tile-to-screen-orthogonal
+      - tile-to-screen-isometric
+      - cursor-highlight-diamond
+    context_files:
+      - src/engine/projection.ts
+    output_files:
+      - src/engine/__tests__/projection.test.ts
+    depends_on:
+      - create-projection-module
+    verification:
+      - 'npx vitest run src/engine/__tests__/projection.test.ts'
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [test]
+
+  - id: extend-coordinates-tests
+    title: 'Extend coordinates.test.ts with iso cases and round-trip property test'
+    spec_id: isometric-projection
+    spec_sections:
+      - screen-to-tile-roundtrip
+    context_files:
+      - src/engine/coordinates.ts
+      - src/engine/projection.ts
+      - src/engine/__tests__/coordinates.test.ts
+    output_files:
+      - src/engine/__tests__/coordinates.test.ts
+    depends_on:
+      - rewire-coordinates
+    verification:
+      - 'npx vitest run src/engine/__tests__/coordinates.test.ts'
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [test]
+
+  - id: add-menu-component-test
+    title: 'Add Menu component test for projection row render and click'
+    spec_id: isometric-projection
+    spec_sections:
+      - menu-toggle-row
+    context_files:
+      - src/components/Menu.tsx
+      - src/components/__tests__
+    output_files:
+      - src/components/__tests__/Menu.test.tsx
+    depends_on:
+      - wire-menu-toggle
+    verification:
+      - 'npx vitest run src/components/__tests__/Menu.test.tsx'
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [test, component]

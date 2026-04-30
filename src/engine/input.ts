@@ -1,6 +1,6 @@
 import type { Direction } from './types'
 
-const KEY_MAP: Record<string, Direction> = {
+const KEY_MAP_ORTHO: Record<string, Direction> = {
   ArrowUp: 'up',
   ArrowDown: 'down',
   ArrowLeft: 'left',
@@ -15,7 +15,31 @@ const KEY_MAP: Record<string, Direction> = {
   D: 'right',
 }
 
-export const keyToDirection = (key: string): Direction | null => KEY_MAP[key] ?? null
+// In iso, WASD/arrow keys map to screen-axis motion. Forward projection:
+//   world +x → screen (+cw, +cH/2)  (down-right)
+//   world +y → screen (-cw, +cH/2)  (down-left)
+// Therefore:
+//   screen up    = world (-1, -1) → upLeft   (NW on original map)
+//   screen down  = world (+1, +1) → downRight (SE)
+//   screen left  = world (-1, +1) → downLeft (SW)
+//   screen right = world (+1, -1) → upRight  (NE)
+const KEY_MAP_ISO: Record<string, Direction> = {
+  ArrowUp: 'upLeft',
+  ArrowDown: 'downRight',
+  ArrowLeft: 'downLeft',
+  ArrowRight: 'upRight',
+  w: 'upLeft',
+  s: 'downRight',
+  a: 'downLeft',
+  d: 'upRight',
+  W: 'upLeft',
+  S: 'downRight',
+  A: 'downLeft',
+  D: 'upRight',
+}
+
+export const keyToDirection = (key: string, isometric = false): Direction | null =>
+  (isometric ? KEY_MAP_ISO : KEY_MAP_ORTHO)[key] ?? null
 
 // --- Keybinding registry (source of truth for manual + docs) ---
 

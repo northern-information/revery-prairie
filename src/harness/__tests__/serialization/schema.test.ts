@@ -121,6 +121,13 @@ const EXPECTED_FIELDS = [
   'multiplayerSession',
   'remotePlayers',
   'onPlayerMoved',
+  'isometricProjection',
+  'cameraMode',
+  'lastEdgeScrollTime',
+  'edgeScrollPos',
+  'edgeScrollDirection',
+  'cameraSubpixel',
+  'heldKeys',
 ].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {

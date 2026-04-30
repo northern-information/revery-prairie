@@ -1,0 +1,140 @@
+id: rts-camera-pan
+name: 'RTS-style camera pan with edge-scroll'
+status: planned
+priority: medium
+layer: integration
+source_files:
+  - src/engine/camera.ts
+  - src/engine/edgeScroll.ts
+  - src/engine/gameLoop.ts
+  - src/engine/movement.ts
+  - src/engine/renderer.ts
+  - src/engine/state.ts
+  - src/engine/types.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - isometric-projection
+
+behaviors:
+  - id: camera-mode-default-follow
+    description: >
+      createGameState initializes state.cameraMode to 'follow'. In follow
+      mode the camera continues to track the player as it does today —
+      updateCamera() centers the player (with overworld deadzone). The
+      field is session-only (no localStorage); reload resets to 'follow'.
+    inputs:
+      - 'createGameState called with default options'
+    outputs:
+      - "GameState with cameraMode === 'follow'"
+    state_changes:
+      - field: cameraMode
+        effect: "set to 'follow' on initialization"
+    determinism: deterministic
+
+  - id: edge-scroll-activates-free-mode
+    description: >
+      An edge-scroll tick runs every frame. It reads state.cursorScreenPos
+      against the canvas edges. When the cursor is within EDGE_SCROLL_ZONE_PX
+      pixels of any of the four canvas edges, the tick (a) sets
+      state.cameraMode to 'free' if it was 'follow', (b) advances
+      state.camera.x and state.camera.y by EDGE_SCROLL_SPEED_TILES_PER_SEC
+      times the frame delta in the corresponding axis. Diagonal scroll is
+      supported (cursor in a corner moves the camera in both axes).
+      Camera position is clamped to map bounds so the user cannot scroll
+      into the void.
+    inputs:
+      - 'state.cursorScreenPos at canvas edge'
+      - 'time delta from last frame'
+    outputs:
+      - 'state.camera.x/y advance toward the edge'
+    state_changes:
+      - field: cameraMode
+        effect: "transitions from 'follow' to 'free' on first edge-scroll input"
+      - field: camera.x
+        effect: 'shifts in proportion to dt; clamped to map bounds'
+      - field: camera.y
+        effect: 'shifts in proportion to dt; clamped to map bounds'
+    determinism: time-based
+
+  - id: wasd-recenters-camera
+    description: >
+      A successful WASD-driven player move (via the keyboard-move tick)
+      flips state.cameraMode back to 'follow' and re-runs updateCamera()
+      so the camera snaps to the player. Click-to-move (tickPath) does
+      NOT recenter — the user can issue commands to off-screen tiles
+      while the camera stays panned. This matches RTS conventions where
+      panning is independent of unit commands.
+    inputs:
+      - 'state.heldDirection set to a valid Direction'
+      - 'movePlayer returns true'
+    outputs:
+      - 'camera snaps to player tile'
+    state_changes:
+      - field: cameraMode
+        effect: "set to 'follow' after successful WASD move"
+      - field: camera.x
+        effect: 'recomputed via updateCamera; player tile centered'
+      - field: camera.y
+        effect: 'recomputed via updateCamera; player tile centered'
+    determinism: deterministic
+
+  - id: update-camera-respects-free-mode
+    description: >
+      updateCamera(state) early-returns when cameraMode is 'free' and
+      forceCenter is false. This means tickPath, follow-collect coyote
+      moves, and any other movement paths that flow through movePlayer
+      no longer fight the user's pan. forceCenter=true (used by
+      GameCanvas mount and zone transitions) bypasses the gate so the
+      camera always re-anchors at game start and zone swaps.
+    inputs:
+      - "GameState with cameraMode === 'free'"
+      - 'updateCamera(state, false)'
+    outputs:
+      - 'no camera mutation'
+    state_changes: []
+    determinism: deterministic
+
+  - id: off-screen-player-indicator
+    description: >
+      The renderer draws a hot-pink arrow at the canvas edge pointing
+      toward the player when the player tile is outside the visible
+      viewport (in either projection mode). The arrow is anchored to
+      the canvas edge nearest the player, sits on the line connecting
+      the canvas center to the player's projected position, and uses
+      ACTION_COLOR (#ff69b4) consistent with other RTS-style UI.
+    inputs:
+      - "state.cameraMode === 'free' and player tile outside viewport"
+    outputs:
+      - 'arrow glyph drawn at the appropriate canvas edge'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: cursor-leaves-canvas
+    description: 'Mouse leaves the canvas (state.cursorScreenPos becomes null)'
+    expected: 'edge-scroll tick produces zero velocity; cameraMode stays whatever it was; no spurious panning'
+  - id: small-map-no-pan
+    description: 'Map smaller than viewport (cave zone): visible footprint already smaller than the viewport'
+    expected: 'updateCamera continues to center the (small) map regardless of cameraMode; pan is a no-op because there is nowhere to pan to'
+  - id: pan-then-zone-swap
+    description: 'User pans freely in overworld, then steps onto a CaveEntrance tile and zone swaps to cave'
+    expected: 'updateCamera(state, true) is called by the zone-swap path and bypasses the free-mode gate; cave camera initializes correctly; cameraMode resets to follow on zone swap'
+  - id: pan-clamping-at-iso-edges
+    description: 'In iso mode the visible footprint extends diagonally past the rectangular tile space; user pans toward the corner'
+    expected: 'camera position clamps to integer tile coordinates [0, mapWidth - viewportWidth] x [0, mapHeight - viewportHeight] in both projections; iso just changes how those bounds project visually'
+  - id: simultaneous-edge-and-wasd
+    description: 'User holds WASD while cursor is at a canvas edge'
+    expected: 'WASD-recenter wins each frame: keyboard-move tick runs, recenters, edge-scroll tick may flip back to free on the same frame; visually the camera tracks the player'
+
+failure_conditions:
+  - trigger: 'Edge-scroll tick keeps mutating camera in follow mode without flipping to free'
+    expected: "cameraMode stuck at 'follow'; auto-center every move undoes the pan; pan feels broken"
+  - trigger: 'Click-to-move recenters the camera'
+    expected: 'sending units to off-screen tiles snaps the camera away from the user pan; spec violated'
+  - trigger: 'Camera position not clamped during free-pan'
+    expected: 'user can scroll into the void / off the map; spec violated'
+
+verification:
+  test_file: src/engine/__tests__/edgeScroll.test.ts
+  test_pattern: 'edge'
+  command: 'npx vitest run src/engine/__tests__/edgeScroll.test.ts src/engine/__tests__/camera.test.ts'

@@ -126,7 +126,9 @@ export const useCanvasDrop = ({
         const ay = my + d.y
         if (ax < 0 || ax >= state.mapWidth || ay < 0 || ay >= state.mapHeight) continue
         if (state.map[ay]?.[ax]?.type === TileType.Space) continue
-        const p = findPath(state.map, state.mapWidth, state.mapHeight, state.player, { x: ax, y: ay }, blocked)
+        const p = findPath(state.map, state.mapWidth, state.mapHeight, state.player, { x: ax, y: ay }, blocked, {
+          allowDiagonal: state.isometricProjection,
+        })
         if (p && (!bestPath || p.length < bestPath.length)) {
           bestPath = p
         }

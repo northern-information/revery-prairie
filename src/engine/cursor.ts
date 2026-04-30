@@ -14,7 +14,16 @@ export const updateCursorState = (state: GameState, metrics: CharMetrics): void 
   // Recompute cursor world tile from screen position every frame
   // so the highlight tracks correctly when the camera moves via WASD
   if (state.cursorScreenPos) {
-    state.cursorTile = screenToTile(state.cursorScreenPos.x, state.cursorScreenPos.y, camera, charWidth, charHeight)
+    state.cursorTile = screenToTile(
+      state.cursorScreenPos.x,
+      state.cursorScreenPos.y,
+      camera,
+      charWidth,
+      charHeight,
+      state.isometricProjection,
+      state.viewportWidth,
+      state.viewportHeight,
+    )
   } else {
     state.cursorTile = null
   }
@@ -34,7 +43,9 @@ export const updateCursorState = (state: GameState, metrics: CharMetrics): void 
     const dist = Math.abs(ct.x - player.x) + Math.abs(ct.y - player.y)
     if (dist <= HOVER_PATH_MAX_DISTANCE && isInBounds(ct.x, ct.y, state.mapWidth, state.mapHeight) && isWalkableTile(state.map[ct.y][ct.x].type)) {
       const hoverBlocked = getPathfindingBlockers(state, ct)
-      state.hoverPath = findPath(state.map, state.mapWidth, state.mapHeight, player, ct, hoverBlocked)
+      state.hoverPath = findPath(state.map, state.mapWidth, state.mapHeight, player, ct, hoverBlocked, {
+        allowDiagonal: state.isometricProjection,
+      })
     } else {
       state.hoverPath = null
     }

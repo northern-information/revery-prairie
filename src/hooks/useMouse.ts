@@ -209,14 +209,20 @@ export const useMouse = ({
             Math.min(mouseDownPos.y, e.offsetY),
             state.camera,
             metrics.charWidth,
-            metrics.charHeight
+            metrics.charHeight,
+            state.isometricProjection,
+            state.viewportWidth,
+            state.viewportHeight,
           )
           const endTile = screenToTile(
             Math.max(mouseDownPos.x, e.offsetX),
             Math.max(mouseDownPos.y, e.offsetY),
             state.camera,
             metrics.charWidth,
-            metrics.charHeight
+            metrics.charHeight,
+            state.isometricProjection,
+            state.viewportWidth,
+            state.viewportHeight,
           )
           const units = getControllableUnitsInRect(state, startTile, endTile)
           const includePlayer = isPlayerInRect(state, startTile, endTile)
@@ -250,7 +256,16 @@ export const useMouse = ({
       if (state.targetingSlot !== null) {
         const metrics = metricsRef.current
         if (!metrics) return
-        const tile = screenToTile(e.offsetX, e.offsetY, state.camera, metrics.charWidth, metrics.charHeight)
+        const tile = screenToTile(
+          e.offsetX,
+          e.offsetY,
+          state.camera,
+          metrics.charWidth,
+          metrics.charHeight,
+          state.isometricProjection,
+          state.viewportWidth,
+          state.viewportHeight,
+        )
         if (!isValidLightningTarget(state, tile)) return
         const success = castLightningAtTarget(state, tile, state.targetingSlot, performance.now())
         if (success) {
@@ -278,7 +293,16 @@ export const useMouse = ({
       const metrics = metricsRef.current
       if (!metrics) return
 
-      const tile = screenToTile(e.offsetX, e.offsetY, state.camera, metrics.charWidth, metrics.charHeight)
+      const tile = screenToTile(
+        e.offsetX,
+        e.offsetY,
+        state.camera,
+        metrics.charWidth,
+        metrics.charHeight,
+        state.isometricProjection,
+        state.viewportWidth,
+        state.viewportHeight,
+      )
       if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return
 
       // Click on the player tile — toggle player selection
@@ -335,7 +359,8 @@ export const useMouse = ({
           state.mapHeight,
           state.player,
           resolved.walkTarget,
-          blocked
+          blocked,
+          { allowDiagonal: state.isometricProjection },
         )
         state.pathWaypoints = state.path ? [resolved.walkTarget] : []
         refreshUI()
@@ -367,7 +392,16 @@ export const useMouse = ({
       const metrics = metricsRef.current
       if (!metrics) return
 
-      const tile = screenToTile(e.offsetX, e.offsetY, state.camera, metrics.charWidth, metrics.charHeight)
+      const tile = screenToTile(
+        e.offsetX,
+        e.offsetY,
+        state.camera,
+        metrics.charWidth,
+        metrics.charHeight,
+        state.isometricProjection,
+        state.viewportWidth,
+        state.viewportHeight,
+      )
       if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return
 
       // With a selection, issue a unit move command (handles player + NPCs).
@@ -402,7 +436,9 @@ export const useMouse = ({
         const lastWaypoint = state.pathWaypoints[state.pathWaypoints.length - 1]
         if (lastWaypoint?.x === walkTarget.x && lastWaypoint?.y === walkTarget.y) return
         const chainFrom = state.path[state.path.length - 1]
-        const extension = findPath(state.map, state.mapWidth, state.mapHeight, chainFrom, walkTarget, blocked)
+        const extension = findPath(state.map, state.mapWidth, state.mapHeight, chainFrom, walkTarget, blocked, {
+          allowDiagonal: state.isometricProjection,
+        })
         if (!extension || extension.length === 0) return
         state.path.push(...extension)
         state.pathWaypoints.push(walkTarget)
@@ -415,7 +451,9 @@ export const useMouse = ({
       state.pendingAction = action
       if (!action) state.pendingInteractionTarget = null
       state.previewFn = null
-      state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, walkTarget, blocked)
+      state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, walkTarget, blocked, {
+        allowDiagonal: state.isometricProjection,
+      })
       state.pathWaypoints = state.path ? [walkTarget] : []
       refreshUI()
     }
