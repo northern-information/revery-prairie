@@ -683,7 +683,7 @@ describe('overworld toast suppression in cave', () => {
     expect(state.meteorShower.active).toBe(true)
     // But the toast should NOT fire because we're in the cave
     expect(onDiscovery).not.toHaveBeenCalledWith(
-      'meteor shower!',
+      'Meteor shower!',
       expect.any(Number),
       expect.any(Number),
       expect.any(String),
@@ -708,7 +708,7 @@ describe('overworld toast suppression in cave', () => {
     expect(state.meteorShower.active).toBe(true)
     // Toast should fire in overworld
     expect(onDiscovery).toHaveBeenCalledWith(
-      'meteor shower!',
+      'Meteor shower!',
       expect.any(Number),
       expect.any(Number),
       '*',

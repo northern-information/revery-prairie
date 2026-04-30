@@ -249,27 +249,27 @@ const buildGenesisEntry = (): ManualEntry => {
     glyphColor: '#FF4500',
     lore:
       MANUAL_LORE['event:genesis']?.lore ??
-      `before the prairie was a prairie, it was magma — and before that, void. ` +
-        `a billion years of geological history flash before you each time a new world is born: ${epochList}. ` +
-        `every patch of soil remembers what happened to it. volcanic hotspots left minerals behind. ` +
-        `glaciers scraped the highlands bare. rivers carved alluvial deltas rich with sediment. ` +
-        `ancient civilizations rose and fell, their aqueducts buried deep beneath the dirt. ` +
-        `the soil health you see today is the sum of all these forces.`,
+      `Before the prairie was a prairie, it was magma — and before that, void. ` +
+        `A billion years of geological history flash before you each time a new world is born: ${epochList}. ` +
+        `Every patch of soil remembers what happened to it. Volcanic hotspots left minerals behind. ` +
+        `Glaciers scraped the highlands bare. Rivers carved alluvial deltas rich with sediment. ` +
+        `Ancient civilizations rose and fell, their aqueducts buried deep beneath the dirt. ` +
+        `The soil health you see today is the sum of all these forces.`,
     hints: MANUAL_LORE['event:genesis']?.hints ?? [
       {
-        prompt: 'how it works',
-        answer: 'genesis runs between the name prompt and gameplay. it simulates 14 geological epochs in ~25 seconds.',
+        prompt: 'How it works',
+        answer: 'Genesis runs between the name prompt and gameplay. It simulates 14 geological epochs in ~25 seconds.',
       },
-      { prompt: 'skip', answer: 'press any key during the genesis sequence to skip ahead.' },
-      { prompt: 'determinism', answer: 'the same steward name always produces the same world.' },
+      { prompt: 'Skip', answer: 'Press any key during the genesis sequence to skip ahead.' },
+      { prompt: 'Determinism', answer: 'The same steward name always produces the same world.' },
       {
-        prompt: 'soil',
+        prompt: 'Soil',
         answer:
-          'volcanic regions, river deltas, and civilization ruins have richer soil. glacial paths and barren highlands have poorer soil.',
+          'Volcanic regions, river deltas, and civilization ruins have richer soil. Glacial paths and barren highlands have poorer soil.',
       },
       {
-        prompt: 'ruins',
-        answer: 'civilization ruins are buried underground. their aqueducts once connected great cities.',
+        prompt: 'Ruins',
+        answer: 'Civilization ruins are buried underground. Their aqueducts once connected great cities.',
       },
     ],
     unlockKey: 'always',
@@ -288,7 +288,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: '#FFFFFF',
     lore:
       MANUAL_LORE['character:ghosts']?.lore ??
-      'three ghosts drift across the land. they move slowly and unpredictably. each has something to say if you stop to listen.',
+      'Three ghosts drift across the land. They move slowly and unpredictably. Each has something to say if you stop to listen.',
     hints: MANUAL_LORE['character:ghosts']?.hints ?? [],
     unlockKey: 'character:ghost-1',
     sourceKind: 'character',
@@ -299,7 +299,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Zone,
     glyph: TILE_CHARS[TileType.Dirt],
     glyphColor: TILE_COLORS[TileType.Dirt],
-    lore: MANUAL_LORE['zone:overworld']?.lore ?? 'a dirt island surrounded by stars. the land responds to care.',
+    lore: MANUAL_LORE['zone:overworld']?.lore ?? 'A dirt island surrounded by stars. The land responds to care.',
     hints: MANUAL_LORE['zone:overworld']?.hints ?? [],
     unlockKey: 'always',
     sourceKind: 'zone',
@@ -312,7 +312,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: TILE_COLORS[TileType.CaveEntrance],
     lore:
       MANUAL_LORE['zone:cave']?.lore ??
-      'a winding cave accessible through an entrance on the surface. corridors lead upward to a chamber.',
+      'A winding cave accessible through an entrance on the surface. Corridors lead upward to a chamber.',
     hints: MANUAL_LORE['zone:cave']?.hints ?? [],
     unlockKey: 'zone:cave',
     sourceKind: 'zone',
@@ -380,7 +380,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: '#FFFFFF',
     lore:
       MANUAL_LORE['event:shooting-star']?.lore ??
-      'shooting stars appear randomly in the space around the prairie. most pass harmlessly, but some land as meteorites.',
+      'Shooting stars appear randomly in the space around the prairie. Most pass harmlessly, but some land as meteorites.',
     hints: MANUAL_LORE['event:shooting-star']?.hints ?? [],
     unlockKey: 'always',
     sourceKind: 'event',
@@ -393,7 +393,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: '#FFD700',
     lore:
       MANUAL_LORE['event:chain-explosion']?.lore ??
-      'when a meteorite is picked up, there is a chance it detonates, scattering more meteorites nearby. chain meteorites cannot trigger further chains.',
+      'When a meteorite is picked up, there is a chance it detonates, scattering more meteorites nearby. Chain meteorites cannot trigger further chains.',
     hints: MANUAL_LORE['event:chain-explosion']?.hints ?? [],
     unlockKey: 'event:chain-explosion',
     sourceKind: 'event',
@@ -406,7 +406,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: '#FFD700',
     lore:
       MANUAL_LORE['event:meteor-shower']?.lore ??
-      'occasionally the sky erupts with shooting stars, all streaking from the same direction. most land as meteorites scattered across the prairie.',
+      'Occasionally the sky erupts with shooting stars, all streaking from the same direction. Most land as meteorites scattered across the prairie.',
     hints: MANUAL_LORE['event:meteor-shower']?.hints ?? [],
     unlockKey: 'event:meteor-shower',
     sourceKind: 'event',
@@ -419,7 +419,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: '#90EE90',
     lore:
       MANUAL_LORE['event:clover-growth']?.lore ??
-      'when bees settle on a clover patch, the clover begins to grow in spiraling patterns across the dirt. the more bees tend a patch, the faster it spreads.',
+      'When bees settle on a clover patch, the clover begins to grow in spiraling patterns across the dirt. The more bees tend a patch, the faster it spreads.',
     hints: MANUAL_LORE['event:clover-growth']?.hints ?? [],
     unlockKey: 'event:clover-growth',
     sourceKind: 'event',
@@ -432,7 +432,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: '#8B6914',
     lore:
       MANUAL_LORE['event:clover-death']?.lore ??
-      'clover needs both light and water to survive. without them it slowly browns, then blinks red in distress, turns black, and finally decomposes back into the earth — enriching the soil as it goes.',
+      'Clover needs both light and water to survive. Without them it slowly browns, then blinks red in distress, turns black, and finally decomposes back into the earth — enriching the soil as it goes.',
     hints: MANUAL_LORE['event:clover-death']?.hints ?? [],
     unlockKey: 'event:clover-death',
     sourceKind: 'event',
@@ -445,7 +445,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: '#50C878',
     lore:
       MANUAL_LORE['event:clover-harvest']?.lore ??
-      'pressing [f] while facing clover harvests it into your backpack. the tile returns to bare dirt. harvested clover does not enrich the soil.',
+      'Pressing [f] while facing clover harvests it into your backpack. The tile returns to bare dirt. Harvested clover does not enrich the soil.',
     hints: MANUAL_LORE['event:clover-harvest']?.hints ?? [],
     unlockKey: 'event:clover-harvest',
     sourceKind: 'event',
@@ -458,7 +458,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: '#50C878',
     lore:
       MANUAL_LORE['event:clover-cut']?.lore ??
-      'pressing [x] while facing clover cuts it down to bare dirt. unlike harvesting, cutting returns nutrients to the earth, enriching the soil.',
+      'Pressing [x] while facing clover cuts it down to bare dirt. Unlike harvesting, cutting returns nutrients to the earth, enriching the soil.',
     hints: MANUAL_LORE['event:clover-cut']?.hints ?? [],
     unlockKey: 'event:clover-cut',
     sourceKind: 'event',
@@ -471,12 +471,12 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: COIN_GLINTING_COLOR,
     lore:
       MANUAL_LORE['event:hexagram-cast']?.lore ??
-      'three ancient coins, tossed six times. each toss builds a line — solid or broken, stable or changing. the hexagram that forms speaks in the language of the prairie. listen closely.',
+      'Three ancient coins, tossed six times. Each toss builds a line — solid or broken, stable or changing. The hexagram that forms speaks in the language of the prairie. Listen closely.',
     hints: MANUAL_LORE['event:hexagram-cast']?.hints ?? [
-      { prompt: 'how to cast', answer: 'collect 3 glinting coins and press [c] on the overworld.' },
+      { prompt: 'How to cast', answer: 'Collect 3 glinting coins and press [c] on the overworld.' },
       {
-        prompt: 'changing lines',
-        answer: 'old yin (6) and old yang (9) are changing lines. they transform the hexagram into a second reading.',
+        prompt: 'Changing lines',
+        answer: 'Old yin (6) and old yang (9) are changing lines. They transform the hexagram into a second reading.',
       },
     ],
     unlockKey: 'event:hexagram-cast',
@@ -490,7 +490,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: '#FFFFFF',
     lore:
       MANUAL_LORE['event:lightning-strike']?.lore ??
-      'lightning strikes the prairie during storms. rain, high humidity, and strong wind all increase the chance. the bolt is brief but unmistakable — the whole sky flashes white.',
+      'Lightning strikes the prairie during storms. Rain, high humidity, and strong wind all increase the chance. The bolt is brief but unmistakable — the whole sky flashes white.',
     hints: MANUAL_LORE['event:lightning-strike']?.hints ?? [],
     unlockKey: 'event:lightning-strike',
     sourceKind: 'event',
@@ -504,7 +504,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: '#FF4500',
     lore:
       MANUAL_LORE['event:wildfire']?.lore ??
-      'when lightning strikes dry clover, fire spreads to neighboring patches. the drier the clover, the farther it burns. wet clover resists ignition. the fire enriches the soil as it passes.',
+      'When lightning strikes dry clover, fire spreads to neighboring patches. The drier the clover, the farther it burns. Wet clover resists ignition. The fire enriches the soil as it passes.',
     hints: MANUAL_LORE['event:wildfire']?.hints ?? [],
     unlockKey: 'event:wildfire',
     sourceKind: 'event',
@@ -518,11 +518,11 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: '#E0E0FF',
     lore:
       MANUAL_LORE['event:lightning-attraction']?.lore ??
-      'high ground draws lightning down from the clouds. water-soaked earth conducts the charge — tiles near ponds and rivers are struck more often. metal objects left on the ground act as conductors — meteorites attract bolts. a lone beehive standing in open dirt is a target — isolated tall features on flat terrain invite strikes. clover fields conduct slightly better than bare dirt.',
+      'High ground draws lightning down from the clouds. Water-soaked earth conducts the charge — tiles near ponds and rivers are struck more often. Metal objects left on the ground act as conductors — meteorites attract bolts. A lone beehive standing in open dirt is a target — isolated tall features on flat terrain invite strikes. Clover fields conduct slightly better than bare dirt.',
     hints: MANUAL_LORE['event:lightning-attraction']?.hints ?? [
       {
-        prompt: 'how to protect clover',
-        answer: 'keep fields hydrated. wet clover resists ignition. remove metal objects from valuable patches.',
+        prompt: 'How to protect clover',
+        answer: 'Keep fields hydrated. Wet clover resists ignition. Remove metal objects from valuable patches.',
       },
     ],
     unlockKey: 'event:lightning-strike',
@@ -537,11 +537,11 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyphColor: '#FFFFFF',
     lore:
       MANUAL_LORE['event:lightning-revery']?.lore ??
-      'the lightning revery lets you choose where the bolt falls. press the hotkey to enter targeting mode, then click a tile within range. the strike follows the same rules as natural lightning — dry clover ignites, fire spreads, soil enriches.',
+      'The lightning revery lets you choose where the bolt falls. Press the hotkey to enter targeting mode, then click a tile within range. The strike follows the same rules as natural lightning — dry clover ignites, fire spreads, soil enriches.',
     hints: MANUAL_LORE['event:lightning-revery']?.hints ?? [
       {
-        prompt: 'how to target',
-        answer: 'press the action bar key, then click a tile within 20 steps. press Esc or right-click to cancel.',
+        prompt: 'How to target',
+        answer: 'Press the action bar key, then click a tile within 20 steps. Press Esc or right-click to cancel.',
       },
     ],
     unlockKey: 'event:lightning-revery',

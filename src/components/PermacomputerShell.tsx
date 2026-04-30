@@ -35,7 +35,7 @@ export const PermacomputerShell = ({ activeScreen, onClose, onSwitchScreen, chil
       <div
         data-testid="permacomputer-shell"
         className="pointer-events-auto fixed top-0 right-48 bottom-0 z-10 flex flex-col bg-black/70 font-mono"
-        style={{ width: 420 }}
+        style={{ width: 500 }}
         onClick={e => {
           e.stopPropagation()
         }}
@@ -71,7 +71,7 @@ export const PermacomputerShell = ({ activeScreen, onClose, onSwitchScreen, chil
         <div className="border-border-dim flex items-center border-t px-4 py-2">
           <span className="text-permacomputer text-xs">⚙</span>
           <span className="text-permacomputer ml-2 text-xs">
-            permacomputer <span className="animate-pulse">online</span>
+            Permacomputer <span className="animate-pulse">online</span>
           </span>
         </div>
       </div>

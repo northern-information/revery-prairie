@@ -146,7 +146,7 @@ export const useKeyboard = ({
           const result = advanceDialog(state, performance.now())
           if (result.gift) {
             onGift(
-              `received ${result.gift.name.toLowerCase()}`,
+              `Received ${result.gift.name}.`,
               result.gift.glyphs[0],
               result.gift.glyphColor,
               state.player.x,
@@ -160,7 +160,7 @@ export const useKeyboard = ({
           // Break facing breakable wall
           if (state.currentZone === Zone.Cave && !state.caveRevealed) {
             if (breakWall(state, performance.now())) {
-              onDiscovery('discovered hidden room!', state.player.x, state.player.y)
+              onDiscovery('Discovered hidden room.', state.player.x, state.player.y)
               refreshUI()
               return
             }
@@ -207,9 +207,9 @@ export const useKeyboard = ({
           updateFacingEntity(state)
           refreshUI()
         } else if (harvestResult === HarvestResult.BackpackFull) {
-          onDiscovery('backpack full', state.player.x, state.player.y)
+          onDiscovery('Backpack full.', state.player.x, state.player.y)
         } else if (harvestResult === HarvestResult.Dying) {
-          onDiscovery('too withered to harvest', state.player.x, state.player.y)
+          onDiscovery('Too withered to harvest.', state.player.x, state.player.y)
         }
         return
       }
@@ -232,7 +232,7 @@ export const useKeyboard = ({
         // Cut facing clover when no inventory item is hovered
         if (activeScreen !== 'system' && !state.activeDialog) {
           if (cutClover(state)) {
-            onDiscovery('clover trimmed', state.player.x, state.player.y, '%', '#50C878')
+            onDiscovery('Clover trimmed.', state.player.x, state.player.y, '%', '#50C878')
             updateFacingEntity(state)
             refreshUI()
           }

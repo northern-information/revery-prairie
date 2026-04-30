@@ -58,7 +58,8 @@ export const InventoryPanel = ({
       const [a, b] = recipe.ingredients
       const nameA = getDefinition(a).name.toLowerCase()
       const nameB = getDefinition(b).name.toLowerCase()
-      const header = `${nameA} + ${nameB} = ${recipe.resultName}`
+      const capitalized = nameA.charAt(0).toUpperCase() + nameA.slice(1)
+      const header = `${capitalized} + ${nameB} = ${recipe.resultName}.`
       onCombineLog(header, state.player.x, state.player.y)
     },
     [onCombineLog, state]
@@ -151,7 +152,7 @@ export const InventoryPanel = ({
   return (
     <div className="flex flex-col gap-4 font-mono text-xs">
       <div data-panel="inventory" className="text-text pointer-events-auto relative flex flex-col gap-3 px-4 py-4">
-        <SectionHeader>backpack</SectionHeader>
+        <SectionHeader>Backpack</SectionHeader>
 
         <div className="group">
           <InventoryGrid

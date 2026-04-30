@@ -3,9 +3,9 @@ import { TextButton } from './PanelPrimitives'
 
 const FONT_SCALES = [1, 1.25, 1.5] as const
 const FONT_SCALE_LABELS: Record<number, string> = {
-  1: 'small',
-  1.25: 'medium',
-  1.5: 'large',
+  1: 'Small',
+  1.25: 'Medium',
+  1.5: 'Large',
 }
 
 interface MenuProps {
@@ -37,18 +37,18 @@ export const Menu = ({
 
   return (
     <div className="text-text font-mono text-xs">
-      <div className="text-dim mb-3 text-xs">a tyler etters game</div>
+      <div className="text-dim mb-3 text-xs">A Tyler Etters game.</div>
       <div className="flex flex-col gap-2">
-        <TextButton onClick={onResume}>resume</TextButton>
+        <TextButton onClick={onResume}>Resume</TextButton>
         {confirming ? (
           <div className="flex gap-2">
-            <TextButton onClick={onNewGame}>confirm?</TextButton>
+            <TextButton onClick={onNewGame}>Confirm?</TextButton>
             <TextButton
               onClick={() => {
                 setConfirming(false)
               }}
             >
-              cancel
+              Cancel
             </TextButton>
           </div>
         ) : (
@@ -57,15 +57,15 @@ export const Menu = ({
               setConfirming(true)
             }}
           >
-            new game
+            New Game
           </TextButton>
         )}
-        <TextButton onClick={onToggleUnits}>units: {metric ? 'metric' : 'imperial'}</TextButton>
-        <TextButton onClick={onToggleMusic}>music: {musicEnabled ? 'on' : 'off'}</TextButton>
+        <TextButton onClick={onToggleUnits}>Units: {metric ? 'Metric' : 'Imperial'}</TextButton>
+        <TextButton onClick={onToggleMusic}>Music: {musicEnabled ? 'On' : 'Off'}</TextButton>
         <TextButton onClick={onToggleAutoHidePanels}>
-          auto-hide panels: {autoHidePanels ? 'on' : 'off'}
+          Auto-hide panels: {autoHidePanels ? 'On' : 'Off'}
         </TextButton>
-        <TextButton onClick={onCycleFontScale}>font: {FONT_SCALE_LABELS[fontScale] ?? 'medium'}</TextButton>
+        <TextButton onClick={onCycleFontScale}>Font: {FONT_SCALE_LABELS[fontScale] ?? 'Medium'}</TextButton>
       </div>
     </div>
   )

@@ -54,14 +54,14 @@ export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoi
     <div>
       {item ? (
         <>
-          <SectionHeader>item</SectionHeader>
+          <SectionHeader>Item</SectionHeader>
           <div className="mb-1 flex items-baseline justify-between">
             <span style={{ color: isCoin && !isGlinting ? COIN_DULL_COLOR : item.glyphColor }}>
-              {item.glyph} {item.name.toLowerCase()}
+              {item.glyph} {item.name}
             </span>
           </div>
           <div className="mb-1 flex items-baseline justify-between text-end">
-            <span className="text-muted">category</span>
+            <span className="text-muted">Category</span>
             <span className="">{item.category}</span>
           </div>
           <div className="mb-1 flex items-baseline justify-between">{getLore(`item:${item.id}`)}</div>

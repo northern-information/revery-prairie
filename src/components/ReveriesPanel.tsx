@@ -43,7 +43,7 @@ export const ReveriesPanel = ({ state, refreshUI }: ReveriesPanelProps) => {
 
   return (
     <div className="text-text font-mono text-xs">
-      {state.reveries.length === 0 && <div className="text-dim">no reveries collected yet.</div>}
+      {state.reveries.length === 0 && <div className="text-dim">No reveries collected yet.</div>}
 
       {state.reveries.map(id => {
         const def = getReveryDefinition(id)
@@ -56,7 +56,7 @@ export const ReveriesPanel = ({ state, refreshUI }: ReveriesPanelProps) => {
               {def.glyphs[0]}
             </span>
             <div className="flex-1">
-              <div style={{ color: def.glyphColor }}>{def.name.toLowerCase()}</div>
+              <div style={{ color: def.glyphColor }}>{def.name}</div>
               <div className="text-dim">{getLore(`revery:${id}`)}</div>
             </div>
             <div className="flex gap-1">
@@ -88,7 +88,7 @@ export const ReveriesPanel = ({ state, refreshUI }: ReveriesPanelProps) => {
                       handleUnequip(id)
                     }}
                   >
-                    unequip
+                    UNEQUIP
                   </TextButton>
                 </>
               )}
@@ -99,7 +99,7 @@ export const ReveriesPanel = ({ state, refreshUI }: ReveriesPanelProps) => {
                     handleEquip(id)
                   }}
                 >
-                  equip
+                  EQUIP
                 </TextButton>
               )}
             </div>

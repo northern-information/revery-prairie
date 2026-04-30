@@ -203,7 +203,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
             if (result.chainExplosions > 0) {
               const meteoriteDef = getDefinition('meteorite')
               callbacks.onDiscovery?.(
-                'oh my!',
+                'Oh my!',
                 state.player.x,
                 state.player.y,
                 meteoriteDef.glyph,
@@ -242,7 +242,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
             if (result.chainExplosions > 0) {
               const meteoriteDef = getDefinition('meteorite')
               callbacks.onDiscovery?.(
-                'oh my!',
+                'Oh my!',
                 state.player.x,
                 state.player.y,
                 meteoriteDef.glyph,
@@ -303,7 +303,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         if (result.pickedUp) {
           const def = getDefinition(result.pickedUp.definitionId)
           callbacks.onDiscovery?.(
-            `coyote found ${def.name.toLowerCase()}`,
+            `Coyote found ${def.name}.`,
             result.pickedUp.x,
             result.pickedUp.y,
             def.glyph,
@@ -314,7 +314,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           const def = getDefinition(result.delivered.definitionId)
           const dest = result.delivered.toGron ? 'near gron' : 'to backpack'
           callbacks.onDiscovery?.(
-            `coyote delivered ${def.name.toLowerCase()} ${dest}`,
+            `Coyote delivered ${def.name} ${dest}.`,
             result.delivered.x,
             result.delivered.y,
             def.glyph,
@@ -376,7 +376,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         const wasActive = state.meteorShower.active
         tickMeteorShower(state, time)
         if (!wasActive && state.meteorShower.active && state.currentZone === Zone.Overworld) {
-          callbacks.onDiscovery?.('meteor shower!', state.player.x, state.player.y, '*', '#FFD700')
+          callbacks.onDiscovery?.('Meteor shower!', state.player.x, state.player.y, '*', '#FFD700')
         }
       },
     },
@@ -400,7 +400,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           const inViewport = vx >= 0 && vx < state.viewportWidth && vy >= 0 && vy < state.viewportHeight
           if (inViewport) {
             state.screenShakeUntil = time + SATELLITE_SHAKE_DURATION_MS
-            callbacks.onDiscovery?.('satellite impact!', impact.x, impact.y, '░', '#FF4444')
+            callbacks.onDiscovery?.('Satellite impact!', impact.x, impact.y, '░', '#FF4444')
           }
         }
       },
@@ -414,13 +414,13 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         const struck = spawnLightningStrike(state, time)
         if (struck) {
           if (state.currentZone === Zone.Overworld) {
-            callbacks.onDiscovery?.('lightning strikes!', struck.x, struck.y, '|', '#FFFFFF')
+            callbacks.onDiscovery?.('Lightning strikes!', struck.x, struck.y, '|', '#FFFFFF')
             // Check if wildfire spread happened (wildfire entity just created)
             for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
               const tag = state.world.getComponent(eid, ComponentType.EntityTag)
               const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
               if (tag === 'wildfire' && effect?.startTime === time) {
-                callbacks.onDiscovery?.('wildfire!', struck.x, struck.y, '^', '#FF4500')
+                callbacks.onDiscovery?.('Wildfire!', struck.x, struck.y, '^', '#FF4500')
                 break
               }
             }
@@ -569,7 +569,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'overworld',
       fn: (state, time) => {
         if (spawnAngel(state, time)) {
-          callbacks.onDiscovery?.('be not afraid', state.player.x, state.player.y, 'O', '#FFFFFF')
+          callbacks.onDiscovery?.('Be not afraid.', state.player.x, state.player.y, 'O', '#FFFFFF')
           callbacks.onRefreshUI?.()
         }
       },

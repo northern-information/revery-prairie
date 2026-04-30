@@ -138,7 +138,7 @@ describe('player spawn ceremony', () => {
 
       const fallToast = state.queuedToasts.find(t => t.text.includes('falls to the prairie'))
       expect(fallToast).toBeDefined()
-      expect(fallToast?.text).toBe('steward Bramble falls to the prairie')
+      expect(fallToast?.text).toBe('Steward Bramble falls to the prairie.')
     })
   })
 
