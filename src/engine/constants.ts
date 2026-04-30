@@ -30,13 +30,11 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.RuinFloor]: '.',
   [TileType.RuinWall]: '#',
   [TileType.RuinEntrance]: 'O',
-  [TileType.RuinUnstable]: '.',
   [TileType.RuinAqueduct]: '~',
   [TileType.RuinAqueductBroken]: '~',
   [TileType.RuinDebris]: '░',
-  [TileType.RuinMachine]: '⚡',
-  [TileType.RuinMachineActive]: '⚡',
-  [TileType.RuinHiddenFloor]: '.',
+  [TileType.RuinDoorLocked]: '#',
+  [TileType.RuinDoorOpen]: '.',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -52,13 +50,11 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.RuinFloor]: '#7A7A6E',
   [TileType.RuinWall]: '#555555',
   [TileType.RuinEntrance]: '#5FD3BC',
-  [TileType.RuinUnstable]: '#8B6E5E',
   [TileType.RuinAqueduct]: '#6688AA',
   [TileType.RuinAqueductBroken]: '#5A4A3A',
   [TileType.RuinDebris]: '#8B7355',
-  [TileType.RuinMachine]: '#B87333',
-  [TileType.RuinMachineActive]: '#FFD700',
-  [TileType.RuinHiddenFloor]: '#7A7A6E',
+  [TileType.RuinDoorLocked]: '#5FD3BC',
+  [TileType.RuinDoorOpen]: '#7A7A6E',
 }
 
 // Ruin visual palette — shared with genesis civilization rendering
@@ -410,17 +406,6 @@ export const MONARCH_SETTLE_RADIUS = 3 // wander radius when settled
 
 export const INVENTORY_CELL_SIZE = 28
 
-// ruin ejection sequence
-export const RUIN_EJECTION_SHAKE_MS = 1500
-export const RUIN_EJECTION_FADE_MS = 1200
-export const RUIN_EJECTION_HOLD_MS = 400
-export const RUIN_EJECTION_NOTIFICATION_MS = 4000
-export const RUIN_EJECTION_NOTIFICATION_FADE_MS = 600
-export const RUIN_EJECTION_SHAKE_AMPLITUDE = 6 // pixels
-
 export const RUIN_ENTRY_TOASTS: Record<RuinArchetype, string> = {
-  [RuinArchetype.Subsidence]: 'crumbling ruins! hurry before it collapses!',
   [RuinArchetype.DormantGarden]: 'a dormant garden stirs beneath the dust.',
-  [RuinArchetype.HauntedThreshold]: 'you feel watched. haunted threshold.',
-  [RuinArchetype.Resonance]: 'resonant chambers hum around you.',
 }

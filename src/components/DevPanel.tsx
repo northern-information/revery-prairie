@@ -286,7 +286,7 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
   const [values, setValues] = useState(() => new Map<ComponentType, Record<string, unknown>>())
   const [filter, setFilter] = useState('')
   const [ruinMode, setRuinMode] = useState(false)
-  const [ruinArchetype, setRuinArchetype] = useState<RuinArchetype>(RuinArchetype.Subsidence)
+  const [ruinArchetype, setRuinArchetype] = useState<RuinArchetype>(RuinArchetype.DormantGarden)
   const [ruinGlyph, setRuinGlyph] = useState(RUIN_GLYPH_RANDOM)
 
   const getValues = (type: ComponentType): Record<string, unknown> => {

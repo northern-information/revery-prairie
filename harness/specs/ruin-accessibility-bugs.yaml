@@ -40,40 +40,16 @@ behaviors:
     determinism: deterministic
 
   - id: seed-position-revalidation
-    description: 'After all terrain modifications (debris, void ponds), seed positions are re-validated. Seeds on non-walkable tiles are removed from the seed list.'
+    description: 'After all terrain modifications (debris, aqueduct channels), seed positions inside the dormant garden are re-validated. Seeds on non-walkable tiles are removed from the seed list.'
     inputs:
-      - 'generateRuinInterior completes all terrain passes including placeVoidPonds'
+      - 'generateRuinInterior completes all terrain passes inside the dormant garden'
     outputs:
-      - 'All seed positions are on walkable RuinFloor or RuinUnstable tiles'
-      - 'No seeds spawn inside walls, debris, void, or machines'
+      - 'All seed positions are on walkable RuinFloor or RuinAqueduct tiles'
+      - 'No seeds spawn inside walls, debris, or doors'
     state_changes:
-      - field: 'subsidenceData.seedPositions'
-        effect: 'Positions on non-walkable tiles removed'
       - field: 'dormantGardenData.seedDecayTimers'
         effect: 'Entries on non-walkable tiles removed'
     determinism: deterministic
-
-  - id: unstable-floor-blink
-    description: 'RuinUnstable tiles render with a time-based blinking animation — alternating between the reddish floor char and a warning char to signal danger.'
-    inputs:
-      - 'Renderer draws a RuinUnstable tile'
-    outputs:
-      - 'Tile visually blinks/pulses over time'
-    state_changes: []
-    determinism: time-based
-
-  - id: unstable-floor-collapse
-    description: 'When the player walks onto a RuinUnstable tile, it collapses into Space (void) after a short delay, becoming impassable. A crumble visual effect plays on collapse.'
-    inputs:
-      - 'Player moves onto a RuinUnstable tile'
-    outputs:
-      - 'Tile converts from RuinUnstable to Space after the player leaves or after a brief delay'
-      - 'Crumble visual effect plays at the collapsed position'
-      - 'Collapsed tile is no longer walkable'
-    state_changes:
-      - field: 'state.map[y][x]'
-        effect: 'RuinUnstable tile becomes Space tile'
-    determinism: time-based
 
   - id: sidebar-ruin-name-and-glyph
     description: 'When inside a ruin, the sidebar stats section shows the ruin name with age on the location row (e.g. "Ashhold Ruins") and the Greek glyph on its own line.'
@@ -92,11 +68,8 @@ edge_cases:
   - id: all-neighbors-blocked
     description: 'Exit placement when all neighbors are somehow non-walkable'
     expected: 'Fallback to entrance position itself rather than placing player on non-walkable tile'
-  - id: unstable-collapse-while-pathfinding
-    description: 'Player is click-to-move pathfinding through unstable tiles that collapse behind them'
-    expected: 'Path continues forward; collapsed tiles only affect future pathing, not current path in progress'
   - id: seeds-all-removed
-    description: 'All seed positions invalid after void pond placement'
+    description: 'All seed positions invalid after debris and aqueduct passes'
     expected: 'Ruin has zero seeds — no crash, just an empty seed list'
 
 failure_conditions:
@@ -106,8 +79,6 @@ failure_conditions:
     expected: 'Player placed on nearest walkable adjacent tile instead'
   - trigger: 'Seed spawned at position later overwritten by RuinDebris'
     expected: 'Seed position removed during revalidation; no unreachable ground item'
-  - trigger: 'Player walks onto RuinUnstable tile'
-    expected: 'Tile collapses to void after player steps off or after brief delay'
 
 verification:
   test_file: src/engine/__tests__/ruins.test.ts

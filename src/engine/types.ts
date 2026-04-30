@@ -16,13 +16,11 @@ export const TileType = {
   RuinFloor: 'ruinFloor',
   RuinWall: 'ruinWall',
   RuinEntrance: 'ruinEntrance',
-  RuinUnstable: 'ruinUnstable',
   RuinAqueduct: 'ruinAqueduct',
   RuinAqueductBroken: 'ruinAqueductBroken',
   RuinDebris: 'ruinDebris',
-  RuinMachine: 'ruinMachine',
-  RuinMachineActive: 'ruinMachineActive',
-  RuinHiddenFloor: 'ruinHiddenFloor',
+  RuinDoorLocked: 'ruinDoorLocked',
+  RuinDoorOpen: 'ruinDoorOpen',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
@@ -265,7 +263,6 @@ export interface GameState {
   coyotePath: Position[] | null
   ruinInteriors: RuinInterior[]
   currentRuinIndex: number | null
-  ruinEjection: RuinEjection | null
   queuedToasts: QueuedToast[]
   caveFogExplored: Set<string>
   caveFogDiscovered: Set<string>
@@ -358,21 +355,10 @@ export const Zone = {
 export type Zone = (typeof Zone)[keyof typeof Zone]
 
 export const RuinArchetype = {
-  Subsidence: 'subsidence',
   DormantGarden: 'dormantGarden',
-  HauntedThreshold: 'hauntedThreshold',
-  Resonance: 'resonance',
 } as const
 
 export type RuinArchetype = (typeof RuinArchetype)[keyof typeof RuinArchetype]
-
-export interface SubsidenceData {
-  structuralIntegrity: Map<string, number>
-  collapseTimer: number
-  collapseRate: number
-  seedPositions: Position[]
-  collapsed: boolean
-}
 
 export interface DormantGardenData {
   aqueductTiles: Set<string>
@@ -383,61 +369,9 @@ export interface DormantGardenData {
   seedDecayTimers: Map<string, number>
   seedDecayAcceleration: number
   waterFlowing: boolean
-}
-
-export interface GhostFormation {
-  positions: Position[]
-  wantedItems: string[]
-  satisfied: boolean[]
-}
-
-export interface HauntedThresholdData {
-  rooms: { center: Position; width: number; height: number }[]
-  ghostFormations: GhostFormation[]
-  innerChamber: Position[]
-  artifactPosition: Position
-}
-
-export interface ResonanceData {
-  machinePositions: Position[]
-  machineActiveUntil: Map<string, number>
-  activationDurationMs: number
-  hiddenTiles: Set<string>
-  vaultPosition: Position
-  vaultRevealed: boolean
-  revealedTiles: Set<string>
-}
-
-export const RuinEjectionReason = {
-  SealedIn: 'sealed-in',
-  EntranceCollapse: 'entrance-collapse',
-  FloorCollapse: 'floor-collapse',
-} as const
-
-export type RuinEjectionReason = (typeof RuinEjectionReason)[keyof typeof RuinEjectionReason]
-
-export const RuinEjectionPhase = {
-  Shake: 'shake',
-  Fade: 'fade',
-  Hold: 'hold',
-  Notification: 'notification',
-} as const
-
-export type RuinEjectionPhase = (typeof RuinEjectionPhase)[keyof typeof RuinEjectionPhase]
-
-export interface LostItemSummary {
-  ruinName: string
-  archetype: RuinArchetype
-  items: { definitionId: string; count: number }[]
-}
-
-export interface RuinEjection {
-  startTime: number
-  phase: RuinEjectionPhase
-  reason: RuinEjectionReason
-  ruinIndex: number
-  lostItems: LostItemSummary
-  exited: boolean
+  keyPosition: Position | null
+  tabletPosition: Position | null
+  doorPosition: Position | null
 }
 
 export interface QueuedToast {
@@ -459,10 +393,7 @@ export interface RuinInterior {
   entranceInterior: Position
   explored: boolean
   cleared: boolean
-  subsidence: SubsidenceData | null
   dormantGarden: DormantGardenData | null
-  hauntedThreshold: HauntedThresholdData | null
-  resonance: ResonanceData | null
   fogExplored: Set<string>
   fogDiscovered: Set<string>
   fogIllumination: Map<string, number>

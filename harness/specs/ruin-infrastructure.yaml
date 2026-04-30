@@ -57,13 +57,16 @@ behaviors:
   - id: ruin-interior-type
     description: >
       RuinInterior interface stores per-ruin data: ruinIndex (index
-      into civilizationRuins[]), archetype (RuinArchetype), name
-      (from CivilizationRuin.name), map (Tile[][]), mapWidth, mapHeight,
-      entranceOverworld (Position), entranceInterior (Position),
-      explored (boolean), cleared (boolean), archetypeData (union of
-      per-archetype data types). RuinArchetype const object defines
-      four values: Subsidence, DormantGarden, HauntedThreshold,
-      Resonance. GameState gains ruinInteriors: RuinInterior[].
+      into civilizationRuins[]), archetype (RuinArchetype, always
+      DormantGarden — kept as a typed field for save-format stability
+      and possible future archetypes), name (from CivilizationRuin.name),
+      map (Tile[][]), mapWidth, mapHeight, entranceOverworld (Position),
+      entranceInterior (Position), explored (boolean), cleared (boolean),
+      dormantGarden (DormantGardenData). RuinArchetype const object
+      defines a single value: DormantGarden ('dormantGarden'). GameState
+      gains ruinInteriors: RuinInterior[]. previously-defined per-archetype
+      data fields (subsidence, hauntedThreshold, resonance) are removed
+      from the interface.
     inputs:
       - 'ruin generation during createGameState'
     outputs:
@@ -75,31 +78,29 @@ behaviors:
 
   - id: archetype-assignment
     description: >
-      assignArchetype(ruin, ruinIndex, rng) deterministically picks an
-      archetype based on ruin genesis properties. larger radius + higher
-      age favors Subsidence. many aqueductPaths favors DormantGarden.
-      smaller radius + moderate age favors HauntedThreshold. large
-      radius + few buildingFootprints relative to area favors Resonance.
-      position hash via tileHash(ruin.position.x, ruin.position.y)
-      adds noise to break ties. same seed always produces same assignment.
+      assignArchetype(ruin, ruinIndex, rng) returns DormantGarden
+      unconditionally. the function is retained as the single entry
+      point so callers do not need to be rewritten and so future
+      archetypes can be reintroduced without churn. takes the same
+      arguments as before; ignores them.
     inputs:
       - 'CivilizationRuin data, ruinIndex, seeded rng'
     outputs:
-      - 'RuinArchetype value'
+      - 'RuinArchetype value (always DormantGarden)'
     state_changes: []
     determinism: deterministic
 
   - id: ruin-interior-generation
     description: >
       generateRuinInterior(ruin, ruinIndex, archetype, rng) creates a
-      RuinInterior. map dimensions scale with radius: width = radius * 8
-      + 10, height = radius * 6 + 8. shared generation steps: fill grid
-      with RuinWall, place RuinEntrance at bottom center, carve landing
-      area (3 wide, 2 tall of RuinFloor), carve main passage upward
-      via random waypoints (reusing corridor carving pattern from
-      cave.ts). rng seeded from tileHash(ruin.position.x,
-      ruin.position.y) via mulberry32 for determinism. dispatches to
-      per-archetype generator for layout specifics.
+      RuinInterior. map dimensions scale with radius at 3x the previous
+      defaults: width = radius * 24 + 30, height = radius * 18 + 24.
+      shared generation steps: fill grid with RuinWall, place
+      RuinEntrance at bottom center, carve landing area (3 wide, 2
+      tall of RuinFloor). rng seeded from tileHash(ruin.position.x,
+      ruin.position.y) via mulberry32 for determinism. delegates the
+      bulk of layout to generateDormantGarden (the sole per-archetype
+      generator).
     inputs:
       - 'CivilizationRuin, ruinIndex, archetype, seeded rng'
     outputs:
@@ -157,8 +158,8 @@ behaviors:
       heldDirection, previewFn, facingEntityPos, activeDialog, trail,
       cloverGrowthPreviews. calls transitionCoyoteToZone. sets
       explored to true on the RuinInterior. records discovery for
-      zone:ruin-{ruinIndex}. emits an archetype-specific entry toast
-      (see ruin-collapse-trap-and-ejection ruin-entry-toast).
+      zone:ruin-{ruinIndex}. emits an entry toast naming the ruin and
+      its dormant-garden character.
     inputs:
       - 'player steps on RuinEntrance tile while in overworld'
     outputs:

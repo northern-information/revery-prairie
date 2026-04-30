@@ -255,6 +255,37 @@ export const givePostGift = (state: GameState, characterId: string, time?: numbe
   return null
 }
 
+/** If the player faces a RuinDoorLocked tile and has at least one
+ * aqueductKey in their backpack, consume one key and convert the tile
+ * to RuinDoorOpen. Returns true if the door was unlocked.
+ */
+export const unlockRuinDoor = (state: GameState): boolean => {
+  if (state.currentZone !== Zone.Ruin) return false
+  const d = DIRECTIONS[state.playerFacing]
+  const fx = state.player.x + d.x
+  const fy = state.player.y + d.y
+  if (!isInBounds(fx, fy, state.mapWidth, state.mapHeight)) return false
+  if (state.map[fy][fx].type !== TileType.RuinDoorLocked) return false
+  const keyItem = state.backpack.items.find((i) => i.definitionId === 'aqueductKey')
+  if (!keyItem) return false
+  state.backpack.items = state.backpack.items.filter((i) => i.uid !== keyItem.uid)
+  state.map[fy][fx] = { type: TileType.RuinDoorOpen }
+  // Clear any action bar slot that referenced the now-consumed key, if no
+  // more keys remain in the backpack.
+  const stillHasKey = state.backpack.items.some((i) => i.definitionId === 'aqueductKey')
+  if (!stillHasKey) {
+    for (let i = 0; i < state.actionBar.length; i++) {
+      const slot = state.actionBar[i]
+      if (slot?.kind === 'item' && slot.id === 'aqueductKey') {
+        state.actionBar[i] = null
+      }
+    }
+  }
+  recordDiscovery(state, 'event:ruin-door-unlocked')
+  updateFacingEntity(state)
+  return true
+}
+
 export const breakWall = (state: GameState, time: number): boolean => {
   if (state.caveRevealed) return false
   if (state.currentZone !== Zone.Cave) return false

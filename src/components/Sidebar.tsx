@@ -310,13 +310,11 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                       if (tileType === TileType.RuinFloor) return 'ruin floor'
                       if (tileType === TileType.RuinWall) return 'ruin wall'
                       if (tileType === TileType.RuinEntrance) return 'ruin entrance'
-                      if (tileType === TileType.RuinUnstable) return 'unstable floor'
                       if (tileType === TileType.RuinAqueduct) return 'aqueduct'
                       if (tileType === TileType.RuinAqueductBroken) return 'broken aqueduct'
                       if (tileType === TileType.RuinDebris) return 'debris'
-                      if (tileType === TileType.RuinMachine) return 'ancient machine'
-                      if (tileType === TileType.RuinMachineActive) return 'active machine'
-                      if (tileType === TileType.RuinHiddenFloor) return 'ruin floor'
+                      if (tileType === TileType.RuinDoorLocked) return 'locked door'
+                      if (tileType === TileType.RuinDoorOpen) return 'open door'
                       return tileType ?? 'void'
                     })()}
                   </td>
@@ -453,10 +451,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
               {state.currentRuinIndex !== null && (() => {
                 const interior = state.ruinInteriors[state.currentRuinIndex]
                 const archetypeLabels: Record<string, string> = {
-                  subsidence: 'Subsidence',
                   dormantGarden: 'Dormant garden',
-                  hauntedThreshold: 'Haunted threshold',
-                  resonance: 'Resonance',
                 }
                 return (
                   <>

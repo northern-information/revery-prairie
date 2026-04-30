@@ -10,13 +10,9 @@ describe('ruin visual style', () => {
         TileType.RuinWall,
         TileType.RuinFloor,
         TileType.RuinEntrance,
-        TileType.RuinUnstable,
         TileType.RuinAqueduct,
         TileType.RuinAqueductBroken,
         TileType.RuinDebris,
-        TileType.RuinMachine,
-        TileType.RuinMachineActive,
-        TileType.RuinHiddenFloor,
       ]
       for (const tileType of ruinTileTypes) {
         const layers = getRuinTileLayers(tileType, 10, 10, 0)
@@ -100,29 +96,6 @@ describe('ruin visual style', () => {
       const layers = getRuinTileLayers(TileType.RuinDebris, 5, 5, 0)
       expect(layers.length).toBe(2)
       expect(['▒', '░', '▓']).toContain(layers[0].char)
-    })
-  })
-
-  describe('machine tiles', () => {
-    it('inactive machine has copper glyph with secondary layer', () => {
-      const layers = getRuinTileLayers(TileType.RuinMachine, 5, 5, 0)
-      expect(layers.length).toBe(2)
-      expect(layers[0].color).toBe('#B87333')
-    })
-
-    it('active machine pulses with gold', () => {
-      const layers = getRuinTileLayers(TileType.RuinMachineActive, 5, 5, 0)
-      expect(layers.length).toBe(2)
-      expect(layers[0].color).toBe('#FFD700')
-    })
-
-    it('active machine secondary layer changes with time', () => {
-      const layers1 = getRuinTileLayers(TileType.RuinMachineActive, 5, 5, 0)
-      const layers2 = getRuinTileLayers(TileType.RuinMachineActive, 5, 5, 500)
-      // At different times, the pulse char may differ
-      // Just verify both return valid layers
-      expect(layers1.length).toBe(2)
-      expect(layers2.length).toBe(2)
     })
   })
 

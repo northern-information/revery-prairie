@@ -73,10 +73,7 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'character:moab': { lore: 'TODO' },
   'character:coyote': { lore: 'TODO' },
   // Zones
-  'zone:ruin-subsidence': { lore: 'TODO' },
   'zone:ruin-dormant-garden': { lore: 'TODO' },
-  'zone:ruin-haunted-threshold': { lore: 'TODO' },
-  'zone:ruin-resonance': { lore: 'TODO' },
   'event:cave-fog': { lore: 'TODO' },
   // Recipes
   'recipe:bee+clover': {
@@ -329,17 +326,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     sourceKind: 'event',
   },
   {
-    id: 'zone:ruin-subsidence',
-    name: 'Crumbling Ruin',
-    category: ManualCategory.Zone,
-    glyph: TILE_CHARS[TileType.RuinEntrance],
-    glyphColor: TILE_COLORS[TileType.RuinEntrance],
-    lore: MANUAL_LORE['zone:ruin-subsidence']?.lore ?? 'TODO',
-    hints: MANUAL_LORE['zone:ruin-subsidence']?.hints ?? [],
-    unlockKey: 'zone:ruin-subsidence',
-    sourceKind: 'zone',
-  },
-  {
     id: 'zone:ruin-dormant-garden',
     name: 'Dormant Garden',
     category: ManualCategory.Zone,
@@ -348,28 +334,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     lore: MANUAL_LORE['zone:ruin-dormant-garden']?.lore ?? 'TODO',
     hints: MANUAL_LORE['zone:ruin-dormant-garden']?.hints ?? [],
     unlockKey: 'zone:ruin-dormant-garden',
-    sourceKind: 'zone',
-  },
-  {
-    id: 'zone:ruin-haunted-threshold',
-    name: 'Haunted Threshold',
-    category: ManualCategory.Zone,
-    glyph: 'ö',
-    glyphColor: '#8888CC',
-    lore: MANUAL_LORE['zone:ruin-haunted-threshold']?.lore ?? 'TODO',
-    hints: MANUAL_LORE['zone:ruin-haunted-threshold']?.hints ?? [],
-    unlockKey: 'zone:ruin-haunted-threshold',
-    sourceKind: 'zone',
-  },
-  {
-    id: 'zone:ruin-resonance',
-    name: 'Resonance Chamber',
-    category: ManualCategory.Zone,
-    glyph: TILE_CHARS[TileType.RuinMachine],
-    glyphColor: TILE_COLORS[TileType.RuinMachine],
-    lore: MANUAL_LORE['zone:ruin-resonance']?.lore ?? 'TODO',
-    hints: MANUAL_LORE['zone:ruin-resonance']?.hints ?? [],
-    unlockKey: 'zone:ruin-resonance',
     sourceKind: 'zone',
   },
   {

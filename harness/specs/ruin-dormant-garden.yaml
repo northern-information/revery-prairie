@@ -1,88 +1,158 @@
 id: ruin-dormant-garden
-name: 'Ruin archetype: dormant garden'
+name: 'Ruin archetype: dormant garden (sole archetype)'
 status: planned
-priority: medium
+priority: high
 layer: engine
 source_files:
   - src/engine/ruins.ts
   - src/engine/types.ts
+  - src/engine/items.ts
   - src/engine/constants.ts
   - src/engine/position.ts
   - src/engine/renderer.ts
   - src/engine/gameLoop.ts
   - src/engine/actionBar.ts
   - src/engine/interaction.ts
+  - src/engine/manual.ts
 dependencies:
   - ruin-infrastructure
+  - ruin-locked-door
 
 behaviors:
   - id: dormant-garden-data
     description: >
-      DormantGardenData interface stores: aqueductTiles (Set of posKeys
-      for all channel positions), breakPoints (Position[] of broken
-      channel locations), repairedBreaks (Set of posKeys for fixed
-      breaks), debrisPositions (Position[] of clearable rubble),
-      seedVault (Position of vault chamber center), seedDecayTimers
-      (Map of posKey to ms remaining before seed dies), waterFlowing
-      (boolean, true when all breaks repaired).
+      DormantGardenData is the only archetype data interface. it stores
+      aqueductTiles (Set of posKeys for all channel positions),
+      breakPoints (Position[] of broken channel locations), repairedBreaks
+      (Set of posKeys for fixed breaks), debrisPositions (Position[] of
+      clearable rubble), seedVault (Position of vault chamber center),
+      seedDecayTimers (Map of posKey to ms remaining before seed dies),
+      seedDecayAcceleration (number multiplier on decay rate, default 1.0),
+      waterFlowing (boolean, true when all breaks repaired),
+      keyPosition (Position where aqueductKey ground item spawns inside
+      the maze), tabletPosition (Position where stoneTablet ground item
+      spawns inside the maze), doorPosition (Position of the
+      RuinDoorLocked tile that gates the seed vault).
     inputs:
-      - 'ruin generation with DormantGarden archetype'
+      - 'ruin generation creates the sole archetype'
     outputs:
-      - 'DormantGardenData populated on RuinInterior.archetypeData'
+      - 'DormantGardenData populated on RuinInterior.dormantGarden'
     state_changes: []
     determinism: deterministic
 
-  - id: dormant-garden-generation
+  - id: maze-generation
     description: >
-      generateDormantGarden carves an L-shaped or Z-shaped main
-      corridor (width 3 tiles). number of turns derived from
-      aqueductPaths.length on the genesis ruin data. RuinAqueduct
-      tiles form a 1-tile-wide channel down the corridor center.
-      2-4 break points placed along the channel as RuinAqueductBroken
-      tiles. 3-5 RuinDebris tiles at corridor intersections and wider
-      areas. a 5x4 seed vault chamber carved at the corridor terminus.
-      3-5 seed ground items placed in the vault with decay timers
-      ranging 45-90 seconds (scaled by ruin age — older = faster decay).
+      generateDormantGarden carves an aqueduct-themed layout: long
+      straight corridors with a few alternate routes and dead ends.
+      map dimensions are 3x the previous infrastructure defaults:
+      width = radius * 24 + 30, height = radius * 18 + 24.
+      seeded rng from tileHash(ruin.position.x, ruin.position.y) via
+      mulberry32. fills grid with RuinWall. carves a primary spine
+      corridor (3 tiles wide) running from the entrance landing toward
+      the deepest carve target. carves 2-3 perpendicular branch
+      corridors (3 tiles wide) off the spine. carves 2-4 short
+      side passages (1-2 tiles wide, 3-6 tiles long) that dead-end
+      (small alcoves). carves 1-2 alternate loop passages where a
+      branch rejoins the spine further along its run. the entrance
+      landing area (3 wide, 2 tall) is at bottom center. a 5x4 seed
+      vault chamber is carved at the spine terminus, the deepest
+      reachable cell from the entrance (measured by BFS distance).
+      the door is placed on the single tile that connects the vault
+      chamber to the spine.
     inputs:
-      - 'CivilizationRuin with DormantGarden archetype, seeded rng'
+      - 'CivilizationRuin (radius, age, aqueductPaths), seeded rng'
     outputs:
-      - 'RuinInterior with corridor layout, aqueduct channels, break points, vault'
+      - 'RuinInterior with loopy maze layout, vault chamber, gated door'
     state_changes: []
+    determinism: deterministic
+
+  - id: aqueduct-channels-in-corridors
+    description: >
+      after corridors are carved, aqueduct channels (RuinAqueduct tiles)
+      are laid down the center line of the spine corridor and through
+      the seed vault. 2-4 break points along the channel are converted
+      to RuinAqueductBroken. 3-5 RuinDebris tiles are scattered at
+      branch intersections and along the spine where it widens.
+    inputs:
+      - 'corridor layout, seeded rng, aqueductPaths from genesis ruin data'
+    outputs:
+      - 'aqueduct channel + break points + debris overlaid on corridors'
+    state_changes: []
+    determinism: deterministic
+
+  - id: aqueduct-key-placement
+    description: >
+      after corridors + channels, the aqueductKey ground item is placed
+      at a corridor cell whose BFS distance from the entrance is between
+      60% and 85% of the deepest reachable distance, chosen via seeded
+      rng. the cell must not be inside the seed vault and must not be
+      the doorPosition. dead-end alcoves are preferred when available.
+      the key is the only way to unlock the door without future
+      mechanics. recorded on DormantGardenData.keyPosition. spawned as
+      an ItemDrop entity with definitionId 'aqueductKey'.
+    inputs:
+      - 'corridor layout, BFS distances, seeded rng'
+    outputs:
+      - 'aqueductKey ground item spawned in deep corridor cell'
+    state_changes:
+      - field: world
+        effect: 'ItemDrop entity created at keyPosition with aqueductKey'
+    determinism: deterministic
+
+  - id: stone-tablet-placement
+    description: >
+      after corridors + channels, the stoneTablet ground item is placed
+      at a corridor cell whose BFS distance from the entrance is
+      between 25% and 55% of the deepest reachable distance, chosen via
+      seeded rng. the cell must not be inside the seed vault, must not
+      be the doorPosition, must not be the keyPosition, and must not be
+      on a RuinAqueduct or RuinAqueductBroken tile. recorded on
+      DormantGardenData.tabletPosition. spawned as an ItemDrop entity
+      with definitionId 'stoneTablet'. the tablet is purely a
+      collectable artifact — no gating effect.
+    inputs:
+      - 'corridor layout, BFS distances, seeded rng'
+    outputs:
+      - 'stoneTablet ground item spawned in mid-depth corridor cell'
+    state_changes:
+      - field: world
+        effect: 'ItemDrop entity created at tabletPosition with stoneTablet'
     determinism: deterministic
 
   - id: aqueduct-tile-types
     description: >
-      TileType gains RuinAqueduct ('ruinAqueduct'), RuinAqueductBroken
-      ('ruinAqueductBroken'), and RuinDebris ('ruinDebris'). RuinAqueduct
-      and RuinAqueductBroken are walkable. RuinDebris is not walkable.
-      RuinAqueduct renders as '~' in blue-gray #6688AA. RuinAqueductBroken
-      renders as '~' in dark brown. RuinDebris renders as crumble-stage
-      char in brown #8B7355.
+      TileType gains RuinAqueduct (ruinAqueduct), RuinAqueductBroken
+      (ruinAqueductBroken), RuinDebris (ruinDebris). RuinAqueduct and
+      RuinAqueductBroken are walkable. RuinDebris is not walkable.
+      RuinAqueduct renders as ~ in blue-gray #6688AA. RuinAqueductBroken
+      renders as ~ in dark brown. RuinDebris renders as crumble-stage
+      char in brown #8B7355. these tile types only appear inside dormant
+      garden ruins.
     inputs:
       - 'tile rendering and walkability checks'
     outputs:
-      - 'three new tile types for dormant garden archetype'
+      - 'three tile types for dormant garden archetype'
     state_changes: []
     determinism: deterministic
 
   - id: seed-decay-tick
     description: >
-      ruin-dormant-garden tick system (zone: 'ruin', interval 1000ms).
-      only runs when current ruin archetype is DormantGarden. ticks
-      each seed's decay timer down. seeds progress through stages:
-      healthy (full timer), brown (below 66%), blinkingRed (below 33%),
-      decomposed (0, removed). visual state derived from timer percentage.
-      when waterFlowing is true: all decay stops, seeds in brown stage
-      reverse to healthy. seeds at blinkingRed or beyond are terminal —
-      water cannot save them. decomposed seeds are removed and enrich
-      soil health at their position.
+      ruin-dormant-garden tick system (zone: ruin, interval 1000ms).
+      runs only when player is inside a ruin (only one archetype now,
+      so this is equivalent to inside any ruin). ticks each seed decay
+      timer down by 1000 * seedDecayAcceleration. seeds progress through
+      stages: healthy (full timer), brown (below 66%), blinkingRed
+      (below 33%), decomposed (0, removed). when waterFlowing is true,
+      decay stops and seeds in brown stage reverse to healthy.
+      blinkingRed seeds are terminal. decomposed seeds enrich soil
+      health at their position when removed.
     inputs:
       - 'tick fires every 1000ms while player is in dormant garden ruin'
     outputs:
       - 'seeds visually decay, can be saved or lost'
     state_changes:
       - field: world
-        effect: 'seed entities destroyed when fully decomposed'
+        effect: 'seed entities destroyed when decomposed'
       - field: soilHealth
         effect: 'enriched at decomposed seed positions'
     determinism: time-based
@@ -90,11 +160,10 @@ behaviors:
   - id: water-revery-repair
     description: >
       casting water revery while targeting or facing a RuinAqueductBroken
-      tile repairs it. the tile type changes from RuinAqueductBroken to
-      RuinAqueduct. the position is added to repairedBreaks set. when
-      all breakPoints positions are in repairedBreaks, waterFlowing is
-      set to true and all active seed decay stops. standard 12s water
-      revery cooldown applies.
+      tile repairs it. tile changes from RuinAqueductBroken to RuinAqueduct.
+      position added to repairedBreaks. when all breakPoints are in
+      repairedBreaks, waterFlowing is set to true and active seed decay
+      stops. standard 12s water revery cooldown applies.
     inputs:
       - 'water revery cast on or adjacent to RuinAqueductBroken tile'
     outputs:
@@ -102,16 +171,19 @@ behaviors:
     state_changes:
       - field: map
         effect: 'RuinAqueductBroken tile becomes RuinAqueduct'
+      - field: dormantGarden.repairedBreaks
+        effect: 'posKey added'
+      - field: dormantGarden.waterFlowing
+        effect: 'set to true when all breaks repaired'
     determinism: deterministic
 
   - id: fire-revery-debris-clear
     description: >
-      casting fire revery on a RuinDebris tile clears it. the tile
-      type changes from RuinDebris to RuinFloor. however, if fire
-      revery hits a RuinAqueduct tile, all seed decay timers are
-      accelerated by 50% (dry root system ignited). a warning toast
-      displays: 'the dry roots catch fire...'. standard 12s fire
-      revery cooldown applies.
+      casting fire revery on a RuinDebris tile clears it. tile changes
+      from RuinDebris to RuinFloor. fire revery on a RuinAqueduct tile
+      sets seedDecayAcceleration to 1.5 for the rest of the visit
+      (dry root system ignited) and toasts: the dry roots catch fire...
+      standard 12s fire revery cooldown applies.
     inputs:
       - 'fire revery cast on RuinDebris or RuinAqueduct tile'
     outputs:
@@ -119,14 +191,15 @@ behaviors:
     state_changes:
       - field: map
         effect: 'RuinDebris becomes RuinFloor (if debris hit)'
+      - field: dormantGarden.seedDecayAcceleration
+        effect: 'set to 1.5 (if aqueduct hit)'
     determinism: deterministic
 
   - id: manual-repair-interaction
     description: >
-      pressing [e] while facing a RuinAqueductBroken tile initiates
-      a manual repair. slower than water revery (takes 3 seconds of
-      standing still) but has no cooldown dependency. provides an
-      alternative path for players without water revery available.
+      pressing [e] while facing a RuinAqueductBroken tile initiates a
+      manual repair. takes 3 seconds of standing still, no cooldown.
+      provides an alternative path for players without water revery.
     inputs:
       - '[e] pressed while facing RuinAqueductBroken'
     outputs:
@@ -138,11 +211,12 @@ behaviors:
 
   - id: dormant-garden-multilayer-visuals
     description: >
-      aqueduct channels rendered with box-drawing chars and overlay
-      dots at offsets matching genesis aqueduct style. broken channels
+      aqueduct channels rendered with box-drawing chars and overlay dots
+      at offsets matching the genesis aqueduct style. broken channels
       use fragmenting chars in fading brown. seed vault chamber has
-      denser floor layers suggesting preserved architecture. debris
-      tiles use crumble chars in browns with 2 layers.
+      denser floor layers suggesting preserved architecture. debris tiles
+      use crumble chars in browns with 2 layers. corridor walls use the
+      shared RuinWall multilayer style from ruin-infrastructure.
     inputs:
       - 'renderer drawing dormant garden ruin tiles'
     outputs:
@@ -151,13 +225,21 @@ behaviors:
     determinism: deterministic
 
 edge_cases:
+  - id: corridor-too-small-for-deep-key
+    description: 'tiny ruin (radius 3) produces a layout where the 60-85% depth band has no eligible corridor cells'
+    expected: 'fall back to the deepest non-vault corridor cell — key still spawns, never inside the vault'
+
+  - id: tablet-band-collides-with-key-band
+    description: 'tablet 25-55% band has only one candidate cell and it equals keyPosition'
+    expected: 'tablet placement falls back to nearest non-conflicting corridor cell outside the vault'
+
   - id: all-seeds-decomposed
     description: 'all seeds decompose before water reaches vault'
-    expected: 'soil enriched at each decomposed position, ruin marked as cleared with partial result'
+    expected: 'soil enriched at each decomposed position, ruin marked cleared with partial result'
 
   - id: fire-on-aqueduct-with-water-flowing
     description: 'fire revery hits aqueduct after waterFlowing is already true'
-    expected: 'no effect on decay timers — water is already flowing, seeds are stabilized'
+    expected: 'no effect on decay timers — water is flowing, seeds stable'
 
   - id: repair-last-break-with-terminal-seeds
     description: 'player repairs final break but some seeds are already at blinkingRed'
@@ -167,12 +249,19 @@ edge_cases:
     description: 'player exits and re-enters a dormant garden ruin'
     expected: 'decay timers pause while player is outside (timers are ms remaining, not wallclock timestamps)'
 
+  - id: key-already-collected-on-reenter
+    description: 'player picks up aqueductKey, exits, re-enters'
+    expected: 'aqueductKey is not respawned — keyPosition still set on data, but no ItemDrop entity exists'
+
 failure_conditions:
   - trigger: 'water revery cast with no broken aqueduct tiles in range'
     expected: 'standard water revery effect on ruin floor (cross-pattern water), no repair'
 
   - trigger: 'fire revery cast on RuinWall (not debris)'
     expected: 'no effect — fire revery only interacts with debris and aqueduct tiles in ruins'
+
+  - trigger: 'corridor generation produces no cell at >= 6 BFS distance from entrance'
+    expected: 'this should not happen at the new 3x dimensions — failing this means the spine carve algorithm regressed and tests should fail'
 
 verification:
   test_file: src/engine/__tests__/ruin-dormant-garden.test.ts

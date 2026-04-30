@@ -11,28 +11,24 @@ source_files:
   - src/components/DevPanel.tsx
 dependencies:
   - dev-panel
-  - ruin-archetype-distribution
-  - ruin-subsidence
   - ruin-dormant-garden
-  - ruin-haunted-threshold
-  - ruin-resonance
 
 behaviors:
   - id: ruin-preset
     description: >
-      a new "Ruin" entry is added to DEV_PRESETS in src/engine/devPanel.ts.
+      a "Ruin" entry exists in DEV_PRESETS in src/engine/devPanel.ts.
       selecting it from the preset dropdown pre-checks a single virtual
-      RuinSpawn entry exposing two editable fields: archetype (select
-      with the four RuinArchetype values: subsidence, dormantGarden,
-      hauntedThreshold, resonance) and glyph (select with the values
-      "random" plus the ten ENTRANCE_GLYPHS — Ω, Δ, Φ, Ψ, Σ, Λ, Θ, Π, Ξ, Γ).
-      archetype defaults to subsidence. glyph defaults to "random".
-      no other components are auto-checked when the Ruin preset is selected.
+      RuinSpawn entry exposing one editable field: glyph (select with
+      the values "random" plus the ten ENTRANCE_GLYPHS — Ω, Δ, Φ, Ψ, Σ,
+      Λ, Θ, Π, Ξ, Γ). there is no archetype dropdown — the only archetype
+      is dormantGarden and it is applied implicitly. glyph defaults to
+      "random". no other components are auto-checked when the Ruin preset
+      is selected.
     inputs:
       - 'user selects "Ruin" preset from DevPanel preset dropdown'
     outputs:
       - 'RuinSpawn virtual component appears as the only checked entry'
-      - 'archetype and glyph dropdowns render with their default values'
+      - 'glyph dropdown renders with its default value'
     state_changes: []
     determinism: deterministic
 
@@ -46,8 +42,8 @@ behaviors:
       on mouseup over a valid tile, spawnDevEntity branches on the
       RuinSpawn pseudo-component and calls a new spawnDevRuin helper in
       devPanel.ts that places a RuinEntrance tile at the drop position,
-      generates a RuinInterior with the chosen archetype, assigns the
-      chosen glyph (or picks one at random from ENTRANCE_GLYPHS when
+      generates a RuinInterior with the dormantGarden archetype, assigns
+      the chosen glyph (or picks one at random from ENTRANCE_GLYPHS when
       "random"), and pushes the interior onto state.ruinInteriors.
     inputs:
       - 'mousedown on drag handle with Ruin preset active'
@@ -88,19 +84,17 @@ behaviors:
     description: >
       spawnDevRuin fabricates a minimal CivilizationRuin (position from
       drop, generated name, default radius, age, empty aqueductPaths and
-      buildingFootprints) and passes it to generateRuinInterior together
-      with the user-picked archetype. ruinIndex is set to the current
-      length of state.ruinInteriors at the time of the call. entranceOverworld
-      is set to the drop position. the resulting interior is not entered
-      automatically — the player must walk onto the entrance tile like any
-      other ruin.
+      buildingFootprints) and passes it to generateRuinInterior with
+      the dormantGarden archetype. ruinIndex is set to the current
+      length of state.ruinInteriors at the time of the call.
+      entranceOverworld is set to the drop position. the resulting
+      interior is not entered automatically — the player must walk onto
+      the entrance tile like any other ruin.
     inputs:
       - 'drop position (x, y)'
-      - 'chosen archetype'
       - 'chosen glyph (after random resolution)'
     outputs:
-      - 'fully constructed RuinInterior with archetype-specific data
-        (subsidence | dormantGarden | hauntedThreshold | resonance) populated'
+      - 'fully constructed RuinInterior with dormantGarden data populated'
     state_changes:
       - field: ruinInteriors
         effect: 'new entry appended at index = previous length'
@@ -153,7 +147,7 @@ failure_conditions:
     expected: 'no tile change, no interior added, drag cancelled silently'
   - trigger: 'current zone is not Overworld at drop time'
     expected: 'no tile change, no interior added, drag cancelled silently'
-  - trigger: 'generateRuinInterior throws for the chosen archetype'
+  - trigger: 'generateRuinInterior throws while building the dormant garden interior'
     expected: 'error surfaced to console; tile is not modified and ruinInteriors is not mutated'
 
 verification:

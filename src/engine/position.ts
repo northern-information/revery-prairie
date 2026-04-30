@@ -47,8 +47,7 @@ export const isWalkableTile = (tileType: TileType): boolean =>
   tileType !== TileType.CaveBreakableWall &&
   tileType !== TileType.RuinWall &&
   tileType !== TileType.RuinDebris &&
-  tileType !== TileType.RuinMachine &&
-  tileType !== TileType.RuinMachineActive
+  tileType !== TileType.RuinDoorLocked
 
 /** Find the nearest walkable tile adjacent to an entrance for safe exit placement.
  *  Checks south first (preferred), then remaining cardinals, then diagonals.

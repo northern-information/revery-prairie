@@ -12,11 +12,6 @@ import {
   BG_COLOR,
   DEEP_TIME_SHAKE_AMPLITUDE,
   DEEP_TIME_TRANSITION_GLYPH_DURATION_MS,
-  RUIN_EJECTION_FADE_MS,
-  RUIN_EJECTION_HOLD_MS,
-  RUIN_EJECTION_NOTIFICATION_FADE_MS,
-  RUIN_EJECTION_SHAKE_AMPLITUDE,
-  RUIN_EJECTION_SHAKE_MS,
   BUILDING_CHARS,
   BURN_SCAR_COLORS,
   CLOVER_BLACK_COLOR,
@@ -122,7 +117,7 @@ import {
 import { getTweenLerp } from './movementTween'
 import { isInBounds, posKey, tileHash } from './position'
 import { getReveryDefinition } from './reveries'
-import { getEntranceHaloCells, getRuinTileLayers, isHiddenTile, shouldRenderRuinMultilayer } from './ruins'
+import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
@@ -285,20 +280,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   ctx.font = metrics.font
   ctx.textBaseline = 'top'
 
-  // Camera shake — translate entire canvas during impacts, deep time, or ruin ejection
-  const ejection = state.ruinEjection
-  const ejectionElapsed = ejection ? time - ejection.startTime : 0
-  const ejectionShake =
-    ejection != null && !ejection.exited && ejectionElapsed < RUIN_EJECTION_SHAKE_MS
+  // Camera shake — translate entire canvas during impacts or deep time
   const deepTimeShake = state.deepTime?.active === true && time < state.deepTime.shakeUntil
   const satelliteShake = time < state.screenShakeUntil
-  const shakeActive = deepTimeShake || ejectionShake || satelliteShake
+  const shakeActive = deepTimeShake || satelliteShake
   if (shakeActive) {
-    const amplitude = ejectionShake
-      ? RUIN_EJECTION_SHAKE_AMPLITUDE
-      : satelliteShake
-        ? SATELLITE_SHAKE_AMPLITUDE
-        : DEEP_TIME_SHAKE_AMPLITUDE
+    const amplitude = satelliteShake
+      ? SATELLITE_SHAKE_AMPLITUDE
+      : DEEP_TIME_SHAKE_AMPLITUDE
     const sx = (Math.random() * 2 - 1) * amplitude
     const sy = (Math.random() * 2 - 1) * amplitude
     ctx.save()
@@ -1458,14 +1447,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (!state.caveRevealed && state.caveHiddenPositions.has(tileKey)) {
           char = TILE_CHARS[TileType.CaveWall]
           color = TILE_COLORS[TileType.CaveWall]
-        } else if (
-          state.currentZone === Zone.Ruin &&
-          state.currentRuinIndex !== null &&
-          isHiddenTile(state.ruinInteriors[state.currentRuinIndex], mx, my, time)
-        ) {
-          // Resonance: hidden tiles render as wall
-          char = TILE_CHARS[TileType.RuinWall]
-          color = TILE_COLORS[TileType.RuinWall]
         } else if (state.currentZone === Zone.Overworld && state.rivers.has(tileKey)) {
           // River water (overworld only)
           const h2 = tileHash(mx, my)
@@ -1842,34 +1823,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const alpha = LIGHTNING_SCREEN_FLASH_OPACITY * (1 - angelFlashElapsed / LIGHTNING_SCREEN_FLASH_MS)
     ctx.fillStyle = `rgba(255, 255, 255, ${String(alpha)})`
     ctx.fillRect(0, 0, pxWidth, pxHeight)
-  }
-
-  // Ruin ejection fade-to-black overlay
-  if (ejection) {
-    let fadeAlpha = 0
-    if (!ejection.exited) {
-      const afterShake = ejectionElapsed - RUIN_EJECTION_SHAKE_MS
-      if (afterShake < 0) {
-        fadeAlpha = 0
-      } else if (afterShake < RUIN_EJECTION_FADE_MS) {
-        fadeAlpha = afterShake / RUIN_EJECTION_FADE_MS
-      } else if (afterShake < RUIN_EJECTION_FADE_MS + RUIN_EJECTION_HOLD_MS) {
-        fadeAlpha = 1
-      } else {
-        fadeAlpha = 1
-      }
-    } else {
-      const notifElapsed = time - ejection.startTime
-      if (notifElapsed < RUIN_EJECTION_NOTIFICATION_FADE_MS) {
-        fadeAlpha = 1 - notifElapsed / RUIN_EJECTION_NOTIFICATION_FADE_MS
-      } else {
-        fadeAlpha = 0
-      }
-    }
-    if (fadeAlpha > 0) {
-      ctx.fillStyle = `rgba(0, 0, 0, ${String(fadeAlpha)})`
-      ctx.fillRect(0, 0, pxWidth, pxHeight)
-    }
   }
 
   // RTS selection box overlay

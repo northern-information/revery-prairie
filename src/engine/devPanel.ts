@@ -523,10 +523,7 @@ export const RUIN_PRESET_LABEL = 'Ruin'
 export const RUIN_GLYPH_RANDOM = 'random'
 
 export const RUIN_ARCHETYPE_OPTIONS: readonly { value: RuinArchetype; label: string }[] = [
-  { value: RuinArchetype.Subsidence, label: 'subsidence' },
   { value: RuinArchetype.DormantGarden, label: 'dormant garden' },
-  { value: RuinArchetype.HauntedThreshold, label: 'haunted threshold' },
-  { value: RuinArchetype.Resonance, label: 'resonance' },
 ]
 
 export const RUIN_GLYPH_OPTIONS: readonly string[] = [RUIN_GLYPH_RANDOM, ...ENTRANCE_GLYPHS]
