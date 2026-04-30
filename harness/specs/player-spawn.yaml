@@ -15,6 +15,26 @@ dependencies:
   - genesis-transition
 
 behaviors:
+  - id: spawn-position
+    description: >
+      The player's deterministic spawn tile sits one tile west of the
+      exact map center: (floor(MAP_WIDTH/2) - 1, floor(MAP_HEIGHT/2)).
+      With MAP_WIDTH = MAP_HEIGHT = 147, this is (72, 73). Gron occupies
+      the exact center tile (73, 73), so the player and Gron always
+      spawn adjacent. The cave entrance is placed just outside Gron's
+      rain aura via the existing minCaveDist/maxCaveDist ring
+      (eastward bias preserved). state.playerSpawn.spawnPos is
+      initialized to this position; state.player.x/y match.
+    inputs:
+      - 'createGameState invoked'
+    outputs: []
+    state_changes:
+      - field: player
+        effect: 'set to (floor(MAP_WIDTH/2) - 1, floor(MAP_HEIGHT/2))'
+      - field: playerSpawn.spawnPos
+        effect: 'matches state.player'
+    determinism: deterministic
+
   - id: spawn-state-record
     description: >
       every player carries a spawn record describing whether the player

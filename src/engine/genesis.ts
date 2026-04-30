@@ -1937,7 +1937,7 @@ const riseOfCivilizations: GenesisEpoch = {
     if (space) return space
 
     // Gron appears at the dawn of civilization
-    const gronX = Math.floor(sim.width / 2) + 5
+    const gronX = Math.floor(sim.width / 2)
     const gronY = Math.floor(sim.height / 2)
     if (x === gronX && y === gronY && progress > 0.3) {
       const gron = getGronVisuals()
@@ -2223,7 +2223,7 @@ const fallOfCivilizations: GenesisEpoch = {
       }
     }
 
-    const gronX = Math.floor(sim.width / 2) + 5
+    const gronX = Math.floor(sim.width / 2)
     const gronY = Math.floor(sim.height / 2)
 
     // Kill vegetation everywhere except within Gron's rain aura
@@ -2388,7 +2388,7 @@ const fallOfCivilizations: GenesisEpoch = {
     if (space) return space
 
     // Gron persists
-    const gronX = Math.floor(sim.width / 2) + 5
+    const gronX = Math.floor(sim.width / 2)
     const gronY = Math.floor(sim.height / 2)
     if (x === gronX && y === gronY) {
       const gron = getGronVisuals()
@@ -2561,7 +2561,8 @@ export const enforceConnectivity = (sim: GenesisSimState): void => {
   const spawnX = Math.floor(sim.width / 2)
   const spawnY = Math.floor(sim.height / 2)
 
-  // BFS from player spawn through walkable tiles (including water overlay positions)
+  // BFS from the exact map center (Gron's tile, adjacent to the player
+  // spawn) through walkable tiles (including water overlay positions)
   const startKey = posKey(spawnX, spawnY)
   const reachable = new Set<string>()
   const queue: string[] = [startKey]
@@ -2716,7 +2717,7 @@ const presentDay: GenesisEpoch = {
     }
 
     // Gron
-    const gronX = Math.floor(sim.width / 2) + 5
+    const gronX = Math.floor(sim.width / 2)
     const gronY = Math.floor(sim.height / 2)
     if (x === gronX && y === gronY) {
       const gron = getGronVisuals()

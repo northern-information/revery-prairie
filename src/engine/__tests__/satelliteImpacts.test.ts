@@ -33,8 +33,16 @@ const clearArea = (state: GameState, cx: number, cy: number, radius: number) => 
 
 const makeState = (): GameState => {
   const state = createGameState('test', 40, 30)
-  // Clear terrain around player
-  clearArea(state, state.player.x, state.player.y, 15)
+  // Convert all land tiles to plain Dirt so probabilistic spawn targets
+  // (mocked Math.random landing positions) always hit valid terrain.
+  for (let y = 0; y < state.mapHeight; y++) {
+    for (let x = 0; x < state.mapWidth; x++) {
+      const t = state.map[y][x].type
+      if (t === TileType.Dirt || t === TileType.Clover || t === TileType.BurntClover || t === TileType.Sand) {
+        state.map[y][x] = { type: TileType.Dirt }
+      }
+    }
+  }
   // Reset shooting stars and meteorites seeded by createGameState
   for (const eid of state.world.query(ComponentType.ShootingStarData)) {
     state.world.destroyEntity(eid)

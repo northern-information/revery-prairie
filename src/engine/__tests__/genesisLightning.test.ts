@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { withSeededRandom } from '@/harness/prng'
 
+import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
 import { createGenesisState, GENESIS_EPOCHS, runAllMutations } from '../genesis'
 import { posKey } from '../position'
 
@@ -9,7 +10,7 @@ const SEED = 42
 
 describe('genesis lightning bolts', () => {
   it('FireSeason produces lightning bolts alongside meteorites', () => {
-    const sim = withSeededRandom(SEED, () => createGenesisState(170, 95, SEED))
+    const sim = withSeededRandom(SEED, () => createGenesisState(MAP_WIDTH, MAP_HEIGHT, SEED))
     withSeededRandom(SEED, () => {
       runAllMutations(sim, GENESIS_EPOCHS)
     })
@@ -20,7 +21,7 @@ describe('genesis lightning bolts', () => {
   })
 
   it('lightning bolt paths are valid vertical zigzag patterns', () => {
-    const sim = withSeededRandom(SEED, () => createGenesisState(170, 95, SEED))
+    const sim = withSeededRandom(SEED, () => createGenesisState(MAP_WIDTH, MAP_HEIGHT, SEED))
     withSeededRandom(SEED, () => {
       runAllMutations(sim, GENESIS_EPOCHS)
     })
@@ -49,7 +50,7 @@ describe('genesis lightning bolts', () => {
   })
 
   it('lightning impact points contribute to fire BFS spread', () => {
-    const sim = withSeededRandom(SEED, () => createGenesisState(170, 95, SEED))
+    const sim = withSeededRandom(SEED, () => createGenesisState(MAP_WIDTH, MAP_HEIGHT, SEED))
     withSeededRandom(SEED, () => {
       runAllMutations(sim, GENESIS_EPOCHS)
     })
@@ -66,7 +67,7 @@ describe('genesis lightning bolts', () => {
   })
 
   it('lightning bolts have staggered start times', () => {
-    const sim = withSeededRandom(SEED, () => createGenesisState(170, 95, SEED))
+    const sim = withSeededRandom(SEED, () => createGenesisState(MAP_WIDTH, MAP_HEIGHT, SEED))
     withSeededRandom(SEED, () => {
       runAllMutations(sim, GENESIS_EPOCHS)
     })

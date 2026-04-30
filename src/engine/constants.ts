@@ -1,7 +1,7 @@
 import { RuinArchetype, TileType } from './types'
 
-export const MAP_WIDTH = 170
-export const MAP_HEIGHT = 95
+export const MAP_WIDTH = 147
+export const MAP_HEIGHT = 147
 export const SPACE_BORDER = 10
 export const FONT = '16px monospace'
 export const BASE_FONT_SIZE = 16

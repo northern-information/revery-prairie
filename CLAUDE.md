@@ -83,7 +83,9 @@ two paths:
 
 ## map
 
-170x95 tile grid. the land is a dirt island surrounded by space (twinkling stars on black) with a randomized coastline (smoothed noise). sand sits between space and dirt (2 tiles wide). viewport auto-fits to the browser window. camera centers on the player, clamped to map bounds.
+147x147 tile grid (127x127 land area, after the `SPACE_BORDER` frame on every edge). the land is a dirt island surrounded by space (twinkling stars on black) with a randomized coastline (smoothed noise). sand sits between space and dirt (2 tiles wide). viewport auto-fits to the browser window. camera centers on the player, clamped to map bounds.
+
+odd dimensions guarantee a single exact-center tile at `(73, 73)`. Gron sits on it. the player spawns one tile west of Gron at `(72, 73)`. the cave entrance is placed in a ring just outside Gron's rain aura.
 
 player cannot walk on space. clover cannot grow on space or sand.
 

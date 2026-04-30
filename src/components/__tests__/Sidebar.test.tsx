@@ -43,7 +43,7 @@ describe('Sidebar', () => {
       />
     )
 
-    expect(screen.getByText('16,150')).toBeInTheDocument()
+    expect(screen.getByText('21,609')).toBeInTheDocument()
   })
 
   it('shows prairie as no initially', () => {
