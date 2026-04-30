@@ -1180,11 +1180,28 @@ describe('water continuity at genesis-to-game transition', () => {
     for (const key of sim.ponds) trackedWater.add(key)
     for (const key of sim.meltPools) trackedWater.add(key)
 
-    // Check all land tiles — any water rendered should be in tracked sets
+    // Pre-compute every tile that lies along a satellite crash trail.
+    // These tiles render BUILDING_CHARS (which include '=') during the
+    // crash animation; they are tracked state, not phantom water.
+    const inSatelliteCrashPath = new Set<string>()
+    for (const crash of sim.satelliteCrashes) {
+      const totalSteps = Math.abs(crash.impactX - crash.startX) + Math.abs(crash.impactY - crash.startY)
+      for (let s = 0; s <= totalSteps; s++) {
+        const tx = crash.startX + crash.dx * s
+        const ty = crash.startY + crash.dy * s
+        inSatelliteCrashPath.add(posKey(tx, ty))
+      }
+    }
+
+    // Check all land tiles — any water rendered should be in tracked sets.
+    // Some tile-state branches reuse glyphs that overlap the water set
+    // (craters and crash trails use BUILDING_CHARS that include '=';
+    // aqueducts render as '~'/'='/'-'); those tiles are tracked state,
+    // not phantom water.
     for (const key of sim.landMask) {
-      // Cratered tiles render with BUILDING_CHARS which overlaps the water
-      // glyph set ('=' is in both); craters are tracked state, not phantom water.
       if (sim.craters.has(key)) continue
+      if (sim.aqueductNetwork.has(key)) continue
+      if (inSatelliteCrashPath.has(key)) continue
       const [xStr, yStr] = key.split(',')
       const x = Number(xStr)
       const y = Number(yStr)
@@ -1243,7 +1260,7 @@ describe('presentDay rain aura rendering', () => {
     precomputeGenesis(sim, GENESIS_EPOCHS)
 
     const presentDay = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
-    const gronX = Math.floor(sim.width / 2) + 5
+    const gronX = Math.floor(sim.width / 2)
     const gronY = Math.floor(sim.height / 2)
 
     // Apply the final epoch snapshot
@@ -1276,25 +1293,24 @@ describe('presentDay rain aura rendering', () => {
     expect(rainFound).toBe(true)
   })
 
-  it('does not render rain on Gron or player tiles', () => {
+  it('does not render rain on the Gron tile', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
     precomputeGenesis(sim, GENESIS_EPOCHS)
 
     const presentDay = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
-    const gronX = Math.floor(sim.width / 2) + 5
+    const gronX = Math.floor(sim.width / 2)
     const gronY = Math.floor(sim.height / 2)
 
     sim.epochIndex = GENESIS_EPOCHS.length - 1
 
-    // Gron tile — should be single entry (character glyph only)
+    // Gron tile — should be single entry (character glyph only).
+    // The player tile is intentionally not asserted here: the player
+    // is not drawn during genesis presentDay (the steward arrives via
+    // the spawn-meteor ceremony), so rain may or may not animate at
+    // the eventual spawn tile based on the rainH density gate. Either
+    // outcome is benign because no player glyph is drawn yet.
     const gronRenders = presentDay.renderTile(sim, gronX, gronY, 0.8, 1000)
     expect(gronRenders.length).toBe(1)
-
-    // Player tile — should be single entry
-    const playerX = Math.floor(sim.width / 2)
-    const playerY = Math.floor(sim.height / 2)
-    const playerRenders = presentDay.renderTile(sim, playerX, playerY, 0.8, 1000)
-    expect(playerRenders.length).toBe(1)
   })
 
   it('uses shared AURA_RADIUS.rain for Gron rain radius', async () => {

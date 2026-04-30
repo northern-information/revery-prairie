@@ -6,6 +6,7 @@ import {
   tickShootingStars,
   triggerPlayerSpawnShower,
 } from '../celestial'
+import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { createGameState } from '../state'
 import { TileType } from '../types'
@@ -213,6 +214,29 @@ describe('player spawn ceremony', () => {
 
       expect(state.meteorShower.active).toBe(false)
       expect(state.meteorShower.nextShowerTime).toBe(0)
+    })
+  })
+
+  describe('initial spawn geometry', () => {
+    it('places Gron at the exact map center and the player one tile west', () => {
+      const state = createGameState('Test', 40, 30)
+
+      const centerX = Math.floor(MAP_WIDTH / 2)
+      const centerY = Math.floor(MAP_HEIGHT / 2)
+
+      expect(state.player).toEqual({ x: centerX - 1, y: centerY })
+
+      let gronPos: Position | null = null
+      for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
+        const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+        if (identity?.definitionId !== 'gron') continue
+        const pos = state.world.getComponent(eid, ComponentType.Position)
+        expect(pos).toBeTruthy()
+        if (pos) gronPos = { x: pos.x, y: pos.y }
+        break
+      }
+
+      expect(gronPos).toEqual({ x: centerX, y: centerY })
     })
   })
 })

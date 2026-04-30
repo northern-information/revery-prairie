@@ -62,7 +62,7 @@ edge_cases:
     description: 'player is completely surrounded by non-walkable tiles'
     expected: 'returns null after exhausting open set'
   - id: long-path-performance
-    description: 'pathfinding across the full 170x95 map'
+    description: 'pathfinding across the full 147x147 map'
     expected: 'completes within a single frame budget; heap keeps open set efficient'
 
 failure_conditions:

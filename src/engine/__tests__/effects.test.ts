@@ -10,8 +10,10 @@ const makeState = () => {
   for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
     state.world.destroyEntity(eid)
   }
-  // Clear glint zones so random spawns don't pollute effect checks
+  // Clear genesis-derived state that can otherwise bleed seed-dependent
+  // effects onto the test tiles.
   state.glintZones.clear()
+  state.craters.clear()
   return state
 }
 

@@ -135,7 +135,7 @@ describe('genesis transition', () => {
       expect(sim).not.toBeNull()
       if (!sim) return
 
-      const gronX = Math.floor(sim.width / 2) + 5
+      const gronX = Math.floor(sim.width / 2)
       const gronY = Math.floor(sim.height / 2)
       const lastEpoch = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
       const tiles = lastEpoch.renderTile(sim, gronX, gronY, 1, 1000)
@@ -151,7 +151,7 @@ describe('genesis transition', () => {
       expect(sim).not.toBeNull()
       if (!sim) return
 
-      const playerX = Math.floor(sim.width / 2)
+      const playerX = Math.floor(sim.width / 2) - 1
       const playerY = Math.floor(sim.height / 2)
       const lastEpoch = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
       const tiles = lastEpoch.renderTile(sim, playerX, playerY, 1, 1000)
@@ -194,7 +194,7 @@ describe('genesis transition', () => {
       expect(sim).not.toBeNull()
       if (!sim) return
 
-      const gronX = Math.floor(sim.width / 2) + 5
+      const gronX = Math.floor(sim.width / 2)
       const gronY = Math.floor(sim.height / 2)
       const rainSeed = sim.rainSeed
 

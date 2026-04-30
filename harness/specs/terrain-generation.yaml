@@ -10,6 +10,26 @@ source_files:
 dependencies: []
 
 behaviors:
+  - id: world-dimensions
+    description: >
+      MAP_WIDTH and MAP_HEIGHT are both 147. The land area
+      (Dirt/Sand interior, after subtracting SPACE_BORDER on every
+      edge) is 127x127, centered on the grid. Both dimensions are
+      odd so a single tile sits at the exact geometric center
+      (floor(147/2) = 73), which player-spawn and Gron placement
+      depend on. The cave map (CAVE_WIDTH x CAVE_HEIGHT) is unrelated
+      and unchanged.
+    inputs:
+      - 'createGameState invoked'
+    outputs:
+      - 'Tile[][] sized 147x147'
+    state_changes:
+      - field: mapWidth
+        effect: 'set to 147'
+      - field: mapHeight
+        effect: 'set to 147'
+    determinism: deterministic
+
   - id: generate-terrain
     description: >
       generateTerrain(width, height) creates a Tile[][] grid.
@@ -74,6 +94,9 @@ behaviors:
     determinism: probabilistic
 
 edge_cases:
+  - id: square-grid-exact-center
+    description: 'odd 147x147 dimensions guarantee a single center tile at (73, 73)'
+    expected: 'floor(MAP_WIDTH/2) === 73 and floor(MAP_HEIGHT/2) === 73 — required for Gron exact-center placement'
   - id: seeded-noise-determinism
     description: 'smoothNoiseSeeded called with the same rng produces identical output'
     expected: 'output is fully determined by the rng sequence'

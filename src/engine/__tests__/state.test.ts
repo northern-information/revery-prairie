@@ -18,9 +18,9 @@ describe('createGameState', () => {
     expect(state.map[0].length).toBe(MAP_WIDTH)
   })
 
-  it('places the player at the center of the map', () => {
+  it('spawns the player one tile west of the exact map center', () => {
     const state = createGameState('Willow', 80, 40)
-    expect(state.player.x).toBe(Math.floor(MAP_WIDTH / 2))
+    expect(state.player.x).toBe(Math.floor(MAP_WIDTH / 2) - 1)
     expect(state.player.y).toBe(Math.floor(MAP_HEIGHT / 2))
   })
 

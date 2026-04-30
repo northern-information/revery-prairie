@@ -1,0 +1,174 @@
+plan:
+  id: map-127-square
+  title: 'Resize world to 147x147 (127x127 land), put Gron at exact center, player adjacent'
+  created: '2026-04-30'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+    - npm run build
+
+tasks:
+  - id: update-map-constants
+    title: 'Set MAP_WIDTH and MAP_HEIGHT to 147 in src/engine/constants.ts'
+    spec_id: terrain-generation
+    spec_sections:
+      - world-dimensions
+    context_files:
+      - src/engine/constants.ts
+      - harness/specs/terrain-generation.yaml
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: recenter-player-and-gron
+    title: 'Place Gron at exact center, player one tile west, in createGameState'
+    spec_id: player-spawn
+    spec_sections:
+      - spawn-position
+    context_files:
+      - src/engine/state.ts
+      - harness/specs/player-spawn.yaml
+      - harness/specs/terrain-generation.yaml
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - update-map-constants
+    verification:
+      - npm run typecheck
+      - npx vitest run src/engine/__tests__/playerSpawn.test.ts
+    repair: retry
+    tags:
+      - engine
+    notes: |
+      Set:
+        const gronX = Math.floor(MAP_WIDTH / 2)
+        const gronY = Math.floor(MAP_HEIGHT / 2)
+        const playerX = gronX - 1
+        const playerY = gronY
+      The cave-entrance ring around Gron stays as-is (still uses
+      gronX/gronY). Coyote spawn search uses the four cardinal
+      neighbors of the player; player at (gronX - 1, gronY) means the
+      first tried neighbor (-1, 0) lands on Gron's tile, which is
+      already in coyoteBlocked. The next neighbor (1, 0) will succeed
+      so no behavioral change is required.
+
+  - id: align-genesis-gron-position
+    title: 'Update all genesis renderTile callsites to render Gron at exact center'
+    spec_id: genesis-gameplay-formalization
+    spec_sections:
+      - gron-exact-center-position
+    context_files:
+      - src/engine/genesis.ts
+      - harness/specs/genesis-gameplay-formalization.yaml
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - update-map-constants
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+    notes: |
+      Four references to `Math.floor(sim.width / 2) + 5` for gronX in
+      genesis.ts (presentDay around line 1940, fallOfCivilizations
+      vegetation kill around 2226, post-fall persistence around 2391,
+      post-fall renderTile around 2719). Drop the `+ 5` from each so
+      Gron renders at the same tile during genesis as he is placed
+      in createGameState. gronY (sim.height/2) is unchanged.
+
+  - id: update-genesis-lightning-test-dimensions
+    title: 'Update hardcoded 170/95 in genesisLightning.test.ts to 147/147'
+    spec_id: terrain-generation
+    spec_sections:
+      - world-dimensions
+    context_files:
+      - src/engine/__tests__/genesisLightning.test.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/genesisLightning.test.ts
+    depends_on:
+      - update-map-constants
+    verification:
+      - npx vitest run src/engine/__tests__/genesisLightning.test.ts
+    repair: retry
+    tags:
+      - test
+      - engine
+    notes: |
+      Four `createGenesisState(170, 95, SEED)` calls. Replace with
+      `createGenesisState(MAP_WIDTH, MAP_HEIGHT, SEED)` (importing the
+      constants) so the test stays in sync if dimensions change again.
+
+  - id: update-claude-md-map-section
+    title: 'Update CLAUDE.md map section to describe 147x147 grid (127x127 land) and Gron-centered geometry'
+    spec_id: terrain-generation
+    spec_sections:
+      - world-dimensions
+    context_files:
+      - CLAUDE.md
+    output_files:
+      - CLAUDE.md
+    depends_on:
+      - recenter-player-and-gron
+    verification: []
+    repair: retry
+    tags:
+      - docs
+    notes: |
+      Edit the `## map` section: replace
+      "170x95 tile grid" with "147x147 tile grid (127x127 land area
+      after the SPACE_BORDER frame on every edge)". Note that Gron sits
+      at the exact center tile and the player spawns one tile west of
+      Gron.
+
+  - id: regression-test-spawn-geometry
+    title: 'Add regression test asserting Gron at center and player adjacent west'
+    spec_id: player-spawn
+    spec_sections:
+      - spawn-position
+    context_files:
+      - src/engine/__tests__/playerSpawn.test.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/engine/entities.ts
+    output_files:
+      - src/engine/__tests__/playerSpawn.test.ts
+    depends_on:
+      - recenter-player-and-gron
+    verification:
+      - npx vitest run src/engine/__tests__/playerSpawn.test.ts
+    repair: retry
+    tags:
+      - test
+    notes: |
+      New test: createGameState('test-steward', 80, 40); assert
+      state.player.x === Math.floor(MAP_WIDTH/2) - 1 and state.player.y
+      === Math.floor(MAP_HEIGHT/2). Then look up the Gron entity via
+      ECS Position component and assert it sits at
+      (Math.floor(MAP_WIDTH/2), Math.floor(MAP_HEIGHT/2)). Use the
+      requireComponent helper pattern documented in CLAUDE.md.
+
+  - id: full-verification
+    title: 'Run full verification suite'
+    spec_id: terrain-generation
+    spec_sections:
+      - world-dimensions
+    context_files: []
+    output_files: []
+    depends_on:
+      - recenter-player-and-gron
+      - align-genesis-gron-position
+      - update-genesis-lightning-test-dimensions
+      - regression-test-spawn-geometry
+    verification:
+      - npm run verify
+    repair: retry
+    tags:
+      - verification

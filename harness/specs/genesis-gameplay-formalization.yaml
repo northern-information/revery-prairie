@@ -83,13 +83,30 @@ behaviors:
       the gameplay renderer rain aura appears.
     inputs:
       - 'presentDay epoch is rendering and tile is within rain aura radius of Gron'
-      - 'tile is not Gron position and not player position'
+      - 'tile is not the Gron position (the player is not drawn during genesis presentDay, so rain may animate over the future spawn tile without conflict)'
     outputs:
       - 'rain character overlay rendered on applicable tiles during presentDay'
       - 'rain animation matches gameplay renderer exactly (same chars, colors, density, speed)'
       - 'no visual change at genesis-to-gameplay transition for rain aura tiles'
     state_changes: []
     determinism: time-based
+
+  - id: gron-exact-center-position
+    description: >
+      Gron is rendered at the exact map center during genesis presentDay,
+      fall-of-civilizations, and post-fall epochs. The center tile is
+      (floor(sim.width / 2), floor(sim.height / 2)). This must match the
+      live game's Gron entity position set in createGameState. Any
+      relocation of Gron must update both the genesis renderTile callsites
+      (currently 4 in genesis.ts: presentDay, fallOfCivilizations
+      vegetation kill, post-fall persistence, post-fall renderTile) and
+      state.ts simultaneously, or the genesis-to-game crossfade will pop.
+    inputs:
+      - 'presentDay/fallOfCivilizations/post-fall renderTile encounters tile (gronX, gronY)'
+    outputs:
+      - 'Gron glyph rendered at the exact map center across all genesis epochs that include him'
+    state_changes: []
+    determinism: deterministic
 
   - id: shared-character-glyph-lookup
     description: >

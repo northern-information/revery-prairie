@@ -13,7 +13,7 @@ behaviors:
   - id: fullscreen-background
     description: >
       Genesis canvas fills the entire browser window with no letterboxing.
-      Out-of-bounds tiles beyond the 170x95 map render as space (stars or black)
+      Out-of-bounds tiles beyond the 147x147 map render as space (stars or black)
       rather than leaving dead pixel strips along the edges.
     inputs:
       - GenesisScreen mounts in any browser window size
@@ -141,7 +141,7 @@ edge_cases:
     description: Browser window smaller than map size (e.g. mobile) still fills fully
     expected: Canvas covers entire window, camera centers map, edges show space
   - id: aqueduct-minimum-distance
-    description: With 8-12 ruins, minimum ruin distance must decrease to fit on 170x95 map
+    description: With 8-12 ruins, minimum ruin distance must decrease to fit on 147x147 map
     expected: Minimum distance reduced proportionally, all ruins placed on land
   - id: meteor-all-hit-space
     description: All meteorite targets could theoretically land on space tiles

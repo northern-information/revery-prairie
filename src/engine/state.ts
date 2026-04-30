@@ -35,12 +35,12 @@ export const createGameState = (
   const map = sim.grid
   const genesisData: GenesisSimState = sim
 
-  const playerX = Math.floor(MAP_WIDTH / 2)
-  const playerY = Math.floor(MAP_HEIGHT / 2)
-
-  // Gron position (used for cave entrance placement and character spawn)
-  const gronX = playerX + 5
-  const gronY = playerY
+  // Gron sits at the exact map center; the player spawns one tile west.
+  // The cave-entrance ring around Gron is unchanged.
+  const gronX = Math.floor(MAP_WIDTH / 2)
+  const gronY = Math.floor(MAP_HEIGHT / 2)
+  const playerX = gronX - 1
+  const playerY = gronY
 
   // Generate cave
   const cave = generateCave(CAVE_WIDTH, CAVE_HEIGHT)
@@ -229,7 +229,18 @@ export const createGameState = (
   seedGlintPatches(state, 0)
   rebuildGlintZones(state, 0)
 
-  // Initialize tile water for all walkable overworld tiles
+  // Place ruin entrances on the overworld
+  placeRuinEntrances(map, state.ruinInteriors)
+
+  // Place Gron at the exact center
+  if (map[gronY][gronX].type !== TileType.Dirt && map[gronY][gronX].type !== TileType.Clover) {
+    map[gronY][gronX] = { type: TileType.Dirt }
+  }
+  createCharacterEntity(state, 'gron', { x: gronX, y: gronY }, { aura: 'rain' })
+
+  // Initialize tile water for all walkable overworld tiles. Run AFTER
+  // placeRuinEntrances and the Gron fallback because both can mutate
+  // tile types in ways that need the water invariant honored.
   for (let y = 0; y < MAP_HEIGHT; y++) {
     for (let x = 0; x < MAP_WIDTH; x++) {
       const tileType = map[y][x].type
@@ -241,16 +252,6 @@ export const createGameState = (
 
   // Build water proximity map for passive seepage near ponds/rivers
   buildWaterProximity(state)
-
-  // Place ruin entrances on the overworld
-  placeRuinEntrances(map, state.ruinInteriors)
-
-  // Place Gron near the player
-  if (map[gronY][gronX].type !== TileType.Dirt && map[gronY][gronX].type !== TileType.Clover) {
-    // Fallback: ensure tile is dirt then place
-    map[gronY][gronX] = { type: TileType.Dirt }
-  }
-  createCharacterEntity(state, 'gron', { x: gronX, y: gronY }, { aura: 'rain' })
 
   // Spawn coyote adjacent to player
   const coyoteBlocked = new Set<string>([posKey(playerX, playerY), posKey(gronX, gronY)])
