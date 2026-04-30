@@ -1,0 +1,364 @@
+plan:
+  id: ruins-aqueduct-only
+  title: 'Collapse ruins to a single dormant-garden archetype with maze, key, and door'
+  created: 2026-04-30
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+    - 'npm run build'
+
+tasks:
+  - id: collapse-archetype-types
+    title: 'Reduce RuinArchetype to a single value and prune dead per-archetype data interfaces'
+    spec_id: ruin-infrastructure
+    spec_sections:
+      - ruin-interior-type
+      - archetype-assignment
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, types]
+
+  - id: delete-doomed-archetype-code
+    title: 'Delete subsidence, hauntedThreshold, and resonance generators, ticks, and helpers from ruins.ts'
+    spec_id: ruin-infrastructure
+    spec_sections:
+      - archetype-assignment
+      - ruin-interior-generation
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+      - src/engine/gameLoop.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/devPanel.ts
+    output_files:
+      - src/engine/ruins.ts
+      - src/engine/gameLoop.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/devPanel.ts
+    depends_on:
+      - collapse-archetype-types
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, cleanup]
+
+  - id: delete-collapse-trap-and-ejection
+    title: 'Remove RuinUnstable, RuinEjection, RuinEjectionReason, RuinEjectionPhase, LostItemSummary, and ejection UI/state'
+    spec_id: ruin-infrastructure
+    spec_sections:
+      - ruin-interior-type
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ruins.ts
+      - src/engine/state.ts
+      - src/engine/renderer.ts
+      - src/engine/gameLoop.ts
+      - src/engine/constants.ts
+      - src/components/RuinEjectionOverlay.tsx
+    output_files:
+      - src/engine/types.ts
+      - src/engine/ruins.ts
+      - src/engine/state.ts
+      - src/engine/renderer.ts
+      - src/engine/gameLoop.ts
+      - src/engine/constants.ts
+      - src/components/RuinEjectionOverlay.tsx
+    depends_on:
+      - delete-doomed-archetype-code
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, cleanup]
+
+  - id: simplify-assign-archetype
+    title: 'Make assignArchetype return DormantGarden unconditionally'
+    spec_id: ruin-infrastructure
+    spec_sections:
+      - archetype-assignment
+    context_files:
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - collapse-archetype-types
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: triple-ruin-dimensions
+    title: 'Scale generateRuinInterior dimensions to 3x: width = radius*24+30, height = radius*18+24'
+    spec_id: ruin-infrastructure
+    spec_sections:
+      - ruin-interior-generation
+    context_files:
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - simplify-assign-archetype
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: implement-aqueduct-corridors
+    title: 'Carve spine + branches + dead-end alcoves + alternate loops to make a hallway-style aqueduct layout'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - maze-generation
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - triple-ruin-dimensions
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, generation]
+
+  - id: vault-and-door-placement
+    title: 'Place 5x4 seed vault at deepest BFS cell; carve single connector and place RuinDoorLocked'
+    spec_id: ruin-locked-door
+    spec_sections:
+      - door-placement
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+    depends_on:
+      - implement-aqueduct-corridors
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, generation]
+
+  - id: door-tile-types
+    title: 'Add RuinDoorLocked and RuinDoorOpen to TileType, TILE_CHARS, TILE_COLORS, and isWalkableTile'
+    spec_id: ruin-locked-door
+    spec_sections:
+      - locked-door-tile-types
+      - locked-door-blocks-movement
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+      - src/components/Sidebar.tsx
+    depends_on:
+      - collapse-archetype-types
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, tiles]
+
+  - id: door-unlock-interaction
+    title: 'Wire [e] press on facing RuinDoorLocked to consume aqueductKey and convert tile to RuinDoorOpen'
+    spec_id: ruin-locked-door
+    spec_sections:
+      - unlock-interaction
+    context_files:
+      - src/engine/interaction.ts
+      - src/hooks/useKeyboard.ts
+      - src/engine/items.ts
+      - src/engine/ruins.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/interaction.ts
+      - src/hooks/useKeyboard.ts
+      - src/engine/manual.ts
+    depends_on:
+      - door-tile-types
+      - vault-and-door-placement
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, interaction]
+
+  - id: place-aqueduct-key-and-tablet
+    title: 'Spawn aqueductKey and stoneTablet ground items in BFS-depth bands inside the maze'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - aqueduct-key-placement
+      - stone-tablet-placement
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+      - src/engine/items.ts
+    output_files:
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+    depends_on:
+      - vault-and-door-placement
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, generation]
+
+  - id: lay-aqueduct-channels-and-debris
+    title: 'Place RuinAqueduct, RuinAqueductBroken, and RuinDebris tiles after maze + vault'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - aqueduct-channels-in-maze
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - implement-aqueduct-corridors
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, generation]
+
+  - id: purge-haunted-threshold-spawn
+    title: 'Remove the haunted threshold artifact spawn that previously placed aqueductKey/stoneTablet'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - aqueduct-key-placement
+      - stone-tablet-placement
+    context_files:
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - delete-doomed-archetype-code
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, cleanup]
+
+  - id: dev-panel-single-archetype
+    title: 'Update DevPanel to drop archetype dropdown; spawnDevRuin always uses DormantGarden'
+    spec_id: dev-panel-ruin-spawner
+    spec_sections:
+      - ruin-preset
+      - drag-place-ruin
+      - ruin-interior-construction
+    context_files:
+      - src/engine/devPanel.ts
+      - src/components/DevPanel.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/engine/devPanel.ts
+      - src/components/DevPanel.tsx
+    depends_on:
+      - simplify-assign-archetype
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component, dev]
+
+  - id: purge-manual-entries
+    title: 'Remove zone:ruin-haunted-threshold from manual.ts; drop discovery keys for deleted archetypes'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - dormant-garden-data
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - delete-doomed-archetype-code
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, manual]
+
+  - id: delete-doomed-tests
+    title: 'Delete tests tied exclusively to subsidence, hauntedThreshold, resonance, ejection'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - maze-generation
+    context_files:
+      - src/engine/__tests__/ruin-haunted-threshold.test.ts
+      - src/engine/__tests__/ruin-resonance.test.ts
+      - src/engine/__tests__/ruins.test.ts
+      - src/engine/__tests__/devPanelRuinSpawner.test.ts
+    output_files:
+      - src/engine/__tests__/ruins.test.ts
+      - src/engine/__tests__/devPanelRuinSpawner.test.ts
+    depends_on:
+      - delete-doomed-archetype-code
+      - delete-collapse-trap-and-ejection
+    verification:
+      - 'npm run test:engine'
+    repair: retry
+    tags: [test, cleanup]
+
+  - id: update-game-state-schema-test
+    title: 'Update EXPECTED_FIELDS schema allowlist to drop ejection + per-archetype fields and add door state if any'
+    spec_id: ruin-infrastructure
+    spec_sections:
+      - ruin-interior-type
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - delete-collapse-trap-and-ejection
+    verification:
+      - 'npm run test:harness'
+    repair: retry
+    tags: [test, schema]
+
+  - id: write-corridor-and-key-tests
+    title: 'Add ruin-dormant-garden tests: corridor dimensions, spine has alternate loop, dead-end alcoves exist, key in 60-85% band, tablet in 25-55% band, no items in vault'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - maze-generation
+      - aqueduct-key-placement
+      - stone-tablet-placement
+    context_files:
+      - src/engine/__tests__/ruin-dormant-garden.test.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/__tests__/ruin-dormant-garden.test.ts
+    depends_on:
+      - place-aqueduct-key-and-tablet
+      - lay-aqueduct-channels-and-debris
+    verification:
+      - 'npx vitest run src/engine/__tests__/ruin-dormant-garden.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: write-locked-door-tests
+    title: 'Create ruin-locked-door.test.ts: door blocks movement, [e] without key no-op, [e] with key consumes one and opens, repress on open is no-op'
+    spec_id: ruin-locked-door
+    spec_sections:
+      - unlock-interaction
+      - locked-door-blocks-movement
+      - door-placement
+    context_files:
+      - src/engine/__tests__/ruin-locked-door.test.ts
+      - src/engine/interaction.ts
+      - src/hooks/useKeyboard.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/__tests__/ruin-locked-door.test.ts
+    depends_on:
+      - door-unlock-interaction
+      - vault-and-door-placement
+    verification:
+      - 'npx vitest run src/engine/__tests__/ruin-locked-door.test.ts'
+    repair: retry
+    tags: [test]

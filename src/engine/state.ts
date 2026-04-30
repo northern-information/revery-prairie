@@ -201,7 +201,6 @@ export const createGameState = (
     coyotePath: null,
     ruinInteriors: generateAllRuinInteriors(genesisData.ruins),
     currentRuinIndex: null,
-    ruinEjection: null,
     queuedToasts: [],
     caveFogExplored: new Set<string>(),
     caveFogDiscovered: new Set<string>(),

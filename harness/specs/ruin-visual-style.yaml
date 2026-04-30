@@ -73,22 +73,6 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: crumble-sequence-rendering
-    description: >
-      tiles transitioning during subsidence collapse animate through
-      the genesis FallOfCivilizations crumble sequence: building chars
-      fade through stages (genesis.ts:2216-2244). crumble stages: the
-      current building char transitions through '█', '▓', '▒', '░',
-      '.', '·'. color fades from gray (rgb 136,136,136) to brown
-      (rgb 139,115,85). layer count decreases from 3 to 2 to 1 as
-      the crumble progresses.
-    inputs:
-      - 'tile undergoing collapse in subsidence ruin'
-    outputs:
-      - 'animated crumble with decreasing layer count and color fade'
-    state_changes: []
-    determinism: time-based
-
   - id: aqueduct-tile-layers
     description: >
       RuinAqueduct tiles render with box-drawing chars (horizontal,
@@ -100,19 +84,6 @@ behaviors:
       - 'RuinAqueduct or RuinAqueductBroken tile at position (x,y)'
     outputs:
       - 'layered box-drawing chars with overlays'
-    state_changes: []
-    determinism: deterministic
-
-  - id: machine-tile-layers
-    description: >
-      RuinMachine tiles render copper-colored primary glyph with a
-      faint secondary layer. RuinMachineActive tiles pulse: the
-      secondary layer alternates chars based on time, creating a
-      visible animation indicating the machine is running.
-    inputs:
-      - 'RuinMachine or RuinMachineActive tile at position (x,y)'
-    outputs:
-      - 'copper glyph with static or pulsing secondary layer'
     state_changes: []
     determinism: deterministic
 

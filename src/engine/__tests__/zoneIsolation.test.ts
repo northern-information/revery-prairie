@@ -31,7 +31,7 @@ const makeRuinMap = (w: number, h: number): Tile[][] => {
 
 const makeRuinInterior = (ruinIndex: number, w: number, h: number): RuinInterior => ({
   ruinIndex,
-  archetype: 'subsidence',
+  archetype: 'dormantGarden',
   name: `Test Ruin ${String(ruinIndex)}`,
   map: makeRuinMap(w, h),
   mapWidth: w,
@@ -40,10 +40,7 @@ const makeRuinInterior = (ruinIndex: number, w: number, h: number): RuinInterior
   entranceInterior: { x: Math.floor(w / 2), y: h - 2 },
   explored: true,
   cleared: false,
-  subsidence: null,
   dormantGarden: null,
-  hauntedThreshold: null,
-  resonance: null,
   fogExplored: new Set<string>(),
   fogDiscovered: new Set<string>(),
   fogIllumination: new Map<string, number>(),

@@ -12,6 +12,7 @@ import {
   breakWall,
   getAdjacentCharacter,
   interactWithCharacter,
+  unlockRuinDoor,
   updateFacingEntity,
 } from '@/engine/interaction'
 import { getDefinition } from '@/engine/items'
@@ -61,9 +62,6 @@ export const useKeyboard = ({
       if (tag === 'INPUT' || tag === 'TEXTAREA') {
         if (e.key !== 'Escape' && e.key !== 'Tab') return
       }
-
-      // Ruin ejection: block all input while the sequence is playing
-      if (state.ruinEjection) return
 
       // During genesis, Escape/Space/Enter skip; block all other keys
       if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
@@ -157,6 +155,14 @@ export const useKeyboard = ({
           return
         }
         if (activeScreen !== 'system') {
+          // Unlock facing ruin door if holding aqueductKey
+          if (state.currentZone === Zone.Ruin) {
+            if (unlockRuinDoor(state)) {
+              onDiscovery('the lock turns', state.player.x, state.player.y)
+              refreshUI()
+              return
+            }
+          }
           // Break facing breakable wall
           if (state.currentZone === Zone.Cave && !state.caveRevealed) {
             if (breakWall(state, performance.now())) {
@@ -320,9 +326,6 @@ export const useKeyboard = ({
 
   const handleKeyUp = useCallback(
     (e: KeyboardEvent) => {
-      // Ruin ejection: block all input while the sequence is playing
-      if (state.ruinEjection) return
-
       const dir = keyToDirection(e.key)
       if (dir && dir === state.heldDirection) {
         state.heldDirection = null

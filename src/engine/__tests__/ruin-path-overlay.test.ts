@@ -57,10 +57,8 @@ describe('ruin path overlay', () => {
         TileType.RuinFloor,
         TileType.RuinWall,
         TileType.RuinEntrance,
-        TileType.RuinUnstable,
         TileType.RuinAqueduct,
         TileType.RuinDebris,
-        TileType.RuinHiddenFloor,
       ]) {
         expect(shouldRenderRuinMultilayer({ ...baseArgs, tileType, hasOverlay: true })).toBe(false)
       }

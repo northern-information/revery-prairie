@@ -44,7 +44,7 @@ import { tickMonarchs } from './monarch'
 import { movePlayer, tickPath } from './movement'
 import { getReveryDefinition } from './reveries'
 import { tickTileWater } from './tileWater'
-import { tickDormantGardenDecay, tickResonanceDeactivation, tickRuinEjection, tickSubsidenceCollapse } from './ruins'
+import { tickDormantGardenDecay } from './ruins'
 import { DeepTimePhase, Zone } from './types'
 import { tickRainIntensity, tickWeather } from './weather'
 
@@ -164,21 +164,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           callbacks.onDiscovery?.(t.text, t.worldX, t.worldY, t.icon, t.iconColor)
         }
         state.queuedToasts = []
-      },
-    },
-    {
-      id: 'ruinEjection',
-      intervalMs: 0,
-      zone: 'always' as const,
-      phase: 'gameplay' as const,
-      priority: -17,
-      fn: (state: GameState, time: number) => {
-        if (!state.ruinEjection) return
-        const beforeExited = state.ruinEjection.exited
-        tickRuinEjection(state, time)
-        if (!beforeExited && state.ruinEjection?.exited) {
-          callbacks.onRefreshUI?.()
-        }
       },
     },
     {
@@ -624,30 +609,11 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       })(),
     },
     {
-      id: 'ruin-subsidence',
-      intervalMs: 500,
-      zone: 'ruin',
-      fn: (state: GameState, time: number) => {
-        const result = tickSubsidenceCollapse(state, 500, time)
-        if (result === 'ejected') {
-          callbacks.onRefreshUI?.()
-        }
-      },
-    },
-    {
       id: 'ruin-dormant-garden',
       intervalMs: 1000,
       zone: 'ruin',
       fn: (state: GameState, _time: number) => {
         tickDormantGardenDecay(state, 1000)
-      },
-    },
-    {
-      id: 'ruin-resonance',
-      intervalMs: 200,
-      zone: 'ruin',
-      fn: (state: GameState, time: number) => {
-        tickResonanceDeactivation(state, time)
       },
     },
   ]

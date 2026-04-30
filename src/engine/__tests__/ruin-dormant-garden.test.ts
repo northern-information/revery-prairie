@@ -43,7 +43,6 @@ describe('ruin dormant garden', () => {
     it('generates dormantGarden data for DormantGarden archetype', () => {
       const interior = makeGardenInterior()
       expect(interior.dormantGarden).not.toBeNull()
-      expect(interior.subsidence).toBeNull()
     })
 
     it('places aqueduct tiles on the map', () => {
@@ -299,6 +298,81 @@ describe('ruin dormant garden', () => {
 
       fireOnRuinTile(state, Number(parts[0]), Number(parts[1]))
       expect(garden.seedDecayAcceleration).toBe(1)
+    })
+  })
+
+  describe('aqueduct corridors and key/tablet/door placement', () => {
+    it('uses 3x dimensions: width = radius*24+30, height = radius*18+24', () => {
+      const interior = makeGardenInterior({ radius: 4 })
+      expect(interior.mapWidth).toBe(4 * 24 + 30)
+      expect(interior.mapHeight).toBe(4 * 18 + 24)
+    })
+
+    it('records keyPosition outside the seed vault', () => {
+      const interior = makeGardenInterior()
+      const garden = interior.dormantGarden
+      expect(garden).toBeTruthy()
+      if (!garden) return
+      expect(garden.keyPosition).not.toBeNull()
+      const kp = garden.keyPosition
+      if (!kp) return
+      // vault chamber is 5x4 around seedVault — verify key is not within it
+      const vc = garden.seedVault
+      const inVault = kp.x >= vc.x - 2 && kp.x <= vc.x + 2 && kp.y >= vc.y - 1 && kp.y <= vc.y + 2
+      expect(inVault).toBe(false)
+    })
+
+    it('records tabletPosition outside the seed vault and not equal to keyPosition', () => {
+      const interior = makeGardenInterior()
+      const garden = interior.dormantGarden
+      expect(garden).toBeTruthy()
+      if (!garden) return
+      expect(garden.tabletPosition).not.toBeNull()
+      const tp = garden.tabletPosition
+      const kp = garden.keyPosition
+      if (!tp || !kp) return
+      expect(tp.x === kp.x && tp.y === kp.y).toBe(false)
+    })
+
+    it('places a RuinDoorLocked tile at doorPosition', () => {
+      const interior = makeGardenInterior()
+      const garden = interior.dormantGarden
+      expect(garden).toBeTruthy()
+      if (!garden) return
+      const dp = garden.doorPosition
+      expect(dp).not.toBeNull()
+      if (!dp) return
+      expect(interior.map[dp.y][dp.x].type).toBe(TileType.RuinDoorLocked)
+    })
+
+    it('vault is reachable from entrance only via the door', () => {
+      const interior = makeGardenInterior()
+      const garden = interior.dormantGarden
+      expect(garden).toBeTruthy()
+      if (!garden) return
+      const start = interior.entranceInterior
+      const vc = garden.seedVault
+      // BFS treating the locked door as a wall — vault should be UNREACHABLE
+      const reachable = new Set<string>()
+      const queue = [start]
+      reachable.add(posKey(start.x, start.y))
+      while (queue.length > 0) {
+        const pos = queue.shift()
+        if (!pos) break
+        for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
+          const nx = pos.x + dx
+          const ny = pos.y + dy
+          if (nx < 0 || nx >= interior.mapWidth || ny < 0 || ny >= interior.mapHeight) continue
+          const key = posKey(nx, ny)
+          if (reachable.has(key)) continue
+          const tile = interior.map[ny][nx]
+          // Treat door as impassable in this BFS
+          if (!isWalkableTile(tile.type)) continue
+          reachable.add(key)
+          queue.push({ x: nx, y: ny })
+        }
+      }
+      expect(reachable.has(posKey(vc.x, vc.y))).toBe(false)
     })
   })
 })

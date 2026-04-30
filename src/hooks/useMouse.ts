@@ -178,7 +178,6 @@ export const useMouse = ({
 
     const handleMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return
-      if (state.ruinEjection) return
       mouseDownPos = { x: e.offsetX, y: e.offsetY }
       isDragging = false
     }
@@ -247,7 +246,6 @@ export const useMouse = ({
       if (state.devPanelOpen) return
       if (activeScreenRef.current === 'system') return
       if (isDeepTimeLocked(state)) return
-      if (state.ruinEjection) return
 
       if (state.targetingSlot !== null) {
         const metrics = metricsRef.current

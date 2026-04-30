@@ -29,20 +29,6 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: balanced-archetype-distribution
-    description: >
-      The assignArchetype function must produce a reasonable mix of all four
-      archetypes (Subsidence, DormantGarden, HauntedThreshold, Resonance)
-      across typical ruin populations. No single archetype should dominate
-      due to an outsized scoring multiplier on aqueductComplexity.
-    inputs:
-      - 'Array of CivilizationRuin objects with varying properties'
-      - 'Seeded RNG function'
-    outputs:
-      - 'At least two distinct archetypes assigned across a typical set of 8-12 ruins'
-    state_changes: []
-    determinism: probabilistic
-
   - id: greek-letter-entrance-glyphs
     description: >
       Each entrance on the overworld (1 cave + N ruin entrances) renders as a
@@ -67,12 +53,6 @@ edge_cases:
   - id: player-on-ruin-with-cursor
     description: 'Player stands on a ruin tile while cursor is also on the player tile'
     expected: 'Player glyph is visible with cursor highlight applied, ruin multilayer skipped'
-  - id: all-ruins-have-aqueducts
-    description: 'Every ruin in a genesis result has aqueduct paths (high connectivity)'
-    expected: 'Archetype distribution still includes non-DormantGarden types'
-  - id: no-ruins-have-aqueducts
-    description: 'No ruins have aqueduct connections (isolated ruins)'
-    expected: 'DormantGarden scores low, other archetypes dominate'
   - id: more-entrances-than-letters
     description: 'More than 12 ruins generated (exceeding Greek letter pool)'
     expected: 'Extra entrances cycle back through the pool or use fallback glyph'
@@ -80,8 +60,6 @@ edge_cases:
 failure_conditions:
   - trigger: 'Player walks onto a ruin tile in a ruin zone'
     expected: 'Player glyph must be drawn — multilayer ruin rendering must not overwrite it'
-  - trigger: 'assignArchetype called on 10 ruins all with 2+ aqueduct paths'
-    expected: 'Not all 10 ruins are assigned DormantGarden'
   - trigger: 'Two entrances on the overworld share the same Greek letter'
     expected: 'Each entrance has a unique Greek letter'
 

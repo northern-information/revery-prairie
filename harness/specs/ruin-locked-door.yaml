@@ -1,0 +1,141 @@
+id: ruin-locked-door
+name: 'Ruin locked door (key-gated tile)'
+status: planned
+priority: high
+layer: engine
+source_files:
+  - src/engine/ruins.ts
+  - src/engine/types.ts
+  - src/engine/items.ts
+  - src/engine/constants.ts
+  - src/engine/position.ts
+  - src/engine/renderer.ts
+  - src/engine/interaction.ts
+  - src/hooks/useKeyboard.ts
+  - src/engine/manual.ts
+  - src/components/Sidebar.tsx
+dependencies:
+  - ruin-infrastructure
+
+behaviors:
+  - id: locked-door-tile-types
+    description: >
+      TileType gains RuinDoorLocked (ruinDoorLocked) and RuinDoorOpen
+      (ruinDoorOpen). RuinDoorLocked is not walkable. RuinDoorOpen is
+      walkable. TILE_CHARS maps RuinDoorLocked to '#' (matching the
+      breakable cave wall and the standard ruin wall glyph). TILE_COLORS
+      maps RuinDoorLocked to verdigris #5FD3BC (the same verdigris used
+      by RuinEntrance), so the door reads as a wall section but visually
+      flagged by color against the gray RuinWall palette. the renderer
+      also draws RuinDoorLocked with the same multilayer pattern as
+      RuinWall (so it composites identically), only the color tint
+      differs. RuinDoorOpen renders identically to RuinFloor — same
+      glyph, same color, same multilayer floor decoration — so the
+      doorway visually disappears once unlocked. TILE_CHARS for
+      RuinDoorOpen mirrors RuinFloor ('.') and TILE_COLORS mirrors
+      RuinFloor (#7A7A6E).
+    inputs:
+      - 'tile rendering and walkability checks'
+    outputs:
+      - 'two new tile types: locked door reads as verdigris wall section,
+        open door reads as ruin floor'
+    state_changes: []
+    determinism: deterministic
+
+  - id: door-placement
+    description: >
+      during dormant-garden generation, exactly one RuinDoorLocked tile
+      is placed on the single corridor cell connecting the seed vault
+      chamber to the rest of the maze. doorPosition is recorded on
+      DormantGardenData. if the vault has more than one connecting
+      cell after maze carving, all but one are reverted to RuinWall so
+      the door is the only entry.
+    inputs:
+      - 'maze + vault layout from generateDormantGarden'
+    outputs:
+      - 'one RuinDoorLocked tile gating the seed vault'
+    state_changes:
+      - field: map
+        effect: 'RuinDoorLocked tile placed at vault choke point'
+      - field: dormantGarden.doorPosition
+        effect: 'set to door tile position'
+    determinism: deterministic
+
+  - id: unlock-interaction
+    description: >
+      pressing [e] while facing a RuinDoorLocked tile and holding at
+      least one aqueductKey item in the backpack consumes one
+      aqueductKey and converts the tile to RuinDoorOpen. the door
+      remains RuinDoorOpen for the rest of the session — re-locking
+      is not a feature. the unlock fires a pickupBloom-style toast
+      and a unique unlock toast: 'the lock turns'. records discovery
+      for event:ruin-door-unlocked.
+    inputs:
+      - '[e] pressed while facing RuinDoorLocked, aqueductKey in backpack'
+    outputs:
+      - 'door tile becomes RuinDoorOpen, one aqueductKey consumed'
+    state_changes:
+      - field: map
+        effect: 'RuinDoorLocked becomes RuinDoorOpen'
+      - field: backpack
+        effect: 'one aqueductKey item removed'
+      - field: manualDiscoveries
+        effect: 'event:ruin-door-unlocked recorded'
+    determinism: deterministic
+
+  - id: locked-door-blocks-movement
+    description: >
+      a RuinDoorLocked tile blocks player movement, click-to-move
+      pathfinding, coyote follow/collect pathing, and any other
+      movement system that uses isWalkableTile. an open door
+      (RuinDoorOpen) is walkable for all systems.
+    inputs:
+      - 'movement, pathfinding, hover preview against RuinDoorLocked tile'
+    outputs:
+      - 'tile treated as impassable'
+    state_changes: []
+    determinism: deterministic
+
+  - id: door-sidebar-labels
+    description: >
+      Sidebar tile-type label map gains RuinDoorLocked (locked door)
+      and RuinDoorOpen (open door). cursor info follows the existing
+      tile-label pattern.
+    inputs:
+      - 'cursor hovering over a door tile in a ruin'
+    outputs:
+      - 'human-readable door label in sidebar contents'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: face-door-without-key
+    description: 'player presses [e] facing RuinDoorLocked with no aqueductKey in backpack'
+    expected: 'no unlock, no key consumed; toast: the door is locked. (or similar — copy lives in implementation, not spec)'
+
+  - id: multiple-keys-in-backpack
+    description: 'player has more than one aqueductKey when unlocking'
+    expected: 'exactly one aqueductKey is consumed; the rest remain'
+
+  - id: re-press-on-open-door
+    description: 'player presses [e] facing a RuinDoorOpen tile'
+    expected: 'no-op — open doors are not interactive, no key consumed'
+
+  - id: key-on-action-bar-slot
+    description: 'aqueductKey is bound to an action bar slot when unlock fires'
+    expected: 'key is removed from backpack; action bar slot is cleared if it referenced the consumed instance'
+
+failure_conditions:
+  - trigger: 'door tile placement collides with the entrance landing area'
+    expected: 'generator regression — door must never block the entrance corridor; tests must fail if doorPosition equals or is adjacent to entranceInterior'
+
+  - trigger: 'two RuinDoorLocked tiles exist in a single ruin'
+    expected: 'generator regression — exactly one door per ruin; tests must fail'
+
+  - trigger: 'unlock attempted while not facing the door (e.g. facing wall adjacent to door)'
+    expected: 'no-op — unlock is gated on facingTile == RuinDoorLocked'
+
+verification:
+  test_file: src/engine/__tests__/ruin-locked-door.test.ts
+  test_pattern: 'ruin locked door'
+  command: 'npx vitest run src/engine/__tests__/ruin-locked-door.test.ts'
