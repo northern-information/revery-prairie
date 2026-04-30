@@ -36,6 +36,7 @@ import { tickDeepTime } from './deepTime'
 import { ComponentType } from './ecs/types'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
 import { completeGenesis, GENESIS_EPOCHS, tickGenesis } from './genesis'
+import { recenterCamera } from './edgeScroll'
 import { tickGlintZones } from './glintZones'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { getDefinition } from './items'
@@ -218,6 +219,10 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           if (!state.heldDirection) break
           if (movePlayer(state, state.heldDirection)) {
             moved = true
+            // RTS pan: WASD-driven moves snap the camera back to follow.
+            // Click-to-move (tickPath) deliberately does not recenter so
+            // the user can issue commands to off-screen tiles while panned.
+            recenterCamera(state)
             checkAutoHide(state, callbacks)
             const result = pickUpGroundItems(state, time)
             for (const defId of result.pickedUp) {

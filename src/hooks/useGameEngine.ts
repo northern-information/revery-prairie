@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { completeGenesis } from '@/engine/genesis'
 import { createGameState } from '@/engine/state'
 
+import { collapseFacingToCardinal } from '@/engine/types'
+
 import type { NetworkClient } from '@/network/client'
 import type {
   ColorId,
@@ -67,7 +69,12 @@ export const useGameEngine = (
       const client = multiplayer.client
       initial.onPlayerMoved = () => {
         if (!gameState) return
-        client.sendPosition(gameState.player.x, gameState.player.y, gameState.playerFacing)
+        // Wire protocol is 4-cardinal; collapse local 8-way facing to its
+        // dominant cardinal so the protocol stays simple. Diagonals fold
+        // into the closest cardinal by their world-Y axis (the "iso axis"
+        // that visually dominates), with a fallback to world-X.
+        const cardinalFacing = collapseFacingToCardinal(gameState.playerFacing)
+        client.sendPosition(gameState.player.x, gameState.player.y, cardinalFacing)
       }
       gameState = initial
     } else {

@@ -98,6 +98,7 @@ import {
   TILE_COLORS,
   getEntranceGlyph,
   TRAIL_DURATION_MS,
+  EDGE_SCROLL_INDICATOR_THICKNESS_PX,
   MOVE_ORDER_MARKER_DURATION_MS,
   WEATHER_RAIN_DENSITY,
   WILDFIRE_CHARS,
@@ -116,6 +117,7 @@ import {
 } from './glintZones'
 import { getTweenLerp } from './movementTween'
 import { isInBounds, posKey, tileHash } from './position'
+import { drawCellBackground, viewportToScreen, worldToScreen } from './projection'
 import { getReveryDefinition } from './reveries'
 import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
@@ -266,6 +268,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   const { camera, viewportWidth, viewportHeight, map, player } = state
   const { charWidth, charHeight } = metrics
+  const iso = state.isometricProjection
 
   // Genesis-to-gameplay crossfade: entities not visible in genesis fade in
   const transitionAlpha = getTransitionAlpha(state.genesisTransition, time)
@@ -284,29 +287,65 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const deepTimeShake = state.deepTime?.active === true && time < state.deepTime.shakeUntil
   const satelliteShake = time < state.screenShakeUntil
   const shakeActive = deepTimeShake || satelliteShake
-  if (shakeActive) {
-    const amplitude = satelliteShake
-      ? SATELLITE_SHAKE_AMPLITUDE
-      : DEEP_TIME_SHAKE_AMPLITUDE
-    const sx = (Math.random() * 2 - 1) * amplitude
-    const sy = (Math.random() * 2 - 1) * amplitude
-    ctx.save()
-    ctx.translate(sx, sy)
+
+  // Edge-scroll camera drift: integer camera coords are needed for tile
+  // indexing (map[my][mx] etc.), but stepping the camera one full tile per
+  // ~3-4 frames of edge-scroll produces visible jumps. Render the scene
+  // with a sub-tile pixel translate so motion looks continuous; the
+  // remainder is held in cameraSubpixel until it crosses an integer tile.
+  let driftPx = 0
+  let driftPy = 0
+  if (state.cameraMode === 'free') {
+    if (iso) {
+      driftPx = (state.cameraSubpixel.x - state.cameraSubpixel.y) * charWidth
+      driftPy = (state.cameraSubpixel.x + state.cameraSubpixel.y) * (charHeight / 2)
+    } else {
+      driftPx = state.cameraSubpixel.x * charWidth
+      driftPy = state.cameraSubpixel.y * charHeight
+    }
   }
 
-  // Player tween: glyph draws at sub-tile pixel offset within its destination cell;
-  // selection/cursor highlights stay anchored to the integer player tile.
-  let playerDrawOffsetX = 0
-  let playerDrawOffsetY = 0
+  const worldTransformActive = shakeActive || driftPx !== 0 || driftPy !== 0
+  if (worldTransformActive) {
+    let sx = 0
+    let sy = 0
+    if (shakeActive) {
+      const amplitude = satelliteShake ? SATELLITE_SHAKE_AMPLITUDE : DEEP_TIME_SHAKE_AMPLITUDE
+      sx = (Math.random() * 2 - 1) * amplitude
+      sy = (Math.random() * 2 - 1) * amplitude
+    }
+    ctx.save()
+    // Translating by -drift makes the rendered scene shift the same way
+    // it would if camera had advanced fractionally, completing the visual
+    // illusion of continuous motion without breaking integer tile indexing.
+    ctx.translate(sx - driftPx, sy - driftPy)
+  }
+
+  // Player tween: glyph draws at the projected fractional world position.
+  // Selection/cursor highlights stay anchored to the integer player tile.
+  // Routing through worldToScreen makes the projection match the renderer
+  // (orthogonal or isometric) — same path the coyote/ECS lerp post-pass uses.
+  let playerLerpX = player.x
+  let playerLerpY = player.y
   if (state.playerTween) {
     const lerp = getTweenLerp(state.playerTween, time, player.x, player.y)
     if (lerp.t >= 1) {
       state.playerTween = null
     } else {
-      playerDrawOffsetX = (lerp.x - player.x) * charWidth
-      playerDrawOffsetY = (lerp.y - player.y) * charHeight
+      playerLerpX = lerp.x
+      playerLerpY = lerp.y
     }
   }
+  const playerScreen = worldToScreen(
+    playerLerpX,
+    playerLerpY,
+    camera,
+    charWidth,
+    charHeight,
+    iso,
+    viewportWidth,
+    viewportHeight,
+  )
 
   // Zone filter helper — only render entities in the current zone (including ruinIndex match)
   const zone = state.currentZone
@@ -1018,7 +1057,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           } else {
             ctx.fillStyle = lerpColor(scanBg.color, BG_COLOR, 1 - scanBg.opacity)
           }
-          ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
+          const { px: bgPx, py: bgPy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
+          drawCellBackground(ctx, bgPx, bgPy, charWidth, charHeight, iso)
         }
       }
     }
@@ -1040,7 +1080,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const vx = cell.x - camera.x
         const vy = cell.y - camera.y
         if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
-        ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
+        const { px: hPx, py: hPy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
+        drawCellBackground(ctx, hPx, hPy, charWidth, charHeight, iso)
       }
     }
   }
@@ -1056,7 +1097,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const dist = Math.abs(mx - player.x) + Math.abs(my - player.y)
         if (dist > LIGHTNING_REVERY_RANGE) continue
         ctx.fillStyle = LIGHTNING_RANGE_HIGHLIGHT_COLOR
-        ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
+        const { px: lPx, py: lPy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
+        drawCellBackground(ctx, lPx, lPy, charWidth, charHeight, iso)
       }
     }
   }
@@ -1085,7 +1127,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
           ctx.globalAlpha = alpha
           ctx.fillStyle = '#FFD700'
-          ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
+          const { px: aPx, py: aPy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
+          drawCellBackground(ctx, aPx, aPy, charWidth, charHeight, iso)
           break // only one angel aura can contribute per tile
         }
       }
@@ -1184,13 +1227,18 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const visibleSet = fogActive ? computeZoneVisibility(state) : null
   _lastVisibleSet = visibleSet
 
-  for (let vy = 0; vy < viewportHeight; vy++) {
-    for (let vx = 0; vx < viewportWidth; vx++) {
+  // In iso mode, the visible footprint is a rotated rectangle. Expand the
+  // tile-loop bounds so corner diamonds aren't clipped. Off-canvas writes
+  // are cheap because the canvas clips them anyway.
+  const tileLoopStart = iso ? -viewportHeight : 0
+  const tileLoopEndX = iso ? viewportWidth + viewportHeight : viewportWidth
+  const tileLoopEndY = iso ? viewportHeight + viewportWidth : viewportHeight
+  for (let vy = tileLoopStart; vy < tileLoopEndY; vy++) {
+    for (let vx = tileLoopStart; vx < tileLoopEndX; vx++) {
       const mx = camera.x + vx
       const my = camera.y + vy
 
-      const px = vx * charWidth
-      const py = vy * charHeight
+      const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
 
       // Out-of-bounds and Space tiles render as twinkling stars (overworld) or dark void (cave)
       const isOutOfBounds = !isInBounds(mx, my, state.mapWidth, state.mapHeight)
@@ -1212,7 +1260,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           const pulse = Math.sin(time * 0.003 + (h & 0xff) * 0.05) * 0.5 + 0.5
           const bgAlpha = 0.15 + 0.1 * pulse
           ctx.fillStyle = `rgba(139, 0, 0, ${String(bgAlpha)})`
-          ctx.fillRect(px, py, charWidth, charHeight)
+          drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
           if (h % STAR_DENSITY === 0) {
             const redColors = ['#550000', '#770000', '#990000', '#771111', '#993333']
             const charPhase = ((h >> 4) + Math.floor(time * 0.002)) % STAR_CHARS.length
@@ -1305,11 +1353,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           // Draw old glyph fading out
           ctx.globalAlpha = 1 - glyphT
           ctx.fillStyle = state.deepTime.playerGlyphColor
-          ctx.fillText(state.deepTime.playerGlyph, px + playerDrawOffsetX, py + playerDrawOffsetY)
+          ctx.fillText(state.deepTime.playerGlyph, playerScreen.px, playerScreen.py)
           // Draw new glyph fading in
           ctx.globalAlpha = glyphT
           ctx.fillStyle = sessionColor
-          ctx.fillText(PLAYER_CHAR, px + playerDrawOffsetX, py + playerDrawOffsetY)
+          ctx.fillText(PLAYER_CHAR, playerScreen.px, playerScreen.py)
           ctx.globalAlpha = 1
           // Skip the normal draw path for this tile
           char = PLAYER_CHAR
@@ -1522,7 +1570,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           color = TILE_COLORS[devPaintTileType as keyof typeof TILE_COLORS] ?? '#ffffff'
         }
         ctx.fillStyle = ACTION_COLOR
-        ctx.fillRect(px, py, charWidth, charHeight)
+        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
         ctx.fillStyle = color
         ctx.fillText(char, px, py)
         continue
@@ -1531,7 +1579,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // Dev entity preview: show glyph with pink background at hovered tile
       if (mx === state.devEntityPreview?.x && my === state.devEntityPreview?.y) {
         ctx.fillStyle = ACTION_COLOR
-        ctx.fillRect(px, py, charWidth, charHeight)
+        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
         ctx.fillStyle = state.devEntityPreview.color
         ctx.fillText(state.devEntityPreview.char, px, py)
         continue
@@ -1563,19 +1611,19 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         ctx.fillStyle = color
       } else if (selectedPositions.has(tileKey)) {
         ctx.fillStyle = ACTION_COLOR
-        ctx.fillRect(px, py, charWidth, charHeight)
+        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
         ctx.fillStyle = BG_COLOR
       } else if (state.playerSelected && state.playerSpawn.visible && mx === player.x && my === player.y) {
         ctx.fillStyle = ACTION_COLOR
-        ctx.fillRect(px, py, charWidth, charHeight)
+        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
         ctx.fillStyle = BG_COLOR
       } else if (isAngelGroupHighlighted) {
         ctx.fillStyle = ACTION_COLOR
-        ctx.fillRect(px, py, charWidth, charHeight)
+        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
         ctx.fillStyle = BG_COLOR
       } else if ((isCursor && cursorable) || isFacingEntity || isPendingTarget) {
         ctx.fillStyle = ACTION_COLOR
-        ctx.fillRect(px, py, charWidth, charHeight)
+        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
         ctx.fillStyle = BG_COLOR
       } else {
         ctx.fillStyle = color
@@ -1602,7 +1650,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           ctx.fillText(layer.char, px + layer.dx * offsetScale, py + layer.dy * offsetScale)
         }
       } else if (mx === player.x && my === player.y) {
-        ctx.fillText(char, px + playerDrawOffsetX, py + playerDrawOffsetY)
+        ctx.fillText(char, playerScreen.px, playerScreen.py)
       } else {
         ctx.fillText(char, px, py)
       }
@@ -1613,8 +1661,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Smooth-movement post-pass — draw tweening ECS entities at fractional pixel positions
   for (const t of tweenedEntities) {
-    const px = (t.lerpX - camera.x) * charWidth
-    const py = (t.lerpY - camera.y) * charHeight
+    const { px, py } = worldToScreen(t.lerpX, t.lerpY, camera, charWidth, charHeight, iso, viewportWidth, viewportHeight)
     ctx.fillStyle = t.color
     ctx.fillText(t.char, px, py)
   }
@@ -1655,8 +1702,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
         const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
 
-        const rpx = vx * charWidth
-        const rpy = vy * charHeight
+        const { px: rpx, py: rpy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
         ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]
         ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy)
       }
@@ -1675,8 +1721,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
     const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
 
-    const rpx = vx * charWidth
-    const rpy = vy * charHeight
+    const { px: rpx, py: rpy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
     ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]
     ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy)
   }
@@ -1706,8 +1751,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // Alpha = rainIntensity (fade in/out) * edgeAlpha (fringe falloff)
         ctx.globalAlpha = state.rainIntensity * front.edgeAlpha
 
-        const rpx = vx * charWidth
-        const rpy = vy * charHeight
+        const { px: rpx, py: rpy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
         ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]
         ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy)
       }
@@ -1736,8 +1780,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const glintPhase = ((h >> 4) + Math.floor(time * GLINT_ZONE_SPEED)) % GLINT_ZONE_CHARS.length
         const glintColorPhase = ((h >> 8) + Math.floor(time * GLINT_ZONE_SPEED * 0.7)) % GLINT_ZONE_COLORS.length
 
-        const gpx = vx * charWidth
-        const gpy = vy * charHeight
+        const { px: gpx, py: gpy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
         ctx.fillStyle = GLINT_ZONE_COLORS[glintColorPhase]
         ctx.fillText(GLINT_ZONE_CHARS[glintPhase], gpx, gpy)
       }
@@ -1772,7 +1815,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
         ctx.globalAlpha = finalOpacity
         ctx.fillStyle = GLINT_ZONE_COLORS[colorIndex]
-        ctx.fillText(GLINT_BEAM_CHAR, vx * charWidth, vy * charHeight)
+        const { px: bPx, py: bPy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
+        ctx.fillText(GLINT_BEAM_CHAR, bPx, bPy)
       }
     }
     ctx.globalAlpha = savedAlpha
@@ -1795,8 +1839,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const phase = ((h >> 4) + Math.floor(time * 0.01)) % fireChars.length
         const colorPhase = ((h >> 8) + Math.floor(time * 0.008)) % fireColors.length
 
-        const rpx = vx * charWidth
-        const rpy = vy * charHeight
+        const { px: rpx, py: rpy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
         ctx.fillStyle = fireColors[colorPhase]
         ctx.fillText(fireChars[phase], rpx, rpy)
       }
@@ -1805,8 +1848,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Deep Time year counter moved to Sidebar.tsx
 
-  // Restore canvas transform before screen-level overlays
-  if (shakeActive) {
+  // Restore canvas transform before screen-level overlays (edge indicator,
+  // off-screen player arrow, lightning flash, ejection fade, RTS box).
+  if (worldTransformActive) {
     ctx.restore()
   }
 
@@ -1844,13 +1888,142 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const elapsed = time - marker.time
     if (elapsed >= MOVE_ORDER_MARKER_DURATION_MS) continue
     const alpha = 1 - elapsed / MOVE_ORDER_MARKER_DURATION_MS
-    const sx = (marker.position.x - camera.x) * charWidth
-    const sy = (marker.position.y - camera.y) * charHeight
+    const { px: sx, py: sy } = worldToScreen(marker.position.x, marker.position.y, camera, charWidth, charHeight, iso, viewportWidth, viewportHeight)
     ctx.globalAlpha = alpha
     ctx.fillStyle = ACTION_COLOR
-    ctx.fillRect(sx, sy, charWidth, charHeight)
+    drawCellBackground(ctx, sx, sy, charWidth, charHeight, iso)
     ctx.fillStyle = BG_COLOR
     ctx.fillText('X', sx, sy)
     ctx.globalAlpha = 1
   }
+
+  // RTS edge-scroll active-edge indicator: hot-pink lines along whichever
+  // canvas edges the cursor is currently inside. Includes an inner glow
+  // gradient extending into the playfield so the active edge reads as
+  // illuminated rather than a flat line.
+  {
+    const dirX = state.edgeScrollDirection.dx
+    const dirY = state.edgeScrollDirection.dy
+    if (dirX !== 0 || dirY !== 0) {
+      const visibleWidthPx = (viewportWidth - state.rightInsetTiles) * charWidth
+      const t = EDGE_SCROLL_INDICATOR_THICKNESS_PX
+      const glowDepth = Math.max(charWidth * 1.5, 24) // px the glow extends inward
+
+      const drawEdgeGlow = (
+        edge: 'left' | 'right' | 'top' | 'bottom',
+      ) => {
+        let gradient: CanvasGradient
+        let solidX = 0
+        let solidY = 0
+        let solidW = 0
+        let solidH = 0
+        let glowX = 0
+        let glowY = 0
+        let glowW = 0
+        let glowH = 0
+        if (edge === 'left') {
+          solidX = 0; solidY = 0; solidW = t; solidH = pxHeight
+          glowX = t; glowY = 0; glowW = glowDepth; glowH = pxHeight
+          gradient = ctx.createLinearGradient(t, 0, t + glowDepth, 0)
+        } else if (edge === 'right') {
+          solidX = visibleWidthPx - t; solidY = 0; solidW = t; solidH = pxHeight
+          glowX = visibleWidthPx - t - glowDepth; glowY = 0; glowW = glowDepth; glowH = pxHeight
+          gradient = ctx.createLinearGradient(visibleWidthPx - t - glowDepth, 0, visibleWidthPx - t, 0)
+          gradient.addColorStop(0, 'rgba(255, 105, 180, 0)')
+          gradient.addColorStop(1, 'rgba(255, 105, 180, 0.35)')
+          ctx.fillStyle = gradient
+          ctx.fillRect(glowX, glowY, glowW, glowH)
+          ctx.fillStyle = ACTION_COLOR
+          ctx.fillRect(solidX, solidY, solidW, solidH)
+          return
+        } else if (edge === 'top') {
+          solidX = 0; solidY = 0; solidW = visibleWidthPx; solidH = t
+          glowX = 0; glowY = t; glowW = visibleWidthPx; glowH = glowDepth
+          gradient = ctx.createLinearGradient(0, t, 0, t + glowDepth)
+        } else {
+          solidX = 0; solidY = pxHeight - t; solidW = visibleWidthPx; solidH = t
+          glowX = 0; glowY = pxHeight - t - glowDepth; glowW = visibleWidthPx; glowH = glowDepth
+          gradient = ctx.createLinearGradient(0, pxHeight - t - glowDepth, 0, pxHeight - t)
+          gradient.addColorStop(0, 'rgba(255, 105, 180, 0)')
+          gradient.addColorStop(1, 'rgba(255, 105, 180, 0.35)')
+          ctx.fillStyle = gradient
+          ctx.fillRect(glowX, glowY, glowW, glowH)
+          ctx.fillStyle = ACTION_COLOR
+          ctx.fillRect(solidX, solidY, solidW, solidH)
+          return
+        }
+        // Default (left, top): glow fades from solid edge inward.
+        gradient.addColorStop(0, 'rgba(255, 105, 180, 0.35)')
+        gradient.addColorStop(1, 'rgba(255, 105, 180, 0)')
+        ctx.fillStyle = gradient
+        ctx.fillRect(glowX, glowY, glowW, glowH)
+        ctx.fillStyle = ACTION_COLOR
+        ctx.fillRect(solidX, solidY, solidW, solidH)
+      }
+
+      if (dirX < 0) drawEdgeGlow('left')
+      if (dirX > 0) drawEdgeGlow('right')
+      if (dirY < 0) drawEdgeGlow('top')
+      if (dirY > 0) drawEdgeGlow('bottom')
+    }
+  }
+
+  // Off-screen player indicator: when free-pan moves the camera away from
+  // the player, draw a hot-pink chunk with an arrow glyph at the playfield
+  // edge nearest the player. Uses ASCII (>, <, ^, v) so any monospace font
+  // renders it. Visible inside the playfield rect (excluding sidebar).
+  if (state.cameraMode === 'free') {
+    const visibleWidthPx = (viewportWidth - state.rightInsetTiles) * charWidth
+    const { px: ppx, py: ppy } = worldToScreen(
+      player.x,
+      player.y,
+      camera,
+      charWidth,
+      charHeight,
+      iso,
+      viewportWidth,
+      viewportHeight,
+    )
+    const margin = charWidth * 1.5
+    const offscreen =
+      ppx < margin ||
+      ppx > visibleWidthPx - margin ||
+      ppy < margin ||
+      ppy > pxHeight - margin
+    if (offscreen) {
+      const cx = visibleWidthPx / 2
+      const cy = pxHeight / 2
+      const dx = ppx - cx
+      const dy = ppy - cy
+      // Intersection of the line center→player with the inset rect.
+      const halfW = visibleWidthPx / 2 - margin
+      const halfH = pxHeight / 2 - margin
+      const tx = dx === 0 ? Infinity : halfW / Math.abs(dx)
+      const ty = dy === 0 ? Infinity : halfH / Math.abs(dy)
+      const t = Math.min(tx, ty)
+      const ax = cx + dx * t
+      const ay = cy + dy * t
+      const arrow = pickArrowGlyph(dx, dy)
+      // Pink rectangle backdrop + dark arrow glyph for high contrast,
+      // independent of projection mode (always rectangular here so it
+      // reads as UI rather than a tile).
+      ctx.fillStyle = ACTION_COLOR
+      ctx.fillRect(ax - charWidth, ay - charHeight / 2, 2 * charWidth, charHeight)
+      ctx.fillStyle = BG_COLOR
+      ctx.fillText(arrow, ax - charWidth / 2, ay - charHeight / 2)
+    }
+  }
+}
+
+const pickArrowGlyph = (dx: number, dy: number): string => {
+  // ASCII-only glyphs so any monospace font renders them. Dominant axis
+  // wins; pure diagonals fall through to corner brackets.
+  const ax = Math.abs(dx)
+  const ay = Math.abs(dy)
+  if (ax > ay * 1.5) return dx > 0 ? '>' : '<'
+  if (ay > ax * 1.5) return dy > 0 ? 'v' : '^'
+  if (dx > 0 && dy > 0) return '\\'
+  if (dx > 0 && dy < 0) return '/'
+  if (dx < 0 && dy > 0) return '/'
+  return '\\'
 }

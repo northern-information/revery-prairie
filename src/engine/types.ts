@@ -205,6 +205,13 @@ export interface GameState {
   musicEnabled: boolean
   fontScale: number
   zoom: number
+  isometricProjection: boolean
+  cameraMode: 'follow' | 'free'
+  lastEdgeScrollTime: number
+  edgeScrollPos: { x: number; y: number } | null
+  edgeScrollDirection: { dx: number; dy: number }
+  cameraSubpixel: { x: number; y: number }
+  heldKeys: Set<ScreenAxisKey>
   currentZone: Zone
   overworldMap: Tile[][]
   overworldMapWidth: number
@@ -344,7 +351,42 @@ export interface Weather {
   season: Season
 }
 
-export type Direction = 'up' | 'down' | 'left' | 'right'
+export type Direction =
+  | 'up'
+  | 'down'
+  | 'left'
+  | 'right'
+  | 'upLeft'
+  | 'upRight'
+  | 'downLeft'
+  | 'downRight'
+
+export const isDiagonalDirection = (dir: Direction): boolean =>
+  dir === 'upLeft' || dir === 'upRight' || dir === 'downLeft' || dir === 'downRight'
+
+/** Screen-axis key (the four WASD/arrow directions in screen-relative terms). */
+export type ScreenAxisKey = 'up' | 'down' | 'left' | 'right'
+
+/**
+ * Collapse an 8-way facing to a 4-cardinal direction. Used for wire
+ * protocols (multiplayer) and any code path that predates diagonals.
+ */
+export type CardinalDirection = 'up' | 'down' | 'left' | 'right'
+export const collapseFacingToCardinal = (dir: Direction): CardinalDirection => {
+  switch (dir) {
+    case 'up':
+    case 'down':
+    case 'left':
+    case 'right':
+      return dir
+    case 'upLeft':
+    case 'upRight':
+      return 'up'
+    case 'downLeft':
+    case 'downRight':
+      return 'down'
+  }
+}
 
 export const Zone = {
   Overworld: 'overworld',

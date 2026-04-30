@@ -160,19 +160,32 @@ describe('tickPath', () => {
     expect(state.path).toBeNull()
   })
 
-  it('cancels path when next step has invalid direction', () => {
+  it('cancels path when next step is more than 1 tile away on any axis', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     const startX = state.player.x
     const startY = state.player.y
-    // Diagonal step — not a valid direction
-    state.path = [{ x: startX + 1, y: startY + 1 }]
+    // 2-tile jump — not a valid 1-step move in any direction
+    state.path = [{ x: startX + 2, y: startY }]
 
     const result = tickPath(state)
     expect(result).toBe(false)
     expect(state.player.x).toBe(startX)
     expect(state.player.y).toBe(startY)
     expect(state.path).toBeNull()
+  })
+
+  it('walks a diagonal step (downRight) when path is one tile diagonal', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const startX = state.player.x
+    const startY = state.player.y
+    state.path = [{ x: startX + 1, y: startY + 1 }]
+
+    const result = tickPath(state)
+    expect(result).toBe(true)
+    expect(state.player.x).toBe(startX + 1)
+    expect(state.player.y).toBe(startY + 1)
   })
 
   it('walks entire chained path to completion', () => {

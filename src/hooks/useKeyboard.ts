@@ -6,7 +6,7 @@ import { getCharacterDefinition } from '@/engine/characters'
 import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
 import { dropItem } from '@/engine/entities'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
-import { keyToDirection } from '@/engine/input'
+import { keyToScreenAxis, resolveHeldDirection } from '@/engine/heldKeys'
 import {
   advanceDialog,
   breakWall,
@@ -187,10 +187,11 @@ export const useKeyboard = ({
 
       // While dragging in pack, only allow movement
       if (isDraggingRef.current) {
-        const dir = keyToDirection(e.key)
-        if (dir && activeScreen !== 'system') {
+        const axis = keyToScreenAxis(e.key)
+        if (axis && activeScreen !== 'system') {
           e.preventDefault()
-          state.heldDirection = dir
+          state.heldKeys.add(axis)
+          state.heldDirection = resolveHeldDirection(state.heldKeys, state.isometricProjection)
           document.documentElement.classList.add('cursor-hidden')
           if (!e.repeat) {
             state.path = null
@@ -296,21 +297,24 @@ export const useKeyboard = ({
       }
 
       // Movement (allowed with pack open; WASD closes system)
-      const dir = keyToDirection(e.key)
-      if (dir && activeScreen === 'system') {
+      const axis = keyToScreenAxis(e.key)
+      if (axis && activeScreen === 'system') {
+        state.heldKeys.clear()
         state.heldDirection = null
         setActiveScreen(null)
         return
       }
-      if (dir && state.activeDialog) {
+      if (axis && state.activeDialog) {
+        state.heldKeys.clear()
         state.heldDirection = null
         state.activeDialog = null
         refreshUI()
         return
       }
-      if (dir) {
+      if (axis) {
         e.preventDefault()
-        state.heldDirection = dir
+        state.heldKeys.add(axis)
+        state.heldDirection = resolveHeldDirection(state.heldKeys, state.isometricProjection)
         document.documentElement.classList.add('cursor-hidden')
         if (!e.repeat) {
           state.path = null
@@ -326,9 +330,10 @@ export const useKeyboard = ({
 
   const handleKeyUp = useCallback(
     (e: KeyboardEvent) => {
-      const dir = keyToDirection(e.key)
-      if (dir && dir === state.heldDirection) {
-        state.heldDirection = null
+      const axis = keyToScreenAxis(e.key)
+      if (axis) {
+        state.heldKeys.delete(axis)
+        state.heldDirection = resolveHeldDirection(state.heldKeys, state.isometricProjection)
       }
 
       // Release number key → cast revery or enter targeting mode

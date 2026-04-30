@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { updateCamera } from '@/engine/camera'
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from '@/engine/constants'
 import { updateCursorState } from '@/engine/cursor'
+import { tickEdgeScroll } from '@/engine/edgeScroll'
 import { createGameLoop } from '@/engine/gameLoop'
 import { measureChar, render } from '@/engine/renderer'
 import { useMouse } from '@/hooks/useMouse'
@@ -104,6 +105,27 @@ export const GameCanvas = ({
     }
     canvas.addEventListener('wheel', handleWheel, { passive: false })
 
+    // Track raw mouse position over the canvas region for edge-scroll.
+    // Independent from cursorScreenPos (which is gated by sidebar overlap
+    // for tile-info purposes). Listening on window so we still get updates
+    // when the cursor crosses into the sidebar overlay near the right edge.
+    const handleEdgeMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const y = e.clientY - rect.top
+      if (x < 0 || x > rect.width || y < 0 || y > rect.height) {
+        state.edgeScrollPos = null
+        return
+      }
+      state.edgeScrollPos = { x, y }
+    }
+    const handleEdgeMouseLeave = () => {
+      state.edgeScrollPos = null
+    }
+    window.addEventListener('mousemove', handleEdgeMouseMove)
+    window.addEventListener('mouseleave', handleEdgeMouseLeave)
+    document.addEventListener('mouseleave', handleEdgeMouseLeave)
+
     const gameLoop = createGameLoop(state, {
       onRefreshUI: () => {
         refreshUIRef.current()
@@ -126,6 +148,16 @@ export const GameCanvas = ({
           updateSize()
         }
         if (metricsRef.current) {
+          // Edge-scroll runs only when no menu/dialog/dragging blocks the canvas.
+          // Active screens (menu, manual, etc.) keep their own input focus and
+          // we don't want stray cursor positions to pan the camera underneath.
+          const screenBlocking = activeScreenRef.current !== null
+          if (!screenBlocking && !state.activeDialog) {
+            tickEdgeScroll(state, metricsRef.current, time)
+          } else {
+            // Keep timestamp current so the next eligible frame doesn't see a huge dt.
+            state.lastEdgeScrollTime = time
+          }
           updateCursorState(state, metricsRef.current)
           render(ctx, state, metricsRef.current, time)
         }
@@ -136,6 +168,9 @@ export const GameCanvas = ({
     return () => {
       window.removeEventListener('resize', onResize)
       canvas.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('mousemove', handleEdgeMouseMove)
+      window.removeEventListener('mouseleave', handleEdgeMouseLeave)
+      document.removeEventListener('mouseleave', handleEdgeMouseLeave)
       gameLoop.stop()
     }
   }, [state, metricsRef])

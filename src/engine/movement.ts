@@ -5,7 +5,7 @@ import { ComponentType } from './ecs/types'
 import { updateFacingEntity } from './interaction'
 import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
-import { Zone } from './types'
+import { isDiagonalDirection, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
 
 import type { Direction, GameState, Position } from './types'
@@ -91,10 +91,35 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
     updateFacingEntity(state)
     return false
   }
+  // Corner-cutting check for diagonal moves: both adjacent cardinal tiles
+  // must also be walkable, otherwise the player would slip through the
+  // corner of a wall. Standard iso roguelike rule.
+  if (isDiagonalDirection(dir)) {
+    const cx = state.player.x + d.x
+    const cy = state.player.y
+    const cx2 = state.player.x
+    const cy2 = state.player.y + d.y
+    const tile1 = state.map[cy]?.[cx]
+    const tile2 = state.map[cy2]?.[cx2]
+    if (!tile1 || !tile2 || !isWalkableTile(tile1.type) || !isWalkableTile(tile2.type)) {
+      updateFacingEntity(state)
+      return false
+    }
+  }
   const blocked = getBlockedPositions(state, undefined, { ignoreCoyote: true })
   if (blocked.has(posKey(nx, ny))) {
     updateFacingEntity(state)
     return false
+  }
+  // Also block diagonals through entity-blocked cardinal corners.
+  if (isDiagonalDirection(dir)) {
+    if (
+      blocked.has(posKey(state.player.x + d.x, state.player.y)) ||
+      blocked.has(posKey(state.player.x, state.player.y + d.y))
+    ) {
+      updateFacingEntity(state)
+      return false
+    }
   }
 
   const prevX = state.player.x
@@ -153,6 +178,10 @@ export const tickPath = (state: GameState): boolean => {
   else if (dx === -1 && dy === 0) dir = 'left'
   else if (dx === 0 && dy === -1) dir = 'up'
   else if (dx === 0 && dy === 1) dir = 'down'
+  else if (dx === -1 && dy === -1) dir = 'upLeft'
+  else if (dx === 1 && dy === -1) dir = 'upRight'
+  else if (dx === -1 && dy === 1) dir = 'downLeft'
+  else if (dx === 1 && dy === 1) dir = 'downRight'
 
   if (!dir || !movePlayer(state, dir)) {
     state.path = null

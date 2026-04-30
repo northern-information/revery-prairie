@@ -2,22 +2,25 @@ import { Menu } from '../Menu'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
+const makeProps = (overrides: Partial<Parameters<typeof Menu>[0]> = {}) => ({
+  onResume: vi.fn(),
+  onNewGame: vi.fn(),
+  metric: true,
+  onToggleUnits: vi.fn(),
+  musicEnabled: true,
+  onToggleMusic: vi.fn(),
+  autoHidePanels: true,
+  onToggleAutoHidePanels: vi.fn(),
+  fontScale: 1,
+  onCycleFontScale: vi.fn(),
+  isometricProjection: false,
+  onToggleIsometric: vi.fn(),
+  ...overrides,
+})
+
 describe('Menu', () => {
   it('renders title and options', () => {
-    render(
-      <Menu
-        onResume={vi.fn()}
-        onNewGame={vi.fn()}
-        metric={true}
-        onToggleUnits={vi.fn()}
-        musicEnabled={true}
-        onToggleMusic={vi.fn()}
-        autoHidePanels={true}
-        onToggleAutoHidePanels={vi.fn()}
-        fontScale={1}
-        onCycleFontScale={vi.fn()}
-      />
-    )
+    render(<Menu {...makeProps()} />)
 
     expect(screen.getByText('Resume')).toBeInTheDocument()
     expect(screen.getByText('New Game')).toBeInTheDocument()
@@ -27,20 +30,7 @@ describe('Menu', () => {
 
   it('calls onResume when resume is clicked', async () => {
     const onResume = vi.fn()
-    render(
-      <Menu
-        onResume={onResume}
-        onNewGame={vi.fn()}
-        metric={true}
-        onToggleUnits={vi.fn()}
-        musicEnabled={true}
-        onToggleMusic={vi.fn()}
-        autoHidePanels={true}
-        onToggleAutoHidePanels={vi.fn()}
-        fontScale={1}
-        onCycleFontScale={vi.fn()}
-      />
-    )
+    render(<Menu {...makeProps({ onResume })} />)
 
     await userEvent.click(screen.getByText('Resume'))
 
@@ -49,20 +39,7 @@ describe('Menu', () => {
 
   it('shows confirmation before starting new game', async () => {
     const onNewGame = vi.fn()
-    render(
-      <Menu
-        onResume={vi.fn()}
-        onNewGame={onNewGame}
-        metric={true}
-        onToggleUnits={vi.fn()}
-        musicEnabled={true}
-        onToggleMusic={vi.fn()}
-        autoHidePanels={true}
-        onToggleAutoHidePanels={vi.fn()}
-        fontScale={1}
-        onCycleFontScale={vi.fn()}
-      />
-    )
+    render(<Menu {...makeProps({ onNewGame })} />)
 
     await userEvent.click(screen.getByText('New Game'))
 
@@ -73,20 +50,7 @@ describe('Menu', () => {
 
   it('calls onNewGame when confirmed', async () => {
     const onNewGame = vi.fn()
-    render(
-      <Menu
-        onResume={vi.fn()}
-        onNewGame={onNewGame}
-        metric={true}
-        onToggleUnits={vi.fn()}
-        musicEnabled={true}
-        onToggleMusic={vi.fn()}
-        autoHidePanels={true}
-        onToggleAutoHidePanels={vi.fn()}
-        fontScale={1}
-        onCycleFontScale={vi.fn()}
-      />
-    )
+    render(<Menu {...makeProps({ onNewGame })} />)
 
     await userEvent.click(screen.getByText('New Game'))
     await userEvent.click(screen.getByText('Confirm?'))
@@ -96,20 +60,7 @@ describe('Menu', () => {
 
   it('cancels new game confirmation', async () => {
     const onNewGame = vi.fn()
-    render(
-      <Menu
-        onResume={vi.fn()}
-        onNewGame={onNewGame}
-        metric={true}
-        onToggleUnits={vi.fn()}
-        musicEnabled={true}
-        onToggleMusic={vi.fn()}
-        autoHidePanels={true}
-        onToggleAutoHidePanels={vi.fn()}
-        fontScale={1}
-        onCycleFontScale={vi.fn()}
-      />
-    )
+    render(<Menu {...makeProps({ onNewGame })} />)
 
     await userEvent.click(screen.getByText('New Game'))
     await userEvent.click(screen.getByText('Cancel'))
@@ -119,40 +70,14 @@ describe('Menu', () => {
   })
 
   it('shows imperial when metric is false', () => {
-    render(
-      <Menu
-        onResume={vi.fn()}
-        onNewGame={vi.fn()}
-        metric={false}
-        onToggleUnits={vi.fn()}
-        musicEnabled={true}
-        onToggleMusic={vi.fn()}
-        autoHidePanels={true}
-        onToggleAutoHidePanels={vi.fn()}
-        fontScale={1}
-        onCycleFontScale={vi.fn()}
-      />
-    )
+    render(<Menu {...makeProps({ metric: false })} />)
 
     expect(screen.getByText('Units: Imperial')).toBeInTheDocument()
   })
 
   it('calls onToggleUnits when units button is clicked', async () => {
     const onToggleUnits = vi.fn()
-    render(
-      <Menu
-        onResume={vi.fn()}
-        onNewGame={vi.fn()}
-        metric={true}
-        onToggleUnits={onToggleUnits}
-        musicEnabled={true}
-        onToggleMusic={vi.fn()}
-        autoHidePanels={true}
-        onToggleAutoHidePanels={vi.fn()}
-        fontScale={1}
-        onCycleFontScale={vi.fn()}
-      />
-    )
+    render(<Menu {...makeProps({ onToggleUnits })} />)
 
     await userEvent.click(screen.getByText('Units: Metric'))
 
@@ -160,59 +85,20 @@ describe('Menu', () => {
   })
 
   it('shows music: on when musicEnabled is true', () => {
-    render(
-      <Menu
-        onResume={vi.fn()}
-        onNewGame={vi.fn()}
-        metric={true}
-        onToggleUnits={vi.fn()}
-        musicEnabled={true}
-        onToggleMusic={vi.fn()}
-        autoHidePanels={true}
-        onToggleAutoHidePanels={vi.fn()}
-        fontScale={1}
-        onCycleFontScale={vi.fn()}
-      />
-    )
+    render(<Menu {...makeProps({ musicEnabled: true })} />)
 
     expect(screen.getByText('Music: On')).toBeInTheDocument()
   })
 
   it('shows music: off when musicEnabled is false', () => {
-    render(
-      <Menu
-        onResume={vi.fn()}
-        onNewGame={vi.fn()}
-        metric={true}
-        onToggleUnits={vi.fn()}
-        musicEnabled={false}
-        onToggleMusic={vi.fn()}
-        autoHidePanels={true}
-        onToggleAutoHidePanels={vi.fn()}
-        fontScale={1}
-        onCycleFontScale={vi.fn()}
-      />
-    )
+    render(<Menu {...makeProps({ musicEnabled: false })} />)
 
     expect(screen.getByText('Music: Off')).toBeInTheDocument()
   })
 
   it('calls onToggleMusic when music button is clicked', async () => {
     const onToggleMusic = vi.fn()
-    render(
-      <Menu
-        onResume={vi.fn()}
-        onNewGame={vi.fn()}
-        metric={true}
-        onToggleUnits={vi.fn()}
-        musicEnabled={true}
-        onToggleMusic={onToggleMusic}
-        autoHidePanels={true}
-        onToggleAutoHidePanels={vi.fn()}
-        fontScale={1}
-        onCycleFontScale={vi.fn()}
-      />
-    )
+    render(<Menu {...makeProps({ onToggleMusic })} />)
 
     await userEvent.click(screen.getByText('Music: On'))
 
@@ -220,43 +106,38 @@ describe('Menu', () => {
   })
 
   it('shows font: small when fontScale is 1', () => {
-    render(
-      <Menu
-        onResume={vi.fn()}
-        onNewGame={vi.fn()}
-        metric={true}
-        onToggleUnits={vi.fn()}
-        musicEnabled={true}
-        onToggleMusic={vi.fn()}
-        autoHidePanels={true}
-        onToggleAutoHidePanels={vi.fn()}
-        fontScale={1}
-        onCycleFontScale={vi.fn()}
-      />
-    )
+    render(<Menu {...makeProps({ fontScale: 1 })} />)
 
     expect(screen.getByText('Font: Small')).toBeInTheDocument()
   })
 
   it('calls onCycleFontScale when font button is clicked', async () => {
     const onCycleFontScale = vi.fn()
-    render(
-      <Menu
-        onResume={vi.fn()}
-        onNewGame={vi.fn()}
-        metric={true}
-        onToggleUnits={vi.fn()}
-        musicEnabled={true}
-        onToggleMusic={vi.fn()}
-        autoHidePanels={true}
-        onToggleAutoHidePanels={vi.fn()}
-        fontScale={1}
-        onCycleFontScale={onCycleFontScale}
-      />
-    )
+    render(<Menu {...makeProps({ onCycleFontScale })} />)
 
     await userEvent.click(screen.getByText('Font: Small'))
 
     expect(onCycleFontScale).toHaveBeenCalledOnce()
+  })
+
+  it('shows Projection: Orthogonal when isometricProjection is false', () => {
+    render(<Menu {...makeProps({ isometricProjection: false })} />)
+
+    expect(screen.getByText('Projection: Orthogonal')).toBeInTheDocument()
+  })
+
+  it('shows Projection: Isometric when isometricProjection is true', () => {
+    render(<Menu {...makeProps({ isometricProjection: true })} />)
+
+    expect(screen.getByText('Projection: Isometric')).toBeInTheDocument()
+  })
+
+  it('calls onToggleIsometric when projection button is clicked', async () => {
+    const onToggleIsometric = vi.fn()
+    render(<Menu {...makeProps({ onToggleIsometric })} />)
+
+    await userEvent.click(screen.getByText('Projection: Orthogonal'))
+
+    expect(onToggleIsometric).toHaveBeenCalledOnce()
   })
 })
