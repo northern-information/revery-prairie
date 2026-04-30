@@ -53,7 +53,7 @@ export const DialogBox = ({
       />
     )}
     <div className="flex min-w-0 flex-1 flex-col self-stretch overflow-hidden">
-      <SectionHeader className="shrink-0">{characterName.toLowerCase()}</SectionHeader>
+      <SectionHeader className="shrink-0">{characterName}</SectionHeader>
       {isAngel ? (
         <HashGrid hash={line} revealCount={typingIndex} />
       ) : (
@@ -68,7 +68,7 @@ export const DialogBox = ({
         data-testid="dialog-advance-button"
         className="self-center"
       >
-        {isLastLine ? 'clos[e]' : 'n[e]xt'}
+        {isLastLine ? 'CLOS[E]' : 'N[E]XT'}
       </TextButton>
     )}
   </div>

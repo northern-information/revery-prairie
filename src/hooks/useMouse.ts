@@ -138,7 +138,7 @@ const resolveClickTarget = (
         updateFacingEntity(state)
         if (state.map[targetY]?.[targetX]?.type === TileType.CaveBreakableWall) {
           if (breakWall(state, performance.now())) {
-            onDiscovery('discovered hidden room!', state.player.x, state.player.y)
+            onDiscovery('Discovered hidden room.', state.player.x, state.player.y)
           }
         }
         refreshUI()
@@ -256,7 +256,7 @@ export const useMouse = ({
         if (!isValidLightningTarget(state, tile)) return
         const success = castLightningAtTarget(state, tile, state.targetingSlot, performance.now())
         if (success) {
-          onDiscovery?.('lightning strikes!', tile.x, tile.y, '|', '#FFFFFF')
+          onDiscovery?.('Lightning strikes.', tile.x, tile.y, '|', '#FFFFFF')
         }
         refreshUI()
         return
@@ -266,7 +266,7 @@ export const useMouse = ({
         const result = advanceDialog(state, performance.now())
         if (result.gift) {
           onGift(
-            `received ${result.gift.name.toLowerCase()}`,
+            `Received ${result.gift.name.toLowerCase()}.`,
             result.gift.glyphs[0],
             result.gift.glyphColor,
             state.player.x,

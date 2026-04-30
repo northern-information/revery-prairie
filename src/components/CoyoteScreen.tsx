@@ -1,4 +1,4 @@
-import { SectionHeader } from './PanelPrimitives'
+import { SectionHeader, TextButton } from './PanelPrimitives'
 
 import { COYOTE_COLOR } from '@/engine/constants'
 import { getCoyotePosition, summonCoyote } from '@/engine/coyote'
@@ -12,8 +12,8 @@ interface CoyoteScreenProps {
 }
 
 export const CoyoteScreen = ({ state, refreshUI }: CoyoteScreenProps) => {
-  const modeLabel = state.coyoteMode === 'follow' ? 'following' : 'collecting'
-  const cargoLabel = state.coyoteCargo ? getDefinition(state.coyoteCargo).name.toLowerCase() : 'empty'
+  const modeLabel = state.coyoteMode === 'follow' ? 'Following' : 'Collecting'
+  const cargoLabel = state.coyoteCargo ? getDefinition(state.coyoteCargo).name : 'Empty'
   const coyotePos = getCoyotePosition(state)
 
   const handleSummon = () => {
@@ -27,25 +27,25 @@ export const CoyoteScreen = ({ state, refreshUI }: CoyoteScreenProps) => {
         <span style={{ color: COYOTE_COLOR }} className="text-lg">
           C
         </span>
-        <span className="text-text">coyote</span>
+        <span className="text-text">Coyote</span>
       </div>
 
       <div>
-        <SectionHeader>status</SectionHeader>
+        <SectionHeader>Status</SectionHeader>
         <table className="w-full">
           <tbody>
             <tr>
-              <td className="text-muted py-0.5">mode</td>
+              <td className="text-muted py-0.5">Mode</td>
               <td className="py-0.5 text-right">{modeLabel}</td>
             </tr>
             <tr>
-              <td className="text-muted py-0.5">carrying</td>
+              <td className="text-muted py-0.5">Carrying</td>
               <td className="py-0.5 text-right">{cargoLabel}</td>
             </tr>
             <tr>
-              <td className="text-muted py-0.5">position</td>
+              <td className="text-muted py-0.5">Position</td>
               <td className="py-0.5 text-right">
-                {coyotePos ? `${String(coyotePos.x)}, ${String(coyotePos.y)}` : 'unknown'}
+                {coyotePos ? `${String(coyotePos.x)}, ${String(coyotePos.y)}` : 'Unknown'}
               </td>
             </tr>
           </tbody>
@@ -53,14 +53,8 @@ export const CoyoteScreen = ({ state, refreshUI }: CoyoteScreenProps) => {
       </div>
 
       <div>
-        <SectionHeader>actions</SectionHeader>
-        <button
-          type="button"
-          className="text-permacomputer hover:text-pink w-full py-1 text-left text-xs transition-colors"
-          onClick={handleSummon}
-        >
-          {'>'} summon coyote
-        </button>
+        <SectionHeader>Actions</SectionHeader>
+        <TextButton onClick={handleSummon}>SUMMON COYOTE</TextButton>
       </div>
     </div>
   )

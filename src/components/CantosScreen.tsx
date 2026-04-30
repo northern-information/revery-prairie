@@ -32,10 +32,10 @@ export const CantosScreen = ({ cantos }: CantosScreenProps) => {
 
   return (
     <div>
-      <SectionHeader>angel cantos ({String(cantos.length)})</SectionHeader>
+      <SectionHeader>Angel Cantos ({String(cantos.length)})</SectionHeader>
 
       {cantos.length === 0 ? (
-        <p className="text-dim text-xs">no cantos received. walk beneath an angel to hear one speak.</p>
+        <p className="text-dim text-xs">No cantos received. Walk beneath an angel to hear one speak.</p>
       ) : (
         <>
           {/* Grid of cantos — one cell per canto, wraps in rows of 8 */}
@@ -84,11 +84,11 @@ export const CantosScreen = ({ cantos }: CantosScreenProps) => {
           <div className="min-h-[12rem]">
             {hoveredHash ? (
               <div data-testid="canto-full-hash">
-                <p className="text-dim mb-2 text-xs">full hash:</p>
+                <p className="text-dim mb-2 text-xs">Full hash:</p>
                 <HashGrid hash={hoveredHash} />
               </div>
             ) : (
-              <p className="text-dim text-xs">hover a cell to reveal its hash</p>
+              <p className="text-dim text-xs">Hover a cell to reveal its hash.</p>
             )}
           </div>
         </>

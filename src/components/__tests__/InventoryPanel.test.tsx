@@ -24,7 +24,7 @@ describe('InventoryPanel', () => {
       />
     )
 
-    expect(screen.getByText('backpack')).toBeInTheDocument()
+    expect(screen.getByText('Backpack')).toBeInTheDocument()
   })
 
   it('renders keybind hints', () => {

@@ -13,7 +13,7 @@ describe('DialogBox', () => {
       />,
     )
 
-    expect(screen.getByText('moab')).toBeTruthy()
+    expect(screen.getByText('Moab')).toBeTruthy()
     expect(screen.getByText('hello traveler')).toBeTruthy()
   })
 
@@ -141,7 +141,7 @@ describe('DialogBox', () => {
     )
 
     const button = screen.getByTestId('dialog-advance-button')
-    expect(button.textContent).toBe('n[e]xt')
+    expect(button.textContent).toBe('N[E]XT')
   })
 
   it('shows clos[e] button on last line', () => {
@@ -158,7 +158,7 @@ describe('DialogBox', () => {
     )
 
     const button = screen.getByTestId('dialog-advance-button')
-    expect(button.textContent).toBe('clos[e]')
+    expect(button.textContent).toBe('CLOS[E]')
   })
 
   it('hides button while still typing', () => {

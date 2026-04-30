@@ -267,7 +267,7 @@ const renderVegetation = (sim: GenesisSimState, x: number, _y: number, h: number
 const cosmicFormation: GenesisEpoch = {
   id: GenesisEpochId.CosmicFormation,
   durationMs: 2000,
-  commentary: 'simulating birth of cosmos...',
+  commentary: 'Simulating birth of cosmos...',
   mutate: sim => {
     // Fill entire grid with space
     for (let y = 0; y < sim.height; y++) {
@@ -307,7 +307,7 @@ const cosmicFormation: GenesisEpoch = {
 const landAccretion: GenesisEpoch = {
   id: GenesisEpochId.LandAccretion,
   durationMs: 2000,
-  commentary: 'dust coalesces...',
+  commentary: 'Dust coalesces...',
   mutate: () => {
     // No grid mutations — purely visual
   },
@@ -360,7 +360,7 @@ const landAccretion: GenesisEpoch = {
 const lavaEra: GenesisEpoch = {
   id: GenesisEpochId.LavaEra,
   durationMs: 2000,
-  commentary: 'a kingdom of lava absolute...',
+  commentary: 'A kingdom of lava absolute...',
   mutate: sim => {
     // Generate the land mask using the seeded RNG — this produces the final coastline
     const { landMask, coastlineTiles, grid } = generateLandMask(sim.width, sim.height, sim.rng)
@@ -476,7 +476,7 @@ const lavaEra: GenesisEpoch = {
 const crustCooling: GenesisEpoch = {
   id: GenesisEpochId.CrustCooling,
   durationMs: 2000,
-  commentary: 'the crust cools...',
+  commentary: 'The crust cools...',
   mutate: () => {
     // Visual transition only
   },
@@ -551,7 +551,7 @@ const crustCooling: GenesisEpoch = {
 const firstWater: GenesisEpoch = {
   id: GenesisEpochId.FirstWater,
   durationMs: 2000,
-  commentary: 'oceans gather in the lowlands...',
+  commentary: 'Oceans gather in the lowlands...',
   mutate: sim => {
     // Mark ancient seabeds — coastline + a band of low-lying inland tiles
     for (const key of sim.coastlineTiles) {
@@ -629,7 +629,7 @@ const firstWater: GenesisEpoch = {
 const emergenceOfLife: GenesisEpoch = {
   id: GenesisEpochId.EmergenceOfLife,
   durationMs: 2000,
-  commentary: 'primordial life emerges...',
+  commentary: 'Primordial life emerges...',
   mutate: sim => {
     // Spread vegetation across all land — denser near water, thinner inland
     for (const key of sim.landMask) {
@@ -753,7 +753,7 @@ const createMeteorStreak = (
 const fireSeason: GenesisEpoch = {
   id: GenesisEpochId.FireSeason,
   durationMs: 2000,
-  commentary: 'the sky falls...',
+  commentary: 'The sky falls...',
   mutate: sim => {
     const landKeys = [...sim.landMask]
 
@@ -1027,7 +1027,7 @@ const fireSeason: GenesisEpoch = {
 const regrowth: GenesisEpoch = {
   id: GenesisEpochId.Regrowth,
   durationMs: 2000,
-  commentary: 'life grows back...',
+  commentary: 'Life grows back...',
   mutate: sim => {
     // Ash enrichment only — no vegetation regrowth. land stays barren into ice age.
     for (const key of sim.burnScars) {
@@ -1060,7 +1060,7 @@ const regrowth: GenesisEpoch = {
 const iceAge: GenesisEpoch = {
   id: GenesisEpochId.IceAge,
   durationMs: 2000,
-  commentary: 'glaciers advance, carving the land...',
+  commentary: 'Glaciers advance, carving the land...',
   mutate: sim => {
     // Snapshot vegetation before glaciers destroy it (for dramatic render)
     for (const [key, value] of sim.vegetationMap) {
@@ -1255,7 +1255,7 @@ const iceAge: GenesisEpoch = {
 const postGlacialDieOff: GenesisEpoch = {
   id: GenesisEpochId.PostGlacialDieOff,
   durationMs: 2000,
-  commentary: 'an extinction event...',
+  commentary: 'An extinction event...',
   mutate: sim => {
     // Kill 60-70% of remaining vegetation, weighted by distance from water
     for (const key of sim.landMask) {
@@ -1333,7 +1333,7 @@ const postGlacialDieOff: GenesisEpoch = {
 const warmPeriod: GenesisEpoch = {
   id: GenesisEpochId.WarmPeriod,
   durationMs: 2000,
-  commentary: 'glaciers melt and life continues...',
+  commentary: 'Glaciers melt and life continues...',
   mutate: sim => {
     const landKeys = [...sim.landMask]
 
@@ -1671,7 +1671,7 @@ const warmPeriod: GenesisEpoch = {
 const riseOfCivilizations: GenesisEpoch = {
   id: GenesisEpochId.RiseOfCivilizations,
   durationMs: 2000,
-  commentary: 'civilizations emerge...',
+  commentary: 'Civilizations emerge...',
   mutate: sim => {
     // Pick 8-12 ruin sites at strategic locations (high soil, near rivers/coast)
     const numRuins = 8 + Math.floor(sim.rng() * 5)
@@ -2051,7 +2051,7 @@ const riseOfCivilizations: GenesisEpoch = {
 const fallOfCivilizations: GenesisEpoch = {
   id: GenesisEpochId.FallOfCivilizations,
   durationMs: 2000,
-  commentary: 'empires crumble and sink beneath the land...',
+  commentary: 'Empires crumble and sink beneath the land...',
   mutate: sim => {
     // Final soil enrichment from decomposition
     for (const ruin of sim.ruins) {
@@ -2627,7 +2627,7 @@ export const enforceConnectivity = (sim: GenesisSimState): void => {
 const presentDay: GenesisEpoch = {
   id: GenesisEpochId.PresentDay,
   durationMs: 2000,
-  commentary: 'a steward is called...',
+  commentary: 'A steward is called...',
   mutate: sim => {
     // Finalize terrain and scatter sandbars
     scatterSandbars(sim.grid, sim.width, sim.height, sim.rng)

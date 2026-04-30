@@ -49,10 +49,12 @@ const countTiles = (state: GameState, type: TileType): number => {
 }
 
 const SKY_LABEL = {
-  sun: 'sunny',
-  cloudy: 'cloudy',
-  rain: 'rain',
+  sun: 'Sunny',
+  cloudy: 'Cloudy',
+  rain: 'Rain',
 } as const
+
+const capitalize = (s: string): string => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1))
 
 // Persistent outer shell for the sidebar. The black backdrop must never drop
 // opacity across branch swaps (genesis → gameplay, gameplay → deep time),
@@ -129,19 +131,19 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
     return (
       <div data-panel="sidebar" className={SIDEBAR_SHELL_CLASSES}>
         <div className="flex flex-col gap-4">
-          <PanelTitle>revery prairie</PanelTitle>
+          <PanelTitle>Revery Prairie</PanelTitle>
           <div>
-            <SectionHeader>genesis</SectionHeader>
+            <SectionHeader>Genesis</SectionHeader>
             <table className="w-full">
               <tbody>
                 <tr>
-                  <td className="text-muted py-0.5">year</td>
+                  <td className="text-muted py-0.5">Year</td>
                   <td className="py-0.5 text-right">
                     {formatYear(getGenesisYear(state.genesis, GENESIS_EPOCHS, performance.now()))}
                   </td>
                 </tr>
                 <tr>
-                  <td className="text-muted py-0.5">epoch</td>
+                  <td className="text-muted py-0.5">Epoch</td>
                   <td className="py-0.5 text-right">
                     {state.genesis.epochIndex + 1}/{GENESIS_EPOCHS.length}
                   </td>
@@ -158,7 +160,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
           </div>
         </div>
         <div>
-          <p className="text-muted text-center text-xs">press any key to skip</p>
+          <p className="text-muted text-center text-xs">Press any key to skip.</p>
         </div>
       </div>
     )
@@ -173,13 +175,13 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
     return (
       <div data-panel="sidebar" className={SIDEBAR_SHELL_CLASSES}>
         <div className="flex flex-col gap-4">
-          <PanelTitle>revery prairie</PanelTitle>
+          <PanelTitle>Revery Prairie</PanelTitle>
           <div>
-            <SectionHeader>deep time</SectionHeader>
+            <SectionHeader>Deep time</SectionHeader>
             <table className="w-full">
               <tbody>
                 <tr>
-                  <td className="text-muted py-0.5">year</td>
+                  <td className="text-muted py-0.5">Year</td>
                   <td className="py-0.5 text-right">
                     {formatYear(GENESIS_END_YEAR + state.deepTime.elapsedYears)}
                   </td>
@@ -221,15 +223,15 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
   return (
     <div data-panel="sidebar" className={SIDEBAR_SHELL_CLASSES}>
       <div className="flex flex-col gap-4" style={contentFadeStyle}>
-        <PanelTitle>revery prairie</PanelTitle>
+        <PanelTitle>Revery Prairie</PanelTitle>
 
         {cursorTile && (
           <div>
-            <SectionHeader>cursor</SectionHeader>
+            <SectionHeader>Cursor</SectionHeader>
             <table className="w-full">
               <tbody>
                 <tr>
-                  <td className="text-muted py-0.5">position</td>
+                  <td className="text-muted py-0.5">Position</td>
                   <td className="py-0.5 text-right">
                     {state.currentZone === Zone.Cave
                       ? `${String(cursorTile.x)}, ${String(cursorTile.y)}`
@@ -237,7 +239,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                   </td>
                 </tr>
                 <tr>
-                  <td className="text-muted py-0.5">contents</td>
+                  <td className="text-muted py-0.5">Contents</td>
                   <td className="py-0.5 text-right">
                     {(() => {
                       const cx = cursorTile.x
@@ -326,8 +328,8 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                     if (visibleSet && !visibleSet.has(posKey(cursorTile.x, cursorTile.y))) {
                       return (
                         <tr>
-                          <td className="text-muted py-0.5">effects</td>
-                          <td className="py-0.5 text-right text-muted">none</td>
+                          <td className="text-muted py-0.5">Effects</td>
+                          <td className="py-0.5 text-right text-muted">None</td>
                         </tr>
                       )
                     }
@@ -335,9 +337,9 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                   const effects = getTileEffects(state, cursorTile.x, cursorTile.y)
                   return (
                     <tr>
-                      <td className="text-muted py-0.5">effects</td>
+                      <td className="text-muted py-0.5">Effects</td>
                       <td className={`py-0.5 text-right ${effects.length > 0 ? 'text-effect' : 'text-muted'}`}>
-                        {effects.length > 0 ? effects.join(', ') : 'none'}
+                        {effects.length > 0 ? effects.join(', ') : 'None'}
                       </td>
                     </tr>
                   )
@@ -356,29 +358,29 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                     const stage = lifecycle?.stage ?? CloverStage.Healthy
                     const statusLabel =
                       stage === CloverStage.Healthy
-                        ? 'healthy'
+                        ? 'Healthy'
                         : stage === CloverStage.Brown
-                          ? 'wilting'
+                          ? 'Wilting'
                           : stage === CloverStage.BlinkingRed
-                            ? 'dying'
+                            ? 'Dying'
                             : stage === CloverStage.Black
-                              ? 'dead'
-                              : 'decomposing'
+                              ? 'Dead'
+                              : 'Decomposing'
                     const statusClass = stage === CloverStage.Healthy ? 'text-clover' : 'text-danger'
                     return (
                       <>
                         <tr>
-                          <td className="text-muted py-0.5">water</td>
+                          <td className="text-muted py-0.5">Water</td>
                           <td className="py-0.5 text-right">
                             {water ?? WATER_MAX}/{WATER_MAX}
                           </td>
                         </tr>
                         <tr>
-                          <td className="text-muted py-0.5">soil</td>
+                          <td className="text-muted py-0.5">Soil</td>
                           <td className="py-0.5 text-right">{soilHealth}</td>
                         </tr>
                         <tr>
-                          <td className="text-muted py-0.5">status</td>
+                          <td className="text-muted py-0.5">Status</td>
                           <td className={`py-0.5 text-right ${statusClass}`}>{statusLabel}</td>
                         </tr>
                       </>
@@ -390,14 +392,14 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                       <>
                         {water !== undefined && (
                           <tr>
-                            <td className="text-muted py-0.5">water</td>
+                            <td className="text-muted py-0.5">Water</td>
                             <td className="py-0.5 text-right">
                               {water}/{WATER_MAX}
                             </td>
                           </tr>
                         )}
                         <tr>
-                          <td className="text-muted py-0.5">soil</td>
+                          <td className="text-muted py-0.5">Soil</td>
                           <td className="py-0.5 text-right">{soilHealth}</td>
                         </tr>
                       </>
@@ -417,7 +419,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
       <div className="flex flex-col gap-4">
         {eventLog.length > 0 && (
           <div>
-            <SectionHeader>log</SectionHeader>
+            <SectionHeader>Log</SectionHeader>
             <div className="scrollbar-custom pointer-events-auto flex max-h-40 flex-col gap-1 overflow-y-auto">
               {eventLog.map(entry => (
                 <span key={entry.id}>
@@ -429,42 +431,42 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
         )}
 
         <div>
-          <SectionHeader>stats</SectionHeader>
+          <SectionHeader>Stats</SectionHeader>
           <table className="w-full">
             <tbody>
               <tr>
-                <td className="text-muted py-0.5">steward</td>
+                <td className="text-muted py-0.5">Steward</td>
                 <td className="py-0.5 text-right">{state.stewardName}</td>
               </tr>
               <tr>
-                <td className="text-muted py-0.5">location</td>
+                <td className="text-muted py-0.5">Location</td>
                 <td className="py-0.5 text-right">
                   {state.currentZone === 'overworld'
-                    ? 'prairie'
+                    ? 'Prairie'
                     : state.currentZone === 'cave'
-                      ? `cave ${getEntranceGlyph(0)}`
+                      ? `Cave ${getEntranceGlyph(0)}`
                       : state.currentRuinIndex !== null
-                        ? `${state.ruinInteriors[state.currentRuinIndex]?.name ?? 'unknown'} ruins`
+                        ? `${state.ruinInteriors[state.currentRuinIndex]?.name ?? 'Unknown'} ruins`
                         : state.currentZone}
                 </td>
               </tr>
               {state.currentRuinIndex !== null && (() => {
                 const interior = state.ruinInteriors[state.currentRuinIndex]
                 const archetypeLabels: Record<string, string> = {
-                  subsidence: 'subsidence',
-                  dormantGarden: 'dormant garden',
-                  hauntedThreshold: 'haunted threshold',
-                  resonance: 'resonance',
+                  subsidence: 'Subsidence',
+                  dormantGarden: 'Dormant garden',
+                  hauntedThreshold: 'Haunted threshold',
+                  resonance: 'Resonance',
                 }
                 return (
                   <>
                     <tr>
-                      <td className="text-muted py-0.5">glyph</td>
+                      <td className="text-muted py-0.5">Glyph</td>
                       <td className="py-0.5 text-right">{getEntranceGlyph(state.currentRuinIndex + 1)}</td>
                     </tr>
                     {interior && (
                       <tr>
-                        <td className="text-muted py-0.5">type</td>
+                        <td className="text-muted py-0.5">Type</td>
                         <td className="py-0.5 text-right">{archetypeLabels[interior.archetype] ?? interior.archetype}</td>
                       </tr>
                     )}
@@ -472,26 +474,26 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                 )
               })()}
               <tr>
-                <td className="text-muted py-0.5">total land</td>
+                <td className="text-muted py-0.5">Total land</td>
                 <td className="py-0.5 text-right">{total.toLocaleString()}</td>
               </tr>
               <tr>
-                <td className="text-muted py-0.5">clover</td>
+                <td className="text-muted py-0.5">Clover</td>
                 <td className="text-clover py-0.5 text-right">{cloverCount.toLocaleString()}</td>
               </tr>
               <tr>
-                <td className="text-muted py-0.5">dirt</td>
+                <td className="text-muted py-0.5">Dirt</td>
                 <td className="py-0.5 text-right">{dirtCount.toLocaleString()}</td>
               </tr>
               <tr>
-                <td className="text-muted py-0.5">sand</td>
+                <td className="text-muted py-0.5">Sand</td>
                 <td className="py-0.5 text-right" style={{ color: TILE_COLORS[TileType.Sand] }}>
                   {sandCount.toLocaleString()}
                 </td>
               </tr>
               <tr>
                 <td className="text-muted py-0.5">
-                  bees <span className="text-bee">*</span>
+                  Bees <span className="text-bee">*</span>
                 </td>
                 <td className="text-bee py-0.5 text-right">
                   {
@@ -502,7 +504,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                 </td>
               </tr>
               <tr>
-                <td className="text-muted py-0.5">meteorites ✦</td>
+                <td className="text-muted py-0.5">Meteorites ✦</td>
                 <td className="text-meteorite py-0.5 text-right">
                   {
                     state.world
@@ -512,13 +514,13 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
                 </td>
               </tr>
               <tr>
-                <td className="text-muted py-0.5">prairie</td>
+                <td className="text-muted py-0.5">Prairie</td>
                 <td className="py-0.5 text-right">
                   {state.world
                     .query(ComponentType.EntityTag)
                     .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
-                    ? 'yes'
-                    : 'no'}
+                    ? 'Yes'
+                    : 'No'}
                 </td>
               </tr>
             </tbody>
@@ -526,31 +528,31 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
         </div>
 
         <div>
-          <SectionHeader>weather</SectionHeader>
+          <SectionHeader>Weather</SectionHeader>
           <table className="w-full">
             <tbody>
               <tr>
-                <td className="text-muted py-0.5">season</td>
-                <td className="py-0.5 text-right">{weather.season}</td>
+                <td className="text-muted py-0.5">Season</td>
+                <td className="py-0.5 text-right">{capitalize(weather.season)}</td>
               </tr>
               <tr>
-                <td className="text-muted py-0.5">sky</td>
+                <td className="text-muted py-0.5">Sky</td>
                 <td className="py-0.5 text-right">{SKY_LABEL[weather.sky]}</td>
               </tr>
               <tr>
-                <td className="text-muted py-0.5">temp</td>
+                <td className="text-muted py-0.5">Temp</td>
                 <td className="py-0.5 text-right">{temp}</td>
               </tr>
               <tr>
-                <td className="text-muted py-0.5">wind</td>
+                <td className="text-muted py-0.5">Wind</td>
                 <td className="py-0.5 text-right">{wind}</td>
               </tr>
               <tr>
-                <td className="text-muted py-0.5">humidity</td>
+                <td className="text-muted py-0.5">Humidity</td>
                 <td className="py-0.5 text-right">{weather.humidity}%</td>
               </tr>
               <tr>
-                <td className="text-muted py-0.5">year</td>
+                <td className="text-muted py-0.5">Year</td>
                 <td className="py-0.5 text-right">
                   {state.deepTime?.active
                     ? formatYear(GENESIS_END_YEAR + (state.deepTime.elapsedYears ?? 0))
@@ -562,9 +564,9 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
         </div>
 
         <div>
-          <SectionHeader>view</SectionHeader>
+          <SectionHeader>View</SectionHeader>
           <div className="flex min-w-0 items-center gap-2">
-            <span className="text-muted">zoom</span>
+            <span className="text-muted">Zoom</span>
             <input
               type="range"
               min={ZOOM_MIN}

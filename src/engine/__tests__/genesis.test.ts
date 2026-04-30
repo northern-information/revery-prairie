@@ -322,7 +322,7 @@ describe('getGenesisCommentary', () => {
   it('returns commentary for current epoch', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
     const commentary = getGenesisCommentary(sim, GENESIS_EPOCHS)
-    expect(commentary).toBe('simulating birth of cosmos...')
+    expect(commentary).toBe('Simulating birth of cosmos...')
   })
 
   it('returns empty string when complete', () => {

@@ -12,6 +12,8 @@ import {
 import type { ManualEntry, ManualHint } from '@/engine/manual'
 import type { GameState, ManualState } from '@/engine/types'
 
+const capitalize = (s: string): string => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1))
+
 interface ManualPanelProps {
   state: GameState
 }
@@ -132,7 +134,7 @@ const EntryCard = ({
           <span className="text-text text-sm">
             {entry.crossRefs
                   ?.slice(0, 2)
-                  .map(ref => ref.replace(/^[^:]+:/, ''))
+                  .map(ref => MANUAL_ENTRIES[ref]?.name ?? capitalize(ref.replace(/^[^:]+:/, '')))
                   .join(' + ')}{' '}
                 ={' '}
             <RecipeResultSpoiler
@@ -162,7 +164,7 @@ const EntryCard = ({
       )}
 
       {/* Properties */}
-      {showCategory && <div className="text-dim mt-1 text-xs">category: {entry.category}</div>}
+      {showCategory && <div className="text-dim mt-1 text-xs">Category: {capitalize(entry.category)}</div>}
 
       {/* Hints */}
       {entry.hints.map((hint, i) => {
@@ -231,7 +233,7 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
         onChange={e => {
           setSearch(e.target.value)
         }}
-        placeholder="search..."
+        placeholder="Search..."
         className="text-text placeholder-dim border-border hover:border-pink focus:border-pink mb-3 w-full border bg-black/50 px-2 py-1 font-mono text-xs outline-none"
       />
 

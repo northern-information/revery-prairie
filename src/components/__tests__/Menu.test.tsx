@@ -19,10 +19,10 @@ describe('Menu', () => {
       />
     )
 
-    expect(screen.getByText('resume')).toBeInTheDocument()
-    expect(screen.getByText('new game')).toBeInTheDocument()
-    expect(screen.getByText('units: metric')).toBeInTheDocument()
-    expect(screen.getByText('a tyler etters game')).toBeInTheDocument()
+    expect(screen.getByText('Resume')).toBeInTheDocument()
+    expect(screen.getByText('New Game')).toBeInTheDocument()
+    expect(screen.getByText('Units: Metric')).toBeInTheDocument()
+    expect(screen.getByText('A Tyler Etters game.')).toBeInTheDocument()
   })
 
   it('calls onResume when resume is clicked', async () => {
@@ -42,7 +42,7 @@ describe('Menu', () => {
       />
     )
 
-    await userEvent.click(screen.getByText('resume'))
+    await userEvent.click(screen.getByText('Resume'))
 
     expect(onResume).toHaveBeenCalledOnce()
   })
@@ -64,11 +64,11 @@ describe('Menu', () => {
       />
     )
 
-    await userEvent.click(screen.getByText('new game'))
+    await userEvent.click(screen.getByText('New Game'))
 
     expect(onNewGame).not.toHaveBeenCalled()
-    expect(screen.getByText('confirm?')).toBeInTheDocument()
-    expect(screen.getByText('cancel')).toBeInTheDocument()
+    expect(screen.getByText('Confirm?')).toBeInTheDocument()
+    expect(screen.getByText('Cancel')).toBeInTheDocument()
   })
 
   it('calls onNewGame when confirmed', async () => {
@@ -88,8 +88,8 @@ describe('Menu', () => {
       />
     )
 
-    await userEvent.click(screen.getByText('new game'))
-    await userEvent.click(screen.getByText('confirm?'))
+    await userEvent.click(screen.getByText('New Game'))
+    await userEvent.click(screen.getByText('Confirm?'))
 
     expect(onNewGame).toHaveBeenCalledOnce()
   })
@@ -111,11 +111,11 @@ describe('Menu', () => {
       />
     )
 
-    await userEvent.click(screen.getByText('new game'))
-    await userEvent.click(screen.getByText('cancel'))
+    await userEvent.click(screen.getByText('New Game'))
+    await userEvent.click(screen.getByText('Cancel'))
 
     expect(onNewGame).not.toHaveBeenCalled()
-    expect(screen.getByText('new game')).toBeInTheDocument()
+    expect(screen.getByText('New Game')).toBeInTheDocument()
   })
 
   it('shows imperial when metric is false', () => {
@@ -134,7 +134,7 @@ describe('Menu', () => {
       />
     )
 
-    expect(screen.getByText('units: imperial')).toBeInTheDocument()
+    expect(screen.getByText('Units: Imperial')).toBeInTheDocument()
   })
 
   it('calls onToggleUnits when units button is clicked', async () => {
@@ -154,7 +154,7 @@ describe('Menu', () => {
       />
     )
 
-    await userEvent.click(screen.getByText('units: metric'))
+    await userEvent.click(screen.getByText('Units: Metric'))
 
     expect(onToggleUnits).toHaveBeenCalledOnce()
   })
@@ -175,7 +175,7 @@ describe('Menu', () => {
       />
     )
 
-    expect(screen.getByText('music: on')).toBeInTheDocument()
+    expect(screen.getByText('Music: On')).toBeInTheDocument()
   })
 
   it('shows music: off when musicEnabled is false', () => {
@@ -194,7 +194,7 @@ describe('Menu', () => {
       />
     )
 
-    expect(screen.getByText('music: off')).toBeInTheDocument()
+    expect(screen.getByText('Music: Off')).toBeInTheDocument()
   })
 
   it('calls onToggleMusic when music button is clicked', async () => {
@@ -214,7 +214,7 @@ describe('Menu', () => {
       />
     )
 
-    await userEvent.click(screen.getByText('music: on'))
+    await userEvent.click(screen.getByText('Music: On'))
 
     expect(onToggleMusic).toHaveBeenCalledOnce()
   })
@@ -235,7 +235,7 @@ describe('Menu', () => {
       />
     )
 
-    expect(screen.getByText('font: small')).toBeInTheDocument()
+    expect(screen.getByText('Font: Small')).toBeInTheDocument()
   })
 
   it('calls onCycleFontScale when font button is clicked', async () => {
@@ -255,7 +255,7 @@ describe('Menu', () => {
       />
     )
 
-    await userEvent.click(screen.getByText('font: small'))
+    await userEvent.click(screen.getByText('Font: Small'))
 
     expect(onCycleFontScale).toHaveBeenCalledOnce()
   })

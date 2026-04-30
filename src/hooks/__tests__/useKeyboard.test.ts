@@ -264,7 +264,7 @@ describe('useKeyboard', () => {
       })
 
       expect(breakWall).toHaveBeenCalledWith(state, expect.any(Number))
-      expect(onDiscovery).toHaveBeenCalledWith('discovered hidden room!', state.player.x, state.player.y)
+      expect(onDiscovery).toHaveBeenCalledWith('Discovered hidden room.', state.player.x, state.player.y)
       expect(refreshUI).toHaveBeenCalled()
     })
 

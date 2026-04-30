@@ -26,7 +26,7 @@ describe('ManualPanel', () => {
 
   it('renders a search input', () => {
     renderManual()
-    expect(screen.getByPlaceholderText('search...')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument()
   })
 
   it('renders entry names from the registry', () => {
@@ -49,7 +49,7 @@ describe('ManualPanel', () => {
 
   it('updates manualState.searchQuery when typing in search', async () => {
     const { state } = renderManual()
-    const input = screen.getByPlaceholderText('search...')
+    const input = screen.getByPlaceholderText('Search...')
     await userEvent.type(input, 'meteorite')
     expect(state.manualState.searchQuery).toBe('meteorite')
   })

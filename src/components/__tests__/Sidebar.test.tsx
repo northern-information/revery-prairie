@@ -60,7 +60,7 @@ describe('Sidebar', () => {
       />
     )
 
-    expect(screen.getByText('no')).toBeInTheDocument()
+    expect(screen.getByText('No')).toBeInTheDocument()
   })
 
   it('shows prairie as yes after combining', () => {
@@ -78,7 +78,7 @@ describe('Sidebar', () => {
       />
     )
 
-    expect(screen.getByText('yes')).toBeInTheDocument()
+    expect(screen.getByText('Yes')).toBeInTheDocument()
   })
 
   it('shows clover count after combining', () => {
@@ -144,10 +144,10 @@ describe('Sidebar', () => {
       />
     )
 
-    expect(screen.getByText('spring')).toBeInTheDocument()
+    expect(screen.getByText('Spring')).toBeInTheDocument()
     expect(screen.getByText(/°C/)).toBeInTheDocument()
     expect(screen.getByText(/kph/)).toBeInTheDocument()
-    expect(screen.getByText('humidity')).toBeInTheDocument()
+    expect(screen.getByText('Humidity')).toBeInTheDocument()
   })
 
   it('renders weather in imperial when metric is false', () => {

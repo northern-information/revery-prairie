@@ -662,7 +662,7 @@ export const DevPanel = (props: DevPanelProps) => {
     >
       <div className="pointer-events-auto flex min-h-0 flex-1 flex-col gap-2">
         <div className="flex shrink-0 items-center justify-between">
-          <PanelTitle>dev panel</PanelTitle>
+          <PanelTitle>Dev panel</PanelTitle>
           <span className="text-dim shrink-0 text-xs">` to toggle</span>
         </div>
 
