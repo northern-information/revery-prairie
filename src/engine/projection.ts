@@ -5,6 +5,15 @@ export interface ScreenPos {
   py: number
 }
 
+export interface DiamondCorners {
+  leftX: number
+  rightX: number
+  topY: number
+  bottomY: number
+  cx: number
+  cy: number
+}
+
 /**
  * Returns the (px, py) anchor at which a monospace glyph at viewport
  * tile (vx, vy) should be drawn (ctx.fillText with textBaseline 'top'
@@ -12,17 +21,20 @@ export interface ScreenPos {
  * cell's top-left. In isometric mode the cell is a 2:1 diamond
  * (2*charWidth wide, charHeight tall); the anchor is shifted right
  * by charWidth/2 so a charWidth-wide glyph renders horizontally
- * centered within the diamond, and shifted down by charHeight/4 so
- * the glyph's vertical bbox sits in the diamond's middle band rather
- * than its top half.
+ * centered within the diamond. Vertically the glyph bbox is aligned
+ * with the diamond bbox so the visible character sits in the middle
+ * band of the diamond rather than hanging out below it.
  *
  * The iso origin offsets (originX, originY) are chosen so the center
  * viewport tile (viewportWidth/2, viewportHeight/2) projects to the
  * canvas center (viewportWidth*charWidth/2, viewportHeight*charHeight/2).
  *
- * drawCellBackground reverses the glyph offset to draw the cell shape.
+ * drawCellBackground reverses the horizontal centering offset to draw
+ * the diamond shape; getCellDiamondCorners exposes the same geometry
+ * for callers that need to stroke individual edges (e.g. the
+ * land/space border outline).
  */
-const ISO_GLYPH_VERTICAL_NUDGE = (charHeight: number): number => charHeight / 4
+const ISO_GLYPH_VERTICAL_NUDGE = (_charHeight: number): number => 0
 
 export const viewportToScreen = (
   vx: number,
@@ -110,6 +122,38 @@ export const screenToTile = (
 }
 
 /**
+ * Returns the four diamond vertex coordinates for a cell whose glyph
+ * is anchored at (px, py) in iso mode. Reverses the horizontal-centering
+ * and vertical-nudge offsets to recover the diamond's bounding box.
+ *
+ * The diamond is 2*charWidth wide and charHeight tall. Vertices:
+ *   top    = (cx, topY)
+ *   right  = (rightX, cy)
+ *   bottom = (cx, bottomY)
+ *   left   = (leftX, cy)
+ */
+export const getCellDiamondCorners = (
+  px: number,
+  py: number,
+  charWidth: number,
+  charHeight: number,
+): DiamondCorners => {
+  const nudge = ISO_GLYPH_VERTICAL_NUDGE(charHeight)
+  const leftX = px - charWidth / 2
+  const rightX = leftX + 2 * charWidth
+  const topY = py - nudge
+  const bottomY = topY + charHeight
+  return {
+    leftX,
+    rightX,
+    topY,
+    bottomY,
+    cx: leftX + charWidth,
+    cy: topY + charHeight / 2,
+  }
+}
+
+/**
  * Paints the cell background under a glyph anchored at (px, py).
  * In orthogonal mode this is a fillRect of (charWidth × charHeight).
  * In isometric mode this is a 2:1 diamond whose bounding box is
@@ -128,20 +172,17 @@ export const drawCellBackground = (
     ctx.fillRect(px, py, charWidth, charHeight)
     return
   }
-  // Reverse the glyph centering offsets (horizontal: -cw/2, vertical: -cH/4)
-  // to recover the diamond's bounding box.
-  const nudge = ISO_GLYPH_VERTICAL_NUDGE(charHeight)
-  const left = px - charWidth / 2
-  const right = left + 2 * charWidth
-  const top = py - nudge
-  const bottom = top + charHeight
-  const cx = left + charWidth
-  const cy = top + charHeight / 2
+  const { leftX, rightX, topY, bottomY, cx, cy } = getCellDiamondCorners(
+    px,
+    py,
+    charWidth,
+    charHeight,
+  )
   ctx.beginPath()
-  ctx.moveTo(cx, top)
-  ctx.lineTo(right, cy)
-  ctx.lineTo(cx, bottom)
-  ctx.lineTo(left, cy)
+  ctx.moveTo(cx, topY)
+  ctx.lineTo(rightX, cy)
+  ctx.lineTo(cx, bottomY)
+  ctx.lineTo(leftX, cy)
   ctx.closePath()
   ctx.fill()
 }

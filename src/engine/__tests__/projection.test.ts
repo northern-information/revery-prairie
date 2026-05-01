@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { drawCellBackground, screenToTile, viewportToScreen, worldToScreen } from '../projection'
+import {
+  drawCellBackground,
+  getCellDiamondCorners,
+  screenToTile,
+  viewportToScreen,
+  worldToScreen,
+} from '../projection'
 
 const charWidth = 10
 const charHeight = 16
@@ -32,12 +38,12 @@ describe('viewportToScreen (orthogonal)', () => {
 })
 
 describe('viewportToScreen (isometric)', () => {
-  it('center viewport tile glyph anchor lands at canvas center +nudge', () => {
+  it('center viewport tile glyph anchor lands at canvas center', () => {
     // canvas center: (viewportWidth*charWidth/2, viewportHeight*charHeight/2)
-    // glyph anchor adds vertical nudge (charHeight/4) so the glyph sits
-    // in the diamond's middle band rather than its top.
+    // Glyph anchor and diamond bbox are aligned vertically (nudge=0) so the
+    // glyph sits in the diamond's middle band rather than hanging below it.
     const expectedPx = (viewportWidth * charWidth) / 2
-    const expectedPy = (viewportHeight * charHeight) / 2 + charHeight / 4
+    const expectedPy = (viewportHeight * charHeight) / 2
     expect(
       viewportToScreen(
         viewportWidth / 2,
@@ -172,12 +178,79 @@ describe('drawCellBackground', () => {
 
   it('isometric: diamond vertices form a 2:1 diamond around the glyph anchor', () => {
     const ctx = makeCtx()
-    // Glyph anchor at (50, 80) with charWidth=10, charHeight=16, nudge=4.
-    // Diamond bbox: left=45, right=65, top=80-4=76, bottom=92, center=(55,84).
+    // Glyph anchor at (50, 80) with charWidth=10, charHeight=16, nudge=0.
+    // Diamond bbox: left=45, right=65, top=80, bottom=96, center=(55,88).
     drawCellBackground(ctx, 50, 80, charWidth, charHeight, true)
-    expect(ctx.moveTo).toHaveBeenCalledWith(55, 76)
-    expect(ctx.lineTo).toHaveBeenNthCalledWith(1, 65, 84)
-    expect(ctx.lineTo).toHaveBeenNthCalledWith(2, 55, 92)
-    expect(ctx.lineTo).toHaveBeenNthCalledWith(3, 45, 84)
+    expect(ctx.moveTo).toHaveBeenCalledWith(55, 80)
+    expect(ctx.lineTo).toHaveBeenNthCalledWith(1, 65, 88)
+    expect(ctx.lineTo).toHaveBeenNthCalledWith(2, 55, 96)
+    expect(ctx.lineTo).toHaveBeenNthCalledWith(3, 45, 88)
+  })
+})
+
+describe('getCellDiamondCorners', () => {
+  it('returns the 2:1 diamond bbox aligned with the glyph anchor', () => {
+    // Glyph anchor at (50, 80), charWidth=10, charHeight=16, nudge=0.
+    // Diamond bbox: leftX=45, rightX=65, topY=80, bottomY=96, center=(55,88).
+    expect(getCellDiamondCorners(50, 80, charWidth, charHeight)).toEqual({
+      leftX: 45,
+      rightX: 65,
+      topY: 80,
+      bottomY: 96,
+      cx: 55,
+      cy: 88,
+    })
+  })
+
+  it('aligns with drawCellBackground iso geometry for the same anchor', () => {
+    const ctx = {
+      fillStyle: '',
+      fillRect: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+    } as unknown as CanvasRenderingContext2D & {
+      moveTo: ReturnType<typeof vi.fn>
+      lineTo: ReturnType<typeof vi.fn>
+    }
+    drawCellBackground(ctx, 50, 80, charWidth, charHeight, true)
+    const c = getCellDiamondCorners(50, 80, charWidth, charHeight)
+    expect(ctx.moveTo).toHaveBeenCalledWith(c.cx, c.topY)
+    expect(ctx.lineTo).toHaveBeenNthCalledWith(1, c.rightX, c.cy)
+    expect(ctx.lineTo).toHaveBeenNthCalledWith(2, c.cx, c.bottomY)
+    expect(ctx.lineTo).toHaveBeenNthCalledWith(3, c.leftX, c.cy)
+  })
+})
+
+describe('iso glyph alignment with diamond bbox', () => {
+  it('glyph anchor py equals diamond bbox top (nudge=0)', () => {
+    // After fixing the nudge bug, the glyph bbox starts at the diamond's
+    // top apex and extends down for charHeight, matching the diamond bbox.
+    const { px, py } = viewportToScreen(3, 4, charWidth, charHeight, true, viewportWidth, viewportHeight)
+    const corners = getCellDiamondCorners(px, py, charWidth, charHeight)
+    expect(corners.topY).toBe(py)
+    expect(corners.bottomY).toBe(py + charHeight)
+  })
+
+  it('round-trip: clicking the glyph bbox center recovers the tile', () => {
+    const camera = { x: 4, y: 9 }
+    for (let vy = 0; vy < 5; vy++) {
+      for (let vx = 0; vx < 5; vx++) {
+        const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, true, viewportWidth, viewportHeight)
+        // Glyph horizontal center sits at (px + charWidth/2 - charWidth/2) = px
+        // because the glyph is drawn left-aligned at px and is charWidth wide.
+        // Diamond center: (px, py + charHeight/2). This is the safe interior.
+        const sampleX = px
+        const sampleY = py + charHeight / 2
+        expect(
+          screenToTile(sampleX, sampleY, camera, charWidth, charHeight, true, viewportWidth, viewportHeight),
+        ).toEqual({
+          x: camera.x + vx,
+          y: camera.y + vy,
+        })
+      }
+    }
   })
 })

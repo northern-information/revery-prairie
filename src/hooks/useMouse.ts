@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 
 import { castLightningAtTarget, isValidLightningTarget } from '@/engine/actionBar'
 import { getCharacterDefinition } from '@/engine/characters'
+import { expandClickTileForIso } from '@/engine/clickResolution'
 import { SELECTION_DRAG_THRESHOLD } from '@/engine/constants'
 import { screenToTile } from '@/engine/coordinates'
 import { isDeepTimeLocked } from '@/engine/deepTime'
@@ -293,7 +294,7 @@ export const useMouse = ({
       const metrics = metricsRef.current
       if (!metrics) return
 
-      const tile = screenToTile(
+      const rawTile = screenToTile(
         e.offsetX,
         e.offsetY,
         state.camera,
@@ -303,7 +304,10 @@ export const useMouse = ({
         state.viewportWidth,
         state.viewportHeight,
       )
-      if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return
+      if (rawTile.x < 0 || rawTile.x >= state.mapWidth || rawTile.y < 0 || rawTile.y >= state.mapHeight) return
+      // Iso forgiving hit-test: if the geometric tile has no clickable, snap
+      // to a cardinal-neighbor tile that does. Ortho mode stays strict.
+      const tile = expandClickTileForIso(state, rawTile)
 
       // Click on the player tile — toggle player selection
       if (tile.x === state.player.x && tile.y === state.player.y) {
