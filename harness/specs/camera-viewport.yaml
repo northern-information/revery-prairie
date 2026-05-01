@@ -13,7 +13,8 @@ behaviors:
   - id: camera-centering
     description: >
       updateCamera(state, forceCenter?) centers the camera on the
-      player. in cave and ruin zones (or when forceCenter is true),
+      player when cameraMode is 'follow' (default) or when forceCenter
+      is true. in cave and ruin zones (or when forceCenter is true),
       the camera centers directly on the player within the visible
       portion of the viewport. overworld uses a deadzone system
       (see camera-deadzone spec). visible width is viewportWidth
@@ -22,7 +23,7 @@ behaviors:
       than the viewport, the camera centers the map with negative
       offset (centering small maps on screen).
     inputs:
-      - 'state with player position, viewport dimensions, rightInsetTiles, map dimensions, currentZone'
+      - 'state with player position, viewport dimensions, rightInsetTiles, map dimensions, currentZone, cameraMode'
       - 'forceCenter (optional boolean, defaults to false)'
     outputs:
       - 'state.camera.x and state.camera.y updated'
@@ -31,6 +32,24 @@ behaviors:
         effect: 'clamped to [0, mapWidth - visibleWidth] or negative-centered if map is smaller'
       - field: camera.y
         effect: 'clamped to [0, mapHeight - viewportHeight] or negative-centered if map is smaller'
+    determinism: deterministic
+
+  - id: free-pan-mode
+    description: >
+      when state.cameraMode is 'free' (RTS edge-scroll pan mode),
+      updateCamera returns early without auto-centering, unless
+      forceCenter is true. in free mode the rts-camera-pan
+      edge-scroll system mutates state.camera directly; updateCamera
+      must not fight it. zone transitions still call
+      updateCamera(state, true) to bypass the gate and snap the
+      camera back onto the player. cameraMode flips back to 'follow'
+      when the player moves via WASD (see rts-camera-pan spec).
+    inputs:
+      - 'state with cameraMode set to "free" or "follow"'
+      - 'forceCenter (optional boolean)'
+    outputs:
+      - 'state.camera left untouched in free mode unless forceCenter is true'
+    state_changes: []
     determinism: deterministic
 
   - id: sidebar-inset

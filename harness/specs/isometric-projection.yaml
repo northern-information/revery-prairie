@@ -1,6 +1,6 @@
 id: isometric-projection
 name: 'Isometric projection rendering mode'
-status: planned
+status: implemented
 priority: medium
 layer: integration
 source_files:

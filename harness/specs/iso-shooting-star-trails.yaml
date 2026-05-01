@@ -1,6 +1,6 @@
 id: iso-shooting-star-trails
 name: 'Shooting star trail glyphs orient to screen direction under isometric projection'
-status: partial
+status: implemented
 priority: medium
 layer: engine
 source_files:
