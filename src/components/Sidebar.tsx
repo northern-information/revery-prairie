@@ -36,7 +36,6 @@ import { CloverStage, DeepTimePhase, TileType, Zone } from '@/engine/types'
 import { fToC, mphToKph } from '@/engine/weather'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { CharMetrics, GameState } from '@/engine/types'
-import type { GameEvent } from '@/hooks/useEventLog'
 import type { PermacomputerScreen } from '@/hooks/useKeyboard'
 
 const countTiles = (state: GameState, type: TileType): number => {
@@ -68,12 +67,11 @@ interface SidebarProps {
   state: GameState
   activeScreen: PermacomputerScreen
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
-  eventLog: GameEvent[]
   metricsRef: React.RefObject<CharMetrics | null>
   refreshUI: () => void
 }
 
-export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef, refreshUI }: SidebarProps) => {
+export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshUI }: SidebarProps) => {
   const { metric } = state
   const cursorRef = useRef<{ x: number; y: number } | null>(null)
   const [, setCursorVersion] = useState(0)
@@ -425,19 +423,6 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
       </div>
 
       <div className="flex flex-col gap-4">
-        {eventLog.length > 0 && (
-          <div>
-            <SectionHeader>Log</SectionHeader>
-            <div className="scrollbar-custom pointer-events-auto flex max-h-40 flex-col gap-1 overflow-y-auto">
-              {eventLog.map(entry => (
-                <span key={entry.id}>
-                  <span style={{ color: entry.iconColor }}>{entry.icon}</span> {entry.text}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
         <div>
           <SectionHeader>Stats</SectionHeader>
           <table className="w-full">

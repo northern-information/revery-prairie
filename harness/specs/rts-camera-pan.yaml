@@ -125,6 +125,9 @@ edge_cases:
   - id: simultaneous-edge-and-wasd
     description: 'User holds WASD while cursor is at a canvas edge'
     expected: 'WASD-recenter wins each frame: keyboard-move tick runs, recenters, edge-scroll tick may flip back to free on the same frame; visually the camera tracks the player'
+  - id: cursor-over-log-overlay
+    description: 'User moves the cursor over the EventLog overlay in the lower-left corner — the overlay sits inside the bottom-left edge-scroll zone'
+    expected: 'Log overlay nulls state.edgeScrollPos on hover (same pattern as the right-hand Sidebar); edge-scroll tick produces zero velocity while hovered; cameraMode does not flip to free from the hover alone; edge-scroll resumes when the cursor leaves the overlay and the next canvas mousemove restores edgeScrollPos'
 
 failure_conditions:
   - trigger: 'Edge-scroll tick keeps mutating camera in follow mode without flipping to free'

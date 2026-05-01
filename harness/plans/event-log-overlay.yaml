@@ -1,0 +1,142 @@
+plan:
+  id: event-log-overlay
+  title: 'Move event log out of sidebar to lower-left overlay with terminal-style fade'
+  created: '2026-04-30'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: create-event-log-component
+    title: 'Add src/components/EventLog.tsx — fixed lower-left overlay, newest-at-bottom, position-based opacity fade, scrollable, hover nulls edgeScrollPos / cursorScreenPos / cursorTile'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-rendered-as-corner-overlay
+      - log-newest-at-bottom
+      - log-position-based-fade
+      - log-scrollable-with-wheel
+      - log-hover-suppresses-edge-scroll
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/components/PanelPrimitives.tsx
+      - src/components/GameScreen.tsx
+      - src/hooks/useEventLog.ts
+      - src/engine/types.ts
+      - src/engine/edgeScroll.ts
+      - src/styles/index.css
+    output_files:
+      - src/components/EventLog.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: wire-event-log-into-gamescreen
+    title: 'Render <EventLog /> from GameScreen and stop passing eventLog to Sidebar'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-rendered-as-corner-overlay
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/components/EventLog.tsx
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on: [create-event-log-component]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: remove-sidebar-log-section
+    title: 'Delete the Log section block (and SectionHeader) from Sidebar.tsx and remove the eventLog prop from SidebarProps'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-rendered-as-corner-overlay
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/components/__tests__/Sidebar.test.tsx
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on: [wire-event-log-into-gamescreen]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: raise-action-bar-and-command-panel
+    title: 'Raise ActionBar and CommandPanel bottom anchor so they sit above the log overlay (replace bottom-4 with a value clear of the log; same value on both)'
+    spec_id: event-log-overlay
+    spec_sections:
+      - action-bar-and-command-panel-move-up
+    context_files:
+      - src/components/ActionBar.tsx
+      - src/components/CommandPanel.tsx
+      - src/components/EventLog.tsx
+    output_files:
+      - src/components/ActionBar.tsx
+      - src/components/CommandPanel.tsx
+    depends_on: [create-event-log-component]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: update-sidebar-tests
+    title: 'Drop eventLog={...} from all Sidebar.test.tsx renders; remove the log-specific scroll-container test (moved to EventLog.test.tsx)'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-rendered-as-corner-overlay
+    context_files:
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on: [remove-sidebar-log-section]
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags: [test]
+
+  - id: add-event-log-tests
+    title: 'Add src/components/__tests__/EventLog.test.tsx — covers reverse-order rendering, position-based opacity, hover nulls edgeScrollPos, wheel scrolls overlay (does not bubble to canvas), empty-log no-op'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-newest-at-bottom
+      - log-position-based-fade
+      - log-scrollable-with-wheel
+      - log-hover-suppresses-edge-scroll
+    context_files:
+      - src/components/EventLog.tsx
+      - src/hooks/useEventLog.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/__tests__/EventLog.test.tsx
+    depends_on: [create-event-log-component]
+    verification:
+      - npx vitest run src/components/__tests__/EventLog.test.tsx
+    repair: retry
+    tags: [test]
+
+  - id: full-verify
+    title: 'Run full verify suite (typecheck + lint + test)'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-rendered-as-corner-overlay
+      - log-newest-at-bottom
+      - log-position-based-fade
+      - log-scrollable-with-wheel
+      - log-hover-suppresses-edge-scroll
+    context_files: []
+    output_files: []
+    depends_on:
+      - update-sidebar-tests
+      - add-event-log-tests
+      - raise-action-bar-and-command-panel
+    verification:
+      - npm run verify
+    repair: retry
+    tags: [test]

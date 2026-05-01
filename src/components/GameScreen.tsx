@@ -6,6 +6,7 @@ import { CoyoteScreen } from './CoyoteScreen'
 import { DialogBox } from './DialogBox'
 import { DevPanel } from './DevPanel'
 import { DragCursor } from './DragCursor'
+import { EventLog } from './EventLog'
 import { GameCanvas } from './GameCanvas'
 import { HexagramPanel } from './HexagramPanel'
 import { InventoryPanel } from './InventoryPanel'
@@ -288,10 +289,10 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
         state={state}
         activeScreen={activeScreen}
         itemInfoRef={itemInfoRef}
-        eventLog={log}
         metricsRef={metricsRef}
         refreshUI={refreshUI}
       />
+      <EventLog state={state} eventLog={log} />
       <PickupToasts toasts={toasts} state={state} metricsRef={metricsRef} />
     </>
   )

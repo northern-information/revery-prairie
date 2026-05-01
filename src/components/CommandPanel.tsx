@@ -115,10 +115,18 @@ export const CommandPanel = ({ state, refreshUI }: CommandPanelProps) => {
   const isSingleSelect = units.length === 1
   const singleUnit = isSingleSelect ? units[0] : null
 
+  const suppressEdgeScroll = () => {
+    state.edgeScrollPos = null
+    state.cursorScreenPos = null
+    state.cursorTile = null
+  }
+
   return (
     <div
-      className="pointer-events-auto fixed bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded border px-3 py-2"
+      className="pointer-events-auto fixed top-2 left-2 z-10 flex items-center gap-3 rounded border px-3 py-2"
       style={{ backgroundColor: PANEL_BG, borderColor: BORDER_COLOR }}
+      onMouseEnter={suppressEdgeScroll}
+      onMouseMove={suppressEdgeScroll}
     >
       {isSingleSelect && singleUnit ? (
         <>
