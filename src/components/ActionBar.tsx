@@ -145,8 +145,18 @@ export const ActionBar = ({
 
   const hasDrag = dragState !== null
 
+  const suppressEdgeScroll = () => {
+    state.edgeScrollPos = null
+    state.cursorScreenPos = null
+    state.cursorTile = null
+  }
+
   return (
-    <div className="pointer-events-auto fixed bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1">
+    <div
+      className="pointer-events-auto fixed top-2 left-2 z-10 flex items-center gap-1"
+      onMouseEnter={suppressEdgeScroll}
+      onMouseMove={suppressEdgeScroll}
+    >
       {state.actionBar.map((slot, i) => (
         <ActionBarSlotView
           key={i}

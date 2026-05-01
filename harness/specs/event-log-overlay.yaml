@@ -1,0 +1,185 @@
+id: event-log-overlay
+name: 'Event log overlay (lower-left, terminal-style fade)'
+status: planned
+priority: medium
+layer: component
+source_files:
+  - src/components/EventLog.tsx
+  - src/components/GameScreen.tsx
+  - src/components/Sidebar.tsx
+  - src/components/ActionBar.tsx
+  - src/components/CommandPanel.tsx
+  - src/components/__tests__/EventLog.test.tsx
+  - src/components/__tests__/Sidebar.test.tsx
+dependencies:
+  - rts-camera-pan
+  - action-bar
+
+behaviors:
+  - id: log-rendered-as-corner-overlay
+    description: >
+      The event log renders as a fixed-position overlay anchored to the
+      lower-left of the viewport (bottom-2 / left-2 with a small inset)
+      with a fixed width (w-96 / 384px). It is no longer a section
+      inside the right-hand Sidebar. The overlay matches the existing
+      Sidebar visual language (font-mono text-xs, bg-black/70 backdrop)
+      for consistency. The Sidebar no longer renders a log section;
+      the eventLog prop is removed from Sidebar.
+    inputs:
+      - 'GameScreen rendered with at least one event in the log'
+    outputs:
+      - 'EventLog overlay component rendered as a fixed element at the lower-left'
+      - 'Sidebar no longer contains a Log section'
+    state_changes: []
+    determinism: deterministic
+
+  - id: action-bar-anchored-top-left
+    description: >
+      ActionBar and CommandPanel are anchored to the top-left of the
+      viewport (`fixed top-2 left-2`) instead of bottom-center. Both
+      components use identical anchors so swapping between them
+      (selection-conditional in GameScreen) does not shift position.
+      Because the top-left sits inside the edge-scroll zone (cursor
+      transit area), both components null `state.edgeScrollPos`,
+      `state.cursorScreenPos`, and `state.cursorTile` on hover —
+      mirroring the EventLog and Sidebar suppression patterns — so
+      mousing over the action bar to click a slot does not strand a
+      stale `edgeScrollPos` inside the edge-scroll zone and trigger
+      runaway camera pan.
+    inputs:
+      - 'GameScreen renders ActionBar (no selection) or CommandPanel (selection active)'
+      - 'mouse enters or moves over the ActionBar / CommandPanel'
+    outputs:
+      - 'ActionBar / CommandPanel rendered at the top-left of the viewport'
+      - 'state.edgeScrollPos / cursorScreenPos / cursorTile nulled while hovered'
+      - 'ActionBar and CommandPanel use identical position'
+    state_changes:
+      - field: edgeScrollPos
+        effect: 'nulled by ActionBar / CommandPanel mouse handler while hovered'
+      - field: cursorScreenPos
+        effect: 'nulled by ActionBar / CommandPanel mouse handler while hovered'
+      - field: cursorTile
+        effect: 'nulled by ActionBar / CommandPanel mouse handler while hovered'
+    determinism: deterministic
+
+  - id: log-newest-at-bottom
+    description: >
+      Entries render in chronological order with the newest entry at the
+      bottom (terminal-style). New events appear at the bottom of the
+      visible area; older entries sit above. This reverses the previous
+      sidebar ordering. The 50-entry cap in useEventLog is preserved;
+      the oldest entry is dropped when the cap is exceeded.
+    inputs:
+      - 'addEvent called with new GameEvent'
+    outputs:
+      - 'new entry appears at the bottom of the EventLog overlay'
+      - 'older entries appear above; dropped from the top once cap is exceeded'
+    state_changes: []
+    determinism: deterministic
+
+  - id: log-position-based-fade
+    description: >
+      Each entry's opacity is a function of its visual position within
+      the log buffer. The bottom-most entry renders at 100% opacity.
+      Opacity decreases monotonically toward the top of the visible
+      area. Entries near the top of the buffer fade toward 0%. Fade is
+      purely position-based — it does not depend on the entry's age, so
+      idle messages persist at full opacity at the bottom until pushed
+      up by newer events. The exact fade curve is implementation-defined
+      but must be visually smooth (e.g., linear or eased gradient over
+      the visible buffer).
+    inputs:
+      - 'EventLog rendered with N entries'
+    outputs:
+      - 'bottom entry renders at full opacity'
+      - 'opacity decreases with index from bottom'
+    state_changes: []
+    determinism: deterministic
+
+  - id: log-scrollable-with-wheel
+    description: >
+      The overlay container is scrollable. The wheel event over the
+      overlay scrolls through the log buffer (up to the 50-entry cap)
+      rather than triggering canvas zoom or other underlying handlers.
+      Pointer-events on the container are auto so wheel and click
+      events are captured. Default scroll position pins to the bottom
+      so newest entries are always visible after a new event arrives,
+      unless the user has actively scrolled away from the bottom — in
+      which case the scroll position is preserved (matches the old
+      log-scroll-position-preserved behavior).
+    inputs:
+      - 'wheel event over EventLog overlay'
+      - 'new event added via addEvent'
+    outputs:
+      - 'overlay scroll position changes; underlying canvas does not receive the wheel event'
+      - 'scroll auto-pins to bottom when user is at bottom; preserved otherwise'
+    state_changes: []
+    determinism: deterministic
+
+  - id: log-hover-suppresses-edge-scroll
+    description: >
+      The bottom-left corner is inside the RTS edge-scroll zone. While
+      the cursor is over the EventLog overlay, edge-scroll is suppressed
+      so the camera does not pan while the user is reading or scrolling
+      the log. This is implemented the same way the Sidebar suppresses
+      edge-scroll: the overlay's mouse handler nulls state.edgeScrollPos
+      (and clears state.cursorScreenPos / cursorTile so the cursor info
+      panel does not light up world tiles under the overlay). When the
+      cursor leaves the overlay, the next canvas mousemove restores
+      edgeScrollPos and edge-scroll resumes normally.
+    inputs:
+      - 'mouse enters EventLog overlay bounds'
+      - 'mouse leaves EventLog overlay bounds'
+    outputs:
+      - 'state.edgeScrollPos set to null while hovered'
+      - 'edge-scroll tick produces zero velocity while hovered'
+      - 'edge-scroll resumes on next canvas mousemove after leaving'
+    state_changes:
+      - field: edgeScrollPos
+        effect: 'nulled by overlay mouse handler while cursor is over the log'
+      - field: cursorScreenPos
+        effect: 'nulled by overlay mouse handler so cursor info does not show tiles under the log'
+      - field: cursorTile
+        effect: 'nulled by overlay mouse handler'
+    determinism: deterministic
+
+edge_cases:
+  - id: log-empty
+    description: 'event log has zero entries'
+    expected: 'overlay container is not rendered (or renders empty); no visual artifact in lower-left'
+  - id: log-single-entry
+    description: 'event log has exactly one entry'
+    expected: 'single entry renders at full opacity at the bottom; no fade visible'
+  - id: log-overflow
+    description: 'event log has more entries than the visible area'
+    expected: 'top entries clip behind the fade; user can wheel-scroll to view earlier entries'
+  - id: log-at-cap
+    description: 'event log is at the 50-entry cap and a new event arrives'
+    expected: 'oldest entry dropped from top; new entry appears at bottom; auto-scroll keeps bottom in view'
+  - id: cursor-leaves-overlay-into-edge-zone
+    description: 'cursor moves off the log overlay while still inside the bottom-left edge-scroll zone'
+    expected: 'next canvas mousemove restores state.edgeScrollPos; edge-scroll resumes panning'
+  - id: log-and-action-bar-no-collision
+    description: 'ActionBar sits at top-left and log overlay sits at bottom-left — opposite corners on the same side'
+    expected: 'no visual collision; both share the left edge but at different vertical extremes'
+  - id: command-panel-replaces-action-bar
+    description: 'Selection becomes active; GameScreen swaps ActionBar for CommandPanel at the same screen position'
+    expected: 'CommandPanel uses the same top-left anchor as ActionBar; the panel does not jump when selection toggles'
+  - id: action-bar-hover-suppresses-pan
+    description: 'Cursor enters the top-left edge-scroll zone (within EDGE_SCROLL_ZONE_PX of top or left edge), then hovers the ActionBar'
+    expected: 'ActionBar mouse handler nulls state.edgeScrollPos before camera mutation accumulates; pan does not run while user reads or clicks slots'
+
+failure_conditions:
+  - trigger: 'rapid events flood the log (e.g. chain meteorite explosions)'
+    expected: 'all events rendered; auto-scroll keeps the newest visible; no layout thrashing'
+  - trigger: 'wheel over the log overlay falls through to canvas zoom or pan'
+    expected: 'overlay must capture the wheel event; canvas must not respond'
+  - trigger: 'edge-scroll continues panning while cursor is over the log overlay'
+    expected: "log overlay's mouse handler must null edgeScrollPos; spec violated otherwise"
+  - trigger: 'sidebar still renders a Log section after this change'
+    expected: 'Sidebar must not contain a SectionHeader Log block; spec violated otherwise'
+
+verification:
+  test_file: src/components/__tests__/EventLog.test.tsx
+  test_pattern: 'EventLog'
+  command: 'npx vitest run src/components/__tests__/EventLog.test.tsx src/components/__tests__/Sidebar.test.tsx'
