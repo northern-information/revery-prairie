@@ -1,0 +1,97 @@
+plan:
+  id: log-autoscroll-controls-relocate
+  title: 'Resume EventLog auto-scroll on mouseleave; show unread counter; move ActionBar into the right Sidebar middle gap'
+  created: 2026-05-01
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npm run test'
+
+tasks:
+  - id: eventlog-mouseleave-resume
+    title: 'EventLog: resume auto-scroll on mouseleave'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-scrollable-with-wheel
+    context_files:
+      - src/components/EventLog.tsx
+    output_files:
+      - src/components/EventLog.tsx
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [component]
+
+  - id: eventlog-unread-counter
+    title: 'EventLog: track unread events while paused, render N-new-events indicator'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-unread-indicator-while-paused
+    context_files:
+      - src/components/EventLog.tsx
+    output_files:
+      - src/components/EventLog.tsx
+    depends_on:
+      - eventlog-mouseleave-resume
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [component]
+
+  - id: eventlog-test-updates
+    title: 'EventLog: add tests for mouseleave-resume and unread counter'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-scrollable-with-wheel
+      - log-unread-indicator-while-paused
+    context_files:
+      - src/components/EventLog.tsx
+      - src/components/__tests__/EventLog.test.tsx
+    output_files:
+      - src/components/__tests__/EventLog.test.tsx
+    depends_on:
+      - eventlog-unread-counter
+    verification:
+      - 'npx vitest run src/components/__tests__/EventLog.test.tsx'
+    repair: retry
+    tags: [test, component]
+
+  - id: actionbar-relocate-to-sidebar
+    title: 'ActionBar / CommandPanel: move into right Sidebar middle gap, shrink slots to 36px'
+    spec_id: event-log-overlay
+    spec_sections:
+      - action-bar-anchored-sidebar-middle
+    context_files:
+      - src/components/ActionBar.tsx
+      - src/components/CommandPanel.tsx
+      - src/components/Sidebar.tsx
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/components/ActionBar.tsx
+      - src/components/CommandPanel.tsx
+      - src/components/Sidebar.tsx
+      - src/components/GameScreen.tsx
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [component]
+
+  - id: actionbar-test-updates
+    title: 'Update ActionBar / Sidebar tests for new placement'
+    spec_id: event-log-overlay
+    spec_sections:
+      - action-bar-anchored-sidebar-middle
+    context_files:
+      - src/components/ActionBar.tsx
+      - src/components/Sidebar.tsx
+      - src/components/__tests__/Sidebar.test.tsx
+    output_files:
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on:
+      - actionbar-relocate-to-sidebar
+    verification:
+      - 'npx vitest run src/components/__tests__/Sidebar.test.tsx'
+    repair: retry
+    tags: [test, component]

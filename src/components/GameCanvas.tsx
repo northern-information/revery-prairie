@@ -110,6 +110,17 @@ export const GameCanvas = ({
     // for tile-info purposes). Listening on window so we still get updates
     // when the cursor crosses into the sidebar overlay near the right edge.
     const handleEdgeMouseMove = (e: MouseEvent) => {
+      // Bail if cursor is over a UI panel overlay (event log, action bar,
+      // command panel, etc.). This handler runs on window and fires after
+      // React's synthetic onMouseMove, so a panel's own null-assignment
+      // would be overwritten without this check — the camera would pan
+      // down whenever the cursor crossed the action bar at the bottom of
+      // the viewport. Panels mark themselves with `data-panel="…"`.
+      const target = e.target as HTMLElement | null
+      if (target?.closest('[data-panel]')) {
+        state.edgeScrollPos = null
+        return
+      }
       const rect = canvas.getBoundingClientRect()
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top

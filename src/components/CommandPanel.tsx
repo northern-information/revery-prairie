@@ -123,7 +123,8 @@ export const CommandPanel = ({ state, refreshUI }: CommandPanelProps) => {
 
   return (
     <div
-      className="pointer-events-auto fixed top-2 left-2 z-10 flex items-center gap-3 rounded border px-3 py-2"
+      data-panel="command-panel"
+      className="pointer-events-auto fixed bottom-2 left-1/2 z-20 ml-[100px] flex -translate-x-1/2 items-center gap-3 rounded border px-2 py-2"
       style={{ backgroundColor: PANEL_BG, borderColor: BORDER_COLOR }}
       onMouseEnter={suppressEdgeScroll}
       onMouseMove={suppressEdgeScroll}

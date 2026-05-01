@@ -33,24 +33,32 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: action-bar-anchored-top-left
+  - id: action-bar-anchored-bottom-center-gap
     description: >
-      ActionBar and CommandPanel are anchored to the top-left of the
-      viewport (`fixed top-2 left-2`) instead of bottom-center. Both
-      components use identical anchors so swapping between them
-      (selection-conditional in GameScreen) does not shift position.
-      Because the top-left sits inside the edge-scroll zone (cursor
-      transit area), both components null `state.edgeScrollPos`,
-      `state.cursorScreenPos`, and `state.cursorTile` on hover —
-      mirroring the EventLog and Sidebar suppression patterns — so
-      mousing over the action bar to click a slot does not strand a
-      stale `edgeScrollPos` inside the edge-scroll zone and trigger
-      runaway camera pan.
+      ActionBar and CommandPanel are anchored at the bottom of the
+      viewport, horizontally centered within the gap between the
+      EventLog overlay (lower-left, `left-2 w-96` → right edge at
+      ~392px from the viewport's left) and the right Sidebar
+      (`right-0 w-48` → left edge at viewport-192px). Achieved with
+      `fixed bottom-2 left-1/2 ml-[100px] -translate-x-1/2` — the
+      100px ml-offset shifts the centered element rightward by half
+      the difference between EventLog's left-side occupancy (392px)
+      and Sidebar's right-side occupancy (192px), placing the slots
+      at the visual center of the available horizontal gap. Both
+      ActionBar and CommandPanel use identical anchors so swapping
+      between them (selection-conditional in GameScreen) does not
+      shift position. The 4 slots render in a single horizontal row
+      at 36px each (total width ~156px). Both components null
+      `state.edgeScrollPos`, `state.cursorScreenPos`, and
+      `state.cursorTile` on hover so mousing over them inside the
+      bottom edge-scroll zone does not strand a stale `edgeScrollPos`
+      and trigger runaway camera pan.
     inputs:
       - 'GameScreen renders ActionBar (no selection) or CommandPanel (selection active)'
       - 'mouse enters or moves over the ActionBar / CommandPanel'
     outputs:
-      - 'ActionBar / CommandPanel rendered at the top-left of the viewport'
+      - 'ActionBar / CommandPanel rendered at bottom-center, offset to sit between EventLog and Sidebar'
+      - '4 slots rendered horizontally at 36px each, total width ~156px'
       - 'state.edgeScrollPos / cursorScreenPos / cursorTile nulled while hovered'
       - 'ActionBar and CommandPanel use identical position'
     state_changes:
@@ -105,14 +113,47 @@ behaviors:
       events are captured. Default scroll position pins to the bottom
       so newest entries are always visible after a new event arrives,
       unless the user has actively scrolled away from the bottom — in
-      which case the scroll position is preserved (matches the old
-      log-scroll-position-preserved behavior).
+      which case the scroll position is preserved while a stuck-to-
+      bottom flag is held false. The flag flips back to true (resuming
+      auto-pin) when EITHER the user scrolls all the way back to the
+      bottom (within 4px of the bottom) OR the cursor leaves the
+      EventLog overlay (mouseleave). On mouseleave-resume, the scroll
+      position is also snapped to the bottom so the newest entry is
+      visible the next time the user looks at the log.
     inputs:
       - 'wheel event over EventLog overlay'
       - 'new event added via addEvent'
+      - 'cursor leaves the EventLog overlay (mouseleave)'
     outputs:
       - 'overlay scroll position changes; underlying canvas does not receive the wheel event'
-      - 'scroll auto-pins to bottom when user is at bottom; preserved otherwise'
+      - 'scroll auto-pins to bottom when stuck-to-bottom flag is true; preserved otherwise'
+      - 'mouseleave or scroll-to-bottom resumes auto-pin and snaps to the newest entry'
+    state_changes: []
+    determinism: deterministic
+
+  - id: log-unread-indicator-while-paused
+    description: >
+      While the stuck-to-bottom flag is false (user has scrolled away
+      from the bottom and cursor is still over the log), every new
+      event added to the log increments an unread counter local to
+      the EventLog component. The component renders a small "N new
+      events" indicator overlaid at the bottom-right corner of the
+      scroll area when the counter is greater than zero. Clicking
+      the indicator scrolls the container to the bottom, sets the
+      stuck-to-bottom flag to true, and resets the counter to zero.
+      The counter also resets to zero when auto-pin resumes through
+      either path (scroll-to-bottom or mouseleave). The indicator
+      uses the same font-mono / text-xs visual language as the log
+      entries and does not trigger edge-scroll while hovered (it
+      lives inside the same suppression region as the log).
+    inputs:
+      - 'new event added via addEvent while stuck-to-bottom flag is false'
+      - 'click on the unread indicator'
+      - 'auto-pin resumes via scroll-to-bottom or mouseleave'
+    outputs:
+      - 'indicator rendered at bottom of log when counter > 0, hidden when counter === 0'
+      - 'click on indicator scrolls to bottom, resumes auto-pin, resets counter'
+      - 'auto-pin resume resets counter to zero'
     state_changes: []
     determinism: deterministic
 
@@ -160,14 +201,23 @@ edge_cases:
     description: 'cursor moves off the log overlay while still inside the bottom-left edge-scroll zone'
     expected: 'next canvas mousemove restores state.edgeScrollPos; edge-scroll resumes panning'
   - id: log-and-action-bar-no-collision
-    description: 'ActionBar sits at top-left and log overlay sits at bottom-left — opposite corners on the same side'
-    expected: 'no visual collision; both share the left edge but at different vertical extremes'
+    description: 'ActionBar sits at bottom-center between EventLog (lower-left) and Sidebar (right); 100px ml-offset places it at the visual center of the gap'
+    expected: 'no visual collision; the action bar slots occupy the empty horizontal strip between the EventLog and the Sidebar at the bottom of the viewport'
   - id: command-panel-replaces-action-bar
-    description: 'Selection becomes active; GameScreen swaps ActionBar for CommandPanel at the same screen position'
-    expected: 'CommandPanel uses the same top-left anchor as ActionBar; the panel does not jump when selection toggles'
+    description: 'Selection becomes active; GameScreen swaps ActionBar for CommandPanel at the same bottom-center anchor'
+    expected: 'CommandPanel uses the same `fixed bottom-2 left-1/2 ml-[100px] -translate-x-1/2` anchor as ActionBar; the panel does not jump when selection toggles'
   - id: action-bar-hover-suppresses-pan
-    description: 'Cursor enters the top-left edge-scroll zone (within EDGE_SCROLL_ZONE_PX of top or left edge), then hovers the ActionBar'
-    expected: 'ActionBar mouse handler nulls state.edgeScrollPos before camera mutation accumulates; pan does not run while user reads or clicks slots'
+    description: 'Cursor on the canvas approaches the action bar through the bottom edge-scroll zone'
+    expected: 'ActionBar / CommandPanel mouse handler nulls state.edgeScrollPos before camera mutation accumulates; pan-down does not run while user reads or clicks slots'
+  - id: log-mouseleave-resumes-autoscroll
+    description: 'user has scrolled up in the log; cursor leaves the log overlay'
+    expected: 'on mouseleave, stuck-to-bottom flag is set true, the scroll container is snapped to the bottom, and the unread counter is reset to zero; the next new event auto-pins as normal'
+  - id: log-scroll-to-bottom-resumes-autoscroll
+    description: 'user has scrolled up in the log; user scrolls back down within 4px of the bottom while cursor is still over the log'
+    expected: 'stuck-to-bottom flag flips to true on the scroll handler; unread counter is reset to zero; subsequent new events auto-pin as normal'
+  - id: log-unread-counter-displays-while-paused
+    description: 'user has scrolled up in the log; new events arrive while the cursor is still over the log'
+    expected: 'unread counter increments per new event; "N new events" indicator renders at the bottom of the scroll area; clicking the indicator scrolls to bottom, resumes auto-pin, and resets the counter'
 
 failure_conditions:
   - trigger: 'rapid events flood the log (e.g. chain meteorite explosions)'

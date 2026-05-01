@@ -76,4 +76,99 @@ describe('EventLog', () => {
     const panel = screen.getByText('one').closest('[data-panel="event-log"]')
     expect(panel?.className).toMatch(/pointer-events-auto/)
   })
+
+  describe('auto-scroll resume + unread counter', () => {
+    // jsdom does not lay out scrollable elements; stub scroll geometry per test
+    const stubScroll = (el: HTMLElement, opts: { scrollHeight: number; clientHeight: number; scrollTop: number }) => {
+      Object.defineProperty(el, 'scrollHeight', { configurable: true, value: opts.scrollHeight })
+      Object.defineProperty(el, 'clientHeight', { configurable: true, value: opts.clientHeight })
+      Object.defineProperty(el, 'scrollTop', { configurable: true, writable: true, value: opts.scrollTop })
+    }
+
+    const requireEl = (root: ParentNode, selector: string): HTMLElement => {
+      const el = root.querySelector(selector)
+      expect(el).not.toBeNull()
+      return el as HTMLElement
+    }
+
+    const findScrollContainer = (panel: ParentNode): HTMLElement => requireEl(panel, '.scrollbar-custom')
+
+    it('shows "N new events" indicator when new events arrive while user has scrolled away from bottom', () => {
+      const state = createGameState('Test', 80, 40)
+      const initial = [makeEvent('1', 'one')]
+      const { rerender, container } = render(<EventLog state={state} eventLog={initial} />)
+      const panel = requireEl(container, '[data-panel="event-log"]')
+      const scroll = findScrollContainer(panel)
+
+      // Simulate user scrolling away from bottom
+      stubScroll(scroll, { scrollHeight: 200, clientHeight: 100, scrollTop: 0 })
+      fireEvent.scroll(scroll)
+
+      // Two new events arrive while user is scrolled up
+      const grown = [makeEvent('3', 'three'), makeEvent('2', 'two'), makeEvent('1', 'one')]
+      rerender(<EventLog state={state} eventLog={grown} />)
+
+      const indicator = screen.getByTestId('event-log-unread-indicator')
+      expect(indicator.textContent).toMatch(/2 new events/)
+    })
+
+    it('resumes auto-scroll on mouseleave and clears the unread counter', () => {
+      const state = createGameState('Test', 80, 40)
+      const initial = [makeEvent('1', 'one')]
+      const { rerender, container } = render(<EventLog state={state} eventLog={initial} />)
+      const panel = requireEl(container, '[data-panel="event-log"]')
+      const scroll = findScrollContainer(panel)
+
+      stubScroll(scroll, { scrollHeight: 200, clientHeight: 100, scrollTop: 0 })
+      fireEvent.scroll(scroll)
+
+      const grown = [makeEvent('2', 'two'), makeEvent('1', 'one')]
+      rerender(<EventLog state={state} eventLog={grown} />)
+      expect(screen.queryByTestId('event-log-unread-indicator')).not.toBeNull()
+
+      // Cursor leaves the log overlay → resume auto-scroll
+      fireEvent.mouseLeave(panel)
+      expect(screen.queryByTestId('event-log-unread-indicator')).toBeNull()
+      expect(scroll.scrollTop).toBe(scroll.scrollHeight)
+    })
+
+    it('resumes auto-scroll when user scrolls back to bottom and clears the unread counter', () => {
+      const state = createGameState('Test', 80, 40)
+      const initial = [makeEvent('1', 'one')]
+      const { rerender, container } = render(<EventLog state={state} eventLog={initial} />)
+      const panel = requireEl(container, '[data-panel="event-log"]')
+      const scroll = findScrollContainer(panel)
+
+      stubScroll(scroll, { scrollHeight: 200, clientHeight: 100, scrollTop: 0 })
+      fireEvent.scroll(scroll)
+
+      const grown = [makeEvent('2', 'two'), makeEvent('1', 'one')]
+      rerender(<EventLog state={state} eventLog={grown} />)
+      expect(screen.queryByTestId('event-log-unread-indicator')).not.toBeNull()
+
+      // User scrolls back to bottom (within 4px threshold)
+      stubScroll(scroll, { scrollHeight: 200, clientHeight: 100, scrollTop: 100 })
+      fireEvent.scroll(scroll)
+      expect(screen.queryByTestId('event-log-unread-indicator')).toBeNull()
+    })
+
+    it('clicking the unread indicator scrolls to bottom and resumes auto-scroll', () => {
+      const state = createGameState('Test', 80, 40)
+      const initial = [makeEvent('1', 'one')]
+      const { rerender, container } = render(<EventLog state={state} eventLog={initial} />)
+      const panel = requireEl(container, '[data-panel="event-log"]')
+      const scroll = findScrollContainer(panel)
+
+      stubScroll(scroll, { scrollHeight: 200, clientHeight: 100, scrollTop: 0 })
+      fireEvent.scroll(scroll)
+
+      const grown = [makeEvent('2', 'two'), makeEvent('1', 'one')]
+      rerender(<EventLog state={state} eventLog={grown} />)
+      const indicator = screen.getByTestId('event-log-unread-indicator')
+
+      fireEvent.click(indicator)
+      expect(screen.queryByTestId('event-log-unread-indicator')).toBeNull()
+      expect(scroll.scrollTop).toBe(scroll.scrollHeight)
+    })
+  })
 })
