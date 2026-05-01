@@ -154,6 +154,38 @@ export const getCellDiamondCorners = (
 }
 
 /**
+ * Paints a highlight (cursor target, selection, etc.) under the glyph at
+ * (px, py): a soft outer glow of `color` followed by the solid cell
+ * background. The glow gives interactive highlights more visual presence
+ * without shifting the glyph or distorting the diamond shape — useful
+ * because the iso diamond's narrow top/bottom apexes can otherwise leave
+ * the highlight feeling thin.
+ *
+ * Sets and restores ctx.fillStyle, ctx.shadowColor, and ctx.shadowBlur.
+ * Caller does NOT need to pre-set fillStyle.
+ */
+export const drawCellHighlight = (
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+  charWidth: number,
+  charHeight: number,
+  isometric: boolean,
+  color: string,
+): void => {
+  const savedFill = ctx.fillStyle
+  const savedShadowBlur = ctx.shadowBlur
+  const savedShadowColor = ctx.shadowColor
+  ctx.fillStyle = color
+  ctx.shadowColor = color
+  ctx.shadowBlur = Math.max(charWidth, charHeight) * 0.75
+  drawCellBackground(ctx, px, py, charWidth, charHeight, isometric)
+  ctx.shadowBlur = savedShadowBlur
+  ctx.shadowColor = savedShadowColor
+  ctx.fillStyle = savedFill
+}
+
+/**
  * Paints the cell background under a glyph anchored at (px, py).
  * In orthogonal mode this is a fillRect of (charWidth × charHeight).
  * In isometric mode this is a 2:1 diamond whose bounding box is

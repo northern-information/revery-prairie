@@ -118,7 +118,13 @@ import {
 } from './glintZones'
 import { getTweenLerp } from './movementTween'
 import { isInBounds, posKey, tileHash } from './position'
-import { drawCellBackground, getCellDiamondCorners, viewportToScreen, worldToScreen } from './projection'
+import {
+  drawCellBackground,
+  drawCellHighlight,
+  getCellDiamondCorners,
+  viewportToScreen,
+  worldToScreen,
+} from './projection'
 import { getReveryDefinition } from './reveries'
 import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
@@ -1120,13 +1126,24 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         for (const ac of angelAuraCenters) {
           const dx = mx - ac.x
           const dy = my - ac.y
-          const distSq = dx * dx + dy * dy
-          if (distSq > ANGEL_AURA_RADIUS * ANGEL_AURA_RADIUS) continue
+          // Distance is measured so the aura reads as a *circle on screen*.
+          // In iso, raw tile-space Euclidean distance projects to a 2:1
+          // screen-space ellipse (stretched horizontally), which makes the
+          // aura look "off". Convert (dx, dy) into screen-space delta and
+          // normalize back into tile-width units.
+          let distInTiles: number
+          if (iso) {
+            const sdx = (dx - dy) * charWidth
+            const sdy = (dx + dy) * (charHeight / 2)
+            distInTiles = Math.sqrt(sdx * sdx + sdy * sdy) / charWidth
+          } else {
+            distInTiles = Math.sqrt(dx * dx + dy * dy)
+          }
+          if (distInTiles > ANGEL_AURA_RADIUS) continue
 
           // Oscillating alpha: gentle sine wave based on time + distance from center
-          const dist = Math.sqrt(distSq)
-          const wave = Math.sin(time * 0.002 + dist * 0.3) * 0.5 + 0.5 // 0..1
-          const falloff = 1 - dist / ANGEL_AURA_RADIUS // 1 at center, 0 at edge
+          const wave = Math.sin(time * 0.002 + distInTiles * 0.3) * 0.5 + 0.5 // 0..1
+          const falloff = 1 - distInTiles / ANGEL_AURA_RADIUS // 1 at center, 0 at edge
           const alpha = 0.06 + 0.06 * wave * falloff // gentle 0.06..0.12
 
           ctx.globalAlpha = alpha
@@ -1182,10 +1199,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Pre-pass: 1px solid outline at the land/space border. Same zone gating
-  // as the halo. Iterates land tiles in the viewport and strokes only the
-  // edges that face a space tile (or out-of-bounds), which puts the line
-  // right on the boundary on the land side.
+  // Pre-pass: outer glow + crisp line at the land/space border. Same zone
+  // gating as the halo. Builds a single path covering every diamond edge
+  // (iso) or axis-aligned edge (ortho) that faces a space tile or OOB,
+  // then strokes that path multiple times — wide+faint first, narrow+
+  // saturated last — to lay down a soft outer glow with a crisp line on
+  // top. The glow extends across multiple tiles into space, so the
+  // boundary reads as illuminated even from far away in the viewport.
   {
     const deepTimeLocked =
       state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
@@ -1193,15 +1213,23 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const savedAlpha = ctx.globalAlpha
       const savedStroke = ctx.strokeStyle
       const savedLineWidth = ctx.lineWidth
+      const savedLineCap = ctx.lineCap
+      const savedLineJoin = ctx.lineJoin
       ctx.strokeStyle = PRAIRIE_OUTLINE_COLOR
-      ctx.globalAlpha = PRAIRIE_OUTLINE_ALPHA
-      ctx.lineWidth = PRAIRIE_OUTLINE_WIDTH
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
       const isSpaceOrOOB = (nx: number, ny: number): boolean => {
         if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) return true
         return map[ny][nx].type === TileType.Space
       }
-      for (let vy = 0; vy < viewportHeight; vy++) {
-        for (let vx = 0; vx < viewportWidth; vx++) {
+      // Build one big path containing every boundary edge whose glow could
+      // touch the viewport. The widest stroke pass below is 12 cells wide,
+      // so boundary tiles up to ~7 tiles outside the viewport still
+      // contribute visible glow inside it.
+      const glowMargin = 8
+      ctx.beginPath()
+      for (let vy = -glowMargin; vy < viewportHeight + glowMargin; vy++) {
+        for (let vx = -glowMargin; vx < viewportWidth + glowMargin; vx++) {
           const mx = camera.x + vx
           const my = camera.y + vy
           if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
@@ -1222,33 +1250,30 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
               charWidth,
               charHeight,
             )
-            // Each diamond edge corresponds to one cardinal world neighbor:
-            //   top-left edge ↔ (mx, my - 1)
-            //   top-right edge ↔ (mx + 1, my)
-            //   bottom-right edge ↔ (mx, my + 1)
-            //   bottom-left edge ↔ (mx - 1, my)
-            ctx.beginPath()
+            // World cardinals map to diamond edges by on-screen direction:
+            //   N (mx, my-1)  → up-right    → top-right edge
+            //   E (mx+1, my)  → down-right  → bottom-right edge
+            //   S (mx, my+1)  → down-left   → bottom-left edge
+            //   W (mx-1, my)  → up-left     → top-left edge
             if (isSpaceOrOOB(mx, my - 1)) {
-              ctx.moveTo(leftX, cy)
-              ctx.lineTo(cx, topY)
-            }
-            if (isSpaceOrOOB(mx + 1, my)) {
               ctx.moveTo(cx, topY)
               ctx.lineTo(rightX, cy)
             }
-            if (isSpaceOrOOB(mx, my + 1)) {
+            if (isSpaceOrOOB(mx + 1, my)) {
               ctx.moveTo(rightX, cy)
               ctx.lineTo(cx, bottomY)
             }
-            if (isSpaceOrOOB(mx - 1, my)) {
+            if (isSpaceOrOOB(mx, my + 1)) {
               ctx.moveTo(cx, bottomY)
               ctx.lineTo(leftX, cy)
             }
-            ctx.stroke()
+            if (isSpaceOrOOB(mx - 1, my)) {
+              ctx.moveTo(leftX, cy)
+              ctx.lineTo(cx, topY)
+            }
           } else {
             const px = vx * charWidth
             const py = vy * charHeight
-            ctx.beginPath()
             if (isSpaceOrOOB(mx, my - 1)) {
               ctx.moveTo(px, py + 0.5)
               ctx.lineTo(px + charWidth, py + 0.5)
@@ -1265,13 +1290,31 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
               ctx.moveTo(px + charWidth - 0.5, py)
               ctx.lineTo(px + charWidth - 0.5, py + charHeight)
             }
-            ctx.stroke()
           }
         }
+      }
+      // Multi-pass stroke: outer halo to crisp line. Each pass strokes the
+      // same boundary path at a different width and alpha so the result
+      // builds up into a visible halo extending several tiles into space.
+      const cellSize = Math.max(charWidth, charHeight)
+      const passes: { width: number; alpha: number }[] = [
+        { width: cellSize * 12, alpha: 0.05 },
+        { width: cellSize * 7, alpha: 0.08 },
+        { width: cellSize * 4, alpha: 0.12 },
+        { width: cellSize * 2, alpha: 0.18 },
+        { width: cellSize * 0.8, alpha: 0.32 },
+        { width: PRAIRIE_OUTLINE_WIDTH, alpha: PRAIRIE_OUTLINE_ALPHA },
+      ]
+      for (const pass of passes) {
+        ctx.lineWidth = pass.width
+        ctx.globalAlpha = pass.alpha
+        ctx.stroke()
       }
       ctx.globalAlpha = savedAlpha
       ctx.strokeStyle = savedStroke
       ctx.lineWidth = savedLineWidth
+      ctx.lineCap = savedLineCap
+      ctx.lineJoin = savedLineJoin
     }
   }
 
@@ -1623,8 +1666,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           char = TILE_CHARS[devPaintTileType as keyof typeof TILE_CHARS] ?? '?'
           color = TILE_COLORS[devPaintTileType as keyof typeof TILE_COLORS] ?? '#ffffff'
         }
-        ctx.fillStyle = ACTION_COLOR
-        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
+        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = color
         ctx.fillText(char, px, py)
         continue
@@ -1632,8 +1674,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
       // Dev entity preview: show glyph with pink background at hovered tile
       if (mx === state.devEntityPreview?.x && my === state.devEntityPreview?.y) {
-        ctx.fillStyle = ACTION_COLOR
-        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
+        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = state.devEntityPreview.color
         ctx.fillText(state.devEntityPreview.char, px, py)
         continue
@@ -1664,20 +1705,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // Suppress cursor highlight when dev panel is open
         ctx.fillStyle = color
       } else if (selectedPositions.has(tileKey)) {
-        ctx.fillStyle = ACTION_COLOR
-        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
+        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else if (state.playerSelected && state.playerSpawn.visible && mx === player.x && my === player.y) {
-        ctx.fillStyle = ACTION_COLOR
-        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
+        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else if (isAngelGroupHighlighted) {
-        ctx.fillStyle = ACTION_COLOR
-        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
+        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else if ((isCursor && cursorable) || isFacingEntity || isPendingTarget) {
-        ctx.fillStyle = ACTION_COLOR
-        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
+        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else {
         ctx.fillStyle = color
@@ -1944,8 +1981,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const alpha = 1 - elapsed / MOVE_ORDER_MARKER_DURATION_MS
     const { px: sx, py: sy } = worldToScreen(marker.position.x, marker.position.y, camera, charWidth, charHeight, iso, viewportWidth, viewportHeight)
     ctx.globalAlpha = alpha
-    ctx.fillStyle = ACTION_COLOR
-    drawCellBackground(ctx, sx, sy, charWidth, charHeight, iso)
+    drawCellHighlight(ctx, sx, sy, charWidth, charHeight, iso, ACTION_COLOR)
     ctx.fillStyle = BG_COLOR
     ctx.fillText('X', sx, sy)
     ctx.globalAlpha = 1
