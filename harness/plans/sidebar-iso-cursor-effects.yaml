@@ -1,0 +1,49 @@
+plan:
+  id: sidebar-iso-cursor-effects
+  title: Fix sidebar cursor tile derivation to honor isometric projection
+  created: 2026-04-30
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: use-projection-aware-screen-to-tile
+    title: Replace Sidebar manual cursor-tile formula with screenToTile()
+    spec_id: sidebar-iso-cursor-effects
+    spec_sections:
+      - projection-aware-cursor-tile
+      - cursor-leaves-canvas-clears-section
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/coordinates.ts
+      - src/engine/projection.ts
+      - src/hooks/useMouse.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [component]
+
+  - id: regression-test-iso-effects
+    title: Add Sidebar effects-row regression test for iso mode and Gron aura
+    spec_id: sidebar-iso-cursor-effects
+    spec_sections:
+      - effects-row-reflects-iso-cursor
+      - gron-aura-radius-six-tiles
+    context_files:
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/components/Sidebar.tsx
+      - src/engine/state.ts
+      - src/engine/projection.ts
+      - src/engine/effects.ts
+    output_files:
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on:
+      - use-projection-aware-screen-to-tile
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags: [test]

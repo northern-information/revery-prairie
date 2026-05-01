@@ -3,9 +3,12 @@ import { Sidebar } from '../Sidebar'
 import { render, screen } from '@testing-library/react'
 
 import { combineBeeAndClover } from '@/engine/combine'
+import { ComponentType } from '@/engine/ecs/types'
 import { completeGenesis } from '@/engine/genesis'
+import { worldToScreen } from '@/engine/projection'
 import { createGameState } from '@/engine/state'
 import { TileType } from '@/engine/types'
+import type { CharMetrics, GameState } from '@/engine/types'
 import type { ItemInfoHandle } from '../ItemInfo'
 
 const defaultInfoRef = createRef<ItemInfoHandle>()
@@ -190,6 +193,109 @@ describe('Sidebar', () => {
     const scrollContainer = logEntry.closest('.overflow-y-auto')
     expect(scrollContainer).toBeInTheDocument()
     expect(scrollContainer?.className).toMatch(/pointer-events-auto/)
+  })
+
+  describe('effects row honors isometric projection', () => {
+    const metrics: CharMetrics = { charWidth: 10, charHeight: 16, font: '16px monospace' }
+
+    const findGron = (state: GameState): { x: number; y: number } => {
+      for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
+        const id = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+        if (id?.definitionId !== 'gron') continue
+        const pos = state.world.getComponent(eid, ComponentType.Position)
+        if (pos) return { x: pos.x, y: pos.y }
+      }
+      throw new Error('Gron not found')
+    }
+
+    it('shows "rain" when hovering Gron rain aura in iso mode', () => {
+      const state = createGameState('Test', 80, 40)
+      completeGenesis(state)
+      expect(state.isometricProjection).toBe(true)
+
+      // Aim at a tile inside Gron's rain aura (radius 6).
+      const gron = findGron(state)
+      const target = { x: gron.x + 2, y: gron.y }
+
+      // Place the camera so target is on-screen, then convert world → screen
+      // via the same iso transform the renderer uses.
+      state.camera = { x: target.x - Math.floor(state.viewportWidth / 2), y: target.y - Math.floor(state.viewportHeight / 2) }
+      const screenPos = worldToScreen(
+        target.x,
+        target.y,
+        state.camera,
+        metrics.charWidth,
+        metrics.charHeight,
+        true,
+        state.viewportWidth,
+        state.viewportHeight,
+      )
+      // Nudge into the diamond's interior — anchors sit at the centerline so
+      // exact-corner positions can floor either way.
+      state.cursorScreenPos = { x: screenPos.px + 1, y: screenPos.py + 1 }
+
+      const metricsRef = { current: metrics }
+      render(
+        <Sidebar
+          state={state}
+          activeScreen={null}
+          itemInfoRef={defaultInfoRef}
+          eventLog={[]}
+          metricsRef={metricsRef}
+          refreshUI={noop}
+        />
+      )
+
+      expect(screen.getByText('rain')).toBeInTheDocument()
+    })
+
+    it('shows "rain" when hovering Gron rain aura in ortho mode (regression)', () => {
+      const state = createGameState('Test', 80, 40)
+      completeGenesis(state)
+      state.isometricProjection = false
+
+      const gron = findGron(state)
+      const target = { x: gron.x + 2, y: gron.y }
+      state.camera = { x: target.x - 4, y: target.y - 4 }
+      state.cursorScreenPos = {
+        x: (target.x - state.camera.x) * metrics.charWidth + 1,
+        y: (target.y - state.camera.y) * metrics.charHeight + 1,
+      }
+
+      const metricsRef = { current: metrics }
+      render(
+        <Sidebar
+          state={state}
+          activeScreen={null}
+          itemInfoRef={defaultInfoRef}
+          eventLog={[]}
+          metricsRef={metricsRef}
+          refreshUI={noop}
+        />
+      )
+
+      expect(screen.getByText('rain')).toBeInTheDocument()
+    })
+
+    it('hides the cursor section entirely when cursorScreenPos is null', () => {
+      const state = createGameState('Test', 80, 40)
+      completeGenesis(state)
+      state.cursorScreenPos = null
+
+      const metricsRef = { current: metrics }
+      const { container } = render(
+        <Sidebar
+          state={state}
+          activeScreen={null}
+          itemInfoRef={defaultInfoRef}
+          eventLog={[]}
+          metricsRef={metricsRef}
+          refreshUI={noop}
+        />
+      )
+
+      expect(container.textContent).not.toMatch(/Effects/)
+    })
   })
 
   describe('genesis transition backdrop continuity', () => {
