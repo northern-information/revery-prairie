@@ -50,16 +50,22 @@ export interface ManualEntry {
 
 const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }>> = {
   // Items
-  'item:bee': { lore: 'TODO' },
-  'item:clover': { lore: 'TODO' },
-  'item:meteorite': { lore: 'TODO' },
-  'item:honey': { lore: 'TODO' },
-  'item:coin': { lore: 'TODO' },
+  'item:bee': { lore: 'Apis mellifera.' },
+  'item:clover': { lore: 'Dalea purpurea.' },
+  'item:meteorite': {
+    lore: 'O, fallen stars! What celestial bounty do ye bring? Shower us with your metals, your riches, your mystery.',
+  },
+  'item:honey': {
+    lore: 'Out of the eater came something to eat, and out of the strong came something sweet. - Judges 14:14',
+  },
+  'item:coin': {
+    lore: 'A relic from a more barbaric age. Still has some utility for divination, if you can find the glint.',
+  },
   'item:wildflowerSeeds': { lore: 'TODO' },
   'item:tallGrassSeeds': { lore: 'TODO' },
   'item:milkweedSeeds': { lore: 'TODO' },
   'item:stoneTablet': { lore: 'TODO' },
-  'item:aqueductKey': { lore: 'TODO' },
+  'item:aqueductKey': { lore: 'Its verdigris filigree promises passage.' },
   // Reveries
   'revery:fire': { lore: 'TODO' },
   'revery:water': { lore: 'TODO' },
@@ -67,11 +73,17 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'revery:lightning': { lore: 'TODO' },
   'revery:deep-time': { lore: 'TODO' },
   // World entities
-  'entity:beehive': { lore: 'TODO' },
+  'entity:beehive': { lore: 'Awareness is to watch as the millions of drones you captured just walk away.' },
   // Characters
-  'character:gron': { lore: 'TODO' },
-  'character:moab': { lore: 'TODO' },
-  'character:coyote': { lore: 'TODO' },
+  'character:gron': {
+    lore: 'A rain curse follows this immortal codger around rendering his coarse cloak both damp and smelly.',
+  },
+  'character:moab': {
+    lore: 'Not much to see but an emaciated skeleton draped in a tattered red and gold imperial mantle.',
+  },
+  'character:coyote': {
+    lore: 'What is a steward without their coyote? And what is a coyote without their inherent bestness?',
+  },
   // Zones
   'zone:ruin-dormant-garden': { lore: 'TODO' },
   'event:cave-fog': { lore: 'TODO' },
@@ -89,12 +101,16 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
     ].join('\n'),
   },
   // Entities
-  'entity:monarch': { lore: 'TODO' },
+  'entity:monarch': { lore: 'Danaus plexippus. Milkweed is vital to its lifecycle.' },
   // Events
-  'event:glint-zone': { lore: 'TODO' },
-  'event:angel': { lore: 'TODO' },
-  'event:angel-canto': { lore: 'TODO' },
-  'event:satellite-impact': { lore: 'TODO' },
+  'event:glint-zone': { lore: 'Glinting light cast from the local star. Recharges coins.' },
+  'event:angel': { lore: 'Flaming orreries of eyes encrusted in feather and wheel.' },
+  'event:angel-canto': {
+    lore: 'It is said their choirs are arranged in fractals and have sung the cantos since time immemorial.',
+  },
+  'event:satellite-impact': {
+    lore: 'Failing mechanical devices from both this world and beyond. Who knows what you might find?',
+  },
 }
 
 // --- Lore lookup for UI components ---
@@ -518,9 +534,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Zone,
     glyph: '\u2726',
     glyphColor: '#C9B037',
-    lore:
-      MANUAL_LORE['event:glint-zone']?.lore ??
-      'TODO',
+    lore: MANUAL_LORE['event:glint-zone']?.lore ?? 'TODO',
     hints: MANUAL_LORE['event:glint-zone']?.hints ?? [],
     unlockKey: 'event:glint-zone',
     sourceKind: 'event',
@@ -545,8 +559,7 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     glyph: 'G',
     glyphColor: '#FFFFFF',
     lore:
-      MANUAL_LORE['event:gron-deep-time']?.lore ??
-      'Gron speaks of the Deep Time revery and what it means to let go.',
+      MANUAL_LORE['event:gron-deep-time']?.lore ?? 'Gron speaks of the Deep Time revery and what it means to let go.',
     hints: MANUAL_LORE['event:gron-deep-time']?.hints ?? [],
     unlockKey: 'event:gron-deep-time',
     sourceKind: 'event',
