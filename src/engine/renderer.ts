@@ -151,6 +151,17 @@ const STAR_COLORS = ['#333', '#555', '#777', '#999', '#bbb', '#999', '#777', '#5
 const STAR_DENSITY = 12 // ~1 in 12 tiles gets a star
 const TWINKLE_SPEED = 0.0015 // cycles per millisecond
 
+// Cached offscreen canvas for the prairie halo pass. The halo is drawn here
+// without blur, then composited to the main canvas with a single blur filter
+// pass — orders of magnitude cheaper than applying ctx.filter per fillRect.
+let _haloOffscreen: HTMLCanvasElement | null = null
+const getHaloOffscreen = (width: number, height: number): HTMLCanvasElement => {
+  _haloOffscreen ??= document.createElement('canvas')
+  if (_haloOffscreen.width !== width) _haloOffscreen.width = width
+  if (_haloOffscreen.height !== height) _haloOffscreen.height = height
+  return _haloOffscreen
+}
+
 export { type CharMetrics } from './types'
 
 // Prairie halo helpers (exported for tests).
@@ -1158,59 +1169,70 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Pre-pass: prairie halo over space tiles adjacent to land. Overworld only,
   // skipped during deep time Burning/Simulating (crimson void already covers
-  // space). Iterates the entire world (not just the viewport) so the boundary
-  // halo is rendered consistently regardless of where the camera is — strokes
-  // outside the canvas just clip naturally. This avoids the glow "popping in"
-  // as the camera approaches a boundary.
+  // space). Iterates the viewport plus a PRAIRIE_HALO_RADIUS margin so the
+  // halo extends naturally past the visible edge without the glow "popping
+  // in" as the camera approaches a boundary, but without paying the cost of
+  // iterating the full ~21k-tile map every frame.
   //
-  // The halo is rendered with a canvas blur filter so the per-tile diamond
-  // (or rect) shapes blend into a soft, continuous gradient that doesn't
-  // read as isometric. The filter is reset before subsequent passes.
+  // The halo is rendered to an offscreen canvas without blur, then composited
+  // to the main canvas with a single blur filter pass. Applying ctx.filter
+  // per fillRect would re-run blur compositing for every tile (very slow);
+  // a single drawImage with blur runs once.
   {
     const deepTimeLocked =
       state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
     if (state.currentZone === Zone.Overworld && !deepTimeLocked) {
-      const savedAlpha = ctx.globalAlpha
-      const savedFilter = ctx.filter
-      ctx.fillStyle = PRAIRIE_HALO_COLOR
-      const blurPx = Math.max(charWidth, charHeight) * 1.5
-      ctx.filter = `blur(${String(blurPx)}px)`
-      for (let my = 0; my < state.mapHeight; my++) {
-        for (let mx = 0; mx < state.mapWidth; mx++) {
-          if (map[my][mx].type !== TileType.Space) continue
-          const dist = nearestLandDistance(
-            map,
-            state.mapWidth,
-            state.mapHeight,
-            mx,
-            my,
-            PRAIRIE_HALO_RADIUS,
-          )
-          const alpha = computePrairieHaloAlpha(dist, time)
-          if (alpha <= 0) continue
-          ctx.globalAlpha = alpha
-          const { px: hx, py: hy } = viewportToScreen(
-            mx - camera.x,
-            my - camera.y,
-            charWidth,
-            charHeight,
-            iso,
-            viewportWidth,
-            viewportHeight,
-          )
-          drawCellBackground(ctx, hx, hy, charWidth, charHeight, iso)
+      const halo = getHaloOffscreen(ctx.canvas.width, ctx.canvas.height)
+      const hctx = halo.getContext('2d')
+      if (hctx) {
+        hctx.clearRect(0, 0, halo.width, halo.height)
+        hctx.fillStyle = PRAIRIE_HALO_COLOR
+        const margin = PRAIRIE_HALO_RADIUS
+        for (let vy = -margin; vy < viewportHeight + margin; vy++) {
+          for (let vx = -margin; vx < viewportWidth + margin; vx++) {
+            const mx = camera.x + vx
+            const my = camera.y + vy
+            if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+            if (map[my][mx].type !== TileType.Space) continue
+            const dist = nearestLandDistance(
+              map,
+              state.mapWidth,
+              state.mapHeight,
+              mx,
+              my,
+              PRAIRIE_HALO_RADIUS,
+            )
+            const alpha = computePrairieHaloAlpha(dist, time)
+            if (alpha <= 0) continue
+            hctx.globalAlpha = alpha
+            const { px: hx, py: hy } = viewportToScreen(
+              vx,
+              vy,
+              charWidth,
+              charHeight,
+              iso,
+              viewportWidth,
+              viewportHeight,
+            )
+            drawCellBackground(hctx, hx, hy, charWidth, charHeight, iso)
+          }
         }
+        hctx.globalAlpha = 1
+
+        const blurPx = Math.max(charWidth, charHeight) * 1.5
+        const savedFilter = ctx.filter
+        ctx.filter = `blur(${String(blurPx)}px)`
+        ctx.drawImage(halo, 0, 0)
+        ctx.filter = savedFilter
       }
-      ctx.filter = savedFilter
-      ctx.globalAlpha = savedAlpha
     }
   }
 
   // Pre-pass: 1px crisp outline at the land/space border. Iterates the
-  // entire world (not viewport-bounded) so the boundary line is consistent
-  // wherever the camera is. The glow itself comes from the per-tile halo
-  // above, which only fills space tiles — so the gold tint is exclusively
-  // outside the prairie. The stroke sits on the boundary line.
+  // viewport plus a 1-tile margin so the outline aligns with the halo and
+  // remains continuous as the camera moves. The glow itself comes from the
+  // halo above, which only fills space tiles — so the gold tint is
+  // exclusively outside the prairie. The stroke sits on the boundary line.
   {
     const deepTimeLocked =
       state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
@@ -1226,13 +1248,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         return map[ny][nx].type === TileType.Space
       }
       ctx.beginPath()
-      for (let my = 0; my < state.mapHeight; my++) {
-        for (let mx = 0; mx < state.mapWidth; mx++) {
+      const outlineMargin = 1
+      for (let vy = -outlineMargin; vy < viewportHeight + outlineMargin; vy++) {
+        for (let vx = -outlineMargin; vx < viewportWidth + outlineMargin; vx++) {
+          const mx = camera.x + vx
+          const my = camera.y + vy
+          if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
           if (map[my][mx].type === TileType.Space) continue
           if (iso) {
             const { px, py } = viewportToScreen(
-              mx - camera.x,
-              my - camera.y,
+              vx,
+              vy,
               charWidth,
               charHeight,
               iso,
