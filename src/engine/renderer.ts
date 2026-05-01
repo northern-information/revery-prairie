@@ -92,6 +92,7 @@ import {
   SHOOTING_STAR_HEAD_CHAR,
   SHOOTING_STAR_HEAD_COLOR,
   SHOOTING_STAR_TRAIL_CHARS,
+  SHOOTING_STAR_TRAIL_CHARS_ISO,
   SHOOTING_STAR_TRAIL_COLORS,
   SOIL_HEALTH_DEFAULT,
   TILE_CHARS,
@@ -548,9 +549,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       char: SHOOTING_STAR_HEAD_CHAR,
       color: SHOOTING_STAR_HEAD_COLOR,
     })
-    // Trail — step backward along negated velocity
+    // Trail — step backward along negated velocity. iso projection rotates
+    // world deltas by 45° on screen, so pick a table whose glyphs match the
+    // projected direction rather than the world-space direction.
     const velKey = posKey(vel.dx, vel.dy) as VelocityKey
-    const trailChar = SHOOTING_STAR_TRAIL_CHARS[velKey] ?? '-'
+    const trailTable = state.isometricProjection ? SHOOTING_STAR_TRAIL_CHARS_ISO : SHOOTING_STAR_TRAIL_CHARS
+    const trailChar = trailTable[velKey] ?? '-'
     for (let t = 1; t <= data.length; t++) {
       const tx = pos.x - vel.dx * t
       const ty = pos.y - vel.dy * t
