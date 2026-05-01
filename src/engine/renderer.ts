@@ -71,7 +71,6 @@ import {
   POND_COLOR,
   PRAIRIE_HALO_COLOR,
   PRAIRIE_HALO_MAX_ALPHA,
-  PRAIRIE_HALO_MIN_ALPHA,
   PRAIRIE_HALO_PULSE_SPEED,
   PRAIRIE_HALO_RADIUS,
   PRAIRIE_OUTLINE_ALPHA,
@@ -118,7 +117,13 @@ import {
 } from './glintZones'
 import { getTweenLerp } from './movementTween'
 import { isInBounds, posKey, tileHash } from './position'
-import { drawCellBackground, getCellDiamondCorners, viewportToScreen, worldToScreen } from './projection'
+import {
+  drawCellBackground,
+  drawCellHighlight,
+  getCellDiamondCorners,
+  viewportToScreen,
+  worldToScreen,
+} from './projection'
 import { getReveryDefinition } from './reveries'
 import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
@@ -183,15 +188,15 @@ export const nearestLandDistance = (
 // computePrairieHaloAlpha maps (distance to nearest land, time) to a halo
 // alpha in [0, PRAIRIE_HALO_MAX_ALPHA]. Returns 0 when distance is beyond
 // PRAIRIE_HALO_RADIUS or non-finite. Alpha is the product of a radial
-// falloff (1 at distance 1, 0 at the radius) and a global breathing pulse,
-// clamped to the configured min/max range. Pure function; no DOM.
+// falloff (1 at distance 1, 0 at the radius) and a global breathing pulse.
+// The result fades all the way to 0 at the radius — no min-alpha floor —
+// so the soft glow disappears smoothly into space. Pure function; no DOM.
 export const computePrairieHaloAlpha = (distance: number, time: number): number => {
   if (!Number.isFinite(distance)) return 0
   if (distance < 1 || distance > PRAIRIE_HALO_RADIUS) return 0
   const falloff = 1 - (distance - 1) / PRAIRIE_HALO_RADIUS
   const pulse = Math.sin(time * PRAIRIE_HALO_PULSE_SPEED) * 0.5 + 0.5
-  const span = PRAIRIE_HALO_MAX_ALPHA - PRAIRIE_HALO_MIN_ALPHA
-  const raw = PRAIRIE_HALO_MIN_ALPHA + span * falloff * pulse
+  const raw = PRAIRIE_HALO_MAX_ALPHA * falloff * pulse
   return Math.max(0, Math.min(PRAIRIE_HALO_MAX_ALPHA, raw))
 }
 
@@ -1120,13 +1125,24 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         for (const ac of angelAuraCenters) {
           const dx = mx - ac.x
           const dy = my - ac.y
-          const distSq = dx * dx + dy * dy
-          if (distSq > ANGEL_AURA_RADIUS * ANGEL_AURA_RADIUS) continue
+          // Distance is measured so the aura reads as a *circle on screen*.
+          // In iso, raw tile-space Euclidean distance projects to a 2:1
+          // screen-space ellipse (stretched horizontally), which makes the
+          // aura look "off". Convert (dx, dy) into screen-space delta and
+          // normalize back into tile-width units.
+          let distInTiles: number
+          if (iso) {
+            const sdx = (dx - dy) * charWidth
+            const sdy = (dx + dy) * (charHeight / 2)
+            distInTiles = Math.sqrt(sdx * sdx + sdy * sdy) / charWidth
+          } else {
+            distInTiles = Math.sqrt(dx * dx + dy * dy)
+          }
+          if (distInTiles > ANGEL_AURA_RADIUS) continue
 
           // Oscillating alpha: gentle sine wave based on time + distance from center
-          const dist = Math.sqrt(distSq)
-          const wave = Math.sin(time * 0.002 + dist * 0.3) * 0.5 + 0.5 // 0..1
-          const falloff = 1 - dist / ANGEL_AURA_RADIUS // 1 at center, 0 at edge
+          const wave = Math.sin(time * 0.002 + distInTiles * 0.3) * 0.5 + 0.5 // 0..1
+          const falloff = 1 - distInTiles / ANGEL_AURA_RADIUS // 1 at center, 0 at edge
           const alpha = 0.06 + 0.06 * wave * falloff // gentle 0.06..0.12
 
           ctx.globalAlpha = alpha
@@ -1142,18 +1158,25 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Pre-pass: prairie halo over space tiles adjacent to land. Overworld only,
   // skipped during deep time Burning/Simulating (crimson void already covers
-  // space).
+  // space). Iterates the entire world (not just the viewport) so the boundary
+  // halo is rendered consistently regardless of where the camera is — strokes
+  // outside the canvas just clip naturally. This avoids the glow "popping in"
+  // as the camera approaches a boundary.
+  //
+  // The halo is rendered with a canvas blur filter so the per-tile diamond
+  // (or rect) shapes blend into a soft, continuous gradient that doesn't
+  // read as isometric. The filter is reset before subsequent passes.
   {
     const deepTimeLocked =
       state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
     if (state.currentZone === Zone.Overworld && !deepTimeLocked) {
       const savedAlpha = ctx.globalAlpha
+      const savedFilter = ctx.filter
       ctx.fillStyle = PRAIRIE_HALO_COLOR
-      for (let vy = 0; vy < viewportHeight; vy++) {
-        for (let vx = 0; vx < viewportWidth; vx++) {
-          const mx = camera.x + vx
-          const my = camera.y + vy
-          if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+      const blurPx = Math.max(charWidth, charHeight) * 1.5
+      ctx.filter = `blur(${String(blurPx)}px)`
+      for (let my = 0; my < state.mapHeight; my++) {
+        for (let mx = 0; mx < state.mapWidth; mx++) {
           if (map[my][mx].type !== TileType.Space) continue
           const dist = nearestLandDistance(
             map,
@@ -1167,8 +1190,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           if (alpha <= 0) continue
           ctx.globalAlpha = alpha
           const { px: hx, py: hy } = viewportToScreen(
-            vx,
-            vy,
+            mx - camera.x,
+            my - camera.y,
             charWidth,
             charHeight,
             iso,
@@ -1178,14 +1201,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           drawCellBackground(ctx, hx, hy, charWidth, charHeight, iso)
         }
       }
+      ctx.filter = savedFilter
       ctx.globalAlpha = savedAlpha
     }
   }
 
-  // Pre-pass: 1px solid outline at the land/space border. Same zone gating
-  // as the halo. Iterates land tiles in the viewport and strokes only the
-  // edges that face a space tile (or out-of-bounds), which puts the line
-  // right on the boundary on the land side.
+  // Pre-pass: 1px crisp outline at the land/space border. Iterates the
+  // entire world (not viewport-bounded) so the boundary line is consistent
+  // wherever the camera is. The glow itself comes from the per-tile halo
+  // above, which only fills space tiles — so the gold tint is exclusively
+  // outside the prairie. The stroke sits on the boundary line.
   {
     const deepTimeLocked =
       state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
@@ -1200,16 +1225,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) return true
         return map[ny][nx].type === TileType.Space
       }
-      for (let vy = 0; vy < viewportHeight; vy++) {
-        for (let vx = 0; vx < viewportWidth; vx++) {
-          const mx = camera.x + vx
-          const my = camera.y + vy
-          if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+      ctx.beginPath()
+      for (let my = 0; my < state.mapHeight; my++) {
+        for (let mx = 0; mx < state.mapWidth; mx++) {
           if (map[my][mx].type === TileType.Space) continue
           if (iso) {
             const { px, py } = viewportToScreen(
-              vx,
-              vy,
+              mx - camera.x,
+              my - camera.y,
               charWidth,
               charHeight,
               iso,
@@ -1222,33 +1245,30 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
               charWidth,
               charHeight,
             )
-            // Each diamond edge corresponds to one cardinal world neighbor:
-            //   top-left edge ↔ (mx, my - 1)
-            //   top-right edge ↔ (mx + 1, my)
-            //   bottom-right edge ↔ (mx, my + 1)
-            //   bottom-left edge ↔ (mx - 1, my)
-            ctx.beginPath()
+            // World cardinals map to diamond edges by on-screen direction:
+            //   N (mx, my-1)  → up-right    → top-right edge
+            //   E (mx+1, my)  → down-right  → bottom-right edge
+            //   S (mx, my+1)  → down-left   → bottom-left edge
+            //   W (mx-1, my)  → up-left     → top-left edge
             if (isSpaceOrOOB(mx, my - 1)) {
-              ctx.moveTo(leftX, cy)
-              ctx.lineTo(cx, topY)
-            }
-            if (isSpaceOrOOB(mx + 1, my)) {
               ctx.moveTo(cx, topY)
               ctx.lineTo(rightX, cy)
             }
-            if (isSpaceOrOOB(mx, my + 1)) {
+            if (isSpaceOrOOB(mx + 1, my)) {
               ctx.moveTo(rightX, cy)
               ctx.lineTo(cx, bottomY)
             }
-            if (isSpaceOrOOB(mx - 1, my)) {
+            if (isSpaceOrOOB(mx, my + 1)) {
               ctx.moveTo(cx, bottomY)
               ctx.lineTo(leftX, cy)
             }
-            ctx.stroke()
+            if (isSpaceOrOOB(mx - 1, my)) {
+              ctx.moveTo(leftX, cy)
+              ctx.lineTo(cx, topY)
+            }
           } else {
-            const px = vx * charWidth
-            const py = vy * charHeight
-            ctx.beginPath()
+            const px = (mx - camera.x) * charWidth
+            const py = (my - camera.y) * charHeight
             if (isSpaceOrOOB(mx, my - 1)) {
               ctx.moveTo(px, py + 0.5)
               ctx.lineTo(px + charWidth, py + 0.5)
@@ -1265,10 +1285,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
               ctx.moveTo(px + charWidth - 0.5, py)
               ctx.lineTo(px + charWidth - 0.5, py + charHeight)
             }
-            ctx.stroke()
           }
         }
       }
+      ctx.stroke()
       ctx.globalAlpha = savedAlpha
       ctx.strokeStyle = savedStroke
       ctx.lineWidth = savedLineWidth
@@ -1623,8 +1643,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           char = TILE_CHARS[devPaintTileType as keyof typeof TILE_CHARS] ?? '?'
           color = TILE_COLORS[devPaintTileType as keyof typeof TILE_COLORS] ?? '#ffffff'
         }
-        ctx.fillStyle = ACTION_COLOR
-        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
+        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = color
         ctx.fillText(char, px, py)
         continue
@@ -1632,8 +1651,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
       // Dev entity preview: show glyph with pink background at hovered tile
       if (mx === state.devEntityPreview?.x && my === state.devEntityPreview?.y) {
-        ctx.fillStyle = ACTION_COLOR
-        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
+        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = state.devEntityPreview.color
         ctx.fillText(state.devEntityPreview.char, px, py)
         continue
@@ -1664,20 +1682,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // Suppress cursor highlight when dev panel is open
         ctx.fillStyle = color
       } else if (selectedPositions.has(tileKey)) {
-        ctx.fillStyle = ACTION_COLOR
-        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
+        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else if (state.playerSelected && state.playerSpawn.visible && mx === player.x && my === player.y) {
-        ctx.fillStyle = ACTION_COLOR
-        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
+        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else if (isAngelGroupHighlighted) {
-        ctx.fillStyle = ACTION_COLOR
-        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
+        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else if ((isCursor && cursorable) || isFacingEntity || isPendingTarget) {
-        ctx.fillStyle = ACTION_COLOR
-        drawCellBackground(ctx, px, py, charWidth, charHeight, iso)
+        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else {
         ctx.fillStyle = color
@@ -1944,8 +1958,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const alpha = 1 - elapsed / MOVE_ORDER_MARKER_DURATION_MS
     const { px: sx, py: sy } = worldToScreen(marker.position.x, marker.position.y, camera, charWidth, charHeight, iso, viewportWidth, viewportHeight)
     ctx.globalAlpha = alpha
-    ctx.fillStyle = ACTION_COLOR
-    drawCellBackground(ctx, sx, sy, charWidth, charHeight, iso)
+    drawCellHighlight(ctx, sx, sy, charWidth, charHeight, iso, ACTION_COLOR)
     ctx.fillStyle = BG_COLOR
     ctx.fillText('X', sx, sy)
     ctx.globalAlpha = 1

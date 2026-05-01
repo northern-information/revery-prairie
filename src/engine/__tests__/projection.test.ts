@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import {
   drawCellBackground,
+  drawCellHighlight,
   getCellDiamondCorners,
   screenToTile,
   viewportToScreen,
@@ -221,6 +222,62 @@ describe('getCellDiamondCorners', () => {
     expect(ctx.lineTo).toHaveBeenNthCalledWith(1, c.rightX, c.cy)
     expect(ctx.lineTo).toHaveBeenNthCalledWith(2, c.cx, c.bottomY)
     expect(ctx.lineTo).toHaveBeenNthCalledWith(3, c.leftX, c.cy)
+  })
+})
+
+describe('drawCellHighlight', () => {
+  const makeCtx = () => {
+    return {
+      fillStyle: '#000',
+      shadowColor: '',
+      shadowBlur: 0,
+      fillRect: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+    } as unknown as CanvasRenderingContext2D & {
+      fillRect: ReturnType<typeof vi.fn>
+      fill: ReturnType<typeof vi.fn>
+    }
+  }
+
+  it('sets shadowColor and shadowBlur to the highlight color before drawing', () => {
+    const ctx = makeCtx()
+    let observedShadowColor = ''
+    let observedShadowBlur = 0
+    const observe = vi.fn(() => {
+      observedShadowColor = ctx.shadowColor as unknown as string
+      observedShadowBlur = ctx.shadowBlur
+    })
+    ;(ctx as unknown as { fill: typeof observe }).fill = observe
+    drawCellHighlight(ctx, 50, 80, charWidth, charHeight, true, '#ff69b4')
+    expect(observedShadowColor).toBe('#ff69b4')
+    expect(observedShadowBlur).toBeGreaterThan(0)
+  })
+
+  it('restores shadowBlur and shadowColor after drawing', () => {
+    const ctx = makeCtx()
+    ctx.shadowBlur = 0
+    ctx.shadowColor = ''
+    drawCellHighlight(ctx, 50, 80, charWidth, charHeight, true, '#ff69b4')
+    expect(ctx.shadowBlur).toBe(0)
+    expect(ctx.shadowColor).toBe('')
+  })
+
+  it('delegates to drawCellBackground geometry (iso)', () => {
+    const ctx = makeCtx()
+    drawCellHighlight(ctx, 50, 80, charWidth, charHeight, true, '#ff69b4')
+    // Same diamond path drawCellBackground would produce.
+    expect(ctx.fillRect).not.toHaveBeenCalled()
+    expect(ctx.fill).toHaveBeenCalledOnce()
+  })
+
+  it('delegates to drawCellBackground geometry (orthogonal)', () => {
+    const ctx = makeCtx()
+    drawCellHighlight(ctx, 50, 80, charWidth, charHeight, false, '#ff69b4')
+    expect(ctx.fillRect).toHaveBeenCalledWith(50, 80, charWidth, charHeight)
   })
 })
 
