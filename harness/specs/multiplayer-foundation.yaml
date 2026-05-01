@@ -1,6 +1,6 @@
 id: multiplayer-foundation
 name: 'Multiplayer foundation'
-status: planned
+status: implemented
 priority: high
 layer: integration
 source_files:

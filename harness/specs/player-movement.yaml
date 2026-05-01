@@ -40,6 +40,14 @@ behaviors:
         effect: 'event:glint-zone recorded on first glint zone entry'
       - field: currentZone
         effect: 'may change via checkTransition if player steps on a CaveEntrance tile (zone swap between overworld and cave)'
+      - field: onPlayerMoved
+        effect: >
+          if non-null, invoked once after every successful movePlayer
+          (after camera/facing updates, glint zone processing, and
+          zone transition checks). engine-level hook — useGameEngine
+          wires this to NetworkClient.sendPosition in online mode so
+          remote peers see the move. movePlayer fires it on the
+          post-transition path as well.
     determinism: deterministic
 
   - id: movement-blocked-by-non-walkable
