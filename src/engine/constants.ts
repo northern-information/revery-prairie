@@ -103,6 +103,20 @@ export const SHOOTING_STAR_TRAIL_CHARS: Record<VelocityKey, string> = {
   '0,-1': '|',
 }
 
+// iso projection rotates world deltas by 45°: world (vx, vy) projects to
+// screen ((vx - vy) * cw, (vx + vy) * halfH). pick the glyph that matches
+// the resulting on-screen slope, not the world-space slope.
+export const SHOOTING_STAR_TRAIL_CHARS_ISO: Record<VelocityKey, string> = {
+  '1,1': '|',
+  '-1,-1': '|',
+  '1,-1': '-',
+  '-1,1': '-',
+  '1,0': '\\',
+  '-1,0': '\\',
+  '0,1': '/',
+  '0,-1': '/',
+}
+
 // meteor showers
 export const METEOR_SHOWER_TICK_MS = 200
 export const METEOR_SHOWER_MIN_INTERVAL_MS = 120_000

@@ -1,0 +1,64 @@
+plan:
+  id: iso-shooting-star-trails
+  title: Orient shooting star trail glyphs to screen direction in isometric mode
+  created: 2026-04-30
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-iso-trail-char-table
+    title: Add SHOOTING_STAR_TRAIL_CHARS_ISO mapping in constants
+    spec_id: iso-shooting-star-trails
+    spec_sections:
+      - iso-trail-char-table
+    context_files:
+      - src/engine/constants.ts
+      - src/engine/projection.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: select-trail-table-by-projection
+    title: Pick iso vs orthogonal trail-char table in renderer based on state.isometricProjection
+    spec_id: iso-shooting-star-trails
+    spec_sections:
+      - renderer-selects-trail-table-by-projection
+      - trail-glyph-matches-screen-direction
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-iso-trail-char-table
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: add-regression-test
+    title: Add regression test asserting iso table maps each velocity to the screen-aligned glyph
+    spec_id: iso-shooting-star-trails
+    spec_sections:
+      - iso-trail-char-table
+      - trail-glyph-matches-screen-direction
+    context_files:
+      - src/engine/__tests__/isoShootingStarTrails.test.ts
+      - src/engine/constants.ts
+      - src/engine/projection.ts
+    output_files:
+      - src/engine/__tests__/isoShootingStarTrails.test.ts
+    depends_on:
+      - add-iso-trail-char-table
+      - select-trail-table-by-projection
+    verification:
+      - npx vitest run src/engine/__tests__/isoShootingStarTrails.test.ts
+    repair: retry
+    tags: [test]
