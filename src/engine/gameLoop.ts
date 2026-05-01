@@ -24,6 +24,7 @@ import {
   METEOR_SHOWER_TICK_MS,
   MONARCH_TICK_MS,
   PATH_TICK_MS,
+  SPRINT_MOVE_TICK_MS,
   SATELLITE_SHAKE_DURATION_MS,
   SATELLITE_SPAWN_TICK_MS,
   SATELLITE_TICK_MS,
@@ -168,83 +169,81 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
+      // Sprint runs at SPRINT_MOVE_TICK_MS with one move per tick instead of
+      // two moves per PATH_TICK_MS — keeps the 2x speed but makes every tile
+      // a discrete stop point so keyup never overshoots an item.
       id: 'path',
-      intervalMs: PATH_TICK_MS,
+      intervalMs: 0,
       zone: 'always',
       priority: -10,
-      fn: (state, time) => {
-        if (state.deepTime?.active && state.deepTime.phase !== DeepTimePhase.Wandering) return
-        const moves = state.sprinting ? 2 : 1
-        let moved = false
-        for (let i = 0; i < moves; i++) {
-          if (!state.path) break
-          if (tickPath(state)) {
-            moved = true
-            checkAutoHide(state, callbacks)
-            const result = pickUpGroundItems(state, time)
-            for (const defId of result.pickedUp) {
-              const def = getDefinition(defId)
-              callbacks.onPickup?.(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
-            }
-            if (result.chainExplosions > 0) {
-              const meteoriteDef = getDefinition('meteorite')
-              callbacks.onDiscovery?.(
-                'Oh my!',
-                state.player.x,
-                state.player.y,
-                meteoriteDef.glyph,
-                meteoriteDef.glyphColor
-              )
-            }
+      fn: (() => {
+        let lastMoveTime = 0
+        return (state: GameState, time: number) => {
+          if (state.deepTime?.active && state.deepTime.phase !== DeepTimePhase.Wandering) return
+          if (!state.path) return
+          const interval = state.sprinting ? SPRINT_MOVE_TICK_MS : PATH_TICK_MS
+          if (time - lastMoveTime < interval) return
+          if (!tickPath(state)) return
+          lastMoveTime = time
+          checkAutoHide(state, callbacks)
+          const result = pickUpGroundItems(state, time)
+          for (const defId of result.pickedUp) {
+            const def = getDefinition(defId)
+            callbacks.onPickup?.(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
           }
-        }
-        if (moved) {
+          if (result.chainExplosions > 0) {
+            const meteoriteDef = getDefinition('meteorite')
+            callbacks.onDiscovery?.(
+              'Oh my!',
+              state.player.x,
+              state.player.y,
+              meteoriteDef.glyph,
+              meteoriteDef.glyphColor
+            )
+          }
           callbacks.onRefreshUI?.()
         }
-      },
+      })(),
     },
     {
       id: 'keyboard-move',
-      intervalMs: KEYBOARD_MOVE_TICK_MS,
+      intervalMs: 0,
       zone: 'always',
       priority: -5,
-      fn: (state, time) => {
-        if (state.deepTime?.active && state.deepTime.phase !== DeepTimePhase.Wandering) return
-        if (!state.heldDirection) return
-        if (state.activeDialog) return
-        if (state.path) return
-        const moves = state.sprinting ? 2 : 1
-        let moved = false
-        for (let i = 0; i < moves; i++) {
-          if (!state.heldDirection) break
-          if (movePlayer(state, state.heldDirection)) {
-            moved = true
-            // RTS pan: WASD-driven moves snap the camera back to follow.
-            // Click-to-move (tickPath) deliberately does not recenter so
-            // the user can issue commands to off-screen tiles while panned.
-            recenterCamera(state)
-            checkAutoHide(state, callbacks)
-            const result = pickUpGroundItems(state, time)
-            for (const defId of result.pickedUp) {
-              const def = getDefinition(defId)
-              callbacks.onPickup?.(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
-            }
-            if (result.chainExplosions > 0) {
-              const meteoriteDef = getDefinition('meteorite')
-              callbacks.onDiscovery?.(
-                'Oh my!',
-                state.player.x,
-                state.player.y,
-                meteoriteDef.glyph,
-                meteoriteDef.glyphColor
-              )
-            }
+      fn: (() => {
+        let lastMoveTime = 0
+        return (state: GameState, time: number) => {
+          if (state.deepTime?.active && state.deepTime.phase !== DeepTimePhase.Wandering) return
+          if (!state.heldDirection) return
+          if (state.activeDialog) return
+          if (state.path) return
+          const interval = state.sprinting ? SPRINT_MOVE_TICK_MS : KEYBOARD_MOVE_TICK_MS
+          if (time - lastMoveTime < interval) return
+          if (!movePlayer(state, state.heldDirection)) return
+          lastMoveTime = time
+          // RTS pan: WASD-driven moves snap the camera back to follow.
+          // Click-to-move (tickPath) deliberately does not recenter so
+          // the user can issue commands to off-screen tiles while panned.
+          recenterCamera(state)
+          checkAutoHide(state, callbacks)
+          const result = pickUpGroundItems(state, time)
+          for (const defId of result.pickedUp) {
+            const def = getDefinition(defId)
+            callbacks.onPickup?.(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
           }
-        }
-        if (moved) {
+          if (result.chainExplosions > 0) {
+            const meteoriteDef = getDefinition('meteorite')
+            callbacks.onDiscovery?.(
+              'Oh my!',
+              state.player.x,
+              state.player.y,
+              meteoriteDef.glyph,
+              meteoriteDef.glyphColor
+            )
+          }
           callbacks.onRefreshUI?.()
         }
-      },
+      })(),
     },
     {
       id: 'bee',

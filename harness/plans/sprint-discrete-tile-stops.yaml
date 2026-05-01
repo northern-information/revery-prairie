@@ -1,0 +1,81 @@
+plan:
+  id: sprint-discrete-tile-stops
+  title: 'Sprint runs one move per 50ms tick instead of two moves per 100ms tick'
+  created: '2026-04-30'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: rework-keyboard-and-path-tick-cadence
+    title: 'Replace 2-moves-per-100ms sprint pattern with 1-move-per-50ms pattern in keyboard-move and path ticks'
+    spec_id: sprint-discrete-tile-stops
+    spec_sections:
+      - sprint-halves-tick-interval
+      - every-tile-is-a-stop-point
+      - auto-pickup-on-every-sprinted-tile
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/constants.ts
+      - src/engine/movement.ts
+      - src/engine/entities.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npm run lint
+    repair: retry
+    tags: [engine]
+    notes: |
+      In src/engine/gameLoop.ts:
+        - In the `path` tick (currently intervalMs: PATH_TICK_MS, lines around 170-205) and the
+          `keyboard-move` tick (currently intervalMs: KEYBOARD_MOVE_TICK_MS, lines around 206-248):
+            - Set intervalMs to 0 so the system runs every frame.
+            - Use a closure (factory pattern, see `genesis` system at gameLoop.ts:107) to track lastMoveTime locally.
+            - Inside the fn: compute `interval = state.sprinting ? SPRINT_MOVE_TICK_MS : KEYBOARD_MOVE_TICK_MS`
+              (or PATH_TICK_MS for the path tick) and bail early when `time - lastMoveTime < interval`.
+            - Remove the `const moves = state.sprinting ? 2 : 1` doubling and the wrapping for-loop.
+              Run a single movePlayer/tickPath + pickUpGroundItems sequence per tick.
+            - Update lastMoveTime to `time` after a successful move.
+        - Add `SPRINT_MOVE_TICK_MS = 50` to src/engine/constants.ts. Keep KEYBOARD_MOVE_TICK_MS and
+          PATH_TICK_MS at 100. MOVEMENT_TWEEN_SPRINT_MS stays 50 so the tween fills each tile.
+
+  - id: regression-test-sprint-cadence
+    title: 'Add coverage of sprint cadence and odd-tile stops'
+    spec_id: sprint-discrete-tile-stops
+    spec_sections:
+      - sprint-halves-tick-interval
+      - every-tile-is-a-stop-point
+      - auto-pickup-on-every-sprinted-tile
+    context_files:
+      - src/engine/__tests__/helpers.ts
+      - src/engine/gameLoop.ts
+      - src/engine/constants.ts
+      - src/engine/entities.ts
+      - src/engine/__tests__/smoothMove.test.ts
+    output_files:
+      - src/engine/__tests__/sprintTickCadence.test.ts
+    depends_on:
+      - rework-keyboard-and-path-tick-cadence
+    verification:
+      - npx vitest run src/engine/__tests__/sprintTickCadence.test.ts
+    repair: retry
+    tags: [test]
+    notes: |
+      Cover four cases:
+        1. With state.sprinting = true and state.heldDirection = 'right', advance the loop by 50ms
+           five times and assert the player has moved exactly 5 tiles (not 10, not 2).
+        2. Same setup but for state.path. Use a straight pre-computed path, advance by 50ms five
+           times, assert 5 tiles consumed.
+        3. Place a ground item at every tile in a 5-tile sprint corridor (use clearAroundPlayer first).
+           Sprint across, assert the backpack contains all 5 items including the ones at odd
+           displacement (1, 3) from origin.
+        4. While sprinting, fire one 50ms tick, then null heldDirection (simulating keyup), then fire
+           another 50ms tick. Assert the player moved exactly once total — proves there is no
+           "stale second sub-move" overshooting.
+      Use createTestState + clearAroundPlayer from helpers.ts. Mock performance.now via vi.spyOn so
+      tick timing is deterministic. Restore mocks in afterEach.

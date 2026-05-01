@@ -1,0 +1,89 @@
+id: sprint-discrete-tile-stops
+name: Sprint moves one tile per faster tick (every tile is a stop point)
+status: partial
+priority: high
+layer: engine
+source_files:
+  - src/engine/gameLoop.ts
+  - src/engine/constants.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+
+dependencies:
+  - held-key-movement
+
+behaviors:
+  - id: sprint-halves-tick-interval
+    description: While sprinting, the keyboard-move and path ticks fire every 50ms with a single movePlayer call per tick, instead of 100ms with two movePlayer calls per tick. Net travel speed stays at 2x normal.
+    inputs:
+      - state.sprinting is true
+      - state.heldDirection is set OR state.path is non-empty
+    outputs:
+      - exactly one tile of player movement per 50ms
+      - pickUpGroundItems runs once per tile traversed
+    state_changes:
+      - field: player
+        effect: position advances exactly one tile per 50ms while sprinting
+      - field: playerTween
+        effect: a fresh tween is written for each individual tile move (not overwritten mid-tick)
+    determinism: time-based
+
+  - id: every-tile-is-a-stop-point
+    description: Releasing the held direction or shift while sprinting halts the player on whatever tile they currently occupy. There is no second sub-move queued for the same tick.
+    inputs:
+      - keyup event for shift or the held direction key while sprinting
+    outputs:
+      - player rests on the tile they were on at the moment of keyup, regardless of whether the displacement from sprint-start is even or odd
+    state_changes:
+      - field: heldDirection
+        effect: cleared on direction keyup; no stale second sub-move fires
+      - field: sprinting
+        effect: cleared on shift keyup; subsequent ticks revert to 100ms cadence
+    determinism: deterministic
+
+  - id: auto-pickup-on-every-sprinted-tile
+    description: pickUpGroundItems fires after each individual sprinted move so items at every traversed tile are auto-picked up, including tiles at odd displacement from the sprint origin.
+    inputs:
+      - state.sprinting is true
+      - ground item exists at a tile the player traverses while sprinting
+    outputs:
+      - item is placed in the backpack if it fits
+      - pickup bloom and onPickup callback fire for that item
+    state_changes:
+      - field: backpack.items
+        effect: receives the picked-up item
+      - field: world entities
+        effect: ground item entity destroyed
+    determinism: deterministic
+
+edge_cases:
+  - id: keyup-mid-tick
+    description: Releasing the direction key after the keyboard-move tick fires but before the next tick lands the player on the tile reached by that single tick — never one tile beyond it.
+    expected: Player ends on the tile reached by the most recent single move; no overshoot.
+
+  - id: sprint-toggle-mid-walk
+    description: Toggling shift on or off while a path is being walked changes the cadence on the next tick boundary without doubling or skipping a tile.
+    expected: One move per tick at the cadence corresponding to current sprinting state.
+
+  - id: blocked-mid-sprint
+    description: A blocked tile encountered during sprint stops the player at the last walkable tile; no second sub-move attempts to push past.
+    expected: Player rests on the last walkable tile; heldDirection remains set so movement resumes if the blocker clears.
+
+  - id: path-zone-transition-mid-sprint
+    description: A zone transition (cave entrance) during sprint clears the path and does not fire a second sub-move into the new zone in the same tick.
+    expected: Path is cleared; only one move is performed in this tick.
+
+failure_conditions:
+  - trigger: player sprints across a row that contains a ground item at an odd displacement from sprint origin
+    expected: Item is auto-picked up because pickup fires after each individual tile move.
+
+  - trigger: player wants to manually stop on a tile at odd displacement from sprint origin by releasing the key when standing on it
+    expected: Player rests on that tile because each tick advances exactly one tile and the second sub-move is gone — no "modulo 2" overshoot.
+
+  - trigger: sprint is enabled but the tick interval is still 100ms with two moves per tick
+    expected: Regression — fix must keep the 50ms / single-move cadence so manual stops on odd tiles are reachable.
+
+verification:
+  test_file: src/engine/__tests__/sprintTickCadence.test.ts
+  test_pattern: sprint tick cadence
+  command: npx vitest run src/engine/__tests__/sprintTickCadence.test.ts

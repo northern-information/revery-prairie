@@ -39,13 +39,18 @@ describe('auto-hide panels', () => {
       expect(state.panelOpenMoveCount).toBe(0)
     })
 
-    it('increments by 2 on sprint (2 steps per tick)', () => {
+    it('increments once per 50ms tick on sprint', () => {
       const state = createTestState()
       clearAroundPlayer(state)
       state.heldDirection = 'right'
       state.sprinting = true
       const loop = createGameLoop(state, {})
-      loop.tick(200)
+      // Sprint runs one move per 50ms tick, not two moves per 100ms tick —
+      // a 100ms wallclock interval still produces two increments, but each
+      // increment lands on its own discrete tile.
+      loop.tick(0)
+      loop.tick(50)
+      loop.tick(100)
       expect(state.panelOpenMoveCount).toBe(2)
     })
   })
@@ -100,7 +105,7 @@ describe('auto-hide panels', () => {
       expect(onAutoHidePanel).toHaveBeenCalledOnce()
     })
 
-    it('sprint can trigger callback when crossing threshold in a single tick', () => {
+    it('sprint reaches threshold faster than walking', () => {
       const onAutoHidePanel = vi.fn()
       const state = createTestState()
       clearAroundPlayer(state)
@@ -109,7 +114,11 @@ describe('auto-hide panels', () => {
       state.heldDirection = 'right'
       state.sprinting = true
       const loop = createGameLoop(state, { onAutoHidePanel })
-      loop.tick(200)
+      // Two consecutive 50ms sprint ticks cross the threshold within 100ms
+      // — half the wallclock time the non-sprint cadence would take.
+      loop.tick(0)
+      loop.tick(50)
+      loop.tick(100)
       expect(onAutoHidePanel).toHaveBeenCalled()
     })
 
