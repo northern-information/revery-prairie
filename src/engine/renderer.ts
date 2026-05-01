@@ -117,7 +117,7 @@ import {
 } from './glintZones'
 import { getTweenLerp } from './movementTween'
 import { isInBounds, posKey, tileHash } from './position'
-import { drawCellBackground, viewportToScreen, worldToScreen } from './projection'
+import { drawCellBackground, getCellDiamondCorners, viewportToScreen, worldToScreen } from './projection'
 import { getReveryDefinition } from './reveries'
 import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
@@ -1162,7 +1162,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           const alpha = computePrairieHaloAlpha(dist, time)
           if (alpha <= 0) continue
           ctx.globalAlpha = alpha
-          ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
+          const { px: hx, py: hy } = viewportToScreen(
+            vx,
+            vy,
+            charWidth,
+            charHeight,
+            iso,
+            viewportWidth,
+            viewportHeight,
+          )
+          drawCellBackground(ctx, hx, hy, charWidth, charHeight, iso)
         }
       }
       ctx.globalAlpha = savedAlpha
@@ -1193,26 +1202,67 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           const my = camera.y + vy
           if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
           if (map[my][mx].type === TileType.Space) continue
-          const px = vx * charWidth
-          const py = vy * charHeight
-          ctx.beginPath()
-          if (isSpaceOrOOB(mx, my - 1)) {
-            ctx.moveTo(px, py + 0.5)
-            ctx.lineTo(px + charWidth, py + 0.5)
+          if (iso) {
+            const { px, py } = viewportToScreen(
+              vx,
+              vy,
+              charWidth,
+              charHeight,
+              iso,
+              viewportWidth,
+              viewportHeight,
+            )
+            const { leftX, rightX, topY, bottomY, cx, cy } = getCellDiamondCorners(
+              px,
+              py,
+              charWidth,
+              charHeight,
+            )
+            // Each diamond edge corresponds to one cardinal world neighbor:
+            //   top-left edge ↔ (mx, my - 1)
+            //   top-right edge ↔ (mx + 1, my)
+            //   bottom-right edge ↔ (mx, my + 1)
+            //   bottom-left edge ↔ (mx - 1, my)
+            ctx.beginPath()
+            if (isSpaceOrOOB(mx, my - 1)) {
+              ctx.moveTo(leftX, cy)
+              ctx.lineTo(cx, topY)
+            }
+            if (isSpaceOrOOB(mx + 1, my)) {
+              ctx.moveTo(cx, topY)
+              ctx.lineTo(rightX, cy)
+            }
+            if (isSpaceOrOOB(mx, my + 1)) {
+              ctx.moveTo(rightX, cy)
+              ctx.lineTo(cx, bottomY)
+            }
+            if (isSpaceOrOOB(mx - 1, my)) {
+              ctx.moveTo(cx, bottomY)
+              ctx.lineTo(leftX, cy)
+            }
+            ctx.stroke()
+          } else {
+            const px = vx * charWidth
+            const py = vy * charHeight
+            ctx.beginPath()
+            if (isSpaceOrOOB(mx, my - 1)) {
+              ctx.moveTo(px, py + 0.5)
+              ctx.lineTo(px + charWidth, py + 0.5)
+            }
+            if (isSpaceOrOOB(mx, my + 1)) {
+              ctx.moveTo(px, py + charHeight - 0.5)
+              ctx.lineTo(px + charWidth, py + charHeight - 0.5)
+            }
+            if (isSpaceOrOOB(mx - 1, my)) {
+              ctx.moveTo(px + 0.5, py)
+              ctx.lineTo(px + 0.5, py + charHeight)
+            }
+            if (isSpaceOrOOB(mx + 1, my)) {
+              ctx.moveTo(px + charWidth - 0.5, py)
+              ctx.lineTo(px + charWidth - 0.5, py + charHeight)
+            }
+            ctx.stroke()
           }
-          if (isSpaceOrOOB(mx, my + 1)) {
-            ctx.moveTo(px, py + charHeight - 0.5)
-            ctx.lineTo(px + charWidth, py + charHeight - 0.5)
-          }
-          if (isSpaceOrOOB(mx - 1, my)) {
-            ctx.moveTo(px + 0.5, py)
-            ctx.lineTo(px + 0.5, py + charHeight)
-          }
-          if (isSpaceOrOOB(mx + 1, my)) {
-            ctx.moveTo(px + charWidth - 0.5, py)
-            ctx.lineTo(px + charWidth - 0.5, py + charHeight)
-          }
-          ctx.stroke()
         }
       }
       ctx.globalAlpha = savedAlpha
