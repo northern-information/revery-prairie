@@ -71,7 +71,6 @@ import {
   POND_COLOR,
   PRAIRIE_HALO_COLOR,
   PRAIRIE_HALO_MAX_ALPHA,
-  PRAIRIE_HALO_MIN_ALPHA,
   PRAIRIE_HALO_PULSE_SPEED,
   PRAIRIE_HALO_RADIUS,
   PRAIRIE_OUTLINE_ALPHA,
@@ -189,15 +188,15 @@ export const nearestLandDistance = (
 // computePrairieHaloAlpha maps (distance to nearest land, time) to a halo
 // alpha in [0, PRAIRIE_HALO_MAX_ALPHA]. Returns 0 when distance is beyond
 // PRAIRIE_HALO_RADIUS or non-finite. Alpha is the product of a radial
-// falloff (1 at distance 1, 0 at the radius) and a global breathing pulse,
-// clamped to the configured min/max range. Pure function; no DOM.
+// falloff (1 at distance 1, 0 at the radius) and a global breathing pulse.
+// The result fades all the way to 0 at the radius — no min-alpha floor —
+// so the soft glow disappears smoothly into space. Pure function; no DOM.
 export const computePrairieHaloAlpha = (distance: number, time: number): number => {
   if (!Number.isFinite(distance)) return 0
   if (distance < 1 || distance > PRAIRIE_HALO_RADIUS) return 0
   const falloff = 1 - (distance - 1) / PRAIRIE_HALO_RADIUS
   const pulse = Math.sin(time * PRAIRIE_HALO_PULSE_SPEED) * 0.5 + 0.5
-  const span = PRAIRIE_HALO_MAX_ALPHA - PRAIRIE_HALO_MIN_ALPHA
-  const raw = PRAIRIE_HALO_MIN_ALPHA + span * falloff * pulse
+  const raw = PRAIRIE_HALO_MAX_ALPHA * falloff * pulse
   return Math.max(0, Math.min(PRAIRIE_HALO_MAX_ALPHA, raw))
 }
 
@@ -1159,18 +1158,25 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Pre-pass: prairie halo over space tiles adjacent to land. Overworld only,
   // skipped during deep time Burning/Simulating (crimson void already covers
-  // space).
+  // space). Iterates the entire world (not just the viewport) so the boundary
+  // halo is rendered consistently regardless of where the camera is — strokes
+  // outside the canvas just clip naturally. This avoids the glow "popping in"
+  // as the camera approaches a boundary.
+  //
+  // The halo is rendered with a canvas blur filter so the per-tile diamond
+  // (or rect) shapes blend into a soft, continuous gradient that doesn't
+  // read as isometric. The filter is reset before subsequent passes.
   {
     const deepTimeLocked =
       state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
     if (state.currentZone === Zone.Overworld && !deepTimeLocked) {
       const savedAlpha = ctx.globalAlpha
+      const savedFilter = ctx.filter
       ctx.fillStyle = PRAIRIE_HALO_COLOR
-      for (let vy = 0; vy < viewportHeight; vy++) {
-        for (let vx = 0; vx < viewportWidth; vx++) {
-          const mx = camera.x + vx
-          const my = camera.y + vy
-          if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+      const blurPx = Math.max(charWidth, charHeight) * 1.5
+      ctx.filter = `blur(${String(blurPx)}px)`
+      for (let my = 0; my < state.mapHeight; my++) {
+        for (let mx = 0; mx < state.mapWidth; mx++) {
           if (map[my][mx].type !== TileType.Space) continue
           const dist = nearestLandDistance(
             map,
@@ -1184,8 +1190,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           if (alpha <= 0) continue
           ctx.globalAlpha = alpha
           const { px: hx, py: hy } = viewportToScreen(
-            vx,
-            vy,
+            mx - camera.x,
+            my - camera.y,
             charWidth,
             charHeight,
             iso,
@@ -1195,17 +1201,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           drawCellBackground(ctx, hx, hy, charWidth, charHeight, iso)
         }
       }
+      ctx.filter = savedFilter
       ctx.globalAlpha = savedAlpha
     }
   }
 
-  // Pre-pass: outer glow + crisp line at the land/space border. Same zone
-  // gating as the halo. Builds a single path covering every diamond edge
-  // (iso) or axis-aligned edge (ortho) that faces a space tile or OOB,
-  // then strokes that path multiple times — wide+faint first, narrow+
-  // saturated last — to lay down a soft outer glow with a crisp line on
-  // top. The glow extends across multiple tiles into space, so the
-  // boundary reads as illuminated even from far away in the viewport.
+  // Pre-pass: 1px crisp outline at the land/space border. Iterates the
+  // entire world (not viewport-bounded) so the boundary line is consistent
+  // wherever the camera is. The glow itself comes from the per-tile halo
+  // above, which only fills space tiles — so the gold tint is exclusively
+  // outside the prairie. The stroke sits on the boundary line.
   {
     const deepTimeLocked =
       state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
@@ -1213,31 +1218,21 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const savedAlpha = ctx.globalAlpha
       const savedStroke = ctx.strokeStyle
       const savedLineWidth = ctx.lineWidth
-      const savedLineCap = ctx.lineCap
-      const savedLineJoin = ctx.lineJoin
       ctx.strokeStyle = PRAIRIE_OUTLINE_COLOR
-      ctx.lineCap = 'round'
-      ctx.lineJoin = 'round'
+      ctx.globalAlpha = PRAIRIE_OUTLINE_ALPHA
+      ctx.lineWidth = PRAIRIE_OUTLINE_WIDTH
       const isSpaceOrOOB = (nx: number, ny: number): boolean => {
         if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) return true
         return map[ny][nx].type === TileType.Space
       }
-      // Build one big path containing every boundary edge whose glow could
-      // touch the viewport. The widest stroke pass below is 12 cells wide,
-      // so boundary tiles up to ~7 tiles outside the viewport still
-      // contribute visible glow inside it.
-      const glowMargin = 8
       ctx.beginPath()
-      for (let vy = -glowMargin; vy < viewportHeight + glowMargin; vy++) {
-        for (let vx = -glowMargin; vx < viewportWidth + glowMargin; vx++) {
-          const mx = camera.x + vx
-          const my = camera.y + vy
-          if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+      for (let my = 0; my < state.mapHeight; my++) {
+        for (let mx = 0; mx < state.mapWidth; mx++) {
           if (map[my][mx].type === TileType.Space) continue
           if (iso) {
             const { px, py } = viewportToScreen(
-              vx,
-              vy,
+              mx - camera.x,
+              my - camera.y,
               charWidth,
               charHeight,
               iso,
@@ -1272,8 +1267,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
               ctx.lineTo(cx, topY)
             }
           } else {
-            const px = vx * charWidth
-            const py = vy * charHeight
+            const px = (mx - camera.x) * charWidth
+            const py = (my - camera.y) * charHeight
             if (isSpaceOrOOB(mx, my - 1)) {
               ctx.moveTo(px, py + 0.5)
               ctx.lineTo(px + charWidth, py + 0.5)
@@ -1293,28 +1288,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           }
         }
       }
-      // Multi-pass stroke: outer halo to crisp line. Each pass strokes the
-      // same boundary path at a different width and alpha so the result
-      // builds up into a visible halo extending several tiles into space.
-      const cellSize = Math.max(charWidth, charHeight)
-      const passes: { width: number; alpha: number }[] = [
-        { width: cellSize * 12, alpha: 0.05 },
-        { width: cellSize * 7, alpha: 0.08 },
-        { width: cellSize * 4, alpha: 0.12 },
-        { width: cellSize * 2, alpha: 0.18 },
-        { width: cellSize * 0.8, alpha: 0.32 },
-        { width: PRAIRIE_OUTLINE_WIDTH, alpha: PRAIRIE_OUTLINE_ALPHA },
-      ]
-      for (const pass of passes) {
-        ctx.lineWidth = pass.width
-        ctx.globalAlpha = pass.alpha
-        ctx.stroke()
-      }
+      ctx.stroke()
       ctx.globalAlpha = savedAlpha
       ctx.strokeStyle = savedStroke
       ctx.lineWidth = savedLineWidth
-      ctx.lineCap = savedLineCap
-      ctx.lineJoin = savedLineJoin
     }
   }
 
