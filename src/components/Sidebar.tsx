@@ -16,6 +16,7 @@ import {
   ZOOM_MIN,
   ZOOM_STEP,
 } from '@/engine/constants'
+import { screenToTile } from '@/engine/coordinates'
 import { ComponentType } from '@/engine/ecs/types'
 import { getTileEffects } from '@/engine/effects'
 import {
@@ -113,14 +114,23 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, eventLog, metricsRef
     }
   }, [metricsRef, state])
 
-  // Derive cursor world tile from screen position + current camera each render
+  // Derive cursor world tile from screen position + current camera each render.
+  // Use the engine's screenToTile so the iso inverse transform matches the
+  // canvas highlight, click-to-move, and updateCursorState — otherwise the
+  // sidebar reads Position/Contents/Effects for the wrong tile in iso mode.
   const metrics = metricsRef.current
   const cursorTile =
     state.cursorScreenPos && metrics
-      ? {
-          x: Math.floor(state.cursorScreenPos.x / metrics.charWidth) + state.camera.x,
-          y: Math.floor(state.cursorScreenPos.y / metrics.charHeight) + state.camera.y,
-        }
+      ? screenToTile(
+          state.cursorScreenPos.x,
+          state.cursorScreenPos.y,
+          state.camera,
+          metrics.charWidth,
+          metrics.charHeight,
+          state.isometricProjection,
+          state.viewportWidth,
+          state.viewportHeight,
+        )
       : null
 
   // Genesis mode: show epoch info + progress bar instead of normal sidebar
