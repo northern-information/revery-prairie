@@ -1086,29 +1086,26 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // hidden tiles are masked to CaveWall so the secret chamber stays
   // hidden until reveal.
   //
-  // Tiles are grouped by bg color into a Path2D per color, then each
-  // Path2D is filled once. Same-color adjacent tiles share a single
-  // fill so AA is only on the path's outer perimeter — no internal
-  // seams. Each diamond is expanded outward by TILE_BG_OVERLAP px so
-  // cross-color adjacent paths overlap; later-drawn paths cleanly
-  // overwrite the earlier path's edge in painter's order, covering the
-  // AA seam between them.
+  // Each diamond is expanded outward by TILE_BG_OVERLAP px so adjacent
+  // fills overlap by ~2px; later-drawn neighbors cleanly overwrite the
+  // earlier tile's edge in painter's order, covering the AA seam at
+  // shared diamond edges. Per-tile direct ctx path fills are used in
+  // preference to a pooled-by-color Path2D — Path2D operations are
+  // measured ~10x slower than direct ctx path ops in current browsers,
+  // and a Path2D-per-color pre-pass dominated the frame budget.
   //
-  // Hot path: ~3k tiles per frame at 60 fps. The diamond and projection
-  // math is inlined to avoid allocating a ScreenPos and a DiamondCorners
-  // object per tile, and posKey is only called for the cave-hidden
-  // check. This dropped per-frame GC pressure significantly.
+  // Hot path: ~16k tiles per frame at iso DPR-2 fullscreen. Projection
+  // and diamond-corner math is inlined to avoid per-tile object
+  // allocations, and posKey is only called for the cave-hidden check.
   {
     const bgBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
-    const pathsByColor = new Map<string, Path2D>()
     const TILE_BG_OVERLAP = 1
     const halfH = charHeight / 2
     const halfW = charWidth / 2
     // viewportToScreen origins, hoisted out of the loop.
     const originX = (viewportHeight * charWidth) / 2 - halfW
     const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
-    const inCave = state.currentZone === Zone.Cave
-    const caveMaskActive = inCave && !state.caveRevealed
+    const caveMaskActive = state.currentZone === Zone.Cave && !state.caveRevealed
     for (let vy = bgBounds.vyStart; vy < bgBounds.vyEnd; vy++) {
       for (let vx = bgBounds.vxStart; vx < bgBounds.vxEnd; vx++) {
         const mx = camera.x + vx
@@ -1120,7 +1117,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           caveMaskActive && state.caveHiddenPositions.has(posKey(mx, my))
             ? TileType.CaveWall
             : tile.type
-        const color = getTileBgColor(effectiveType, mx, my)
+        ctx.fillStyle = getTileBgColor(effectiveType, mx, my)
         // Inline viewportToScreen.
         const px = (vx - vy) * charWidth + originX + halfW
         const py = (vx + vy) * halfH + originY + liftAt(mx, my)
@@ -1131,21 +1128,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const bottomY = topY + charHeight
         const cx = leftX + charWidth
         const cy = topY + halfH
-        let path = pathsByColor.get(color)
-        if (!path) {
-          path = new Path2D()
-          pathsByColor.set(color, path)
-        }
-        path.moveTo(cx, topY - TILE_BG_OVERLAP)
-        path.lineTo(rightX + TILE_BG_OVERLAP, cy)
-        path.lineTo(cx, bottomY + TILE_BG_OVERLAP)
-        path.lineTo(leftX - TILE_BG_OVERLAP, cy)
-        path.closePath()
+        ctx.beginPath()
+        ctx.moveTo(cx, topY - TILE_BG_OVERLAP)
+        ctx.lineTo(rightX + TILE_BG_OVERLAP, cy)
+        ctx.lineTo(cx, bottomY + TILE_BG_OVERLAP)
+        ctx.lineTo(leftX - TILE_BG_OVERLAP, cy)
+        ctx.closePath()
+        ctx.fill()
       }
-    }
-    for (const [color, path] of pathsByColor) {
-      ctx.fillStyle = color
-      ctx.fill(path)
     }
   }
 
@@ -1843,7 +1833,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       if (applyEntityFade) ctx.globalAlpha = 1
     }
   }
-
   // Smooth-movement post-pass — draw tweening ECS entities at fractional pixel positions
   for (const t of tweenedEntities) {
     const { px, py } = worldToScreen(t.lerpX, t.lerpY, camera, charWidth, charHeight, viewportWidth, viewportHeight)

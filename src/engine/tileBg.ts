@@ -74,7 +74,10 @@ export const darkenColor = (hex: string, factor: number): string => {
 }
 
 // Wall shading factors. Iso projection makes both side faces visible;
-// directional light from the upper-left makes the left face lit and the
-// right face shadowed. Tunable.
-export const WALL_LEFT_SHADE = 0.78
-export const WALL_RIGHT_SHADE = 0.55
+// directional light from the upper-left gives the left face a slight
+// lift and the right face a slight shadow. Kept gentle on purpose:
+// most overworld tiles sit slightly above the elev=50 baseline, so
+// strong wall darkening at every tile boundary visually reads as a
+// dark diamond grid rather than as 3d relief. Tunable.
+export const WALL_LEFT_SHADE = 0.95
+export const WALL_RIGHT_SHADE = 0.82

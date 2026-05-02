@@ -78,7 +78,7 @@ describe('darkenColor', () => {
   })
 
   it('factor 0.5 halves each channel', () => {
-    expect(darkenColor('#ffffff', 0.5)).toBe('#808080') // 255 * 0.5 = 127.5 → round 128 → 0x80
+    expect(darkenColor('#ffffff', 0.5)).toBe('#808080')
   })
 
   it('preserves channel proportions for greys', () => {
