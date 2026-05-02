@@ -1,0 +1,59 @@
+plan:
+  id: iso-bolt-projection
+  title: 'Project lightning bolt path to vertical-on-screen in iso mode'
+  created: '2026-05-01'
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npm run test'
+
+tasks:
+  - id: add-bolt-iso-projection-helper
+    title: 'Add projectBoltPathForIso helper that maps canonical path/branch to iso-friendly tile coords'
+    spec_id: lightning-rendering
+    spec_sections:
+      - iso-bolt-projection
+    context_files:
+      - src/engine/boltPath.ts
+      - src/engine/lightning.ts
+    output_files:
+      - src/engine/boltPath.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine]
+
+  - id: wire-iso-projection-in-renderer
+    title: 'Use projectBoltPathForIso in renderer.ts when state.isometricProjection is active'
+    spec_id: lightning-rendering
+    spec_sections:
+      - iso-bolt-projection
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/boltPath.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-bolt-iso-projection-helper
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine]
+
+  - id: add-projection-test
+    title: 'Test that projectBoltPathForIso produces vertical-on-screen positions'
+    spec_id: lightning-rendering
+    spec_sections:
+      - iso-bolt-projection
+    context_files:
+      - src/engine/boltPath.ts
+      - src/engine/projection.ts
+    output_files:
+      - src/engine/__tests__/boltPath.test.ts
+    depends_on:
+      - add-bolt-iso-projection-helper
+    verification:
+      - 'npx vitest run src/engine/__tests__/boltPath.test.ts'
+    repair: retry
+    tags: [engine, test]
