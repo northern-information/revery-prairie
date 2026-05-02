@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { GameState } from '@/engine/types'
 import type { GameEvent } from '@/hooks/useEventLog'
@@ -16,16 +16,31 @@ const computeOpacity = (distFromBottom: number): number => {
   return Math.max(MIN_OPACITY, Math.min(1, raw))
 }
 
+const scrollToBottom = (el: HTMLDivElement) => {
+  el.scrollTop = el.scrollHeight
+}
+
+const isAtBottom = (el: HTMLDivElement): boolean => {
+  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+  return distanceFromBottom < 4
+}
+
 export const EventLog = ({ state, eventLog }: EventLogProps) => {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const stuckToBottomRef = useRef(true)
   const prevLengthRef = useRef(eventLog.length)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    if (eventLog.length !== prevLengthRef.current && stuckToBottomRef.current) {
-      el.scrollTop = el.scrollHeight
+    const grew = eventLog.length > prevLengthRef.current
+    if (grew) {
+      if (stuckToBottomRef.current) {
+        scrollToBottom(el)
+      } else {
+        setUnreadCount(c => c + (eventLog.length - prevLengthRef.current))
+      }
     }
     prevLengthRef.current = eventLog.length
   }, [eventLog.length])
@@ -42,11 +57,23 @@ export const EventLog = ({ state, eventLog }: EventLogProps) => {
     state.cursorTile = null
   }
 
+  const resumeAutoScroll = () => {
+    const el = scrollRef.current
+    if (el) scrollToBottom(el)
+    stuckToBottomRef.current = true
+    setUnreadCount(0)
+  }
+
   const handleScroll = () => {
     const el = scrollRef.current
     if (!el) return
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-    stuckToBottomRef.current = distanceFromBottom < 4
+    const atBottom = isAtBottom(el)
+    stuckToBottomRef.current = atBottom
+    if (atBottom && unreadCount > 0) setUnreadCount(0)
+  }
+
+  const handleMouseLeave = () => {
+    if (!stuckToBottomRef.current) resumeAutoScroll()
   }
 
   return (
@@ -55,6 +82,7 @@ export const EventLog = ({ state, eventLog }: EventLogProps) => {
       className="text-text pointer-events-auto fixed bottom-2 left-2 z-10 w-96 bg-black/70 px-3 py-2 font-mono text-xs"
       onMouseEnter={suppressEdgeScroll}
       onMouseMove={suppressEdgeScroll}
+      onMouseLeave={handleMouseLeave}
     >
       <div
         ref={scrollRef}
@@ -74,6 +102,16 @@ export const EventLog = ({ state, eventLog }: EventLogProps) => {
           )
         })}
       </div>
+      {unreadCount > 0 && (
+        <button
+          type="button"
+          data-testid="event-log-unread-indicator"
+          onClick={resumeAutoScroll}
+          className="text-bg pointer-events-auto absolute right-2 bottom-1 rounded bg-white/90 px-2 py-0.5 font-mono text-[10px] hover:bg-white"
+        >
+          {unreadCount} new {unreadCount === 1 ? 'event' : 'events'} ↓
+        </button>
+      )}
     </div>
   )
 }

@@ -6,7 +6,7 @@ import { getReveryDefinition } from '@/engine/reveries'
 import type { ActionBarSlot, GameState } from '@/engine/types'
 import type { DragState } from '@/hooks/useInventoryDrag'
 
-const SLOT_SIZE = 48
+const SLOT_SIZE = 36
 const COOLDOWN_GOLD = '#DAA520'
 const READY_PULSE_MS = 600
 
@@ -153,7 +153,8 @@ export const ActionBar = ({
 
   return (
     <div
-      className="pointer-events-auto fixed top-2 left-2 z-10 flex items-center gap-1"
+      data-panel="action-bar"
+      className="pointer-events-auto fixed bottom-2 left-1/2 z-20 ml-[100px] flex -translate-x-1/2 items-center gap-1"
       onMouseEnter={suppressEdgeScroll}
       onMouseMove={suppressEdgeScroll}
     >

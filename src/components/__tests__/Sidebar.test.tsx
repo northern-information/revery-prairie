@@ -329,4 +329,5 @@ describe('Sidebar', () => {
       expect(content?.style.animation).toBe('')
     })
   })
+
 })
