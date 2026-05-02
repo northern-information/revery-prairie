@@ -2916,13 +2916,10 @@ export const completeGenesis = (state: GameState): void => {
     sim.narratedEpochCount++
   }
 
-  // Start the crossfade transition. Capture the current zoom so the
-  // gameloop can lerp from genesis-zoom back to ZOOM_DEFAULT over the
-  // transition window — the projection settles in as the steward spawns.
+  // Start the crossfade transition.
   state.genesisTransition = {
     startTime: performance.now(),
     duration: GENESIS_TRANSITION_DURATION_MS,
-    zoomStart: state.zoom,
   }
 
   // Clear genesis data

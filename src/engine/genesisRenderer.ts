@@ -6,13 +6,38 @@ import {
 } from './constants'
 import { getEpochProgress } from './genesis'
 import { GenesisEpochId } from './genesisTypes'
-import { drawCellBackground, viewportToScreen } from './projection'
+import { posKey } from './position'
+import { drawCellBackground, drawCellWalls, viewportToScreen } from './projection'
 import { getEntranceHaloCells } from './ruins'
+import {
+  ELEVATION_TIER_COUNT,
+  ELEVATION_TIER_LIFT_PX,
+  WALL_LEFT_SHADE,
+  WALL_RIGHT_SHADE,
+  darkenColor,
+  getElevationTier,
+  getTierLift,
+  getTileBgColor,
+} from './tileBg'
 import { TileType } from './types'
 import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
 
 import type { EpochSnapshot, GenesisEpoch, GenesisSimState, GenesisTileRender } from './genesisTypes'
 import type { CharMetrics } from './types'
+
+// Cosmetic terrain elevation. Reads sim.elevation (mutated live by
+// epochs like glaciation and warmPeriod), maps to a discrete tier, and
+// returns the y-offset that lifts the tile's diamond up the screen.
+const tierAtSim = (sim: GenesisSimState, mx: number, my: number): number =>
+  getElevationTier(sim.elevation.get(posKey(mx, my)))
+
+const liftAtSim = (sim: GenesisSimState, mx: number, my: number): number =>
+  getTierLift(tierAtSim(sim, mx, my))
+
+// Max possible negative lift: tier 3 * ELEVATION_TIER_LIFT_PX.
+// Used to expand the off-canvas cull margin so high-tier tiles near the
+// viewport top edge remain in the iteration window.
+const MAX_LIFT_PX = (ELEVATION_TIER_COUNT - 1) * ELEVATION_TIER_LIFT_PX
 
 // Cross-fade window: last 10% of each epoch blends into the next
 const CROSSFADE_START = 0.9
@@ -205,7 +230,8 @@ export const renderGenesis = (
             viewportWidth,
             viewportHeight,
           )
-          drawCellBackground(ctx, px, py, charWidth, charHeight)
+          const lift = liftAtSim(sim, cell.x, cell.y)
+          drawCellBackground(ctx, px, py + lift, charWidth, charHeight)
         }
       }
     }
@@ -215,10 +241,12 @@ export const renderGenesis = (
   // Off-canvas cull margin: tiles whose anchor falls outside [-cw, canvasW] ×
   // [-cH, canvasH] cannot contribute visible pixels. Skipping them avoids
   // ~50% of `epoch.renderTile` work, where the expanded iso-square bounding
-  // box covers many tiles outside the on-canvas parallelogram.
+  // box covers many tiles outside the on-canvas parallelogram. Top margin
+  // is expanded by MAX_LIFT_PX so high-tier tiles whose un-lifted py is
+  // just above the viewport still get drawn after the lift pulls them in.
   const cullLeft = -charWidth
   const cullRight = canvasWidth + charWidth
-  const cullTop = -charHeight
+  const cullTop = -charHeight - MAX_LIFT_PX
   const cullBottom = canvasHeight + charHeight
 
   // Crossfade pre-pass: build a buffer of next-epoch renders for every
@@ -258,6 +286,90 @@ export const renderGenesis = (
     applySnapshot(sim, sim.epochSnapshots[sim.epochIndex])
   }
 
+  // Cube wall pre-pass: for every visible tile whose tier exceeds its
+  // south or east neighbor's tier, draw the tier-transition cube wall
+  // beneath the tile. Painter order is iso (sum-of-coords) so later tiles
+  // overlap earlier neighbors cleanly. Walls render in a separate pass
+  // before the per-tile glyph draw so the glyph can land on top of the
+  // wall geometry. Mirrors the renderer.ts cube-wall pass.
+  for (let s = tileLoopStartX + tileLoopStartY; s <= tileLoopEndX + tileLoopEndY - 2; s++) {
+    const vyMin = Math.max(tileLoopStartY, s - (tileLoopEndX - 1))
+    const vyMax = Math.min(tileLoopEndY - 1, s - tileLoopStartX)
+    for (let vy = vyMin; vy <= vyMax; vy++) {
+      const vx = s - vy
+      const { px, py } = viewportToScreen(
+        vx,
+        vy,
+        charWidth,
+        charHeight,
+        viewportWidth,
+        viewportHeight,
+      )
+      if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) continue
+      const mx = cameraX + vx
+      const my = cameraY + vy
+      const tile = sim.grid[my]?.[mx]
+      if (!tile || tile.type === TileType.Space) continue
+      const tier = tierAtSim(sim, mx, my)
+      if (tier <= 0) continue
+      const southTier = tierAtSim(sim, mx, my + 1)
+      const eastTier = tierAtSim(sim, mx + 1, my)
+      const leftDepth = Math.max(0, tier - southTier) * ELEVATION_TIER_LIFT_PX
+      const rightDepth = Math.max(0, tier - eastTier) * ELEVATION_TIER_LIFT_PX
+      if (leftDepth <= 0 && rightDepth <= 0) continue
+      const wallBg = getTileBgColor(tile.type, mx, my)
+      drawCellWalls(
+        ctx,
+        px,
+        py + getTierLift(tier),
+        charWidth,
+        charHeight,
+        leftDepth,
+        rightDepth,
+        darkenColor(wallBg, WALL_LEFT_SHADE),
+        darkenColor(wallBg, WALL_RIGHT_SHADE),
+      )
+    }
+  }
+
+  // Per-tile cube edge skirt: south + east edge stroke darkened by
+  // WALL_RIGHT_SHADE so every plateau tile reads as a discrete block,
+  // matching paintTileEdge in tileBgCache. Drawn before the glyph so the
+  // glyph sits on top.
+  for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
+    for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
+      const { px, py } = viewportToScreen(
+        vx,
+        vy,
+        charWidth,
+        charHeight,
+        viewportWidth,
+        viewportHeight,
+      )
+      if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) continue
+      const mx = cameraX + vx
+      const my = cameraY + vy
+      const tile = sim.grid[my]?.[mx]
+      if (!tile || tile.type === TileType.Space) continue
+      const lift = liftAtSim(sim, mx, my)
+      const halfW = charWidth / 2
+      const halfH = charHeight / 2
+      const cellLeftX = px - halfW
+      const cellRightX = cellLeftX + 2 * charWidth
+      const cellTopY = py + lift
+      const cellBottomY = cellTopY + charHeight
+      const cellCx = cellLeftX + charWidth
+      const cellCy = cellTopY + halfH
+      ctx.strokeStyle = darkenColor(getTileBgColor(tile.type, mx, my), WALL_RIGHT_SHADE)
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(cellLeftX, cellCy)
+      ctx.lineTo(cellCx, cellBottomY)
+      ctx.lineTo(cellRightX, cellCy)
+      ctx.stroke()
+    }
+  }
+
   let cellIdx = 0
   for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
     for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
@@ -274,6 +386,8 @@ export const renderGenesis = (
 
       const mx = cameraX + vx
       const my = cameraY + vy
+      const lift = liftAtSim(sim, mx, my)
+      const lifted = py + lift
       const renders = epoch.renderTile(sim, mx, my, progress, time)
 
       if (nextRendersByIndex) {
@@ -281,15 +395,15 @@ export const renderGenesis = (
         const nextR = nextRendersByIndex[idx]
         if (curR && nextR) {
           ctx.fillStyle = lerpColor(curR.color, nextR.color, blendT)
-          ctx.fillText(blendT > 0.5 ? nextR.char : curR.char, px + curR.dx, py + curR.dy)
+          ctx.fillText(blendT > 0.5 ? nextR.char : curR.char, px + curR.dx, lifted + curR.dy)
         } else if (curR) {
           ctx.fillStyle = curR.color
-          ctx.fillText(curR.char, px + curR.dx, py + curR.dy)
+          ctx.fillText(curR.char, px + curR.dx, lifted + curR.dy)
         }
       } else {
         for (const r of renders) {
           ctx.fillStyle = r.color
-          ctx.fillText(r.char, px + r.dx, py + r.dy)
+          ctx.fillText(r.char, px + r.dx, lifted + r.dy)
         }
       }
     }

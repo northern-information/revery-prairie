@@ -1,7 +1,7 @@
 import { autoAssignRevery } from './actionBar'
 import { generateCave } from './cave'
 import { registerGhostDefinitions } from './characters'
-import { CAVE_HEIGHT, CAVE_WIDTH, GENESIS_ZOOM, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, WATER_MAX } from './constants'
+import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, WATER_MAX, ZOOM_DEFAULT } from './constants'
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
@@ -119,7 +119,7 @@ export const createGameState = (
     autoHidePanels: true,
     panelOpenMoveCount: 0,
     fontScale: 1.25,
-    zoom: GENESIS_ZOOM,
+    zoom: ZOOM_DEFAULT,
     cameraMode: 'follow',
     lastEdgeScrollTime: 0,
     edgeScrollPos: null,
