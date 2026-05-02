@@ -4,12 +4,16 @@ priority: high
 layer: integration
 source_files:
   - src/engine/genesis.ts
+  - src/engine/genesisRenderer.ts
   - src/engine/renderer.ts
   - src/engine/gameLoop.ts
+  - src/engine/constants.ts
   - src/engine/types.ts
   - src/components/GameScreen.tsx
   - src/components/Sidebar.tsx
   - src/components/ActionBar.tsx
+  - src/hooks/useKeyboard.ts
+  - src/hooks/useMouse.ts
 dependencies:
   - player-movement
 
@@ -31,7 +35,7 @@ behaviors:
       - 'canvas renders a smooth blend from genesis final frame to gameplay frame over ~1500ms'
     state_changes:
       - field: genesisTransition
-        effect: 'set to { startTime, duration } when genesis completes, cleared to null after duration elapses'
+        effect: 'set to { startTime, duration, zoomStart } when genesis completes, cleared to null after duration elapses'
     determinism: time-based
 
   - id: entity-fade-in
@@ -177,19 +181,67 @@ behaviors:
     state_changes: []
     determinism: time-based
 
+  - id: genesis-zoom-animation
+    description: >
+      genesis renders the world at GENESIS_ZOOM (0.5) so the entire
+      island fits in the viewport during the geological time-lapse.
+      when genesis completes and genesisTransition begins, the gameloop
+      captures the current zoom into genesisTransition.zoomStart and
+      lerps state.zoom from zoomStart toward ZOOM_DEFAULT (1.0) per-frame
+      across the transition duration. when the transition ends, state.zoom
+      is snapped to ZOOM_DEFAULT. the camera pulls in smoothly as the
+      player spawns, creating a continuous pullback rather than a hard cut.
+    inputs:
+      - 'completeGenesis fires with state.zoom = GENESIS_ZOOM'
+      - 'genesisTransition.startTime, duration, and zoomStart populated at completion'
+    outputs:
+      - 'state.zoom lerps from GENESIS_ZOOM (0.5) to ZOOM_DEFAULT (1.0) over the transition duration'
+      - 'state.zoom = ZOOM_DEFAULT exactly when the transition ends'
+    state_changes:
+      - field: zoom
+        effect: 'lerped from genesisTransition.zoomStart to ZOOM_DEFAULT each frame, snapped to ZOOM_DEFAULT on completion'
+    determinism: time-based
+
+  - id: click-fast-forward-genesis
+    description: >
+      a left-click anywhere on the game canvas during genesis fast-forwards
+      remaining epochs. parallel to the keyboard skip (Escape, Space, or
+      Enter), the click handler in useMouse calls completeGenesis(state)
+      and refreshes the UI when state.genesis is active and the current
+      epoch index is below GENESIS_EPOCHS.length. the click is consumed —
+      the rest of the mousedown pipeline (selection, pathfinding,
+      interaction) does not run during genesis. the normal post-completion
+      transition (crossfade, entity fade-in, zoom animation) still plays.
+    inputs:
+      - 'left mousedown on the game canvas'
+      - 'state.genesis is non-null and epochIndex < GENESIS_EPOCHS.length'
+    outputs:
+      - 'completeGenesis runs synchronously, all remaining mutations apply'
+      - 'genesisTransition is set, crossfade and zoom animation begin normally'
+      - 'no selection box, no pathfinding, no interaction triggered by the click'
+    state_changes:
+      - field: genesis
+        effect: 'cleared via completeGenesis (state.genesis = null after all epoch mutations run)'
+      - field: genesisTransition
+        effect: 'populated by completeGenesis with startTime, duration, zoomStart'
+    determinism: deterministic
+
   - id: skip-genesis-bypasses-transition
     description: >
       when genesis is skipped (dev mode ?skipGenesis=true or
       completeGenesis called before any epochs run), the crossfade
       is skipped entirely. genesisTransition is never set. all
-      entities and UI render at full opacity immediately.
+      entities and UI render at full opacity immediately. state.zoom
+      stays at ZOOM_DEFAULT — no zoom animation plays.
     inputs:
       - 'skipGenesis flag is true'
     outputs:
-      - 'no crossfade, no fade-in — immediate full render'
+      - 'no crossfade, no fade-in, no zoom animation — immediate full render at ZOOM_DEFAULT'
     state_changes:
       - field: genesisTransition
         effect: 'remains null'
+      - field: zoom
+        effect: 'remains at ZOOM_DEFAULT, no lerp'
     determinism: deterministic
 
 edge_cases:
@@ -210,10 +262,26 @@ edge_cases:
 
   - id: fast-forward-skip
     description: >
-      player presses a key to fast-forward genesis (runs remaining
-      mutations synchronously). completeGenesis fires, crossfade
-      begins normally from whatever the last rendered genesis frame was.
-    expected: 'crossfade starts from the fast-forwarded final frame, same duration'
+      player presses a key (Escape, Space, or Enter) or left-clicks the
+      canvas to fast-forward genesis. remaining epoch mutations run
+      synchronously, completeGenesis fires, the crossfade begins
+      normally from whatever the last rendered genesis frame was.
+    expected: 'crossfade starts from the fast-forwarded final frame, same duration, regardless of skip input source'
+
+  - id: zoom-mid-animation-resize
+    description: >
+      browser resizes while zoom is mid-lerp. the renderer recomputes
+      viewport with the current interpolated zoom value — no jump,
+      no reset to GENESIS_ZOOM, no snap to ZOOM_DEFAULT.
+    expected: 'zoom continues lerping smoothly through the resize event'
+
+  - id: right-click-during-genesis
+    description: >
+      right-click on the canvas during genesis. the handler ignores
+      non-left-button mousedown events (e.button !== 0 short-circuits
+      the same way it does in normal gameplay) — right-click does NOT
+      fast-forward genesis. only left-click skips.
+    expected: 'right-click during genesis is ignored, genesis continues normally'
 
   - id: gron-continuously-visible
     description: >
