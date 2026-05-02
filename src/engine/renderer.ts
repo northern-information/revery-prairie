@@ -2,7 +2,6 @@ import { getAngelRenderData } from './angelAnimation'
 import { getCharacterDefinition } from './characters'
 import {
   ACTION_COLOR,
-  ANGEL_AURA_RADIUS,
   ANGEL_BODY_SIZE,
   BASE_FONT_SIZE,
   BEE_CHAR,
@@ -29,12 +28,6 @@ import {
   CRUMBLE_DURATION_MS,
   DIRT_COLORS,
   FOG_EXPLORED_BRIGHTNESS,
-  EARTH_SCAN_COLOR_HIGH,
-  EARTH_SCAN_COLOR_LOW,
-  EARTH_SCAN_EXPAND_MS,
-  EARTH_SCAN_FADE_MS,
-  EARTH_SCAN_HOLD_MS,
-  EARTH_SCAN_RADIUS,
   EXPLOSION_CHARS,
   EXPLOSION_COLORS,
   EXPLOSION_DURATION_MS,
@@ -52,8 +45,6 @@ import {
   LIGHTNING_FLASH_MS,
   LIGHTNING_IMPACT_CHARS,
   LIGHTNING_IMPACT_COLORS,
-  LIGHTNING_RANGE_HIGHLIGHT_COLOR,
-  LIGHTNING_REVERY_RANGE,
   LIGHTNING_SCREEN_FLASH_MS,
   LIGHTNING_SCREEN_FLASH_OPACITY,
   METEORITE_CHAR,
@@ -72,15 +63,11 @@ import {
   PRAIRIE_HALO_MAX_ALPHA,
   PRAIRIE_HALO_PULSE_SPEED,
   PRAIRIE_HALO_RADIUS,
-  PRAIRIE_OUTLINE_ALPHA,
-  PRAIRIE_OUTLINE_COLOR,
-  PRAIRIE_OUTLINE_WIDTH,
   RAIN_AURA_CHARS,
   RAIN_AURA_COLORS,
   RAIN_AURA_DENSITY,
   RAIN_AURA_SPEED,
   RIVER_COLOR,
-  RUIN_ENTRANCE_HALO_COLOR,
   SAND_COLORS,
   SATELLITE_HEAD_COLORS,
   SATELLITE_SHAKE_AMPLITUDE,
@@ -91,7 +78,6 @@ import {
   SHOOTING_STAR_HEAD_COLOR,
   SHOOTING_STAR_TRAIL_CHARS,
   SHOOTING_STAR_TRAIL_COLORS,
-  SOIL_HEALTH_DEFAULT,
   TILE_CHARS,
   TILE_COLORS,
   getEntranceGlyph,
@@ -119,27 +105,25 @@ import {
   drawCellBackground,
   drawCellHighlight,
   drawCellWalls,
-  getCellDiamondCorners,
   viewportToScreen,
   worldToScreen,
 } from './projection'
 import { projectBoltPath } from './boltPath'
 import { getReveryDefinition } from './reveries'
-import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
+import { getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
 import {
   darkenColor,
   ELEVATION_TIER_LIFT_PX,
-  getElevationTier,
   getTierLift,
   getTileBgColor,
   WALL_LEFT_SHADE,
   WALL_RIGHT_SHADE,
 } from './tileBg'
-import { getOrBuildHaloCache } from './render/haloCache'
 import { runPassesInSlot } from './render/passes'
 import './render/passes/index'
+import { getTierGrid as getTierGridShared, liftAt as liftAtShared } from './render/tierGrid'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
@@ -157,37 +141,6 @@ const getTransitionAlpha = (transition: TransitionFade | null, time: number): nu
   if (elapsed <= 0) return 0
   if (elapsed >= transition.duration) return 1
   return elapsed / transition.duration
-}
-
-// Tier grid cache. state.elevation is a Map<posKey, number> populated
-// at genesis and never mutated thereafter, so we can build the flat
-// tier array once and reuse it across frames as long as the elevation
-// reference is stable. Indexed by mx + my * mapWidth.
-let _tierGridCache: Int8Array | null = null
-let _tierGridFor: Map<string, number> | null = null
-let _tierGridWidth = 0
-
-const getTierGrid = (
-  elevation: Map<string, number>,
-  mapWidth: number,
-  mapHeight: number,
-): Int8Array => {
-  if (_tierGridCache !== null && _tierGridFor === elevation && _tierGridWidth === mapWidth) {
-    return _tierGridCache
-  }
-  const grid = new Int8Array(mapWidth * mapHeight)
-  for (const [key, value] of elevation) {
-    const sep = key.indexOf(',')
-    if (sep < 0) continue
-    const x = Number(key.slice(0, sep))
-    const y = Number(key.slice(sep + 1))
-    if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) continue
-    grid[x + y * mapWidth] = getElevationTier(value)
-  }
-  _tierGridCache = grid
-  _tierGridFor = elevation
-  _tierGridWidth = mapWidth
-  return grid
 }
 
 const STAR_CHARS = ['.', '+', '*']
@@ -253,26 +206,6 @@ export const measureChar = (ctx: CanvasRenderingContext2D, zoom = 1): CharMetric
   return { charWidth, charHeight, font }
 }
 
-const hexToRgb = (hex: string): [number, number, number] => {
-  const n = parseInt(hex.slice(1), 16)
-  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff]
-}
-
-const lerpColor = (from: string, to: string, t: number): string => {
-  const [fr, fg, fb] = hexToRgb(from)
-  const [tr, tg, tb] = hexToRgb(to)
-  const r = Math.round(fr + (tr - fr) * t)
-  const g = Math.round(fg + (tg - fg) * t)
-  const b = Math.round(fb + (tb - fb) * t)
-  return `rgb(${String(r)},${String(g)},${String(b)})`
-}
-
-// Map soil health (0–100) to red → green gradient
-const soilHealthColor = (health: number): string => {
-  const t = Math.max(0, Math.min(health / 100, 1))
-  return lerpColor(EARTH_SCAN_COLOR_LOW, EARTH_SCAN_COLOR_HIGH, t)
-}
-
 // Cave fog of war: last computed visible set, readable by sidebar
 let _lastVisibleSet: Set<string> | null = null
 export const getLastVisibleSet = (): Set<string> | null => _lastVisibleSet
@@ -305,7 +238,6 @@ const _lightningMap = new Map<string, { char: string; color: string }>()
 const _wildfireMap = new Map<string, { char: string; color: string }>()
 const _pickupEffectMap = new Map<string, { char: string; color: string }>()
 const _reveryCastMap = new Map<string, { char: string; color: string }>()
-const _earthScanBgMap = new Map<string, { color: string; opacity: number }>()
 const _crumbleMap = new Map<string, { char: string; color: string }>()
 const _entranceGlyphMap = new Map<string, string>()
 
@@ -329,12 +261,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // cached into a flat Int8Array indexed by mx + my * mapWidth, rebuilt
   // only when state.elevation reference changes (which only happens at
   // genesis / state init).
-  const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
+  const tierGrid = getTierGridShared(state.elevation, state.mapWidth, state.mapHeight)
   const tierAt = (mx: number, my: number): number => {
     if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return 0
     return tierGrid[mx + my * state.mapWidth]
   }
-  const liftAt = (mx: number, my: number): number => getTierLift(tierAt(mx, my))
+  const liftAt = (mx: number, my: number): number =>
+    liftAtShared(tierGrid, mx, my, state.mapWidth, state.mapHeight)
 
   // Genesis-to-gameplay crossfade: entities not visible in genesis fade in
   const transitionAlpha = getTransitionAlpha(state.genesisTransition, time)
@@ -437,7 +370,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   _wildfireMap.clear()
   _pickupEffectMap.clear()
   _reveryCastMap.clear()
-  _earthScanBgMap.clear()
   _crumbleMap.clear()
 
   // Alias pooled collections for readability
@@ -465,7 +397,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const wildfireMap = _wildfireMap
   const pickupEffectMap = _pickupEffectMap
   const reveryCastMap = _reveryCastMap
-  const earthScanBgMap = _earthScanBgMap
   const crumbleMap = _crumbleMap
 
   // Build selected unit position set for highlight rendering
@@ -722,10 +653,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     characterMap.set(key, { glyph: def.glyph, color: def.glyphColor, id: identity.definitionId })
   }
 
-  // Populate angel body pixels (from ECS)
-  // Angel aura center positions for gold aura rendering
-  const angelAuraCenters: { x: number; y: number }[] = []
-  // Track angel body tile groups so hovering/facing any tile highlights all
+  // Populate angel body pixels (from ECS).
+  // Track angel body tile groups so hovering/facing any tile highlights all.
   const angelBodyGroups: Set<string>[] = []
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
     if (!inZone(eid)) continue
@@ -744,7 +673,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     for (const key of group) {
       angelTileToGroup.set(key, group)
     }
-    angelAuraCenters.push({ x: pos.x, y: pos.y })
   }
 
   // Prune expired trail points and populate trail map with opacity
@@ -1027,75 +955,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Populate earth scan background colors (scan-style revery)
-  // This is a background layer — tiles get a colored fillRect, then normal content draws on top
-  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (!inZone(eid)) continue
-    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-    if (tag !== 'reveryCast') continue
-    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
-    if (!effect?.reveryId || effect.reveryId !== 'earth') continue
-    const origin = state.world.getComponent(eid, ComponentType.Position)
-    if (!origin) continue
-
-    const elapsed = time - effect.startTime
-    const totalDuration = EARTH_SCAN_EXPAND_MS + EARTH_SCAN_HOLD_MS + EARTH_SCAN_FADE_MS
-
-    // Determine which phase we're in
-    const isExpanding = elapsed <= EARTH_SCAN_EXPAND_MS
-    const isHolding = !isExpanding && elapsed <= EARTH_SCAN_EXPAND_MS + EARTH_SCAN_HOLD_MS
-    const isFading = !isExpanding && !isHolding && elapsed <= totalDuration
-
-    if (!isExpanding && !isHolding && !isFading) continue
-
-    // During fade, the wave front progresses from center outward
-    const fadeElapsed = isFading ? elapsed - EARTH_SCAN_EXPAND_MS - EARTH_SCAN_HOLD_MS : 0
-    const fadeWaveRadius = isFading ? (fadeElapsed / EARTH_SCAN_FADE_MS) * EARTH_SCAN_RADIUS : 0
-
-    const earthScanBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
-    for (let vy = earthScanBounds.vyStart; vy < earthScanBounds.vyEnd; vy++) {
-      for (let vx = earthScanBounds.vxStart; vx < earthScanBounds.vxEnd; vx++) {
-        const mx = camera.x + vx
-        const my = camera.y + vy
-        if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
-
-        const tileType = map[my][mx].type
-        if (tileType === TileType.Space || tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall)
-          continue
-
-        const key = posKey(mx, my)
-
-        const dx = mx - origin.x
-        const dy = my - origin.y
-        const dist = Math.sqrt(dx * dx + dy * dy)
-
-        if (isExpanding) {
-          const expandRadius = (elapsed / EARTH_SCAN_EXPAND_MS) * EARTH_SCAN_RADIUS
-          if (dist > expandRadius) continue
-        } else if (dist > EARTH_SCAN_RADIUS) {
-          continue
-        }
-
-        let tileOpacity = 1
-        if (isFading) {
-          const fadeEdge = fadeWaveRadius
-          if (dist < fadeEdge - 3) {
-            continue
-          } else if (dist < fadeEdge) {
-            tileOpacity = (dist - (fadeEdge - 3)) / 3
-          }
-        }
-
-        const health = state.soilHealth.get(key) ?? SOIL_HEALTH_DEFAULT
-
-        earthScanBgMap.set(key, {
-          color: soilHealthColor(health),
-          opacity: tileOpacity,
-        })
-      }
-    }
-  }
-
   // Populate crumble effect pixels (breakable wall, from ECS)
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
     if (!inZone(eid)) continue
@@ -1116,210 +975,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // bg-cache slot: tile bg + cube edges composite. See
-  // src/engine/render/passes/tileBgComposite.ts.
+  // bg-cache slot: tile bg + cube edges composite.
   runPassesInSlot('bg-cache', ctx, state, metrics, time)
-  // Pre-pass: earth scan backgrounds — drawn after the tile bg pre-pass so
-  // scan colors paint opaque on top of the surface bg. Fade-out uses
-  // globalAlpha rather than lerping toward BG_COLOR, so the tile bg shows
-  // through naturally as the scan dissipates instead of fading to dark void.
-  if (earthScanBgMap.size > 0) {
-    const savedAlpha = ctx.globalAlpha
-    const drawBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
-    for (let vy = drawBounds.vyStart; vy < drawBounds.vyEnd; vy++) {
-      for (let vx = drawBounds.vxStart; vx < drawBounds.vxEnd; vx++) {
-        const key = posKey(camera.x + vx, camera.y + vy)
-        const scanBg = earthScanBgMap.get(key)
-        if (scanBg) {
-          ctx.globalAlpha = scanBg.opacity
-          ctx.fillStyle = scanBg.color
-          const { px: bgPx, py: bgPy } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-          drawCellBackground(ctx, bgPx, bgPy + liftAt(camera.x + vx, camera.y + vy), charWidth, charHeight)
-        }
-      }
-    }
-    ctx.globalAlpha = savedAlpha
-  }
 
-  // Pre-pass: ruin entrance halo (overworld only). Paints a 3x3 dark backdrop
-  // around each visible RuinEntrance so it reads as a doorway-in-shadow.
-  if (state.currentZone === Zone.Overworld && state.ruinInteriors.length > 0) {
-    ctx.fillStyle = RUIN_ENTRANCE_HALO_COLOR
-    for (const interior of state.ruinInteriors) {
-      const cells = getEntranceHaloCells(
-        map,
-        state.mapWidth,
-        state.mapHeight,
-        interior.entranceOverworld.x,
-        interior.entranceOverworld.y,
-      )
-      for (const cell of cells) {
-        const vx = cell.x - camera.x
-        const vy = cell.y - camera.y
-        if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
-        const { px: hPx, py: hPy } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-        drawCellBackground(ctx, hPx, hPy + liftAt(cell.x, cell.y), charWidth, charHeight)
-      }
-    }
-  }
-
-  // Pre-pass: lightning targeting range highlight
-  if (state.targetingSlot !== null) {
-    const lightningBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
-    for (let vy = lightningBounds.vyStart; vy < lightningBounds.vyEnd; vy++) {
-      for (let vx = lightningBounds.vxStart; vx < lightningBounds.vxEnd; vx++) {
-        const mx = camera.x + vx
-        const my = camera.y + vy
-        if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
-        if (map[my][mx].type === TileType.Space) continue
-        const dist = Math.abs(mx - player.x) + Math.abs(my - player.y)
-        if (dist > LIGHTNING_REVERY_RANGE) continue
-        ctx.fillStyle = LIGHTNING_RANGE_HIGHLIGHT_COLOR
-        const { px: lPx, py: lPy } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-        drawCellBackground(ctx, lPx, lPy + liftAt(mx, my), charWidth, charHeight)
-      }
-    }
-  }
-
-  // Pre-pass: angel gold aura background
-  if (angelAuraCenters.length > 0) {
-    const savedAlpha = ctx.globalAlpha
-    const angelBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
-    for (let vy = angelBounds.vyStart; vy < angelBounds.vyEnd; vy++) {
-      for (let vx = angelBounds.vxStart; vx < angelBounds.vxEnd; vx++) {
-        const mx = camera.x + vx
-        const my = camera.y + vy
-        if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
-        if (map[my][mx].type === TileType.Space) continue
-
-        for (const ac of angelAuraCenters) {
-          const dx = mx - ac.x
-          const dy = my - ac.y
-          // Distance is measured so the aura reads as a *circle on screen*.
-          // Raw tile-space Euclidean distance projects to a 2:1 screen-space
-          // ellipse (stretched horizontally), which makes the aura look
-          // "off". Convert (dx, dy) into screen-space delta and normalize
-          // back into tile-width units.
-          const sdx = (dx - dy) * charWidth
-          const sdy = (dx + dy) * (charHeight / 2)
-          const distInTiles = Math.sqrt(sdx * sdx + sdy * sdy) / charWidth
-          if (distInTiles > ANGEL_AURA_RADIUS) continue
-
-          // Oscillating alpha: gentle sine wave based on time + distance from center
-          const wave = Math.sin(time * 0.002 + distInTiles * 0.3) * 0.5 + 0.5 // 0..1
-          const falloff = 1 - distInTiles / ANGEL_AURA_RADIUS // 1 at center, 0 at edge
-          const alpha = 0.06 + 0.06 * wave * falloff // gentle 0.06..0.12
-
-          ctx.globalAlpha = alpha
-          ctx.fillStyle = '#FFD700'
-          const { px: aPx, py: aPy } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-          drawCellBackground(ctx, aPx, aPy + liftAt(mx, my), charWidth, charHeight)
-          break // only one angel aura can contribute per tile
-        }
-      }
-    }
-    ctx.globalAlpha = savedAlpha
-  }
-
-  // Pre-pass: prairie halo over space tiles adjacent to land. Overworld only,
-  // skipped during deep time Burning/Simulating (crimson void already covers
-  // space). The peak-intensity halo shape is baked once per map into a
-  // world-space offscreen canvas (haloCache); the per-frame composite
-  // applies the global breathing pulse as ctx.globalAlpha and a single
-  // ctx.filter = blur(...) pass. drawImage at a camera-derived translation.
-  {
-    const deepTimeLocked =
-      state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
-    if (state.currentZone === Zone.Overworld && !deepTimeLocked) {
-      const halo = getOrBuildHaloCache(map, charWidth, charHeight)
-      const halfH = charHeight / 2
-      const halfW = charWidth / 2
-      const originX = (viewportHeight * charWidth) / 2 - halfW
-      const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
-      const dx = (camera.y - camera.x) * charWidth + originX - halo.worldOriginX
-      const dy = -(camera.x + camera.y) * halfH + originY - halo.worldOriginY
-      const pulse = Math.sin(time * PRAIRIE_HALO_PULSE_SPEED) * 0.5 + 0.5
-      const blurPx = Math.max(charWidth, charHeight) * 1.5
-      const savedFilter = ctx.filter
-      const savedAlpha = ctx.globalAlpha
-      ctx.globalAlpha = pulse
-      ctx.filter = `blur(${String(blurPx)}px)`
-      ctx.drawImage(halo.canvas, dx, dy)
-      ctx.filter = savedFilter
-      ctx.globalAlpha = savedAlpha
-    }
-  }
-
-  // Pre-pass: 1px crisp outline at the land/space border. Iterates the
-  // viewport plus a 1-tile margin so the outline aligns with the halo and
-  // remains continuous as the camera moves. The glow itself comes from the
-  // halo above, which only fills space tiles — so the gold tint is
-  // exclusively outside the prairie. The stroke sits on the boundary line.
-  {
-    const deepTimeLocked =
-      state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
-    if (state.currentZone === Zone.Overworld && !deepTimeLocked) {
-      const savedAlpha = ctx.globalAlpha
-      const savedStroke = ctx.strokeStyle
-      const savedLineWidth = ctx.lineWidth
-      ctx.strokeStyle = PRAIRIE_OUTLINE_COLOR
-      ctx.globalAlpha = PRAIRIE_OUTLINE_ALPHA
-      ctx.lineWidth = PRAIRIE_OUTLINE_WIDTH
-      const isSpaceOrOOB = (nx: number, ny: number): boolean => {
-        if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) return true
-        return map[ny][nx].type === TileType.Space
-      }
-      ctx.beginPath()
-      const outlineMargin = 1
-      for (let vy = -outlineMargin; vy < viewportHeight + outlineMargin; vy++) {
-        for (let vx = -outlineMargin; vx < viewportWidth + outlineMargin; vx++) {
-          const mx = camera.x + vx
-          const my = camera.y + vy
-          if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
-          if (map[my][mx].type === TileType.Space) continue
-          const { px, py } = viewportToScreen(
-            vx,
-            vy,
-            charWidth,
-            charHeight,
-            viewportWidth,
-            viewportHeight,
-          )
-          const { leftX, rightX, topY, bottomY, cx, cy } = getCellDiamondCorners(
-            px,
-            py,
-            charWidth,
-            charHeight,
-          )
-          // World cardinals map to diamond edges by on-screen direction:
-          //   N (mx, my-1)  → up-right    → top-right edge
-          //   E (mx+1, my)  → down-right  → bottom-right edge
-          //   S (mx, my+1)  → down-left   → bottom-left edge
-          //   W (mx-1, my)  → up-left     → top-left edge
-          if (isSpaceOrOOB(mx, my - 1)) {
-            ctx.moveTo(cx, topY)
-            ctx.lineTo(rightX, cy)
-          }
-          if (isSpaceOrOOB(mx + 1, my)) {
-            ctx.moveTo(rightX, cy)
-            ctx.lineTo(cx, bottomY)
-          }
-          if (isSpaceOrOOB(mx, my + 1)) {
-            ctx.moveTo(cx, bottomY)
-            ctx.lineTo(leftX, cy)
-          }
-          if (isSpaceOrOOB(mx - 1, my)) {
-            ctx.moveTo(leftX, cy)
-            ctx.lineTo(cx, topY)
-          }
-        }
-      }
-      ctx.stroke()
-      ctx.globalAlpha = savedAlpha
-      ctx.strokeStyle = savedStroke
-      ctx.lineWidth = savedLineWidth
-    }
-  }
+  // world-overlay slot: earth scan, ruin entrance halo, lightning targeting
+  // range, angel gold aura, prairie halo composite, prairie outline.
+  // See src/engine/render/passes/.
+  runPassesInSlot('world-overlay', ctx, state, metrics, time)
 
   // Fog of war: compute visibility, tick illumination expiry
   const fogActive = hasFogOfWar(state.currentZone)
