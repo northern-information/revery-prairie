@@ -9,6 +9,10 @@ export const ZOOM_MIN = 0.5
 export const ZOOM_MAX = 3.0
 export const ZOOM_STEP = 0.125
 export const ZOOM_DEFAULT = 1.0
+// Genesis runs at 50% zoom so the whole island fits on screen during the
+// geological time-lapse. The zoom animates back to ZOOM_DEFAULT during the
+// post-genesis transition fade.
+export const GENESIS_ZOOM = 0.5
 
 // RTS-style edge-scroll: cursor within EDGE_SCROLL_ZONE_PX of any canvas edge
 // pans the camera at EDGE_SCROLL_SPEED_TILES_PER_SEC tiles per second.
