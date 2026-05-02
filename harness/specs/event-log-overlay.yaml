@@ -8,8 +8,15 @@ source_files:
   - src/components/Sidebar.tsx
   - src/components/ActionBar.tsx
   - src/components/CommandPanel.tsx
+  - src/hooks/useEventLog.ts
+  - src/hooks/useGameEngine.ts
+  - src/engine/genesis.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/state.ts
+  - src/engine/types.ts
   - src/components/__tests__/EventLog.test.tsx
   - src/components/__tests__/Sidebar.test.tsx
+  - src/engine/__tests__/genesis.test.ts
 dependencies:
   - rts-camera-pan
   - action-bar
@@ -23,13 +30,74 @@ behaviors:
       inside the right-hand Sidebar. The overlay matches the existing
       Sidebar visual language (font-mono text-xs, bg-black/70 backdrop)
       for consistency. The Sidebar no longer renders a log section;
-      the eventLog prop is removed from Sidebar.
+      the eventLog prop is removed from Sidebar. The overlay is rendered
+      throughout the GameScreen lifetime — including during genesis and
+      the genesis-to-gameplay crossfade — so genesis narration entries
+      (see genesis-narration-entries) are visible from the first epoch.
+      The overlay only mounts visibly once the log has at least one
+      entry; while the log is empty it occupies no visual footprint.
     inputs:
       - 'GameScreen rendered with at least one event in the log'
+      - 'GameScreen rendered during genesis (state.genesis is non-null)'
     outputs:
       - 'EventLog overlay component rendered as a fixed element at the lower-left'
+      - 'Overlay is mounted during genesis so narration entries appear there in real time'
       - 'Sidebar no longer contains a Log section'
     state_changes: []
+    determinism: deterministic
+
+  - id: genesis-narration-entries
+    description: >
+      Each genesis epoch contributes one entry to the event log, using
+      the epoch's `commentary` string verbatim as the entry text. The
+      entry is appended at the start of the epoch (the first tick where
+      `sim.epochStartTime` transitions from 0 → time). Entries are added
+      in epoch order, so when `useEventLog` reverses the buffer for
+      display, the oldest narration sits at the top of the visible log
+      and the newest at the bottom — matching the terminal-style
+      ordering used by all other log entries (see log-newest-at-bottom).
+      No entry is added more than once for a given epoch index. Live
+      gameplay events that arrive after genesis completes are appended
+      below the narration entries, preserving chronological order.
+      Narration entries use the `'narration'` GameEvent kind, share the
+      same visual styling as other log entries (font-mono text-xs, same
+      fade curve), and do NOT spawn floating PickupToasts (toasts are
+      suppressed for the `narration` and `dialog` kinds). The icon
+      glyph and color are uniform across all narration entries so the
+      14 entries form a visually consistent narration column.
+    inputs:
+      - 'tickGenesis enters a new epoch (sim.epochStartTime transitions from 0)'
+      - 'completeGenesis runs (skip path) with one or more unfired epochs'
+    outputs:
+      - 'one log entry per epoch, in chronological order'
+      - 'narration entry appears in the EventLog overlay using the same styling as other entries'
+      - 'no PickupToast is spawned for narration entries'
+    state_changes:
+      - field: GenesisSimState.narratedEpochCount
+        effect: 'incremented by 1 each time an epoch fires its narration callback; tracks how many epochs have been narrated'
+      - field: GameState.onGenesisEpochStart
+        effect: 'engine-side callback, set by useGameEngine to the GameScreen addEvent handler; invoked once per epoch transition with (commentary, epochIndex)'
+    determinism: deterministic
+
+  - id: genesis-narration-skip-flush
+    description: >
+      When `completeGenesis` is invoked before all epochs have fired
+      their narration (skip-key during play, `?skipGenesis=true` URL
+      param, test path that omits ticking), it flushes narration for
+      every remaining unfired epoch in epoch order before the
+      crossfade begins. After the flush, `narratedEpochCount` equals
+      `GENESIS_EPOCHS.length` and no further narration entries are
+      added. The flush calls `state.onGenesisEpochStart` synchronously,
+      so when the GameScreen renders post-skip, all 14 entries are
+      already in the log buffer in chronological order.
+    inputs:
+      - 'completeGenesis called with sim.narratedEpochCount < GENESIS_EPOCHS.length'
+    outputs:
+      - 'one onGenesisEpochStart invocation per unfired epoch, in order'
+      - 'log buffer contains exactly 14 narration entries after the flush'
+    state_changes:
+      - field: GenesisSimState.narratedEpochCount
+        effect: 'set to GENESIS_EPOCHS.length after the flush completes'
     determinism: deterministic
 
   - id: action-bar-anchored-bottom-center-gap
@@ -187,6 +255,21 @@ edge_cases:
   - id: log-empty
     description: 'event log has zero entries'
     expected: 'overlay container is not rendered (or renders empty); no visual artifact in lower-left'
+  - id: genesis-played-fully
+    description: 'player watches all 14 genesis epochs play out without skipping'
+    expected: 'log accumulates 14 narration entries one at a time, oldest at top of visible buffer; live gameplay events appended below afterward'
+  - id: genesis-skipped-via-key
+    description: 'player presses any key during genesis to fast-forward; one or more epochs were already narrated live'
+    expected: 'completeGenesis flushes only the unfired narration entries in order; no epoch is duplicated; final log contains exactly 14 narration entries'
+  - id: genesis-skipped-via-url
+    description: 'player loads `?skipGenesis=true`; completeGenesis runs before any epoch ticks'
+    expected: 'all 14 narration entries are present in the log when GameScreen first paints; ordered oldest at top, newest at bottom'
+  - id: genesis-narration-no-toast
+    description: 'a genesis epoch enters and fires its narration callback'
+    expected: 'log entry appears; no PickupToast is spawned (narration kind suppresses toasts the same way dialog does)'
+  - id: live-event-after-narration
+    description: 'a pickup, drop, combine, dialog, or discovery event fires after genesis ends'
+    expected: 'event is appended at the bottom of the log, below all narration entries; auto-pin behavior unchanged'
   - id: log-single-entry
     description: 'event log has exactly one entry'
     expected: 'single entry renders at full opacity at the bottom; no fade visible'
@@ -227,6 +310,12 @@ failure_conditions:
     expected: "log overlay's mouse handler must null edgeScrollPos; spec violated otherwise"
   - trigger: 'sidebar still renders a Log section after this change'
     expected: 'Sidebar must not contain a SectionHeader Log block; spec violated otherwise'
+  - trigger: 'genesis runs to completion without producing 14 narration entries in the log'
+    expected: 'every epoch must fire exactly one narration entry between tick start and completeGenesis; spec violated otherwise'
+  - trigger: 'a single epoch fires more than one narration entry (e.g. tick + skip both flush it)'
+    expected: 'narratedEpochCount must guard against double-firing; spec violated otherwise'
+  - trigger: 'sidebar still renders the genesis commentary <p> during genesis'
+    expected: 'genesis commentary must move to the event log; sidebar HUD shows year and epoch progress only'
 
 verification:
   test_file: src/components/__tests__/EventLog.test.tsx

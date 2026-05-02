@@ -1,0 +1,186 @@
+plan:
+  id: genesis-narration-log
+  title: 'Pipe genesis epoch narration into the event log; remove sidebar commentary line'
+  created: '2026-05-01'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: add-narration-event-kind
+    title: "Extend GameEvent kind union with 'narration'; suppress toasts for narration the same way they're suppressed for dialog"
+    spec_id: event-log-overlay
+    spec_sections:
+      - genesis-narration-entries
+    context_files:
+      - src/hooks/useEventLog.ts
+    output_files:
+      - src/hooks/useEventLog.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [hook]
+
+  - id: add-genesis-narration-callback-state
+    title: "Add state.onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null to GameState; default null in createGameState; mirror onPlayerMoved pattern"
+    spec_id: event-log-overlay
+    spec_sections:
+      - genesis-narration-entries
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: track-narrated-epochs-in-sim
+    title: "Add narratedEpochCount: number to GenesisSimState (initial 0); initialize in createGenesisState"
+    spec_id: event-log-overlay
+    spec_sections:
+      - genesis-narration-entries
+      - genesis-narration-skip-flush
+    context_files:
+      - src/engine/genesisTypes.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesisTypes.ts
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: fire-narration-on-epoch-start
+    title: "In tickGenesis, fire state.onGenesisEpochStart(epoch.commentary, epochIndex) once per epoch on first tick (when epochStartTime transitions from 0); bump narratedEpochCount; guard against double-fire"
+    spec_id: event-log-overlay
+    spec_sections:
+      - genesis-narration-entries
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - add-genesis-narration-callback-state
+      - track-narrated-epochs-in-sim
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: flush-narration-on-complete-genesis
+    title: "In completeGenesis, fire state.onGenesisEpochStart for every epoch index in [narratedEpochCount, GENESIS_EPOCHS.length); set narratedEpochCount to length; runs synchronously before genesisTransition is set"
+    spec_id: event-log-overlay
+    spec_sections:
+      - genesis-narration-skip-flush
+    context_files:
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - add-genesis-narration-callback-state
+      - track-narrated-epochs-in-sim
+      - fire-narration-on-epoch-start
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: wire-narration-callback-in-hook
+    title: "In useGameEngine, set state.onGenesisEpochStart to a stable callback that invokes addEvent('narration', commentary, glyph, color, x, y); use a sentinel position (e.g. player.x/player.y or 0,0); register in the same place as onPlayerMoved"
+    spec_id: event-log-overlay
+    spec_sections:
+      - genesis-narration-entries
+    context_files:
+      - src/hooks/useGameEngine.ts
+      - src/components/GameScreen.tsx
+      - src/hooks/useEventLog.ts
+    output_files:
+      - src/hooks/useGameEngine.ts
+      - src/components/GameScreen.tsx
+    depends_on:
+      - add-narration-event-kind
+      - add-genesis-narration-callback-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [hook]
+
+  - id: remove-commentary-from-sidebar
+    title: "Remove the <p>{getGenesisCommentary(...)}</p> line from the genesis HUD branch in Sidebar.tsx; keep the year table and progress bar; drop the now-unused getGenesisCommentary import"
+    spec_id: event-log-overlay
+    spec_sections:
+      - genesis-narration-entries
+    context_files:
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: engine-tests-narration
+    title: "Add tests in src/engine/__tests__/genesis.test.ts: (1) tickGenesis fires onGenesisEpochStart exactly once per epoch in order; (2) completeGenesis flushes remaining unfired epochs; (3) skip-from-start produces 14 callbacks in epoch order; (4) no double-firing when ticking past an already-narrated epoch"
+    spec_id: event-log-overlay
+    spec_sections:
+      - genesis-narration-entries
+      - genesis-narration-skip-flush
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - fire-narration-on-epoch-start
+      - flush-narration-on-complete-genesis
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags: [test, engine]
+
+  - id: sidebar-test-no-commentary
+    title: "Update src/components/__tests__/Sidebar.test.tsx: assert that during genesis the sidebar renders the year/epoch HUD but NOT the commentary <p>"
+    spec_id: event-log-overlay
+    spec_sections:
+      - genesis-narration-entries
+    context_files:
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on:
+      - remove-commentary-from-sidebar
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags: [test, component]
+
+  - id: schema-allowlist-update
+    title: "If onGenesisEpochStart and/or narratedEpochCount need to be excluded from the serialization schema check, add them to EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts"
+    spec_id: event-log-overlay
+    spec_sections:
+      - genesis-narration-entries
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - add-genesis-narration-callback-state
+      - track-narrated-epochs-in-sim
+    verification:
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [test]

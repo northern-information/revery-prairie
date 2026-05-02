@@ -9,6 +9,7 @@ import {
   SOIL_HEALTH_MAX,
 } from '../constants'
 import {
+  completeGenesis,
   createGenesisState,
   extractGenesisResult,
   GENESIS_EPOCHS,
@@ -20,6 +21,7 @@ import {
   tickGenesis,
 } from '../genesis'
 import { posKey, tileHash } from '../position'
+import { createGameState } from '../state'
 import { TileType } from '../types'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -315,6 +317,90 @@ describe('tickGenesis', () => {
     } finally {
       vi.restoreAllMocks()
     }
+  })
+})
+
+describe('genesis narration callback', () => {
+  it('fires onEpochStart for epoch 0 on first tick', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    const calls: { commentary: string; index: number }[] = []
+    tickGenesis(sim, GENESIS_EPOCHS, 100, (c, i) => calls.push({ commentary: c, index: i }))
+    expect(calls).toEqual([{ commentary: GENESIS_EPOCHS[0].commentary, index: 0 }])
+    expect(sim.narratedEpochCount).toBe(1)
+  })
+
+  it('does not re-fire onEpochStart for an epoch on subsequent ticks within it', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    const calls: number[] = []
+    tickGenesis(sim, GENESIS_EPOCHS, 100, (_c, i) => calls.push(i))
+    tickGenesis(sim, GENESIS_EPOCHS, 200, (_c, i) => calls.push(i))
+    tickGenesis(sim, GENESIS_EPOCHS, 300, (_c, i) => calls.push(i))
+    expect(calls).toEqual([0])
+    expect(sim.narratedEpochCount).toBe(1)
+  })
+
+  it('fires onEpochStart for each subsequent epoch as ticks advance', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    const calls: number[] = []
+    const cb = (_c: string, i: number) => calls.push(i)
+
+    let t = 100
+    tickGenesis(sim, GENESIS_EPOCHS, t, cb)
+    for (let i = 0; i < GENESIS_EPOCHS.length - 1; i++) {
+      t += GENESIS_EPOCHS[i].durationMs + 1
+      tickGenesis(sim, GENESIS_EPOCHS, t, cb)
+    }
+
+    expect(calls).toEqual(Array.from({ length: GENESIS_EPOCHS.length }, (_, i) => i))
+    expect(sim.narratedEpochCount).toBe(GENESIS_EPOCHS.length)
+  })
+})
+
+describe('completeGenesis narration flush', () => {
+  it('flushes all 14 narration entries in order when called before any tick', () => {
+    const state = createGameState('Test', 20, 20)
+    const calls: { commentary: string; index: number }[] = []
+    state.onGenesisEpochStart = (commentary, index) => {
+      calls.push({ commentary, index })
+    }
+    completeGenesis(state)
+
+    expect(calls).toHaveLength(GENESIS_EPOCHS.length)
+    expect(calls.map(c => c.index)).toEqual(Array.from({ length: GENESIS_EPOCHS.length }, (_, i) => i))
+    expect(calls.map(c => c.commentary)).toEqual(GENESIS_EPOCHS.map(e => e.commentary))
+  })
+
+  it('flushes only unfired epochs when some have already been narrated live', () => {
+    const state = createGameState('Test', 20, 20)
+    const calls: number[] = []
+    state.onGenesisEpochStart = (_c, i) => calls.push(i)
+
+    // Tick the first 3 epochs live, then skip the rest.
+    if (!state.genesis) throw new Error('expected genesis')
+    let t = 100
+    tickGenesis(state.genesis, GENESIS_EPOCHS, t, state.onGenesisEpochStart)
+    for (let i = 0; i < 2; i++) {
+      t += GENESIS_EPOCHS[i].durationMs + 1
+      tickGenesis(state.genesis, GENESIS_EPOCHS, t, state.onGenesisEpochStart)
+    }
+    expect(calls).toEqual([0, 1, 2])
+
+    completeGenesis(state)
+
+    // Every epoch index appears exactly once, in order.
+    expect(calls).toEqual(Array.from({ length: GENESIS_EPOCHS.length }, (_, i) => i))
+  })
+
+  it('is a no-op for narration when called twice', () => {
+    const state = createGameState('Test', 20, 20)
+    const calls: number[] = []
+    state.onGenesisEpochStart = (_c, i) => calls.push(i)
+
+    completeGenesis(state)
+    expect(calls).toHaveLength(GENESIS_EPOCHS.length)
+
+    completeGenesis(state)
+    expect(calls).toHaveLength(GENESIS_EPOCHS.length)
   })
 })
 

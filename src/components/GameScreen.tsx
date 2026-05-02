@@ -108,6 +108,13 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
     [addEvent]
   )
 
+  // Wire genesis narration into the event log. Assigned during render so
+  // it lands on state before useGameEngine's layout effect (which may
+  // synchronously call completeGenesis on URL-skip) fires.
+  state.onGenesisEpochStart = (commentary: string) => {
+    addEvent('narration', commentary, '·', '#8b8b8b', state.player.x, state.player.y)
+  }
+
   useMusic(state)
 
   const { activeScreen, setActiveScreen } = useKeyboard({

@@ -2830,23 +2830,34 @@ export const createGenesisState = (width: number, height: number, seed: number):
     epochSnapshots: [],
     mutationsPrecomputed: false,
     rainSeed: 0,
+    narratedEpochCount: 0,
   }
 }
 
 export const getGenesisEpochs = (): GenesisEpoch[] => GENESIS_EPOCHS
 
 /** Advance the simulation. Returns true when complete. */
-export const tickGenesis = (sim: GenesisSimState, epochs: GenesisEpoch[], time: number): boolean => {
+export const tickGenesis = (
+  sim: GenesisSimState,
+  epochs: GenesisEpoch[],
+  time: number,
+  onEpochStart?: (commentary: string, epochIndex: number) => void
+): boolean => {
   if (sim.epochIndex >= epochs.length) return true
 
   sim.lastTickTime = time
   const epoch = epochs[sim.epochIndex]
 
-  // First tick of this epoch — run mutate (skipped if pre-computed)
+  // First tick of this epoch — run mutate (skipped if pre-computed),
+  // and fire the narration callback once for this epoch index.
   if (sim.epochStartTime === 0) {
     sim.epochStartTime = time
     if (!sim.mutationsPrecomputed) {
       epoch.mutate(sim)
+    }
+    if (sim.narratedEpochCount === sim.epochIndex) {
+      onEpochStart?.(epoch.commentary, sim.epochIndex)
+      sim.narratedEpochCount++
     }
   }
 
@@ -2861,8 +2872,13 @@ export const tickGenesis = (sim: GenesisSimState, epochs: GenesisEpoch[], time: 
       return true
     }
     sim.epochStartTime = time
+    const nextEpoch = epochs[sim.epochIndex]
     if (!sim.mutationsPrecomputed) {
-      epochs[sim.epochIndex].mutate(sim)
+      nextEpoch.mutate(sim)
+    }
+    if (sim.narratedEpochCount === sim.epochIndex) {
+      onEpochStart?.(nextEpoch.commentary, sim.epochIndex)
+      sim.narratedEpochCount++
     }
   }
 
@@ -2890,6 +2906,14 @@ export const completeGenesis = (state: GameState): void => {
       runAllMutations(sim, GENESIS_EPOCHS)
     }
     sim.epochIndex = GENESIS_EPOCHS.length
+  }
+
+  // Flush narration for any unfired epochs in order so the event log
+  // gets all 14 entries even when genesis is skipped.
+  while (sim.narratedEpochCount < GENESIS_EPOCHS.length) {
+    const epoch = GENESIS_EPOCHS[sim.narratedEpochCount]
+    state.onGenesisEpochStart?.(epoch.commentary, sim.narratedEpochCount)
+    sim.narratedEpochCount++
   }
 
   // Start the crossfade transition

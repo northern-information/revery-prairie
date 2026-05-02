@@ -264,6 +264,42 @@ describe('Sidebar', () => {
     })
   })
 
+  describe('genesis HUD', () => {
+    it('renders the year/epoch HUD during genesis', () => {
+      const state = createGameState('Test', 80, 40)
+      // Do NOT call completeGenesis — exercise the genesis-active branch.
+      const { container } = render(
+        <Sidebar
+          state={state}
+          activeScreen={null}
+          itemInfoRef={defaultInfoRef}
+          metricsRef={createRef()}
+          refreshUI={noop}
+        />
+      )
+
+      expect(container.textContent).toContain('Year')
+      expect(container.textContent).toContain('Epoch')
+    })
+
+    it('does not render epoch commentary text in the sidebar during genesis', () => {
+      const state = createGameState('Test', 80, 40)
+      const { container } = render(
+        <Sidebar
+          state={state}
+          activeScreen={null}
+          itemInfoRef={defaultInfoRef}
+          metricsRef={createRef()}
+          refreshUI={noop}
+        />
+      )
+
+      // The first epoch's commentary string must not appear in the sidebar —
+      // narration moved to the EventLog overlay (see event-log-overlay spec).
+      expect(container.textContent).not.toContain('Simulating birth of cosmos')
+    })
+  })
+
   describe('genesis transition backdrop continuity', () => {
     it('keeps the outer backdrop at full opacity during genesisTransition', () => {
       const state = createGameState('Test', 80, 40)

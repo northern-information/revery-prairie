@@ -287,6 +287,7 @@ export interface GameState {
   multiplayerSession: MultiplayerSession | null
   remotePlayers: Map<string, RemotePlayer>
   onPlayerMoved: (() => void) | null
+  onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null
 }
 
 export const CloverStage = {
