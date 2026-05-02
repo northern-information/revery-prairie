@@ -15,6 +15,7 @@ import {
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { tickCreatureHunger } from './hunger'
+import { setMapTile } from './map'
 import { findPath } from './pathfinding'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
 import { CloverStage, Sky, TileType, Zone } from './types'
@@ -347,7 +348,7 @@ export const pollinate = (state: GameState, center: Position): boolean => {
   if (candidates.length === 0) return false
 
   const tile = candidates[Math.floor(Math.random() * candidates.length)]
-  state.map[tile.y][tile.x] = { type: TileType.Clover }
+  setMapTile(state, tile.x, tile.y, { type: TileType.Clover })
   state.cloverLifecycle.set(posKey(tile.x, tile.y), {
     stage: CloverStage.Healthy,
     stageStartTime: Date.now(),

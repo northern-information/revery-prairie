@@ -8,6 +8,7 @@ import {
   CLOVER_MAX_GROWTH_PER_TICK,
 } from './constants'
 import { ComponentType } from './ecs/types'
+import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
 import { CARDINAL, isInBounds, posKey, tileHash } from './position'
 import { TileType, Zone } from './types'
@@ -225,7 +226,7 @@ export const tickCloverGrowth = (state: GameState): void => {
     const x = Number(xStr)
     const y = Number(yStr)
     if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Dirt) {
-      state.map[y][x] = { type: TileType.Clover }
+      setMapTile(state, x, y, { type: TileType.Clover })
       state.cloverLifecycle.delete(key)
     }
   }

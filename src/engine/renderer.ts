@@ -138,6 +138,7 @@ import {
   WALL_LEFT_SHADE,
   WALL_RIGHT_SHADE,
 } from './tileBg'
+import { flushDirtyTiles, getOrBuildCache } from './tileBgCache'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
@@ -1125,114 +1126,33 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Pre-pass: per-tile surface backgrounds. Every visible non-space tile
-  // in the iso-visible parallelogram gets a diamond fill from
-  // TILE_BG_PALETTES keyed by tileHash, painted at the elevation-lifted
-  // position so the bg tracks the lifted surface. Drawn first so all
-  // subsequent overlay pre-passes (earth scan, ruin halo, lightning
-  // range, angel aura) and the main glyph loop layer on top. Cave
-  // hidden tiles are masked to CaveWall so the secret chamber stays
-  // hidden until reveal.
+  // Pre-pass: per-tile surface bg + south/east cube-edge stroke. The
+  // static layer for the current map is baked into a per-map offscreen
+  // canvas (tileBgCache) sized to the full world iso bounding box.
+  // setMapTile mutations mark tiles dirty; flushDirtyTiles repaints
+  // them in place before the blit. The whole cache is drawn at a
+  // camera-derived translation; pixels outside the viewport are
+  // clipped by the destination canvas.
   //
-  // Each diamond is expanded outward by TILE_BG_OVERLAP px so adjacent
-  // fills overlap by ~2px; later-drawn neighbors cleanly overwrite the
-  // earlier tile's edge in painter's order, covering the AA seam at
-  // shared diamond edges. Per-tile direct ctx path fills are used in
-  // preference to a pooled-by-color Path2D — Path2D operations are
-  // measured ~10x slower than direct ctx path ops in current browsers,
-  // and a Path2D-per-color pre-pass dominated the frame budget.
-  //
-  // Hot path: ~16k tiles per frame at iso DPR-2 fullscreen. Projection
-  // and diamond-corner math is inlined to avoid per-tile object
-  // allocations, and posKey is only called for the cave-hidden check.
+  // Cache origin maps tile (mx, my) to cache pixel
+  //   px = (mx - my) * charWidth + cache.worldOriginX + halfW
+  //   py = (mx + my) * halfH + cache.worldOriginY + lift
+  // The renderer's viewport projection for the same tile is
+  //   px = (mx - my) * charWidth + (camera.y - camera.x) * charWidth + originX + halfW
+  //   py = (mx + my) * halfH + (-(camera.x + camera.y)) * halfH + originY + lift
+  // Translation between them collapses to constants in (mx, my):
+  //   dx = (camera.y - camera.x) * charWidth + originX - cache.worldOriginX
+  //   dy = -(camera.x + camera.y) * halfH + originY - cache.worldOriginY
   {
-    const bgBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
-    const TILE_BG_OVERLAP = 2
-    const halfH = charHeight / 2
-    const halfW = charWidth / 2
-    // viewportToScreen origins, hoisted out of the loop.
-    const originX = (viewportHeight * charWidth) / 2 - halfW
-    const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
-    const caveMaskActive = state.currentZone === Zone.Cave && !state.caveRevealed
-    for (let vy = bgBounds.vyStart; vy < bgBounds.vyEnd; vy++) {
-      for (let vx = bgBounds.vxStart; vx < bgBounds.vxEnd; vx++) {
-        const mx = camera.x + vx
-        const my = camera.y + vy
-        if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
-        const tile = map[my][mx]
-        if (tile.type === TileType.Space) continue
-        const effectiveType =
-          caveMaskActive && state.caveHiddenPositions.has(posKey(mx, my))
-            ? TileType.CaveWall
-            : tile.type
-        ctx.fillStyle = getTileBgColor(effectiveType, mx, my)
-        // Inline viewportToScreen.
-        const px = (vx - vy) * charWidth + originX + halfW
-        const py = (vx + vy) * halfH + originY + liftAt(mx, my)
-        // Inline getCellDiamondCorners and apply expansion.
-        const leftX = px - halfW
-        const rightX = leftX + 2 * charWidth
-        const topY = py
-        const bottomY = topY + charHeight
-        const cx = leftX + charWidth
-        const cy = topY + halfH
-        ctx.beginPath()
-        ctx.moveTo(cx, topY - TILE_BG_OVERLAP)
-        ctx.lineTo(rightX + TILE_BG_OVERLAP, cy)
-        ctx.lineTo(cx, bottomY + TILE_BG_OVERLAP)
-        ctx.lineTo(leftX - TILE_BG_OVERLAP, cy)
-        ctx.closePath()
-        ctx.fill()
-      }
-    }
-  }
-  // Pre-pass: per-tile cube-edge stroke. Draws a darker line along the
-  // south + east diamond edges of each non-space land tile, simulating
-  // the cube's bottom-left and bottom-right faces without doing a full
-  // wall fill. Strokes are far cheaper than per-tile filled wall quads
-  // (~5x faster in profiling) while preserving the "every tile is a
-  // discrete cube" look the user asked for. Tier-transition cliffs are
-  // still drawn as proper filled walls in the main glyph loop.
-  {
-    const edgeBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
+    flushDirtyTiles(state, map)
+    const cache = getOrBuildCache(state, map, charWidth, charHeight)
     const halfH = charHeight / 2
     const halfW = charWidth / 2
     const originX = (viewportHeight * charWidth) / 2 - halfW
     const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
-    const caveMaskActive = state.currentZone === Zone.Cave && !state.caveRevealed
-    const savedLineWidth = ctx.lineWidth
-    const savedStroke = ctx.strokeStyle
-    ctx.lineWidth = 1
-    for (let vy = edgeBounds.vyStart; vy < edgeBounds.vyEnd; vy++) {
-      for (let vx = edgeBounds.vxStart; vx < edgeBounds.vxEnd; vx++) {
-        const mx = camera.x + vx
-        const my = camera.y + vy
-        if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
-        const tile = map[my][mx]
-        if (tile.type === TileType.Space) continue
-        const effectiveType =
-          caveMaskActive && state.caveHiddenPositions.has(posKey(mx, my))
-            ? TileType.CaveWall
-            : tile.type
-        const bg = getTileBgColor(effectiveType, mx, my)
-        ctx.strokeStyle = darkenColor(bg, WALL_RIGHT_SHADE)
-        const px = (vx - vy) * charWidth + originX + halfW
-        const py = (vx + vy) * halfH + originY + liftAt(mx, my)
-        const leftX = px - halfW
-        const rightX = leftX + 2 * charWidth
-        const topY = py
-        const bottomY = topY + charHeight
-        const cx = leftX + charWidth
-        const cy = topY + halfH
-        ctx.beginPath()
-        ctx.moveTo(leftX, cy)
-        ctx.lineTo(cx, bottomY)
-        ctx.lineTo(rightX, cy)
-        ctx.stroke()
-      }
-    }
-    ctx.lineWidth = savedLineWidth
-    ctx.strokeStyle = savedStroke
+    const dx = (camera.y - camera.x) * charWidth + originX - cache.worldOriginX
+    const dy = -(camera.x + camera.y) * halfH + originY - cache.worldOriginY
+    ctx.drawImage(cache.canvas, dx, dy)
   }
   // Pre-pass: earth scan backgrounds — drawn after the tile bg pre-pass so
   // scan colors paint opaque on top of the surface bg. Fade-out uses

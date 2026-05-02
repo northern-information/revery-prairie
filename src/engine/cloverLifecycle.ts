@@ -13,6 +13,7 @@ import {
 } from './constants'
 import { spawnPickupBloom } from './effects'
 import { findFitPosition, placeItem } from './inventory'
+import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
 import { isInBounds, posKey } from './position'
 import { CloverStage, TileType, Zone } from './types'
@@ -184,7 +185,7 @@ export const harvestClover = (state: GameState, time?: number): HarvestResult =>
   const fit = findFitPosition(state.backpack, 'clover')
   if (!fit) return HarvestResult.BackpackFull
 
-  state.map[pos.y][pos.x] = { type: TileType.Dirt }
+  setMapTile(state, pos.x, pos.y, { type: TileType.Dirt })
   placeItem(state.backpack, 'clover', fit.gridX, fit.gridY)
   state.cloverLifecycle.delete(posKey(pos.x, pos.y))
   recordDiscovery(state, 'event:clover-harvest')
@@ -199,7 +200,7 @@ export const cutClover = (state: GameState): boolean => {
   if (!pos) return false
 
   const key = posKey(pos.x, pos.y)
-  state.map[pos.y][pos.x] = { type: TileType.Dirt }
+  setMapTile(state, pos.x, pos.y, { type: TileType.Dirt })
   addSoilHealth(state, key, SOIL_HEALTH_CUT_BONUS)
   state.cloverLifecycle.delete(key)
   recordDiscovery(state, 'event:clover-cut')

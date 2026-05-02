@@ -1,0 +1,187 @@
+plan:
+  id: tile-bg-cache
+  title: 'Cache static tile-bg + cube-edge pre-passes via offscreen canvas'
+  created: '2026-05-02'
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npm run test'
+    - 'npm run build'
+
+tasks:
+  - id: add-tile-bg-cache-module
+    title: 'Create src/engine/tileBgCache.ts with WeakMap-keyed offscreen canvas cache'
+    spec_id: renderer
+    spec_sections:
+      - tile-background-cache
+      - tile-background-pre-pass
+    context_files:
+      - src/engine/tileBg.ts
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/tileBgCache.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-set-map-tile-helper
+    title: 'Add setMapTile(state, x, y, tile) sanctioned mutation API in src/engine/map.ts'
+    spec_id: renderer
+    spec_sections:
+      - tile-background-cache
+    context_files:
+      - src/engine/types.ts
+      - src/engine/tileBgCache.ts
+    output_files:
+      - src/engine/map.ts
+    depends_on:
+      - add-tile-bg-cache-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags:
+      - engine
+
+  - id: refactor-mutation-sites
+    title: 'Refactor all 12 raw state.map[y][x] writes to use setMapTile'
+    spec_id: renderer
+    spec_sections:
+      - tile-background-cache
+    context_files:
+      - src/engine/map.ts
+      - src/engine/cloverLifecycle.ts
+      - src/engine/lightning.ts
+      - src/engine/recipes.ts
+      - src/engine/monarch.ts
+      - src/engine/clover.ts
+      - src/engine/interaction.ts
+      - src/engine/devPanel.ts
+      - src/engine/angels.ts
+    output_files:
+      - src/engine/cloverLifecycle.ts
+      - src/engine/lightning.ts
+      - src/engine/recipes.ts
+      - src/engine/monarch.ts
+      - src/engine/clover.ts
+      - src/engine/interaction.ts
+      - src/engine/devPanel.ts
+      - src/engine/angels.ts
+    depends_on:
+      - add-set-map-tile-helper
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npm run lint'
+      - 'npm run test'
+    repair: retry
+    tags:
+      - engine
+      - refactor
+
+  - id: invalidate-on-cave-reveal
+    title: 'Call invalidateMapCache(state.map) at the caveRevealed = true site'
+    spec_id: renderer
+    spec_sections:
+      - tile-background-cache
+      - cave-masking
+    context_files:
+      - src/engine/tileBgCache.ts
+      - src/engine/interaction.ts
+      - src/engine/cave.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - add-tile-bg-cache-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags:
+      - engine
+
+  - id: wire-renderer-to-cache
+    title: 'Replace tile-bg + cube-edge pre-passes with flushDirtyTiles + drawImage'
+    spec_id: renderer
+    spec_sections:
+      - tile-background-pre-pass
+      - tile-background-cache
+      - main-render-loop
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBgCache.ts
+      - src/engine/tileBg.ts
+      - src/engine/camera.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-tile-bg-cache-module
+      - refactor-mutation-sites
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npm run test'
+    repair: retry
+    tags:
+      - engine
+      - render
+
+  - id: add-cache-tests
+    title: 'Unit tests for tileBgCache: lazy build, dirty flush, full invalidate, multi-map isolation'
+    spec_id: renderer
+    spec_sections:
+      - tile-background-cache
+    context_files:
+      - src/engine/tileBgCache.ts
+      - src/engine/__tests__/gameLoop.test.ts
+    output_files:
+      - src/engine/__tests__/tileBgCache.test.ts
+    depends_on:
+      - add-tile-bg-cache-module
+      - add-set-map-tile-helper
+    verification:
+      - 'npx vitest run src/engine/__tests__/tileBgCache.test.ts'
+    repair: retry
+    tags:
+      - test
+
+  - id: add-renderer-integration-test
+    title: 'Verify cached pre-pass output matches uncached baseline pixel-for-pixel'
+    spec_id: renderer
+    spec_sections:
+      - tile-background-pre-pass
+      - tile-background-cache
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBgCache.ts
+      - src/engine/__tests__/gameLoop.test.ts
+    output_files:
+      - src/engine/__tests__/renderer-cache.test.ts
+    depends_on:
+      - wire-renderer-to-cache
+    verification:
+      - 'npx vitest run src/engine/__tests__/renderer-cache.test.ts'
+    repair: retry
+    tags:
+      - test
+      - render
+
+  - id: verify-perf
+    title: 'Measure frame time before/after on a fullscreen overworld scene'
+    spec_id: renderer
+    spec_sections:
+      - tile-background-pre-pass
+      - tile-background-cache
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBgCache.ts
+    output_files: []
+    depends_on:
+      - wire-renderer-to-cache
+      - add-renderer-integration-test
+    verification:
+      - 'npm run build'
+    repair: skip
+    tags:
+      - perf
