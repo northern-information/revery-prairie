@@ -191,7 +191,7 @@ export const useKeyboard = ({
         if (axis && activeScreen !== 'system') {
           e.preventDefault()
           state.heldKeys.add(axis)
-          state.heldDirection = resolveHeldDirection(state.heldKeys, state.isometricProjection)
+          state.heldDirection = resolveHeldDirection(state.heldKeys)
           document.documentElement.classList.add('cursor-hidden')
           if (!e.repeat) {
             state.path = null
@@ -314,7 +314,7 @@ export const useKeyboard = ({
       if (axis) {
         e.preventDefault()
         state.heldKeys.add(axis)
-        state.heldDirection = resolveHeldDirection(state.heldKeys, state.isometricProjection)
+        state.heldDirection = resolveHeldDirection(state.heldKeys)
         document.documentElement.classList.add('cursor-hidden')
         if (!e.repeat) {
           state.path = null
@@ -333,7 +333,7 @@ export const useKeyboard = ({
       const axis = keyToScreenAxis(e.key)
       if (axis) {
         state.heldKeys.delete(axis)
-        state.heldDirection = resolveHeldDirection(state.heldKeys, state.isometricProjection)
+        state.heldDirection = resolveHeldDirection(state.heldKeys)
       }
 
       // Release number key → cast revery or enter targeting mode

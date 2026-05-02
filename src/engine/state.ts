@@ -120,7 +120,6 @@ export const createGameState = (
     panelOpenMoveCount: 0,
     fontScale: 1.25,
     zoom: ZOOM_DEFAULT,
-    isometricProjection: true,
     cameraMode: 'follow',
     lastEdgeScrollTime: 0,
     edgeScrollPos: null,

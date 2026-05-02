@@ -122,7 +122,6 @@ const EXPECTED_FIELDS = [
   'remotePlayers',
   'onPlayerMoved',
   'onGenesisEpochStart',
-  'isometricProjection',
   'cameraMode',
   'lastEdgeScrollTime',
   'edgeScrollPos',

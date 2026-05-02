@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 
 import { castLightningAtTarget, isValidLightningTarget } from '@/engine/actionBar'
 import { getCharacterDefinition } from '@/engine/characters'
-import { expandClickTileForIso } from '@/engine/clickResolution'
+import { expandClickTile } from '@/engine/clickResolution'
 import { SELECTION_DRAG_THRESHOLD } from '@/engine/constants'
 import { screenToTile } from '@/engine/coordinates'
 import { isDeepTimeLocked } from '@/engine/deepTime'
@@ -211,7 +211,6 @@ export const useMouse = ({
             state.camera,
             metrics.charWidth,
             metrics.charHeight,
-            state.isometricProjection,
             state.viewportWidth,
             state.viewportHeight,
           )
@@ -221,7 +220,6 @@ export const useMouse = ({
             state.camera,
             metrics.charWidth,
             metrics.charHeight,
-            state.isometricProjection,
             state.viewportWidth,
             state.viewportHeight,
           )
@@ -263,7 +261,6 @@ export const useMouse = ({
           state.camera,
           metrics.charWidth,
           metrics.charHeight,
-          state.isometricProjection,
           state.viewportWidth,
           state.viewportHeight,
         )
@@ -300,14 +297,13 @@ export const useMouse = ({
         state.camera,
         metrics.charWidth,
         metrics.charHeight,
-        state.isometricProjection,
         state.viewportWidth,
         state.viewportHeight,
       )
       if (rawTile.x < 0 || rawTile.x >= state.mapWidth || rawTile.y < 0 || rawTile.y >= state.mapHeight) return
-      // Iso forgiving hit-test: if the geometric tile has no clickable, snap
-      // to a cardinal-neighbor tile that does. Ortho mode stays strict.
-      const tile = expandClickTileForIso(state, rawTile)
+      // Forgiving hit-test: if the geometric tile has no clickable, snap to
+      // a cardinal-neighbor tile that does.
+      const tile = expandClickTile(state, rawTile)
 
       // Click on the player tile — toggle player selection
       if (tile.x === state.player.x && tile.y === state.player.y) {
@@ -364,7 +360,7 @@ export const useMouse = ({
           state.player,
           resolved.walkTarget,
           blocked,
-          { allowDiagonal: state.isometricProjection },
+          { allowDiagonal: true },
         )
         state.pathWaypoints = state.path ? [resolved.walkTarget] : []
         refreshUI()
@@ -402,7 +398,6 @@ export const useMouse = ({
         state.camera,
         metrics.charWidth,
         metrics.charHeight,
-        state.isometricProjection,
         state.viewportWidth,
         state.viewportHeight,
       )
@@ -441,7 +436,7 @@ export const useMouse = ({
         if (lastWaypoint?.x === walkTarget.x && lastWaypoint?.y === walkTarget.y) return
         const chainFrom = state.path[state.path.length - 1]
         const extension = findPath(state.map, state.mapWidth, state.mapHeight, chainFrom, walkTarget, blocked, {
-          allowDiagonal: state.isometricProjection,
+          allowDiagonal: true,
         })
         if (!extension || extension.length === 0) return
         state.path.push(...extension)
@@ -456,7 +451,7 @@ export const useMouse = ({
       if (!action) state.pendingInteractionTarget = null
       state.previewFn = null
       state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, walkTarget, blocked, {
-        allowDiagonal: state.isometricProjection,
+        allowDiagonal: true,
       })
       state.pathWaypoints = state.path ? [walkTarget] : []
       refreshUI()

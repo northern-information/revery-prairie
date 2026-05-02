@@ -1,5 +1,5 @@
 id: sidebar-iso-cursor-effects
-name: 'Sidebar cursor info uses projection-aware screen-to-tile'
+name: 'Sidebar cursor info uses the projection-aware screen-to-tile transform'
 priority: high
 layer: component
 source_files:
@@ -14,30 +14,25 @@ behaviors:
   - id: projection-aware-cursor-tile
     description: >
       The Sidebar derives its cursor tile from state.cursorScreenPos using
-      the engine's screenToTile transform, passing state.isometricProjection
-      and the current viewport dimensions. The same screen-to-tile path used
-      by the canvas highlight, click-to-move, and updateCursorState applies
-      to the sidebar so the displayed Position, Contents, and Effects rows
-      always describe the tile under the visual cursor highlight, regardless
-      of projection mode.
+      the engine's screenToTile transform, passing the current viewport
+      dimensions. The same screen-to-tile path used by the canvas
+      highlight, click-to-move, and updateCursorState applies to the
+      sidebar so the displayed Position, Contents, and Effects rows
+      always describe the tile under the visual cursor highlight.
     inputs:
       - 'state.cursorScreenPos is non-null and metricsRef.current is non-null'
-      - 'state.isometricProjection is true (default) or false'
     outputs:
       - 'sidebar Cursor section renders Position, Contents, and Effects for the tile under the visual cursor highlight'
     state_changes: []
     determinism: deterministic
-  - id: effects-row-reflects-iso-cursor
+  - id: effects-row-reflects-cursor
     description: >
-      In isometric projection mode, hovering a tile that is within an Aura
-      component's radius (e.g. Gron's rain aura), inside an active rain
-      front, on a glint zone, or otherwise covered by a persistent
-      map-visible effect causes the sidebar Effects row to list that effect.
-      Before the fix the sidebar derived its tile with an orthogonal-only
-      formula and queried getTileEffects for the wrong tile, so the row
-      always rendered "None" in iso mode.
+      Hovering a tile that is within an Aura component's radius (e.g.
+      Gron's rain aura), inside an active rain front, on a glint zone,
+      or otherwise covered by a persistent map-visible effect causes the
+      sidebar Effects row to list that effect.
     inputs:
-      - 'isometricProjection is true and cursor screen position is within the screen footprint of a tile inside Gron rain aura'
+      - 'cursor screen position is within the screen footprint of a tile inside Gron rain aura'
     outputs:
       - 'sidebar Effects row displays "rain"'
     state_changes: []
@@ -45,8 +40,7 @@ behaviors:
   - id: cursor-leaves-canvas-clears-section
     description: >
       When the mouse leaves the canvas (state.cursorScreenPos becomes null)
-      the sidebar Cursor section is not rendered. This existing behavior
-      must be preserved by the fix.
+      the sidebar Cursor section is not rendered.
     inputs:
       - 'state.cursorScreenPos is null'
     outputs:
@@ -54,32 +48,25 @@ behaviors:
     state_changes: []
     determinism: deterministic
 edge_cases:
-  - id: ortho-mode-still-works
-    description: >
-      With state.isometricProjection set to false, the screen-to-tile result
-      reduces to the same Math.floor(canvas / charSize) + camera that the
-      previous manual computation used, so existing ortho behavior is
-      unchanged.
-    expected: 'sidebar Position, Contents, and Effects rows show the same values they showed before the fix when iso is off'
   - id: viewport-dims-zero-before-first-frame
     description: >
       state.viewportWidth and state.viewportHeight start at 0 before the
-      canvas has measured itself. screenToTile in iso mode divides by the
+      canvas has measured itself. screenToTile divides by the
       viewport-derived origin offsets; the sidebar must tolerate this
       transient state without throwing or producing NaN positions.
     expected: 'sidebar renders without error before the first canvas frame; cursor section may render an out-of-bounds tile but does not crash'
   - id: gron-aura-radius-six-tiles
     description: >
       Gron is created with aura kind "rain" and radius 6 (AURA_RADIUS.rain).
-      Hovering any tile within Chebyshev distance 6 of Gron, in iso mode,
-      must surface "rain" in the Effects row.
+      Hovering any tile within Chebyshev distance 6 of Gron must surface
+      "rain" in the Effects row.
     expected: 'sidebar Effects row contains "rain" when cursor tile is within 6 tiles of Gron'
 failure_conditions:
-  - trigger: 'iso projection is on (default) and cursor hovers a tile inside Gron rain aura'
+  - trigger: 'cursor hovers a tile inside Gron rain aura'
     expected: 'sidebar Effects row shows "rain", not "None"'
-  - trigger: 'iso projection is on and cursor hovers an angel aura tile'
+  - trigger: 'cursor hovers an angel aura tile'
     expected: 'sidebar Effects row shows the angel aura kind, not "None"'
-  - trigger: 'iso projection is on and cursor hovers a glint zone tile'
+  - trigger: 'cursor hovers a glint zone tile'
     expected: 'sidebar Effects row shows "glinting", not "None"'
 verification:
   test_file: src/components/__tests__/Sidebar.test.tsx

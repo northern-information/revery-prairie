@@ -99,30 +99,37 @@ describe('tickEdgeScroll', () => {
     expect(state.cameraMode).toBe('free')
   })
 
-  it('moves camera left when cursor is at the left edge', () => {
-    // 100ms frame at 18 tiles/sec = 1.8 tiles, rounds to 2.
-    state.edgeScrollPos ={ x: 5, y: 240 }
+  it('moves camera in screen-left direction when cursor is at the left edge', () => {
+    // Screen-left input maps through the inverse projection to world delta
+    // (-0.5, +0.5) per screen tile: camera moves left and down in world.
+    // 200ms at 18 tiles/sec * 0.5 = 1.8 → trunc = 1 step in each axis.
+    state.edgeScrollPos = { x: 5, y: 240 }
     state.lastEdgeScrollTime = 0
-    tickEdgeScroll(state, metrics, 100)
+    tickEdgeScroll(state, metrics, 200)
     expect(state.camera.x).toBeLessThan(50)
-    expect(state.camera.y).toBe(30)
+    expect(state.camera.y).toBeGreaterThan(30)
   })
 
-  it('moves camera diagonally in a corner', () => {
-    state.edgeScrollPos ={ x: 5, y: 5 }
+  it('moves camera diagonally up-left in the top-left corner', () => {
+    // Screen (-1, -1) maps to world (-1.5, -0.5): camera moves left and up.
+    state.edgeScrollPos = { x: 5, y: 5 }
     state.lastEdgeScrollTime = 0
-    tickEdgeScroll(state, metrics, 100)
+    tickEdgeScroll(state, metrics, 200)
     expect(state.camera.x).toBeLessThan(50)
     expect(state.camera.y).toBeLessThan(30)
   })
 
-  it('moves camera by trunc(speed*dt) tiles per frame, accumulating remainder', () => {
+  it('moves camera by trunc(camDx*speed*dt) tiles per frame, accumulating remainder', () => {
     state.edgeScrollPos = { x: 5, y: 240 }
     state.lastEdgeScrollTime = 0
-    tickEdgeScroll(state, metrics, 100)
-    // Expected: 50 - trunc(18 * 0.1) = 50 - 1 = 49; subpixel x = -0.8
-    expect(state.camera.x).toBe(50 - Math.trunc(EDGE_SCROLL_SPEED_TILES_PER_SEC * 0.1))
-    expect(state.cameraSubpixel.x).toBeCloseTo(-0.8, 5)
+    tickEdgeScroll(state, metrics, 200)
+    // dx=-1, dy=0: camDxPerTile = -0.5. Step = trunc(-0.5 * 18 * 0.2) = -1
+    const camDxPerTile = -0.5
+    const dtSec = 0.2
+    const expectedDelta = camDxPerTile * EDGE_SCROLL_SPEED_TILES_PER_SEC * dtSec
+    const step = Math.trunc(expectedDelta)
+    expect(state.camera.x).toBe(50 + step)
+    expect(state.cameraSubpixel.x).toBeCloseTo(expectedDelta - step, 5)
   })
 
   it('subpixel accumulator drives camera at sub-1-tile-per-frame rates', () => {
@@ -130,7 +137,7 @@ describe('tickEdgeScroll', () => {
     state.lastEdgeScrollTime = 0
     let now = 0
     const startCamera = state.camera.x
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 20; i++) {
       now += 16
       tickEdgeScroll(state, metrics, now)
     }

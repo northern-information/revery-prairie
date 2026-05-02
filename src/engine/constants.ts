@@ -92,21 +92,10 @@ export const SHOOTING_STAR_TRAIL_COLORS = ['#CCC', '#999', '#666', '#444', '#222
 // direction → trail character (keys are "dx,dy" velocity strings)
 export type VelocityKey = '1,1' | '-1,-1' | '1,-1' | '-1,1' | '1,0' | '-1,0' | '0,1' | '0,-1'
 
-export const SHOOTING_STAR_TRAIL_CHARS: Record<VelocityKey, string> = {
-  '1,1': '\\',
-  '-1,-1': '\\',
-  '1,-1': '/',
-  '-1,1': '/',
-  '1,0': '-',
-  '-1,0': '-',
-  '0,1': '|',
-  '0,-1': '|',
-}
-
-// iso projection rotates world deltas by 45°: world (vx, vy) projects to
+// projection rotates world deltas by 45°: world (vx, vy) projects to
 // screen ((vx - vy) * cw, (vx + vy) * halfH). pick the glyph that matches
 // the resulting on-screen slope, not the world-space slope.
-export const SHOOTING_STAR_TRAIL_CHARS_ISO: Record<VelocityKey, string> = {
+export const SHOOTING_STAR_TRAIL_CHARS: Record<VelocityKey, string> = {
   '1,1': '|',
   '-1,-1': '|',
   '1,-1': '-',

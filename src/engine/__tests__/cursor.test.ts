@@ -1,23 +1,39 @@
 import { updateCursorState } from '../cursor'
+import { worldToScreen } from '../projection'
 import { TileType } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
-import type { CharMetrics } from '../types'
+import type { CharMetrics, GameState, Position } from '../types'
 
 const metrics: CharMetrics = { charWidth: 10, charHeight: 16, font: '16px monospace' }
+
+// Convert a target world tile to a cursorScreenPos that lands inside its
+// diamond. Nudge by (0, charHeight/2) into the diamond center.
+const cursorPosForTile = (state: GameState, target: Position) => {
+  const { px, py } = worldToScreen(
+    target.x,
+    target.y,
+    state.camera,
+    metrics.charWidth,
+    metrics.charHeight,
+    state.viewportWidth,
+    state.viewportHeight,
+  )
+  return { x: px + 0.01, y: py + metrics.charHeight / 2 + 0.01 }
+}
 
 describe('updateCursorState', () => {
   it('sets cursorTile from cursorScreenPos using camera + metrics', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
     state.camera = { x: 3, y: 7 }
-    state.cursorScreenPos = { x: 25, y: 48 }
+    const target = { x: 5, y: 10 }
+    state.cursorScreenPos = cursorPosForTile(state, target)
 
     updateCursorState(state, metrics)
 
-    // floor(25/10) + 3 = 5, floor(48/16) + 7 = 10
-    expect(state.cursorTile).toEqual({ x: 5, y: 10 })
+    expect(state.cursorTile).toEqual(target)
   })
 
   it('clears cursorTile when cursorScreenPos is null', () => {
@@ -33,20 +49,16 @@ describe('updateCursorState', () => {
   it('computes hoverPath when cursor moves to a new walkable tile', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
-    // Position camera so cursor maps to a tile near the player
     state.camera = { x: state.player.x - 2, y: state.player.y - 2 }
-    // Screen pos that maps to player.x + 1, player.y
-    state.cursorScreenPos = {
-      x: 3 * metrics.charWidth,
-      y: 2 * metrics.charHeight,
-    }
+    const target = { x: state.player.x + 1, y: state.player.y }
+    state.cursorScreenPos = cursorPosForTile(state, target)
 
     updateCursorState(state, metrics)
 
-    expect(state.cursorTile).toEqual({ x: state.player.x + 1, y: state.player.y })
+    expect(state.cursorTile).toEqual(target)
     expect(state.hoverPath).not.toBeNull()
     expect(state.hoverPath?.length).toBeGreaterThan(0)
-    expect(state.hoverPathTarget).toEqual({ x: state.player.x + 1, y: state.player.y })
+    expect(state.hoverPathTarget).toEqual(target)
   })
 
   it('clears hoverPath when cursor is null', () => {
@@ -65,11 +77,9 @@ describe('updateCursorState', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
     state.camera = { x: state.player.x - 2, y: state.player.y - 2 }
-    state.cursorScreenPos = {
-      x: 3 * metrics.charWidth,
-      y: 2 * metrics.charHeight,
-    }
-    state.path = [{ x: state.player.x + 1, y: state.player.y }]
+    const target = { x: state.player.x + 1, y: state.player.y }
+    state.cursorScreenPos = cursorPosForTile(state, target)
+    state.path = [target]
 
     updateCursorState(state, metrics)
 
@@ -82,11 +92,7 @@ describe('updateCursorState', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
     state.camera = { x: state.player.x - 2, y: state.player.y - 2 }
-    // Screen pos that maps exactly to the player
-    state.cursorScreenPos = {
-      x: 2 * metrics.charWidth,
-      y: 2 * metrics.charHeight,
-    }
+    state.cursorScreenPos = cursorPosForTile(state, { x: state.player.x, y: state.player.y })
 
     updateCursorState(state, metrics)
 
@@ -99,53 +105,40 @@ describe('updateCursorState', () => {
     clearAroundPlayer(state, 5)
     const target = { x: state.player.x + 1, y: state.player.y }
     state.camera = { x: state.player.x - 2, y: state.player.y - 2 }
-    state.cursorScreenPos = {
-      x: 3 * metrics.charWidth,
-      y: 2 * metrics.charHeight,
-    }
-    // Pre-set hoverPathTarget to match what cursorTile will resolve to
+    state.cursorScreenPos = cursorPosForTile(state, target)
     state.hoverPathTarget = { ...target }
     const sentinel = [{ x: 99, y: 99 }]
     state.hoverPath = sentinel
 
     updateCursorState(state, metrics)
 
-    // hoverPath should not have been overwritten
     expect(state.hoverPath).toBe(sentinel)
   })
 
   it('sets hoverPath to null for unwalkable tiles', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
-    const targetX = state.player.x + 1
-    const targetY = state.player.y
-    state.map[targetY][targetX] = { type: TileType.Space }
+    const target = { x: state.player.x + 1, y: state.player.y }
+    state.map[target.y][target.x] = { type: TileType.Space }
     state.camera = { x: state.player.x - 2, y: state.player.y - 2 }
-    state.cursorScreenPos = {
-      x: 3 * metrics.charWidth,
-      y: 2 * metrics.charHeight,
-    }
+    state.cursorScreenPos = cursorPosForTile(state, target)
 
     updateCursorState(state, metrics)
 
-    expect(state.cursorTile).toEqual({ x: targetX, y: targetY })
+    expect(state.cursorTile).toEqual(target)
     expect(state.hoverPath).toBeNull()
-    expect(state.hoverPathTarget).toEqual({ x: targetX, y: targetY })
+    expect(state.hoverPathTarget).toEqual(target)
   })
 
   it('sets hoverPath to null for out-of-bounds cursor', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
-    // Camera offset that pushes the cursor tile past mapWidth
     state.camera = { x: state.mapWidth - 1, y: state.mapHeight - 1 }
-    state.cursorScreenPos = {
-      x: 5 * metrics.charWidth,
-      y: 5 * metrics.charHeight,
-    }
+    const target = { x: state.mapWidth + 4, y: state.mapHeight + 4 }
+    state.cursorScreenPos = cursorPosForTile(state, target)
 
     updateCursorState(state, metrics)
 
-    // Cursor tile is out of bounds
     expect(state.cursorTile?.x).toBeGreaterThanOrEqual(state.mapWidth)
     expect(state.hoverPath).toBeNull()
   })

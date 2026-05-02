@@ -53,18 +53,18 @@ vi.mock('@/engine/input', async importOriginal => {
     ...actual,
     keyToDirection: vi.fn((key: string) => {
       const map: Record<string, string> = {
-        w: 'up',
-        W: 'up',
-        a: 'left',
-        A: 'left',
-        s: 'down',
-        S: 'down',
-        d: 'right',
-        D: 'right',
-        ArrowUp: 'up',
-        ArrowDown: 'down',
-        ArrowLeft: 'left',
-        ArrowRight: 'right',
+        w: 'upLeft',
+        W: 'upLeft',
+        a: 'downLeft',
+        A: 'downLeft',
+        s: 'downRight',
+        S: 'downRight',
+        d: 'upRight',
+        D: 'upRight',
+        ArrowUp: 'upLeft',
+        ArrowDown: 'downRight',
+        ArrowLeft: 'downLeft',
+        ArrowRight: 'upRight',
       }
       return map[key] ?? null
     }),
@@ -334,7 +334,7 @@ describe('useKeyboard', () => {
         fireKey('d')
       })
 
-      expect(state.heldDirection).toBe('right')
+      expect(state.heldDirection).toBe('upRight')
     })
 
     it('clears path and pending state', () => {
@@ -376,7 +376,7 @@ describe('useKeyboard', () => {
         fireKey('w', { repeat: true })
       })
 
-      expect(state.heldDirection).toBe('up')
+      expect(state.heldDirection).toBe('upLeft')
       expect(movePlayer).not.toHaveBeenCalled()
     })
   })
@@ -492,7 +492,7 @@ describe('useKeyboard', () => {
         fireKey('w')
       })
 
-      expect(state.heldDirection).toBe('up')
+      expect(state.heldDirection).toBe('upLeft')
     })
 
     it('blocks non-movement keys while dragging', () => {
@@ -525,7 +525,7 @@ describe('useKeyboard', () => {
       act(() => {
         fireKey('w')
       })
-      expect(state.heldDirection).toBe('up')
+      expect(state.heldDirection).toBe('upLeft')
 
       act(() => {
         fireKeyUp('w')
@@ -539,12 +539,12 @@ describe('useKeyboard', () => {
       act(() => {
         fireKey('w')
       })
-      expect(state.heldDirection).toBe('up')
+      expect(state.heldDirection).toBe('upLeft')
 
       act(() => {
         fireKeyUp('a')
       })
-      expect(state.heldDirection).toBe('up')
+      expect(state.heldDirection).toBe('upLeft')
     })
   })
 })

@@ -112,9 +112,9 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
   }, [metricsRef, state])
 
   // Derive cursor world tile from screen position + current camera each render.
-  // Use the engine's screenToTile so the iso inverse transform matches the
-  // canvas highlight, click-to-move, and updateCursorState — otherwise the
-  // sidebar reads Position/Contents/Effects for the wrong tile in iso mode.
+  // Use the engine's screenToTile so the inverse transform matches the canvas
+  // highlight, click-to-move, and updateCursorState — otherwise the sidebar
+  // reads Position/Contents/Effects for the wrong tile.
   const metrics = metricsRef.current
   const cursorTile =
     state.cursorScreenPos && metrics
@@ -124,7 +124,6 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
           state.camera,
           metrics.charWidth,
           metrics.charHeight,
-          state.isometricProjection,
           state.viewportWidth,
           state.viewportHeight,
         )

@@ -17,15 +17,14 @@ export interface DiamondCorners {
 /**
  * Returns the (px, py) anchor at which a monospace glyph at viewport
  * tile (vx, vy) should be drawn (ctx.fillText with textBaseline 'top'
- * and textAlign default 'left'). In orthogonal mode this is the
- * cell's top-left. In isometric mode the cell is a 2:1 diamond
+ * and textAlign default 'left'). The cell is a 2:1 diamond
  * (2*charWidth wide, charHeight tall); the anchor is shifted right
  * by charWidth/2 so a charWidth-wide glyph renders horizontally
  * centered within the diamond. Vertically the glyph bbox is aligned
  * with the diamond bbox so the visible character sits in the middle
  * band of the diamond rather than hanging out below it.
  *
- * The iso origin offsets (originX, originY) are chosen so the center
+ * The origin offsets (originX, originY) are chosen so the center
  * viewport tile (viewportWidth/2, viewportHeight/2) projects to the
  * canvas center (viewportWidth*charWidth/2, viewportHeight*charHeight/2).
  *
@@ -41,13 +40,9 @@ export const viewportToScreen = (
   vy: number,
   charWidth: number,
   charHeight: number,
-  isometric: boolean,
   viewportWidth: number,
   viewportHeight: number,
 ): ScreenPos => {
-  if (!isometric) {
-    return { px: vx * charWidth, py: vy * charHeight }
-  }
   const halfH = charHeight / 2
   const originX = isoOriginX(viewportWidth, viewportHeight, charWidth)
   const originY = isoOriginY(viewportWidth, viewportHeight, charHeight)
@@ -63,7 +58,6 @@ export const worldToScreen = (
   camera: Position,
   charWidth: number,
   charHeight: number,
-  isometric: boolean,
   viewportWidth: number,
   viewportHeight: number,
 ): ScreenPos =>
@@ -72,7 +66,6 @@ export const worldToScreen = (
     worldY - camera.y,
     charWidth,
     charHeight,
-    isometric,
     viewportWidth,
     viewportHeight,
   )
@@ -97,16 +90,9 @@ export const screenToTile = (
   camera: Position,
   charWidth: number,
   charHeight: number,
-  isometric = false,
-  viewportWidth = 0,
-  viewportHeight = 0,
+  viewportWidth: number,
+  viewportHeight: number,
 ): Position => {
-  if (!isometric) {
-    return {
-      x: Math.floor(canvasX / charWidth) + camera.x,
-      y: Math.floor(canvasY / charHeight) + camera.y,
-    }
-  }
   const halfH = charHeight / 2
   const originX = isoOriginX(viewportWidth, viewportHeight, charWidth)
   const originY = isoOriginY(viewportWidth, viewportHeight, charHeight)
@@ -123,7 +109,7 @@ export const screenToTile = (
 
 /**
  * Returns the four diamond vertex coordinates for a cell whose glyph
- * is anchored at (px, py) in iso mode. Reverses the horizontal-centering
+ * is anchored at (px, py). Reverses the horizontal-centering
  * and vertical-nudge offsets to recover the diamond's bounding box.
  *
  * The diamond is 2*charWidth wide and charHeight tall. Vertices:
@@ -158,7 +144,7 @@ export const getCellDiamondCorners = (
  * (px, py): a soft outer glow of `color` followed by the solid cell
  * background. The glow gives interactive highlights more visual presence
  * without shifting the glyph or distorting the diamond shape — useful
- * because the iso diamond's narrow top/bottom apexes can otherwise leave
+ * because the diamond's narrow top/bottom apexes can otherwise leave
  * the highlight feeling thin.
  *
  * Sets and restores ctx.fillStyle, ctx.shadowColor, and ctx.shadowBlur.
@@ -170,7 +156,6 @@ export const drawCellHighlight = (
   py: number,
   charWidth: number,
   charHeight: number,
-  isometric: boolean,
   color: string,
 ): void => {
   const savedFill = ctx.fillStyle
@@ -179,7 +164,7 @@ export const drawCellHighlight = (
   ctx.fillStyle = color
   ctx.shadowColor = color
   ctx.shadowBlur = Math.max(charWidth, charHeight) * 0.75
-  drawCellBackground(ctx, px, py, charWidth, charHeight, isometric)
+  drawCellBackground(ctx, px, py, charWidth, charHeight)
   ctx.shadowBlur = savedShadowBlur
   ctx.shadowColor = savedShadowColor
   ctx.fillStyle = savedFill
@@ -187,8 +172,7 @@ export const drawCellHighlight = (
 
 /**
  * Paints the cell background under a glyph anchored at (px, py).
- * In orthogonal mode this is a fillRect of (charWidth × charHeight).
- * In isometric mode this is a 2:1 diamond whose bounding box is
+ * The cell is a 2:1 diamond whose bounding box is
  * 2*charWidth × charHeight, with the glyph anchor centered
  * horizontally within. Caller sets ctx.fillStyle before invoking.
  */
@@ -198,12 +182,7 @@ export const drawCellBackground = (
   py: number,
   charWidth: number,
   charHeight: number,
-  isometric: boolean,
 ): void => {
-  if (!isometric) {
-    ctx.fillRect(px, py, charWidth, charHeight)
-    return
-  }
   const { leftX, rightX, topY, bottomY, cx, cy } = getCellDiamondCorners(
     px,
     py,
@@ -242,7 +221,7 @@ export interface SideQuads {
 }
 
 /**
- * Iso side-wall geometry: returns the two visible quads (left + right
+ * Side-wall geometry: returns the two visible quads (left + right
  * wall) connecting a lifted diamond top at (px, py) down to the
  * flat-baseline diamond. Returns null when lift >= 0 (sunken — no wall
  * drawn; neighbors' walls are responsible for the depression).
@@ -275,8 +254,7 @@ export const getCellSideQuads = (
 
 /**
  * Paints the side walls of a tile lifted by `lift` pixels (negative =
- * lifted). Ortho mode: a fillRect from the lifted top down to the flat
- * baseline. Iso mode: two quads (left + right faces of the iso prism).
+ * lifted): two quads (left + right faces of the prism).
  * No-op when lift >= 0. Caller sets ctx.fillStyle before invoking.
  */
 export const drawCellWalls = (
@@ -285,14 +263,9 @@ export const drawCellWalls = (
   py: number,
   charWidth: number,
   charHeight: number,
-  isometric: boolean,
   lift: number,
 ): void => {
   if (lift >= 0) return
-  if (!isometric) {
-    ctx.fillRect(px, py + charHeight + lift, charWidth, -lift)
-    return
-  }
   const quads = getCellSideQuads(px, py, charWidth, charHeight, lift)
   if (!quads) return
   for (const quad of [quads.leftQuad, quads.rightQuad]) {

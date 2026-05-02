@@ -13,8 +13,6 @@ const makeProps = (overrides: Partial<Parameters<typeof Menu>[0]> = {}) => ({
   onToggleAutoHidePanels: vi.fn(),
   fontScale: 1,
   onCycleFontScale: vi.fn(),
-  isometricProjection: false,
-  onToggleIsometric: vi.fn(),
   ...overrides,
 })
 
@@ -120,24 +118,4 @@ describe('Menu', () => {
     expect(onCycleFontScale).toHaveBeenCalledOnce()
   })
 
-  it('shows Projection: Orthogonal when isometricProjection is false', () => {
-    render(<Menu {...makeProps({ isometricProjection: false })} />)
-
-    expect(screen.getByText('Projection: Orthogonal')).toBeInTheDocument()
-  })
-
-  it('shows Projection: Isometric when isometricProjection is true', () => {
-    render(<Menu {...makeProps({ isometricProjection: true })} />)
-
-    expect(screen.getByText('Projection: Isometric')).toBeInTheDocument()
-  })
-
-  it('calls onToggleIsometric when projection button is clicked', async () => {
-    const onToggleIsometric = vi.fn()
-    render(<Menu {...makeProps({ onToggleIsometric })} />)
-
-    await userEvent.click(screen.getByText('Projection: Orthogonal'))
-
-    expect(onToggleIsometric).toHaveBeenCalledOnce()
-  })
 })

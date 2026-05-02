@@ -2,45 +2,45 @@ import { keyToDirection } from '@/engine/input'
 
 describe('input contract: keybindings', () => {
   describe('WASD movement', () => {
-    it('w maps to up', () => {
-      expect(keyToDirection('w')).toBe('up')
+    it('w maps to upLeft (screen up)', () => {
+      expect(keyToDirection('w')).toBe('upLeft')
     })
 
-    it('a maps to left', () => {
-      expect(keyToDirection('a')).toBe('left')
+    it('a maps to downLeft (screen left)', () => {
+      expect(keyToDirection('a')).toBe('downLeft')
     })
 
-    it('s maps to down', () => {
-      expect(keyToDirection('s')).toBe('down')
+    it('s maps to downRight (screen down)', () => {
+      expect(keyToDirection('s')).toBe('downRight')
     })
 
-    it('d maps to right', () => {
-      expect(keyToDirection('d')).toBe('right')
+    it('d maps to upRight (screen right)', () => {
+      expect(keyToDirection('d')).toBe('upRight')
     })
 
     it('uppercase WASD maps correctly', () => {
-      expect(keyToDirection('W')).toBe('up')
-      expect(keyToDirection('A')).toBe('left')
-      expect(keyToDirection('S')).toBe('down')
-      expect(keyToDirection('D')).toBe('right')
+      expect(keyToDirection('W')).toBe('upLeft')
+      expect(keyToDirection('A')).toBe('downLeft')
+      expect(keyToDirection('S')).toBe('downRight')
+      expect(keyToDirection('D')).toBe('upRight')
     })
   })
 
   describe('arrow key movement', () => {
-    it('ArrowUp maps to up', () => {
-      expect(keyToDirection('ArrowUp')).toBe('up')
+    it('ArrowUp maps to upLeft', () => {
+      expect(keyToDirection('ArrowUp')).toBe('upLeft')
     })
 
-    it('ArrowDown maps to down', () => {
-      expect(keyToDirection('ArrowDown')).toBe('down')
+    it('ArrowDown maps to downRight', () => {
+      expect(keyToDirection('ArrowDown')).toBe('downRight')
     })
 
-    it('ArrowLeft maps to left', () => {
-      expect(keyToDirection('ArrowLeft')).toBe('left')
+    it('ArrowLeft maps to downLeft', () => {
+      expect(keyToDirection('ArrowLeft')).toBe('downLeft')
     })
 
-    it('ArrowRight maps to right', () => {
-      expect(keyToDirection('ArrowRight')).toBe('right')
+    it('ArrowRight maps to upRight', () => {
+      expect(keyToDirection('ArrowRight')).toBe('upRight')
     })
   })
 

@@ -8,8 +8,8 @@ import type { GameState, Position } from './types'
 /**
  * Returns true if `tile` has anything a left-click should land on (player,
  * controllable unit, character entity, angel body, or interactable). Used by
- * the iso-mode forgiving hit-test to "snap" off-by-one clicks back to the
- * visible glyph.
+ * the forgiving hit-test to "snap" off-by-one clicks back to the visible
+ * glyph.
  */
 export const tileHasClickable = (state: GameState, tile: Position): boolean => {
   if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return false
@@ -32,15 +32,14 @@ export const tileHasClickable = (state: GameState, tile: Position): boolean => {
 }
 
 /**
- * In iso mode the visible glyph for a tile is centered in its diamond, but
- * the diamond shape is narrow at top and bottom. A click aimed at the glyph
- * apex can fall in a cardinal-neighbor diamond. If the geometric tile has no
+ * The visible glyph for a tile is centered in its diamond, but the diamond
+ * shape is narrow at top and bottom. A click aimed at the glyph apex can
+ * fall in a cardinal-neighbor diamond. If the geometric tile has no
  * clickable, look at the 4 cardinal neighbors and return the first one with
- * a clickable. Falls through to the original tile in ortho mode or when no
- * neighbor has anything.
+ * a clickable. Falls through to the original tile when no neighbor has
+ * anything.
  */
-export const expandClickTileForIso = (state: GameState, tile: Position): Position => {
-  if (!state.isometricProjection) return tile
+export const expandClickTile = (state: GameState, tile: Position): Position => {
   if (tileHasClickable(state, tile)) return tile
   const deltas: [number, number][] = [
     [0, -1],

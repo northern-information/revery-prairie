@@ -19,8 +19,6 @@ interface MenuProps {
   onToggleAutoHidePanels: () => void
   fontScale: number
   onCycleFontScale: () => void
-  isometricProjection: boolean
-  onToggleIsometric: () => void
 }
 
 export const Menu = ({
@@ -34,8 +32,6 @@ export const Menu = ({
   onToggleAutoHidePanels,
   fontScale,
   onCycleFontScale,
-  isometricProjection,
-  onToggleIsometric,
 }: MenuProps) => {
   const [confirming, setConfirming] = useState(false)
 
@@ -70,9 +66,6 @@ export const Menu = ({
           Auto-hide panels: {autoHidePanels ? 'On' : 'Off'}
         </TextButton>
         <TextButton onClick={onCycleFontScale}>Font: {FONT_SCALE_LABELS[fontScale] ?? 'Medium'}</TextButton>
-        <TextButton onClick={onToggleIsometric}>
-          Projection: {isometricProjection ? 'Isometric' : 'Orthogonal'}
-        </TextButton>
       </div>
     </div>
   )
