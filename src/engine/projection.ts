@@ -218,3 +218,88 @@ export const drawCellBackground = (
   ctx.closePath()
   ctx.fill()
 }
+
+/**
+ * Cosmetic terrain elevation. Each tile's surface lifts up (negative y)
+ * for elev > 50, sinks down (positive y) for elev < 50. Range is
+ * [-charHeight*FRAC, +charHeight*FRAC]. elev=undefined → 0 (e.g. cave,
+ * out-of-bounds, space tiles).
+ */
+export const ELEVATION_LIFT_FRACTION = 0.35
+
+export const getElevationLift = (
+  elevation: number | undefined,
+  charHeight: number,
+): number => {
+  if (elevation === undefined) return 0
+  const max = charHeight * ELEVATION_LIFT_FRACTION
+  return -((elevation - 50) / 50) * max
+}
+
+export interface SideQuads {
+  leftQuad: [number, number][]
+  rightQuad: [number, number][]
+}
+
+/**
+ * Iso side-wall geometry: returns the two visible quads (left + right
+ * wall) connecting a lifted diamond top at (px, py) down to the
+ * flat-baseline diamond. Returns null when lift >= 0 (sunken — no wall
+ * drawn; neighbors' walls are responsible for the depression).
+ */
+export const getCellSideQuads = (
+  px: number,
+  py: number,
+  charWidth: number,
+  charHeight: number,
+  lift: number,
+): SideQuads | null => {
+  if (lift >= 0) return null
+  const top = getCellDiamondCorners(px, py, charWidth, charHeight)
+  const base = getCellDiamondCorners(px, py - lift, charWidth, charHeight)
+  return {
+    leftQuad: [
+      [top.leftX, top.cy],
+      [top.cx, top.bottomY],
+      [base.cx, base.bottomY],
+      [base.leftX, base.cy],
+    ],
+    rightQuad: [
+      [top.cx, top.bottomY],
+      [top.rightX, top.cy],
+      [base.rightX, base.cy],
+      [base.cx, base.bottomY],
+    ],
+  }
+}
+
+/**
+ * Paints the side walls of a tile lifted by `lift` pixels (negative =
+ * lifted). Ortho mode: a fillRect from the lifted top down to the flat
+ * baseline. Iso mode: two quads (left + right faces of the iso prism).
+ * No-op when lift >= 0. Caller sets ctx.fillStyle before invoking.
+ */
+export const drawCellWalls = (
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+  charWidth: number,
+  charHeight: number,
+  isometric: boolean,
+  lift: number,
+): void => {
+  if (lift >= 0) return
+  if (!isometric) {
+    ctx.fillRect(px, py + charHeight + lift, charWidth, -lift)
+    return
+  }
+  const quads = getCellSideQuads(px, py, charWidth, charHeight, lift)
+  if (!quads) return
+  for (const quad of [quads.leftQuad, quads.rightQuad]) {
+    ctx.beginPath()
+    ctx.moveTo(quad[0][0], quad[0][1])
+    for (let i = 1; i < quad.length; i++) ctx.lineTo(quad[i][0], quad[i][1])
+    ctx.closePath()
+    ctx.fill()
+  }
+}
