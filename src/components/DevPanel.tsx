@@ -54,7 +54,6 @@ const screenToTilePos = (
     state.camera,
     metrics.charWidth,
     metrics.charHeight,
-    state.isometricProjection,
     state.viewportWidth,
     state.viewportHeight,
   )
