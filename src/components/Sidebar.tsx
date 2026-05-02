@@ -24,7 +24,6 @@ import {
   GENESIS_END_YEAR,
   GENESIS_EPOCHS,
   getEpochProgress,
-  getGenesisCommentary,
   getGenesisYear,
 } from '@/engine/genesis'
 import { getDefinition } from '@/engine/items'
@@ -164,7 +163,6 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
                 style={{ width: `${String(Math.round(overallProgress * 100))}%` }}
               />
             </div>
-            <p className="text-muted mt-2">{getGenesisCommentary(state.genesis, GENESIS_EPOCHS)}</p>
           </div>
         </div>
         <div>

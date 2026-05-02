@@ -121,6 +121,7 @@ const EXPECTED_FIELDS = [
   'multiplayerSession',
   'remotePlayers',
   'onPlayerMoved',
+  'onGenesisEpochStart',
   'isometricProjection',
   'cameraMode',
   'lastEdgeScrollTime',

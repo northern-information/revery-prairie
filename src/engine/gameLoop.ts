@@ -111,7 +111,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           if (!state.genesis) return
           if (state.genesis.epochIndex >= GENESIS_EPOCHS.length) return
 
-          const done = tickGenesis(state.genesis, GENESIS_EPOCHS, time)
+          const done = tickGenesis(state.genesis, GENESIS_EPOCHS, time, state.onGenesisEpochStart ?? undefined)
           if (done) {
             completeGenesis(state)
             callbacks.onRefreshUI?.()

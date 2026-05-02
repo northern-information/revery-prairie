@@ -116,6 +116,10 @@ export interface GenesisSimState {
   epochSnapshots: EpochSnapshot[]
   /** Whether all mutations have been pre-computed */
   mutationsPrecomputed: boolean
+  /** Number of epochs that have already fired their narration callback.
+   *  Guards against double-firing when an epoch has been narrated live and
+   *  then completeGenesis flushes remaining epochs. */
+  narratedEpochCount: number
   /** Rain aura tile hash seed — set from GameState.rainSeed so presentDay
    *  rain overlay matches the game renderer exactly. */
   rainSeed: number

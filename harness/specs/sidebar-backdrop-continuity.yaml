@@ -80,11 +80,15 @@ edge_cases:
 
   - id: genesis-hud-backdrop
     description: >
-      during genesis, the sidebar shows the year/epoch/commentary HUD
-      inside the same black backdrop shell. the backdrop is fully
-      opaque throughout genesis — it only ever becomes the gameplay
-      sidebar's backdrop without ever dropping opacity.
-    expected: 'genesis HUD backdrop is visually identical to gameplay sidebar backdrop'
+      during genesis, the sidebar shows the year/epoch HUD (year
+      counter and epoch progress bar) inside the same black backdrop
+      shell. epoch commentary is no longer rendered in the sidebar —
+      narration is delivered through the event log overlay instead
+      (see event-log-overlay's genesis-narration-entries behavior).
+      the backdrop is fully opaque throughout genesis — it only ever
+      becomes the gameplay sidebar's backdrop without ever dropping
+      opacity.
+    expected: 'genesis HUD backdrop is visually identical to gameplay sidebar backdrop; no commentary <p> rendered in the sidebar during genesis'
 
 failure_conditions:
   - trigger: 'outer sidebar div has style={{ opacity: 0, ... }} during genesisTransition'

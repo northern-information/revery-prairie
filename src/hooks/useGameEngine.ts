@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { completeGenesis } from '@/engine/genesis'
 import { createGameState } from '@/engine/state'
@@ -80,13 +80,22 @@ export const useGameEngine = (
     } else {
       gameState ??= createGameState(stewardName, viewportWidth, viewportHeight)
     }
-    if (skipGenesis && gameState.genesis) {
-      completeGenesis(gameState)
-    }
     initializedRef.current = true
   }
   if (!gameState) throw new Error('GameState not initialized')
   const state = gameState
+
+  // Defer skipGenesis to a layout effect so the consumer (GameScreen) has
+  // had a chance to wire state.onGenesisEpochStart during its render —
+  // otherwise URL-skip would flush all 14 narration entries to a null
+  // callback and lose them.
+  const skipFiredRef = useRef(false)
+  useLayoutEffect(() => {
+    if (skipGenesis && state.genesis && !skipFiredRef.current) {
+      skipFiredRef.current = true
+      completeGenesis(state)
+    }
+  }, [skipGenesis, state])
 
   const refreshUI = useCallback(() => {
     setUiVersion(v => v + 1)
