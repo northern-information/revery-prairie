@@ -181,6 +181,10 @@ describe('Sidebar', () => {
       const state = createGameState('Test', 80, 40)
       completeGenesis(state)
       expect(state.isometricProjection).toBe(true)
+      // Glint zones use Math.random() so they vary between runs and can add
+      // ", glinting" to the cursor's effects label. Clear them so the
+      // assertion only sees "rain".
+      state.glintZones.clear()
 
       // Aim at a tile inside Gron's rain aura (radius 6).
       const gron = findGron(state)
@@ -221,6 +225,10 @@ describe('Sidebar', () => {
       const state = createGameState('Test', 80, 40)
       completeGenesis(state)
       state.isometricProjection = false
+      // Glint zones use Math.random() so they vary between runs and can add
+      // ", glinting" to the cursor's effects label. Clear them so the
+      // assertion only sees "rain".
+      state.glintZones.clear()
 
       const gron = findGron(state)
       const target = { x: gron.x + 2, y: gron.y }
