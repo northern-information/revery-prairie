@@ -45,8 +45,6 @@ import {
   LIGHTNING_FLASH_MS,
   LIGHTNING_IMPACT_CHARS,
   LIGHTNING_IMPACT_COLORS,
-  LIGHTNING_SCREEN_FLASH_MS,
-  LIGHTNING_SCREEN_FLASH_OPACITY,
   METEORITE_CHAR,
   METEORITE_COLOR,
   MONARCH_CHAR,
@@ -82,8 +80,6 @@ import {
   TILE_COLORS,
   getEntranceGlyph,
   TRAIL_DURATION_MS,
-  EDGE_SCROLL_INDICATOR_THICKNESS_PX,
-  MOVE_ORDER_MARKER_DURATION_MS,
   WEATHER_RAIN_DENSITY,
   WILDFIRE_CHARS,
   WILDFIRE_COLORS,
@@ -1645,181 +1641,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Deep Time year counter moved to Sidebar.tsx
 
-  // Restore canvas transform before screen-level overlays (edge indicator,
-  // off-screen player arrow, lightning flash, ejection fade, RTS box).
+  // Restore canvas transform before screen-level overlays. Screen-overlay
+  // passes draw in canvas coordinates without the world transform.
   if (worldTransformActive) {
     ctx.restore()
   }
 
-  // Lightning screen flash overlay — drawn last, covers everything
-  if (lightningFlashElapsed < LIGHTNING_SCREEN_FLASH_MS) {
-    const alpha = LIGHTNING_SCREEN_FLASH_OPACITY * (1 - lightningFlashElapsed / LIGHTNING_SCREEN_FLASH_MS)
-    ctx.fillStyle = `rgba(255, 255, 255, ${String(alpha)})`
-    ctx.fillRect(0, 0, pxWidth, pxHeight)
-  }
-
-  // Angel spawn/despawn screen flash overlay
-  const angelFlashElapsed = time - state.angelFlashTime
-  if (angelFlashElapsed < LIGHTNING_SCREEN_FLASH_MS) {
-    const alpha = LIGHTNING_SCREEN_FLASH_OPACITY * (1 - angelFlashElapsed / LIGHTNING_SCREEN_FLASH_MS)
-    ctx.fillStyle = `rgba(255, 255, 255, ${String(alpha)})`
-    ctx.fillRect(0, 0, pxWidth, pxHeight)
-  }
-
-  // RTS selection box overlay
-  if (state.selectionBox) {
-    const box = state.selectionBox
-    const x = Math.min(box.startScreen.x, box.endScreen.x)
-    const y = Math.min(box.startScreen.y, box.endScreen.y)
-    const w = Math.abs(box.endScreen.x - box.startScreen.x)
-    const h = Math.abs(box.endScreen.y - box.startScreen.y)
-    ctx.fillStyle = 'rgba(255, 105, 180, 0.15)'
-    ctx.fillRect(x, y, w, h)
-    ctx.strokeStyle = ACTION_COLOR
-    ctx.lineWidth = 1
-    ctx.strokeRect(x, y, w, h)
-  }
-
-  // Move-order markers
-  for (const marker of state.moveOrderMarkers) {
-    const elapsed = time - marker.time
-    if (elapsed >= MOVE_ORDER_MARKER_DURATION_MS) continue
-    const alpha = 1 - elapsed / MOVE_ORDER_MARKER_DURATION_MS
-    const { px: sx, py: sy } = worldToScreen(marker.position.x, marker.position.y, camera, charWidth, charHeight, viewportWidth, viewportHeight)
-    const syLift = sy + liftAt(marker.position.x, marker.position.y)
-    ctx.globalAlpha = alpha
-    drawCellHighlight(ctx, sx, syLift, charWidth, charHeight, ACTION_COLOR)
-    ctx.fillStyle = BG_COLOR
-    ctx.fillText('X', sx, syLift)
-    ctx.globalAlpha = 1
-  }
-
-  // RTS edge-scroll active-edge indicator: hot-pink lines along whichever
-  // canvas edges the cursor is currently inside. Includes an inner glow
-  // gradient extending into the playfield so the active edge reads as
-  // illuminated rather than a flat line.
-  {
-    const dirX = state.edgeScrollDirection.dx
-    const dirY = state.edgeScrollDirection.dy
-    if (dirX !== 0 || dirY !== 0) {
-      const visibleWidthPx = (viewportWidth - state.rightInsetTiles) * charWidth
-      const t = EDGE_SCROLL_INDICATOR_THICKNESS_PX
-      const glowDepth = Math.max(charWidth * 1.5, 24) // px the glow extends inward
-
-      const drawEdgeGlow = (
-        edge: 'left' | 'right' | 'top' | 'bottom',
-      ) => {
-        let gradient: CanvasGradient
-        let solidX = 0
-        let solidY = 0
-        let solidW = 0
-        let solidH = 0
-        let glowX = 0
-        let glowY = 0
-        let glowW = 0
-        let glowH = 0
-        if (edge === 'left') {
-          solidX = 0; solidY = 0; solidW = t; solidH = pxHeight
-          glowX = t; glowY = 0; glowW = glowDepth; glowH = pxHeight
-          gradient = ctx.createLinearGradient(t, 0, t + glowDepth, 0)
-        } else if (edge === 'right') {
-          solidX = visibleWidthPx - t; solidY = 0; solidW = t; solidH = pxHeight
-          glowX = visibleWidthPx - t - glowDepth; glowY = 0; glowW = glowDepth; glowH = pxHeight
-          gradient = ctx.createLinearGradient(visibleWidthPx - t - glowDepth, 0, visibleWidthPx - t, 0)
-          gradient.addColorStop(0, 'rgba(255, 105, 180, 0)')
-          gradient.addColorStop(1, 'rgba(255, 105, 180, 0.35)')
-          ctx.fillStyle = gradient
-          ctx.fillRect(glowX, glowY, glowW, glowH)
-          ctx.fillStyle = ACTION_COLOR
-          ctx.fillRect(solidX, solidY, solidW, solidH)
-          return
-        } else if (edge === 'top') {
-          solidX = 0; solidY = 0; solidW = visibleWidthPx; solidH = t
-          glowX = 0; glowY = t; glowW = visibleWidthPx; glowH = glowDepth
-          gradient = ctx.createLinearGradient(0, t, 0, t + glowDepth)
-        } else {
-          solidX = 0; solidY = pxHeight - t; solidW = visibleWidthPx; solidH = t
-          glowX = 0; glowY = pxHeight - t - glowDepth; glowW = visibleWidthPx; glowH = glowDepth
-          gradient = ctx.createLinearGradient(0, pxHeight - t - glowDepth, 0, pxHeight - t)
-          gradient.addColorStop(0, 'rgba(255, 105, 180, 0)')
-          gradient.addColorStop(1, 'rgba(255, 105, 180, 0.35)')
-          ctx.fillStyle = gradient
-          ctx.fillRect(glowX, glowY, glowW, glowH)
-          ctx.fillStyle = ACTION_COLOR
-          ctx.fillRect(solidX, solidY, solidW, solidH)
-          return
-        }
-        // Default (left, top): glow fades from solid edge inward.
-        gradient.addColorStop(0, 'rgba(255, 105, 180, 0.35)')
-        gradient.addColorStop(1, 'rgba(255, 105, 180, 0)')
-        ctx.fillStyle = gradient
-        ctx.fillRect(glowX, glowY, glowW, glowH)
-        ctx.fillStyle = ACTION_COLOR
-        ctx.fillRect(solidX, solidY, solidW, solidH)
-      }
-
-      if (dirX < 0) drawEdgeGlow('left')
-      if (dirX > 0) drawEdgeGlow('right')
-      if (dirY < 0) drawEdgeGlow('top')
-      if (dirY > 0) drawEdgeGlow('bottom')
-    }
-  }
-
-  // Off-screen player indicator: when free-pan moves the camera away from
-  // the player, draw a hot-pink chunk with an arrow glyph at the playfield
-  // edge nearest the player. Uses ASCII (>, <, ^, v) so any monospace font
-  // renders it. Visible inside the playfield rect (excluding sidebar).
-  if (state.cameraMode === 'free') {
-    const visibleWidthPx = (viewportWidth - state.rightInsetTiles) * charWidth
-    const { px: ppx, py: ppy } = worldToScreen(
-      player.x,
-      player.y,
-      camera,
-      charWidth,
-      charHeight,
-      viewportWidth,
-      viewportHeight,
-    )
-    const margin = charWidth * 1.5
-    const offscreen =
-      ppx < margin ||
-      ppx > visibleWidthPx - margin ||
-      ppy < margin ||
-      ppy > pxHeight - margin
-    if (offscreen) {
-      const cx = visibleWidthPx / 2
-      const cy = pxHeight / 2
-      const dx = ppx - cx
-      const dy = ppy - cy
-      // Intersection of the line center→player with the inset rect.
-      const halfW = visibleWidthPx / 2 - margin
-      const halfH = pxHeight / 2 - margin
-      const tx = dx === 0 ? Infinity : halfW / Math.abs(dx)
-      const ty = dy === 0 ? Infinity : halfH / Math.abs(dy)
-      const t = Math.min(tx, ty)
-      const ax = cx + dx * t
-      const ay = cy + dy * t
-      const arrow = pickArrowGlyph(dx, dy)
-      // Pink rectangle backdrop + dark arrow glyph for high contrast,
-      // independent of projection mode (always rectangular here so it
-      // reads as UI rather than a tile).
-      ctx.fillStyle = ACTION_COLOR
-      ctx.fillRect(ax - charWidth, ay - charHeight / 2, 2 * charWidth, charHeight)
-      ctx.fillStyle = BG_COLOR
-      ctx.fillText(arrow, ax - charWidth / 2, ay - charHeight / 2)
-    }
-  }
-}
-
-const pickArrowGlyph = (dx: number, dy: number): string => {
-  // ASCII-only glyphs so any monospace font renders them. Dominant axis
-  // wins; pure diagonals fall through to corner brackets.
-  const ax = Math.abs(dx)
-  const ay = Math.abs(dy)
-  if (ax > ay * 1.5) return dx > 0 ? '>' : '<'
-  if (ay > ax * 1.5) return dy > 0 ? 'v' : '^'
-  if (dx > 0 && dy > 0) return '\\'
-  if (dx > 0 && dy < 0) return '/'
-  if (dx < 0 && dy > 0) return '/'
-  return '\\'
+  // screen-overlay slot: lightning flash, angel flash, RTS selection box,
+  // move-order markers, edge-scroll indicator, off-screen player arrow.
+  // See src/engine/render/passes/.
+  runPassesInSlot('screen-overlay', ctx, state, metrics, time)
 }
