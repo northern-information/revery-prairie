@@ -7,8 +7,9 @@ import type { ActionBarSlot, GameState } from '@/engine/types'
 import type { DragState } from '@/hooks/useInventoryDrag'
 
 const SLOT_SIZE = 36
-const COOLDOWN_GOLD = '#DAA520'
+const COOLDOWN_PINK = '#ff69b4'
 const READY_PULSE_MS = 600
+const CAST_FLASH_MS = 500
 
 interface ActionBarProps {
   state: GameState
@@ -42,8 +43,8 @@ const CooldownOverlay = ({ fraction }: { fraction: number }) => {
           from 0deg,
           transparent 0deg,
           transparent ${String(degrees)}deg,
-          ${COOLDOWN_GOLD} ${String(degrees)}deg,
-          ${COOLDOWN_GOLD} 360deg
+          ${COOLDOWN_PINK} ${String(degrees)}deg,
+          ${COOLDOWN_PINK} 360deg
         )`,
         opacity: 0.6,
       }}
@@ -59,6 +60,20 @@ const ReadyPulse = ({ active }: { active: boolean }) => {
       style={{
         boxShadow: '0 0 8px 2px rgba(255, 255, 255, 0.8), inset 0 0 4px rgba(255, 255, 255, 0.4)',
         animation: `ready-pulse ${String(READY_PULSE_MS)}ms ease-out forwards`,
+      }}
+    />
+  )
+}
+
+const CastFlash = ({ active, flashKey }: { active: boolean; flashKey: number | null }) => {
+  if (!active || flashKey === null) return null
+  return (
+    <div
+      key={flashKey}
+      data-cast-flash
+      className="pointer-events-none absolute inset-0 z-20 rounded"
+      style={{
+        animation: `cast-flash ${String(CAST_FLASH_MS)}ms linear forwards`,
       }}
     />
   )
@@ -84,17 +99,23 @@ const ActionBarSlotView = ({
   onMouseLeave: () => void
 }) => {
   const cooldownFraction = slot ? getSlotCooldownFraction(slot, now) : 0
-  const prevFractionRef = useRef(0)
+  const prevFractionRef = useRef<number | null>(null)
+  const prevFraction = prevFractionRef.current ?? cooldownFraction
   const [readyPulseKey, setReadyPulseKey] = useState<number | null>(null)
+  const [castFlashKey, setCastFlashKey] = useState<number | null>(null)
 
   // Detect cooldown completion: fraction was >0, now is 0
-  if (prevFractionRef.current > 0 && cooldownFraction === 0) {
+  if (prevFraction > 0 && cooldownFraction === 0) {
     setReadyPulseKey(now)
+  }
+  // Detect cast: revery slot cooldown transitioned from 0 to >0
+  if (slot?.kind === 'revery' && prevFraction === 0 && cooldownFraction > 0) {
+    setCastFlashKey(now)
   }
   prevFractionRef.current = cooldownFraction
 
-  // Clear pulse after animation duration
   const isPulsing = readyPulseKey !== null && now - readyPulseKey < READY_PULSE_MS
+  const isFlashing = castFlashKey !== null && now - castFlashKey < CAST_FLASH_MS
 
   const glyph = slot ? getSlotGlyph(slot) : ''
   const slotBgColor = slot ? getSlotColor(slot) : ''
@@ -116,6 +137,7 @@ const ActionBarSlotView = ({
       {slot && <span className="text-bg z-10 text-xl leading-none">{glyph}</span>}
       <CooldownOverlay fraction={cooldownFraction} />
       <ReadyPulse active={isPulsing} />
+      <CastFlash active={isFlashing} flashKey={castFlashKey} />
       <span className={`absolute right-1 bottom-0.5 z-10 text-[10px] ${slot ? 'text-bg' : 'text-dim'}`}>
         {String(index + 1)}
       </span>

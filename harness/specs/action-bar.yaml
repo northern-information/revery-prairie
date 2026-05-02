@@ -245,6 +245,39 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: cooldown-overlay-color
+    description: >
+      the conic-gradient cooldown sweep in ActionBar.tsx renders in
+      hot pink (#ff69b4, the var(--color-pink) token) at 0.6 opacity.
+      pink is the project's reserved user-action color and signals
+      that the slot is winding down a player-triggered cast. applies
+      to revery slots only (item slots do not use cooldown).
+    inputs:
+      - 'ActionBarSlot with active cooldown (cooldownFraction > 0)'
+    outputs:
+      - 'conic-gradient overlay rendered in hot pink'
+    state_changes: []
+    determinism: deterministic
+
+  - id: revery-cast-flash
+    description: >
+      when a revery is cast from a slot (cooldown transitions from 0
+      to >0), that slot briefly flashes white then pink then fades
+      back to its original revery color. timing: ~150ms white,
+      ~150ms pink, ~200ms fade to original. only the slot whose
+      revery was cast flashes — other slots are unaffected. flash
+      applies to revery slots only, not item slots. detection mirrors
+      the existing ready-pulse pattern (compare prior cooldown
+      fraction to current). targeted reveries (lightning) flash on
+      successful cast via castLightningAtTarget, not on entering
+      targeting mode.
+    inputs:
+      - 'revery slot cooldown transitions from 0 to >0'
+    outputs:
+      - 'cast flash overlay rendered on the cast slot only'
+    state_changes: []
+    determinism: time-based
+
   - id: action-bar-preview
     description: >
       getActionBarPreview returns preview glyphs for the revery in a
@@ -293,6 +326,12 @@ edge_cases:
   - id: out-of-range-slot
     description: 'assignActionBarSlot called with index < 0 or >= 4'
     expected: 'no change, bounds check prevents mutation'
+  - id: cast-flash-only-on-cast-slot
+    description: 'casting one revery while another slot also has a recent cooldown'
+    expected: 'only the slot whose cooldown was newly set flashes, not unrelated slots still on cooldown'
+  - id: cast-flash-targeted-revery
+    description: 'lightning revery (targeted) — keypress enters targeting mode without setting cooldown; cast confirmation sets cooldown'
+    expected: 'flash fires on confirmation (when castLightningAtTarget sets cooldown), not on entering targeting mode'
 
 failure_conditions:
   - trigger: 'activateActionBarSlot called with item kind (not revery)'
