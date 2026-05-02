@@ -254,8 +254,10 @@ export const getCellSideQuads = (
 
 /**
  * Paints the side walls of a tile lifted by `lift` pixels (negative =
- * lifted): two quads (left + right faces of the prism).
- * No-op when lift >= 0. Caller sets ctx.fillStyle before invoking.
+ * lifted): two quads (left + right faces of the prism). Each face takes
+ * its own fill color so callers can apply directional shading — e.g.
+ * lit-side / shadow-side darkening of the surface bg color. No-op when
+ * lift >= 0.
  */
 export const drawCellWalls = (
   ctx: CanvasRenderingContext2D,
@@ -264,11 +266,17 @@ export const drawCellWalls = (
   charWidth: number,
   charHeight: number,
   lift: number,
+  leftColor: string,
+  rightColor: string,
 ): void => {
   if (lift >= 0) return
   const quads = getCellSideQuads(px, py, charWidth, charHeight, lift)
   if (!quads) return
-  for (const quad of [quads.leftQuad, quads.rightQuad]) {
+  for (const [quad, color] of [
+    [quads.leftQuad, leftColor],
+    [quads.rightQuad, rightColor],
+  ] as const) {
+    ctx.fillStyle = color
     ctx.beginPath()
     ctx.moveTo(quad[0][0], quad[0][1])
     for (let i = 1; i < quad.length; i++) ctx.lineTo(quad[i][0], quad[i][1])

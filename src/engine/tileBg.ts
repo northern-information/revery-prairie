@@ -60,3 +60,21 @@ export const getTileBgColor = (tileType: TileType, x: number, y: number): string
   const palette = TILE_BG_PALETTES[tileType]
   return palette[tileHash(x, y) % palette.length]
 }
+
+// Multiply each RGB channel of a 6-digit hex color by `factor`. Used for
+// directional wall shading: the lit side keeps factor close to 1 (lightly
+// darkened) and the shadow side uses a smaller factor (more darkening).
+// Returns a 6-digit hex string.
+export const darkenColor = (hex: string, factor: number): string => {
+  const r = Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(1, 3), 16) * factor)))
+  const g = Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(3, 5), 16) * factor)))
+  const b = Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(5, 7), 16) * factor)))
+  const toHex = (n: number): string => n.toString(16).padStart(2, '0')
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+}
+
+// Wall shading factors. Iso projection makes both side faces visible;
+// directional light from the upper-left makes the left face lit and the
+// right face shadowed. Tunable.
+export const WALL_LEFT_SHADE = 0.78
+export const WALL_RIGHT_SHADE = 0.55

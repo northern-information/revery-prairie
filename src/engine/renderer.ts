@@ -130,7 +130,7 @@ import { getReveryDefinition } from './reveries'
 import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
-import { getTileBgColor } from './tileBg'
+import { darkenColor, getTileBgColor, WALL_LEFT_SHADE, WALL_RIGHT_SHADE } from './tileBg'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
@@ -1085,8 +1085,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // range, angel aura) and the main glyph loop layer on top. Cave
   // hidden tiles are masked to CaveWall so the secret chamber stays
   // hidden until reveal.
+  //
+  // Tiles are grouped by bg color into a Path2D per color, then each
+  // Path2D is filled once. Internal shared edges between adjacent
+  // diamonds in the same path are interior to a single fill call and
+  // don't get anti-aliased — only the outer perimeter does. This
+  // eliminates the visible diamond-grid AA seam that appeared with
+  // per-tile `ctx.fill()` calls.
   {
     const bgBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
+    const pathsByColor = new Map<string, Path2D>()
     for (let vy = bgBounds.vyStart; vy < bgBounds.vyEnd; vy++) {
       for (let vx = bgBounds.vxStart; vx < bgBounds.vxEnd; vx++) {
         const mx = camera.x + vx
@@ -1101,7 +1109,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           state.caveHiddenPositions.has(tileKey)
             ? TileType.CaveWall
             : tile.type
-        ctx.fillStyle = getTileBgColor(effectiveType, mx, my)
+        const color = getTileBgColor(effectiveType, mx, my)
         const { px: bgPx, py: bgPy } = viewportToScreen(
           vx,
           vy,
@@ -1110,8 +1118,22 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           viewportWidth,
           viewportHeight,
         )
-        drawCellBackground(ctx, bgPx, bgPy + liftAt(mx, my), charWidth, charHeight)
+        const c = getCellDiamondCorners(bgPx, bgPy + liftAt(mx, my), charWidth, charHeight)
+        let path = pathsByColor.get(color)
+        if (!path) {
+          path = new Path2D()
+          pathsByColor.set(color, path)
+        }
+        path.moveTo(c.cx, c.topY)
+        path.lineTo(c.rightX, c.cy)
+        path.lineTo(c.cx, c.bottomY)
+        path.lineTo(c.leftX, c.cy)
+        path.closePath()
       }
+    }
+    for (const [color, path] of pathsByColor) {
+      ctx.fillStyle = color
+      ctx.fill(path)
     }
   }
 
@@ -1480,8 +1502,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           state.caveHiddenPositions.has(tileKey)
             ? TileType.CaveWall
             : baseTile.type
-        ctx.fillStyle = getTileBgColor(wallType, mx, my)
-        drawCellWalls(ctx, px, py, charWidth, charHeight, lift)
+        const wallBg = getTileBgColor(wallType, mx, my)
+        drawCellWalls(
+          ctx,
+          px,
+          py,
+          charWidth,
+          charHeight,
+          lift,
+          darkenColor(wallBg, WALL_LEFT_SHADE),
+          darkenColor(wallBg, WALL_RIGHT_SHADE),
+        )
       }
 
       const shootingStarOnLand = targetedStarMap.get(tileKey)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getTileBgColor, TILE_BG_PALETTES } from '../tileBg'
+import { darkenColor, getTileBgColor, TILE_BG_PALETTES } from '../tileBg'
 import { TileType } from '../types'
 
 describe('TILE_BG_PALETTES', () => {
@@ -61,5 +61,37 @@ describe('getTileBgColor', () => {
   it('handles single-color palettes (Space) without crashing', () => {
     const color = getTileBgColor(TileType.Space, 100, 200)
     expect(color).toBe('#000000')
+  })
+})
+
+describe('darkenColor', () => {
+  it('returns a 6-digit hex color', () => {
+    expect(darkenColor('#aabbcc', 0.5)).toMatch(/^#[0-9a-f]{6}$/)
+  })
+
+  it('factor 1.0 returns the original color', () => {
+    expect(darkenColor('#aabbcc', 1.0)).toBe('#aabbcc')
+  })
+
+  it('factor 0 returns black', () => {
+    expect(darkenColor('#ffffff', 0)).toBe('#000000')
+  })
+
+  it('factor 0.5 halves each channel', () => {
+    expect(darkenColor('#ffffff', 0.5)).toBe('#808080') // 255 * 0.5 = 127.5 → round 128 → 0x80
+  })
+
+  it('preserves channel proportions for greys', () => {
+    const out = darkenColor('#888888', 0.5)
+    const r = parseInt(out.slice(1, 3), 16)
+    const g = parseInt(out.slice(3, 5), 16)
+    const b = parseInt(out.slice(5, 7), 16)
+    expect(r).toBe(g)
+    expect(g).toBe(b)
+  })
+
+  it('clamps to [0, 255] (factor > 1 should not overflow)', () => {
+    const out = darkenColor('#ffffff', 2)
+    expect(out).toBe('#ffffff')
   })
 })
