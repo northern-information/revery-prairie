@@ -1,0 +1,152 @@
+plan:
+  id: iso-viewport-effect-clipping
+  title: Fix iso-mode parallelogram clipping in renderer effect overlays via shared bounds helper
+  created: '2026-05-01'
+  notes: >
+    Canvas rendering itself cannot be visually unit-tested per CLAUDE.md
+    ("if a feature cannot be tested (e.g. canvas rendering), flag it for
+    the user to review"). Verification of this fix relies on (a) unit
+    tests for the new `viewportBounds` helper, which exercise the math
+    end-to-end against `screenToTile`, and (b) visual confirmation by
+    the user in the browser (toggle iso mode, observe that earth-scan,
+    lightning range, angel auras, prairie halo, weather rain, glint
+    sparkles, deep-time fire, and angel rain auras all extend into the
+    iso parallelogram corners with no diagonal clipping).
+    The helper lives in a new file `src/engine/viewportBounds.ts` rather
+    than being bolted onto `projection.ts` so its sole purpose
+    (loop-bounds for renderer effect passes) stays discoverable and the
+    file remains short. `projection.ts` already owns coordinate math;
+    `viewportBounds.ts` owns iteration ranges built on top of it.
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-viewport-bounds-helper
+    title: Add `viewportBounds.ts` exporting `getVisibleTileBounds` and `isTileInVisibleViewport`
+    spec_id: iso-viewport-effect-clipping
+    spec_sections:
+      - viewport-bounds-helper
+    context_files:
+      - src/engine/projection.ts
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/viewportBounds.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: viewport-bounds-tests
+    title: Add unit tests for `viewportBounds` helpers (parametric vs `screenToTile`)
+    spec_id: iso-viewport-effect-clipping
+    spec_sections:
+      - viewport-bounds-helper
+      - cartesian-mode-unchanged
+      - small-viewport
+      - wide-viewport
+      - tall-viewport
+      - corner-tiles
+      - margin-extends-past-edge
+    context_files:
+      - src/engine/viewportBounds.ts
+      - src/engine/projection.ts
+    output_files:
+      - src/engine/__tests__/viewportBounds.test.ts
+    depends_on:
+      - add-viewport-bounds-helper
+    verification:
+      - npx vitest run src/engine/__tests__/viewportBounds.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
+
+  - id: apply-helper-to-iteration-passes
+    title: Apply `getVisibleTileBounds` to the 7 cartesian-iteration effect passes
+    spec_id: iso-viewport-effect-clipping
+    spec_sections:
+      - earth-scan-populate-iso-aware
+      - earth-scan-draw-iso-aware
+      - lightning-range-highlight-iso-aware
+      - angel-gold-aura-iso-aware
+      - weather-rain-overlay-iso-aware
+      - glint-zone-overlay-iso-aware
+      - deep-time-burning-overlay-iso-aware
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/viewportBounds.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-viewport-bounds-helper
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/viewportBounds.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: apply-helper-to-prairie-halo
+    title: Apply `getVisibleTileBounds(..., PRAIRIE_HALO_RADIUS)` to the prairie halo pre-pass
+    spec_id: iso-viewport-effect-clipping
+    spec_sections:
+      - prairie-halo-iso-aware
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/viewportBounds.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-viewport-bounds-helper
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: apply-helper-to-radial-pass
+    title: Replace cartesian viewport clip in angel rain aura with `isTileInVisibleViewport`
+    spec_id: iso-viewport-effect-clipping
+    spec_sections:
+      - angel-rain-aura-iso-aware
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/viewportBounds.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-viewport-bounds-helper
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: regression-test-angel-aura-iso
+    title: Add regression test asserting iso-corner tiles are accepted by the rails helper
+    spec_id: iso-viewport-effect-clipping
+    spec_sections:
+      - angel-gold-aura-iso-aware
+      - angel-rain-aura-iso-aware
+      - corner-tiles
+    context_files:
+      - src/engine/viewportBounds.ts
+      - src/engine/projection.ts
+      - src/engine/__tests__/viewportBounds.test.ts
+    output_files:
+      - src/engine/__tests__/viewportBounds.test.ts
+    depends_on:
+      - viewport-bounds-tests
+      - apply-helper-to-iteration-passes
+      - apply-helper-to-radial-pass
+    verification:
+      - npx vitest run src/engine/__tests__/viewportBounds.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test

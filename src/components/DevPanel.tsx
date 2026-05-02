@@ -19,6 +19,7 @@ import {
   getComponentDefaults,
 } from '@/engine/devPanel'
 import { ComponentType } from '@/engine/ecs/types'
+import { screenToTile } from '@/engine/projection'
 import { RuinArchetype } from '@/engine/types'
 
 import type { ComponentMeta, FieldMeta } from '@/engine/devPanel'
@@ -41,16 +42,22 @@ const screenToTilePos = (
   clientY: number,
   canvas: HTMLCanvasElement,
   metrics: CharMetrics,
-  camera: Position
+  state: GameState
 ): Position | null => {
   const rect = canvas.getBoundingClientRect()
   const sx = clientX - rect.left
   const sy = clientY - rect.top
   if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return null
-  return {
-    x: Math.floor(sx / metrics.charWidth) + camera.x,
-    y: Math.floor(sy / metrics.charHeight) + camera.y,
-  }
+  return screenToTile(
+    sx,
+    sy,
+    state.camera,
+    metrics.charWidth,
+    metrics.charHeight,
+    state.isometricProjection,
+    state.viewportWidth,
+    state.viewportHeight,
+  )
 }
 
 // --- Field editor components ---
@@ -266,7 +273,7 @@ const ComponentSection = ({
       {expanded && checked && isEntityTag && (
         <div className="flex flex-col gap-1 pb-2 pl-5">
           <StringField
-            label="value"
+            label="Value"
             value={typeof values.value === 'string' ? values.value : ''}
             onChange={v => {
               onFieldChange('value', v)
@@ -358,7 +365,7 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
         if (!metrics) return
         const canvas = document.querySelector('canvas')
         if (!canvas) return
-        const tile = screenToTilePos(ue.clientX, ue.clientY, canvas, metrics, state.camera)
+        const tile = screenToTilePos(ue.clientX, ue.clientY, canvas, metrics, state)
         if (!tile) return
         if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return
 
@@ -370,7 +377,7 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
         if (!metrics) return
         const canvas = document.querySelector('canvas')
         if (!canvas) return
-        const tile = screenToTilePos(me.clientX, me.clientY, canvas, metrics, state.camera)
+        const tile = screenToTilePos(me.clientX, me.clientY, canvas, metrics, state)
         if (tile && tile.x >= 0 && tile.x < state.mapWidth && tile.y >= 0 && tile.y < state.mapHeight) {
           state.devEntityPreview = { x: tile.x, y: tile.y, ...glyph }
         } else {
@@ -395,7 +402,7 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex items-center gap-1">
-        <span className="text-muted text-xs">preset</span>
+        <span className="text-muted text-xs">Preset</span>
         <select
           onChange={e => {
             if (e.target.value) applyPreset(e.target.value)
@@ -416,7 +423,7 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
       {ruinMode ? (
         <div className="scrollbar-custom flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
           <label className="flex items-center justify-between gap-2 text-xs">
-            <span className="text-muted">archetype</span>
+            <span className="text-muted">Archetype</span>
             <select
               value={ruinArchetype}
               onChange={e => {
@@ -432,7 +439,7 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
             </select>
           </label>
           <label className="flex items-center justify-between gap-2 text-xs">
-            <span className="text-muted">glyph</span>
+            <span className="text-muted">Glyph</span>
             <select
               value={ruinGlyph}
               onChange={e => {
@@ -452,7 +459,7 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
         <>
           <input
             type="text"
-            placeholder="filter..."
+            placeholder="Filter..."
             value={filter}
             onChange={e => {
               setFilter(e.target.value)
@@ -493,7 +500,7 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
         onMouseDown={handleDragStart}
         className={`border-border-dim shrink-0 rounded border px-2 py-1 text-xs ${canSpawn ? 'text-pink hover:bg-pink/20 cursor-grab' : 'text-muted cursor-not-allowed'}`}
       >
-        drag to place
+        DRAG TO PLACE
       </button>
     </div>
   )
@@ -523,7 +530,7 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
       const canvas = document.querySelector('canvas')
       if (!canvas) return
 
-      const startTile = screenToTilePos(e.clientX, e.clientY, canvas, metrics, state.camera)
+      const startTile = screenToTilePos(e.clientX, e.clientY, canvas, metrics, state)
       if (!startTile) return
 
       let currentTile = startTile
@@ -539,7 +546,7 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
       refreshUI()
 
       const handleMove = (me: MouseEvent) => {
-        const tile = screenToTilePos(me.clientX, me.clientY, canvas, metrics, state.camera)
+        const tile = screenToTilePos(me.clientX, me.clientY, canvas, metrics, state)
         if (tile) {
           currentTile = tile
           state.devPaintPreview = {
@@ -626,7 +633,7 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
                 : 'text-text hover:bg-pink/20'
             }`}
           >
-            {tile.label}
+            {tile.label.toUpperCase()}
           </button>
         ))}
       </div>
@@ -643,7 +650,7 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
           }}
           className="text-muted hover:text-pink shrink-0 text-xs"
         >
-          clear brush
+          CLEAR BRUSH
         </button>
       )}
     </div>
@@ -662,16 +669,16 @@ export const DevPanel = (props: DevPanelProps) => {
     >
       <div className="pointer-events-auto flex min-h-0 flex-1 flex-col gap-2">
         <div className="flex shrink-0 items-center justify-between">
-          <PanelTitle>Dev panel</PanelTitle>
+          <PanelTitle>Dev Panel</PanelTitle>
           <span className="text-dim shrink-0 text-xs">` to toggle</span>
         </div>
 
         <div className="border-border-dim flex shrink-0 border-b">
           <Tab active={tab === 'entity'} onClick={() => { setTab('entity') }}>
-            entity
+            ENTITY
           </Tab>
           <Tab active={tab === 'tile'} onClick={() => { setTab('tile') }}>
-            tile
+            TILE
           </Tab>
         </div>
 
