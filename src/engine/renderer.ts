@@ -131,6 +131,7 @@ import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } f
 import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
+import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
@@ -1011,8 +1012,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const fadeElapsed = isFading ? elapsed - EARTH_SCAN_EXPAND_MS - EARTH_SCAN_HOLD_MS : 0
     const fadeWaveRadius = isFading ? (fadeElapsed / EARTH_SCAN_FADE_MS) * EARTH_SCAN_RADIUS : 0
 
-    for (let vy = 0; vy < viewportHeight; vy++) {
-      for (let vx = 0; vx < viewportWidth; vx++) {
+    const earthScanBounds = getVisibleTileBounds(iso, viewportWidth, viewportHeight)
+    for (let vy = earthScanBounds.vyStart; vy < earthScanBounds.vyEnd; vy++) {
+      for (let vx = earthScanBounds.vxStart; vx < earthScanBounds.vxEnd; vx++) {
         const mx = camera.x + vx
         const my = camera.y + vy
         if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
@@ -1077,8 +1079,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Pre-pass: earth scan backgrounds — drawn before all glyphs so south-row
   // backgrounds never clip north-row characters.
   if (earthScanBgMap.size > 0) {
-    for (let vy = 0; vy < viewportHeight; vy++) {
-      for (let vx = 0; vx < viewportWidth; vx++) {
+    const drawBounds = getVisibleTileBounds(iso, viewportWidth, viewportHeight)
+    for (let vy = drawBounds.vyStart; vy < drawBounds.vyEnd; vy++) {
+      for (let vx = drawBounds.vxStart; vx < drawBounds.vxEnd; vx++) {
         const key = posKey(camera.x + vx, camera.y + vy)
         const scanBg = earthScanBgMap.get(key)
         if (scanBg) {
@@ -1118,8 +1121,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Pre-pass: lightning targeting range highlight
   if (state.targetingSlot !== null) {
-    for (let vy = 0; vy < viewportHeight; vy++) {
-      for (let vx = 0; vx < viewportWidth; vx++) {
+    const lightningBounds = getVisibleTileBounds(iso, viewportWidth, viewportHeight)
+    for (let vy = lightningBounds.vyStart; vy < lightningBounds.vyEnd; vy++) {
+      for (let vx = lightningBounds.vxStart; vx < lightningBounds.vxEnd; vx++) {
         const mx = camera.x + vx
         const my = camera.y + vy
         if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
@@ -1136,8 +1140,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Pre-pass: angel gold aura background
   if (angelAuraCenters.length > 0) {
     const savedAlpha = ctx.globalAlpha
-    for (let vy = 0; vy < viewportHeight; vy++) {
-      for (let vx = 0; vx < viewportWidth; vx++) {
+    const angelBounds = getVisibleTileBounds(iso, viewportWidth, viewportHeight)
+    for (let vy = angelBounds.vyStart; vy < angelBounds.vyEnd; vy++) {
+      for (let vx = angelBounds.vxStart; vx < angelBounds.vxEnd; vx++) {
         const mx = camera.x + vx
         const my = camera.y + vy
         if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
@@ -1197,9 +1202,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       if (hctx) {
         hctx.clearRect(0, 0, halo.width, halo.height)
         hctx.fillStyle = PRAIRIE_HALO_COLOR
-        const margin = PRAIRIE_HALO_RADIUS
-        for (let vy = -margin; vy < viewportHeight + margin; vy++) {
-          for (let vx = -margin; vx < viewportWidth + margin; vx++) {
+        const haloBounds = getVisibleTileBounds(iso, viewportWidth, viewportHeight, PRAIRIE_HALO_RADIUS)
+        for (let vy = haloBounds.vyStart; vy < haloBounds.vyEnd; vy++) {
+          for (let vx = haloBounds.vxStart; vx < haloBounds.vxEnd; vx++) {
             const mx = camera.x + vx
             const my = camera.y + vy
             if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
@@ -1803,7 +1808,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // Skip off-screen tiles
         const vx = wx - camera.x
         const vy = wy - camera.y
-        if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
+        if (!isTileInVisibleViewport(vx, vy, iso, viewportWidth, viewportHeight)) continue
 
         // Skip the character's own tile and the player tile
         if (wx === cx && wy === cy) continue
@@ -1845,9 +1850,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Uses rainIntensity for fade in/out and isInRainFront for blotchy edges
   if (state.rainIntensity > 0 && zone === Zone.Overworld) {
     const savedAlpha = ctx.globalAlpha
+    const rainBounds = getVisibleTileBounds(iso, viewportWidth, viewportHeight)
 
-    for (let vy = 0; vy < viewportHeight; vy++) {
-      for (let vx = 0; vx < viewportWidth; vx++) {
+    for (let vy = rainBounds.vyStart; vy < rainBounds.vyEnd; vy++) {
+      for (let vx = rainBounds.vxStart; vx < rainBounds.vxEnd; vx++) {
         const wx = camera.x + vx
         const wy = camera.y + vy
         if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue
@@ -1877,8 +1883,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Glinting zone sparkle overlay — overworld only
   if (zone === Zone.Overworld) {
-    for (let vy = 0; vy < viewportHeight; vy++) {
-      for (let vx = 0; vx < viewportWidth; vx++) {
+    const glintBounds = getVisibleTileBounds(iso, viewportWidth, viewportHeight)
+    for (let vy = glintBounds.vyStart; vy < glintBounds.vyEnd; vy++) {
+      for (let vx = glintBounds.vxStart; vx < glintBounds.vxEnd; vx++) {
         const wx = camera.x + vx
         const wy = camera.y + vy
         if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue
@@ -1939,8 +1946,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Deep Time burning overlay — fire characters on burning tiles
   if (state.deepTime?.active && state.deepTime.phase === DeepTimePhase.Burning) {
-    for (let vy = 0; vy < viewportHeight; vy++) {
-      for (let vx = 0; vx < viewportWidth; vx++) {
+    const burnBounds = getVisibleTileBounds(iso, viewportWidth, viewportHeight)
+    for (let vy = burnBounds.vyStart; vy < burnBounds.vyEnd; vy++) {
+      for (let vx = burnBounds.vxStart; vx < burnBounds.vxEnd; vx++) {
         const wx = camera.x + vx
         const wy = camera.y + vy
         if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue

@@ -19,6 +19,7 @@ import {
   getComponentDefaults,
 } from '@/engine/devPanel'
 import { ComponentType } from '@/engine/ecs/types'
+import { screenToTile } from '@/engine/projection'
 import { RuinArchetype } from '@/engine/types'
 
 import type { ComponentMeta, FieldMeta } from '@/engine/devPanel'
@@ -41,16 +42,22 @@ const screenToTilePos = (
   clientY: number,
   canvas: HTMLCanvasElement,
   metrics: CharMetrics,
-  camera: Position
+  state: GameState
 ): Position | null => {
   const rect = canvas.getBoundingClientRect()
   const sx = clientX - rect.left
   const sy = clientY - rect.top
   if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return null
-  return {
-    x: Math.floor(sx / metrics.charWidth) + camera.x,
-    y: Math.floor(sy / metrics.charHeight) + camera.y,
-  }
+  return screenToTile(
+    sx,
+    sy,
+    state.camera,
+    metrics.charWidth,
+    metrics.charHeight,
+    state.isometricProjection,
+    state.viewportWidth,
+    state.viewportHeight,
+  )
 }
 
 // --- Field editor components ---
@@ -358,7 +365,7 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
         if (!metrics) return
         const canvas = document.querySelector('canvas')
         if (!canvas) return
-        const tile = screenToTilePos(ue.clientX, ue.clientY, canvas, metrics, state.camera)
+        const tile = screenToTilePos(ue.clientX, ue.clientY, canvas, metrics, state)
         if (!tile) return
         if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return
 
@@ -370,7 +377,7 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
         if (!metrics) return
         const canvas = document.querySelector('canvas')
         if (!canvas) return
-        const tile = screenToTilePos(me.clientX, me.clientY, canvas, metrics, state.camera)
+        const tile = screenToTilePos(me.clientX, me.clientY, canvas, metrics, state)
         if (tile && tile.x >= 0 && tile.x < state.mapWidth && tile.y >= 0 && tile.y < state.mapHeight) {
           state.devEntityPreview = { x: tile.x, y: tile.y, ...glyph }
         } else {
@@ -523,7 +530,7 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
       const canvas = document.querySelector('canvas')
       if (!canvas) return
 
-      const startTile = screenToTilePos(e.clientX, e.clientY, canvas, metrics, state.camera)
+      const startTile = screenToTilePos(e.clientX, e.clientY, canvas, metrics, state)
       if (!startTile) return
 
       let currentTile = startTile
@@ -539,7 +546,7 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
       refreshUI()
 
       const handleMove = (me: MouseEvent) => {
-        const tile = screenToTilePos(me.clientX, me.clientY, canvas, metrics, state.camera)
+        const tile = screenToTilePos(me.clientX, me.clientY, canvas, metrics, state)
         if (tile) {
           currentTile = tile
           state.devPaintPreview = {
