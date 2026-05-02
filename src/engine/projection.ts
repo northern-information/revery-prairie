@@ -253,11 +253,14 @@ export const getCellSideQuads = (
 }
 
 /**
- * Paints the side walls of a tile lifted by `lift` pixels (negative =
- * lifted): two quads (left + right faces of the prism). Each face takes
- * its own fill color so callers can apply directional shading — e.g.
- * lit-side / shadow-side darkening of the surface bg color. No-op when
- * lift >= 0.
+ * Paints the side walls of a tile whose top diamond is anchored at
+ * (px, py). Each face is drawn independently with its own depth (px
+ * to extend down) and its own color, so callers can render only the
+ * faces that border a lower neighbor — e.g. for tier-based "Minecraft"
+ * stepped terrain, draw the south face only when the south neighbor
+ * is at a lower tier, and similarly for the east face. depth=0 skips
+ * that face. The left face faces SOUTH in world coords (lower-left in
+ * iso screen space); the right face faces EAST (lower-right).
  */
 export const drawCellWalls = (
   ctx: CanvasRenderingContext2D,
@@ -265,21 +268,32 @@ export const drawCellWalls = (
   py: number,
   charWidth: number,
   charHeight: number,
-  lift: number,
+  leftDepth: number,
+  rightDepth: number,
   leftColor: string,
   rightColor: string,
 ): void => {
-  if (lift >= 0) return
-  const quads = getCellSideQuads(px, py, charWidth, charHeight, lift)
-  if (!quads) return
-  for (const [quad, color] of [
-    [quads.leftQuad, leftColor],
-    [quads.rightQuad, rightColor],
-  ] as const) {
-    ctx.fillStyle = color
+  if (leftDepth <= 0 && rightDepth <= 0) return
+  const top = getCellDiamondCorners(px, py, charWidth, charHeight)
+  if (leftDepth > 0) {
+    const base = getCellDiamondCorners(px, py + leftDepth, charWidth, charHeight)
+    ctx.fillStyle = leftColor
     ctx.beginPath()
-    ctx.moveTo(quad[0][0], quad[0][1])
-    for (let i = 1; i < quad.length; i++) ctx.lineTo(quad[i][0], quad[i][1])
+    ctx.moveTo(top.leftX, top.cy)
+    ctx.lineTo(top.cx, top.bottomY)
+    ctx.lineTo(base.cx, base.bottomY)
+    ctx.lineTo(base.leftX, base.cy)
+    ctx.closePath()
+    ctx.fill()
+  }
+  if (rightDepth > 0) {
+    const base = getCellDiamondCorners(px, py + rightDepth, charWidth, charHeight)
+    ctx.fillStyle = rightColor
+    ctx.beginPath()
+    ctx.moveTo(top.cx, top.bottomY)
+    ctx.lineTo(top.rightX, top.cy)
+    ctx.lineTo(base.rightX, base.cy)
+    ctx.lineTo(base.cx, base.bottomY)
     ctx.closePath()
     ctx.fill()
   }

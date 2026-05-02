@@ -74,10 +74,31 @@ export const darkenColor = (hex: string, factor: number): string => {
 }
 
 // Wall shading factors. Iso projection makes both side faces visible;
-// directional light from the upper-left gives the left face a slight
-// lift and the right face a slight shadow. Kept gentle on purpose:
-// most overworld tiles sit slightly above the elev=50 baseline, so
-// strong wall darkening at every tile boundary visually reads as a
-// dark diamond grid rather than as 3d relief. Tunable.
-export const WALL_LEFT_SHADE = 0.95
-export const WALL_RIGHT_SHADE = 0.82
+// directional light from the upper-left makes the left face lit and
+// the right face shadowed. Walls only render at tier transitions (see
+// ELEVATION_TIER_COUNT below) so strong shading does not produce a
+// per-tile diamond grid — only honest cliff faces between plateaus.
+export const WALL_LEFT_SHADE = 0.78
+export const WALL_RIGHT_SHADE = 0.55
+
+// Discrete elevation tiers ("Minecraft" style): each tile snaps to a
+// tier index 0..ELEVATION_TIER_COUNT-1 based on its raw elevation, and
+// the visual lift is tier * ELEVATION_TIER_LIFT_PX. Same-tier neighbors
+// share a flat plateau (no wall between them). Walls only render where
+// a higher tile borders a lower one, producing clean stepped cliffs.
+//
+// Tunable: more tiers → more variation but more walls. Larger lift per
+// tier → more dramatic cubes. Genesis distribution clusters around
+// elev 50, so 4 tiers (boundaries at 25/50/75) gives most tiles a
+// visible plateau while still showing peaks (≥75) and depressions (<25).
+export const ELEVATION_TIER_COUNT = 4
+export const ELEVATION_TIER_LIFT_PX = 4
+
+export const getElevationTier = (elevation: number | undefined): number => {
+  if (elevation === undefined) return 0
+  const tierSize = 100 / ELEVATION_TIER_COUNT
+  const tier = Math.floor(elevation / tierSize)
+  return Math.max(0, Math.min(ELEVATION_TIER_COUNT - 1, tier))
+}
+
+export const getTierLift = (tier: number): number => -tier * ELEVATION_TIER_LIFT_PX

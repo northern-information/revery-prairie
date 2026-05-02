@@ -121,7 +121,6 @@ import {
   drawCellHighlight,
   drawCellWalls,
   getCellDiamondCorners,
-  getElevationLift,
   viewportToScreen,
   worldToScreen,
 } from './projection'
@@ -130,7 +129,15 @@ import { getReveryDefinition } from './reveries'
 import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
-import { darkenColor, getTileBgColor, WALL_LEFT_SHADE, WALL_RIGHT_SHADE } from './tileBg'
+import {
+  darkenColor,
+  ELEVATION_TIER_LIFT_PX,
+  getElevationTier,
+  getTierLift,
+  getTileBgColor,
+  WALL_LEFT_SHADE,
+  WALL_RIGHT_SHADE,
+} from './tileBg'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
@@ -290,12 +297,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const { camera, viewportWidth, viewportHeight, map, player } = state
   const { charWidth, charHeight } = metrics
 
-  // Cosmetic terrain elevation lift: per-tile y-offset based on
-  // state.elevation. Returns 0 for cave/space/out-of-bounds (no entry
-  // in the map). Defined here so every per-tile draw call can opt in
-  // with `+ liftAt(mx, my)` without re-deriving charHeight or posKey.
-  const liftAt = (mx: number, my: number): number =>
-    getElevationLift(state.elevation.get(posKey(mx, my)), charHeight)
+  // Cosmetic terrain elevation: each tile snaps to a discrete tier
+  // (0..ELEVATION_TIER_COUNT-1) and lifts by tier * ELEVATION_TIER_LIFT_PX.
+  // Same-tier neighbors share a flat plateau so walls only render at
+  // tier transitions. Returns 0 for cave / space / out-of-bounds (no
+  // elevation entry).
+  const tierAt = (mx: number, my: number): number =>
+    getElevationTier(state.elevation.get(posKey(mx, my)))
+  const liftAt = (mx: number, my: number): number => getTierLift(tierAt(mx, my))
 
   // Genesis-to-gameplay crossfade: entities not visible in genesis fade in
   const transitionAlpha = getTransitionAlpha(state.genesisTransition, time)
@@ -1099,7 +1108,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // allocations, and posKey is only called for the cave-hidden check.
   {
     const bgBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
-    const TILE_BG_OVERLAP = 1
+    const TILE_BG_OVERLAP = 2
     const halfH = charHeight / 2
     const halfW = charWidth / 2
     // viewportToScreen origins, hoisted out of the loop.
@@ -1448,7 +1457,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
 
       const tileKey = posKey(mx, my)
-      const lift = getElevationLift(state.elevation.get(tileKey), charHeight)
+      const tileTier = tierAt(mx, my)
+      const lift = getTierLift(tileTier)
       const pyLift = py + lift
 
       // Fog of war: skip unexplored tiles, dim partiallyDiscovered tiles.
@@ -1489,32 +1499,40 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
-      // Cosmetic elevation: draw the side walls of the lifted tile in
-      // the same bg color as the lifted top so the tile reads as a solid
-      // extruded prism. Walls in the glyph color would clash with the
-      // darker tile bg and produce a visible grid of glyph-color stripes
-      // between tiles. No-op when lift >= 0 (flat / sunken — neighbors
-      // handle depressions). Hidden cave chamber tiles use the masked
-      // CaveWall palette so the wall doesn't leak the underlying type.
-      if (lift < 0) {
-        const baseTile = map[my][mx]
-        const wallType =
-          state.currentZone === Zone.Cave &&
-          !state.caveRevealed &&
-          state.caveHiddenPositions.has(tileKey)
-            ? TileType.CaveWall
-            : baseTile.type
-        const wallBg = getTileBgColor(wallType, mx, my)
-        drawCellWalls(
-          ctx,
-          px,
-          py,
-          charWidth,
-          charHeight,
-          lift,
-          darkenColor(wallBg, WALL_LEFT_SHADE),
-          darkenColor(wallBg, WALL_RIGHT_SHADE),
-        )
+      // Cosmetic elevation: tiered "Minecraft" terrain. Walls only
+      // render where this tile is at a higher tier than its south or
+      // east neighbor — the two world-direction neighbors that border
+      // the lower-left (south) and lower-right (east) iso diamond
+      // faces. Same-tier neighbors share a flat plateau with no wall
+      // between them, so flat regions stay clean and only true cliff
+      // faces show. Hidden cave chamber tiles use the masked CaveWall
+      // palette so the wall doesn't leak the underlying type.
+      if (tileTier > 0) {
+        const southTier = tierAt(mx, my + 1)
+        const eastTier = tierAt(mx + 1, my)
+        const leftDepth = Math.max(0, tileTier - southTier) * ELEVATION_TIER_LIFT_PX
+        const rightDepth = Math.max(0, tileTier - eastTier) * ELEVATION_TIER_LIFT_PX
+        if (leftDepth > 0 || rightDepth > 0) {
+          const baseTile = map[my][mx]
+          const wallType =
+            state.currentZone === Zone.Cave &&
+            !state.caveRevealed &&
+            state.caveHiddenPositions.has(tileKey)
+              ? TileType.CaveWall
+              : baseTile.type
+          const wallBg = getTileBgColor(wallType, mx, my)
+          drawCellWalls(
+            ctx,
+            px,
+            pyLift,
+            charWidth,
+            charHeight,
+            leftDepth,
+            rightDepth,
+            darkenColor(wallBg, WALL_LEFT_SHADE),
+            darkenColor(wallBg, WALL_RIGHT_SHADE),
+          )
+        }
       }
 
       const shootingStarOnLand = targetedStarMap.get(tileKey)

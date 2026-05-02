@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { darkenColor, getTileBgColor, TILE_BG_PALETTES } from '../tileBg'
+import {
+  darkenColor,
+  ELEVATION_TIER_COUNT,
+  ELEVATION_TIER_LIFT_PX,
+  getElevationTier,
+  getTierLift,
+  getTileBgColor,
+  TILE_BG_PALETTES,
+} from '../tileBg'
 import { TileType } from '../types'
 
 describe('TILE_BG_PALETTES', () => {
@@ -93,5 +101,47 @@ describe('darkenColor', () => {
   it('clamps to [0, 255] (factor > 1 should not overflow)', () => {
     const out = darkenColor('#ffffff', 2)
     expect(out).toBe('#ffffff')
+  })
+})
+
+describe('getElevationTier', () => {
+  it('returns 0 for undefined elevation (cave / out of bounds)', () => {
+    expect(getElevationTier(undefined)).toBe(0)
+  })
+
+  it('clamps low elevation to tier 0', () => {
+    expect(getElevationTier(0)).toBe(0)
+    expect(getElevationTier(24)).toBe(0)
+  })
+
+  it('clamps high elevation to the top tier', () => {
+    expect(getElevationTier(100)).toBe(ELEVATION_TIER_COUNT - 1)
+    expect(getElevationTier(99)).toBe(ELEVATION_TIER_COUNT - 1)
+  })
+
+  it('snaps mid elevations to the matching tier', () => {
+    // With ELEVATION_TIER_COUNT = 4, tier size = 25
+    expect(getElevationTier(25)).toBe(1)
+    expect(getElevationTier(50)).toBe(2)
+    expect(getElevationTier(74)).toBe(2)
+    expect(getElevationTier(75)).toBe(3)
+  })
+})
+
+describe('getTierLift', () => {
+  it('tier 0 lifts by 0', () => {
+    expect(getTierLift(0)).toBeCloseTo(0)
+  })
+
+  it('higher tiers lift by negative y (up the canvas)', () => {
+    expect(getTierLift(1)).toBe(-ELEVATION_TIER_LIFT_PX)
+    expect(getTierLift(3)).toBe(-3 * ELEVATION_TIER_LIFT_PX)
+  })
+
+  it('is monotonic across tiers', () => {
+    const lifts = [0, 1, 2, 3].map(getTierLift)
+    for (let i = 1; i < lifts.length; i++) {
+      expect(lifts[i]).toBeLessThan(lifts[i - 1])
+    }
   })
 })
