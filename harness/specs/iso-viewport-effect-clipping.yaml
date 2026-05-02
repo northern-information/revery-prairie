@@ -1,0 +1,240 @@
+id: iso-viewport-effect-clipping
+name: Iso-mode effect overlays clipped to cartesian viewport rectangle
+priority: high
+layer: engine
+source_files:
+  - src/engine/renderer.ts
+  - src/engine/projection.ts
+  - src/engine/viewportBounds.ts
+  - src/engine/__tests__/viewportBounds.test.ts
+
+behaviors:
+  - id: viewport-bounds-helper
+    description: >
+      A shared helper module exposes `getVisibleTileBounds(iso,
+      viewportWidth, viewportHeight, margin?)` returning the inclusive-start
+      / exclusive-end viewport tile coordinate bounds (`vxStart`, `vxEnd`,
+      `vyStart`, `vyEnd`) that effect-overlay passes must iterate to cover
+      the entire on-screen tile footprint. In cartesian mode the bounds
+      collapse to `[0, viewportWidth) × [0, viewportHeight)` plus margin so
+      existing behavior is preserved. In iso mode the bounds expand to
+      `[-viewportHeight, viewportWidth + viewportHeight) × [0,
+      viewportWidth + viewportHeight)` (matching the established main tile
+      loop expansion at `renderer.ts` ~line 1330) plus margin, so every
+      tile inside the rotated parallelogram of the visible iso footprint is
+      covered. A companion predicate
+      `isTileInVisibleViewport(vx, vy, iso, viewportWidth, viewportHeight,
+      margin?)` returns whether a single viewport-coord tile lies inside
+      the same region, for radial passes that iterate around an entity
+      center.
+    inputs:
+      - viewport width and height in tiles
+      - iso flag indicating the active projection mode
+      - optional margin (extra tiles past the visible edge)
+    outputs:
+      - bounds object covering every on-screen tile in the active projection
+      - predicate result agreeing with the bounds object for the same args
+    state_changes: []
+    determinism: deterministic
+
+  - id: earth-scan-populate-iso-aware
+    description: >
+      The earth-scan background populate pass at `renderer.ts` ~line 1004
+      iterates `getVisibleTileBounds(iso, viewportWidth, viewportHeight)`
+      so soil-health entries are written for every on-screen tile under
+      the scan radius, including iso-corner tiles outside the cartesian
+      viewport rectangle. Existing `isInBounds`, tile-type, and distance
+      checks remain in place.
+    inputs:
+      - active earth-scan revery effect with origin, expanding/holding/fading phase
+      - current camera offset and viewport dimensions
+      - iso projection flag
+    outputs:
+      - earthScanBgMap entries written for every visible tile in scan radius
+      - no entries written for off-map, space, or cave-wall tiles
+    state_changes:
+      - field: earthScanBgMap (renderer-local)
+        effect: populated for every visible in-radius tile in either projection
+    determinism: deterministic
+
+  - id: earth-scan-draw-iso-aware
+    description: >
+      The earth-scan background draw pre-pass at `renderer.ts` ~line 1070
+      iterates `getVisibleTileBounds(iso, viewportWidth, viewportHeight)`
+      so populated entries from the earth-scan map render at every
+      on-screen tile in the active projection.
+    inputs:
+      - earthScanBgMap populated by the prior pass
+      - viewport dimensions and iso flag
+    outputs:
+      - cell background drawn for every populated entry visible in the projection
+    state_changes: []
+    determinism: deterministic
+
+  - id: lightning-range-highlight-iso-aware
+    description: >
+      The lightning targeting range highlight pre-pass at `renderer.ts`
+      ~line 1111 iterates `getVisibleTileBounds(iso, viewportWidth,
+      viewportHeight)` so the range highlight covers every on-screen tile
+      within `LIGHTNING_REVERY_RANGE` of the player, including iso corners.
+    inputs:
+      - state.targetingSlot is non-null (lightning targeting active)
+      - player position, viewport, iso flag
+    outputs:
+      - range-highlight cell background drawn for every visible in-range, non-space tile
+    state_changes: []
+    determinism: deterministic
+
+  - id: angel-gold-aura-iso-aware
+    description: >
+      The angel gold aura pre-pass at `renderer.ts` ~line 1129 iterates
+      `getVisibleTileBounds(iso, viewportWidth, viewportHeight)` so the
+      gold aura covers every on-screen tile within `ANGEL_AURA_RADIUS` of
+      any visible angel center, including iso corners. The screen-space
+      circular distance computation is preserved.
+    inputs:
+      - one or more angelAuraCenters present
+      - viewport, iso flag, charWidth/charHeight
+    outputs:
+      - gold aura cell background drawn for every visible in-radius non-space tile
+    state_changes: []
+    determinism: time-based
+
+  - id: prairie-halo-iso-aware
+    description: >
+      The prairie halo pre-pass at `renderer.ts` ~line 1191 iterates
+      `getVisibleTileBounds(iso, viewportWidth, viewportHeight,
+      PRAIRIE_HALO_RADIUS)` so the halo footprint covers all on-screen
+      space tiles plus a `PRAIRIE_HALO_RADIUS` margin past the visible
+      edge in both projections. The existing offscreen halo composite
+      pipeline is preserved.
+    inputs:
+      - overworld zone, deep-time not in Burning/Simulating phase
+      - viewport, iso flag
+    outputs:
+      - halo offscreen canvas populated covering visible space tiles plus margin
+    state_changes:
+      - field: halo offscreen canvas (renderer-local)
+        effect: filled for every visible in-range space tile in either projection
+    determinism: time-based
+
+  - id: weather-rain-overlay-iso-aware
+    description: >
+      The weather rain overlay pass at `renderer.ts` ~line 1828 iterates
+      `getVisibleTileBounds(iso, viewportWidth, viewportHeight)` so rain
+      glyphs render at every on-screen tile inside the rain front,
+      including iso corners. Existing `isInRainFront`, density, and player
+      tile checks remain in place.
+    inputs:
+      - state.rainIntensity > 0, overworld zone
+      - viewport, iso flag, time
+    outputs:
+      - rain glyphs drawn at every visible in-front non-player tile passing the density gate
+    state_changes: []
+    determinism: time-based
+
+  - id: glint-zone-overlay-iso-aware
+    description: >
+      The glinting zone sparkle overlay at `renderer.ts` ~line 1859
+      iterates `getVisibleTileBounds(iso, viewportWidth, viewportHeight)`
+      so glint glyphs render at every on-screen tile in `state.glintZones`,
+      including iso corners. Density and opacity gates remain in place.
+    inputs:
+      - overworld zone, populated state.glintZones
+      - viewport, iso flag, time
+    outputs:
+      - glint glyphs drawn at every visible glint-zone tile passing density and opacity gates
+    state_changes: []
+    determinism: time-based
+
+  - id: deep-time-burning-overlay-iso-aware
+    description: >
+      The deep-time burning overlay at `renderer.ts` ~line 1921 iterates
+      `getVisibleTileBounds(iso, viewportWidth, viewportHeight)` so fire
+      glyphs render at every on-screen burnt-clover tile during the deep
+      time Burning phase, including iso corners.
+    inputs:
+      - state.deepTime active, phase Burning
+      - viewport, iso flag, time
+    outputs:
+      - fire glyphs drawn at every visible burnt-clover tile passing the density gate
+    state_changes: []
+    determinism: time-based
+
+  - id: angel-rain-aura-iso-aware
+    description: >
+      The angel rain aura overlay (radial pass around the aura center) at
+      `renderer.ts` ~line 1764 replaces the cartesian viewport clip
+      (`vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight`,
+      ~line 1785) with `isTileInVisibleViewport(vx, vy, iso, viewportWidth,
+      viewportHeight)` so rain glyphs render at every on-screen tile
+      inside the aura radius, including iso corners. Self-tile and player
+      tile skips remain.
+    inputs:
+      - one or more rain-Aura ECS entities in the active zone
+      - viewport, iso flag, time
+    outputs:
+      - rain glyphs drawn at every visible in-radius tile passing density and self/player gates
+    state_changes: []
+    determinism: time-based
+
+edge_cases:
+  - id: cartesian-mode-unchanged
+    description: With `iso = false`, helper bounds equal the prior
+      `[0, viewportWidth) × [0, viewportHeight)` rectangle and all passes
+      iterate exactly the same tile set as before the fix
+    expected: cartesian rendering output is byte-identical to the pre-fix output
+  - id: small-viewport
+    description: Very small viewports (e.g. a 5x5 tile window in iso mode)
+      still cover the entire rotated parallelogram via the helper
+    expected: every screen pixel inverted by `screenToTile` resolves to a
+      viewport tile inside the helper bounds
+  - id: wide-viewport
+    description: Very wide viewports (e.g. width >> height) still cover the
+      iso footprint, which extends to `viewportWidth + viewportHeight` on
+      both axes
+    expected: helper bounds match the main tile loop bounds at
+      `renderer.ts:1333-1335` and cover all on-screen tiles
+  - id: tall-viewport
+    description: Very tall viewports (height >> width) still cover the iso
+      footprint, including negative `vy` corners introduced by the
+      `(vx - vy)` term in `viewportToScreen`
+    expected: helper bounds include `vyStart = 0` for tile loops (per the
+      existing main loop), and `isTileInVisibleViewport` accepts every
+      on-screen tile produced by `screenToTile`
+  - id: corner-tiles
+    description: Tile positions at the four iso parallelogram corners
+      (e.g. viewport top corner at vx ≈ vy ≈ viewportWidth/2 + small
+      offsets) must be considered visible by the helper
+    expected: >-
+      `isTileInVisibleViewport` returns true and `getVisibleTileBounds`
+      covers them
+  - id: margin-extends-past-edge
+    description: Calling the helper with `margin = PRAIRIE_HALO_RADIUS`
+      extends both axes outward by that many tiles in either projection
+    expected: bounds expand symmetrically by `margin`, predicate accepts
+      tiles up to `margin` outside the no-margin bounds
+
+failure_conditions:
+  - trigger: An effect overlay tile that should render in the iso visible
+      region but is outside the cartesian `[0, viewportWidth) ×
+      [0, viewportHeight)` rectangle is skipped by an iteration-style pass
+    expected: tile is included in the helper bounds and rendered (no
+      diagonal clipping along the parallelogram edge)
+  - trigger: A radial overlay (angel rain aura) tile that lands on an iso
+      corner is rejected by a cartesian `vx/vy` clip
+    expected: >-
+      `isTileInVisibleViewport` accepts the tile and the overlay glyph is
+      drawn
+  - trigger: An effect-overlay pass added in the future iterates the
+      cartesian rectangle directly instead of using the helper
+    expected: the helper is documented as the required entry point for new
+      effect-overlay passes; reviewers reject direct cartesian iteration
+  - trigger: Cartesian-mode rendering changes after the fix
+    expected: helper returns identical bounds to the prior literal loops
+      when `iso = false`, so cartesian output is unchanged
+
+verification:
+  test_file: src/engine/__tests__/viewportBounds.test.ts
+  test_pattern: getVisibleTileBounds|isTileInVisibleViewport
+  command: npx vitest run src/engine/__tests__/viewportBounds.test.ts
