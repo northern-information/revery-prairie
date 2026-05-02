@@ -1,6 +1,5 @@
 id: iso-viewport-effect-clipping
 name: Iso-mode effect overlays clipped to cartesian viewport rectangle
-status: implemented
 priority: high
 layer: engine
 source_files:
