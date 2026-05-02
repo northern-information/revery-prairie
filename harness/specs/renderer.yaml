@@ -157,9 +157,8 @@ behaviors:
       the existing twinkling-stars rendering. items and entity glyphs
       render on top without painting their own background, so a
       dropped item on a clover tile still shows the clover bg behind
-      the item glyph. iso projection: the bg fill is the diamond
-      footprint via drawCellBackground. ortho: a charWidth × charHeight
-      fillRect. the per-frame work is delivered via the
+      the item glyph. the bg fill is the diamond footprint via
+      drawCellBackground. the per-frame work is delivered via the
       tile-background-cache behavior — both the bg fillRect and the
       cube-edge stroke are baked into a per-map offscreen canvas, then
       drawImage'd in viewport-aligned slices each frame.
