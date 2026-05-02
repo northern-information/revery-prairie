@@ -7,6 +7,7 @@ import { SELECTION_DRAG_THRESHOLD } from '@/engine/constants'
 import { screenToTile } from '@/engine/coordinates'
 import { isDeepTimeLocked } from '@/engine/deepTime'
 import { ComponentType } from '@/engine/ecs/types'
+import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import {
   advanceDialog,
   breakWall,
@@ -179,6 +180,11 @@ export const useMouse = ({
 
     const handleMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return
+      if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
+        completeGenesis(state)
+        refreshUI()
+        return
+      }
       mouseDownPos = { x: e.offsetX, y: e.offsetY }
       isDragging = false
     }
