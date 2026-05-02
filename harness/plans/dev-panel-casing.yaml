@@ -1,0 +1,28 @@
+plan:
+  id: dev-panel-casing
+  title: Dev panel casing — sentence-case labels, ALL CAPS buttons
+  created: 2026-05-02
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: update-devpanel-text
+    title: Apply casing changes to DevPanel.tsx
+    spec_id: dev-panel
+    spec_sections:
+      - casing-convention
+    context_files:
+      - src/components/DevPanel.tsx
+      - src/components/ManualPanel.tsx
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/DevPanel.tsx
+    depends_on: []
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags:
+      - component

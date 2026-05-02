@@ -121,6 +121,27 @@ behaviors:
         effect: 'set to selected TileType'
     determinism: deterministic
 
+  - id: casing-convention
+    description: >
+      visible text in the dev panel follows the project casing rules. the
+      panel title is "Dev Panel". section labels (preset, archetype, glyph,
+      value, filter placeholder) use sentence case to match the stats
+      sidebar. clickable buttons and drag handles (tab buttons,
+      drag-to-place, clear-brush, tile-paint list) render in ALL CAPS to
+      match the manual. component checkbox labels and dropdown options are
+      unchanged — they remain code-style identifiers and existing label
+      strings.
+    inputs:
+      - 'panel rendered to DOM'
+    outputs:
+      - 'title text "Dev Panel"'
+      - 'tab buttons "ENTITY" and "TILE"'
+      - 'spawn button "DRAG TO PLACE", clear button "CLEAR BRUSH"'
+      - 'tile-paint list buttons rendered uppercase'
+      - 'labels "Preset", "Archetype", "Glyph", "Value", placeholder "Filter..."'
+    state_changes: []
+    determinism: deterministic
+
   - id: dev-gated
     description: >
       the entire dev panel system is gated behind import.meta.env.DEV.
