@@ -1466,11 +1466,21 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
 
       // Cosmetic elevation: draw the side walls of the lifted tile in
-      // its surface color, before any cursor highlight or surface paint.
-      // No-op when lift >= 0 (flat / sunken — neighbors handle depressions).
+      // the same bg color as the lifted top so the tile reads as a solid
+      // extruded prism. Walls in the glyph color would clash with the
+      // darker tile bg and produce a visible grid of glyph-color stripes
+      // between tiles. No-op when lift >= 0 (flat / sunken — neighbors
+      // handle depressions). Hidden cave chamber tiles use the masked
+      // CaveWall palette so the wall doesn't leak the underlying type.
       if (lift < 0) {
         const baseTile = map[my][mx]
-        ctx.fillStyle = TILE_COLORS[baseTile.type]
+        const wallType =
+          state.currentZone === Zone.Cave &&
+          !state.caveRevealed &&
+          state.caveHiddenPositions.has(tileKey)
+            ? TileType.CaveWall
+            : baseTile.type
+        ctx.fillStyle = getTileBgColor(wallType, mx, my)
         drawCellWalls(ctx, px, py, charWidth, charHeight, lift)
       }
 
