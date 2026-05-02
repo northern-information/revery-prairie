@@ -130,6 +130,7 @@ import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } f
 import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
 import {
+  CUBE_BASE_DEPTH_PX,
   darkenColor,
   ELEVATION_TIER_LIFT_PX,
   getElevationTier,
@@ -155,6 +156,37 @@ const getTransitionAlpha = (transition: TransitionFade | null, time: number): nu
   if (elapsed <= 0) return 0
   if (elapsed >= transition.duration) return 1
   return elapsed / transition.duration
+}
+
+// Tier grid cache. state.elevation is a Map<posKey, number> populated
+// at genesis and never mutated thereafter, so we can build the flat
+// tier array once and reuse it across frames as long as the elevation
+// reference is stable. Indexed by mx + my * mapWidth.
+let _tierGridCache: Int8Array | null = null
+let _tierGridFor: Map<string, number> | null = null
+let _tierGridWidth = 0
+
+const getTierGrid = (
+  elevation: Map<string, number>,
+  mapWidth: number,
+  mapHeight: number,
+): Int8Array => {
+  if (_tierGridCache !== null && _tierGridFor === elevation && _tierGridWidth === mapWidth) {
+    return _tierGridCache
+  }
+  const grid = new Int8Array(mapWidth * mapHeight)
+  for (const [key, value] of elevation) {
+    const sep = key.indexOf(',')
+    if (sep < 0) continue
+    const x = Number(key.slice(0, sep))
+    const y = Number(key.slice(sep + 1))
+    if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) continue
+    grid[x + y * mapWidth] = getElevationTier(value)
+  }
+  _tierGridCache = grid
+  _tierGridFor = elevation
+  _tierGridWidth = mapWidth
+  return grid
 }
 
 const STAR_CHARS = ['.', '+', '*']
@@ -299,11 +331,19 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Cosmetic terrain elevation: each tile snaps to a discrete tier
   // (0..ELEVATION_TIER_COUNT-1) and lifts by tier * ELEVATION_TIER_LIFT_PX.
-  // Same-tier neighbors share a flat plateau so walls only render at
-  // tier transitions. Returns 0 for cave / space / out-of-bounds (no
-  // elevation entry).
-  const tierAt = (mx: number, my: number): number =>
-    getElevationTier(state.elevation.get(posKey(mx, my)))
+  // Every tile renders as a cube — see the wall draw site for details.
+  //
+  // The renderer reads tier per tile in several hot paths (bg pre-pass,
+  // wall depth calc, entity lift, overlays). To avoid 60k+ posKey
+  // string allocations + Map.get calls per frame, the tier values are
+  // cached into a flat Int8Array indexed by mx + my * mapWidth, rebuilt
+  // only when state.elevation reference changes (which only happens at
+  // genesis / state init).
+  const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
+  const tierAt = (mx: number, my: number): number => {
+    if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return 0
+    return tierGrid[mx + my * state.mapWidth]
+  }
   const liftAt = (mx: number, my: number): number => getTierLift(tierAt(mx, my))
 
   // Genesis-to-gameplay crossfade: entities not visible in genesis fade in
@@ -1499,40 +1539,44 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
-      // Cosmetic elevation: tiered "Minecraft" terrain. Walls only
-      // render where this tile is at a higher tier than its south or
-      // east neighbor — the two world-direction neighbors that border
-      // the lower-left (south) and lower-right (east) iso diamond
-      // faces. Same-tier neighbors share a flat plateau with no wall
-      // between them, so flat regions stay clean and only true cliff
-      // faces show. Hidden cave chamber tiles use the masked CaveWall
-      // palette so the wall doesn't leak the underlying type.
-      if (tileTier > 0) {
+      // Cosmetic elevation: every tile renders as a discrete cube.
+      // South and east faces (the lower-left and lower-right iso
+      // faces) always render at CUBE_BASE_DEPTH_PX; at tier
+      // transitions where this tile sits higher than the corresponding
+      // neighbor, the wall extends further down by the tier delta to
+      // produce a visible cliff. Hidden cave chamber tiles use the
+      // masked CaveWall palette so the wall doesn't leak the
+      // underlying type.
+      {
         const southTier = tierAt(mx, my + 1)
         const eastTier = tierAt(mx + 1, my)
-        const leftDepth = Math.max(0, tileTier - southTier) * ELEVATION_TIER_LIFT_PX
-        const rightDepth = Math.max(0, tileTier - eastTier) * ELEVATION_TIER_LIFT_PX
-        if (leftDepth > 0 || rightDepth > 0) {
-          const baseTile = map[my][mx]
-          const wallType =
-            state.currentZone === Zone.Cave &&
-            !state.caveRevealed &&
-            state.caveHiddenPositions.has(tileKey)
-              ? TileType.CaveWall
-              : baseTile.type
-          const wallBg = getTileBgColor(wallType, mx, my)
-          drawCellWalls(
-            ctx,
-            px,
-            pyLift,
-            charWidth,
-            charHeight,
-            leftDepth,
-            rightDepth,
-            darkenColor(wallBg, WALL_LEFT_SHADE),
-            darkenColor(wallBg, WALL_RIGHT_SHADE),
-          )
-        }
+        const leftDepth = Math.max(
+          CUBE_BASE_DEPTH_PX,
+          (tileTier - southTier) * ELEVATION_TIER_LIFT_PX,
+        )
+        const rightDepth = Math.max(
+          CUBE_BASE_DEPTH_PX,
+          (tileTier - eastTier) * ELEVATION_TIER_LIFT_PX,
+        )
+        const baseTile = map[my][mx]
+        const wallType =
+          state.currentZone === Zone.Cave &&
+          !state.caveRevealed &&
+          state.caveHiddenPositions.has(tileKey)
+            ? TileType.CaveWall
+            : baseTile.type
+        const wallBg = getTileBgColor(wallType, mx, my)
+        drawCellWalls(
+          ctx,
+          px,
+          pyLift,
+          charWidth,
+          charHeight,
+          leftDepth,
+          rightDepth,
+          darkenColor(wallBg, WALL_LEFT_SHADE),
+          darkenColor(wallBg, WALL_RIGHT_SHADE),
+        )
       }
 
       const shootingStarOnLand = targetedStarMap.get(tileKey)

@@ -83,16 +83,23 @@ export const WALL_RIGHT_SHADE = 0.55
 
 // Discrete elevation tiers ("Minecraft" style): each tile snaps to a
 // tier index 0..ELEVATION_TIER_COUNT-1 based on its raw elevation, and
-// the visual lift is tier * ELEVATION_TIER_LIFT_PX. Same-tier neighbors
-// share a flat plateau (no wall between them). Walls only render where
-// a higher tile borders a lower one, producing clean stepped cliffs.
+// the visual lift is tier * ELEVATION_TIER_LIFT_PX. Every tile renders
+// as a discrete cube — all four cardinal directions get a small wall
+// (`CUBE_BASE_DEPTH_PX` deep) so each tile reads as a physical block;
+// at tier transitions the wall extends down by the full tier delta to
+// produce a visible cliff face.
 //
-// Tunable: more tiers → more variation but more walls. Larger lift per
-// tier → more dramatic cubes. Genesis distribution clusters around
-// elev 50, so 4 tiers (boundaries at 25/50/75) gives most tiles a
-// visible plateau while still showing peaks (≥75) and depressions (<25).
+// Tunable: more tiers → more variation. Larger lift per tier → more
+// dramatic cliffs. Larger CUBE_BASE_DEPTH_PX → chunkier cubes (but the
+// per-tile cube edges become more prominent).
 export const ELEVATION_TIER_COUNT = 4
-export const ELEVATION_TIER_LIFT_PX = 4
+export const ELEVATION_TIER_LIFT_PX = 6
+// Must exceed ~ch/2 (half the diamond height) for the cube edge to peek
+// out below the next-row tile's diamond top in painter's order. Below
+// that threshold, the wall is fully covered by the next row and the
+// cube is invisible on a flat plateau. 8px gives a clear cube edge at
+// typical font sizes (charHeight ≈ 14).
+export const CUBE_BASE_DEPTH_PX = 8
 
 export const getElevationTier = (elevation: number | undefined): number => {
   if (elevation === undefined) return 0
