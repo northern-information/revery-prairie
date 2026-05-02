@@ -20,21 +20,33 @@ dependencies:
 behaviors:
   - id: pass-registry
     description: >
-      the render frame is composed of an ordered list of named passes,
-      not a single monolithic function. each pass is a small module
-      exporting a draw function with the signature
-      (ctx, state, metrics, time) => void plus metadata: id, ordering
-      slot (one of bg-cache, world-overlay, tile-glyph, entity, effect,
-      screen-overlay), and a predicate isActive(state) so passes that
-      do nothing in the current state (e.g. earth-scan when no scan is
-      active, weather-rain in cave) short-circuit cheaply. passes are
-      registered in src/engine/render/passes.ts and the renderer's
-      render() iterates the registry once per frame in registry order,
-      calling each active pass's draw function. adding a new entity
-      type, overlay, or effect means adding one new pass file and
-      registering it — not editing render() itself. the previous
-      monolithic dispatch loop in renderer.ts is replaced by this
-      registry walk.
+      the render frame is composed of named passes registered into an
+      ordered slot enum: bg-cache, world-overlay, tile-glyph, entity,
+      effect, screen-overlay. each pass is a small module exporting a
+      draw function with the signature (ctx, state, metrics, time) =>
+      void plus metadata (id, slot, isActive(state) predicate) and
+      registers itself at module load. renderer.ts calls
+      runPassesInSlot(slot, ...) at the slot's documented position in
+      the main-render-loop ordering — passes layer in slot order,
+      inactive passes short-circuit in O(1).
+
+      adding a new bg-cache, world-overlay, effect, or screen-overlay
+      concern means adding one pass file under
+      src/engine/render/passes/ and exporting it from
+      src/engine/render/passes/index.ts (the side-effect import in
+      renderer.ts triggers registration). renderer.ts is not edited.
+
+      the tile-glyph slot and the entity slot are intentionally
+      reserved but unpopulated. the central tile loop in renderer.ts
+      (terrain glyphs, clover lifecycle, fog of war, glints, cursor
+      inversion, ponds/rivers, plus the populate-then-consume pattern
+      that feeds it from ECS for items, bees, characters, etc.) is the
+      tile-glyph slot — splitting it into separate pass files would
+      either duplicate the precedence chain across passes or force a
+      shared frameState abstraction whose only purpose is to enable
+      the file split. the inline central loop is the documented end
+      state. passes can still be added to tile-glyph or entity later
+      if a clear z-ordered layer warrants it.
     inputs:
       - 'CanvasRenderingContext2D, GameState, CharMetrics, timestamp'
     outputs:
@@ -104,33 +116,49 @@ behaviors:
   - id: main-render-loop
     description: >
       render(ctx, state, metrics, time) is the main draw call,
-      invoked each requestAnimationFrame. clears the canvas with
-      BG_COLOR, then walks the pass registry (see pass-registry
-      behavior) in order: bg-cache slot (tile-bg cache composite),
-      world-overlay slot (earth scan, ruin entrance halo, lightning
-      targeting range, angel gold aura, prairie halo cache composite),
-      tile-glyph slot (terrain glyphs, clover lifecycle, burn scars,
-      glinting zones, ponds, rivers), entity slot (ground items,
-      bees, beehives, characters, shooting stars, meteorites,
-      lightning bolts, player trail, rain aura, player glyph), effect
-      slot (path/hover preview, pickup bloom, crumble, wildfire,
-      revery rain overlay, weather rain overlay, deep time burning
-      overlay), screen-overlay slot (cursor highlight, lightning
-      screen flash, angel spawn/despawn flash, edge scroll indicator,
-      off-screen player arrow, ejection fade, RTS selection box).
-      each pass declares its own isActive(state) predicate and
-      short-circuits when the state does not warrant drawing. during
-      genesisTransition, entities not visible in genesis render at
-      transitionAlpha (0→1 over duration) via globalAlpha — owned by
-      the relevant entity passes. the player glyph uses the deep time
-      ghost glyph when active and crossfades from ö to @ via
-      complementary globalAlpha during deepTimeTransition. tile-glyph
-      slot uses a two-phase resolve-then-draw pattern: first
-      determines char/color/cursorable, then applies cursor inversion
-      if applicable. entity glyphs (player, bees, ghosts, characters,
-      ground items, etc.) overlay the tile bg without recoloring it
-      — items on the ground inherit the tile bg of whatever surface
-      they sit on.
+      invoked each requestAnimationFrame. it interleaves
+      runPassesInSlot(slot, ...) calls with the inline tile-glyph
+      central loop, in this order:
+
+        1. clear canvas, set up font and world transform
+        2. runPassesInSlot('bg-cache', ...)  — tile-bg + cube edges
+        3. runPassesInSlot('world-overlay', ...) — earth scan, ruin
+           entrance halo, lightning targeting range, angel gold aura,
+           prairie halo cache composite, prairie outline
+        4. populate per-frame ECS-derived collections (bees,
+           characters, items, shooting stars, meteorites, lightning
+           bolts, explosions, wildfire, pickup bloom, revery cast,
+           crumble, etc.) into module-level Maps
+        5. fog of war computation
+        6. central tile loop: iterates the visible viewport and
+           resolves each tile's char/color via a precedence chain
+           (cursor > preview > effect > entity > ground item >
+           terrain glyph). uses a two-phase resolve-then-draw pattern
+           so cursor inversion (pink fillRect + dark glyph) applies
+           correctly. handles clover lifecycle staging, glints, fog
+           dimming, ponds, rivers, twinkling space stars, drop-target
+           previews, and deep time crossfade for the player glyph.
+        7. smooth-movement post-pass — draws tweening ECS entities
+           at fractional pixel positions
+        8. runPassesInSlot('effect', ...) — rain aura, revery rain,
+           weather rain, glint sparkle, glint beam, deep time burning
+        9. restore world transform
+       10. runPassesInSlot('screen-overlay', ...) — lightning flash,
+           angel flash, RTS selection box, move-order markers, edge
+           scroll indicator, off-screen player arrow
+
+      the tile-glyph slot and entity slot are intentionally
+      unpopulated in the registry — their work happens in steps 4–7
+      inline. see pass-registry behavior for the rationale.
+
+      during genesisTransition, entities not visible in genesis
+      render at transitionAlpha (0→1 over duration) via globalAlpha,
+      handled in the central tile loop. the player glyph uses the
+      deep time ghost glyph when active and crossfades from ö to @
+      via complementary globalAlpha during deepTimeTransition. entity
+      glyphs (player, bees, ghosts, characters, ground items, etc.)
+      overlay the tile bg without recoloring it — items on the
+      ground inherit the tile bg of whatever surface they sit on.
     inputs:
       - 'CanvasRenderingContext2D, GameState, CharMetrics, timestamp'
     outputs:

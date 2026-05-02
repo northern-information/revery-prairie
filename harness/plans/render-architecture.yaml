@@ -2,6 +2,22 @@ plan:
   id: render-architecture
   title: 'Pass registry + unified cache contract + cached halo'
   created: '2026-05-02'
+  status: |
+    Closed 2026-05-02. Foundation, halo cache, bg-cache slot,
+    world-overlay slot, screen-overlay slot, and the post-tile half of
+    the effect slot all landed across PRs #211, #213, #214, #215, and
+    #216.
+
+    The remaining slot extractions (tile-glyph, entity, and the
+    in-tile-loop half of effect — path/preview/pickup-bloom/etc.)
+    were intentionally deferred. The central tile loop is a single
+    precedence-chain dispatch; splitting it across pass files would
+    duplicate the precedence chain or force a frameState abstraction
+    whose only purpose is to enable the file split. The inline
+    central loop is the documented end state — see the pass-registry
+    behavior in harness/specs/renderer.yaml. Tasks 4-13 below are
+    superseded by this decision and the structural-fix tasks 4, 5,
+    9 that did land.
   global_verification:
     - npm run build
     - npm run test
