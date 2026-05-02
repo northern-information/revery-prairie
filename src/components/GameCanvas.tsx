@@ -71,17 +71,22 @@ export const GameCanvas = ({
       metricsRef.current ??= measureChar(ctx, state.zoom)
 
       const { charWidth, charHeight } = metricsRef.current
-      const dpr = window.devicePixelRatio || 1
 
       resizeState(state, charWidth, charHeight)
 
+      // Render at 1x CSS pixels regardless of devicePixelRatio. On
+      // retina displays this trades Retina sharpness for ~4x less
+      // rasterization cost — the renderer fills tens of thousands of
+      // pixels per tile per frame, and the per-tile overhead at 2x DPR
+      // dominates the frame budget. The browser handles the upscale to
+      // physical pixels, giving the world a slightly chunky pixel-art
+      // look that fits the ASCII / iso aesthetic.
       const pxWidth = state.viewportWidth * charWidth
       const pxHeight = state.viewportHeight * charHeight
-      canvas.width = pxWidth * dpr
-      canvas.height = pxHeight * dpr
+      canvas.width = pxWidth
+      canvas.height = pxHeight
       canvas.style.width = `${String(pxWidth)}px`
       canvas.style.height = `${String(pxHeight)}px`
-      ctx.scale(dpr, dpr)
     }
 
     updateSize()

@@ -121,7 +121,6 @@ import {
   drawCellHighlight,
   drawCellWalls,
   getCellDiamondCorners,
-  getElevationLift,
   viewportToScreen,
   worldToScreen,
 } from './projection'
@@ -130,6 +129,15 @@ import { getReveryDefinition } from './reveries'
 import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
+import {
+  darkenColor,
+  ELEVATION_TIER_LIFT_PX,
+  getElevationTier,
+  getTierLift,
+  getTileBgColor,
+  WALL_LEFT_SHADE,
+  WALL_RIGHT_SHADE,
+} from './tileBg'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
@@ -147,6 +155,37 @@ const getTransitionAlpha = (transition: TransitionFade | null, time: number): nu
   if (elapsed <= 0) return 0
   if (elapsed >= transition.duration) return 1
   return elapsed / transition.duration
+}
+
+// Tier grid cache. state.elevation is a Map<posKey, number> populated
+// at genesis and never mutated thereafter, so we can build the flat
+// tier array once and reuse it across frames as long as the elevation
+// reference is stable. Indexed by mx + my * mapWidth.
+let _tierGridCache: Int8Array | null = null
+let _tierGridFor: Map<string, number> | null = null
+let _tierGridWidth = 0
+
+const getTierGrid = (
+  elevation: Map<string, number>,
+  mapWidth: number,
+  mapHeight: number,
+): Int8Array => {
+  if (_tierGridCache !== null && _tierGridFor === elevation && _tierGridWidth === mapWidth) {
+    return _tierGridCache
+  }
+  const grid = new Int8Array(mapWidth * mapHeight)
+  for (const [key, value] of elevation) {
+    const sep = key.indexOf(',')
+    if (sep < 0) continue
+    const x = Number(key.slice(0, sep))
+    const y = Number(key.slice(sep + 1))
+    if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) continue
+    grid[x + y * mapWidth] = getElevationTier(value)
+  }
+  _tierGridCache = grid
+  _tierGridFor = elevation
+  _tierGridWidth = mapWidth
+  return grid
 }
 
 const STAR_CHARS = ['.', '+', '*']
@@ -289,12 +328,22 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const { camera, viewportWidth, viewportHeight, map, player } = state
   const { charWidth, charHeight } = metrics
 
-  // Cosmetic terrain elevation lift: per-tile y-offset based on
-  // state.elevation. Returns 0 for cave/space/out-of-bounds (no entry
-  // in the map). Defined here so every per-tile draw call can opt in
-  // with `+ liftAt(mx, my)` without re-deriving charHeight or posKey.
-  const liftAt = (mx: number, my: number): number =>
-    getElevationLift(state.elevation.get(posKey(mx, my)), charHeight)
+  // Cosmetic terrain elevation: each tile snaps to a discrete tier
+  // (0..ELEVATION_TIER_COUNT-1) and lifts by tier * ELEVATION_TIER_LIFT_PX.
+  // Every tile renders as a cube — see the wall draw site for details.
+  //
+  // The renderer reads tier per tile in several hot paths (bg pre-pass,
+  // wall depth calc, entity lift, overlays). To avoid 60k+ posKey
+  // string allocations + Map.get calls per frame, the tier values are
+  // cached into a flat Int8Array indexed by mx + my * mapWidth, rebuilt
+  // only when state.elevation reference changes (which only happens at
+  // genesis / state init).
+  const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
+  const tierAt = (mx: number, my: number): number => {
+    if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return 0
+    return tierGrid[mx + my * state.mapWidth]
+  }
+  const liftAt = (mx: number, my: number): number => getTierLift(tierAt(mx, my))
 
   // Genesis-to-gameplay crossfade: entities not visible in genesis fade in
   const transitionAlpha = getTransitionAlpha(state.genesisTransition, time)
@@ -1076,25 +1125,135 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Pre-pass: earth scan backgrounds — drawn before all glyphs so south-row
-  // backgrounds never clip north-row characters.
+  // Pre-pass: per-tile surface backgrounds. Every visible non-space tile
+  // in the iso-visible parallelogram gets a diamond fill from
+  // TILE_BG_PALETTES keyed by tileHash, painted at the elevation-lifted
+  // position so the bg tracks the lifted surface. Drawn first so all
+  // subsequent overlay pre-passes (earth scan, ruin halo, lightning
+  // range, angel aura) and the main glyph loop layer on top. Cave
+  // hidden tiles are masked to CaveWall so the secret chamber stays
+  // hidden until reveal.
+  //
+  // Each diamond is expanded outward by TILE_BG_OVERLAP px so adjacent
+  // fills overlap by ~2px; later-drawn neighbors cleanly overwrite the
+  // earlier tile's edge in painter's order, covering the AA seam at
+  // shared diamond edges. Per-tile direct ctx path fills are used in
+  // preference to a pooled-by-color Path2D — Path2D operations are
+  // measured ~10x slower than direct ctx path ops in current browsers,
+  // and a Path2D-per-color pre-pass dominated the frame budget.
+  //
+  // Hot path: ~16k tiles per frame at iso DPR-2 fullscreen. Projection
+  // and diamond-corner math is inlined to avoid per-tile object
+  // allocations, and posKey is only called for the cave-hidden check.
+  {
+    const bgBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
+    const TILE_BG_OVERLAP = 2
+    const halfH = charHeight / 2
+    const halfW = charWidth / 2
+    // viewportToScreen origins, hoisted out of the loop.
+    const originX = (viewportHeight * charWidth) / 2 - halfW
+    const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
+    const caveMaskActive = state.currentZone === Zone.Cave && !state.caveRevealed
+    for (let vy = bgBounds.vyStart; vy < bgBounds.vyEnd; vy++) {
+      for (let vx = bgBounds.vxStart; vx < bgBounds.vxEnd; vx++) {
+        const mx = camera.x + vx
+        const my = camera.y + vy
+        if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+        const tile = map[my][mx]
+        if (tile.type === TileType.Space) continue
+        const effectiveType =
+          caveMaskActive && state.caveHiddenPositions.has(posKey(mx, my))
+            ? TileType.CaveWall
+            : tile.type
+        ctx.fillStyle = getTileBgColor(effectiveType, mx, my)
+        // Inline viewportToScreen.
+        const px = (vx - vy) * charWidth + originX + halfW
+        const py = (vx + vy) * halfH + originY + liftAt(mx, my)
+        // Inline getCellDiamondCorners and apply expansion.
+        const leftX = px - halfW
+        const rightX = leftX + 2 * charWidth
+        const topY = py
+        const bottomY = topY + charHeight
+        const cx = leftX + charWidth
+        const cy = topY + halfH
+        ctx.beginPath()
+        ctx.moveTo(cx, topY - TILE_BG_OVERLAP)
+        ctx.lineTo(rightX + TILE_BG_OVERLAP, cy)
+        ctx.lineTo(cx, bottomY + TILE_BG_OVERLAP)
+        ctx.lineTo(leftX - TILE_BG_OVERLAP, cy)
+        ctx.closePath()
+        ctx.fill()
+      }
+    }
+  }
+  // Pre-pass: per-tile cube-edge stroke. Draws a darker line along the
+  // south + east diamond edges of each non-space land tile, simulating
+  // the cube's bottom-left and bottom-right faces without doing a full
+  // wall fill. Strokes are far cheaper than per-tile filled wall quads
+  // (~5x faster in profiling) while preserving the "every tile is a
+  // discrete cube" look the user asked for. Tier-transition cliffs are
+  // still drawn as proper filled walls in the main glyph loop.
+  {
+    const edgeBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
+    const halfH = charHeight / 2
+    const halfW = charWidth / 2
+    const originX = (viewportHeight * charWidth) / 2 - halfW
+    const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
+    const caveMaskActive = state.currentZone === Zone.Cave && !state.caveRevealed
+    const savedLineWidth = ctx.lineWidth
+    const savedStroke = ctx.strokeStyle
+    ctx.lineWidth = 1
+    for (let vy = edgeBounds.vyStart; vy < edgeBounds.vyEnd; vy++) {
+      for (let vx = edgeBounds.vxStart; vx < edgeBounds.vxEnd; vx++) {
+        const mx = camera.x + vx
+        const my = camera.y + vy
+        if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+        const tile = map[my][mx]
+        if (tile.type === TileType.Space) continue
+        const effectiveType =
+          caveMaskActive && state.caveHiddenPositions.has(posKey(mx, my))
+            ? TileType.CaveWall
+            : tile.type
+        const bg = getTileBgColor(effectiveType, mx, my)
+        ctx.strokeStyle = darkenColor(bg, WALL_RIGHT_SHADE)
+        const px = (vx - vy) * charWidth + originX + halfW
+        const py = (vx + vy) * halfH + originY + liftAt(mx, my)
+        const leftX = px - halfW
+        const rightX = leftX + 2 * charWidth
+        const topY = py
+        const bottomY = topY + charHeight
+        const cx = leftX + charWidth
+        const cy = topY + halfH
+        ctx.beginPath()
+        ctx.moveTo(leftX, cy)
+        ctx.lineTo(cx, bottomY)
+        ctx.lineTo(rightX, cy)
+        ctx.stroke()
+      }
+    }
+    ctx.lineWidth = savedLineWidth
+    ctx.strokeStyle = savedStroke
+  }
+  // Pre-pass: earth scan backgrounds — drawn after the tile bg pre-pass so
+  // scan colors paint opaque on top of the surface bg. Fade-out uses
+  // globalAlpha rather than lerping toward BG_COLOR, so the tile bg shows
+  // through naturally as the scan dissipates instead of fading to dark void.
   if (earthScanBgMap.size > 0) {
+    const savedAlpha = ctx.globalAlpha
     const drawBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
     for (let vy = drawBounds.vyStart; vy < drawBounds.vyEnd; vy++) {
       for (let vx = drawBounds.vxStart; vx < drawBounds.vxEnd; vx++) {
         const key = posKey(camera.x + vx, camera.y + vy)
         const scanBg = earthScanBgMap.get(key)
         if (scanBg) {
-          if (scanBg.opacity >= 1) {
-            ctx.fillStyle = scanBg.color
-          } else {
-            ctx.fillStyle = lerpColor(scanBg.color, BG_COLOR, 1 - scanBg.opacity)
-          }
+          ctx.globalAlpha = scanBg.opacity
+          ctx.fillStyle = scanBg.color
           const { px: bgPx, py: bgPy } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
           drawCellBackground(ctx, bgPx, bgPy + liftAt(camera.x + vx, camera.y + vy), charWidth, charHeight)
         }
       }
     }
+    ctx.globalAlpha = savedAlpha
   }
 
   // Pre-pass: ruin entrance halo (overworld only). Paints a 3x3 dark backdrop
@@ -1384,7 +1543,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
 
       const tileKey = posKey(mx, my)
-      const lift = getElevationLift(state.elevation.get(tileKey), charHeight)
+      const tileTier = tierAt(mx, my)
+      const lift = getTierLift(tileTier)
       const pyLift = py + lift
 
       // Fog of war: skip unexplored tiles, dim partiallyDiscovered tiles.
@@ -1425,13 +1585,40 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
-      // Cosmetic elevation: draw the side walls of the lifted tile in
-      // its surface color, before any cursor highlight or surface paint.
-      // No-op when lift >= 0 (flat / sunken — neighbors handle depressions).
-      if (lift < 0) {
-        const baseTile = map[my][mx]
-        ctx.fillStyle = TILE_COLORS[baseTile.type]
-        drawCellWalls(ctx, px, py, charWidth, charHeight, lift)
+      // Cosmetic elevation: walls render at tier transitions only,
+      // where this tile sits higher than its south or east neighbor.
+      // Same-tier neighbors share a flat plateau; the cube edge
+      // suggesting "every tile is a discrete block" is drawn by a
+      // separate, much cheaper south+east edge stroke pre-pass below
+      // (see edge-stroke pre-pass). Hidden cave chamber tiles use
+      // the masked CaveWall palette so the wall doesn't leak the
+      // underlying type.
+      if (tileTier > 0) {
+        const southTier = tierAt(mx, my + 1)
+        const eastTier = tierAt(mx + 1, my)
+        const leftDepth = Math.max(0, tileTier - southTier) * ELEVATION_TIER_LIFT_PX
+        const rightDepth = Math.max(0, tileTier - eastTier) * ELEVATION_TIER_LIFT_PX
+        if (leftDepth > 0 || rightDepth > 0) {
+          const baseTile = map[my][mx]
+          const wallType =
+            state.currentZone === Zone.Cave &&
+            !state.caveRevealed &&
+            state.caveHiddenPositions.has(tileKey)
+              ? TileType.CaveWall
+              : baseTile.type
+          const wallBg = getTileBgColor(wallType, mx, my)
+          drawCellWalls(
+            ctx,
+            px,
+            pyLift,
+            charWidth,
+            charHeight,
+            leftDepth,
+            rightDepth,
+            darkenColor(wallBg, WALL_LEFT_SHADE),
+            darkenColor(wallBg, WALL_RIGHT_SHADE),
+          )
+        }
       }
 
       const shootingStarOnLand = targetedStarMap.get(tileKey)
@@ -1750,7 +1937,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       if (applyEntityFade) ctx.globalAlpha = 1
     }
   }
-
   // Smooth-movement post-pass — draw tweening ECS entities at fractional pixel positions
   for (const t of tweenedEntities) {
     const { px, py } = worldToScreen(t.lerpX, t.lerpY, camera, charWidth, charHeight, viewportWidth, viewportHeight)
