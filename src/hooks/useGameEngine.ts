@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
+import { ZOOM_DEFAULT } from '@/engine/constants'
 import { completeGenesis } from '@/engine/genesis'
 import { createGameState } from '@/engine/state'
 
@@ -94,6 +95,9 @@ export const useGameEngine = (
     if (skipGenesis && state.genesis && !skipFiredRef.current) {
       skipFiredRef.current = true
       completeGenesis(state)
+      // Dev shortcut — bypass the genesis zoom-in animation entirely.
+      state.zoom = ZOOM_DEFAULT
+      if (state.genesisTransition) state.genesisTransition.zoomStart = ZOOM_DEFAULT
     }
   }, [skipGenesis, state])
 

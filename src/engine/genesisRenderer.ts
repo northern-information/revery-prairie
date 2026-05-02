@@ -6,10 +6,12 @@ import {
 } from './constants'
 import { getEpochProgress } from './genesis'
 import { GenesisEpochId } from './genesisTypes'
+import { drawCellBackground, viewportToScreen } from './projection'
 import { getEntranceHaloCells } from './ruins'
 import { TileType } from './types'
+import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
 
-import type { EpochSnapshot, GenesisEpoch, GenesisSimState } from './genesisTypes'
+import type { EpochSnapshot, GenesisEpoch, GenesisSimState, GenesisTileRender } from './genesisTypes'
 import type { CharMetrics } from './types'
 
 // Cross-fade window: last 10% of each epoch blends into the next
@@ -168,6 +170,12 @@ export const renderGenesis = (
       ? sim.epochSnapshots[sim.epochIndex + 1]
       : null
 
+  // The visible footprint is a rotated parallelogram. The shared
+  // `viewportBounds` helper expands the tile-iteration range to cover
+  // every on-screen tile (matching renderer.ts effect passes).
+  const { vxStart: tileLoopStartX, vxEnd: tileLoopEndX, vyStart: tileLoopStartY, vyEnd: tileLoopEndY } =
+    getVisibleTileBounds(viewportWidth, viewportHeight)
+
   // Ruin-entrance halo pre-pass — paints the 3x3 dark backdrop behind each
   // RuinEntrance tile so it reads as a doorway-in-shadow, matching the game
   // renderer (renderer.ts ruin-entrance halo pass). Gated by epoch so it
@@ -188,38 +196,89 @@ export const renderGenesis = (
         for (const cell of cells) {
           const vx = cell.x - cameraX
           const vy = cell.y - cameraY
-          if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
-          ctx.fillRect(vx * charWidth, vy * charHeight, charWidth, charHeight)
+          if (!isTileInVisibleViewport(vx, vy, viewportWidth, viewportHeight)) continue
+          const { px, py } = viewportToScreen(
+            vx,
+            vy,
+            charWidth,
+            charHeight,
+            viewportWidth,
+            viewportHeight,
+          )
+          drawCellBackground(ctx, px, py, charWidth, charHeight)
         }
       }
     }
     ctx.globalAlpha = prevAlpha
   }
 
-  for (let vy = 0; vy < viewportHeight; vy++) {
-    for (let vx = 0; vx < viewportWidth; vx++) {
+  // Off-canvas cull margin: tiles whose anchor falls outside [-cw, canvasW] ×
+  // [-cH, canvasH] cannot contribute visible pixels. Skipping them avoids
+  // ~50% of `epoch.renderTile` work in iso mode, where the expanded square
+  // bounding box covers many tiles outside the on-canvas parallelogram.
+  const cullLeft = -charWidth
+  const cullRight = canvasWidth + charWidth
+  const cullTop = -charHeight
+  const cullBottom = canvasHeight + charHeight
+
+  // Crossfade pre-pass: build a buffer of next-epoch renders for every
+  // visible tile in one go, with `nextSnapshot` applied for the entire
+  // sweep. Without this, the inner loop swapped snapshots ~17 fields ×
+  // 2 directions per tile (~3.4M field writes per crossfade frame at
+  // zoom 0.5). The pre-pass restores the current snapshot at the end so
+  // the main draw loop reads the right per-epoch data.
+  const loopWidth = tileLoopEndX - tileLoopStartX
+  const loopHeight = tileLoopEndY - tileLoopStartY
+  let nextRendersByIndex: (GenesisTileRender | null)[] | null = null
+  if (nextEpoch && nextSnapshot) {
+    applySnapshot(sim, nextSnapshot)
+    nextRendersByIndex = new Array<GenesisTileRender | null>(loopWidth * loopHeight)
+    let i = 0
+    for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
+      for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
+        const idx = i++
+        const { px, py } = viewportToScreen(
+          vx,
+          vy,
+          charWidth,
+          charHeight,
+          viewportWidth,
+          viewportHeight,
+        )
+        if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) {
+          nextRendersByIndex[idx] = null
+          continue
+        }
+        const mx = cameraX + vx
+        const my = cameraY + vy
+        const nr = nextEpoch.renderTile(sim, mx, my, blendT * CROSSFADE_PEEK, time)[0]
+        nextRendersByIndex[idx] = nr ?? null
+      }
+    }
+    applySnapshot(sim, sim.epochSnapshots[sim.epochIndex])
+  }
+
+  let cellIdx = 0
+  for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
+    for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
+      const idx = cellIdx++
+      const { px, py } = viewportToScreen(
+        vx,
+        vy,
+        charWidth,
+        charHeight,
+        viewportWidth,
+        viewportHeight,
+      )
+      if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) continue
+
       const mx = cameraX + vx
       const my = cameraY + vy
-      const px = vx * charWidth
-      const py = vy * charHeight
-
       const renders = epoch.renderTile(sim, mx, my, progress, time)
 
-      if (nextEpoch && nextSnapshot) {
-        // Swap to next epoch's snapshot
-        applySnapshot(sim, nextSnapshot)
-
-        // Peek into the start of the next epoch — blendT * CROSSFADE_PEEK
-        // keeps the next epoch at low progress so the cross-fade end matches
-        // the new epoch's actual start (progress≈0), preventing a visual snap.
-        const nextRenders = nextEpoch.renderTile(sim, mx, my, blendT * CROSSFADE_PEEK, time)
-
-        // Restore current epoch's snapshot
-        applySnapshot(sim, sim.epochSnapshots[sim.epochIndex])
-
-        // Blend: interpolate color, snap character at midpoint
+      if (nextRendersByIndex) {
         const curR = renders[0]
-        const nextR = nextRenders[0]
+        const nextR = nextRendersByIndex[idx]
         if (curR && nextR) {
           ctx.fillStyle = lerpColor(curR.color, nextR.color, blendT)
           ctx.fillText(blendT > 0.5 ? nextR.char : curR.char, px + curR.dx, py + curR.dy)
