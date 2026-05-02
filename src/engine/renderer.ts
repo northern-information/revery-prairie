@@ -1087,14 +1087,28 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // hidden until reveal.
   //
   // Tiles are grouped by bg color into a Path2D per color, then each
-  // Path2D is filled once. Internal shared edges between adjacent
-  // diamonds in the same path are interior to a single fill call and
-  // don't get anti-aliased — only the outer perimeter does. This
-  // eliminates the visible diamond-grid AA seam that appeared with
-  // per-tile `ctx.fill()` calls.
+  // Path2D is filled once. Same-color adjacent tiles share a single
+  // fill so AA is only on the path's outer perimeter — no internal
+  // seams. Each diamond is expanded outward by TILE_BG_OVERLAP px so
+  // cross-color adjacent paths overlap; later-drawn paths cleanly
+  // overwrite the earlier path's edge in painter's order, covering the
+  // AA seam between them.
+  //
+  // Hot path: ~3k tiles per frame at 60 fps. The diamond and projection
+  // math is inlined to avoid allocating a ScreenPos and a DiamondCorners
+  // object per tile, and posKey is only called for the cave-hidden
+  // check. This dropped per-frame GC pressure significantly.
   {
     const bgBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
     const pathsByColor = new Map<string, Path2D>()
+    const TILE_BG_OVERLAP = 1
+    const halfH = charHeight / 2
+    const halfW = charWidth / 2
+    // viewportToScreen origins, hoisted out of the loop.
+    const originX = (viewportHeight * charWidth) / 2 - halfW
+    const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
+    const inCave = state.currentZone === Zone.Cave
+    const caveMaskActive = inCave && !state.caveRevealed
     for (let vy = bgBounds.vyStart; vy < bgBounds.vyEnd; vy++) {
       for (let vx = bgBounds.vxStart; vx < bgBounds.vxEnd; vx++) {
         const mx = camera.x + vx
@@ -1102,32 +1116,30 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
         const tile = map[my][mx]
         if (tile.type === TileType.Space) continue
-        const tileKey = posKey(mx, my)
         const effectiveType =
-          state.currentZone === Zone.Cave &&
-          !state.caveRevealed &&
-          state.caveHiddenPositions.has(tileKey)
+          caveMaskActive && state.caveHiddenPositions.has(posKey(mx, my))
             ? TileType.CaveWall
             : tile.type
         const color = getTileBgColor(effectiveType, mx, my)
-        const { px: bgPx, py: bgPy } = viewportToScreen(
-          vx,
-          vy,
-          charWidth,
-          charHeight,
-          viewportWidth,
-          viewportHeight,
-        )
-        const c = getCellDiamondCorners(bgPx, bgPy + liftAt(mx, my), charWidth, charHeight)
+        // Inline viewportToScreen.
+        const px = (vx - vy) * charWidth + originX + halfW
+        const py = (vx + vy) * halfH + originY + liftAt(mx, my)
+        // Inline getCellDiamondCorners and apply expansion.
+        const leftX = px - halfW
+        const rightX = leftX + 2 * charWidth
+        const topY = py
+        const bottomY = topY + charHeight
+        const cx = leftX + charWidth
+        const cy = topY + halfH
         let path = pathsByColor.get(color)
         if (!path) {
           path = new Path2D()
           pathsByColor.set(color, path)
         }
-        path.moveTo(c.cx, c.topY)
-        path.lineTo(c.rightX, c.cy)
-        path.lineTo(c.cx, c.bottomY)
-        path.lineTo(c.leftX, c.cy)
+        path.moveTo(cx, topY - TILE_BG_OVERLAP)
+        path.lineTo(rightX + TILE_BG_OVERLAP, cy)
+        path.lineTo(cx, bottomY + TILE_BG_OVERLAP)
+        path.lineTo(leftX - TILE_BG_OVERLAP, cy)
         path.closePath()
       }
     }
