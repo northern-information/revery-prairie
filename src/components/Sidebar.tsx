@@ -414,6 +414,20 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
 
                   return null
                 })()}
+                {(() => {
+                  const cx = cursorTile.x
+                  const cy = cursorTile.y
+                  if (!isInBounds(cx, cy, state.mapWidth, state.mapHeight)) return null
+                  const elev = state.elevation.get(posKey(cx, cy))
+                  return (
+                    <tr>
+                      <td className="text-muted py-0.5">Elevation</td>
+                      <td className={`py-0.5 text-right ${elev === undefined ? 'text-muted' : ''}`}>
+                        {elev ?? '—'}
+                      </td>
+                    </tr>
+                  )
+                })()}
               </tbody>
             </table>
           </div>

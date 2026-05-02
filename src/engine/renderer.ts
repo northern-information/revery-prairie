@@ -120,7 +120,9 @@ import { isInBounds, posKey, tileHash } from './position'
 import {
   drawCellBackground,
   drawCellHighlight,
+  drawCellWalls,
   getCellDiamondCorners,
+  getElevationLift,
   viewportToScreen,
   worldToScreen,
 } from './projection'
@@ -287,6 +289,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const { charWidth, charHeight } = metrics
   const iso = state.isometricProjection
 
+  // Cosmetic terrain elevation lift: per-tile y-offset based on
+  // state.elevation. Returns 0 for cave/space/out-of-bounds (no entry
+  // in the map). Defined here so every per-tile draw call can opt in
+  // with `+ liftAt(mx, my)` without re-deriving charHeight or posKey.
+  const liftAt = (mx: number, my: number): number =>
+    getElevationLift(state.elevation.get(posKey(mx, my)), charHeight)
+
   // Genesis-to-gameplay crossfade: entities not visible in genesis fade in
   const transitionAlpha = getTransitionAlpha(state.genesisTransition, time)
   const isTransitioning = transitionAlpha < 1
@@ -363,6 +372,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     viewportWidth,
     viewportHeight,
   )
+  const playerLift = liftAt(player.x, player.y)
 
   // Zone filter helper — only render entities in the current zone (including ruinIndex match)
   const zone = state.currentZone
@@ -1078,7 +1088,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             ctx.fillStyle = lerpColor(scanBg.color, BG_COLOR, 1 - scanBg.opacity)
           }
           const { px: bgPx, py: bgPy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
-          drawCellBackground(ctx, bgPx, bgPy, charWidth, charHeight, iso)
+          drawCellBackground(ctx, bgPx, bgPy + liftAt(camera.x + vx, camera.y + vy), charWidth, charHeight, iso)
         }
       }
     }
@@ -1101,7 +1111,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const vy = cell.y - camera.y
         if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
         const { px: hPx, py: hPy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
-        drawCellBackground(ctx, hPx, hPy, charWidth, charHeight, iso)
+        drawCellBackground(ctx, hPx, hPy + liftAt(cell.x, cell.y), charWidth, charHeight, iso)
       }
     }
   }
@@ -1118,7 +1128,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (dist > LIGHTNING_REVERY_RANGE) continue
         ctx.fillStyle = LIGHTNING_RANGE_HIGHLIGHT_COLOR
         const { px: lPx, py: lPy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
-        drawCellBackground(ctx, lPx, lPy, charWidth, charHeight, iso)
+        drawCellBackground(ctx, lPx, lPy + liftAt(mx, my), charWidth, charHeight, iso)
       }
     }
   }
@@ -1159,7 +1169,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           ctx.globalAlpha = alpha
           ctx.fillStyle = '#FFD700'
           const { px: aPx, py: aPy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
-          drawCellBackground(ctx, aPx, aPy, charWidth, charHeight, iso)
+          drawCellBackground(ctx, aPx, aPy + liftAt(mx, my), charWidth, charHeight, iso)
           break // only one angel aura can contribute per tile
         }
       }
@@ -1397,6 +1407,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
 
       const tileKey = posKey(mx, my)
+      const lift = getElevationLift(state.elevation.get(tileKey), charHeight)
+      const pyLift = py + lift
 
       // Fog of war: skip unexplored tiles, dim partiallyDiscovered tiles.
       // fullyDiscovered tiles fall through to the full render path so live
@@ -1432,8 +1444,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const baseColor = TILE_COLORS[effectiveType]
         const baseChar = TILE_CHARS[effectiveType]
         ctx.fillStyle = dimColor(baseColor, FOG_EXPLORED_BRIGHTNESS)
-        ctx.fillText(baseChar, px, py)
+        ctx.fillText(baseChar, px, pyLift)
         continue
+      }
+
+      // Cosmetic elevation: draw the side walls of the lifted tile in
+      // its surface color, before any cursor highlight or surface paint.
+      // No-op when lift >= 0 (flat / sunken — neighbors handle depressions).
+      if (lift < 0) {
+        const baseTile = map[my][mx]
+        ctx.fillStyle = TILE_COLORS[baseTile.type]
+        drawCellWalls(ctx, px, py, charWidth, charHeight, iso, lift)
       }
 
       const shootingStarOnLand = targetedStarMap.get(tileKey)
@@ -1444,7 +1465,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       if (mx === player.x && my === player.y && state.playerSpawn.visible) {
         if (previewTile) {
           ctx.fillStyle = previewTile.color
-          ctx.fillText(previewTile.char, px, py)
+          ctx.fillText(previewTile.char, px, pyLift)
         }
         // Deep time glyph crossfade: ö fades out, @ fades in
         if (state.deepTimeTransition && state.deepTime?.active) {
@@ -1453,11 +1474,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           // Draw old glyph fading out
           ctx.globalAlpha = 1 - glyphT
           ctx.fillStyle = state.deepTime.playerGlyphColor
-          ctx.fillText(state.deepTime.playerGlyph, playerScreen.px, playerScreen.py)
+          ctx.fillText(state.deepTime.playerGlyph, playerScreen.px, playerScreen.py + playerLift)
           // Draw new glyph fading in
           ctx.globalAlpha = glyphT
           ctx.fillStyle = sessionColor
-          ctx.fillText(PLAYER_CHAR, playerScreen.px, playerScreen.py)
+          ctx.fillText(PLAYER_CHAR, playerScreen.px, playerScreen.py + playerLift)
           ctx.globalAlpha = 1
           // Skip the normal draw path for this tile
           char = PLAYER_CHAR
@@ -1669,17 +1690,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           char = TILE_CHARS[devPaintTileType as keyof typeof TILE_CHARS] ?? '?'
           color = TILE_COLORS[devPaintTileType as keyof typeof TILE_COLORS] ?? '#ffffff'
         }
-        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
+        drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = color
-        ctx.fillText(char, px, py)
+        ctx.fillText(char, px, pyLift)
         continue
       }
 
       // Dev entity preview: show glyph with pink background at hovered tile
       if (mx === state.devEntityPreview?.x && my === state.devEntityPreview?.y) {
-        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
+        drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = state.devEntityPreview.color
-        ctx.fillText(state.devEntityPreview.char, px, py)
+        ctx.fillText(state.devEntityPreview.char, px, pyLift)
         continue
       }
 
@@ -1708,16 +1729,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // Suppress cursor highlight when dev panel is open
         ctx.fillStyle = color
       } else if (selectedPositions.has(tileKey)) {
-        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
+        drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else if (state.playerSelected && state.playerSpawn.visible && mx === player.x && my === player.y) {
-        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
+        drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else if (isAngelGroupHighlighted) {
-        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
+        drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else if ((isCursor && cursorable) || isFacingEntity || isPendingTarget) {
-        drawCellHighlight(ctx, px, py, charWidth, charHeight, iso, ACTION_COLOR)
+        drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, iso, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else {
         ctx.fillStyle = color
@@ -1741,12 +1762,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const offsetScale = charWidth * 0.25
         for (const layer of layers) {
           ctx.fillStyle = layer.color
-          ctx.fillText(layer.char, px + layer.dx * offsetScale, py + layer.dy * offsetScale)
+          ctx.fillText(layer.char, px + layer.dx * offsetScale, pyLift + layer.dy * offsetScale)
         }
       } else if (mx === player.x && my === player.y) {
-        ctx.fillText(char, playerScreen.px, playerScreen.py)
+        ctx.fillText(char, playerScreen.px, playerScreen.py + playerLift)
       } else {
-        ctx.fillText(char, px, py)
+        ctx.fillText(char, px, pyLift)
       }
 
       if (applyEntityFade) ctx.globalAlpha = 1
@@ -1757,7 +1778,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   for (const t of tweenedEntities) {
     const { px, py } = worldToScreen(t.lerpX, t.lerpY, camera, charWidth, charHeight, iso, viewportWidth, viewportHeight)
     ctx.fillStyle = t.color
-    ctx.fillText(t.char, px, py)
+    ctx.fillText(t.char, px, py + liftAt(Math.floor(t.lerpX), Math.floor(t.lerpY)))
   }
 
   // Rain overlay pass — draw animated rain near entities with rain aura (from ECS)
@@ -1798,7 +1819,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
         const { px: rpx, py: rpy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
         ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]
-        ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy)
+        ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy + liftAt(wx, wy))
       }
     }
   }
@@ -1817,7 +1838,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
     const { px: rpx, py: rpy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
     ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]
-    ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy)
+    ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy + liftAt(wx, wy))
   }
 
   // Weather rain overlay — animated rain follows the sweeping rain front (overworld only)
@@ -1847,7 +1868,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
         const { px: rpx, py: rpy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
         ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]
-        ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy)
+        ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy + liftAt(wx, wy))
       }
     }
 
@@ -1876,7 +1897,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
         const { px: gpx, py: gpy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
         ctx.fillStyle = GLINT_ZONE_COLORS[glintColorPhase]
-        ctx.fillText(GLINT_ZONE_CHARS[glintPhase], gpx, gpy)
+        ctx.fillText(GLINT_ZONE_CHARS[glintPhase], gpx, gpy + liftAt(wx, wy))
       }
     }
 
@@ -1910,7 +1931,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         ctx.globalAlpha = finalOpacity
         ctx.fillStyle = GLINT_ZONE_COLORS[colorIndex]
         const { px: bPx, py: bPy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
-        ctx.fillText(GLINT_BEAM_CHAR, bPx, bPy)
+        ctx.fillText(GLINT_BEAM_CHAR, bPx, bPy + liftAt(wx, wy))
       }
     }
     ctx.globalAlpha = savedAlpha
@@ -1935,7 +1956,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
         const { px: rpx, py: rpy } = viewportToScreen(vx, vy, charWidth, charHeight, iso, viewportWidth, viewportHeight)
         ctx.fillStyle = fireColors[colorPhase]
-        ctx.fillText(fireChars[phase], rpx, rpy)
+        ctx.fillText(fireChars[phase], rpx, rpy + liftAt(wx, wy))
       }
     }
   }
@@ -1983,10 +2004,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (elapsed >= MOVE_ORDER_MARKER_DURATION_MS) continue
     const alpha = 1 - elapsed / MOVE_ORDER_MARKER_DURATION_MS
     const { px: sx, py: sy } = worldToScreen(marker.position.x, marker.position.y, camera, charWidth, charHeight, iso, viewportWidth, viewportHeight)
+    const syLift = sy + liftAt(marker.position.x, marker.position.y)
     ctx.globalAlpha = alpha
-    drawCellHighlight(ctx, sx, sy, charWidth, charHeight, iso, ACTION_COLOR)
+    drawCellHighlight(ctx, sx, syLift, charWidth, charHeight, iso, ACTION_COLOR)
     ctx.fillStyle = BG_COLOR
-    ctx.fillText('X', sx, sy)
+    ctx.fillText('X', sx, syLift)
     ctx.globalAlpha = 1
   }
 
