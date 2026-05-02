@@ -20,7 +20,6 @@ export const updateCursorState = (state: GameState, metrics: CharMetrics): void 
       camera,
       charWidth,
       charHeight,
-      state.isometricProjection,
       state.viewportWidth,
       state.viewportHeight,
     )
@@ -44,7 +43,7 @@ export const updateCursorState = (state: GameState, metrics: CharMetrics): void 
     if (dist <= HOVER_PATH_MAX_DISTANCE && isInBounds(ct.x, ct.y, state.mapWidth, state.mapHeight) && isWalkableTile(state.map[ct.y][ct.x].type)) {
       const hoverBlocked = getPathfindingBlockers(state, ct)
       state.hoverPath = findPath(state.map, state.mapWidth, state.mapHeight, player, ct, hoverBlocked, {
-        allowDiagonal: state.isometricProjection,
+        allowDiagonal: true,
       })
     } else {
       state.hoverPath = null

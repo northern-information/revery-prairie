@@ -1,5 +1,5 @@
 id: iso-shooting-star-trails
-name: 'Shooting star trail glyphs orient to screen direction under isometric projection'
+name: 'Shooting star trail glyphs orient to projected screen direction'
 priority: medium
 layer: engine
 source_files:
@@ -14,26 +14,21 @@ behaviors:
     description: >
       The trail glyph chosen for each shooting star must visually align
       with the on-screen fall direction, not the world-space velocity.
-      In orthogonal projection world deltas equal screen deltas, so the
-      existing SHOOTING_STAR_TRAIL_CHARS table (keyed on world dx,dy)
-      is correct: e.g. world (1,1) moves down-right on screen and uses
-      `\`. In isometric projection world (vx, vy) projects to screen
-      ((vx - vy) * charWidth, (vx + vy) * halfH), so the same world
-      velocity yields a different screen direction. The renderer must
-      pick the trail glyph from a table whose keys map world velocity
-      to glyphs that match the projected on-screen slope.
+      Because world (vx, vy) projects to screen
+      ((vx - vy) * charWidth, (vx + vy) * halfH), the renderer picks
+      the trail glyph from a table whose keys map world velocity to
+      glyphs that match the projected on-screen slope.
     inputs:
-      - 'state.isometricProjection flag'
       - 'shooting star world velocity (dx, dy)'
     outputs:
       - 'trail glyph rendered at each trail tile'
     state_changes: []
     determinism: deterministic
 
-  - id: iso-trail-char-table
+  - id: trail-char-table
     description: >
-      A constant SHOOTING_STAR_TRAIL_CHARS_ISO in src/engine/constants.ts
-      maps each VelocityKey to the glyph that matches its iso-projected
+      The constant SHOOTING_STAR_TRAIL_CHARS in src/engine/constants.ts
+      maps each VelocityKey to the glyph that matches its projected
       screen direction. Mapping (world → screen → glyph):
       `1,1` and `-1,-1` (vertical on screen) → `|`;
       `1,-1` and `-1,1` (horizontal on screen) → `-`;
@@ -42,52 +37,46 @@ behaviors:
     inputs:
       - 'world velocity key (dx,dy)'
     outputs:
-      - 'iso trail glyph string'
+      - 'trail glyph string'
     state_changes: []
     determinism: deterministic
 
-  - id: renderer-selects-trail-table-by-projection
+  - id: renderer-uses-trail-table
     description: >
-      In renderer.ts the shooting-star trail-glyph lookup picks
-      SHOOTING_STAR_TRAIL_CHARS_ISO when state.isometricProjection is
-      true and SHOOTING_STAR_TRAIL_CHARS otherwise. No other change to
-      trail tile placement, head rendering, or color sequencing. The
-      satellite trail path is unaffected because it does not key glyphs
-      on velocity.
-    inputs:
-      - 'state.isometricProjection'
+      In renderer.ts the shooting-star trail-glyph lookup reads
+      SHOOTING_STAR_TRAIL_CHARS for both targeted (landing) and ambient
+      shooting stars. The satellite trail path is unaffected because it
+      does not key glyphs on velocity.
+    inputs: []
     outputs:
-      - 'correct trail glyph for the active projection'
+      - 'correct trail glyph for the projected direction'
     state_changes: []
     determinism: deterministic
 
 edge_cases:
-  - id: orthogonal-mode-unchanged
-    description: 'state.isometricProjection is false (orthogonal mode), shooting star with world velocity (1,1) is rendered'
-    expected: 'trail glyph is `\\` exactly as before — orthogonal table is used unchanged'
-  - id: iso-vertical-on-screen
-    description: 'isometric mode, shooting star with world velocity (1,1) — projects to a straight vertical line on screen'
+  - id: vertical-on-screen
+    description: 'shooting star with world velocity (1,1) — projects to a straight vertical line on screen'
     expected: 'trail glyph is `|`'
-  - id: iso-horizontal-on-screen
-    description: 'isometric mode, shooting star with world velocity (1,-1) — projects to a straight horizontal line on screen'
+  - id: horizontal-on-screen
+    description: 'shooting star with world velocity (1,-1) — projects to a straight horizontal line on screen'
     expected: 'trail glyph is `-`'
-  - id: iso-diagonal-down-right-on-screen
-    description: 'isometric mode, shooting star with world velocity (1,0) — projects to a down-right slope on screen'
+  - id: diagonal-down-right-on-screen
+    description: 'shooting star with world velocity (1,0) — projects to a down-right slope on screen'
     expected: 'trail glyph is `\\`'
-  - id: iso-diagonal-down-left-on-screen
-    description: 'isometric mode, shooting star with world velocity (0,1) — projects to a down-left slope on screen'
+  - id: diagonal-down-left-on-screen
+    description: 'shooting star with world velocity (0,1) — projects to a down-left slope on screen'
     expected: 'trail glyph is `/`'
   - id: targeted-and-ambient-share-table
-    description: 'targeted (landing) and ambient shooting stars in isometric mode'
-    expected: 'both pick their trail glyph from SHOOTING_STAR_TRAIL_CHARS_ISO; the targetedStarMap vs shootingStarMap split only changes color, not glyph selection'
+    description: 'targeted (landing) and ambient shooting stars'
+    expected: 'both pick their trail glyph from SHOOTING_STAR_TRAIL_CHARS; the targetedStarMap vs shootingStarMap split only changes color, not glyph selection'
 
 failure_conditions:
-  - trigger: 'Velocity key not found in the active table (unknown direction)'
-    expected: 'fall back to `-` (matches existing orthogonal default behavior)'
-  - trigger: 'Renderer reads only the orthogonal table while isometric projection is active'
+  - trigger: 'Velocity key not found in the table (unknown direction)'
+    expected: 'fall back to `-`'
+  - trigger: 'Renderer keys glyph selection on world velocity directly without going through the projection-aware table'
     expected: 'regression — trail glyphs would be rotated 45° relative to the on-screen fall direction'
 
 verification:
   test_file: src/engine/__tests__/isoShootingStarTrails.test.ts
-  test_pattern: 'iso shooting star trail'
+  test_pattern: 'shooting star trail'
   command: 'npx vitest run src/engine/__tests__/isoShootingStarTrails.test.ts'

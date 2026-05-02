@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  SHOOTING_STAR_TRAIL_CHARS,
-  SHOOTING_STAR_TRAIL_CHARS_ISO,
-  type VelocityKey,
-} from '../constants'
+import { SHOOTING_STAR_TRAIL_CHARS, type VelocityKey } from '../constants'
 
 // Pick the glyph that visually matches a screen delta.
 // screen_dx == 0 → vertical → '|'
@@ -16,9 +12,9 @@ const expectedGlyphForScreenDelta = (sdx: number, sdy: number): string => {
   return Math.sign(sdx) === Math.sign(sdy) ? '\\' : '/'
 }
 
-// Iso projection: world (vx, vy) → screen ((vx - vy) * cw, (vx + vy) * halfH).
+// Projection: world (vx, vy) → screen ((vx - vy) * cw, (vx + vy) * halfH).
 // Scale factors don't change the sign, so use 1.
-const projectIso = (dx: number, dy: number): { sdx: number; sdy: number } => ({
+const projectScreen = (dx: number, dy: number): { sdx: number; sdy: number } => ({
   sdx: dx - dy,
   sdy: dx + dy,
 })
@@ -34,22 +30,9 @@ const VELOCITY_KEYS: VelocityKey[] = [
   '0,-1',
 ]
 
-describe('iso shooting star trail glyphs', () => {
-  it('orthogonal table maps world velocity directly to glyph (unchanged)', () => {
+describe('shooting star trail glyphs', () => {
+  it('table maps each velocity to the glyph that matches its projected screen direction', () => {
     expect(SHOOTING_STAR_TRAIL_CHARS).toEqual({
-      '1,1': '\\',
-      '-1,-1': '\\',
-      '1,-1': '/',
-      '-1,1': '/',
-      '1,0': '-',
-      '-1,0': '-',
-      '0,1': '|',
-      '0,-1': '|',
-    })
-  })
-
-  it('iso table maps each velocity to the glyph that matches its projected screen direction', () => {
-    expect(SHOOTING_STAR_TRAIL_CHARS_ISO).toEqual({
       '1,1': '|',
       '-1,-1': '|',
       '1,-1': '-',
@@ -61,15 +44,9 @@ describe('iso shooting star trail glyphs', () => {
     })
   })
 
-  it.each(VELOCITY_KEYS)('iso glyph for %s matches the iso-projected slope', velKey => {
+  it.each(VELOCITY_KEYS)('glyph for %s matches the projected slope', velKey => {
     const [dxStr, dyStr] = velKey.split(',')
-    const { sdx, sdy } = projectIso(Number(dxStr), Number(dyStr))
-    expect(SHOOTING_STAR_TRAIL_CHARS_ISO[velKey]).toBe(expectedGlyphForScreenDelta(sdx, sdy))
-  })
-
-  it('iso and orthogonal tables differ for every direction (the fix actually flips the glyph)', () => {
-    for (const k of VELOCITY_KEYS) {
-      expect(SHOOTING_STAR_TRAIL_CHARS_ISO[k]).not.toBe(SHOOTING_STAR_TRAIL_CHARS[k])
-    }
+    const { sdx, sdy } = projectScreen(Number(dxStr), Number(dyStr))
+    expect(SHOOTING_STAR_TRAIL_CHARS[velKey]).toBe(expectedGlyphForScreenDelta(sdx, sdy))
   })
 })

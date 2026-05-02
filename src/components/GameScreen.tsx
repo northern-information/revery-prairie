@@ -212,11 +212,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
                 document.documentElement.style.fontSize = `${String(state.fontScale * 100)}%`
                 refreshUI()
               }}
-              isometricProjection={state.isometricProjection}
-              onToggleIsometric={() => {
-                state.isometricProjection = !state.isometricProjection
-                refreshUI()
-              }}
             />
           )}
         </PermacomputerShell>

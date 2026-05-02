@@ -1,21 +1,6 @@
 import type { Direction } from './types'
 
-const KEY_MAP_ORTHO: Record<string, Direction> = {
-  ArrowUp: 'up',
-  ArrowDown: 'down',
-  ArrowLeft: 'left',
-  ArrowRight: 'right',
-  w: 'up',
-  s: 'down',
-  a: 'left',
-  d: 'right',
-  W: 'up',
-  S: 'down',
-  A: 'left',
-  D: 'right',
-}
-
-// In iso, WASD/arrow keys map to screen-axis motion. Forward projection:
+// WASD/arrow keys map to screen-axis motion. Forward projection:
 //   world +x → screen (+cw, +cH/2)  (down-right)
 //   world +y → screen (-cw, +cH/2)  (down-left)
 // Therefore:
@@ -23,7 +8,7 @@ const KEY_MAP_ORTHO: Record<string, Direction> = {
 //   screen down  = world (+1, +1) → downRight (SE)
 //   screen left  = world (-1, +1) → downLeft (SW)
 //   screen right = world (+1, -1) → upRight  (NE)
-const KEY_MAP_ISO: Record<string, Direction> = {
+const KEY_MAP: Record<string, Direction> = {
   ArrowUp: 'upLeft',
   ArrowDown: 'downRight',
   ArrowLeft: 'downLeft',
@@ -38,8 +23,7 @@ const KEY_MAP_ISO: Record<string, Direction> = {
   D: 'upRight',
 }
 
-export const keyToDirection = (key: string, isometric = false): Direction | null =>
-  (isometric ? KEY_MAP_ISO : KEY_MAP_ORTHO)[key] ?? null
+export const keyToDirection = (key: string): Direction | null => KEY_MAP[key] ?? null
 
 // --- Keybinding registry (source of truth for manual + docs) ---
 
@@ -50,7 +34,7 @@ export interface KeyBinding {
 }
 
 export const KEYBINDINGS: KeyBinding[] = [
-  { key: 'wasd', action: 'move', context: 'works with pack open' },
+  { key: 'wasd', action: 'move', context: 'single keys move diagonally; combine for cardinals' },
   { key: 'e', action: 'interact', context: 'talk, pick up, open, break wall' },
   { key: 'f', action: 'harvest', context: 'facing clover tile' },
   { key: 'r', action: 'rotate / reveries', context: 'rotate hovered item in pack, otherwise toggle reveries screen' },

@@ -2,13 +2,27 @@ import { updateCursorState } from '../cursor'
 import { ComponentType } from '../ecs/types'
 import { getTileEffects } from '../effects'
 import { posKey } from '../position'
+import { worldToScreen } from '../projection'
 import { Sky, TileType, WindDirection, Zone } from '../types'
 import { clearAroundPlayer, createBeehiveEntity, createBeeEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
-import type { CharMetrics } from '../types'
+import type { CharMetrics, GameState, Position } from '../types'
 
 const metrics: CharMetrics = { charWidth: 10, charHeight: 16, font: '16px monospace' }
+
+const cursorPosForTile = (state: GameState, target: Position) => {
+  const { px, py } = worldToScreen(
+    target.x,
+    target.y,
+    state.camera,
+    metrics.charWidth,
+    metrics.charHeight,
+    state.viewportWidth,
+    state.viewportHeight,
+  )
+  return { x: px + 0.01, y: py + metrics.charHeight / 2 + 0.01 }
+}
 
 /**
  * Replicates the sidebar contents label derivation logic from Sidebar.tsx.
@@ -47,10 +61,7 @@ describe('cursor tile info', () => {
       state.ponds.add(posKey(px, py))
 
       state.camera = { x: state.player.x - 2, y: state.player.y - 2 }
-      state.cursorScreenPos = {
-        x: (px - state.camera.x) * metrics.charWidth,
-        y: (py - state.camera.y) * metrics.charHeight,
-      }
+      state.cursorScreenPos = cursorPosForTile(state, { x: px, y: py })
 
       updateCursorState(state, metrics)
 
@@ -65,10 +76,7 @@ describe('cursor tile info', () => {
       state.rivers.add(posKey(rx, ry))
 
       state.camera = { x: state.player.x - 2, y: state.player.y - 2 }
-      state.cursorScreenPos = {
-        x: (rx - state.camera.x) * metrics.charWidth,
-        y: (ry - state.camera.y) * metrics.charHeight,
-      }
+      state.cursorScreenPos = cursorPosForTile(state, { x: rx, y: ry })
 
       updateCursorState(state, metrics)
 

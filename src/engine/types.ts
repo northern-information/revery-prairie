@@ -205,7 +205,6 @@ export interface GameState {
   musicEnabled: boolean
   fontScale: number
   zoom: number
-  isometricProjection: boolean
   cameraMode: 'follow' | 'free'
   lastEdgeScrollTime: number
   edgeScrollPos: { x: number; y: number } | null

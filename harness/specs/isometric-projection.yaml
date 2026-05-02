@@ -1,5 +1,5 @@
 id: isometric-projection
-name: 'Isometric projection rendering mode'
+name: 'Isometric projection rendering'
 priority: medium
 layer: integration
 source_files:
@@ -7,82 +7,42 @@ source_files:
   - src/engine/coordinates.ts
   - src/engine/renderer.ts
   - src/engine/cursor.ts
-  - src/engine/state.ts
-  - src/engine/types.ts
   - src/hooks/useMouse.ts
-  - src/components/Menu.tsx
-  - src/components/GameScreen.tsx
-  - src/harness/__tests__/serialization/schema.test.ts
 dependencies: []
 
 behaviors:
-  - id: projection-state-default
+  - id: tile-to-screen
     description: >
-      createGameState initializes state.isometricProjection to false. The
-      field is a session-only boolean — never read from or written to
-      localStorage. Reloading the page resets the field to false. Matches
-      the persistence behavior of the existing settings cluster
-      (state.metric, state.musicEnabled, state.fontScale,
-      state.autoHidePanels).
+      viewportToScreen projects a logical viewport tile (vx, vy) into
+      pixel space as a 2:1 diamond cell. Each tile occupies 2*charWidth
+      wide and charHeight tall on screen. The transform is
+      px = (vx - vy) * charWidth + originX + charWidth/2,
+      py = (vx + vy) * (charHeight/2) + originY,
+      where originX and originY are derived from viewportWidth and
+      viewportHeight so the center viewport tile projects to canvas
+      center. The glyph anchor sits at the diamond's top-center so that
+      a charWidth-wide glyph renders horizontally centered within the
+      diamond.
     inputs:
-      - 'createGameState called with default options'
-    outputs:
-      - 'GameState with isometricProjection === false'
-    state_changes:
-      - field: isometricProjection
-        effect: 'set to false on initialization'
-    determinism: deterministic
-
-  - id: tile-to-screen-orthogonal
-    description: >
-      tileToScreen with isometric=false returns
-      { px: (worldX - camera.x) * charWidth, py: (worldY - camera.y) * charHeight }.
-      This preserves the existing renderer math exactly so orthogonal
-      mode is bit-identical to the current behavior.
-    inputs:
-      - 'worldX, worldY (number)'
-      - 'camera position'
+      - 'vx, vy (number, viewport tile coordinates; may be fractional)'
       - 'charWidth, charHeight'
-      - 'isometric === false'
+      - 'viewportWidth, viewportHeight'
     outputs:
-      - 'Pixel position { px, py } in canvas CSS-space coordinates'
-    state_changes: []
-    determinism: deterministic
-
-  - id: tile-to-screen-isometric
-    description: >
-      tileToScreen with isometric=true projects a logical tile into a
-      classic 2:1 diamond cell. Each tile occupies (2*charWidth) wide and
-      (charHeight) tall on screen. The transform is
-      px = (dx - dy) * charWidth + originX, py = (dx + dy) * (charHeight/2),
-      where dx = worldX - camera.x, dy = worldY - camera.y. originX is
-      derived from viewportHeight so that the visible footprint stays
-      onscreen and the player tile appears in roughly the same screen
-      position as in orthogonal mode.
-    inputs:
-      - 'worldX, worldY (number, may be fractional for tweened entities)'
-      - 'camera position'
-      - 'charWidth, charHeight'
-      - 'viewportHeight'
-      - 'isometric === true'
-    outputs:
-      - 'Pixel position { px, py } at the upper-left bounding-box corner of the diamond cell'
+      - 'Pixel position { px, py } at the diamond glyph anchor'
     state_changes: []
     determinism: deterministic
 
   - id: screen-to-tile-roundtrip
     description: >
-      screenToTile is the inverse of tileToScreen for any tile that
-      tileToScreen places fully onscreen. For a tile at world (wx, wy)
+      screenToTile is the inverse of viewportToScreen for any tile that
+      viewportToScreen places onscreen. For a tile at world (wx, wy)
       projected to (px, py), screenToTile of any pixel inside that
-      tile's diamond/rectangle bounding region returns (wx, wy). This
-      property holds in both orthogonal and isometric modes and is what
-      keeps click-to-move, hover, click-to-interact, and shift+click
-      waypoints working when the projection toggles.
+      tile's diamond returns (wx, wy). This property is what keeps
+      click-to-move, hover, click-to-interact, and shift+click waypoints
+      working.
     inputs:
       - 'canvasX, canvasY (CSS pixels from MouseEvent.offsetX/offsetY)'
-      - 'camera, charWidth, charHeight, viewportHeight'
-      - 'isometric flag'
+      - 'camera, charWidth, charHeight, viewportWidth, viewportHeight'
     outputs:
       - 'Position { x, y } in world tile coordinates'
     state_changes: []
@@ -91,38 +51,32 @@ behaviors:
   - id: renderer-projects-all-layers
     description: >
       renderer.ts routes every tile-anchored draw call through
-      tileToScreen(state.isometricProjection). This includes the base
-      tile loop, cursor highlight inversion, facing-entity highlight,
-      pending-target highlight, selectedPositions, path dots, hover
-      preview, drop targets, ground items, characters, bees, monarchs,
-      ghosts, angels, meteorites, satellites, ECS tweened entities,
-      rain overlays, lightning paths, explosion/wildfire/pickup-bloom/crumble
-      effects, ruin layers, earth-scan aura background, glinting
-      sparkles, and action-bar previews. Cell-background fills (the
-      pink cursor invert and other highlight blocks) go through
-      drawCellBackground, which paints a rectangle in orthogonal mode
-      and a 2:1 diamond path in isometric mode. Glyphs continue to
-      draw via fillText at the cell's projected center.
+      viewportToScreen / worldToScreen. This includes the base tile loop,
+      cursor highlight inversion, facing-entity highlight, pending-target
+      highlight, selectedPositions, path dots, hover preview, drop
+      targets, ground items, characters, bees, monarchs, ghosts, angels,
+      meteorites, satellites, ECS tweened entities, rain overlays,
+      lightning paths, explosion/wildfire/pickup-bloom/crumble effects,
+      ruin layers, earth-scan aura background, glinting sparkles, and
+      action-bar previews. Cell-background fills go through
+      drawCellBackground, which paints a 2:1 diamond. Glyphs draw via
+      fillText at the cell's projected anchor.
     inputs:
       - 'render(ctx, state, metrics, time) called from rAF loop'
-      - 'state.isometricProjection (boolean)'
     outputs:
       - 'Canvas frame with every entity painted at the projected position'
     state_changes: []
     determinism: deterministic
 
-  - id: viewport-loop-expands-in-iso
+  - id: viewport-loop-expansion
     description: >
-      In isometric mode the visible viewport is a rotated rectangle in
-      tile space, so the orthogonal viewport tile-loop bounds
-      (vx, vy in [0..viewportWidth) x [0..viewportHeight)) under-paint
-      the corners. The renderer expands the loop bounds by viewportHeight
-      tiles in each axis when isometric is true. Off-canvas cells are
-      cheaply skipped because tileToScreen produces (px, py) outside
-      [0, canvasWidth] x [0, canvasHeight] and the renderer short-circuits
-      such draws.
+      The visible viewport is a rotated rectangle in tile space, so the
+      naive viewport tile-loop bounds (vx, vy in [0..viewportWidth) x
+      [0..viewportHeight)) under-paint the corners. The renderer expands
+      the loop bounds by viewportHeight tiles in each axis. Off-canvas
+      cells are cheaply skipped because viewportToScreen produces
+      (px, py) outside the canvas and the canvas clips them.
     inputs:
-      - 'state.isometricProjection === true'
       - 'state.viewportWidth, state.viewportHeight'
     outputs:
       - 'Tile-loop range expanded so all visible diamonds are painted'
@@ -131,53 +85,33 @@ behaviors:
 
   - id: cursor-highlight-diamond
     description: >
-      drawCellBackground paints a filled rectangle in orthogonal mode
-      (existing fillRect behavior) and a filled diamond path in
-      isometric mode. The diamond's four vertices are top, right,
-      bottom, left of the (2*charWidth)x(charHeight) bounding box. The
-      pink cursor invert continues to fill the cell with ACTION_COLOR
-      (#ff69b4) and draw the glyph in BG_COLOR — only the fill shape
-      changes.
+      drawCellBackground paints a filled diamond path. The diamond's
+      four vertices are top, right, bottom, left of the
+      (2*charWidth)x(charHeight) bounding box anchored at the glyph
+      position. The pink cursor invert fills the cell with ACTION_COLOR
+      (#ff69b4) and draws the glyph in BG_COLOR.
     inputs:
       - 'ctx (2D canvas context)'
-      - 'px, py (cell origin in pixels)'
+      - 'px, py (cell glyph anchor in pixels)'
       - 'charWidth, charHeight'
-      - 'isometric flag'
       - 'fill color'
     outputs:
-      - 'Canvas paint: fillRect or beginPath/moveTo/lineTo/closePath/fill'
+      - 'Canvas paint: beginPath/moveTo/lineTo x3/closePath/fill'
     state_changes: []
     determinism: deterministic
 
-  - id: menu-toggle-row
-    description: >
-      The ESC menu shows a new "projection: orthogonal" / "projection:
-      isometric" row matching the existing settings rows (units, music,
-      auto-hide panels, font). Clicking the row flips
-      state.isometricProjection and calls refreshUI so the next render
-      frame uses the new projection. The toggle takes effect immediately
-      with no reload required.
-    inputs:
-      - "User click on TextButton 'projection: …' in the ESC menu"
-    outputs:
-      - 'isometricProjection flips between true and false'
-    state_changes:
-      - field: isometricProjection
-        effect: 'toggled to !isometricProjection'
-    determinism: deterministic
-
-  - id: cursor-and-mouse-iso-aware
+  - id: cursor-and-mouse-projection
     description: >
       cursor.ts recomputes state.cursorTile each frame from
-      state.cursorScreenPos via screenToTile, and useMouse derives
-      click and box-select tile coordinates the same way. Both call
-      sites read state.isometricProjection and state.viewportHeight so
-      the inverse projection matches the renderer's forward projection.
+      state.cursorScreenPos via screenToTile, and useMouse derives click
+      and box-select tile coordinates the same way. Both call sites pass
+      state.viewportWidth and state.viewportHeight so the inverse
+      projection matches the renderer's forward projection.
     inputs:
       - 'state.cursorScreenPos (CSS pixels)'
       - 'MouseEvent.offsetX/offsetY (CSS pixels)'
     outputs:
-      - 'state.cursorTile (Position) and click target Position match the tile under the cursor in both modes'
+      - 'state.cursorTile (Position) and click target Position match the tile under the cursor'
     state_changes:
       - field: cursorTile
         effect: 'set to the projected tile coordinate'
@@ -185,40 +119,32 @@ behaviors:
 
 edge_cases:
   - id: fractional-world-coords
-    description: 'ECS tweened entities pass fractional world coordinates (lerp.x, lerp.y) to tileToScreen for smooth interpolation between tiles'
-    expected: 'tileToScreen handles fractional inputs without rounding; the resulting (px, py) is a smooth function of (worldX, worldY)'
+    description: 'ECS tweened entities pass fractional world coordinates (lerp.x, lerp.y) to viewportToScreen for smooth interpolation between tiles'
+    expected: 'viewportToScreen handles fractional inputs without rounding; the resulting (px, py) is a smooth function of (vx, vy)'
 
   - id: zone-swap-overworld-to-cave
     description: 'Player walks onto a CaveEntrance tile and the map context swaps to the cave interior'
-    expected: 'cave tiles render as diamonds when isometric is on; the projection toggle is read fresh each frame and zone changes do not interact with it'
+    expected: 'cave tiles render as diamonds; the projection helpers are unaware of zone'
 
-  - id: toggle-mid-session-no-reload
-    description: 'User opens the ESC menu mid-game and toggles projection'
-    expected: 'next render frame uses the new projection; no glyph re-measurement, no zoom change, no zone reset; player tile and cursor tile remain at the same logical world position'
-
-  - id: page-reload-resets-projection
-    description: 'User toggles isometric on and reloads the page'
-    expected: 'isometricProjection resets to false on the next createGameState call (no localStorage persistence)'
-
-  - id: diamond-cells-overlap-with-neighbors
-    description: 'In isometric mode each diamond fits within a 2*charWidth by charHeight bounding rectangle; adjacent tiles share bounding-rectangle edges'
-    expected: 'this is the correct iso geometry — diamonds tile the plane; the cursor highlight diamond will visually align with the four cardinal-adjacent tiles'
+  - id: diamond-cells-tile-the-plane
+    description: 'Each diamond fits within a 2*charWidth by charHeight bounding rectangle; adjacent tiles share bounding-rectangle edges'
+    expected: 'diamonds tile the plane; the cursor highlight diamond visually aligns with the four cardinal-adjacent tiles'
 
   - id: multiplayer-remote-players-project
     description: 'Remote players are drawn as @ glyphs at their tile coordinates'
-    expected: 'remote players project through the same tileToScreen helper; no protocol change; iso flag is local-only'
+    expected: 'remote players project through the same worldToScreen helper; no protocol change'
 
 failure_conditions:
-  - trigger: 'Renderer keeps an inline px = vx * charWidth, py = vy * charHeight calculation outside tileToScreen'
-    expected: 'visual drift between layers (e.g. base tiles in iso but lightning paths still orthogonal); spec is violated; renderer rewrite must route every draw call through the projection helper'
+  - trigger: 'Renderer keeps an inline px = vx * charWidth, py = vy * charHeight calculation outside the projection helpers'
+    expected: 'visual drift between layers (e.g. base tiles vs lightning paths); spec is violated; renderer must route every draw call through viewportToScreen / worldToScreen'
 
-  - trigger: 'screenToTile is called with the iso flag false while the renderer is projecting in iso mode (or vice versa)'
+  - trigger: 'screenToTile and viewportToScreen are not exact inverses for tiles inside their diamond'
     expected: 'click-to-move sends the player to the wrong tile; hover highlight does not match the cell under the cursor; round-trip property test fails'
 
   - trigger: 'Cell-background fillRect is left in place while drawCellBackground is used elsewhere'
     expected: 'cursor highlight or facing-entity highlight paints a rectangle on a diamond grid, producing visual artifacts; spec is violated'
 
-  - trigger: 'Viewport tile-loop bounds are not expanded in iso mode'
+  - trigger: 'Viewport tile-loop bounds are not expanded'
     expected: 'corner tiles of the visible footprint are clipped; spec is violated'
 
 verification:

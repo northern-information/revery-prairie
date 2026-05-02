@@ -164,7 +164,7 @@ describe('Sidebar', () => {
     expect(screen.getByText(/mph/)).toBeInTheDocument()
   })
 
-  describe('effects row honors isometric projection', () => {
+  describe('effects row resolves cursor through projection', () => {
     const metrics: CharMetrics = { charWidth: 10, charHeight: 16, font: '16px monospace' }
 
     const findGron = (state: GameState): { x: number; y: number } => {
@@ -177,10 +177,9 @@ describe('Sidebar', () => {
       throw new Error('Gron not found')
     }
 
-    it('shows "rain" when hovering Gron rain aura in iso mode', () => {
+    it('shows "rain" when hovering Gron rain aura', () => {
       const state = createGameState('Test', 80, 40)
       completeGenesis(state)
-      expect(state.isometricProjection).toBe(true)
       // Glint zones use Math.random() so they vary between runs and can add
       // ", glinting" to the cursor's effects label. Clear them so the
       // assertion only sees "rain".
@@ -191,7 +190,7 @@ describe('Sidebar', () => {
       const target = { x: gron.x + 2, y: gron.y }
 
       // Place the camera so target is on-screen, then convert world → screen
-      // via the same iso transform the renderer uses.
+      // via the same transform the renderer uses.
       state.camera = { x: target.x - Math.floor(state.viewportWidth / 2), y: target.y - Math.floor(state.viewportHeight / 2) }
       const screenPos = worldToScreen(
         target.x,
@@ -199,44 +198,12 @@ describe('Sidebar', () => {
         state.camera,
         metrics.charWidth,
         metrics.charHeight,
-        true,
         state.viewportWidth,
         state.viewportHeight,
       )
       // Nudge into the diamond's interior — anchors sit at the centerline so
       // exact-corner positions can floor either way.
       state.cursorScreenPos = { x: screenPos.px + 1, y: screenPos.py + 1 }
-
-      const metricsRef = { current: metrics }
-      render(
-        <Sidebar
-          state={state}
-          activeScreen={null}
-          itemInfoRef={defaultInfoRef}
-          metricsRef={metricsRef}
-          refreshUI={noop}
-        />
-      )
-
-      expect(screen.getByText('rain')).toBeInTheDocument()
-    })
-
-    it('shows "rain" when hovering Gron rain aura in ortho mode (regression)', () => {
-      const state = createGameState('Test', 80, 40)
-      completeGenesis(state)
-      state.isometricProjection = false
-      // Glint zones use Math.random() so they vary between runs and can add
-      // ", glinting" to the cursor's effects label. Clear them so the
-      // assertion only sees "rain".
-      state.glintZones.clear()
-
-      const gron = findGron(state)
-      const target = { x: gron.x + 2, y: gron.y }
-      state.camera = { x: target.x - 4, y: target.y - 4 }
-      state.cursorScreenPos = {
-        x: (target.x - state.camera.x) * metrics.charWidth + 1,
-        y: (target.y - state.camera.y) * metrics.charHeight + 1,
-      }
 
       const metricsRef = { current: metrics }
       render(

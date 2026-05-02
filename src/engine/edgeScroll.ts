@@ -71,23 +71,15 @@ export const tickEdgeScroll = (state: GameState, metrics: CharMetrics, time: num
 
   const tilesPerMs = EDGE_SCROLL_SPEED_TILES_PER_SEC / 1000
   // Translate the screen-axis edge direction into world-tile camera
-  // deltas. In ortho the axes align (screenDx → worldDx, etc.). In iso,
-  // the world is rotated 45°: a pure screen-x nudge requires moving
-  // camera diagonally in world space so the user sees horizontal-only
-  // motion. Invert the iso forward projection
+  // deltas. The world is rotated 45°: a pure screen-x nudge requires
+  // moving camera diagonally in world space so the user sees
+  // horizontal-only motion. Invert the forward projection
   //   screenDx = (worldDx - worldDy) * 1
   //   screenDy = (worldDx + worldDy) * 0.5
   // (using normalized units; speed * dt scales the magnitude).
-  let camDxPerTile: number
-  let camDyPerTile: number
-  if (state.isometricProjection) {
-    // Inverse: worldDx = screenDx/2 + screenDy, worldDy = -screenDx/2 + screenDy
-    camDxPerTile = dx * 0.5 + dy
-    camDyPerTile = dx * -0.5 + dy
-  } else {
-    camDxPerTile = dx
-    camDyPerTile = dy
-  }
+  // Inverse: worldDx = screenDx/2 + screenDy, worldDy = -screenDx/2 + screenDy
+  const camDxPerTile = dx * 0.5 + dy
+  const camDyPerTile = dx * -0.5 + dy
   // Accumulate fractional motion in cameraSubpixel; only step the
   // integer camera once enough fractional tiles have built up. Without
   // this accumulator, per-frame deltas at 60fps (~0.29 tiles) round
@@ -108,8 +100,8 @@ export const tickEdgeScroll = (state: GameState, metrics: CharMetrics, time: num
   // viewport on each side so the user can pan the map all the way into a
   // corner. The renderer already paints out-of-bounds tiles as space (or
   // dark void in cave/ruin zones), so overscroll just shows more space.
-  // In iso the diamond footprint extends diagonally past the rectangular
-  // viewport bounds — without this overscroll, the iso corners are
+  // The diamond footprint extends diagonally past the rectangular
+  // viewport bounds — without this overscroll, the corners are
   // unreachable even at "max pan".
   const visibleWidth = state.viewportWidth - state.rightInsetTiles
   const overscrollX = state.viewportWidth

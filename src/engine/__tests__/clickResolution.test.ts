@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { expandClickTileForIso, tileHasClickable } from '../clickResolution'
+import { expandClickTile, tileHasClickable } from '../clickResolution'
 
 import { clearAroundPlayer, createCharacterTestEntity, createTestState } from './helpers'
 
@@ -50,87 +50,72 @@ describe('tileHasClickable', () => {
   })
 })
 
-describe('expandClickTileForIso', () => {
-  it('returns the input tile unchanged in ortho mode', () => {
+describe('expandClickTile', () => {
+  it('returns the input tile when it already has a clickable', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
-    state.isometricProjection = false
-    const empty = { x: state.player.x + 4, y: state.player.y }
-    expect(expandClickTileForIso(state, empty)).toEqual(empty)
-  })
-
-  it('returns the input tile when it already has a clickable (iso)', () => {
-    const state = createTestState()
-    clearAroundPlayer(state, 5)
-    state.isometricProjection = true
     const cx = state.player.x + 2
     const cy = state.player.y
     createCharacterTestEntity(state, 'coyote', cx, cy, { behavior: { type: 'follow' } })
-    expect(expandClickTileForIso(state, { x: cx, y: cy })).toEqual({ x: cx, y: cy })
+    expect(expandClickTile(state, { x: cx, y: cy })).toEqual({ x: cx, y: cy })
   })
 
   it('snaps north neighbor when click lands one tile south of a unit', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
-    state.isometricProjection = true
     const cx = state.player.x + 2
     const cy = state.player.y - 2
     createCharacterTestEntity(state, 'coyote', cx, cy, { behavior: { type: 'follow' } })
     // Click landed one south of the unit — empty tile.
     const click = { x: cx, y: cy + 1 }
-    expect(expandClickTileForIso(state, click)).toEqual({ x: cx, y: cy })
+    expect(expandClickTile(state, click)).toEqual({ x: cx, y: cy })
   })
 
   it('snaps south neighbor when click lands one tile north of a unit', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
-    state.isometricProjection = true
     const cx = state.player.x + 2
     const cy = state.player.y + 2
     createCharacterTestEntity(state, 'coyote', cx, cy, { behavior: { type: 'follow' } })
     const click = { x: cx, y: cy - 1 }
-    expect(expandClickTileForIso(state, click)).toEqual({ x: cx, y: cy })
+    expect(expandClickTile(state, click)).toEqual({ x: cx, y: cy })
   })
 
   it('snaps east neighbor when click lands one tile west of a unit', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
-    state.isometricProjection = true
     const cx = state.player.x + 3
     const cy = state.player.y
     createCharacterTestEntity(state, 'coyote', cx, cy, { behavior: { type: 'follow' } })
     const click = { x: cx - 1, y: cy }
-    expect(expandClickTileForIso(state, click)).toEqual({ x: cx, y: cy })
+    expect(expandClickTile(state, click)).toEqual({ x: cx, y: cy })
   })
 
   it('snaps west neighbor when click lands one tile east of a unit', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
-    state.isometricProjection = true
     const cx = state.player.x - 3
     const cy = state.player.y
     createCharacterTestEntity(state, 'coyote', cx, cy, { behavior: { type: 'follow' } })
     const click = { x: cx + 1, y: cy }
-    expect(expandClickTileForIso(state, click)).toEqual({ x: cx, y: cy })
+    expect(expandClickTile(state, click)).toEqual({ x: cx, y: cy })
   })
 
   it('returns original tile when no cardinal neighbor has a clickable', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
-    state.isometricProjection = true
     const empty = { x: state.player.x + 4, y: state.player.y + 4 }
-    expect(expandClickTileForIso(state, empty)).toEqual(empty)
+    expect(expandClickTile(state, empty)).toEqual(empty)
   })
 
   it('does not snap diagonal neighbors (only cardinal)', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
-    state.isometricProjection = true
     const cx = state.player.x + 3
     const cy = state.player.y + 3
     createCharacterTestEntity(state, 'coyote', cx, cy, { behavior: { type: 'follow' } })
     // Diagonal click — neither cardinal neighbor has the unit.
     const diagonal = { x: cx - 1, y: cy - 1 }
-    expect(expandClickTileForIso(state, diagonal)).toEqual(diagonal)
+    expect(expandClickTile(state, diagonal)).toEqual(diagonal)
   })
 })

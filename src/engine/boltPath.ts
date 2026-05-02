@@ -6,9 +6,9 @@ interface BoltPos {
 }
 
 // Map a canonical path (built with cy -= 1 + dx jitter, then reversed so
-// path[0] is top and path[length-1] is impact) to iso-friendly tile coords
-// that project to a vertical screen line under iso projection. Per-step
-// canonical→iso mapping (going from impact upward through the path):
+// path[0] is top and path[length-1] is impact) to tile coords that project
+// to a vertical screen line under the active projection. Per-step
+// canonical→world mapping (going from impact upward through the path):
 //   canonical dx = 0  → world step (-1, -1)   straight up on screen
 //   canonical dx = +1 → world step ( 0, -1)   half-step up-right
 //   canonical dx = -1 → world step (-1,  0)   half-step up-left
@@ -17,8 +17,8 @@ interface BoltPos {
 //   branchDir = +1 → world step (1, 0)
 //   branchDir = -1 → world step (0, 1)
 // The canonical path data is preserved; this function returns parallel
-// iso-projected arrays so the renderer can choose per frame.
-export const projectBoltPathForIso = (
+// projected arrays.
+export const projectBoltPath = (
   path: BoltPos[],
   branch: BoltPos[] | null,
 ): { path: BoltPos[]; branch: BoltPos[] | null } => {

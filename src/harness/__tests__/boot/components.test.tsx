@@ -28,8 +28,6 @@ describe('boot: component smoke tests', () => {
             onToggleAutoHidePanels={vi.fn()}
             fontScale={1}
             onCycleFontScale={vi.fn()}
-            isometricProjection={false}
-            onToggleIsometric={vi.fn()}
           />
         )
       }).not.toThrow()

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { generateBoltPath, projectBoltPathForIso } from '../boltPath'
+import { generateBoltPath, projectBoltPath } from '../boltPath'
 import { viewportToScreen } from '../projection'
 
 const seededRng = (seed: number) => {
@@ -11,9 +11,9 @@ const seededRng = (seed: number) => {
   }
 }
 
-describe('projectBoltPathForIso', () => {
+describe('projectBoltPath', () => {
   it('returns empty arrays when given an empty path', () => {
-    const result = projectBoltPathForIso([], null)
+    const result = projectBoltPath([], null)
     expect(result.path).toEqual([])
     expect(result.branch).toBeNull()
   })
@@ -24,7 +24,7 @@ describe('projectBoltPathForIso', () => {
       { x: 5, y: 1 },
       { x: 5, y: 2 }, // impact
     ]
-    const { path } = projectBoltPathForIso(canonical, null)
+    const { path } = projectBoltPath(canonical, null)
     expect(path[path.length - 1]).toEqual({ x: 5, y: 2 })
   })
 
@@ -37,12 +37,12 @@ describe('projectBoltPathForIso', () => {
       { x: 5, y: 3 },
       { x: 5, y: 4 }, // impact
     ]
-    const { path } = projectBoltPathForIso(canonical, null)
+    const { path } = projectBoltPath(canonical, null)
     const charWidth = 10
     const charHeight = 20
     const vw = 80
     const vh = 40
-    const screens = path.map((p) => viewportToScreen(p.x, p.y, charWidth, charHeight, true, vw, vh))
+    const screens = path.map((p) => viewportToScreen(p.x, p.y, charWidth, charHeight, vw, vh))
     const xs = screens.map((s) => s.px)
     expect(new Set(xs).size).toBe(1) // all same screen x → vertical bolt
 
@@ -59,21 +59,21 @@ describe('projectBoltPathForIso', () => {
       { x: 5, y: 2 },
     ]
     const before = JSON.stringify(canonical)
-    projectBoltPathForIso(canonical, null)
+    projectBoltPath(canonical, null)
     expect(JSON.stringify(canonical)).toBe(before)
   })
 
   it('handles a real generated path with branch end-to-end', () => {
     const rng = seededRng(42)
     const { path: canonical, branch: canonicalBranch } = generateBoltPath(50, 50, 8, rng)
-    const { path, branch } = projectBoltPathForIso(canonical, canonicalBranch)
+    const { path, branch } = projectBoltPath(canonical, canonicalBranch)
     expect(path).toHaveLength(canonical.length)
 
     const charWidth = 10
     const charHeight = 20
     const vw = 80
     const vh = 40
-    const screens = path.map((p) => viewportToScreen(p.x, p.y, charWidth, charHeight, true, vw, vh))
+    const screens = path.map((p) => viewportToScreen(p.x, p.y, charWidth, charHeight, vw, vh))
 
     // Going from impact (last) toward top (first), screen py should monotonically decrease
     for (let i = path.length - 1; i > 0; i--) {

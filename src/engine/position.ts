@@ -6,19 +6,16 @@ export const posKey = (x: number, y: number): string => `${String(x)},${String(y
 
 export const isInBounds = (x: number, y: number, w: number, h: number): boolean => x >= 0 && x < w && y >= 0 && y < h
 
-// 8-directional movement deltas. The 4 cardinal entries are the original
-// WASD mapping in ortho mode. The 4 diagonal names follow ORIGINAL-MAP
+// 8-directional movement deltas. The 4 diagonal names follow ORIGINAL-MAP
 // compass directions (NE/NW/SE/SW), not screen-axis directions, so the
-// world delta in each entry matches the name regardless of projection.
+// world delta in each entry matches the name.
 //
-// Iso WASD wiring (screen-axis intent, mapped to the original-map diagonal
+// WASD wiring (screen-axis intent, mapped to the original-map diagonal
 // that produces that screen motion in our iso projection):
-//   w → SW (-1, +1) (visually "up" on screen)
-//   s → NE (+1, -1)
-//   a → NW (-1, -1)
-//   d → SE (+1, +1)
-//
-// keyToDirection picks the right entry based on state.isometricProjection.
+//   w → NW (-1, -1) (visually "up" on screen)
+//   s → SE (+1, +1)
+//   a → SW (-1, +1)
+//   d → NE (+1, -1)
 export const DIRECTIONS: Record<Direction, Position> = {
   up: { x: 0, y: -1 },
   down: { x: 0, y: 1 },
