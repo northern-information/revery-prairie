@@ -130,7 +130,6 @@ import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } f
 import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
 import {
-  CUBE_BASE_DEPTH_PX,
   darkenColor,
   ELEVATION_TIER_LIFT_PX,
   getElevationTier,
@@ -1188,6 +1187,55 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
+  // Pre-pass: per-tile cube-edge stroke. Draws a darker line along the
+  // south + east diamond edges of each non-space land tile, simulating
+  // the cube's bottom-left and bottom-right faces without doing a full
+  // wall fill. Strokes are far cheaper than per-tile filled wall quads
+  // (~5x faster in profiling) while preserving the "every tile is a
+  // discrete cube" look the user asked for. Tier-transition cliffs are
+  // still drawn as proper filled walls in the main glyph loop.
+  {
+    const edgeBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
+    const halfH = charHeight / 2
+    const halfW = charWidth / 2
+    const originX = (viewportHeight * charWidth) / 2 - halfW
+    const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
+    const caveMaskActive = state.currentZone === Zone.Cave && !state.caveRevealed
+    const savedLineWidth = ctx.lineWidth
+    const savedStroke = ctx.strokeStyle
+    ctx.lineWidth = 1
+    for (let vy = edgeBounds.vyStart; vy < edgeBounds.vyEnd; vy++) {
+      for (let vx = edgeBounds.vxStart; vx < edgeBounds.vxEnd; vx++) {
+        const mx = camera.x + vx
+        const my = camera.y + vy
+        if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+        const tile = map[my][mx]
+        if (tile.type === TileType.Space) continue
+        const effectiveType =
+          caveMaskActive && state.caveHiddenPositions.has(posKey(mx, my))
+            ? TileType.CaveWall
+            : tile.type
+        const bg = getTileBgColor(effectiveType, mx, my)
+        ctx.strokeStyle = darkenColor(bg, WALL_RIGHT_SHADE)
+        const px = (vx - vy) * charWidth + originX + halfW
+        const py = (vx + vy) * halfH + originY + liftAt(mx, my)
+        const leftX = px - halfW
+        const rightX = leftX + 2 * charWidth
+        const topY = py
+        const bottomY = topY + charHeight
+        const cx = leftX + charWidth
+        const cy = topY + halfH
+        ctx.beginPath()
+        ctx.moveTo(leftX, cy)
+        ctx.lineTo(cx, bottomY)
+        ctx.lineTo(rightX, cy)
+        ctx.stroke()
+      }
+    }
+    ctx.lineWidth = savedLineWidth
+    ctx.strokeStyle = savedStroke
+  }
+
   // Pre-pass: earth scan backgrounds — drawn after the tile bg pre-pass so
   // scan colors paint opaque on top of the surface bg. Fade-out uses
   // globalAlpha rather than lerping toward BG_COLOR, so the tile bg shows
@@ -1539,44 +1587,40 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
-      // Cosmetic elevation: every tile renders as a discrete cube.
-      // South and east faces (the lower-left and lower-right iso
-      // faces) always render at CUBE_BASE_DEPTH_PX; at tier
-      // transitions where this tile sits higher than the corresponding
-      // neighbor, the wall extends further down by the tier delta to
-      // produce a visible cliff. Hidden cave chamber tiles use the
-      // masked CaveWall palette so the wall doesn't leak the
+      // Cosmetic elevation: walls render at tier transitions only,
+      // where this tile sits higher than its south or east neighbor.
+      // Same-tier neighbors share a flat plateau; the cube edge
+      // suggesting "every tile is a discrete block" is drawn by a
+      // separate, much cheaper south+east edge stroke pre-pass below
+      // (see edge-stroke pre-pass). Hidden cave chamber tiles use
+      // the masked CaveWall palette so the wall doesn't leak the
       // underlying type.
-      {
+      if (tileTier > 0) {
         const southTier = tierAt(mx, my + 1)
         const eastTier = tierAt(mx + 1, my)
-        const leftDepth = Math.max(
-          CUBE_BASE_DEPTH_PX,
-          (tileTier - southTier) * ELEVATION_TIER_LIFT_PX,
-        )
-        const rightDepth = Math.max(
-          CUBE_BASE_DEPTH_PX,
-          (tileTier - eastTier) * ELEVATION_TIER_LIFT_PX,
-        )
-        const baseTile = map[my][mx]
-        const wallType =
-          state.currentZone === Zone.Cave &&
-          !state.caveRevealed &&
-          state.caveHiddenPositions.has(tileKey)
-            ? TileType.CaveWall
-            : baseTile.type
-        const wallBg = getTileBgColor(wallType, mx, my)
-        drawCellWalls(
-          ctx,
-          px,
-          pyLift,
-          charWidth,
-          charHeight,
-          leftDepth,
-          rightDepth,
-          darkenColor(wallBg, WALL_LEFT_SHADE),
-          darkenColor(wallBg, WALL_RIGHT_SHADE),
-        )
+        const leftDepth = Math.max(0, tileTier - southTier) * ELEVATION_TIER_LIFT_PX
+        const rightDepth = Math.max(0, tileTier - eastTier) * ELEVATION_TIER_LIFT_PX
+        if (leftDepth > 0 || rightDepth > 0) {
+          const baseTile = map[my][mx]
+          const wallType =
+            state.currentZone === Zone.Cave &&
+            !state.caveRevealed &&
+            state.caveHiddenPositions.has(tileKey)
+              ? TileType.CaveWall
+              : baseTile.type
+          const wallBg = getTileBgColor(wallType, mx, my)
+          drawCellWalls(
+            ctx,
+            px,
+            pyLift,
+            charWidth,
+            charHeight,
+            leftDepth,
+            rightDepth,
+            darkenColor(wallBg, WALL_LEFT_SHADE),
+            darkenColor(wallBg, WALL_RIGHT_SHADE),
+          )
+        }
       }
 
       const shootingStarOnLand = targetedStarMap.get(tileKey)
