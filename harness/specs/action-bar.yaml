@@ -248,10 +248,12 @@ behaviors:
   - id: cooldown-overlay-color
     description: >
       the conic-gradient cooldown sweep in ActionBar.tsx renders in
-      hot pink (#ff69b4, the var(--color-pink) token) at 0.6 opacity.
+      solid hot pink (#ff69b4, the var(--color-pink) token).
       pink is the project's reserved user-action color and signals
       that the slot is winding down a player-triggered cast. applies
-      to revery slots only (item slots do not use cooldown).
+      to revery slots only (item slots do not use cooldown). the
+      slot glyph sits above all overlays (cooldown sweep, ready
+      pulse, cast flash) so it remains visible at all times.
     inputs:
       - 'ActionBarSlot with active cooldown (cooldownFraction > 0)'
     outputs:

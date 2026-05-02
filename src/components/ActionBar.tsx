@@ -46,7 +46,6 @@ const CooldownOverlay = ({ fraction }: { fraction: number }) => {
           ${COOLDOWN_PINK} ${String(degrees)}deg,
           ${COOLDOWN_PINK} 360deg
         )`,
-        opacity: 0.6,
       }}
     />
   )
@@ -71,7 +70,7 @@ const CastFlash = ({ active, flashKey }: { active: boolean; flashKey: number | n
     <div
       key={flashKey}
       data-cast-flash
-      className="pointer-events-none absolute inset-0 z-20 rounded"
+      className="pointer-events-none absolute inset-0 rounded"
       style={{
         animation: `cast-flash ${String(CAST_FLASH_MS)}ms linear forwards`,
       }}
@@ -134,7 +133,7 @@ const ActionBarSlotView = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      {slot && <span className="text-bg z-10 text-xl leading-none">{glyph}</span>}
+      {slot && <span className="text-bg relative z-10 text-xl leading-none">{glyph}</span>}
       <CooldownOverlay fraction={cooldownFraction} />
       <ReadyPulse active={isPulsing} />
       <CastFlash active={isFlashing} flashKey={castFlashKey} />
