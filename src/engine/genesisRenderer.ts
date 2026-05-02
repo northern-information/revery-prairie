@@ -214,8 +214,8 @@ export const renderGenesis = (
 
   // Off-canvas cull margin: tiles whose anchor falls outside [-cw, canvasW] ×
   // [-cH, canvasH] cannot contribute visible pixels. Skipping them avoids
-  // ~50% of `epoch.renderTile` work in iso mode, where the expanded square
-  // bounding box covers many tiles outside the on-canvas parallelogram.
+  // ~50% of `epoch.renderTile` work, where the expanded iso-square bounding
+  // box covers many tiles outside the on-canvas parallelogram.
   const cullLeft = -charWidth
   const cullRight = canvasWidth + charWidth
   const cullTop = -charHeight

@@ -97,10 +97,10 @@ behaviors:
     description: >
       The renderer draws a hot-pink arrow at the canvas edge pointing
       toward the player when the player tile is outside the visible
-      viewport (in either projection mode). The arrow is anchored to
-      the canvas edge nearest the player, sits on the line connecting
-      the canvas center to the player's projected position, and uses
-      ACTION_COLOR (#ff69b4) consistent with other RTS-style UI.
+      viewport. The arrow is anchored to the canvas edge nearest the
+      player, sits on the line connecting the canvas center to the
+      player's projected position, and uses ACTION_COLOR (#ff69b4)
+      consistent with other RTS-style UI.
     inputs:
       - "state.cameraMode === 'free' and player tile outside viewport"
     outputs:
@@ -119,8 +119,8 @@ edge_cases:
     description: 'User pans freely in overworld, then steps onto a CaveEntrance tile and zone swaps to cave'
     expected: 'updateCamera(state, true) is called by the zone-swap path and bypasses the free-mode gate; cave camera initializes correctly; cameraMode resets to follow on zone swap'
   - id: pan-clamping-at-iso-edges
-    description: 'In iso mode the visible footprint extends diagonally past the rectangular tile space; user pans toward the corner'
-    expected: 'camera position clamps to integer tile coordinates [0, mapWidth - viewportWidth] x [0, mapHeight - viewportHeight] in both projections; iso just changes how those bounds project visually'
+    description: 'The visible iso footprint extends diagonally past the rectangular tile space; user pans toward the corner'
+    expected: 'camera position clamps to integer tile coordinates [0, mapWidth - viewportWidth] x [0, mapHeight - viewportHeight]; the iso projection only changes how those bounds project visually'
   - id: simultaneous-edge-and-wasd
     description: 'User holds WASD while cursor is at a canvas edge'
     expected: 'WASD-recenter wins each frame: keyboard-move tick runs, recenters, edge-scroll tick may flip back to free on the same frame; visually the camera tracks the player'
