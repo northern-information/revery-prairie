@@ -1,0 +1,95 @@
+plan:
+  id: tile-backgrounds
+  title: Per-tile background colors painted under every land/cave/ruin glyph
+  created: 2026-05-01
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+    - npm run build
+
+tasks:
+  - id: add-palette-module
+    title: Add TILE_BG_PALETTES and getTileBgColor in src/engine/tileBg.ts
+    spec_id: renderer
+    spec_sections:
+      - tile-background-pre-pass
+    context_files:
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/tileBg.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: add-tile-bg-tests
+    title: Unit tests for getTileBgColor (palette membership, per-tile stability)
+    spec_id: renderer
+    spec_sections:
+      - tile-background-pre-pass
+    context_files:
+      - src/engine/tileBg.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/__tests__/tileBg.test.ts
+    depends_on:
+      - add-palette-module
+    verification:
+      - npx vitest run src/engine/__tests__/tileBg.test.ts
+    repair: retry
+    tags: [engine, test]
+
+  - id: wire-renderer-pre-pass
+    title: Add tile bg pre-pass to the renderer before all overlay pre-passes
+    spec_id: renderer
+    spec_sections:
+      - main-render-loop
+      - tile-background-pre-pass
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+      - src/engine/projection.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-palette-module
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: adjust-earth-scan-fade
+    title: Switch earth-scan fade from lerpColor(scan, BG_COLOR) to globalAlpha so tile bg shows through during fade
+    spec_id: renderer
+    spec_sections:
+      - earth-scan-pre-pass
+    context_files:
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - wire-renderer-pre-pass
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: full-verification
+    title: Run npm run verify — typecheck, lint, full test suite
+    spec_id: renderer
+    spec_sections: []
+    context_files: []
+    output_files: []
+    depends_on:
+      - wire-renderer-pre-pass
+      - adjust-earth-scan-fade
+      - add-tile-bg-tests
+    verification:
+      - npm run verify
+    repair: retry
+    tags: [verification]

@@ -7,6 +7,7 @@ source_files:
   - src/engine/constants.ts
   - src/engine/types.ts
   - src/engine/deepTime.ts
+  - src/engine/tileBg.ts
 dependencies:
   - camera-viewport
   - player-movement
@@ -30,13 +31,18 @@ behaviors:
     description: >
       render(ctx, state, metrics, time) is the main draw call,
       invoked each requestAnimationFrame. clears the canvas with
-      BG_COLOR, then draws in ordered phases: tile layer (terrain,
-      clover lifecycle, burn scars, glinting zones, ponds, rivers),
-      entity layer (ground items, bees, beehives,
-      characters, shooting stars, meteorites, lightning bolts,
-      wildfire effects, pickup bloom effects, crumble effects,
-      player trail, rain aura), path/hover preview layer, player
-      glyph (uses deep time ghost glyph when active; crossfades
+      BG_COLOR, then draws in ordered phases: tile background
+      pre-pass (per-tile bg fillRect for every visible non-space
+      land/cave/ruin tile, color picked from TILE_BG_PALETTES via
+      tileHash for pseudorandom per-tile variation), tinted overlay
+      pre-passes (earth scan, ruin entrance halo, lightning targeting
+      range, angel gold aura — all draw opaque on top of tile bg),
+      tile layer (terrain glyphs, clover lifecycle, burn scars,
+      glinting zones, ponds, rivers), entity layer (ground items,
+      bees, beehives, characters, shooting stars, meteorites,
+      lightning bolts, wildfire effects, pickup bloom effects, crumble
+      effects, player trail, rain aura), path/hover preview layer,
+      player glyph (uses deep time ghost glyph when active; crossfades
       from ö to @ via complementary globalAlpha during
       deepTimeTransition), cursor highlight, revery rain overlay,
       weather rain overlay (follows rain front), deep time burning
@@ -46,11 +52,40 @@ behaviors:
       transitionAlpha (0→1 over duration) via globalAlpha. uses a
       two-phase resolve-then-draw pattern for each tile: first
       determines char/color/cursorable, then applies cursor inversion
-      if applicable.
+      if applicable. entity glyphs (player, bees, ghosts, characters,
+      ground items, etc.) overlay the tile bg without recoloring it
+      — items on the ground inherit the tile bg of whatever surface
+      they sit on.
     inputs:
       - 'CanvasRenderingContext2D, GameState, CharMetrics, timestamp'
     outputs:
       - 'full frame drawn to canvas'
+    state_changes: []
+    determinism: deterministic
+
+  - id: tile-background-pre-pass
+    description: >
+      before any glyphs render, every visible non-space tile in the
+      viewport gets a solid fillRect of its surface bg color. the bg
+      color is picked from TILE_BG_PALETTES[tile.type] via
+      tileHash(mx, my) % palette.length so each tile has stable
+      pseudorandom variation across frames (no flicker). each palette
+      is a small set of colors darker than the corresponding TILE_COLORS
+      glyph color for that surface, giving dirt a brown/grey gradation,
+      clover a green gradation, sand a brown gradation, burnt clover a
+      charcoal gradation, cave floor / wall / breakable wall / entrance
+      varied dark stone tones, and ruin tiles their own muted palettes.
+      space tiles are excluded — they keep the canvas BG_COLOR plus
+      the existing twinkling-stars rendering. items and entity glyphs
+      render on top without painting their own background, so a
+      dropped item on a clover tile still shows the clover bg behind
+      the item glyph. iso projection: the bg fill is the diamond
+      footprint via drawCellBackground. ortho: a charWidth × charHeight
+      fillRect.
+    inputs:
+      - 'visible viewport tiles, tile.type for each, tileHash(x, y)'
+    outputs:
+      - 'every non-space tile painted with its surface bg color before any other draws'
     state_changes: []
     determinism: deterministic
 
@@ -70,14 +105,18 @@ behaviors:
   - id: earth-scan-pre-pass
     description: >
       when an earth scan revery is active, a pre-pass draws
-      earthScanBgMap fillRect calls before the main glyph loop.
-      this prevents south-row scan backgrounds from clipping
-      north-row glyphs. the scan radiates from the player with
-      expand, hold, and fade phases controlled by time constants.
+      earthScanBgMap fillRect calls before the main glyph loop and
+      AFTER the tile-background pre-pass — so scan colors paint
+      opaque on top of the surface bg, not under it. this prevents
+      south-row scan backgrounds from clipping north-row glyphs. the
+      scan radiates from the player with expand, hold, and fade
+      phases controlled by time constants. fade-out blends toward
+      the underlying tile bg color (not BG_COLOR) so the surface
+      shows through naturally as the scan dissipates.
     inputs:
       - 'active earth scan revery with earthScanBgMap'
     outputs:
-      - 'colored background tiles showing soil health gradient'
+      - 'colored background tiles showing soil health gradient, opaque over surface bg'
     state_changes: []
     determinism: time-based
 
@@ -170,12 +209,14 @@ behaviors:
     description: >
       oscillating gold background renders within ANGEL_AURA_RADIUS
       of angel entities. drawn as a pre-pass before the main glyph
-      loop. entire angel body group gets pink highlight when cursor
-      or facing is on any tile of the group.
+      loop and AFTER the tile-background pre-pass, so the gold aura
+      paints opaque on top of the surface bg. entire angel body
+      group gets pink highlight when cursor or facing is on any tile
+      of the group.
     inputs:
       - 'angel entities with Position/MultiPosition, current time'
     outputs:
-      - 'gold aura background around angel tiles'
+      - 'gold aura background painted over surface bg around angel tiles'
     state_changes: []
     determinism: time-based
 
@@ -240,6 +281,21 @@ edge_cases:
   - id: multiple-entities-same-tile
     description: 'bee and ground item on the same tile'
     expected: 'rendering priority determines which glyph shows; later draw phases overwrite earlier ones'
+  - id: tile-bg-on-space
+    description: 'space tile inside the viewport during the bg pre-pass'
+    expected: 'no tile bg painted on space tiles; canvas BG_COLOR shows through and twinkling stars render normally'
+  - id: tile-bg-on-cave-hidden
+    description: 'cave tile in caveHiddenPositions before caveRevealed'
+    expected: 'bg uses the masked CaveWall palette (not the actual hidden-tile palette) so the chamber stays hidden'
+  - id: cursor-over-tile-bg
+    description: 'cursor on a cursorable tile that has a surface bg'
+    expected: 'cursor pink fillRect replaces the tile bg in that tile, glyph renders in dark BG_COLOR; cursor inversion is unchanged'
+  - id: tile-bg-during-fog
+    description: 'partiallyDiscovered fog tile with surface bg'
+    expected: 'tile bg paints, then dim glyph draws on top; bg may also be dimmed for visual consistency or left at full saturation (implementation choice)'
+  - id: dropped-item-on-tile
+    description: 'ground item glyph on a clover tile'
+    expected: 'clover bg shows under the item glyph; item does not paint its own background'
 
 failure_conditions:
   - trigger: 'canvas context lost'

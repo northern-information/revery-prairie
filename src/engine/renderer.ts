@@ -130,6 +130,7 @@ import { getReveryDefinition } from './reveries'
 import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
 import { isInRainFront } from './tileWater'
+import { getTileBgColor } from './tileBg'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
@@ -1076,25 +1077,64 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Pre-pass: earth scan backgrounds — drawn before all glyphs so south-row
-  // backgrounds never clip north-row characters.
+  // Pre-pass: per-tile surface backgrounds. Every visible non-space tile
+  // in the iso-visible parallelogram gets a diamond fill from
+  // TILE_BG_PALETTES keyed by tileHash, painted at the elevation-lifted
+  // position so the bg tracks the lifted surface. Drawn first so all
+  // subsequent overlay pre-passes (earth scan, ruin halo, lightning
+  // range, angel aura) and the main glyph loop layer on top. Cave
+  // hidden tiles are masked to CaveWall so the secret chamber stays
+  // hidden until reveal.
+  {
+    const bgBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
+    for (let vy = bgBounds.vyStart; vy < bgBounds.vyEnd; vy++) {
+      for (let vx = bgBounds.vxStart; vx < bgBounds.vxEnd; vx++) {
+        const mx = camera.x + vx
+        const my = camera.y + vy
+        if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
+        const tile = map[my][mx]
+        if (tile.type === TileType.Space) continue
+        const tileKey = posKey(mx, my)
+        const effectiveType =
+          state.currentZone === Zone.Cave &&
+          !state.caveRevealed &&
+          state.caveHiddenPositions.has(tileKey)
+            ? TileType.CaveWall
+            : tile.type
+        ctx.fillStyle = getTileBgColor(effectiveType, mx, my)
+        const { px: bgPx, py: bgPy } = viewportToScreen(
+          vx,
+          vy,
+          charWidth,
+          charHeight,
+          viewportWidth,
+          viewportHeight,
+        )
+        drawCellBackground(ctx, bgPx, bgPy + liftAt(mx, my), charWidth, charHeight)
+      }
+    }
+  }
+
+  // Pre-pass: earth scan backgrounds — drawn after the tile bg pre-pass so
+  // scan colors paint opaque on top of the surface bg. Fade-out uses
+  // globalAlpha rather than lerping toward BG_COLOR, so the tile bg shows
+  // through naturally as the scan dissipates instead of fading to dark void.
   if (earthScanBgMap.size > 0) {
+    const savedAlpha = ctx.globalAlpha
     const drawBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
     for (let vy = drawBounds.vyStart; vy < drawBounds.vyEnd; vy++) {
       for (let vx = drawBounds.vxStart; vx < drawBounds.vxEnd; vx++) {
         const key = posKey(camera.x + vx, camera.y + vy)
         const scanBg = earthScanBgMap.get(key)
         if (scanBg) {
-          if (scanBg.opacity >= 1) {
-            ctx.fillStyle = scanBg.color
-          } else {
-            ctx.fillStyle = lerpColor(scanBg.color, BG_COLOR, 1 - scanBg.opacity)
-          }
+          ctx.globalAlpha = scanBg.opacity
+          ctx.fillStyle = scanBg.color
           const { px: bgPx, py: bgPy } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
           drawCellBackground(ctx, bgPx, bgPy + liftAt(camera.x + vx, camera.y + vy), charWidth, charHeight)
         }
       }
     }
+    ctx.globalAlpha = savedAlpha
   }
 
   // Pre-pass: ruin entrance halo (overworld only). Paints a 3x3 dark backdrop
