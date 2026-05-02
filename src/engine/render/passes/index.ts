@@ -13,6 +13,13 @@ export { lightningTargetingRangePass } from './lightningTargetingRange'
 export { angelGoldAuraPass } from './angelGoldAura'
 export { prairieHaloPass } from './prairieHalo'
 export { prairieOutlinePass } from './prairieOutline'
+// effect (post-tile overlays)
+export { rainAuraOverlayPass } from './rainAuraOverlay'
+export { reveryRainOverlayPass } from './reveryRainOverlay'
+export { weatherRainOverlayPass } from './weatherRainOverlay'
+export { glintingZoneSparklePass } from './glintingZoneSparkle'
+export { glintingBeamPass } from './glintingBeam'
+export { deepTimeBurningOverlayPass } from './deepTimeBurningOverlay'
 // screen-overlay
 export { lightningScreenFlashPass } from './lightningScreenFlash'
 export { angelSpawnDespawnFlashPass } from './angelSpawnDespawnFlash'

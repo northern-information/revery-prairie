@@ -32,11 +32,6 @@ import {
   EXPLOSION_COLORS,
   EXPLOSION_DURATION_MS,
   EXPLOSION_RADIUS,
-  GLINT_BEAM_CHAR,
-  GLINT_ZONE_CHARS,
-  GLINT_ZONE_COLORS,
-  GLINT_ZONE_DENSITY,
-  GLINT_ZONE_SPEED,
   HOVER_PATH_COLOR,
   LIGHTNING_BOLT_COLOR_BRIGHT,
   LIGHTNING_BOLT_COLOR_DIM,
@@ -61,10 +56,6 @@ import {
   PRAIRIE_HALO_MAX_ALPHA,
   PRAIRIE_HALO_PULSE_SPEED,
   PRAIRIE_HALO_RADIUS,
-  RAIN_AURA_CHARS,
-  RAIN_AURA_COLORS,
-  RAIN_AURA_DENSITY,
-  RAIN_AURA_SPEED,
   RIVER_COLOR,
   SAND_COLORS,
   SATELLITE_HEAD_COLORS,
@@ -80,7 +71,6 @@ import {
   TILE_COLORS,
   getEntranceGlyph,
   TRAIL_DURATION_MS,
-  WEATHER_RAIN_DENSITY,
   WILDFIRE_CHARS,
   WILDFIRE_COLORS,
   WILDFIRE_DURATION_MS,
@@ -89,12 +79,6 @@ import { ComponentType } from './ecs/types'
 import { GENESIS_EPOCHS } from './genesis'
 import { renderGenesis } from './genesisRenderer'
 import { getDefinition } from './items'
-import {
-  computeBeamSegmentOpacity,
-  tileBeamLength,
-  tileBeamMaxOpacity,
-  tileHasBeam,
-} from './glintZones'
 import { getTweenLerp } from './movementTween'
 import { isInBounds, posKey, tileHash } from './position'
 import {
@@ -108,7 +92,6 @@ import { projectBoltPath } from './boltPath'
 import { getReveryDefinition } from './reveries'
 import { getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
-import { isInRainFront } from './tileWater'
 import {
   darkenColor,
   ELEVATION_TIER_LIFT_PX,
@@ -121,7 +104,6 @@ import { runPassesInSlot } from './render/passes'
 import './render/passes/index'
 import { getTierGrid as getTierGridShared, liftAt as liftAtShared } from './render/tierGrid'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
-import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
@@ -338,7 +320,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const playerLift = liftAt(player.x, player.y)
 
   // Zone filter helper — only render entities in the current zone (including ruinIndex match)
-  const zone = state.currentZone
   const inZone = (eid: number): boolean => isEntityInCurrentZone(state, eid)
 
   // Clear pooled collections for this frame
@@ -917,8 +898,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Populate revery cast effect pixels (tile-style only; rain-style handled in overlay pass)
-  const reveryCastRainPositions: { x: number; y: number }[] = []
+  // Populate revery cast effect pixels (tile-style only; scan-style and
+  // rain-style are handled by their own passes that do their own ECS
+  // iteration).
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
     if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
@@ -928,26 +910,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (!multiPos || !effect?.reveryId) continue
 
     const revDef = getReveryDefinition(effect.reveryId)
+    if (revDef.castStyle === 'scan' || revDef.castStyle === 'rain') continue
     const elapsed = time - effect.startTime
-
-    if (revDef.castStyle === 'scan') {
-      // Scan-style: handled separately in the earth scan pass
-      continue
-    } else if (revDef.castStyle === 'rain') {
-      // Rain-style: collect tile positions for the overlay pass
-      for (const pos of multiPos.positions) {
-        reveryCastRainPositions.push({ x: pos.x, y: pos.y })
-      }
-    } else {
-      // Tile-style: replace the tile glyph
-      for (const pos of multiPos.positions) {
-        const h = tileHash(pos.x, pos.y)
-        const frameIndex = (Math.floor(elapsed / 200) + (h % revDef.glyphs.length)) % revDef.glyphs.length
-        reveryCastMap.set(posKey(pos.x, pos.y), {
-          char: revDef.glyphs[frameIndex],
-          color: revDef.glyphColor,
-        })
-      }
+    for (const pos of multiPos.positions) {
+      const h = tileHash(pos.x, pos.y)
+      const frameIndex = (Math.floor(elapsed / 200) + (h % revDef.glyphs.length)) % revDef.glyphs.length
+      reveryCastMap.set(posKey(pos.x, pos.y), {
+        char: revDef.glyphs[frameIndex],
+        color: revDef.glyphColor,
+      })
     }
   }
 
@@ -1456,188 +1427,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     ctx.fillText(t.char, px, py + liftAt(Math.floor(t.lerpX), Math.floor(t.lerpY)))
   }
 
-  // Rain overlay pass — draw animated rain near entities with rain aura (from ECS)
-  for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
-    if (!inZone(eid)) continue
-    const aura = state.world.getComponent(eid, ComponentType.Aura)
-    if (aura?.kind !== 'rain') continue
-    const auraPos = state.world.getComponent(eid, ComponentType.Position)
-    if (!auraPos) continue
-    const cx = auraPos.x
-    const cy = auraPos.y
-    const rainRadius = aura.radius
-
-    for (let dy = -rainRadius; dy <= rainRadius; dy++) {
-      for (let dx = -rainRadius; dx <= rainRadius; dx++) {
-        // Circular radius check
-        if (dx * dx + dy * dy > rainRadius * rainRadius) continue
-
-        const wx = cx + dx
-        const wy = cy + dy
-
-        // Skip off-screen tiles
-        const vx = wx - camera.x
-        const vy = wy - camera.y
-        if (!isTileInVisibleViewport(vx, vy, viewportWidth, viewportHeight)) continue
-
-        // Skip the character's own tile and the player tile
-        if (wx === cx && wy === cy) continue
-        if (wx === player.x && wy === player.y) continue
-
-        // Per-tile seed mixed with rainSeed so pattern varies per game load
-        const h = tileHash(wx + state.rainSeed, wy)
-        if (h % RAIN_AURA_DENSITY !== 0) continue
-
-        // Animate: offset by time so drops appear to fall
-        const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
-        const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
-
-        const { px: rpx, py: rpy } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-        ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]
-        ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy + liftAt(wx, wy))
-      }
-    }
-  }
-
-  // Revery rain overlay — same visual style as Gron's rain, on cast tiles
-  for (const rp of reveryCastRainPositions) {
-    const wx = rp.x
-    const wy = rp.y
-    const vx = wx - camera.x
-    const vy = wy - camera.y
-    if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
-
-    const h = tileHash(wx + state.rainSeed, wy)
-    const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
-    const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
-
-    const { px: rpx, py: rpy } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-    ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]
-    ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy + liftAt(wx, wy))
-  }
-
-  // Weather rain overlay — animated rain follows the sweeping rain front (overworld only)
-  // Uses rainIntensity for fade in/out and isInRainFront for blotchy edges
-  if (state.rainIntensity > 0 && zone === Zone.Overworld) {
-    const savedAlpha = ctx.globalAlpha
-    const rainBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
-
-    for (let vy = rainBounds.vyStart; vy < rainBounds.vyEnd; vy++) {
-      for (let vx = rainBounds.vxStart; vx < rainBounds.vxEnd; vx++) {
-        const wx = camera.x + vx
-        const wy = camera.y + vy
-        if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue
-        if (wx === player.x && wy === player.y) continue
-
-        // Check if tile is within rain front (blotchy edges via fringe noise)
-        const front = isInRainFront(state, wx, wy)
-        if (!front.hit) continue
-
-        const h = tileHash(wx + state.rainSeed, wy)
-        if (h % WEATHER_RAIN_DENSITY !== 0) continue
-
-        const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
-        const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
-
-        // Alpha = rainIntensity (fade in/out) * edgeAlpha (fringe falloff)
-        ctx.globalAlpha = state.rainIntensity * front.edgeAlpha
-
-        const { px: rpx, py: rpy } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-        ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]
-        ctx.fillText(RAIN_AURA_CHARS[phase], rpx, rpy + liftAt(wx, wy))
-      }
-    }
-
-    ctx.globalAlpha = savedAlpha
-  }
-
-  // Glinting zone sparkle overlay — overworld only
-  if (zone === Zone.Overworld) {
-    const glintBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
-    for (let vy = glintBounds.vyStart; vy < glintBounds.vyEnd; vy++) {
-      for (let vx = glintBounds.vxStart; vx < glintBounds.vxEnd; vx++) {
-        const wx = camera.x + vx
-        const wy = camera.y + vy
-        if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue
-        const key = posKey(wx, wy)
-        if (!state.glintZones.has(key)) continue
-        if (wx === player.x && wy === player.y) continue
-
-        const h = tileHash(wx + state.rainSeed, wy)
-        const opacity = state.glintOpacity.get(key) ?? 0
-        if (opacity <= 0) continue
-        const effectiveDensity = Math.ceil(GLINT_ZONE_DENSITY / opacity)
-        if (h % effectiveDensity !== 0) continue
-
-        const glintPhase = ((h >> 4) + Math.floor(time * GLINT_ZONE_SPEED)) % GLINT_ZONE_CHARS.length
-        const glintColorPhase = ((h >> 8) + Math.floor(time * GLINT_ZONE_SPEED * 0.7)) % GLINT_ZONE_COLORS.length
-
-        const { px: gpx, py: gpy } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-        ctx.fillStyle = GLINT_ZONE_COLORS[glintColorPhase]
-        ctx.fillText(GLINT_ZONE_CHARS[glintPhase], gpx, gpy + liftAt(wx, wy))
-      }
-    }
-
-    // Glinting beam overlay — '/' beams pour from upper-right to ~30% of glinting tiles
-    const savedAlpha = ctx.globalAlpha
-    for (const key of state.glintZones) {
-      const sep = key.indexOf(',')
-      if (sep < 0) continue
-      const sx = Number(key.slice(0, sep))
-      const sy = Number(key.slice(sep + 1))
-      if (!tileHasBeam(sx, sy, state.rainSeed)) continue
-      const patchOpacity = state.glintOpacity.get(key) ?? 0
-      if (patchOpacity <= 0) continue
-
-      const length = tileBeamLength(sx, sy, state.rainSeed)
-      const beamMax = tileBeamMaxOpacity(sx, sy, state.rainSeed)
-      if (beamMax <= 0) continue
-      const colorIndex = tileHash(sx + state.rainSeed, sy + 1) % GLINT_ZONE_COLORS.length
-
-      for (let i = 0; i < length; i++) {
-        const wx = sx + i + 1
-        const wy = sy - i - 1
-        const vx = wx - camera.x
-        const vy = wy - camera.y
-        if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
-
-        const segOpacity = computeBeamSegmentOpacity(i, length, time)
-        const finalOpacity = patchOpacity * segOpacity * beamMax
-        if (finalOpacity <= 0) continue
-
-        ctx.globalAlpha = finalOpacity
-        ctx.fillStyle = GLINT_ZONE_COLORS[colorIndex]
-        const { px: bPx, py: bPy } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-        ctx.fillText(GLINT_BEAM_CHAR, bPx, bPy + liftAt(wx, wy))
-      }
-    }
-    ctx.globalAlpha = savedAlpha
-  }
-
-  // Deep Time burning overlay — fire characters on burning tiles
-  if (state.deepTime?.active && state.deepTime.phase === DeepTimePhase.Burning) {
-    const burnBounds = getVisibleTileBounds(viewportWidth, viewportHeight)
-    for (let vy = burnBounds.vyStart; vy < burnBounds.vyEnd; vy++) {
-      for (let vx = burnBounds.vxStart; vx < burnBounds.vxEnd; vx++) {
-        const wx = camera.x + vx
-        const wy = camera.y + vy
-        if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue
-        if (map[wy][wx].type !== TileType.BurntClover) continue
-
-        const h = tileHash(wx, wy)
-        if (h % 3 !== 0) continue // sparse
-
-        const fireChars = ['^', '~', '*']
-        const fireColors = ['#FF4500', '#FF6600', '#FF8800', '#FFAA00']
-        const phase = ((h >> 4) + Math.floor(time * 0.01)) % fireChars.length
-        const colorPhase = ((h >> 8) + Math.floor(time * 0.008)) % fireColors.length
-
-        const { px: rpx, py: rpy } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-        ctx.fillStyle = fireColors[colorPhase]
-        ctx.fillText(fireChars[phase], rpx, rpy + liftAt(wx, wy))
-      }
-    }
-  }
+  // effect slot: rain aura, revery rain, weather rain, glint sparkle,
+  // glint beam, deep time burning. See src/engine/render/passes/.
+  // Note: the smooth-movement post-pass for tweening entities stays
+  // inline above — it's tangled with `suppressedEntities` which is read
+  // by the still-inline tile loop. It will move into the entity slot
+  // PR alongside the rest of the entity rendering.
+  runPassesInSlot('effect', ctx, state, metrics, time)
 
   // Deep Time year counter moved to Sidebar.tsx
 
