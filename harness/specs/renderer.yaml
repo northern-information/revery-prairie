@@ -4,6 +4,9 @@ priority: high
 layer: engine
 source_files:
   - src/engine/renderer.ts
+  - src/engine/render/passes.ts
+  - src/engine/render/cacheContract.ts
+  - src/engine/render/haloCache.ts
   - src/engine/constants.ts
   - src/engine/types.ts
   - src/engine/deepTime.ts
@@ -15,6 +18,75 @@ dependencies:
   - player-movement
 
 behaviors:
+  - id: pass-registry
+    description: >
+      the render frame is composed of an ordered list of named passes,
+      not a single monolithic function. each pass is a small module
+      exporting a draw function with the signature
+      (ctx, state, metrics, time) => void plus metadata: id, ordering
+      slot (one of bg-cache, world-overlay, tile-glyph, entity, effect,
+      screen-overlay), and a predicate isActive(state) so passes that
+      do nothing in the current state (e.g. earth-scan when no scan is
+      active, weather-rain in cave) short-circuit cheaply. passes are
+      registered in src/engine/render/passes.ts and the renderer's
+      render() iterates the registry once per frame in registry order,
+      calling each active pass's draw function. adding a new entity
+      type, overlay, or effect means adding one new pass file and
+      registering it — not editing render() itself. the previous
+      monolithic dispatch loop in renderer.ts is replaced by this
+      registry walk.
+    inputs:
+      - 'CanvasRenderingContext2D, GameState, CharMetrics, timestamp'
+    outputs:
+      - 'each active pass draws in registry order; inactive passes are skipped'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cache-contract
+    description: >
+      every cached layer (tile-bg cache, halo cache, tier grid, and any
+      future layer cache) declares its invalidation triggers in a
+      single place: src/engine/render/cacheContract.ts. each cache
+      entry exports the set of state fields or events that mark it
+      dirty (e.g. tile-bg cache invalidates on setMapTile and
+      invalidateMapCache; halo cache invalidates on player position
+      change, prairie boundary mutation, and active revery change;
+      tier grid invalidates only on elevation Map reference change).
+      the contract module is the single source of truth — passes
+      consult it to decide whether to rebuild before drawing, and
+      mutation sites consult it to know which caches to mark dirty.
+      this replaces the current ad-hoc mix of WeakMap reference
+      identity, dirty Sets, and per-frame full rebuilds scattered
+      across modules.
+    inputs:
+      - 'mutation events from setMapTile, player movement, revery activation, etc.'
+    outputs:
+      - 'caches marked dirty according to declared triggers; passes rebuild only when their cache is dirty'
+    state_changes:
+      - field: 'cache dirty flags (per-cache, module-internal)'
+        effect: 'set by mutation sites per the contract; cleared by the owning pass on rebuild'
+    determinism: deterministic
+
+  - id: halo-cache
+    description: >
+      the prairie halo offscreen canvas is treated as a cached layer
+      under the cache-contract. it is rebuilt only when its declared
+      triggers fire (player position change, prairie boundary mutation,
+      active revery range change, viewport resize) — not every frame.
+      between rebuilds, the renderer drawImage's the cached halo
+      canvas at the current camera offset. the single per-frame blur
+      filter is applied to the cached canvas at build time, so the
+      composite step is just a drawImage. lives in
+      src/engine/render/haloCache.ts.
+    inputs:
+      - 'player position, prairie boundary, active revery, viewport size'
+    outputs:
+      - 'halo canvas rebuilt only on trigger; composited via drawImage every frame'
+    state_changes:
+      - field: 'haloCache (module-internal, mirrors tileBgCache pattern)'
+        effect: 'rebuilt when contract-declared triggers fire'
+    determinism: deterministic
+
   - id: measure-char
     description: >
       measureChar(ctx, zoom?) measures the monospace character cell
@@ -33,26 +105,27 @@ behaviors:
     description: >
       render(ctx, state, metrics, time) is the main draw call,
       invoked each requestAnimationFrame. clears the canvas with
-      BG_COLOR, then draws in ordered phases: tile background
-      pre-pass (per-tile bg fillRect for every visible non-space
-      land/cave/ruin tile, color picked from TILE_BG_PALETTES via
-      tileHash for pseudorandom per-tile variation), tinted overlay
-      pre-passes (earth scan, ruin entrance halo, lightning targeting
-      range, angel gold aura — all draw opaque on top of tile bg),
-      tile layer (terrain glyphs, clover lifecycle, burn scars,
-      glinting zones, ponds, rivers), entity layer (ground items,
+      BG_COLOR, then walks the pass registry (see pass-registry
+      behavior) in order: bg-cache slot (tile-bg cache composite),
+      world-overlay slot (earth scan, ruin entrance halo, lightning
+      targeting range, angel gold aura, prairie halo cache composite),
+      tile-glyph slot (terrain glyphs, clover lifecycle, burn scars,
+      glinting zones, ponds, rivers), entity slot (ground items,
       bees, beehives, characters, shooting stars, meteorites,
-      lightning bolts, wildfire effects, pickup bloom effects, crumble
-      effects, player trail, rain aura), path/hover preview layer,
-      player glyph (uses deep time ghost glyph when active; crossfades
-      from ö to @ via complementary globalAlpha during
-      deepTimeTransition), cursor highlight, revery rain overlay,
-      weather rain overlay (follows rain front), deep time burning
-      overlay, and lightning screen flash overlay. during
-      genesisTransition, entities not visible in genesis (characters,
-      bees, beehives, ground items, meteorites, angels) render at
-      transitionAlpha (0→1 over duration) via globalAlpha. uses a
-      two-phase resolve-then-draw pattern for each tile: first
+      lightning bolts, player trail, rain aura, player glyph), effect
+      slot (path/hover preview, pickup bloom, crumble, wildfire,
+      revery rain overlay, weather rain overlay, deep time burning
+      overlay), screen-overlay slot (cursor highlight, lightning
+      screen flash, angel spawn/despawn flash, edge scroll indicator,
+      off-screen player arrow, ejection fade, RTS selection box).
+      each pass declares its own isActive(state) predicate and
+      short-circuits when the state does not warrant drawing. during
+      genesisTransition, entities not visible in genesis render at
+      transitionAlpha (0→1 over duration) via globalAlpha — owned by
+      the relevant entity passes. the player glyph uses the deep time
+      ghost glyph when active and crossfades from ö to @ via
+      complementary globalAlpha during deepTimeTransition. tile-glyph
+      slot uses a two-phase resolve-then-draw pattern: first
       determines char/color/cursorable, then applies cursor inversion
       if applicable. entity glyphs (player, bees, ghosts, characters,
       ground items, etc.) overlay the tile bg without recoloring it
@@ -363,6 +436,21 @@ edge_cases:
   - id: tile-bg-cache-zone-swap-lazy
     description: 'enterCave / exitCave / enterRuin / exitRuin during play'
     expected: 'zone swap functions do nothing cache-related; the new state.map ref triggers a lazy build on the first drawImage of that frame'
+  - id: pass-registry-add-new-pass
+    description: 'a new entity type or effect is added to the game'
+    expected: 'one new pass file is added to src/engine/render/passes/ and registered in passes.ts; render() is not modified; existing passes are not edited'
+  - id: pass-registry-inactive-pass
+    description: 'a pass whose isActive(state) returns false (e.g. earth-scan with no active scan)'
+    expected: 'pass is skipped in O(1) without reading any tile data or canvas state; no side effects on ctx'
+  - id: cache-contract-mutation-without-trigger
+    description: 'a mutation site updates state in a way that should invalidate a cached layer but is not declared in cacheContract'
+    expected: 'cache goes stale; the contract module is the discoverable single source of truth so the missing trigger is added there, not patched into the mutation site ad-hoc'
+  - id: halo-cache-revery-range-change
+    description: 'player activates a revery whose range affects the halo'
+    expected: 'halo cache is marked dirty per the contract; rebuilt with the blur filter applied once on next frame; subsequent frames composite the cached canvas via drawImage with no blur cost'
+  - id: halo-cache-viewport-resize
+    description: 'browser viewport resizes mid-session'
+    expected: 'halo cache canvas is resized to match new viewport; rebuild fires once; no per-frame regression'
 
 failure_conditions:
   - trigger: 'canvas context lost'
@@ -373,6 +461,12 @@ failure_conditions:
     expected: 'cache goes stale and the affected tile renders as a ghost of its previous type until the cache is invalidated. enforced by code review and convention, not by a runtime check; setMapTile is the single sanctioned mutation API and all 12 known mutation sites must use it.'
   - trigger: 'OffscreenCanvas API unavailable'
     expected: 'tileBgCache falls back to a detached HTMLCanvasElement transparently; no functional regression, slight perf cost from main-thread allocation only'
+  - trigger: 'inline draw logic added directly inside render() in renderer.ts instead of as a registered pass'
+    expected: 'spec is violated; the registry walk is the only sanctioned drawing path. all draws must live in a pass module under src/engine/render/passes/ and be registered in passes.ts'
+  - trigger: 'a cached layer is rebuilt every frame regardless of dirty state'
+    expected: 'spec is violated; cacheContract.ts must declare the layer''s invalidation triggers and the owning pass must consult the dirty flag before rebuilding'
+  - trigger: 'halo offscreen canvas rebuilt every frame as it does in the pre-refactor renderer'
+    expected: 'spec is violated; halo-cache pass must rebuild only when contract triggers fire'
 
 verification:
   test_file: src/engine/__tests__/gameLoop.test.ts

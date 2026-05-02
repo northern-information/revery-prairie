@@ -13,12 +13,21 @@ browser-based prairie game. ASCII rendered on HTML canvas via React + TypeScript
 
 two distinct layers — keep them separate:
 
-- **`src/engine/`** — pure TypeScript. no React imports. mutable game state, canvas rendering, input mapping, camera logic. this is the swap point for the eventual isometric sprite upgrade.
+- **`src/engine/`** — pure TypeScript. no React imports. mutable game state, canvas rendering, input mapping, camera logic. the rendering target is ASCII-on-iso permanently — no sprite swap planned.
 - **`src/components/` + `src/hooks/`** — React UI. overlays (inventory, sidebar) and the canvas bridge.
 
 the canvas runs a `requestAnimationFrame` loop that reads game state by reference. React re-renders on movement and UI interactions via `refreshUI()`.
 
 game state is a mutable singleton (`src/hooks/useGameEngine.ts`) held outside React's render cycle. engine functions mutate it directly. this is intentional — standard for game dev, avoids allocation overhead.
+
+### rendering pipeline
+
+the renderer is organized around two ideas — see `harness/specs/renderer.yaml`:
+
+- **pass registry** (`src/engine/render/passes.ts`) — the render frame is an ordered list of named passes grouped into slots: `bg-cache` → `world-overlay` → `tile-glyph` → `entity` → `effect` → `screen-overlay`. each pass declares an `isActive(state)` predicate and a `draw` function. adding a new entity, overlay, or effect = add a pass module under `src/engine/render/passes/` and call `registerPass(...)`. extraction of the existing monolithic `render()` body into individual pass modules is staged across follow-up PRs (see `harness/plans/render-architecture.yaml`).
+- **cache contract** (`src/engine/render/cacheContract.ts`) — single source of truth for cached-layer invalidation triggers. mutation sites call into this module rather than poking individual caches. current cached layers: `tileBgCache` (per-map static tile bg + cube edges), `haloCache` (per-map prairie halo at peak intensity, pulse applied at composite via `globalAlpha`). the contract module documents which mutations invalidate which caches.
+
+when adding a new map mutation site, route it through the cache contract. when adding a new cached layer, declare its triggers in `cacheContract.ts` so the next mutation author can find them.
 
 ## multiplayer
 
@@ -418,4 +427,4 @@ after `/new-feature`, `/bug-report`, or `/change-request` completes, prompt the 
 - when mutating state before delegating to another function, check that the delegate can fail. if it can, validate before mutating (e.g. check standing tile before removing recipe ingredients).
 - avoid naming collisions between game concepts and source concepts. if a game entity and a code mechanism share a name (e.g. "ghost" for both NPC spirits and drag-preview phantoms), rename the code mechanism. overlapping terminology makes human understanding difficult.
 - multiplayer code: `shared/` is the single source of truth for the wire protocol. neither client nor worker may duplicate types — both import from `@revery-prairie/shared`. `shared/` itself imports nothing from the rest of the repo.
-- engine code must not import from `src/network/`. movement.ts emits `state.onPlayerMoved?.()` after a successful step; `useGameEngine` is the layer that wires that callback to `NetworkClient.sendPosition`. keeps the engine portable for future swap to isometric sprites or other transports.
+- engine code must not import from `src/network/`. movement.ts emits `state.onPlayerMoved?.()` after a successful step; `useGameEngine` is the layer that wires that callback to `NetworkClient.sendPosition`. keeps the engine portable across alternate transports.

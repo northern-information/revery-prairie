@@ -69,7 +69,6 @@ import {
   PLAYER_CHAR,
   PLAYER_COLOR,
   POND_COLOR,
-  PRAIRIE_HALO_COLOR,
   PRAIRIE_HALO_MAX_ALPHA,
   PRAIRIE_HALO_PULSE_SPEED,
   PRAIRIE_HALO_RADIUS,
@@ -138,6 +137,7 @@ import {
   WALL_LEFT_SHADE,
   WALL_RIGHT_SHADE,
 } from './tileBg'
+import { getOrBuildHaloCache } from './render/haloCache'
 import { flushDirtyTiles, getOrBuildCache } from './tileBgCache'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
@@ -193,17 +193,6 @@ const STAR_CHARS = ['.', '+', '*']
 const STAR_COLORS = ['#333', '#555', '#777', '#999', '#bbb', '#999', '#777', '#555']
 const STAR_DENSITY = 12 // ~1 in 12 tiles gets a star
 const TWINKLE_SPEED = 0.0015 // cycles per millisecond
-
-// Cached offscreen canvas for the prairie halo pass. The halo is drawn here
-// without blur, then composited to the main canvas with a single blur filter
-// pass — orders of magnitude cheaper than applying ctx.filter per fillRect.
-let _haloOffscreen: HTMLCanvasElement | null = null
-const getHaloOffscreen = (width: number, height: number): HTMLCanvasElement => {
-  _haloOffscreen ??= document.createElement('canvas')
-  if (_haloOffscreen.width !== width) _haloOffscreen.width = width
-  if (_haloOffscreen.height !== height) _haloOffscreen.height = height
-  return _haloOffscreen
-}
 
 export { type CharMetrics } from './types'
 
@@ -1258,61 +1247,30 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Pre-pass: prairie halo over space tiles adjacent to land. Overworld only,
   // skipped during deep time Burning/Simulating (crimson void already covers
-  // space). Iterates the viewport plus a PRAIRIE_HALO_RADIUS margin so the
-  // halo extends naturally past the visible edge without the glow "popping
-  // in" as the camera approaches a boundary, but without paying the cost of
-  // iterating the full ~21k-tile map every frame.
-  //
-  // The halo is rendered to an offscreen canvas without blur, then composited
-  // to the main canvas with a single blur filter pass. Applying ctx.filter
-  // per fillRect would re-run blur compositing for every tile (very slow);
-  // a single drawImage with blur runs once.
+  // space). The peak-intensity halo shape is baked once per map into a
+  // world-space offscreen canvas (haloCache); the per-frame composite
+  // applies the global breathing pulse as ctx.globalAlpha and a single
+  // ctx.filter = blur(...) pass. drawImage at a camera-derived translation.
   {
     const deepTimeLocked =
       state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
     if (state.currentZone === Zone.Overworld && !deepTimeLocked) {
-      const halo = getHaloOffscreen(ctx.canvas.width, ctx.canvas.height)
-      const hctx = halo.getContext('2d')
-      if (hctx) {
-        hctx.clearRect(0, 0, halo.width, halo.height)
-        hctx.fillStyle = PRAIRIE_HALO_COLOR
-        const haloBounds = getVisibleTileBounds(viewportWidth, viewportHeight, PRAIRIE_HALO_RADIUS)
-        for (let vy = haloBounds.vyStart; vy < haloBounds.vyEnd; vy++) {
-          for (let vx = haloBounds.vxStart; vx < haloBounds.vxEnd; vx++) {
-            const mx = camera.x + vx
-            const my = camera.y + vy
-            if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
-            if (map[my][mx].type !== TileType.Space) continue
-            const dist = nearestLandDistance(
-              map,
-              state.mapWidth,
-              state.mapHeight,
-              mx,
-              my,
-              PRAIRIE_HALO_RADIUS,
-            )
-            const alpha = computePrairieHaloAlpha(dist, time)
-            if (alpha <= 0) continue
-            hctx.globalAlpha = alpha
-            const { px: hx, py: hy } = viewportToScreen(
-              vx,
-              vy,
-              charWidth,
-              charHeight,
-              viewportWidth,
-              viewportHeight,
-            )
-            drawCellBackground(hctx, hx, hy, charWidth, charHeight)
-          }
-        }
-        hctx.globalAlpha = 1
-
-        const blurPx = Math.max(charWidth, charHeight) * 1.5
-        const savedFilter = ctx.filter
-        ctx.filter = `blur(${String(blurPx)}px)`
-        ctx.drawImage(halo, 0, 0)
-        ctx.filter = savedFilter
-      }
+      const halo = getOrBuildHaloCache(map, charWidth, charHeight)
+      const halfH = charHeight / 2
+      const halfW = charWidth / 2
+      const originX = (viewportHeight * charWidth) / 2 - halfW
+      const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
+      const dx = (camera.y - camera.x) * charWidth + originX - halo.worldOriginX
+      const dy = -(camera.x + camera.y) * halfH + originY - halo.worldOriginY
+      const pulse = Math.sin(time * PRAIRIE_HALO_PULSE_SPEED) * 0.5 + 0.5
+      const blurPx = Math.max(charWidth, charHeight) * 1.5
+      const savedFilter = ctx.filter
+      const savedAlpha = ctx.globalAlpha
+      ctx.globalAlpha = pulse
+      ctx.filter = `blur(${String(blurPx)}px)`
+      ctx.drawImage(halo.canvas, dx, dy)
+      ctx.filter = savedFilter
+      ctx.globalAlpha = savedAlpha
     }
   }
 
