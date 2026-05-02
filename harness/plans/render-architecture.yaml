@@ -1,0 +1,296 @@
+plan:
+  id: render-architecture
+  title: 'Pass registry + unified cache contract + cached halo'
+  created: '2026-05-02'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: pass-interface
+    title: 'Define RenderPass interface and registry walker in src/engine/render/passes.ts. Pass = { id, slot, isActive(state), draw(ctx, state, metrics, time) }. Slots: bg-cache, world-overlay, tile-glyph, entity, effect, screen-overlay. Export runPasses(ctx, state, metrics, time) that iterates the registry in slot order and skips inactive passes.'
+    spec_id: renderer
+    spec_sections:
+      - pass-registry
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/render/passes.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: cache-contract-module
+    title: 'Define cache invalidation contract in src/engine/render/cacheContract.ts. Export per-cache dirty flags + setDirty/consumeDirty helpers. Document declared triggers for tileBgCache, haloCache, tier grid in module-level JSDoc. Wire existing tileBgCache and tier grid to consult the contract (no behavior change yet).'
+    spec_id: renderer
+    spec_sections:
+      - cache-contract
+    context_files:
+      - src/engine/tileBgCache.ts
+      - src/engine/tileBg.ts
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/render/cacheContract.ts
+      - src/engine/tileBgCache.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: halo-cache-module
+    title: 'Build src/engine/render/haloCache.ts mirroring tileBgCache pattern. Offscreen canvas sized to viewport, blur filter applied at build time. Export getOrBuildHalo(state, metrics) and markHaloDirty(state). Wire mutations: player movement, prairie boundary changes, active revery range changes, viewport resize all call markHaloDirty via cacheContract.'
+    spec_id: renderer
+    spec_sections:
+      - halo-cache
+      - cache-contract
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/movement.ts
+      - src/engine/reveries.ts
+      - src/engine/render/cacheContract.ts
+      - src/engine/tileBgCache.ts
+    output_files:
+      - src/engine/render/haloCache.ts
+      - src/engine/render/cacheContract.ts
+      - src/engine/movement.ts
+      - src/engine/reveries.ts
+    depends_on:
+      - pass-interface
+      - cache-contract-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: extract-bg-cache-slot
+    title: 'Extract the tile-bg cache composite into src/engine/render/passes/tileBgComposite.ts as the sole bg-cache slot pass. Existing tileBgCache module untouched — pass just calls flushDirtyTiles + drawImage.'
+    spec_id: renderer
+    spec_sections:
+      - pass-registry
+      - tile-background-cache
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBgCache.ts
+      - src/engine/render/passes.ts
+    output_files:
+      - src/engine/render/passes/tileBgComposite.ts
+      - src/engine/render/passes.ts
+    depends_on:
+      - pass-interface
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: extract-world-overlay-slot
+    title: 'Extract world-overlay slot passes into src/engine/render/passes/: earthScan.ts, ruinEntranceHalo.ts, lightningTargetingRange.ts, angelGoldAura.ts, prairieHalo.ts (uses haloCache). Each declares isActive(state). Register all in passes.ts in current draw order.'
+    spec_id: renderer
+    spec_sections:
+      - pass-registry
+      - earth-scan-pre-pass
+      - angel-aura-background
+      - halo-cache
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/render/passes.ts
+      - src/engine/render/haloCache.ts
+    output_files:
+      - src/engine/render/passes/earthScan.ts
+      - src/engine/render/passes/ruinEntranceHalo.ts
+      - src/engine/render/passes/lightningTargetingRange.ts
+      - src/engine/render/passes/angelGoldAura.ts
+      - src/engine/render/passes/prairieHalo.ts
+      - src/engine/render/passes.ts
+    depends_on:
+      - pass-interface
+      - halo-cache-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: extract-tile-glyph-slot
+    title: 'Extract tile-glyph slot into src/engine/render/passes/tileGlyph.ts. Owns the two-phase resolve-then-draw pattern for terrain glyphs, clover lifecycle, burn scars, glinting zones, ponds, rivers, twinkling space stars, and cursor inversion.'
+    spec_id: renderer
+    spec_sections:
+      - pass-registry
+      - cursor-inversion
+      - twinkling-space-stars
+      - glinting-zone-rendering
+      - cave-masking
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/render/passes.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/render/passes/tileGlyph.ts
+      - src/engine/render/passes.ts
+    depends_on:
+      - pass-interface
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: extract-entity-slot
+    title: 'Extract entity slot passes: groundItems, bees, beehives, characters, shootingStars, meteorites, lightningBolts, playerTrail, rainAura, playerGlyph (handles deep time crossfade). One file per pass under src/engine/render/passes/. Register in passes.ts.'
+    spec_id: renderer
+    spec_sections:
+      - pass-registry
+      - deep-time-ghost-glyph
+      - player-trail-rendering
+      - rain-aura-overlay
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/render/passes.ts
+      - src/engine/deepTime.ts
+    output_files:
+      - src/engine/render/passes/groundItems.ts
+      - src/engine/render/passes/bees.ts
+      - src/engine/render/passes/beehives.ts
+      - src/engine/render/passes/characters.ts
+      - src/engine/render/passes/shootingStars.ts
+      - src/engine/render/passes/meteorites.ts
+      - src/engine/render/passes/lightningBolts.ts
+      - src/engine/render/passes/playerTrail.ts
+      - src/engine/render/passes/rainAura.ts
+      - src/engine/render/passes/playerGlyph.ts
+      - src/engine/render/passes.ts
+    depends_on:
+      - pass-interface
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: extract-effect-slot
+    title: 'Extract effect slot passes: pathHoverPreview, pickupBloom, crumble, wildfire, reveryRainOverlay, weatherRainOverlay, deepTimeBurning. One file per pass. Register in passes.ts.'
+    spec_id: renderer
+    spec_sections:
+      - pass-registry
+      - weather-rain-overlay
+      - deep-time-burning-overlay
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/render/passes.ts
+      - src/engine/effects.ts
+    output_files:
+      - src/engine/render/passes/pathHoverPreview.ts
+      - src/engine/render/passes/pickupBloom.ts
+      - src/engine/render/passes/crumble.ts
+      - src/engine/render/passes/wildfire.ts
+      - src/engine/render/passes/reveryRainOverlay.ts
+      - src/engine/render/passes/weatherRainOverlay.ts
+      - src/engine/render/passes/deepTimeBurning.ts
+      - src/engine/render/passes.ts
+    depends_on:
+      - pass-interface
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: extract-screen-overlay-slot
+    title: 'Extract screen-overlay slot passes: cursorHighlight, lightningScreenFlash, angelSpawnDespawnFlash, edgeScrollIndicator, offscreenPlayerArrow, ejectionFade, rtsSelectionBox. One file per pass. Register in passes.ts.'
+    spec_id: renderer
+    spec_sections:
+      - pass-registry
+      - angel-spawn-despawn-flash
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/render/passes.ts
+    output_files:
+      - src/engine/render/passes/cursorHighlight.ts
+      - src/engine/render/passes/lightningScreenFlash.ts
+      - src/engine/render/passes/angelSpawnDespawnFlash.ts
+      - src/engine/render/passes/edgeScrollIndicator.ts
+      - src/engine/render/passes/offscreenPlayerArrow.ts
+      - src/engine/render/passes/ejectionFade.ts
+      - src/engine/render/passes/rtsSelectionBox.ts
+      - src/engine/render/passes.ts
+    depends_on:
+      - pass-interface
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: refactor-render-coordinator
+    title: 'Reduce render() in src/engine/renderer.ts to: clear canvas, then call runPasses(ctx, state, metrics, time). All inline draw logic that was extracted into passes is removed. measureChar and other module exports stay.'
+    spec_id: renderer
+    spec_sections:
+      - main-render-loop
+      - pass-registry
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/render/passes.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - extract-bg-cache-slot
+      - extract-world-overlay-slot
+      - extract-tile-glyph-slot
+      - extract-entity-slot
+      - extract-effect-slot
+      - extract-screen-overlay-slot
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/gameLoop.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: update-claudemd
+    title: 'Update CLAUDE.md: drop the "swap point for the eventual isometric sprite upgrade" line in the architecture section (commitment is now ASCII/iso permanent), add a short paragraph documenting the pass-registry + cache-contract architecture and where to add new passes.'
+    spec_id: renderer
+    spec_sections:
+      - pass-registry
+      - cache-contract
+    context_files:
+      - CLAUDE.md
+    output_files:
+      - CLAUDE.md
+    depends_on: []
+    verification: []
+    repair: retry
+    tags: [docs]
+
+  - id: pass-registry-tests
+    title: 'Add src/engine/__tests__/renderPasses.test.ts: registry order is stable, isActive(state) skipping is O(1) (no canvas calls), each pass writes only to ctx (no state mutation), adding a new pass requires only registry edit.'
+    spec_id: renderer
+    spec_sections:
+      - pass-registry
+    context_files:
+      - src/engine/render/passes.ts
+      - src/engine/__tests__/gameLoop.test.ts
+    output_files:
+      - src/engine/__tests__/renderPasses.test.ts
+    depends_on:
+      - refactor-render-coordinator
+    verification:
+      - npx vitest run src/engine/__tests__/renderPasses.test.ts
+    repair: retry
+    tags: [test, engine]
+
+  - id: cache-contract-tests
+    title: 'Add src/engine/__tests__/cacheContract.test.ts: tileBgCache invalidates on setMapTile, haloCache invalidates on player move + revery activation + viewport resize, tier grid only on elevation reference change. Verify caches do not rebuild when no trigger fires across N frames.'
+    spec_id: renderer
+    spec_sections:
+      - cache-contract
+      - halo-cache
+    context_files:
+      - src/engine/render/cacheContract.ts
+      - src/engine/render/haloCache.ts
+      - src/engine/tileBgCache.ts
+    output_files:
+      - src/engine/__tests__/cacheContract.test.ts
+    depends_on:
+      - refactor-render-coordinator
+    verification:
+      - npx vitest run src/engine/__tests__/cacheContract.test.ts
+    repair: retry
+    tags: [test, engine]
