@@ -32,6 +32,29 @@ behaviors:
     state_changes: []
     determinism: time-based
 
+  - id: bolt-projection
+    description: >
+      LightningData.path stores canonical tile-space coordinates
+      (vertical zigzag with cy decrementing per step). The canonical
+      path slants diagonally on screen because the projection rotates
+      the grid 45°. To keep the bolt visually vertical from sky to
+      impact, the renderer applies a per-frame transform from canonical
+      path coordinates to projected tile coordinates before painting
+      lightningMap. Mapping per canonical step (going from impact
+      upward): canonical dx=0 → world step (-1, -1); canonical
+      dx=+1 → (0, -1); canonical dx=-1 → (-1, 0). The same transform
+      anchors and walks the optional branch (canonical branchDir +1
+      → world step (1, 0); -1 → (0, 1)). boltChar (|, /, \) is still
+      derived from canonical dx so the jagged silhouette is preserved.
+      Transform is applied at render time only — LightningData on the
+      ECS entity remains canonical.
+    inputs:
+      - 'LightningData.path and branch (canonical tile-space)'
+    outputs:
+      - 'projected positions used to populate lightningMap'
+    state_changes: []
+    determinism: deterministic
+
   - id: wildfire-map
     description: >
       renderer builds a wildfireMap by querying ECS for TimedEffect
@@ -128,7 +151,6 @@ edge_cases:
   - id: flash-during-cave-zone
     description: 'lightning entity somehow exists while in cave zone'
     expected: 'screen flash still triggers (overlay is zone-independent) but bolt map is empty (entity filtered by zone)'
-
 failure_conditions:
   - trigger: 'no lightning ECS entities exist'
     expected: 'lightningMap is empty, no screen flash drawn, zero performance cost'

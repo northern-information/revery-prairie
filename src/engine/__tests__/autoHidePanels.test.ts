@@ -124,7 +124,9 @@ describe('auto-hide panels', () => {
 
     it('counter continues incrementing when disabled (inert)', () => {
       const state = createTestState()
-      clearAroundPlayer(state)
+      // Need 10 walkable tiles east of the player, so clear a wider radius
+      // than the default 2 — otherwise random coastline can block a step.
+      clearAroundPlayer(state, 12)
       state.autoHidePanels = false
       state.heldDirection = 'right'
       const loop = createGameLoop(state, {})

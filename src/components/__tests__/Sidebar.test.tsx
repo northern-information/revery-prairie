@@ -180,6 +180,10 @@ describe('Sidebar', () => {
     it('shows "rain" when hovering Gron rain aura', () => {
       const state = createGameState('Test', 80, 40)
       completeGenesis(state)
+      // Glint zones use Math.random() so they vary between runs and can add
+      // ", glinting" to the cursor's effects label. Clear them so the
+      // assertion only sees "rain".
+      state.glintZones.clear()
 
       // Aim at a tile inside Gron's rain aura (radius 6).
       const gron = findGron(state)
