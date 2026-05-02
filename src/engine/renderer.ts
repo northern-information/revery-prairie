@@ -138,7 +138,8 @@ import {
   WALL_RIGHT_SHADE,
 } from './tileBg'
 import { getOrBuildHaloCache } from './render/haloCache'
-import { flushDirtyTiles, getOrBuildCache } from './tileBgCache'
+import { runPassesInSlot } from './render/passes'
+import './render/passes/index'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
@@ -1115,34 +1116,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Pre-pass: per-tile surface bg + south/east cube-edge stroke. The
-  // static layer for the current map is baked into a per-map offscreen
-  // canvas (tileBgCache) sized to the full world iso bounding box.
-  // setMapTile mutations mark tiles dirty; flushDirtyTiles repaints
-  // them in place before the blit. The whole cache is drawn at a
-  // camera-derived translation; pixels outside the viewport are
-  // clipped by the destination canvas.
-  //
-  // Cache origin maps tile (mx, my) to cache pixel
-  //   px = (mx - my) * charWidth + cache.worldOriginX + halfW
-  //   py = (mx + my) * halfH + cache.worldOriginY + lift
-  // The renderer's viewport projection for the same tile is
-  //   px = (mx - my) * charWidth + (camera.y - camera.x) * charWidth + originX + halfW
-  //   py = (mx + my) * halfH + (-(camera.x + camera.y)) * halfH + originY + lift
-  // Translation between them collapses to constants in (mx, my):
-  //   dx = (camera.y - camera.x) * charWidth + originX - cache.worldOriginX
-  //   dy = -(camera.x + camera.y) * halfH + originY - cache.worldOriginY
-  {
-    flushDirtyTiles(state, map)
-    const cache = getOrBuildCache(state, map, charWidth, charHeight)
-    const halfH = charHeight / 2
-    const halfW = charWidth / 2
-    const originX = (viewportHeight * charWidth) / 2 - halfW
-    const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
-    const dx = (camera.y - camera.x) * charWidth + originX - cache.worldOriginX
-    const dy = -(camera.x + camera.y) * halfH + originY - cache.worldOriginY
-    ctx.drawImage(cache.canvas, dx, dy)
-  }
+  // bg-cache slot: tile bg + cube edges composite. See
+  // src/engine/render/passes/tileBgComposite.ts.
+  runPassesInSlot('bg-cache', ctx, state, metrics, time)
   // Pre-pass: earth scan backgrounds — drawn after the tile bg pre-pass so
   // scan colors paint opaque on top of the surface bg. Fade-out uses
   // globalAlpha rather than lerping toward BG_COLOR, so the tile bg shows
