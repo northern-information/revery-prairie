@@ -1186,7 +1186,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
     }
   }
-
   // Pre-pass: per-tile cube-edge stroke. Draws a darker line along the
   // south + east diamond edges of each non-space land tile, simulating
   // the cube's bottom-left and bottom-right faces without doing a full
@@ -1235,7 +1234,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     ctx.lineWidth = savedLineWidth
     ctx.strokeStyle = savedStroke
   }
-
   // Pre-pass: earth scan backgrounds — drawn after the tile bg pre-pass so
   // scan colors paint opaque on top of the surface bg. Fade-out uses
   // globalAlpha rather than lerping toward BG_COLOR, so the tile bg shows
