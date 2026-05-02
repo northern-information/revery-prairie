@@ -74,6 +74,7 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'revery:deep-time': { lore: 'TODO' },
   // World entities
   'entity:beehive': { lore: 'Awareness is to watch as the millions of drones you captured just walk away.' },
+  'entity:monarch': { lore: 'Danaus plexippus. Milkweed is vital to its lifecycle.' },
   // Characters
   'character:gron': {
     lore: 'A rain curse follows this immortal codger around rendering his coarse cloak both damp and smelly.',
@@ -84,9 +85,15 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'character:coyote': {
     lore: 'What is a steward without their coyote? And what is a coyote without their inherent bestness?',
   },
+  'character:ghosts': {
+    lore: 'Three ghosts drift across the land. They move slowly and unpredictably. Each has something to say if you stop to listen.',
+  },
   // Zones
+  'zone:overworld': { lore: 'A dirt island surrounded by stars. The land responds to care.' },
+  'zone:cave': {
+    lore: 'A winding cave accessible through an entrance on the surface. Corridors lead upward to a chamber.',
+  },
   'zone:ruin-dormant-garden': { lore: 'TODO' },
-  'event:cave-fog': { lore: 'TODO' },
   // Recipes
   'recipe:bee+clover': {
     lore: [
@@ -100,22 +107,85 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
       '— emily dickinson',
     ].join('\n'),
   },
-  // Entities
-  'entity:monarch': { lore: 'Danaus plexippus. Milkweed is vital to its lifecycle.' },
-  // Events
-  'event:glint-zone': { lore: 'Glinting light cast from the local star. Recharges coins.' },
-  'event:angel': { lore: 'Flaming orreries of eyes encrusted in feather and wheel.' },
-  'event:angel-canto': {
-    lore: 'It is said their choirs are arranged in fractals and have sung the cantos since time immemorial.',
+  // Events — celestial
+  'event:shooting-star': {
+    lore: 'Shooting stars appear randomly in the space around the prairie. Most pass harmlessly, but some land as meteorites.',
+  },
+  'event:chain-explosion': {
+    lore: 'When a meteorite is picked up, there is a chance it detonates, scattering more meteorites nearby. Chain meteorites cannot trigger further chains.',
+  },
+  'event:meteor-shower': {
+    lore: 'Occasionally the sky erupts with shooting stars, all streaking from the same direction. Most land as meteorites scattered across the prairie.',
   },
   'event:satellite-impact': {
     lore: 'Failing mechanical devices from both this world and beyond. Who knows what you might find?',
   },
+  'event:angel': { lore: 'Flaming orreries of eyes encrusted in feather and wheel.' },
+  'event:angel-canto': {
+    lore: 'It is said their choirs are arranged in fractals and have sung the cantos since time immemorial.',
+  },
+  // Events — clover
+  'event:clover-growth': {
+    lore: 'When bees settle on a clover patch, the clover begins to grow in spiraling patterns across the dirt. The more bees tend a patch, the faster it spreads.',
+  },
+  'event:clover-death': {
+    lore: 'Clover needs both light and water to survive. Without them it slowly browns, then blinks red in distress, turns black, and finally decomposes back into the earth — enriching the soil as it goes.',
+  },
+  'event:clover-harvest': {
+    lore: 'Pressing [f] while facing clover harvests it into your backpack. The tile returns to bare dirt. Harvested clover does not enrich the soil.',
+  },
+  'event:clover-cut': {
+    lore: 'Pressing [x] while facing clover cuts it down to bare dirt. Unlike harvesting, cutting returns nutrients to the earth, enriching the soil.',
+  },
+  // Events — lightning
+  'event:lightning-strike': {
+    lore: 'Lightning strikes the prairie during storms. Rain, high humidity, and strong wind all increase the chance. The bolt is brief but unmistakable — the whole sky flashes white.',
+  },
+  'event:wildfire': {
+    lore: 'When lightning strikes dry clover, fire spreads to neighboring patches. The drier the clover, the farther it burns. Wet clover resists ignition. The fire enriches the soil as it passes.',
+  },
+  'event:lightning-attraction': {
+    lore: 'High ground draws lightning down from the clouds. Water-soaked earth conducts the charge — tiles near ponds and rivers are struck more often. Metal objects left on the ground act as conductors — meteorites attract bolts. A lone beehive standing in open dirt is a target — isolated tall features on flat terrain invite strikes. Clover fields conduct slightly better than bare dirt.',
+    hints: [
+      {
+        prompt: 'How to protect clover',
+        answer: 'Keep fields hydrated. Wet clover resists ignition. Remove metal objects from valuable patches.',
+      },
+    ],
+  },
+  'event:lightning-revery': {
+    lore: 'The lightning revery lets you choose where the bolt falls. Press the hotkey to enter targeting mode, then click a tile within range. The strike follows the same rules as natural lightning — dry clover ignites, fire spreads, soil enriches.',
+    hints: [
+      {
+        prompt: 'How to target',
+        answer: 'Press the action bar key, then click a tile within 20 steps. Press Esc or right-click to cancel.',
+      },
+    ],
+  },
+  // Events — divination
+  'event:hexagram-cast': {
+    lore: 'Three ancient coins, tossed six times. Each toss builds a line — solid or broken, stable or changing. The hexagram that forms speaks in the language of the prairie. Listen closely.',
+    hints: [
+      { prompt: 'How to cast', answer: 'Collect 3 glinting coins and press [c] on the overworld.' },
+      {
+        prompt: 'Changing lines',
+        answer: 'Old yin (6) and old yang (9) are changing lines. They transform the hexagram into a second reading.',
+      },
+    ],
+  },
+  'event:glint-zone': { lore: 'Glinting light cast from the local star. Recharges coins.' },
+  // Events — cave
+  'event:cave-fog': { lore: 'TODO' },
+  // Events — endgame
+  'event:deep-time': { lore: 'The final act of stewardship. A controlled burn followed by a millennium of observation.' },
+  'event:gron-deep-time': { lore: 'Gron speaks of the Deep Time revery and what it means to let go.' },
 }
 
 // --- Lore lookup for UI components ---
 
 export const getLore = (key: string): string => MANUAL_LORE[key]?.lore ?? ''
+
+export const getHints = (key: string): ManualHint[] => MANUAL_LORE[key]?.hints ?? []
 
 // --- Category mapping ---
 
@@ -250,7 +320,11 @@ const buildControlEntries = (): ManualEntry[] =>
     sourceKind: 'manual-only' as const,
   }))
 
-// --- Genesis entry (auto-derived from epoch registry) ---
+// --- Genesis entry ---
+//
+// Special case: genesis has its own builder because its lore body interpolates
+// GENESIS_EPOCHS at runtime (the epoch list rewrites itself when epochs are
+// added or reordered). Every other entry pulls static lore from MANUAL_LORE.
 
 const buildGenesisEntry = (): ManualEntry => {
   const epochList = GENESIS_EPOCHS.map(e => e.commentary.replace(/\.\.\.$/, '')).join(', ')
@@ -290,19 +364,22 @@ const buildGenesisEntry = (): ManualEntry => {
   }
 }
 
-// --- Manual-only entries (zones, events) ---
+// --- Manual-only entries (zones, events, ghosts) ---
+//
+// Skeletons hold structural metadata only — id, glyph, color, unlock key,
+// cross-refs. Lore and hints come from MANUAL_LORE via the same lookup the
+// auto-builders use. To author lore for one of these, add an entry to
+// MANUAL_LORE keyed by the skeleton's id.
 
-const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
+type ManualOnlySkeleton = Omit<ManualEntry, 'lore' | 'hints'>
+
+const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
   {
     id: 'character:ghosts',
     name: 'Ghosts',
     category: ManualCategory.Person,
     glyph: 'ö',
     glyphColor: '#FFFFFF',
-    lore:
-      MANUAL_LORE['character:ghosts']?.lore ??
-      'Three ghosts drift across the land. They move slowly and unpredictably. Each has something to say if you stop to listen.',
-    hints: MANUAL_LORE['character:ghosts']?.hints ?? [],
     unlockKey: 'character:ghost-1',
     sourceKind: 'character',
   },
@@ -312,8 +389,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Zone,
     glyph: TILE_CHARS[TileType.Dirt],
     glyphColor: TILE_COLORS[TileType.Dirt],
-    lore: MANUAL_LORE['zone:overworld']?.lore ?? 'A dirt island surrounded by stars. The land responds to care.',
-    hints: MANUAL_LORE['zone:overworld']?.hints ?? [],
     unlockKey: 'always',
     sourceKind: 'zone',
   },
@@ -323,10 +398,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Zone,
     glyph: TILE_CHARS[TileType.CaveEntrance],
     glyphColor: TILE_COLORS[TileType.CaveEntrance],
-    lore:
-      MANUAL_LORE['zone:cave']?.lore ??
-      'A winding cave accessible through an entrance on the surface. Corridors lead upward to a chamber.',
-    hints: MANUAL_LORE['zone:cave']?.hints ?? [],
     unlockKey: 'zone:cave',
     sourceKind: 'zone',
   },
@@ -336,8 +407,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Zone,
     glyph: '#',
     glyphColor: '#444444',
-    lore: MANUAL_LORE['event:cave-fog']?.lore ?? 'TODO',
-    hints: MANUAL_LORE['event:cave-fog']?.hints ?? [],
     unlockKey: 'zone:cave',
     sourceKind: 'event',
   },
@@ -347,8 +416,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Zone,
     glyph: TILE_CHARS[TileType.RuinAqueduct],
     glyphColor: TILE_COLORS[TileType.RuinAqueduct],
-    lore: MANUAL_LORE['zone:ruin-dormant-garden']?.lore ?? 'TODO',
-    hints: MANUAL_LORE['zone:ruin-dormant-garden']?.hints ?? [],
     unlockKey: 'zone:ruin-dormant-garden',
     sourceKind: 'zone',
   },
@@ -358,10 +425,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '*',
     glyphColor: '#FFFFFF',
-    lore:
-      MANUAL_LORE['event:shooting-star']?.lore ??
-      'Shooting stars appear randomly in the space around the prairie. Most pass harmlessly, but some land as meteorites.',
-    hints: MANUAL_LORE['event:shooting-star']?.hints ?? [],
     unlockKey: 'always',
     sourceKind: 'event',
   },
@@ -371,10 +434,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '+',
     glyphColor: '#FFD700',
-    lore:
-      MANUAL_LORE['event:chain-explosion']?.lore ??
-      'When a meteorite is picked up, there is a chance it detonates, scattering more meteorites nearby. Chain meteorites cannot trigger further chains.',
-    hints: MANUAL_LORE['event:chain-explosion']?.hints ?? [],
     unlockKey: 'event:chain-explosion',
     sourceKind: 'event',
   },
@@ -384,10 +443,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '*',
     glyphColor: '#FFD700',
-    lore:
-      MANUAL_LORE['event:meteor-shower']?.lore ??
-      'Occasionally the sky erupts with shooting stars, all streaking from the same direction. Most land as meteorites scattered across the prairie.',
-    hints: MANUAL_LORE['event:meteor-shower']?.hints ?? [],
     unlockKey: 'event:meteor-shower',
     sourceKind: 'event',
   },
@@ -397,10 +452,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Flora,
     glyph: '%',
     glyphColor: '#90EE90',
-    lore:
-      MANUAL_LORE['event:clover-growth']?.lore ??
-      'When bees settle on a clover patch, the clover begins to grow in spiraling patterns across the dirt. The more bees tend a patch, the faster it spreads.',
-    hints: MANUAL_LORE['event:clover-growth']?.hints ?? [],
     unlockKey: 'event:clover-growth',
     sourceKind: 'event',
   },
@@ -410,10 +461,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Flora,
     glyph: '%',
     glyphColor: '#8B6914',
-    lore:
-      MANUAL_LORE['event:clover-death']?.lore ??
-      'Clover needs both light and water to survive. Without them it slowly browns, then blinks red in distress, turns black, and finally decomposes back into the earth — enriching the soil as it goes.',
-    hints: MANUAL_LORE['event:clover-death']?.hints ?? [],
     unlockKey: 'event:clover-death',
     sourceKind: 'event',
   },
@@ -423,10 +470,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Flora,
     glyph: '%',
     glyphColor: '#50C878',
-    lore:
-      MANUAL_LORE['event:clover-harvest']?.lore ??
-      'Pressing [f] while facing clover harvests it into your backpack. The tile returns to bare dirt. Harvested clover does not enrich the soil.',
-    hints: MANUAL_LORE['event:clover-harvest']?.hints ?? [],
     unlockKey: 'event:clover-harvest',
     sourceKind: 'event',
   },
@@ -436,10 +479,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Flora,
     glyph: '%',
     glyphColor: '#50C878',
-    lore:
-      MANUAL_LORE['event:clover-cut']?.lore ??
-      'Pressing [x] while facing clover cuts it down to bare dirt. Unlike harvesting, cutting returns nutrients to the earth, enriching the soil.',
-    hints: MANUAL_LORE['event:clover-cut']?.hints ?? [],
     unlockKey: 'event:clover-cut',
     sourceKind: 'event',
   },
@@ -449,16 +488,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Object,
     glyph: '¤',
     glyphColor: COIN_GLINTING_COLOR,
-    lore:
-      MANUAL_LORE['event:hexagram-cast']?.lore ??
-      'Three ancient coins, tossed six times. Each toss builds a line — solid or broken, stable or changing. The hexagram that forms speaks in the language of the prairie. Listen closely.',
-    hints: MANUAL_LORE['event:hexagram-cast']?.hints ?? [
-      { prompt: 'How to cast', answer: 'Collect 3 glinting coins and press [c] on the overworld.' },
-      {
-        prompt: 'Changing lines',
-        answer: 'Old yin (6) and old yang (9) are changing lines. They transform the hexagram into a second reading.',
-      },
-    ],
     unlockKey: 'event:hexagram-cast',
     sourceKind: 'event',
   },
@@ -468,10 +497,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '|',
     glyphColor: '#FFFFFF',
-    lore:
-      MANUAL_LORE['event:lightning-strike']?.lore ??
-      'Lightning strikes the prairie during storms. Rain, high humidity, and strong wind all increase the chance. The bolt is brief but unmistakable — the whole sky flashes white.',
-    hints: MANUAL_LORE['event:lightning-strike']?.hints ?? [],
     unlockKey: 'event:lightning-strike',
     sourceKind: 'event',
     crossRefs: ['event:wildfire', 'event:lightning-attraction'],
@@ -482,10 +507,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Flora,
     glyph: '^',
     glyphColor: '#FF4500',
-    lore:
-      MANUAL_LORE['event:wildfire']?.lore ??
-      'When lightning strikes dry clover, fire spreads to neighboring patches. The drier the clover, the farther it burns. Wet clover resists ignition. The fire enriches the soil as it passes.',
-    hints: MANUAL_LORE['event:wildfire']?.hints ?? [],
     unlockKey: 'event:wildfire',
     sourceKind: 'event',
     crossRefs: ['event:lightning-strike', 'event:lightning-attraction'],
@@ -496,15 +517,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '|',
     glyphColor: '#E0E0FF',
-    lore:
-      MANUAL_LORE['event:lightning-attraction']?.lore ??
-      'High ground draws lightning down from the clouds. Water-soaked earth conducts the charge — tiles near ponds and rivers are struck more often. Metal objects left on the ground act as conductors — meteorites attract bolts. A lone beehive standing in open dirt is a target — isolated tall features on flat terrain invite strikes. Clover fields conduct slightly better than bare dirt.',
-    hints: MANUAL_LORE['event:lightning-attraction']?.hints ?? [
-      {
-        prompt: 'How to protect clover',
-        answer: 'Keep fields hydrated. Wet clover resists ignition. Remove metal objects from valuable patches.',
-      },
-    ],
     unlockKey: 'event:lightning-strike',
     sourceKind: 'event',
     crossRefs: ['event:lightning-strike', 'event:wildfire'],
@@ -515,15 +527,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '|',
     glyphColor: '#FFFFFF',
-    lore:
-      MANUAL_LORE['event:lightning-revery']?.lore ??
-      'The lightning revery lets you choose where the bolt falls. Press the hotkey to enter targeting mode, then click a tile within range. The strike follows the same rules as natural lightning — dry clover ignites, fire spreads, soil enriches.',
-    hints: MANUAL_LORE['event:lightning-revery']?.hints ?? [
-      {
-        prompt: 'How to target',
-        answer: 'Press the action bar key, then click a tile within 20 steps. Press Esc or right-click to cancel.',
-      },
-    ],
     unlockKey: 'event:lightning-revery',
     sourceKind: 'event',
     crossRefs: ['event:lightning-strike', 'event:wildfire', 'event:lightning-attraction'],
@@ -534,8 +537,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Zone,
     glyph: '\u2726',
     glyphColor: '#C9B037',
-    lore: MANUAL_LORE['event:glint-zone']?.lore ?? 'TODO',
-    hints: MANUAL_LORE['event:glint-zone']?.hints ?? [],
     unlockKey: 'event:glint-zone',
     sourceKind: 'event',
   },
@@ -545,10 +546,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Revery,
     glyph: '⧖',
     glyphColor: '#FFFFFF',
-    lore:
-      MANUAL_LORE['event:deep-time']?.lore ??
-      'The final act of stewardship. A controlled burn followed by a millennium of observation.',
-    hints: MANUAL_LORE['event:deep-time']?.hints ?? [],
     unlockKey: 'event:deep-time',
     sourceKind: 'event',
   },
@@ -558,9 +555,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Person,
     glyph: 'G',
     glyphColor: '#FFFFFF',
-    lore:
-      MANUAL_LORE['event:gron-deep-time']?.lore ?? 'Gron speaks of the Deep Time revery and what it means to let go.',
-    hints: MANUAL_LORE['event:gron-deep-time']?.hints ?? [],
     unlockKey: 'event:gron-deep-time',
     sourceKind: 'event',
   },
@@ -570,8 +564,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: 'O',
     glyphColor: '#FFFFFF',
-    lore: MANUAL_LORE['event:angel']?.lore ?? 'TODO',
-    hints: MANUAL_LORE['event:angel']?.hints ?? [],
     unlockKey: 'event:angel',
     sourceKind: 'event',
     crossRefs: ['event:angel-canto'],
@@ -582,8 +574,6 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '#',
     glyphColor: '#E8E8FF',
-    lore: MANUAL_LORE['event:angel-canto']?.lore ?? 'TODO',
-    hints: MANUAL_LORE['event:angel-canto']?.hints ?? [],
     unlockKey: 'event:angel-canto',
     sourceKind: 'event',
     crossRefs: ['event:angel'],
@@ -594,12 +584,17 @@ const MANUAL_ONLY_ENTRIES: ManualEntry[] = [
     category: ManualCategory.Celestial,
     glyph: '░',
     glyphColor: '#FF4444',
-    lore: MANUAL_LORE['event:satellite-impact']?.lore ?? 'TODO',
-    hints: MANUAL_LORE['event:satellite-impact']?.hints ?? [],
     unlockKey: 'event:satellite-impact',
     sourceKind: 'event',
   },
 ]
+
+const buildManualOnlyEntries = (): ManualEntry[] =>
+  MANUAL_ONLY_SKELETONS.map(skel => ({
+    ...skel,
+    lore: getLore(skel.id),
+    hints: getHints(skel.id),
+  }))
 
 // --- Registry assembly ---
 
@@ -611,7 +606,7 @@ export const MANUAL_ENTRIES: Record<string, ManualEntry> = Object.fromEntries(
     ...buildCharacterEntries(),
     ...buildWorldEntityEntries(),
     ...buildControlEntries(),
-    ...MANUAL_ONLY_ENTRIES,
+    ...buildManualOnlyEntries(),
     buildGenesisEntry(),
   ].map(entry => [entry.id, entry])
 )
