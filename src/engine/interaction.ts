@@ -3,7 +3,9 @@ import { storeAngelCanto } from './angels'
 import { getCharacterDefinition, getCharacterDialog } from './characters'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
+import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
+import { invalidateMapCache } from './tileBgCache'
 import { CARDINAL, DIRECTIONS, isInBounds, posKey } from './position'
 import { getReveryDefinition } from './reveries'
 import { TileType, Zone } from './types'
@@ -269,7 +271,7 @@ export const unlockRuinDoor = (state: GameState): boolean => {
   const keyItem = state.backpack.items.find((i) => i.definitionId === 'aqueductKey')
   if (!keyItem) return false
   state.backpack.items = state.backpack.items.filter((i) => i.uid !== keyItem.uid)
-  state.map[fy][fx] = { type: TileType.RuinDoorOpen }
+  setMapTile(state, fx, fy, { type: TileType.RuinDoorOpen })
   // Clear any action bar slot that referenced the now-consumed key, if no
   // more keys remain in the backpack.
   const stillHasKey = state.backpack.items.some((i) => i.definitionId === 'aqueductKey')
@@ -311,12 +313,14 @@ export const breakWall = (state: GameState, time: number): boolean => {
   // Convert breakable wall tiles to CaveFloor
   for (const pos of state.caveBreakableWallPositions) {
     if (isInBounds(pos.x, pos.y, state.mapWidth, state.mapHeight)) {
-      state.map[pos.y][pos.x] = { type: TileType.CaveFloor }
+      setMapTile(state, pos.x, pos.y, { type: TileType.CaveFloor })
     }
   }
 
-  // Reveal hidden chamber
+  // Reveal hidden chamber. Invalidate the cache because the cave-mask
+  // condition changes for every caveHiddenPositions entry simultaneously.
   state.caveRevealed = true
+  invalidateMapCache(state.map)
   recordDiscovery(state, 'event:wall-break')
 
   updateFacingEntity(state)

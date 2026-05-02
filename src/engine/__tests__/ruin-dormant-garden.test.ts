@@ -197,9 +197,11 @@ describe('ruin dormant garden', () => {
       if (!garden) return
 
       const bp = garden.breakPoints[0]
+      const ruin = { ...interior, entranceOverworld: { x: 50, y: 50 } }
       const state = {
         currentRuinIndex: 0,
-        ruinInteriors: [{ ...interior, entranceOverworld: { x: 50, y: 50 } }],
+        ruinInteriors: [ruin],
+        map: ruin.map,
       } as never
 
       expect(interior.map[bp.y][bp.x].type).toBe(TileType.RuinAqueductBroken)
@@ -215,9 +217,11 @@ describe('ruin dormant garden', () => {
       expect(garden).toBeTruthy()
       if (!garden) return
 
+      const ruin = { ...interior, entranceOverworld: { x: 50, y: 50 } }
       const state = {
         currentRuinIndex: 0,
-        ruinInteriors: [{ ...interior, entranceOverworld: { x: 50, y: 50 } }],
+        ruinInteriors: [ruin],
+        map: ruin.map,
       } as never
 
       for (const bp of garden.breakPoints) {
@@ -247,9 +251,11 @@ describe('ruin dormant garden', () => {
       if (garden.debrisPositions.length === 0) return
 
       const dp = garden.debrisPositions[0]
+      const ruin = { ...interior, entranceOverworld: { x: 50, y: 50 } }
       const state = {
         currentRuinIndex: 0,
-        ruinInteriors: [{ ...interior, entranceOverworld: { x: 50, y: 50 } }],
+        ruinInteriors: [ruin],
+        map: ruin.map,
       } as never
 
       expect(interior.map[dp.y][dp.x].type).toBe(TileType.RuinDebris)

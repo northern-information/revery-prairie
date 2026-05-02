@@ -21,6 +21,7 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { getDefinition } from './items'
+import { setMapTile } from './map'
 import { posKey } from './position'
 import { generateRuinInterior } from './ruins'
 import { RuinArchetype, TileType, Zone } from './types'
@@ -437,7 +438,7 @@ export const TILE_TYPE_LIST = Object.entries(TileType).map(([label, value]) => (
 
 export const paintTile = (state: GameState, x: number, y: number, tileType: string): void => {
   if (y < 0 || y >= state.mapHeight || x < 0 || x >= state.mapWidth) return
-  state.map[y][x] = { type: tileType as typeof TileType[keyof typeof TileType] }
+  setMapTile(state, x, y, { type: tileType as typeof TileType[keyof typeof TileType] })
 }
 
 export const paintRect = (
@@ -455,7 +456,7 @@ export const paintRect = (
   const tt = tileType as typeof TileType[keyof typeof TileType]
   for (let y = minY; y <= maxY; y++) {
     for (let x = minX; x <= maxX; x++) {
-      state.map[y][x] = { type: tt }
+      setMapTile(state, x, y, { type: tt })
     }
   }
 }
@@ -581,6 +582,6 @@ export const spawnDevRuin = (
     glyph: resolvedGlyph,
   })
 
-  state.map[position.y][position.x] = { type: TileType.RuinEntrance }
+  setMapTile(state, position.x, position.y, { type: TileType.RuinEntrance })
   return true
 }

@@ -24,6 +24,7 @@ import {
   WILDFIRE_MAX_SPREAD,
 } from './constants'
 import { ComponentType } from './ecs/types'
+import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
 import { CARDINAL, isInBounds, posKey } from './position'
 import { CloverStage, Sky, TileType, Zone } from './types'
@@ -199,7 +200,7 @@ export const spreadWildfire = (
 
     // Burn this tile
     burned.add(key)
-    state.map[pos.y][pos.x] = { type: TileType.BurntClover }
+    setMapTile(state, pos.x, pos.y, { type: TileType.BurntClover })
     state.cloverLifecycle.set(key, {
       stage: CloverStage.BurntRecovering,
       stageStartTime: time,

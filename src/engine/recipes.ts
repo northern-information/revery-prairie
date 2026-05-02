@@ -1,4 +1,5 @@
 import { ACTION_COLOR } from './constants'
+import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { isInBounds, posKey } from './position'
 import { TileType } from './types'
@@ -70,7 +71,7 @@ export const RECIPES: Recipe[] = [
             const k = posKey(tx, ty)
             const isWater = state.ponds.has(k) || state.rivers.has(k)
             if (!isWater && (t === TileType.Dirt || t === TileType.Clover || t === TileType.CaveFloor)) {
-              state.map[ty][tx] = { type: TileType.Clover }
+              setMapTile(state, tx, ty, { type: TileType.Clover })
               state.cloverLifecycle.delete(k)
             }
           }

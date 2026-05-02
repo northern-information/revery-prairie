@@ -7,6 +7,7 @@ import {
 } from './constants'
 import { transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
+import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
 import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition, isWalkableTile, posKey, tileHash } from './position'
@@ -1008,7 +1009,7 @@ export const repairAqueductBreak = (state: GameState, x: number, y: number): boo
   if (tile?.type !== TileType.RuinAqueductBroken) return false
 
   const garden = interior.dormantGarden
-  interior.map[y][x] = { type: TileType.RuinAqueduct }
+  setMapTile(state, x, y, { type: TileType.RuinAqueduct })
   garden.repairedBreaks.add(posKey(x, y))
   garden.aqueductTiles.add(posKey(x, y))
 
@@ -1035,7 +1036,7 @@ export const fireOnRuinTile = (state: GameState, x: number, y: number): boolean 
 
   // Fire on debris: clear it
   if (tile.type === TileType.RuinDebris) {
-    interior.map[y][x] = { type: TileType.RuinFloor }
+    setMapTile(state, x, y, { type: TileType.RuinFloor })
     return true
   }
 

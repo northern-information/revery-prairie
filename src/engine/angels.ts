@@ -14,6 +14,7 @@ import {
   SPACE_BORDER,
 } from './constants'
 import { ComponentType } from './ecs/types'
+import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
@@ -318,7 +319,7 @@ export const tickAngelCloverAura = (state: GameState, time: number): void => {
       if (state.map[oy][ox].type !== TileType.Dirt) continue
       if (isWaterTile(state, ox, oy)) continue
 
-      state.map[oy][ox] = { type: TileType.Clover }
+      setMapTile(state, ox, oy, { type: TileType.Clover })
       state.cloverLifecycle.set(posKey(ox, oy), {
         stage: CloverStage.Healthy,
         stageStartTime: time,

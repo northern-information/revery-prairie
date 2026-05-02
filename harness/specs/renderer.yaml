@@ -8,6 +8,8 @@ source_files:
   - src/engine/types.ts
   - src/engine/deepTime.ts
   - src/engine/tileBg.ts
+  - src/engine/tileBgCache.ts
+  - src/engine/map.ts
 dependencies:
   - camera-viewport
   - player-movement
@@ -65,9 +67,9 @@ behaviors:
 
   - id: tile-background-pre-pass
     description: >
-      before any glyphs render, every visible non-space tile in the
-      viewport gets a solid fillRect of its surface bg color. the bg
-      color is picked from TILE_BG_PALETTES[tile.type] via
+      before any glyphs render, every visible non-space tile gets its
+      surface bg color and its iso south/east cube-edge stroke painted.
+      the bg color is picked from TILE_BG_PALETTES[tile.type] via
       tileHash(mx, my) % palette.length so each tile has stable
       pseudorandom variation across frames (no flicker). each palette
       is a small set of colors darker than the corresponding TILE_COLORS
@@ -75,18 +77,68 @@ behaviors:
       clover a green gradation, sand a brown gradation, burnt clover a
       charcoal gradation, cave floor / wall / breakable wall / entrance
       varied dark stone tones, and ruin tiles their own muted palettes.
+      the south/east cube edges are drawn with a darkened variant of
+      the same color (darkenColor(getTileBgColor(type, x, y),
+      WALL_RIGHT_SHADE)) to give every tile its iso elevation skirt.
       space tiles are excluded — they keep the canvas BG_COLOR plus
       the existing twinkling-stars rendering. items and entity glyphs
       render on top without painting their own background, so a
       dropped item on a clover tile still shows the clover bg behind
       the item glyph. iso projection: the bg fill is the diamond
       footprint via drawCellBackground. ortho: a charWidth × charHeight
-      fillRect.
+      fillRect. the per-frame work is delivered via the
+      tile-background-cache behavior — both the bg fillRect and the
+      cube-edge stroke are baked into a per-map offscreen canvas, then
+      drawImage'd in viewport-aligned slices each frame.
     inputs:
       - 'visible viewport tiles, tile.type for each, tileHash(x, y)'
+      - 'cached offscreen canvas keyed by state.map ref'
     outputs:
-      - 'every non-space tile painted with its surface bg color before any other draws'
+      - 'every non-space tile painted with its surface bg color and cube-edge stroke before any other draws'
     state_changes: []
+    determinism: deterministic
+
+  - id: tile-background-cache
+    description: >
+      the static tile-bg fill plus south/east cube-edge stroke for the
+      current map are baked into an offscreen canvas keyed by the map
+      array reference (WeakMap<TileGrid, CacheEntry>). the cache canvas
+      is sized to the full map's iso bounding box (world-space, not
+      viewport-space) so that camera movement does not invalidate the
+      cache. on first paint of a map, getOrBuildCache(state, map)
+      lazily allocates the offscreen canvas (OffscreenCanvas when
+      available, falling back to HTMLCanvasElement) and paints every
+      non-space tile's bg fill and cube-edge stroke into it. on each
+      subsequent frame, flushDirtyTiles(state, map) repaints any tiles
+      in the per-map dirty Set<string> (keys 'x,y') by re-running the
+      same bg fill + edge stroke at world-space coordinates, then the
+      renderer drawImage's the camera-aligned slice into the main
+      canvas. this single drawImage call replaces both the per-frame
+      tile-bg fillRect loop and the cube-edge stroke loop. mutation
+      contract: setMapTile(state, x, y, tile) is the only sanctioned
+      way to write state.map[y][x]; it performs the assignment and
+      calls markTileDirty(map, x, y) so the tile is repainted on the
+      next flush. invalidateMapCache(map) drops the cache entry and
+      forces a full rebuild on next paint; called whenever every tile
+      in a map needs to be reconsidered (e.g. caveRevealed flipping
+      true masks/unmasks the entire hidden chamber). overworld, cave,
+      and each ruin interior get their own cache entries automatically
+      because they each have their own map array reference — no zone
+      branching is required. elevation tiers are frozen at genesis,
+      so the cube-edge stroke does not need elevation-change
+      invalidation.
+    inputs:
+      - 'state.map (TileGrid reference)'
+      - 'mutations via setMapTile(state, x, y, tile)'
+      - 'invalidateMapCache(map) on whole-map invalidation events'
+    outputs:
+      - 'offscreen canvas per map, drawImage''d once per frame for the camera-aligned slice'
+      - 'dirty tiles repainted before drawImage so cache stays consistent with state.map'
+    state_changes:
+      - field: 'tileBgCache (module-internal WeakMap)'
+        effect: 'lazily populated on first getOrBuildCache call per map; entry holds offscreen canvas + dirty Set<string>'
+      - field: 'tileBgCache entry dirty set'
+        effect: 'markTileDirty adds key, flushDirtyTiles drains the set, invalidateMapCache deletes the whole entry'
     determinism: deterministic
 
   - id: cursor-inversion
@@ -296,12 +348,31 @@ edge_cases:
   - id: dropped-item-on-tile
     description: 'ground item glyph on a clover tile'
     expected: 'clover bg shows under the item glyph; item does not paint its own background'
+  - id: tile-bg-cache-multi-ruin
+    description: 'overworld + cave + N>1 ruin interiors all visited in a single session'
+    expected: 'each map array gets its own WeakMap entry; caches do not collide and survive zone swaps because lookup is keyed by map ref, not by zone id'
+  - id: tile-bg-cache-cave-reveal
+    description: 'caveRevealed flips from false to true mid-session'
+    expected: 'the site that flips the flag also calls invalidateMapCache(state.map) so every previously-masked hidden tile is repainted with its real type on the next frame'
+  - id: tile-bg-cache-dpr-resize
+    description: 'browser DPR change or viewport resize between frames'
+    expected: 'cache survives — it is sized in world iso coordinates, not viewport pixels — and the renderer just changes its drawImage source/destination rect for the new viewport. assumption: per-tile world-space pixel dimensions do not change at runtime.'
+  - id: tile-bg-cache-offscreen-fallback
+    description: 'OffscreenCanvas constructor unavailable (older Safari, JSDOM, etc.)'
+    expected: 'cache module detects and falls back to a detached HTMLCanvasElement with the same 2D context API; rendering path is otherwise identical'
+  - id: tile-bg-cache-zone-swap-lazy
+    description: 'enterCave / exitCave / enterRuin / exitRuin during play'
+    expected: 'zone swap functions do nothing cache-related; the new state.map ref triggers a lazy build on the first drawImage of that frame'
 
 failure_conditions:
   - trigger: 'canvas context lost'
     expected: 'render call fails silently; next frame attempts again'
   - trigger: 'state.map is empty (no tiles)'
     expected: 'tile loops iterate zero times; no crash'
+  - trigger: 'raw state.map[y][x] = ... assignment outside setMapTile'
+    expected: 'cache goes stale and the affected tile renders as a ghost of its previous type until the cache is invalidated. enforced by code review and convention, not by a runtime check; setMapTile is the single sanctioned mutation API and all 12 known mutation sites must use it.'
+  - trigger: 'OffscreenCanvas API unavailable'
+    expected: 'tileBgCache falls back to a detached HTMLCanvasElement transparently; no functional regression, slight perf cost from main-thread allocation only'
 
 verification:
   test_file: src/engine/__tests__/gameLoop.test.ts
