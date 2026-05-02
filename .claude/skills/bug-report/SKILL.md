@@ -47,7 +47,6 @@ Before writing any files, enter a worktree. All subsequent file-writing steps ha
 
 Create `harness/specs/{bug-id}.yaml` with:
 
-- `status: partial` (the feature exists but has a bug)
 - `behaviors`: describe the **correct** behavior (what it should do after the fix)
 - `failure_conditions`: include the bug trigger as a failure condition with the correct expected outcome
 - `edge_cases`: include the reproduction scenario

@@ -1,6 +1,5 @@
 id: dev-panel
 name: 'Dev panel'
-status: planned
 priority: medium
 layer: integration
 source_files:

@@ -1,6 +1,5 @@
 id: cave-breakable-wall
 name: 'Cave breakable wall and hidden chamber'
-status: implemented
 priority: medium
 layer: engine
 source_files:

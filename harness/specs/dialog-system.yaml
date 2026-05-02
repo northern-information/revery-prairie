@@ -1,6 +1,5 @@
 id: dialog-system
 name: 'Character dialog system'
-status: partial
 priority: high
 layer: engine
 source_files:

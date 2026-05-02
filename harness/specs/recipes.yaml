@@ -1,6 +1,5 @@
 id: recipes
 name: 'Recipes and combining'
-status: partial
 priority: high
 layer: engine
 source_files:

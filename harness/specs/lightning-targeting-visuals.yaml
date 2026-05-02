@@ -1,6 +1,5 @@
 id: lightning-targeting-visuals
 name: 'Lightning targeting visuals'
-status: planned
 priority: high
 layer: integration
 source_files:

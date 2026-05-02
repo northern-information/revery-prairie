@@ -16,13 +16,13 @@ This skill produces spec updates, not new specs or plans. It is a sync check.
 
 ## Flow
 
-### 1. Scan implemented specs
+### 1. Scan specs
 
-Read all specs in `harness/specs/` with `status: implemented`.
+Read all specs in `harness/specs/`.
 
 ### 2. Check each spec against source code
 
-For each implemented spec:
+For each spec:
 
 1. Read every file in `source_files`
 2. Compare actual function signatures, parameters, return types, and state mutations against the spec's `behaviors`

@@ -1,6 +1,5 @@
 id: persistent-dual-zone
 name: 'Persistent dual-zone simulation'
-status: partial
 priority: high
 layer: engine
 source_files:

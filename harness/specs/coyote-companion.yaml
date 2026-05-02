@@ -1,6 +1,5 @@
 id: coyote-companion
 name: 'Coyote Companion'
-status: planned
 priority: high
 layer: integration
 source_files:

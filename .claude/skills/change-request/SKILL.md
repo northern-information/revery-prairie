@@ -46,7 +46,6 @@ Modify the affected spec(s):
 - Add new `edge_cases` for any new scenarios the change introduces
 - Update `failure_conditions` if the failure modes change
 - Update `verification` if test file or pattern changes
-- Keep `status` as-is unless the change makes it `partial`
 
 Preserve behaviors that are not changing.
 

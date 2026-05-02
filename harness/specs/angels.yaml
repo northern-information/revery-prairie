@@ -1,6 +1,5 @@
 id: angels
 name: 'Biblically accurate ASCII angels'
-status: partial
 priority: high
 layer: integration
 source_files:

@@ -1,6 +1,5 @@
 id: bee-hive-lifecycle
 name: 'Bee and beehive lifecycle'
-status: implemented
 priority: medium
 layer: engine
 source_files:

@@ -1,6 +1,5 @@
 id: sidebar-iso-cursor-effects
 name: 'Sidebar cursor info uses projection-aware screen-to-tile'
-status: partial
 priority: high
 layer: component
 source_files:

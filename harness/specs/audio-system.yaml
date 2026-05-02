@@ -1,6 +1,5 @@
 id: audio-system
 name: 'Audio system'
-status: implemented
 priority: medium
 layer: engine
 source_files:

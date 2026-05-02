@@ -1,6 +1,5 @@
 id: terrain-connectivity
 name: terrain connectivity and water distribution
-status: partial
 priority: high
 layer: engine
 source_files:

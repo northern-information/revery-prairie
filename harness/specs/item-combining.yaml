@@ -1,6 +1,5 @@
 id: item-combining
 name: 'Item combining and drag-and-drop recipes'
-status: partial
 priority: medium
 layer: engine
 source_files:

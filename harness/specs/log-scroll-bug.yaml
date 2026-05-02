@@ -1,6 +1,5 @@
 id: log-scroll-bug
 name: Sidebar log scroll captured by canvas zoom
-status: partial
 priority: high
 layer: component
 source_files:

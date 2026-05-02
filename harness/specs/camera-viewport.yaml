@@ -1,6 +1,5 @@
 id: camera-viewport
 name: 'Camera and viewport'
-status: implemented
 priority: medium
 layer: engine
 source_files:

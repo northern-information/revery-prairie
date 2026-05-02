@@ -1,6 +1,5 @@
 id: genesis-gameplay-formalization
 name: 'Formalize genesis-gameplay coupling with phase system and shared rendering'
-status: partial
 priority: high
 layer: integration
 source_files:

@@ -1,6 +1,5 @@
 id: ruin-path-overlay
 name: 'Path dots, hover preview, and player trail render on top of ruin tiles'
-status: partial
 priority: medium
 layer: engine
 source_files:

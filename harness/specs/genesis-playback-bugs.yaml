@@ -1,6 +1,5 @@
 id: genesis-playback-bugs
 name: 'Genesis sequence playback bugs'
-status: partial
 priority: high
 layer: integration
 source_files:

@@ -1,6 +1,5 @@
 id: cave-fog-of-war
 name: 'Cave fog of war'
-status: planned
 priority: high
 layer: integration
 source_files:

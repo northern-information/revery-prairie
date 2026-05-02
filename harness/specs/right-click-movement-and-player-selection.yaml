@@ -1,6 +1,5 @@
 id: right-click-movement-and-player-selection
 name: 'Right-click movement and player selectability'
-status: partial
 priority: high
 layer: integration
 source_files:

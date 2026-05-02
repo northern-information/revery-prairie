@@ -1,6 +1,5 @@
 id: weather-rain-overlay
 name: 'Weather rain overlay'
-status: planned
 priority: medium
 layer: engine
 source_files:

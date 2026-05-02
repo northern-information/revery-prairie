@@ -1,6 +1,5 @@
 id: renderer
 name: 'Canvas renderer'
-status: implemented
 priority: high
 layer: engine
 source_files:

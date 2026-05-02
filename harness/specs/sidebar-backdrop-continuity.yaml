@@ -1,6 +1,5 @@
 id: sidebar-backdrop-continuity
 name: 'Sidebar black backdrop stays opaque through genesis-to-gameplay transition'
-status: partial
 priority: high
 layer: component
 source_files:

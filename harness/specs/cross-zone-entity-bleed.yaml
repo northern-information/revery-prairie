@@ -1,6 +1,5 @@
 id: cross-zone-entity-bleed
 name: 'Cross-Zone Entity Isolation'
-status: partial
 priority: high
 layer: engine
 source_files:

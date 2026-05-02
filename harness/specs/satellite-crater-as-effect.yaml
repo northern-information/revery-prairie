@@ -1,6 +1,5 @@
 id: satellite-crater-as-effect
 name: 'Satellite craters are a dirt-tile effect, not a tile type'
-status: partial
 priority: high
 layer: engine
 source_files:

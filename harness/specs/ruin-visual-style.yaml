@@ -1,6 +1,5 @@
 id: ruin-visual-style
 name: 'Ruin multilayer visual style'
-status: planned
 priority: medium
 layer: engine
 source_files:

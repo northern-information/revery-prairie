@@ -1,6 +1,5 @@
 id: weather
 name: 'Weather system'
-status: implemented
 priority: medium
 layer: engine
 source_files:

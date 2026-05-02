@@ -1,6 +1,5 @@
 id: ruin-accessibility-bugs
 name: 'Ruin accessibility, unstable floor collapse, seed placement, and sidebar ruin info'
-status: partial
 priority: high
 layer: integration
 source_files:

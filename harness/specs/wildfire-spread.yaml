@@ -1,6 +1,5 @@
 id: wildfire-spread
 name: 'Wildfire spread from fire and lightning reveries'
-status: planned
 priority: high
 layer: engine
 source_files:

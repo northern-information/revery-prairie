@@ -1,6 +1,5 @@
 id: player-movement
 name: 'Player movement'
-status: implemented
 priority: critical
 layer: engine
 source_files:

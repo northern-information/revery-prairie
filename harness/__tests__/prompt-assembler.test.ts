@@ -23,7 +23,6 @@ const makeTask = (overrides: Partial<TaskDefinition> = {}): TaskDefinition => ({
 const makeSpec = (overrides: Partial<FeatureSpec> = {}): FeatureSpec => ({
   id: 'test-spec',
   name: 'Test spec',
-  status: 'implemented',
   priority: 'medium',
   layer: 'engine',
   source_files: [],

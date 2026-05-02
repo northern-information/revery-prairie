@@ -1,6 +1,5 @@
 id: pathfinding
 name: 'A* pathfinding'
-status: implemented
 priority: high
 layer: engine
 source_files:

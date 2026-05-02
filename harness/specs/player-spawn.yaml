@@ -1,6 +1,5 @@
 id: player-spawn
 name: 'Player spawn meteor ceremony'
-status: implemented
 priority: high
 layer: engine
 source_files:

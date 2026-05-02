@@ -1,6 +1,5 @@
 id: deep-time-endgame
 name: 'Deep Time endgame'
-status: planned
 priority: critical
 layer: integration
 source_files:

@@ -1,6 +1,5 @@
 id: ghosts
 name: 'Ghosts'
-status: implemented
 priority: medium
 layer: engine
 source_files:

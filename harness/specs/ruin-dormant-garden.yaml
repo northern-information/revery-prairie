@@ -1,6 +1,5 @@
 id: ruin-dormant-garden
 name: 'Ruin archetype: dormant garden (sole archetype)'
-status: implemented
 priority: high
 layer: engine
 source_files:

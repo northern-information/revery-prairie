@@ -1,6 +1,5 @@
 id: genesis-enhancements
 name: Genesis Simulation Enhancements
-status: planned
 priority: high
 layer: engine
 source_files:

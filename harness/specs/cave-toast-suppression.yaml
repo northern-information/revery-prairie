@@ -1,6 +1,5 @@
 id: cave-toast-suppression
 name: 'Suppress overworld event toasts while in cave'
-status: partial
 priority: medium
 layer: engine
 source_files:

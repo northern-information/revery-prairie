@@ -1,6 +1,5 @@
 id: event-log-overlay
 name: 'Event log overlay (lower-left, terminal-style fade)'
-status: planned
 priority: medium
 layer: component
 source_files:

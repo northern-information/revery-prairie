@@ -1,6 +1,5 @@
 id: dialog-box-overflow
 name: Dialog box viewport overflow
-status: partial
 priority: high
 layer: component
 source_files:

@@ -346,7 +346,6 @@ required top-level fields:
 
 - `id` — kebab-case, unique
 - `name` — human-readable title
-- `status` — `planned`, `partial`, or `implemented`
 - `priority` — `critical`, `high`, `medium`, `low`
 - `layer` — `engine`, `component`, or `integration`
 - `source_files` — array of file paths this feature touches

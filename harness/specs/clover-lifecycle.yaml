@@ -1,6 +1,5 @@
 id: clover-lifecycle
 name: 'Clover lifecycle system'
-status: implemented
 priority: high
 layer: engine
 source_files:

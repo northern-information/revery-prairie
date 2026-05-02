@@ -1,6 +1,5 @@
 id: cursor-state
 name: 'Cursor state and hover path'
-status: implemented
 priority: medium
 layer: engine
 source_files:

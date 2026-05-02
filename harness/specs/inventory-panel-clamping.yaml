@@ -1,6 +1,5 @@
 id: inventory-panel-clamping
 name: 'Inventory panel viewport clamping'
-status: partial
 priority: high
 layer: component
 source_files:

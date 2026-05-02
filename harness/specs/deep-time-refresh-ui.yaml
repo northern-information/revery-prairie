@@ -1,6 +1,5 @@
 id: deep-time-refresh-ui
 name: Deep time tick must trigger UI refresh during burning and simulating phases
-status: partial
 priority: high
 layer: engine
 source_files:

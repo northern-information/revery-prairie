@@ -1,6 +1,5 @@
 id: ruin-fog-of-war
 name: 'Ruin fog of war'
-status: partial
 priority: high
 layer: engine
 source_files:

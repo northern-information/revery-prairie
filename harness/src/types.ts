@@ -1,13 +1,5 @@
 // --- Enum-like constants (no TS enums — erasableSyntaxOnly) ---
 
-export const SpecStatus = {
-  Implemented: 'implemented',
-  Partial: 'partial',
-  Planned: 'planned',
-} as const
-
-export type SpecStatus = (typeof SpecStatus)[keyof typeof SpecStatus]
-
 export const Priority = {
   Critical: 'critical',
   High: 'high',
@@ -119,7 +111,6 @@ export interface Verification {
 export interface FeatureSpec {
   id: string
   name: string
-  status: SpecStatus
   priority: Priority
   layer: TestLayer
   source_files: string[]
