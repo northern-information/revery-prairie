@@ -1,6 +1,5 @@
 id: overworld-music-init
 name: 'Overworld ambient music starts on game init'
-status: partial
 priority: high
 layer: integration
 source_files:

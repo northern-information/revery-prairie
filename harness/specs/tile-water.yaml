@@ -1,6 +1,5 @@
 id: tile-water
 name: 'Tile-level water'
-status: planned
 priority: high
 layer: integration
 source_files:

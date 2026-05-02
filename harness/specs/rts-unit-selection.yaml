@@ -1,6 +1,5 @@
 id: rts-unit-selection
 name: 'RTS-style unit selection and control'
-status: planned
 priority: high
 layer: integration
 source_files:

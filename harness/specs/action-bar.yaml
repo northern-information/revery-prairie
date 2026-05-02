@@ -1,6 +1,5 @@
 id: action-bar
 name: 'Action bar and reveries'
-status: implemented
 priority: high
 layer: integration
 source_files:

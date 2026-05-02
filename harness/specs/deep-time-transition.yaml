@@ -1,6 +1,5 @@
 id: deep-time-transition
 name: 'Seamless deep time-to-wandering transition'
-status: implemented
 priority: medium
 layer: integration
 source_files:

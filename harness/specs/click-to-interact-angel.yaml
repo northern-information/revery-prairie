@@ -1,6 +1,5 @@
 id: click-to-interact-angel
 name: 'Click-to-interact pathfinds to angel and opens dialog'
-status: partial
 priority: high
 layer: integration
 source_files:

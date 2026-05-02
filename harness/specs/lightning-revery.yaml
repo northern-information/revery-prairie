@@ -1,6 +1,5 @@
 id: lightning-revery
 name: 'Lightning revery'
-status: planned
 priority: high
 layer: integration
 source_files:

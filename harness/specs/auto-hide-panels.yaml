@@ -1,6 +1,5 @@
 id: auto-hide-panels
 name: 'Auto-hide panels on movement'
-status: planned
 priority: medium
 layer: integration
 source_files:

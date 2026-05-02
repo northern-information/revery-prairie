@@ -1,6 +1,5 @@
 id: bee-starvation
 name: 'Bee starvation'
-status: planned
 priority: high
 layer: engine
 source_files:

@@ -1,6 +1,5 @@
 id: hexagram-casting
 name: 'I Ching hexagram casting'
-status: implemented
 priority: medium
 layer: integration
 source_files:

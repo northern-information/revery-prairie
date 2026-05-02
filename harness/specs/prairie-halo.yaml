@@ -1,6 +1,5 @@
 id: prairie-halo
 name: 'Prairie halo: subtle glow around the land in space'
-status: planned
 priority: low
 layer: engine
 source_files:

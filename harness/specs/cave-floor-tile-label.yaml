@@ -1,6 +1,5 @@
 id: cave-floor-tile-label
 name: 'Cave floor tile label'
-status: partial
 priority: low
 layer: component
 source_files:

@@ -1,6 +1,5 @@
 id: lightning-strikes
 name: 'Lightning strikes and wildfires'
-status: planned
 priority: high
 layer: engine
 source_files:

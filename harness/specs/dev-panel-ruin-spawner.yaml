@@ -1,6 +1,5 @@
 id: dev-panel-ruin-spawner
 name: 'Dev panel ruin spawner'
-status: planned
 priority: medium
 layer: integration
 source_files:

@@ -1,6 +1,5 @@
 id: transfer-item-uid
 name: 'transferItem preserves item uid'
-status: partial
 priority: high
 layer: engine
 source_files:

@@ -1,6 +1,5 @@
 id: universal-pickup-bloom
 name: Universal Pickup Bloom Effect
-status: planned
 priority: medium
 layer: engine
 source_files:

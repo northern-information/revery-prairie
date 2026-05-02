@@ -1,6 +1,5 @@
 id: ecosystem-balance
 name: 'Ecosystem balance'
-status: planned
 priority: high
 layer: engine
 source_files:

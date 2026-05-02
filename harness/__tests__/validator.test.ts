@@ -17,7 +17,6 @@ const makeSpecDir = (): string => {
 const minimalSpec = (overrides: Record<string, unknown> = {}) => ({
   id: 'test-spec',
   name: 'Test spec',
-  status: 'implemented',
   priority: 'medium',
   layer: 'engine',
   source_files: ['src/engine/movement.ts'],
@@ -122,15 +121,6 @@ describe('validator', () => {
       expect(result.errors.some(e => e.code === 'SCHEMA_VALIDATION' && e.field.includes('id'))).toBe(true)
     })
 
-    it('reports invalid status value', () => {
-      const dir = makeSpecDir()
-      writeSpec(dir, 'bad.yaml', minimalSpec({ status: 'unknown' }))
-
-      const result = validate(dir, REPO_ROOT)
-
-      expect(result.valid).toBe(false)
-      expect(result.errors.some(e => e.code === 'SCHEMA_VALIDATION')).toBe(true)
-    })
   })
 
   // --- 3. Duplicate IDs ---
@@ -259,7 +249,7 @@ describe('validator', () => {
   // --- 6. File existence ---
 
   describe('file existence', () => {
-    it('reports missing source files as errors for implemented specs', () => {
+    it('reports missing source files as errors', () => {
       const dir = makeSpecDir()
       writeSpec(dir, 'test.yaml', minimalSpec({ source_files: ['src/engine/nonexistent.ts'] }))
 
@@ -267,29 +257,6 @@ describe('validator', () => {
 
       expect(result.valid).toBe(false)
       expect(result.errors.some(e => e.code === 'FILE_NOT_FOUND' && e.field === 'source_files')).toBe(true)
-    })
-
-    it('reports missing source files as warnings for planned specs', () => {
-      const dir = makeSpecDir()
-      writeSpec(
-        dir,
-        'test.yaml',
-        minimalSpec({
-          status: 'planned',
-          source_files: ['src/engine/future.ts'],
-          verification: {
-            test_file: 'src/engine/__tests__/future.test.ts',
-            test_pattern: 'future',
-            command: 'npx vitest run src/engine/__tests__/future.test.ts',
-          },
-        })
-      )
-
-      const result = validate(dir, REPO_ROOT)
-
-      // no errors, only warnings
-      expect(result.errors.filter(e => e.code === 'FILE_NOT_FOUND')).toHaveLength(0)
-      expect(result.warnings.filter(e => e.code === 'FILE_NOT_FOUND').length).toBeGreaterThan(0)
     })
 
     it('reports missing test file', () => {

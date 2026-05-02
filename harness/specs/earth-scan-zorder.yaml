@@ -1,6 +1,5 @@
 id: earth-scan-zorder
 name: Earth scan background renders behind glyphs
-status: implemented
 priority: medium
 layer: engine
 source_files:

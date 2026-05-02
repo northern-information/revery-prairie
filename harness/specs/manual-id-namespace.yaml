@@ -1,6 +1,5 @@
 id: manual-id-namespace
 name: 'Manual entry ID namespacing'
-status: implemented
 priority: medium
 layer: integration
 source_files:

@@ -1,6 +1,5 @@
 id: glinting-zones
 name: 'Glinting zones'
-status: partial
 priority: low
 layer: engine
 source_files:

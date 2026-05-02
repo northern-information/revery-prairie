@@ -1,6 +1,5 @@
 id: ruin-infrastructure
 name: 'Ruin zone infrastructure'
-status: planned
 priority: high
 layer: engine
 source_files:

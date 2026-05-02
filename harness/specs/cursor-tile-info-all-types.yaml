@@ -1,6 +1,5 @@
 id: cursor-tile-info-all-types
 name: 'Show cursor tile info for all tile types'
-status: partial
 priority: medium
 layer: integration
 source_files:

@@ -1,6 +1,5 @@
 id: dialog-box-presentation
 name: 'FromSoft-style dialog box presentation'
-status: partial
 priority: high
 layer: component
 source_files:

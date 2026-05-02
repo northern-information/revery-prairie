@@ -1,6 +1,5 @@
 id: lightning-rendering
 name: 'Lightning and wildfire rendering'
-status: planned
 priority: high
 layer: integration
 source_files:

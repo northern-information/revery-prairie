@@ -1,6 +1,5 @@
 id: angel-hash-grid-overflow
 name: Angel hash grid overflows dialog box bounds
-status: partial
 priority: high
 layer: component
 source_files:

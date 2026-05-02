@@ -1,6 +1,5 @@
 id: genesis-transition
 name: 'Seamless genesis-to-gameplay transition'
-status: partial
 priority: high
 layer: integration
 source_files:

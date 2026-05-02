@@ -34,7 +34,6 @@ Before writing any files, enter a worktree. All subsequent file-writing steps (s
 Create `harness/specs/{feature-id}.yaml` following the spec format:
 
 - `id`: kebab-case, descriptive
-- `status`: `planned` for new features
 - `layer`: `engine`, `component`, or `integration`
 - `source_files`: files that will be created or modified
 - `behaviors`: at least one, with concrete inputs/outputs/state_changes. no vague language.

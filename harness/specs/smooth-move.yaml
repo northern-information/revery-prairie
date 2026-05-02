@@ -1,6 +1,5 @@
 id: smooth-move
 name: 'Smooth tile-to-tile movement tween'
-status: implemented
 priority: medium
 layer: engine
 source_files:

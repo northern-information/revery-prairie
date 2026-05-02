@@ -1,6 +1,5 @@
 id: coyote-follow-collect-bugs
 name: 'Coyote Follow and Collect Bug Fixes'
-status: partial
 priority: high
 layer: engine
 source_files:

@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { ErrorCode as EC, ErrorSeverity as ES, SpecStatus } from './types.ts'
+import { ErrorCode as EC, ErrorSeverity as ES } from './types.ts'
 import Ajv from 'ajv'
 import { parse } from 'yaml'
 
@@ -203,17 +203,15 @@ const checkFileExistence = (specs: FeatureSpec[], repoRoot: string): ValidationE
   const errors: ValidationError[] = []
 
   for (const spec of specs) {
-    const severity = spec.status === SpecStatus.Planned ? ES.Warning : ES.Error
-
     for (const file of spec.source_files ?? []) {
       if (!existsSync(resolve(repoRoot, file))) {
-        errors.push(err(EC.FileNotFound, severity, spec.id, 'source_files', `file not found: ${file}`))
+        errors.push(err(EC.FileNotFound, ES.Error, spec.id, 'source_files', `file not found: ${file}`))
       }
     }
 
     const testFile = spec.verification?.test_file
     if (testFile && !existsSync(resolve(repoRoot, testFile))) {
-      errors.push(err(EC.FileNotFound, severity, spec.id, 'verification.test_file', `test file not found: ${testFile}`))
+      errors.push(err(EC.FileNotFound, ES.Error, spec.id, 'verification.test_file', `test file not found: ${testFile}`))
     }
   }
 

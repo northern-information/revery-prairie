@@ -1,6 +1,5 @@
 id: drag-cursor-duplicate-glyph
 name: Drag cursor hides glyph over inventory grids
-status: partial
 priority: medium
 layer: component
 source_files:

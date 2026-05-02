@@ -1,6 +1,5 @@
 id: rts-camera-pan
 name: 'RTS-style camera pan with edge-scroll'
-status: implemented
 priority: medium
 layer: integration
 source_files:

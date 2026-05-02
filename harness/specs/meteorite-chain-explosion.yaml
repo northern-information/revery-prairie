@@ -1,6 +1,5 @@
 id: meteorite-chain-explosion
 name: 'Meteorite chain explosion on pickup'
-status: implemented
 priority: medium
 layer: engine
 source_files:

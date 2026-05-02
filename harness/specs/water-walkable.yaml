@@ -1,6 +1,5 @@
 id: water-walkable
 name: 'Water tiles are walkable by all entities'
-status: planned
 priority: high
 layer: engine
 source_files:

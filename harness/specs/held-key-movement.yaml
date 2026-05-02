@@ -1,6 +1,5 @@
 id: held-key-movement
 name: Continuous movement while holding direction keys
-status: partial
 priority: high
 layer: integration
 source_files:

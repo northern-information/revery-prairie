@@ -7,7 +7,6 @@
   "required": [
     "id",
     "name",
-    "status",
     "priority",
     "layer",
     "source_files",
@@ -26,10 +25,6 @@
     "name": {
       "type": "string",
       "minLength": 1
-    },
-    "status": {
-      "type": "string",
-      "enum": ["implemented", "partial", "planned"]
     },
     "priority": {
       "type": "string",

@@ -1,6 +1,5 @@
 id: shooting-stars
 name: 'Shooting stars and meteor showers'
-status: implemented
 priority: medium
 layer: engine
 source_files:

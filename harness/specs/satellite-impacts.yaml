@@ -1,6 +1,5 @@
 id: satellite-impacts
 name: 'Satellite impacts'
-status: implemented
 priority: medium
 layer: engine
 source_files:

@@ -1,6 +1,5 @@
 id: starting-lightning-revery
 name: 'Player starts with lightning revery'
-status: planned
 priority: high
 layer: engine
 source_files:

@@ -1,6 +1,5 @@
 id: sprint-discrete-tile-stops
 name: Sprint moves one tile per faster tick (every tile is a stop point)
-status: partial
 priority: high
 layer: engine
 source_files:

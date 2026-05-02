@@ -1,6 +1,5 @@
 id: crater-prairie-combine
 name: 'Bee+clover combine works on cratered dirt tiles'
-status: implemented
 priority: high
 layer: engine
 source_files:

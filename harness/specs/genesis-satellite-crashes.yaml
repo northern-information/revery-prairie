@@ -1,6 +1,5 @@
 id: genesis-satellite-crashes
 name: Satellite crashes during fall of civilizations epoch
-status: planned
 priority: medium
 layer: engine
 source_files:

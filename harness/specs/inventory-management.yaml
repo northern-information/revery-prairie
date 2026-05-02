@@ -1,6 +1,5 @@
 id: inventory-management
 name: 'Flat inventory management'
-status: partial
 priority: high
 layer: engine
 source_files:

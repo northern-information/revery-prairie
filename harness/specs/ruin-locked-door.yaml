@@ -1,6 +1,5 @@
 id: ruin-locked-door
 name: 'Ruin locked door (key-gated tile)'
-status: planned
 priority: high
 layer: engine
 source_files:
