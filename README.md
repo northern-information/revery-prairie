@@ -10,7 +10,7 @@ If bees are few.
 — Emily Dickinson
 ```
 
-a browser-based game about tending a prairie. ASCII on canvas now, isometric sprites later.
+a browser-based game about tending a prairie. ASCII glyphs rendered isometric on canvas.
 
 each new game begins with a geological genesis sequence — a billion years of planetary history compressed into 25 seconds. magma cools, oceans form, life emerges, glaciers advance and recede, wildfires sweep the plains, civilizations rise and fall. the soil you tend is the sum of all these forces.
 

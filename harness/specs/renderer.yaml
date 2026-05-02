@@ -5,8 +5,10 @@ layer: engine
 source_files:
   - src/engine/renderer.ts
   - src/engine/render/passes.ts
+  - src/engine/render/passes/index.ts
   - src/engine/render/cacheContract.ts
   - src/engine/render/haloCache.ts
+  - src/engine/render/tierGrid.ts
   - src/engine/constants.ts
   - src/engine/types.ts
   - src/engine/deepTime.ts
