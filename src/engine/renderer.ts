@@ -126,6 +126,7 @@ import {
   viewportToScreen,
   worldToScreen,
 } from './projection'
+import { projectBoltPathForIso } from './boltPath'
 import { getReveryDefinition } from './reveries'
 import { getEntranceHaloCells, getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
@@ -772,7 +773,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (elapsed >= LIGHTNING_DURATION_MS) continue
     lightningFlashElapsed = Math.min(lightningFlashElapsed, elapsed)
 
-    const { path, branch } = data
+    const { path: canonicalPath, branch: canonicalBranch } = data
+
+    // In iso mode, re-project the canonical tile-space path to iso-friendly
+    // coordinates so the bolt reads as vertical-on-screen. boltChar still
+    // reads from canonical dx so the jagged silhouette is preserved.
+    const projected = iso ? projectBoltPathForIso(canonicalPath, canonicalBranch) : null
+    const path = projected?.path ?? canonicalPath
+    const branch = projected?.branch ?? canonicalBranch
 
     // Determine bolt character for a segment based on dx from previous to current
     const boltChar = (dx: number): string => (dx === 0 ? '|' : dx > 0 ? '\\' : '/')
@@ -783,7 +791,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (elapsed < LIGHTNING_FLASH_MS) {
       // Flash: all segments bright white
       for (let i = 0; i < path.length; i++) {
-        const dx = i > 0 ? path[i].x - path[i - 1].x : 0
+        const dx = i > 0 ? canonicalPath[i].x - canonicalPath[i - 1].x : 0
         lightningMap.set(posKey(path[i].x, path[i].y), { char: boltChar(dx), color: LIGHTNING_BOLT_COLOR_BRIGHT })
       }
       if (branch) {
@@ -813,7 +821,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const flickerOn = Math.floor(time / 80) % 2 === 0
       const color = flickerOn ? LIGHTNING_BOLT_COLOR_MID : LIGHTNING_BOLT_COLOR_DIM
       for (let i = 0; i < path.length; i++) {
-        const dx = i > 0 ? path[i].x - path[i - 1].x : 0
+        const dx = i > 0 ? canonicalPath[i].x - canonicalPath[i - 1].x : 0
         lightningMap.set(posKey(path[i].x, path[i].y), { char: boltChar(dx), color })
       }
       if (branch) {
@@ -841,7 +849,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const fadeProgress = (elapsed - 500) / (LIGHTNING_DURATION_MS - 500)
       const visibleCount = Math.max(0, Math.floor(path.length * (1 - fadeProgress)))
       for (let i = 0; i < visibleCount; i++) {
-        const dx = i > 0 ? path[i].x - path[i - 1].x : 0
+        const dx = i > 0 ? canonicalPath[i].x - canonicalPath[i - 1].x : 0
         lightningMap.set(posKey(path[i].x, path[i].y), { char: boltChar(dx), color: LIGHTNING_BOLT_COLOR_DIM })
       }
     }

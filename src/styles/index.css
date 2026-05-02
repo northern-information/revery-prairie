@@ -95,6 +95,27 @@ body,
   }
 }
 
+@keyframes cast-flash {
+  0% {
+    background-color: rgba(255, 255, 255, 1);
+    opacity: 1;
+    animation-timing-function: steps(1, end);
+  }
+  30% {
+    background-color: #ff69b4;
+    opacity: 1;
+    animation-timing-function: linear;
+  }
+  60% {
+    background-color: #ff69b4;
+    opacity: 1;
+  }
+  100% {
+    background-color: #ff69b4;
+    opacity: 0;
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;

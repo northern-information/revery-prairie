@@ -32,6 +32,32 @@ behaviors:
     state_changes: []
     determinism: time-based
 
+  - id: iso-bolt-projection
+    description: >
+      LightningData.path stores canonical tile-space coordinates
+      (vertical zigzag with cy decrementing per step). these project
+      vertically on screen in orthogonal mode but slant diagonally in
+      isometric mode because iso rotates the grid 45°. to keep the
+      bolt visually vertical from sky to impact in iso mode, the
+      renderer applies a per-frame projection from canonical path
+      coordinates to iso-friendly tile coordinates before painting
+      lightningMap. mapping per canonical step (going from impact
+      upward): canonical dx=0 → iso world step (-1, -1); canonical
+      dx=+1 → (0, -1); canonical dx=-1 → (-1, 0). the same transform
+      anchors and walks the optional branch (canonical branchDir +1
+      → world step (1, 0); -1 → (0, 1)). boltChar (|, /, \) is still
+      derived from canonical dx so the jagged silhouette is preserved.
+      transform is applied at render time only — LightningData on the
+      ECS entity remains mode-agnostic, so toggling iso/ortho mid-
+      strike continues to render correctly under the new mode.
+    inputs:
+      - 'LightningData.path and branch (canonical tile-space)'
+      - 'state.isometricProjection'
+    outputs:
+      - 'iso-projected positions used to populate lightningMap when iso mode is active'
+    state_changes: []
+    determinism: deterministic
+
   - id: wildfire-map
     description: >
       renderer builds a wildfireMap by querying ECS for TimedEffect
@@ -128,6 +154,9 @@ edge_cases:
   - id: flash-during-cave-zone
     description: 'lightning entity somehow exists while in cave zone'
     expected: 'screen flash still triggers (overlay is zone-independent) but bolt map is empty (entity filtered by zone)'
+  - id: iso-toggle-mid-strike
+    description: 'player toggles isometric projection while a lightning bolt is mid-animation'
+    expected: 'subsequent render frames re-project the canonical path under the new mode; the bolt continues to render vertically on screen in either mode'
 
 failure_conditions:
   - trigger: 'no lightning ECS entities exist'
