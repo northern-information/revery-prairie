@@ -158,10 +158,15 @@ export const renderGenesis = (
 
   // Camera: use identical math to updateCamera() in camera.ts so the
   // genesis-to-game transition is pixel-perfect (no rounding drift).
+  // Anchor on the player's eventual spawn position (one tile west of
+  // Gron, who sits at the exact map center) — see createGameState. This
+  // matches what updateCamera will use for state.camera once the game
+  // renderer takes over, so the camera does not shift one tile at the
+  // handoff.
   const SIDEBAR_WIDTH_PX = 192
   const rightInsetTiles = Math.ceil(SIDEBAR_WIDTH_PX / charWidth)
   const visibleWidth = viewportWidth - rightInsetTiles
-  const playerX = Math.floor(sim.width / 2)
+  const playerX = Math.floor(sim.width / 2) - 1
   const playerY = Math.floor(sim.height / 2)
 
   const cameraX =
