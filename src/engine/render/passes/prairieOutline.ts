@@ -4,7 +4,6 @@ import {
   PRAIRIE_OUTLINE_WIDTH,
 } from '../../constants'
 import { isInBounds } from '../../position'
-import { getCellDiamondCorners, viewportToScreen } from '../../projection'
 import { DeepTimePhase, TileType, Zone, type CharMetrics, type GameState } from '../../types'
 import { getVisibleTileBounds } from '../../viewportBounds'
 import { type RenderPass, registerPass } from '../passes'
@@ -33,19 +32,29 @@ const draw = (
   ctx.strokeStyle = PRAIRIE_OUTLINE_COLOR
   ctx.globalAlpha = PRAIRIE_OUTLINE_ALPHA
   ctx.lineWidth = PRAIRIE_OUTLINE_WIDTH
+
   const isSpaceOrOOB = (nx: number, ny: number): boolean => {
     if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) return true
     return map[ny][nx].type === TileType.Space
   }
+
+  // Hoist frame-constant iso geometry above the loop. viewportToScreen and
+  // getCellDiamondCorners previously recomputed these per tile and each
+  // returned a heap object. These values only change on resize or zoom.
+  // ISO_GLYPH_VERTICAL_NUDGE is always 0, so topY === py directly.
+  const halfW = charWidth / 2
+  const halfH = charHeight / 2
+  const originX = (viewportHeight * charWidth) / 2 - halfW
+  const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
+
   ctx.beginPath()
-  const outlineMargin = 1
   // Iso-aware bounds: the visible canvas is a parallelogram in tile space, so
   // iterating only the orthogonal viewport rect drops outline tiles in the
   // iso corners. getVisibleTileBounds expands to the rotated parallelogram.
   const { vxStart, vxEnd, vyStart, vyEnd } = getVisibleTileBounds(
     viewportWidth,
     viewportHeight,
-    outlineMargin,
+    1,
   )
   for (let vy = vyStart; vy < vyEnd; vy++) {
     for (let vx = vxStart; vx < vxEnd; vx++) {
@@ -53,31 +62,45 @@ const draw = (
       const my = camera.y + vy
       if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
       if (map[my][mx].type === TileType.Space) continue
-      const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-      const { leftX, rightX, topY, bottomY, cx, cy } = getCellDiamondCorners(
-        px,
-        py,
-        charWidth,
-        charHeight,
-      )
+
+      // Check all four neighbors before computing geometry. Most non-space
+      // tiles are inland — computing screen coords and corners for them only
+      // to find no edges to draw is wasted work.
+      const nN = isSpaceOrOOB(mx, my - 1)
+      const nE = isSpaceOrOOB(mx + 1, my)
+      const nS = isSpaceOrOOB(mx, my + 1)
+      const nW = isSpaceOrOOB(mx - 1, my)
+      if (!nN && !nE && !nS && !nW) continue
+
+      // Inline viewportToScreen + getCellDiamondCorners to avoid two object
+      // allocations per border tile. Derived from the same formulas; nudge=0.
+      const px = (vx - vy) * charWidth + originX + halfW
+      const py = (vx + vy) * halfH + originY
+      const leftX = px - halfW
+      const rightX = px + 3 * halfW
+      const topY = py
+      const bottomY = py + charHeight
+      const cx = px + halfW
+      const cy = py + halfH
+
       // World cardinals map to diamond edges by on-screen direction:
       //   N (mx, my-1)  → up-right    → top-right edge
       //   E (mx+1, my)  → down-right  → bottom-right edge
       //   S (mx, my+1)  → down-left   → bottom-left edge
       //   W (mx-1, my)  → up-left     → top-left edge
-      if (isSpaceOrOOB(mx, my - 1)) {
+      if (nN) {
         ctx.moveTo(cx, topY)
         ctx.lineTo(rightX, cy)
       }
-      if (isSpaceOrOOB(mx + 1, my)) {
+      if (nE) {
         ctx.moveTo(rightX, cy)
         ctx.lineTo(cx, bottomY)
       }
-      if (isSpaceOrOOB(mx, my + 1)) {
+      if (nS) {
         ctx.moveTo(cx, bottomY)
         ctx.lineTo(leftX, cy)
       }
-      if (isSpaceOrOOB(mx - 1, my)) {
+      if (nW) {
         ctx.moveTo(leftX, cy)
         ctx.lineTo(cx, topY)
       }
