@@ -15,22 +15,26 @@ import { isEntityInCurrentZone } from './zone'
 
 import type { GameState, Zone as ZoneType } from './types'
 
-const isInRainAura = (state: GameState, zone: ZoneType, x: number, y: number): boolean => {
-  const matchesZone = (eid: number): boolean =>
-    zone === state.currentZone
-      ? isEntityInCurrentZone(state, eid)
-      : state.world.getComponent(eid, ComponentType.EntityZone)?.zone === zone
+interface RainAura { x: number; y: number; radiusSq: number }
+
+// Collect all active rain auras in the given zone into a plain array.
+// Called once per tickTileWater so the ECS query runs once instead of
+// once per tile (previously O(n_tiles × n_query) → now O(n_aura + n_tiles)).
+const collectRainAuras = (state: GameState, zone: ZoneType): RainAura[] => {
+  const auras: RainAura[] = []
   for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
-    if (!matchesZone(eid)) continue
+    const inZone =
+      zone === state.currentZone
+        ? isEntityInCurrentZone(state, eid)
+        : state.world.getComponent(eid, ComponentType.EntityZone)?.zone === zone
+    if (!inZone) continue
     const aura = state.world.getComponent(eid, ComponentType.Aura)
     if (aura?.kind !== 'rain') continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!pos) continue
-    const dx = x - pos.x
-    const dy = y - pos.y
-    if (dx * dx + dy * dy <= aura.radius * aura.radius) return true
+    auras.push({ x: pos.x, y: pos.y, radiusSq: aura.radius * aura.radius })
   }
-  return false
+  return auras
 }
 
 // Wind direction → rain front sweep axis. The front moves perpendicular-ish
@@ -114,16 +118,31 @@ export const tickTileWater = (state: GameState, zone: ZoneType): void => {
     state.rainFrontOffset += RAIN_FRONT_SPEED
   }
 
+  // Collect rain auras once before the tile loop. Previously isInRainAura
+  // ran state.world.query() per tile — O(n_tiles × n_query). Now O(n_aura + n_tiles).
+  const rainAuras = collectRainAuras(state, zone)
+
   for (const [key, current] of state.tileWater) {
-    const [xStr, yStr] = key.split(',')
-    const x = Number(xStr)
-    const y = Number(yStr)
+    // Avoid key.split(',') which allocates a new array per tile.
+    const sep = key.indexOf(',')
+    const x = Number(key.slice(0, sep))
+    const y = Number(key.slice(sep + 1))
 
     // Water proximity to ponds/rivers — passive seepage
     const proximityBonus = state.waterProximity.get(key) ?? 0
 
     const inFront = hasRainIntensity && isInRainFront(state, x, y).hit
-    if (inFront || isInRainAura(state, zone, x, y)) {
+    let inAura = false
+    for (const aura of rainAuras) {
+      const dx = x - aura.x
+      const dy = y - aura.y
+      if (dx * dx + dy * dy <= aura.radiusSq) {
+        inAura = true
+        break
+      }
+    }
+
+    if (inFront || inAura) {
       state.tileWater.set(key, Math.min(current + WATER_RAIN_FILL, WATER_MAX))
     } else if (proximityBonus > 0) {
       // Near water body — drain slower, with passive fill
