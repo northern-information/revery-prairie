@@ -8,6 +8,7 @@ import {
 import { tileHash } from '../../position'
 import { viewportToScreen } from '../../projection'
 import { Zone, type CharMetrics, type GameState } from '../../types'
+import { isTileInVisibleViewport } from '../../viewportBounds'
 import { getTierGrid, liftAt } from '../tierGrid'
 import { type RenderPass, registerPass } from '../passes'
 
@@ -47,7 +48,7 @@ const draw = (
       const wy = sy - i - 1
       const vx = wx - camera.x
       const vy = wy - camera.y
-      if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
+      if (!isTileInVisibleViewport(vx, vy, viewportWidth, viewportHeight)) continue
 
       const segOpacity = computeBeamSegmentOpacity(i, length, time)
       const finalOpacity = patchOpacity * segOpacity * beamMax

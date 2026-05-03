@@ -6,6 +6,7 @@ import {
 import { isInBounds } from '../../position'
 import { getCellDiamondCorners, viewportToScreen } from '../../projection'
 import { DeepTimePhase, TileType, Zone, type CharMetrics, type GameState } from '../../types'
+import { getVisibleTileBounds } from '../../viewportBounds'
 import { type RenderPass, registerPass } from '../passes'
 
 const isActive = (state: GameState): boolean => {
@@ -38,8 +39,16 @@ const draw = (
   }
   ctx.beginPath()
   const outlineMargin = 1
-  for (let vy = -outlineMargin; vy < viewportHeight + outlineMargin; vy++) {
-    for (let vx = -outlineMargin; vx < viewportWidth + outlineMargin; vx++) {
+  // Iso-aware bounds: the visible canvas is a parallelogram in tile space, so
+  // iterating only the orthogonal viewport rect drops outline tiles in the
+  // iso corners. getVisibleTileBounds expands to the rotated parallelogram.
+  const { vxStart, vxEnd, vyStart, vyEnd } = getVisibleTileBounds(
+    viewportWidth,
+    viewportHeight,
+    outlineMargin,
+  )
+  for (let vy = vyStart; vy < vyEnd; vy++) {
+    for (let vx = vxStart; vx < vxEnd; vx++) {
       const mx = camera.x + vx
       const my = camera.y + vy
       if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue

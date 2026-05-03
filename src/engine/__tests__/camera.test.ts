@@ -1,71 +1,153 @@
 import { updateCamera } from '../camera'
+import { worldToScreen } from '../projection'
 import { createGameState } from '../state'
 import { Zone } from '../types'
 import { describe, expect, it } from 'vitest'
 
 describe('updateCamera', () => {
-  describe('center-on-player (cave/ruin/forceCenter)', () => {
+  describe('follow mode (always centers player)', () => {
+    it('centers camera on the player in overworld', () => {
+      const state = createGameState('Test', 40, 40)
+      state.player.x = 85
+      state.player.y = 47
+      updateCamera(state)
+      const visibleWidth = state.viewportWidth - state.rightInsetTiles
+      expect(state.camera.x).toBe(85 - Math.floor(visibleWidth / 2))
+      expect(state.camera.y).toBe(47 - Math.floor(state.viewportHeight / 2))
+    })
+
     it('centers camera on the player in cave zone', () => {
       const state = createGameState('Test', 10, 10)
       state.currentZone = Zone.Cave
       state.player.x = 50
       state.player.y = 12
       updateCamera(state)
-      expect(state.camera.x).toBe(50 - 5)
-      expect(state.camera.y).toBe(12 - 5)
+      const visibleWidth = state.viewportWidth - state.rightInsetTiles
+      expect(state.camera.x).toBe(50 - Math.floor(visibleWidth / 2))
+      expect(state.camera.y).toBe(12 - Math.floor(state.viewportHeight / 2))
     })
 
-    it('centers camera on the player with forceCenter', () => {
+    it('centers camera on the player in ruin zone', () => {
       const state = createGameState('Test', 10, 10)
+      state.currentZone = Zone.Ruin
       state.player.x = 50
       state.player.y = 12
-      updateCamera(state, true)
-      expect(state.camera.x).toBe(50 - 5)
-      expect(state.camera.y).toBe(12 - 5)
-    })
-
-    it('clamps camera to the top-left edge', () => {
-      const state = createGameState('Test', 20, 20)
-      state.currentZone = Zone.Cave
-      state.player.x = 0
-      state.player.y = 0
       updateCamera(state)
-      expect(state.camera.x).toBe(0)
-      expect(state.camera.y).toBe(0)
+      const visibleWidth = state.viewportWidth - state.rightInsetTiles
+      expect(state.camera.x).toBe(50 - Math.floor(visibleWidth / 2))
+      expect(state.camera.y).toBe(12 - Math.floor(state.viewportHeight / 2))
     })
 
-    it('clamps camera to the bottom-right edge', () => {
-      const state = createGameState('Test', 20, 20)
-      state.currentZone = Zone.Cave
+    it('recenters every step as the player walks (no deadzone)', () => {
+      const state = createGameState('Test', 40, 40)
+      state.player.x = 85
+      state.player.y = 47
+      updateCamera(state)
+      const startCamX = state.camera.x
+
+      state.player.x = 86
+      updateCamera(state)
+      // With no deadzone, a single-tile move shifts the camera by exactly 1
+      expect(state.camera.x).toBe(startCamX + 1)
+    })
+
+    it('does not clamp to map bounds; camera centers past map edges', () => {
+      const state = createGameState('Test', 40, 40)
+      const visibleWidth = state.viewportWidth - state.rightInsetTiles
       state.player.x = state.mapWidth - 1
       state.player.y = state.mapHeight - 1
       updateCamera(state)
-      expect(state.camera.x).toBe(state.mapWidth - state.viewportWidth)
-      expect(state.camera.y).toBe(state.mapHeight - state.viewportHeight)
+      expect(state.camera.x).toBe(state.mapWidth - 1 - Math.floor(visibleWidth / 2))
+      expect(state.camera.y).toBe(
+        state.mapHeight - 1 - Math.floor(state.viewportHeight / 2)
+      )
     })
 
-    it('centers map when map is smaller than viewport', () => {
+    it('places the player at the iso canvas center every frame', () => {
+      const state = createGameState('Test', 40, 40)
+      const charWidth = 8
+      const charHeight = 14
+      const positions = [
+        { x: 73, y: 73 },
+        { x: 90, y: 50 }, // northeast — was the original off-screen case
+        { x: 50, y: 90 },
+        { x: 0, y: 0 },
+        { x: state.mapWidth - 1, y: 0 },
+      ]
+      for (const pos of positions) {
+        state.player.x = pos.x
+        state.player.y = pos.y
+        updateCamera(state)
+        const screen = worldToScreen(
+          pos.x,
+          pos.y,
+          state.camera,
+          charWidth,
+          charHeight,
+          state.viewportWidth,
+          state.viewportHeight
+        )
+        const canvasCx = (state.viewportWidth * charWidth) / 2
+        const canvasCy = (state.viewportHeight * charHeight) / 2
+        // Player anchor sits within ~one cell of canvas center; the floor
+        // on viewport/2 introduces sub-tile slack but never an iso-corner
+        // drift.
+        expect(Math.abs(screen.px - canvasCx)).toBeLessThanOrEqual(charWidth + charHeight)
+        expect(Math.abs(screen.py - canvasCy)).toBeLessThanOrEqual(charHeight)
+      }
+    })
+  })
+
+  describe('free mode', () => {
+    it('does not move camera when cameraMode is free', () => {
+      const state = createGameState('Test', 40, 40)
+      state.cameraMode = 'free'
+      state.camera.x = 999
+      state.camera.y = 888
+      state.player.x = 50
+      state.player.y = 50
+      updateCamera(state)
+      expect(state.camera.x).toBe(999)
+      expect(state.camera.y).toBe(888)
+    })
+
+    it('overrides free mode when forceCenter is true', () => {
+      const state = createGameState('Test', 40, 40)
+      state.cameraMode = 'free'
+      state.player.x = 50
+      state.player.y = 50
+      updateCamera(state, true)
+      const visibleWidth = state.viewportWidth - state.rightInsetTiles
+      expect(state.camera.x).toBe(50 - Math.floor(visibleWidth / 2))
+      expect(state.camera.y).toBe(50 - Math.floor(state.viewportHeight / 2))
+    })
+  })
+
+  describe('small-map centering', () => {
+    it('centers map when mapWidth and mapHeight are smaller than viewport', () => {
       const state = createGameState('Test', 80, 60)
       state.mapWidth = 40
       state.mapHeight = 25
       state.player.x = 20
       state.player.y = 12
       updateCamera(state)
-      expect(state.camera.x).toBe(-Math.floor((80 - 40) / 2))
-      expect(state.camera.y).toBe(-Math.floor((60 - 25) / 2))
+      const visibleWidth = state.viewportWidth - state.rightInsetTiles
+      expect(state.camera.x).toBe(-Math.floor((visibleWidth - 40) / 2))
+      expect(state.camera.y).toBe(-Math.floor((state.viewportHeight - 25) / 2))
     })
 
-    it('centers map regardless of player position when map is small', () => {
+    it('camera offset is independent of player position when map is small', () => {
       const state = createGameState('Test', 100, 80)
       state.mapWidth = 40
       state.mapHeight = 25
+      const visibleWidth = state.viewportWidth - state.rightInsetTiles
+      const expectedX = -Math.floor((visibleWidth - 40) / 2)
+      const expectedY = -Math.floor((state.viewportHeight - 25) / 2)
       const positions = [
         { x: 0, y: 0 },
         { x: 20, y: 12 },
         { x: 39, y: 24 },
       ]
-      const expectedX = -Math.floor((100 - 40) / 2)
-      const expectedY = -Math.floor((80 - 25) / 2)
       for (const pos of positions) {
         state.player.x = pos.x
         state.player.y = pos.y
@@ -75,215 +157,34 @@ describe('updateCamera', () => {
       }
     })
 
-    it('uses clamping when map is larger than viewport', () => {
-      const state = createGameState('Test', 20, 20)
-      state.currentZone = Zone.Cave
-      state.player.x = 85
-      state.player.y = 47
-      updateCamera(state)
-      expect(state.camera.x).toBe(85 - 10)
-      expect(state.camera.y).toBe(47 - 10)
-    })
-
-    it('can center on one axis and clamp on the other', () => {
+    it('can center map on one axis and follow on the other', () => {
       const state = createGameState('Test', 80, 20)
-      state.currentZone = Zone.Cave
       state.mapWidth = 40
       state.player.x = 20
       state.player.y = 47
       updateCamera(state)
-      expect(state.camera.x).toBe(-Math.floor((80 - 40) / 2))
-      expect(state.camera.y).toBe(47 - 10)
+      const visibleWidth = state.viewportWidth - state.rightInsetTiles
+      expect(state.camera.x).toBe(-Math.floor((visibleWidth - 40) / 2))
+      expect(state.camera.y).toBe(47 - Math.floor(state.viewportHeight / 2))
     })
   })
 
-  describe('deadzone (overworld)', () => {
-    it('does not move camera when player is inside the deadzone', () => {
-      const state = createGameState('Test', 40, 40)
-      // Force-center to establish a known camera position
-      state.player.x = 85
-      state.player.y = 47
-      updateCamera(state, true)
-      const startCamX = state.camera.x
-      const startCamY = state.camera.y
-
-      // Move player 1 tile right — still inside 66% deadzone
-      state.player.x = 86
-      updateCamera(state)
-      expect(state.camera.x).toBe(startCamX)
-      expect(state.camera.y).toBe(startCamY)
-    })
-
-    it('pans camera when player crosses the right deadzone boundary', () => {
-      const state = createGameState('Test', 40, 40)
-      state.player.x = 85
-      state.player.y = 47
-      updateCamera(state, true)
-      const startCamX = state.camera.x
-
-      // Calculate the right boundary
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      const marginX = Math.floor((visibleWidth * (1 - 0.66)) / 2)
-      const rightBound = startCamX + visibleWidth - marginX - 1
-
-      // Move player past the right boundary
-      state.player.x = rightBound + 1
-      updateCamera(state)
-      expect(state.camera.x).toBeGreaterThan(startCamX)
-      // Player should now be at the right edge of the deadzone
-      const newRightBound = state.camera.x + visibleWidth - marginX - 1
-      expect(state.player.x).toBe(newRightBound)
-    })
-
-    it('pans camera when player crosses the left deadzone boundary', () => {
-      const state = createGameState('Test', 40, 40)
-      state.player.x = 85
-      state.player.y = 47
-      updateCamera(state, true)
-      const startCamX = state.camera.x
-
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      const marginX = Math.floor((visibleWidth * (1 - 0.66)) / 2)
-      const leftBound = startCamX + marginX
-
-      // Move player past the left boundary
-      state.player.x = leftBound - 1
-      updateCamera(state)
-      expect(state.camera.x).toBeLessThan(startCamX)
-      // Player should now be at the left edge of the deadzone
-      const newLeftBound = state.camera.x + marginX
-      expect(state.player.x).toBe(newLeftBound)
-    })
-
-    it('pans camera when player crosses the bottom deadzone boundary', () => {
-      const state = createGameState('Test', 40, 40)
-      state.player.x = 85
-      state.player.y = 47
-      updateCamera(state, true)
-      const startCamY = state.camera.y
-
-      const marginY = Math.floor((state.viewportHeight * (1 - 0.66)) / 2)
-      const bottomBound = startCamY + state.viewportHeight - marginY - 1
-
-      state.player.y = bottomBound + 1
-      updateCamera(state)
-      expect(state.camera.y).toBeGreaterThan(startCamY)
-      const newBottomBound = state.camera.y + state.viewportHeight - marginY - 1
-      expect(state.player.y).toBe(newBottomBound)
-    })
-
-    it('pans camera when player crosses the top deadzone boundary', () => {
-      const state = createGameState('Test', 40, 40)
-      state.player.x = 85
-      state.player.y = 47
-      updateCamera(state, true)
-      const startCamY = state.camera.y
-
-      const marginY = Math.floor((state.viewportHeight * (1 - 0.66)) / 2)
-      const topBound = startCamY + marginY
-
-      state.player.y = topBound - 1
-      updateCamera(state)
-      expect(state.camera.y).toBeLessThan(startCamY)
-      const newTopBound = state.camera.y + marginY
-      expect(state.player.y).toBe(newTopBound)
-    })
-
-    it('clamps to map bounds even with deadzone', () => {
-      const state = createGameState('Test', 40, 40)
-      // Player near top-left corner
-      state.player.x = 2
-      state.player.y = 2
-      updateCamera(state, true)
-
-      // Move player to (0, 0) — deadzone would want negative camera
-      state.player.x = 0
-      state.player.y = 0
-      updateCamera(state)
-      expect(state.camera.x).toBe(0)
-      expect(state.camera.y).toBe(0)
-    })
-
-    it('clamps to map bottom-right bounds with deadzone', () => {
+  describe('zone transitions', () => {
+    it('forceCenter recenters across cave/overworld swaps', () => {
       const state = createGameState('Test', 40, 40)
       const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      // Player near bottom-right corner
-      state.player.x = state.mapWidth - 2
-      state.player.y = state.mapHeight - 2
-      updateCamera(state, true)
 
-      state.player.x = state.mapWidth - 1
-      state.player.y = state.mapHeight - 1
-      updateCamera(state)
-      expect(state.camera.x).toBeLessThanOrEqual(state.mapWidth - visibleWidth)
-      expect(state.camera.y).toBeLessThanOrEqual(state.mapHeight - state.viewportHeight)
-    })
-
-    it('accounts for sidebar inset in deadzone width', () => {
-      const state = createGameState('Test', 40, 40)
-      state.rightInsetTiles = 10
-      state.player.x = 85
-      state.player.y = 47
-      updateCamera(state, true)
-
-      // visibleWidth is 40 - 10 = 30
-      const visibleWidth = 30
-      const marginX = Math.floor((visibleWidth * (1 - 0.66)) / 2)
-      const rightBound = state.camera.x + visibleWidth - marginX - 1
-
-      // Move just inside the right boundary
-      state.player.x = rightBound
-      updateCamera(state)
-      const camAfterInside = state.camera.x
-
-      // Move one past the right boundary
-      state.player.x = rightBound + 1
-      updateCamera(state)
-      expect(state.camera.x).toBeGreaterThan(camAfterInside)
-    })
-
-    it('does not use deadzone in cave zone', () => {
-      const state = createGameState('Test', 10, 10)
-      state.currentZone = Zone.Cave
-      state.player.x = 50
-      state.player.y = 12
-      updateCamera(state)
-      // Should center on player, not use deadzone
-      expect(state.camera.x).toBe(50 - 5)
-      expect(state.camera.y).toBe(12 - 5)
-    })
-
-    it('does not use deadzone in ruin zone', () => {
-      const state = createGameState('Test', 10, 10)
-      state.currentZone = Zone.Ruin
-      state.player.x = 50
-      state.player.y = 12
-      updateCamera(state)
-      expect(state.camera.x).toBe(50 - 5)
-      expect(state.camera.y).toBe(12 - 5)
-    })
-
-    it('recenters after zone transition back to overworld', () => {
-      const state = createGameState('Test', 40, 40)
-      state.player.x = 85
-      state.player.y = 47
-      updateCamera(state, true)
-
-      // Simulate entering cave — player near top-left, camera clamps to 0
       state.currentZone = Zone.Cave
       state.player.x = 20
       state.player.y = 12
-      updateCamera(state)
-      expect(state.camera.x).toBe(0)
-      expect(state.camera.y).toBe(0)
+      updateCamera(state, true)
+      expect(state.camera.x).toBe(20 - Math.floor(visibleWidth / 2))
+      expect(state.camera.y).toBe(12 - Math.floor(state.viewportHeight / 2))
 
-      // Simulate exiting cave back to overworld with forceCenter
       state.currentZone = Zone.Overworld
       state.player.x = 85
       state.player.y = 47
       updateCamera(state, true)
-      // Should be centered on player
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
       expect(state.camera.x).toBe(85 - Math.floor(visibleWidth / 2))
       expect(state.camera.y).toBe(47 - Math.floor(state.viewportHeight / 2))
     })
