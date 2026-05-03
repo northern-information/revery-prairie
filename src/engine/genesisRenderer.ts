@@ -6,7 +6,7 @@ import {
 } from './constants'
 import { getEpochProgress } from './genesis'
 import { GenesisEpochId } from './genesisTypes'
-import { posKey } from './position'
+import { posKey, tileHash } from './position'
 import { drawCellBackground, drawCellWalls, viewportToScreen } from './projection'
 import { getEntranceHaloCells } from './ruins'
 import {
@@ -16,6 +16,8 @@ import {
   WALL_RIGHT_SHADE,
   darkenColor,
   getElevationTier,
+  getPondBgColor,
+  getRiverBgColor,
   getTierLift,
   getTileBgColor,
 } from './tileBg'
@@ -33,6 +35,34 @@ const tierAtSim = (sim: GenesisSimState, mx: number, my: number): number =>
 
 const liftAtSim = (sim: GenesisSimState, mx: number, my: number): number =>
   getTierLift(tierAtSim(sim, mx, my))
+
+// Lowland water predicate: matches renderLowlandWater in genesis.ts —
+// elev + per-tile scatter < 40 over a land tile. Used so the bg fill
+// paints water-blue under elevation-based lowland water glyphs (which
+// the various epoch renderTile functions emit) instead of brown dirt.
+const isLowlandWater = (sim: GenesisSimState, key: string, h: number): boolean => {
+  if (!sim.landMask.has(key)) return false
+  const elev = sim.elevation.get(key) ?? 50
+  const scatter = (h % 25) - 12 + (((h >>> 8) % 15) - 7)
+  return elev + scatter < 40
+}
+
+// Genesis water lives in three buckets: sim.riverPaths (mature rivers),
+// sim.ponds (pooled basins), and the elevation-based lowland predicate
+// (early aquatic phase before rivers/ponds are materialized). Returns a
+// water bg color in priority order, or null when the tile is dry land.
+const getWaterBgColor = (
+  sim: GenesisSimState,
+  mx: number,
+  my: number,
+  key: string,
+  h: number,
+): string | null => {
+  if (sim.riverPaths.has(key)) return getRiverBgColor(mx, my)
+  if (sim.ponds.has(key)) return getPondBgColor(mx, my)
+  if (isLowlandWater(sim, key, h)) return getRiverBgColor(mx, my)
+  return null
+}
 
 // Max possible negative lift: tier 3 * ELEVATION_TIER_LIFT_PX.
 // Used to expand the off-canvas cull margin so high-tier tiles near the
@@ -325,7 +355,10 @@ export const renderGenesis = (
       const bottomY = topY + charHeight
       const cx = leftX + charWidth
       const cy = topY + halfH
-      ctx.fillStyle = getTileBgColor(tile.type, mx, my)
+      const key = posKey(mx, my)
+      const h = tileHash(mx, my)
+      const waterBg = getWaterBgColor(sim, mx, my, key, h)
+      ctx.fillStyle = waterBg ?? getTileBgColor(tile.type, mx, my)
       ctx.beginPath()
       ctx.moveTo(cx, topY - TILE_BG_OVERLAP)
       ctx.lineTo(rightX + TILE_BG_OVERLAP, cy)
@@ -365,7 +398,10 @@ export const renderGenesis = (
       const cellBottomY = cellTopY + charHeight
       const cellCx = cellLeftX + charWidth
       const cellCy = cellTopY + halfH
-      ctx.strokeStyle = darkenColor(getTileBgColor(tile.type, mx, my), WALL_RIGHT_SHADE)
+      const skirtKey = posKey(mx, my)
+      const skirtH = tileHash(mx, my)
+      const skirtWaterBg = getWaterBgColor(sim, mx, my, skirtKey, skirtH)
+      ctx.strokeStyle = darkenColor(skirtWaterBg ?? getTileBgColor(tile.type, mx, my), WALL_RIGHT_SHADE)
       ctx.lineWidth = 1
       ctx.beginPath()
       ctx.moveTo(cellLeftX, cellCy)

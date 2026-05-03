@@ -61,6 +61,34 @@ export const getTileBgColor = (tileType: TileType, x: number, y: number): string
   return palette[tileHash(x, y) % palette.length]
 }
 
+// Water has no TileType — it lives in state.rivers / state.ponds (and
+// genesis's sim.riverPaths / sim.ponds plus the elevation-based lowland
+// water predicate). The bg fill needs its own palette so water tiles
+// don't render as brown dirt under blue water glyphs. Palettes are
+// slightly desaturated/darkened RIVER_COLOR / POND_COLOR variants so the
+// blue glyphs ('~', '=', '-') still read as foliage on the water.
+export const RIVER_BG_PALETTE: readonly string[] = [
+  '#3A557F',
+  '#3D5985',
+  '#37527B',
+  '#405E8A',
+  '#385479',
+]
+
+export const POND_BG_PALETTE: readonly string[] = [
+  '#2F4870',
+  '#324B73',
+  '#2C456D',
+  '#354E76',
+  '#304770',
+]
+
+export const getRiverBgColor = (x: number, y: number): string =>
+  RIVER_BG_PALETTE[tileHash(x, y) % RIVER_BG_PALETTE.length]
+
+export const getPondBgColor = (x: number, y: number): string =>
+  POND_BG_PALETTE[tileHash(x, y) % POND_BG_PALETTE.length]
+
 // Multiply each RGB channel of a 6-digit hex color by `factor`. Used for
 // directional wall shading: the lit side keeps factor close to 1 (lightly
 // darkened) and the shadow side uses a smaller factor (more darkening).
