@@ -1450,7 +1450,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // tile loop so no subsequent tile background can paint over them.
       // Only applied on the non-highlighted terrain path so the cursor
       // highlight box stays anchored to the tile centre.
-      if (!highlight && WEATHER_AFFECTED_TILES.has(map[my]?.[mx]?.type)) {
+      // Growth-preview tiles (dirt tiles showing a blinking clover glyph before
+      // conversion) are also included — without this they show at the nominal
+      // position and snap to the displaced position the frame they convert,
+      // creating a visible mass-reset when multiple previews convert in one tick.
+      const isFloraOrPreview =
+        WEATHER_AFFECTED_TILES.has(map[my]?.[mx]?.type) || state.cloverGrowthPreviews.has(tileKey)
+      if (!highlight && isFloraOrPreview) {
         const sway = getFloraSwayOffset(
           mx,
           my,
