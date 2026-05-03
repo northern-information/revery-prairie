@@ -4,7 +4,7 @@ import {
   GLINT_ZONE_DENSITY,
   GLINT_ZONE_SPEED,
 } from '../../constants'
-import { isInBounds, posKey, tileHash } from '../../position'
+import { tileHash } from '../../position'
 import { viewportToScreen } from '../../projection'
 import { Zone, type CharMetrics, type GameState } from '../../types'
 import { getVisibleTileBounds } from '../../viewportBounds'
@@ -23,39 +23,49 @@ const draw = (
   metrics: CharMetrics,
   time: number,
 ): void => {
+  if (state.glintZones.size === 0) return
+
   const { camera, viewportWidth, viewportHeight, player } = state
   const { charWidth, charHeight } = metrics
   const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
   const bounds = getVisibleTileBounds(viewportWidth, viewportHeight)
 
-  for (let vy = bounds.vyStart; vy < bounds.vyEnd; vy++) {
-    for (let vx = bounds.vxStart; vx < bounds.vxEnd; vx++) {
-      const wx = camera.x + vx
-      const wy = camera.y + vy
-      if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue
-      const key = posKey(wx, wy)
-      if (!state.glintZones.has(key)) continue
-      if (wx === player.x && wy === player.y) continue
+  // Iterate glintZones directly instead of the full viewport. The previous
+  // approach called posKey + isInBounds for every viewport tile — O(viewport²)
+  // string allocations per frame — even though only a small fraction of tiles
+  // are glint zones. Now we only visit matching tiles and check viewport bounds.
+  // Keys are parsed with indexOf/slice to avoid the array allocation of split().
+  for (const key of state.glintZones) {
+    const sep = key.indexOf(',')
+    const wx = Number(key.slice(0, sep))
+    const wy = Number(key.slice(sep + 1))
 
-      const h = tileHash(wx + state.rainSeed, wy)
-      const opacity = state.glintOpacity.get(key) ?? 0
-      if (opacity <= 0) continue
-      const effectiveDensity = Math.ceil(GLINT_ZONE_DENSITY / opacity)
-      if (h % effectiveDensity !== 0) continue
+    const vx = wx - camera.x
+    const vy = wy - camera.y
+    if (vx < bounds.vxStart || vx >= bounds.vxEnd) continue
+    if (vy < bounds.vyStart || vy >= bounds.vyEnd) continue
 
-      const glintPhase =
-        ((h >> 4) + Math.floor(time * GLINT_ZONE_SPEED)) % GLINT_ZONE_CHARS.length
-      const glintColorPhase =
-        ((h >> 8) + Math.floor(time * GLINT_ZONE_SPEED * 0.7)) % GLINT_ZONE_COLORS.length
+    if (wx === player.x && wy === player.y) continue
 
-      const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-      ctx.fillStyle = GLINT_ZONE_COLORS[glintColorPhase]
-      ctx.fillText(
-        GLINT_ZONE_CHARS[glintPhase],
-        px,
-        py + liftAt(tierGrid, wx, wy, state.mapWidth, state.mapHeight),
-      )
-    }
+    const opacity = state.glintOpacity.get(key) ?? 0
+    if (opacity <= 0) continue
+
+    const h = tileHash(wx + state.rainSeed, wy)
+    const effectiveDensity = Math.ceil(GLINT_ZONE_DENSITY / opacity)
+    if (h % effectiveDensity !== 0) continue
+
+    const glintPhase =
+      ((h >> 4) + Math.floor(time * GLINT_ZONE_SPEED)) % GLINT_ZONE_CHARS.length
+    const glintColorPhase =
+      ((h >> 8) + Math.floor(time * GLINT_ZONE_SPEED * 0.7)) % GLINT_ZONE_COLORS.length
+
+    const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
+    ctx.fillStyle = GLINT_ZONE_COLORS[glintColorPhase]
+    ctx.fillText(
+      GLINT_ZONE_CHARS[glintPhase],
+      px,
+      py + liftAt(tierGrid, wx, wy, state.mapWidth, state.mapHeight),
+    )
   }
 }
 
