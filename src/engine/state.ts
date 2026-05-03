@@ -7,7 +7,6 @@ import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
 import { createCharacterEntity } from './entities'
 import { createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } from './genesis'
-import { rebuildGlintZones, seedGlintPatches } from './glintZones'
 import { autoSort, placeItem } from './inventory'
 import { createBackpack } from './items'
 import { isInBounds, isWalkableTile, posKey } from './position'
@@ -225,9 +224,10 @@ export const createGameState = (
     onGenesisEpochStart: null,
   }
 
-  // Seed glinting zone patches with staggered birth times
-  seedGlintPatches(state, 0)
-  rebuildGlintZones(state, 0)
+  // Glinting zone patches are seeded later, inside completeGenesis,
+  // using performance.now() so all patches start in fade-in. Seeding
+  // at game-state creation with time=0 made patches age throughout
+  // genesis (~25s) and pop in at full opacity at the handoff.
 
   // Place ruin entrances on the overworld
   placeRuinEntrances(map, state.ruinInteriors)

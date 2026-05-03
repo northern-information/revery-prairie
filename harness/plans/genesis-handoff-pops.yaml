@@ -1,0 +1,74 @@
+plan:
+  id: genesis-handoff-pops
+  title: Fix genesis-to-gameplay visual pops (ruin halo paint order, glinting seed timing)
+  created: '2026-05-02'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: reorder-genesis-halo-pass
+    title: Move ruin-entrance halo pass after the tile-bg fill pre-pass in genesisRenderer
+    spec_id: genesis-handoff-pops
+    spec_sections:
+      - ruin-halo-paints-on-top-of-bg
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/render/passes/ruinEntranceHalo.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: defer-glint-seeding-to-handoff
+    title: Move seedGlintPatches and rebuildGlintZones from createGameState into completeGenesis
+    spec_id: genesis-handoff-pops
+    spec_sections:
+      - glint-patches-seeded-at-handoff
+      - create-game-state-leaves-glints-empty
+    context_files:
+      - src/engine/state.ts
+      - src/engine/genesis.ts
+      - src/engine/glintZones.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/state.ts
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-regression-tests
+    title: Replace todo stubs with real regression tests for halo order and glint seeding
+    spec_id: genesis-handoff-pops
+    spec_sections:
+      - ruin-halo-paints-on-top-of-bg
+      - glint-patches-seeded-at-handoff
+      - create-game-state-leaves-glints-empty
+    context_files:
+      - src/engine/__tests__/genesisHandoffPops.test.ts
+      - src/engine/__tests__/genesisTransition.test.ts
+      - src/engine/__tests__/glintZones.test.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/genesis.ts
+      - src/engine/state.ts
+      - src/engine/glintZones.ts
+    output_files:
+      - src/engine/__tests__/genesisHandoffPops.test.ts
+    depends_on:
+      - reorder-genesis-halo-pass
+      - defer-glint-seeding-to-handoff
+    verification:
+      - npx vitest run src/engine/__tests__/genesisHandoffPops.test.ts
+    repair: retry
+    tags:
+      - test

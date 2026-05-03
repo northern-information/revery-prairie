@@ -29,6 +29,7 @@ import { generateBoltPath } from './boltPath'
 import { getCharacterDefinition } from './characters'
 import { AURA_RADIUS } from './effects'
 import { GenesisEpochId } from './genesisTypes'
+import { rebuildGlintZones, seedGlintPatches } from './glintZones'
 import { posKey, tileHash as rendererTileHash } from './position'
 import { smoothNoiseSeeded } from './terrain'
 import { TileType } from './types'
@@ -2922,10 +2923,19 @@ export const completeGenesis = (state: GameState): void => {
   }
 
   // Start the crossfade transition.
+  const handoffTime = performance.now()
   state.genesisTransition = {
-    startTime: performance.now(),
+    startTime: handoffTime,
     duration: GENESIS_TRANSITION_DURATION_MS,
   }
+
+  // Seed glinting zone patches now, using the handoff time as the
+  // birth-time baseline so every patch starts in fade-in (opacity 0)
+  // on the first gameplay frame. Seeding earlier (in createGameState)
+  // would let patches age through the ~25s of genesis and pop in at
+  // full opacity once the gameplay renderer takes over.
+  seedGlintPatches(state, handoffTime)
+  rebuildGlintZones(state, handoffTime)
 
   // Clear genesis data
   state.genesis = null

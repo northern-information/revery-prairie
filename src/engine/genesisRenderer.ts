@@ -324,43 +324,6 @@ export const renderGenesis = (
   const { vxStart: tileLoopStartX, vxEnd: tileLoopEndX, vyStart: tileLoopStartY, vyEnd: tileLoopEndY } =
     getVisibleTileBounds(viewportWidth, viewportHeight)
 
-  // Ruin-entrance halo pre-pass — paints the 3x3 dark backdrop behind each
-  // RuinEntrance tile so it reads as a doorway-in-shadow, matching the game
-  // renderer (renderer.ts ruin-entrance halo pass). Gated by epoch so it
-  // does not conflict with lava/ice/civilization visuals in earlier epochs.
-  // Fades in across the fallOfCivilizations -> presentDay crossfade and
-  // holds at full opacity through presentDay, so the halo is already present
-  // when the game renderer takes over.
-  const haloAlpha = computeHaloAlpha(sim.epochIndex, epoch.id, blendT, nextEpoch?.id)
-  if (haloAlpha > 0) {
-    const prevAlpha = ctx.globalAlpha
-    ctx.globalAlpha = haloAlpha
-    ctx.fillStyle = RUIN_ENTRANCE_HALO_COLOR
-    for (let gy = 0; gy < sim.height; gy++) {
-      const row = sim.grid[gy]
-      for (let gx = 0; gx < sim.width; gx++) {
-        if (row[gx].type !== TileType.RuinEntrance) continue
-        const cells = getEntranceHaloCells(sim.grid, sim.width, sim.height, gx, gy)
-        for (const cell of cells) {
-          const vx = cell.x - cameraX
-          const vy = cell.y - cameraY
-          if (!isTileInVisibleViewport(vx, vy, viewportWidth, viewportHeight)) continue
-          const { px, py } = viewportToScreen(
-            vx,
-            vy,
-            charWidth,
-            charHeight,
-            viewportWidth,
-            viewportHeight,
-          )
-          const lift = liftAtSim(sim, cell.x, cell.y)
-          drawCellBackground(ctx, px, py + lift, charWidth, charHeight)
-        }
-      }
-    }
-    ctx.globalAlpha = prevAlpha
-  }
-
   // Off-canvas cull margin: tiles whose anchor falls outside [-cw, canvasW] ×
   // [-cH, canvasH] cannot contribute visible pixels. Skipping them avoids
   // ~50% of `epoch.renderTile` work, where the expanded iso-square bounding
@@ -567,6 +530,45 @@ export const renderGenesis = (
         darkenColor(bg, WALL_RIGHT_SHADE),
       )
     }
+  }
+
+  // Ruin-entrance halo pass — paints the 3x3 dark backdrop behind each
+  // RuinEntrance tile so it reads as a doorway-in-shadow. Mirrors the
+  // gameplay world-overlay slot: runs AFTER the tile-bg fill + skirt +
+  // wall passes, BEFORE the main glyph pass, so the halo paints on top
+  // of the surface bg (otherwise the bg fill would erase it). Gated by
+  // epoch so it does not conflict with lava/ice/civilization visuals in
+  // earlier epochs. Fades in across the fallOfCivilizations -> presentDay
+  // crossfade and holds at full opacity through presentDay, so the halo
+  // is already present when the game renderer takes over.
+  const haloAlpha = computeHaloAlpha(sim.epochIndex, epoch.id, blendT, nextEpoch?.id)
+  if (haloAlpha > 0) {
+    const prevAlpha = ctx.globalAlpha
+    ctx.globalAlpha = haloAlpha
+    ctx.fillStyle = RUIN_ENTRANCE_HALO_COLOR
+    for (let gy = 0; gy < sim.height; gy++) {
+      const row = sim.grid[gy]
+      for (let gx = 0; gx < sim.width; gx++) {
+        if (row[gx].type !== TileType.RuinEntrance) continue
+        const cells = getEntranceHaloCells(sim.grid, sim.width, sim.height, gx, gy)
+        for (const cell of cells) {
+          const vx = cell.x - cameraX
+          const vy = cell.y - cameraY
+          if (!isTileInVisibleViewport(vx, vy, viewportWidth, viewportHeight)) continue
+          const { px, py } = viewportToScreen(
+            vx,
+            vy,
+            charWidth,
+            charHeight,
+            viewportWidth,
+            viewportHeight,
+          )
+          const lift = liftAtSim(sim, cell.x, cell.y)
+          drawCellBackground(ctx, px, py + lift, charWidth, charHeight)
+        }
+      }
+    }
+    ctx.globalAlpha = prevAlpha
   }
 
   // Main glyph pass: read cached renders + precomputed lifted (px, py)

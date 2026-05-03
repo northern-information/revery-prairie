@@ -60,10 +60,18 @@ describe('seedGlintPatches', () => {
     const uniqueBirthTimes = new Set(birthTimes)
     expect(uniqueBirthTimes.size).toBeGreaterThan(1)
 
-    // Each birth time should differ by totalLifecycle / count
+    // Stagger is FORWARD from the seed time so newly seeded patches do
+    // not start pre-aged. Each successive birth time is one interval
+    // greater than the previous.
     const expectedInterval = TOTAL_LIFECYCLE_MS / GLINT_ZONE_COUNT
     for (let i = 1; i < birthTimes.length; i++) {
-      expect(birthTimes[i - 1] - birthTimes[i]).toBeCloseTo(expectedInterval, -1)
+      expect(birthTimes[i] - birthTimes[i - 1]).toBeCloseTo(expectedInterval, -1)
+    }
+
+    // Every birth time must be at or after the seed time (no pre-aged
+    // patches at handoff).
+    for (const birthTime of birthTimes) {
+      expect(birthTime).toBeGreaterThanOrEqual(1_000_000)
     }
   })
 })
@@ -71,7 +79,9 @@ describe('seedGlintPatches', () => {
 describe('rebuildGlintZones', () => {
   it('produces correct glintZones set from patches', () => {
     seedGlintPatches(state, 1_000_000)
-    rebuildGlintZones(state, 1_000_000)
+    // Stagger is forward, so patch 0 reaches mid-hold and several
+    // others enter fade-in once a full lifecycle has elapsed.
+    rebuildGlintZones(state, 1_000_000 + TOTAL_LIFECYCLE_MS / 2)
 
     // glintZones should contain tiles from active patches
     expect(state.glintZones.size).toBeGreaterThan(0)
