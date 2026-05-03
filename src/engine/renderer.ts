@@ -93,6 +93,7 @@ import { getReveryDefinition } from './reveries'
 import { getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
 import {
+  ANGEL_FLOAT_LIFT_PX,
   darkenColor,
   ELEVATION_TIER_LIFT_PX,
   getTierLift,
@@ -384,6 +385,25 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Build selected unit position set for highlight rendering
   const selectedPositions = getSelectedUnitPositions(state)
+
+  // Deferred entity draw list: populated during the central tile loop
+  // when the resolved tile is an entity (player, remote players,
+  // characters, beehives, monarchs, bees, meteorites, ground items,
+  // angel body pixels). Flushed after the tile loop and after the
+  // tweened-entity post-pass, so no neighboring high-elevation tile's
+  // cube wall or lifted glyph (drawn later in row-major order) can
+  // overpaint an entity glyph.
+  interface DeferredEntity {
+    char: string
+    color: string
+    glyphPx: number
+    glyphPy: number
+    highlight: boolean
+    highlightPx: number
+    highlightPy: number
+    alpha: number
+  }
+  const deferredEntities: DeferredEntity[] = []
 
   // Build overworld entrance glyph map (posKey → Greek letter)
   _entranceGlyphMap.clear()
@@ -1123,23 +1143,31 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           ctx.fillStyle = previewTile.color
           ctx.fillText(previewTile.char, px, pyLift)
         }
-        // Deep time glyph crossfade: ö fades out, @ fades in
+        // Deep time glyph crossfade: ö fades out, @ fades in.
+        // Both glyphs are deferred so they render above all terrain.
         if (state.deepTimeTransition && state.deepTime?.active) {
           const glyphElapsed = time - state.deepTimeTransition.startTime
           const glyphT = Math.max(0, Math.min(glyphElapsed / DEEP_TIME_TRANSITION_GLYPH_DURATION_MS, 1))
-          // Draw old glyph fading out
-          ctx.globalAlpha = 1 - glyphT
-          ctx.fillStyle = state.deepTime.playerGlyphColor
-          ctx.fillText(state.deepTime.playerGlyph, playerScreen.px, playerScreen.py + playerLift)
-          // Draw new glyph fading in
-          ctx.globalAlpha = glyphT
-          ctx.fillStyle = sessionColor
-          ctx.fillText(PLAYER_CHAR, playerScreen.px, playerScreen.py + playerLift)
-          ctx.globalAlpha = 1
-          // Skip the normal draw path for this tile
-          char = PLAYER_CHAR
-          color = sessionColor
-          cursorable = false
+          deferredEntities.push({
+            char: state.deepTime.playerGlyph,
+            color: state.deepTime.playerGlyphColor,
+            glyphPx: playerScreen.px,
+            glyphPy: playerScreen.py + playerLift,
+            highlight: false,
+            highlightPx: px,
+            highlightPy: pyLift,
+            alpha: 1 - glyphT,
+          })
+          deferredEntities.push({
+            char: PLAYER_CHAR,
+            color: sessionColor,
+            glyphPx: playerScreen.px,
+            glyphPy: playerScreen.py + playerLift,
+            highlight: false,
+            highlightPx: px,
+            highlightPy: pyLift,
+            alpha: glyphT,
+          })
           continue
         }
         char = state.deepTime?.active ? state.deepTime.playerGlyph : PLAYER_CHAR
@@ -1375,25 +1403,51 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
       // Genesis-to-gameplay crossfade: fade in entities not visible during genesis
       const applyEntityFade = isTransitioning && isEntity
-      if (applyEntityFade) ctx.globalAlpha = transitionAlpha
 
-      // Draw with cursor/facing inversion if applicable
-      // Invalid preview tiles (e.g. red X for lightning targeting) skip cursor inversion
-      if (previewTile && !previewTile.isValid) {
-        ctx.fillStyle = color
-      } else if (state.devPanelOpen) {
-        // Suppress cursor highlight when dev panel is open
-        ctx.fillStyle = color
-      } else if (selectedPositions.has(tileKey)) {
-        drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, ACTION_COLOR)
-        ctx.fillStyle = BG_COLOR
-      } else if (state.playerSelected && state.playerSpawn.visible && mx === player.x && my === player.y) {
-        drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, ACTION_COLOR)
-        ctx.fillStyle = BG_COLOR
-      } else if (isAngelGroupHighlighted) {
-        drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, ACTION_COLOR)
-        ctx.fillStyle = BG_COLOR
-      } else if ((isCursor && cursorable) || isFacingEntity || isPendingTarget) {
+      // Resolve highlight state without ctx side effects so the deferred
+      // path can capture it and the inline path can apply it.
+      // Invalid preview tiles (e.g. red X for lightning targeting) and the
+      // dev panel suppress cursor inversion.
+      const highlightSuppressed =
+        (previewTile !== undefined && !previewTile.isValid) || state.devPanelOpen
+      const highlight =
+        !highlightSuppressed &&
+        (selectedPositions.has(tileKey) ||
+          (state.playerSelected && state.playerSpawn.visible && mx === player.x && my === player.y) ||
+          isAngelGroupHighlighted ||
+          (isCursor && cursorable) ||
+          isFacingEntity ||
+          isPendingTarget)
+
+      // Defer entity glyphs (and the local player on its own tile) to a
+      // post-tile-loop flush so neighboring high-elevation tiles drawn
+      // later in row-major order can never overpaint them. Angel body
+      // pixels additionally lift by ANGEL_FLOAT_LIFT_PX so the multi-glyph
+      // body floats above the tallest possible cube.
+      const isAngelPixel = angelMap.has(tileKey)
+      const isPlayerOwnTile = mx === player.x && my === player.y && state.playerSpawn.visible
+      if (isEntity || isPlayerOwnTile) {
+        const angelLift = isAngelPixel ? -ANGEL_FLOAT_LIFT_PX : 0
+        const glyphPx = isPlayerOwnTile ? playerScreen.px : px
+        const glyphPyBase = isPlayerOwnTile ? playerScreen.py + playerLift : pyLift
+        deferredEntities.push({
+          char,
+          color: highlight ? BG_COLOR : color,
+          glyphPx,
+          glyphPy: glyphPyBase + angelLift,
+          highlight,
+          highlightPx: px,
+          highlightPy: pyLift + angelLift,
+          alpha: applyEntityFade ? transitionAlpha : 1,
+        })
+        continue
+      }
+
+      // Non-deferred path: terrain glyphs and overlay tiles. Apply the
+      // highlight side effects here. applyEntityFade cannot fire on this
+      // path (it requires isEntity, which would have taken the defer
+      // branch above), so no globalAlpha bookkeeping is needed.
+      if (highlight) {
         drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR
       } else {
@@ -1421,27 +1475,45 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           ctx.fillText(layer.char, px + layer.dx * offsetScale, pyLift + layer.dy * offsetScale)
         }
       } else if (mx === player.x && my === player.y) {
+        // Player tile when playerSpawn.visible is false — preserve the
+        // existing behavior of drawing whatever glyph resolved at the
+        // tween position rather than the iteration position.
         ctx.fillText(char, playerScreen.px, playerScreen.py + playerLift)
       } else {
         ctx.fillText(char, px, pyLift)
       }
-
-      if (applyEntityFade) ctx.globalAlpha = 1
     }
   }
-  // Smooth-movement post-pass — draw tweening ECS entities at fractional pixel positions
+  // Smooth-movement post-pass — draw tweening ECS entities at fractional pixel positions.
+  // Apply the angel float lift for any tweened entity tagged as angel
+  // body, so a tweening angel would still float above terrain. No
+  // current entity hits this branch (angels move tile-discrete) but
+  // the lift is captured here for forward compatibility.
   for (const t of tweenedEntities) {
     const { px, py } = worldToScreen(t.lerpX, t.lerpY, camera, charWidth, charHeight, viewportWidth, viewportHeight)
+    const isAngel = state.world.getComponent(t.eid, ComponentType.AngelData) !== undefined
+    const angelLift = isAngel ? -ANGEL_FLOAT_LIFT_PX : 0
     ctx.fillStyle = t.color
-    ctx.fillText(t.char, px, py + liftAt(Math.floor(t.lerpX), Math.floor(t.lerpY)))
+    ctx.fillText(t.char, px, py + liftAt(Math.floor(t.lerpX), Math.floor(t.lerpY)) + angelLift)
+  }
+
+  // Flush deferred entity glyphs collected during the central tile loop.
+  // Runs after all terrain glyphs and cube walls have been drawn so no
+  // neighboring tile can clip an entity. Highlights are deferred too so
+  // the inversion box stays paired with the entity's lifted Y position
+  // (e.g. an angel-group highlight tracks the floating angel body).
+  for (const e of deferredEntities) {
+    if (e.alpha !== 1) ctx.globalAlpha = e.alpha
+    if (e.highlight) {
+      drawCellHighlight(ctx, e.highlightPx, e.highlightPy, charWidth, charHeight, ACTION_COLOR)
+    }
+    ctx.fillStyle = e.color
+    ctx.fillText(e.char, e.glyphPx, e.glyphPy)
+    if (e.alpha !== 1) ctx.globalAlpha = 1
   }
 
   // effect slot: rain aura, revery rain, weather rain, glint sparkle,
   // glint beam, deep time burning. See src/engine/render/passes/.
-  // Note: the smooth-movement post-pass for tweening entities stays
-  // inline above — it's tangled with `suppressedEntities` which is read
-  // by the still-inline tile loop. It will move into the entity slot
-  // PR alongside the rest of the entity rendering.
   runPassesInSlot('effect', ctx, state, metrics, time)
 
   // Deep Time year counter moved to Sidebar.tsx

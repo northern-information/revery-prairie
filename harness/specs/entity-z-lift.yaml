@@ -1,0 +1,242 @@
+id: entity-z-lift
+name: Entities render above terrain elevation
+priority: high
+layer: engine
+source_files:
+  - src/engine/renderer.ts
+  - src/engine/tileBg.ts
+  - src/engine/__tests__/entityZLift.test.ts
+
+dependencies:
+  - isometric-projection
+
+behaviors:
+  - id: entities-not-clipped-by-elevation
+    description: >
+      Persistent map entities render after the central tile loop has
+      finished drawing terrain glyphs and elevation cube walls for every
+      visible tile. The tile loop builds a deferred draw list of entity
+      glyphs (player, remote players, characters, beehives, monarchs,
+      bees, meteorites, ground items, angel body pixels) instead of
+      calling `ctx.fillText` inline at the entity branch. The list is
+      flushed as a final post-pass before screen-overlay restoration, so
+      no neighboring high-elevation tile drawn later in the row-major
+      tile loop can paint cube walls or terrain glyphs over an entity
+      glyph. Entities continue to anchor at their tile's `pyLift` (so a
+      character standing on a tier-2 plateau still rises with the
+      plateau), and the deferred-draw pixel position is computed once at
+      enqueue time so post-flush iteration is a flat list walk.
+    inputs:
+      - one or more entities (player / remote players / characters / bees /
+        monarchs / meteorites / ground items / beehives / angel pixels) on
+        visible tiles
+      - terrain elevation tier grid with tier values up to
+        `ELEVATION_TIER_COUNT - 1`
+    outputs:
+      - every entity glyph is drawn at its tile's `pyLift` (ground-anchored
+        for non-angels) on top of all terrain rendered by the central tile
+        loop
+      - cube walls and lifted terrain glyphs from neighboring tiles never
+        overwrite entity glyphs
+    state_changes:
+      - field: deferred entity draw list (renderer-local, per-frame)
+        effect: populated during tile loop, flushed after tile loop completes
+    determinism: deterministic
+
+  - id: angels-float-above-max-elevation
+    description: >
+      Angel body pixels — the multi-glyph 9x9 footprint produced by
+      `getAngelRenderData` — receive a constant additional Y lift of
+      `(ELEVATION_TIER_COUNT - 1) * ELEVATION_TIER_LIFT_PX` pixels on
+      top of their tile's `pyLift`. This raises the entire angel body
+      above the tallest possible terrain cube on the map and visually
+      separates angels from grounded entities. The lift is constant
+      (not adaptive to local terrain) so every angel pixel in the body
+      shifts by the same amount and the silhouette stays internally
+      consistent. The constant is exported from `src/engine/tileBg.ts`
+      as `ANGEL_FLOAT_LIFT_PX` (or equivalent named constant) so it can
+      be referenced by tests.
+    inputs:
+      - one or more `AngelData` ECS entities in the active zone
+      - terrain elevation tier grid
+    outputs:
+      - every angel body pixel renders at `pyLift - ANGEL_FLOAT_LIFT_PX`
+        relative to its tile's ground position
+      - angel silhouette is internally rigid (all body pixels share the
+        same float offset)
+    state_changes: []
+    determinism: deterministic
+
+  - id: angel-aura-stays-grounded
+    description: >
+      The existing angel gold aura pass (`world-overlay` slot, drawn
+      before glyphs) continues to render on the terrain background at
+      tile `pyLift` without the angel float lift. The aura visually
+      reads as "this terrain is sanctified" — a ground-level halo
+      under the floating angel body — and must not visually detach
+      from the terrain when the angel sits over varied elevation.
+    inputs:
+      - one or more `AngelData` ECS entities in the active zone
+    outputs:
+      - aura cell backgrounds drawn at terrain-level `pyLift` only
+    state_changes: []
+    determinism: time-based
+
+  - id: angel-group-highlight-preserved
+    description: >
+      When the cursor, `facingEntityPos`, or `pendingInteractionTarget`
+      lands on any tile in an angel's body footprint, the entire angel
+      body renders with the cursor-inversion highlight (action-color
+      cell background, `BG_COLOR` foreground). The highlight applies
+      at the lifted Y position so the inversion box tracks the
+      floating angel, not the terrain underneath. Highlight precedence
+      relative to other entity highlights matches the previous inline
+      behavior (player-selected glow takes precedence; angel-group
+      highlight takes precedence over single-tile cursor inversion for
+      tiles inside the angel body).
+    inputs:
+      - cursor, facing entity, or pending interaction target on an angel
+        body tile
+    outputs:
+      - all 9x9 body pixels render with action-color background and
+        `BG_COLOR` foreground, lifted by `ANGEL_FLOAT_LIFT_PX`
+    state_changes: []
+    determinism: deterministic
+
+  - id: genesis-fade-applies-to-deferred-entities
+    description: >
+      The genesis-to-gameplay crossfade alpha (`transitionAlpha`)
+      continues to apply to entities not visible during genesis (ghosts,
+      bees, ground items, etc.). The deferred-draw list captures the
+      per-entity `applyEntityFade` flag at enqueue time, and the flush
+      pass sets `ctx.globalAlpha = transitionAlpha` only for tagged
+      entries. Genesis-visible entities (gron, coyote) keep full
+      opacity through the transition, matching the previous inline
+      behavior.
+    inputs:
+      - genesis-to-gameplay transition active
+      - mix of genesis-visible and post-genesis entities on screen
+    outputs:
+      - non-genesis entities render with `transitionAlpha` opacity
+      - genesis-visible entities (gron, coyote) render at full opacity
+    state_changes: []
+    determinism: time-based
+
+  - id: tweened-entities-also-lifted
+    description: >
+      The smooth-movement post-pass that draws ECS entities at
+      fractional positions (`tweenedEntities`) reads the same tile lift
+      via `liftAt(Math.floor(t.lerpX), Math.floor(t.lerpY))` and is
+      drawn after the central tile loop. Because it already runs after
+      the loop it is not affected by the row-major clipping bug — but
+      it must continue to apply the angel float lift when the tweened
+      entity is an angel pixel. Currently no angel pixel is in
+      `tweenedEntities`; this behavior is forward-compatible.
+    inputs:
+      - smooth-movement tweened entities (currently coyote, future angels)
+    outputs:
+      - tweened entity glyph drawn at `py + liftAt(...)` for non-angels
+      - if the tweened entity is part of an angel body, drawn at
+        `py + liftAt(...) - ANGEL_FLOAT_LIFT_PX`
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: entity-on-low-tile-next-to-high-tile
+    description: >
+      An entity sits on a tier-0 tile. The east neighbor is a tier-3
+      tile whose lifted glyph and west-facing cube wall would, under
+      the previous inline rendering order, paint over the entity's
+      east edge.
+    expected: >-
+      The entity glyph renders fully visible — the deferred-draw flush
+      runs after all terrain has been drawn, so no later cube wall or
+      lifted glyph can clip the entity.
+
+  - id: angel-body-spanning-elevation-change
+    description: >
+      A 9x9 angel body footprint spans tiles at multiple elevation
+      tiers (e.g. tier-0 and tier-2 plateau within the same body).
+    expected: >-
+      All 9x9 pixels render at a constant `-ANGEL_FLOAT_LIFT_PX` offset
+      relative to each tile's ground `pyLift`, so the silhouette stays
+      rigid; the body floats above the highest plateau under it.
+
+  - id: angel-aura-under-floating-body
+    description: >
+      An angel sits over a varied-elevation prairie. The gold aura
+      should pool around the terrain, while the body floats above.
+    expected: >-
+      Aura cell backgrounds are drawn at ground `pyLift`; angel body
+      pixels are drawn at `pyLift - ANGEL_FLOAT_LIFT_PX`. The two are
+      visibly separated.
+
+  - id: cursor-on-angel-body-pixel
+    description: >
+      The cursor or facing-entity position lands on an angel body
+      tile. The angel-group highlight should fire for every body
+      pixel.
+    expected: >-
+      All 9x9 body pixels draw with action-color background and
+      `BG_COLOR` foreground, all lifted by `ANGEL_FLOAT_LIFT_PX`.
+
+  - id: entity-on-cave-floor
+    description: >
+      A character stands on a cave floor tile (no elevation tier
+      walls in caves).
+    expected: >-
+      The deferred-draw flush still runs and draws the character at
+      its tile `pyLift`. Behavior is unchanged from the inline path
+      because no walls are drawn in caves.
+
+  - id: ground-items-and-meteorites
+    description: >
+      Ground items and meteorites sit on a tile next to elevation
+      changes.
+    expected: >-
+      Glyphs render fully visible after the deferred flush; path /
+      hover-path color overrides on meteorites continue to apply
+      because they are captured at enqueue time.
+
+failure_conditions:
+  - trigger: >-
+      An entity glyph is partially or fully clipped by a cube wall or
+      lifted glyph from a neighboring high-elevation tile rendered
+      later in the row-major tile loop.
+    expected: >-
+      Test asserts the deferred-draw flush draws the entity glyph
+      after all `drawCellWalls` calls and tile glyph draws for the
+      visible region, so the entity is fully on top.
+
+  - trigger: >-
+      The angel body is drawn at the same Y position as terrain
+      glyphs — i.e. no float lift is applied — and visually merges
+      into a tall plateau.
+    expected: >-
+      Test asserts angel body pixels are drawn at `pyLift -
+      ANGEL_FLOAT_LIFT_PX` (= `-(ELEVATION_TIER_COUNT - 1) *
+      ELEVATION_TIER_LIFT_PX` from ground) so the body always floats
+      above the tallest possible cube.
+
+  - trigger: >-
+      The angel gold aura is also lifted along with the body and
+      visually detaches from the ground.
+    expected: >-
+      Test asserts the gold aura pass continues to call
+      `drawCellBackground` at unmodified `py + liftAt(...)` (terrain
+      level), with no angel float lift applied.
+
+  - trigger: >-
+      A new entity type added to the renderer in the future is drawn
+      inline in the central tile loop at its `isEntity` branch
+      without going through the deferred draw list, reintroducing
+      the clipping bug for that entity type.
+    expected: >-
+      The renderer code documents the deferred-draw entry point as
+      the required pattern for new entity types; reviewers reject
+      direct `ctx.fillText` inside `isEntity` branches.
+
+verification:
+  test_file: src/engine/__tests__/entityZLift.test.ts
+  test_pattern: deferred entity draw|angel float lift|entity not clipped
+  command: npx vitest run src/engine/__tests__/entityZLift.test.ts
