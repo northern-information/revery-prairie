@@ -402,8 +402,7 @@ export const DISCOVERY_RADIUS = 2 // Chebyshev distance for player-proximity ful
 export const ENTRANCE_GLYPHS = ['Ω', 'Δ', 'Φ', 'Ψ', 'Σ', 'Λ', 'Θ', 'Π', 'Ξ', 'Γ'] as const
 
 /** Get the Greek letter for an entrance. Index 0 = cave, 1+ = ruin by ruinIndex. */
-export const getEntranceGlyph = (index: number): string =>
-  ENTRANCE_GLYPHS[index % ENTRANCE_GLYPHS.length]
+export const getEntranceGlyph = (index: number): string => ENTRANCE_GLYPHS[index % ENTRANCE_GLYPHS.length]
 
 // monarch butterfly
 export const MONARCH_CHAR = '*'
@@ -422,5 +421,5 @@ export const MONARCH_SETTLE_RADIUS = 3 // wander radius when settled
 export const INVENTORY_CELL_SIZE = 28
 
 export const RUIN_ENTRY_TOASTS: Record<RuinArchetype, string> = {
-  [RuinArchetype.DormantGarden]: 'a dormant garden stirs beneath the dust.',
+  [RuinArchetype.DormantGarden]: 'A dormant garden stirs beneath the dust.',
 }
