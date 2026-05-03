@@ -5,6 +5,8 @@ layer: engine
 source_files:
   - src/engine/camera.ts
   - src/engine/gameLoop.ts
+  - src/engine/movementTween.ts
+  - src/engine/renderer.ts
   - src/engine/render/passes/prairieOutline.ts
   - src/engine/render/passes/reveryRainOverlay.ts
   - src/engine/render/passes/glintingBeam.ts
@@ -14,6 +16,7 @@ source_files:
 dependencies:
   - player-movement
   - camera-viewport
+  - smooth-move
 
 behaviors:
   - id: follow-mode-centers-player
@@ -26,6 +29,10 @@ behaviors:
       tile to the canvas center. No deadzone is applied — every WASD step
       that produces a successful move recenters the camera on the player.
       This applies in all zones (overworld, cave, ruin) uniformly.
+      camera.x and camera.y snap to the integer target immediately (tile
+      indexing is not affected). The renderer reads state.cameraTween for
+      a sub-frame pixel correction that makes the scene visually glide
+      into the new position (see camera-tween-on-follow-move).
     inputs:
       - 'GameState with cameraMode = follow'
       - 'Player position'
@@ -36,7 +43,46 @@ behaviors:
         effect: 'set to player.x - floor((viewportWidth - rightInsetTiles) / 2); not clamped to map bounds — overscroll past map edges renders space tiles'
       - field: camera.y
         effect: 'set to player.y - floor(viewportHeight / 2); not clamped to map bounds — overscroll past map edges renders space tiles'
-    determinism: deterministic
+      - field: state.cameraTween
+        effect: 'set to { fromX: prevCamera.x, fromY: prevCamera.y, startTime: performance.now(), durationMs } when camera position changes; cleared when forceCenter is true; unchanged when camera position is the same as before'
+    determinism: time-based
+
+  - id: camera-tween-on-follow-move
+    description: >
+      When updateCamera sets a new integer camera position in follow mode,
+      it records the prior camera position in state.cameraTween (same
+      MovementTween shape as state.playerTween). The renderer reads this
+      tween each frame and computes a corrective canvas translate so the
+      scene visually glides from the old camera position to the new one
+      over the tween duration, rather than cutting. The tween duration
+      matches the player movement tween: MOVEMENT_TWEEN_DEFAULT_MS normally,
+      MOVEMENT_TWEEN_SPRINT_MS while sprinting.
+
+      The corrective pixel offset is derived from the fractional camera delta:
+        s = 1 - t  (where t = elapsed / durationMs, clamped 0..1)
+        dcx = camera.x - cameraTween.fromX
+        dcy = camera.y - cameraTween.fromY
+        tweenTx =  (dcx - dcy) * s * charWidth
+        tweenTy =  (dcx + dcy) * s * (charHeight / 2)
+      This is added to the existing worldTransform translate (shake + cameraSubpixel drift).
+      At t=0 the scene is visually held at the prior camera position; at t=1
+      the offset is zero and the scene renders normally at the integer position.
+
+      updateCamera skips writing the tween when forceCenter is true (zone swap,
+      resize, game start) and instead clears any existing cameraTween. Free mode
+      is unaffected — updateCamera returns early before this logic runs.
+    inputs:
+      - 'updateCamera called in follow mode with a changed camera position'
+      - 'state.sprinting (controls durationMs)'
+    outputs:
+      - 'state.cameraTween set to MovementTween recording the prior camera position'
+      - 'renderer applies corrective ctx.translate each frame until tween completes'
+    state_changes:
+      - field: state.cameraTween
+        effect: 'written with fromX/fromY = prior camera tile position, startTime = performance.now(), durationMs per sprint state'
+      - field: 'render output'
+        effect: 'camera pan between tiles is visually smooth; no discrete jump on each move step'
+    determinism: time-based
 
   - id: free-mode-skipped
     description: >
@@ -117,6 +163,18 @@ behaviors:
     determinism: deterministic
 
 edge_cases:
+  - id: camera-tween-zone-transition-cleared
+    description: 'Player crosses a zone boundary while a camera tween is in flight'
+    expected: 'clearMovementTweens nulls state.cameraTween; forceCenter call to updateCamera also clears it; no cross-zone tween residue'
+  - id: camera-tween-no-movement
+    description: 'updateCamera is called but the camera position does not change (player was already centered)'
+    expected: 'cameraTween is not written — fromX/fromY would equal camera.x/camera.y, producing a zero-delta tween that would be invisible but wasteful'
+  - id: camera-tween-free-mode
+    description: 'cameraMode is free when updateCamera would normally set the tween'
+    expected: 'updateCamera returns early in free mode — cameraTween is never set. Free mode uses cameraSubpixel for sub-tile motion independently.'
+  - id: camera-tween-sprint
+    description: 'Player is sprinting when a move commits'
+    expected: 'cameraTween.durationMs = MOVEMENT_TWEEN_SPRINT_MS (50ms); tween completes in half the normal time, matching the player glyph tween'
   - id: wasd-northeast-stays-centered
     description: 'Player walks northeast across the map with WASD in follow mode'
     expected: 'Camera centers on player every step; player remains at canvas center, never drifts off the right or top edge of the canvas'
@@ -146,5 +204,5 @@ failure_conditions:
 
 verification:
   test_file: src/engine/__tests__/camera.test.ts
-  test_pattern: 'iso|follow'
+  test_pattern: 'iso|follow|tween'
   command: 'npx vitest run src/engine/__tests__/camera.test.ts'

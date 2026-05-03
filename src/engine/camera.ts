@@ -1,3 +1,5 @@
+import { MOVEMENT_TWEEN_DEFAULT_MS, MOVEMENT_TWEEN_SPRINT_MS } from './constants'
+
 import type { GameState } from './types'
 
 export const updateCamera = (state: GameState, forceCenter = false): void => {
@@ -10,6 +12,11 @@ export const updateCamera = (state: GameState, forceCenter = false): void => {
   // The rightmost columns are hidden under the sidebar, so center the
   // player within only the visible portion of the viewport.
   const visibleWidth = state.viewportWidth - state.rightInsetTiles
+
+  // Record prior camera position before snapping, so the renderer can
+  // interpolate a smooth visual glide via state.cameraTween.
+  const prevCamX = state.camera.x
+  const prevCamY = state.camera.y
 
   // Always center the player at the canvas center. The renderer projects
   // tiles iso, so the orthogonal viewport rectangle becomes a parallelogram
@@ -28,5 +35,21 @@ export const updateCamera = (state: GameState, forceCenter = false): void => {
     state.camera.y = -Math.floor((state.viewportHeight - state.mapHeight) / 2)
   } else {
     state.camera.y = state.player.y - Math.floor(state.viewportHeight / 2)
+  }
+
+  // forceCenter (zone swap, resize, game start) — snap with no animation.
+  if (forceCenter) {
+    state.cameraTween = null
+    return
+  }
+
+  // Only write a tween when the camera actually moved.
+  if (state.camera.x === prevCamX && state.camera.y === prevCamY) return
+
+  state.cameraTween = {
+    fromX: prevCamX,
+    fromY: prevCamY,
+    startTime: performance.now(),
+    durationMs: state.sprinting ? MOVEMENT_TWEEN_SPRINT_MS : MOVEMENT_TWEEN_DEFAULT_MS,
   }
 }

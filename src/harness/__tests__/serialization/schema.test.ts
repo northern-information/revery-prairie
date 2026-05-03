@@ -74,6 +74,7 @@ const EXPECTED_FIELDS = [
   'sprinting',
   'trail',
   'playerTween',
+  'cameraTween',
   'musicEnabled',
   'fontScale',
   'rightInsetTiles',

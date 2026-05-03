@@ -108,6 +108,7 @@ export const createGameState = (
     sprinting: false,
     trail: [],
     playerTween: null,
+    cameraTween: null,
     cursorTile: null,
     cursorScreenPos: null,
     hoverPath: null,

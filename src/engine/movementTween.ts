@@ -4,6 +4,7 @@ import type { GameState, MovementTween } from './types'
 
 export const clearMovementTweens = (state: GameState): void => {
   state.playerTween = null
+  state.cameraTween = null
   for (const eid of state.world.query(ComponentType.MovementTween)) {
     state.world.removeComponent(eid, ComponentType.MovementTween)
   }

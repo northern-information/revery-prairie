@@ -1,0 +1,122 @@
+plan:
+  id: camera-tween
+  title: 'Smooth camera follow tween'
+  created: '2026-05-03'
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: state-fields
+    title: 'Add cameraTween field to GameState'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - camera-tween-on-follow-move
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: schema-allowlist
+    title: 'Add cameraTween to schema allowlist test'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - camera-tween-on-follow-move
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - state-fields
+    verification:
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: camera-write-tween
+    title: 'Write cameraTween in updateCamera (follow mode, non-forced)'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - follow-mode-centers-player
+      - camera-tween-on-follow-move
+    context_files:
+      - src/engine/camera.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/camera.ts
+    depends_on:
+      - state-fields
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: clear-tween-on-transition
+    title: 'Clear cameraTween in clearMovementTweens'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - camera-tween-zone-transition-cleared
+    context_files:
+      - src/engine/movementTween.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/movementTween.ts
+    depends_on:
+      - state-fields
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: renderer-apply-tween
+    title: 'Apply camera tween corrective translate in renderer'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - camera-tween-on-follow-move
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/movementTween.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - state-fields
+      - camera-write-tween
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: tests
+    title: 'Add camera tween tests'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - camera-tween-on-follow-move
+      - camera-tween-zone-transition-cleared
+      - camera-tween-no-movement
+      - camera-tween-free-mode
+      - camera-tween-sprint
+    context_files:
+      - src/engine/__tests__/camera.test.ts
+      - src/engine/camera.ts
+      - src/engine/movementTween.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/camera.test.ts
+    depends_on:
+      - camera-write-tween
+      - clear-tween-on-transition
+    verification:
+      - 'npx vitest run src/engine/__tests__/camera.test.ts'
+    repair: retry
+    tags: [test]

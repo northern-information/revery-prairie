@@ -284,7 +284,32 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     driftPy = (state.cameraSubpixel.x + state.cameraSubpixel.y) * (charHeight / 2)
   }
 
-  const worldTransformActive = shakeActive || driftPx !== 0 || driftPy !== 0
+  // Camera follow tween: when the integer camera snaps to a new tile in follow
+  // mode, a corrective translate is applied so the scene visually glides from
+  // the old camera position to the new one over the tween duration. The camera
+  // has already moved (tile indexing is unaffected); the translate counteracts
+  // the snap for the remaining fraction of the tween.
+  //   s  = 1 - t  (how much of the old offset remains)
+  //   dcx/dcy = how far the camera moved (in tiles)
+  //   tweenTx/Ty = iso pixel correction — same formula as cameraSubpixel drift
+  //                but applied positively (undoing the jump rather than advancing)
+  let tweenTx = 0
+  let tweenTy = 0
+  if (state.cameraTween) {
+    const halfH = charHeight / 2
+    const lerp = getTweenLerp(state.cameraTween, time, camera.x, camera.y)
+    if (lerp.t >= 1) {
+      state.cameraTween = null
+    } else {
+      const s = 1 - lerp.t
+      const dcx = camera.x - state.cameraTween.fromX
+      const dcy = camera.y - state.cameraTween.fromY
+      tweenTx = (dcx - dcy) * s * charWidth
+      tweenTy = (dcx + dcy) * s * halfH
+    }
+  }
+
+  const worldTransformActive = shakeActive || driftPx !== 0 || driftPy !== 0 || tweenTx !== 0 || tweenTy !== 0
   if (worldTransformActive) {
     let sx = 0
     let sy = 0
@@ -294,10 +319,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       sy = (Math.random() * 2 - 1) * amplitude
     }
     ctx.save()
-    // Translating by -drift makes the rendered scene shift the same way
-    // it would if camera had advanced fractionally, completing the visual
-    // illusion of continuous motion without breaking integer tile indexing.
-    ctx.translate(sx - driftPx, sy - driftPy)
+    // -drift advances the scene fractionally (free-pan sub-tile motion).
+    // +tweenTx/Ty counteracts the camera's tile snap, holding the scene at
+    // the prior visual position and letting it glide to the new one over the
+    // tween duration.
+    ctx.translate(sx - driftPx + tweenTx, sy - driftPy + tweenTy)
   }
 
   // Player tween: glyph draws at the projected fractional world position.

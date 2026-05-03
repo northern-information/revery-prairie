@@ -1,4 +1,5 @@
 import { updateCamera } from '../camera'
+import { clearMovementTweens } from '../movementTween'
 import { worldToScreen } from '../projection'
 import { createGameState } from '../state'
 import { Zone } from '../types'
@@ -188,5 +189,99 @@ describe('updateCamera', () => {
       expect(state.camera.x).toBe(85 - Math.floor(visibleWidth / 2))
       expect(state.camera.y).toBe(47 - Math.floor(state.viewportHeight / 2))
     })
+  })
+})
+
+describe('camera tween', () => {
+  it('writes a tween when the camera moves in follow mode', () => {
+    const state = createGameState('Test', 40, 40)
+    state.player.x = 80
+    state.player.y = 40
+    updateCamera(state) // initial center — no prior camera, tween may or may not write
+
+    const camXBefore = state.camera.x
+    const camYBefore = state.camera.y
+
+    state.player.x = 81
+    state.player.y = 40
+    updateCamera(state)
+
+    expect(state.camera.x).toBe(camXBefore + 1)
+    expect(state.cameraTween).not.toBeNull()
+    expect(state.cameraTween?.fromX).toBe(camXBefore)
+    expect(state.cameraTween?.fromY).toBe(camYBefore)
+    expect(state.cameraTween?.durationMs).toBeGreaterThan(0)
+  })
+
+  it('uses sprint duration when state.sprinting is true', () => {
+    const state = createGameState('Test', 40, 40)
+    state.player.x = 80
+    state.player.y = 40
+    updateCamera(state)
+
+    state.sprinting = true
+    state.player.x = 81
+    updateCamera(state)
+
+    expect(state.cameraTween?.durationMs).toBe(50)
+  })
+
+  it('uses normal duration when not sprinting', () => {
+    const state = createGameState('Test', 40, 40)
+    state.player.x = 80
+    state.player.y = 40
+    updateCamera(state)
+
+    state.sprinting = false
+    state.player.x = 81
+    updateCamera(state)
+
+    expect(state.cameraTween?.durationMs).toBe(100)
+  })
+
+  it('does not write a tween when the camera position is unchanged', () => {
+    const state = createGameState('Test', 40, 40)
+    state.player.x = 80
+    state.player.y = 40
+    updateCamera(state)
+    state.cameraTween = null
+
+    // Call again without moving the player — camera stays put
+    updateCamera(state)
+
+    expect(state.cameraTween).toBeNull()
+  })
+
+  it('clears the tween when forceCenter is true', () => {
+    const state = createGameState('Test', 40, 40)
+    state.player.x = 80
+    state.player.y = 40
+    updateCamera(state)
+
+    // Manufacture an in-flight tween
+    state.cameraTween = { fromX: 0, fromY: 0, startTime: performance.now(), durationMs: 100 }
+
+    updateCamera(state, true)
+
+    expect(state.cameraTween).toBeNull()
+  })
+
+  it('does not write a tween in free mode', () => {
+    const state = createGameState('Test', 40, 40)
+    state.cameraMode = 'free'
+    state.player.x = 80
+    state.player.y = 40
+    updateCamera(state)
+
+    expect(state.cameraTween).toBeNull()
+  })
+
+  it('clearMovementTweens nulls the camera tween', () => {
+    const state = createGameState('Test', 40, 40)
+    state.cameraTween = { fromX: 10, fromY: 10, startTime: performance.now(), durationMs: 100 }
+
+    clearMovementTweens(state)
+
+    expect(state.cameraTween).toBeNull()
   })
 })

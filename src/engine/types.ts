@@ -196,6 +196,7 @@ export interface GameState {
   sprinting: boolean
   trail: TrailPoint[]
   playerTween: MovementTween | null
+  cameraTween: MovementTween | null
   cursorTile: Position | null
   cursorScreenPos: { x: number; y: number } | null
   hoverPath: Position[] | null
