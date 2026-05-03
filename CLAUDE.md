@@ -4,7 +4,9 @@ browser-based prairie game. ASCII rendered on HTML canvas via React + TypeScript
 
 ## writing style
 
-- Use sentence case for all prose — PR titles and bodies, commit messages, comments, chat replies. Capitalize the first word and proper nouns only.
+- Sentence case for prose — PR titles and bodies, commit messages, comments, chat replies, in-game body text, descriptions, error messages. Capitalize the first word and proper nouns only.
+- Title Case for labels — button text, form labels, headings, link text, menu items, in-game entry names (manual entries, item names, character names, recipe names, keybinding action labels). Capitalize all major words; lowercase short articles, conjunctions, and prepositions ≤3 letters except as the first word.
+- Never all-lowercase for user-facing text. Sentence case or Title Case as appropriate, never `enter your name` or `connecting…`.
 - Wrap code, identifiers, file paths, and commands in backticks. Use triple-backtick code fences for multi-line snippets with a language tag.
 - Preserve original casing for identifiers (PascalCase, camelCase, SCREAMING_SNAKE_CASE) and product names (GitHub, React, Vite, Tailwind).
 - Exception: the existing body of this CLAUDE.md uses lowercase headings and prose. That's intentional for this repo — match it when editing this file.

@@ -45,7 +45,7 @@ describe('checkCombine', () => {
 
     expect(result.kind).toBe('recipe')
     if (result.kind === 'recipe') {
-      expect(result.recipe.resultName).toBe('prairie')
+      expect(result.recipe.resultName).toBe('Prairie')
     }
   })
 

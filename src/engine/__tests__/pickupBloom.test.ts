@@ -260,7 +260,7 @@ describe('craft bloom', () => {
     placeItem(state.backpack, 'clover', 1, 0)
     const bee = requireValue<ItemInstance>(state.backpack.items.find(i => i.definitionId === 'bee'))
     const clover = requireValue<ItemInstance>(state.backpack.items.find(i => i.definitionId === 'clover'))
-    const prairieRecipe = requireValue<Recipe>(RECIPES.find(r => r.resultName === 'prairie'))
+    const prairieRecipe = requireValue<Recipe>(RECIPES.find(r => r.resultName === 'Prairie'))
     return { state, bee, clover, prairieRecipe }
   }
 

@@ -33,7 +33,7 @@ export const RECIPES: Recipe[] = [
   {
     ingredients: ['bee', 'clover'],
     kind: RecipeKind.Macro,
-    resultName: 'prairie',
+    resultName: 'Prairie',
     preview: state => {
       const tiles: PreviewTile[] = []
       for (let dy = -1; dy <= 1; dy++) {

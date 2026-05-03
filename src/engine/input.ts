@@ -34,16 +34,16 @@ export interface KeyBinding {
 }
 
 export const KEYBINDINGS: KeyBinding[] = [
-  { key: 'wasd', action: 'move', context: 'single keys move diagonally; combine for cardinals' },
-  { key: 'e', action: 'interact', context: 'talk, pick up, open, break wall' },
-  { key: 'f', action: 'harvest', context: 'facing clover tile' },
-  { key: 'r', action: 'rotate / reveries', context: 'rotate hovered item in pack, otherwise toggle reveries screen' },
-  { key: 'x', action: 'drop item', context: 'pack open, hovering item' },
-  { key: '1-4', action: 'cast revery', context: 'hold to preview, release to cast at facing tile' },
-  { key: 'tab', action: 'toggle pack' },
-  { key: 'q', action: 'toggle manual' },
-  { key: 'c', action: 'toggle divination', context: 'overworld only, requires coins' },
-  { key: 'esc', action: 'close screen / open system' },
-  { key: 'shift', action: 'toggle sprint', context: 'double movement speed' },
-  { key: 'shift+click', action: 'queue waypoints' },
+  { key: 'wasd', action: 'Move', context: 'Single keys move diagonally; combine for cardinals' },
+  { key: 'e', action: 'Interact', context: 'Talk, pick up, open, break wall' },
+  { key: 'f', action: 'Harvest', context: 'Facing clover tile' },
+  { key: 'r', action: 'Rotate / Reveries', context: 'Rotate hovered item in pack, otherwise toggle reveries screen' },
+  { key: 'x', action: 'Drop Item', context: 'Pack open, hovering item' },
+  { key: '1-4', action: 'Cast Revery', context: 'Hold to preview, release to cast at facing tile' },
+  { key: 'tab', action: 'Toggle Pack' },
+  { key: 'q', action: 'Toggle Manual' },
+  { key: 'c', action: 'Toggle Divination', context: 'Overworld only, requires coins' },
+  { key: 'esc', action: 'Close Screen / Open System' },
+  { key: 'shift', action: 'Toggle Sprint', context: 'Double movement speed' },
+  { key: 'shift+click', action: 'Queue Waypoints' },
 ]

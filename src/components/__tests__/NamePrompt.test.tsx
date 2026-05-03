@@ -11,14 +11,14 @@ describe('NamePrompt', () => {
 
   it('renders the name input with label', () => {
     render(<NamePrompt onSubmit={vi.fn()} />)
-    expect(screen.getByLabelText('enter your steward name')).toBeInTheDocument()
+    expect(screen.getByLabelText('Enter Your Steward Name')).toBeInTheDocument()
   })
 
   it('calls onSubmit with trimmed name on form submit', async () => {
     const onSubmit = vi.fn()
     render(<NamePrompt onSubmit={onSubmit} />)
 
-    const input = screen.getByLabelText('enter your steward name')
+    const input = screen.getByLabelText('Enter Your Steward Name')
     await userEvent.type(input, '  Willow  {Enter}')
 
     expect(onSubmit).toHaveBeenCalledWith('Willow')
@@ -28,7 +28,7 @@ describe('NamePrompt', () => {
     const onSubmit = vi.fn()
     render(<NamePrompt onSubmit={onSubmit} />)
 
-    const input = screen.getByLabelText('enter your steward name')
+    const input = screen.getByLabelText('Enter Your Steward Name')
     await userEvent.type(input, '   {Enter}')
 
     expect(onSubmit).not.toHaveBeenCalled()
@@ -36,7 +36,7 @@ describe('NamePrompt', () => {
 
   it('autofocuses the input', () => {
     render(<NamePrompt onSubmit={vi.fn()} />)
-    const input = screen.getByLabelText('enter your steward name')
+    const input = screen.getByLabelText('Enter Your Steward Name')
     expect(input).toHaveFocus()
   })
 })

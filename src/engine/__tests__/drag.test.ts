@@ -24,7 +24,7 @@ const defined = <T>(value: T | undefined | null): T => {
   return value as T
 }
 
-const prairieRecipe = defined(RECIPES.find(r => r.resultName === 'prairie'))
+const prairieRecipe = defined(RECIPES.find(r => r.resultName === 'Prairie'))
 
 describe('computePlacementPreview', () => {
   it('returns valid placement on empty space', () => {
@@ -63,7 +63,7 @@ describe('computePlacementPreview', () => {
 
     expect(result.isValid).toBe(false)
     expect(result.combineTarget).not.toBeNull()
-    expect(result.combineTarget?.recipe.resultName).toBe('prairie')
+    expect(result.combineTarget?.recipe.resultName).toBe('Prairie')
     expect(result.cannotCombine).toBe(false)
   })
 

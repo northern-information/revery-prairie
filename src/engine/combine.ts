@@ -63,7 +63,7 @@ export const combineBeeAndClover = (state: GameState): boolean => {
   findAndRemoveItem(state, 'bee')
   findAndRemoveItem(state, 'clover')
 
-  const prairie = RECIPES.find(r => r.resultName === 'prairie')
+  const prairie = RECIPES.find(r => r.resultName === 'Prairie')
   if (!prairie) return false
   return prairie.execute(state)
 }

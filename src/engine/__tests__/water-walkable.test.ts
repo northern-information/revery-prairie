@@ -12,7 +12,7 @@ import { clearAroundPlayer, createTestState } from './helpers'
 import type { GameState } from '../types'
 
 const findPrairieRecipe = () => {
-  const recipe = RECIPES.find(r => r.resultName === 'prairie')
+  const recipe = RECIPES.find(r => r.resultName === 'Prairie')
   if (!recipe) throw new Error('prairie recipe not found')
   return recipe
 }
