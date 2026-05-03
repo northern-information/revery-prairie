@@ -22,7 +22,7 @@ behaviors:
     inputs:
       - 'Player standing on dirt (posKey may be in state.craters)'
       - 'Backpack contains at least one bee and one clover item'
-      - 'Combine action triggered (drag-and-drop or combineBeeAndClover)'
+      - 'Combine action triggered (drag-and-drop or combineFromBackpack test helper)'
     outputs:
       - '3x3 area around player converted to TileType.Clover'
       - 'Bee entity spawned at player position'

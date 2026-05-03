@@ -1,4 +1,4 @@
-import { combineBeeAndClover } from '../combine'
+import { combineFromBackpack } from '../combine'
 import { ComponentType } from '../ecs/types'
 import { dropItem, pickUpGroundItems, tickBees } from '../entities'
 import { containerHasItem, placeItem } from '../inventory'
@@ -27,7 +27,7 @@ describe('tickBees', () => {
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
     clearAroundPlayer(state, 1)
-    combineBeeAndClover(state)
+    combineFromBackpack(state, 'bee', 'clover')
 
     // Force movement to always trigger so we actually test clover preference
     vi.spyOn(Math, 'random').mockReturnValue(0.1)

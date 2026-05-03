@@ -27,25 +27,28 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: combine-bee-and-clover
+  - id: combine-from-backpack
     description: >
-      combineBeeAndClover(state) is a shortcut for the bee+clover
-      recipe. checks that both items exist in backpack. validates
-      the standing tile is walkable and not sand before consuming
-      items. removes one bee and one clover from backpack, then
-      executes the prairie recipe. returns false if any precondition
-      fails.
+      combineFromBackpack(state, defIdA, defIdB) is a generic helper
+      that runs whatever recipe matches the two given definition IDs.
+      looks up the recipe via findRecipe (order-independent). checks
+      that both items exist in backpack. validates the standing tile
+      is walkable and not sand before consuming items. removes one
+      instance of each ingredient from backpack, then executes the
+      matched recipe. returns false if any precondition fails (no
+      matching recipe, missing ingredients, invalid standing tile).
+      contains no recipe-specific logic — used primarily by tests as
+      a programmatic combine entry point. production combines flow
+      through drag.ts via checkCombine + recipe.execute.
     inputs:
-      - 'state with bee and clover in backpack, player on walkable non-sand tile'
+      - 'state, two ingredient definitionIds, player on walkable non-sand tile'
     outputs:
       - 'boolean: true if recipe executed'
     state_changes:
       - field: backpack
-        effect: 'bee and clover removed'
-      - field: map
-        effect: '3x3 area around player converted to clover'
-      - field: world
-        effect: 'bee ECS entity spawned at player position'
+        effect: 'one instance of each ingredient removed'
+      - field: '*'
+        effect: 'whatever the matched recipe.execute mutates'
     determinism: deterministic
 
 edge_cases:
@@ -53,11 +56,14 @@ edge_cases:
     description: 'dragged item placed in empty grid cells'
     expected: 'returns { kind: none }'
   - id: standing-on-sand
-    description: 'combineBeeAndClover called while player stands on sand'
+    description: 'combineFromBackpack called while player stands on sand'
     expected: 'returns false — sand is not a valid standing tile for recipe execution'
+  - id: unknown-recipe
+    description: 'combineFromBackpack called with two ingredient IDs that do not match any recipe'
+    expected: 'returns false; no items consumed'
 
 failure_conditions:
-  - trigger: 'combineBeeAndClover called without both items present'
+  - trigger: 'combineFromBackpack called without both items present'
     expected: 'returns false; no items consumed'
   - trigger: 'recipe execute fails after items removed'
     expected: 'items already consumed — this is guarded by validating standing tile before removal'

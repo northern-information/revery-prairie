@@ -1,0 +1,108 @@
+plan:
+  id: refactor-combine-helper
+  title: Replace combineBeeAndClover with generic combineFromBackpack
+  created: 2026-05-02
+  global_verification:
+    - npm run spec:validate
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/combine.test.ts
+    - npx vitest run src/engine/__tests__/entities.test.ts
+    - npx vitest run src/components/__tests__/Sidebar.test.tsx
+
+tasks:
+  - id: add-combine-from-backpack
+    title: Add generic combineFromBackpack helper
+    spec_id: item-combining
+    spec_sections:
+      - combine-from-backpack
+    context_files:
+      - src/engine/combine.ts
+      - src/engine/recipes.ts
+      - src/engine/inventory.ts
+    output_files:
+      - src/engine/combine.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: migrate-combine-tests
+    title: Migrate combine.test.ts to combineFromBackpack
+    spec_id: item-combining
+    spec_sections:
+      - combine-from-backpack
+    context_files:
+      - src/engine/__tests__/combine.test.ts
+    output_files:
+      - src/engine/__tests__/combine.test.ts
+    depends_on: [add-combine-from-backpack]
+    verification:
+      - npx vitest run src/engine/__tests__/combine.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: migrate-entities-test
+    title: Migrate entities.test.ts to combineFromBackpack
+    spec_id: item-combining
+    spec_sections:
+      - combine-from-backpack
+    context_files:
+      - src/engine/__tests__/entities.test.ts
+    output_files:
+      - src/engine/__tests__/entities.test.ts
+    depends_on: [add-combine-from-backpack]
+    verification:
+      - npx vitest run src/engine/__tests__/entities.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: migrate-sidebar-test
+    title: Migrate Sidebar.test.tsx to combineFromBackpack
+    spec_id: item-combining
+    spec_sections:
+      - combine-from-backpack
+    context_files:
+      - src/components/__tests__/Sidebar.test.tsx
+    output_files:
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on: [add-combine-from-backpack]
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags: [test]
+
+  - id: remove-combine-bee-and-clover
+    title: Delete combineBeeAndClover from combine.ts
+    spec_id: item-combining
+    spec_sections:
+      - combine-from-backpack
+    context_files:
+      - src/engine/combine.ts
+    output_files:
+      - src/engine/combine.ts
+    depends_on:
+      - migrate-combine-tests
+      - migrate-entities-test
+      - migrate-sidebar-test
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags: [engine]
+
+  - id: add-unknown-recipe-test
+    title: Add regression test for unknown ingredient pair
+    spec_id: item-combining
+    spec_sections:
+      - combine-from-backpack
+    context_files:
+      - src/engine/__tests__/combine.test.ts
+    output_files:
+      - src/engine/__tests__/combine.test.ts
+    depends_on: [migrate-combine-tests]
+    verification:
+      - npx vitest run src/engine/__tests__/combine.test.ts
+    repair: retry
+    tags: [test]

@@ -116,29 +116,32 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: combine-bee-and-clover
+  - id: combine-from-backpack
     description: >
-      combineBeeAndClover is a convenience function for auto-combining.
-      searches backpack for bee and clover items. validates standing
-      tile (rejects Sand, non-walkable). removes both items from
-      backpack and executes the prairie recipe.
+      combineFromBackpack(state, defIdA, defIdB) is a generic
+      auto-combine helper. resolves the recipe via findRecipe.
+      validates standing tile (rejects Sand, non-walkable). removes
+      one instance of each ingredient from backpack and executes the
+      matched recipe. contains no recipe-specific logic — the function
+      name and parameters do not refer to any single recipe.
     inputs:
-      - 'GameState with bee and clover items in backpack'
+      - 'GameState, two ingredient definitionIds matching a registered recipe'
     outputs:
       - 'boolean: true if combine succeeded'
     state_changes:
       - field: backpack
-        effect: 'bee and clover items removed'
-      - field: map
-        effect: '3x3 clover planted around player'
-      - field: world
-        effect: 'bee entity spawned'
+        effect: 'one instance of each ingredient removed'
+      - field: '*'
+        effect: 'whatever the matched recipe.execute mutates'
     determinism: deterministic
 
 edge_cases:
   - id: combine-on-sand
     description: 'player combines bee+clover while standing on sand tile'
     expected: 'recipe.execute returns false, no items consumed'
+  - id: unknown-pair
+    description: 'combineFromBackpack called with two ingredient IDs that have no registered recipe'
+    expected: 'returns false; no items consumed'
   - id: bidirectional-lookup
     description: 'findRecipe(bee, clover) and findRecipe(clover, bee) return same recipe'
     expected: 'same Recipe object returned regardless of argument order'
