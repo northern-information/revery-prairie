@@ -374,9 +374,11 @@ describe('genesis transition', () => {
 
     it('lifts the per-tile cube edge skirt by the same amount as the glyph', () => {
       const source = readGenesisRenderer()
-      // The edge-stroke pre-pass must use cellTopY = py + lift so the skirt
-      // hugs the lifted diamond, not the flat baseline.
-      expect(source).toMatch(/cellTopY\s*=\s*py\s*\+\s*lift/)
+      // The bg / skirt / wall passes must consume the precomputed lifted
+      // py from pyLiftedByIndex so all geometry references the same
+      // elevation-adjusted anchor as the glyph pass.
+      expect(source).toMatch(/pyLiftedByIndex\[idx\]/)
+      expect(source).toMatch(/pyLiftedByIndex\s*=\s*new\s+Float32Array/)
     })
 
     it('does not declare a separate genesis-only elevation tier formula', () => {

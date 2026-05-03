@@ -1,0 +1,59 @@
+plan:
+  id: genesis-bg-fixes
+  title: 'Genesis bg fixes: skip cosmic/dust, crossfade bg, cache renderTile'
+  created: '2026-05-02'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+    - npm run build
+
+tasks:
+  - id: cache-rendertile-per-frame
+    title: 'Build per-frame currentRendersByIndex cache; route bg/skirt/wall/glyph passes through it'
+    spec_id: genesis-transition
+    spec_sections:
+      - genesis-rendertile-cache
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, perf]
+
+  - id: skip-bg-for-cosmic-and-dust
+    title: 'Skip bg fill, skirt, walls for cosmicFormation and landAccretion'
+    spec_id: genesis-transition
+    spec_sections:
+      - genesis-surface-bg-fill
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+    depends_on:
+      - cache-rendertile-per-frame
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: crossfade-bg-color
+    title: 'Lerp surface bg between current and next epoch during the crossfade window'
+    spec_id: genesis-transition
+    spec_sections:
+      - genesis-bg-crossfade
+    context_files:
+      - src/engine/genesisRenderer.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+    depends_on:
+      - cache-rendertile-per-frame
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]

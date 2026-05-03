@@ -82,32 +82,41 @@ const toHexColor = (color: string): string => {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`
 }
 
-// Returns the surface bg color for a tile in the active epoch.
+// Epochs that should NOT paint any tile-bg diamond fill, skirt, or
+// cube walls — their visuals are stars / cosmic dust on the canvas
+// BG_COLOR, so a brown/lava/etc diamond would look like a floating
+// landmass in the void. Lift still applies for elevation but the
+// underlying canvas color shows through.
+const SKIP_BG_EPOCHS = new Set<GenesisEpochId>([
+  GenesisEpochId.CosmicFormation,
+  GenesisEpochId.LandAccretion,
+])
+
+// Returns the surface bg color for a tile in the given epoch, or null
+// when the epoch is in SKIP_BG_EPOCHS or the tile has no glyph color.
 //   PresentDay: match gameplay tileBgCache exactly (TILE_BG_PALETTES via
 //     getTileBgColor, with state.rivers/state.ponds-equivalent water
 //     overrides). This keeps the genesis-to-game handoff pixel-perfect.
 //   Other epochs: derive from the epoch's primary glyph color, darkened.
-//     This automatically gives lava tiles a red-orange bg, ice/glacial
-//     tiles an icy bg, fire-season burn scars a charcoal bg, etc — no
-//     per-epoch wiring required.
-const getEpochSurfaceBg = (
+//   `surfaceColor` is the precomputed first-render color for this tile in
+//   this epoch — the caller already has it from the renderTile cache, so
+//   we don't recompute renderTile here.
+const computeSurfaceBg = (
   sim: GenesisSimState,
-  epoch: GenesisEpoch,
+  epochId: GenesisEpochId,
   mx: number,
   my: number,
-  progress: number,
-  time: number,
   tileType: TileType,
-): string => {
-  const key = posKey(mx, my)
-  const h = tileHash(mx, my)
-  if (epoch.id === GenesisEpochId.PresentDay) {
+  surfaceColor: string | undefined,
+): string | null => {
+  if (SKIP_BG_EPOCHS.has(epochId)) return null
+  if (epochId === GenesisEpochId.PresentDay) {
+    const key = posKey(mx, my)
+    const h = tileHash(mx, my)
     return getWaterBgColor(sim, mx, my, key, h) ?? getTileBgColor(tileType, mx, my)
   }
-  const renders = epoch.renderTile(sim, mx, my, progress, time)
-  const surface = renders[0]?.color
-  if (!surface) return getTileBgColor(tileType, mx, my)
-  return darkenColor(toHexColor(surface), SURFACE_BG_DARKEN)
+  if (!surfaceColor) return getTileBgColor(tileType, mx, my)
+  return darkenColor(toHexColor(surfaceColor), SURFACE_BG_DARKEN)
 }
 
 // Max possible negative lift: tier 3 * ELEVATION_TIER_LIFT_PX.
@@ -330,18 +339,22 @@ export const renderGenesis = (
   const cullTop = -charHeight - MAX_LIFT_PX
   const cullBottom = canvasHeight + charHeight
 
-  // Crossfade pre-pass: build a buffer of next-epoch renders for every
-  // visible tile in one go, with `nextSnapshot` applied for the entire
-  // sweep. Without this, the inner loop swapped snapshots ~17 fields ×
-  // 2 directions per tile (~3.4M field writes per crossfade frame at
-  // zoom 0.5). The pre-pass restores the current snapshot at the end so
-  // the main draw loop reads the right per-epoch data.
+  // Per-frame caches. Each is indexed by viewport cell idx so the bg /
+  // skirt / wall / glyph passes can share a single renderTile call per
+  // tile per epoch. Without this, every tile paid 4+ renderTile calls
+  // per frame (bg, skirt, walls, glyph), which dominated the genesis
+  // frame budget. The cache also stores the precomputed surface bg so
+  // we don't repeat the per-tile darken/water-lookup work.
   const loopWidth = tileLoopEndX - tileLoopStartX
   const loopHeight = tileLoopEndY - tileLoopStartY
-  let nextRendersByIndex: (GenesisTileRender | null)[] | null = null
-  if (nextEpoch && nextSnapshot) {
-    applySnapshot(sim, nextSnapshot)
-    nextRendersByIndex = new Array<GenesisTileRender | null>(loopWidth * loopHeight)
+  const cellCount = loopWidth * loopHeight
+  const idxOf = (vx: number, vy: number): number =>
+    (vy - tileLoopStartY) * loopWidth + (vx - tileLoopStartX)
+
+  const currentRendersByIndex = new Array<GenesisTileRender[] | null>(cellCount)
+  const currentBgByIndex = new Array<string | null>(cellCount)
+  const visibleTileTypeByIndex = new Array<TileType | null>(cellCount)
+  {
     let i = 0
     for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
       for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
@@ -355,53 +368,134 @@ export const renderGenesis = (
           viewportHeight,
         )
         if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) {
-          nextRendersByIndex[idx] = null
+          currentRendersByIndex[idx] = null
+          currentBgByIndex[idx] = null
+          visibleTileTypeByIndex[idx] = null
           continue
         }
         const mx = cameraX + vx
         const my = cameraY + vy
-        const nr = nextEpoch.renderTile(sim, mx, my, blendT * CROSSFADE_PEEK, time)[0]
-        nextRendersByIndex[idx] = nr ?? null
+        const tile = sim.grid[my]?.[mx]
+        if (!tile || tile.type === TileType.Space) {
+          currentRendersByIndex[idx] = null
+          currentBgByIndex[idx] = null
+          visibleTileTypeByIndex[idx] = null
+          continue
+        }
+        const renders = epoch.renderTile(sim, mx, my, progress, time)
+        currentRendersByIndex[idx] = renders
+        currentBgByIndex[idx] = computeSurfaceBg(sim, epoch.id, mx, my, tile.type, renders[0]?.color)
+        visibleTileTypeByIndex[idx] = tile.type
+      }
+    }
+  }
+
+  // Crossfade pre-pass: build a buffer of next-epoch renders + bg for
+  // every visible tile in one go, with `nextSnapshot` applied for the
+  // entire sweep. Without this, the inner loop would swap snapshots ~17
+  // fields × 2 directions per tile (~3.4M field writes per crossfade
+  // frame at zoom 0.5). Restores the current snapshot at the end so the
+  // main draw passes read the right per-epoch data.
+  let nextRendersByIndex: (GenesisTileRender | null)[] | null = null
+  let nextBgByIndex: (string | null)[] | null = null
+  if (nextEpoch && nextSnapshot) {
+    applySnapshot(sim, nextSnapshot)
+    nextRendersByIndex = new Array<GenesisTileRender | null>(cellCount)
+    nextBgByIndex = new Array<string | null>(cellCount)
+    let i = 0
+    for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
+      for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
+        const idx = i++
+        const tileType = visibleTileTypeByIndex[idx]
+        if (tileType === null) {
+          nextRendersByIndex[idx] = null
+          nextBgByIndex[idx] = null
+          continue
+        }
+        const mx = cameraX + vx
+        const my = cameraY + vy
+        const nextRenders = nextEpoch.renderTile(sim, mx, my, blendT * CROSSFADE_PEEK, time)
+        const nr = nextRenders[0] ?? null
+        nextRendersByIndex[idx] = nr
+        nextBgByIndex[idx] = computeSurfaceBg(sim, nextEpoch.id, mx, my, tileType, nr?.color)
       }
     }
     applySnapshot(sim, sim.epochSnapshots[sim.epochIndex])
   }
 
-  // Tile-bg fill pre-pass: for every visible non-space tile, paint a
-  // diamond filled with TILE_BG_PALETTES[type] (via getTileBgColor).
-  // Iso painter order (sum-of-coords ascending) so later tiles overlap
-  // earlier neighbors cleanly at the seam. Each diamond is expanded by
-  // TILE_BG_OVERLAP=2 pixels in each direction to mask sub-pixel cracks
-  // between neighbors, matching paintTileBg in tileBgCache.
+  // Per-tile precompute: resolve effective bg (lerped during crossfade),
+  // viewportToScreen, lift, and the lifted (px, py) anchor for each
+  // visible tile. Stored in flat Float32Array / parallel arrays so the
+  // bg / skirt / wall / glyph passes don't repeat the work. When one
+  // side of the crossfade has no bg (cosmicFormation / landAccretion),
+  // lerp through BG_COLOR so the diamond fades in/out gradually instead
+  // of snapping at the epoch boundary.
+  const effectiveBgByIndex = new Array<string | null>(cellCount)
+  const pxByIndex = new Float32Array(cellCount)
+  const pyLiftedByIndex = new Float32Array(cellCount)
+  const halfW = charWidth / 2
+  const halfH = charHeight / 2
+  {
+    let i = 0
+    for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
+      for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
+        const idx = i++
+        if (currentRendersByIndex[idx] === null && (nextRendersByIndex?.[idx] ?? null) === null) {
+          effectiveBgByIndex[idx] = null
+          continue
+        }
+        const cur = currentBgByIndex[idx]
+        const nxt = nextBgByIndex?.[idx] ?? null
+        let bg: string | null
+        if (!nextBgByIndex) {
+          bg = cur
+        } else if (cur && nxt) {
+          bg = lerpColor(cur, nxt, blendT)
+        } else if (cur) {
+          bg = lerpColor(cur, BG_COLOR, blendT)
+        } else if (nxt) {
+          bg = lerpColor(BG_COLOR, nxt, blendT)
+        } else {
+          bg = null
+        }
+        effectiveBgByIndex[idx] = bg
+        const { px, py } = viewportToScreen(
+          vx,
+          vy,
+          charWidth,
+          charHeight,
+          viewportWidth,
+          viewportHeight,
+        )
+        pxByIndex[idx] = px
+        pyLiftedByIndex[idx] = py + liftAtSim(sim, cameraX + vx, cameraY + vy)
+      }
+    }
+  }
+
+  // Tile-bg fill pre-pass: paint each visible non-space tile's diamond
+  // with its (possibly lerped) bg color. Iso painter order
+  // (sum-of-coords ascending) so later tiles overlap earlier neighbors
+  // cleanly at the seam. Each diamond is expanded by TILE_BG_OVERLAP=2
+  // pixels in each direction to mask sub-pixel cracks, matching
+  // paintTileBg in tileBgCache.
   const TILE_BG_OVERLAP = 2
   for (let s = tileLoopStartX + tileLoopStartY; s <= tileLoopEndX + tileLoopEndY - 2; s++) {
     const vyMin = Math.max(tileLoopStartY, s - (tileLoopEndX - 1))
     const vyMax = Math.min(tileLoopEndY - 1, s - tileLoopStartX)
     for (let vy = vyMin; vy <= vyMax; vy++) {
       const vx = s - vy
-      const { px, py } = viewportToScreen(
-        vx,
-        vy,
-        charWidth,
-        charHeight,
-        viewportWidth,
-        viewportHeight,
-      )
-      if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) continue
-      const mx = cameraX + vx
-      const my = cameraY + vy
-      const tile = sim.grid[my]?.[mx]
-      if (!tile || tile.type === TileType.Space) continue
-      const lift = liftAtSim(sim, mx, my)
-      const halfW = charWidth / 2
-      const halfH = charHeight / 2
+      const idx = idxOf(vx, vy)
+      const bg = effectiveBgByIndex[idx]
+      if (!bg) continue
+      const px = pxByIndex[idx]
+      const topY = pyLiftedByIndex[idx]
       const leftX = px - halfW
       const rightX = leftX + 2 * charWidth
-      const topY = py + lift
       const bottomY = topY + charHeight
       const cx = leftX + charWidth
       const cy = topY + halfH
-      ctx.fillStyle = getEpochSurfaceBg(sim, epoch, mx, my, progress, time, tile.type)
+      ctx.fillStyle = bg
       ctx.beginPath()
       ctx.moveTo(cx, topY - TILE_BG_OVERLAP)
       ctx.lineTo(rightX + TILE_BG_OVERLAP, cy)
@@ -412,70 +506,34 @@ export const renderGenesis = (
     }
   }
 
-  // Per-tile cube edge skirt: south + east edge stroke darkened by
-  // WALL_RIGHT_SHADE so every plateau tile reads as a discrete block,
-  // matching paintTileEdge in tileBgCache. Drawn after bg fill so the
-  // skirt sits on top of the diamond, before walls so walls overlap
-  // the skirt at tier transitions.
+  // Combined skirt + wall pass: same row-major iteration paints both
+  // the per-tile cube edge skirt (south + east stroke) and the
+  // tier-transition cube walls. Combining halves the per-tile loop +
+  // viewportToScreen overhead vs running them as separate passes.
+  // Skirt darkens by WALL_RIGHT_SHADE; walls render only when this
+  // tile sits higher than its south or east neighbor.
+  ctx.lineWidth = 1
   for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
     for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
-      const { px, py } = viewportToScreen(
-        vx,
-        vy,
-        charWidth,
-        charHeight,
-        viewportWidth,
-        viewportHeight,
-      )
-      if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) continue
-      const mx = cameraX + vx
-      const my = cameraY + vy
-      const tile = sim.grid[my]?.[mx]
-      if (!tile || tile.type === TileType.Space) continue
-      const lift = liftAtSim(sim, mx, my)
-      const halfW = charWidth / 2
-      const halfH = charHeight / 2
-      const cellLeftX = px - halfW
-      const cellRightX = cellLeftX + 2 * charWidth
-      const cellTopY = py + lift
-      const cellBottomY = cellTopY + charHeight
-      const cellCx = cellLeftX + charWidth
-      const cellCy = cellTopY + halfH
-      const skirtBg = getEpochSurfaceBg(sim, epoch, mx, my, progress, time, tile.type)
-      ctx.strokeStyle = darkenColor(skirtBg, WALL_RIGHT_SHADE)
-      ctx.lineWidth = 1
+      const idx = idxOf(vx, vy)
+      const bg = effectiveBgByIndex[idx]
+      if (!bg) continue
+      const px = pxByIndex[idx]
+      const topY = pyLiftedByIndex[idx]
+      const leftX = px - halfW
+      const rightX = leftX + 2 * charWidth
+      const bottomY = topY + charHeight
+      const cx = leftX + charWidth
+      const cy = topY + halfH
+      ctx.strokeStyle = darkenColor(bg, WALL_RIGHT_SHADE)
       ctx.beginPath()
-      ctx.moveTo(cellLeftX, cellCy)
-      ctx.lineTo(cellCx, cellBottomY)
-      ctx.lineTo(cellRightX, cellCy)
+      ctx.moveTo(leftX, cy)
+      ctx.lineTo(cx, bottomY)
+      ctx.lineTo(rightX, cy)
       ctx.stroke()
-    }
-  }
 
-  // Cube wall pre-pass: for every visible tile whose tier exceeds its
-  // south or east neighbor's tier, draw the tier-transition cube wall
-  // beneath the tile. Painter order is iso (sum-of-coords) so later tiles
-  // overlap earlier neighbors cleanly. Walls render after the skirt so
-  // the wall correctly covers the skirt at the cliff edge. Mirrors the
-  // renderer.ts cube-wall pass.
-  for (let s = tileLoopStartX + tileLoopStartY; s <= tileLoopEndX + tileLoopEndY - 2; s++) {
-    const vyMin = Math.max(tileLoopStartY, s - (tileLoopEndX - 1))
-    const vyMax = Math.min(tileLoopEndY - 1, s - tileLoopStartX)
-    for (let vy = vyMin; vy <= vyMax; vy++) {
-      const vx = s - vy
-      const { px, py } = viewportToScreen(
-        vx,
-        vy,
-        charWidth,
-        charHeight,
-        viewportWidth,
-        viewportHeight,
-      )
-      if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) continue
       const mx = cameraX + vx
       const my = cameraY + vy
-      const tile = sim.grid[my]?.[mx]
-      if (!tile || tile.type === TileType.Space) continue
       const tier = tierAtSim(sim, mx, my)
       if (tier <= 0) continue
       const southTier = tierAtSim(sim, mx, my + 1)
@@ -483,40 +541,30 @@ export const renderGenesis = (
       const leftDepth = Math.max(0, tier - southTier) * ELEVATION_TIER_LIFT_PX
       const rightDepth = Math.max(0, tier - eastTier) * ELEVATION_TIER_LIFT_PX
       if (leftDepth <= 0 && rightDepth <= 0) continue
-      const wallBg = getEpochSurfaceBg(sim, epoch, mx, my, progress, time, tile.type)
       drawCellWalls(
         ctx,
         px,
-        py + getTierLift(tier),
+        topY,
         charWidth,
         charHeight,
         leftDepth,
         rightDepth,
-        darkenColor(wallBg, WALL_LEFT_SHADE),
-        darkenColor(wallBg, WALL_RIGHT_SHADE),
+        darkenColor(bg, WALL_LEFT_SHADE),
+        darkenColor(bg, WALL_RIGHT_SHADE),
       )
     }
   }
 
-  let cellIdx = 0
+  // Main glyph pass: read cached renders + precomputed lifted (px, py)
+  // — no fresh renderTile calls, no fresh viewportToScreen / liftAt
+  // computation per tile.
   for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
     for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
-      const idx = cellIdx++
-      const { px, py } = viewportToScreen(
-        vx,
-        vy,
-        charWidth,
-        charHeight,
-        viewportWidth,
-        viewportHeight,
-      )
-      if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) continue
-
-      const mx = cameraX + vx
-      const my = cameraY + vy
-      const lift = liftAtSim(sim, mx, my)
-      const lifted = py + lift
-      const renders = epoch.renderTile(sim, mx, my, progress, time)
+      const idx = idxOf(vx, vy)
+      const renders = currentRendersByIndex[idx]
+      if (!renders) continue
+      const px = pxByIndex[idx]
+      const lifted = pyLiftedByIndex[idx]
 
       if (nextRendersByIndex) {
         const curR = renders[0]
