@@ -143,11 +143,17 @@ export const getFloraSwayOffset = (
 
   const freq = (BASE_FREQ_MS + (windSpeed / MAX_WIND_SPEED) * WIND_FREQ_FACTOR) * freqVariance
 
-  // Two-frequency oscillation: primary + secondary at 1.7× gives an uneven,
-  // natural rhythm. Normalized so the combined value stays within [-1, 1].
-  const primary = Math.sin(time * freq + phase)
-  const secondary = Math.sin(time * freq * 1.7 + phase * 1.3)
-  const sway = (primary + secondary * 0.35) / 1.35
+  // Lean-plus-turbulence model: the glyph rests at a sustained lean in the
+  // wind direction (LEAN_FRACTION of max), with turbulence oscillating on top.
+  // This prevents the glyph from snapping back to the tile centre on each
+  // oscillation cycle — a symmetric [-1,+1] wave reads as a periodic "reset".
+  // turbulence ∈ [-(PRIMARY+SECONDARY), +(PRIMARY+SECONDARY)] ≈ [-0.47, +0.47]
+  // sway ∈ [LEAN - 0.47, LEAN + 0.47] clamped to [0, 1]
+  const LEAN_FRACTION = 0.6
+  const turbulence =
+    Math.sin(time * freq + phase) * 0.35 +
+    Math.sin(time * freq * 1.7 + phase * 1.3) * 0.12
+  const sway = Math.max(0, Math.min(1, LEAN_FRACTION + turbulence))
 
   const { sx, sy } = WIND_SCREEN_VECTORS[windDirection]
 
@@ -162,7 +168,9 @@ export const getFloraSwayOffset = (
   const dx = sx * sway * maxDx * swayFactor * diagonalScale
   const dy = sy * sway * maxDy * swayFactor * diagonalScale
 
-  const luminanceDelta = sway * LUMINANCE_RANGE * swayFactor
+  // Luminance tracks turbulence (not total sway) so brightness oscillates
+  // around the base color rather than staying locked at the lean offset.
+  const luminanceDelta = turbulence * LUMINANCE_RANGE * swayFactor
   const color = shiftLuminance(baseColor, luminanceDelta)
 
   return { dx, dy, color }
