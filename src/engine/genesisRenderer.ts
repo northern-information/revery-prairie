@@ -228,6 +228,7 @@ const captureLiveState = (sim: GenesisSimState): EpochSnapshot => ({
   ruins: sim.ruins,
   satelliteCrashes: sim.satelliteCrashes,
   craters: sim.craters,
+  tectonicAxes: sim.tectonicAxes,
 })
 
 /** Swap all mutable sim fields to match a snapshot. */
@@ -249,6 +250,7 @@ const applySnapshot = (sim: GenesisSimState, snapshot: EpochSnapshot): void => {
   sim.ruins = snapshot.ruins
   sim.satelliteCrashes = snapshot.satelliteCrashes
   sim.craters = snapshot.craters
+  sim.tectonicAxes = snapshot.tectonicAxes
 }
 
 /** Render one frame of the genesis simulation. */

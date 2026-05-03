@@ -42,8 +42,9 @@ import type {
   GenesisSatelliteCrash,
   GenesisSimState,
   GenesisTileRender,
+  TectonicAxis,
 } from './genesisTypes'
-import type { GameState, Tile } from './types'
+import type { GameState, Position, Tile } from './types'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -64,6 +65,189 @@ const lerp = (a: number, b: number, t: number): number => a + (b - a) * t
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(v, hi))
 
 const dist = (x1: number, y1: number, x2: number, y2: number): number => Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+// 2D value-noise lattice. Each lattice cell stores a random value; samples
+// are smoothstep-bilerped between corners. cellSize controls wavelength.
+const buildValueLattice = (
+  width: number,
+  height: number,
+  cellSize: number,
+  rng: () => number
+): { values: number[]; cols: number; rows: number; cellSize: number } => {
+  const cols = Math.ceil(width / cellSize) + 2
+  const rows = Math.ceil(height / cellSize) + 2
+  const values: number[] = []
+  const total = cols * rows
+  for (let i = 0; i < total; i++) values.push(rng() * 2 - 1)
+  return { values, cols, rows, cellSize }
+}
+
+const sampleLattice = (
+  lat: { values: number[]; cols: number; rows: number; cellSize: number },
+  x: number,
+  y: number
+): number => {
+  const fx = x / lat.cellSize
+  const fy = y / lat.cellSize
+  const ix = Math.floor(fx)
+  const iy = Math.floor(fy)
+  const tx = fx - ix
+  const ty = fy - iy
+  // Smoothstep
+  const sx = tx * tx * (3 - 2 * tx)
+  const sy = ty * ty * (3 - 2 * ty)
+  const cx = clamp(ix, 0, lat.cols - 2)
+  const cy = clamp(iy, 0, lat.rows - 2)
+  const v00 = lat.values[cy * lat.cols + cx]
+  const v10 = lat.values[cy * lat.cols + (cx + 1)]
+  const v01 = lat.values[(cy + 1) * lat.cols + cx]
+  const v11 = lat.values[(cy + 1) * lat.cols + (cx + 1)]
+  const a = lerp(v00, v10, sx)
+  const b = lerp(v01, v11, sx)
+  return lerp(a, b, sy)
+}
+
+// Three-octave fBm with domain warp. Returns [-1, 1] range.
+const fbmWarp2D = (
+  width: number,
+  height: number,
+  rng: () => number
+): ((x: number, y: number) => number) => {
+  const baseCell = 14
+  const lat0 = buildValueLattice(width, height, baseCell, rng)
+  const lat1 = buildValueLattice(width, height, baseCell / 2, rng)
+  const lat2 = buildValueLattice(width, height, baseCell / 4, rng)
+  // Independent warp lattices
+  const wx = buildValueLattice(width, height, baseCell, rng)
+  const wy = buildValueLattice(width, height, baseCell, rng)
+  const warpAmp = 6
+  return (x, y) => {
+    const ox = sampleLattice(wx, x, y) * warpAmp
+    const oy = sampleLattice(wy, x, y) * warpAmp
+    const wxC = x + ox
+    const wyC = y + oy
+    return sampleLattice(lat0, wxC, wyC) * 1.0 + sampleLattice(lat1, wxC, wyC) * 0.5 + sampleLattice(lat2, wxC, wyC) * 0.25
+  }
+}
+
+// Steepest-descent hydraulic erosion micropass.
+// For each land tile, find the lowest of 8 neighbors. If neighbor is lower,
+// transfer carve = clamp((self - neighbor) * carveMult, 0, maxCarve).
+// `depositFraction` of the carved material lowers self elevation while
+// raising the neighbor downstream (net incision); the remaining
+// (1 - depositFraction) is removed entirely (transported off-tile).
+// If `enrichSoil` is true, the downstream tile's soilHealth gains +1 per pass.
+const runHydraulicErosion = (
+  sim: GenesisSimState,
+  options: {
+    iterations: number
+    carveMult: number
+    maxCarve: number
+    depositFraction: number
+    enrichSoil: boolean
+    tileFilter?: (key: string) => boolean
+  }
+) => {
+  const { iterations, carveMult, maxCarve, depositFraction, enrichSoil, tileFilter } = options
+  const dirs: [number, number][] = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+    [1, 1],
+    [1, -1],
+    [-1, 1],
+    [-1, -1],
+  ]
+  for (let iter = 0; iter < iterations; iter++) {
+    const updates: [string, number][] = []
+    const enrichments: string[] = []
+    for (const key of sim.landMask) {
+      if (tileFilter && !tileFilter(key)) continue
+      const [xStr, yStr] = key.split(',')
+      const x = Number(xStr)
+      const y = Number(yStr)
+      const selfElev = sim.elevation.get(key) ?? 50
+      let bestKey: string | null = null
+      let bestElev = selfElev
+      for (const [dx, dy] of dirs) {
+        const nk = posKey(x + dx, y + dy)
+        if (!sim.landMask.has(nk)) continue
+        const nElev = sim.elevation.get(nk) ?? 50
+        if (nElev < bestElev) {
+          bestElev = nElev
+          bestKey = nk
+        }
+      }
+      if (bestKey === null) continue
+      const carve = clamp((selfElev - bestElev) * carveMult, 0, maxCarve)
+      if (carve <= 0) continue
+      updates.push([key, selfElev - carve])
+      updates.push([bestKey, bestElev + carve * depositFraction])
+      if (enrichSoil) enrichments.push(bestKey)
+    }
+    for (const [k, v] of updates) {
+      sim.elevation.set(k, clamp(v, 0, 100))
+    }
+    if (enrichSoil) {
+      for (const k of enrichments) {
+        sim.soilHealth.set(k, clamp((sim.soilHealth.get(k) ?? 30) + 1, 10, SOIL_HEALTH_MAX))
+      }
+    }
+  }
+}
+
+// Apply windward/leeward biome bias derived from sim.tectonicAxes.
+// Prevailing wind blows from +x. For each land tile, find the nearest
+// axis midpoint; project (tile - midpoint) onto the axis perpendicular.
+// Positive projection = windward (wetter); negative = leeward (drier).
+// Bias decays with distance from the axis (zero past 4 * axis.radius).
+const applyWindwardLeewardBias = (
+  sim: GenesisSimState,
+  soilWindward: number,
+  soilLeeward: number,
+  vegWindward: number,
+  vegLeeward: number
+) => {
+  if (sim.tectonicAxes.length === 0) return
+  for (const key of sim.landMask) {
+    const [xStr, yStr] = key.split(',')
+    const x = Number(xStr)
+    const y = Number(yStr)
+    let bestProj = 0
+    let bestDist = Infinity
+    let bestRadius = 0
+    let bestIntensity = 0
+    for (const axis of sim.tectonicAxes) {
+      // Midpoint of the polyline
+      const mid = axis.polyline[Math.floor(axis.polyline.length / 2)]
+      const d = Math.hypot(x - mid.x, y - mid.y)
+      if (d >= bestDist) continue
+      // Perpendicular vector to axis orientation
+      const perpX = -Math.sin(axis.orientationRadians)
+      const perpY = Math.cos(axis.orientationRadians)
+      // Wind direction: prevailing wind from +x means windward = side where (1, 0)·perp > 0
+      const proj = (x - mid.x) * perpX + (y - mid.y) * perpY
+      // Sign-align so windward is positive (when wind hits the windward face first)
+      const signed = perpX >= 0 ? proj : -proj
+      bestProj = signed
+      bestDist = d
+      bestRadius = axis.radius
+      bestIntensity = axis.intensity
+    }
+    const maxRange = bestRadius * 4
+    if (bestDist > maxRange) continue
+    const decay = 1 - bestDist / maxRange
+    const weight = decay * (bestIntensity / 22)
+    if (bestProj > 0) {
+      sim.soilHealth.set(key, clamp((sim.soilHealth.get(key) ?? 30) + soilWindward * weight, 10, SOIL_HEALTH_MAX))
+      sim.vegetationMap.set(key, Math.max(0, (sim.vegetationMap.get(key) ?? 0) + vegWindward * weight))
+    } else if (bestProj < 0) {
+      sim.soilHealth.set(key, clamp((sim.soilHealth.get(key) ?? 30) + soilLeeward * weight, 10, SOIL_HEALTH_MAX))
+      sim.vegetationMap.set(key, Math.max(0, (sim.vegetationMap.get(key) ?? 0) + vegLeeward * weight))
+    }
+  }
+}
 
 // Generate land mask using the same algorithm as terrain.ts, but with seeded RNG
 const generateLandMask = (
@@ -356,6 +540,168 @@ const landAccretion: GenesisEpoch = {
 }
 
 // ---------------------------------------------------------------------------
+// Epoch: Tectonic Uplift
+// ---------------------------------------------------------------------------
+
+const tectonicUplift: GenesisEpoch = {
+  id: GenesisEpochId.TectonicUplift,
+  durationMs: 2000,
+  commentary: 'Plates collide and ranges rise...',
+  mutate: sim => {
+    if (sim.landMask.size === 0) {
+      sim.tectonicAxes = []
+      return
+    }
+    const numAxes = 2 + Math.floor(sim.rng() * 2) // 2-3 axes
+    const axes: TectonicAxis[] = []
+    const landKeys = [...sim.landMask]
+
+    for (let a = 0; a < numAxes; a++) {
+      // Pick a random land tile as start; pick a primary direction.
+      const startKey = landKeys[Math.floor(sim.rng() * landKeys.length)]
+      const [sxStr, syStr] = startKey.split(',')
+      let cx = Number(sxStr)
+      let cy = Number(syStr)
+      const theta = sim.rng() * Math.PI * 2
+      const polyline: Position[] = [{ x: cx, y: cy }]
+      const targetLength = 24 + Math.floor(sim.rng() * 16) // 24-40
+      let placed = 1
+      let walks = 0
+      while (placed < targetLength && walks < targetLength * 4) {
+        walks++
+        // Wobble the step a bit so the ridge isn't ruler-straight
+        const wobble = (sim.rng() - 0.5) * 0.6
+        const stepX = Math.cos(theta + wobble)
+        const stepY = Math.sin(theta + wobble)
+        const nx = Math.round(cx + stepX)
+        const ny = Math.round(cy + stepY)
+        const nk = posKey(nx, ny)
+        if (sim.landMask.has(nk) && nk !== posKey(cx, cy)) {
+          cx = nx
+          cy = ny
+          polyline.push({ x: cx, y: cy })
+          placed++
+        } else {
+          // Try a perpendicular nudge to find a way back into landMask
+          const perpX = Math.round(cx - stepY)
+          const perpY = Math.round(cy + stepX)
+          if (sim.landMask.has(posKey(perpX, perpY))) {
+            cx = perpX
+            cy = perpY
+            polyline.push({ x: cx, y: cy })
+            placed++
+          } else {
+            break
+          }
+        }
+      }
+      if (polyline.length < 5) continue
+      const last = polyline[polyline.length - 1]
+      const first = polyline[0]
+      const orientation = Math.atan2(last.y - first.y, last.x - first.x)
+      axes.push({
+        polyline,
+        orientationRadians: orientation,
+        intensity: 18 + Math.floor(sim.rng() * 6), // peak +18..+23
+        radius: 6,
+      })
+    }
+    sim.tectonicAxes = axes
+
+    // Apply cosine-falloff uplift along each axis.
+    for (const axis of axes) {
+      const r = axis.radius
+      // Build a quick lookup of axis tiles for fast distance check
+      const axisSet = new Set<string>()
+      for (const p of axis.polyline) axisSet.add(posKey(p.x, p.y))
+      // For each axis tile, dilate within radius r and apply falloff
+      const visited = new Set<string>()
+      for (const p of axis.polyline) {
+        for (let dy = -r; dy <= r; dy++) {
+          for (let dx = -r; dx <= r; dx++) {
+            const tx = p.x + dx
+            const ty = p.y + dy
+            const tk = posKey(tx, ty)
+            if (!sim.landMask.has(tk)) continue
+            if (visited.has(tk)) continue
+            // Find min distance from (tx, ty) to any polyline point
+            let minD = Infinity
+            for (const q of axis.polyline) {
+              const d = Math.hypot(tx - q.x, ty - q.y)
+              if (d < minD) minD = d
+              if (minD === 0) break
+            }
+            if (minD > r) continue
+            visited.add(tk)
+            const falloff = Math.cos((minD / r) * (Math.PI / 2)) // 1 at center, 0 at edge
+            const lift = axis.intensity * falloff
+            const cur = sim.elevation.get(tk) ?? 50
+            sim.elevation.set(tk, clamp(cur + lift, 0, 100))
+          }
+        }
+      }
+    }
+
+    // Two passes of 3x3 mean diffusion over land tiles to smooth without flattening
+    for (let pass = 0; pass < 2; pass++) {
+      const next = new Map<string, number>()
+      for (const key of sim.landMask) {
+        const [xStr, yStr] = key.split(',')
+        const x = Number(xStr)
+        const y = Number(yStr)
+        let sum = 0
+        let count = 0
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nk = posKey(x + dx, y + dy)
+            if (!sim.landMask.has(nk)) continue
+            sum += sim.elevation.get(nk) ?? 50
+            count++
+          }
+        }
+        // Blend center with smoothed mean (75% smoothed, 25% original) to keep peaks
+        const smoothed = count > 0 ? sum / count : (sim.elevation.get(key) ?? 50)
+        const cur = sim.elevation.get(key) ?? 50
+        next.set(key, clamp(smoothed * 0.75 + cur * 0.25, 0, 100))
+      }
+      for (const [k, v] of next) sim.elevation.set(k, v)
+    }
+  },
+  renderTile: (sim, x, y, progress, time) => {
+    const key = posKey(x, y)
+    const h = tileHash(x, y)
+
+    const space = renderSpace(sim, key, h, time)
+    if (space) return space
+
+    // Is this tile within an axis radius? Light up uplift glyphs early in the epoch.
+    let onAxis = false
+    let axisDist = Infinity
+    for (const axis of sim.tectonicAxes) {
+      for (const p of axis.polyline) {
+        const d = Math.hypot(x - p.x, y - p.y)
+        if (d < axisDist) axisDist = d
+        if (axisDist <= axis.radius) {
+          onAxis = true
+        }
+      }
+      if (onAxis) break
+    }
+
+    if (onAxis && progress < 0.7) {
+      // Uplift pulse: caret/triangle glyphs in warm rocky tones
+      const upliftChars = ['^', 'A', '/', '\\', 'M']
+      const upliftColors = ['#8B7355', '#A0826D', '#6B5544', '#5C4D3D', '#9B8262']
+      const ci = (h + Math.floor(time * 0.004) + Math.floor(progress * 8)) % upliftChars.length
+      const cci = h % upliftColors.length
+      return [{ char: upliftChars[ci], color: upliftColors[cci], dx: 0, dy: 0 }]
+    }
+
+    return renderDirt(sim, key, h)
+  },
+}
+
+// ---------------------------------------------------------------------------
 // Epoch: Lava Era
 // ---------------------------------------------------------------------------
 
@@ -389,13 +735,10 @@ const lavaEra: GenesisEpoch = {
       }
     }
 
-    // Generate base elevation from three octave pairs of 1D noise
-    const eH1 = smoothNoiseSeeded(sim.width, 25, 30, sim.rng)
-    const eV1 = smoothNoiseSeeded(sim.height, 25, 30, sim.rng)
-    const eH2 = smoothNoiseSeeded(sim.width, 12, 14, sim.rng)
-    const eV2 = smoothNoiseSeeded(sim.height, 12, 14, sim.rng)
-    const eH3 = smoothNoiseSeeded(sim.width, 6, 7, sim.rng)
-    const eV3 = smoothNoiseSeeded(sim.height, 6, 7, sim.rng)
+    // Generate base elevation via 2D fBm value-noise + domain warping.
+    // Output range of fbmWarp2D is roughly [-1.75, 1.75]; scale to ~±28.
+    const sampleElev = fbmWarp2D(sim.width, sim.height, sim.rng)
+    const elevAmplitude = 28
 
     // Compute centroid of landMask for center bias
     let sumX = 0
@@ -416,8 +759,7 @@ const lavaEra: GenesisEpoch = {
       const x = Number(xStr)
       const y = Number(yStr)
 
-      // Sum three octave pairs
-      const noise = eH1[x] + eV1[y] + eH2[x] + eV2[y] + eH3[x] + eV3[y]
+      const noise = sampleElev(x, y) * elevAmplitude
 
       // Center bias: higher near centroid, lower near edges
       const dFromCenter = dist(x, y, centroidX, centroidY)
@@ -427,7 +769,10 @@ const lavaEra: GenesisEpoch = {
       const heat = sim.volcanicHeat.get(key) ?? 50
       const volcanicBonus = heat > 70 ? Math.floor(((heat - 70) / 30) * 15) : 0
 
-      sim.elevation.set(key, clamp(Math.round(50 + noise + centerBias + volcanicBonus), 0, 100))
+      // Floor inland elevation at 40 so the noise itself can't create
+      // cosmetic-water tiles. Real water bodies are produced later by
+      // hydraulic erosion + ponds + rivers via explicit tracked sets.
+      sim.elevation.set(key, clamp(Math.max(40, Math.round(50 + noise + centerBias + volcanicBonus)), 0, 100))
     }
   },
   renderTile: (sim, x, y, progress, time) => {
@@ -582,6 +927,18 @@ const firstWater: GenesisEpoch = {
         sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 20)
       }
     }
+
+    // Hydraulic erosion micropass: water finds the steepest path downhill,
+    // carving valleys and depositing sediment in the lowlands. Skip ancient
+    // seabeds (already at low elevation; further carving would dig holes).
+    runHydraulicErosion(sim, {
+      iterations: 7,
+      carveMult: 0.15,
+      maxCarve: 3,
+      depositFraction: 0.6,
+      enrichSoil: true,
+      tileFilter: key => !sim.ancientSeabeds.has(key),
+    })
   },
   renderTile: (sim, x, y, progress, time) => {
     const key = posKey(x, y)
@@ -642,6 +999,7 @@ const emergenceOfLife: GenesisEpoch = {
       sim.vegetationMap.set(key, baseVeg + Math.floor(sim.rng() * 30))
       sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 5)
     }
+    applyWindwardLeewardBias(sim, 5, -3, 10, -10)
   },
   renderTile: (sim, x, y, progress, time) => {
     const key = posKey(x, y)
@@ -1035,6 +1393,7 @@ const regrowth: GenesisEpoch = {
     for (const key of sim.burnScars) {
       sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 5)
     }
+    applyWindwardLeewardBias(sim, 3, -2, 0, 0)
   },
   renderTile: (sim, x, y, _progress, time) => {
     const key = posKey(x, y)
@@ -1274,6 +1633,31 @@ const postGlacialDieOff: GenesisEpoch = {
         sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 8)
       }
     }
+
+    // Glacial recession erosion: meltwater drains from the retreating ice
+    // sheet and carves U-shaped valleys. Operates on glacial tiles and their
+    // immediate neighbors. No soil enrichment — meltwater is sterile.
+    const recessionFilter = (key: string): boolean => {
+      if (sim.glacialPaths.has(key)) return true
+      const [xStr, yStr] = key.split(',')
+      const x = Number(xStr)
+      const y = Number(yStr)
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue
+          if (sim.glacialPaths.has(posKey(x + dx, y + dy))) return true
+        }
+      }
+      return false
+    }
+    runHydraulicErosion(sim, {
+      iterations: 5,
+      carveMult: 0.2,
+      maxCarve: 4,
+      depositFraction: 1.0,
+      enrichSoil: false,
+      tileFilter: recessionFilter,
+    })
   },
   renderTile: (sim, x, y, progress, time) => {
     const key = posKey(x, y)
@@ -1570,6 +1954,8 @@ const warmPeriod: GenesisEpoch = {
         }
       }
     }
+
+    applyWindwardLeewardBias(sim, 5, -3, 10, -10)
   },
   renderTile: (sim, x, y, progress, time) => {
     const key = posKey(x, y)
@@ -2770,6 +3156,7 @@ export const GENESIS_EPOCHS: GenesisEpoch[] = [
   landAccretion,
   lavaEra,
   crustCooling,
+  tectonicUplift,
   firstWater,
   emergenceOfLife,
   fireSeason,
@@ -2830,6 +3217,7 @@ export const createGenesisState = (width: number, height: number, seed: number):
     lightningBolts: [],
     satelliteCrashes: [],
     craters: new Set(),
+    tectonicAxes: [],
     riverPathsOrdered: [],
     meltPools: new Set(),
     ponds: new Set(),
@@ -3031,6 +3419,12 @@ export const precomputeGenesis = (sim: GenesisSimState, epochs: GenesisEpoch[]):
       ruins: [...sim.ruins],
       satelliteCrashes: [...sim.satelliteCrashes],
       craters: new Set(sim.craters),
+      tectonicAxes: sim.tectonicAxes.map(a => ({
+        polyline: a.polyline.map(p => ({ x: p.x, y: p.y })),
+        orientationRadians: a.orientationRadians,
+        intensity: a.intensity,
+        radius: a.radius,
+      })),
     })
   }
   sim.mutationsPrecomputed = true

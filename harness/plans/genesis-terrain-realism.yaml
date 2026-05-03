@@ -1,0 +1,202 @@
+plan:
+  id: genesis-terrain-realism
+  title: Replace separable noise with 2D fBm + domain warp, add TectonicUplift epoch, hydraulic erosion in FirstWater and post-glacial recession, and windward/leeward biome bias
+  created: 2026-05-02
+  global_verification:
+    - npm run typecheck
+    - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    - npm run build
+    - npm run lint
+
+tasks:
+  - id: types-tectonic-axes
+    title: Add TectonicUplift epoch id and tectonicAxes field to GenesisSimState and EpochSnapshot
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - tectonic-uplift-epoch
+      - tectonic-axis-snapshot
+    context_files:
+      - src/engine/genesisTypes.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesisTypes.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: noise-helpers
+    title: Add 2D value-noise + domain-warp helpers (fbmValueNoise2D, domainWarp2D)
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - two-dimensional-base-elevation
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/terrain.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - types-tectonic-axes
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: replace-separable-elevation
+    title: Replace eH[x]+eV[y] separable noise in LandAccretion with 2D fBm + domain warp
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - two-dimensional-base-elevation
+    context_files:
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - noise-helpers
+    verification:
+      - npm run typecheck
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: tectonic-uplift-epoch
+    title: Implement TectonicUplift epoch (random-walk axes + cosine-falloff uplift + diffusion)
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - tectonic-uplift-epoch
+      - tectonic-uplift-rendering
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - types-tectonic-axes
+      - replace-separable-elevation
+    verification:
+      - npm run typecheck
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: hydraulic-erosion-helper
+    title: Add reusable steepest-descent hydraulic-erosion helper
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - hydraulic-erosion-first-water
+      - hydraulic-erosion-glacial-recession
+    context_files:
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - types-tectonic-axes
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: erosion-first-water
+    title: Run hydraulic erosion (6-8 iterations) at end of FirstWater mutate
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - hydraulic-erosion-first-water
+    context_files:
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - hydraulic-erosion-helper
+      - tectonic-uplift-epoch
+    verification:
+      - npm run typecheck
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: erosion-glacial-recession
+    title: Run hydraulic erosion (4-6 iterations, glacial-zone-only) in PostGlacialDieOff mutate
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - hydraulic-erosion-glacial-recession
+    context_files:
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - hydraulic-erosion-helper
+    verification:
+      - npm run typecheck
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: biome-bias-windward-leeward
+    title: Apply windward/leeward soil + vegetation bias in EmergenceOfLife, Regrowth, WarmPeriod
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - windward-leeward-biome-bias
+    context_files:
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - tectonic-uplift-epoch
+    verification:
+      - npm run typecheck
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: manual-epoch-count-derive
+    title: Make manual genesis hint derive epoch count from GENESIS_EPOCHS.length
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - manual-epoch-count-update
+    context_files:
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - tectonic-uplift-epoch
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: tests-terrain-realism
+    title: Add tests for 2D noise (no axis-aligned ridges), tectonic axes, both erosion passes, and biome bias
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - two-dimensional-base-elevation
+      - tectonic-uplift-epoch
+      - hydraulic-erosion-first-water
+      - hydraulic-erosion-glacial-recession
+      - windward-leeward-biome-bias
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - replace-separable-elevation
+      - tectonic-uplift-epoch
+      - erosion-first-water
+      - erosion-glacial-recession
+      - biome-bias-windward-leeward
+    verification:
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - test

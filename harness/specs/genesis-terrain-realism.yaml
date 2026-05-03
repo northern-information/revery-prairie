@@ -1,0 +1,241 @@
+id: genesis-terrain-realism
+name: Genesis terrain realism — 2D noise, tectonic uplift, hydraulic erosion, biome bias
+priority: high
+layer: engine
+source_files:
+  - src/engine/genesis.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/manual.ts
+  - src/engine/__tests__/genesis.test.ts
+dependencies:
+  - genesis-enhancements
+  - genesis-gameplay-formalization
+
+behaviors:
+  - id: two-dimensional-base-elevation
+    description: >
+      LavaEra replaces the separable additive 1D noise pattern
+      (eH[x] + eV[y]) used to seed sim.elevation with a true 2D
+      value-noise field plus domain warping. A coarse 2D lattice
+      (cell size ~14 tiles, halving per octave) is sampled with
+      smoothstep bilinear interpolation. Sample coordinates are
+      perturbed by a second independent 2D noise field (warp
+      amplitude ~6 tiles) so contour lines curve organically rather
+      than running parallel to map axes. Three octaves are summed at
+      halving wavelengths and halving amplitudes (fractal Brownian
+      motion, peak amplitude ±28). Centroid bias and volcanic ridge
+      bonus from the existing implementation are preserved and
+      stacked on top of the new noise. A floor of 40 is applied to
+      every land tile so the noise itself can never produce
+      cosmetic-water tiles (real water bodies come from explicit
+      sim.ponds / sim.riverPaths). RNG remains seeded so determinism
+      is preserved.
+    inputs:
+      - LavaEra epoch mutate runs
+      - sim.rng seeded from steward name hash
+      - sim.landMask and sim.volcanicHeat populated earlier in LavaEra
+    outputs:
+      - sim.elevation populated with values in [40, 100] (inland) or [0, 100] (coastal)
+      - elevation contours have no axis-aligned ridges
+      - elevation distribution shows local high/low pockets rather than smooth gaussian
+    state_changes:
+      - field: sim.elevation
+        effect: populated by 2D fBm + domain-warp instead of separable 1D additive noise; inland tiles floored at 40
+    determinism: deterministic
+
+  - id: tectonic-uplift-epoch
+    description: >
+      A new GenesisEpoch with id TectonicUplift is inserted between
+      CrustCooling and FirstWater (geologically: plates uplift after
+      the crust solidifies but before water carves anything). Its
+      mutate seeds 2-3 tectonic ridge axes via seeded random walks
+      across the land mask. Each axis is a polyline of 24-40 tiles
+      with a primary orientation vector (theta in radians). Tiles
+      within a falloff radius (~6 tiles) of any axis receive an
+      elevation uplift (peak +18..+23 at axis center, cosine falloff
+      to 0 at radius edge). After uplift, two passes of a 3x3 mean
+      diffusion (75% smoothed / 25% original) smooth the result
+      without flattening peaks. Epoch durationMs = 2000 to match
+      the other epochs. Commentary describes plate collision.
+    inputs:
+      - TectonicUplift epoch mutate runs after CrustCooling
+      - sim.elevation populated by LavaEra
+      - sim.landMask populated by LavaEra
+      - sim.rng seeded
+    outputs:
+      - sim.tectonicAxes populated with 2-3 ridge axis records
+      - sim.elevation increased along axes
+      - elevation field shows directional mountain ranges and adjacent valleys/plains
+    state_changes:
+      - field: sim.tectonicAxes
+        effect: new field — array of { polyline Position[], orientationRadians number, intensity number, radius number }
+      - field: sim.elevation
+        effect: locally raised along each tectonic axis with cosine falloff, then mean-filtered twice
+      - field: GENESIS_EPOCHS
+        effect: TectonicUplift epoch inserted at index 4 (between CrustCooling and FirstWater)
+      - field: GenesisEpochId
+        effect: new TectonicUplift entry added
+    determinism: deterministic
+
+  - id: tectonic-uplift-rendering
+    description: >
+      TectonicUplift renderTile shows the uplift visually. Tiles along
+      tectonic axes flash with a brief uplift pulse (caret/up-triangle
+      glyphs in warm browns and grays) during the first half of epoch
+      progress, settling into static elevated terrain by the end.
+      Non-axis land tiles render as their post-LandAccretion appearance
+      (dirt with elevation tier shading). Space and coastline tiles
+      render via shared helpers as in other epochs.
+    inputs:
+      - TectonicUplift epoch is the active or crossfading epoch
+      - progress 0-1 within the epoch
+    outputs:
+      - axis tiles show uplift glyphs animated by progress
+      - non-axis land renders consistent with neighboring epochs
+    state_changes: []
+    determinism: time-based
+
+  - id: hydraulic-erosion-first-water
+    description: >
+      FirstWater epoch runs a hydraulic-erosion micropass after its
+      existing seabed/coastline mutations. The pass iterates 6-8 times.
+      Each iteration: for every land tile, find the lowest of the 8
+      neighbors; if neighbor elevation is lower, transfer carve_amount
+      = clamp((self - neighbor) * 0.15, 0, 3) from self elevation,
+      depositing 60% of carved material at the neighbor (lowering net
+      elevation along flow paths) and 40% as soil enrichment downstream
+      (sim.soilHealth at the neighbor +1). Tiles in sim.ancientSeabeds
+      are skipped for carving (they are already low). Determinism is
+      preserved — no RNG used. After the pass, elevation is clamped to
+      [0, 100].
+    inputs:
+      - FirstWater epoch mutate runs
+      - sim.elevation populated by LandAccretion + TectonicUplift
+    outputs:
+      - elevation along natural drainage paths visibly lowered (valleys)
+      - soil health enriched in downstream/lowland tiles
+      - peaks and ridges remain approximately untouched
+    state_changes:
+      - field: sim.elevation
+        effect: lowered along flow paths via 6-8 iterations of steepest-descent carve
+      - field: sim.soilHealth
+        effect: enriched (+1 per iteration) at downstream tiles
+    determinism: deterministic
+
+  - id: hydraulic-erosion-glacial-recession
+    description: >
+      PostGlacialDieOff runs a second hydraulic-erosion micropass after
+      its existing vegetation kill. The pass uses 4-6 iterations
+      (lighter than FirstWater since it operates on already-eroded
+      terrain). It runs only on tiles in sim.glacialPaths and their
+      immediate land neighbors — modeling glacial recession carving
+      U-shaped valleys as ice retreats and meltwater drains. Carve
+      logic mirrors hydraulic-erosion-first-water but with carve_amount
+      multiplier 0.20 (slightly more aggressive) and full deposition
+      at the downstream tile (no soil enrichment — meltwater is sterile).
+    inputs:
+      - PostGlacialDieOff epoch mutate runs
+      - sim.glacialPaths populated by IceAge
+      - sim.elevation already mutated by IceAge glacial carving
+    outputs:
+      - U-shaped recession valleys visible in former glacial zones
+      - elevation tiers in glacial neighborhoods show stepped drops toward valley centers
+    state_changes:
+      - field: sim.elevation
+        effect: lowered along recession flow paths via 4-6 iterations of steepest-descent carve
+    determinism: deterministic
+
+  - id: windward-leeward-biome-bias
+    description: >
+      Vegetation-bearing epochs (EmergenceOfLife, Regrowth, WarmPeriod)
+      apply a directional moisture bias derived from sim.tectonicAxes.
+      For each land tile, compute the dot product of (tile - nearest
+      axis midpoint) with the axis perpendicular vector. Positive dot
+      product = windward side (assumed prevailing wind from +x);
+      negative = leeward (rain shadow). Windward tiles receive +5 soil
+      health and +10 vegetation density; leeward tiles receive -3 soil
+      health (clamped to floor of 10) and -10 vegetation density
+      (clamped to 0). Bias magnitude scales with axis intensity and
+      decays with distance from axis (0 at radius * 4 tiles).
+    inputs:
+      - EmergenceOfLife / Regrowth / WarmPeriod epoch mutate runs
+      - sim.tectonicAxes populated by TectonicUplift
+    outputs:
+      - soil health distribution shows directional banding aligned with tectonic axes
+      - vegetation density visibly differs between sides of tectonic ridges
+    state_changes:
+      - field: sim.soilHealth
+        effect: biased +5 windward, -3 leeward (clamped to [10, SOIL_HEALTH_MAX]) per vegetation epoch
+      - field: sim.vegetationMap
+        effect: biased +10 windward, -10 leeward (clamped >= 0) per vegetation epoch
+    determinism: deterministic
+
+  - id: tectonic-axis-snapshot
+    description: >
+      sim.tectonicAxes is added to EpochSnapshot so that any later
+      epoch (post-snapshot reads) can reference axis data. The
+      snapshot field is read-only after capture; later epochs read
+      sim.tectonicAxes directly (it is never destructively mutated
+      after TectonicUplift writes it).
+    inputs:
+      - epoch snapshot captured at end of each epoch mutate
+    outputs:
+      - EpochSnapshot.tectonicAxes carries axis data forward
+    state_changes:
+      - field: EpochSnapshot.tectonicAxes
+        effect: new field added to the snapshot interface
+    determinism: deterministic
+
+  - id: manual-epoch-count-update
+    description: >
+      The manual genesis entry hint that hardcodes "14 geological
+      epochs" is updated to derive the count from GENESIS_EPOCHS.length
+      so adding/removing epochs auto-updates the manual answer text.
+      The fallback string in buildGenesisEntry uses the derived count.
+    inputs:
+      - buildGenesisEntry runs at manual entry construction time
+    outputs:
+      - manual hint says "${GENESIS_EPOCHS.length} geological epochs"
+        (15 after this change)
+    state_changes:
+      - field: manual hint text
+        effect: epoch count derived dynamically instead of hardcoded
+    determinism: deterministic
+
+edge_cases:
+  - id: degenerate-axis-on-tiny-map
+    description: tectonic uplift cannot place a 20-tile polyline on a small landMask
+    expected: gracefully reduces axis polyline length to fit landMask; minimum 5 tiles per axis
+  - id: erosion-on-uniformly-flat-terrain
+    description: hydraulic erosion encounters all-equal elevation
+    expected: zero-carve no-op iteration; elevation map unchanged
+  - id: tectonic-axes-empty
+    description: TectonicUplift produces zero axes (e.g. all candidates fall outside landMask)
+    expected: sim.tectonicAxes is an empty array; downstream biome-bias becomes a no-op (no NaN, no errors)
+  - id: erosion-iteration-budget
+    description: erosion iteration count must keep epoch mutate cost under the 2000ms budget on full-skip
+    expected: FirstWater mutate (incl. erosion) completes synchronously in <100ms on a 147x147 map in CI
+  - id: domain-warp-out-of-bounds
+    description: warped sample coordinates fall outside the noise lattice
+    expected: lattice samples are wrapped or clamped; no NaN in elevation output
+  - id: skip-genesis-runs-all-mutations
+    description: pressing any key to skip still runs TectonicUplift, both erosion passes, and bias passes
+    expected: final sim.elevation, sim.tectonicAxes, sim.soilHealth match a non-skipped run with the same seed
+  - id: determinism-across-runs
+    description: same steward name produces same elevation, tectonic axes, and soil health
+    expected: byte-equal sim.elevation Map and sim.tectonicAxes structure across two runs
+
+failure_conditions:
+  - trigger: TectonicUplift random walk attempts to leave landMask
+    expected: walk clips to landMask boundary; remaining axis points placed on a new starting cell
+  - trigger: hydraulic erosion produces negative elevation
+    expected: clamped to 0 at end of each iteration; no underflow propagates
+  - trigger: windward/leeward bias would push soilHealth below floor
+    expected: clamped to 10 (existing SOIL_HEALTH floor)
+  - trigger: tectonic axis placement collides with existing volcanic hotspots
+    expected: axis still placed; volcanic bonus adds to tectonic uplift (no precedence conflict)
+
+verification:
+  test_file: src/engine/__tests__/genesis.test.ts
+  test_pattern: terrain-realism|tectonic|erosion|windward
+  command: npx vitest run src/engine/__tests__/genesis.test.ts
