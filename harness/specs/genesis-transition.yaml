@@ -243,6 +243,81 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: genesis-surface-bg-fill
+    description: >
+      every visible non-space tile receives a diamond bg fill before the
+      cube edge skirt, cube walls, and glyph render on top. the bg color
+      is derived per epoch by getEpochSurfaceBg in genesisRenderer.ts:
+
+        - presentDay: existing tile.type lookup (TILE_BG_PALETTES via
+          getTileBgColor) with state.rivers/state.ponds-equivalent water
+          override (sim.riverPaths, sim.ponds, plus the elevation-based
+          lowland predicate matching renderLowlandWater). this keeps the
+          genesis-to-game handoff pixel-perfect against tileBgCache.
+        - other epochs: take the epoch's primary glyph color from
+          renderTile and darken by SURFACE_BG_DARKEN (0.45). gives lava
+          a red-orange surface, ice/glacial a pale-blue surface, fire a
+          burning surface, vegetation a green surface — no per-epoch
+          wiring required.
+
+      cosmicFormation and landAccretion are excluded entirely: their
+      visuals are stars / cosmic dust on the canvas BG_COLOR, with no
+      land surface yet, so a diamond fill would produce floating brown
+      patches in the void. for these two epochs the bg fill, cube edge
+      skirt, and cube wall pre-passes all skip every tile. lift still
+      applies for elevation but the underlying canvas BG_COLOR shows
+      through.
+    inputs:
+      - 'epoch.id and epoch.renderTile for the active epoch'
+      - 'sim.riverPaths, sim.ponds, sim.elevation, sim.landMask for water predicate (presentDay only)'
+    outputs:
+      - 'diamond bg fill painted under every visible non-space tile in every epoch except cosmicFormation and landAccretion'
+      - 'bg color matches the epoch theme: lava red-orange, ice pale-blue, fire burnt, vegetation green, water blue, dirt brown'
+      - 'cosmicFormation and landAccretion render glyphs only on BG_COLOR — no diamond fill, no skirt, no walls'
+    state_changes: []
+    determinism: deterministic
+
+  - id: genesis-bg-snaps-at-boundaries
+    description: >
+      the surface tile-bg color does NOT crossfade across epoch
+      boundaries — only the glyphs blend during the last 10% of an
+      epoch (see existing crossfade-progress behavior). bg snaps at the
+      moment epochIndex increments. an earlier iteration tried lerping
+      bg colors through BG_COLOR for cosmicFormation / landAccretion
+      transitions and through current → next bg for everything else,
+      but the result felt muddy: lava-red bleeding into ice-blue
+      through brown produced visually distracting intermediate frames
+      that the player read as "the renderer is broken" rather than "the
+      world is changing." Snapping the bg keeps each epoch's surface
+      visually distinct and avoids extra per-tile lerpColor work.
+    inputs:
+      - 'epoch.id changes when sim.epochIndex increments'
+    outputs:
+      - 'currentBgByIndex used directly for bg fill / skirt / walls — no lerp'
+      - 'next-epoch glyph crossfade still runs over the last 10% of each epoch'
+    state_changes: []
+    determinism: deterministic
+
+  - id: genesis-rendertile-cache
+    description: >
+      genesisRenderer.ts builds a per-frame cache of currentEpoch and
+      nextEpoch renderTile results — one entry per visible tile —
+      populated once before any pre-pass runs. the bg fill, cube edge
+      skirt, cube wall, and main glyph passes all read from this cache
+      instead of calling renderTile again. without the cache, each tile
+      paid four renderTile calls per frame (plus more during crossfade
+      via the next-epoch buffer), driving genesis frame time well past
+      budget. one call per tile per frame keeps draw work bounded by
+      visible-tile count, not pass count.
+    inputs:
+      - 'visible tile range (vyStart, vyEnd, vxStart, vxEnd) from getVisibleTileBounds'
+      - 'currentEpoch and (when crossfading) nextEpoch'
+    outputs:
+      - 'currentRendersByIndex and nextRendersByIndex populated once per frame'
+      - 'all subsequent passes consume the cache; no pass calls renderTile again'
+    state_changes: []
+    determinism: deterministic
+
   - id: genesis-elevation-matches-gameplay
     description: >
       the final genesis frame and the first gameplay frame produce
