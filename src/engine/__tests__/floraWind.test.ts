@@ -1,4 +1,4 @@
-import { getFloraSwayOffset } from '../render/floraWind'
+import { getFloraSwayOffset, resetFloraWindSmooth, tickFloraWind } from '../render/floraWind'
 import { CloverStage, WindDirection, Zone } from '../types'
 
 import type { CloverLifecycleState, Weather } from '../types'
@@ -26,13 +26,25 @@ const CHAR_H = 12
 const BASE_COLOR = '#3a8c3a'
 const TIME = 1000
 
+// Seed the smooth state from a weather snapshot at a given time, then advance
+// to the test time so smoothSpeed/smoothSx/smoothSy are fully settled.
+const seedWind = (weather: Weather, seedTime = 0): void => {
+  resetFloraWindSmooth()
+  tickFloraWind(weather, seedTime)
+}
+
 // ─── flora wind tests ─────────────────────────────────────────────────────────
 
 describe('flora wind', () => {
+  beforeEach(() => {
+    resetFloraWindSmooth()
+  })
+
   describe('zone suppression', () => {
     it('returns zero offsets and original color in Cave zone', () => {
+      seedWind(makeWeather())
       const result = getFloraSwayOffset(
-        5, 5, TIME, makeWeather(), Zone.Cave, undefined, CHAR_W, CHAR_H, BASE_COLOR,
+        5, 5, TIME, Zone.Cave, undefined, CHAR_W, CHAR_H, BASE_COLOR,
       )
       expect(result.dx).toBe(0)
       expect(result.dy).toBe(0)
@@ -40,8 +52,9 @@ describe('flora wind', () => {
     })
 
     it('returns zero offsets and original color in Ruin zone', () => {
+      seedWind(makeWeather())
       const result = getFloraSwayOffset(
-        5, 5, TIME, makeWeather(), Zone.Ruin, undefined, CHAR_W, CHAR_H, BASE_COLOR,
+        5, 5, TIME, Zone.Ruin, undefined, CHAR_W, CHAR_H, BASE_COLOR,
       )
       expect(result.dx).toBe(0)
       expect(result.dy).toBe(0)
@@ -51,57 +64,60 @@ describe('flora wind', () => {
 
   describe('lifecycle damping', () => {
     it('applies full sway for Healthy stage', () => {
+      seedWind(makeWeather())
       const result = getFloraSwayOffset(
-        5, 5, TIME, makeWeather(), Zone.Overworld, lifecycle(CloverStage.Healthy), CHAR_W, CHAR_H, BASE_COLOR,
+        5, 5, TIME, Zone.Overworld, lifecycle(CloverStage.Healthy), CHAR_W, CHAR_H, BASE_COLOR,
       )
-      // non-zero time should produce non-zero offsets for a non-trivial phase
-      // use a position where tileHash gives a non-zero sin result at TIME=1000
       expect(typeof result.dx).toBe('number')
       expect(typeof result.dy).toBe('number')
     })
 
     it('returns zero offsets for Black stage', () => {
+      seedWind(makeWeather())
       const result = getFloraSwayOffset(
-        5, 5, TIME, makeWeather(), Zone.Overworld, lifecycle(CloverStage.Black), CHAR_W, CHAR_H, BASE_COLOR,
+        5, 5, TIME, Zone.Overworld, lifecycle(CloverStage.Black), CHAR_W, CHAR_H, BASE_COLOR,
       )
       expect(result.dx).toBe(0)
       expect(result.dy).toBe(0)
     })
 
     it('returns zero offsets for Decomposing stage', () => {
+      seedWind(makeWeather())
       const result = getFloraSwayOffset(
-        5, 5, TIME, makeWeather(), Zone.Overworld, lifecycle(CloverStage.Decomposing), CHAR_W, CHAR_H, BASE_COLOR,
+        5, 5, TIME, Zone.Overworld, lifecycle(CloverStage.Decomposing), CHAR_W, CHAR_H, BASE_COLOR,
       )
       expect(result.dx).toBe(0)
       expect(result.dy).toBe(0)
     })
 
     it('returns zero offsets for BurntRecovering stage', () => {
+      seedWind(makeWeather())
       const result = getFloraSwayOffset(
-        5, 5, TIME, makeWeather(), Zone.Overworld, lifecycle(CloverStage.BurntRecovering), CHAR_W, CHAR_H, BASE_COLOR,
+        5, 5, TIME, Zone.Overworld, lifecycle(CloverStage.BurntRecovering), CHAR_W, CHAR_H, BASE_COLOR,
       )
       expect(result.dx).toBe(0)
       expect(result.dy).toBe(0)
     })
 
     it('treats missing lifecycle entry as Healthy (non-zero sway possible)', () => {
-      // Any two tiles at the same position with/without lifecycle should behave the same
+      seedWind(makeWeather())
       const withLifecycle = getFloraSwayOffset(
-        7, 3, TIME, makeWeather(), Zone.Overworld, lifecycle(CloverStage.Healthy), CHAR_W, CHAR_H, BASE_COLOR,
+        7, 3, TIME, Zone.Overworld, lifecycle(CloverStage.Healthy), CHAR_W, CHAR_H, BASE_COLOR,
       )
       const withoutLifecycle = getFloraSwayOffset(
-        7, 3, TIME, makeWeather(), Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR,
+        7, 3, TIME, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR,
       )
       expect(withLifecycle.dx).toBeCloseTo(withoutLifecycle.dx)
       expect(withLifecycle.dy).toBeCloseTo(withoutLifecycle.dy)
     })
 
     it('Brown stage produces smaller amplitude than Healthy at the same position and time', () => {
+      seedWind(makeWeather())
       const healthy = getFloraSwayOffset(
-        10, 10, TIME, makeWeather(), Zone.Overworld, lifecycle(CloverStage.Healthy), CHAR_W, CHAR_H, BASE_COLOR,
+        10, 10, TIME, Zone.Overworld, lifecycle(CloverStage.Healthy), CHAR_W, CHAR_H, BASE_COLOR,
       )
       const brown = getFloraSwayOffset(
-        10, 10, TIME, makeWeather(), Zone.Overworld, lifecycle(CloverStage.Brown), CHAR_W, CHAR_H, BASE_COLOR,
+        10, 10, TIME, Zone.Overworld, lifecycle(CloverStage.Brown), CHAR_W, CHAR_H, BASE_COLOR,
       )
       expect(Math.abs(brown.dx)).toBeLessThanOrEqual(Math.abs(healthy.dx) + 0.001)
       expect(Math.abs(brown.dy)).toBeLessThanOrEqual(Math.abs(healthy.dy) + 0.001)
@@ -110,28 +126,28 @@ describe('flora wind', () => {
 
   describe('wind speed', () => {
     it('returns zero offsets when windSpeed is 0', () => {
+      seedWind(makeWeather({ windSpeed: 0 }))
       const result = getFloraSwayOffset(
-        5, 5, TIME, makeWeather({ windSpeed: 0 }), Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR,
+        5, 5, TIME, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR,
       )
       expect(result.dx).toBe(0)
       expect(result.dy).toBe(0)
     })
 
     it('max wind amplitude stays within bounds', () => {
-      // Sweep all 8 wind directions at max speed to verify bounds
       const directions = Object.values(WindDirection)
       const maxDxBound = CHAR_W * 0.15
       const maxDyBound = CHAR_H * 0.35
 
-      // Sample multiple time points and positions
       const times = [0, 500, 1000, 2000, 5000]
       const positions: [number, number][] = [[5, 5], [12, 8], [30, 20], [1, 1]]
 
       for (const dir of directions) {
+        seedWind(makeWeather({ windSpeed: 25, windDirection: dir }))
         for (const t of times) {
           for (const [mx, my] of positions) {
             const result = getFloraSwayOffset(
-              mx, my, t, makeWeather({ windSpeed: 25, windDirection: dir }), Zone.Overworld,
+              mx, my, t, Zone.Overworld,
               undefined, CHAR_W, CHAR_H, BASE_COLOR,
             )
             expect(Math.abs(result.dx)).toBeLessThanOrEqual(maxDxBound + 0.001)
@@ -144,18 +160,17 @@ describe('flora wind', () => {
 
   describe('per-tile phase offset', () => {
     it('different tile positions produce different offsets at the same time', () => {
-      const weather = makeWeather({ windSpeed: 25 })
-      const a = getFloraSwayOffset(3, 7, TIME, weather, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR)
-      const b = getFloraSwayOffset(8, 2, TIME, weather, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR)
-      // At least one axis should differ — two random positions should not phase-lock
+      seedWind(makeWeather({ windSpeed: 25 }))
+      const a = getFloraSwayOffset(3, 7, TIME, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR)
+      const b = getFloraSwayOffset(8, 2, TIME, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR)
       const sameOffset = Math.abs(a.dx - b.dx) < 0.001 && Math.abs(a.dy - b.dy) < 0.001
       expect(sameOffset).toBe(false)
     })
 
     it('same tile position at the same time produces identical offsets (deterministic)', () => {
-      const weather = makeWeather()
-      const a = getFloraSwayOffset(5, 5, TIME, weather, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR)
-      const b = getFloraSwayOffset(5, 5, TIME, weather, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR)
+      seedWind(makeWeather())
+      const a = getFloraSwayOffset(5, 5, TIME, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR)
+      const b = getFloraSwayOffset(5, 5, TIME, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR)
       expect(a.dx).toBe(b.dx)
       expect(a.dy).toBe(b.dy)
     })
@@ -163,11 +178,9 @@ describe('flora wind', () => {
 
   describe('zoom-proportional amplitude', () => {
     it('larger tile size produces larger pixel offsets', () => {
-      const weather = makeWeather({ windSpeed: 25 })
-      const small = getFloraSwayOffset(5, 5, TIME, weather, Zone.Overworld, undefined, 10, 6, BASE_COLOR)
-      const large = getFloraSwayOffset(5, 5, TIME, weather, Zone.Overworld, undefined, 40, 24, BASE_COLOR)
-      // Amplitude should scale proportionally — large has 4× charWidth, so 4× dx
-      // (if non-zero). Use absolute magnitudes to avoid sign issues.
+      seedWind(makeWeather({ windSpeed: 25 }))
+      const small = getFloraSwayOffset(5, 5, TIME, Zone.Overworld, undefined, 10, 6, BASE_COLOR)
+      const large = getFloraSwayOffset(5, 5, TIME, Zone.Overworld, undefined, 40, 24, BASE_COLOR)
       if (Math.abs(small.dx) > 0.001) {
         expect(Math.abs(large.dx)).toBeGreaterThan(Math.abs(small.dx))
       }
@@ -179,13 +192,11 @@ describe('flora wind', () => {
 
   describe('luminance shift', () => {
     it('returns a modified color string for non-zero sway', () => {
-      // Find a position/time with non-zero sway (windSpeed > 0, Healthy)
-      const weather = makeWeather({ windSpeed: 25 })
-      // Try multiple positions until one gives a non-trivial sway value
+      seedWind(makeWeather({ windSpeed: 25 }))
       let gotModifiedColor = false
       for (let mx = 0; mx < 20; mx++) {
         const result = getFloraSwayOffset(
-          mx, 5, TIME, weather, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR,
+          mx, 5, TIME, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR,
         )
         if (result.color !== BASE_COLOR) {
           gotModifiedColor = true
@@ -197,10 +208,36 @@ describe('flora wind', () => {
     })
 
     it('returns original color when sway factor is 0', () => {
+      seedWind(makeWeather())
       const result = getFloraSwayOffset(
-        5, 5, TIME, makeWeather(), Zone.Overworld, lifecycle(CloverStage.Black), CHAR_W, CHAR_H, BASE_COLOR,
+        5, 5, TIME, Zone.Overworld, lifecycle(CloverStage.Black), CHAR_W, CHAR_H, BASE_COLOR,
       )
       expect(result.color).toBe(BASE_COLOR)
+    })
+  })
+
+  describe('wind smoothing', () => {
+    it('does not snap on direction change — smooth state interpolates gradually', () => {
+      // Start with W wind fully settled
+      seedWind(makeWeather({ windSpeed: 15, windDirection: WindDirection.W }))
+      const before = getFloraSwayOffset(5, 5, TIME, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR)
+
+      // Switch to E wind (opposite direction) — one frame tick, dt = 16ms
+      tickFloraWind(makeWeather({ windSpeed: 15, windDirection: WindDirection.E }), 16)
+      const after = getFloraSwayOffset(5, 5, TIME, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR)
+
+      // The offset should have moved slightly toward the new direction but not flipped sign yet.
+      // Both dx values should have the same sign as the before offset (W→E flip is slow).
+      // We just verify the delta between before and after is small relative to the full range.
+      const maxDx = CHAR_W * 0.15
+      expect(Math.abs(after.dx - before.dx)).toBeLessThan(maxDx * 0.1)
+    })
+
+    it('returns zero offsets when smooth speed has not been initialised (cold state)', () => {
+      // resetFloraWindSmooth was called in beforeEach — smooth speed is 0
+      const result = getFloraSwayOffset(5, 5, TIME, Zone.Overworld, undefined, CHAR_W, CHAR_H, BASE_COLOR)
+      expect(result.dx).toBe(0)
+      expect(result.dy).toBe(0)
     })
   })
 })

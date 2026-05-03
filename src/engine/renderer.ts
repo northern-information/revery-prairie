@@ -115,7 +115,7 @@ import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
 import { WEATHER_AFFECTED_TILES } from './flora'
-import { getFloraSwayOffset } from './render/floraWind'
+import { getFloraSwayOffset, tickFloraWind } from './render/floraWind'
 
 import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState, TransitionFade } from './types'
@@ -988,6 +988,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // See src/engine/render/passes/.
   runPassesInSlot('world-overlay', ctx, state, metrics, time)
 
+  // Advance the smooth wind state once per frame so direction/speed changes
+  // animate in over ~2 seconds instead of snapping on the weather tick.
+  tickFloraWind(state.weather, time)
+
   // The visible footprint is a rotated rectangle. Expand the tile-loop
   // bounds so corner diamonds aren't clipped. Off-canvas writes are cheap
   // because the canvas clips them anyway.
@@ -1461,7 +1465,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           mx,
           my,
           time,
-          state.weather,
           state.currentZone,
           state.cloverLifecycle.get(tileKey),
           charWidth,
