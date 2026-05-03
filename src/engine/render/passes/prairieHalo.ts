@@ -10,9 +10,23 @@ const isActive = (state: GameState): boolean => {
   return true
 }
 
+// Cached blur filter string — blurPx only changes when charWidth/charHeight
+// changes (zoom toggle or font resize), so we avoid rebuilding the string
+// every frame.
+let _blurFilter = ''
+let _blurPx = -1
+
 // Composites the per-map halo cache (peak-intensity falloff) with the
 // global breathing pulse applied as ctx.globalAlpha and a single
 // ctx.filter = blur(...) pass. drawImage at a camera-derived translation.
+//
+// Source clipping: without it, drawImage composites the entire world-space
+// halo canvas (potentially thousands of pixels per side) even when most of
+// it is off-screen. A source pixel at halo offset (sx, sy) lands on screen
+// at (sx+dx, sy+dy) and contributes blurred color within ±blurPx of that
+// point. We only need source pixels whose blurred spread overlaps the
+// viewport, i.e. screen range [-blurPx, canvasW+blurPx] × [-blurPx, canvasH+blurPx],
+// which maps to halo coords [-blurPx-dx, canvasW+blurPx-dx] × [-blurPx-dy, canvasH+blurPx-dy].
 const draw = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
@@ -30,11 +44,28 @@ const draw = (
   const dy = -(camera.x + camera.y) * halfH + originY - halo.worldOriginY
   const pulse = Math.sin(time * PRAIRIE_HALO_PULSE_SPEED) * 0.5 + 0.5
   const blurPx = Math.max(charWidth, charHeight) * 1.5
+
+  if (blurPx !== _blurPx) {
+    _blurPx = blurPx
+    _blurFilter = `blur(${String(blurPx)}px)`
+  }
+
+  const canvasW = ctx.canvas.width
+  const canvasH = ctx.canvas.height
+  const sx = Math.max(0, Math.floor(-blurPx - dx))
+  const sy = Math.max(0, Math.floor(-blurPx - dy))
+  const sxEnd = Math.min(halo.canvas.width, Math.ceil(canvasW + blurPx - dx))
+  const syEnd = Math.min(halo.canvas.height, Math.ceil(canvasH + blurPx - dy))
+
+  if (sx >= sxEnd || sy >= syEnd) return
+
+  const sw = sxEnd - sx
+  const sh = syEnd - sy
   const savedFilter = ctx.filter
   const savedAlpha = ctx.globalAlpha
   ctx.globalAlpha = pulse
-  ctx.filter = `blur(${String(blurPx)}px)`
-  ctx.drawImage(halo.canvas, dx, dy)
+  ctx.filter = _blurFilter
+  ctx.drawImage(halo.canvas, sx, sy, sw, sh, sx + dx, sy + dy, sw, sh)
   ctx.filter = savedFilter
   ctx.globalAlpha = savedAlpha
 }
