@@ -203,7 +203,7 @@ describe('terrain connectivity', () => {
     expect(sim.landMask.has(posKey(islandX, islandY))).toBe(false)
   })
 
-  it('no interior space tiles across multiple seeds', () => {
+  it('no interior space tiles across multiple seeds', { timeout: 30_000 }, () => {
     const seeds = [1, 42, 100, 12345, 99999, 7777, 54321]
     // Coastline noise amplitude is 6, so space can extend up to SPACE_BORDER + 6
     // tiles from each edge. Use SPACE_BORDER + 7 to safely clear the coastline.

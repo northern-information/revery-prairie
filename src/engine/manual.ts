@@ -345,7 +345,7 @@ const buildGenesisEntry = (): ManualEntry => {
     hints: MANUAL_LORE['event:genesis']?.hints ?? [
       {
         prompt: 'How it works',
-        answer: 'Genesis runs between the name prompt and gameplay. It simulates 14 geological epochs in ~25 seconds.',
+        answer: `Genesis runs between the name prompt and gameplay. It simulates ${String(GENESIS_EPOCHS.length)} geological epochs in ~${String(Math.round((GENESIS_EPOCHS.length * 2000) / 1000))} seconds.`,
       },
       { prompt: 'Skip', answer: 'Press any key during the genesis sequence to skip ahead.' },
       { prompt: 'Determinism', answer: 'The same steward name always produces the same world.' },

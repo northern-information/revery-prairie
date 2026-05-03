@@ -5,6 +5,7 @@ export const GenesisEpochId = {
   LandAccretion: 'landAccretion',
   LavaEra: 'lavaEra',
   CrustCooling: 'crustCooling',
+  TectonicUplift: 'tectonicUplift',
   FirstWater: 'firstWater',
   EmergenceOfLife: 'emergenceOfLife',
   FireSeason: 'fireSeason',
@@ -45,6 +46,17 @@ export interface CivilizationRuin {
   buildingFootprints: Position[]
 }
 
+export interface TectonicAxis {
+  /** Polyline of land tile positions forming the ridge crest. */
+  polyline: Position[]
+  /** Average orientation in radians (atan2 of end-to-start delta). */
+  orientationRadians: number
+  /** Peak uplift amount in elevation units (0-100 scale). */
+  intensity: number
+  /** Falloff radius in tiles. */
+  radius: number
+}
+
 export interface EpochSnapshot {
   vegetationMap: Map<string, number>
   riverPaths: Set<string>
@@ -63,6 +75,7 @@ export interface EpochSnapshot {
   ruins: CivilizationRuin[]
   satelliteCrashes: GenesisSatelliteCrash[]
   craters: Set<string>
+  tectonicAxes: TectonicAxis[]
 }
 
 export interface GenesisSimState {
@@ -106,6 +119,8 @@ export interface GenesisSimState {
   satelliteCrashes: GenesisSatelliteCrash[]
   /** Crater posKeys accumulated by satellite crashes (carries into game state) */
   craters: Set<string>
+  /** Tectonic ridge axes seeded during TectonicUplift; read by later epochs for biome bias. */
+  tectonicAxes: TectonicAxis[]
   /** River paths as ordered arrays for progressive reveal */
   riverPathsOrdered: { x: number; y: number }[][]
   /** Glacier meltwater pool positions */

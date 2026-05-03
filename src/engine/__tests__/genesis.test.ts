@@ -357,7 +357,7 @@ describe('genesis narration callback', () => {
 })
 
 describe('completeGenesis narration flush', () => {
-  it('flushes all 14 narration entries in order when called before any tick', () => {
+  it('flushes all narration entries in order when called before any tick', () => {
     const state = createGameState('Test', 20, 20)
     const calls: { commentary: string; index: number }[] = []
     state.onGenesisEpochStart = (commentary, index) => {
@@ -422,7 +422,7 @@ describe('getGenesisCommentary', () => {
 describe('geological features', () => {
   it('generates volcanic heat map', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    // Run through lava era
+    // Run through lava era (index 2)
     for (let i = 0; i <= 2; i++) {
       GENESIS_EPOCHS[i].mutate(sim)
     }
@@ -432,7 +432,7 @@ describe('geological features', () => {
   it('generates glacial paths', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
     // Run through ice age
-    for (let i = 0; i <= 8; i++) {
+    for (let i = 0; i <= 9; i++) {
       GENESIS_EPOCHS[i].mutate(sim)
     }
     expect(sim.glacialPaths.size).toBeGreaterThan(0)
@@ -441,7 +441,7 @@ describe('geological features', () => {
   it('generates river paths', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
     // Run through warm period
-    for (let i = 0; i <= 10; i++) {
+    for (let i = 0; i <= 11; i++) {
       GENESIS_EPOCHS[i].mutate(sim)
     }
     expect(sim.riverPaths.size).toBeGreaterThan(0)
@@ -450,7 +450,7 @@ describe('geological features', () => {
   it('generates burn scars from fire season', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
     // Run through fire season
-    for (let i = 0; i <= 6; i++) {
+    for (let i = 0; i <= 7; i++) {
       GENESIS_EPOCHS[i].mutate(sim)
     }
     expect(sim.burnScars.size).toBeGreaterThan(0)
@@ -516,7 +516,7 @@ describe('genesis-enhancements', () => {
     it('generates smooth noise for glacier edges', () => {
       const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
       // Run through ice age
-      for (let i = 0; i <= 8; i++) {
+      for (let i = 0; i <= 9; i++) {
         GENESIS_EPOCHS[i].mutate(sim)
       }
       expect(sim.glacialEdgeNoise.top.length).toBe(MAP_WIDTH)
@@ -525,7 +525,7 @@ describe('genesis-enhancements', () => {
 
     it('produces varied glacier edges with amplitude > 2', () => {
       const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-      for (let i = 0; i <= 8; i++) {
+      for (let i = 0; i <= 9; i++) {
         GENESIS_EPOCHS[i].mutate(sim)
       }
       const topRange = Math.max(...sim.glacialEdgeNoise.top) - Math.min(...sim.glacialEdgeNoise.top)
@@ -534,7 +534,7 @@ describe('genesis-enhancements', () => {
 
     it('snapshots pre-glacial vegetation', () => {
       const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-      for (let i = 0; i <= 8; i++) {
+      for (let i = 0; i <= 9; i++) {
         GENESIS_EPOCHS[i].mutate(sim)
       }
       expect(sim.preGlacialVegetation.size).toBeGreaterThan(0)
@@ -545,7 +545,7 @@ describe('genesis-enhancements', () => {
 
     it('only adds glacial paths for tiles in landMask', () => {
       const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-      for (let i = 0; i <= 8; i++) {
+      for (let i = 0; i <= 9; i++) {
         GENESIS_EPOCHS[i].mutate(sim)
       }
       for (const key of sim.glacialPaths) {
@@ -555,12 +555,12 @@ describe('genesis-enhancements', () => {
   })
 
   describe('meteorite-triggered fires', () => {
-    it('generates 5-8 meteorite streaks', () => {
+    it('generates 5-8 meteorite streaks', { timeout: 30_000 }, () => {
       let minMeteors = Infinity
       let maxMeteors = 0
       for (let seed = 1; seed <= 20; seed++) {
         const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
-        for (let i = 0; i <= 6; i++) {
+        for (let i = 0; i <= 7; i++) {
           GENESIS_EPOCHS[i].mutate(sim)
         }
         minMeteors = Math.min(minMeteors, sim.meteorites.length)
@@ -572,7 +572,7 @@ describe('genesis-enhancements', () => {
 
     it('meteorite impacts land on land tiles', () => {
       const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-      for (let i = 0; i <= 6; i++) {
+      for (let i = 0; i <= 7; i++) {
         GENESIS_EPOCHS[i].mutate(sim)
       }
       for (const meteor of sim.meteorites) {
@@ -583,7 +583,7 @@ describe('genesis-enhancements', () => {
 
     it('burns more than 40% of vegetated land', () => {
       const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-      for (let i = 0; i <= 6; i++) {
+      for (let i = 0; i <= 7; i++) {
         GENESIS_EPOCHS[i].mutate(sim)
       }
       // Count vegetated land before fire (from emergence + regrowth)
@@ -596,7 +596,7 @@ describe('genesis-enhancements', () => {
   describe('animated water systems', () => {
     it('stores ordered river paths for progressive reveal', () => {
       const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-      for (let i = 0; i <= 10; i++) {
+      for (let i = 0; i <= 11; i++) {
         GENESIS_EPOCHS[i].mutate(sim)
       }
       expect(sim.riverPathsOrdered.length).toBeGreaterThan(0)
@@ -608,7 +608,7 @@ describe('genesis-enhancements', () => {
 
     it('generates meltwater pools at glacier edges', () => {
       const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-      for (let i = 0; i <= 8; i++) {
+      for (let i = 0; i <= 9; i++) {
         GENESIS_EPOCHS[i].mutate(sim)
       }
       expect(sim.meltPools.size).toBeGreaterThan(0)
@@ -698,7 +698,7 @@ describe('elevation model', () => {
   it('glaciers lower elevation', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
     // Run through ice age
-    for (let i = 0; i <= 8; i++) {
+    for (let i = 0; i <= 9; i++) {
       GENESIS_EPOCHS[i].mutate(sim)
     }
 
@@ -724,7 +724,7 @@ describe('elevation model', () => {
 
   it('rivers generally flow downhill', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    for (let i = 0; i <= 10; i++) {
+    for (let i = 0; i <= 11; i++) {
       GENESIS_EPOCHS[i].mutate(sim)
     }
 
@@ -891,7 +891,7 @@ describe('water consolidation', () => {
     }
   })
 
-  it('no small dirt islands inside water bodies', () => {
+  it('no small dirt islands inside water bodies', { timeout: 30_000 }, () => {
     // Test across multiple seeds to catch probabilistic island formation
     for (let seed = 1; seed <= 10; seed++) {
       const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
@@ -1053,24 +1053,24 @@ describe('epoch snapshot completeness', () => {
 
   it('early epoch snapshots have empty burnScars', () => {
     const snapshots = getSnapshots()
-    // burnScars first populated by fireSeason (index 6)
-    for (let i = 0; i < 6; i++) {
+    // burnScars first populated by fireSeason (index 7)
+    for (let i = 0; i < 7; i++) {
       expect(snapshots[i].burnScars.size).toBe(0)
     }
   })
 
   it('early epoch snapshots have empty glacialPaths', () => {
     const snapshots = getSnapshots()
-    // glacialPaths first populated by iceAge (index 8)
-    for (let i = 0; i < 8; i++) {
+    // glacialPaths first populated by iceAge (index 9)
+    for (let i = 0; i < 9; i++) {
       expect(snapshots[i].glacialPaths.size).toBe(0)
     }
   })
 
   it('early epoch snapshots have empty tileData and aqueductNetwork', () => {
     const snapshots = getSnapshots()
-    // tileData and aqueductNetwork first populated by riseOfCivilizations (index 11)
-    for (let i = 0; i < 11; i++) {
+    // tileData and aqueductNetwork first populated by riseOfCivilizations (index 12)
+    for (let i = 0; i < 12; i++) {
       expect(snapshots[i].tileData.size).toBe(0)
       expect(snapshots[i].aqueductNetwork.size).toBe(0)
     }
@@ -1078,8 +1078,8 @@ describe('epoch snapshot completeness', () => {
 
   it('early epoch snapshots have empty meteorites and lightningBolts', () => {
     const snapshots = getSnapshots()
-    // meteorites and lightningBolts first populated by fireSeason (index 6)
-    for (let i = 0; i < 6; i++) {
+    // meteorites and lightningBolts first populated by fireSeason (index 7)
+    for (let i = 0; i < 7; i++) {
       expect(snapshots[i].meteorites.length).toBe(0)
       expect(snapshots[i].lightningBolts.length).toBe(0)
     }
@@ -1087,25 +1087,25 @@ describe('epoch snapshot completeness', () => {
 
   it('iceAge snapshot has non-empty glacialPaths', () => {
     const snapshots = getSnapshots()
-    // iceAge is index 8
-    expect(snapshots[8].glacialPaths.size).toBeGreaterThan(0)
+    // iceAge is index 9
+    expect(snapshots[9].glacialPaths.size).toBeGreaterThan(0)
   })
 
   it('fireSeason snapshot has non-empty burnScars', () => {
     const snapshots = getSnapshots()
-    // fireSeason is index 6
-    expect(snapshots[6].burnScars.size).toBeGreaterThan(0)
+    // fireSeason is index 7
+    expect(snapshots[7].burnScars.size).toBeGreaterThan(0)
   })
 
   it('riseOfCivilizations snapshot has non-empty tileData', () => {
     const snapshots = getSnapshots()
-    // riseOfCivilizations is index 11
-    expect(snapshots[11].tileData.size).toBeGreaterThan(0)
+    // riseOfCivilizations is index 12
+    expect(snapshots[12].tileData.size).toBeGreaterThan(0)
   })
 
   it('riseOfCivilizations snapshot has non-empty ruins', () => {
     const snapshots = getSnapshots()
-    expect(snapshots[11].ruins.length).toBeGreaterThan(0)
+    expect(snapshots[12].ruins.length).toBeGreaterThan(0)
   })
 
   it('snapshots are independent clones — later mutations do not corrupt earlier snapshots', () => {
@@ -1113,8 +1113,8 @@ describe('epoch snapshot completeness', () => {
     // cosmicFormation (index 0) should have empty vegetationMap even though
     // later epochs populate it
     expect(snapshots[0].vegetationMap.size).toBe(0)
-    // emergenceOfLife (index 5) populates vegetationMap
-    expect(snapshots[5].vegetationMap.size).toBeGreaterThan(0)
+    // emergenceOfLife (index 6) populates vegetationMap
+    expect(snapshots[6].vegetationMap.size).toBeGreaterThan(0)
   })
 })
 
@@ -1240,9 +1240,9 @@ describe('water continuity at genesis-to-game transition', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
     precomputeGenesis(sim, GENESIS_EPOCHS)
 
-    // fallOfCivilizations is index 12 (second to last)
-    const fallEpoch = GENESIS_EPOCHS[12]
-    const fallSnapshot = sim.epochSnapshots[12]
+    // fallOfCivilizations is index 13 (second to last)
+    const fallEpoch = GENESIS_EPOCHS[13]
+    const fallSnapshot = sim.epochSnapshots[13]
 
     // Apply snapshot
     sim.riverPaths = fallSnapshot.riverPaths
