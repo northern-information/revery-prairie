@@ -208,6 +208,13 @@ export const getTileVisibility = (
   return 'unexplored'
 }
 
+// Last computed visible set for the current frame. Cached so the fog mask
+// pass (world-overlay) and the central tile loop can share one result
+// without recomputing FOV. Sidebar also reads it for cursor info.
+let _lastVisibleSet: Set<string> | null = null
+
+export const getLastVisibleSet = (): Set<string> | null => _lastVisibleSet
+
 /**
  * Compute the full visible set for the current frame.
  * Unions player vision with any active illumination sources (revery effects).
@@ -218,7 +225,10 @@ export const getTileVisibility = (
  */
 export const computeZoneVisibility = (state: GameState): Set<string> => {
   const fog = getFogState(state)
-  if (!fog) return new Set()
+  if (!fog) {
+    _lastVisibleSet = null
+    return new Set()
+  }
 
   const { player, map, mapWidth, mapHeight } = state
 
@@ -281,6 +291,7 @@ export const computeZoneVisibility = (state: GameState): Set<string> => {
     }
   }
 
+  _lastVisibleSet = visible
   return visible
 }
 

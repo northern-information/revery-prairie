@@ -1,0 +1,100 @@
+plan:
+  id: fog-bg-mask
+  title: Mask cached tile-bg in fog zones so unexplored / dim-memory tiles do not leak
+  created: 2026-05-02
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: implement-fog-mask-pass
+    title: Implement fogMask render pass and register it after world-overlay items
+    spec_id: fog-bg-mask
+    spec_sections:
+      - mask-applies-after-bg-cache
+      - unexplored-tiles-fully-hidden
+      - partially-discovered-tiles-dimmed
+      - fully-discovered-and-visible-untouched
+      - viewport-scoped-iteration
+      - mask-uses-iso-diamond-geometry
+    context_files:
+      - src/engine/render/passes/tileBgComposite.ts
+      - src/engine/render/passes.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/visibility.ts
+      - src/engine/tileBgCache.ts
+      - src/engine/tileBg.ts
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/render/passes/fogMask.ts
+      - src/engine/render/passes/index.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags: [engine]
+
+  - id: refresh-fog-on-bg-cache-composite
+    title: Recompute fog visibility once per frame so the mask and the central tile loop see the same set
+    spec_id: fog-bg-mask
+    spec_sections:
+      - mask-applies-after-bg-cache
+    context_files:
+      - src/engine/visibility.ts
+      - src/engine/renderer.ts
+      - src/engine/render/passes/fogMask.ts
+    output_files:
+      - src/engine/visibility.ts
+      - src/engine/renderer.ts
+      - src/engine/render/passes/fogMask.ts
+    depends_on:
+      - implement-fog-mask-pass
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags: [engine]
+
+  - id: tighten-renderer-spec-fog-bg-edge-case
+    title: Update renderer.yaml fog-bg edge case to point at fog-bg-mask spec instead of leaving the bg-dim choice loose
+    spec_id: fog-bg-mask
+    spec_sections:
+      - partially-discovered-tiles-dimmed
+      - unexplored-tiles-fully-hidden
+    context_files:
+      - harness/specs/renderer.yaml
+      - harness/specs/fog-bg-mask.yaml
+    output_files:
+      - harness/specs/renderer.yaml
+    depends_on: []
+    verification:
+      - npm run spec:validate
+    repair: retry
+    tags: [spec]
+
+  - id: add-regression-tests
+    title: Add regression tests for fog mask pass behavior
+    spec_id: fog-bg-mask
+    spec_sections:
+      - mask-applies-after-bg-cache
+      - unexplored-tiles-fully-hidden
+      - partially-discovered-tiles-dimmed
+      - fully-discovered-and-visible-untouched
+    context_files:
+      - src/engine/render/passes/fogMask.ts
+      - src/engine/__tests__/visibility.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/visibility.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/fogMask.test.ts
+    depends_on:
+      - implement-fog-mask-pass
+    verification:
+      - npx vitest run src/engine/__tests__/fogMask.test.ts
+    repair: retry
+    tags: [test]

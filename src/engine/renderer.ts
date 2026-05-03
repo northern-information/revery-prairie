@@ -103,7 +103,13 @@ import {
 import { runPassesInSlot } from './render/passes'
 import './render/passes/index'
 import { getTierGrid as getTierGridShared, liftAt as liftAtShared } from './render/tierGrid'
-import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
+import {
+  computeZoneVisibility,
+  dimColor,
+  getTileVisibility,
+  hasFogOfWar,
+  tickIllumination,
+} from './visibility'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
@@ -184,11 +190,11 @@ export const measureChar = (ctx: CanvasRenderingContext2D, zoom = 1): CharMetric
   return { charWidth, charHeight, font }
 }
 
-// Cave fog of war: last computed visible set, readable by sidebar
-let _lastVisibleSet: Set<string> | null = null
-export const getLastVisibleSet = (): Set<string> | null => _lastVisibleSet
+// Re-exported for back-compat — moved to visibility.ts so the fog mask pass
+// (world-overlay) and central tile loop share one cached visible set.
+export { getLastVisibleSet } from './visibility'
 /** @deprecated Use getLastVisibleSet instead. */
-export const getLastCaveVisibleSet = getLastVisibleSet
+export { getLastVisibleSet as getLastCaveVisibleSet } from './visibility'
 
 // ── Pooled render collections ──
 // Reused every frame to avoid per-frame allocation / GC pressure.
@@ -945,16 +951,19 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // bg-cache slot: tile bg + cube edges composite.
   runPassesInSlot('bg-cache', ctx, state, metrics, time)
 
-  // world-overlay slot: earth scan, ruin entrance halo, lightning targeting
-  // range, angel gold aura, prairie halo composite, prairie outline.
-  // See src/engine/render/passes/.
-  runPassesInSlot('world-overlay', ctx, state, metrics, time)
-
-  // Fog of war: compute visibility, tick illumination expiry
+  // Fog of war: compute visibility before world-overlay so the fog mask
+  // pass (last in world-overlay) and the central tile loop below share
+  // one cached visible set. Result is cached on visibility.ts module
+  // state, readable via getLastVisibleSet().
   const fogActive = hasFogOfWar(state.currentZone)
   if (fogActive) tickIllumination(state, time)
   const visibleSet = fogActive ? computeZoneVisibility(state) : null
-  _lastVisibleSet = visibleSet
+
+  // world-overlay slot: earth scan, ruin entrance halo, lightning targeting
+  // range, angel gold aura, prairie halo composite, prairie outline, then
+  // the fog-of-war mask (last, so it covers cached bg + every overlay above).
+  // See src/engine/render/passes/.
+  runPassesInSlot('world-overlay', ctx, state, metrics, time)
 
   // The visible footprint is a rotated rectangle. Expand the tile-loop
   // bounds so corner diamonds aren't clipped. Off-canvas writes are cheap

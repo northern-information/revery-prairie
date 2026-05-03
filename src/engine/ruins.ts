@@ -276,15 +276,33 @@ const generateDormantGarden = (
     if (vaultX + vaultW < mapWidth) map[y][vaultX + vaultW] = { type: TileType.RuinWall }
   }
 
-  // Choose a connector cell on the south side of the vault and carve a single
-  // floor tile + a tunnel back to the spine.
+  // The entire south wall row of the vault is the door. The player can
+  // unlock it from any of the door tiles, mirroring the cave breakable
+  // wall pattern (cave.ts) — wider hitbox makes it easy to find with
+  // [e] OR click. The landing south of the door is also widened so the
+  // player can stand anywhere along the wall and face up to interact.
   const doorX = vaultCenter.x
   const doorY = sealY
-  // Tunnel from the door down to the existing spine (which is at y=spineTopY)
+  const doorPositions: Position[] = []
   if (doorY < mapHeight && doorY >= 0) {
+    // Carve a 1-tile-tall landing strip directly under the door so every
+    // door tile has a walkable south neighbor.
+    const landingY = doorY + 1
+    if (landingY < mapHeight) {
+      for (let x = vaultX - 1; x <= vaultX + vaultW; x++) {
+        if (x < 0 || x >= mapWidth) continue
+        map[landingY][x] = { type: TileType.RuinFloor }
+      }
+    }
+    // Then a 1-wide tunnel from the landing center down to the spine.
     const tunnelEnd: Position = { x: doorX, y: spineTopY }
-    carveStraight(map, { x: doorX, y: doorY + 1 }, tunnelEnd, 1)
-    map[doorY][doorX] = { type: TileType.RuinDoorLocked }
+    carveStraight(map, { x: doorX, y: landingY }, tunnelEnd, 1)
+    // Convert the wall row to door tiles.
+    for (let x = vaultX - 1; x <= vaultX + vaultW; x++) {
+      if (x < 0 || x >= mapWidth) continue
+      map[doorY][x] = { type: TileType.RuinDoorLocked }
+      doorPositions.push({ x, y: doorY })
+    }
   }
 
   // ---- 6. Lay aqueduct channels down the spine and through the vault ----
@@ -333,8 +351,14 @@ const generateDormantGarden = (
     if (map[dy]?.[dx]?.type !== TileType.RuinFloor) continue
     if (aqueductTiles.has(posKey(dx, dy))) continue
     if (Math.abs(dx - entranceX) <= 1 && dy >= entranceY - 3) continue
-    // Avoid the door tile and tiles directly adjacent so the door is reachable
-    if (Math.abs(dx - doorX) <= 1 && Math.abs(dy - doorY) <= 1) continue
+    // Avoid the door row and the carved landing strip directly south of it
+    // so every door tile remains reachable.
+    if (
+      dx >= vaultX - 1 &&
+      dx <= vaultX + vaultW &&
+      dy >= doorY - 1 &&
+      dy <= doorY + 1
+    ) continue
     map[dy][dx] = { type: TileType.RuinDebris }
     debrisPositions.push({ x: dx, y: dy })
   }
@@ -356,11 +380,16 @@ const generateDormantGarden = (
   // ---- 10. Compute BFS distances from the entrance for key/tablet placement ----
   // For BFS we treat the locked door as walkable so cells beyond it
   // contribute distance, but we exclude the vault interior from candidates.
-  const doorPos: Position = { x: doorX, y: doorY }
-  // Temporarily flip the door to floor for BFS, then flip it back
-  map[doorY][doorX] = { type: TileType.RuinFloor }
+  // Temporarily flip every door tile to floor for BFS, then flip back.
+  const doorKeySet = new Set<string>()
+  for (const dp of doorPositions) {
+    doorKeySet.add(posKey(dp.x, dp.y))
+    map[dp.y][dp.x] = { type: TileType.RuinFloor }
+  }
   const distances = bfsDistances(map, mapWidth, mapHeight, { x: entranceX, y: entranceY - 1 })
-  map[doorY][doorX] = { type: TileType.RuinDoorLocked }
+  for (const dp of doorPositions) {
+    map[dp.y][dp.x] = { type: TileType.RuinDoorLocked }
+  }
 
   let maxDist = 0
   for (const d of distances.values()) if (d > maxDist) maxDist = d
@@ -370,7 +399,7 @@ const generateDormantGarden = (
 
   const isCandidateCell = (x: number, y: number, allowAqueduct: boolean): boolean => {
     if (inVault(x, y)) return false
-    if (x === doorX && y === doorY) return false
+    if (doorKeySet.has(posKey(x, y))) return false
     const tile = map[y]?.[x]
     if (!tile) return false
     if (tile.type === TileType.RuinFloor) return true
@@ -404,7 +433,7 @@ const generateDormantGarden = (
       const x = Number(parts[0])
       const y = Number(parts[1])
       if (inVault(x, y)) continue
-      if (x === doorX && y === doorY) continue
+      if (doorKeySet.has(posKey(x, y))) continue
       if (d > deepestD) {
         deepestD = d
         deepestKey = key
@@ -450,7 +479,7 @@ const generateDormantGarden = (
     waterFlowing: false,
     keyPosition,
     tabletPosition,
-    doorPosition: doorPos,
+    doorPositions,
   }
 }
 

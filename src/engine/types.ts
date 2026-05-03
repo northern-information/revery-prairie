@@ -413,7 +413,7 @@ export interface DormantGardenData {
   waterFlowing: boolean
   keyPosition: Position | null
   tabletPosition: Position | null
-  doorPosition: Position | null
+  doorPositions: Position[]
 }
 
 export interface QueuedToast {

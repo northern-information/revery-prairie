@@ -340,15 +340,20 @@ describe('ruin dormant garden', () => {
       expect(tp.x === kp.x && tp.y === kp.y).toBe(false)
     })
 
-    it('places a RuinDoorLocked tile at doorPosition', () => {
+    it('places RuinDoorLocked tiles across the entire vault south wall', () => {
       const interior = makeGardenInterior()
       const garden = interior.dormantGarden
       expect(garden).toBeTruthy()
       if (!garden) return
-      const dp = garden.doorPosition
-      expect(dp).not.toBeNull()
-      if (!dp) return
-      expect(interior.map[dp.y][dp.x].type).toBe(TileType.RuinDoorLocked)
+      const positions = garden.doorPositions
+      expect(positions.length).toBeGreaterThan(1)
+      // All recorded positions render as RuinDoorLocked.
+      for (const dp of positions) {
+        expect(interior.map[dp.y][dp.x].type).toBe(TileType.RuinDoorLocked)
+      }
+      // All door tiles share the same y (a single horizontal wall row).
+      const ys = new Set(positions.map((p) => p.y))
+      expect(ys.size).toBe(1)
     })
 
     it('vault is reachable from entrance only via the door', () => {

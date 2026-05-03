@@ -13,6 +13,7 @@ import {
   breakWall,
   interactWithCharacter,
   isInteractableAt,
+  unlockRuinDoor,
   updateFacingEntity,
 } from '@/engine/interaction'
 import { getPathfindingBlockers } from '@/engine/movement'
@@ -141,6 +142,10 @@ const resolveClickTarget = (
         if (state.map[targetY]?.[targetX]?.type === TileType.CaveBreakableWall) {
           if (breakWall(state, performance.now())) {
             onDiscovery('Discovered hidden room.', state.player.x, state.player.y)
+          }
+        } else if (state.map[targetY]?.[targetX]?.type === TileType.RuinDoorLocked) {
+          if (unlockRuinDoor(state)) {
+            onDiscovery('the lock turns', state.player.x, state.player.y)
           }
         }
         refreshUI()

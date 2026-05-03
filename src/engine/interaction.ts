@@ -11,7 +11,7 @@ import { getReveryDefinition } from './reveries'
 import { TileType, Zone } from './types'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
 
-import type { GameState, ReveryDefinition } from './types'
+import type { GameState, Position, ReveryDefinition } from './types'
 
 export const isInteractableAt = (state: GameState, x: number, y: number): boolean => {
   if (
@@ -33,6 +33,13 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
     !state.caveRevealed &&
     isInBounds(x, y, state.mapWidth, state.mapHeight) &&
     state.map[y][x].type === TileType.CaveBreakableWall
+  ) {
+    return true
+  }
+  if (
+    state.currentZone === Zone.Ruin &&
+    isInBounds(x, y, state.mapWidth, state.mapHeight) &&
+    state.map[y][x].type === TileType.RuinDoorLocked
   ) {
     return true
   }
@@ -258,8 +265,11 @@ export const givePostGift = (state: GameState, characterId: string, time?: numbe
 }
 
 /** If the player faces a RuinDoorLocked tile and has at least one
- * aqueductKey in their backpack, consume one key and convert the tile
- * to RuinDoorOpen. Returns true if the door was unlocked.
+ * aqueductKey in their backpack, consume one key and convert every
+ * door tile in the current ruin to RuinDoorOpen. Returns true if the
+ * door was unlocked. The door spans the full south wall of the vault
+ * (mirrors the cave breakable wall pattern), so all connected door
+ * tiles open atomically.
  */
 export const unlockRuinDoor = (state: GameState): boolean => {
   if (state.currentZone !== Zone.Ruin) return false
@@ -271,7 +281,29 @@ export const unlockRuinDoor = (state: GameState): boolean => {
   const keyItem = state.backpack.items.find((i) => i.definitionId === 'aqueductKey')
   if (!keyItem) return false
   state.backpack.items = state.backpack.items.filter((i) => i.uid !== keyItem.uid)
-  setMapTile(state, fx, fy, { type: TileType.RuinDoorOpen })
+
+  // Open every door tile in the current ruin atomically. Always include
+  // the facing tile as a fallback in case dormantGarden.doorPositions is
+  // unset (older saves, non-dormant-garden archetypes, or test stubs that
+  // override state.map directly).
+  const interior =
+    state.currentRuinIndex !== null ? state.ruinInteriors[state.currentRuinIndex] : null
+  const positions: Position[] = [{ x: fx, y: fy }]
+  if (interior?.dormantGarden) {
+    for (const dp of interior.dormantGarden.doorPositions) {
+      positions.push(dp)
+    }
+  }
+  const seen = new Set<string>()
+  for (const pos of positions) {
+    const key = posKey(pos.x, pos.y)
+    if (seen.has(key)) continue
+    seen.add(key)
+    if (!isInBounds(pos.x, pos.y, state.mapWidth, state.mapHeight)) continue
+    if (state.map[pos.y][pos.x].type !== TileType.RuinDoorLocked) continue
+    setMapTile(state, pos.x, pos.y, { type: TileType.RuinDoorOpen })
+  }
+
   // Clear any action bar slot that referenced the now-consumed key, if no
   // more keys remain in the backpack.
   const stillHasKey = state.backpack.items.some((i) => i.definitionId === 'aqueductKey')
