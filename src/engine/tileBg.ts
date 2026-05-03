@@ -137,3 +137,10 @@ export const getElevationTier = (elevation: number | undefined): number => {
 }
 
 export const getTierLift = (tier: number): number => -tier * ELEVATION_TIER_LIFT_PX
+
+// Constant Y offset (in pixels, negative = up) applied to angel body
+// pixels on top of their tile's pyLift, so the multi-glyph body always
+// floats above the tallest possible terrain cube on the map. Equal to
+// the maximum tier lift so an angel body over a tier-3 plateau still
+// reads as floating, not embedded.
+export const ANGEL_FLOAT_LIFT_PX = (ELEVATION_TIER_COUNT - 1) * ELEVATION_TIER_LIFT_PX

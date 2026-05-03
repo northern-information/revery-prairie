@@ -1,0 +1,145 @@
+plan:
+  id: entity-z-lift
+  title: Defer entity drawing to a post-tile-loop flush so terrain elevation never clips entities; float angels above max tier
+  created: '2026-05-02'
+  notes: >
+    Bug: with iso-style 3D elevation enabled, entities (angels, characters,
+    bees, monarchs, ground items, meteorites, beehives, the player) get
+    clipped by neighboring high-elevation tiles. The central tile loop in
+    `src/engine/renderer.ts` iterates row-major top-to-bottom; for each
+    tile it draws elevation cube walls and the tile glyph at that tile's
+    `pyLift`. South / east neighbors that sit on a higher tier draw later
+    and overpaint canvas pixels above them — including any entity glyph
+    a previous (lower-elevation) tile already rendered.
+
+    Fix: keep the central tile loop's resolve-then-draw structure intact
+    (the precedence chain is documented as the end state in CLAUDE.md and
+    splitting it would force a frameState abstraction). Instead, when the
+    resolved tile is an *entity*, enqueue the draw into a deferred list
+    and skip the inline `ctx.fillText`. After the tile loop completes
+    (and after the existing `tweenedEntities` post-pass), flush the
+    deferred list with `ctx.fillText` calls in order. Because the flush
+    runs once all terrain has been drawn, no neighboring tile's cube
+    wall or glyph can paint over an entity. This is a renderer-internal
+    change — no slot reshuffle, no new pass file, no public API churn.
+
+    Angels additionally receive a constant `ANGEL_FLOAT_LIFT_PX` Y
+    offset (= `(ELEVATION_TIER_COUNT - 1) * ELEVATION_TIER_LIFT_PX`)
+    when their pixels are enqueued, so the body always floats above the
+    tallest possible cube. The constant is exported from
+    `src/engine/tileBg.ts` (already the home of elevation tier
+    constants).
+
+    The angel gold aura (`world-overlay` slot) is left grounded at
+    terrain `pyLift` — it visually reads as "this terrain is
+    sanctified" and should pool around the floating body.
+
+    Canvas rendering cannot be visually unit-tested per CLAUDE.md.
+    Regression tests target the constant, the deferred-list shape, and
+    the lift math used at enqueue time. Visual confirmation by the user
+    in the browser is required to sign off the fix.
+
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+    - npm run build
+
+tasks:
+  - id: add-angel-float-lift-constant
+    title: Export `ANGEL_FLOAT_LIFT_PX` from `tileBg.ts`
+    spec_id: entity-z-lift
+    spec_sections:
+      - angels-float-above-max-elevation
+    context_files:
+      - src/engine/tileBg.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/tileBg.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: defer-entity-draws-in-tile-loop
+    title: Convert inline `isEntity` glyph draws to a deferred draw list flushed after the tile loop
+    spec_id: entity-z-lift
+    spec_sections:
+      - entities-not-clipped-by-elevation
+      - genesis-fade-applies-to-deferred-entities
+      - angel-group-highlight-preserved
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-angel-float-lift-constant
+    verification:
+      - npx tsc -b --noEmit
+      - npm run test -- --run renderer
+    repair: retry
+    tags:
+      - engine
+
+  - id: lift-angel-body-pixels
+    title: Apply `ANGEL_FLOAT_LIFT_PX` to angel body pixels at enqueue time
+    spec_id: entity-z-lift
+    spec_sections:
+      - angels-float-above-max-elevation
+      - angel-group-highlight-preserved
+      - angel-aura-stays-grounded
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+      - src/engine/render/passes/angelGoldAura.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - defer-entity-draws-in-tile-loop
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: tweened-entity-angel-lift
+    title: Apply angel float lift to tweened-entity post-pass when the entity is an angel pixel
+    spec_id: entity-z-lift
+    spec_sections:
+      - tweened-entities-also-lifted
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - lift-angel-body-pixels
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: regression-tests
+    title: Replace placeholder tests in `entityZLift.test.ts` with assertions on the constant and the deferred-draw API
+    spec_id: entity-z-lift
+    spec_sections:
+      - angels-float-above-max-elevation
+      - entities-not-clipped-by-elevation
+    context_files:
+      - src/engine/__tests__/entityZLift.test.ts
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/__tests__/entityZLift.test.ts
+    depends_on:
+      - tweened-entity-angel-lift
+    verification:
+      - npx vitest run src/engine/__tests__/entityZLift.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
