@@ -93,12 +93,28 @@ export const getPondBgColor = (x: number, y: number): string =>
 // directional wall shading: the lit side keeps factor close to 1 (lightly
 // darkened) and the shadow side uses a smaller factor (more darkening).
 // Returns a 6-digit hex string.
+//
+// Memoized via a two-level Map (hex → factor → result). The input space is
+// finite (~80 palette colors × 2 shade factors), so the cache stays small.
+// Two-level lookup avoids allocating a composite key string on cache hits.
+const _darkenCache = new Map<string, Map<number, string>>()
+
 export const darkenColor = (hex: string, factor: number): string => {
+  let factorMap = _darkenCache.get(hex)
+  if (factorMap !== undefined) {
+    const cached = factorMap.get(factor)
+    if (cached !== undefined) return cached
+  } else {
+    factorMap = new Map()
+    _darkenCache.set(hex, factorMap)
+  }
   const r = Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(1, 3), 16) * factor)))
   const g = Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(3, 5), 16) * factor)))
   const b = Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(5, 7), 16) * factor)))
   const toHex = (n: number): string => n.toString(16).padStart(2, '0')
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+  const result = `#${toHex(r)}${toHex(g)}${toHex(b)}`
+  factorMap.set(factor, result)
+  return result
 }
 
 // Wall shading factors. Iso projection makes both side faces visible;
