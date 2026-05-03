@@ -286,12 +286,96 @@ export const renderGenesis = (
     applySnapshot(sim, sim.epochSnapshots[sim.epochIndex])
   }
 
+  // Tile-bg fill pre-pass: for every visible non-space tile, paint a
+  // diamond filled with TILE_BG_PALETTES[type] (via getTileBgColor).
+  // Iso painter order (sum-of-coords ascending) so later tiles overlap
+  // earlier neighbors cleanly at the seam. Each diamond is expanded by
+  // TILE_BG_OVERLAP=2 pixels in each direction to mask sub-pixel cracks
+  // between neighbors, matching paintTileBg in tileBgCache.
+  const TILE_BG_OVERLAP = 2
+  for (let s = tileLoopStartX + tileLoopStartY; s <= tileLoopEndX + tileLoopEndY - 2; s++) {
+    const vyMin = Math.max(tileLoopStartY, s - (tileLoopEndX - 1))
+    const vyMax = Math.min(tileLoopEndY - 1, s - tileLoopStartX)
+    for (let vy = vyMin; vy <= vyMax; vy++) {
+      const vx = s - vy
+      const { px, py } = viewportToScreen(
+        vx,
+        vy,
+        charWidth,
+        charHeight,
+        viewportWidth,
+        viewportHeight,
+      )
+      if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) continue
+      const mx = cameraX + vx
+      const my = cameraY + vy
+      const tile = sim.grid[my]?.[mx]
+      if (!tile || tile.type === TileType.Space) continue
+      const lift = liftAtSim(sim, mx, my)
+      const halfW = charWidth / 2
+      const halfH = charHeight / 2
+      const leftX = px - halfW
+      const rightX = leftX + 2 * charWidth
+      const topY = py + lift
+      const bottomY = topY + charHeight
+      const cx = leftX + charWidth
+      const cy = topY + halfH
+      ctx.fillStyle = getTileBgColor(tile.type, mx, my)
+      ctx.beginPath()
+      ctx.moveTo(cx, topY - TILE_BG_OVERLAP)
+      ctx.lineTo(rightX + TILE_BG_OVERLAP, cy)
+      ctx.lineTo(cx, bottomY + TILE_BG_OVERLAP)
+      ctx.lineTo(leftX - TILE_BG_OVERLAP, cy)
+      ctx.closePath()
+      ctx.fill()
+    }
+  }
+
+  // Per-tile cube edge skirt: south + east edge stroke darkened by
+  // WALL_RIGHT_SHADE so every plateau tile reads as a discrete block,
+  // matching paintTileEdge in tileBgCache. Drawn after bg fill so the
+  // skirt sits on top of the diamond, before walls so walls overlap
+  // the skirt at tier transitions.
+  for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
+    for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
+      const { px, py } = viewportToScreen(
+        vx,
+        vy,
+        charWidth,
+        charHeight,
+        viewportWidth,
+        viewportHeight,
+      )
+      if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) continue
+      const mx = cameraX + vx
+      const my = cameraY + vy
+      const tile = sim.grid[my]?.[mx]
+      if (!tile || tile.type === TileType.Space) continue
+      const lift = liftAtSim(sim, mx, my)
+      const halfW = charWidth / 2
+      const halfH = charHeight / 2
+      const cellLeftX = px - halfW
+      const cellRightX = cellLeftX + 2 * charWidth
+      const cellTopY = py + lift
+      const cellBottomY = cellTopY + charHeight
+      const cellCx = cellLeftX + charWidth
+      const cellCy = cellTopY + halfH
+      ctx.strokeStyle = darkenColor(getTileBgColor(tile.type, mx, my), WALL_RIGHT_SHADE)
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(cellLeftX, cellCy)
+      ctx.lineTo(cellCx, cellBottomY)
+      ctx.lineTo(cellRightX, cellCy)
+      ctx.stroke()
+    }
+  }
+
   // Cube wall pre-pass: for every visible tile whose tier exceeds its
   // south or east neighbor's tier, draw the tier-transition cube wall
   // beneath the tile. Painter order is iso (sum-of-coords) so later tiles
-  // overlap earlier neighbors cleanly. Walls render in a separate pass
-  // before the per-tile glyph draw so the glyph can land on top of the
-  // wall geometry. Mirrors the renderer.ts cube-wall pass.
+  // overlap earlier neighbors cleanly. Walls render after the skirt so
+  // the wall correctly covers the skirt at the cliff edge. Mirrors the
+  // renderer.ts cube-wall pass.
   for (let s = tileLoopStartX + tileLoopStartY; s <= tileLoopEndX + tileLoopEndY - 2; s++) {
     const vyMin = Math.max(tileLoopStartY, s - (tileLoopEndX - 1))
     const vyMax = Math.min(tileLoopEndY - 1, s - tileLoopStartX)
@@ -329,44 +413,6 @@ export const renderGenesis = (
         darkenColor(wallBg, WALL_LEFT_SHADE),
         darkenColor(wallBg, WALL_RIGHT_SHADE),
       )
-    }
-  }
-
-  // Per-tile cube edge skirt: south + east edge stroke darkened by
-  // WALL_RIGHT_SHADE so every plateau tile reads as a discrete block,
-  // matching paintTileEdge in tileBgCache. Drawn before the glyph so the
-  // glyph sits on top.
-  for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
-    for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
-      const { px, py } = viewportToScreen(
-        vx,
-        vy,
-        charWidth,
-        charHeight,
-        viewportWidth,
-        viewportHeight,
-      )
-      if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) continue
-      const mx = cameraX + vx
-      const my = cameraY + vy
-      const tile = sim.grid[my]?.[mx]
-      if (!tile || tile.type === TileType.Space) continue
-      const lift = liftAtSim(sim, mx, my)
-      const halfW = charWidth / 2
-      const halfH = charHeight / 2
-      const cellLeftX = px - halfW
-      const cellRightX = cellLeftX + 2 * charWidth
-      const cellTopY = py + lift
-      const cellBottomY = cellTopY + charHeight
-      const cellCx = cellLeftX + charWidth
-      const cellCy = cellTopY + halfH
-      ctx.strokeStyle = darkenColor(getTileBgColor(tile.type, mx, my), WALL_RIGHT_SHADE)
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.moveTo(cellLeftX, cellCy)
-      ctx.lineTo(cellCx, cellBottomY)
-      ctx.lineTo(cellRightX, cellCy)
-      ctx.stroke()
     }
   }
 
