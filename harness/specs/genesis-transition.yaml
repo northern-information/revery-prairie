@@ -277,27 +277,26 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: genesis-bg-crossfade
+  - id: genesis-bg-snaps-at-boundaries
     description: >
-      during the last 10% of each epoch the surface bg color blends
-      smoothly into the next epoch's bg color, mirroring the existing
-      glyph crossfade. each visible tile's bg color is computed for the
-      current epoch and the next epoch, lerped by blendT, and used for
-      the diamond fill / skirt / wall passes. without this lerp, the bg
-      snaps at the moment epochIndex increments — visible as a per-frame
-      "pop" of the entire viewport. the lerp uses the same blendT timeline
-      as the glyph crossfade so bg and glyph transition together.
-      cosmicFormation→landAccretion and landAccretion→lavaEra crossfades
-      treat the no-bg side as transparent and only fade the side that
-      has a bg.
+      the surface tile-bg color does NOT crossfade across epoch
+      boundaries — only the glyphs blend during the last 10% of an
+      epoch (see existing crossfade-progress behavior). bg snaps at the
+      moment epochIndex increments. an earlier iteration tried lerping
+      bg colors through BG_COLOR for cosmicFormation / landAccretion
+      transitions and through current → next bg for everything else,
+      but the result felt muddy: lava-red bleeding into ice-blue
+      through brown produced visually distracting intermediate frames
+      that the player read as "the renderer is broken" rather than "the
+      world is changing." Snapping the bg keeps each epoch's surface
+      visually distinct and avoids extra per-tile lerpColor work.
     inputs:
-      - 'progress in the last 10% of an epoch (CROSSFADE_START..1.0)'
-      - 'currentEpoch.renderTile and nextEpoch.renderTile for each visible tile'
+      - 'epoch.id changes when sim.epochIndex increments'
     outputs:
-      - 'tile-bg colors blend smoothly current → next over the same window as glyphs'
-      - 'no per-frame bg pop at epoch boundaries'
+      - 'currentBgByIndex used directly for bg fill / skirt / walls — no lerp'
+      - 'next-epoch glyph crossfade still runs over the last 10% of each epoch'
     state_changes: []
-    determinism: time-based
+    determinism: deterministic
 
   - id: genesis-rendertile-cache
     description: >

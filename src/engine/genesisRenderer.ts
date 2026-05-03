@@ -376,32 +376,38 @@ export const renderGenesis = (
         const mx = cameraX + vx
         const my = cameraY + vy
         const tile = sim.grid[my]?.[mx]
-        if (!tile || tile.type === TileType.Space) {
+        if (!tile) {
           currentRendersByIndex[idx] = null
           currentBgByIndex[idx] = null
           visibleTileTypeByIndex[idx] = null
           continue
         }
+        // Space tiles still get their glyph rendered (stars / void),
+        // but never receive a bg diamond fill / skirt / walls — those
+        // passes gate on currentBgByIndex[idx] being non-null.
         const renders = epoch.renderTile(sim, mx, my, progress, time)
         currentRendersByIndex[idx] = renders
-        currentBgByIndex[idx] = computeSurfaceBg(sim, epoch.id, mx, my, tile.type, renders[0]?.color)
+        currentBgByIndex[idx] =
+          tile.type === TileType.Space
+            ? null
+            : computeSurfaceBg(sim, epoch.id, mx, my, tile.type, renders[0]?.color)
         visibleTileTypeByIndex[idx] = tile.type
       }
     }
   }
 
-  // Crossfade pre-pass: build a buffer of next-epoch renders + bg for
+  // Crossfade pre-pass: build a buffer of next-epoch glyph renders for
   // every visible tile in one go, with `nextSnapshot` applied for the
   // entire sweep. Without this, the inner loop would swap snapshots ~17
   // fields × 2 directions per tile (~3.4M field writes per crossfade
-  // frame at zoom 0.5). Restores the current snapshot at the end so the
-  // main draw passes read the right per-epoch data.
+  // frame at zoom 0.5). The bg color is intentionally NOT crossfaded —
+  // tile-bg snaps at the epoch boundary while only the glyphs blend.
+  // Restores the current snapshot at the end so the main draw passes
+  // read the right per-epoch data.
   let nextRendersByIndex: (GenesisTileRender | null)[] | null = null
-  let nextBgByIndex: (string | null)[] | null = null
   if (nextEpoch && nextSnapshot) {
     applySnapshot(sim, nextSnapshot)
     nextRendersByIndex = new Array<GenesisTileRender | null>(cellCount)
-    nextBgByIndex = new Array<string | null>(cellCount)
     let i = 0
     for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
       for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
@@ -409,28 +415,21 @@ export const renderGenesis = (
         const tileType = visibleTileTypeByIndex[idx]
         if (tileType === null) {
           nextRendersByIndex[idx] = null
-          nextBgByIndex[idx] = null
           continue
         }
         const mx = cameraX + vx
         const my = cameraY + vy
         const nextRenders = nextEpoch.renderTile(sim, mx, my, blendT * CROSSFADE_PEEK, time)
-        const nr = nextRenders[0] ?? null
-        nextRendersByIndex[idx] = nr
-        nextBgByIndex[idx] = computeSurfaceBg(sim, nextEpoch.id, mx, my, tileType, nr?.color)
+        nextRendersByIndex[idx] = nextRenders[0] ?? null
       }
     }
     applySnapshot(sim, sim.epochSnapshots[sim.epochIndex])
   }
 
-  // Per-tile precompute: resolve effective bg (lerped during crossfade),
-  // viewportToScreen, lift, and the lifted (px, py) anchor for each
-  // visible tile. Stored in flat Float32Array / parallel arrays so the
-  // bg / skirt / wall / glyph passes don't repeat the work. When one
-  // side of the crossfade has no bg (cosmicFormation / landAccretion),
-  // lerp through BG_COLOR so the diamond fades in/out gradually instead
-  // of snapping at the epoch boundary.
-  const effectiveBgByIndex = new Array<string | null>(cellCount)
+  // Per-tile precompute: viewportToScreen + lift, stored in Float32Arrays
+  // so the bg / skirt / wall / glyph passes don't repeat the work.
+  // currentBgByIndex doubles as the gate — null means skip bg/skirt/wall
+  // (space tiles, cosmicFormation, landAccretion, off-canvas tiles).
   const pxByIndex = new Float32Array(cellCount)
   const pyLiftedByIndex = new Float32Array(cellCount)
   const halfW = charWidth / 2
@@ -440,25 +439,7 @@ export const renderGenesis = (
     for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
       for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
         const idx = i++
-        if (currentRendersByIndex[idx] === null && (nextRendersByIndex?.[idx] ?? null) === null) {
-          effectiveBgByIndex[idx] = null
-          continue
-        }
-        const cur = currentBgByIndex[idx]
-        const nxt = nextBgByIndex?.[idx] ?? null
-        let bg: string | null
-        if (!nextBgByIndex) {
-          bg = cur
-        } else if (cur && nxt) {
-          bg = lerpColor(cur, nxt, blendT)
-        } else if (cur) {
-          bg = lerpColor(cur, BG_COLOR, blendT)
-        } else if (nxt) {
-          bg = lerpColor(BG_COLOR, nxt, blendT)
-        } else {
-          bg = null
-        }
-        effectiveBgByIndex[idx] = bg
+        if (currentRendersByIndex[idx] === null) continue
         const { px, py } = viewportToScreen(
           vx,
           vy,
@@ -486,7 +467,7 @@ export const renderGenesis = (
     for (let vy = vyMin; vy <= vyMax; vy++) {
       const vx = s - vy
       const idx = idxOf(vx, vy)
-      const bg = effectiveBgByIndex[idx]
+      const bg = currentBgByIndex[idx]
       if (!bg) continue
       const px = pxByIndex[idx]
       const topY = pyLiftedByIndex[idx]
@@ -516,7 +497,7 @@ export const renderGenesis = (
   for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
     for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
       const idx = idxOf(vx, vy)
-      const bg = effectiveBgByIndex[idx]
+      const bg = currentBgByIndex[idx]
       if (!bg) continue
       const px = pxByIndex[idx]
       const topY = pyLiftedByIndex[idx]
