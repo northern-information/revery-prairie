@@ -1,0 +1,95 @@
+plan:
+  id: flora-wind-sway
+  title: Flora wind sway animation driven by in-game weather
+  created: 2026-05-03
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: implement-flora-module
+    title: Implement WEATHER_AFFECTED_TILES set in src/engine/flora.ts
+    spec_id: flora-wind-sway
+    spec_sections:
+      - weather-affected-flag
+    context_files:
+      - src/engine/types.ts
+      - harness/specs/flora-wind-sway.yaml
+    output_files:
+      - src/engine/flora.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: implement-flora-wind-module
+    title: Implement getFloraSwayOffset and helpers in src/engine/render/floraWind.ts
+    spec_id: flora-wind-sway
+    spec_sections:
+      - per-tile-phase-offset
+      - wind-driven-oscillation
+      - luminance-shift
+      - lifecycle-damping
+      - zone-suppression
+      - zoom-proportional-amplitude
+    context_files:
+      - src/engine/types.ts
+      - src/engine/flora.ts
+      - src/engine/position.ts
+      - harness/specs/flora-wind-sway.yaml
+    output_files:
+      - src/engine/render/floraWind.ts
+    depends_on:
+      - implement-flora-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: wire-renderer
+    title: Apply flora sway offset in renderer central tile loop for WEATHER_AFFECTED_TILES
+    spec_id: flora-wind-sway
+    spec_sections:
+      - wind-driven-oscillation
+      - luminance-shift
+      - lifecycle-damping
+      - zone-suppression
+      - weather-affected-flag
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/render/floraWind.ts
+      - src/engine/flora.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - implement-flora-wind-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: write-tests
+    title: Write unit tests for getFloraSwayOffset covering all spec behaviors and edge cases
+    spec_id: flora-wind-sway
+    spec_sections:
+      - per-tile-phase-offset
+      - wind-driven-oscillation
+      - lifecycle-damping
+      - zone-suppression
+      - zoom-proportional-amplitude
+    context_files:
+      - src/engine/render/floraWind.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/helpers.ts
+      - harness/specs/flora-wind-sway.yaml
+    output_files:
+      - src/engine/__tests__/floraWind.test.ts
+    depends_on:
+      - implement-flora-wind-module
+    verification:
+      - npx vitest run src/engine/__tests__/floraWind.test.ts
+    repair: retry
+    tags: [test]

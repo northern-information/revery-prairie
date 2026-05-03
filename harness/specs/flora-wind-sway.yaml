@@ -1,0 +1,160 @@
+id: flora-wind-sway
+name: Flora wind sway animation
+priority: medium
+layer: engine
+source_files:
+  - src/engine/flora.ts
+  - src/engine/render/floraWind.ts
+  - src/engine/renderer.ts
+dependencies: []
+
+behaviors:
+  - id: weather-affected-flag
+    description: >
+      A WEATHER_AFFECTED_TILES set exported from src/engine/flora.ts declares
+      which tile types receive wind sway animation. The renderer checks this
+      set before computing any sway. Currently contains only TileType.Clover.
+      Future flora tile types opt in by being added to this set.
+    inputs:
+      - tile.type (TileType)
+    outputs:
+      - 'boolean: whether wind sway is computed for this tile'
+    state_changes:
+      - field: none
+        effect: Lookup only; no GameState mutations
+    determinism: deterministic
+
+  - id: per-tile-phase-offset
+    description: >
+      Each flora tile has a unique, deterministic phase offset derived from
+      its tile position (mx, my) using tileHash. Tiles in the same field
+      sway at different moments, producing a rolling-grain visual rather
+      than a uniform pulse. Phase is recomputed from position each frame;
+      no persistent state is written.
+    inputs:
+      - 'Tile position mx, my'
+    outputs:
+      - 'A phase scalar in [0, 2π) unique to each (mx, my) pair'
+    state_changes:
+      - field: none
+        effect: Computed at render time only
+    determinism: deterministic
+
+  - id: wind-driven-oscillation
+    description: >
+      Flora glyphs are drawn with a pixel offset (dx, dy) relative to their
+      tile center. The offset direction maps from state.weather.windDirection
+      (the compass point the wind blows FROM) to iso screen-space vectors.
+      Magnitude scales linearly with state.weather.windSpeed. Oscillation is
+      a weighted sum of two sine waves at different frequencies (ratio ~1.7x)
+      to break the uniform sine pattern and feel natural. Y-axis offset
+      magnitude is larger than X-axis to evoke a nodding grass tip.
+    inputs:
+      - 'state.weather.windSpeed (number, 3–25 mph)'
+      - 'state.weather.windDirection (WindDirection, 8 compass points)'
+      - 'Current render timestamp (ms)'
+      - 'charWidth, charHeight from CharMetrics'
+      - 'Per-tile phase offset'
+    outputs:
+      - 'dx: horizontal pixel offset for ctx.fillText'
+      - 'dy: vertical pixel offset for ctx.fillText'
+    state_changes:
+      - field: none
+        effect: Visual only; no GameState mutations
+    determinism: deterministic
+
+  - id: luminance-shift
+    description: >
+      A subtle luminance delta synchronized with the primary oscillation value
+      is added to the clover glyph color. The glyph brightens slightly on the
+      forward lean and dims slightly on the back lean. Applied by clamping
+      each RGB channel against [0, 255].
+    inputs:
+      - 'Current oscillation scalar [-1, 1]'
+      - 'Resolved clover base color (hex or rgb string)'
+    outputs:
+      - 'Modified color string passed to ctx.fillStyle'
+    state_changes:
+      - field: none
+        effect: Visual only
+    determinism: deterministic
+
+  - id: lifecycle-damping
+    description: >
+      Sway amplitude is multiplied by a stage-specific factor before being
+      applied. Healthy: 1.0. Brown: 0.5. BlinkingRed: 0.15. Black: 0.0.
+      Decomposing: 0.0. BurntRecovering: 0.0. When no lifecycle entry exists
+      for a tile (new clover not yet registered), the tile is treated as
+      Healthy (factor 1.0).
+    inputs:
+      - 'CloverLifecycleState | undefined from state.cloverLifecycle.get(tileKey)'
+    outputs:
+      - 'Scalar factor in {0.0, 0.15, 0.5, 1.0}'
+    state_changes:
+      - field: none
+        effect: Visual only
+    determinism: deterministic
+
+  - id: zone-suppression
+    description: >
+      Flora sway animation is not applied when state.currentZone is Zone.Cave
+      or Zone.Ruin. getFloraSwayOffset returns {dx: 0, dy: 0, luminanceDelta: 0}
+      in those zones without reading weather state.
+    inputs:
+      - 'state.currentZone (Zone)'
+    outputs:
+      - 'dx = 0, dy = 0, luminanceDelta = 0'
+    state_changes:
+      - field: none
+        effect: No change
+    determinism: deterministic
+
+  - id: zoom-proportional-amplitude
+    description: >
+      Maximum sway amplitude is a fixed fraction of charWidth and charHeight
+      so the effect scales with tile size. At small viewport (zoomed out),
+      pixel offsets are small and nearly imperceptible. At large viewport
+      (zoomed in), offsets grow with tile size and become visible.
+      maxDx ≈ charWidth × 0.10, maxDy ≈ charHeight × 0.28.
+    inputs:
+      - 'charWidth, charHeight from CharMetrics'
+    outputs:
+      - 'maxDx and maxDy used as amplitude ceiling in oscillation formula'
+    state_changes:
+      - field: none
+        effect: Visual only
+    determinism: deterministic
+
+edge_cases:
+  - id: dead-clover-no-sway
+    description: >
+      CloverStage.Black or Decomposing tile — sway factor is 0.0
+    expected: >
+      dx = 0, dy = 0, luminanceDelta = 0 regardless of windSpeed or windDirection
+  - id: no-lifecycle-entry
+    description: >
+      A clover tile has no entry in state.cloverLifecycle (freshly placed or
+      not yet ticked)
+    expected: Treated as Healthy; full sway applied
+  - id: cave-zone-guard
+    description: >
+      Zone is Cave — no clover tiles render but the guard must not crash if
+      called with cave zone
+    expected: Returns zero offsets immediately without accessing weather fields
+  - id: max-wind-amplitude-bounds
+    description: >
+      windSpeed = 25 mph — maximum configured speed — does not push glyph
+      outside its tile cell
+    expected: >
+      |dx| ≤ charWidth × 0.15 and |dy| ≤ charHeight × 0.35 at all phase values
+
+failure_conditions:
+  - trigger: WEATHER_AFFECTED_TILES.has() called with undefined
+    expected: Returns false; Set.has(undefined) is safe; no crash
+  - trigger: windSpeed is 0 (weather system produces it transiently)
+    expected: Amplitude collapses to 0; no division-by-zero; no sway
+
+verification:
+  test_file: src/engine/__tests__/floraWind.test.ts
+  test_pattern: flora wind
+  command: npx vitest run src/engine/__tests__/floraWind.test.ts

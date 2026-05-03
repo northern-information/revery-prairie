@@ -114,6 +114,8 @@ import {
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
+import { WEATHER_AFFECTED_TILES } from './flora'
+import { getFloraSwayOffset } from './render/floraWind'
 
 import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState, TransitionFade } from './types'
@@ -1443,6 +1445,28 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
+      // Flora wind sway: offset and luminance-shift weather-affected tiles.
+      // Only applied on the non-highlighted terrain path so the cursor
+      // highlight box stays anchored to the tile centre.
+      let swayDx = 0
+      let swayDy = 0
+      if (!highlight && WEATHER_AFFECTED_TILES.has(map[my]?.[mx]?.type)) {
+        const sway = getFloraSwayOffset(
+          mx,
+          my,
+          time,
+          state.weather,
+          state.currentZone,
+          state.cloverLifecycle.get(tileKey),
+          charWidth,
+          charHeight,
+          color,
+        )
+        swayDx = sway.dx
+        swayDy = sway.dy
+        color = sway.color
+      }
+
       // Non-deferred path: terrain glyphs and overlay tiles. Apply the
       // highlight side effects here. applyEntityFade cannot fire on this
       // path (it requires isEntity, which would have taken the defer
@@ -1480,7 +1504,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // tween position rather than the iteration position.
         ctx.fillText(char, playerScreen.px, playerScreen.py + playerLift)
       } else {
-        ctx.fillText(char, px, pyLift)
+        ctx.fillText(char, px + swayDx, pyLift + swayDy)
       }
     }
   }
