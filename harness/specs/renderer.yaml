@@ -124,14 +124,16 @@ behaviors:
 
         1. clear canvas, set up font and world transform
         2. runPassesInSlot('bg-cache', ...)  — tile-bg + cube edges
-        3. runPassesInSlot('world-overlay', ...) — earth scan, ruin
+        3. fog of war computation (cached on visibility.ts so the
+           fog mask pass and the central tile loop share one set)
+        4. runPassesInSlot('world-overlay', ...) — earth scan, ruin
            entrance halo, lightning targeting range, angel gold aura,
-           prairie halo cache composite, prairie outline
-        4. populate per-frame ECS-derived collections (bees,
+           prairie halo cache composite, prairie outline, fog mask
+           (last; covers cached bg + every overlay above for fog zones)
+        5. populate per-frame ECS-derived collections (bees,
            characters, items, shooting stars, meteorites, lightning
            bolts, explosions, wildfire, pickup bloom, revery cast,
            crumble, etc.) into module-level Maps
-        5. fog of war computation
         6. central tile loop: iterates the visible viewport and
            resolves each tile's char/color via a precedence chain
            (cursor > preview > effect > entity > ground item >
@@ -445,8 +447,8 @@ edge_cases:
     description: 'cursor on a cursorable tile that has a surface bg'
     expected: 'cursor pink fillRect replaces the tile bg in that tile, glyph renders in dark BG_COLOR; cursor inversion is unchanged'
   - id: tile-bg-during-fog
-    description: 'partiallyDiscovered fog tile with surface bg'
-    expected: 'tile bg paints, then dim glyph draws on top; bg may also be dimmed for visual consistency or left at full saturation (implementation choice)'
+    description: 'unexplored or partiallyDiscovered fog tile with surface bg'
+    expected: 'the fog-bg-mask spec (harness/specs/fog-bg-mask.yaml) governs how the cached tile-bg interacts with fog. unexplored tiles are masked to BG_COLOR (fully hidden); partiallyDiscovered tiles are dimmed to FOG_EXPLORED_BRIGHTNESS so bg and glyph dim together. the mask is a dedicated pass that runs last in the world-overlay slot.'
   - id: dropped-item-on-tile
     description: 'ground item glyph on a clover tile'
     expected: 'clover bg shows under the item glyph; item does not paint its own background'

@@ -1,5 +1,5 @@
 id: ruin-locked-door
-name: 'Ruin locked door (key-gated tile)'
+name: 'Ruin locked door (key-gated wall)'
 priority: high
 layer: engine
 source_files:
@@ -11,6 +11,7 @@ source_files:
   - src/engine/renderer.ts
   - src/engine/interaction.ts
   - src/hooks/useKeyboard.ts
+  - src/hooks/useMouse.ts
   - src/engine/manual.ts
   - src/components/Sidebar.tsx
 dependencies:
@@ -43,55 +44,83 @@ behaviors:
 
   - id: door-placement
     description: >
-      during dormant-garden generation, exactly one RuinDoorLocked tile
-      is placed on the single corridor cell connecting the seed vault
-      chamber to the rest of the maze. doorPosition is recorded on
-      DormantGardenData. if the vault has more than one connecting
-      cell after maze carving, all but one are reverted to RuinWall so
-      the door is the only entry.
+      during dormant-garden generation, the entire south wall row of
+      the seed vault is converted to RuinDoorLocked tiles — mirroring
+      the cave breakable wall pattern. all door tile positions are
+      recorded on DormantGardenData.doorPositions (Position[]). a
+      1-tile-tall landing strip directly south of the door row is
+      carved as RuinFloor so the player can stand under any door
+      tile and face up to interact. a 1-wide tunnel from the landing
+      center connects down to the spine. the wider hitbox makes the
+      door easy to find with [e] OR click.
     inputs:
       - 'maze + vault layout from generateDormantGarden'
     outputs:
-      - 'one RuinDoorLocked tile gating the seed vault'
+      - 'a row of RuinDoorLocked tiles spanning the vault south wall'
+      - 'walkable landing strip immediately south of the door row'
     state_changes:
       - field: map
-        effect: 'RuinDoorLocked tile placed at vault choke point'
-      - field: dormantGarden.doorPosition
-        effect: 'set to door tile position'
+        effect: 'south wall row of the vault becomes RuinDoorLocked; landing strip below becomes RuinFloor'
+      - field: dormantGarden.doorPositions
+        effect: 'array populated with every door tile position'
     determinism: deterministic
 
   - id: unlock-interaction
     description: >
-      pressing [e] while facing a RuinDoorLocked tile and holding at
-      least one aqueductKey item in the backpack consumes one
-      aqueductKey and converts the tile to RuinDoorOpen. the door
-      remains RuinDoorOpen for the rest of the session — re-locking
-      is not a feature. the unlock fires a pickupBloom-style toast
-      and a unique unlock toast: 'the lock turns'. records discovery
-      for event:ruin-door-unlocked.
+      pressing [e] while facing any RuinDoorLocked tile and holding
+      at least one aqueductKey item in the backpack consumes one
+      aqueductKey and converts ALL door tiles in the current ruin's
+      doorPositions to RuinDoorOpen atomically. the door row remains
+      open for the rest of the session — re-locking is not a feature.
+      fires a unique unlock toast: 'the lock turns'. records
+      discovery for event:ruin-door-unlocked. clicking any door tile
+      pathfinds to the closest walkable adjacent tile and triggers
+      the same unlock on arrival (see click-interaction edge case).
     inputs:
-      - '[e] pressed while facing RuinDoorLocked, aqueductKey in backpack'
+      - '[e] pressed while facing any RuinDoorLocked tile, aqueductKey in backpack'
     outputs:
-      - 'door tile becomes RuinDoorOpen, one aqueductKey consumed'
+      - 'every door tile in the row becomes RuinDoorOpen, one aqueductKey consumed'
     state_changes:
       - field: map
-        effect: 'RuinDoorLocked becomes RuinDoorOpen'
+        effect: 'every RuinDoorLocked tile in the row becomes RuinDoorOpen'
       - field: backpack
         effect: 'one aqueductKey item removed'
       - field: manualDiscoveries
         effect: 'event:ruin-door-unlocked recorded'
     determinism: deterministic
 
+  - id: click-to-unlock
+    description: >
+      RuinDoorLocked tiles are interactable via mouse click.
+      isInteractableAt returns true for any RuinDoorLocked tile in
+      a Ruin zone. clicking pathfinds to the closest walkable
+      adjacent tile (typically on the carved landing strip), walks
+      there, faces the door, and runs unlockRuinDoor — same
+      semantics as pressing [e]. clicking with no aqueductKey in
+      the backpack walks the player but does not open the door.
+    inputs:
+      - 'mouse click on a RuinDoorLocked tile while in a Ruin zone'
+    outputs:
+      - 'player walks to an adjacent walkable tile and the door row opens (if key held)'
+    state_changes:
+      - field: state.path
+        effect: 'pathfind to adjacent walkable tile'
+      - field: state.pendingAction
+        effect: 'unlockRuinDoor invocation queued for arrival'
+    determinism: deterministic
+
   - id: locked-door-blocks-movement
     description: >
-      a RuinDoorLocked tile blocks player movement, click-to-move
+      every RuinDoorLocked tile blocks player movement, click-to-move
       pathfinding, coyote follow/collect pathing, and any other
       movement system that uses isWalkableTile. an open door
-      (RuinDoorOpen) is walkable for all systems.
+      (RuinDoorOpen) is walkable for all systems. clicks on door
+      tiles route through isInteractableAt + the click-to-interact
+      path (see click-to-unlock behavior) instead of click-to-move.
     inputs:
       - 'movement, pathfinding, hover preview against RuinDoorLocked tile'
     outputs:
-      - 'tile treated as impassable'
+      - 'tile treated as impassable for movement; treated as interactable for clicks'
     state_changes: []
     determinism: deterministic
 
@@ -124,15 +153,23 @@ edge_cases:
     description: 'aqueductKey is bound to an action bar slot when unlock fires'
     expected: 'key is removed from backpack; action bar slot is cleared if it referenced the consumed instance'
 
+  - id: click-interaction
+    description: 'player clicks a RuinDoorLocked tile (any tile in the wall row) while holding an aqueductKey'
+    expected: 'player pathfinds to closest adjacent walkable tile (carved landing strip), faces the door, and unlockRuinDoor fires — every door tile in the row converts to RuinDoorOpen'
+
+  - id: click-without-key
+    description: 'player clicks a RuinDoorLocked tile with no aqueductKey in backpack'
+    expected: 'player walks to adjacent tile and faces the door, but unlockRuinDoor returns false; door row stays locked'
+
 failure_conditions:
-  - trigger: 'door tile placement collides with the entrance landing area'
-    expected: 'generator regression — door must never block the entrance corridor; tests must fail if doorPosition equals or is adjacent to entranceInterior'
+  - trigger: 'door row placement collides with the entrance landing area'
+    expected: 'generator regression — the door row must never block the entrance corridor; tests must fail if any doorPositions entry equals or is adjacent to entranceInterior'
 
-  - trigger: 'two RuinDoorLocked tiles exist in a single ruin'
-    expected: 'generator regression — exactly one door per ruin; tests must fail'
-
-  - trigger: 'unlock attempted while not facing the door (e.g. facing wall adjacent to door)'
+  - trigger: 'unlock attempted while not facing any door tile (e.g. facing a regular wall adjacent to the door row)'
     expected: 'no-op — unlock is gated on facingTile == RuinDoorLocked'
+
+  - trigger: 'unlocking opens only the facing tile, leaving sibling door tiles in the row locked'
+    expected: 'spec is violated — unlockRuinDoor must convert every doorPositions entry atomically, mirroring breakWall on cave breakable walls'
 
 verification:
   test_file: src/engine/__tests__/ruin-locked-door.test.ts

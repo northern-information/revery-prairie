@@ -1,0 +1,153 @@
+id: fog-bg-mask
+name: 'Fog-of-war background mask pass'
+priority: high
+layer: engine
+source_files:
+  - src/engine/render/passes/fogMask.ts
+  - src/engine/render/passes/index.ts
+  - src/engine/render/passes/tileBgComposite.ts
+  - src/engine/visibility.ts
+  - src/engine/renderer.ts
+  - src/engine/constants.ts
+dependencies:
+  - renderer
+  - cave-fog-of-war
+  - ruin-fog-of-war
+
+behaviors:
+  - id: mask-applies-after-bg-cache
+    description: >
+      a dedicated render pass paints fog-of-war masks over the cached
+      tile-bg + cube-edge layer in fog zones (cave, ruin). it runs in
+      the world-overlay slot after the tileBgComposite pass and after
+      every other world-overlay pass (earth scan, halos, lightning
+      range, angel aura, prairie halo, prairie outline) — so masks
+      cover both the cached bg and any world overlays. it runs before
+      the central tile-glyph loop so the central loop's fog-aware
+      glyph dimming (renderer.ts) still composes correctly on top.
+      isActive returns false for non-fog zones (overworld, genesis),
+      so the pass is skipped in O(1) on the prairie.
+    inputs:
+      - 'state.currentZone'
+      - 'hasFogOfWar(state.currentZone)'
+    outputs:
+      - 'pass active only when state.currentZone is Cave or Ruin'
+      - 'no-op on overworld'
+    state_changes: []
+    determinism: deterministic
+
+  - id: unexplored-tiles-fully-hidden
+    description: >
+      tiles whose visibility is unexplored render as solid BG_COLOR
+      diamonds — the same dark canvas-background fill the renderer
+      lays down before any tile painting. the cached tile-bg color
+      and the cached south/east cube-edge stroke for that tile are
+      both fully covered by the mask diamond. the player cannot
+      infer cave or ruin layout from the bg color of tiles they
+      have never seen.
+    inputs:
+      - 'tile visibility = unexplored'
+      - 'tile is not space'
+    outputs:
+      - 'opaque BG_COLOR diamond painted at the tile iso footprint, covering the cached tile-bg fill and edge stroke'
+    state_changes: []
+    determinism: deterministic
+
+  - id: partially-discovered-tiles-dimmed
+    description: >
+      tiles whose visibility is partiallyDiscovered ("dim memory")
+      render with the cached tile-bg dimmed to FOG_EXPLORED_BRIGHTNESS
+      (0.4). the mask achieves this by painting a black diamond at
+      alpha (1 - FOG_EXPLORED_BRIGHTNESS) = 0.6 over the cached bg,
+      which multiplies the visible RGB to 0.4 of the original — the
+      same factor that the central tile loop applies to the foreground
+      glyph at renderer.ts via dimColor(baseColor, FOG_EXPLORED_BRIGHTNESS).
+      bg and glyph dim together; the tile reads as a single dim memory.
+    inputs:
+      - 'tile visibility = partiallyDiscovered'
+      - 'FOG_EXPLORED_BRIGHTNESS constant (0.4)'
+    outputs:
+      - 'black diamond painted at alpha 0.6 over the tile iso footprint'
+      - 'cached tile-bg + edge stroke visually dim to ~40% brightness, matching the foreground glyph dim already applied downstream'
+    state_changes: []
+    determinism: deterministic
+
+  - id: fully-discovered-and-visible-untouched
+    description: >
+      tiles whose visibility is fullyDiscovered or visible are not
+      masked. the cached tile-bg + edge stroke composite through at
+      full saturation, and downstream passes / the central tile loop
+      paint glyphs and effects on top normally.
+    inputs:
+      - 'tile visibility = fullyDiscovered or visible'
+    outputs:
+      - 'no mask painted; cached bg and edges remain at full color'
+    state_changes: []
+    determinism: deterministic
+
+  - id: viewport-scoped-iteration
+    description: >
+      the mask pass iterates only the visible viewport tile range
+      (the same expanded tile-loop bounds the central tile loop uses
+      so iso corner diamonds are not clipped), not the full map.
+      per-frame work is bounded by viewport size, not map size.
+    inputs:
+      - 'state.camera, state.viewportWidth, state.viewportHeight'
+    outputs:
+      - 'one mask check per visible viewport tile per frame'
+    state_changes: []
+    determinism: deterministic
+
+  - id: mask-uses-iso-diamond-geometry
+    description: >
+      mask shapes are iso diamonds matching the tileBgCache diamond
+      geometry, including the TILE_BG_OVERLAP expansion. this guarantees
+      the mask covers exactly the area painted by the cache (fill +
+      south/east edge stroke). the diamond is positioned using the
+      same world-to-screen projection the central tile loop and bg
+      cache use, including elevation lift (getTierLift) so masks land
+      on the correct cell when terrain has tiers.
+    inputs:
+      - 'tile (mx, my), tile elevation tier, charWidth, charHeight'
+    outputs:
+      - 'diamond path centered on the tile iso footprint at the lifted py'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: space-tiles-skipped
+    description: 'space tiles are excluded from the bg cache and from fog (they have no fog state). the mask pass also skips them so the twinkling-stars rendering is not covered.'
+    expected: 'space tiles in viewport receive no mask; canvas BG_COLOR + twinkling stars render normally'
+  - id: hidden-chamber-still-hidden
+    description: 'cave hidden-chamber tiles (caveHiddenPositions, before caveRevealed) are baked into the cache as CaveWall via existing masking. the fog mask does not need to handle them specially — fog state still applies to them like any other cave tile.'
+    expected: 'hidden chamber tiles render with the masked CaveWall bg; fog mask additionally hides/dims them per the player''s visibility state'
+  - id: cave-entrance-always-visible-bg
+    description: 'cave entrance and its 1-tile neighbors are force-added to the visible set by computeZoneVisibility, so their tiles never reach unexplored or partiallyDiscovered.'
+    expected: 'entrance tiles never receive a mask; their bg + edge always show at full saturation'
+  - id: revery-illumination-shows-bg
+    description: 'fire / lightning illumination tiles (state.caveFogIllumination) are unioned into the visible set per frame.'
+    expected: 'illuminated tiles render with full bg saturation during the effect; revert to partiallyDiscovered (dimmed) or fullyDiscovered (full) bg after the illumination expires per the existing fog state'
+  - id: world-overlays-on-unexplored-tiles
+    description: 'world-overlay passes (earth scan, ruin entrance halo, lightning targeting range, angel aura, prairie halo, prairie outline) may have drawn into the bg-cache region before the fog mask runs. since the mask runs after them in world-overlay, their colors are also covered for unexplored tiles and dimmed for partiallyDiscovered tiles.'
+    expected: 'unexplored tiles in fog zones never reveal world-overlay colors; partiallyDiscovered tiles show dimmed world-overlay colors consistent with the dim-memory bg'
+  - id: empty-fog-state
+    description: 'a fog zone with empty caveFogExplored / caveFogDiscovered (just entered, no tiles seen)'
+    expected: 'every viewport tile except the player FOV and entrance ring renders fully masked (BG_COLOR diamonds)'
+  - id: elevation-tiers-in-fog
+    description: 'fog zones currently have flat elevation, but the mask must use the same tier-lift projection as the cache so a future elevated cave or ruin still aligns.'
+    expected: 'mask diamonds use getTierLift(tierAt(x, y)) when computing py, matching tileBgCache.tileWorldPos'
+
+failure_conditions:
+  - trigger: 'fog mask pass runs before tileBgComposite (wrong slot order)'
+    expected: 'mask is painted, then bg cache composites on top of the mask, hiding it. spec is violated. the pass must register in world-overlay (after bg-cache) or in bg-cache after tileBgComposite via stable insertion order.'
+  - trigger: 'fog mask pass uses rectangular fillRect instead of the iso diamond shape'
+    expected: 'mask leaks beyond the tile cell into adjacent tiles, producing visible mask seams or hiding parts of neighbor tiles that should be visible. spec is violated.'
+  - trigger: 'fog mask pass uses a black opaque fill for unexplored instead of BG_COLOR'
+    expected: 'unexplored tiles render at #000 (pure black) instead of #1a1a1a (canvas BG). visually inconsistent with the cleared canvas. spec is violated.'
+  - trigger: 'fog mask runs in a non-fog zone (overworld, genesis)'
+    expected: 'no-op via isActive predicate; if the predicate is wrong, the prairie would render with hidden bg everywhere — spec is violated.'
+
+verification:
+  test_file: src/engine/__tests__/fogMask.test.ts
+  test_pattern: 'fog mask'
+  command: 'npx vitest run src/engine/__tests__/fogMask.test.ts'

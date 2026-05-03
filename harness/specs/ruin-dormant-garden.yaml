@@ -30,8 +30,9 @@ behaviors:
       waterFlowing (boolean, true when all breaks repaired),
       keyPosition (Position where aqueductKey ground item spawns inside
       the maze), tabletPosition (Position where stoneTablet ground item
-      spawns inside the maze), doorPosition (Position of the
-      RuinDoorLocked tile that gates the seed vault).
+      spawns inside the maze), doorPositions (Position[] of every
+      RuinDoorLocked tile in the row that gates the seed vault — see
+      ruin-locked-door spec).
     inputs:
       - 'ruin generation creates the sole archetype'
     outputs:
@@ -85,7 +86,7 @@ behaviors:
       at a corridor cell whose BFS distance from the entrance is between
       60% and 85% of the deepest reachable distance, chosen via seeded
       rng. the cell must not be inside the seed vault and must not be
-      the doorPosition. dead-end alcoves are preferred when available.
+      any tile in doorPositions. dead-end alcoves are preferred when available.
       the key is the only way to unlock the door without future
       mechanics. recorded on DormantGardenData.keyPosition. spawned as
       an ItemDrop entity with definitionId 'aqueductKey'.
@@ -104,7 +105,7 @@ behaviors:
       at a corridor cell whose BFS distance from the entrance is
       between 25% and 55% of the deepest reachable distance, chosen via
       seeded rng. the cell must not be inside the seed vault, must not
-      be the doorPosition, must not be the keyPosition, and must not be
+      be in doorPositions, must not be the keyPosition, and must not be
       on a RuinAqueduct or RuinAqueductBroken tile. recorded on
       DormantGardenData.tabletPosition. spawned as an ItemDrop entity
       with definitionId 'stoneTablet'. the tablet is purely a

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { unlockRuinDoor } from '../interaction'
+import { isInteractableAt, unlockRuinDoor } from '../interaction'
 import { movePlayer } from '../movement'
 import { TileType, Zone } from '../types'
 
 import { createTestState } from './helpers'
 
-import type { GameState } from '../types'
+import type { GameState, Position, RuinInterior } from '../types'
 
 const setupRuinWithDoor = (state: GameState): { doorX: number; doorY: number } => {
   // Build a tiny ruin interior with a single locked door directly south of the player.
@@ -114,5 +114,108 @@ describe('ruin locked door', () => {
     const opened = unlockRuinDoor(state)
     expect(opened).toBe(true)
     expect(state.actionBar[0]).toBeNull()
+  })
+
+  describe('multi-tile door row', () => {
+    const setupMultiTileDoor = (
+      state: GameState,
+    ): { doorY: number; doorPositions: Position[] } => {
+      const interiorMap: { type: TileType }[][] = Array.from({ length: 10 }, () =>
+        Array.from({ length: 10 }, () => ({ type: TileType.RuinFloor as TileType })),
+      )
+      const doorY = 6
+      const doorPositions: Position[] = []
+      for (let x = 3; x <= 7; x++) {
+        interiorMap[doorY][x] = { type: TileType.RuinDoorLocked }
+        doorPositions.push({ x, y: doorY })
+      }
+      state.map = interiorMap
+      state.mapWidth = 10
+      state.mapHeight = 10
+      state.player = { x: 3, y: 5 }
+      state.playerFacing = 'down'
+      state.currentZone = Zone.Ruin
+      state.currentRuinIndex = 0
+      // Stub out the ruin interior with the multi-tile door positions so
+      // unlockRuinDoor finds them in dormantGarden.doorPositions.
+      const stubInterior = {
+        ruinIndex: 0,
+        archetype: 'dormantGarden',
+        name: 'test',
+        map: interiorMap,
+        mapWidth: 10,
+        mapHeight: 10,
+        entranceOverworld: { x: 0, y: 0 },
+        entranceInterior: { x: 0, y: 0 },
+        explored: false,
+        cleared: false,
+        dormantGarden: {
+          aqueductTiles: new Set<string>(),
+          breakPoints: [],
+          repairedBreaks: new Set<string>(),
+          debrisPositions: [],
+          seedVault: { x: 5, y: 3 },
+          seedDecayTimers: new Map(),
+          seedDecayAcceleration: 1,
+          waterFlowing: false,
+          keyPosition: null,
+          tabletPosition: null,
+          doorPositions,
+        },
+        fogExplored: new Set<string>(),
+        fogDiscovered: new Set<string>(),
+        fogIllumination: new Map<string, number>(),
+      } as unknown as RuinInterior
+      state.ruinInteriors = [stubInterior]
+      return { doorY, doorPositions }
+    }
+
+    it('unlocking from any tile in the row opens the entire row atomically', () => {
+      const state = createTestState()
+      const { doorY, doorPositions } = setupMultiTileDoor(state)
+      addAqueductKey(state, 1)
+      // Player faces the leftmost door tile (3,6) from (3,5) facing down.
+      const opened = unlockRuinDoor(state)
+      expect(opened).toBe(true)
+      // Every tile in the row should now be RuinDoorOpen — not just (3,6).
+      for (const dp of doorPositions) {
+        expect(state.map[dp.y][dp.x].type).toBe(TileType.RuinDoorOpen)
+      }
+      // Sanity: doorY is intact.
+      expect(doorY).toBe(6)
+    })
+
+    it('opening the row consumes only one aqueductKey, regardless of row length', () => {
+      const state = createTestState()
+      setupMultiTileDoor(state)
+      addAqueductKey(state, 3)
+      const before = state.backpack.items.filter((i) => i.definitionId === 'aqueductKey').length
+      expect(before).toBe(3)
+      expect(unlockRuinDoor(state)).toBe(true)
+      const after = state.backpack.items.filter((i) => i.definitionId === 'aqueductKey').length
+      expect(after).toBe(2)
+    })
+  })
+
+  describe('click hitbox', () => {
+    it('isInteractableAt returns true for RuinDoorLocked tiles in a Ruin zone', () => {
+      const state = createTestState()
+      const { doorX, doorY } = setupRuinWithDoor(state)
+      expect(isInteractableAt(state, doorX, doorY)).toBe(true)
+    })
+
+    it('isInteractableAt returns false for RuinDoorLocked when not in a Ruin zone', () => {
+      const state = createTestState()
+      const { doorX, doorY } = setupRuinWithDoor(state)
+      state.currentZone = Zone.Overworld
+      expect(isInteractableAt(state, doorX, doorY)).toBe(false)
+    })
+
+    it('isInteractableAt returns false for RuinDoorOpen tiles', () => {
+      const state = createTestState()
+      const { doorX, doorY } = setupRuinWithDoor(state)
+      state.map[doorY][doorX] = { type: TileType.RuinDoorOpen }
+      expect(isInteractableAt(state, doorX, doorY)).toBe(false)
+    })
   })
 })
