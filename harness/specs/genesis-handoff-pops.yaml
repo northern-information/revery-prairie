@@ -1,0 +1,164 @@
+id: genesis-handoff-pops
+name: 'Fix genesis-to-gameplay visual pops (ruin halo, glinting)'
+priority: high
+layer: integration
+source_files:
+  - src/engine/genesisRenderer.ts
+  - src/engine/state.ts
+  - src/engine/genesis.ts
+  - src/engine/glintZones.ts
+dependencies:
+  - genesis-transition
+  - glinting-zones
+  - ruin-visual-style
+
+behaviors:
+  - id: ruin-halo-paints-on-top-of-bg
+    description: >
+      in the genesis renderer, the ruin-entrance halo pre-pass must paint
+      its dark backdrop AFTER the tile-bg fill pass, not before. the halo
+      pass uses drawCellBackground to fill the diamond at each of the 9
+      cells around a RuinEntrance tile with RUIN_ENTRANCE_HALO_COLOR
+      (#2E1F12). the tile-bg fill pass paints the surface bg color on
+      every visible non-space tile. since RuinEntrance and its 8 walkable
+      neighbors are non-space, the bg fill would overwrite the halo if
+      it ran second. the gameplay renderer paints bg-cache first and the
+      ruin-entrance-halo pass (in the world-overlay slot) second; the
+      genesis renderer must mirror that order so the halo is visible
+      during the entire presentDay epoch and through the genesis-to-game
+      handoff with no pop.
+    inputs:
+      - 'genesis presentDay epoch is active (haloAlpha > 0 per computeHaloAlpha)'
+      - 'one or more RuinEntrance tiles exist in sim.grid'
+    outputs:
+      - 'halo backdrop is visible on screen during the entire presentDay epoch'
+      - 'no frame in presentDay or in the fallOfCivilizations->presentDay crossfade renders the halo cells with bare surface bg'
+    state_changes: []
+    determinism: deterministic
+
+  - id: glint-patches-seeded-at-handoff
+    description: >
+      glinting zone patches are seeded inside completeGenesis using
+      performance.now() as the birth time, NOT inside createGameState
+      with time=0. seeding at handoff means every patch starts in its
+      fade-in phase from opacity 0 and ramps up over GLINT_ZONE_FADE_IN_MS
+      (30s). without this, patches seeded at game-state creation with
+      staggered birth times in [0, -105s] would already be at full
+      opacity (or mid-fade-out) by the time genesis completes ~25s
+      later, and the gameplay renderer would suddenly paint
+      already-active sparkle on a previously-still surface. seeding at
+      handoff is also the natural place: glints are an overworld effect,
+      not visible during genesis.
+    inputs:
+      - 'completeGenesis is called (either from gameLoop after the last epoch or from skip-genesis paths)'
+    outputs:
+      - 'all GLINT_ZONE_COUNT patches in state.glintPatches have birthTime >= performance.now() at the moment completeGenesis returns'
+      - 'rebuildGlintZones reports opacity ~0 for every patch on the first gameplay frame'
+      - 'state.lastGlintSpawnTime equals performance.now() at completion'
+    state_changes:
+      - field: glintPatches
+        effect: 'populated inside completeGenesis (with current time as birthTime baseline) instead of inside createGameState'
+      - field: glintZones
+        effect: 'empty after completeGenesis, populated by tickGlintZones during gameplay'
+      - field: glintOpacity
+        effect: 'empty after completeGenesis, populated by tickGlintZones during gameplay'
+      - field: lastGlintSpawnTime
+        effect: 'set to the time argument passed into completeGenesis (performance.now()) when patches are seeded'
+    determinism: time-based
+
+  - id: create-game-state-leaves-glints-empty
+    description: >
+      createGameState no longer calls seedGlintPatches or rebuildGlintZones.
+      state.glintPatches is initialized to an empty array, state.glintZones
+      and state.glintOpacity are initialized to empty Maps/Sets, and
+      state.lastGlintSpawnTime is initialized to 0. seeding is deferred to
+      completeGenesis. the skip-genesis path still ends up calling
+      completeGenesis, so dev mode and ?skipGenesis=true continue to
+      produce a fully seeded glint system.
+    inputs:
+      - 'createGameState is called (with or without genesisResult)'
+    outputs:
+      - 'state.glintPatches.length === 0 immediately after createGameState returns'
+      - 'state.glintZones.size === 0 and state.glintOpacity.size === 0'
+      - 'state.lastGlintSpawnTime === 0'
+    state_changes:
+      - field: glintPatches
+        effect: 'initialized to []'
+      - field: glintZones
+        effect: 'initialized to empty Set'
+      - field: glintOpacity
+        effect: 'initialized to empty Map'
+      - field: lastGlintSpawnTime
+        effect: 'initialized to 0'
+    determinism: deterministic
+
+edge_cases:
+  - id: skip-genesis-still-seeds-glints
+    description: >
+      when ?skipGenesis=true or completeGenesis is invoked synchronously
+      before any epochs render, the glint seeding still runs (because it
+      moves into completeGenesis itself). gameplay starts with patches in
+      fade-in phase, identical to the normal path.
+    expected: 'after a skip-genesis run, state.glintPatches.length === GLINT_ZONE_COUNT and every patch has birthTime <= performance.now()'
+
+  - id: complete-genesis-called-twice
+    description: >
+      completeGenesis returns early if state.genesis is already null.
+      glint seeding therefore happens at most once per game session. a
+      second call must not re-seed (which would visibly reset all
+      patches to opacity 0).
+    expected: 'glint patches are seeded on the first completeGenesis call only; a second call is a no-op'
+
+  - id: present-day-with-zero-ruins
+    description: >
+      a seed that produces no ruin interiors still runs through the
+      halo pass without crashing. the loop iterates sim.grid looking
+      for RuinEntrance tiles and finds none, so no halo cells are
+      painted. the bg fill pass runs normally.
+    expected: 'genesis presentDay frame renders without errors when sim.ruins is empty; no halo is drawn'
+
+  - id: present-day-with-multiple-ruins
+    description: >
+      multiple ruin entrances each receive their own 3x3 halo backdrop,
+      all painted on top of the tile-bg layer. halos for adjacent
+      ruins overlap cleanly without producing brighter or darker
+      regions (since drawCellBackground replaces, not blends, the bg).
+    expected: 'every ruin entrance shows its halo through the entire presentDay epoch'
+
+  - id: fall-to-present-day-crossfade-halo
+    description: >
+      during the last 10% of fallOfCivilizations crossfading into
+      presentDay, computeHaloAlpha returns blendT (0->1) so the halo
+      fades in. the halo paints on top of the bg fill at this fractional
+      alpha. without the order fix, the halo was being painted then
+      erased at every blendT, so it never appeared.
+    expected: 'the ruin halo fades in smoothly across the fall->presentDay crossfade, reaching full opacity by the time presentDay starts'
+
+  - id: glints-not-seen-in-genesis
+    description: >
+      no glint sparkle or beam ever paints during genesis (any epoch).
+      the glint render passes are gameplay-only (effect slot, gameplay
+      renderer); the genesis renderer has no glint pass. this behavior
+      is preserved after the seeding-at-handoff change.
+    expected: 'genesis renderer never paints GLINT_ZONE_CHARS or beam glyphs at any epoch progress'
+
+failure_conditions:
+  - trigger: 'the genesis renderer paints the ruin-entrance halo before the tile-bg fill pass'
+    expected: 'fail — halo cells are erased by the bg fill, halo invisible during presentDay, halo pops in at gameplay handoff'
+
+  - trigger: 'createGameState calls seedGlintPatches'
+    expected: 'fail — patches start aging from time=0, so by the time genesis completes ~25s later, several are already at full opacity, producing an instant pop on the first gameplay frame'
+
+  - trigger: 'completeGenesis does not call seedGlintPatches'
+    expected: 'fail — gameplay starts with no glint patches, the prairie never glints'
+
+  - trigger: 'a glint patch has birthTime less than (handoff_time - GLINT_ZONE_FADE_IN_MS) on the first gameplay frame'
+    expected: 'fail — the patch is past fade-in, opacity is non-zero, this is exactly the pop we are fixing'
+
+  - trigger: 'the first gameplay frame after completeGenesis renders any glint sparkle at full opacity'
+    expected: 'fail — first frame must render at opacity ~0 (fade-in just starting)'
+
+verification:
+  test_file: src/engine/__tests__/genesisHandoffPops.test.ts
+  test_pattern: 'genesis handoff pops'
+  command: npx vitest run src/engine/__tests__/genesisHandoffPops.test.ts

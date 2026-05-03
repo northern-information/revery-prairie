@@ -66,6 +66,15 @@ describe('Sidebar', () => {
   it('shows prairie as yes after combining', () => {
     const state = createGameState('Test', 80, 40)
     completeGenesis(state)
+    // Ensure the player's standing tile is dirt — combineBeeAndClover
+    // bails early if the player is on sand/non-walkable terrain, and
+    // the randomized coastline can drop the player on either depending
+    // on Math.random consumption upstream.
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
+      }
+    }
     combineBeeAndClover(state)
     render(
       <Sidebar

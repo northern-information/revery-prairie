@@ -100,10 +100,16 @@ export const rebuildGlintZones = (state: GameState, time: number): void => {
   }
 }
 
+// Patches are seeded with birth times staggered FORWARD from `time`,
+// so patch 0 enters fade-in immediately and patches 1..N-1 start later.
+// rebuildGlintZones clamps negative-elapsed values to opacity 0, so
+// future-birthtime patches sit invisible until their turn arrives.
+// Subtractive stagger (the previous behavior) made patches appear
+// pre-aged at full opacity at the genesis-to-gameplay handoff.
 export const seedGlintPatches = (state: GameState, time: number): void => {
   state.glintPatches = []
   for (let i = 0; i < GLINT_ZONE_COUNT; i++) {
-    const birthTime = time - i * (TOTAL_LIFECYCLE_MS / GLINT_ZONE_COUNT)
+    const birthTime = time + i * (TOTAL_LIFECYCLE_MS / GLINT_ZONE_COUNT)
     const patch = spawnGlintPatch(state, birthTime)
     if (patch) {
       state.glintPatches.push(patch)
