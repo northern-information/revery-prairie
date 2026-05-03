@@ -406,7 +406,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     alpha: number
   }
   const deferredEntities: DeferredEntity[] = []
-  const deferredFloraGlyphs: Array<{ char: string; color: string; px: number; py: number }> = []
+  const deferredFloraGlyphs: { char: string; color: string; px: number; py: number }[] = []
 
   // Build overworld entrance glyph map (posKey → Greek letter)
   _entranceGlyphMap.clear()
