@@ -1,6 +1,6 @@
 import { buildOccupancyGrid, containerHasItem, findItemByDefinition, removeItem } from './inventory'
 import { isWalkableTile } from './position'
-import { findRecipe, recipeKey, RECIPES } from './recipes'
+import { findRecipe, recipeKey } from './recipes'
 import { TileType } from './types'
 
 import type { Recipe } from './recipes'
@@ -49,21 +49,21 @@ const findAndRemoveItem = (state: GameState, definitionId: string): boolean => {
   return false
 }
 
-export const combineBeeAndClover = (state: GameState): boolean => {
-  const hasBee = containerHasItem(state.backpack, 'bee')
-  const hasClover = containerHasItem(state.backpack, 'clover')
+export const combineFromBackpack = (state: GameState, defIdA: string, defIdB: string): boolean => {
+  const recipe = findRecipe(defIdA, defIdB)
+  if (!recipe) return false
 
-  if (!hasBee || !hasClover) return false
+  if (!containerHasItem(state.backpack, defIdA) || !containerHasItem(state.backpack, defIdB)) {
+    return false
+  }
 
   // Check standing tile before consuming items — recipe.execute also checks,
   // but we need to bail before removing ingredients
   const standingOn = state.map[state.player.y][state.player.x].type
   if (standingOn === TileType.Sand || !isWalkableTile(standingOn)) return false
 
-  findAndRemoveItem(state, 'bee')
-  findAndRemoveItem(state, 'clover')
+  findAndRemoveItem(state, defIdA)
+  findAndRemoveItem(state, defIdB)
 
-  const prairie = RECIPES.find(r => r.resultName === 'Prairie')
-  if (!prairie) return false
-  return prairie.execute(state)
+  return recipe.execute(state)
 }

@@ -1,4 +1,4 @@
-import { checkCombine, combineBeeAndClover } from '../combine'
+import { checkCombine, combineFromBackpack } from '../combine'
 import { ComponentType } from '../ecs/types'
 import { containerHasItem, placeItem } from '../inventory'
 import { posKey } from '../position'
@@ -92,14 +92,14 @@ describe('checkCombine', () => {
   })
 })
 
-describe('combineBeeAndClover', () => {
+describe('combineFromBackpack', () => {
   it('returns true and plants clover on dirt tiles in 3x3 area', () => {
     const state = createTestState()
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
     clearAroundPlayer(state, 1)
 
-    const result = combineBeeAndClover(state)
+    const result = combineFromBackpack(state, 'bee', 'clover')
 
     expect(result).toBe(true)
 
@@ -117,7 +117,7 @@ describe('combineBeeAndClover', () => {
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
     state.map[state.player.y][state.player.x] = { type: TileType.Sand }
-    const result = combineBeeAndClover(state)
+    const result = combineFromBackpack(state, 'bee', 'clover')
     expect(result).toBe(false)
     // Items should not be consumed
     expect(containerHasItem(state.backpack, 'bee')).toBe(true)
@@ -135,7 +135,7 @@ describe('combineBeeAndClover', () => {
     state.map[py][px - 1] = { type: TileType.Sand }
     state.map[py + 1][px] = { type: TileType.Dirt }
 
-    combineBeeAndClover(state)
+    combineFromBackpack(state, 'bee', 'clover')
 
     expect(state.map[py][px - 1].type).toBe(TileType.Sand)
     expect(state.map[py + 1][px].type).toBe(TileType.Clover)
@@ -148,7 +148,7 @@ describe('combineBeeAndClover', () => {
     placeItem(state.backpack, 'clover', 2, 0)
     placeItem(state.backpack, 'clover', 3, 0)
     clearAroundPlayer(state, 1)
-    combineBeeAndClover(state)
+    combineFromBackpack(state, 'bee', 'clover')
     expect(state.backpack.items.filter(i => i.definitionId === 'bee')).toHaveLength(1)
     expect(state.backpack.items.filter(i => i.definitionId === 'clover')).toHaveLength(1)
   })
@@ -158,7 +158,7 @@ describe('combineBeeAndClover', () => {
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
     clearAroundPlayer(state, 1)
-    combineBeeAndClover(state)
+    combineFromBackpack(state, 'bee', 'clover')
     const bees = getBeeEntities(state)
     expect(bees).toHaveLength(1)
     const beePos = state.world.getComponent(bees[0], ComponentType.Position)
@@ -170,15 +170,26 @@ describe('combineBeeAndClover', () => {
   it('returns false if no bees in backpack', () => {
     const state = createTestState()
     placeItem(state.backpack, 'clover', 0, 0)
-    const result = combineBeeAndClover(state)
+    const result = combineFromBackpack(state, 'bee', 'clover')
     expect(result).toBe(false)
   })
 
   it('returns false if no clovers in backpack', () => {
     const state = createTestState()
     placeItem(state.backpack, 'bee', 0, 0)
-    const result = combineBeeAndClover(state)
+    const result = combineFromBackpack(state, 'bee', 'clover')
     expect(result).toBe(false)
+  })
+
+  it('returns false and consumes nothing for an unregistered ingredient pair', () => {
+    const state = createTestState()
+    placeItem(state.backpack, 'meteorite', 0, 0)
+    placeItem(state.backpack, 'clover', 1, 0)
+    clearAroundPlayer(state, 1)
+    const result = combineFromBackpack(state, 'meteorite', 'clover')
+    expect(result).toBe(false)
+    expect(containerHasItem(state.backpack, 'meteorite')).toBe(true)
+    expect(containerHasItem(state.backpack, 'clover')).toBe(true)
   })
 
   it('plants clover on cratered dirt and preserves the crater entries', () => {
@@ -197,7 +208,7 @@ describe('combineBeeAndClover', () => {
       }
     }
 
-    const result = combineBeeAndClover(state)
+    const result = combineFromBackpack(state, 'bee', 'clover')
     expect(result).toBe(true)
 
     for (let dy = -1; dy <= 1; dy++) {
@@ -222,7 +233,7 @@ describe('combineBeeAndClover', () => {
     state.craters.add(posKey(px, py - 1))
     state.map[py][px + 1] = { type: TileType.Sand }
 
-    const result = combineBeeAndClover(state)
+    const result = combineFromBackpack(state, 'bee', 'clover')
     expect(result).toBe(true)
 
     expect(state.map[py][px].type).toBe(TileType.Clover)

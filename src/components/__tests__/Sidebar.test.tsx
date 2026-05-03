@@ -2,7 +2,7 @@ import { createRef } from 'react'
 import { Sidebar } from '../Sidebar'
 import { render, screen } from '@testing-library/react'
 
-import { combineBeeAndClover } from '@/engine/combine'
+import { combineFromBackpack } from '@/engine/combine'
 import { ComponentType } from '@/engine/ecs/types'
 import { completeGenesis } from '@/engine/genesis'
 import { worldToScreen } from '@/engine/projection'
@@ -66,7 +66,7 @@ describe('Sidebar', () => {
   it('shows prairie as yes after combining', () => {
     const state = createGameState('Test', 80, 40)
     completeGenesis(state)
-    // Ensure the player's standing tile is dirt — combineBeeAndClover
+    // Ensure the player's standing tile is dirt — combineFromBackpack
     // bails early if the player is on sand/non-walkable terrain, and
     // the randomized coastline can drop the player on either depending
     // on Math.random consumption upstream.
@@ -75,7 +75,7 @@ describe('Sidebar', () => {
         state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
       }
     }
-    combineBeeAndClover(state)
+    combineFromBackpack(state, 'bee', 'clover')
     render(
       <Sidebar
         state={state}
@@ -98,7 +98,7 @@ describe('Sidebar', () => {
         state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
       }
     }
-    combineBeeAndClover(state)
+    combineFromBackpack(state, 'bee', 'clover')
     render(
       <Sidebar
         state={state}
@@ -121,7 +121,7 @@ describe('Sidebar', () => {
         state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
       }
     }
-    combineBeeAndClover(state)
+    combineFromBackpack(state, 'bee', 'clover')
     render(
       <Sidebar
         state={state}
