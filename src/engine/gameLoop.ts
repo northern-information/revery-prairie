@@ -48,6 +48,7 @@ import { getReveryDefinition } from './reveries'
 import { tickTileWater } from './tileWater'
 import { tickDormantGardenDecay } from './ruins'
 import { DeepTimePhase, Zone } from './types'
+import { isTileInVisibleViewport } from './viewportBounds'
 import { tickRainIntensity, tickWeather } from './weather'
 
 import type { GameState } from './types'
@@ -386,7 +387,12 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         if (impact && state.currentZone === Zone.Overworld) {
           const vx = impact.x - state.camera.x
           const vy = impact.y - state.camera.y
-          const inViewport = vx >= 0 && vx < state.viewportWidth && vy >= 0 && vy < state.viewportHeight
+          const inViewport = isTileInVisibleViewport(
+            vx,
+            vy,
+            state.viewportWidth,
+            state.viewportHeight,
+          )
           if (inViewport) {
             state.screenShakeUntil = time + SATELLITE_SHAKE_DURATION_MS
             callbacks.onDiscovery?.('Satellite impact!', impact.x, impact.y, '░', '#FF4444')

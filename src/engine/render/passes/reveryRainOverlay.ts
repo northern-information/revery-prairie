@@ -9,6 +9,7 @@ import { viewportToScreen } from '../../projection'
 import { getReveryDefinition } from '../../reveries'
 import { isEntityInCurrentZone } from '../../zone'
 import type { CharMetrics, GameState } from '../../types'
+import { isTileInVisibleViewport } from '../../viewportBounds'
 import { getTierGrid, liftAt } from '../tierGrid'
 import { type RenderPass, registerPass } from '../passes'
 
@@ -40,7 +41,7 @@ const draw = (
       const wy = pos.y
       const vx = wx - camera.x
       const vy = wy - camera.y
-      if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
+      if (!isTileInVisibleViewport(vx, vy, viewportWidth, viewportHeight)) continue
 
       const h = tileHash(wx + state.rainSeed, wy)
       const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length

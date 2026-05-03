@@ -121,6 +121,34 @@ describe('parallelogram corner tiles', () => {
   })
 })
 
+describe('regression: ortho-rect vs iso-parallelogram mismatch', () => {
+  // Several render passes and gameLoop's satellite-impact visibility check
+  // previously used the orthogonal rect [0, vw) × [0, vh). Iso projection
+  // makes that rect a parallelogram on canvas; tiles outside the rect but
+  // inside the parallelogram corners are still visible. This test pins the
+  // boundary tile that exposed the bug: outside the orthogonal rect, inside
+  // the iso parallelogram.
+  it('accepts tiles outside the orthogonal rect but inside the iso parallelogram', () => {
+    const vw = 30
+    const vh = 20
+    // (vx=-1, vy=5): vx < 0 → orthogonal rect rejects; iso parallelogram
+    // accepts because vxStart = -vh = -20 and -1 ≥ -20.
+    const vx = -1
+    const vy = 5
+    const orthoRectRejects = vx < 0 || vx >= vw || vy < 0 || vy >= vh
+    expect(orthoRectRejects).toBe(true)
+    expect(isTileInVisibleViewport(vx, vy, vw, vh)).toBe(true)
+  })
+
+  it('accepts the iso top-right and bottom-left corner tiles', () => {
+    const vw = 30
+    const vh = 20
+    // Canvas top-right corresponds roughly to (vw, -vh) area.
+    expect(isTileInVisibleViewport(vw - 1, -vh + 1, vw, vh)).toBe(true)
+    expect(isTileInVisibleViewport(-vh + 1, vw - 1, vw, vh)).toBe(true)
+  })
+})
+
 describe('regression: angel aura corner coverage', () => {
   // Both passes (gold aura iteration, rain aura radial) previously skipped
   // tiles outside [0, vw) × [0, vh). After the fix, every canvas pixel's

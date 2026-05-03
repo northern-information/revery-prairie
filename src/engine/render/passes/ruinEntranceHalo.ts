@@ -2,6 +2,7 @@ import { RUIN_ENTRANCE_HALO_COLOR } from '../../constants'
 import { drawCellBackground, viewportToScreen } from '../../projection'
 import { getEntranceHaloCells } from '../../ruins'
 import { Zone, type CharMetrics, type GameState } from '../../types'
+import { isTileInVisibleViewport } from '../../viewportBounds'
 import { getTierGrid, liftAt } from '../tierGrid'
 import { type RenderPass, registerPass } from '../passes'
 
@@ -29,7 +30,7 @@ const draw = (
     for (const cell of cells) {
       const vx = cell.x - camera.x
       const vy = cell.y - camera.y
-      if (vx < 0 || vx >= viewportWidth || vy < 0 || vy >= viewportHeight) continue
+      if (!isTileInVisibleViewport(vx, vy, viewportWidth, viewportHeight)) continue
       const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
       drawCellBackground(
         ctx,

@@ -13,14 +13,16 @@ behaviors:
     description: >
       updateCamera(state, forceCenter?) centers the camera on the
       player when cameraMode is 'follow' (default) or when forceCenter
-      is true. in cave and ruin zones (or when forceCenter is true),
-      the camera centers directly on the player within the visible
-      portion of the viewport. overworld uses a deadzone system
-      (see camera-deadzone spec). visible width is viewportWidth
-      minus rightInsetTiles (sidebar). the camera is clamped so it
-      never shows beyond the map edges. when the map is smaller
-      than the viewport, the camera centers the map with negative
-      offset (centering small maps on screen).
+      is true. centering is uniform across all zones — the renderer
+      projects iso, so the orthogonal viewport center maps to the iso
+      canvas center; placing the player at orthogonal center keeps
+      them at canvas center on screen (see camera-iso-follow spec).
+      visible width is viewportWidth minus rightInsetTiles (sidebar).
+      no map-edge clamping is applied: the map is surrounded by space
+      tiles, so overscroll past the map edges simply renders more
+      space without trapping the player off-canvas at iso corners.
+      when the map is smaller than the viewport on either axis, that
+      axis centers the map with a negative camera offset.
     inputs:
       - 'state with player position, viewport dimensions, rightInsetTiles, map dimensions, currentZone, cameraMode'
       - 'forceCenter (optional boolean, defaults to false)'
@@ -28,9 +30,9 @@ behaviors:
       - 'state.camera.x and state.camera.y updated'
     state_changes:
       - field: camera.x
-        effect: 'clamped to [0, mapWidth - visibleWidth] or negative-centered if map is smaller'
+        effect: 'player.x - floor(visibleWidth / 2), or negative-centered if mapWidth < visibleWidth'
       - field: camera.y
-        effect: 'clamped to [0, mapHeight - viewportHeight] or negative-centered if map is smaller'
+        effect: 'player.y - floor(viewportHeight / 2), or negative-centered if mapHeight < viewportHeight'
     determinism: deterministic
 
   - id: free-pan-mode

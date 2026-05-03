@@ -1,0 +1,143 @@
+plan:
+  id: camera-iso-follow
+  title: 'Make camera follow + viewport culling iso-aware'
+  created: '2026-05-02'
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npm run test'
+
+tasks:
+  - id: rewrite-update-camera
+    title: 'Rewrite updateCamera: always-center in follow mode, no clamp, no deadzone'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - follow-mode-centers-player
+      - free-mode-skipped
+      - small-map-centering
+    context_files:
+      - src/engine/camera.ts
+      - src/engine/types.ts
+      - src/engine/projection.ts
+    output_files:
+      - src/engine/camera.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - engine
+
+  - id: update-camera-tests
+    title: 'Replace deadzone tests with always-center tests; keep small-map and free-mode tests'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - follow-mode-centers-player
+      - free-mode-skipped
+      - small-map-centering
+    context_files:
+      - src/engine/camera.ts
+      - src/engine/__tests__/camera.test.ts
+    output_files:
+      - src/engine/__tests__/camera.test.ts
+    depends_on:
+      - rewrite-update-camera
+    verification:
+      - 'npx vitest run src/engine/__tests__/camera.test.ts'
+    repair: retry
+    tags:
+      - test
+
+  - id: fix-prairie-outline-bounds
+    title: 'Replace orthogonal loop bounds with getVisibleTileBounds in prairie outline pass'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - iso-aware-overlay-culling
+    context_files:
+      - src/engine/render/passes/prairieOutline.ts
+      - src/engine/viewportBounds.ts
+    output_files:
+      - src/engine/render/passes/prairieOutline.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - engine
+
+  - id: fix-overlay-culling-sites
+    title: 'Switch reveryRainOverlay, glintingBeam, ruinEntranceHalo to isTileInVisibleViewport'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - iso-aware-overlay-culling
+    context_files:
+      - src/engine/render/passes/reveryRainOverlay.ts
+      - src/engine/render/passes/glintingBeam.ts
+      - src/engine/render/passes/ruinEntranceHalo.ts
+      - src/engine/viewportBounds.ts
+    output_files:
+      - src/engine/render/passes/reveryRainOverlay.ts
+      - src/engine/render/passes/glintingBeam.ts
+      - src/engine/render/passes/ruinEntranceHalo.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - engine
+
+  - id: fix-satellite-impact-visibility
+    title: 'Use isTileInVisibleViewport for satellite impact shake/toast trigger'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - iso-aware-satellite-impact-shake
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/viewportBounds.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-iso-visibility-regression-tests
+    title: 'Add regression tests for iso-aware visibility (satellite-impact + viewportBounds usage)'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - iso-aware-overlay-culling
+      - iso-aware-satellite-impact-shake
+    context_files:
+      - src/engine/viewportBounds.ts
+      - src/engine/__tests__/satelliteImpacts.test.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+    depends_on:
+      - fix-satellite-impact-visibility
+    verification:
+      - 'npx vitest run src/engine/__tests__'
+    repair: retry
+    tags:
+      - test
+
+  - id: retire-camera-deadzone-spec
+    title: 'Delete obsolete camera-deadzone spec and plan; update camera-viewport prose'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - follow-mode-centers-player
+    context_files:
+      - harness/specs/camera-deadzone.yaml
+      - harness/plans/camera-deadzone.yaml
+      - harness/specs/camera-viewport.yaml
+    output_files:
+      - harness/specs/camera-viewport.yaml
+    depends_on:
+      - rewrite-update-camera
+    verification:
+      - 'npm run spec:validate'
+    repair: retry
+    tags:
+      - spec

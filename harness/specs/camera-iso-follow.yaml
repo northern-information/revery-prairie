@@ -1,0 +1,150 @@
+id: camera-iso-follow
+name: 'Iso-aware camera follow and viewport culling'
+priority: high
+layer: engine
+source_files:
+  - src/engine/camera.ts
+  - src/engine/gameLoop.ts
+  - src/engine/render/passes/prairieOutline.ts
+  - src/engine/render/passes/reveryRainOverlay.ts
+  - src/engine/render/passes/glintingBeam.ts
+  - src/engine/render/passes/ruinEntranceHalo.ts
+  - src/engine/viewportBounds.ts
+  - src/engine/__tests__/camera.test.ts
+dependencies:
+  - player-movement
+  - camera-viewport
+
+behaviors:
+  - id: follow-mode-centers-player
+    description: >
+      In follow mode (state.cameraMode === 'follow'), updateCamera positions
+      the camera so the player projects to the canvas center in iso screen
+      space. This is achieved by setting camera.x = player.x - floor(visibleWidth / 2)
+      and camera.y = player.y - floor(viewportHeight / 2), since the iso
+      projection used by the renderer maps the orthogonal viewport center
+      tile to the canvas center. No deadzone is applied — every WASD step
+      that produces a successful move recenters the camera on the player.
+      This applies in all zones (overworld, cave, ruin) uniformly.
+    inputs:
+      - 'GameState with cameraMode = follow'
+      - 'Player position'
+    outputs:
+      - 'camera.x and camera.y placed so player projects to canvas center in iso'
+    state_changes:
+      - field: camera.x
+        effect: 'set to player.x - floor((viewportWidth - rightInsetTiles) / 2); not clamped to map bounds — overscroll past map edges renders space tiles'
+      - field: camera.y
+        effect: 'set to player.y - floor(viewportHeight / 2); not clamped to map bounds — overscroll past map edges renders space tiles'
+    determinism: deterministic
+
+  - id: free-mode-skipped
+    description: >
+      When state.cameraMode === 'free' and forceCenter is not set, updateCamera
+      returns immediately without modifying camera position. Edge-scroll
+      panning owns the camera while in free mode. forceCenter overrides this
+      and always recenters (zone swap, resize, game start).
+    inputs:
+      - 'GameState with cameraMode = free'
+      - 'forceCenter flag (true for resize/zone swap/game start)'
+    outputs:
+      - 'camera unchanged when free and not forced; recentered on player when forced'
+    state_changes:
+      - field: camera.x
+        effect: 'unchanged when free and !forceCenter; recentered when forceCenter'
+      - field: camera.y
+        effect: 'unchanged when free and !forceCenter; recentered when forceCenter'
+    determinism: deterministic
+
+  - id: small-map-centering
+    description: >
+      When the map is smaller than the visible viewport on either axis
+      (e.g. cave at 40x25), the camera offsets so the map appears centered
+      in the viewport rather than tracking the player.
+    inputs:
+      - 'GameState where mapWidth < visibleWidth or mapHeight < viewportHeight'
+    outputs:
+      - 'camera offset places map in the visible center'
+    state_changes:
+      - field: camera.x
+        effect: 'when mapWidth < visibleWidth: -floor((visibleWidth - mapWidth) / 2)'
+      - field: camera.y
+        effect: 'when mapHeight < viewportHeight: -floor((viewportHeight - mapHeight) / 2)'
+    determinism: deterministic
+
+  - id: iso-aware-overlay-culling
+    description: >
+      Render passes that iterate world-space tiles and cull to the visible
+      region must use the iso-aware bounds from viewportBounds.ts
+      (getVisibleTileBounds / isTileInVisibleViewport), not the orthogonal
+      rectangle vx in [0, viewportWidth) and vy in [0, viewportHeight).
+      The iso projection rotates the orthogonal viewport rectangle into a
+      parallelogram on canvas; tiles in the parallelogram corners outside
+      the orthogonal rectangle are still visible and must be drawn. Affected
+      passes:
+        - prairieOutline: loop bounds replaced with getVisibleTileBounds
+          (with outlineMargin) so the land/space outline remains continuous
+          at all canvas edges.
+        - reveryRainOverlay: per-tile cull replaced with isTileInVisibleViewport
+          so rain-style revery cast tiles render in iso corners.
+        - glintingBeam: per-tile cull replaced with isTileInVisibleViewport.
+        - ruinEntranceHalo: per-tile cull replaced with isTileInVisibleViewport.
+    inputs:
+      - 'render pass invoked with state.camera and state.viewportWidth/Height'
+    outputs:
+      - 'every tile that is visually inside the canvas is iterated/drawn'
+    state_changes:
+      - field: 'render output'
+        effect: 'no rendering gaps along the iso-projected edges of the canvas'
+    determinism: deterministic
+
+  - id: iso-aware-satellite-impact-shake
+    description: >
+      The satellite-tick handler in gameLoop fires a screen shake and
+      "Satellite impact!" toast when a satellite lands inside the visible
+      canvas region. The visibility test must use isTileInVisibleViewport
+      (iso-aware), not the orthogonal rect, so impacts that visibly land
+      anywhere on canvas trigger the feedback consistently.
+    inputs:
+      - 'satellite impact at world position (impact.x, impact.y)'
+      - 'state.camera, state.viewportWidth, state.viewportHeight'
+      - 'state.currentZone === Zone.Overworld'
+    outputs:
+      - 'screen shake and toast fire iff impact is visible on canvas in iso'
+    state_changes:
+      - field: 'state.screenShakeUntil'
+        effect: 'set when impact tile passes isTileInVisibleViewport in overworld; otherwise unchanged'
+    determinism: deterministic
+
+edge_cases:
+  - id: wasd-northeast-stays-centered
+    description: 'Player walks northeast across the map with WASD in follow mode'
+    expected: 'Camera centers on player every step; player remains at canvas center, never drifts off the right or top edge of the canvas'
+  - id: map-edge-overscroll
+    description: 'Player walks to the eastern edge of the map'
+    expected: 'Camera continues centering on player; canvas shows space tiles east of the map without any clamp keeping the player off-center'
+  - id: zone-transition-recenter
+    description: 'Player enters or exits the cave'
+    expected: 'updateCamera(state, true) is called, recentering the player at canvas center in the new zone'
+  - id: free-mode-pan-then-wasd
+    description: 'User edge-scrolls to pan the camera away from the player, then presses WASD'
+    expected: 'recenterCamera flips cameraMode to follow; the very next updateCamera call recenters the player (no one-frame lag because follow mode now always centers)'
+  - id: small-cave-map
+    description: 'In the cave (map smaller than viewport)'
+    expected: 'Map centers in viewport with negative camera offset; player position does not change camera'
+  - id: iso-corner-overlay-visibility
+    description: 'A revery cast / glint beam / ruin halo / prairie outline tile sits in the iso parallelogram corner outside the orthogonal viewport rect but inside the canvas'
+    expected: 'Pass renders the tile because isTileInVisibleViewport (iso bounds) returns true'
+
+failure_conditions:
+  - trigger: 'Player walks off the visible canvas while in follow mode with WASD (no panning)'
+    expected: 'Cannot occur — follow-mode camera always recenters the player at canvas center'
+  - trigger: 'Land/space outline drops out at the canvas edge while the camera moves'
+    expected: 'Cannot occur — outline loop iterates the iso-aware bounds with margin'
+  - trigger: 'Satellite visibly lands on canvas but no shake/toast fires'
+    expected: 'Cannot occur — visibility test uses isTileInVisibleViewport'
+
+verification:
+  test_file: src/engine/__tests__/camera.test.ts
+  test_pattern: 'iso|follow'
+  command: 'npx vitest run src/engine/__tests__/camera.test.ts'
