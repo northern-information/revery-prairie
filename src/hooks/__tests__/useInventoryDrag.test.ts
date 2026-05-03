@@ -38,7 +38,7 @@ const makeItem = (overrides?: Partial<ItemInstance>): ItemInstance => ({
 const fakeRecipe: Recipe = {
   ingredients: ['bee', 'clover'],
   kind: 'macro',
-  resultName: 'prairie',
+  resultName: 'Prairie',
   execute: vi.fn(() => true),
 }
 

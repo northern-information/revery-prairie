@@ -59,7 +59,7 @@ export class NetworkClient {
       body: JSON.stringify({ stewardName, color }),
     })
     if (!res.ok) {
-      throw new Error(`create prairie failed (${String(res.status)})`)
+      throw new Error(`Create prairie failed (${String(res.status)})`)
     }
     return (await res.json()) as CreatePrairieResponse
   }

@@ -10,13 +10,13 @@ describe('findRecipe', () => {
   it('finds bee+clover in natural order', () => {
     const recipe = findRecipe('bee', 'clover')
     expect(recipe).not.toBeNull()
-    expect(recipe?.resultName).toBe('prairie')
+    expect(recipe?.resultName).toBe('Prairie')
   })
 
   it('finds bee+clover in reversed order', () => {
     const recipe = findRecipe('clover', 'bee')
     expect(recipe).not.toBeNull()
-    expect(recipe?.resultName).toBe('prairie')
+    expect(recipe?.resultName).toBe('Prairie')
   })
 
   it('returns null for unknown pair', () => {

@@ -68,7 +68,7 @@ describe('ManualPanel', () => {
     }
     render(<ManualPanel state={state} />)
     // The prairie recipe result name should appear in the recipe entry
-    expect(screen.getAllByText('prairie').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Prairie').length).toBeGreaterThan(0)
   })
 
   it('renders entry glyphs in their real color regardless of discovery', () => {

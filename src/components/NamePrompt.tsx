@@ -33,7 +33,7 @@ export const NamePrompt = ({ onSubmit }: NamePromptProps) => {
 
       <form onSubmit={handleSubmit} className="flex flex-col items-center gap-4">
         <label htmlFor="steward-name" className="text-muted text-sm">
-          enter your steward name
+          Enter Your Steward Name
         </label>
         <input
           id="steward-name"
@@ -47,7 +47,7 @@ export const NamePrompt = ({ onSubmit }: NamePromptProps) => {
           className="border-border text-text w-64 rounded-sm border bg-transparent px-4 py-2 text-center font-mono text-base outline-none"
         />
         <a href="/p/new" className="text-dim text-xs underline">
-          or plant an online prairie
+          Or Plant an Online Prairie
         </a>
       </form>
     </div>

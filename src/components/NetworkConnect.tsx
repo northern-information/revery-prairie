@@ -80,7 +80,7 @@ export const NetworkConnect = ({ workerUrl, prairieId, onConnected }: NetworkCon
         resolvedOwnerToken = response.ownerToken
       } else {
         if (prairieId === null) {
-          setError('missing prairie id')
+          setError('Missing prairie ID')
           setSubmitting(false)
           return
         }
@@ -104,7 +104,7 @@ export const NetworkConnect = ({ workerUrl, prairieId, onConnected }: NetworkCon
       const errorHandler = (frame: { code: string; message: string }) => {
         client.off('welcome', welcomeHandler)
         client.off('error', errorHandler)
-        setError(`connection rejected (${frame.code}): ${frame.message}`)
+        setError(`Connection rejected (${frame.code}): ${frame.message}`)
         setSubmitting(false)
       }
       client.on('welcome', welcomeHandler)
@@ -116,7 +116,7 @@ export const NetworkConnect = ({ workerUrl, prairieId, onConnected }: NetworkCon
         ownerToken: resolvedOwnerToken ?? undefined,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'connection failed')
+      setError(err instanceof Error ? err.message : 'Connection failed')
       setSubmitting(false)
     }
   }
@@ -129,13 +129,13 @@ export const NetworkConnect = ({ workerUrl, prairieId, onConnected }: NetworkCon
   return (
     <div className="text-text flex h-full w-full flex-col items-center justify-center gap-8 font-mono">
       <blockquote className="text-dirt max-w-full text-center leading-[1.8] italic">
-        {mode === 'create' ? 'plant a new prairie' : 'visit a prairie'}
+        {mode === 'create' ? 'Plant a New Prairie' : 'Visit a Prairie'}
       </blockquote>
 
       <form onSubmit={handleSubmit} className="flex flex-col items-center gap-6">
         <div className="flex flex-col items-center gap-2">
           <label htmlFor="steward-name" className="text-muted text-sm">
-            enter your steward name
+            Enter Your Steward Name
           </label>
           <input
             id="steward-name"
@@ -152,7 +152,7 @@ export const NetworkConnect = ({ workerUrl, prairieId, onConnected }: NetworkCon
         </div>
 
         <div className="flex flex-col items-center gap-2">
-          <span className="text-muted text-sm">pick a color</span>
+          <span className="text-muted text-sm">Pick a Color</span>
           <div className="flex flex-wrap justify-center gap-2">
             {COLOR_IDS.map(id => {
               const swatch = PLAYER_COLORS[id]
@@ -178,7 +178,7 @@ export const NetworkConnect = ({ workerUrl, prairieId, onConnected }: NetworkCon
         </div>
 
         {storedOwnerToken !== null && mode === 'join' && (
-          <div className="text-dim text-xs">connecting as host (owner token found)</div>
+          <div className="text-dim text-xs">Connecting as host (owner token found)</div>
         )}
 
         <button
@@ -186,13 +186,13 @@ export const NetworkConnect = ({ workerUrl, prairieId, onConnected }: NetworkCon
           disabled={submitting || name.trim() === ''}
           className="border-border text-text rounded-sm border bg-transparent px-6 py-2 font-mono text-sm outline-none disabled:opacity-50"
         >
-          {submitting ? 'connecting…' : mode === 'create' ? 'create prairie' : 'join prairie'}
+          {submitting ? 'Connecting…' : mode === 'create' ? 'Create Prairie' : 'Join Prairie'}
         </button>
 
         {error !== null && <div className="text-coral text-xs">{error}</div>}
 
         <a href="/" className="text-dim text-xs underline">
-          return offline
+          Return Offline
         </a>
       </form>
     </div>
