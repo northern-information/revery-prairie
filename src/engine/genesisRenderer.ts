@@ -49,18 +49,25 @@ const isLowlandWater = (sim: GenesisSimState, key: string, h: number): boolean =
 
 // Genesis water lives in three buckets: sim.riverPaths (mature rivers),
 // sim.ponds (pooled basins), and the elevation-based lowland predicate
-// (early aquatic phase before rivers/ponds are materialized). Returns a
-// water bg color in priority order, or null when the tile is dry land.
+// (early aquatic phase before rivers/ponds are materialized).
+//
+// `includeLowland` lets the caller scope the predicate. presentDay must
+// match gameplay tileBgCache exactly, and gameplay only knows about
+// state.rivers / state.ponds — so presentDay calls this with
+// includeLowland=false. Earlier epochs (firstWater through
+// fallOfCivilizations) include the lowland predicate so the surface
+// reads as water during the aquatic phase before rivers are carved.
 const getWaterBgColor = (
   sim: GenesisSimState,
   mx: number,
   my: number,
   key: string,
   h: number,
+  includeLowland: boolean,
 ): string | null => {
   if (sim.riverPaths.has(key)) return getRiverBgColor(mx, my)
   if (sim.ponds.has(key)) return getPondBgColor(mx, my)
-  if (isLowlandWater(sim, key, h)) return getRiverBgColor(mx, my)
+  if (includeLowland && isLowlandWater(sim, key, h)) return getRiverBgColor(mx, my)
   return null
 }
 
@@ -95,9 +102,15 @@ const SKIP_BG_EPOCHS = new Set<GenesisEpochId>([
 // Returns the surface bg color for a tile in the given epoch, or null
 // when the epoch is in SKIP_BG_EPOCHS or the tile has no glyph color.
 //   PresentDay: match gameplay tileBgCache exactly (TILE_BG_PALETTES via
-//     getTileBgColor, with state.rivers/state.ponds-equivalent water
-//     overrides). This keeps the genesis-to-game handoff pixel-perfect.
-//   Other epochs: derive from the epoch's primary glyph color, darkened.
+//     getTileBgColor, with rivers/ponds water overrides — NOT the
+//     elevation lowland predicate, since gameplay doesn't track lowland
+//     water and would snap to dirt-brown at the handoff).
+//   Other epochs: water tiles (rivers/ponds/lowland) use the river/pond
+//     palette directly so blue is stable across the freeze/unfreeze
+//     transition in iceAge → postGlacial → warmPeriod (otherwise the
+//     darken-from-glyph path would slam very-dark-blue against
+//     light-blue ice and produce a jarring boundary). Non-water tiles
+//     derive bg from the epoch's primary glyph color, darkened.
 //   `surfaceColor` is the precomputed first-render color for this tile in
 //   this epoch — the caller already has it from the renderTile cache, so
 //   we don't recompute renderTile here.
@@ -110,11 +123,13 @@ const computeSurfaceBg = (
   surfaceColor: string | undefined,
 ): string | null => {
   if (SKIP_BG_EPOCHS.has(epochId)) return null
+  const key = posKey(mx, my)
+  const h = tileHash(mx, my)
   if (epochId === GenesisEpochId.PresentDay) {
-    const key = posKey(mx, my)
-    const h = tileHash(mx, my)
-    return getWaterBgColor(sim, mx, my, key, h) ?? getTileBgColor(tileType, mx, my)
+    return getWaterBgColor(sim, mx, my, key, h, false) ?? getTileBgColor(tileType, mx, my)
   }
+  const water = getWaterBgColor(sim, mx, my, key, h, true)
+  if (water) return water
   if (!surfaceColor) return getTileBgColor(tileType, mx, my)
   return darkenColor(toHexColor(surfaceColor), SURFACE_BG_DARKEN)
 }
