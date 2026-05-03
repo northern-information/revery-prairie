@@ -197,6 +197,14 @@ export { getLastVisibleSet } from './visibility'
 /** @deprecated Use getLastVisibleSet instead. */
 export { getLastVisibleSet as getLastCaveVisibleSet } from './visibility'
 
+// ── Canvas state tracking ──
+// ctx.font and ctx.textBaseline are stable across frames but reset whenever
+// canvas.width or canvas.height is assigned (which resets the full 2D context).
+// Track last-set values so we only call the setters when something actually changed.
+let _lastFont = ''
+let _lastCanvasW = -1
+let _lastCanvasH = -1
+
 // ── Pooled render collections ──
 // Reused every frame to avoid per-frame allocation / GC pressure.
 const _beePositions = new Set<string>()
@@ -264,8 +272,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   ctx.fillStyle = BG_COLOR
   ctx.fillRect(0, 0, pxWidth, pxHeight)
 
-  ctx.font = metrics.font
-  ctx.textBaseline = 'top'
+  // Only re-apply font/baseline when the canvas was reset (resize/zoom) or
+  // font changed. Assigning canvas.width/height resets the entire 2D context,
+  // so we detect that via pxWidth/pxHeight changing.
+  if (metrics.font !== _lastFont || pxWidth !== _lastCanvasW || pxHeight !== _lastCanvasH) {
+    ctx.font = metrics.font
+    ctx.textBaseline = 'top'
+    _lastFont = metrics.font
+    _lastCanvasW = pxWidth
+    _lastCanvasH = pxHeight
+  }
 
   // Camera shake — translate entire canvas during impacts or deep time
   const deepTimeShake = state.deepTime?.active === true && time < state.deepTime.shakeUntil
