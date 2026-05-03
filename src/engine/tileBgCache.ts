@@ -5,10 +5,25 @@ import {
   WALL_RIGHT_SHADE,
   darkenColor,
   getElevationTier,
+  getPondBgColor,
+  getRiverBgColor,
   getTileBgColor,
   getTierLift,
 } from './tileBg'
 import { type GameState, type Tile, TileType, Zone } from './types'
+
+// Water tracked in state.rivers / state.ponds (overworld only) overrides
+// the underlying tile.type's bg palette. Without this, water glyphs sit
+// over brown dirt diamonds and the seam between the glyph and the bg
+// shows brown speckles. Caves and ruins have no water sets to consult.
+const getEffectiveBgColor = (state: GameState, tile: Tile, x: number, y: number): string => {
+  if (state.currentZone === Zone.Overworld) {
+    const key = posKey(x, y)
+    if (state.rivers.has(key)) return getRiverBgColor(x, y)
+    if (state.ponds.has(key)) return getPondBgColor(x, y)
+  }
+  return getTileBgColor(tile.type, x, y)
+}
 
 // World-space tile-bg cache. The full iso bounding box of the map is
 // painted once into an offscreen canvas; per-frame the renderer blits
@@ -125,7 +140,7 @@ const paintTileBg = (
   const bottomY = topY + charHeight
   const cx = leftX + charWidth
   const cy = topY + halfH
-  ctx.fillStyle = getTileBgColor(effectiveType, x, y)
+  ctx.fillStyle = getEffectiveBgColor(state, { ...tile, type: effectiveType }, x, y)
   ctx.beginPath()
   ctx.moveTo(cx, topY - TILE_BG_OVERLAP)
   ctx.lineTo(rightX + TILE_BG_OVERLAP, cy)
@@ -159,7 +174,7 @@ const paintTileEdge = (
   const bottomY = topY + charHeight
   const cx = leftX + charWidth
   const cy = topY + halfH
-  ctx.strokeStyle = darkenColor(getTileBgColor(effectiveType, x, y), WALL_RIGHT_SHADE)
+  ctx.strokeStyle = darkenColor(getEffectiveBgColor(state, { ...tile, type: effectiveType }, x, y), WALL_RIGHT_SHADE)
   ctx.lineWidth = 1
   ctx.beginPath()
   ctx.moveTo(leftX, cy)
