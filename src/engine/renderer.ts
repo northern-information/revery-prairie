@@ -1471,10 +1471,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           charHeight,
           color,
         )
-        if (sway.dx !== 0 || sway.dy !== 0) {
-          deferredFloraGlyphs.push({ char, color: sway.color, px: px + sway.dx, py: pyLift + sway.dy })
-          continue
-        }
+        // Always defer — even zero-displacement — so tiles never switch between the
+        // deferred and non-deferred draw paths.  When the smooth wind-direction vector
+        // passes through zero (e.g. a W→E change where both sx and sy flip sign), dx
+        // and dy simultaneously become near-zero.  Allowing those tiles to fall through
+        // to the non-deferred path causes all of them to be drawn in tile order in the
+        // same frame, overdrawn by later tiles' backgrounds — the visible "reset".
+        deferredFloraGlyphs.push({ char, color: sway.color, px: px + sway.dx, py: pyLift + sway.dy })
+        continue
       }
 
       // Non-deferred path: terrain glyphs and overlay tiles. Apply the

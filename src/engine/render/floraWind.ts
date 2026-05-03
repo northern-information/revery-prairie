@@ -26,17 +26,44 @@ const DY_FRACTION = 0.28
 const LUMINANCE_RANGE = 12
 
 /**
+ * Spatial wave numbers (radians per tile) for the two turbulence components.
+ *
+ * WAVE_K_A is the primary wave — tiles further downwind lag by WAVE_K_A per tile.
+ * Wavelength = 2π / 0.30 ≈ 21 tiles; at a 30-tile viewport you see ~1.5 crests.
+ * Longer wavelength than before (was 0.50 / 12.6 tiles) for a more gradual prairie
+ * roll rather than choppy ocean-like chop.
+ *
+ * WAVE_K_B is a slightly different spatial frequency for the secondary component.
+ * Its interference with WAVE_K_A creates a beat envelope with period
+ * 2π / (WAVE_K_A − WAVE_K_B) = 2π / 0.15 ≈ 42 tiles — a slowly-drifting patch
+ * of stronger / weaker sway that reads as natural gusts without per-tile randomness.
+ */
+const WAVE_K_A = 0.30
+const WAVE_K_B = 0.15
+
+/**
  * Max change per ms in the speed-scaled direction vector (smoothSx, smoothSy).
  * The vector range is -MAX_WIND_SPEED to +MAX_WIND_SPEED, so full span = 50 units.
- * At 3 seconds for full span: 50 / 3000 ≈ 0.0167 units/ms.
- * At 60 fps (dt≈16ms) this is ~0.267 units/frame — imperceptibly small per frame,
- * but a full direction reversal at normal wind speed (~15 mph) completes in ~1.9 s.
+ * At 0.5 seconds for full span: 50 / 500 ≈ 0.1 units/ms.
+ * At 60 fps (dt≈16ms) this is ~1.6 units/frame — a full direction reversal at normal
+ * wind speed (~15 mph) completes in ~0.3 s (~1-2 frames near zero instead of several).
+ *
+ * Faster rate eliminates the multi-frame near-zero band during 180° direction changes
+ * (W→E), which was manifesting as a brief full-field "reset" to the unswayed position.
  *
  * Using constant-rate (linear) clamping rather than exponential smoothing so
  * every frame of a transition moves by the same amount. Exponential ease-out
  * has a fast start that reads as a visible "catch-up" when all tiles shift together.
  */
-const WIND_CHANGE_RATE = 50 / 3000
+const WIND_CHANGE_RATE = 50 / 500
+
+/**
+ * Max dt (ms) used for speedPhaseAccum accumulation.
+ * Caps the phase advance when the browser tab is backgrounded then foregrounded —
+ * rAF fires with the full elapsed background time, which would jump speedPhaseAccum
+ * by a large amount and cause all tiles to simultaneously lurch forward in their cycle.
+ */
+const MAX_PHASE_DT_MS = 100
 
 // ─── wind direction → iso screen vectors ─────────────────────────────────────
 
@@ -173,7 +200,10 @@ export const tickFloraWind = (weather: Weather, time: number): void => {
   // Accumulate the speed-dependent frequency phase using the UPDATED smoothSpeed.
   // This replaces the time × dynamicFreq pattern in getFloraSwayOffset to avoid
   // the time-amplified phase discontinuity (see speedPhaseAccum declaration above).
-  speedPhaseAccum += (smoothSpeed / MAX_WIND_SPEED) * WIND_FREQ_FACTOR * dt
+  // Cap dt here so a backgrounded tab foregrounded after many seconds doesn't cause
+  // a sudden large phase jump visible as all tiles simultaneously lurching forward.
+  const cappedDt = Math.min(dt, MAX_PHASE_DT_MS)
+  speedPhaseAccum += (smoothSpeed / MAX_WIND_SPEED) * WIND_FREQ_FACTOR * cappedDt
 }
 
 /**
@@ -229,35 +259,48 @@ export const getFloraSwayOffset = (
 
   if (smoothSpeed < 0.01) return ZERO_OFFSET(baseColor)
 
-  // Per-tile deterministic phase and frequency variance
-  const h = tileHash(mx, my)
-  const phase = (h % 1000) * ((2 * Math.PI) / 1000)
-  const freqVariance = 0.8 + (h % 200) / 1000 // 0.80 – 1.00
-
-  // Base oscillation frequency (constant per tile — safe to multiply by time).
-  // The speed-dependent frequency contribution is NOT multiplied by time here;
-  // instead we use speedPhaseAccum (accumulated each frame via dt) to avoid the
-  // time-amplified phase discontinuity that occurs when smoothSpeed changes.
-  const baseFreq = BASE_FREQ_MS * freqVariance
-  const speedPhase = speedPhaseAccum * freqVariance
-
-  // Lean-plus-turbulence model: the glyph rests at a sustained lean in the
-  // wind direction (LEAN_FRACTION of max), with turbulence oscillating on top.
-  // This prevents the glyph from snapping back to the tile centre on each
-  // oscillation cycle — a symmetric [-1,+1] wave reads as a periodic "reset".
-  // turbulence ∈ [-(PRIMARY+SECONDARY), +(PRIMARY+SECONDARY)] ≈ [-0.47, +0.47]
-  // sway ∈ [LEAN - 0.47, LEAN + 0.47] clamped to [0, 1]
-  const LEAN_FRACTION = 0.6
-  const turbulence =
-    Math.sin(time * baseFreq + speedPhase + phase) * 0.35 +
-    Math.sin(time * baseFreq * 1.7 + speedPhase * 1.7 + phase * 1.3) * 0.12
-  const sway = Math.max(0, Math.min(1, LEAN_FRACTION + turbulence))
-
   // Smooth direction: recover unit vector from the speed-scaled smooth components.
-  // Falls back to zero displacement if speed is negligible.
   const effectiveSpeed = smoothSpeed
   const effectiveSx = smoothSx / effectiveSpeed
   const effectiveSy = smoothSy / effectiveSpeed
+
+  // Per-tile variation sources:
+  //   freqVariance — causes tiles to drift apart slowly over time (organic desync).
+  //                  Kept tight (1% spread) so the spatial wave pattern stays coherent
+  //                  for ~5 minutes before tiles noticeably go their own way.
+  //                  Old 8% spread caused full desync in ~10 seconds, burying the wave.
+  //   tilePhase    — tiny static per-tile phase offset (2% of a full cycle) so tiles
+  //                  along the same wavefront aren't perfectly in lockstep at t=0.
+  const h = tileHash(mx, my)
+  const freqVariance = 0.99 + (h % 10) / 1000       // 0.990 – 1.000
+  const tilePhase = ((h % 1000) / 1000) * Math.PI * 2 * 0.02  // 0 – 0.126 rad
+
+  // Base oscillation frequency (constant per tile — safe to multiply by time).
+  // Speed-dependent phase is accumulated externally to avoid time-amplified jumps.
+  const baseFreq = BASE_FREQ_MS * freqVariance
+  const speedPhase = speedPhaseAccum * freqVariance
+
+  // Spatial wave: project tile position onto the wind direction.
+  // The negative sign makes the wave travel downwind (upwind tiles lead).
+  const windProj = mx * effectiveSx + my * effectiveSy
+
+  // Lean-plus-turbulence model: glyph rests at a sustained lean (LEAN_FRACTION)
+  // with turbulence oscillating on top.
+  //
+  // Two components at different spatial frequencies (WAVE_K_A, WAVE_K_B) create
+  // a natural beat envelope — patches of stronger / weaker sway every ~42 tiles
+  // that read as gusts rolling through.  tilePhase adds subtle within-wavefront
+  // variation; freqVariance causes gradual desync over time.
+  //
+  // Secondary temporal multiplier is 1.3× (was 1.7×) — closer frequencies produce
+  // a slower, more languid interference pattern rather than rapid noisy flickering.
+  //
+  // turbulence ∈ [-0.47, +0.47],  sway ∈ [0.13, 1.0] (clamped)
+  const LEAN_FRACTION = 0.6
+  const turbulence =
+    Math.sin(time * baseFreq + speedPhase + tilePhase - windProj * WAVE_K_A) * 0.35 +
+    Math.sin(time * baseFreq * 1.3 + speedPhase * 1.3 + tilePhase - windProj * WAVE_K_B) * 0.12
+  const sway = Math.max(0, Math.min(1, LEAN_FRACTION + turbulence))
 
   // Amplitude: fraction of tile size × windSpeed fraction × lifecycle factor.
   const windFraction = effectiveSpeed / MAX_WIND_SPEED
