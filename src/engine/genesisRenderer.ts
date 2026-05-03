@@ -99,6 +99,24 @@ const SKIP_BG_EPOCHS = new Set<GenesisEpochId>([
   GenesisEpochId.LandAccretion,
 ])
 
+// Epochs whose renderTile actually paints lowland water (firstWater
+// through warmPeriod). The bg fill applies the lowland predicate only
+// in these epochs so it matches what the glyph layer is showing. Other
+// epochs either pre-date water (lavaEra / crustCooling) or have
+// consolidated water into the explicit sim.riverPaths / sim.ponds sets
+// (riseOfCivilizations / fallOfCivilizations / presentDay) — applying
+// the lowland predicate there would paint blue diamonds under lava /
+// civilization tiles that the glyph layer never treats as water.
+const LOWLAND_WATER_EPOCHS = new Set<GenesisEpochId>([
+  GenesisEpochId.FirstWater,
+  GenesisEpochId.EmergenceOfLife,
+  GenesisEpochId.FireSeason,
+  GenesisEpochId.Regrowth,
+  GenesisEpochId.IceAge,
+  GenesisEpochId.PostGlacialDieOff,
+  GenesisEpochId.WarmPeriod,
+])
+
 // Returns the surface bg color for a tile in the given epoch, or null
 // when the epoch is in SKIP_BG_EPOCHS or the tile has no glyph color.
 //   PresentDay: match gameplay tileBgCache exactly (TILE_BG_PALETTES via
@@ -128,7 +146,7 @@ const computeSurfaceBg = (
   if (epochId === GenesisEpochId.PresentDay) {
     return getWaterBgColor(sim, mx, my, key, h, false) ?? getTileBgColor(tileType, mx, my)
   }
-  const water = getWaterBgColor(sim, mx, my, key, h, true)
+  const water = getWaterBgColor(sim, mx, my, key, h, LOWLAND_WATER_EPOCHS.has(epochId))
   if (water) return water
   if (!surfaceColor) return getTileBgColor(tileType, mx, my)
   return darkenColor(toHexColor(surfaceColor), SURFACE_BG_DARKEN)

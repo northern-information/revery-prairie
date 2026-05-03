@@ -20,6 +20,7 @@ import {
   SATELLITE_TRAIL_COLORS,
   SOIL_HEALTH_MAX,
   SPACE_BORDER,
+  TILE_CHARS,
   TILE_COLORS,
   WATER_SAND_BORDER_MAX,
   WATER_SAND_PASS_CHANCES,
@@ -2733,11 +2734,15 @@ const presentDay: GenesisEpoch = {
     // rendererTileHash via `h`, matching the game renderer exactly. The
     // fallOfCivilizations -> presentDay crossfade smoothly blends red
     // SATELLITE_TRAIL_COLORS into this brown.
+    // Use TILE_CHARS[Dirt] ('·') so burn-scar / plain-dirt glyphs match
+    // gameplay byte-for-byte; previously this rendered '.' here and game
+    // rendered '·', producing a per-tile char swap at the handoff.
+    const dirtChar = TILE_CHARS[TileType.Dirt]
     const baseTile: GenesisTileRender = sim.craters.has(key)
       ? { char: BUILDING_CHARS[h % BUILDING_CHARS.length], color: CRATER_COLORS[h % CRATER_COLORS.length], dx: 0, dy: 0 }
       : sim.burnScars.has(key)
-      ? { char: '.', color: GAME_BURN_SCAR_COLORS[h % GAME_BURN_SCAR_COLORS.length], dx: 0, dy: 0 }
-      : { char: '.', color: GAME_DIRT_COLORS[h % GAME_DIRT_COLORS.length], dx: 0, dy: 0 }
+      ? { char: dirtChar, color: GAME_BURN_SCAR_COLORS[h % GAME_BURN_SCAR_COLORS.length], dx: 0, dy: 0 }
+      : { char: dirtChar, color: GAME_DIRT_COLORS[h % GAME_DIRT_COLORS.length], dx: 0, dy: 0 }
 
     // Rain aura overlay — matches gameplay renderer (renderer.ts rain overlay pass)
     // Use rendererTileHash (from position.ts) with rainSeed offset to match
