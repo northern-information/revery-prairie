@@ -64,6 +64,52 @@ const getWaterBgColor = (
   return null
 }
 
+// Surface-bg darkening for non-presentDay epochs: TILE_BG_PALETTES are
+// roughly 0.55-0.65 of TILE_COLORS' brightness. We darken the epoch's
+// glyph color by 0.45 to land in the same readable "glyph on darker
+// surface" zone for lava, ice, glacial paths, fire, etc.
+const SURFACE_BG_DARKEN = 0.45
+
+const toHexColor = (color: string): string => {
+  if (color.startsWith('#')) {
+    if (color.length === 4) {
+      return `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`
+    }
+    return color
+  }
+  const [r, g, b] = parseColor(color)
+  const toHex = (n: number): string => n.toString(16).padStart(2, '0')
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+}
+
+// Returns the surface bg color for a tile in the active epoch.
+//   PresentDay: match gameplay tileBgCache exactly (TILE_BG_PALETTES via
+//     getTileBgColor, with state.rivers/state.ponds-equivalent water
+//     overrides). This keeps the genesis-to-game handoff pixel-perfect.
+//   Other epochs: derive from the epoch's primary glyph color, darkened.
+//     This automatically gives lava tiles a red-orange bg, ice/glacial
+//     tiles an icy bg, fire-season burn scars a charcoal bg, etc — no
+//     per-epoch wiring required.
+const getEpochSurfaceBg = (
+  sim: GenesisSimState,
+  epoch: GenesisEpoch,
+  mx: number,
+  my: number,
+  progress: number,
+  time: number,
+  tileType: TileType,
+): string => {
+  const key = posKey(mx, my)
+  const h = tileHash(mx, my)
+  if (epoch.id === GenesisEpochId.PresentDay) {
+    return getWaterBgColor(sim, mx, my, key, h) ?? getTileBgColor(tileType, mx, my)
+  }
+  const renders = epoch.renderTile(sim, mx, my, progress, time)
+  const surface = renders[0]?.color
+  if (!surface) return getTileBgColor(tileType, mx, my)
+  return darkenColor(toHexColor(surface), SURFACE_BG_DARKEN)
+}
+
 // Max possible negative lift: tier 3 * ELEVATION_TIER_LIFT_PX.
 // Used to expand the off-canvas cull margin so high-tier tiles near the
 // viewport top edge remain in the iteration window.
@@ -355,10 +401,7 @@ export const renderGenesis = (
       const bottomY = topY + charHeight
       const cx = leftX + charWidth
       const cy = topY + halfH
-      const key = posKey(mx, my)
-      const h = tileHash(mx, my)
-      const waterBg = getWaterBgColor(sim, mx, my, key, h)
-      ctx.fillStyle = waterBg ?? getTileBgColor(tile.type, mx, my)
+      ctx.fillStyle = getEpochSurfaceBg(sim, epoch, mx, my, progress, time, tile.type)
       ctx.beginPath()
       ctx.moveTo(cx, topY - TILE_BG_OVERLAP)
       ctx.lineTo(rightX + TILE_BG_OVERLAP, cy)
@@ -398,10 +441,8 @@ export const renderGenesis = (
       const cellBottomY = cellTopY + charHeight
       const cellCx = cellLeftX + charWidth
       const cellCy = cellTopY + halfH
-      const skirtKey = posKey(mx, my)
-      const skirtH = tileHash(mx, my)
-      const skirtWaterBg = getWaterBgColor(sim, mx, my, skirtKey, skirtH)
-      ctx.strokeStyle = darkenColor(skirtWaterBg ?? getTileBgColor(tile.type, mx, my), WALL_RIGHT_SHADE)
+      const skirtBg = getEpochSurfaceBg(sim, epoch, mx, my, progress, time, tile.type)
+      ctx.strokeStyle = darkenColor(skirtBg, WALL_RIGHT_SHADE)
       ctx.lineWidth = 1
       ctx.beginPath()
       ctx.moveTo(cellLeftX, cellCy)
@@ -442,7 +483,7 @@ export const renderGenesis = (
       const leftDepth = Math.max(0, tier - southTier) * ELEVATION_TIER_LIFT_PX
       const rightDepth = Math.max(0, tier - eastTier) * ELEVATION_TIER_LIFT_PX
       if (leftDepth <= 0 && rightDepth <= 0) continue
-      const wallBg = getTileBgColor(tile.type, mx, my)
+      const wallBg = getEpochSurfaceBg(sim, epoch, mx, my, progress, time, tile.type)
       drawCellWalls(
         ctx,
         px,
