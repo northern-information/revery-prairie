@@ -135,10 +135,6 @@ export interface ActionBarSlot {
 export interface TransitionFade {
   startTime: number
   duration: number
-  /** Optional zoom level at the start of the transition. When set on
-   *  `genesisTransition`, the gameloop lerps `state.zoom` from this value
-   *  to `ZOOM_DEFAULT` over the transition duration. */
-  zoomStart?: number
 }
 
 export type MultiplayerStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'

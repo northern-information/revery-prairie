@@ -32,7 +32,6 @@ import {
   SHOOTING_STAR_TICK_MS,
   UNIT_COMMAND_TICK_MS,
   WEATHER_TICK_MS,
-  ZOOM_DEFAULT,
 } from './constants'
 import { tickDeepTime } from './deepTime'
 import { ComponentType } from './ecs/types'
@@ -126,9 +125,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
     },
     {
       id: 'genesisTransitionCleanup',
-      // Per-frame so the zoom lerp animates smoothly. The cleanup branch
-      // is a cheap null-check when no transition is active.
-      intervalMs: 0,
+      intervalMs: 100,
       zone: 'always' as const,
       phase: 'gameplay' as const,
       priority: -20,
@@ -136,14 +133,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         if (!state.genesisTransition) return
         const transition = state.genesisTransition
         const elapsed = time - transition.startTime
-        // Lerp zoom from the captured start value back to ZOOM_DEFAULT.
-        if (transition.zoomStart !== undefined && transition.duration > 0) {
-          const t = Math.min(1, Math.max(0, elapsed / transition.duration))
-          state.zoom = transition.zoomStart + (ZOOM_DEFAULT - transition.zoomStart) * t
-        }
-        // Safety clamp: clear after 2x duration
-        if (elapsed >= transition.duration * 2 || elapsed >= transition.duration) {
-          state.zoom = ZOOM_DEFAULT
+        if (elapsed >= transition.duration) {
           state.genesisTransition = null
           callbacks.onRefreshUI?.()
         }

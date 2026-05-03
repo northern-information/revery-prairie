@@ -9,11 +9,14 @@ source_files:
   - src/engine/gameLoop.ts
   - src/engine/constants.ts
   - src/engine/types.ts
+  - src/engine/projection.ts
+  - src/engine/tileBg.ts
   - src/components/GameScreen.tsx
   - src/components/Sidebar.tsx
   - src/components/ActionBar.tsx
   - src/hooks/useKeyboard.ts
   - src/hooks/useMouse.ts
+  - src/hooks/useGameEngine.ts
 dependencies:
   - player-movement
 
@@ -35,7 +38,7 @@ behaviors:
       - 'canvas renders a smooth blend from genesis final frame to gameplay frame over ~1500ms'
     state_changes:
       - field: genesisTransition
-        effect: 'set to { startTime, duration, zoomStart } when genesis completes, cleared to null after duration elapses'
+        effect: 'set to { startTime, duration } when genesis completes, cleared to null after duration elapses'
     determinism: time-based
 
   - id: entity-fade-in
@@ -181,26 +184,84 @@ behaviors:
     state_changes: []
     determinism: time-based
 
-  - id: genesis-zoom-animation
+  - id: genesis-renders-at-default-zoom
     description: >
-      genesis renders the world at GENESIS_ZOOM (0.5) so the entire
-      island fits in the viewport during the geological time-lapse.
-      when genesis completes and genesisTransition begins, the gameloop
-      captures the current zoom into genesisTransition.zoomStart and
-      lerps state.zoom from zoomStart toward ZOOM_DEFAULT (1.0) per-frame
-      across the transition duration. when the transition ends, state.zoom
-      is snapped to ZOOM_DEFAULT. the camera pulls in smoothly as the
-      player spawns, creating a continuous pullback rather than a hard cut.
+      genesis renders at ZOOM_DEFAULT (1.0) from the very first frame.
+      there is no zoom animation: state.zoom is initialized to ZOOM_DEFAULT
+      in createGameState, never set to GENESIS_ZOOM, and is not lerped by
+      the gameloop during the genesis-to-game transition. the genesisTransition
+      object carries only { startTime, duration } — no zoomStart field. the
+      GENESIS_ZOOM constant is removed from constants.ts. the dev skip-genesis
+      branch in useGameEngine no longer needs to override state.zoom.
     inputs:
-      - 'completeGenesis fires with state.zoom = GENESIS_ZOOM'
-      - 'genesisTransition.startTime, duration, and zoomStart populated at completion'
+      - 'createGameState called (with or without skipGenesis)'
+      - 'completeGenesis fires when the geological sim ends'
     outputs:
-      - 'state.zoom lerps from GENESIS_ZOOM (0.5) to ZOOM_DEFAULT (1.0) over the transition duration'
-      - 'state.zoom = ZOOM_DEFAULT exactly when the transition ends'
+      - 'state.zoom = ZOOM_DEFAULT throughout genesis, the transition window, and gameplay'
+      - 'no per-frame zoom interpolation runs in gameLoop'
     state_changes:
       - field: zoom
-        effect: 'lerped from genesisTransition.zoomStart to ZOOM_DEFAULT each frame, snapped to ZOOM_DEFAULT on completion'
-    determinism: time-based
+        effect: 'initialized to ZOOM_DEFAULT and unchanged by genesis or transition logic'
+      - field: genesisTransition
+        effect: 'shape is { startTime, duration } only — zoomStart removed from the type'
+    determinism: deterministic
+
+  - id: genesis-elevation-rendering
+    description: >
+      every genesis epoch renders terrain with the same iso 3D elevation
+      treatment the game renderer uses. for each visible tile, the genesis
+      renderer reads sim.elevation.get(posKey(mx, my)), maps it through
+      getElevationTier (4 tiers across [0, 100]) and getTierLift
+      (-tier * ELEVATION_TIER_LIFT_PX = -tier*6 px), and adds the resulting
+      lift to the tile's screen y before drawing the glyph. tiles whose
+      tier is higher than the south or east neighbor tier paint cube walls
+      via drawCellWalls(ctx, px, py+lift, charWidth, charHeight, leftDepth,
+      rightDepth, darkenColor(bg, WALL_LEFT_SHADE),
+      darkenColor(bg, WALL_RIGHT_SHADE)) where leftDepth/rightDepth are the
+      tier delta * ELEVATION_TIER_LIFT_PX. every tile also paints a per-tile
+      cube edge skirt (south + east edge stroke darkened by WALL_RIGHT_SHADE)
+      so plateaus read as discrete blocks, matching paintTileEdge in
+      tileBgCache. the lift is recomputed every frame from current
+      sim.elevation, so glaciation valley-carving and river erosion are
+      visible as live deformation. the renderer does NOT cache this layer
+      (unlike the gameplay tileBgCache, which is keyed on the gameplay map
+      ref and assumes elevation is frozen) — recomputation is per-frame.
+      the halo pre-pass (RuinEntrance backdrop) and the crossfade pre-pass
+      (next-epoch render buffer) apply the same lift so positioning stays
+      consistent across all draw stages. the off-canvas cull margin is
+      expanded by the max possible lift (ELEVATION_TIER_COUNT-1) *
+      ELEVATION_TIER_LIFT_PX so high-tier tiles near the viewport top edge
+      remain visible.
+    inputs:
+      - 'sim.elevation Map<string, number> populated by baseElevation epoch and mutated by glaciation, river erosion, etc.'
+      - 'every renderTile call (all 14 epochs)'
+    outputs:
+      - 'each visible tile draws lifted by getTierLift(elevationTier) px'
+      - 'cube walls paint at south/east tier transitions in every epoch'
+      - 'per-tile cube edge skirt strokes paint south + east edges'
+      - 'lift updates every frame as elevation mutates during the sim'
+    state_changes: []
+    determinism: deterministic
+
+  - id: genesis-elevation-matches-gameplay
+    description: >
+      the final genesis frame and the first gameplay frame produce
+      pixel-identical tile positions and cube geometry. both renderers use
+      getElevationTier, getTierLift, ELEVATION_TIER_LIFT_PX, drawCellWalls,
+      WALL_LEFT_SHADE, and WALL_RIGHT_SHADE from the same shared modules
+      (tileBg.ts and projection.ts). there is no separate genesis tier
+      formula. the only renderer-side difference is that gameplay caches
+      the static layer in tileBgCache while genesis recomputes per-frame.
+      this guarantees the canvas-crossfade behavior remains seamless: the
+      terrain positions do not pop when the game renderer takes over.
+    inputs:
+      - 'genesisRenderer in its final frame (presentDay epoch, progress=1)'
+      - 'game renderer in its first frame (genesisTransition just started)'
+    outputs:
+      - 'every visible tile sits at the same px coords and lift in both frames'
+      - 'cube walls and edge strokes are identical at the handoff'
+    state_changes: []
+    determinism: deterministic
 
   - id: click-fast-forward-genesis
     description: >
@@ -217,13 +278,13 @@ behaviors:
       - 'state.genesis is non-null and epochIndex < GENESIS_EPOCHS.length'
     outputs:
       - 'completeGenesis runs synchronously, all remaining mutations apply'
-      - 'genesisTransition is set, crossfade and zoom animation begin normally'
+      - 'genesisTransition is set, crossfade begins normally'
       - 'no selection box, no pathfinding, no interaction triggered by the click'
     state_changes:
       - field: genesis
         effect: 'cleared via completeGenesis (state.genesis = null after all epoch mutations run)'
       - field: genesisTransition
-        effect: 'populated by completeGenesis with startTime, duration, zoomStart'
+        effect: 'populated by completeGenesis with startTime, duration'
     determinism: deterministic
 
   - id: skip-genesis-bypasses-transition
@@ -232,16 +293,16 @@ behaviors:
       completeGenesis called before any epochs run), the crossfade
       is skipped entirely. genesisTransition is never set. all
       entities and UI render at full opacity immediately. state.zoom
-      stays at ZOOM_DEFAULT — no zoom animation plays.
+      is already ZOOM_DEFAULT (no override needed).
     inputs:
       - 'skipGenesis flag is true'
     outputs:
-      - 'no crossfade, no fade-in, no zoom animation — immediate full render at ZOOM_DEFAULT'
+      - 'no crossfade and no entity fade-in — immediate full render at ZOOM_DEFAULT'
     state_changes:
       - field: genesisTransition
         effect: 'remains null'
       - field: zoom
-        effect: 'remains at ZOOM_DEFAULT, no lerp'
+        effect: 'remains at ZOOM_DEFAULT (its initial value)'
     determinism: deterministic
 
 edge_cases:
@@ -268,12 +329,27 @@ edge_cases:
       normally from whatever the last rendered genesis frame was.
     expected: 'crossfade starts from the fast-forwarded final frame, same duration, regardless of skip input source'
 
-  - id: zoom-mid-animation-resize
+  - id: elevation-shifts-during-glaciation
     description: >
-      browser resizes while zoom is mid-lerp. the renderer recomputes
-      viewport with the current interpolated zoom value — no jump,
-      no reset to GENESIS_ZOOM, no snap to ZOOM_DEFAULT.
-    expected: 'zoom continues lerping smoothly through the resize event'
+      glaciation epoch carves valleys (lowers elevation by ~15) on tiles
+      under glacial paths. the genesis renderer must reflect the new lift
+      on the next frame — tiles visibly drop as the glacier passes. no
+      snap, no flicker, no caching artifact.
+    expected: 'tiles under retreating glaciers visibly lower in real time as sim.elevation mutates'
+
+  - id: elevation-shifts-during-river-erosion
+    description: >
+      river generation in warmPeriod erodes elevation by 2 along river
+      paths. the genesis renderer reflects this on the next frame.
+    expected: 'tiles along forming rivers visibly lower as sim.elevation is decremented'
+
+  - id: handoff-no-elevation-pop
+    description: >
+      at the moment the genesis renderer hands off to the game renderer,
+      every visible tile must sit at the same px coords with the same
+      cube walls and edge skirt. no vertical jump, no wall thickness
+      change, no per-tile snap.
+    expected: 'tile positions and cube geometry are pixel-identical across the genesis-to-game handoff frame'
 
   - id: right-click-during-genesis
     description: >
@@ -352,6 +428,18 @@ failure_conditions:
 
   - trigger: 'a CaveEntrance tile is rendered by genesis presentDay'
     expected: 'renders the O glyph in light gray matching the game renderer, not plain dirt'
+
+  - trigger: 'a tile with elevation tier > 0 is rendered by any genesis epoch'
+    expected: 'glyph is drawn at py + getTierLift(tier), not at the flat baseline'
+
+  - trigger: 'a genesis tile sits one tier higher than its south or east neighbor'
+    expected: 'a cube wall is painted with the appropriate depth, color, and shading via drawCellWalls'
+
+  - trigger: 'sim.elevation is mutated mid-render (e.g. glacier carving on the same frame)'
+    expected: 'the next rendered frame reads the new value — no stale lift cached across frames'
+
+  - trigger: 'completeGenesis populates genesisTransition'
+    expected: 'object shape is { startTime, duration } — no zoomStart field is set or read anywhere'
 
 verification:
   test_file: src/engine/__tests__/genesisTransition.test.ts

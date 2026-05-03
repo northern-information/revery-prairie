@@ -336,6 +336,95 @@ describe('genesis transition', () => {
     })
   })
 
+  describe('elevation rendering in genesis', () => {
+    const readGenesisRenderer = (): string =>
+      readFileSync(join(__dirname, '../genesisRenderer.ts'), 'utf-8')
+
+    it('imports the shared elevation primitives from tileBg and projection', () => {
+      const source = readGenesisRenderer()
+      expect(source).toContain('getElevationTier')
+      expect(source).toContain('getTierLift')
+      expect(source).toContain('ELEVATION_TIER_LIFT_PX')
+      expect(source).toContain('drawCellWalls')
+      expect(source).toContain('WALL_LEFT_SHADE')
+      expect(source).toContain('WALL_RIGHT_SHADE')
+      expect(source).toContain('darkenColor')
+      expect(source).toContain('getTileBgColor')
+    })
+
+    it('reads sim.elevation per tile via posKey', () => {
+      const source = readGenesisRenderer()
+      // The lift helper must read the live sim.elevation Map, not a frozen snapshot
+      expect(source).toMatch(/sim\.elevation\.get\(posKey\(/)
+    })
+
+    it('expands the cull-top margin to account for the max possible lift', () => {
+      const source = readGenesisRenderer()
+      // cullTop must subtract the max-lift constant so high-tier tiles near the
+      // viewport top edge stay in the iteration window after the lift applies
+      expect(source).toMatch(/cullTop\s*=\s*-charHeight\s*-\s*MAX_LIFT_PX/)
+    })
+
+    it('paints cube walls only at south/east tier transitions', () => {
+      const source = readGenesisRenderer()
+      // Both leftDepth and rightDepth must be guarded by Math.max(0, tier - neighborTier)
+      expect(source).toMatch(/leftDepth\s*=\s*Math\.max\(0,\s*tier\s*-\s*southTier\)\s*\*\s*ELEVATION_TIER_LIFT_PX/)
+      expect(source).toMatch(/rightDepth\s*=\s*Math\.max\(0,\s*tier\s*-\s*eastTier\)\s*\*\s*ELEVATION_TIER_LIFT_PX/)
+    })
+
+    it('lifts the per-tile cube edge skirt by the same amount as the glyph', () => {
+      const source = readGenesisRenderer()
+      // The edge-stroke pre-pass must use cellTopY = py + lift so the skirt
+      // hugs the lifted diamond, not the flat baseline.
+      expect(source).toMatch(/cellTopY\s*=\s*py\s*\+\s*lift/)
+    })
+
+    it('does not declare a separate genesis-only elevation tier formula', () => {
+      const source = readGenesisRenderer()
+      // No private GENESIS_ELEVATION_TIERS, GENESIS_LIFT, or local tier helper —
+      // genesis must use the same constants/functions as gameplay
+      expect(source).not.toMatch(/GENESIS_ELEVATION/)
+      expect(source).not.toMatch(/GENESIS_LIFT/)
+      expect(source).not.toMatch(/const\s+genesisTier\s*=/)
+    })
+  })
+
+  describe('zoom animation removal', () => {
+    it('GENESIS_ZOOM constant is fully removed from constants.ts', () => {
+      const source = readFileSync(join(__dirname, '../constants.ts'), 'utf-8')
+      expect(source).not.toMatch(/GENESIS_ZOOM/)
+    })
+
+    it('TransitionFade type does not declare a zoomStart field', () => {
+      const source = readFileSync(join(__dirname, '../types.ts'), 'utf-8')
+      const match = /interface TransitionFade\s*\{([^}]*)\}/.exec(source)
+      expect(match).toBeTruthy()
+      expect(match?.[1]).not.toMatch(/zoomStart/)
+    })
+
+    it('createGameState initializes zoom to ZOOM_DEFAULT', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
+      expect(state.zoom).toBe(1.0)
+    })
+
+    it('zoom remains ZOOM_DEFAULT after completeGenesis', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
+      completeGenesis(state)
+      expect(state.zoom).toBe(1.0)
+      expect(state.genesisTransition).not.toBeNull()
+      // The transition object must not carry a zoomStart hint
+      expect((state.genesisTransition as unknown as { zoomStart?: number }).zoomStart).toBeUndefined()
+    })
+
+    it('gameLoop does not lerp state.zoom in genesisTransitionCleanup', () => {
+      const source = readFileSync(join(__dirname, '../gameLoop.ts'), 'utf-8')
+      // No zoom interpolation lines remain — only the cleanup branch exists.
+      expect(source).not.toMatch(/zoomStart/)
+      expect(source).not.toMatch(/state\.zoom\s*=\s*ZOOM_DEFAULT/)
+      expect(source).not.toMatch(/state\.zoom\s*=\s*transition\.zoomStart/)
+    })
+  })
+
   describe('sidebar flash prevention', () => {
     it('sidebar fade style includes initial opacity 0 for genesis transition', () => {
       // Source-level assertion: Sidebar.tsx must set opacity: 0 alongside

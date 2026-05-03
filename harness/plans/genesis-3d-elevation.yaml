@@ -1,0 +1,120 @@
+plan:
+  id: genesis-3d-elevation
+  title: '3D elevation rendering during genesis + remove genesis zoom animation'
+  created: '2026-05-02'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+    - npm run build
+
+tasks:
+  - id: drop-genesis-zoom-constant
+    title: 'Drop GENESIS_ZOOM and zoomStart from genesisTransition'
+    spec_id: genesis-transition
+    spec_sections:
+      - genesis-renders-at-default-zoom
+      - canvas-crossfade
+      - click-fast-forward-genesis
+      - skip-genesis-bypasses-transition
+    context_files:
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/genesis.ts
+      - src/engine/gameLoop.ts
+      - src/hooks/useGameEngine.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/genesis.ts
+      - src/engine/gameLoop.ts
+      - src/hooks/useGameEngine.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: lift-tiles-in-genesis-renderer
+    title: 'Apply elevation tier lift to every tile in the genesis renderer (main loop, halo pre-pass, crossfade pre-pass) and expand cull margin'
+    spec_id: genesis-transition
+    spec_sections:
+      - genesis-elevation-rendering
+      - genesis-elevation-matches-gameplay
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/projection.ts
+      - src/engine/tileBg.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: paint-cube-walls-in-genesis-renderer
+    title: 'Add tier-transition cube walls + per-tile cube edge skirt pre-pass to the genesis renderer'
+    spec_id: genesis-transition
+    spec_sections:
+      - genesis-elevation-rendering
+      - genesis-elevation-matches-gameplay
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/projection.ts
+      - src/engine/tileBg.ts
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+    depends_on:
+      - lift-tiles-in-genesis-renderer
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: regression-tests-elevation
+    title: 'Add tests covering genesis elevation lift, cube walls, and live deformation'
+    spec_id: genesis-transition
+    spec_sections:
+      - genesis-elevation-rendering
+      - genesis-elevation-matches-gameplay
+    context_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/projection.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+    depends_on:
+      - paint-cube-walls-in-genesis-renderer
+    verification:
+      - npx vitest run src/engine/__tests__/genesisTransition.test.ts
+    repair: retry
+    tags: [engine, test]
+
+  - id: regression-tests-zoom-removed
+    title: 'Update tests for zoomStart/GENESIS_ZOOM removal — drop zoom-lerp tests, assert zoom remains ZOOM_DEFAULT throughout'
+    spec_id: genesis-transition
+    spec_sections:
+      - genesis-renders-at-default-zoom
+    context_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - drop-genesis-zoom-constant
+    verification:
+      - npx vitest run src/engine/__tests__/genesisTransition.test.ts
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [engine, test]
