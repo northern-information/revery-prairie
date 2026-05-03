@@ -406,6 +406,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     alpha: number
   }
   const deferredEntities: DeferredEntity[] = []
+  const deferredFloraGlyphs: Array<{ char: string; color: string; px: number; py: number }> = []
 
   // Build overworld entrance glyph map (posKey → Greek letter)
   _entranceGlyphMap.clear()
@@ -1445,11 +1446,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
-      // Flora wind sway: offset and luminance-shift weather-affected tiles.
+      // Flora wind sway: displaced glyphs are deferred and flushed after the
+      // tile loop so no subsequent tile background can paint over them.
       // Only applied on the non-highlighted terrain path so the cursor
       // highlight box stays anchored to the tile centre.
-      let swayDx = 0
-      let swayDy = 0
       if (!highlight && WEATHER_AFFECTED_TILES.has(map[my]?.[mx]?.type)) {
         const sway = getFloraSwayOffset(
           mx,
@@ -1462,9 +1462,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           charHeight,
           color,
         )
-        swayDx = sway.dx
-        swayDy = sway.dy
-        color = sway.color
+        if (sway.dx !== 0 || sway.dy !== 0) {
+          deferredFloraGlyphs.push({ char, color: sway.color, px: px + sway.dx, py: pyLift + sway.dy })
+          continue
+        }
       }
 
       // Non-deferred path: terrain glyphs and overlay tiles. Apply the
@@ -1504,10 +1505,18 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // tween position rather than the iteration position.
         ctx.fillText(char, playerScreen.px, playerScreen.py + playerLift)
       } else {
-        ctx.fillText(char, px + swayDx, pyLift + swayDy)
+        ctx.fillText(char, px, pyLift)
       }
     }
   }
+  // Flush deferred flora glyphs — drawn after all terrain backgrounds so no
+  // neighboring tile's background rectangle can clip a displaced glyph.
+  // Flushed before entity glyphs so entities remain on top of flora.
+  for (const f of deferredFloraGlyphs) {
+    ctx.fillStyle = f.color
+    ctx.fillText(f.char, f.px, f.py)
+  }
+
   // Smooth-movement post-pass — draw tweening ECS entities at fractional pixel positions.
   // Apply the angel float lift for any tweened entity tagged as angel
   // body, so a tweening angel would still float above terrain. No
