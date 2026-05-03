@@ -123,6 +123,8 @@ export const createGameState = (
     lastEdgeScrollTime: 0,
     edgeScrollPos: null,
     edgeScrollDirection: { dx: 0, dy: 0 },
+    edgeScrollIndicatorAlpha: 0,
+    edgeScrollIndicatorDirection: { dx: 0, dy: 0 },
     cameraSubpixel: { x: 0, y: 0 },
     heldKeys: new Set(),
     currentZone: Zone.Overworld,

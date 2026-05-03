@@ -9,8 +9,7 @@ import { type RenderPass, registerPass } from '../passes'
 // inside. Includes an inner glow gradient extending into the playfield
 // so the active edge reads as illuminated rather than a flat line.
 
-const isActive = (state: GameState): boolean =>
-  state.edgeScrollDirection.dx !== 0 || state.edgeScrollDirection.dy !== 0
+const isActive = (state: GameState): boolean => state.edgeScrollIndicatorAlpha > 0
 
 const draw = (
   ctx: CanvasRenderingContext2D,
@@ -18,7 +17,9 @@ const draw = (
   metrics: CharMetrics,
   _time: number,
 ): void => {
-  const { viewportWidth, viewportHeight, edgeScrollDirection: dir } = state
+  const { viewportWidth, viewportHeight, edgeScrollIndicatorDirection: dir } = state
+  ctx.save()
+  ctx.globalAlpha = state.edgeScrollIndicatorAlpha
   const { charWidth, charHeight } = metrics
   const pxHeight = viewportHeight * charHeight
   const visibleWidthPx = (viewportWidth - state.rightInsetTiles) * charWidth
@@ -78,6 +79,7 @@ const draw = (
   if (dir.dx > 0) drawEdgeGlow('right')
   if (dir.dy < 0) drawEdgeGlow('top')
   if (dir.dy > 0) drawEdgeGlow('bottom')
+  ctx.restore()
 }
 
 export const edgeScrollIndicatorPass: RenderPass = {

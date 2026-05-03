@@ -209,6 +209,8 @@ export interface GameState {
   lastEdgeScrollTime: number
   edgeScrollPos: { x: number; y: number } | null
   edgeScrollDirection: { dx: number; dy: number }
+  edgeScrollIndicatorAlpha: number
+  edgeScrollIndicatorDirection: { dx: number; dy: number }
   cameraSubpixel: { x: number; y: number }
   heldKeys: Set<ScreenAxisKey>
   currentZone: Zone

@@ -126,6 +126,8 @@ const EXPECTED_FIELDS = [
   'lastEdgeScrollTime',
   'edgeScrollPos',
   'edgeScrollDirection',
+  'edgeScrollIndicatorAlpha',
+  'edgeScrollIndicatorDirection',
   'cameraSubpixel',
   'heldKeys',
 ].sort((a, b) => a.localeCompare(b))
