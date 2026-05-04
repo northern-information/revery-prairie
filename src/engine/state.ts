@@ -222,6 +222,8 @@ export const createGameState = (
     remotePlayers: new Map(),
     onPlayerMoved: null,
     onGenesisEpochStart: null,
+    pollen: [],
+    pollenTrailDepth: 0,
   }
 
   // Glinting zone patches are seeded later, inside completeGenesis,

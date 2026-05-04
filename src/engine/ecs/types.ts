@@ -25,6 +25,7 @@ export const ComponentType = {
   AngelData: 'angelData',
   SatelliteData: 'satelliteData',
   MonarchState: 'monarchState',
+  BeePollenData: 'beePollenData',
 } as const
 
 export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType]
@@ -89,5 +90,9 @@ export interface ComponentDataMap {
     target: Position | null
     waypoint: Position | null
     lastPollinateTime: number
+  }
+  [ComponentType.BeePollenData]: {
+    pollenCount: number    // 0–MAX_BEE_POLLEN (4)
+    lastDecayTime: number  // ms — timestamp of last decrement
   }
 }

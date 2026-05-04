@@ -1,0 +1,221 @@
+id: flora-pollen
+name: 'Flora pollen particle system'
+priority: medium
+layer: engine
+dependencies: []
+source_files:
+  - src/engine/types.ts
+  - src/engine/ecs/types.ts
+  - src/engine/flora.ts
+  - src/engine/pollen.ts
+  - src/engine/render/pollenRender.ts
+  - src/engine/renderer.ts
+  - src/engine/clover.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+
+behaviors:
+  - id: pollen-emission
+    description: >
+      When wind speed exceeds POLLEN_WIND_THRESHOLD (8 mph) and the current zone is
+      Overworld, the pollen tick samples nearby clover tiles and spawns PollenParticle
+      entries into state.pollen up to MAX_POLLEN (150). Emission rate per eligible tile
+      scales linearly with wind speed above the threshold: rate = emitRate *
+      (windSpeed - threshold) / (MAX_WIND_SPEED - threshold). Only healthy clover tiles
+      (CloverStage.Healthy) emit. Emission is suppressed in Cave and Ruin zones.
+    inputs:
+      - 'state.weather.windSpeed > POLLEN_WIND_THRESHOLD'
+      - 'state.currentZone === Zone.Overworld'
+      - 'at least one clover tile with CloverStage.Healthy within viewport'
+    outputs:
+      - 'one or more PollenParticle entries appended to state.pollen'
+    state_changes:
+      - field: state.pollen
+        effect: >
+          new particles appended with x/y near a clover tile (±0.5 tile jitter),
+          age=0, maxAge randomised in [800, 1400] ms, profileId='clover'
+    determinism: probabilistic
+
+  - id: pollen-drift
+    description: >
+      Each frame, tickPollen advances every particle position using the smooth wind
+      state from floraWind (smoothSx, smoothSy, smoothSpeed) — the same values used
+      by getFloraSwayOffset. Particles do not store their own velocity; they sample
+      the current smooth state each frame so they stay visually coupled to flora sway.
+      Drift speed is POLLEN_DRIFT_SPEED * windFraction world-units per ms.
+    inputs:
+      - 'state.pollen has entries'
+      - 'dt > 0'
+    outputs:
+      - 'each particle x, y updated'
+    state_changes:
+      - field: state.pollen[i].x
+        effect: 'incremented by smoothSx/smoothSpeed * POLLEN_DRIFT_SPEED * windFraction * dt'
+      - field: state.pollen[i].y
+        effect: 'incremented by smoothSy/smoothSpeed * POLLEN_DRIFT_SPEED * windFraction * dt'
+      - field: state.pollen[i].age
+        effect: 'incremented by dt'
+    determinism: deterministic
+
+  - id: pollen-fade-and-reclaim
+    description: >
+      tickPollen removes particles whose age has exceeded their maxAge. Removal
+      reclaims the slot for reuse (splice-and-replace with last element to avoid
+      shifting). Particle opacity for rendering is computed as
+      1 - (age / maxAge) — a linear fade from fully opaque to fully transparent.
+      No state field stores opacity; it is derived at render time.
+    inputs:
+      - 'state.pollen[i].age >= state.pollen[i].maxAge'
+    outputs:
+      - 'particle removed from state.pollen'
+    state_changes:
+      - field: state.pollen
+        effect: 'particle at index i removed; last element moves into its slot'
+    determinism: deterministic
+
+  - id: pool-capacity-cap
+    description: >
+      state.pollen never exceeds MAX_POLLEN (150) entries. When emission would
+      add a new particle but the pool is already at capacity, the spawn is silently
+      skipped. No error is thrown and no existing particle is evicted.
+    inputs:
+      - 'state.pollen.length === MAX_POLLEN'
+      - 'emission tick fires'
+    outputs:
+      - 'no new particle added'
+    state_changes:
+      - field: state.pollen
+        effect: 'unchanged'
+    determinism: deterministic
+
+  - id: player-trail
+    description: >
+      When the player steps off a clover tile onto a non-clover tile, a burst of
+      pollen particles is emitted at the player's previous position (the clover tile).
+      Burst size scales with how many consecutive clover tiles the player has
+      traversed (tracked by state.pollenTrailDepth, capped at 8). Re-entering clover
+      increments pollenTrailDepth. Stepping onto a non-clover tile resets
+      pollenTrailDepth to 0 after the burst fires. The burst respects MAX_POLLEN.
+    inputs:
+      - 'player was on a clover tile this step'
+      - 'player moved onto a non-clover tile'
+    outputs:
+      - '2 + min(pollenTrailDepth, 6) particles spawned at previous player position'
+    state_changes:
+      - field: state.pollen
+        effect: 'burst particles appended near previous player position'
+      - field: state.pollenTrailDepth
+        effect: 'reset to 0'
+    determinism: probabilistic
+
+  - id: player-trail-accumulation
+    description: >
+      Each step the player takes on a clover tile increments state.pollenTrailDepth
+      by 1, capped at 8. This depth controls burst size on exit.
+    inputs:
+      - 'player moves onto a clover tile'
+    outputs: []
+    state_changes:
+      - field: state.pollenTrailDepth
+        effect: 'incremented by 1, max 8'
+    determinism: deterministic
+
+  - id: bee-pollen-attachment
+    description: >
+      When a bee entity moves onto a clover tile during its wander tick, its
+      BeePollenData component pollenCount is incremented by 1, capped at MAX_BEE_POLLEN
+      (4). pollenCount decays by 1 every BEE_POLLEN_DECAY_MS (4000 ms) via a per-bee
+      timer. No particle pool slots are consumed — bee pollen is rendered purely from
+      this counter. pollenCount is discarded when the bee entity is removed.
+    inputs:
+      - 'bee entity moves onto TileType.Clover'
+    outputs: []
+    state_changes:
+      - field: BeePollenData.pollenCount
+        effect: 'incremented by 1, capped at MAX_BEE_POLLEN (4)'
+    determinism: deterministic
+
+  - id: bee-pollen-render
+    description: >
+      The renderer draws pollenCount "." glyphs at fixed pixel offsets around the
+      bee glyph using the clover profile color (#b07fc7). Offsets are a deterministic
+      set of up to 4 positions at radius 0.4*charWidth from the bee center. Dots are
+      rendered at the same draw-order pass as the bee entity and do not consume
+      particle pool slots.
+    inputs:
+      - 'bee entity has BeePollenData with pollenCount > 0'
+      - 'bee is on screen'
+    outputs:
+      - 'pollenCount dots drawn around bee glyph at fixed pixel offsets'
+    state_changes: []
+    determinism: deterministic
+
+  - id: pollen-shimmer
+    description: >
+      Each pollen particle's render color oscillates in brightness using a per-particle
+      sine function: delta = sin(time * SHIMMER_FREQ + tileHash(floor(x), floor(y))) *
+      SHIMMER_RANGE. SHIMMER_FREQ = 0.003 rad/ms, SHIMMER_RANGE = 18. The base color
+      comes from the particle's profileId entry in POLLEN_PROFILES. Shimmer is applied
+      at render time only — no color stored on the particle.
+    inputs:
+      - 'particle is rendered'
+    outputs:
+      - 'particle drawn with luminance-shifted profile color'
+    state_changes: []
+    determinism: time-based
+
+  - id: flora-registry
+    description: >
+      POLLEN_PROFILES in src/engine/pollen.ts maps profileId strings to PollenProfile
+      objects. PollenProfile contains: glyph (string), color (string), windThreshold
+      (mph), emitRate (particles per eligible tile per second at max wind above
+      threshold), maxAge range [min, max] ms. Currently only 'clover' is registered.
+      All emission and render logic reads from this registry so future flora types
+      require only a new entry — no code changes.
+    inputs:
+      - 'any profileId string'
+    outputs:
+      - 'profile-specific glyph, color, threshold, and rate used throughout'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: zero-wind
+    description: 'Wind speed at or below POLLEN_WIND_THRESHOLD (8 mph)'
+    expected: 'No particles emitted; existing particles continue drifting and fading normally'
+
+  - id: pool-full
+    description: 'state.pollen.length === MAX_POLLEN when emission tick fires'
+    expected: 'Spawn silently skipped; pool unchanged; no error thrown'
+
+  - id: cave-zone
+    description: 'Player is in Cave zone'
+    expected: 'No emission; tickPollen still ages and removes existing particles'
+
+  - id: bee-captured-with-pollen
+    description: 'Player walks over a bee that has pollenCount > 0'
+    expected: 'Bee entity removed; pollenCount discarded; no lingering render artifact'
+
+  - id: clover-dies-while-emitting
+    description: 'A clover tile transitions to Brown or beyond during an emission tick'
+    expected: 'Brown stage emits at 0 rate (only Healthy emits); no crash'
+
+  - id: player-re-enters-clover
+    description: 'Player exits a clover field, then immediately re-enters'
+    expected: 'pollenTrailDepth increments again from 0 as player re-traverses clover'
+
+  - id: wind-direction-change-mid-flight
+    description: 'Wind direction changes while particles are in flight'
+    expected: 'Particles respond to new smooth wind direction each frame (no stored velocity); gradual turn due to smoothing'
+
+failure_conditions:
+  - trigger: 'state.pollen grows unboundedly'
+    expected: 'Prevented by MAX_POLLEN cap; pool never exceeds 150 entries'
+  - trigger: 'Pollen renders in Cave or Ruin zones'
+    expected: 'Emission suppressed in non-Overworld zones; existing particles fade; render pass checks zone'
+  - trigger: 'Bee pollen dots render after bee entity is removed'
+    expected: 'Prevented — render reads live ECS component; no component = no dots'
+
+verification:
+  test_file: src/engine/__tests__/pollen.test.ts
+  test_pattern: 'pollen'
+  command: 'npx vitest run src/engine/__tests__/pollen.test.ts'

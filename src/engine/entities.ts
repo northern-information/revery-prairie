@@ -1,5 +1,5 @@
 import { CHAIN_EXPLOSION_CHANCE, spawnChainMeteorites } from './celestial'
-import { BEE_STARVATION_MS, BEE_TICK_MS } from './constants'
+import { BEE_POLLEN_DECAY_MS, BEE_STARVATION_MS, BEE_TICK_MS, MAX_BEE_POLLEN } from './constants'
 import { ComponentType } from './ecs/types'
 import { AURA_RADIUS, spawnPickupBloom } from './effects'
 import { tickCreatureHunger } from './hunger'
@@ -132,7 +132,7 @@ const isBeeNearFood = (state: GameState, pos: Position): boolean => {
   return false
 }
 
-export const tickBees = (state: GameState, zone?: Zone): Position[] => {
+export const tickBees = (state: GameState, zone?: Zone, time = 0): Position[] => {
   const z = zone ?? state.currentZone
   const matchesZone = (eid: number): boolean =>
     z === state.currentZone
@@ -143,6 +143,17 @@ export const tickBees = (state: GameState, zone?: Zone): Position[] => {
     if (!matchesZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!pos) continue
+
+    // Decay pollen count over time
+    const pollenData = state.world.getComponent(eid, ComponentType.BeePollenData)
+    if (pollenData && pollenData.pollenCount > 0 && time > 0) {
+      if (pollenData.lastDecayTime === 0) {
+        pollenData.lastDecayTime = time
+      } else if (time - pollenData.lastDecayTime >= BEE_POLLEN_DECAY_MS) {
+        pollenData.pollenCount -= 1
+        pollenData.lastDecayTime = time
+      }
+    }
 
     // Only move sometimes — gives a lazy, buzzing feel
     if (Math.random() > 0.3) continue
@@ -168,6 +179,14 @@ export const tickBees = (state: GameState, zone?: Zone): Position[] => {
     if (candidates.length > 0) {
       const target = candidates[Math.floor(Math.random() * candidates.length)]
       state.world.moveEntity(eid, target.x, target.y)
+
+      // Increment pollen count when landing on a clover tile
+      if (state.map[target.y]?.[target.x]?.type === TileType.Clover) {
+        const pd = state.world.getComponent(eid, ComponentType.BeePollenData)
+        if (pd && pd.pollenCount < MAX_BEE_POLLEN) {
+          pd.pollenCount += 1
+        }
+      }
     }
   }
 

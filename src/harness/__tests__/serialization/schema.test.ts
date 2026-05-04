@@ -122,6 +122,8 @@ const EXPECTED_FIELDS = [
   'remotePlayers',
   'onPlayerMoved',
   'onGenesisEpochStart',
+  'pollen',
+  'pollenTrailDepth',
   'cameraMode',
   'lastEdgeScrollTime',
   'edgeScrollPos',

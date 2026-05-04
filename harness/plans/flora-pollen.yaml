@@ -1,0 +1,185 @@
+plan:
+  id: flora-pollen
+  title: Flora pollen particle system driven by wind and player movement
+  created: 2026-05-03
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-types
+    title: Add PollenParticle, PollenProfile, BeePollenData types and GameState fields
+    spec_id: flora-pollen
+    spec_sections:
+      - flora-registry
+      - pollen-emission
+      - bee-pollen-attachment
+      - pool-capacity-cap
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: implement-pollen-core
+    title: Implement POLLEN_PROFILES registry, tickPollen, and emit helpers in pollen.ts
+    spec_id: flora-pollen
+    spec_sections:
+      - flora-registry
+      - pollen-emission
+      - pollen-drift
+      - pollen-fade-and-reclaim
+      - pool-capacity-cap
+      - player-trail
+      - player-trail-accumulation
+    context_files:
+      - src/engine/types.ts
+      - src/engine/pollen.ts
+      - src/engine/render/floraWind.ts
+      - src/engine/position.ts
+      - harness/specs/flora-pollen.yaml
+    output_files:
+      - src/engine/pollen.ts
+    depends_on:
+      - add-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: implement-pollen-render
+    title: Implement pollenRender — project particles to screen, apply opacity and shimmer
+    spec_id: flora-pollen
+    spec_sections:
+      - pollen-shimmer
+      - pollen-fade-and-reclaim
+    context_files:
+      - src/engine/types.ts
+      - src/engine/pollen.ts
+      - src/engine/render/pollenRender.ts
+      - src/engine/render/floraWind.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/render/pollenRender.ts
+    depends_on:
+      - implement-pollen-core
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: wire-bee-pollen
+    title: Add BeePollenData component to bee creation and increment on clover landing
+    spec_id: flora-pollen
+    spec_sections:
+      - bee-pollen-attachment
+    context_files:
+      - src/engine/monarch.ts
+      - src/engine/clover.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/monarch.ts
+      - src/engine/clover.ts
+    depends_on:
+      - add-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: wire-player-trail
+    title: Hook player trail depth tracking and burst emit into movePlayer
+    spec_id: flora-pollen
+    spec_sections:
+      - player-trail
+      - player-trail-accumulation
+    context_files:
+      - src/engine/movement.ts
+      - src/engine/pollen.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/movement.ts
+    depends_on:
+      - implement-pollen-core
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: wire-game-loop
+    title: Register tickPollen as a per-frame update in gameLoop onFrame
+    spec_id: flora-pollen
+    spec_sections:
+      - pollen-drift
+      - pollen-fade-and-reclaim
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/pollen.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - implement-pollen-core
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: wire-renderer
+    title: Call renderPollen after tile loop and draw bee pollen dots in entity pass
+    spec_id: flora-pollen
+    spec_sections:
+      - bee-pollen-render
+      - pollen-shimmer
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/render/pollenRender.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - implement-pollen-render
+      - wire-bee-pollen
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: write-tests
+    title: Write pollen unit tests covering emission, drift, fade, pool cap, player trail, and bee pollen
+    spec_id: flora-pollen
+    spec_sections:
+      - pollen-emission
+      - pollen-drift
+      - pollen-fade-and-reclaim
+      - pool-capacity-cap
+      - player-trail
+      - player-trail-accumulation
+      - bee-pollen-attachment
+    context_files:
+      - src/engine/pollen.ts
+      - src/engine/types.ts
+      - src/engine/render/floraWind.ts
+      - src/engine/__tests__/helpers.ts
+      - harness/specs/flora-pollen.yaml
+    output_files:
+      - src/engine/__tests__/pollen.test.ts
+    depends_on:
+      - implement-pollen-core
+      - wire-bee-pollen
+      - wire-player-trail
+    verification:
+      - npx vitest run src/engine/__tests__/pollen.test.ts
+    repair: retry
+    tags: [test]

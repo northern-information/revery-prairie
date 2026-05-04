@@ -423,3 +423,11 @@ export const INVENTORY_CELL_SIZE = 28
 export const RUIN_ENTRY_TOASTS: Record<RuinArchetype, string> = {
   [RuinArchetype.DormantGarden]: 'A dormant garden stirs beneath the dust.',
 }
+
+// ─── pollen ───────────────────────────────────────────────────────────────────
+
+/** Max pollen dots shown around a bee glyph (0–MAX_BEE_POLLEN). */
+export const MAX_BEE_POLLEN = 4
+
+/** ms between pollenCount decrements on a bee. */
+export const BEE_POLLEN_DECAY_MS = 4000

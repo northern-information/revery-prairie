@@ -159,6 +159,23 @@ export interface RemotePlayer {
   lastUpdateMs: number
 }
 
+export interface PollenParticle {
+  x: number       // world-space float position
+  y: number
+  age: number     // ms since spawn
+  maxAge: number  // ms total lifetime
+  profileId: string  // key into POLLEN_PROFILES in pollen.ts
+}
+
+export interface PollenProfile {
+  glyph: string
+  color: string
+  windThreshold: number  // mph — no emission below this
+  emitRate: number       // particles per eligible tile per second at max wind above threshold
+  minAge: number         // ms — minimum particle lifetime
+  maxAge: number         // ms — maximum particle lifetime
+}
+
 export interface GameState {
   stewardName: string
   map: Tile[][]
@@ -287,6 +304,8 @@ export interface GameState {
   remotePlayers: Map<string, RemotePlayer>
   onPlayerMoved: (() => void) | null
   onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null
+  pollen: PollenParticle[]
+  pollenTrailDepth: number
 }
 
 export const CloverStage = {

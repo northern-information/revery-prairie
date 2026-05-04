@@ -101,6 +101,8 @@ import {
   WALL_LEFT_SHADE,
   WALL_RIGHT_SHADE,
 } from './tileBg'
+import { MAX_BEE_POLLEN, POLLEN_PROFILES } from './pollen'
+import { renderPollen } from './render/pollenRender'
 import { runPassesInSlot } from './render/passes'
 import './render/passes/index'
 import { getTierGrid as getTierGridShared, liftAt as liftAtShared } from './render/tierGrid'
@@ -1511,6 +1513,40 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     ctx.fillText(e.char, e.glyphPx, e.glyphPy)
     if (e.alpha !== 1) ctx.globalAlpha = 1
   }
+
+  // Bee pollen dots: drawn at fixed pixel offsets around each bee's screen position.
+  // pollenCount (0–MAX_BEE_POLLEN) is read from BeePollenData; no particle pool slots used.
+  {
+    const pollenProfile = POLLEN_PROFILES.clover
+    if (pollenProfile) {
+      // Four fixed angular offsets (charWidth units) for the surrounding dots
+      const offsets = [
+        { dx:  0.45, dy: -0.25 },
+        { dx: -0.45, dy: -0.25 },
+        { dx:  0.45, dy:  0.25 },
+        { dx: -0.45, dy:  0.25 },
+      ]
+      ctx.fillStyle = pollenProfile.color
+      for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.BeePollenData)) {
+        if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
+        if (!inZone(eid)) continue
+        const pollenData = state.world.getComponent(eid, ComponentType.BeePollenData)
+        if (!pollenData || pollenData.pollenCount <= 0) continue
+        const bpos = state.world.getComponent(eid, ComponentType.Position)
+        if (!bpos) continue
+        const { px: bpx, py: bpy } = worldToScreen(bpos.x, bpos.y, camera, charWidth, charHeight, viewportWidth, viewportHeight)
+        const dotCount = Math.min(pollenData.pollenCount, MAX_BEE_POLLEN)
+        for (let i = 0; i < dotCount; i++) {
+          const off = offsets[i]
+          if (!off) continue
+          ctx.fillText(pollenProfile.glyph, bpx + off.dx * charWidth, bpy + off.dy * charHeight)
+        }
+      }
+    }
+  }
+
+  // Pollen particles: world-space float-positioned dots drifting in the wind.
+  renderPollen(ctx, state, metrics, time)
 
   // effect slot: rain aura, revery rain, weather rain, glint sparkle,
   // glint beam, deep time burning. See src/engine/render/passes/.

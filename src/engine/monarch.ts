@@ -57,6 +57,7 @@ export const spawnBee = (state: GameState, x: number, y: number, zone?: Zone): E
   state.world.addComponent(e, ComponentType.EntityTag, 'bee')
   state.world.addComponent(e, ComponentType.EntityZone, zone !== undefined ? { zone } : getCurrentEntityZone(state))
   state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
+  state.world.addComponent(e, ComponentType.BeePollenData, { pollenCount: 0, lastDecayTime: 0 })
   return e
 }
 

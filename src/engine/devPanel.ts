@@ -158,6 +158,14 @@ export const COMPONENT_META: ComponentMeta[] = [
       select('phase', ['wandering', 'fleeing', 'settled']),
     ],
   },
+  {
+    type: ComponentType.BeePollenData,
+    label: 'BeePollenData',
+    fields: [
+      pos('pollenCount'),
+      pos('lastDecayTime'),
+    ],
+  },
 ]
 
 // --- Default values per component ---
@@ -213,6 +221,8 @@ const componentDefaults = (type: ComponentType, now: number, zone: Zone): Record
       }
     case ComponentType.MonarchState:
       return { phase: 'wandering', target: null, waypoint: null, lastPollinateTime: 0 }
+    case ComponentType.BeePollenData:
+      return { pollenCount: 0, lastDecayTime: 0 }
     default:
       return {}
   }
@@ -239,6 +249,7 @@ export const DEV_PRESETS: Record<string, DevPreset> = {
       { type: ComponentType.EntityTag, overrides: { value: 'bee' } },
       { type: ComponentType.EntityZone },
       { type: ComponentType.HungerTimer },
+      { type: ComponentType.BeePollenData },
     ],
   },
   monarch: {

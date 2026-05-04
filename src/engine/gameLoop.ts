@@ -44,6 +44,7 @@ import { getDefinition } from './items'
 import { spawnLightningStrike, tickLightning } from './lightning'
 import { tickMonarchs } from './monarch'
 import { movePlayer, tickPath } from './movement'
+import { tickPollenDrift, tickPollenEmit } from './pollen'
 import { getReveryDefinition } from './reveries'
 import { tickTileWater } from './tileWater'
 import { tickDormantGardenDecay } from './ruins'
@@ -250,8 +251,8 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       id: 'bee',
       intervalMs: BEE_TICK_MS,
       zone: 'overworld',
-      fn: state => {
-        const deaths = tickBees(state, Zone.Overworld)
+      fn: (state, time) => {
+        const deaths = tickBees(state, Zone.Overworld, time)
         for (const pos of deaths) {
           callbacks.onBeeDeath?.(pos.x, pos.y)
         }
@@ -261,8 +262,8 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       id: 'bee-cave',
       intervalMs: BEE_TICK_MS,
       zone: 'cave',
-      fn: state => {
-        const deaths = tickBees(state, Zone.Cave)
+      fn: (state, time) => {
+        const deaths = tickBees(state, Zone.Cave, time)
         for (const pos of deaths) {
           callbacks.onBeeDeath?.(pos.x, pos.y)
         }
@@ -443,6 +444,29 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           tickRainIntensity(state, dt)
         }
       })(),
+    },
+    {
+      // Per-frame: age, remove expired particles, and drift survivors in wind direction.
+      id: 'pollen-drift',
+      intervalMs: 0,
+      zone: 'always',
+      fn: (() => {
+        let lastTime = 0
+        return (state: GameState, time: number) => {
+          const dt = lastTime > 0 ? time - lastTime : 0
+          lastTime = time
+          tickPollenDrift(state, dt)
+        }
+      })(),
+    },
+    {
+      // 100 ms interval: probabilistic emission from visible clover tiles above wind threshold.
+      id: 'pollen-emit',
+      intervalMs: 100,
+      zone: 'overworld',
+      fn: state => {
+        tickPollenEmit(state, 100)
+      },
     },
     {
       id: 'clover-growth',
