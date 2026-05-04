@@ -53,6 +53,19 @@ const SKY_LABEL = {
   rain: 'Rain',
 } as const
 
+// Arrows show the on-screen direction things blow TO, derived from WIND_SCREEN_VECTORS.
+// N wind has screen vector (-1,+1) = lower-left, so the arrow points ↙, etc.
+const WIND_DIRECTION_ARROW: Record<string, string> = {
+  N:  '↙',
+  NE: '←',
+  E:  '↖',
+  SE: '↑',
+  S:  '↗',
+  SW: '→',
+  W:  '↘',
+  NW: '↓',
+}
+
 const capitalize = (s: string): string => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1))
 
 // Persistent outer shell for the sidebar. The black backdrop must never drop
@@ -213,9 +226,10 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
   const { weather } = state
 
   const temp = metric ? `${String(fToC(weather.temperatureF))}°C` : `${String(weather.temperatureF)}°F`
+  const windArrow = WIND_DIRECTION_ARROW[weather.windDirection] ?? ''
   const wind = metric
-    ? `${String(mphToKph(weather.windSpeed))} kph ${weather.windDirection}`
-    : `${String(weather.windSpeed)} mph ${weather.windDirection}`
+    ? `${String(mphToKph(weather.windSpeed))} kph ${weather.windDirection} ${windArrow}`
+    : `${String(weather.windSpeed)} mph ${weather.windDirection} ${windArrow}`
 
   // Fade lives on the inner content wrapper, not the outer shell — so the
   // black backdrop stays fully opaque through the genesis→gameplay swap.

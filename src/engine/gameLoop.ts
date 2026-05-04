@@ -50,6 +50,8 @@ import { tickDormantGardenDecay } from './ruins'
 import { DeepTimePhase, Zone } from './types'
 import { isTileInVisibleViewport } from './viewportBounds'
 import { tickRainIntensity, tickWeather } from './weather'
+import { tickWind } from './weather/wind'
+import { tickPollenDrift, tickPollenEmit } from './flora'
 
 import type { GameState } from './types'
 
@@ -432,6 +434,19 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
+      id: 'wind',
+      intervalMs: 0,
+      zone: 'always',
+      fn: (() => {
+        let lastTime = 0
+        return (state: GameState, time: number) => {
+          const dt = lastTime > 0 ? time - lastTime : 0
+          lastTime = time
+          tickWind(state, time, dt)
+        }
+      })(),
+    },
+    {
       id: 'rain-intensity',
       intervalMs: 0,
       zone: 'overworld',
@@ -443,6 +458,29 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           tickRainIntensity(state, dt)
         }
       })(),
+    },
+    {
+      // Per-frame: age and drift all active pollen particles.
+      id: 'pollen-drift',
+      intervalMs: 0,
+      zone: 'overworld',
+      fn: (() => {
+        let lastTime = 0
+        return (state: GameState, time: number) => {
+          const dt = lastTime > 0 ? time - lastTime : 0
+          lastTime = time
+          tickPollenDrift(state, dt)
+        }
+      })(),
+    },
+    {
+      // 100 ms interval: probabilistic emission from visible flora tiles above wind threshold.
+      id: 'pollen-emit',
+      intervalMs: 100,
+      zone: 'overworld',
+      fn: state => {
+        tickPollenEmit(state, 100)
+      },
     },
     {
       id: 'clover-growth',

@@ -159,6 +159,82 @@ export interface RemotePlayer {
   lastUpdateMs: number
 }
 
+// ─── flora pollen ─────────────────────────────────────────────────────────────
+
+export interface PollenParticle {
+  x: number       // world-space float position
+  y: number
+  age: number     // ms since spawn
+  maxAge: number  // ms total lifetime
+  profileId: string  // tileType key — used to look up FloraPollinateProfile at render time
+  phase: number   // random offset (0–2π) for perpendicular wobble, set at spawn
+}
+
+export interface FloraPollinateProfile {
+  // Glyph and color used by the pollen render pass.
+  glyph: string
+  color: string
+  // Pre-parsed base RGB — eliminates regex on the hot path when luminance
+  // shifting is enabled. Must match `color`.
+  parsedColor: [number, number, number]
+  // Wind speed (mph) below which no emission occurs.
+  windThreshold: number
+  // Particles per eligible tile per second at max wind above threshold.
+  emitRate: number
+  // Particle lifetime range (ms).
+  minAge: number
+  maxAge: number
+  // Optional gate called per tile before emission. Return false to suppress.
+  // Injected by the flora type module (e.g. clover.ts) for lifecycle-specific gating.
+  emitGate?: (state: GameState, tx: number, ty: number) => boolean
+}
+
+// ─── wind system ─────────────────────────────────────────────────────────────
+
+export type GustPhase = 'none' | 'attack' | 'hold' | 'decay'
+
+// Reserved for future per-region wind variation.
+export interface WindCell {
+  sx: number
+  sy: number
+  speed: number
+}
+
+export interface WindState {
+  // Smoothed prevailing wind — speed-scaled so magnitude encodes both
+  // direction and strength.
+  smoothSx: number
+  smoothSy: number
+  smoothSpeed: number
+  // Accumulated integral of windFraction over time (capped per frame).
+  // Consumers multiply by their own frequency factor to derive animation phase.
+  phaseAccum: number
+  // Gust state
+  gustPhase: GustPhase
+  gustPhaseStart: number
+  gustPhaseDuration: number
+  gustIntensity: number
+  gustPeakIntensity: number
+  gustSx: number
+  gustSy: number
+  // Coarse field — null = disabled
+  coarseField: WindCell[][] | null
+  coarseResolution: number
+}
+
+export interface WindSample {
+  sx: number
+  sy: number
+  speed: number
+  gustSx: number
+  gustSy: number
+  gustIntensity: number
+  totalSx: number
+  totalSy: number
+  totalSpeed: number
+  phaseAccum: number
+}
+
 export interface GameState {
   stewardName: string
   map: Tile[][]
@@ -259,6 +335,9 @@ export interface GameState {
   postGiftActionsCompleted: Set<string>
   rainFrontOffset: number
   rainIntensity: number
+  wind: WindState
+  pollen: PollenParticle[]
+  pollenTrailDepth: number
   waterProximity: Map<string, number>
   genesis: GenesisSimState | null
   genesisTransition: TransitionFade | null

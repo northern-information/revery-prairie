@@ -114,6 +114,8 @@ import {
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
+import './flora'
+import { getFloraMovement, getFloraSwayOffset } from './flora'
 
 import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState, TransitionFade } from './types'
@@ -415,6 +417,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     alpha: number
   }
   const deferredEntities: DeferredEntity[] = []
+  const deferredFloraGlyphs: { char: string; color: string; px: number; py: number }[] = []
 
   // Build overworld entrance glyph map (posKey → Greek letter)
   _entranceGlyphMap.clear()
@@ -1454,6 +1457,42 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
+      // Flora wind sway: displaced glyphs are deferred and flushed after the
+      // tile loop so no subsequent tile background can paint over them.
+      // Only applied on the non-highlighted terrain path so the cursor
+      // highlight box stays anchored to the tile centre.
+      // Growth-preview tiles (dirt tiles showing a blinking clover glyph before
+      // conversion) use the Clover profile so they sway in sync with live clover —
+      // without this they snap to the displaced position the frame they convert.
+      if (!highlight) {
+        const swayTileType = state.cloverGrowthPreviews.has(tileKey)
+          ? TileType.Clover
+          : map[my]?.[mx]?.type
+        const floraProfile = swayTileType ? getFloraMovement(swayTileType) : undefined
+        if (floraProfile) {
+          const lifecycleStage = state.cloverLifecycle.get(tileKey)?.stage
+          const sway = getFloraSwayOffset(
+            floraProfile,
+            state,
+            mx,
+            my,
+            time,
+            state.currentZone,
+            lifecycleStage,
+            charWidth,
+            charHeight,
+            color,
+          )
+          // Always defer — even zero-displacement — so tiles never switch between the
+          // deferred and non-deferred draw paths. When the smooth wind vector passes
+          // through zero (e.g. a W→E direction change), dx and dy become near-zero.
+          // Allowing those tiles to fall through to the non-deferred path causes them
+          // to be drawn in tile order and overdrawn by later tiles' backgrounds.
+          deferredFloraGlyphs.push({ char, color: sway.color, px: px + sway.dx, py: pyLift + sway.dy })
+          continue
+        }
+      }
+
       // Non-deferred path: terrain glyphs and overlay tiles. Apply the
       // highlight side effects here. applyEntityFade cannot fire on this
       // path (it requires isEntity, which would have taken the defer
@@ -1506,6 +1545,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const angelLift = isAngel ? -ANGEL_FLOAT_LIFT_PX : 0
     ctx.fillStyle = t.color
     ctx.fillText(t.char, px, py + liftAt(Math.floor(t.lerpX), Math.floor(t.lerpY)) + angelLift)
+  }
+
+  // Flush deferred flora glyphs — drawn after all terrain backgrounds so no
+  // neighboring tile's background rectangle can clip a displaced glyph.
+  // Flushed before entity glyphs so entities remain on top of flora.
+  for (const f of deferredFloraGlyphs) {
+    ctx.fillStyle = f.color
+    ctx.fillText(f.char, f.px, f.py)
   }
 
   // Flush deferred entity glyphs collected during the central tile loop.
