@@ -98,8 +98,13 @@ export const tickPollenDrift = (state: GameState, dt: number): void => {
   const sx = wind.sx / smoothSpeed
   const sy = wind.sy / smoothSpeed
   const windFraction = Math.min(totalSpeed / MAX_WIND_SPEED, 1)
-  const driftX = sx * windFraction * POLLEN_DRIFT_SPEED * dt
-  const driftY = sy * windFraction * POLLEN_DRIFT_SPEED * dt
+
+  // Divide drift by zoom so pixel speed stays consistent across zoom levels.
+  // At 2× zoom charWidth doubles, so without this correction a 1-tile hop
+  // covers twice as many pixels — particles appear to move twice as fast.
+  const zoomNorm = 1 / Math.max(0.1, state.zoom)
+  const driftX = sx * windFraction * POLLEN_DRIFT_SPEED * zoomNorm * dt
+  const driftY = sy * windFraction * POLLEN_DRIFT_SPEED * zoomNorm * dt
 
   // Perpendicular unit vector (rotate 90°): (-sy, sx)
   const px = -sy
@@ -119,13 +124,13 @@ export const tickPollenDrift = (state: GameState, dt: number): void => {
       p.y += driftY
 
       // Perpendicular wobble — sine derivative gives smooth velocity integration.
-      const wobble = WOBBLE_AMP * WOBBLE_FREQ * Math.cos(p.age * WOBBLE_FREQ + p.phase) * dt
+      const wobble = WOBBLE_AMP * WOBBLE_FREQ * Math.cos(p.age * WOBBLE_FREQ + p.phase) * zoomNorm * dt
       p.x += px * wobble
       p.y += py * wobble
 
       // Small random turbulence — breaks mechanical linearity.
-      p.x += (Math.random() - 0.5) * TURBULENCE * dt
-      p.y += (Math.random() - 0.5) * TURBULENCE * dt
+      p.x += (Math.random() - 0.5) * TURBULENCE * zoomNorm * dt
+      p.y += (Math.random() - 0.5) * TURBULENCE * zoomNorm * dt
     }
     i--
   }
@@ -158,8 +163,12 @@ export const tickPollenEmit = (state: GameState, dt: number): void => {
       (windSpeed - profile.windThreshold) / (MAX_WIND_SPEED - profile.windThreshold),
       1,
     )
-    // Probability per tile per tick
-    const emitProb = profile.emitRate * windFraction * (dt / 1000)
+    // Probability per tile per tick, normalized by zoom².
+    // viewportWidth × viewportHeight scales as 1/zoom², so without correction
+    // zooming out quadruples the scan area and quadruples particle emissions.
+    // Multiplying by zoom² keeps total expected emissions constant across zoom levels.
+    const zoom = state.zoom
+    const emitProb = profile.emitRate * windFraction * (dt / 1000) * (zoom * zoom)
 
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {
