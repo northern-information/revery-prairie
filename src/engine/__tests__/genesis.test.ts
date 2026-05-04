@@ -25,6 +25,20 @@ import { createGameState } from '../state'
 import { TileType } from '../types'
 import { describe, expect, it, vi } from 'vitest'
 
+// Memoized seed=42 sim shared across read-only tests. A full geological run
+// takes ~1s; without caching this file does it ~28 times. Tests must treat
+// the returned sim as read-only — never mutate sim.grid, sim.soilHealth, etc.
+// Tests that need a fresh sim (other seeds, partial epoch runs, tickGenesis,
+// precomputeGenesis) build their own.
+let cachedSim42: ReturnType<typeof createGenesisState> | null = null
+const getCachedSim42 = (): ReturnType<typeof createGenesisState> => {
+  if (cachedSim42 === null) {
+    cachedSim42 = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(cachedSim42, GENESIS_EPOCHS)
+  }
+  return cachedSim42
+}
+
 describe('createGenesisState', () => {
   it('creates a state with correct dimensions', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
@@ -78,8 +92,7 @@ describe('nameToSeed', () => {
 
 describe('runAllMutations', () => {
   it('produces a valid terrain grid', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
     expect(result.terrain.length).toBe(MAP_HEIGHT)
@@ -95,8 +108,7 @@ describe('runAllMutations', () => {
   })
 
   it('produces land tiles in the center', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
     const centerX = Math.floor(MAP_WIDTH / 2)
@@ -107,8 +119,7 @@ describe('runAllMutations', () => {
   })
 
   it('produces Space tiles at corners', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
     // Corners should be space or sand (sandbar scattering can land on corners)
@@ -124,8 +135,7 @@ describe('runAllMutations', () => {
   })
 
   it('produces soil health values in valid range', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
     expect(result.soilHealth.size).toBeGreaterThan(0)
@@ -136,8 +146,7 @@ describe('runAllMutations', () => {
   })
 
   it('produces at least 1 civilization ruin', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
     expect(result.ruins.length).toBeGreaterThanOrEqual(1)
@@ -148,8 +157,7 @@ describe('runAllMutations', () => {
     // The connectivity pass in presentDay may convert disconnected land to space,
     // so some ruin positions may end up on space tiles. We verify that at least
     // half of ruins remain on non-space tiles (the main island ruins).
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
     const onLand = result.ruins.filter(
@@ -159,8 +167,7 @@ describe('runAllMutations', () => {
   })
 
   it('gives ruins reasonable radii', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
     for (const ruin of result.ruins) {
@@ -221,8 +228,7 @@ describe('deterministic seeding', () => {
 
 describe('soil health distribution', () => {
   it('has a reasonable mean', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
     const values = [...result.soilHealth.values()]
@@ -232,8 +238,7 @@ describe('soil health distribution', () => {
   })
 
   it('has some high-fertility zones', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
     const highFertility = [...result.soilHealth.values()].filter(v => v > 80)
@@ -241,8 +246,7 @@ describe('soil health distribution', () => {
   })
 
   it('has some low-fertility zones', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
     const lowFertility = [...result.soilHealth.values()].filter(v => v < 25)
@@ -412,8 +416,7 @@ describe('getGenesisCommentary', () => {
   })
 
   it('returns empty string when complete', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const commentary = getGenesisCommentary(sim, GENESIS_EPOCHS)
     expect(commentary).toBe('')
   })
@@ -457,8 +460,7 @@ describe('geological features', () => {
   })
 
   it('generates aqueduct network', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     expect(sim.aqueductNetwork.size).toBeGreaterThan(0)
   })
 })
@@ -482,16 +484,14 @@ describe('genesis-enhancements', () => {
     })
 
     it('generates roughly 3x more aqueduct tiles than previous baseline', () => {
-      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-      runAllMutations(sim, GENESIS_EPOCHS)
+      const sim = getCachedSim42()
       // Previous baseline was ~200-400 tiles with 3-5 ruins
       // New should be ~600+ with 8-12 ruins + standalone clusters
       expect(sim.aqueductNetwork.size).toBeGreaterThan(400)
     })
 
     it('generates standalone inland aqueduct clusters', () => {
-      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-      runAllMutations(sim, GENESIS_EPOCHS)
+      const sim = getCachedSim42()
       // Aqueduct tiles should exist far from any ruin center
       let farFromRuins = 0
       for (const [key] of sim.aqueductNetwork) {
@@ -620,24 +620,21 @@ describe('genesis-enhancements', () => {
     })
 
     it('generates elevation-driven ponds within water budget', () => {
-      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-      runAllMutations(sim, GENESIS_EPOCHS)
+      const sim = getCachedSim42()
       expect(sim.ponds.size).toBeGreaterThan(0)
       // Water budget is 10% of land tiles
       expect(sim.ponds.size).toBeLessThanOrEqual(Math.floor(sim.landMask.size * 0.1))
     })
 
     it('ponds do not overlap river paths', () => {
-      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-      runAllMutations(sim, GENESIS_EPOCHS)
+      const sim = getCachedSim42()
       for (const key of sim.ponds) {
         expect(sim.riverPaths.has(key)).toBe(false)
       }
     })
 
     it('includes ponds in extracted genesis result', () => {
-      const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-      runAllMutations(sim, GENESIS_EPOCHS)
+      const sim = getCachedSim42()
       const result = extractGenesisResult(sim)
       expect(result.ponds).toBeDefined()
       expect(result.ponds.size).toBe(sim.ponds.size)
@@ -656,8 +653,7 @@ describe('elevation model', () => {
   })
 
   it('elevation values in valid range after all mutations', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     for (const [, value] of sim.elevation) {
       expect(value).toBeGreaterThanOrEqual(0)
       expect(value).toBeLessThanOrEqual(100)
@@ -665,8 +661,7 @@ describe('elevation model', () => {
   })
 
   it('center tends to be higher than edges', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
 
     const centerX = MAP_WIDTH / 2
     const centerY = MAP_HEIGHT / 2
@@ -745,8 +740,7 @@ describe('elevation model', () => {
   })
 
   it('ponds form at low elevation', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
 
     let pondElevSum = 0
     let pondCount = 0
@@ -770,15 +764,13 @@ describe('elevation model', () => {
   })
 
   it('water budget is respected', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const waterBudget = Math.floor(sim.landMask.size * 0.1)
     expect(sim.ponds.size).toBeLessThanOrEqual(waterBudget)
   })
 
   it('elevation persists into GenesisResult', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
     expect(result.elevation.size).toBe(sim.elevation.size)
   })
@@ -829,8 +821,7 @@ describe('water consolidation', () => {
   }
 
   it('water forms 1-3 contiguous bodies after genesis', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const { components } = findWaterComponents(sim)
     expect(components.length).toBeGreaterThanOrEqual(1)
     expect(components.length).toBeLessThanOrEqual(3)
@@ -840,8 +831,7 @@ describe('water consolidation', () => {
   })
 
   it('no isolated water tiles after genesis', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const { allWater } = findWaterComponents(sim)
     for (const key of allWater) {
       const [xStr, yStr] = key.split(',')
@@ -855,16 +845,14 @@ describe('water consolidation', () => {
   })
 
   it('drought preserves pond vs river categorization', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     for (const key of sim.ponds) {
       expect(sim.riverPaths.has(key)).toBe(false)
     }
   })
 
   it('water bodies have sand shoreline (except where the shore tile also borders space)', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const { allWater } = findWaterComponents(sim)
     const allDirs = [...cardinalDirs, [1, 1], [-1, -1], [1, -1], [-1, 1]]
     const tileTouchesSpace = (tx: number, ty: number): boolean => {
@@ -981,8 +969,7 @@ describe('water consolidation', () => {
   })
 
   it('water body sand border varies between 1-2 tiles', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    runAllMutations(sim, GENESIS_EPOCHS)
+    const sim = getCachedSim42()
     const { allWater } = findWaterComponents(sim)
     const allDirs = [...cardinalDirs, [1, 1], [-1, -1], [1, -1], [-1, 1]]
 
