@@ -1514,18 +1514,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (e.alpha !== 1) ctx.globalAlpha = 1
   }
 
-  // Bee pollen dots: drawn at fixed pixel offsets around each bee's screen position.
+  // Bee pollen dots: drawn centered on the bee's screen position, layered by count.
   // pollenCount (0–MAX_BEE_POLLEN) is read from BeePollenData; no particle pool slots used.
   {
     const pollenProfile = POLLEN_PROFILES.clover
     if (pollenProfile) {
-      // Four fixed angular offsets (charWidth units) for the surrounding dots
-      const offsets = [
-        { dx:  0.45, dy: -0.25 },
-        { dx: -0.45, dy: -0.25 },
-        { dx:  0.45, dy:  0.25 },
-        { dx: -0.45, dy:  0.25 },
-      ]
       ctx.fillStyle = pollenProfile.color
       for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.BeePollenData)) {
         if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
@@ -1537,9 +1530,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const { px: bpx, py: bpy } = worldToScreen(bpos.x, bpos.y, camera, charWidth, charHeight, viewportWidth, viewportHeight)
         const dotCount = Math.min(pollenData.pollenCount, MAX_BEE_POLLEN)
         for (let i = 0; i < dotCount; i++) {
-          const off = offsets[i]
-          if (!off) continue
-          ctx.fillText(pollenProfile.glyph, bpx + off.dx * charWidth, bpy + off.dy * charHeight)
+          ctx.fillText(pollenProfile.glyph, bpx, bpy)
         }
       }
     }
