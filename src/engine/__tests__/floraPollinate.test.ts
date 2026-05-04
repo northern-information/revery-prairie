@@ -166,13 +166,13 @@ describe('tickPollenEmit', () => {
 describe('emitPlayerTrailBurst', () => {
   beforeEach(registerTestProfile)
 
-  it('spawns 2 + min(depth, 6) particles', () => {
+  it('spawns 5 + min(depth, 8) particles', () => {
     const state = windyState()
     state.pollenTrailDepth = 3
 
     emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Clover)
 
-    expect(state.pollen).toHaveLength(2 + 3)
+    expect(state.pollen).toHaveLength(5 + 3)
   })
 
   it('resets pollenTrailDepth to 0', () => {
@@ -184,22 +184,22 @@ describe('emitPlayerTrailBurst', () => {
     expect(state.pollenTrailDepth).toBe(0)
   })
 
-  it('burst minimum is 2 when depth is 0', () => {
+  it('burst minimum is 5 when depth is 0', () => {
     const state = windyState()
     state.pollenTrailDepth = 0
 
     emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Clover)
 
-    expect(state.pollen).toHaveLength(2)
+    expect(state.pollen).toHaveLength(5)
   })
 
-  it('caps burst at 8 when depth is large (2 + min(8, 6) = 8)', () => {
+  it('caps burst at 13 when depth is large (5 + min(8, 8) = 13)', () => {
     const state = windyState()
     state.pollenTrailDepth = 8
 
     emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Clover)
 
-    expect(state.pollen).toHaveLength(8)
+    expect(state.pollen).toHaveLength(13)
   })
 
   it('respects MAX_POLLEN cap', () => {

@@ -49,13 +49,15 @@ const spawnParticle = (
   ty: number,
   profileId: string,
   profile: FloraPollinateProfile,
+  spread = 0.5,
+  lifetimeScale = 1.0,
 ): void => {
   if (state.pollen.length >= MAX_POLLEN) return
   const particle: PollenParticle = {
-    x: tx + (Math.random() - 0.5),
-    y: ty + (Math.random() - 0.5),
+    x: tx + (Math.random() - 0.5) * spread * 2,
+    y: ty + (Math.random() - 0.5) * spread * 2,
     age: 0,
-    maxAge: profile.minAge + Math.random() * (profile.maxAge - profile.minAge),
+    maxAge: (profile.minAge + Math.random() * (profile.maxAge - profile.minAge)) * lifetimeScale,
     profileId,
     phase: Math.random() * Math.PI * 2,
   }
@@ -197,9 +199,9 @@ export const emitPlayerTrailBurst = (
   const profile = pollinateRegistry.get(tileType)
   if (!profile) return
 
-  const count = 2 + Math.min(state.pollenTrailDepth, 6)
+  const count = 5 + Math.min(state.pollenTrailDepth, 8)
   for (let i = 0; i < count; i++) {
-    spawnParticle(state, fromX, fromY, tileType, profile)
+    spawnParticle(state, fromX, fromY, tileType, profile, 1.5, 1.5)
   }
   state.pollenTrailDepth = 0
 }
