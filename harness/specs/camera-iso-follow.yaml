@@ -5,7 +5,6 @@ layer: engine
 source_files:
   - src/engine/camera.ts
   - src/engine/gameLoop.ts
-  - src/engine/render/passes/prairieOutline.ts
   - src/engine/render/passes/reveryRainOverlay.ts
   - src/engine/render/passes/glintingBeam.ts
   - src/engine/render/passes/ruinEntranceHalo.ts
@@ -82,9 +81,6 @@ behaviors:
       parallelogram on canvas; tiles in the parallelogram corners outside
       the orthogonal rectangle are still visible and must be drawn. Affected
       passes:
-        - prairieOutline: loop bounds replaced with getVisibleTileBounds
-          (with outlineMargin) so the land/space outline remains continuous
-          at all canvas edges.
         - reveryRainOverlay: per-tile cull replaced with isTileInVisibleViewport
           so rain-style revery cast tiles render in iso corners.
         - glintingBeam: per-tile cull replaced with isTileInVisibleViewport.

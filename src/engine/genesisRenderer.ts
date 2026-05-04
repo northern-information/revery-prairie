@@ -33,6 +33,17 @@ import type { CharMetrics } from './types'
 const tierAtSim = (sim: GenesisSimState, mx: number, my: number): number =>
   getElevationTier(sim.elevation.get(posKey(mx, my)))
 
+// Effective neighbor tier for cube-wall depth. Tiles outside the land
+// mask (Space) and OOB are treated as virtual sub-ground tier (-1) so
+// coastal land tiles drop a cube cliff face into the void at every
+// edge. Mirrors wallNeighborTier in renderer.ts so the visual is
+// continuous across the genesis-to-gameplay crossfade.
+const wallNeighborTierSim = (sim: GenesisSimState, mx: number, my: number): number => {
+  if (mx < 0 || mx >= sim.width || my < 0 || my >= sim.height) return -1
+  if (!sim.landMask.has(posKey(mx, my))) return -1
+  return tierAtSim(sim, mx, my)
+}
+
 const liftAtSim = (sim: GenesisSimState, mx: number, my: number): number =>
   getTierLift(tierAtSim(sim, mx, my))
 
@@ -485,13 +496,10 @@ export const renderGenesis = (
     }
   }
 
-  // Combined skirt + wall pass: same row-major iteration paints both
-  // the per-tile cube edge skirt (south + east stroke) and the
-  // tier-transition cube walls. Combining halves the per-tile loop +
-  // viewportToScreen overhead vs running them as separate passes.
-  // Skirt darkens by WALL_RIGHT_SHADE; walls render only when this
-  // tile sits higher than its south or east neighbor.
-  ctx.lineWidth = 1
+  // Wall pass: paints tier-transition cube walls. Per-tile cube edge
+  // skirts are no longer drawn — visual definition comes from the
+  // prairie halo glow (during gameplay) and the cube cliff faces at
+  // tier transitions and space borders.
   for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
     for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
       const idx = idxOf(vx, vy)
@@ -499,24 +507,17 @@ export const renderGenesis = (
       if (!bg) continue
       const px = pxByIndex[idx]
       const topY = pyLiftedByIndex[idx]
-      const leftX = px - halfW
-      const rightX = leftX + 2 * charWidth
-      const bottomY = topY + charHeight
-      const cx = leftX + charWidth
-      const cy = topY + halfH
-      ctx.strokeStyle = darkenColor(bg, WALL_RIGHT_SHADE)
-      ctx.beginPath()
-      ctx.moveTo(leftX, cy)
-      ctx.lineTo(cx, bottomY)
-      ctx.lineTo(rightX, cy)
-      ctx.stroke()
 
       const mx = cameraX + vx
       const my = cameraY + vy
+      // Skip walls when the source tile is itself outside the land mask
+      // (Space) — only land draws cliff faces. Tier 0 land tiles still
+      // qualify, since wallNeighborTierSim treats Space as virtual -1.
+      if (mx < 0 || mx >= sim.width || my < 0 || my >= sim.height) continue
+      if (!sim.landMask.has(posKey(mx, my))) continue
       const tier = tierAtSim(sim, mx, my)
-      if (tier <= 0) continue
-      const southTier = tierAtSim(sim, mx, my + 1)
-      const eastTier = tierAtSim(sim, mx + 1, my)
+      const southTier = wallNeighborTierSim(sim, mx, my + 1)
+      const eastTier = wallNeighborTierSim(sim, mx + 1, my)
       const leftDepth = Math.max(0, tier - southTier) * ELEVATION_TIER_LIFT_PX
       const rightDepth = Math.max(0, tier - eastTier) * ELEVATION_TIER_LIFT_PX
       if (leftDepth <= 0 && rightDepth <= 0) continue

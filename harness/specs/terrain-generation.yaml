@@ -12,9 +12,9 @@ behaviors:
   - id: world-dimensions
     description: >
       MAP_WIDTH and MAP_HEIGHT are both 147. The land area
-      (Dirt/Sand interior, after subtracting SPACE_BORDER on every
-      edge) is 127x127, centered on the grid. Both dimensions are
-      odd so a single tile sits at the exact geometric center
+      (Dirt interior, after subtracting SPACE_BORDER on every edge)
+      is 127x127, centered on the grid. Both dimensions are odd so
+      a single tile sits at the exact geometric center
       (floor(147/2) = 73), which player-spawn and Gron placement
       depend on. The cave map (CAVE_WIDTH x CAVE_HEIGHT) is unrelated
       and unchanged.
@@ -32,17 +32,17 @@ behaviors:
   - id: generate-terrain
     description: >
       generateTerrain(width, height) creates a Tile[][] grid.
-      uses smoothed 1D noise bands for coastline variation on all
-      four edges (outer band = space-to-sand boundary, inner band =
-      sand-to-dirt boundary). SPACE_BORDER and SAND_BORDER constants
-      control base distances. tiles inside both borders are Dirt,
-      between borders are Sand, outside are Space. after the main
-      generation, scatterSandbars adds small Sand clusters in the
-      outer Space border zone for visual variety.
+      Uses one smoothed 1D noise band per edge for coastline
+      variation (the space-to-dirt boundary). SPACE_BORDER controls
+      base distance from each edge. Tiles inside the border are
+      Dirt; tiles outside are Space. Sand is never produced by the
+      no-genesis fallback — sand only forms around water during the
+      genesis pipeline (see the sand-water-only spec), so the
+      offline / test fallback contains only Space and Dirt.
     inputs:
       - 'width, height'
     outputs:
-      - 'Tile[][] with Space, Sand, and Dirt tiles'
+      - 'Tile[][] with Space and Dirt tiles only'
     state_changes: []
     determinism: probabilistic
 
@@ -76,22 +76,6 @@ behaviors:
     state_changes: []
     determinism: probabilistic
 
-  - id: sandbar-scattering
-    description: >
-      scatterSandbars places small Sand clusters (1-4 tiles total:
-      1 center + 1-3 adjacents) on Space tiles in the outer border
-      zone. count is roughly (width + height) / 4. each cluster picks
-      a random edge and a random position within the margin, then
-      places the center tile and 1-3 adjacent tiles if they are Space.
-      adjacency uses 6 deltas (4 cardinal + 2 diagonal: [1,1] and
-      [-1,-1]), creating a slight directional bias in cluster shape.
-    inputs:
-      - 'Tile[][] map with Space tiles in outer zone'
-    outputs:
-      - 'additional Sand tiles scattered on Space'
-    state_changes: []
-    determinism: probabilistic
-
 edge_cases:
   - id: square-grid-exact-center
     description: 'odd 147x147 dimensions guarantee a single center tile at (73, 73)'
@@ -101,16 +85,16 @@ edge_cases:
     expected: 'output is fully determined by the rng sequence'
   - id: narrow-map
     description: 'map dimensions smaller than SPACE_BORDER * 2'
-    expected: 'entire map is Space; no Sand or Dirt tiles generated'
+    expected: 'entire map is Space; no Dirt tiles generated'
   - id: soil-health-only-dirt
     description: 'generateSoilHealth skips non-Dirt tiles'
-    expected: 'returned Map has no entries for Sand or Space tile positions'
+    expected: 'returned Map has no entries for Space tile positions'
 
 failure_conditions:
   - trigger: 'zero-size map (width or height is 0)'
     expected: 'returns empty array; no crash'
-  - trigger: 'sandbar margin < 2'
-    expected: 'scatterSandbars skips all iterations (continue guard)'
+  - trigger: 'generateTerrain produces a Sand tile'
+    expected: 'failure — sand only forms around water in genesis, never in the fallback'
 
 verification:
   test_file: src/engine/__tests__/terrain.test.ts
