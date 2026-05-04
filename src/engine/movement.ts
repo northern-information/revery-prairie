@@ -2,7 +2,7 @@ import { updateCamera } from './camera'
 import { checkTransition } from './cave'
 import { MOVEMENT_TWEEN_DEFAULT_MS, MOVEMENT_TWEEN_SPRINT_MS, TRAIL_MAX_LENGTH } from './constants'
 import { ComponentType } from './ecs/types'
-import { emitPlayerTrailBurst } from './flora'
+import { emitPlayerFootstep, emitPlayerTrailBurst } from './flora'
 import { updateFacingEntity } from './interaction'
 import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
@@ -135,7 +135,11 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   state.player.x = nx
   state.player.y = ny
 
-  // Pollen trail: count consecutive clover steps; fire a burst when leaving.
+  // Pollen trail: emit a footstep puff on every step off a clover tile,
+  // count consecutive clover steps, and fire a burst when fully leaving.
+  if (prevTileType === TileType.Clover) {
+    emitPlayerFootstep(state, prevX, prevY, TileType.Clover)
+  }
   if (nextTileType === TileType.Clover) {
     if (state.pollenTrailDepth < 8) state.pollenTrailDepth += 1
   } else if (prevTileType === TileType.Clover) {

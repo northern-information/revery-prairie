@@ -101,12 +101,8 @@ export const tickPollenDrift = (state: GameState, dt: number): void => {
   const sy = wind.sy / smoothSpeed
   const windFraction = Math.min(totalSpeed / MAX_WIND_SPEED, 1)
 
-  // Divide drift by zoom so pixel speed stays consistent across zoom levels.
-  // At 2× zoom charWidth doubles, so without this correction a 1-tile hop
-  // covers twice as many pixels — particles appear to move twice as fast.
-  const zoomNorm = 1 / Math.max(0.1, state.zoom)
-  const driftX = sx * windFraction * POLLEN_DRIFT_SPEED * zoomNorm * dt
-  const driftY = sy * windFraction * POLLEN_DRIFT_SPEED * zoomNorm * dt
+  const driftX = sx * windFraction * POLLEN_DRIFT_SPEED * dt
+  const driftY = sy * windFraction * POLLEN_DRIFT_SPEED * dt
 
   // Perpendicular unit vector (rotate 90°): (-sy, sx)
   const px = -sy
@@ -126,13 +122,13 @@ export const tickPollenDrift = (state: GameState, dt: number): void => {
       p.y += driftY
 
       // Perpendicular wobble — sine derivative gives smooth velocity integration.
-      const wobble = WOBBLE_AMP * WOBBLE_FREQ * Math.cos(p.age * WOBBLE_FREQ + p.phase) * zoomNorm * dt
+      const wobble = WOBBLE_AMP * WOBBLE_FREQ * Math.cos(p.age * WOBBLE_FREQ + p.phase) * dt
       p.x += px * wobble
       p.y += py * wobble
 
       // Small random turbulence — breaks mechanical linearity.
-      p.x += (Math.random() - 0.5) * TURBULENCE * zoomNorm * dt
-      p.y += (Math.random() - 0.5) * TURBULENCE * zoomNorm * dt
+      p.x += (Math.random() - 0.5) * TURBULENCE * dt
+      p.y += (Math.random() - 0.5) * TURBULENCE * dt
     }
     i--
   }
@@ -182,6 +178,25 @@ export const tickPollenEmit = (state: GameState, dt: number): void => {
         }
       }
     }
+  }
+}
+
+/**
+ * Emit 1–2 particles per footstep while the player walks through a flora tile.
+ * Tight spread, normal lifetime — creates a continuous trail rather than a
+ * single exit burst. Called on every step where prevTile is a flora tile.
+ */
+export const emitPlayerFootstep = (
+  state: GameState,
+  fromX: number,
+  fromY: number,
+  tileType: string,
+): void => {
+  const profile = pollinateRegistry.get(tileType)
+  if (!profile) return
+  const count = 1 + Math.floor(Math.random() * 2)
+  for (let i = 0; i < count; i++) {
+    spawnParticle(state, fromX, fromY, tileType, profile, 0.3, 1.0)
   }
 }
 
