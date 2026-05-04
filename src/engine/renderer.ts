@@ -251,6 +251,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return 0
     return tierGrid[mx + my * state.mapWidth]
   }
+  // Effective neighbor tier for cube-wall depth. Space tiles (and OOB
+  // in overworld) are treated as virtual sub-ground tier (-1) so every
+  // coastal land tile drops a cube cliff face into the void — the
+  // landmass reads as a 3D plateau sitting above space rather than a
+  // flat 2D outline. Inland land-to-land tier transitions are
+  // unaffected.
+  const wallNeighborTier = (mx: number, my: number): number => {
+    if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return -1
+    if (map[my][mx].type === TileType.Space) return -1
+    return tierGrid[mx + my * state.mapWidth]
+  }
   const liftAt = (mx: number, my: number): number =>
     liftAtShared(tierGrid, mx, my, state.mapWidth, state.mapHeight)
 
@@ -1097,17 +1108,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
-      // Cosmetic elevation: walls render at tier transitions only,
-      // where this tile sits higher than its south or east neighbor.
-      // Same-tier neighbors share a flat plateau; the cube edge
-      // suggesting "every tile is a discrete block" is drawn by a
-      // separate, much cheaper south+east edge stroke pre-pass below
-      // (see edge-stroke pre-pass). Hidden cave chamber tiles use
-      // the masked CaveWall palette so the wall doesn't leak the
-      // underlying type.
-      if (tileTier > 0) {
-        const southTier = tierAt(mx, my + 1)
-        const eastTier = tierAt(mx + 1, my)
+      // Cosmetic elevation: walls render at tier transitions where
+      // this tile sits higher than its south or east neighbor. Space
+      // neighbors count as virtual sub-ground tier (-1), so coastal
+      // tiles at tier 0 still produce a cliff face into the void.
+      // Same-tier same-surface neighbors share a flat plateau; the
+      // per-tile cube edge suggestion comes from the bg-cache edge
+      // stroke. Hidden cave chamber tiles use the masked CaveWall
+      // palette so the wall doesn't leak the underlying type.
+      {
+        const southTier = wallNeighborTier(mx, my + 1)
+        const eastTier = wallNeighborTier(mx + 1, my)
         const leftDepth = Math.max(0, tileTier - southTier) * ELEVATION_TIER_LIFT_PX
         const rightDepth = Math.max(0, tileTier - eastTier) * ELEVATION_TIER_LIFT_PX
         if (leftDepth > 0 || rightDepth > 0) {

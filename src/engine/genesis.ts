@@ -13,7 +13,6 @@ import {
   RAIN_AURA_SPEED,
   RIVER_COLOR,
   GENESIS_TRANSITION_DURATION_MS,
-  SAND_BORDER,
   SAND_COLORS,
   SATELLITE_HEAD_COLORS,
   SATELLITE_SOIL_DAMAGE,
@@ -249,106 +248,70 @@ const applyWindwardLeewardBias = (
   }
 }
 
-// Generate land mask using the same algorithm as terrain.ts, but with seeded RNG
+// Generate land mask using the same algorithm as terrain.ts, but with seeded RNG.
+// Sand is no longer placed at the space-to-land boundary; that role is owned by
+// the water-shoreline pass that runs later in the genesis pipeline. coastlineTiles
+// is populated as the outermost ring of Dirt tiles bordering Space, since several
+// later epochs use it as a "tiles at the edge of the landmass" signal (ancient
+// seabeds, coastal elevation lowering, ruin placement guards).
 const generateLandMask = (
   width: number,
   height: number,
   rng: () => number
 ): { landMask: Set<string>; coastlineTiles: Set<string>; grid: Tile[][] } => {
-  const topOuterVariation = smoothNoiseSeeded(width, 6, 12, rng)
-  const bottomOuterVariation = smoothNoiseSeeded(width, 6, 12, rng)
-  const leftOuterVariation = smoothNoiseSeeded(height, 6, 12, rng)
-  const rightOuterVariation = smoothNoiseSeeded(height, 6, 12, rng)
+  const topVariation = smoothNoiseSeeded(width, 6, 12, rng)
+  const bottomVariation = smoothNoiseSeeded(width, 6, 12, rng)
+  const leftVariation = smoothNoiseSeeded(height, 6, 12, rng)
+  const rightVariation = smoothNoiseSeeded(height, 6, 12, rng)
 
-  const topInnerVariation = smoothNoiseSeeded(width, 4, 10, rng)
-  const bottomInnerVariation = smoothNoiseSeeded(width, 4, 10, rng)
-  const leftInnerVariation = smoothNoiseSeeded(height, 4, 10, rng)
-  const rightInnerVariation = smoothNoiseSeeded(height, 4, 10, rng)
-
-  const outerBorder = SPACE_BORDER
-  const innerBorder = SPACE_BORDER + SAND_BORDER
+  const border = SPACE_BORDER
 
   const landMask = new Set<string>()
-  const coastlineTiles = new Set<string>()
 
   const grid: Tile[][] = Array.from({ length: height }, (_, y) =>
     Array.from({ length: width }, (_, x) => {
-      const topOuter = outerBorder + topOuterVariation[x]
-      const bottomOuter = outerBorder + bottomOuterVariation[x]
-      const leftOuter = outerBorder + leftOuterVariation[y]
-      const rightOuter = outerBorder + rightOuterVariation[y]
+      const top = border + topVariation[x]
+      const bottom = border + bottomVariation[x]
+      const left = border + leftVariation[y]
+      const right = border + rightVariation[y]
 
-      const isSpace = x < leftOuter || x >= width - rightOuter || y < topOuter || y >= height - bottomOuter
+      const isSpace = x < left || x >= width - right || y < top || y >= height - bottom
       if (isSpace) return { type: TileType.Space }
 
-      const topInner = innerBorder + topInnerVariation[x]
-      const bottomInner = innerBorder + bottomInnerVariation[x]
-      const leftInner = innerBorder + leftInnerVariation[y]
-      const rightInner = innerBorder + rightInnerVariation[y]
-
-      const isSand = x < leftInner || x >= width - rightInner || y < topInner || y >= height - bottomInner
-      const key = posKey(x, y)
-      if (isSand) {
-        coastlineTiles.add(key)
-        return { type: TileType.Sand }
-      }
-
-      landMask.add(key)
+      landMask.add(posKey(x, y))
       return { type: TileType.Dirt }
     })
   )
 
-  return { landMask, coastlineTiles, grid }
-}
-
-// Scatter sandbars in space tiles near edges (matches terrain.ts logic)
-const scatterSandbars = (map: Tile[][], width: number, height: number, rng: () => number) => {
-  const count = Math.floor((width + height) / 4)
-  for (let i = 0; i < count; i++) {
-    const edge = Math.floor(rng() * 4)
-    let cx: number
-    let cy: number
-    const margin = SPACE_BORDER - 2
-    if (margin < 2) continue
-    switch (edge) {
-      case 0:
-        cx = Math.floor(rng() * width)
-        cy = Math.floor(rng() * (margin - 1)) + 1
+  // coastlineTiles = land tiles with at least one cardinal Space neighbor.
+  // Captures the outermost ring of the landmass, replacing the SAND_BORDER
+  // ring concept without changing what downstream consumers iterate.
+  const coastlineTiles = new Set<string>()
+  const cardinals = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ]
+  for (const key of landMask) {
+    const [xStr, yStr] = key.split(',')
+    const x = Number(xStr)
+    const y = Number(yStr)
+    for (const [dx, dy] of cardinals) {
+      const nx = x + dx
+      const ny = y + dy
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
+        coastlineTiles.add(key)
         break
-      case 1:
-        cx = Math.floor(rng() * width)
-        cy = height - 1 - Math.floor(rng() * (margin - 1)) - 1
+      }
+      if (grid[ny][nx].type === TileType.Space) {
+        coastlineTiles.add(key)
         break
-      case 2:
-        cx = Math.floor(rng() * (margin - 1)) + 1
-        cy = Math.floor(rng() * height)
-        break
-      default:
-        cx = width - 1 - Math.floor(rng() * (margin - 1)) - 1
-        cy = Math.floor(rng() * height)
-        break
-    }
-    if (cx < 0 || cx >= width || cy < 0 || cy >= height) continue
-    if (map[cy][cx].type !== TileType.Space) continue
-    map[cy][cx] = { type: TileType.Sand }
-    const size = Math.floor(rng() * 3) + 1
-    const deltas = [
-      [1, 0],
-      [0, 1],
-      [-1, 0],
-      [0, -1],
-      [1, 1],
-      [-1, -1],
-    ]
-    for (let j = 0; j < size; j++) {
-      const [ddx, ddy] = deltas[Math.floor(rng() * deltas.length)]
-      const nx = cx + ddx
-      const ny = cy + ddy
-      if (nx >= 0 && nx < width && ny >= 0 && ny < height && map[ny][nx].type === TileType.Space) {
-        map[ny][nx] = { type: TileType.Sand }
       }
     }
   }
+
+  return { landMask, coastlineTiles, grid }
 }
 
 // City name fragments for ruin generation
@@ -395,10 +358,11 @@ const getGronVisuals = (): { glyph: string; glyphColor: string } => {
   return gronDefCache
 }
 
-// Shared rendering for space tiles (stars — no water in space, it's not ocean)
+// Shared rendering for space tiles (stars — no water in space, it's not ocean).
+// coastlineTiles are now a subset of landMask (outermost dirt ring), so they
+// fall through the landMask guard and never reach the star path.
 const renderSpace = (sim: GenesisSimState, key: string, h: number, time: number): GenesisTileRender[] | null => {
   if (sim.landMask.has(key)) return null
-  if (sim.coastlineTiles.has(key)) return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
   if (h % 5 === 0) {
     const starChars = ['.', '*', '+', '·']
     const starColors = ['#FFFFFF', '#DDDDFF', '#FFDDDD', '#FFFFDD', '#AAAACC']
@@ -778,7 +742,7 @@ const lavaEra: GenesisEpoch = {
   renderTile: (sim, x, y, progress, time) => {
     const key = posKey(x, y)
 
-    if (!sim.landMask.has(key) && !sim.coastlineTiles.has(key)) {
+    if (!sim.landMask.has(key)) {
       // Space — stars
       const h = tileHash(x, y)
       if (h % 5 === 0) {
@@ -830,7 +794,7 @@ const crustCooling: GenesisEpoch = {
   renderTile: (sim, x, y, progress, time) => {
     const key = posKey(x, y)
 
-    if (!sim.landMask.has(key) && !sim.coastlineTiles.has(key)) {
+    if (!sim.landMask.has(key)) {
       const h = tileHash(x, y)
       if (h % 5 === 0) {
         const starChars = ['.', '*', '+', '·']
@@ -945,14 +909,6 @@ const firstWater: GenesisEpoch = {
     const h = tileHash(x, y)
 
     if (!sim.landMask.has(key)) {
-      if (sim.coastlineTiles.has(key)) {
-        // Sand appearing
-        const sandProgress = clamp(progress * 2 - 0.3, 0, 1)
-        if (sandProgress > 0.5) {
-          return [{ char: ':', color: '#C2B280', dx: 0, dy: 0 }]
-        }
-        return [{ char: '.', color: DIRT_COLORS[h % DIRT_COLORS.length], dx: 0, dy: 0 }]
-      }
       // Space — stars
       if (h % 5 === 0) {
         const starChars = ['.', '*', '+', '·']
@@ -2513,7 +2469,9 @@ const fallOfCivilizations: GenesisEpoch = {
       if (!keptTiles.has(key)) sim.riverPaths.delete(key)
     }
 
-    // 6. Add sand shoreline around remaining water bodies
+    // 6. Add sand shoreline around remaining water bodies. Sand never
+    // forms on a tile that touches Space — the dirt-to-Space cliff
+    // stays clean (sand only ever borders water).
     const shoreDirs = [
       [1, 0],
       [-1, 0],
@@ -2524,6 +2482,21 @@ const fallOfCivilizations: GenesisEpoch = {
       [1, -1],
       [-1, 1],
     ]
+    const cardinals = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]
+    const touchesSpace = (tx: number, ty: number): boolean => {
+      for (const [dx, dy] of cardinals) {
+        const nx = tx + dx
+        const ny = ty + dy
+        if (nx < 0 || nx >= sim.width || ny < 0 || ny >= sim.height) return true
+        if (sim.grid[ny][nx].type === TileType.Space) return true
+      }
+      return false
+    }
     let frontier = new Set<string>(keptTiles)
     for (let pass = 0; pass < WATER_SAND_BORDER_MAX; pass++) {
       const chance = WATER_SAND_PASS_CHANCES[pass]
@@ -2543,7 +2516,8 @@ const fallOfCivilizations: GenesisEpoch = {
             ny < sim.height &&
             nx >= 0 &&
             nx < sim.width &&
-            sim.grid[ny][nx].type === TileType.Dirt
+            sim.grid[ny][nx].type === TileType.Dirt &&
+            !touchesSpace(nx, ny)
           ) {
             if (chance >= 100 || tileHash(nx, ny) % 100 < chance) {
               sim.grid[ny][nx].type = TileType.Sand
@@ -3018,9 +2992,6 @@ const presentDay: GenesisEpoch = {
   durationMs: 2000,
   commentary: 'A steward is called...',
   mutate: sim => {
-    // Finalize terrain and scatter sandbars
-    scatterSandbars(sim.grid, sim.width, sim.height, sim.rng)
-
     // Clamp all soil health to [10, 100]
     for (const [key, value] of sim.soilHealth) {
       sim.soilHealth.set(key, clamp(value, 10, SOIL_HEALTH_MAX))
@@ -3337,11 +3308,13 @@ export const getGenesisCommentary = (sim: GenesisSimState, epochs: GenesisEpoch[
 // Year ranges per epoch — maps geological time across the genesis sequence.
 // Each entry is [startYear, endYear]. The counter lerps between them based on
 // epoch progress, giving a running year from the big bang to present day.
+// Must stay in lockstep with GENESIS_EPOCHS — same length, same order.
 const EPOCH_YEAR_RANGES: [number, number][] = [
   [0, 500_000_000], // cosmicFormation
   [500_000_000, 1_000_000_000], // landAccretion
   [1_000_000_000, 2_000_000_000], // lavaEra
-  [2_000_000_000, 3_000_000_000], // crustCooling
+  [2_000_000_000, 2_500_000_000], // crustCooling
+  [2_500_000_000, 3_000_000_000], // tectonicUplift
   [3_000_000_000, 4_000_000_000], // firstWater
   [4_000_000_000, 5_500_000_000], // emergenceOfLife
   [5_500_000_000, 7_000_000_000], // fireSeason

@@ -1,4 +1,4 @@
-import { SAND_BORDER, SOIL_HEALTH_MAX, SPACE_BORDER } from './constants'
+import { SOIL_HEALTH_MAX, SPACE_BORDER } from './constants'
 import { posKey } from './position'
 import { TileType } from './types'
 
@@ -28,104 +28,29 @@ export const smoothNoiseSeeded = (
 const smoothNoise = (length: number, amplitude: number, wavelength: number): number[] =>
   smoothNoiseSeeded(length, amplitude, wavelength, Math.random)
 
-const scatterSandbars = (map: Tile[][], width: number, height: number) => {
-  const count = Math.floor((width + height) / 4)
-
-  for (let i = 0; i < count; i++) {
-    // Pick a random spot in the outer border zone
-    const edge = Math.floor(Math.random() * 4)
-    let cx: number
-    let cy: number
-
-    const margin = SPACE_BORDER - 2
-    if (margin < 2) continue
-
-    switch (edge) {
-      case 0: // top
-        cx = Math.floor(Math.random() * width)
-        cy = Math.floor(Math.random() * (margin - 1)) + 1
-        break
-      case 1: // bottom
-        cx = Math.floor(Math.random() * width)
-        cy = height - 1 - Math.floor(Math.random() * (margin - 1)) - 1
-        break
-      case 2: // left
-        cx = Math.floor(Math.random() * (margin - 1)) + 1
-        cy = Math.floor(Math.random() * height)
-        break
-      default: // right
-        cx = width - 1 - Math.floor(Math.random() * (margin - 1)) - 1
-        cy = Math.floor(Math.random() * height)
-        break
-    }
-
-    // Only place sandbars on space tiles
-    if (cx < 0 || cx >= width || cy < 0 || cy >= height) continue
-    if (map[cy][cx].type !== TileType.Space) continue
-
-    // Place a small cluster (1-4 tiles)
-    map[cy][cx] = { type: TileType.Sand }
-    const size = Math.floor(Math.random() * 3) + 1
-    const deltas = [
-      [1, 0],
-      [0, 1],
-      [-1, 0],
-      [0, -1],
-      [1, 1],
-      [-1, -1],
-    ]
-    for (let j = 0; j < size; j++) {
-      const [ddx, ddy] = deltas[Math.floor(Math.random() * deltas.length)]
-      const nx = cx + ddx
-      const ny = cy + ddy
-      if (nx >= 0 && nx < width && ny >= 0 && ny < height && map[ny][nx].type === TileType.Space) {
-        map[ny][nx] = { type: TileType.Sand }
-      }
-    }
-  }
-}
-
 export const generateTerrain = (width: number, height: number): Tile[][] => {
-  // Outer edge variation (sand-to-space boundary)
-  const topOuterVariation = smoothNoise(width, 6, 12)
-  const bottomOuterVariation = smoothNoise(width, 6, 12)
-  const leftOuterVariation = smoothNoise(height, 6, 12)
-  const rightOuterVariation = smoothNoise(height, 6, 12)
+  // Coastline variation: smooth noise on each edge gives an organic
+  // space-to-dirt boundary. Sand is no longer placed at this boundary
+  // (it only appears around water during genesis); the no-genesis
+  // fallback produces only Space and Dirt tiles.
+  const topVariation = smoothNoise(width, 6, 12)
+  const bottomVariation = smoothNoise(width, 6, 12)
+  const leftVariation = smoothNoise(height, 6, 12)
+  const rightVariation = smoothNoise(height, 6, 12)
 
-  // Inner edge variation (sand-to-dirt boundary)
-  const topInnerVariation = smoothNoise(width, 4, 10)
-  const bottomInnerVariation = smoothNoise(width, 4, 10)
-  const leftInnerVariation = smoothNoise(height, 4, 10)
-  const rightInnerVariation = smoothNoise(height, 4, 10)
+  const border = SPACE_BORDER
 
-  const outerBorder = SPACE_BORDER
-  const innerBorder = SPACE_BORDER + SAND_BORDER
-
-  const map = Array.from({ length: height }, (_, y) =>
+  return Array.from({ length: height }, (_, y) =>
     Array.from({ length: width }, (_, x) => {
-      const topOuter = outerBorder + topOuterVariation[x]
-      const bottomOuter = outerBorder + bottomOuterVariation[x]
-      const leftOuter = outerBorder + leftOuterVariation[y]
-      const rightOuter = outerBorder + rightOuterVariation[y]
+      const top = border + topVariation[x]
+      const bottom = border + bottomVariation[x]
+      const left = border + leftVariation[y]
+      const right = border + rightVariation[y]
 
-      const isSpace = x < leftOuter || x >= width - rightOuter || y < topOuter || y >= height - bottomOuter
-
-      if (isSpace) return { type: TileType.Space }
-
-      const topInner = innerBorder + topInnerVariation[x]
-      const bottomInner = innerBorder + bottomInnerVariation[x]
-      const leftInner = innerBorder + leftInnerVariation[y]
-      const rightInner = innerBorder + rightInnerVariation[y]
-
-      const isSand = x < leftInner || x >= width - rightInner || y < topInner || y >= height - bottomInner
-
-      return { type: isSand ? TileType.Sand : TileType.Dirt }
+      const isSpace = x < left || x >= width - right || y < top || y >= height - bottom
+      return { type: isSpace ? TileType.Space : TileType.Dirt }
     })
   )
-
-  scatterSandbars(map, width, height)
-
-  return map
 }
 
 /**

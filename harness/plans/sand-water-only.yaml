@@ -1,0 +1,163 @@
+plan:
+  id: sand-water-only
+  title: Sand only borders water; remove space-border sand and extrude coastal cliffs into the void
+  created: 2026-05-03
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: simplify-terrain-fallback
+    title: Strip SAND_BORDER ring and scatterSandbars from generateTerrain
+    spec_id: sand-water-only
+    spec_sections:
+      - no-space-border-sand
+      - sandbars-removed
+    context_files:
+      - src/engine/terrain.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/terrain.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: redefine-coastline-and-drop-sand-ring
+    title: Drop SAND_BORDER ring in generateLandMask and redefine coastlineTiles as outermost dirt ring
+    spec_id: sand-water-only
+    spec_sections:
+      - no-space-border-sand
+      - coastline-tiles-redefined
+      - sandbars-removed
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: remove-sand-border-constant
+    title: Delete the now-unused SAND_BORDER constant
+    spec_id: sand-water-only
+    spec_sections:
+      - no-space-border-sand
+    context_files:
+      - src/engine/constants.ts
+      - src/engine/terrain.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on:
+      - simplify-terrain-fallback
+      - redefine-coastline-and-drop-sand-ring
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: extrude-cliff-to-space-gameplay
+    title: Treat Space neighbors as virtual tier -1 in renderer.ts cube wall depth
+    spec_id: sand-water-only
+    spec_sections:
+      - cliff-extrudes-to-space
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+      - src/engine/types.ts
+      - src/engine/render/tierGrid.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: extrude-cliff-to-space-genesis
+    title: Apply the same Space-as-virtual-tier-(-1) rule in genesisRenderer.ts
+    spec_id: sand-water-only
+    spec_sections:
+      - cliff-extrudes-to-space
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/tileBg.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+    depends_on:
+      - extrude-cliff-to-space-gameplay
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: update-existing-sand-tests
+    title: Update existing terrain/genesis tests that assume the SAND_BORDER ring or sandbars
+    spec_id: sand-water-only
+    spec_sections:
+      - no-space-border-sand
+      - sandbars-removed
+    context_files:
+      - src/engine/__tests__/terrain.test.ts
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/__tests__/terrainConnectivity.test.ts
+      - src/engine/__tests__/autoHidePanels.test.ts
+      - src/components/__tests__/Sidebar.test.tsx
+    output_files:
+      - src/engine/__tests__/terrain.test.ts
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - simplify-terrain-fallback
+      - redefine-coastline-and-drop-sand-ring
+    verification:
+      - npx vitest run src/engine/__tests__/terrain.test.ts
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: add-regression-test
+    title: Add regression test enforcing "no sand borders space, sand only borders water"
+    spec_id: sand-water-only
+    spec_sections:
+      - no-space-border-sand
+      - water-shoreline-sand-preserved
+      - sandbars-removed
+    context_files:
+      - src/engine/terrain.ts
+      - src/engine/genesis.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/genesis.test.ts
+    output_files:
+      - src/engine/__tests__/sandWaterOnly.test.ts
+    depends_on:
+      - simplify-terrain-fallback
+      - redefine-coastline-and-drop-sand-ring
+    verification:
+      - npx vitest run src/engine/__tests__/sandWaterOnly.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: update-terrain-generation-spec
+    title: Update terrain-generation spec to remove SAND_BORDER and sandbar references
+    spec_id: sand-water-only
+    spec_sections:
+      - no-space-border-sand
+      - sandbars-removed
+    context_files:
+      - harness/specs/terrain-generation.yaml
+    output_files:
+      - harness/specs/terrain-generation.yaml
+    depends_on:
+      - remove-sand-border-constant
+    verification:
+      - npm run spec:validate
+    repair: retry
+    tags: [spec]

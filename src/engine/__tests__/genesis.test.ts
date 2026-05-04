@@ -862,12 +862,23 @@ describe('water consolidation', () => {
     }
   })
 
-  it('water bodies have sand shoreline', () => {
+  it('water bodies have sand shoreline (except where the shore tile also borders space)', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
     runAllMutations(sim, GENESIS_EPOCHS)
     const { allWater } = findWaterComponents(sim)
     const allDirs = [...cardinalDirs, [1, 1], [-1, -1], [1, -1], [-1, 1]]
-    // Every dirt tile adjacent to water should have been converted to sand
+    const tileTouchesSpace = (tx: number, ty: number): boolean => {
+      for (const [dx, dy] of cardinalDirs) {
+        const nx = tx + dx
+        const ny = ty + dy
+        if (nx < 0 || nx >= sim.width || ny < 0 || ny >= sim.height) return true
+        if (sim.grid[ny][nx].type === TileType.Space) return true
+      }
+      return false
+    }
+    // Every dirt tile adjacent to water should have been converted to sand,
+    // unless that tile also borders Space (the dirt-to-Space cliff stays clean
+    // — sand never borders space).
     for (const key of allWater) {
       const [xStr, yStr] = key.split(',')
       const x = Number(xStr)
@@ -882,9 +893,9 @@ describe('water consolidation', () => {
           nx >= 0 &&
           nx < sim.width &&
           sim.landMask.has(nk) &&
-          !allWater.has(nk)
+          !allWater.has(nk) &&
+          !tileTouchesSpace(nx, ny)
         ) {
-          // Land tiles bordering water should be sand, not dirt
           expect(sim.grid[ny][nx].type).not.toBe(TileType.Dirt)
         }
       }

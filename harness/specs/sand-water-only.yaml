@@ -1,0 +1,145 @@
+id: sand-water-only
+name: 'Sand only borders water, never space'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/terrain.ts
+  - src/engine/genesis.ts
+  - src/engine/constants.ts
+  - src/engine/renderer.ts
+  - src/engine/genesisRenderer.ts
+dependencies:
+  - terrain-generation
+  - genesis-terrain-realism
+
+behaviors:
+  - id: no-space-border-sand
+    description: >
+      Sand tiles never appear at the boundary between dirt and space.
+      generateTerrain (the no-genesis fallback) and generateLandMask
+      (the genesis path) both produce a map where space transitions
+      directly to dirt, with no SAND_BORDER ring of sand between them.
+      The SAND_BORDER constant is removed since it has no remaining
+      callers.
+    inputs:
+      - 'createGameState invoked with or without GenesisResult'
+    outputs:
+      - 'Tile[][] where every Sand tile has at least one water neighbor (river or pond) and no Sand tile borders Space'
+    state_changes:
+      - field: map
+        effect: 'no Sand tiles at the space-to-land boundary'
+    determinism: probabilistic
+
+  - id: water-shoreline-sand-preserved
+    description: >
+      Sand tiles continue to form shorelines around rivers and ponds.
+      The two-pass BFS in genesis (the Holocene-era step that converts
+      dirt-adjacent-to-water to sand) is unchanged. WATER_SAND_BORDER_MAX
+      and WATER_SAND_PASS_CHANCES still control reach and density.
+    inputs:
+      - 'genesis simulation reaches the water-shoreline pass with kept water tiles'
+    outputs:
+      - 'Sand tiles in a probabilistic 1-2 tile band around every kept river and pond'
+    state_changes:
+      - field: map
+        effect: 'Dirt tiles adjacent to water converted to Sand per existing chance table'
+    determinism: probabilistic
+
+  - id: sandbars-removed
+    description: >
+      scatterSandbars no longer runs. Both the terrain.ts copy
+      (called from generateTerrain) and the genesis.ts copy (called
+      from the presentDay epoch) are deleted. No Sand tiles appear in
+      the void margin around the island. This keeps the rule "sand
+      only ever borders water" intact.
+    inputs:
+      - 'terrain or genesis pipeline runs'
+    outputs:
+      - 'no Sand tiles inside the SPACE_BORDER margin'
+    state_changes:
+      - field: map
+        effect: 'no scattered Sand clusters in Space tiles'
+    determinism: deterministic
+
+  - id: coastline-tiles-redefined
+    description: >
+      sim.coastlineTiles is preserved as a semantic concept but its
+      population changes. It now contains the outermost ring of Dirt
+      tiles in sim.landMask that border a Space tile (cardinal
+      adjacency). All downstream consumers — ancient seabed marking,
+      coastal elevation lowering, ruin placement guards, genesis
+      tile rendering — keep working because they iterate
+      coastlineTiles without assuming the tiles are Sand. Genesis
+      rendering for coastline tiles changes from the golden ":" sand
+      glyph to the underlying dirt rendering (no special override).
+    inputs:
+      - 'generateLandMask called during genesis'
+    outputs:
+      - 'Set<string> of land-tile keys at the perimeter of the land mask'
+    state_changes:
+      - field: 'sim.coastlineTiles'
+        effect: 'populated with outermost dirt-tile keys instead of SAND_BORDER ring keys'
+    determinism: deterministic
+
+  - id: cliff-extrudes-to-space
+    description: >
+      Cube cliff walls drawn at tier transitions extrude all the way
+      down to the void when a tile borders a Space tile. wallNeighborTier
+      treats Space neighbors (and OOB) as virtual sub-ground tier (-1)
+      so coastal Dirt tiles drop a cube cliff face into space — the
+      landmass reads as a 3D plateau, not a flat 2D outline. Inland
+      land-to-land tier transitions are unaffected. Both the gameplay
+      renderer and the genesis renderer apply this rule for visual
+      continuity across the genesis-to-gameplay crossfade.
+    inputs:
+      - 'land tile rendered with a Space (or OOB) neighbor to the south or east'
+    outputs:
+      - 'cliff face drawn from tile top down past ground level into space'
+    state_changes: []
+    determinism: deterministic
+
+  - id: no-prairie-outline
+    description: >
+      The crisp 1px outline that previously traced the land/space
+      boundary is removed. The prairieOutline pass file, its export,
+      and the PRAIRIE_OUTLINE_* constants are deleted. The prairie
+      halo glow plus the cube cliffs at the boundary handle the
+      landmass-vs-void visual; the per-tile cube edge stroke
+      (paintTileEdge in tileBgCache) is also removed since the cliff
+      faces alone provide the per-cube definition.
+    inputs:
+      - 'overworld zone rendered'
+    outputs:
+      - 'no 1px outline at the land/space boundary; no per-tile edge stroke'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: tier-zero-coastal-dirt
+    description: 'A coastal Dirt tile at elevation tier 0 borders a Space tile to the south'
+    expected: 'cliff face is drawn one tier step (6 px) deep, treating Space as virtual tier -1'
+  - id: high-tier-inland-dirt
+    description: 'A Dirt tile at tier 3 borders another tier-3 Dirt tile, which borders Space'
+    expected: 'no cliff between the two tier-3 tiles; the outer one drops a 4-tier-step (24 px) cliff into space'
+  - id: water-sand-shoreline-isolated-pond
+    description: 'A pond surrounded entirely by Dirt with no nearby Space'
+    expected: 'sand ring forms around the pond per the existing 2-pass BFS, unaffected by the space-border change'
+  - id: no-genesis-terrain-fallback
+    description: 'Tests call createGameState without a GenesisResult, falling through to generateTerrain'
+    expected: 'returned Tile[][] contains only Space and Dirt — no Sand tiles anywhere'
+  - id: coastline-tiles-empty-on-narrow-map
+    description: 'A map where the entire grid fits inside SPACE_BORDER and there is no Dirt'
+    expected: 'sim.coastlineTiles is empty; no errors in downstream genesis epochs'
+
+failure_conditions:
+  - trigger: 'a Sand tile appears in the Space margin (within SPACE_BORDER of any edge)'
+    expected: 'failure — sandbars removed, no Sand should be placed there'
+  - trigger: 'a Sand tile borders a Space tile with no intervening water'
+    expected: 'failure — sand only ever borders water'
+  - trigger: 'a coastal Dirt tile renders flat against the void with no cliff face'
+    expected: 'failure — Space neighbors must be treated as virtual tier -1 so coastal land extrudes into 3D'
+
+verification:
+  test_file: src/engine/__tests__/sandWaterOnly.test.ts
+  test_pattern: 'sand water'
+  command: npx vitest run src/engine/__tests__/sandWaterOnly.test.ts

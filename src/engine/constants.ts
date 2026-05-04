@@ -19,7 +19,6 @@ export const EDGE_SCROLL_SPEED_TILES_PER_SEC = 18
 // cursor is in the scroll zone, so the user gets clear feedback.
 export const EDGE_SCROLL_INDICATOR_THICKNESS_PX = 3
 
-export const SAND_BORDER = 1
 export const WATER_SAND_BORDER_MAX = 2
 export const WATER_SAND_PASS_CHANCES = [100, 50]
 
@@ -344,10 +343,6 @@ export const PRAIRIE_HALO_COLOR = '#FFC078' // muted amber, distinct from angel 
 export const PRAIRIE_HALO_MIN_ALPHA = 0.048
 export const PRAIRIE_HALO_MAX_ALPHA = 0.168
 export const PRAIRIE_HALO_PULSE_SPEED = 0.0015 // radians per ms; gentle breath
-// crisp 1px outline at the land/space border, drawn on top of the halo glow
-export const PRAIRIE_OUTLINE_COLOR = '#FFC078'
-export const PRAIRIE_OUTLINE_ALPHA = 0.55
-export const PRAIRIE_OUTLINE_WIDTH = 1
 
 // deep time endgame
 export const BEE_STARVATION_MS = 30_000
