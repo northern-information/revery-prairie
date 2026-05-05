@@ -1,3 +1,4 @@
+import { worldToScreen } from '@/engine/projection'
 import { TOAST_DURATION, TOAST_FADE_START } from '@/hooks/useEventLog'
 import type { CharMetrics, GameState } from '@/engine/types'
 import type { GameEvent } from '@/hooks/useEventLog'
@@ -26,12 +27,17 @@ export const PickupToasts = ({ toasts, state, metricsRef }: PickupToastsProps) =
         const progress = age / TOAST_DURATION
         const stackOffset = (sortedToasts.length - 1 - i) * 18
 
-        const screenX = (toast.worldX - state.camera.x) * metrics.charWidth
-        const screenY =
-          (toast.worldY - state.camera.y) * metrics.charHeight -
-          2.5 * metrics.charHeight -
-          progress * metrics.charHeight -
-          stackOffset
+        const { px, py } = worldToScreen(
+          toast.worldX,
+          toast.worldY,
+          state.camera,
+          metrics.charWidth,
+          metrics.charHeight,
+          state.viewportWidth,
+          state.viewportHeight,
+        )
+        const screenX = px
+        const screenY = py - 2.5 * metrics.charHeight - progress * metrics.charHeight - stackOffset
 
         return (
           <div
