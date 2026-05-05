@@ -102,6 +102,31 @@ behaviors:
         effect: 'lerp(liftAt(fromX, fromY), liftAt(toX, toY), t) when tween active; liftAt(toX, toY) otherwise'
     determinism: time-based
 
+  - id: small-map-no-tween-offset
+    description: >
+      The world translate must only fire on the axes where updateCamera
+      actually tracks the player. updateCamera centers the map (rather
+      than the player) on an axis when the map is smaller than the
+      visible viewport on that axis — e.g. the 40x25 cave inside an 80+
+      wide viewport. With no camera-snap, there is no world jump to
+      compensate for, and applying the offset would make the world
+      wobble while the player walks. The renderer mirrors updateCamera's
+      check exactly: tweenOffsetX is zero when state.mapWidth <
+      visibleWidth (where visibleWidth = state.viewportWidth -
+      state.rightInsetTiles); tweenOffsetY is zero when state.mapHeight
+      < state.viewportHeight. Each axis is gated independently — a tall
+      narrow map could track on x but not y, or vice versa.
+    inputs:
+      - 'state.mapWidth, state.mapHeight'
+      - 'state.viewportWidth, state.viewportHeight, state.rightInsetTiles'
+      - 'state.playerTween active'
+    outputs:
+      - 'tween world translate is zero on any axis where the camera does not track the player'
+    state_changes:
+      - field: 'rendered scene'
+        effect: 'no tween-driven translate on small-map axes; player glyph still draws at lerp position so the player slides smoothly across stationary tiles'
+    determinism: deterministic
+
   - id: free-mode-uses-tween-offset
     description: >
       When the player is tweening but cameraMode === 'free' (edge-scroll
@@ -141,6 +166,12 @@ edge_cases:
   - id: free-mode-pan-during-tween
     description: 'User edge-scrolls (cameraMode === free) while playerTween is active'
     expected: 'Both offsets compose; the player still tweens smoothly between tiles relative to the panned-camera world'
+  - id: walking-in-cave-small-map
+    description: 'Player walks across the cave (40x25 map inside an 80+x40+ viewport) with WASD'
+    expected: 'Tween world translate is zero on both axes; the player glyph slides smoothly between tiles at its fractional lerp position; world tiles do not wobble or shift during the tween'
+  - id: tall-narrow-map-mixed-tracking
+    description: 'A hypothetical map narrow on x but tall on y (mapWidth < visibleWidth, mapHeight >= viewportHeight)'
+    expected: 'Tween offset is zero on x but applied on y; the world slides only along the tracking axis'
 
 failure_conditions:
   - trigger: 'World tiles jump by one full tile-width every move tick while the player walks'
@@ -151,6 +182,8 @@ failure_conditions:
     expected: 'Cannot occur — lift interpolates from the from-tile lift to the to-tile lift over the tween duration'
   - trigger: 'During an active edge-scroll pan, the player tween falls back to integer-only motion'
     expected: 'Cannot occur — the player-tween offset composes additively with cameraSubpixel drift in free mode'
+  - trigger: 'World tiles wobble or shift while the player walks across a small map (e.g. cave) where the camera does not track the player'
+    expected: 'Cannot occur — the renderer gates the tween world translate per axis on whether updateCamera actually tracks the player on that axis (mapWidth >= visibleWidth, mapHeight >= viewportHeight)'
 
 verification:
   test_file: src/engine/__tests__/smoothMove.test.ts

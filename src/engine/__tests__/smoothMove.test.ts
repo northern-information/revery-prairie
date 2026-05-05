@@ -342,5 +342,51 @@ describe('smooth move', () => {
       expect(at(0.5)).toBeCloseTo(-4)
       expect(at(0.25)).toBeCloseTo(-6)
     })
+
+    it('tween offset is zero on axes where camera does not track player (small map)', () => {
+      // updateCamera centers the map (rather than the player) when the
+      // map is smaller than the visible viewport on an axis. The cave
+      // is 40x25 inside an 80+x40+ viewport — both axes are
+      // small-map. The renderer must mirror that gate so a player
+      // walking inside the cave does NOT shift the world; the player
+      // glyph slides smoothly across stationary tiles via its own
+      // lerp draw. Mirrors the gate the renderer applies inline.
+      const gateOffset = (
+        lerpX: number,
+        lerpY: number,
+        playerX: number,
+        playerY: number,
+        mapWidth: number,
+        mapHeight: number,
+        visibleViewportWidth: number,
+        viewportHeight: number,
+        charWidth: number,
+        charHeight: number,
+      ): { px: number; py: number } => {
+        const xTracks = mapWidth >= visibleViewportWidth
+        const yTracks = mapHeight >= viewportHeight
+        return worldDeltaToIsoPx(
+          xTracks ? lerpX - playerX : 0,
+          yTracks ? lerpY - playerY : 0,
+          charWidth,
+          charHeight,
+        )
+      }
+
+      // Cave-shaped scenario: 40x25 map, 80x40 viewport.
+      const caveOffset = gateOffset(49.5, 12, 50, 12, 40, 25, 80, 40, 10, 20)
+      expect(caveOffset).toEqual({ px: 0, py: 0 })
+
+      // Overworld-shaped scenario: 147x147 map, 80x40 viewport — both axes track.
+      const overworldOffset = gateOffset(49.5, 30, 50, 30, 147, 147, 80, 40, 10, 20)
+      expect(overworldOffset.px).not.toBe(0)
+
+      // Hybrid: narrow x (small map), tall y (tracks). Only y axis offsets.
+      const hybridOffset = gateOffset(49.5, 30.5, 50, 30, 40, 200, 80, 40, 10, 20)
+      // x contribution from worldDeltaToIsoPx(0, dy) = (-dy)*cw, (dy)*halfH
+      // dy = 0.5 - 0 = 0.5 → px = -5, py = 5
+      expect(hybridOffset.px).toBeCloseTo(-5)
+      expect(hybridOffset.py).toBeCloseTo(5)
+    })
   })
 })

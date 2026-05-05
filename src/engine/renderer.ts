@@ -334,9 +334,21 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // RIGHT, which is what's needed when player has snapped east of the
   // lerp position. The world-delta argument is therefore (lerp - player),
   // not (player - lerp).
+  //
+  // Per-axis gating: updateCamera only tracks the player on an axis when
+  // the map is at least as large as the visible viewport on that axis.
+  // On a smaller map (e.g. the 40x25 cave inside an 80+ wide viewport),
+  // the camera is fixed-centered and never moves with the player. In
+  // that case there is no camera-snap to compensate for, and the world
+  // must NOT translate — the player should slide across stationary
+  // tiles. Mirror updateCamera's check exactly so the renderer's offset
+  // matches what the camera actually did this frame.
+  const visibleWidth = state.viewportWidth - state.rightInsetTiles
+  const xCameraTracksPlayer = state.mapWidth >= visibleWidth
+  const yCameraTracksPlayer = state.mapHeight >= state.viewportHeight
   const tweenDelta = worldDeltaToIsoPx(
-    playerLerpX - player.x,
-    playerLerpY - player.y,
+    xCameraTracksPlayer ? playerLerpX - player.x : 0,
+    yCameraTracksPlayer ? playerLerpY - player.y : 0,
     charWidth,
     charHeight,
   )
