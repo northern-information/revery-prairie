@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -26,6 +28,12 @@ jobs:
       - run: npm run build
 
       - run: npm run spec:validate
+
+      - name: harness check
+        if: github.event_name == 'pull_request'
+        run: npm run harness:check
+        env:
+          HARNESS_BASE: origin/${{ github.base_ref }}
 
   test-engine:
     runs-on: ubuntu-latest
