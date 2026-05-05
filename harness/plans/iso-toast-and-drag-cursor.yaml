@@ -1,0 +1,107 @@
+plan:
+  id: iso-toast-and-drag-cursor
+  title: Route pickup toasts and drag cursor through iso projection
+  created: 2026-05-04
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+    - npm run build
+
+tasks:
+  - id: fix-pickup-toasts-iso
+    title: Position pickup toasts via worldToScreen
+    spec_id: iso-toast-and-drag-cursor
+    spec_sections:
+      - pickup-toast-iso-position
+    context_files:
+      - src/components/PickupToasts.tsx
+      - src/engine/projection.ts
+      - src/engine/types.ts
+      - src/hooks/useEventLog.ts
+    output_files:
+      - src/components/PickupToasts.tsx
+    depends_on: []
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags: [component]
+
+  - id: fix-drag-cursor-iso
+    title: Snap drag cursor to iso tile via screenToTile + viewportToScreen
+    spec_id: iso-toast-and-drag-cursor
+    spec_sections:
+      - drag-cursor-iso-snap
+      - drag-cursor-shares-projection-with-canvas
+    context_files:
+      - src/components/DragCursor.tsx
+      - src/engine/projection.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/DragCursor.tsx
+    depends_on: []
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags: [component]
+
+  - id: thread-viewport-into-dragcursor
+    title: Pass viewportWidth and viewportHeight into DragCursor from GameScreen
+    spec_id: iso-toast-and-drag-cursor
+    spec_sections:
+      - drag-cursor-iso-snap
+    context_files:
+      - src/components/DragCursor.tsx
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/components/DragCursor.tsx
+      - src/components/GameScreen.tsx
+    depends_on:
+      - fix-drag-cursor-iso
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [component]
+
+  - id: add-pickup-toasts-tests
+    title: Add iso projection regression test for PickupToasts
+    spec_id: iso-toast-and-drag-cursor
+    spec_sections:
+      - pickup-toast-iso-position
+    context_files:
+      - src/components/PickupToasts.tsx
+      - src/components/__tests__/PickupToasts.test.tsx
+      - src/engine/projection.ts
+      - src/engine/__tests__/projection.test.ts
+      - src/hooks/useEventLog.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/__tests__/PickupToasts.test.tsx
+    depends_on:
+      - fix-pickup-toasts-iso
+    verification:
+      - npx vitest run src/components/__tests__/PickupToasts.test.tsx
+    repair: retry
+    tags: [test]
+
+  - id: update-drag-cursor-tests
+    title: Update DragCursor tests to assert iso snap position
+    spec_id: iso-toast-and-drag-cursor
+    spec_sections:
+      - drag-cursor-iso-snap
+      - drag-cursor-shares-projection-with-canvas
+    context_files:
+      - src/components/DragCursor.tsx
+      - src/components/__tests__/DragCursor.test.tsx
+      - src/engine/projection.ts
+    output_files:
+      - src/components/__tests__/DragCursor.test.tsx
+    depends_on:
+      - fix-drag-cursor-iso
+      - thread-viewport-into-dragcursor
+    verification:
+      - npx vitest run src/components/__tests__/DragCursor.test.tsx
+    repair: retry
+    tags: [test]

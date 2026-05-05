@@ -1,0 +1,91 @@
+id: iso-toast-and-drag-cursor
+name: 'Pickup toasts and drag cursor use the iso projection'
+priority: high
+layer: component
+source_files:
+  - src/components/PickupToasts.tsx
+  - src/components/DragCursor.tsx
+  - src/engine/projection.ts
+dependencies:
+  - isometric-projection
+behaviors:
+  - id: pickup-toast-iso-position
+    description: >
+      Pickup toasts position themselves above the world tile that fired the
+      event by routing (worldX, worldY) through the engine's worldToScreen
+      transform with state.camera, metrics, and state.viewportWidth /
+      state.viewportHeight. The toast renders at the iso-projected screen
+      anchor of that tile, then applies its existing vertical lift
+      (-2.5 * charHeight - progress * charHeight) and stack offset on top
+      of the projected py. The float-upward animation and stacking order
+      remain unchanged; only the base anchor changes from orthogonal
+      (worldX-camera.x)*charWidth to the iso projection.
+    inputs:
+      - 'a GameEvent with non-null worldX, worldY is rendered while metricsRef.current and state.camera are populated'
+    outputs:
+      - 'toast left = worldToScreen(worldX, worldY, camera, ...).px'
+      - 'toast top = worldToScreen(worldX, worldY, camera, ...).py - 2.5*charHeight - progress*charHeight - stackOffset'
+    state_changes: []
+    determinism: deterministic
+  - id: drag-cursor-iso-snap
+    description: >
+      The floating drag cursor preview, when hovering the canvas, snaps to
+      the iso-projected anchor of the viewport tile under the mouse.
+      Snapping uses screenToTile to find the viewport tile from the cursor
+      pixel position (relative to canvasRect), then viewportToScreen to
+      obtain the iso anchor. The snapped left/top in viewport-pixel space
+      are added to canvasRect.left / canvasRect.top to produce the fixed
+      page-pixel position. The visual drag glyph therefore tracks the
+      same diamond cell that the canvas highlight and click-to-move land
+      on, instead of an orthogonal grid.
+    inputs:
+      - 'cursorTarget is "canvas", canvasRect is non-null, metricsRef.current is non-null, and state.viewportWidth / state.viewportHeight are non-zero'
+    outputs:
+      - 'preview left = canvasRect.left + viewportToScreen(vx, vy, ...).px - charWidth/2'
+      - 'preview top = canvasRect.top + viewportToScreen(vx, vy, ...).py'
+      - 'where (vx, vy) = screenToTile(cursorPos.x - canvasRect.left, cursorPos.y - canvasRect.top, {x:0,y:0}, ...)'
+    state_changes: []
+    determinism: deterministic
+  - id: drag-cursor-shares-projection-with-canvas
+    description: >
+      The viewport tile selected by DragCursor for snapping is the same
+      viewport tile that the canvas highlight selects for the same cursor
+      pixel position, because both call screenToTile with identical
+      arguments. Drag-and-drop targeting therefore agrees with the visual
+      drag preview.
+    inputs:
+      - 'cursor is over the canvas at screen pixel (cx, cy)'
+    outputs:
+      - 'DragCursor previewed tile == canvas-highlighted tile'
+    state_changes: []
+    determinism: deterministic
+edge_cases:
+  - id: viewport-dims-zero-before-first-frame
+    description: >
+      state.viewportWidth and state.viewportHeight start at 0 before the
+      canvas measures itself. PickupToasts and DragCursor must tolerate
+      this transient state without throwing or producing NaN positions —
+      they may render off-screen but must not crash.
+    expected: 'no exception; toasts and drag cursor render at finite (possibly off-screen) coordinates'
+  - id: toast-far-from-camera-center
+    description: >
+      A toast fired at a world tile far from camera center (e.g. several
+      tiles in -x and +y) was visually offset by tens of pixels under the
+      old orthogonal formula because (vx-vy) skew is ignored.
+    expected: 'toast renders directly above the iso anchor of the firing tile regardless of distance from camera center'
+  - id: drag-cursor-on-non-axis-aligned-tile
+    description: >
+      Hovering a tile whose iso center is not at an orthogonal grid
+      multiple of (charWidth, charHeight) — e.g. tile (3, 5) — under the
+      old code snapped the preview to the wrong rect cell. Under iso
+      snapping, the preview anchors to that diamond's center.
+    expected: 'preview glyph centers on the diamond of the hovered tile'
+failure_conditions:
+  - trigger: 'PickupToasts uses (worldX - camera.x) * charWidth for screenX'
+    expected: 'PickupToasts uses worldToScreen(...) and offsets relative to its returned px/py'
+  - trigger: 'DragCursor floors cursor pixels by charWidth / charHeight to derive tileX, tileY'
+    expected: 'DragCursor calls screenToTile to derive viewport tile, then viewportToScreen for the snapped anchor'
+verification:
+  test_file: src/components/__tests__/PickupToasts.test.tsx
+  test_pattern: 'PickupToasts iso position'
+  command: 'npx vitest run src/components/__tests__/PickupToasts.test.tsx src/components/__tests__/DragCursor.test.tsx'

@@ -255,6 +255,8 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           cursorTarget={dragOverlayRef.current.cursorTarget}
           canvasRect={dragOverlayRef.current.canvasRect}
           metricsRef={metricsRef}
+          viewportWidth={state.viewportWidth}
+          viewportHeight={state.viewportHeight}
         />
       )}
       {!state.genesis && (

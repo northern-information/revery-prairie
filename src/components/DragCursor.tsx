@@ -1,4 +1,5 @@
 import { getDefinition } from '@/engine/items'
+import { screenToTile, viewportToScreen } from '@/engine/projection'
 import type { DragState } from '@/engine/drag'
 import type { CharMetrics } from '@/engine/types'
 
@@ -8,17 +9,46 @@ interface DragCursorProps {
   cursorTarget: 'canvas' | 'other'
   canvasRect: DOMRect | null
   metricsRef: React.RefObject<CharMetrics | null>
+  viewportWidth: number
+  viewportHeight: number
 }
 
-export const DragCursor = ({ dragState, cursorPos, cursorTarget, canvasRect, metricsRef }: DragCursorProps) => {
+const ZERO_CAMERA = { x: 0, y: 0 } as const
+
+export const DragCursor = ({
+  dragState,
+  cursorPos,
+  cursorTarget,
+  canvasRect,
+  metricsRef,
+  viewportWidth,
+  viewportHeight,
+}: DragCursorProps) => {
   const metrics = metricsRef.current
   const def = getDefinition(dragState.item.definitionId)
 
-  if (metrics && cursorTarget === 'canvas' && canvasRect) {
-    const tileX = Math.floor((cursorPos.x - canvasRect.left) / metrics.charWidth)
-    const tileY = Math.floor((cursorPos.y - canvasRect.top) / metrics.charHeight)
-    const snapX = canvasRect.left + tileX * metrics.charWidth
-    const snapY = canvasRect.top + tileY * metrics.charHeight
+  if (metrics && cursorTarget === 'canvas' && canvasRect && viewportWidth > 0 && viewportHeight > 0) {
+    const canvasX = cursorPos.x - canvasRect.left
+    const canvasY = cursorPos.y - canvasRect.top
+    const tile = screenToTile(
+      canvasX,
+      canvasY,
+      ZERO_CAMERA,
+      metrics.charWidth,
+      metrics.charHeight,
+      viewportWidth,
+      viewportHeight,
+    )
+    const { px, py } = viewportToScreen(
+      tile.x,
+      tile.y,
+      metrics.charWidth,
+      metrics.charHeight,
+      viewportWidth,
+      viewportHeight,
+    )
+    const snapX = canvasRect.left + px - metrics.charWidth / 2
+    const snapY = canvasRect.top + py
 
     return (
       <div
@@ -32,6 +62,7 @@ export const DragCursor = ({ dragState, cursorPos, cursorTarget, canvasRect, met
           fontSize: 16,
           lineHeight: `${String(metrics.charHeight)}px`,
           textShadow: '0 0 4px #000, 0 0 4px #000',
+          textAlign: 'center',
         }}
       >
         {def.glyph}
