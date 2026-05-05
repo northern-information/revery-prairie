@@ -1,0 +1,241 @@
+plan:
+  id: wind-flora-system
+  title: Wind simulation, flora sway, and pollen particles
+  created: '2026-05-04'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: wind-state-types
+    title: Define WindState and GustPhase types
+    spec_id: wind-system
+    spec_sections:
+      - cold-start-snap
+      - constant-rate-interpolation
+      - phase-accum
+      - gust-lifecycle
+      - screen-vectors
+    context_files:
+      - src/engine/types.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: wind-implementation
+    title: Implement tickWind, getWindAt, WIND_SCREEN_VECTORS, initWindState
+    spec_id: wind-system
+    spec_sections:
+      - cold-start-snap
+      - constant-rate-interpolation
+      - phase-accum
+      - gust-lifecycle
+      - screen-vectors
+      - wind-sway-discovery
+    context_files:
+      - src/engine/weather/wind.ts
+      - src/engine/types.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/weather/wind.ts
+      - src/engine/weather/index.ts
+    depends_on: [wind-state-types]
+    verification:
+      - npx vitest run src/engine/__tests__/wind.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: wind-tests
+    title: Write wind.test.ts
+    spec_id: wind-system
+    spec_sections:
+      - cold-start-snap
+      - constant-rate-interpolation
+      - phase-accum
+      - screen-vectors
+    context_files:
+      - src/engine/__tests__/helpers.ts
+      - src/engine/weather/wind.ts
+    output_files:
+      - src/engine/__tests__/wind.test.ts
+    depends_on: [wind-implementation]
+    verification:
+      - npx vitest run src/engine/__tests__/wind.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: flora-movement-implementation
+    title: Implement FloraMovementProfile registry and getFloraSwayOffset
+    spec_id: flora-movement
+    spec_sections:
+      - profile-registry
+      - zero-offset-conditions
+      - sway-offset-with-wind
+      - sway-factor-scaling
+    context_files:
+      - src/engine/flora/actions/movement.ts
+      - src/engine/weather/wind.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/flora/actions/movement.ts
+      - src/engine/flora/type/clover/clover.ts
+      - src/engine/flora/index.ts
+    depends_on: [wind-implementation]
+    verification:
+      - npx vitest run src/engine/__tests__/floraMovement.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: flora-movement-tests
+    title: Write floraMovement.test.ts
+    spec_id: flora-movement
+    spec_sections:
+      - profile-registry
+      - zero-offset-conditions
+      - sway-offset-with-wind
+      - sway-factor-scaling
+    context_files:
+      - src/engine/__tests__/helpers.ts
+      - src/engine/flora/actions/movement.ts
+    output_files:
+      - src/engine/__tests__/floraMovement.test.ts
+    depends_on: [flora-movement-implementation]
+    verification:
+      - npx vitest run src/engine/__tests__/floraMovement.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: pollen-implementation
+    title: Implement pollen registry, tickPollenDrift, tickPollenEmit, trail burst
+    spec_id: flora-pollen
+    spec_sections:
+      - pollinate-registry
+      - drift-and-expire
+      - zero-wind-skip-drift
+      - emit-from-viewport
+      - trail-burst
+      - pollen-discovery
+      - max-pollen-cap
+    context_files:
+      - src/engine/flora/actions/pollinate.ts
+      - src/engine/types.ts
+      - src/engine/manual.ts
+      - src/engine/weather/wind.ts
+    output_files:
+      - src/engine/flora/actions/pollinate.ts
+      - src/engine/flora/type/clover/clover.ts
+    depends_on: [wind-implementation]
+    verification:
+      - npx vitest run src/engine/__tests__/floraPollinate.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: pollen-tests
+    title: Write floraPollinate.test.ts
+    spec_id: flora-pollen
+    spec_sections:
+      - pollinate-registry
+      - drift-and-expire
+      - zero-wind-skip-drift
+      - emit-from-viewport
+      - trail-burst
+      - max-pollen-cap
+    context_files:
+      - src/engine/__tests__/helpers.ts
+      - src/engine/flora/actions/pollinate.ts
+    output_files:
+      - src/engine/__tests__/floraPollinate.test.ts
+    depends_on: [pollen-implementation]
+    verification:
+      - npx vitest run src/engine/__tests__/floraPollinate.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: pollen-renderer
+    title: Add pollenOverlay render pass (effect slot)
+    spec_id: flora-pollen
+    spec_sections:
+      - emit-from-viewport
+    context_files:
+      - src/engine/render/passes.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/flora/index.ts
+    output_files:
+      - src/engine/render/passes/pollenOverlay.ts
+      - src/engine/render/passes/index.ts
+    depends_on: [pollen-implementation]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: sway-renderer
+    title: Integrate flora sway into tile renderer flush
+    spec_id: flora-movement
+    spec_sections:
+      - sway-offset-with-wind
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/flora/actions/movement.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on: [flora-movement-implementation]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: sidebar-wind-arrow
+    title: Add directional arrow to wind sidebar row
+    spec_id: wind-system
+    spec_sections:
+      - screen-vectors
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/weather/wind.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on: [wind-implementation]
+    verification:
+      - npx tsc -b --noEmit
+      - npm run format:check
+    repair: retry
+    tags: [component]
+
+  - id: cursor-info-effects
+    title: Wire getTileEffects for sway and pollen
+    spec_id: flora-pollen
+    spec_sections:
+      - emit-from-viewport
+    context_files:
+      - src/engine/effects.ts
+      - src/engine/flora/actions/movement.ts
+    output_files:
+      - src/engine/effects.ts
+    depends_on: [pollen-implementation, flora-movement-implementation]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: manual-entries
+    title: Add MANUAL_ONLY_ENTRIES and recordDiscovery for wind sway and pollen
+    spec_id: wind-system
+    spec_sections:
+      - wind-sway-discovery
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/weather/wind.ts
+      - src/engine/flora/actions/pollinate.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on: [wind-implementation, pollen-implementation]
+    verification:
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [engine]

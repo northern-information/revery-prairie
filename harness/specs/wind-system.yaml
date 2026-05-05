@@ -1,0 +1,132 @@
+id: wind-system
+name: Wind simulation system
+priority: high
+layer: engine
+source_files:
+  - src/engine/weather/wind.ts
+  - src/engine/weather/index.ts
+  - src/engine/types.ts
+  - src/engine/manual.ts
+  - src/components/Sidebar.tsx
+  - src/engine/__tests__/wind.test.ts
+
+behaviors:
+  - id: cold-start-snap
+    description: >
+      tickWind snaps the smooth wind vector to the current weather target on
+      the first call (wind.initialized === false), then sets initialized = true.
+      Subsequent calls interpolate at constant rate; they do not re-snap even
+      when smoothSpeed happens to reach zero.
+    inputs:
+      - 'state.wind = initWindState() (initialized: false)'
+      - 'tickWind called with non-zero windSpeed'
+    outputs:
+      - 'smoothSx/Sy/Speed match targetSx/Sy * windSpeed after the first tick'
+      - 'wind.initialized set to true'
+    state_changes:
+      - field: wind.initialized
+        effect: 'false → true on first tickWind call'
+      - field: wind.smoothSx
+        effect: 'snapped to targetSx * windSpeed'
+      - field: wind.smoothSy
+        effect: 'snapped to targetSy * windSpeed'
+      - field: wind.smoothSpeed
+        effect: 'snapped to windSpeed'
+    determinism: deterministic
+
+  - id: constant-rate-interpolation
+    description: >
+      After initialization, smoothSx/Sy/Speed advance toward the weather target
+      at WIND_CHANGE_RATE * dt per frame, not exponentially. All three components
+      converge at the same per-frame step size.
+    inputs:
+      - 'wind.initialized = true'
+      - 'weather target changed'
+      - 'tickWind called with dt'
+    outputs:
+      - 'smooth components advance by exactly WIND_CHANGE_RATE * dt toward target'
+    state_changes:
+      - field: wind.smoothSx
+        effect: 'advances toward targetSx * windSpeed by min(|delta|, WIND_CHANGE_RATE * dt)'
+    determinism: deterministic
+
+  - id: phase-accum
+    description: >
+      phaseAccum accumulates (smoothSpeed / MAX_WIND_SPEED) * min(dt, 100ms) per
+      frame. Capping at 100ms prevents a phase jump when the browser tab is
+      backgrounded and then foregrounded.
+    inputs:
+      - 'tickWind called each frame with dt'
+    outputs:
+      - 'phaseAccum grows proportionally to smoothSpeed and dt'
+    state_changes:
+      - field: wind.phaseAccum
+        effect: 'monotonically increasing; capped per frame at 100ms equivalent'
+    determinism: time-based
+
+  - id: gust-lifecycle
+    description: >
+      A gust starts probabilistically (chance = GUST_BASE_CHANCE * dt/1000 *
+      windSpeed/MAX) and steps through attack → hold → decay states using
+      per-phase timers drawn from duration ranges. Each phase advances
+      gustIntensity accordingly. Random gust direction is converted from a
+      continuous angle to an iso screen vector.
+    inputs:
+      - 'gustPhase = none and Math.random() < chance'
+    outputs:
+      - 'gust state machine advances through attack/hold/decay over multiple frames'
+      - 'gustIntensity rises to gustPeakIntensity then decays to 0'
+    state_changes:
+      - field: wind.gustPhase
+        effect: 'none → attack → hold → decay → none'
+      - field: wind.gustIntensity
+        effect: 'ramps 0→peak during attack, holds at peak, ramps peak→0 during decay'
+    determinism: probabilistic
+
+  - id: screen-vectors
+    description: >
+      WIND_SCREEN_VECTORS maps each WindDirection to an iso screen drift vector.
+      Cardinal directions (N/S/E/W) produce magnitude √2 vectors; ordinal
+      directions (NE/SW/NW/SE) produce magnitude-1 vectors.
+    inputs:
+      - 'any WindDirection key'
+    outputs:
+      - 'corresponding {sx, sy} with documented magnitude'
+    state_changes: []
+    determinism: deterministic
+
+  - id: wind-sway-discovery
+    description: >
+      recordDiscovery(state, 'event:wind-sway') is called inside tickWind once
+      smoothSpeed exceeds 3 mph. The key is added to state.manualDiscoveries;
+      subsequent calls are no-ops.
+    inputs:
+      - 'tickWind produces smoothSpeed > 3'
+    outputs:
+      - "state.manualDiscoveries contains 'event:wind-sway'"
+    state_changes:
+      - field: manualDiscoveries
+        effect: "adds 'event:wind-sway' on first qualifying tick"
+    determinism: deterministic
+
+edge_cases:
+  - id: wind-settles-to-zero
+    description: 'smoothSpeed reaches 0 after initialization (calm weather)'
+    expected: 'initialized stays true; no re-snap on next tick'
+  - id: tab-restore-large-dt
+    description: 'dt exceeds 100ms (tab was backgrounded)'
+    expected: 'phaseAccum advances by at most 100ms worth of wind-time; no single-frame lurch'
+  - id: gust-at-zero-wind
+    description: 'windSpeed is 0 — GUST_BASE_CHANCE * 0/MAX = 0'
+    expected: 'no gust ever fires; gustPhase stays none'
+
+failure_conditions:
+  - trigger: 'tickWind re-snaps when smoothSpeed settles to zero'
+    expected: 'animation discontinuity: smooth components jump to current weather instantly; visible on direction changes'
+  - trigger: 'Gust probability applied per frame without dt scaling'
+    expected: 'gusts fire ~40× too often at 60fps; field looks like rapid random noise'
+
+verification:
+  test_file: src/engine/__tests__/wind.test.ts
+  test_pattern: wind
+  command: npx vitest run src/engine/__tests__/wind.test.ts

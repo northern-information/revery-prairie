@@ -176,8 +176,13 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'event:glint-zone': { lore: 'Glinting light cast from the local star. Recharges coins.' },
   // Events — cave
   'event:cave-fog': { lore: 'TODO' },
+  // Events — wind
+  'event:wind-sway': { lore: 'TODO' },
+  'event:pollen': { lore: 'TODO' },
   // Events — endgame
-  'event:deep-time': { lore: 'The final act of stewardship. A controlled burn followed by a millennium of observation.' },
+  'event:deep-time': {
+    lore: 'The final act of stewardship. A controlled burn followed by a millennium of observation.',
+  },
   'event:gron-deep-time': { lore: 'Gron speaks of the Deep Time revery and what it means to let go.' },
 }
 
@@ -538,6 +543,24 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     glyph: '\u2726',
     glyphColor: '#C9B037',
     unlockKey: 'event:glint-zone',
+    sourceKind: 'event',
+  },
+  {
+    id: 'event:wind-sway',
+    name: 'Flora Sway',
+    category: ManualCategory.Flora,
+    glyph: '%',
+    glyphColor: '#90EE90',
+    unlockKey: 'event:wind-sway',
+    sourceKind: 'event',
+  },
+  {
+    id: 'event:pollen',
+    name: 'Pollen',
+    category: ManualCategory.Flora,
+    glyph: '.',
+    glyphColor: '#b07fc7',
+    unlockKey: 'event:pollen',
     sourceKind: 'event',
   },
   {

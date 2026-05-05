@@ -1,7 +1,6 @@
-import type { ColorId } from '@revery-prairie/shared'
-
 import type { World } from './ecs/world'
 import type { CivilizationRuin, GenesisSimState } from './genesisTypes'
+import type { ColorId } from '@revery-prairie/shared'
 
 export const TileType = {
   Space: 'space',
@@ -162,30 +161,21 @@ export interface RemotePlayer {
 // ─── flora pollen ─────────────────────────────────────────────────────────────
 
 export interface PollenParticle {
-  x: number       // world-space float position
+  x: number
   y: number
-  age: number     // ms since spawn
-  maxAge: number  // ms total lifetime
-  profileId: string  // tileType key — used to look up FloraPollinateProfile at render time
-  phase: number   // random offset (0–2π) for perpendicular wobble, set at spawn
+  age: number
+  maxAge: number
+  profileId: string
 }
 
 export interface FloraPollinateProfile {
-  // Glyph and color used by the pollen render pass.
   glyph: string
   color: string
-  // Pre-parsed base RGB — eliminates regex on the hot path when luminance
-  // shifting is enabled. Must match `color`.
   parsedColor: [number, number, number]
-  // Wind speed (mph) below which no emission occurs.
   windThreshold: number
-  // Particles per eligible tile per second at max wind above threshold.
   emitRate: number
-  // Particle lifetime range (ms).
   minAge: number
   maxAge: number
-  // Optional gate called per tile before emission. Return false to suppress.
-  // Injected by the flora type module (e.g. clover.ts) for lifecycle-specific gating.
   emitGate?: (state: GameState, tx: number, ty: number) => boolean
 }
 
@@ -193,23 +183,12 @@ export interface FloraPollinateProfile {
 
 export type GustPhase = 'none' | 'attack' | 'hold' | 'decay'
 
-// Reserved for future per-region wind variation.
-export interface WindCell {
-  sx: number
-  sy: number
-  speed: number
-}
-
 export interface WindState {
-  // Smoothed prevailing wind — speed-scaled so magnitude encodes both
-  // direction and strength.
+  initialized: boolean
   smoothSx: number
   smoothSy: number
   smoothSpeed: number
-  // Accumulated integral of windFraction over time (capped per frame).
-  // Consumers multiply by their own frequency factor to derive animation phase.
   phaseAccum: number
-  // Gust state
   gustPhase: GustPhase
   gustPhaseStart: number
   gustPhaseDuration: number
@@ -217,9 +196,6 @@ export interface WindState {
   gustPeakIntensity: number
   gustSx: number
   gustSy: number
-  // Coarse field — null = disabled
-  coarseField: WindCell[][] | null
-  coarseResolution: number
 }
 
 export interface WindSample {
@@ -432,15 +408,7 @@ export interface Weather {
   season: Season
 }
 
-export type Direction =
-  | 'up'
-  | 'down'
-  | 'left'
-  | 'right'
-  | 'upLeft'
-  | 'upRight'
-  | 'downLeft'
-  | 'downRight'
+export type Direction = 'up' | 'down' | 'left' | 'right' | 'upLeft' | 'upRight' | 'downLeft' | 'downRight'
 
 export const isDiagonalDirection = (dir: Direction): boolean =>
   dir === 'upLeft' || dir === 'upRight' || dir === 'downLeft' || dir === 'downRight'

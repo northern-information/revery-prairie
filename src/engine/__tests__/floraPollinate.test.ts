@@ -1,28 +1,28 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
 import {
-  MAX_POLLEN,
   emitPlayerTrailBurst,
   getFloraPollinate,
+  MAX_POLLEN,
   registerFloraPollinate,
   tickPollenDrift,
   tickPollenEmit,
+  unregisterFloraPollinate,
 } from '../flora/actions/pollinate'
 import { TileType, Zone } from '../types'
 import { createTestState } from './helpers'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { FloraPollinateProfile, GameState } from '../types'
 
 // ─── test profile ─────────────────────────────────────────────────────────────
 
 const TEST_PROFILE: FloraPollinateProfile = {
-  glyph:         '.',
-  color:         '#b07fc7',
-  parsedColor:   [176, 127, 199],
+  glyph: '.',
+  color: '#b07fc7',
+  parsedColor: [176, 127, 199],
   windThreshold: 8,
-  emitRate:      0.15,
-  minAge:        800,
-  maxAge:        1400,
+  emitRate: 0.15,
+  minAge: 800,
+  maxAge: 1400,
 }
 
 const registerTestProfile = () => {
@@ -43,6 +43,9 @@ const windyState = (): GameState => {
 
 afterEach(() => {
   vi.restoreAllMocks()
+  unregisterFloraPollinate(TileType.Clover)
+  unregisterFloraPollinate('test-pollinate')
+  unregisterFloraPollinate('gated-tile')
 })
 
 describe('registerFloraPollinate / getFloraPollinate', () => {
@@ -62,7 +65,7 @@ describe('tickPollenDrift', () => {
 
   it('ages particles by dt', () => {
     const state = windyState()
-    state.pollen.push({ x: 5, y: 5, age: 0, maxAge: 1000, profileId: 'clover', phase: 0 })
+    state.pollen.push({ x: 5, y: 5, age: 0, maxAge: 1000, profileId: 'clover' })
 
     tickPollenDrift(state, 50)
     expect(state.pollen[0].age).toBe(50)
@@ -70,8 +73,8 @@ describe('tickPollenDrift', () => {
 
   it('removes expired particles (swap-with-last)', () => {
     const state = windyState()
-    state.pollen.push({ x: 5, y: 5, age: 990, maxAge: 1000, profileId: 'clover', phase: 0 })
-    state.pollen.push({ x: 6, y: 5, age: 0,   maxAge: 1000, profileId: 'clover', phase: 0 })
+    state.pollen.push({ x: 5, y: 5, age: 990, maxAge: 1000, profileId: 'clover' })
+    state.pollen.push({ x: 6, y: 5, age: 0, maxAge: 1000, profileId: 'clover' })
 
     tickPollenDrift(state, 20) // first particle exceeds maxAge (990 + 20 = 1010 >= 1000)
     expect(state.pollen).toHaveLength(1)
@@ -79,7 +82,7 @@ describe('tickPollenDrift', () => {
 
   it('moves particles in the wind direction', () => {
     const state = windyState()
-    const p = { x: 5, y: 5, age: 0, maxAge: 1000, profileId: 'clover', phase: 0 }
+    const p = { x: 5, y: 5, age: 0, maxAge: 1000, profileId: 'clover' }
     state.pollen.push(p)
 
     tickPollenDrift(state, 100)
@@ -91,7 +94,9 @@ describe('tickPollenDrift', () => {
 
   it('handles zero particles without error', () => {
     const state = windyState()
-    expect(() => { tickPollenDrift(state, 16) }).not.toThrow()
+    expect(() => {
+      tickPollenDrift(state, 16)
+    }).not.toThrow()
   })
 
   it('skips drift computation when wind is effectively zero', () => {
@@ -99,7 +104,7 @@ describe('tickPollenDrift', () => {
     state.wind.smoothSpeed = 0
     state.wind.gustIntensity = 0
 
-    const p = { x: 5, y: 5, age: 0, maxAge: 1000, profileId: 'clover', phase: 0 }
+    const p = { x: 5, y: 5, age: 0, maxAge: 1000, profileId: 'clover' }
     state.pollen.push(p)
 
     tickPollenDrift(state, 16)
@@ -138,7 +143,7 @@ describe('tickPollenEmit', () => {
     const state = windyState()
     // Fill pollen to the cap
     for (let i = 0; i < MAX_POLLEN; i++) {
-      state.pollen.push({ x: 0, y: 0, age: 0, maxAge: 1000, profileId: 'clover', phase: 0 })
+      state.pollen.push({ x: 0, y: 0, age: 0, maxAge: 1000, profileId: 'clover' })
     }
 
     vi.spyOn(Math, 'random').mockReturnValue(0) // always emit
@@ -205,7 +210,7 @@ describe('emitPlayerTrailBurst', () => {
   it('respects MAX_POLLEN cap', () => {
     const state = windyState()
     for (let i = 0; i < MAX_POLLEN - 1; i++) {
-      state.pollen.push({ x: 0, y: 0, age: 0, maxAge: 1000, profileId: 'clover', phase: 0 })
+      state.pollen.push({ x: 0, y: 0, age: 0, maxAge: 1000, profileId: 'clover' })
     }
     state.pollenTrailDepth = 8
 

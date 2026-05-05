@@ -1,8 +1,7 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
-import { MAX_WIND_SPEED, WIND_SCREEN_VECTORS, getWindAt, initWindState, tickWind } from '../weather/wind'
 import { WindDirection } from '../types'
+import { getWindAt, initWindState, MAX_WIND_SPEED, tickWind, WIND_SCREEN_VECTORS } from '../weather/wind'
 import { createTestState } from './helpers'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -23,9 +22,9 @@ describe('initWindState', () => {
     expect(s.gustIntensity).toBe(0)
   })
 
-  it('starts with coarseField null', () => {
+  it('starts uninitialized', () => {
     const s = initWindState()
-    expect(s.coarseField).toBeNull()
+    expect(s.initialized).toBe(false)
   })
 })
 
@@ -39,7 +38,7 @@ describe('WIND_SCREEN_VECTORS', () => {
 
   it('cardinal directions have magnitude √2, ordinals have magnitude 1', () => {
     const cardinals = [WindDirection.N, WindDirection.S, WindDirection.E, WindDirection.W]
-    const ordinals  = [WindDirection.NE, WindDirection.SW, WindDirection.NW, WindDirection.SE]
+    const ordinals = [WindDirection.NE, WindDirection.SW, WindDirection.NW, WindDirection.SE]
 
     for (const dir of cardinals) {
       const { sx, sy } = WIND_SCREEN_VECTORS[dir]
@@ -156,15 +155,13 @@ describe('getWindAt', () => {
     expect(sample.phaseAccum).toBe(777)
   })
 
-  it('ignores coarseField when null', () => {
+  it('returns global smooth value regardless of tile position', () => {
     const state = createTestState()
     state.wind = initWindState()
-    state.wind.coarseField = null
     state.wind.smoothSx = 2
 
-    // Should not throw and should return the global smooth value
-    expect(() => getWindAt(state, 5, 5)).not.toThrow()
     expect(getWindAt(state, 5, 5).sx).toBe(2)
+    expect(getWindAt(state, 50, 80).sx).toBe(2)
   })
 })
 
