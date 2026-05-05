@@ -1,0 +1,74 @@
+plan:
+  id: rts-camera-pan-edge-scroll-indicator-fade
+  title: Retroactive spec coverage for edge scroll indicator fade (PR #232)
+  created: 2026-05-04
+  global_verification:
+    - npm run typecheck
+    - npm run test:engine
+    - npm run lint
+    - npm run spec:validate
+
+# This is a retroactive plan. PR #232 already merged the implementation to main
+# (commits visible in git log around 2026-05-03). The spec update has already
+# been written into rts-camera-pan.yaml and the existing source files already
+# carry the new behavior. The only outstanding work is closing the test gap:
+# src/engine/__tests__/edgeScroll.test.ts has zero coverage of the alpha/fade
+# behavior introduced by PR #232.
+
+tasks:
+  - id: validate-existing-implementation
+    title: Confirm shipped code matches the spec we just wrote
+    spec_id: rts-camera-pan
+    spec_sections:
+      - edge-scroll-indicator-fade
+    context_files:
+      - src/engine/edgeScroll.ts
+      - src/engine/render/passes/edgeScrollIndicator.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files: []
+    depends_on: []
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: skip
+    tags: [verify, retroactive]
+
+  - id: add-fade-tests
+    title: Add unit tests covering edgeScrollIndicatorAlpha and Direction latching
+    spec_id: rts-camera-pan
+    spec_sections:
+      - edge-scroll-indicator-fade
+    context_files:
+      - src/engine/edgeScroll.ts
+      - src/engine/__tests__/edgeScroll.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/edgeScroll.test.ts
+    depends_on:
+      - validate-existing-implementation
+    verification:
+      - npx vitest run src/engine/__tests__/edgeScroll.test.ts
+    repair: retry
+    tags: [test, engine]
+    # Required cases (from spec edge_cases):
+    #   - alpha rises by dt / FADE_IN_MS while in zone, clamps at 1.0
+    #   - alpha falls by dt / FADE_OUT_MS out of zone, clamps at 0
+    #   - fade-out continues when edgeScrollPos becomes null (cursor leaves canvas)
+    #   - first-frame guard: dt <= 0 || dt > 200 leaves alpha untouched
+    #   - edgeScrollIndicatorDirection latches last non-zero direction during fade-out
+    #   - direction change mid-zone updates Direction without zeroing alpha
+
+  - id: revalidate-spec
+    title: Re-run npm run spec:validate after spec edits
+    spec_id: rts-camera-pan
+    spec_sections: []
+    context_files:
+      - harness/specs/rts-camera-pan.yaml
+    output_files: []
+    depends_on:
+      - add-fade-tests
+    verification:
+      - npm run spec:validate
+    repair: skip
+    tags: [verify, harness]
