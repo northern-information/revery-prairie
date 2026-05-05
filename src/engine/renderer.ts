@@ -86,6 +86,7 @@ import {
   drawCellHighlight,
   drawCellWalls,
   viewportToScreen,
+  worldDeltaToIsoPx,
   worldToScreen,
 } from './projection'
 import { projectBoltPath } from './boltPath'
@@ -283,17 +284,62 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const satelliteShake = time < state.screenShakeUntil
   const shakeActive = deepTimeShake || satelliteShake
 
+  // Player tween: resolve the fractional lerp first so the world translate
+  // below can compose it with edge-scroll drift and screen shake. The
+  // player glyph itself draws at the integer tile through worldToScreen;
+  // the world translate carries it to the visually correct sub-tile
+  // position. Clearing state.playerTween at lerp.t === 1 produces no
+  // visual snap because the offset is already zero on that frame.
+  let playerTweenT = 1
+  let playerTweenFromX = player.x
+  let playerTweenFromY = player.y
+  if (state.playerTween) {
+    playerTweenFromX = state.playerTween.fromX
+    playerTweenFromY = state.playerTween.fromY
+    const lerp = getTweenLerp(state.playerTween, time, player.x, player.y)
+    if (lerp.t >= 1) {
+      state.playerTween = null
+    } else {
+      playerTweenT = lerp.t
+    }
+  }
+  const playerLerpX = playerTweenFromX + (player.x - playerTweenFromX) * playerTweenT
+  const playerLerpY = playerTweenFromY + (player.y - playerTweenFromY) * playerTweenT
+
   // Edge-scroll camera drift: integer camera coords are needed for tile
   // indexing (map[my][mx] etc.), but stepping the camera one full tile per
   // ~3-4 frames of edge-scroll produces visible jumps. Render the scene
   // with a sub-tile pixel translate so motion looks continuous; the
   // remainder is held in cameraSubpixel until it crosses an integer tile.
+  //
+  // The player-follow tween adds a second source of sub-tile drift: while
+  // playerTween is active, state.player.x/y has already snapped to the
+  // destination tile (so the camera centers on the destination), but the
+  // visual world position is mid-step. Without the offset below, world
+  // tiles would jump one full tile every 100ms move tick while the player
+  // glyph fights it — making the player look choppy even though the tween
+  // math is correct. Composing the tween offset into the same translate
+  // path keeps tile indexing integer while the canvas slides smoothly.
   let driftPx = 0
   let driftPy = 0
   if (state.cameraMode === 'free') {
-    driftPx = (state.cameraSubpixel.x - state.cameraSubpixel.y) * charWidth
-    driftPy = (state.cameraSubpixel.x + state.cameraSubpixel.y) * (charHeight / 2)
+    driftPx += (state.cameraSubpixel.x - state.cameraSubpixel.y) * charWidth
+    driftPy += (state.cameraSubpixel.x + state.cameraSubpixel.y) * (charHeight / 2)
   }
+  // Sign: the world translate must shift the scene as if the camera were
+  // at playerLerpX/Y (lagging behind the post-snap player.x/y). With
+  // ctx.translate(-driftPx, ...), a NEGATIVE driftPx shifts the canvas
+  // RIGHT, which is what's needed when player has snapped east of the
+  // lerp position. The world-delta argument is therefore (lerp - player),
+  // not (player - lerp).
+  const tweenDelta = worldDeltaToIsoPx(
+    playerLerpX - player.x,
+    playerLerpY - player.y,
+    charWidth,
+    charHeight,
+  )
+  driftPx += tweenDelta.px
+  driftPy += tweenDelta.py
 
   const worldTransformActive = shakeActive || driftPx !== 0 || driftPy !== 0
   if (worldTransformActive) {
@@ -311,21 +357,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     ctx.translate(sx - driftPx, sy - driftPy)
   }
 
-  // Player tween: glyph draws at the projected fractional world position.
-  // Selection/cursor highlights stay anchored to the integer player tile.
-  // Routing through worldToScreen makes the projection match the renderer —
-  // same path the coyote/ECS lerp post-pass uses.
-  let playerLerpX = player.x
-  let playerLerpY = player.y
-  if (state.playerTween) {
-    const lerp = getTweenLerp(state.playerTween, time, player.x, player.y)
-    if (lerp.t >= 1) {
-      state.playerTween = null
-    } else {
-      playerLerpX = lerp.x
-      playerLerpY = lerp.y
-    }
-  }
+  // Player glyph projects from the fractional lerp position. With the
+  // world translate above (which shifts everything to compensate for the
+  // camera snap), drawing the player at lerp lands the glyph at canvas
+  // center across the entire tween: lerp-position is already (player -
+  // tweenDelta) in screen space, and the translate adds tweenDelta back,
+  // for a net of zero displacement at every t. Selection/cursor
+  // highlights stay anchored to the integer player tile via px/pyLift in
+  // the central tile loop.
   const playerScreen = worldToScreen(
     playerLerpX,
     playerLerpY,
@@ -335,7 +374,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     viewportWidth,
     viewportHeight,
   )
-  const playerLift = liftAt(player.x, player.y)
+  // Vertical lift interpolates between from-tile and to-tile so cube-step
+  // elevation changes don't snap the player up or down at tween start.
+  const playerLiftFrom = liftAt(playerTweenFromX, playerTweenFromY)
+  const playerLiftTo = liftAt(player.x, player.y)
+  const playerLift = playerLiftFrom + (playerLiftTo - playerLiftFrom) * playerTweenT
 
   // Zone filter helper — only render entities in the current zone (including ruinIndex match)
   const inZone = (eid: number): boolean => isEntityInCurrentZone(state, eid)
