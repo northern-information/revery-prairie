@@ -1,5 +1,6 @@
 import { RAIN_FRONT_WIDTH } from './constants'
 import { ComponentType } from './ecs/types'
+import { getFloraMovement } from './flora/actions/movement'
 import { posKey } from './position'
 import { getReveryDefinition } from './reveries'
 import { Sky, WindDirection, Zone } from './types'
@@ -63,14 +64,16 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
   // Weather rain front (overworld only)
   if (state.weather.sky === Sky.Rain && zone === Zone.Overworld) {
     const windDir = state.weather.windDirection
-    const frontAxis =
-      windDir === WindDirection.N || windDir === WindDirection.S ? 'y' : 'x'
+    const frontAxis = windDir === WindDirection.N || windDir === WindDirection.S ? 'y' : 'x'
     const frontSign =
-      windDir === WindDirection.N || windDir === WindDirection.W || windDir === WindDirection.NW || windDir === WindDirection.SW
+      windDir === WindDirection.N ||
+      windDir === WindDirection.W ||
+      windDir === WindDirection.NW ||
+      windDir === WindDirection.SW
         ? -1
         : 1
     const frontMapSize = frontAxis === 'x' ? state.overworldMapWidth : state.overworldMapHeight
-    const frontPos = ((state.rainFrontOffset * frontSign) % frontMapSize + frontMapSize) % frontMapSize
+    const frontPos = (((state.rainFrontOffset * frontSign) % frontMapSize) + frontMapSize) % frontMapSize
     const coord = frontAxis === 'x' ? x : y
     const dist = ((coord - frontPos) * frontSign + frontMapSize) % frontMapSize
     if (dist < RAIN_FRONT_WIDTH) {
@@ -101,6 +104,22 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
   // Satellite craters (persistent pollution, overworld only)
   if (zone === Zone.Overworld && state.craters.has(posKey(x, y))) {
     seen.add('crater')
+  }
+
+  // Wind sway (overworld only — clover or any flora tile with a registered movement profile)
+  if (zone === Zone.Overworld && state.wind.smoothSpeed > 0.5) {
+    const tile = state.map[y]?.[x]
+    if (tile && getFloraMovement(tile.type)) {
+      seen.add('swaying')
+    }
+  }
+
+  // Pollen particles at this tile
+  for (const p of state.pollen) {
+    if (Math.round(p.x) === x && Math.round(p.y) === y) {
+      seen.add('pollen')
+      break
+    }
   }
 
   // Coyote mode indicator

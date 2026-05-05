@@ -1,7 +1,7 @@
-import { RAIN_FADE_DURATION_MS } from './constants'
-import { Season, Sky, WindDirection } from './types'
+import { RAIN_FADE_DURATION_MS } from '../constants'
+import { Season, Sky, WindDirection } from '../types'
 
-import type { GameState, Weather } from './types'
+import type { GameState, Weather } from '../types'
 
 const WIND_DIRECTIONS: WindDirection[] = [
   WindDirection.N,

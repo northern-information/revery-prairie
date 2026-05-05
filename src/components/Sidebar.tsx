@@ -4,12 +4,13 @@ import { PanelTitle, SectionHeader } from './PanelPrimitives'
 
 import { getCharacterDefinition } from '@/engine/characters'
 import {
+  DEEP_TIME_TOTAL_YEARS,
   DEEP_TIME_TRANSITION_DURATION_MS,
   GENESIS_TRANSITION_SIDEBAR_DURATION_MS,
+  getEntranceGlyph,
   SOIL_HEALTH_DEFAULT,
   SPACE_BORDER,
   TILE_COLORS,
-  getEntranceGlyph,
   WATER_MAX,
   ZOOM_DEFAULT,
   ZOOM_MAX,
@@ -19,19 +20,12 @@ import {
 import { screenToTile } from '@/engine/coordinates'
 import { ComponentType } from '@/engine/ecs/types'
 import { getTileEffects } from '@/engine/effects'
-import {
-  formatYear,
-  GENESIS_END_YEAR,
-  GENESIS_EPOCHS,
-  getEpochProgress,
-  getGenesisYear,
-} from '@/engine/genesis'
+import { formatYear, GENESIS_END_YEAR, GENESIS_EPOCHS, getEpochProgress, getGenesisYear } from '@/engine/genesis'
 import { getDefinition } from '@/engine/items'
 import { isInBounds, posKey } from '@/engine/position'
 import { getLastVisibleSet } from '@/engine/renderer'
-import { getTileVisibility, hasFogOfWar } from '@/engine/visibility'
-import { DEEP_TIME_TOTAL_YEARS } from '@/engine/constants'
 import { CloverStage, DeepTimePhase, TileType, Zone } from '@/engine/types'
+import { getTileVisibility, hasFogOfWar } from '@/engine/visibility'
 import { fToC, mphToKph } from '@/engine/weather'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { CharMetrics, GameState } from '@/engine/types'
@@ -52,6 +46,19 @@ const SKY_LABEL = {
   cloudy: 'Cloudy',
   rain: 'Rain',
 } as const
+
+// Arrows show on-screen blow direction derived from WIND_SCREEN_VECTORS.
+// N wind has screen vector (-1,+1) = lower-left, so the arrow points ↙.
+const WIND_DIRECTION_ARROW: Record<string, string> = {
+  N: '↙',
+  NE: '←',
+  E: '↖',
+  SE: '↑',
+  S: '↗',
+  SW: '→',
+  W: '↘',
+  NW: '↓',
+}
 
 const capitalize = (s: string): string => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1))
 
@@ -125,7 +132,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
           metrics.charWidth,
           metrics.charHeight,
           state.viewportWidth,
-          state.viewportHeight,
+          state.viewportHeight
         )
       : null
 
@@ -173,8 +180,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
 
   // Deep Time mode: show phase info + year counter + progress bar (mirrors genesis layout)
   if (state.deepTime?.active && state.deepTime.phase !== DeepTimePhase.Wandering) {
-    const phaseLabel =
-      state.deepTime.phase === DeepTimePhase.Burning ? 'the prairie burns...' : 'centuries pass...'
+    const phaseLabel = state.deepTime.phase === DeepTimePhase.Burning ? 'the prairie burns...' : 'centuries pass...'
     const progress = state.deepTime.elapsedYears / DEEP_TIME_TOTAL_YEARS
 
     return (
@@ -187,9 +193,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
               <tbody>
                 <tr>
                   <td className="text-muted py-0.5">Year</td>
-                  <td className="py-0.5 text-right">
-                    {formatYear(GENESIS_END_YEAR + state.deepTime.elapsedYears)}
-                  </td>
+                  <td className="py-0.5 text-right">{formatYear(GENESIS_END_YEAR + state.deepTime.elapsedYears)}</td>
                 </tr>
               </tbody>
             </table>
@@ -213,9 +217,11 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
   const { weather } = state
 
   const temp = metric ? `${String(fToC(weather.temperatureF))}°C` : `${String(weather.temperatureF)}°F`
+  const windArrow = WIND_DIRECTION_ARROW[weather.windDirection] ?? ''
+  const windSuffix = windArrow ? ` ${windArrow}` : ''
   const wind = metric
-    ? `${String(mphToKph(weather.windSpeed))} kph ${weather.windDirection}`
-    : `${String(weather.windSpeed)} mph ${weather.windDirection}`
+    ? `${String(mphToKph(weather.windSpeed))} kph ${weather.windDirection}${windSuffix}`
+    : `${String(weather.windSpeed)} mph ${weather.windDirection}${windSuffix}`
 
   // Fade lives on the inner content wrapper, not the outer shell — so the
   // black backdrop stays fully opaque through the genesis→gameplay swap.
@@ -307,8 +313,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
                       const tileKey = posKey(cx, cy)
                       if (state.ponds.has(tileKey) || state.rivers.has(tileKey)) return 'fresh water'
                       const tileType = state.map[cy]?.[cx]?.type
-                      if (tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall)
-                        return 'stone'
+                      if (tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall) return 'stone'
                       if (tileType === TileType.CaveFloor) return 'dirt'
                       if (tileType === TileType.CaveEntrance) return 'cave entrance'
                       if (tileType === TileType.BurntClover) return 'burnt clover'
@@ -332,7 +337,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
                       return (
                         <tr>
                           <td className="text-muted py-0.5">Effects</td>
-                          <td className="py-0.5 text-right text-muted">None</td>
+                          <td className="text-muted py-0.5 text-right">None</td>
                         </tr>
                       )
                     }
@@ -419,9 +424,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
                   return (
                     <tr>
                       <td className="text-muted py-0.5">Elevation</td>
-                      <td className={`py-0.5 text-right ${elev === undefined ? 'text-muted' : ''}`}>
-                        {elev ?? '—'}
-                      </td>
+                      <td className={`py-0.5 text-right ${elev === undefined ? 'text-muted' : ''}`}>{elev ?? '—'}</td>
                     </tr>
                   )
                 })()}
@@ -454,26 +457,29 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
                         : state.currentZone}
                 </td>
               </tr>
-              {state.currentRuinIndex !== null && (() => {
-                const interior = state.ruinInteriors[state.currentRuinIndex]
-                const archetypeLabels: Record<string, string> = {
-                  dormantGarden: 'Dormant garden',
-                }
-                return (
-                  <>
-                    <tr>
-                      <td className="text-muted py-0.5">Glyph</td>
-                      <td className="py-0.5 text-right">{getEntranceGlyph(state.currentRuinIndex + 1)}</td>
-                    </tr>
-                    {interior && (
+              {state.currentRuinIndex !== null &&
+                (() => {
+                  const interior = state.ruinInteriors[state.currentRuinIndex]
+                  const archetypeLabels: Record<string, string> = {
+                    dormantGarden: 'Dormant garden',
+                  }
+                  return (
+                    <>
                       <tr>
-                        <td className="text-muted py-0.5">Type</td>
-                        <td className="py-0.5 text-right">{archetypeLabels[interior.archetype] ?? interior.archetype}</td>
+                        <td className="text-muted py-0.5">Glyph</td>
+                        <td className="py-0.5 text-right">{getEntranceGlyph(state.currentRuinIndex + 1)}</td>
                       </tr>
-                    )}
-                  </>
-                )
-              })()}
+                      {interior && (
+                        <tr>
+                          <td className="text-muted py-0.5">Type</td>
+                          <td className="py-0.5 text-right">
+                            {archetypeLabels[interior.archetype] ?? interior.archetype}
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )
+                })()}
               <tr>
                 <td className="text-muted py-0.5">Total land</td>
                 <td className="py-0.5 text-right">{total.toLocaleString()}</td>

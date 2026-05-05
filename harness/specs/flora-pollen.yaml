@@ -1,0 +1,143 @@
+id: flora-pollen
+name: Pollen particle system
+priority: medium
+layer: engine
+source_files:
+  - src/engine/flora/actions/pollinate.ts
+  - src/engine/flora/type/clover/clover.ts
+  - src/engine/flora/index.ts
+  - src/engine/render/passes/pollenOverlay.ts
+  - src/engine/types.ts
+  - src/engine/manual.ts
+  - src/engine/__tests__/floraPollinate.test.ts
+dependencies:
+  - wind-system
+  - flora-movement
+
+behaviors:
+  - id: pollinate-registry
+    description: >
+      registerFloraPollinate(tileType, profile) stores the profile keyed by
+      tile type. getFloraPollinate returns it. unregisterFloraPollinate removes
+      it. Side-effect import of flora/type/clover/clover.ts registers clover
+      at module load time.
+    inputs:
+      - 'registerFloraPollinate called with a tile type and profile'
+    outputs:
+      - 'getFloraPollinate returns the same profile object'
+    state_changes: []
+    determinism: deterministic
+
+  - id: drift-and-expire
+    description: >
+      tickPollenDrift ages all particles by dt. Particles with age >= maxAge
+      are removed in O(1) via swap-with-last. When smoothSpeed >= 0.01,
+      survivors are displaced using smooth wind direction scaled by total
+      speed fraction plus random turbulence.
+    inputs:
+      - 'state.pollen contains particles'
+      - 'tickPollenDrift called with dt'
+    outputs:
+      - 'particle ages increase by dt'
+      - 'expired particles removed'
+      - 'survivors translated in wind direction'
+    state_changes:
+      - field: pollen
+        effect: 'particles aged; expired removed; x/y displaced by drift + turbulence'
+    determinism: probabilistic
+
+  - id: zero-wind-skip-drift
+    description: >
+      When smoothSpeed < 0.01 tickPollenDrift still ages and expires particles
+      but does not compute or apply drift. A particle at (5, 5) stays at x=5
+      after a tick with zero wind.
+    inputs:
+      - 'state.wind.smoothSpeed = 0'
+    outputs:
+      - 'particle x/y unchanged'
+    state_changes:
+      - field: pollen
+        effect: 'age incremented; position unchanged'
+    determinism: deterministic
+
+  - id: emit-from-viewport
+    description: >
+      tickPollenEmit scans the visible viewport. For each registered tile type
+      with totalSpeed above windThreshold, eligible tiles emit particles
+      probabilistically. emitGate suppresses individual tiles. Emission
+      probability normalizes by zoom² so total expected output is constant
+      across zoom levels.
+    inputs:
+      - 'state.currentZone = Overworld'
+      - 'windSpeed above profile windThreshold'
+      - 'matching tile in viewport'
+    outputs:
+      - 'new PollenParticle appended to state.pollen'
+    state_changes:
+      - field: pollen
+        effect: 'new particles added up to MAX_POLLEN'
+    determinism: probabilistic
+
+  - id: trail-burst
+    description: >
+      emitPlayerTrailBurst fires 5 + min(pollenTrailDepth, 8) particles at the
+      exit position when the player leaves a flora tile. pollenTrailDepth resets
+      to 0 after the burst.
+    inputs:
+      - 'emitPlayerTrailBurst called with valid tileType'
+    outputs:
+      - '5 + min(depth, 8) new particles in state.pollen'
+      - 'state.pollenTrailDepth = 0'
+    state_changes:
+      - field: pollen
+        effect: 'burst of particles spawned'
+      - field: pollenTrailDepth
+        effect: 'reset to 0'
+    determinism: probabilistic
+
+  - id: pollen-discovery
+    description: >
+      recordDiscovery(state, 'event:pollen') is called inside spawnParticle on
+      every successful spawn. The key is added to state.manualDiscoveries once;
+      subsequent calls are no-ops.
+    inputs:
+      - 'any code path that calls spawnParticle'
+    outputs:
+      - "state.manualDiscoveries contains 'event:pollen' after first spawn"
+    state_changes:
+      - field: manualDiscoveries
+        effect: "adds 'event:pollen' on first particle spawn"
+    determinism: deterministic
+
+  - id: max-pollen-cap
+    description: >
+      spawnParticle is a no-op when state.pollen.length >= MAX_POLLEN (150).
+      tickPollenEmit returns early when cap is reached mid-scan.
+    inputs:
+      - 'state.pollen.length = MAX_POLLEN'
+    outputs:
+      - 'no new particles added'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: emit-gate-suppression
+    description: 'profile.emitGate returns false for a tile'
+    expected: 'no particle emitted for that tile; other tiles unaffected'
+  - id: unregistered-tile-trail-burst
+    description: 'emitPlayerTrailBurst called with tile type not in registry'
+    expected: 'no particles spawned; pollenTrailDepth unchanged'
+  - id: zone-suppression
+    description: 'tickPollenEmit called while state.currentZone = Cave'
+    expected: 'returns immediately; no particles emitted'
+
+failure_conditions:
+  - trigger: 'Drift computed even when smoothSpeed < 0.01'
+    expected: 'division by near-zero causes Infinity or NaN particle positions'
+  - trigger: 'Particle removal uses splice instead of swap-with-last'
+    expected: 'O(n) removals per expired particle; visible frame drops with large pollen counts'
+
+verification:
+  test_file: src/engine/__tests__/floraPollinate.test.ts
+  test_pattern: pollen
+  command: npx vitest run src/engine/__tests__/floraPollinate.test.ts

@@ -3,7 +3,7 @@ name: 'Weather system'
 priority: medium
 layer: engine
 source_files:
-  - src/engine/weather.ts
+  - src/engine/weather/index.ts
   - src/engine/types.ts
   - src/engine/state.ts
   - src/engine/constants.ts

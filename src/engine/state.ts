@@ -14,6 +14,7 @@ import { buildWaterProximity } from './tileWater'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
 import { CoyoteMode, TileType, Zone } from './types'
 import { generateWeather } from './weather'
+import { initWindState } from './weather/wind'
 
 import type { GenesisSimState } from './genesisTypes'
 import type { GameState, Position } from './types'
@@ -196,6 +197,9 @@ export const createGameState = (
     postGiftActionsCompleted: new Set<string>(),
     rainFrontOffset: 0,
     rainIntensity: 0,
+    wind: initWindState(),
+    pollen: [],
+    pollenTrailDepth: 0,
     waterProximity: new Map<string, number>(),
     genesis: genesisData,
     genesisTransition: null,
