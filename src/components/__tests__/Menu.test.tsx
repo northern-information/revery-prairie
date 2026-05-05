@@ -118,4 +118,30 @@ describe('Menu', () => {
     expect(onCycleFontScale).toHaveBeenCalledOnce()
   })
 
+  it('shows the Credits button', () => {
+    render(<Menu {...makeProps()} />)
+
+    expect(screen.getByText('Credits')).toBeInTheDocument()
+  })
+
+  it('opens the credits modal when Credits is clicked', async () => {
+    render(<Menu {...makeProps()} />)
+
+    expect(screen.queryByTestId('credits-modal')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByText('Credits'))
+
+    expect(screen.getByTestId('credits-modal')).toBeInTheDocument()
+  })
+
+  it('closes the credits modal via the close button', async () => {
+    render(<Menu {...makeProps()} />)
+
+    await userEvent.click(screen.getByText('Credits'))
+    expect(screen.getByTestId('credits-modal')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByLabelText(/close credits/i))
+    expect(screen.queryByTestId('credits-modal')).not.toBeInTheDocument()
+  })
+
 })

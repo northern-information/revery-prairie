@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { CreditsModal } from './CreditsModal'
 import { TextButton } from './PanelPrimitives'
+import { CREDITS } from '@/engine/credits'
 
 const FONT_SCALES = [1, 1.25, 1.5] as const
 const FONT_SCALE_LABELS: Record<number, string> = {
@@ -34,6 +36,7 @@ export const Menu = ({
   onCycleFontScale,
 }: MenuProps) => {
   const [confirming, setConfirming] = useState(false)
+  const [showCredits, setShowCredits] = useState(false)
 
   return (
     <div className="text-text font-mono text-xs">
@@ -66,7 +69,22 @@ export const Menu = ({
           Auto-hide panels: {autoHidePanels ? 'On' : 'Off'}
         </TextButton>
         <TextButton onClick={onCycleFontScale}>Font: {FONT_SCALE_LABELS[fontScale] ?? 'Medium'}</TextButton>
+        <TextButton
+          onClick={() => {
+            setShowCredits(true)
+          }}
+        >
+          Credits
+        </TextButton>
       </div>
+      {showCredits && (
+        <CreditsModal
+          credits={CREDITS}
+          onClose={() => {
+            setShowCredits(false)
+          }}
+        />
+      )}
     </div>
   )
 }
