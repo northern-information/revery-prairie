@@ -7,6 +7,7 @@ source_files:
   - src/engine/edgeScroll.ts
   - src/engine/gameLoop.ts
   - src/engine/movement.ts
+  - src/engine/render/passes/edgeScrollIndicator.ts
   - src/engine/renderer.ts
   - src/engine/state.ts
   - src/engine/types.ts
@@ -108,6 +109,41 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: edge-scroll-indicator-fade
+    description: >
+      The hot-pink edge indicator overlay (drawn by edgeScrollIndicator
+      render pass) fades in and out instead of popping on/off. tickEdgeScroll
+      maintains state.edgeScrollIndicatorAlpha (0–1) and advances it each
+      frame using the dt between calls (clamped to (0, 200] to ignore the
+      first frame and background-tab pauses). When the cursor sits in an
+      edge zone (dx !== 0 || dy !== 0) alpha rises by dt / FADE_IN_MS
+      (120ms full ramp). When the cursor leaves the zone, when
+      edgeScrollPos is null, or when no axis is active, alpha falls by
+      dt / FADE_OUT_MS (280ms full ramp). Alpha is clamped to [0, 1] each tick.
+      state.edgeScrollIndicatorDirection latches the last non-zero
+      {dx, dy} so the correct edges stay illuminated during fade-out
+      after the cursor leaves the zone. The render pass's isActive checks
+      alpha > 0 (not edgeScrollDirection) so it keeps drawing during
+      fade-out, applies state.edgeScrollIndicatorAlpha via ctx.save +
+      ctx.globalAlpha + ctx.restore, and reads
+      edgeScrollIndicatorDirection (not edgeScrollDirection) for which
+      edges to draw.
+    inputs:
+      - 'state.edgeScrollPos in or out of an edge zone'
+      - 'frame dt (ms since last tickEdgeScroll call)'
+    outputs:
+      - 'state.edgeScrollIndicatorAlpha advances toward 1 (in zone) or 0 (out of zone)'
+      - 'state.edgeScrollIndicatorDirection latches last non-zero direction'
+      - 'render pass draws indicator at globalAlpha = edgeScrollIndicatorAlpha'
+    state_changes:
+      - field: edgeScrollIndicatorAlpha
+        effect: 'rises by dt / 120 in zone, falls by dt / 280 out of zone, clamped to [0, 1]'
+      - field: edgeScrollIndicatorDirection
+        effect: 'latched to {dx, dy} on every tick where the active direction is non-zero'
+      - field: lastEdgeScrollTime
+        effect: 'set to time on every call (including the early-return path when edgeScrollPos is null)'
+    determinism: time-based
+
 edge_cases:
   - id: cursor-leaves-canvas
     description: 'Mouse leaves the canvas (state.cursorScreenPos becomes null)'
@@ -127,6 +163,21 @@ edge_cases:
   - id: cursor-over-log-overlay
     description: 'User moves the cursor over the EventLog overlay in the lower-left corner — the overlay sits inside the bottom-left edge-scroll zone'
     expected: 'Log overlay nulls state.edgeScrollPos on hover (same pattern as the right-hand Sidebar); edge-scroll tick produces zero velocity while hovered; cameraMode does not flip to free from the hover alone; edge-scroll resumes when the cursor leaves the overlay and the next canvas mousemove restores edgeScrollPos'
+  - id: indicator-fade-out-after-cursor-leaves-zone
+    description: 'Cursor moves from an edge zone back into the centre of the canvas'
+    expected: 'edgeScrollDirection becomes {0,0} immediately; edgeScrollIndicatorAlpha decays linearly toward 0 over ~280ms; edgeScrollIndicatorDirection retains the last active {dx, dy} so the same edges stay illuminated during the fade'
+  - id: indicator-fade-out-after-cursor-leaves-canvas
+    description: 'Mouse leaves the canvas entirely (state.edgeScrollPos becomes null) while the indicator is at full alpha'
+    expected: 'tickEdgeScroll early-returns but still advances dt and decays edgeScrollIndicatorAlpha toward 0 over ~280ms; edgeScrollDirection becomes {0,0}; edgeScrollIndicatorDirection retains the latched direction; isActive returns true until alpha reaches 0'
+  - id: indicator-fade-in-clamps-at-1
+    description: 'Cursor remains in an edge zone for longer than FADE_IN_MS'
+    expected: 'edgeScrollIndicatorAlpha clamps at 1.0; no overshoot; further frames in zone are no-ops for alpha'
+  - id: indicator-first-frame-and-background-tab
+    description: 'First tick after game start (lastEdgeScrollTime === 0) or after a long background-tab pause (dt > 200)'
+    expected: 'dt-validity guard (dt > 0 && dt <= 200) suppresses the alpha update for that frame; lastEdgeScrollTime advances; the next valid frame resumes fade-in/out from current alpha without a phase jump'
+  - id: indicator-direction-change-mid-fade
+    description: 'Cursor moves from one edge zone (e.g. right) directly into another (e.g. bottom-right corner) without leaving an edge zone'
+    expected: 'edgeScrollIndicatorDirection updates to the new {dx, dy}; alpha continues rising; the previous edge stops drawing on the same frame and the new edges illuminate at the current alpha'
 
 failure_conditions:
   - trigger: 'Edge-scroll tick keeps mutating camera in follow mode without flipping to free'
@@ -135,6 +186,10 @@ failure_conditions:
     expected: 'sending units to off-screen tiles snaps the camera away from the user pan; spec violated'
   - trigger: 'Camera position not clamped during free-pan'
     expected: 'user can scroll into the void / off the map; spec violated'
+  - trigger: 'Indicator render pass reads edgeScrollDirection instead of edgeScrollIndicatorDirection'
+    expected: 'fade-out renders with no edges illuminated (dx/dy already zeroed) — the overlay collapses to a dim rectangle; spec violated'
+  - trigger: 'tickEdgeScroll skips alpha decay when edgeScrollPos is null'
+    expected: 'indicator stays at full alpha forever after cursor leaves the canvas; visible until next mousemove returns to a non-edge zone; spec violated'
 
 verification:
   test_file: src/engine/__tests__/edgeScroll.test.ts
