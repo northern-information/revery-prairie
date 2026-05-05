@@ -405,7 +405,28 @@ each task in `tasks[]`:
 ```
 npm run spec:validate    # validate all specs against schema
 npm run harness:run      # execute a plan (--plan harness/plans/{id}.yaml)
+npm run harness:check    # gate the current branch against origin/main
 ```
+
+### harness gate (CI)
+
+`npm run harness:check` enforces that significant product changes go through `/new-feature`, `/bug-report`, or `/change-request`. it runs in CI on every PR and can be run locally.
+
+**gate triggers** (PR fails unless it includes both a `harness/specs/*.yaml` and a `harness/plans/*.yaml` change):
+
+- any new file added under `src/`, `worker/src/`, or `shared/src/` (excluding tests)
+- more than 150 LOC changed (added + removed) across product paths in the same trees
+
+**always skipped** (no spec required):
+
+- test files (`**/__tests__/**`, `*.test.ts(x)`)
+- `harness/`, `.github/workflows/`, `.claude/`
+- root config and docs (`package.json`, `tsconfig*`, `vite*`, `eslint*`, `prettier*`, `*.md`, `.gitignore`, `.editorconfig`)
+- assets and anything else outside the product trees
+
+**override**: add a `Skip-Harness: <reason>` trailer to the most recent commit on the branch (or set `SKIP_HARNESS=<reason>` in CI). the reason is logged in CI output so reviewers see it. use sparingly — for emergency patches or genuinely-uncategorizable changes that the gate misclassifies.
+
+**how to satisfy the gate**: run `/new-feature`, `/bug-report`, or `/change-request` before starting work. these skills produce both a spec and a plan, which the gate looks for in the diff against `origin/main`.
 
 ## worktrees
 

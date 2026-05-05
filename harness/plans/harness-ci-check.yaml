@@ -1,0 +1,102 @@
+plan:
+  id: harness-ci-check
+  title: 'Harness CI gate: enforce spec+plan on gated PRs'
+  created: '2026-05-04'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+    - npm run spec:validate
+
+tasks:
+  - id: implement-harness-check
+    title: 'Implement harness/src/harness-check.ts: classify diff, gate PRs, support Skip-Harness override'
+    spec_id: harness-ci-check
+    spec_sections:
+      - detect-changed-files
+      - classify-pr-size
+      - require-spec-and-plan
+      - minor-pr-passes
+      - skip-harness-override
+    context_files:
+      - harness/specs/harness-ci-check.yaml
+      - harness/src/validate-cli.ts
+      - package.json
+    output_files:
+      - harness/src/harness-check.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [harness]
+
+  - id: write-tests
+    title: 'Write harness/__tests__/harness-check.test.ts covering all behaviors and edge cases'
+    spec_id: harness-ci-check
+    spec_sections:
+      - detect-changed-files
+      - classify-pr-size
+      - require-spec-and-plan
+      - minor-pr-passes
+      - skip-harness-override
+    context_files:
+      - harness/specs/harness-ci-check.yaml
+      - harness/src/harness-check.ts
+    output_files:
+      - harness/__tests__/harness-check.test.ts
+    depends_on:
+      - implement-harness-check
+    verification:
+      - npx vitest run harness/__tests__/harness-check.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: wire-npm-script
+    title: 'Add `harness:check` script to package.json'
+    spec_id: harness-ci-check
+    spec_sections:
+      - local-script-wired
+    context_files:
+      - package.json
+      - harness/src/harness-check.ts
+    output_files:
+      - package.json
+    depends_on:
+      - implement-harness-check
+    verification:
+      - npm run harness:check --silent
+    repair: retry
+    tags: [config]
+
+  - id: wire-ci-job
+    title: 'Add harness check step to .github/workflows/ci.yml lint job with fetch-depth: 0'
+    spec_id: harness-ci-check
+    spec_sections:
+      - ci-job-wired
+    context_files:
+      - .github/workflows/ci.yml
+      - package.json
+    output_files:
+      - .github/workflows/ci.yml
+    depends_on:
+      - wire-npm-script
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [ci]
+
+  - id: update-claude-md
+    title: 'Document the harness gate in CLAUDE.md (triggers, skipped paths, Skip-Harness override)'
+    spec_id: harness-ci-check
+    spec_sections:
+      - claude-md-updated
+    context_files:
+      - CLAUDE.md
+      - harness/specs/harness-ci-check.yaml
+    output_files:
+      - CLAUDE.md
+    depends_on: []
+    verification:
+      - npm run format:check
+    repair: retry
+    tags: [docs]
