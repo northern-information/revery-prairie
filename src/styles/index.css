@@ -128,3 +128,8 @@ body,
 .animate-fade-in {
   animation: fade-in 1s ease-in;
 }
+
+.game-title {
+  font-family: 'Times New Roman', serif;
+  font-style: italic;
+}
