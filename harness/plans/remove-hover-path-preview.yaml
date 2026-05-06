@@ -1,0 +1,79 @@
+plan:
+  id: remove-hover-path-preview
+  title: Remove hover path preview feature
+  created: 2026-05-05
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: remove-state-fields
+    title: Remove hoverPath and hoverPathTarget from GameState types and state
+    spec_id: cursor-state
+    spec_sections:
+      - screen-to-tile-mapping
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: remove-cursor-computation
+    title: Strip hover path computation and unused imports from cursor.ts, remove HOVER_PATH_MAX_DISTANCE from constants.ts
+    spec_id: cursor-state
+    spec_sections:
+      - screen-to-tile-mapping
+    context_files:
+      - src/engine/cursor.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/cursor.ts
+      - src/engine/constants.ts
+    depends_on:
+      - remove-state-fields
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: remove-renderer-rendering
+    title: Remove _hoverPathPositions set and all hover path rendering branches from renderer.ts
+    spec_id: cursor-state
+    spec_sections:
+      - screen-to-tile-mapping
+    context_files:
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - remove-state-fields
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: remove-cursor-tests
+    title: Remove hover path tests from cursor.test.ts
+    spec_id: cursor-state
+    spec_sections:
+      - screen-to-tile-mapping
+    context_files:
+      - src/engine/__tests__/cursor.test.ts
+    output_files:
+      - src/engine/__tests__/cursor.test.ts
+    depends_on:
+      - remove-state-fields
+      - remove-cursor-computation
+    verification:
+      - npx vitest run src/engine/__tests__/cursor.test.ts
+    repair: retry
+    tags: [test]

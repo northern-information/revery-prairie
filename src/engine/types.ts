@@ -250,8 +250,6 @@ export interface GameState {
   playerTween: MovementTween | null
   cursorTile: Position | null
   cursorScreenPos: { x: number; y: number } | null
-  hoverPath: Position[] | null
-  hoverPathTarget: Position | null
   rainSeed: number
   metric: boolean
   musicEnabled: boolean

@@ -207,7 +207,6 @@ export const KEYBOARD_MOVE_TICK_MS = 100
 // while sprinting, the path and keyboard-move ticks fire at this faster cadence
 // with a single move per tick so every tile is a discrete stop point
 export const SPRINT_MOVE_TICK_MS = 50
-export const HOVER_PATH_MAX_DISTANCE = 60 // manhattan distance cap for hover preview pathfinding
 export const WEATHER_TICK_MS = 5000
 
 // ghosts
@@ -293,7 +292,6 @@ export const BEE_CHAR = '*'
 export const BEE_COLOR = '#FFD700'
 export const BG_COLOR = '#1a1a1a'
 export const ACTION_COLOR = '#ff69b4'
-export const HOVER_PATH_COLOR = '#555555'
 export const COIN_GLINTING_COLOR = '#C9B037'
 export const COIN_DULL_COLOR = '#8B7D3C'
 

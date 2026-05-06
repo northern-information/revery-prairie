@@ -65,8 +65,6 @@ const EXPECTED_FIELDS = [
   'reveries',
   'actionBar',
   'giftsReceived',
-  'hoverPath',
-  'hoverPathTarget',
   'pendingInteractionTarget',
   'heldDirection',
   'heldActionSlot',
