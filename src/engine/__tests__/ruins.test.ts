@@ -578,9 +578,9 @@ describe('ruin infrastructure', () => {
     const buildMap = (w: number, h: number, fill: TileType = TileType.Dirt): Tile[][] =>
       Array.from({ length: h }, () => Array.from({ length: w }, () => ({ type: fill })))
 
-    it('RuinEntrance color is verdigris and halo color is deep umber', () => {
+    it('RuinEntrance color is verdigris and halo color is dark verdigris', () => {
       expect(TILE_COLORS[TileType.RuinEntrance]).toBe('#5FD3BC')
-      expect(RUIN_ENTRANCE_HALO_COLOR).toBe('#2E1F12')
+      expect(RUIN_ENTRANCE_HALO_COLOR).toBe('#1A2E2A')
     })
 
     it('returns the full 3x3 footprint for an entrance away from edges', () => {

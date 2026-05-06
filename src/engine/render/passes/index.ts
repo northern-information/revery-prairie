@@ -18,6 +18,7 @@ export { prairieHaloPass } from './prairieHalo'
 // Within a slot, registration order is preserved by the registry.
 export { fogMaskPass } from './fogMask'
 // effect (post-tile overlays)
+export { ruinEntrancePatinaPass } from './ruinEntrancePatina'
 export { rainAuraOverlayPass } from './rainAuraOverlay'
 export { reveryRainOverlayPass } from './reveryRainOverlay'
 export { weatherRainOverlayPass } from './weatherRainOverlay'
