@@ -1,16 +1,12 @@
 id: cursor-state
-name: 'Cursor state and hover path'
+name: 'Cursor state'
 priority: medium
 layer: engine
 source_files:
   - src/engine/cursor.ts
   - src/engine/coordinates.ts
-  - src/engine/movement.ts
-  - src/engine/pathfinding.ts
   - src/engine/types.ts
-dependencies:
-  - pathfinding
-  - player-movement
+dependencies: []
 
 behaviors:
   - id: screen-to-tile-mapping
@@ -29,54 +25,14 @@ behaviors:
         effect: 'set to world tile Position or null if no screen position'
     determinism: deterministic
 
-  - id: hover-path-computation
-    description: >
-      when cursorTile changes and differs from hoverPathTarget,
-      is not the player position, no active path exists, and
-      manhattan distance is within HOVER_PATH_MAX_DISTANCE (60),
-      a new hover path is computed via findPath with
-      getPathfindingBlockers (includes soft blockers like cave
-      entrances). hoverPath is set to the result (or null if
-      target is out of bounds, non-walkable, or beyond distance
-      cap). when cursor is absent, an active path is running, or
-      deep time is locked (Burning/Simulating phase), hoverPath
-      and hoverPathTarget are cleared to null.
-    inputs:
-      - 'cursorTile change, no active state.path'
-    outputs:
-      - 'state.hoverPath and state.hoverPathTarget updated'
-    state_changes:
-      - field: hoverPath
-        effect: 'Position[] path preview or null'
-      - field: hoverPathTarget
-        effect: 'copy of cursorTile or null'
-    determinism: deterministic
-
 edge_cases:
-  - id: cursor-on-player
-    description: 'mouse hovers over the tile the player is standing on'
-    expected: 'no hover path computed (cursorTile equals player position guard)'
-  - id: active-path-suppresses-hover
-    description: 'player is walking a click-to-move path'
-    expected: 'hoverPath and hoverPathTarget cleared to null while state.path exists'
-  - id: cursor-on-unwalkable
-    description: 'mouse hovers over a Space tile'
-    expected: 'hoverPath set to null; tile is not walkable'
   - id: no-cursor-screen-pos
     description: 'mouse leaves the canvas'
-    expected: 'cursorTile set to null; hoverPath and hoverPathTarget cleared'
-  - id: far-away-cursor
-    description: 'mouse hovers over a walkable tile more than 60 tiles away'
-    expected: 'no hover path computed; HOVER_PATH_MAX_DISTANCE guard skips pathfinding'
-  - id: deep-time-locked
-    description: 'deep time is active and phase is Burning or Simulating'
-    expected: 'hoverPath and hoverPathTarget cleared to null regardless of cursor position'
+    expected: 'cursorTile set to null'
 
 failure_conditions:
   - trigger: 'cursorScreenPos is null (mouse not over canvas)'
-    expected: 'cursorTile set to null; no pathfinding attempted'
-  - trigger: 'cursorTile is out of map bounds'
-    expected: 'isInBounds check fails; hoverPath set to null'
+    expected: 'cursorTile set to null; no mapping attempted'
 
 verification:
   test_file: src/engine/__tests__/cursor.test.ts

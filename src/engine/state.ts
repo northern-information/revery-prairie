@@ -111,8 +111,6 @@ export const createGameState = (
     playerTween: null,
     cursorTile: null,
     cursorScreenPos: null,
-    hoverPath: null,
-    hoverPathTarget: null,
     rainSeed,
     metric: true,
     musicEnabled: true,

@@ -32,7 +32,6 @@ import {
   EXPLOSION_COLORS,
   EXPLOSION_DURATION_MS,
   EXPLOSION_RADIUS,
-  HOVER_PATH_COLOR,
   LIGHTNING_BOLT_COLOR_BRIGHT,
   LIGHTNING_BOLT_COLOR_DIM,
   LIGHTNING_BOLT_COLOR_MID,
@@ -208,7 +207,6 @@ const _groundItemMap = new Map<string, { definitionId: string; glinting?: boolea
 const _previewMap = new Map<string, { char: string; color: string; isValid: boolean }>()
 const _pathPositions = new Set<string>()
 const _waypointPositions = new Set<string>()
-const _hoverPathPositions = new Set<string>()
 const _devPaintPositions = new Set<string>()
 const _satelliteMap = new Map<string, { char: string; color: string }>()
 const _satelliteImpactMap = new Map<string, { char: string; color: string }>()
@@ -404,7 +402,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   _previewMap.clear()
   _pathPositions.clear()
   _waypointPositions.clear()
-  _hoverPathPositions.clear()
   _devPaintPositions.clear()
   _satelliteMap.clear()
   _satelliteImpactMap.clear()
@@ -431,7 +428,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const previewMap = _previewMap
   const pathPositions = _pathPositions
   const waypointPositions = _waypointPositions
-  const hoverPathPositions = _hoverPathPositions
   const devPaintPositions = _devPaintPositions
   const satelliteMap = _satelliteMap
   const satelliteImpactMap = _satelliteImpactMap
@@ -574,13 +570,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Populate waypoint positions for distinct markers
   for (const w of state.pathWaypoints) {
     waypointPositions.add(posKey(w.x, w.y))
-  }
-
-  // Populate hover path positions for preview rendering (suppressed when dev panel is open)
-  if (state.hoverPath && !state.devPanelOpen) {
-    for (const p of state.hoverPath) {
-      hoverPathPositions.add(posKey(p.x, p.y))
-    }
   }
 
   // Populate dev paint preview positions
@@ -1321,8 +1310,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         isEntity = true
         if (pathPositions.has(tileKey)) {
           color = ACTION_COLOR
-        } else if (hoverPathPositions.has(tileKey)) {
-          color = HOVER_PATH_COLOR
         } else {
           color = METEORITE_COLOR
         }
@@ -1354,10 +1341,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           char = waypointPositions.has(tileKey) ? '+' : '\u00b7'
           color = ACTION_COLOR
         }
-      } else if (hoverPathPositions.has(tileKey)) {
-        const hoverTile = map[my][mx]
-        char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[hoverTile.type]
-        color = HOVER_PATH_COLOR
       } else if (trailMap.has(tileKey)) {
         const tile = map[my][mx]
         char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[tile.type]
@@ -1570,7 +1553,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         isHighlighted:
           isAngelGroupHighlighted || (isCursor && cursorable) || isFacingEntity || isPendingTarget,
         hasOverlay:
-          pathPositions.has(tileKey) || hoverPathPositions.has(tileKey) || trailMap.has(tileKey),
+          pathPositions.has(tileKey) || trailMap.has(tileKey),
       })
       if (isRuinMultilayer) {
         const layers = getRuinTileLayers(tile.type, mx, my, time)
