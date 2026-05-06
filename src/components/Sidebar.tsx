@@ -144,7 +144,9 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
     return (
       <div data-panel="sidebar" className={SIDEBAR_SHELL_CLASSES}>
         <div className="flex flex-col gap-4">
-          <PanelTitle>Revery Prairie</PanelTitle>
+          <PanelTitle>
+            <span className="game-title">Revery Prairie</span>
+          </PanelTitle>
           <div>
             <SectionHeader>Genesis</SectionHeader>
             <table className="w-full">
@@ -186,7 +188,9 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
     return (
       <div data-panel="sidebar" className={SIDEBAR_SHELL_CLASSES}>
         <div className="flex flex-col gap-4">
-          <PanelTitle>Revery Prairie</PanelTitle>
+          <PanelTitle>
+            <span className="game-title">Revery Prairie</span>
+          </PanelTitle>
           <div>
             <SectionHeader>Deep time</SectionHeader>
             <table className="w-full">
@@ -234,7 +238,9 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
   return (
     <div data-panel="sidebar" className={SIDEBAR_SHELL_CLASSES}>
       <div className="flex flex-col gap-4" style={contentFadeStyle}>
-        <PanelTitle>Revery Prairie</PanelTitle>
+        <PanelTitle>
+          <span className="game-title">Revery Prairie</span>
+        </PanelTitle>
 
         {cursorTile && (
           <div>
