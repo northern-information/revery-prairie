@@ -6,18 +6,9 @@ interface ReveryEntry {
   glyphColor: string
   cooldownMs: number
   castDurationMs: number
-  castStyle: 'tile' | 'rain' | 'scan' | 'targeted' | 'deepTime'
+  castStyle: 'tile' | 'rain' | 'aura' | 'scan' | 'targeted' | 'deepTime'
   castPattern: Position[]
 }
-
-// Cross shape: center + 4 cardinal neighbors
-const CROSS_PATTERN: Position[] = [
-  { x: 0, y: 0 },
-  { x: 0, y: -1 },
-  { x: 0, y: 1 },
-  { x: -1, y: 0 },
-  { x: 1, y: 0 },
-]
 
 const SINGLE_PATTERN: Position[] = [{ x: 0, y: 0 }]
 
@@ -36,9 +27,9 @@ const REVERIES = {
     glyphs: ['|', ':', '.', ','],
     glyphColor: '#4488CC',
     cooldownMs: 12000,
-    castDurationMs: 10000,
-    castStyle: 'rain' as const,
-    castPattern: CROSS_PATTERN,
+    castDurationMs: 0,
+    castStyle: 'aura' as const,
+    castPattern: [],
   },
   earth: {
     name: 'Earth Revery',

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import { activateActionBarSlot, assignActionBarSlot } from '../actionBar'
 import { RAIN_FRONT_FRINGE, RAIN_FRONT_WIDTH, WATER_DRAIN_RATE, WATER_MAX, WATER_RAIN_FILL } from '../constants'
 import { posKey } from '../position'
 import { createGameState } from '../state'
@@ -175,6 +176,47 @@ describe('tileWater', () => {
 
       tickTileWater(state, Zone.Overworld)
 
+      expect(state.tileWater.get(key)).toBe(50 - WATER_DRAIN_RATE)
+    })
+
+    it('hydrates tiles within water revery aura radius even when not raining', () => {
+      // Cast water revery to create aura at player position
+      assignActionBarSlot(state, 0, 'revery', 'water')
+      activateActionBarSlot(state, 0, 5000)
+      expect(state.waterReveryAura).not.toBeNull()
+
+      // Tile 1 step from player (within radius 6)
+      const key = posKey(state.player.x + 1, state.player.y)
+      state.map[state.player.y][state.player.x + 1] = { type: TileType.Dirt }
+      state.tileWater.set(key, 50)
+
+      // Not raining
+      state.weather.sky = Sky.Sun
+      state.rainIntensity = 0
+
+      tickTileWater(state, Zone.Overworld)
+
+      expect(state.tileWater.get(key)).toBe(Math.min(50 + WATER_RAIN_FILL, WATER_MAX))
+    })
+
+    it('stops hydrating tiles after aura is cleared by another revery cast', () => {
+      assignActionBarSlot(state, 0, 'revery', 'water')
+      assignActionBarSlot(state, 1, 'revery', 'earth')
+      activateActionBarSlot(state, 0, 1000)
+
+      // Cast earth to clear water aura
+      activateActionBarSlot(state, 1, 20000)
+      expect(state.waterReveryAura).toBeNull()
+
+      const key = posKey(state.player.x + 1, state.player.y)
+      state.map[state.player.y][state.player.x + 1] = { type: TileType.Dirt }
+      state.tileWater.set(key, 50)
+      state.weather.sky = Sky.Sun
+      state.rainIntensity = 0
+
+      tickTileWater(state, Zone.Overworld)
+
+      // Should drain, not hydrate
       expect(state.tileWater.get(key)).toBe(50 - WATER_DRAIN_RATE)
     })
   })

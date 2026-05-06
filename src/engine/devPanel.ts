@@ -47,6 +47,7 @@ export const ENTITY_TAG_SUGGESTIONS = [
   'pickupBloom',
   'reveryCast',
   'satellite',
+  'waterReveryAura',
   'satelliteImpact',
   'shootingStar',
   'wildfire',

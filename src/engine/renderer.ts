@@ -994,7 +994,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (!multiPos || !effect?.reveryId) continue
 
     const revDef = getReveryDefinition(effect.reveryId)
-    if (revDef.castStyle === 'scan' || revDef.castStyle === 'rain') continue
+    if (revDef.castStyle === 'scan' || revDef.castStyle === 'rain' || revDef.castStyle === 'aura') continue
     const elapsed = time - effect.startTime
     for (const pos of multiPos.positions) {
       const h = tileHash(pos.x, pos.y)

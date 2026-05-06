@@ -226,6 +226,7 @@ export const createGameState = (
     remotePlayers: new Map(),
     onPlayerMoved: null,
     onGenesisEpochStart: null,
+    waterReveryAura: null,
   }
 
   // Glinting zone patches are seeded later, inside completeGenesis,

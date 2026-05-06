@@ -120,7 +120,7 @@ export interface ReveryDefinition {
   glyphColor: string
   cooldownMs: number
   castDurationMs: number
-  castStyle: 'tile' | 'rain' | 'scan' | 'targeted' | 'deepTime'
+  castStyle: 'tile' | 'rain' | 'aura' | 'scan' | 'targeted' | 'deepTime'
   castPattern: Position[]
 }
 
@@ -342,6 +342,7 @@ export interface GameState {
   remotePlayers: Map<string, RemotePlayer>
   onPlayerMoved: (() => void) | null
   onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null
+  waterReveryAura: number | null
 }
 
 export const CloverStage = {
