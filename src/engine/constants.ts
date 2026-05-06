@@ -69,10 +69,20 @@ export const TILE_COLORS: Record<TileType, string> = {
 export const BUILDING_CHARS = ['▓', '▒', '░', '█', '#', '+', 'H', 'T', '=']
 export const CIV_COLORS = ['#666', '#777', '#888', '#999', '#AAA']
 
-// Dark backdrop painted in a 3x3 footprint behind RuinEntrance tiles on the
-// overworld so the entrance reads as a doorway-in-shadow against the warm
-// prairie palette. Overworld-only — never painted in cave or ruin zones.
-export const RUIN_ENTRANCE_HALO_COLOR = '#2E1F12'
+// Verdigris (copper-oxide patina) ramp used for the ruin entrance halo and
+// patina overlay. Reads as bronze infrastructure bleeding into the soil.
+// Ordered dark → bright; the bright end echoes TILE_COLORS[RuinEntrance].
+export const VERDIGRIS_COLORS = ['#2A4A42', '#3A6B5F', '#4A7F70', '#5FA890', '#5FD3BC']
+
+// Backdrop painted in a 3x3 footprint behind RuinEntrance tiles on the
+// overworld — dark verdigris so the entrance reads as patina-stained ground
+// against the warm prairie palette. Overworld-only — never painted in cave
+// or ruin zones.
+export const RUIN_ENTRANCE_HALO_COLOR = '#1A2E2A'
+
+// Sparse patina chars layered over the 8 perimeter cells of the halo
+// footprint. Drawn in the effect slot so they render above terrain glyphs.
+export const PATINA_CHARS = ['·', ':', '+', "'", '.']
 
 // shooting stars
 export const SHOOTING_STAR_TICK_MS = 80

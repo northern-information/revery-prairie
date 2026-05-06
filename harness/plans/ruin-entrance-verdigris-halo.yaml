@@ -1,0 +1,109 @@
+plan:
+  id: ruin-entrance-verdigris-halo
+  title: Recolor the ruin entrance halo to verdigris and overlay sparse patina glyphs
+  created: '2026-05-05'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-verdigris-constants
+    title: Add VERDIGRIS_COLORS palette and recolor RUIN_ENTRANCE_HALO_COLOR
+    spec_id: ruin-entrance-verdigris-halo
+    spec_sections:
+      - verdigris-halo-backdrop
+      - verdigris-color-palette
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-patina-layer-helper
+    title: Add getEntrancePatinaLayers helper in ruins.ts
+    spec_id: ruin-entrance-verdigris-halo
+    spec_sections:
+      - patina-glyph-overlay
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - add-verdigris-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: implement-patina-pass
+    title: Implement ruinEntrancePatina render pass in the effect slot
+    spec_id: ruin-entrance-verdigris-halo
+    spec_sections:
+      - patina-glyph-overlay
+      - patina-overworld-only
+    context_files:
+      - src/engine/render/passes/ruinEntranceHalo.ts
+      - src/engine/render/passes/passes.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/ruins.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/render/passes/ruinEntrancePatina.ts
+      - src/engine/render/passes/index.ts
+    depends_on:
+      - add-patina-layer-helper
+    verification:
+      - npx tsc -b --noEmit
+      - npm run lint
+    repair: retry
+    tags:
+      - engine
+
+  - id: update-existing-halo-color-test
+    title: Update RUIN_ENTRANCE_HALO_COLOR assertion in ruins.test.ts
+    spec_id: ruin-entrance-verdigris-halo
+    spec_sections:
+      - verdigris-halo-backdrop
+    context_files:
+      - src/engine/__tests__/ruins.test.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/ruins.test.ts
+    depends_on:
+      - add-verdigris-constants
+    verification:
+      - npx vitest run src/engine/__tests__/ruins.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: add-patina-tests
+    title: Add unit tests for getEntrancePatinaLayers and the patina pass
+    spec_id: ruin-entrance-verdigris-halo
+    spec_sections:
+      - verdigris-color-palette
+      - patina-glyph-overlay
+      - patina-overworld-only
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/constants.ts
+      - src/engine/render/passes/ruinEntrancePatina.ts
+      - src/engine/__tests__/ruin-visual-style.test.ts
+    output_files:
+      - src/engine/__tests__/ruin-entrance-patina.test.ts
+    depends_on:
+      - add-patina-layer-helper
+      - implement-patina-pass
+    verification:
+      - npx vitest run src/engine/__tests__/ruin-entrance-patina.test.ts
+    repair: retry
+    tags:
+      - test
