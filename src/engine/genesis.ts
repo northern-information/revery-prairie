@@ -374,19 +374,82 @@ const renderSpace = (sim: GenesisSimState, key: string, h: number, time: number)
   return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
 }
 
-// Shared rendering for lowland water (elevation-based, land tiles only)
-const renderLowlandWater = (sim: GenesisSimState, key: string, h: number, time: number): GenesisTileRender[] | null => {
-  if (!sim.landMask.has(key)) return null
-  const elev = sim.elevation.get(key) ?? 50
-  const scatter = (h % 25) - 12 + (((h >>> 8) % 15) - 7)
-  if (elev + scatter < 40) {
-    const waterChars = ['~', '=', '-']
-    const waterColors = ['#4466AA', '#335588', '#556699']
-    const ci = (h + Math.floor(time * 0.003)) % waterChars.length
-    const wi = h % waterColors.length
-    return [{ char: waterChars[ci], color: waterColors[wi], dx: 0, dy: 0 }]
+// Threshold the 2D-noise field is compared against. Cell size and amplitude
+// below combine with this so a small fraction of inland land joins the mask:
+// inland tiles have elevation floored at 40 (LavaEra) plus noise spanning
+// roughly [-30, 30], so a threshold of 28 keeps wet area to a few large
+// regions rather than washing out the map.
+const LOWLAND_WATER_THRESHOLD = 28
+// Lattice cell size for the value-noise field. Larger = more coherent blobs.
+const LOWLAND_NOISE_CELL = 18
+// Noise amplitude. Larger = more variance in where blobs sit relative to
+// the LavaEra elevation floor.
+const LOWLAND_NOISE_AMPLITUDE = 30
+
+const smoothstep = (t: number): number => t * t * (3 - 2 * t)
+
+/**
+ * Build sim.lowlandWaterMask: coherent cosmetic-water tile set used by
+ * aquatic-phase epochs. Generates a true 2D value-noise field at the
+ * resolution given by LOWLAND_NOISE_CELL and bilinearly interpolates with
+ * smoothstep easing — this produces isotropic blobs without the diagonal
+ * banding that summed 1D noise fields exhibit. Tiles where
+ * (elevation + noise) drops below the threshold join the mask. Ancient
+ * seabeds are already painted as water by their own predicate path, so
+ * they are excluded from the mask. Idempotent — overwrites whatever was
+ * previously in the set.
+ */
+const buildLowlandWaterMask = (sim: GenesisSimState): void => {
+  const lattW = Math.ceil(sim.width / LOWLAND_NOISE_CELL) + 2
+  const lattH = Math.ceil(sim.height / LOWLAND_NOISE_CELL) + 2
+  const lattice: number[][] = []
+  for (let j = 0; j < lattH; j++) {
+    const row: number[] = []
+    for (let i = 0; i < lattW; i++) {
+      row.push((sim.rng() * 2 - 1) * LOWLAND_NOISE_AMPLITUDE)
+    }
+    lattice.push(row)
   }
-  return null
+  const sampleNoise = (x: number, y: number): number => {
+    const fx = x / LOWLAND_NOISE_CELL
+    const fy = y / LOWLAND_NOISE_CELL
+    const ix = Math.floor(fx)
+    const iy = Math.floor(fy)
+    const tx = smoothstep(fx - ix)
+    const ty = smoothstep(fy - iy)
+    const v00 = lattice[iy]?.[ix] ?? 0
+    const v10 = lattice[iy]?.[ix + 1] ?? 0
+    const v01 = lattice[iy + 1]?.[ix] ?? 0
+    const v11 = lattice[iy + 1]?.[ix + 1] ?? 0
+    const a = v00 + (v10 - v00) * tx
+    const b = v01 + (v11 - v01) * tx
+    return a + (b - a) * ty
+  }
+  sim.lowlandWaterMask = new Set()
+  for (const key of sim.landMask) {
+    if (sim.ancientSeabeds.has(key)) continue
+    const [xStr, yStr] = key.split(',')
+    const x = Number(xStr)
+    const y = Number(yStr)
+    const elev = sim.elevation.get(key) ?? 50
+    const noise = sampleNoise(x, y)
+    if (elev + noise < LOWLAND_WATER_THRESHOLD) {
+      sim.lowlandWaterMask.add(key)
+    }
+  }
+}
+
+// Shared rendering for lowland water (mask-based, land tiles only).
+// The mask is built once during FirstWater.mutate from a seeded 2D
+// smooth-noise field; aquatic-phase epochs all read the same coherent
+// shape rather than recomputing per-tile hash scatter.
+const renderLowlandWater = (sim: GenesisSimState, key: string, h: number, time: number): GenesisTileRender[] | null => {
+  if (!sim.lowlandWaterMask.has(key)) return null
+  const waterChars = ['~', '=', '-']
+  const waterColors = ['#4466AA', '#335588', '#556699']
+  const ci = (h + Math.floor(time * 0.003)) % waterChars.length
+  const wi = h % waterColors.length
+  return [{ char: waterChars[ci], color: waterColors[wi], dx: 0, dy: 0 }]
 }
 
 // Shared rendering for bare dirt (accounts for burn scars — darker soil)
@@ -892,6 +955,15 @@ const firstWater: GenesisEpoch = {
       }
     }
 
+    // Build the cosmetic lowland-water mask used by aquatic-phase epochs.
+    // Coarse seeded 2D smooth noise (separable: row noise + column noise)
+    // combined with elevation produces coherent lake/sea blobs instead of
+    // the salt-and-pepper blotches the old per-tile hash predicate
+    // produced. The mask is computed once here and never mutated again,
+    // so IceAge's elevation drop and PostGlacialDieOff's erosion can't
+    // unintentionally extend the cosmetic water shape.
+    buildLowlandWaterMask(sim)
+
     // Hydraulic erosion micropass: water finds the steepest path downhill,
     // carving valleys and depositing sediment in the lowlands. Skip ancient
     // seabeds (already at low elevation; further carving would dig holes).
@@ -919,17 +991,19 @@ const firstWater: GenesisEpoch = {
       return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
     }
 
-    // Water gathers in lowlands — per-tile hash noise breaks grid-aligned contours
-    const elev = sim.elevation.get(key) ?? 50
-    const scatter = (h % 25) - 12 + (((h >>> 8) % 15) - 7)
-    const effectiveElev = elev + scatter
-    const waterThreshold = clamp(effectiveElev / 100, 0, 1)
-    if (progress > waterThreshold && effectiveElev < 40) {
-      const waterChars = ['~', '=', '-']
-      const waterColors = ['#4466AA', '#335588', '#556699']
-      const ci = (h + Math.floor(time * 0.003)) % waterChars.length
-      const wi = h % waterColors.length
-      return [{ char: waterChars[ci], color: waterColors[wi], dx: 0, dy: 0 }]
+    // Water gathers in lowlands — read the mask built in mutate(). Per-tile
+    // elevation still drives the progressive reveal so higher-elevation lake
+    // edges fill in last, but the spatial shape comes from the coherent mask.
+    if (sim.lowlandWaterMask.has(key)) {
+      const elev = sim.elevation.get(key) ?? 50
+      const waterThreshold = clamp(elev / 100, 0, 1)
+      if (progress > waterThreshold) {
+        const waterChars = ['~', '=', '-']
+        const waterColors = ['#4466AA', '#335588', '#556699']
+        const ci = (h + Math.floor(time * 0.003)) % waterChars.length
+        const wi = h % waterColors.length
+        return [{ char: waterChars[ci], color: waterColors[wi], dx: 0, dy: 0 }]
+      }
     }
 
     // Land — dark rock (dirt only appears after life emerges)
@@ -3192,6 +3266,7 @@ export const createGenesisState = (width: number, height: number, seed: number):
     riverPathsOrdered: [],
     meltPools: new Set(),
     ponds: new Set(),
+    lowlandWaterMask: new Set(),
     epochSnapshots: [],
     mutationsPrecomputed: false,
     rainSeed: 0,
@@ -3398,6 +3473,7 @@ export const precomputeGenesis = (sim: GenesisSimState, epochs: GenesisEpoch[]):
         intensity: a.intensity,
         radius: a.radius,
       })),
+      lowlandWaterMask: new Set(sim.lowlandWaterMask),
     })
   }
   sim.mutationsPrecomputed = true

@@ -1427,3 +1427,110 @@ describe('crossfade progress continuity', () => {
     expect(peek).toBeLessThan(0.2)
   })
 })
+
+describe('lowland water mask (terrain-realism)', () => {
+  const epochIdx = (id: string): number => GENESIS_EPOCHS.findIndex(e => e.id === id)
+  const runUpThrough = (sim: ReturnType<typeof createGenesisState>, epochId: string): void => {
+    const stop = epochIdx(epochId)
+    expect(stop).toBeGreaterThanOrEqual(0)
+    for (let i = 0; i <= stop; i++) {
+      GENESIS_EPOCHS[i].mutate(sim)
+    }
+  }
+
+  it('mask is empty before FirstWater runs', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    expect(sim.lowlandWaterMask.size).toBe(0)
+    for (let i = 0; i < epochIdx('firstWater'); i++) {
+      GENESIS_EPOCHS[i].mutate(sim)
+    }
+    expect(sim.lowlandWaterMask.size).toBe(0)
+  })
+
+  it('mask is populated after FirstWater', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runUpThrough(sim, 'firstWater')
+    expect(sim.lowlandWaterMask.size).toBeGreaterThan(0)
+    for (const key of sim.lowlandWaterMask) {
+      expect(sim.landMask.has(key)).toBe(true)
+    }
+  })
+
+  it('mask is stable through IceAge — elevation drops do not extend it', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runUpThrough(sim, 'firstWater')
+    const beforeIceAge = new Set(sim.lowlandWaterMask)
+    for (let i = epochIdx('emergenceOfLife'); i <= epochIdx('postGlacialDieOff'); i++) {
+      GENESIS_EPOCHS[i].mutate(sim)
+    }
+    expect(sim.lowlandWaterMask.size).toBe(beforeIceAge.size)
+    for (const key of beforeIceAge) {
+      expect(sim.lowlandWaterMask.has(key)).toBe(true)
+    }
+  })
+
+  it('produces coherent regions, not blotches', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runUpThrough(sim, 'firstWater')
+    expect(sim.lowlandWaterMask.size).toBeGreaterThan(0)
+
+    const remaining = new Set(sim.lowlandWaterMask)
+    const clusterSizes: number[] = []
+    for (const seed of sim.lowlandWaterMask) {
+      if (!remaining.has(seed)) continue
+      remaining.delete(seed)
+      const stack: string[] = [seed]
+      let size = 0
+      let next = stack.pop()
+      while (next !== undefined) {
+        size++
+        const [xs, ys] = next.split(',')
+        const x = Number(xs)
+        const y = Number(ys)
+        for (const [dx, dy] of [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ]) {
+          const nk = posKey(x + dx, y + dy)
+          if (remaining.has(nk)) {
+            remaining.delete(nk)
+            stack.push(nk)
+          }
+        }
+        next = stack.pop()
+      }
+      clusterSizes.push(size)
+    }
+
+    const totalMask = sim.lowlandWaterMask.size
+    const meanCluster = totalMask / clusterSizes.length
+    expect(meanCluster).toBeGreaterThanOrEqual(25)
+
+    const singletons = clusterSizes.filter(s => s === 1).length
+    expect(singletons / totalMask).toBeLessThanOrEqual(0.05)
+  })
+
+  it('determinism: same seed produces identical mask', () => {
+    const a = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 1234)
+    const b = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 1234)
+    runUpThrough(a, 'firstWater')
+    runUpThrough(b, 'firstWater')
+    expect(a.lowlandWaterMask.size).toBe(b.lowlandWaterMask.size)
+    for (const key of a.lowlandWaterMask) {
+      expect(b.lowlandWaterMask.has(key)).toBe(true)
+    }
+  })
+
+  it('different seeds produce different masks', () => {
+    const a = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 1)
+    const b = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 2)
+    runUpThrough(a, 'firstWater')
+    runUpThrough(b, 'firstWater')
+    let symDiff = 0
+    for (const k of a.lowlandWaterMask) if (!b.lowlandWaterMask.has(k)) symDiff++
+    for (const k of b.lowlandWaterMask) if (!a.lowlandWaterMask.has(k)) symDiff++
+    expect(symDiff).toBeGreaterThan(0)
+  })
+})

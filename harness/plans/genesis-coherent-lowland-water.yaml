@@ -1,0 +1,144 @@
+plan:
+  id: genesis-coherent-lowland-water
+  title: Replace blotchy lowland-water predicate with coherent 2D mask, and stop ruin entrance halos bleeding into water
+  created: '2026-05-08'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+    - npm run build
+
+tasks:
+  - id: add-lowland-water-mask-field
+    title: Add sim.lowlandWaterMask field to GenesisSimState and EpochSnapshot
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - coherent-lowland-water-mask
+    context_files:
+      - src/engine/genesisTypes.ts
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
+    output_files:
+      - src/engine/genesisTypes.ts
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: build-mask-in-first-water
+    title: Build seeded 2D smooth-noise mask in FirstWater.mutate after seabed pass, before hydraulic erosion
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - coherent-lowland-water-mask
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/terrain.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - add-lowland-water-mask-field
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: predicates-read-mask
+    title: Replace per-tile hash scatter with sim.lowlandWaterMask lookup in renderLowlandWater (genesis.ts) and isLowlandWater (genesisRenderer.ts)
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - coherent-lowland-water-mask
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
+    output_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
+    depends_on:
+      - build-mask-in-first-water
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: lowland-water-mask-tests
+    title: Add tests for coherent mask shape, stability through IceAge, empty-mask edge case, determinism
+    spec_id: genesis-terrain-realism
+    spec_sections:
+      - coherent-lowland-water-mask
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - predicates-read-mask
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
+
+  - id: halo-helper-water-exclusion
+    title: Add rivers and ponds Set parameters to getEntranceHaloCells; exclude water cells alongside Space
+    spec_id: ruin-entrance-verdigris-halo
+    spec_sections:
+      - halo-skips-water
+      - verdigris-halo-backdrop
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/render/passes/ruinEntranceHalo.ts
+      - src/engine/render/passes/ruinEntrancePatina.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: halo-callers-pass-water-sets
+    title: Update halo and patina passes to pass state.rivers and state.ponds to getEntranceHaloCells
+    spec_id: ruin-entrance-verdigris-halo
+    spec_sections:
+      - halo-skips-water
+    context_files:
+      - src/engine/render/passes/ruinEntranceHalo.ts
+      - src/engine/render/passes/ruinEntrancePatina.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/render/passes/ruinEntranceHalo.ts
+      - src/engine/render/passes/ruinEntrancePatina.ts
+    depends_on:
+      - halo-helper-water-exclusion
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: halo-water-tests
+    title: Add tests for halo skipping rivers, ponds, and the fully-encircled-by-water degenerate case
+    spec_id: ruin-entrance-verdigris-halo
+    spec_sections:
+      - halo-skips-water
+    context_files:
+      - src/engine/__tests__/ruins.test.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/__tests__/ruins.test.ts
+    depends_on:
+      - halo-callers-pass-water-sets
+    verification:
+      - npx vitest run src/engine/__tests__/ruins.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
