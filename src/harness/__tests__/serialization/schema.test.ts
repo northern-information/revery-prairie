@@ -105,7 +105,7 @@ const EXPECTED_FIELDS = [
   'coyotePath',
   'ruinInteriors',
   'currentRuinIndex',
-  'queuedToasts',
+  'queuedEvents',
   'caveFogExplored',
   'caveFogDiscovered',
   'caveFogIllumination',

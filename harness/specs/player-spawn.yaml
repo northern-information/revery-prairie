@@ -97,17 +97,18 @@ behaviors:
       playerSpawn.meteorEntityId), the star's tickShootingStars
       handler suppresses the meteorite ground-item drop, still spawns
       the explosion TimedEffect entity, flips playerSpawn.visible to
-      true, and enqueues a toast reading "steward {stewardName} falls
-      to the prairie" at the impact tile. a pickupBloom is NOT spawned
-      — the explosion alone marks the arrival. immediately afterward
-      the player becomes interactable: the renderer draws the glyph,
-      the cursor recognizes the tile, and movement is accepted.
+      true, and enqueues a log entry reading "steward {stewardName}
+      falls to the prairie" at the impact tile. a pickupBloom is NOT
+      spawned — the explosion alone marks the arrival. immediately
+      afterward the player becomes interactable: the renderer draws
+      the glyph, the cursor recognizes the tile, and movement is
+      accepted.
     inputs:
       - 'tickShootingStars resolves a star whose entity id matches playerSpawn.meteorEntityId'
     outputs:
       - 'explosion entity created at the spawn tile'
       - 'no meteorite ground-item entity created'
-      - '"steward {stewardName} falls to the prairie" toast queued'
+      - '"steward {stewardName} falls to the prairie" log entry queued'
     state_changes:
       - field: playerSpawn.visible
         effect: 'flipped to true'
@@ -115,8 +116,8 @@ behaviors:
         effect: 'cleared to null'
       - field: world
         effect: 'shooting star entity destroyed; explosion entity created'
-      - field: queuedToasts
-        effect: 'arrival toast appended with stewardName interpolated'
+      - field: queuedEvents
+        effect: 'arrival log entry appended with stewardName interpolated'
     determinism: time-based
 
   - id: multiplayer-generic-trigger

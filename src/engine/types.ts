@@ -324,7 +324,7 @@ export interface GameState {
   coyotePath: Position[] | null
   ruinInteriors: RuinInterior[]
   currentRuinIndex: number | null
-  queuedToasts: QueuedToast[]
+  queuedEvents: QueuedEvent[]
   caveFogExplored: Set<string>
   caveFogDiscovered: Set<string>
   caveFogIllumination: Map<string, number>
@@ -464,7 +464,7 @@ export interface DormantGardenData {
   doorPositions: Position[]
 }
 
-export interface QueuedToast {
+export interface QueuedEvent {
   text: string
   icon: string
   iconColor: string

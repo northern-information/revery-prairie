@@ -2,7 +2,7 @@ import {
   BUILDING_CHARS,
   CIV_COLORS,
   PATINA_CHARS,
-  RUIN_ENTRY_TOASTS,
+  RUIN_ENTRY_EVENTS,
   TILE_CHARS,
   TILE_COLORS,
   VERDIGRIS_COLORS,
@@ -26,13 +26,13 @@ import type {
   Tile,
 } from './types'
 
-const queueToast = (
+const queueEvent = (
   state: GameState,
   text: string,
   icon: string,
   iconColor: string,
 ): void => {
-  state.queuedToasts.push({
+  state.queuedEvents.push({
     text,
     icon,
     iconColor,
@@ -791,9 +791,9 @@ export const enterRuin = (state: GameState, ruinIndex: number): void => {
     recordDiscovery(state, discoveryKey)
   }
 
-  const entryToast = RUIN_ENTRY_TOASTS[interior.archetype]
-  if (entryToast) {
-    queueToast(state, entryToast, '☒', '#d8a860')
+  const entryEvent = RUIN_ENTRY_EVENTS[interior.archetype]
+  if (entryEvent) {
+    queueEvent(state, entryEvent, '☒', '#d8a860')
   }
 }
 

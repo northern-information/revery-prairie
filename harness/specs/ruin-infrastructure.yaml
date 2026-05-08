@@ -157,7 +157,7 @@ behaviors:
       heldDirection, previewFn, facingEntityPos, activeDialog, trail,
       cloverGrowthPreviews. calls transitionCoyoteToZone. sets
       explored to true on the RuinInterior. records discovery for
-      zone:ruin-{ruinIndex}. emits an entry toast naming the ruin and
+      zone:ruin-{ruinIndex}. emits a log entry naming the ruin and
       its dormant-garden character.
     inputs:
       - 'player steps on RuinEntrance tile while in overworld'

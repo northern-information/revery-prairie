@@ -423,6 +423,6 @@ export const MONARCH_SETTLE_RADIUS = 3 // wander radius when settled
 
 export const INVENTORY_CELL_SIZE = 28
 
-export const RUIN_ENTRY_TOASTS: Record<RuinArchetype, string> = {
+export const RUIN_ENTRY_EVENTS: Record<RuinArchetype, string> = {
   [RuinArchetype.DormantGarden]: 'A dormant garden stirs beneath the dust.',
 }

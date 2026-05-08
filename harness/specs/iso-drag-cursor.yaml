@@ -1,32 +1,13 @@
-id: iso-toast-and-drag-cursor
-name: 'Pickup toasts and drag cursor use the iso projection'
+id: iso-drag-cursor
+name: 'Drag cursor uses the iso projection'
 priority: high
 layer: component
 source_files:
-  - src/components/PickupToasts.tsx
   - src/components/DragCursor.tsx
   - src/engine/projection.ts
 dependencies:
   - isometric-projection
 behaviors:
-  - id: pickup-toast-iso-position
-    description: >
-      Pickup toasts position themselves above the world tile that fired the
-      event by routing (worldX, worldY) through the engine's worldToScreen
-      transform with state.camera, metrics, and state.viewportWidth /
-      state.viewportHeight. The toast renders at the iso-projected screen
-      anchor of that tile, then applies its existing vertical lift
-      (-2.5 * charHeight - progress * charHeight) and stack offset on top
-      of the projected py. The float-upward animation and stacking order
-      remain unchanged; only the base anchor changes from orthogonal
-      (worldX-camera.x)*charWidth to the iso projection.
-    inputs:
-      - 'a GameEvent with non-null worldX, worldY is rendered while metricsRef.current and state.camera are populated'
-    outputs:
-      - 'toast left = worldToScreen(worldX, worldY, camera, ...).px'
-      - 'toast top = worldToScreen(worldX, worldY, camera, ...).py - 2.5*charHeight - progress*charHeight - stackOffset'
-    state_changes: []
-    determinism: deterministic
   - id: drag-cursor-iso-snap
     description: >
       The floating drag cursor preview, when hovering the canvas, snaps to
@@ -63,16 +44,10 @@ edge_cases:
   - id: viewport-dims-zero-before-first-frame
     description: >
       state.viewportWidth and state.viewportHeight start at 0 before the
-      canvas measures itself. PickupToasts and DragCursor must tolerate
-      this transient state without throwing or producing NaN positions —
-      they may render off-screen but must not crash.
-    expected: 'no exception; toasts and drag cursor render at finite (possibly off-screen) coordinates'
-  - id: toast-far-from-camera-center
-    description: >
-      A toast fired at a world tile far from camera center (e.g. several
-      tiles in -x and +y) was visually offset by tens of pixels under the
-      old orthogonal formula because (vx-vy) skew is ignored.
-    expected: 'toast renders directly above the iso anchor of the firing tile regardless of distance from camera center'
+      canvas measures itself. DragCursor must tolerate this transient
+      state without throwing or producing NaN positions — it may render
+      off-screen but must not crash.
+    expected: 'no exception; drag cursor renders at finite (possibly off-screen) coordinates'
   - id: drag-cursor-on-non-axis-aligned-tile
     description: >
       Hovering a tile whose iso center is not at an orthogonal grid
@@ -81,11 +56,9 @@ edge_cases:
       snapping, the preview anchors to that diamond's center.
     expected: 'preview glyph centers on the diamond of the hovered tile'
 failure_conditions:
-  - trigger: 'PickupToasts uses (worldX - camera.x) * charWidth for screenX'
-    expected: 'PickupToasts uses worldToScreen(...) and offsets relative to its returned px/py'
   - trigger: 'DragCursor floors cursor pixels by charWidth / charHeight to derive tileX, tileY'
     expected: 'DragCursor calls screenToTile to derive viewport tile, then viewportToScreen for the snapped anchor'
 verification:
-  test_file: src/components/__tests__/PickupToasts.test.tsx
-  test_pattern: 'PickupToasts iso position'
-  command: 'npx vitest run src/components/__tests__/PickupToasts.test.tsx src/components/__tests__/DragCursor.test.tsx'
+  test_file: src/components/__tests__/DragCursor.test.tsx
+  test_pattern: 'DragCursor iso'
+  command: 'npx vitest run src/components/__tests__/DragCursor.test.tsx'

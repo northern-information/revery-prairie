@@ -97,16 +97,17 @@ behaviors:
   - id: iso-aware-satellite-impact-shake
     description: >
       The satellite-tick handler in gameLoop fires a screen shake and
-      "Satellite impact!" toast when a satellite lands inside the visible
-      canvas region. The visibility test must use isTileInVisibleViewport
-      (iso-aware), not the orthogonal rect, so impacts that visibly land
-      anywhere on canvas trigger the feedback consistently.
+      "Satellite impact!" log entry when a satellite lands inside the
+      visible canvas region. The visibility test must use
+      isTileInVisibleViewport (iso-aware), not the orthogonal rect, so
+      impacts that visibly land anywhere on canvas trigger the feedback
+      consistently.
     inputs:
       - 'satellite impact at world position (impact.x, impact.y)'
       - 'state.camera, state.viewportWidth, state.viewportHeight'
       - 'state.currentZone === Zone.Overworld'
     outputs:
-      - 'screen shake and toast fire iff impact is visible on canvas in iso'
+      - 'screen shake and log entry fire iff impact is visible on canvas in iso'
     state_changes:
       - field: 'state.screenShakeUntil'
         effect: 'set when impact tile passes isTileInVisibleViewport in overworld; otherwise unchanged'
@@ -137,7 +138,7 @@ failure_conditions:
     expected: 'Cannot occur — follow-mode camera always recenters the player at canvas center'
   - trigger: 'Land/space outline drops out at the canvas edge while the camera moves'
     expected: 'Cannot occur — outline loop iterates the iso-aware bounds with margin'
-  - trigger: 'Satellite visibly lands on canvas but no shake/toast fires'
+  - trigger: 'Satellite visibly lands on canvas but no shake/log entry fires'
     expected: 'Cannot occur — visibility test uses isTileInVisibleViewport'
 
 verification:

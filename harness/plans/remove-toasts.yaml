@@ -1,0 +1,191 @@
+plan:
+  id: remove-toasts
+  title: Remove the floating-toast notification surface; rely on the EventLog overlay alone
+  created: '2026-05-08'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+    - npm run build
+
+tasks:
+  - id: strip-toasts-from-useeventlog
+    title: 'Remove `toasts` state, the rAF expiry loop, and TOAST_DURATION/TOAST_FADE_START exports from useEventLog; the hook returns { log, addEvent } only'
+    spec_id: event-log-overlay
+    spec_sections:
+      - no-floating-toast-surface
+    context_files:
+      - src/hooks/useEventLog.ts
+      - src/hooks/__tests__/useEventLog.test.ts
+      - src/components/PickupToasts.tsx
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/hooks/useEventLog.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [hook]
+
+  - id: delete-pickup-toasts-component
+    title: 'Delete src/components/PickupToasts.tsx and src/components/__tests__/PickupToasts.test.tsx'
+    spec_id: event-log-overlay
+    spec_sections:
+      - no-floating-toast-surface
+    context_files:
+      - src/components/PickupToasts.tsx
+      - src/components/__tests__/PickupToasts.test.tsx
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/components/PickupToasts.tsx
+      - src/components/__tests__/PickupToasts.test.tsx
+    depends_on:
+      - strip-toasts-from-useeventlog
+    repair: retry
+    tags: [component]
+
+  - id: unmount-pickup-toasts-from-gamescreen
+    title: 'Remove the <PickupToasts ... /> mount and the PickupToasts import from GameScreen.tsx; drop `toasts` from the useEventLog destructure'
+    spec_id: event-log-overlay
+    spec_sections:
+      - no-floating-toast-surface
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/hooks/useEventLog.ts
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on:
+      - strip-toasts-from-useeventlog
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: rename-queued-toasts-to-queued-events
+    title: 'Rename state.queuedToasts -> state.queuedEvents and the QueuedToast interface -> QueuedEvent across types.ts, state.ts, gameLoop.ts (drainQueuedToasts -> drainQueuedEvents), celestial.ts, ruins.ts'
+    spec_id: event-log-overlay
+    spec_sections:
+      - queued-events-engine-buffer
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/gameLoop.ts
+      - src/engine/celestial.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/gameLoop.ts
+      - src/engine/celestial.ts
+      - src/engine/ruins.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: update-schema-allowlist
+    title: 'Update EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts to use queuedEvents in place of queuedToasts'
+    spec_id: event-log-overlay
+    spec_sections:
+      - queued-events-engine-buffer
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - rename-queued-toasts-to-queued-events
+    verification:
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: update-player-spawn-test
+    title: 'Update src/engine/__tests__/playerSpawn.test.ts to assert on state.queuedEvents instead of state.queuedToasts'
+    spec_id: player-spawn
+    spec_sections:
+      - emerge-on-impact
+    context_files:
+      - src/engine/__tests__/playerSpawn.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/playerSpawn.test.ts
+    depends_on:
+      - rename-queued-toasts-to-queued-events
+    verification:
+      - npx vitest run src/engine/__tests__/playerSpawn.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: drop-toast-suppression-from-event-log-tests
+    title: 'Update src/hooks/__tests__/useEventLog.test.ts to drop assertions on the `toasts` array and on TOAST_DURATION/TOAST_FADE_START; replace with assertions that addEvent appends to log only'
+    spec_id: event-log-overlay
+    spec_sections:
+      - no-floating-toast-surface
+      - log-newest-at-bottom
+    context_files:
+      - src/hooks/__tests__/useEventLog.test.ts
+      - src/hooks/useEventLog.ts
+    output_files:
+      - src/hooks/__tests__/useEventLog.test.ts
+    depends_on:
+      - strip-toasts-from-useeventlog
+    verification:
+      - npx vitest run src/hooks/__tests__/useEventLog.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: update-cave-suppression-tests
+    title: 'Refactor cave-toast-suppression assertions in src/engine/__tests__/gameLoop.test.ts to read against the onDiscovery callback only (no toast state assertions). Test names use "log" instead of "toast" wording.'
+    spec_id: cave-overworld-event-suppression
+    spec_sections:
+      - suppress-meteor-shower-event-in-cave
+      - show-meteor-shower-event-in-overworld
+      - suppress-lightning-event-in-cave
+      - show-lightning-event-in-overworld
+    context_files:
+      - src/engine/__tests__/gameLoop.test.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/__tests__/gameLoop.test.ts
+    depends_on:
+      - rename-queued-toasts-to-queued-events
+    verification:
+      - npx vitest run src/engine/__tests__/gameLoop.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: update-memory-note
+    title: 'Update auto-memory file feedback_event_logging.md so the rule reads "every event must log via addEvent" (drop the toast clause)'
+    spec_id: event-log-overlay
+    spec_sections:
+      - no-floating-toast-surface
+    context_files:
+      - /Users/tyleretters/.claude/projects/-Users-tyleretters-projects-revery-prairie/memory/feedback_event_logging.md
+    output_files:
+      - /Users/tyleretters/.claude/projects/-Users-tyleretters-projects-revery-prairie/memory/feedback_event_logging.md
+    depends_on: []
+    repair: skip
+    tags: [meta]
+
+  - id: full-verify
+    title: 'Run full verify (typecheck + lint + test) and build'
+    spec_id: event-log-overlay
+    spec_sections:
+      - no-floating-toast-surface
+      - queued-events-engine-buffer
+    context_files: []
+    output_files: []
+    depends_on:
+      - delete-pickup-toasts-component
+      - unmount-pickup-toasts-from-gamescreen
+      - update-schema-allowlist
+      - update-player-spawn-test
+      - drop-toast-suppression-from-event-log-tests
+      - update-cave-suppression-tests
+    verification:
+      - npm run verify
+      - npm run build
+    repair: retry
+    tags: [test]
