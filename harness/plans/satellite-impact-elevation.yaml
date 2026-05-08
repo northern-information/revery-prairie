@@ -1,0 +1,87 @@
+plan:
+  id: satellite-impact-elevation
+  title: 'Satellite impacts deform terrain elevation, producing visible bowl-shaped craters'
+  created: '2026-05-08'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: crater-depth-constants
+    title: 'Add SATELLITE_CRATER_DEPTH_{CENTER,RING,EDGE} constants'
+    spec_id: satellite-impacts
+    spec_sections:
+      - satellite-impact-elevation
+    context_files:
+      - src/engine/constants.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: tier-grid-invalidate-api
+    title: 'Add invalidateTierGrid() to render/tierGrid.ts and route through cacheContract.onElevationMutated'
+    spec_id: satellite-impacts
+    spec_sections:
+      - satellite-impact-elevation
+    context_files:
+      - src/engine/render/tierGrid.ts
+      - src/engine/render/cacheContract.ts
+      - src/engine/tileBgCache.ts
+    output_files:
+      - src/engine/render/tierGrid.ts
+      - src/engine/render/cacheContract.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: apply-elevation-deformation
+    title: 'In satellites.ts applyImpact, mutate state.elevation with radial falloff after crater + soil mutations, then invalidate caches'
+    spec_id: satellite-impacts
+    spec_sections:
+      - satellite-impact-elevation
+      - satellite-impact-crater
+    context_files:
+      - src/engine/satellites.ts
+      - src/engine/render/cacheContract.ts
+      - src/engine/tileBgCache.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/satellites.ts
+    depends_on:
+      - crater-depth-constants
+      - tier-grid-invalidate-api
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: regression-tests
+    title: 'Add elevation tests to satelliteImpacts.test.ts: bowl shape, clamping, additive stacking, protected tiles, missing entries, cache invalidation'
+    spec_id: satellite-impacts
+    spec_sections:
+      - satellite-impact-elevation
+    context_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+      - src/engine/satellites.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+    depends_on:
+      - apply-elevation-deformation
+    verification:
+      - npx vitest run src/engine/__tests__/satelliteImpacts.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test

@@ -1,6 +1,9 @@
-import { invalidateMapCache } from '../tileBgCache'
+import { invalidateMapCache, markTileDirty } from '../tileBgCache'
 import type { Tile } from '../types'
 import { invalidateHaloCache } from './haloCache'
+import { invalidateTierGrid } from './tierGrid'
+
+import type { Position } from '../types'
 
 // Single source of truth for cached-layer invalidation. See
 // harness/specs/renderer.yaml `cache-contract` behavior.
@@ -27,8 +30,9 @@ import { invalidateHaloCache } from './haloCache'
 //   - charWidth/charHeight change    → auto-detected inside getOrBuildHaloCache
 //
 // tier grid (per-state, flat Int8Array):
-//   - state.elevation reference change → auto-detected via WeakMap on the
-//     elevation Map. Only triggered at genesis / state init.
+//   - state.elevation reference change → auto-detected on next getTierGrid
+//   - in-place mutation of state.elevation values → onElevationMutated
+//     (satellite impacts deform terrain at runtime)
 //
 // Helpers below paper over the per-cache details so callers do not have
 // to remember which caches are sensitive to a given mutation.
@@ -39,4 +43,13 @@ import { invalidateHaloCache } from './haloCache'
 export const onMapInvalidate = (map: Tile[][]): void => {
   invalidateMapCache(map)
   invalidateHaloCache(map)
+}
+
+// Called after in-place mutation of state.elevation. Drops the tier grid
+// (rebuilt next frame) and dirties the per-tile tileBgCache entries for
+// every affected position so cube/wall geometry rebuilds with the new
+// lifts.
+export const onElevationMutated = (map: Tile[][], affected: readonly Position[]): void => {
+  invalidateTierGrid()
+  for (const { x, y } of affected) markTileDirty(map, x, y)
 }

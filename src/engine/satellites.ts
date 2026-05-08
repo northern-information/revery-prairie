@@ -1,6 +1,9 @@
 import {
   MAP_HEIGHT,
   MAP_WIDTH,
+  SATELLITE_CRATER_DEPTH_CENTER,
+  SATELLITE_CRATER_DEPTH_EDGE,
+  SATELLITE_CRATER_DEPTH_RING,
   SATELLITE_GOOD_PAYLOAD_CHANCE,
   SATELLITE_IMPACT_DURATION_MS,
   SATELLITE_IMPACT_RADIUS,
@@ -17,6 +20,7 @@ import {
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { isInBounds, isWalkableTile, posKey } from './position'
+import { onElevationMutated } from './render/cacheContract'
 import { TileType, Zone } from './types'
 import { spatialAtInCurrentZone } from './zone'
 
@@ -117,6 +121,7 @@ const applyImpact = (state: GameState, center: Position, time: number): void => 
   }
 
   // Apply crater to tiles
+  const elevationAffected: Position[] = []
   for (let dy = -r; dy <= r; dy++) {
     for (let dx = -r; dx <= r; dx++) {
       const x = center.x + dx
@@ -135,7 +140,23 @@ const applyImpact = (state: GameState, center: Position, time: number): void => 
       // Reduce soil health for all non-protected tiles in zone
       const current = state.soilHealth.get(key) ?? 50
       state.soilHealth.set(key, Math.max(0, current - SATELLITE_SOIL_DAMAGE))
+
+      // Deform terrain: radial elevation falloff. Chebyshev distance from
+      // center selects center (0), ring (1), or edge (2) depth.
+      const cheb = Math.max(Math.abs(dx), Math.abs(dy))
+      const drop =
+        cheb === 0
+          ? SATELLITE_CRATER_DEPTH_CENTER
+          : cheb === 1
+            ? SATELLITE_CRATER_DEPTH_RING
+            : SATELLITE_CRATER_DEPTH_EDGE
+      const currentElev = state.elevation.get(key) ?? 50
+      state.elevation.set(key, Math.max(0, Math.min(100, currentElev - drop)))
+      elevationAffected.push({ x, y })
     }
+  }
+  if (elevationAffected.length > 0) {
+    onElevationMutated(state.map, elevationAffected)
   }
 
   // Spawn large explosion effect

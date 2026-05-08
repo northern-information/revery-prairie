@@ -147,6 +147,12 @@ export const SATELLITE_MIN_LENGTH = 8
 export const SATELLITE_MAX_LENGTH = 12
 export const SATELLITE_IMPACT_RADIUS = 2 // 5x5 zone (center ± 2)
 export const SATELLITE_SOIL_DAMAGE = 30
+// Radial elevation falloff for impact craters. Subtracted from existing
+// elevation, clamped to [0, 100]. Center drops ~one tier on the 4-tier
+// scale (tierSize = 25), giving a visible bowl without an ejecta rim.
+export const SATELLITE_CRATER_DEPTH_CENTER = 25
+export const SATELLITE_CRATER_DEPTH_RING = 10
+export const SATELLITE_CRATER_DEPTH_EDGE = 3
 export const SATELLITE_GOOD_PAYLOAD_CHANCE = 0.3 // 30% chance for seeds
 export const SATELLITE_SEED_COUNT_MIN = 2
 export const SATELLITE_SEED_COUNT_MAX = 4
