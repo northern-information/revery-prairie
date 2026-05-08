@@ -76,6 +76,7 @@ export interface EpochSnapshot {
   satelliteCrashes: GenesisSatelliteCrash[]
   craters: Set<string>
   tectonicAxes: TectonicAxis[]
+  lowlandWaterMask: Set<string>
 }
 
 export interface GenesisSimState {
@@ -127,6 +128,12 @@ export interface GenesisSimState {
   meltPools: Set<string>
   /** Permanent small pond positions */
   ponds: Set<string>
+  /** Coherent cosmetic-water mask used by aquatic-phase epochs (FirstWater
+   *  through WarmPeriod's pre-river render). Built once in FirstWater.mutate
+   *  from a seeded 2D smooth-noise field combined with elevation; read by
+   *  renderLowlandWater (genesis.ts) and isLowlandWater (genesisRenderer.ts).
+   *  Stable across IceAge / PostGlacialDieOff / WarmPeriod elevation drops. */
+  lowlandWaterMask: Set<string>
   /** Per-epoch snapshots of fields that later mutations destructively modify */
   epochSnapshots: EpochSnapshot[]
   /** Whether all mutations have been pre-computed */

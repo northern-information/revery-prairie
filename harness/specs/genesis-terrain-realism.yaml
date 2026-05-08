@@ -5,6 +5,7 @@ layer: engine
 source_files:
   - src/engine/genesis.ts
   - src/engine/genesisTypes.ts
+  - src/engine/genesisRenderer.ts
   - src/engine/manual.ts
   - src/engine/__tests__/genesis.test.ts
 dependencies:
@@ -202,6 +203,63 @@ behaviors:
         effect: epoch count derived dynamically instead of hardcoded
     determinism: deterministic
 
+  - id: coherent-lowland-water-mask
+    description: >
+      Replaces the per-tile hash predicate that produces the cosmetic
+      "lowland water" look during the aquatic phase (FirstWater through
+      WarmPeriod's pre-river render). The previous predicate
+      (elev + per-tile-hash-scatter < 40) produced salt-and-pepper
+      blotches whenever IceAge or hydraulic erosion lowered elevation
+      back below the LavaEra floor. The fix replaces it with a
+      precomputed, seeded 2D smooth-noise mask:
+
+      During FirstWater.mutate (after the existing seabed/coastline
+      pass, before hydraulic-erosion-first-water), build a 2D
+      value-noise field over the land mask using sim.rng. Use the
+      existing 1D smoothNoiseSeeded helper twice (one row-wise, one
+      column-wise) at coarse wavelength (~14 tiles) and add the
+      results — same separable trick that produced LavaEra's elevation
+      before the 2D fBm rewrite, but here it is applied to a
+      single-purpose water mask where coarse wavelength produces
+      coherent blobs without axis-aligned ridge artifacts (tile-level
+      water shape is the goal, not realistic landform). Combine the
+      noise (range roughly ±18) with sim.elevation: a tile is in the
+      mask iff elevation + noise < threshold (38 by default). Store
+      the result on sim as sim.lowlandWaterMask: Set<string>.
+
+      genesisRenderer.isLowlandWater and genesis.renderLowlandWater
+      both read sim.lowlandWaterMask.has(key) instead of recomputing
+      from per-tile hash. The mask is computed once and never
+      mutated by later epochs — so the water shape is geologically
+      stable across IceAge / PostGlacialDieOff / WarmPeriod even
+      though those epochs lower elevation locally.
+
+      Mask exclusions: tiles already in sim.ancientSeabeds (existing
+      structured water) are skipped — they are already painted as
+      water. Glacial paths added later by IceAge are not removed
+      from the mask (they get painted as ice by the IceAge renderer
+      via the freezeThreshold check, which still works against the
+      mask lookup the same way it worked against the predicate).
+    inputs:
+      - FirstWater epoch mutate runs
+      - sim.elevation populated by LandAccretion + TectonicUplift
+      - sim.landMask populated by LavaEra
+      - sim.rng seeded
+    outputs:
+      - sim.lowlandWaterMask populated as a Set<string> of land tile keys
+      - mask covers a small number of large coherent regions (lakes/seas), not scattered blotches
+      - mask is stable across all subsequent epochs through WarmPeriod
+      - renderLowlandWater and isLowlandWater both lookup the mask
+        instead of recomputing per-tile hash scatter
+    state_changes:
+      - field: sim.lowlandWaterMask
+        effect: new field — Set<string> of tile keys that should render as cosmetic lowland water during aquatic-phase epochs
+      - field: renderLowlandWater (genesis.ts)
+        effect: predicate replaced with sim.lowlandWaterMask.has(key) lookup; per-tile hash scatter removed
+      - field: isLowlandWater (genesisRenderer.ts)
+        effect: predicate replaced with sim.lowlandWaterMask.has(key) lookup; per-tile hash scatter removed
+    determinism: deterministic
+
 edge_cases:
   - id: degenerate-axis-on-tiny-map
     description: tectonic uplift cannot place a 20-tile polyline on a small landMask
@@ -224,6 +282,15 @@ edge_cases:
   - id: determinism-across-runs
     description: same steward name produces same elevation, tectonic axes, and soil health
     expected: byte-equal sim.elevation Map and sim.tectonicAxes structure across two runs
+  - id: lowland-mask-coherent-shape
+    description: lowland water mask produces coherent regions, not blotches
+    expected: across all mask tiles, mean cluster size (4-connected) is at least 25 tiles; isolated single-tile mask entries are no more than 5% of total mask size
+  - id: lowland-mask-stable-through-ice-age
+    description: IceAge lowers elevation by 15 on glacial tiles; lowland mask must not gain new tiles as a result
+    expected: sim.lowlandWaterMask after IceAge.mutate is identical to the mask after FirstWater.mutate
+  - id: lowland-mask-empty-on-no-low-elevation
+    description: if no land tile satisfies elevation + noise < threshold, mask is empty
+    expected: sim.lowlandWaterMask is an empty Set; renderLowlandWater returns null for every land tile; no NaN
 
 failure_conditions:
   - trigger: TectonicUplift random walk attempts to leave landMask
@@ -234,6 +301,8 @@ failure_conditions:
     expected: clamped to 10 (existing SOIL_HEALTH floor)
   - trigger: tectonic axis placement collides with existing volcanic hotspots
     expected: axis still placed; volcanic bonus adds to tectonic uplift (no precedence conflict)
+  - trigger: code reads sim.lowlandWaterMask before FirstWater has run (e.g. tests, earlier epoch render)
+    expected: lookup returns false (empty Set initialized in createGenesisState); no error thrown
 
 verification:
   test_file: src/engine/__tests__/genesis.test.ts

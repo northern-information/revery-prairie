@@ -6,7 +6,7 @@ import {
 } from './constants'
 import { getEpochProgress } from './genesis'
 import { GenesisEpochId } from './genesisTypes'
-import { posKey, tileHash } from './position'
+import { posKey } from './position'
 import { drawCellBackground, drawCellWalls, viewportToScreen } from './projection'
 import { getEntranceHaloCells } from './ruins'
 import {
@@ -48,15 +48,12 @@ const liftAtSim = (sim: GenesisSimState, mx: number, my: number): number =>
   getTierLift(tierAtSim(sim, mx, my))
 
 // Lowland water predicate: matches renderLowlandWater in genesis.ts —
-// elev + per-tile scatter < 40 over a land tile. Used so the bg fill
-// paints water-blue under elevation-based lowland water glyphs (which
-// the various epoch renderTile functions emit) instead of brown dirt.
-const isLowlandWater = (sim: GenesisSimState, key: string, h: number): boolean => {
-  if (!sim.landMask.has(key)) return false
-  const elev = sim.elevation.get(key) ?? 50
-  const scatter = (h % 25) - 12 + (((h >>> 8) % 15) - 7)
-  return elev + scatter < 40
-}
+// reads sim.lowlandWaterMask, the coherent 2D-noise + elevation mask
+// built once during FirstWater.mutate. Used so the bg fill paints
+// water-blue under aquatic-phase lowland water glyphs (which the
+// various epoch renderTile functions emit) instead of brown dirt.
+const isLowlandWater = (sim: GenesisSimState, key: string): boolean =>
+  sim.lowlandWaterMask.has(key)
 
 // Genesis water lives in three buckets: sim.riverPaths (mature rivers),
 // sim.ponds (pooled basins), and the elevation-based lowland predicate
@@ -73,12 +70,11 @@ const getWaterBgColor = (
   mx: number,
   my: number,
   key: string,
-  h: number,
   includeLowland: boolean,
 ): string | null => {
   if (sim.riverPaths.has(key)) return getRiverBgColor(mx, my)
   if (sim.ponds.has(key)) return getPondBgColor(mx, my)
-  if (includeLowland && isLowlandWater(sim, key, h)) return getRiverBgColor(mx, my)
+  if (includeLowland && isLowlandWater(sim, key)) return getRiverBgColor(mx, my)
   return null
 }
 
@@ -153,11 +149,10 @@ const computeSurfaceBg = (
 ): string | null => {
   if (SKIP_BG_EPOCHS.has(epochId)) return null
   const key = posKey(mx, my)
-  const h = tileHash(mx, my)
   if (epochId === GenesisEpochId.PresentDay) {
-    return getWaterBgColor(sim, mx, my, key, h, false) ?? getTileBgColor(tileType, mx, my)
+    return getWaterBgColor(sim, mx, my, key, false) ?? getTileBgColor(tileType, mx, my)
   }
-  const water = getWaterBgColor(sim, mx, my, key, h, LOWLAND_WATER_EPOCHS.has(epochId))
+  const water = getWaterBgColor(sim, mx, my, key, LOWLAND_WATER_EPOCHS.has(epochId))
   if (water) return water
   if (!surfaceColor) return getTileBgColor(tileType, mx, my)
   return darkenColor(toHexColor(surfaceColor), SURFACE_BG_DARKEN)
@@ -240,6 +235,7 @@ const captureLiveState = (sim: GenesisSimState): EpochSnapshot => ({
   satelliteCrashes: sim.satelliteCrashes,
   craters: sim.craters,
   tectonicAxes: sim.tectonicAxes,
+  lowlandWaterMask: sim.lowlandWaterMask,
 })
 
 /** Swap all mutable sim fields to match a snapshot. */
@@ -262,6 +258,7 @@ const applySnapshot = (sim: GenesisSimState, snapshot: EpochSnapshot): void => {
   sim.satelliteCrashes = snapshot.satelliteCrashes
   sim.craters = snapshot.craters
   sim.tectonicAxes = snapshot.tectonicAxes
+  sim.lowlandWaterMask = snapshot.lowlandWaterMask
 }
 
 /** Render one frame of the genesis simulation. */
@@ -553,7 +550,7 @@ export const renderGenesis = (
       const row = sim.grid[gy]
       for (let gx = 0; gx < sim.width; gx++) {
         if (row[gx].type !== TileType.RuinEntrance) continue
-        const cells = getEntranceHaloCells(sim.grid, sim.width, sim.height, gx, gy)
+        const cells = getEntranceHaloCells(sim.grid, sim.width, sim.height, gx, gy, sim.riverPaths, sim.ponds)
         for (const cell of cells) {
           const vx = cell.x - cameraX
           const vy = cell.y - cameraY
