@@ -44,4 +44,44 @@ describe('updateCursorState', () => {
 
     expect(state.cursorTile).toBeNull()
   })
+
+  it('clears cursorTile when WASD is held', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 5)
+    const target = { x: 5, y: 10 }
+    state.cursorScreenPos = cursorPosForTile(state, target)
+    state.heldDirection = 'right'
+
+    updateCursorState(state, metrics)
+
+    expect(state.cursorTile).toBeNull()
+  })
+
+  it('clears cursorTile when click-to-move path is active', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 5)
+    const target = { x: 5, y: 10 }
+    state.cursorScreenPos = cursorPosForTile(state, target)
+    state.path = [{ x: 5, y: 10 }]
+
+    updateCursorState(state, metrics)
+
+    expect(state.cursorTile).toBeNull()
+  })
+
+  it('restores cursorTile when movement ends and mouse is over canvas', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 5)
+    state.camera = { x: 3, y: 7 }
+    const target = { x: 5, y: 10 }
+    state.cursorScreenPos = cursorPosForTile(state, target)
+    state.heldDirection = 'right'
+    updateCursorState(state, metrics)
+    expect(state.cursorTile).toBeNull()
+
+    state.heldDirection = null
+    updateCursorState(state, metrics)
+
+    expect(state.cursorTile).toEqual(target)
+  })
 })

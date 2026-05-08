@@ -124,7 +124,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
   // reads Position/Contents/Effects for the wrong tile.
   const metrics = metricsRef.current
   const cursorTile =
-    state.cursorScreenPos && metrics
+    state.cursorScreenPos && metrics && !state.heldDirection && !state.path
       ? screenToTile(
           state.cursorScreenPos.x,
           state.cursorScreenPos.y,
