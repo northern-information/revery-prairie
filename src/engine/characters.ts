@@ -18,14 +18,8 @@ const CHARACTERS = {
     glyph: 'G',
     glyphColor: '#FFFFFF',
     portrait: '/gron.gif',
-    dialog: ['...', 'Oh, you must be the new steward.', "Here, you'll need this."],
+    dialog: ['...', 'Oh, you must be the new steward.'],
     music: '/music/gron.mp3',
-    gift: { kind: 'revery' as const, id: 'water' },
-    postGiftDialog: [
-      'Your final act as steward is casting the Deep Time revery. It will initiate a controlled burn and exile you from the prairie forever. 1000 years will melt before your eyes and you will become a ghost. Plan carefully. Good stewardship means being able to let go and trust in your meritorious deeds.',
-      'Are you ready to burn the prairie and leave forever?',
-    ],
-    postGift: { kind: 'revery' as const, id: 'deep-time' },
   },
   moab: {
     name: 'Moab Coldë',

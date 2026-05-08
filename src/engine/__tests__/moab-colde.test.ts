@@ -131,14 +131,17 @@ describe('moab gift delivery', () => {
     expect(state.giftsReceived.has('moab')).toBe(true)
   })
 
-  it('auto-assigns fire revery to first empty action bar slot', () => {
+  it('fire revery is in state.reveries; action bar is already full', () => {
     const state = makeCaveState()
     giveCharacterGift(state, 'moab')
 
-    // Slot 0 = earth, slot 1 = lightning (pre-assigned), slot 2 = fire
-    expect(state.actionBar[2]).not.toBeNull()
-    expect(state.actionBar[2]?.kind).toBe('revery')
-    expect(state.actionBar[2]?.id).toBe('fire')
+    // All 4 slots are pre-filled with earth/lightning/water/deep-time;
+    // fire lands in reveries but not the action bar
+    expect(state.reveries).toContain('fire')
+    expect(state.actionBar[0]?.id).toBe('earth')
+    expect(state.actionBar[1]?.id).toBe('lightning')
+    expect(state.actionBar[2]?.id).toBe('water')
+    expect(state.actionBar[3]?.id).toBe('deep-time')
   })
 
   it('returns null if already given', () => {
