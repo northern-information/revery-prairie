@@ -13,26 +13,41 @@ behaviors:
     description: >
       updateCursorState(state, metrics) converts cursorScreenPos
       (CSS pixel coordinates) to a world tile position via
-      screenToTile, storing the result in state.cursorTile. this
-      runs every frame so the highlight tracks correctly when the
-      camera moves via WASD even without mouse movement.
+      screenToTile, storing the result in state.cursorTile.
+      when state.heldDirection is set (WASD active) or state.path
+      is non-null (click-to-move active), cursorTile is set to null
+      regardless of mouse position. otherwise this runs every frame
+      so the highlight tracks correctly when the camera moves.
     inputs:
       - 'state.cursorScreenPos, camera position, char metrics'
+      - 'state.heldDirection (null or Direction)'
+      - 'state.path (null or Position[])'
     outputs:
       - 'state.cursorTile updated to world Position or null'
     state_changes:
       - field: cursorTile
-        effect: 'set to world tile Position or null if no screen position'
+        effect: 'null when movement active; world tile Position or null otherwise'
     determinism: deterministic
 
 edge_cases:
   - id: no-cursor-screen-pos
     description: 'mouse leaves the canvas'
     expected: 'cursorTile set to null'
+  - id: wasd-active-clears-cursor
+    description: 'player holds a WASD direction key'
+    expected: 'cursorTile set to null; canvas highlight and sidebar cursor section absent'
+  - id: active-path-clears-cursor
+    description: 'player is walking a click-to-move path'
+    expected: 'cursorTile set to null while state.path is non-null'
+  - id: cursor-restores-on-mouse-move
+    description: 'mouse moves after WASD or click-to-move ends'
+    expected: 'cursorTile recomputes from cursorScreenPos; highlight and sidebar cursor section reappear'
 
 failure_conditions:
   - trigger: 'cursorScreenPos is null (mouse not over canvas)'
     expected: 'cursorTile set to null; no mapping attempted'
+  - trigger: 'WASD key held while mouse is over canvas'
+    expected: 'cursorTile is null; canvas shows no highlight; sidebar cursor section is absent'
 
 verification:
   test_file: src/engine/__tests__/cursor.test.ts

@@ -1,0 +1,63 @@
+plan:
+  id: wasd-clears-cursor-highlight
+  title: 'Clear cursor highlight and sidebar info during WASD and click-to-move'
+  created: '2026-05-08'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: cursor-engine-guard
+    title: 'Null cursorTile and clear hover state when movement is active'
+    spec_id: cursor-state
+    spec_sections:
+      - screen-to-tile-mapping
+      - hover-path-computation
+    context_files:
+      - src/engine/cursor.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/cursor.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/cursor.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: sidebar-movement-guard
+    title: 'Skip cursorTile derivation in Sidebar when movement is active'
+    spec_id: sidebar-iso-cursor-effects
+    spec_sections:
+      - projection-aware-cursor-tile
+      - cursor-leaves-canvas-clears-section
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on: []
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags: [component]
+
+  - id: cursor-engine-tests
+    title: 'Add tests for WASD and click-to-move clearing cursorTile'
+    spec_id: cursor-state
+    spec_sections:
+      - screen-to-tile-mapping
+      - wasd-active-clears-cursor
+      - active-path-suppresses-hover
+      - cursor-restores-on-mouse-move
+    context_files:
+      - src/engine/__tests__/cursor.test.ts
+      - src/engine/cursor.ts
+    output_files:
+      - src/engine/__tests__/cursor.test.ts
+    depends_on:
+      - cursor-engine-guard
+    verification:
+      - npx vitest run src/engine/__tests__/cursor.test.ts
+    repair: retry
+    tags: [test]
