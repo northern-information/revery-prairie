@@ -1,9 +1,12 @@
 import { getElevationTier, getTierLift } from '../tileBg'
 
 // Flat per-map tier cache. state.elevation is a Map<posKey, number>
-// populated at genesis and never mutated thereafter, so the tier values
-// are cached into an Int8Array (indexed mx + my * mapWidth) and reused
-// across frames as long as the elevation reference is stable.
+// populated at genesis. It is mostly stable but a small set of mutations
+// (currently: satellite impacts) modify it in place. Mutators must call
+// invalidateTierGrid (typically via cacheContract.onElevationMutated) so
+// the next getTierGrid call rebuilds from the new values. The cache is
+// otherwise reused across frames as long as the elevation reference is
+// stable.
 //
 // Lives in render/ because it is purely a render-side concern: the
 // game logic does not need a flat grid, but every tile-anchored draw
@@ -34,6 +37,12 @@ export const getTierGrid = (
   _for = elevation
   _width = mapWidth
   return grid
+}
+
+export const invalidateTierGrid = (): void => {
+  _cache = null
+  _for = null
+  _width = 0
 }
 
 export const liftAt = (

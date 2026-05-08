@@ -1,4 +1,7 @@
 import {
+  SATELLITE_CRATER_DEPTH_CENTER,
+  SATELLITE_CRATER_DEPTH_EDGE,
+  SATELLITE_CRATER_DEPTH_RING,
   SATELLITE_IMPACT_RADIUS,
   SATELLITE_MAX_AGE,
   SATELLITE_MIN_SPAWN_INTERVAL_MS,
@@ -9,6 +12,7 @@ import { getTileEffects } from '../effects'
 import { tickCharacterBehaviors } from '../entities'
 import { posKey } from '../position'
 import { findRecipe } from '../recipes'
+import { getTierGrid } from '../render/tierGrid'
 import { spawnSatellite, tickSatellites } from '../satellites'
 import { createGameState } from '../state'
 import { TileType, Zone } from '../types'
@@ -569,5 +573,112 @@ describe('crater effect semantics', () => {
     // Tile becomes Clover; crater entry persists beneath it
     expect(state.map[target.y][target.x].type).toBe(TileType.Clover)
     expect(state.craters.has(key)).toBe(true)
+  })
+})
+
+describe('satellite impact elevation deformation', () => {
+  it('drops elevation in a radial bowl: center deepest, edges shallowest', () => {
+    const state = makeState()
+    const target: Position = { x: 20, y: 15 }
+    const r = SATELLITE_IMPACT_RADIUS
+
+    // Seed a flat plateau across the impact zone so falloff is observable.
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        state.elevation.set(posKey(target.x + dx, target.y + dy), 80)
+      }
+    }
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    const elevAt = (x: number, y: number) => state.elevation.get(posKey(x, y))
+    expect(elevAt(target.x, target.y)).toBe(80 - SATELLITE_CRATER_DEPTH_CENTER)
+    expect(elevAt(target.x + 1, target.y)).toBe(80 - SATELLITE_CRATER_DEPTH_RING)
+    expect(elevAt(target.x, target.y + 1)).toBe(80 - SATELLITE_CRATER_DEPTH_RING)
+    expect(elevAt(target.x + 1, target.y + 1)).toBe(80 - SATELLITE_CRATER_DEPTH_RING)
+    expect(elevAt(target.x + 2, target.y)).toBe(80 - SATELLITE_CRATER_DEPTH_EDGE)
+    expect(elevAt(target.x - 2, target.y - 2)).toBe(80 - SATELLITE_CRATER_DEPTH_EDGE)
+  })
+
+  it('clamps elevation to 0 when drop would go negative', () => {
+    const state = makeState()
+    const target: Position = { x: 20, y: 15 }
+    state.elevation.set(posKey(target.x, target.y), 5)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    expect(state.elevation.get(posKey(target.x, target.y))).toBe(0)
+  })
+
+  it('treats missing elevation entries as default 50', () => {
+    const state = makeState()
+    const target: Position = { x: 20, y: 15 }
+    state.elevation.delete(posKey(target.x, target.y))
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    expect(state.elevation.get(posKey(target.x, target.y))).toBe(50 - SATELLITE_CRATER_DEPTH_CENTER)
+  })
+
+  it('stacks additively when impacts overlap on the same tile', () => {
+    const state = makeState()
+    const target: Position = { x: 20, y: 15 }
+    state.elevation.set(posKey(target.x, target.y), 90)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+    expect(state.elevation.get(posKey(target.x, target.y))).toBe(90 - SATELLITE_CRATER_DEPTH_CENTER)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 2000)
+    expect(state.elevation.get(posKey(target.x, target.y))).toBe(90 - SATELLITE_CRATER_DEPTH_CENTER * 2)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 3000)
+    // 90 - 75 = 15
+    expect(state.elevation.get(posKey(target.x, target.y))).toBe(15)
+
+    // Fourth impact would drop to -10; clamps to 0
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 4000)
+    expect(state.elevation.get(posKey(target.x, target.y))).toBe(0)
+  })
+
+  it('does not modify elevation on protected tiles (sand, cave entrance, walls)', () => {
+    const state = makeState()
+    const target: Position = { x: 20, y: 15 }
+
+    // Place a protected tile inside the zone and seed its elevation
+    const protectedX = target.x + 1
+    const protectedY = target.y
+    state.map[protectedY][protectedX] = { type: TileType.Sand }
+    const before = 60
+    state.elevation.set(posKey(protectedX, protectedY), before)
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    expect(state.elevation.get(posKey(protectedX, protectedY))).toBe(before)
+  })
+
+  it('invalidates the tier grid cache so the next read sees deformed elevation', () => {
+    const state = makeState()
+    const target: Position = { x: 20, y: 15 }
+    state.elevation.set(posKey(target.x, target.y), 80)
+
+    // Prime the cache
+    const before = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
+    const idx = target.x + target.y * state.mapWidth
+    const tierBefore = before[idx]
+
+    createSatelliteEntity(state, { pos: target, landingTarget: target })
+    tickSatellites(state, 1000)
+
+    // After deformation, grid must reflect the new elevation
+    const after = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
+    expect(after[idx]).toBeLessThan(tierBefore)
   })
 })

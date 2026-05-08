@@ -13,6 +13,9 @@ source_files:
   - src/engine/movement.ts
   - src/engine/ecs/types.ts
   - src/engine/cloverLifecycle.ts
+  - src/engine/render/tierGrid.ts
+  - src/engine/render/cacheContract.ts
+  - src/engine/tileBgCache.ts
   - src/engine/__tests__/satelliteImpacts.test.ts
 dependencies: []
 
@@ -70,7 +73,8 @@ behaviors:
       beneath. Space, sand, cave entrances, and ruin entrances within
       the zone are unaffected. A large explosion effect spawns at the
       impact center. See satellite-crater-as-effect for the full
-      crater-as-effect model.
+      crater-as-effect model and satellite-impact-elevation for the
+      terrain deformation that accompanies the impact.
     inputs:
       - 'Satellite entity reaches its landingTarget position'
     outputs:
@@ -85,6 +89,40 @@ behaviors:
         effect: 'reduced by SATELLITE_SOIL_DAMAGE for each tile in zone, clamped to 0'
       - field: world
         effect: 'satellite entity destroyed, explosion TimedEffect entity created'
+    determinism: deterministic
+
+  - id: satellite-impact-elevation
+    description: >
+      A satellite impact deforms terrain. The 5x5 impact zone subtracts
+      a radial elevation falloff from state.elevation: the center tile
+      drops by SATELLITE_CRATER_DEPTH_CENTER (25 elevation units, ~one
+      tier on the 4-tier scale), the immediate ring drops by
+      SATELLITE_CRATER_DEPTH_RING (10), and the outer ring drops by
+      SATELLITE_CRATER_DEPTH_EDGE (3). All values are subtracted from
+      the existing elevation and clamped to [0, 100]. Mutation is
+      additive — repeated impacts on the same tile dig deeper until the
+      floor is reached (no idempotency, no original-elevation snapshot).
+      Space, sand, cave entrances, ruin entrances, and walls are
+      protected — their elevation is not modified, matching the existing
+      tile-protection set used for crater marking. After mutation,
+      tileBgCache is dirtied for every affected tile and the tier grid
+      is invalidated so the next frame rebuilds the cube/cliff geometry
+      from the new elevation values. There is no restoration map — the
+      deformation is a permanent geological scar.
+    inputs:
+      - 'Satellite entity reaches its landingTarget position'
+      - 'Tile within 5x5 impact zone is not in PROTECTED_TILES'
+    outputs:
+      - 'state.elevation values reduced by radial falloff, clamped to [0, 100]'
+      - 'Tier grid cache invalidated'
+      - 'tileBgCache dirtied for each affected tile'
+    state_changes:
+      - field: elevation
+        effect: 'each non-protected tile in 5x5 zone has its elevation reduced by the radial falloff (center: -25, ring: -10, edge: -3), clamped to [0, 100]. Mutation is in-place on the existing Map.'
+      - field: tier grid cache
+        effect: 'invalidated via cacheContract.onElevationMutated so the next getTierGrid call rebuilds'
+      - field: tileBgCache
+        effect: 'markTileDirty called for each affected tile so the cube/wall geometry rebuilds with new lifts'
     determinism: deterministic
 
   - id: satellite-ghost-destruction
@@ -225,6 +263,21 @@ edge_cases:
   - id: soil-health-already-zero
     description: 'Tile in impact zone already has 0 soil health'
     expected: 'Soil health stays at 0, no negative values'
+  - id: elevation-already-floor
+    description: 'Tile in impact zone already has elevation 0 when impact applies'
+    expected: 'Elevation stays at 0, clamped — no negative values'
+  - id: elevation-near-floor
+    description: 'Tile has elevation 5 and is the impact center (would drop -25)'
+    expected: 'Elevation clamped to 0, not -20'
+  - id: stacked-impacts-same-tile
+    description: 'Two satellite impacts target overlapping zones, hitting the same tile twice'
+    expected: 'Each impact subtracts independently from current elevation; tile digs deeper. No idempotency check.'
+  - id: protected-tile-elevation-preserved
+    description: 'Sand or cave entrance falls inside the 5x5 zone'
+    expected: 'Elevation for that tile is not modified, matching existing tile-protection behavior for crater marking'
+  - id: missing-elevation-entry
+    description: 'Tile in impact zone has no entry in state.elevation Map'
+    expected: 'Treated as default 50 (matches getElevationTier fallback), then deformation applied and clamped'
 
 failure_conditions:
   - trigger: 'Satellite landing target resolves to non-walkable tile (space, sand, cave wall)'
@@ -235,6 +288,8 @@ failure_conditions:
     expected: 'Satellite entity destroyed, no impact occurs'
   - trigger: 'Player is in cave zone when satellite spawns'
     expected: 'Satellite spawn suppressed entirely while in cave'
+  - trigger: 'Elevation deformation is applied but renderer caches are not invalidated'
+    expected: 'The next frame uses stale tier grid / tileBgCache and renders impact zone at the old elevation. Must be prevented by routing all elevation mutations through cacheContract.onElevationMutated.'
 
 verification:
   test_file: src/engine/__tests__/satelliteImpacts.test.ts
