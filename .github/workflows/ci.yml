@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - uses: actions/setup-node@v5
         with:
@@ -40,9 +40,7 @@ jobs:
 
       - name: harness check
         if: github.event_name == 'pull_request'
-        run: |
-          git fetch origin main --depth=1
-          npm run harness:check
+        run: npm run harness:check
         env:
           HARNESS_BASE: origin/${{ github.base_ref }}
 
