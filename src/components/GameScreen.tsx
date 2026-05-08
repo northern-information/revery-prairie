@@ -13,7 +13,6 @@ import { InventoryPanel } from './InventoryPanel'
 import { ManualPanel } from './ManualPanel'
 import { Menu } from './Menu'
 import { PermacomputerShell } from './PermacomputerShell'
-import { PickupToasts } from './PickupToasts'
 import { ReveriesPanel } from './ReveriesPanel'
 import { Sidebar } from './Sidebar'
 
@@ -63,7 +62,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
   const metricsRef = useRef<CharMetrics | null>(null)
   const isDraggingRef = useRef(false)
   const dragOverlayRef = useRef<DragOverlayData | null>(null)
-  const { toasts, log, addEvent } = useEventLog()
+  const { log, addEvent } = useEventLog()
 
   const onPickup = useCallback(
     (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => {
@@ -297,7 +296,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
         refreshUI={refreshUI}
       />
       <EventLog state={state} eventLog={log} />
-      <PickupToasts toasts={toasts} state={state} metricsRef={metricsRef} />
     </>
   )
 }

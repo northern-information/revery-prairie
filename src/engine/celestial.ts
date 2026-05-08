@@ -238,7 +238,7 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           if (data.forPlayerSpawn && state.playerSpawn.meteorEntityId === eid) {
             state.playerSpawn.visible = true
             state.playerSpawn.meteorEntityId = null
-            state.queuedToasts.push({
+            state.queuedEvents.push({
               text: `Steward ${state.stewardName} falls to the prairie.`,
               icon: METEORITE_CHAR,
               iconColor: METEORITE_COLOR,

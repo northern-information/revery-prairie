@@ -42,7 +42,7 @@ behaviors:
       with entityTag bee, starvationMs BEE_STARVATION_MS (30000),
       and a food predicate that checks if the bee is on or cardinally
       adjacent to a clover tile. deaths returned by the hunger module
-      trigger the onBeeDeath callback for toast display.
+      trigger the onBeeDeath callback for event log display.
     inputs:
       - 'bee entity with Position and HungerTimer components'
       - 'current map tiles surrounding the bee'

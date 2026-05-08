@@ -14,6 +14,9 @@ source_files:
   - src/engine/genesisTypes.ts
   - src/engine/state.ts
   - src/engine/types.ts
+  - src/engine/gameLoop.ts
+  - src/engine/celestial.ts
+  - src/engine/ruins.ts
   - src/components/__tests__/EventLog.test.tsx
   - src/components/__tests__/Sidebar.test.tsx
   - src/engine/__tests__/genesis.test.ts
@@ -22,6 +25,47 @@ dependencies:
   - action-bar
 
 behaviors:
+  - id: no-floating-toast-surface
+    description: >
+      The game has no floating-toast notification surface. There is no
+      PickupToasts component, no `toasts` state in `useEventLog`, no
+      `TOAST_DURATION` / `TOAST_FADE_START` constants, and no rAF tick
+      loop maintaining toast lifetime. Every `addEvent` call appends a
+      single entry to the log buffer; the EventLog overlay is the sole
+      visual surface for game events. GameScreen does not import or
+      mount any toast component. `useEventLog` returns only `{ log,
+      addEvent }` — `toasts` is removed from its public API.
+    inputs:
+      - 'any code path that previously rendered a toast (pickup, drop, combine, discovery, dialog, narration, lightning, meteor shower, satellite impact, ruin entry, ruin door unlock, bee death, multiplayer error, player spawn arrival)'
+    outputs:
+      - 'log entry appended via addEvent; no floating popup rendered'
+      - 'GameScreen does not mount a PickupToasts component'
+      - 'useEventLog return shape is { log, addEvent }'
+    state_changes: []
+    determinism: deterministic
+
+  - id: queued-events-engine-buffer
+    description: >
+      The engine maintains a `queuedEvents: QueuedEvent[]` buffer on
+      GameState (formerly `queuedToasts: QueuedToast[]`). Engine code
+      that needs to surface a log entry from inside a tick (player spawn
+      arrival, satellite impact, etc.) pushes onto this buffer; the
+      `drainQueuedEvents` system in gameLoop drains it once per frame
+      by invoking `callbacks.onDiscovery` for each entry. The shape of
+      QueuedEvent is identical to the prior QueuedToast (text, worldX,
+      worldY, icon, iconColor) — only the names change. The
+      EXPECTED_FIELDS allowlist in the serialization schema test is
+      updated to use `queuedEvents`.
+    inputs:
+      - 'engine code calls state.queuedEvents.push({...})'
+      - 'gameLoop drainQueuedEvents tick fires'
+    outputs:
+      - 'each queued entry is delivered to onDiscovery in order; buffer is cleared'
+    state_changes:
+      - field: queuedEvents
+        effect: 'cleared after drain'
+    determinism: deterministic
+
   - id: log-rendered-as-corner-overlay
     description: >
       The event log renders as a fixed-position overlay anchored to the
@@ -59,19 +103,18 @@ behaviors:
       No entry is added more than once for a given epoch index. Live
       gameplay events that arrive after genesis completes are appended
       below the narration entries, preserving chronological order.
-      Narration entries use the `'narration'` GameEvent kind, share the
-      same visual styling as other log entries (font-mono text-xs, same
-      fade curve), and do NOT spawn floating PickupToasts (toasts are
-      suppressed for the `narration` and `dialog` kinds). The icon
-      glyph and color are uniform across all narration entries so the
-      14 entries form a visually consistent narration column.
+      Narration entries use the `'narration'` GameEvent kind and share
+      the same visual styling as other log entries (font-mono text-xs,
+      same fade curve). The icon glyph and color are uniform across all
+      narration entries so the 14 entries form a visually consistent
+      narration column. There is no separate floating-toast surface;
+      the EventLog overlay is the only consumer of `addEvent`.
     inputs:
       - 'tickGenesis enters a new epoch (sim.epochStartTime transitions from 0)'
       - 'completeGenesis runs (skip path) with one or more unfired epochs'
     outputs:
       - 'one log entry per epoch, in chronological order'
       - 'narration entry appears in the EventLog overlay using the same styling as other entries'
-      - 'no PickupToast is spawned for narration entries'
     state_changes:
       - field: GenesisSimState.narratedEpochCount
         effect: 'incremented by 1 each time an epoch fires its narration callback; tracks how many epochs have been narrated'
@@ -252,6 +295,12 @@ behaviors:
     determinism: deterministic
 
 edge_cases:
+  - id: pickup-event-no-floating-popup
+    description: 'player walks over a ground item; a pickup event is recorded'
+    expected: 'log entry appears in the EventLog overlay; no floating popup is rendered above the player'
+  - id: dialog-event-no-floating-popup
+    description: 'player advances dialog with a character'
+    expected: 'log entry recorded if applicable; no floating popup'
   - id: log-empty
     description: 'event log has zero entries'
     expected: 'overlay container is not rendered (or renders empty); no visual artifact in lower-left'
@@ -264,9 +313,6 @@ edge_cases:
   - id: genesis-skipped-via-url
     description: 'player loads `?skipGenesis=true`; completeGenesis runs before any epoch ticks'
     expected: 'all 14 narration entries are present in the log when GameScreen first paints; ordered oldest at top, newest at bottom'
-  - id: genesis-narration-no-toast
-    description: 'a genesis epoch enters and fires its narration callback'
-    expected: 'log entry appears; no PickupToast is spawned (narration kind suppresses toasts the same way dialog does)'
   - id: live-event-after-narration
     description: 'a pickup, drop, combine, dialog, or discovery event fires after genesis ends'
     expected: 'event is appended at the bottom of the log, below all narration entries; auto-pin behavior unchanged'
@@ -316,6 +362,12 @@ failure_conditions:
     expected: 'narratedEpochCount must guard against double-firing; spec violated otherwise'
   - trigger: 'sidebar still renders the genesis commentary <p> during genesis'
     expected: 'genesis commentary must move to the event log; sidebar HUD shows year and epoch progress only'
+  - trigger: 'PickupToasts component or any floating-toast surface still mounts in GameScreen'
+    expected: 'no toast component exists; only the EventLog overlay surfaces game events'
+  - trigger: 'useEventLog still exposes a `toasts` field or runs an rAF tick to expire toasts'
+    expected: 'useEventLog returns { log, addEvent } only; no toast lifecycle code remains'
+  - trigger: 'GameState still defines `queuedToasts` / `QueuedToast`'
+    expected: 'field is renamed to `queuedEvents` / `QueuedEvent`; serialization schema allowlist matches'
 
 verification:
   test_file: src/components/__tests__/EventLog.test.tsx

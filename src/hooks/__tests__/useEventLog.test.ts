@@ -1,108 +1,57 @@
-import { TOAST_DURATION, useEventLog } from '../useEventLog'
+import { useEventLog } from '../useEventLog'
 import { act, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 describe('useEventLog', () => {
-  let rafCallbacks: FrameRequestCallback[]
-  let rafIdCounter: number
-
-  beforeEach(() => {
-    rafCallbacks = []
-    rafIdCounter = 0
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(cb => {
-      rafCallbacks.push(cb)
-      return ++rafIdCounter
-    })
-    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined)
-  })
-
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
-  const flushOneRafFrame = () => {
-    const cbs = [...rafCallbacks]
-    rafCallbacks = []
-    cbs.forEach(cb => {
-      cb(performance.now())
-    })
-  }
-
-  it('adds a toast on addEvent', () => {
+  it('appends events to the log on addEvent', () => {
     const { result } = renderHook(() => useEventLog())
 
     act(() => {
       result.current.addEvent('pickup', 'got bee', '*', '#FFD700', 10, 20)
     })
 
-    expect(result.current.toasts).toHaveLength(1)
-    expect(result.current.toasts[0].text).toBe('got bee')
+    expect(result.current.log).toHaveLength(1)
+    expect(result.current.log[0].text).toBe('got bee')
   })
 
-  it('does not add dialog events as toasts', () => {
+  it('logs dialog events alongside other kinds', () => {
     const { result } = renderHook(() => useEventLog())
 
     act(() => {
       result.current.addEvent('dialog', 'hello', '?', '#fff', 0, 0)
     })
 
-    expect(result.current.toasts).toHaveLength(0)
     expect(result.current.log).toHaveLength(1)
+    expect(result.current.log[0].kind).toBe('dialog')
   })
 
-  it('forces re-renders every rAF frame while toasts are active', () => {
-    const renderCount = { value: 0 }
-    const { result } = renderHook(() => {
-      renderCount.value++
-      return useEventLog()
-    })
-
-    act(() => {
-      result.current.addEvent('pickup', 'got bee', '*', '#FFD700', 10, 20)
-    })
-
-    const countAfterAdd = renderCount.value
-
-    // flush rAF frames one at a time — each act() boundary lets React process
-    // the setTick state update and re-render
-    for (let i = 0; i < 5; i++) {
-      act(() => {
-        flushOneRafFrame()
-      })
-    }
-
-    const countAfterFrames = renderCount.value
-    // each rAF frame increments the tick counter via setTick, triggering a re-render
-    // we expect at least 5 additional renders (one per frame)
-    expect(countAfterFrames - countAfterAdd).toBeGreaterThanOrEqual(5)
-  })
-
-  it('stops rAF loop when all toasts expire', () => {
-    const now = Date.now()
-    vi.spyOn(Date, 'now').mockReturnValue(now)
-
+  it('places newest entries at the front of the log buffer', () => {
     const { result } = renderHook(() => useEventLog())
 
     act(() => {
-      result.current.addEvent('pickup', 'got bee', '*', '#FFD700', 10, 20)
+      result.current.addEvent('pickup', 'first', '*', '#fff', 0, 0)
+      result.current.addEvent('pickup', 'second', '*', '#fff', 0, 0)
     })
 
-    expect(result.current.toasts).toHaveLength(1)
-
-    // advance time past toast duration
-    vi.spyOn(Date, 'now').mockReturnValue(now + TOAST_DURATION + 1)
-
-    act(() => {
-      flushOneRafFrame()
-    })
-
-    expect(result.current.toasts).toHaveLength(0)
+    expect(result.current.log[0].text).toBe('second')
+    expect(result.current.log[1].text).toBe('first')
   })
 
-  it('does not run rAF loop when no toasts exist', () => {
-    renderHook(() => useEventLog())
+  it('caps the log buffer at 50 entries', () => {
+    const { result } = renderHook(() => useEventLog())
 
-    // no toasts added — rAF should never have been called
-    expect(rafCallbacks).toHaveLength(0)
+    act(() => {
+      for (let i = 0; i < 60; i++) {
+        result.current.addEvent('pickup', `event ${String(i)}`, '*', '#fff', 0, 0)
+      }
+    })
+
+    expect(result.current.log).toHaveLength(50)
+    expect(result.current.log[0].text).toBe('event 59')
+  })
+
+  it('exposes only { log, addEvent } — no toast state', () => {
+    const { result } = renderHook(() => useEventLog())
+    expect(Object.keys(result.current).sort()).toEqual(['addEvent', 'log'])
   })
 })

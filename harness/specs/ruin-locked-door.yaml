@@ -72,7 +72,7 @@ behaviors:
       aqueductKey and converts ALL door tiles in the current ruin's
       doorPositions to RuinDoorOpen atomically. the door row remains
       open for the rest of the session — re-locking is not a feature.
-      fires a unique unlock toast: 'the lock turns'. records
+      fires a unique unlock log entry: 'the lock turns'. records
       discovery for event:ruin-door-unlocked. clicking any door tile
       pathfinds to the closest walkable adjacent tile and triggers
       the same unlock on arrival (see click-interaction edge case).
@@ -139,7 +139,7 @@ behaviors:
 edge_cases:
   - id: face-door-without-key
     description: 'player presses [e] facing RuinDoorLocked with no aqueductKey in backpack'
-    expected: 'no unlock, no key consumed; toast: the door is locked. (or similar — copy lives in implementation, not spec)'
+    expected: 'no unlock, no key consumed; log entry: the door is locked. (or similar — copy lives in implementation, not spec)'
 
   - id: multiple-keys-in-backpack
     description: 'player has more than one aqueductKey when unlocking'

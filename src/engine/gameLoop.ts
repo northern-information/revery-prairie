@@ -159,17 +159,17 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
-      id: 'drainQueuedToasts',
+      id: 'drainQueuedEvents',
       intervalMs: 0,
       zone: 'always' as const,
       phase: 'gameplay' as const,
       priority: -18,
       fn: (state: GameState) => {
-        if (state.queuedToasts.length === 0) return
-        for (const t of state.queuedToasts) {
+        if (state.queuedEvents.length === 0) return
+        for (const t of state.queuedEvents) {
           callbacks.onDiscovery?.(t.text, t.worldX, t.worldY, t.icon, t.iconColor)
         }
-        state.queuedToasts = []
+        state.queuedEvents = []
       },
     },
     {
