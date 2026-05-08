@@ -867,6 +867,8 @@ export const getEntranceHaloCells = (
   mapHeight: number,
   entranceX: number,
   entranceY: number,
+  rivers: Set<string>,
+  ponds: Set<string>,
 ): Position[] => {
   const cells: Position[] = []
   for (let dy = -1; dy <= 1; dy++) {
@@ -875,6 +877,8 @@ export const getEntranceHaloCells = (
       const y = entranceY + dy
       if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) continue
       if (map[y][x].type === TileType.Space) continue
+      const key = posKey(x, y)
+      if (rivers.has(key) || ponds.has(key)) continue
       cells.push({ x, y })
     }
   }

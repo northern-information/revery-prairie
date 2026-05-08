@@ -26,6 +26,8 @@ const draw = (
       state.mapHeight,
       interior.entranceOverworld.x,
       interior.entranceOverworld.y,
+      state.rivers,
+      state.ponds,
     )
     for (const cell of cells) {
       const vx = cell.x - camera.x

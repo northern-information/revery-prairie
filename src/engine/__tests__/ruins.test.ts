@@ -585,7 +585,7 @@ describe('ruin infrastructure', () => {
 
     it('returns the full 3x3 footprint for an entrance away from edges', () => {
       const map = buildMap(10, 10)
-      const cells = getEntranceHaloCells(map, 10, 10, 5, 5)
+      const cells = getEntranceHaloCells(map, 10, 10, 5, 5, new Set(), new Set())
       expect(cells).toHaveLength(9)
       const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
       for (let dy = -1; dy <= 1; dy++) {
@@ -598,7 +598,7 @@ describe('ruin infrastructure', () => {
     it('clips cells that fall outside map bounds', () => {
       const map = buildMap(5, 5)
       // Top-left corner: only the SE quadrant of the 3x3 is inside bounds
-      const cells = getEntranceHaloCells(map, 5, 5, 0, 0)
+      const cells = getEntranceHaloCells(map, 5, 5, 0, 0, new Set(), new Set())
       expect(cells).toHaveLength(4)
       const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
       expect(keys).toEqual(new Set(['0,0', '1,0', '0,1', '1,1']))
@@ -610,7 +610,7 @@ describe('ruin infrastructure', () => {
       map[0][1] = { type: TileType.Space }
       map[0][2] = { type: TileType.Space }
       map[0][3] = { type: TileType.Space }
-      const cells = getEntranceHaloCells(map, 5, 5, 2, 1)
+      const cells = getEntranceHaloCells(map, 5, 5, 2, 1, new Set(), new Set())
       const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
       // 6 in-bounds non-space cells (the 3 north tiles are skipped)
       expect(cells).toHaveLength(6)
@@ -625,8 +625,8 @@ describe('ruin infrastructure', () => {
     it('handles overlapping entrances by returning each halo independently (idempotent in render)', () => {
       const map = buildMap(10, 10)
       // Two entrances 2 tiles apart — their 3x3 halos overlap on a single column
-      const a = getEntranceHaloCells(map, 10, 10, 4, 5)
-      const b = getEntranceHaloCells(map, 10, 10, 6, 5)
+      const a = getEntranceHaloCells(map, 10, 10, 4, 5, new Set(), new Set())
+      const b = getEntranceHaloCells(map, 10, 10, 6, 5, new Set(), new Set())
       expect(a).toHaveLength(9)
       expect(b).toHaveLength(9)
       const aKeys = new Set(a.map((c) => `${String(c.x)},${String(c.y)}`))
@@ -642,8 +642,43 @@ describe('ruin infrastructure', () => {
 
     it('returns no cells when the entrance sits in a fully-Space region', () => {
       const map = buildMap(5, 5, TileType.Space)
-      const cells = getEntranceHaloCells(map, 5, 5, 2, 2)
+      const cells = getEntranceHaloCells(map, 5, 5, 2, 2, new Set(), new Set())
       expect(cells).toHaveLength(0)
+    })
+
+    it('skips river tiles inside the 3x3 footprint', () => {
+      const map = buildMap(5, 5)
+      const rivers = new Set<string>(['1,1', '2,1', '3,1'])
+      const cells = getEntranceHaloCells(map, 5, 5, 2, 2, rivers, new Set())
+      const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
+      expect(cells).toHaveLength(6)
+      expect(keys.has('1,1')).toBe(false)
+      expect(keys.has('2,1')).toBe(false)
+      expect(keys.has('3,1')).toBe(false)
+      expect(keys.has('1,2')).toBe(true)
+      expect(keys.has('2,2')).toBe(true)
+      expect(keys.has('3,2')).toBe(true)
+    })
+
+    it('skips pond tiles inside the 3x3 footprint', () => {
+      const map = buildMap(5, 5)
+      const ponds = new Set<string>(['3,3'])
+      const cells = getEntranceHaloCells(map, 5, 5, 2, 2, new Set(), ponds)
+      const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
+      expect(cells).toHaveLength(8)
+      expect(keys.has('3,3')).toBe(false)
+    })
+
+    it('returns only the entrance tile when surrounded on all 8 sides by water', () => {
+      const map = buildMap(5, 5)
+      const rivers = new Set<string>([
+        '1,1', '2,1', '3,1',
+        '1,2',          '3,2',
+        '1,3', '2,3', '3,3',
+      ])
+      const cells = getEntranceHaloCells(map, 5, 5, 2, 2, rivers, new Set())
+      expect(cells).toHaveLength(1)
+      expect(cells[0]).toEqual({ x: 2, y: 2 })
     })
   })
 })

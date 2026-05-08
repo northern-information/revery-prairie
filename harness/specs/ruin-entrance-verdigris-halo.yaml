@@ -8,10 +8,12 @@ source_files:
   - src/engine/render/passes/ruinEntranceHalo.ts
   - src/engine/render/passes/ruinEntrancePatina.ts
   - src/engine/render/passes/index.ts
+  - src/engine/__tests__/ruins.test.ts
 dependencies:
   - ruin-infrastructure
   - ruin-visual-style
   - renderer
+  - tile-water
 
 behaviors:
   - id: verdigris-halo-backdrop
@@ -23,12 +25,47 @@ behaviors:
       bronze infrastructure bleeding into the soil. The fill is still
       drawn by the ruinEntranceHalo pass in the world-overlay slot,
       under the tile-glyph terrain layer. Overworld-only — never drawn
-      in the cave or ruin zones.
+      in the cave or ruin zones. Water tiles (state.rivers /
+      state.ponds) are excluded from the fill — patina is a soil-stain
+      effect that should not paint over flowing water (see
+      halo-skips-water behavior).
     inputs:
       - 'overworld renderer drawing world-overlay slot with ruinInteriors present'
     outputs:
-      - '3x3 verdigris-tinted background fill around each entrance'
+      - '3x3 verdigris-tinted background fill around each entrance, minus water tiles'
     state_changes: []
+    determinism: deterministic
+
+  - id: halo-skips-water
+    description: >
+      getEntranceHaloCells filters out tiles in state.rivers and
+      state.ponds in addition to its existing Space filter. Coastal
+      ruin entrances placed near rivers or ponds (a common outcome
+      because RiseOfCivilizations scores ruin sites partly by proximity
+      to rivers) previously had their 3x3 verdigris halo and patina
+      glyphs bleed onto the river surface — visually breaking the
+      water and producing the wrong reading (patina is soil staining,
+      not waterborne residue). The fix: getEntranceHaloCells accepts
+      the river and pond sets, returns only land/dirt cells. Both the
+      ruinEntranceHalo and ruinEntrancePatina passes consume the
+      filtered list — neither pass needs additional water-skip logic
+      because the helper has already excluded those cells.
+
+      Signature change: getEntranceHaloCells gains two new parameters
+      after the map width/height args: `rivers: Set<string>` and
+      `ponds: Set<string>`. Callers pass state.rivers / state.ponds.
+      Tests construct empty sets when not exercising water exclusion.
+      During genesis, the helper is also used by the genesis renderer
+      via sim.riverPaths and sim.ponds — those are passed in the same
+      slots from genesisRenderer.
+    inputs:
+      - 'getEntranceHaloCells called with state.rivers and state.ponds (or sim.riverPaths and sim.ponds during genesis)'
+    outputs:
+      - 'returned Position[] excludes any cell whose posKey is in either set'
+      - 'verdigris fill and patina glyphs do not draw on water tiles'
+    state_changes:
+      - field: getEntranceHaloCells signature
+        effect: 'gains rivers and ponds Set<string> parameters; existing Space filter preserved; new exclusion stacked on top'
     determinism: deterministic
 
   - id: verdigris-color-palette
@@ -92,6 +129,18 @@ edge_cases:
     description: 'some 3x3 cells fall on Space tiles (off the dirt island)'
     expected: 'Space cells are excluded from getEntranceHaloCells, so neither backdrop nor patina draws on them'
 
+  - id: entrance-adjacent-to-river
+    description: 'some 3x3 cells fall on a river tile (entrance carved into the riverbank)'
+    expected: 'river cells (state.rivers) are excluded from getEntranceHaloCells; halo footprint becomes 6 or 7 land tiles instead of 9; halo and patina visible on land cells only; river surface unchanged'
+
+  - id: entrance-adjacent-to-pond
+    description: 'some 3x3 cells fall on a pond tile (entrance at the edge of a small pond)'
+    expected: 'pond cells (state.ponds) are excluded from getEntranceHaloCells; halo and patina draw only on land; pond surface unchanged'
+
+  - id: entrance-fully-encircled-by-water
+    description: 'an entrance is somehow surrounded on all 8 sides by water (degenerate placement bug)'
+    expected: 'getEntranceHaloCells returns only the center entrance tile (or empty if center is also water); halo pass and patina pass each become a 0-1 cell no-op for that entrance; no error thrown'
+
   - id: cursor-on-patina-cell
     description: 'cursor hovers over a halo perimeter cell'
     expected: 'cursor inversion still applies normally to the underlying terrain glyph; patina draws underneath in the effect slot but the inverted cursor background covers it — same behavior as any other effect overlay'
@@ -105,6 +154,9 @@ failure_conditions:
 
   - trigger: 'patina pass drawn in cave or ruin zone'
     expected: 'must not happen — pass isActive returns false outside Zone.Overworld'
+
+  - trigger: 'halo or patina painted on a river or pond tile'
+    expected: 'must not happen — getEntranceHaloCells excludes water cells; verify with a unit test that constructs a state with rivers/ponds adjacent to an entrance and asserts the returned cell list omits them'
 
 verification:
   test_file: src/engine/__tests__/ruin-entrance-patina.test.ts

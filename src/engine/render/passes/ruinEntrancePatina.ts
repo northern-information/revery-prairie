@@ -27,7 +27,15 @@ const draw = (
   for (const interior of state.ruinInteriors) {
     const ex = interior.entranceOverworld.x
     const ey = interior.entranceOverworld.y
-    const cells = getEntranceHaloCells(map, state.mapWidth, state.mapHeight, ex, ey)
+    const cells = getEntranceHaloCells(
+      map,
+      state.mapWidth,
+      state.mapHeight,
+      ex,
+      ey,
+      state.rivers,
+      state.ponds,
+    )
     for (const cell of cells) {
       if (cell.x === ex && cell.y === ey) continue
       const vx = cell.x - camera.x
