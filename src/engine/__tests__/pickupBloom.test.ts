@@ -321,7 +321,7 @@ describe('revery gift bloom', () => {
   it('spawns bloom at player position when receiving a revery gift', () => {
     const state = createTestState()
 
-    giveCharacterGift(state, 'gron', 5000)
+    giveCharacterGift(state, 'moab', 5000)
 
     const blooms = queryPickupBlooms(state)
     expect(blooms).toHaveLength(1)
@@ -334,24 +334,17 @@ describe('revery gift bloom', () => {
   it('does not spawn bloom when time is omitted', () => {
     const state = createTestState()
 
-    giveCharacterGift(state, 'gron')
+    giveCharacterGift(state, 'moab')
 
     expect(queryPickupBlooms(state)).toHaveLength(0)
   })
 
-  it('spawns bloom for postGift revery', () => {
+  it('does not spawn bloom for characters without postGift', () => {
     const state = createTestState()
-    // First give the initial gift so postGift path is available
-    giveCharacterGift(state, 'gron')
 
-    givePostGift(state, 'gron', 6000)
+    // No characters currently have a postGift; givePostGift always returns null
+    givePostGift(state, 'moab', 6000)
 
-    const blooms = queryPickupBlooms(state)
-    // One from giveCharacterGift (no time, so 0) + one from givePostGift (with time)
-    expect(blooms).toHaveLength(1)
-    expect(state.world.getComponent(blooms[0], ComponentType.TimedEffect)).toEqual({
-      kind: 'pickupBloom',
-      startTime: 6000,
-    })
+    expect(queryPickupBlooms(state)).toHaveLength(0)
   })
 })

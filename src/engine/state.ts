@@ -358,11 +358,15 @@ export const createGameState = (
 
   autoSort(backpack)
 
-  // Player starts with Earth and Lightning reveries
+  // Player starts with all four reveries
   state.reveries.push('earth')
   autoAssignRevery(state, 'earth')
   state.reveries.push('lightning')
   autoAssignRevery(state, 'lightning')
+  state.reveries.push('water')
+  autoAssignRevery(state, 'water')
+  state.reveries.push('deep-time')
+  autoAssignRevery(state, 'deep-time')
 
   return state
 }

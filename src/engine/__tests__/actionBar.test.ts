@@ -52,9 +52,11 @@ describe('assignActionBarSlot', () => {
 
   it('ignores out-of-range indices', () => {
     const state = makeState()
-    // Clear pre-assigned reveries for this test
+    // Clear all pre-assigned reveries for this test
     state.actionBar[0] = null
     state.actionBar[1] = null
+    state.actionBar[2] = null
+    state.actionBar[3] = null
     assignActionBarSlot(state, -1, 'revery', 'fire')
     assignActionBarSlot(state, 4, 'revery', 'fire')
 
@@ -75,7 +77,7 @@ describe('clearActionBarSlot', () => {
 describe('activateActionBarSlot', () => {
   it('returns false for empty slot', () => {
     const state = makeState()
-    // Slot 3 is empty (slot 0 has pre-assigned earth)
+    state.actionBar[3] = null
     expect(activateActionBarSlot(state, 3, 1000)).toBe(false)
   })
 
@@ -262,7 +264,9 @@ describe('getSlotCooldownFraction', () => {
 describe('autoAssignRevery', () => {
   it('assigns to first empty slot', () => {
     const state = makeState()
-    // Slot 0 = earth, slot 1 = lightning (pre-assigned), so fire goes to slot 2
+    // All 4 slots are pre-filled; clear slots 2 and 3 so fire can land in 2
+    clearActionBarSlot(state, 2)
+    clearActionBarSlot(state, 3)
     autoAssignRevery(state, 'fire')
 
     expect(state.actionBar[2]?.kind).toBe('revery')
@@ -271,7 +275,9 @@ describe('autoAssignRevery', () => {
 
   it('skips filled slots', () => {
     const state = makeState()
-    // Slot 0 = earth, slot 1 = lightning (pre-assigned), slot 2 = fire
+    // Clear slots 2 and 3 so we can test slot-skipping behavior
+    clearActionBarSlot(state, 2)
+    clearActionBarSlot(state, 3)
     assignActionBarSlot(state, 2, 'revery', 'fire')
     autoAssignRevery(state, 'water')
 

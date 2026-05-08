@@ -22,31 +22,6 @@ dependencies:
   - shooting-stars
 
 behaviors:
-  - id: gron-deep-time-dialog
-    description: >
-      after gron gives the water revery, subsequent interactions show a
-      multi-line postGiftDialog. the first line is the Deep Time
-      speech. the second line is the readiness question. on completing
-      the final dialog line, gron drops the Deep Time revery as a
-      ground item at the player's position. this uses a new field
-      postGiftAction on CharacterEntry. gron's postGiftAction is a
-      function that spawns a ground revery item. the action fires once
-      — tracked via a new state.postGiftActionsCompleted set.
-    inputs:
-      - 'player interacts with gron after giftsReceived has gron'
-      - 'player advances through all postGiftDialog lines'
-    outputs:
-      - 'deep-time revery item appears on the ground at player position'
-      - 'onDiscovery callback fires for revery drop'
-    state_changes:
-      - field: postGiftActionsCompleted
-        effect: 'gron added to set (prevents repeat drops)'
-      - field: 'world (ECS)'
-        effect: 'new ground item entity with deep-time revery item spawned at player position'
-      - field: manualDiscoveries
-        effect: 'event:gron-deep-time recorded'
-    determinism: deterministic
-
   - id: deep-time-revery-definition
     description: >
       new revery registered in REVERIES with id deep-time. castStyle
@@ -240,11 +215,10 @@ behaviors:
   - id: deep-time-manual-entry
     description: >
       deep-time revery auto-generates a manual entry via existing
-      ITEM_DEFINITIONS/REVERY_DEFINITIONS registry. discovery recorded
-      when gron drops it. a manual-only entry for the deep time event
-      is added to MANUAL_ONLY_ENTRIES.
+      ITEM_DEFINITIONS/REVERY_DEFINITIONS registry. a manual-only entry
+      for the deep time event is added to MANUAL_ONLY_ENTRIES.
     inputs:
-      - 'player picks up deep-time revery or casts it'
+      - 'player casts the deep-time revery'
     outputs:
       - 'manual entry visible in prairie manual'
     state_changes:
@@ -256,15 +230,9 @@ edge_cases:
   - id: cast-in-cave
     description: 'player casts deep-time revery while in the cave zone'
     expected: 'deep time initiates normally. cave map is the active map during simulation. overworld map also simulates via dual-zone tick system.'
-  - id: gron-dialog-already-completed
-    description: 'player talks to gron again after deep-time revery was already dropped'
-    expected: 'postGiftDialog replays but postGiftAction does not fire again (tracked in postGiftActionsCompleted)'
   - id: deep-time-revery-dropped-on-ground
     description: 'player drops the deep-time revery item without casting it'
     expected: 'revery becomes a ground item. player can pick it up later.'
-  - id: inventory-full-when-gron-drops
-    description: 'player backpack is full when gron finishes dialog'
-    expected: 'deep-time revery drops on the ground at player position as a ground item regardless of backpack state'
   - id: sparse-clover-survives-burn
     description: 'isolated clover patches far from ignition points survive the initial burn phase'
     expected: 'fire only reaches clover within wildfire BFS range of ignition points. distant clover survives to face the 1000-year simulation.'
