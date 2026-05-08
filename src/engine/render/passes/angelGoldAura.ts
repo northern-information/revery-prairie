@@ -19,7 +19,14 @@ const collectAngelCenters = (state: GameState): { x: number; y: number }[] => {
   return centers
 }
 
-const isActive = (state: GameState): boolean => collectAngelCenters(state).length > 0
+// Lightweight check — short-circuits on first match without collecting positions.
+// collectAngelCenters (which allocates) only runs once, inside draw().
+const isActive = (state: GameState): boolean => {
+  for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
+    if (isEntityInCurrentZone(state, eid)) return true
+  }
+  return false
+}
 
 const draw = (
   ctx: CanvasRenderingContext2D,

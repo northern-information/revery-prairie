@@ -174,11 +174,19 @@ export const collectFiles = (base: string): ChangedFile[] => {
   return files
 }
 
-export const readSkipReason = (): string | undefined => {
+export const readSkipReason = (base?: string): string | undefined => {
   const env = process.env.SKIP_HARNESS
   if (env !== undefined && env.trim().length > 0) return env.trim()
   try {
-    const message = runGit(['log', '-1', '--pretty=%B', 'HEAD'])
+    const ref = base ?? process.env.HARNESS_BASE ?? 'origin/main'
+    // Scan all commits in the PR range so the trailer is found even when CI
+    // checks out an ephemeral merge commit (the default for actions/checkout).
+    // Fall back to HEAD-only if the range ref doesn't exist (local dev without
+    // a fetched origin/main).
+    const range = refExists(ref) ? `${ref}..HEAD` : null
+    const message = range
+      ? runGit(['log', '--pretty=%B', range])
+      : runGit(['log', '-1', '--pretty=%B', 'HEAD'])
     for (const line of message.split('\n')) {
       const match = /^Skip-Harness:\s*(.+)$/.exec(line.trim())
       if (match !== null && match[1].trim().length > 0) return match[1].trim()
@@ -199,7 +207,7 @@ const main = (): void => {
     process.exit(2)
   }
 
-  const skipReason = readSkipReason()
+  const skipReason = readSkipReason(base)
   const files = collectFiles(base)
   const outcome = evaluate({ files, skipReason })
   console.log(formatReport(outcome))
