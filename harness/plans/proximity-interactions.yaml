@@ -1,0 +1,142 @@
+plan:
+  id: proximity-interactions
+  title: 'Proximity pickup and zone transitions (Chebyshev distance 1)'
+  created: '2026-05-08'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: tile-types-and-constants
+    title: 'Add CaveExit and RuinExit tile types, chars, colors'
+    spec_id: wide-exits
+    spec_sections:
+      - exit-tile-types
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: safe-exit-min-distance
+    title: 'Update findSafeExitPosition to accept minDistance for outside-hitbox placement'
+    spec_id: wide-exits
+    spec_sections:
+      - exit-placement-outside-hitbox
+    context_files:
+      - src/engine/position.ts
+    output_files:
+      - src/engine/position.ts
+    depends_on:
+      - tile-types-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: cave-wide-exit
+    title: 'Place 5-tile CaveExit row in cave interior; update checkTransition 3x3 hitbox; exitCave minDistance 2'
+    spec_id: wide-exits
+    spec_sections:
+      - cave-interior-wide-exit
+      - overworld-entrance-3x3-hitbox
+      - exit-transition-detection
+      - exit-placement-outside-hitbox
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/cave.ts
+    depends_on:
+      - tile-types-and-constants
+      - safe-exit-min-distance
+    verification:
+      - npx vitest run src/engine/__tests__/cave.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: ruin-wide-exit
+    title: 'Place 5-tile RuinExit row in ruin interior; update checkRuinTransition 3x3 hitbox; exitRuin minDistance 2'
+    spec_id: wide-exits
+    spec_sections:
+      - ruin-interior-wide-exit
+      - overworld-entrance-3x3-hitbox
+      - exit-transition-detection
+      - exit-placement-outside-hitbox
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - tile-types-and-constants
+      - safe-exit-min-distance
+    verification:
+      - npx vitest run src/engine/__tests__/ruins.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: proximity-ground-item-pickup
+    title: 'Expand ground item pickup to 3x3 footprint; keep bees exact-tile'
+    spec_id: player-movement
+    spec_sections:
+      - proximity-ground-item-pickup
+    context_files:
+      - src/engine/entities.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/entities.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: sidebar-exit-labels
+    title: 'Add CaveExit and RuinExit labels to Sidebar tile lookup'
+    spec_id: wide-exits
+    spec_sections:
+      - sidebar-exit-label
+    context_files:
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - tile-types-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: []
+
+  - id: proximity-tests
+    title: 'Add/update tests for 3x3 hitbox, CaveExit/RuinExit transitions, proximity ground item pickup'
+    spec_id: wide-exits
+    spec_sections:
+      - overworld-entrance-3x3-hitbox
+      - exit-transition-detection
+      - exit-placement-outside-hitbox
+    context_files:
+      - src/engine/__tests__/cave.test.ts
+      - src/engine/__tests__/ruins.test.ts
+      - src/engine/__tests__/entities.test.ts
+    output_files:
+      - src/engine/__tests__/cave.test.ts
+      - src/engine/__tests__/ruins.test.ts
+      - src/engine/__tests__/entities.test.ts
+    depends_on:
+      - cave-wide-exit
+      - ruin-wide-exit
+      - proximity-ground-item-pickup
+    verification:
+      - npx vitest run src/engine/__tests__/cave.test.ts
+      - npx vitest run src/engine/__tests__/ruins.test.ts
+      - npx vitest run src/engine/__tests__/entities.test.ts
+    repair: retry
+    tags: [test]

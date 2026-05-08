@@ -101,9 +101,17 @@ const createBaseMap = (
 
   const entranceX = Math.floor(mapWidth / 2)
   const entranceY = mapHeight - 2
-  map[entranceY][entranceX] = { type: TileType.RuinEntrance }
 
-  // Landing area (3 wide, 2 tall)
+  // Exit row: 5 RuinExit tiles centered on entranceX (hot pink, walkable)
+  const EXIT_WIDTH = 5
+  const exitMargin = 3
+  const exitStartX = Math.max(exitMargin, Math.min(mapWidth - exitMargin - EXIT_WIDTH, entranceX - Math.floor(EXIT_WIDTH / 2)))
+  for (let i = 0; i < EXIT_WIDTH; i++) {
+    const ex = exitStartX + i
+    if (ex >= 0 && ex < mapWidth) map[entranceY][ex] = { type: TileType.RuinExit }
+  }
+
+  // Landing area (3 wide, 2 tall) above the center exit tile
   carveRect(map, entranceX - 1, entranceY - 2, 3, 2)
 
   const entranceInterior: Position = { x: entranceX, y: entranceY - 1 }
@@ -808,12 +816,13 @@ export const exitRuin = (state: GameState): void => {
   state.mapHeight = state.overworldMapHeight
   state.currentZone = Zone.Overworld
 
-  // Place player on nearest walkable tile adjacent to entrance
+  // Place player outside the 3x3 overworld hitbox (Chebyshev distance >= 2)
   state.player = findSafeExitPosition(
     interior.entranceOverworld,
     state.map,
     state.mapWidth,
     state.mapHeight,
+    2,
   )
 
   state.currentRuinIndex = null
@@ -826,20 +835,34 @@ export const exitRuin = (state: GameState): void => {
 }
 
 export const checkRuinTransition = (state: GameState): boolean => {
-  const tile = state.map[state.player.y]?.[state.player.x]
-  if (tile?.type !== TileType.RuinEntrance) return false
+  const px = state.player.x
+  const py = state.player.y
 
+  // Overworld: 3x3 hitbox scan for RuinEntrance
   if (state.currentZone === Zone.Overworld) {
-    // Find which ruin this entrance belongs to
-    const ruinIndex = state.ruinInteriors.findIndex(
-      (r) => r.entranceOverworld.x === state.player.x && r.entranceOverworld.y === state.player.y,
-    )
-    if (ruinIndex === -1) return false
-    enterRuin(state, ruinIndex)
-    return true
-  } else if (state.currentZone === Zone.Ruin) {
-    exitRuin(state)
-    return true
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (state.map[py + dy]?.[px + dx]?.type === TileType.RuinEntrance) {
+          const ex = px + dx
+          const ey = py + dy
+          const ruinIndex = state.ruinInteriors.findIndex(
+            (r) => r.entranceOverworld.x === ex && r.entranceOverworld.y === ey,
+          )
+          if (ruinIndex !== -1) {
+            enterRuin(state, ruinIndex)
+            return true
+          }
+        }
+      }
+    }
+  }
+
+  // Ruin interior: step on any RuinExit tile to exit
+  if (state.currentZone === Zone.Ruin) {
+    if (state.map[py]?.[px]?.type === TileType.RuinExit) {
+      exitRuin(state)
+      return true
+    }
   }
 
   return false

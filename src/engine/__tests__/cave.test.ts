@@ -23,9 +23,22 @@ describe('generateCave', () => {
     expect(map[0].length).toBe(CAVE_WIDTH)
   })
 
-  it('has a CaveEntrance tile at the entrance position', () => {
+  it('has CaveExit tiles at the exit row center', () => {
     const { map, entrance } = generateCave(CAVE_WIDTH, CAVE_HEIGHT)
-    expect(map[entrance.y][entrance.x].type).toBe(TileType.CaveEntrance)
+    expect(map[entrance.y][entrance.x].type).toBe(TileType.CaveExit)
+  })
+
+  it('has a 5-tile CaveExit row centered on entrance.x', () => {
+    const { map, entrance } = generateCave(CAVE_WIDTH, CAVE_HEIGHT)
+    const entranceX = entrance.x
+    const entranceY = entrance.y
+    let exitCount = 0
+    for (let x = 0; x < CAVE_WIDTH; x++) {
+      if (map[entranceY][x].type === TileType.CaveExit) exitCount++
+    }
+    expect(exitCount).toBe(5)
+    // CaveExit tiles span a row; center tile should be CaveExit
+    expect(map[entranceY][entranceX].type).toBe(TileType.CaveExit)
   })
 
   it('contains at least one CaveBreakableWall tile', () => {
@@ -145,6 +158,7 @@ describe('isWalkableTile', () => {
     expect(isWalkableTile(TileType.Sand)).toBe(true)
     expect(isWalkableTile(TileType.CaveFloor)).toBe(true)
     expect(isWalkableTile(TileType.CaveEntrance)).toBe(true)
+    expect(isWalkableTile(TileType.CaveExit)).toBe(true)
   })
 
   it('returns false for non-walkable tiles', () => {
@@ -224,14 +238,13 @@ describe('exitCave', () => {
     expect(getCharacterEntities(state)).toHaveLength(charsBefore)
   })
 
-  it('places player on walkable tile adjacent to cave entrance', () => {
+  it('places player outside 3x3 hitbox (Chebyshev distance >= 2) from cave entrance', () => {
     const state = createTestState()
     enterCave(state)
     exitCave(state)
     const dx = Math.abs(state.player.x - state.caveEntranceOverworld.x)
     const dy = Math.abs(state.player.y - state.caveEntranceOverworld.y)
-    expect(dx).toBeLessThanOrEqual(1)
-    expect(dy).toBeLessThanOrEqual(1)
+    expect(Math.max(dx, dy)).toBeGreaterThanOrEqual(2)
     const tile = state.map[state.player.y][state.player.x]
     expect(isWalkableTile(tile.type)).toBe(true)
   })
@@ -244,21 +257,22 @@ describe('exitCave', () => {
     expect(state.currentZone).toBe(Zone.Overworld)
   })
 
-  it('places player on walkable tile even when south of entrance is blocked', () => {
+  it('places player on walkable tile even when immediate south is blocked', () => {
     const state = createTestState()
     const entrance = state.caveEntranceOverworld
-    // Block the tile south of the cave entrance
-    if (entrance.y + 1 < state.overworldMapHeight) {
-      state.overworldMap[entrance.y + 1][entrance.x] = { type: TileType.Space }
+    // Block the tile directly south of the cave entrance at distance 2
+    if (entrance.y + 2 < state.overworldMapHeight) {
+      state.overworldMap[entrance.y + 2][entrance.x] = { type: TileType.Space }
     }
     enterCave(state)
     exitCave(state)
     // Player should be on a walkable tile
     const tile = state.map[state.player.y][state.player.x]
     expect(isWalkableTile(tile.type)).toBe(true)
-    // Player should be within 1 tile of entrance
-    expect(Math.abs(state.player.x - entrance.x)).toBeLessThanOrEqual(1)
-    expect(Math.abs(state.player.y - entrance.y)).toBeLessThanOrEqual(1)
+    // Player should be outside the 3x3 hitbox
+    const dx = Math.abs(state.player.x - entrance.x)
+    const dy = Math.abs(state.player.y - entrance.y)
+    expect(Math.max(dx, dy)).toBeGreaterThanOrEqual(2)
   })
 })
 
@@ -272,16 +286,30 @@ describe('checkTransition', () => {
     expect(state.currentZone).toBe(Zone.Cave)
   })
 
-  it('exits cave when standing on cave CaveEntrance', () => {
+  it('enters cave when player is adjacent to (not on) CaveEntrance tile', () => {
+    const state = createTestState()
+    // Place CaveEntrance 1 tile north of player; player is adjacent, not standing on it
+    const cx = state.player.x
+    const cy = state.player.y - 1
+    state.map[cy][cx] = { type: TileType.CaveEntrance }
+    // Update caveEntranceOverworld so enterCave can reference it
+    state.caveEntranceOverworld = { x: cx, y: cy }
+    const result = checkTransition(state)
+    expect(result).toBe(true)
+    expect(state.currentZone).toBe(Zone.Cave)
+  })
+
+  it('exits cave when player steps on a CaveExit tile', () => {
     const state = createTestState()
     enterCave(state)
+    // caveEntranceInterior is the center of the CaveExit row
     state.player = { ...state.caveEntranceInterior }
     const result = checkTransition(state)
     expect(result).toBe(true)
     expect(state.currentZone).toBe(Zone.Overworld)
   })
 
-  it('returns false when not on a CaveEntrance tile', () => {
+  it('returns false when not within range of any CaveEntrance tile', () => {
     const state = createTestState()
     state.map[state.player.y][state.player.x] = { type: TileType.Dirt }
     const result = checkTransition(state)

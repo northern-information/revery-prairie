@@ -71,15 +71,19 @@ export const generateCave = (width: number, height: number, rng: () => number = 
     Array.from({ length: width }, () => ({ type: TileType.CaveWall }))
   )
 
-  // Entrance at bottom center
+  // Exit row at bottom center: 5 CaveExit tiles (hot pink, walkable)
   const entranceX = Math.floor(width / 2)
   const entranceY = height - 2
-  map[entranceY][entranceX] = { type: TileType.CaveEntrance }
+  const EXIT_WIDTH = 5
+  const exitMargin = 3
+  const exitStartX = Math.max(exitMargin, Math.min(width - exitMargin - EXIT_WIDTH, entranceX - Math.floor(EXIT_WIDTH / 2)))
+  for (let i = 0; i < EXIT_WIDTH; i++) {
+    const ex = exitStartX + i
+    if (ex >= 0 && ex < width) map[entranceY][ex] = { type: TileType.CaveExit }
+  }
 
-  // Carve a small landing area around the entrance
-  carveRect(map, entranceX - 1, entranceY - 1, 3, 2)
-  // Restore the entrance tile (carveRect may have overwritten it)
-  map[entranceY][entranceX] = { type: TileType.CaveEntrance }
+  // Landing area (3 wide, 2 tall) directly above the center exit tile
+  carveRect(map, entranceX - 1, entranceY - 2, 3, 2)
 
   // Generate waypoints for the main passage
   // Start just above entrance landing, wander upward with lateral variation
@@ -109,8 +113,11 @@ export const generateCave = (width: number, height: number, rng: () => number = 
   for (let i = 0; i < waypoints.length - 1; i++) {
     carveCorridor(map, waypoints[i], waypoints[i + 1], corridorWidth)
   }
-  // Restore entrance tile (corridor carving may have overwritten it)
-  map[entranceY][entranceX] = { type: TileType.CaveEntrance }
+  // Restore exit tiles (corridor carving may have overwritten them)
+  for (let i = 0; i < EXIT_WIDTH; i++) {
+    const ex = exitStartX + i
+    if (ex >= 0 && ex < width) map[entranceY][ex] = { type: TileType.CaveExit }
+  }
 
   // Small chamber at the last waypoint — extend upward to touch the breakable wall
   const lastWaypoint = waypoints[waypoints.length - 1]
@@ -213,12 +220,13 @@ export const exitCave = (state: GameState): void => {
   state.mapHeight = state.overworldMapHeight
   state.currentZone = Zone.Overworld
 
-  // Place player on nearest walkable tile adjacent to entrance
+  // Place player outside the 3x3 overworld hitbox (Chebyshev distance >= 2)
   state.player = findSafeExitPosition(
     state.caveEntranceOverworld,
     state.map,
     state.mapWidth,
     state.mapHeight,
+    2,
   )
 
   // Clear navigation state
@@ -243,21 +251,29 @@ export const exitCave = (state: GameState): void => {
 }
 
 export const checkTransition = (state: GameState): boolean => {
-  const tileType = state.map[state.player.y]?.[state.player.x]?.type
+  const px = state.player.x
+  const py = state.player.y
 
-  if (tileType === TileType.CaveEntrance) {
-    if (state.currentZone === Zone.Overworld) {
-      enterCave(state)
-      return true
-    } else if (state.currentZone === Zone.Cave) {
+  // Overworld: 3x3 hitbox scan for CaveEntrance
+  if (state.currentZone === Zone.Overworld) {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (state.map[py + dy]?.[px + dx]?.type === TileType.CaveEntrance) {
+          enterCave(state)
+          return true
+        }
+      }
+    }
+  }
+
+  // Cave interior: step on any CaveExit tile to exit
+  if (state.currentZone === Zone.Cave) {
+    if (state.map[py]?.[px]?.type === TileType.CaveExit) {
       exitCave(state)
       return true
     }
   }
 
-  if (tileType === TileType.RuinEntrance) {
-    return checkRuinTransition(state)
-  }
-
-  return false
+  // Ruin transitions (overworld 3x3 hitbox + interior RuinExit)
+  return checkRuinTransition(state)
 }
