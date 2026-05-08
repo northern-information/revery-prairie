@@ -1,0 +1,64 @@
+plan:
+  id: sidebar-cursor-info-overflow
+  title: Round elevation/water in cursor info and harden against value cell overflow
+  created: 2026-05-08
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: regression-test
+    title: Add failing regression test for elevation/water formatting and value clipping
+    spec_id: sidebar-cursor-info-overflow
+    spec_sections:
+      - elevation-rounded-to-integer
+      - water-rendered-as-integer-percent
+      - value-cells-truncate-rather-than-overflow
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/engine/state.ts
+      - src/engine/genesis.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/__tests__/Sidebar.cursorInfoOverflow.test.tsx
+    depends_on: []
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.cursorInfoOverflow.test.tsx
+    repair: retry
+    tags: [test]
+
+  - id: round-elevation-and-water
+    title: Round elevation to integer and render water as integer percent in Sidebar
+    spec_id: sidebar-cursor-info-overflow
+    spec_sections:
+      - elevation-rounded-to-integer
+      - water-rendered-as-integer-percent
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/constants.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - regression-test
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.cursorInfoOverflow.test.tsx
+    repair: retry
+    tags: [component]
+
+  - id: harden-value-cell-truncation
+    title: Apply table-fixed + value cell truncation to Cursor info table
+    spec_id: sidebar-cursor-info-overflow
+    spec_sections:
+      - value-cells-truncate-rather-than-overflow
+    context_files:
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - round-elevation-and-water
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.cursorInfoOverflow.test.tsx
+    repair: retry
+    tags: [component]
