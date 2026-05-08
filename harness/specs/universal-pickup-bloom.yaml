@@ -33,12 +33,12 @@ behaviors:
 
   - id: ground-item-bloom
     description: >
-      When the player walks over a ground item and it is picked up, a
-      pickupBloom spawns at the player position. This replaces the
-      meteorite-only bloom. All ground item types (coins, honey, etc.)
-      now trigger the bloom.
+      When the player moves within Chebyshev distance 1 of a ground item
+      and it is picked up, a pickupBloom spawns at the player position.
+      All ground item types (coins, honey, etc.) trigger the bloom.
+      Multiple items picked up in one move still produce exactly one bloom.
     inputs:
-      - 'player walks onto tile containing ground item entity'
+      - 'player moves to within Chebyshev distance 1 of ground item entity'
       - 'time parameter is provided'
     outputs:
       - 'pickupBloom at player position'

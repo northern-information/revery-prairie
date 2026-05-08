@@ -62,35 +62,47 @@ export const isWalkableTile = (tileType: TileType): boolean =>
   tileType !== TileType.RuinDebris &&
   tileType !== TileType.RuinDoorLocked
 
-/** Find the nearest walkable tile adjacent to an entrance for safe exit placement.
- *  Checks south first (preferred), then remaining cardinals, then diagonals.
- *  Falls back to the entrance position itself if nothing is walkable. */
+/** Find the nearest walkable tile at Chebyshev distance >= minDistance from entrance.
+ *  Searches outward shell by shell, preferring south at each distance.
+ *  Pass minDistance=2 when exiting a zone to land outside the 3x3 entry hitbox. */
 export const findSafeExitPosition = (
   entrance: Position,
   map: Tile[][],
   mapWidth: number,
   mapHeight: number,
+  minDistance = 1,
 ): Position => {
-  // Priority order: south first (original behavior), then other cardinals, then diagonals
-  const offsets: Position[] = [
-    { x: 0, y: 1 },
-    { x: 0, y: -1 },
-    { x: -1, y: 0 },
-    { x: 1, y: 0 },
-    { x: -1, y: 1 },
-    { x: 1, y: 1 },
-    { x: -1, y: -1 },
-    { x: 1, y: -1 },
-  ]
-  for (const off of offsets) {
-    const nx = entrance.x + off.x
-    const ny = entrance.y + off.y
-    if (!isInBounds(nx, ny, mapWidth, mapHeight)) continue
-    const tile = map[ny]?.[nx]
-    if (tile && isWalkableTile(tile.type)) {
-      return { x: nx, y: ny }
+  for (let dist = minDistance; dist <= minDistance + 4; dist++) {
+    const shell: Position[] = []
+    for (let dy = -dist; dy <= dist; dy++) {
+      for (let dx = -dist; dx <= dist; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== dist) continue
+        shell.push({ x: dx, y: dy })
+      }
+    }
+    // Priority: direct south → direct north → direct west → direct east → rest
+    // (sorted by decreasing y, ascending |x| within the remainder group).
+    // This matches the original single-shell ordering: S, N, W, E, SW, SE, NW, NE.
+    const cardinalPriority = (off: Position): number => {
+      if (off.x === 0 && off.y > 0) return 0
+      if (off.x === 0 && off.y < 0) return 1
+      if (off.x < 0 && off.y === 0) return 2
+      if (off.x > 0 && off.y === 0) return 3
+      return 4
+    }
+    shell.sort((a, b) => {
+      const pa = cardinalPriority(a)
+      const pb = cardinalPriority(b)
+      if (pa !== pb) return pa - pb
+      return b.y - a.y || Math.abs(a.x) - Math.abs(b.x)
+    })
+    for (const off of shell) {
+      const nx = entrance.x + off.x
+      const ny = entrance.y + off.y
+      if (!isInBounds(nx, ny, mapWidth, mapHeight)) continue
+      const tile = map[ny]?.[nx]
+      if (tile && isWalkableTile(tile.type)) return { x: nx, y: ny }
     }
   }
-  // Fallback: entrance itself
   return { x: entrance.x, y: entrance.y }
 }

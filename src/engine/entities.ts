@@ -50,11 +50,17 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   const py = state.player.y
   const pickedUp: string[] = []
 
-  // Ground items (ECS entities with 'groundItem' tag)
-  const groundItemsAtPlayer = state.world.spatial
-    .at(px, py)
-    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
-  for (const eid of groundItemsAtPlayer) {
+  // Ground items: scan 3x3 footprint (Chebyshev distance <= 1); bees use exact tile below
+  const groundItemsInRange: number[] = []
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      state.world.spatial
+        .at(px + dx, py + dy)
+        .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
+        .forEach(eid => groundItemsInRange.push(eid))
+    }
+  }
+  for (const eid of groundItemsInRange) {
     const itemDrop = state.world.getComponent(eid, ComponentType.ItemDrop)
     if (!itemDrop) continue
     const fit = findFitPosition(state.backpack, itemDrop.definitionId)

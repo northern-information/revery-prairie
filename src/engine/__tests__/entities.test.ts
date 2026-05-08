@@ -271,6 +271,37 @@ describe('pickUpGroundItems', () => {
     expect(result.pickedUp).toContain('bee')
   })
 
+  it('picks up ground item adjacent to player (Chebyshev distance 1)', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    // Place ground item 1 tile to the north-east — adjacent but not at player position
+    createGroundItemEntity(state, 'clover', state.player.x + 1, state.player.y - 1)
+    pickUpGroundItems(state)
+    expect(getGroundItemEntities(state)).toHaveLength(0)
+    expect(containerHasItem(state.backpack, 'clover')).toBe(true)
+  })
+
+  it('picks up all ground items within 3x3 footprint in one pass', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    // Place items at several different adjacent positions
+    createGroundItemEntity(state, 'clover', state.player.x, state.player.y - 1)  // north
+    createGroundItemEntity(state, 'clover', state.player.x + 1, state.player.y)  // east
+    createGroundItemEntity(state, 'clover', state.player.x, state.player.y + 1)  // south
+    pickUpGroundItems(state)
+    expect(getGroundItemEntities(state)).toHaveLength(0)
+  })
+
+  it('does not capture bee entity adjacent to player — exact tile required', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    // Bee entity 1 tile to the east — adjacent but not at exact player position
+    createBeeEntity(state, state.player.x + 1, state.player.y)
+    pickUpGroundItems(state)
+    // Bee should NOT be captured since player is not on its tile
+    expect(getBeeEntities(state)).toHaveLength(1)
+  })
+
   it('does not capture bee if backpack is full', () => {
     const state = createTestState()
     clearAroundPlayer(state)

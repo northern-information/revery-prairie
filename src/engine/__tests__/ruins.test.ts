@@ -83,7 +83,7 @@ describe('ruin infrastructure', () => {
       expect(interior.map[0]).toHaveLength(interior.mapWidth)
     })
 
-    it('places a RuinEntrance tile at the bottom center', () => {
+    it('places RuinExit tiles at the bottom center exit row', () => {
       const ruin = makeRuin({ radius: 3 })
       let a = 42 | 0
       const rng = () => {
@@ -95,7 +95,9 @@ describe('ruin infrastructure', () => {
       const interior = generateRuinInterior(ruin, 0, RuinArchetype.DormantGarden, rng)
       const entranceX = Math.floor(interior.mapWidth / 2)
       const entranceY = interior.mapHeight - 2
-      expect(interior.map[entranceY][entranceX].type).toBe(TileType.RuinEntrance)
+      // Center tile of exit row is RuinExit; landing area above is RuinFloor
+      expect(interior.map[entranceY][entranceX].type).toBe(TileType.RuinExit)
+      expect(isWalkableTile(interior.map[entranceY][entranceX].type)).toBe(true)
     })
 
     it('has walkable floor tiles near the entrance', () => {
@@ -182,20 +184,43 @@ describe('ruin infrastructure', () => {
       expect(state.map).toBe(overworldMap)
     })
 
-    it('exitRuin places player on walkable tile adjacent to entrance', () => {
+    it('exitRuin places player outside 3x3 hitbox (Chebyshev distance >= 2) from entrance', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
       if (state.ruinInteriors.length === 0) return
       const entrance = state.ruinInteriors[0].entranceOverworld
       enterRuin(state, 0)
       exitRuin(state)
-      // Player should be within 1 tile of the entrance
       const dx = Math.abs(state.player.x - entrance.x)
       const dy = Math.abs(state.player.y - entrance.y)
-      expect(dx).toBeLessThanOrEqual(1)
-      expect(dy).toBeLessThanOrEqual(1)
-      // Player should be on a walkable tile
+      expect(Math.max(dx, dy)).toBeGreaterThanOrEqual(2)
       const tile = state.map[state.player.y][state.player.x]
       expect(isWalkableTile(tile.type)).toBe(true)
+    })
+
+    it('checkRuinTransition enters ruin when player is adjacent to RuinEntrance', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      if (state.ruinInteriors.length === 0) return
+      const entrance = state.ruinInteriors[0].entranceOverworld
+      // Place player 1 tile south of entrance — adjacent, not on it
+      state.player = { x: entrance.x, y: entrance.y + 1 }
+      state.overworldMap[state.player.y][state.player.x] = { type: TileType.Dirt }
+      const result = checkRuinTransition(state)
+      expect(result).toBe(true)
+      expect(state.currentZone).toBe(Zone.Ruin)
+    })
+
+    it('checkRuinTransition exits ruin when player steps on RuinExit tile', () => {
+      const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+      if (state.ruinInteriors.length === 0) return
+      enterRuin(state, 0)
+      // Place player on the center of the RuinExit row in the interior
+      const interior = state.ruinInteriors[0]
+      const exitX = Math.floor(interior.mapWidth / 2)
+      const exitY = interior.mapHeight - 2
+      state.player = { x: exitX, y: exitY }
+      const result = checkRuinTransition(state)
+      expect(result).toBe(true)
+      expect(state.currentZone).toBe(Zone.Overworld)
     })
 
     it('exitRuin is a no-op when not in a ruin', () => {
@@ -238,6 +263,10 @@ describe('ruin infrastructure', () => {
 
     it('RuinEntrance is walkable', () => {
       expect(isWalkableTile(TileType.RuinEntrance)).toBe(true)
+    })
+
+    it('RuinExit is walkable', () => {
+      expect(isWalkableTile(TileType.RuinExit)).toBe(true)
     })
   })
 
@@ -327,10 +356,10 @@ describe('ruin infrastructure', () => {
         // Walls remain walls
         const cornerTile = interior.map[0][0]
         expect(cornerTile.type).toBe(TileType.RuinWall)
-        // Entrance remains entrance
+        // Exit row remains intact (5 RuinExit tiles centered on entranceX)
         const ex = Math.floor(interior.mapWidth / 2)
         const ey = interior.mapHeight - 2
-        expect(interior.map[ey][ex].type).toBe(TileType.RuinEntrance)
+        expect(interior.map[ey][ex].type).toBe(TileType.RuinExit)
       }
     })
 
@@ -531,22 +560,22 @@ describe('ruin infrastructure', () => {
       expect(result).toEqual({ x: 2, y: 2 })
     })
 
-    it('exitRuin places player on walkable tile even when south is blocked', () => {
+    it('exitRuin places player on walkable tile even when direct south is blocked', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
       if (state.ruinInteriors.length === 0) return
       const entrance = state.ruinInteriors[0].entranceOverworld
-      // Block the tile south of entrance
-      if (entrance.y + 1 < state.overworldMapHeight) {
-        state.overworldMap[entrance.y + 1][entrance.x] = { type: TileType.Space }
+      // Block the tile directly south at distance 2 (the first south candidate)
+      if (entrance.y + 2 < state.overworldMapHeight) {
+        state.overworldMap[entrance.y + 2][entrance.x] = { type: TileType.Space }
       }
       enterRuin(state, 0)
       exitRuin(state)
-      // Player should be on a walkable tile
+      // Player should be on a walkable tile outside the hitbox
       const tile = state.map[state.player.y][state.player.x]
       expect(isWalkableTile(tile.type)).toBe(true)
-      // Player should be within 1 tile of entrance
-      expect(Math.abs(state.player.x - entrance.x)).toBeLessThanOrEqual(1)
-      expect(Math.abs(state.player.y - entrance.y)).toBeLessThanOrEqual(1)
+      const dx = Math.abs(state.player.x - entrance.x)
+      const dy = Math.abs(state.player.y - entrance.y)
+      expect(Math.max(dx, dy)).toBeGreaterThanOrEqual(2)
     })
   })
 

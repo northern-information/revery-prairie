@@ -8,6 +8,8 @@ source_files:
   - src/engine/position.ts
   - src/engine/camera.ts
   - src/engine/gameLoop.ts
+  - src/engine/entities.ts
+  - src/engine/cave.ts
 dependencies: []
 
 behaviors:
@@ -38,7 +40,7 @@ behaviors:
       - field: manualDiscoveries
         effect: 'event:glint-zone recorded on first glint zone entry'
       - field: currentZone
-        effect: 'may change via checkTransition if player steps on a CaveEntrance tile (zone swap between overworld and cave)'
+        effect: 'may change via checkTransition if a CaveEntrance or RuinEntrance tile is within Chebyshev distance 1 of the player (overworld entry), or if the player steps on a CaveExit or RuinExit tile (interior exit)'
       - field: onPlayerMoved
         effect: >
           if non-null, invoked once after every successful movePlayer
@@ -135,6 +137,22 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: proximity-ground-item-pickup
+    description: >
+      after each successful movePlayer, pickUpGroundItems scans all 9 tiles
+      in the player's 3x3 footprint (Chebyshev distance ≤ 1) for ground
+      item entities and picks them all up in one pass. bees are excluded
+      from proximity pickup — capturing a bee still requires the player
+      to stand on the exact tile.
+    inputs:
+      - 'player position is within Chebyshev distance 1 of one or more ground item entities'
+    outputs:
+      - 'all ground items within range added to backpack; pickupBloom fires once'
+    state_changes:
+      - field: world
+        effect: 'ground item entities within Chebyshev distance 1 destroyed; corresponding items placed in backpack'
+    determinism: deterministic
+
 edge_cases:
   - id: map-boundary
     description: 'Player at (0,0) attempting up or left is rejected'
@@ -154,6 +172,15 @@ edge_cases:
   - id: pathfinding-routes-through-water
     description: 'Click-to-move target is on the far side of a pond with no dry path'
     expected: 'A* finds a path straight through the water tiles; pathfinding treats water as walkable'
+  - id: exit-placement-prevents-re-entry
+    description: 'player exits cave or ruin and is placed at Chebyshev distance >= 2 from the overworld entrance'
+    expected: 'player position falls outside the 3x3 entry hitbox; checkTransition does not fire immediately on the next move'
+  - id: multiple-items-in-proximity
+    description: 'player moves to a position with ground items in several neighboring tiles simultaneously'
+    expected: 'all items within Chebyshev distance 1 are picked up in the same move; exactly one pickupBloom fires'
+  - id: bee-proximity-exception
+    description: 'player is adjacent to a bee but not standing on its tile'
+    expected: 'bee is not captured; player must step onto the exact tile to capture'
 
 failure_conditions:
   - trigger: 'Target tile is non-walkable (Space, CaveWall, CaveBreakableWall)'

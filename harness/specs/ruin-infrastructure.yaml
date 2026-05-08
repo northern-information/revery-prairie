@@ -163,7 +163,7 @@ behaviors:
       zone:ruin-{ruinIndex}. emits a log entry naming the ruin and
       its dormant-garden character.
     inputs:
-      - 'player steps on RuinEntrance tile while in overworld'
+      - 'player is within Chebyshev distance 1 of a RuinEntrance tile while in overworld'
     outputs:
       - 'map swapped to ruin interior, player repositioned'
     state_changes:
@@ -200,7 +200,7 @@ behaviors:
       spec exit-placement-outside-hitbox). clears same navigation
       state as enterRuin. calls transitionCoyoteToZone with Overworld.
     inputs:
-      - 'player steps on RuinEntrance tile while inside a ruin'
+      - 'player steps on a RuinExit tile while inside a ruin'
     outputs:
       - 'map swapped back to overworld, player repositioned'
     state_changes:
