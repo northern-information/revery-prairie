@@ -664,7 +664,7 @@ export const DevPanel = (props: DevPanelProps) => {
   return (
     <div
       data-panel="dev-panel"
-      className="text-text pointer-events-none fixed top-0 left-0 z-10 flex h-full w-52 flex-col bg-black/70 px-4 py-4 font-mono text-xs"
+      className="text-text pointer-events-none fixed top-0 left-0 z-[60] flex h-full w-52 flex-col bg-black/70 px-4 py-4 font-mono text-xs"
     >
       <div className="pointer-events-auto flex min-h-0 flex-1 flex-col gap-2">
         <div className="flex shrink-0 items-center justify-between">
