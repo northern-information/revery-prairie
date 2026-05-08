@@ -1,0 +1,258 @@
+id: wide-exits
+name: 'Wide pink exits and 3x3 entrance hitboxes'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/types.ts
+  - src/engine/constants.ts
+  - src/engine/cave.ts
+  - src/engine/ruins.ts
+  - src/engine/renderer.ts
+  - src/engine/position.ts
+  - src/engine/render/passes/index.ts
+  - src/components/Sidebar.tsx
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - persistent-dual-zone
+
+behaviors:
+  - id: exit-tile-types
+    description: >
+      TileType gains two new walkable tile types: CaveExit ('caveExit')
+      and RuinExit ('ruinExit'). Both are walkable. They render as a
+      hot pink fillRect with no glyph (no char drawn on top). The pink
+      color is the same hot pink (#ff69b4) used for cursor and path
+      previews — exits are a user-action affordance (walk through to
+      transition) so they share the action palette. TILE_CHARS maps
+      both to '' (empty string, no glyph). TILE_COLORS maps both to
+      '#ff69b4'. isWalkableTile in position.ts returns true for both.
+      Schema allowlist test (EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts) is unaffected
+      because no GameState fields change — but TileType-aware tests
+      that enumerate types must include the new values.
+    inputs:
+      - 'tile rendering and walkability checks'
+    outputs:
+      - 'two new walkable, glyph-less, pink tile types recognized everywhere'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cave-interior-wide-exit
+    description: >
+      generateCave places a 5-tile-wide row of CaveExit tiles centered
+      on entranceX at row entranceY (replacing the single CaveEntrance
+      tile in the same row). The CaveExit row is the interior exit
+      back to the overworld. No CaveEntrance tile remains inside the
+      cave map. The landing area carved around the row is unchanged
+      (still 3 wide, 2 tall above the row) — the wider exit tiles
+      replace the single bottom-row tile they sit on.
+    inputs:
+      - 'generateCave called with width, height, optional rng'
+    outputs:
+      - 'cave map has 5 CaveExit tiles in a row at the bottom-center landing'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: ruin-interior-wide-exit
+    description: >
+      createBaseMap in ruins.ts places a 5-tile-wide row of RuinExit
+      tiles centered on entranceX at row entranceY (replacing the
+      single RuinEntrance tile in the same row). The RuinExit row is
+      the interior exit back to the overworld. The 3-wide-2-tall
+      landing area carved above is unchanged. entranceInterior remains
+      one tile north of the center exit tile so player placement on
+      enterRuin does not change. The overworld-side RuinEntrance tile
+      placed by placeRuinEntrances is unchanged — it is still a
+      single RuinEntrance tile.
+    inputs:
+      - 'createBaseMap during ruin interior generation'
+    outputs:
+      - 'ruin interior map has 5 RuinExit tiles in a row at the bottom-center landing'
+    state_changes: []
+    determinism: deterministic
+
+  - id: exit-transition-detection
+    description: >
+      checkTransition in cave.ts handles CaveExit by calling exitCave
+      (only valid in Zone.Cave). Stepping on any of the 5 CaveExit
+      tiles triggers transition. checkRuinTransition in ruins.ts
+      handles RuinExit by calling exitRuin (only valid in Zone.Ruin).
+      Stepping on any of the 5 RuinExit tiles triggers transition.
+      All 5 tiles route to the single canonical landing position on
+      the overworld — see exit-placement-outside-hitbox for
+      placement details.
+    inputs:
+      - 'player steps on a CaveExit or RuinExit tile'
+    outputs:
+      - 'boolean: true if transition occurred'
+    state_changes:
+      - field: map
+        effect: 'swapped to overworld map (via exitCave / exitRuin)'
+      - field: currentZone
+        effect: 'set to Zone.Overworld'
+      - field: player
+        effect: 'placed at canonical landing position on overworld'
+    determinism: deterministic
+
+  - id: exit-placement-outside-hitbox
+    description: >
+      exitCave and exitRuin must place the player *outside* the 3x3
+      overworld entrance hitbox to prevent immediate re-entry. The
+      previous "adjacent to entrance" placement now falls inside the
+      widened hitbox and would cause an infinite loop. exitCave finds
+      the nearest walkable tile at Chebyshev distance ≥ 2 from
+      caveEntranceOverworld (preferring south, the canonical
+      direction). exitRuin places the player 2 tiles south of
+      entranceOverworld (was 1). Both fall back to a wider search if
+      the preferred tile is non-walkable (Space, water, blocking
+      entity).
+    inputs:
+      - 'player exits a cave or ruin via an exit tile'
+    outputs:
+      - 'player placed on a walkable overworld tile outside the 3x3 hitbox'
+    state_changes:
+      - field: player
+        effect: 'set to a position with Chebyshev distance ≥ 2 from the overworld entrance'
+    determinism: deterministic
+
+  - id: overworld-entrance-3x3-hitbox
+    description: >
+      checkTransition in cave.ts and checkRuinTransition in ruins.ts
+      detect the player standing within Chebyshev distance 1 of an
+      overworld entrance tile (CaveEntrance or RuinEntrance), not just
+      directly on it. The player position is matched against the 3x3
+      footprint centered on each known entrance position. For caves,
+      the entrance position is state.caveEntranceOverworld. For ruins,
+      the entrance position is each ruin interior's entranceOverworld.
+      Tiles in the 3x3 footprint are NOT overwritten — they keep their
+      underlying terrain (dirt, clover, soil health, etc). Only the
+      transition detection logic widens. This applies symmetrically:
+      stepping on the center entrance tile still works as before.
+    inputs:
+      - 'player movement onto any tile'
+    outputs:
+      - 'transition triggers if player is within 1 tile of an overworld entrance'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cave-entrance-rocky-halo
+    description: >
+      A new render pass caveEntranceHalo paints a 3x3 fillRect backdrop
+      around the cave overworld entrance, mirroring the structure of
+      the ruinEntranceHalo pass. The color is a rocky-grey shade
+      (CAVE_ENTRANCE_HALO_COLOR, exported from constants.ts — a dark
+      stony grey such as #2A2A2A) chosen to read as cave-mouth shadow
+      against the warm prairie palette. The pass is registered into
+      the world-overlay slot, runs only when currentZone is
+      Zone.Overworld, and uses a getCaveEntranceHaloCells helper that
+      filters out-of-bounds and Space tiles (matching the ruin halo
+      filter). The center entrance tile's existing glyph rendering is
+      unchanged. The halo is purely visual — it does not affect
+      walkability, pathfinding, or hitbox detection (which uses
+      Chebyshev distance from the entrance position, not halo tiles).
+    inputs:
+      - 'overworld renderer drawing world-overlay slot'
+    outputs:
+      - '3x3 rocky-grey backdrop drawn around the cave overworld entrance'
+    state_changes: []
+    determinism: deterministic
+
+  - id: exit-cursor-treatment
+    description: >
+      When the cursor hovers over a CaveExit or RuinExit tile, the
+      renderer skips the standard cursor inversion (which would paint
+      pink-on-pink and disappear) and instead draws a brighter pink
+      outline (1px stroke) around the tile cell using a brighter pink
+      shade (e.g. #ff8fcf — lighter than #ff69b4). The underlying tile
+      fill remains the standard exit pink. This applies in both the
+      cave and ruin interiors. Cursor inversion behavior on every
+      other tile type is unchanged.
+    inputs:
+      - 'cursor hovering over an exit tile during render'
+    outputs:
+      - 'brighter pink outline drawn around the tile, no inversion'
+    state_changes: []
+    determinism: deterministic
+
+  - id: sidebar-exit-label
+    description: >
+      Sidebar.tsx maps CaveExit and RuinExit tile types to the
+      human-readable label "exit" in both the contents row (or tile
+      label row, following existing convention) and any tile-type
+      label routing. Hovering an exit tile shows "exit" — it does
+      not show "cave exit" or "ruin exit" so the player sees a
+      consistent label across both zones.
+    inputs:
+      - 'cursor hovering over a CaveExit or RuinExit tile'
+    outputs:
+      - 'sidebar shows "exit" as the tile label'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: cave-exit-row-clipped-by-map-bounds
+    description: >
+      Cave map width is small enough that a 5-tile-wide exit row
+      centered on entranceX would extend past the map margin (3 tiles
+      from edge). The current default cave width (40) is wide enough
+      that this should not occur, but a defensive clamp keeps tiles
+      within [margin, mapWidth - margin - 1].
+    expected: 'CaveExit tiles only placed within bounds; row may be narrower if clamped, never wider than 5'
+
+  - id: ruin-exit-row-clipped-by-map-bounds
+    description: >
+      Same situation for ruin interiors. ruin interior widths scale
+      with radius (radius * 24 + 30) and are always wide enough for
+      a 5-tile row, but the same clamp applies.
+    expected: 'RuinExit tiles only placed within bounds; row may be narrower if clamped, never wider than 5'
+
+  - id: hitbox-overlaps-cave-and-ruin-entrance
+    description: >
+      A ruin entrance lands within 2 tiles of the cave entrance on
+      the overworld so their 3x3 hitboxes overlap. The player stands
+      on a tile in the overlap.
+    expected: 'cave hitbox is checked first (existing checkTransition order); cave transition fires. Ruin hitbox is not reached this frame.'
+
+  - id: hitbox-on-coastline
+    description: >
+      Cave or ruin overworld entrance is placed near the SPACE_BORDER
+      so part of the 3x3 hitbox falls on Space tiles (non-walkable).
+    expected: 'player cannot reach Space tiles, so the hitbox is naturally bounded by terrain walkability — no special-case needed in checkTransition'
+
+  - id: cursor-on-non-exit-pink-tile
+    description: >
+      No other tile type uses #ff69b4 as a fill color, so the cursor
+      outline treatment applies only to CaveExit and RuinExit. Path
+      preview dots and cursor inversion on other tiles are unchanged.
+    expected: 'cursor outline treatment is exclusive to exit tile types; all other cursor handling unchanged'
+
+  - id: sidebar-effect-row-on-exit
+    description: >
+      Effect row in sidebar (rain, glinting, prairie halo, etc) is
+      separate from tile label. Hovering an exit tile shows "exit"
+      as the tile label and any active effects normally.
+    expected: 'effect row is unchanged; tile label is "exit"'
+
+failure_conditions:
+  - trigger: 'player exits cave or ruin and is immediately re-transitioned (infinite loop)'
+    expected: 'must not happen — exit placement must be outside the 3x3 hitbox (Chebyshev distance ≥ 2 from the overworld entrance)'
+
+  - trigger: 'overworld 3x3 hitbox overwrites underlying terrain tiles'
+    expected: 'must not happen — terrain (dirt, clover, soil health) is preserved. Only the transition detection logic widens.'
+
+  - trigger: 'cursor inversion paints over an exit tile'
+    expected: 'must not happen — exit tiles must use the brighter-pink outline treatment; pink-on-pink inversion is invisible.'
+
+  - trigger: 'sidebar shows raw camelCase "caveExit" or "ruinExit"'
+    expected: 'must not happen — both types map to the human-readable label "exit"'
+
+  - trigger: 'CaveExit or RuinExit tile created outside the cave/ruin interior generators'
+    expected: 'must not happen by design — exits are placed only by generateCave and createBaseMap'
+
+  - trigger: 'cave entrance halo draws inside the cave or a ruin interior'
+    expected: 'must not happen — caveEntranceHalo pass isActive returns false outside Zone.Overworld'
+
+verification:
+  test_file: src/engine/__tests__/cave.test.ts
+  test_pattern: 'wide exits'
+  command: 'npx vitest run src/engine/__tests__/cave.test.ts src/engine/__tests__/ruins.test.ts'

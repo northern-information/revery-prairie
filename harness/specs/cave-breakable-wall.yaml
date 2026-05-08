@@ -10,23 +10,28 @@ source_files:
   - src/engine/constants.ts
 dependencies:
   - persistent-dual-zone
+  - wide-exits
 
 behaviors:
   - id: cave-generation-layout
     description: >
       generateCave creates a CaveResult with map, entrance, npcSpot,
       hiddenChamberPositions, and breakableWallPositions. layout:
-      CaveWall fill, CaveEntrance at bottom center, random-walk
-      corridors upward via L-shaped paths between waypoints (corridor
-      width 2-3), breakable wall row 4 tiles above last waypoint (5
-      tiles wide of CaveBreakableWall), hidden chamber carved as a
-      up-to-5-tile-deep rectangular area above the wall (clamped by
-      map bounds — actual depth may be less than 5 near the top edge).
-      all CaveFloor tiles within the chamber rectangle are collected
-      as hiddenChamberPositions. npcSpot is center of hidden chamber.
-      cave layout is constrained by a 3-tile margin from all edges
-      to prevent passages at borders. accepts optional rng for
-      deterministic tests.
+      CaveWall fill, a 5-tile-wide row of CaveExit tiles at the bottom
+      center (replacing the single CaveEntrance — see wide-exits spec),
+      random-walk corridors upward via L-shaped paths between waypoints
+      (corridor width 2-3), breakable wall row 4 tiles above last
+      waypoint (5 tiles wide of CaveBreakableWall), hidden chamber
+      carved as a up-to-5-tile-deep rectangular area above the wall
+      (clamped by map bounds — actual depth may be less than 5 near
+      the top edge). all CaveFloor tiles within the chamber rectangle
+      are collected as hiddenChamberPositions. npcSpot is center of
+      hidden chamber. cave layout is constrained by a 3-tile margin
+      from all edges to prevent passages at borders. the entrance
+      Position field on CaveResult points to the center tile of the
+      CaveExit row so existing consumers (player placement on
+      enterCave) still resolve to the expected location. accepts
+      optional rng for deterministic tests.
     inputs:
       - 'width, height, optional rng'
     outputs:
