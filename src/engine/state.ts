@@ -14,6 +14,7 @@ import { buildWaterProximity } from './tileWater'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
 import { CoyoteMode, TileType, Zone } from './types'
 import { generateWeather } from './weather'
+import { initWindState } from './weather/wind'
 
 import type { GenesisSimState } from './genesisTypes'
 import type { GameState, Position } from './types'
@@ -110,8 +111,6 @@ export const createGameState = (
     playerTween: null,
     cursorTile: null,
     cursorScreenPos: null,
-    hoverPath: null,
-    hoverPathTarget: null,
     rainSeed,
     metric: true,
     musicEnabled: true,
@@ -123,6 +122,8 @@ export const createGameState = (
     lastEdgeScrollTime: 0,
     edgeScrollPos: null,
     edgeScrollDirection: { dx: 0, dy: 0 },
+    edgeScrollIndicatorAlpha: 0,
+    edgeScrollIndicatorDirection: { dx: 0, dy: 0 },
     cameraSubpixel: { x: 0, y: 0 },
     heldKeys: new Set(),
     currentZone: Zone.Overworld,
@@ -194,6 +195,9 @@ export const createGameState = (
     postGiftActionsCompleted: new Set<string>(),
     rainFrontOffset: 0,
     rainIntensity: 0,
+    wind: initWindState(),
+    pollen: [],
+    pollenTrailDepth: 0,
     waterProximity: new Map<string, number>(),
     genesis: genesisData,
     genesisTransition: null,
@@ -206,7 +210,7 @@ export const createGameState = (
     coyotePath: null,
     ruinInteriors: generateAllRuinInteriors(genesisData.ruins),
     currentRuinIndex: null,
-    queuedToasts: [],
+    queuedEvents: [],
     caveFogExplored: new Set<string>(),
     caveFogDiscovered: new Set<string>(),
     caveFogIllumination: new Map<string, number>(),
@@ -222,6 +226,7 @@ export const createGameState = (
     remotePlayers: new Map(),
     onPlayerMoved: null,
     onGenesisEpochStart: null,
+    waterReveryAura: null,
   }
 
   // Glinting zone patches are seeded later, inside completeGenesis,

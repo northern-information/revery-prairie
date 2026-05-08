@@ -1,0 +1,192 @@
+plan:
+  id: wide-exits
+  title: Wide pink exits and 3x3 entrance hitboxes for caves and ruins
+  created: '2026-05-08'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-exit-tile-types
+    title: Add CaveExit and RuinExit tile types with hot pink rendering
+    spec_id: wide-exits
+    spec_sections:
+      - exit-tile-types
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: cave-interior-wide-exit-row
+    title: Replace single CaveEntrance with 5-tile-wide CaveExit row in generateCave
+    spec_id: wide-exits
+    spec_sections:
+      - cave-interior-wide-exit
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/cave.ts
+    depends_on:
+      - add-exit-tile-types
+    verification:
+      - npx vitest run src/engine/__tests__/cave.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: ruin-interior-wide-exit-row
+    title: Replace single RuinEntrance with 5-tile-wide RuinExit row in createBaseMap
+    spec_id: wide-exits
+    spec_sections:
+      - ruin-interior-wide-exit
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - add-exit-tile-types
+    verification:
+      - npx vitest run src/engine/__tests__/ruins.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: exit-transition-detection
+    title: Wire CaveExit and RuinExit into checkTransition / checkRuinTransition
+    spec_id: wide-exits
+    spec_sections:
+      - exit-transition-detection
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+    depends_on:
+      - cave-interior-wide-exit-row
+      - ruin-interior-wide-exit-row
+    verification:
+      - npx vitest run src/engine/__tests__/cave.test.ts src/engine/__tests__/ruins.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: overworld-3x3-hitbox
+    title: Expand checkTransition and checkRuinTransition to a 3x3 Chebyshev hitbox
+    spec_id: wide-exits
+    spec_sections:
+      - overworld-entrance-3x3-hitbox
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+    depends_on:
+      - exit-transition-detection
+    verification:
+      - npx vitest run src/engine/__tests__/cave.test.ts src/engine/__tests__/ruins.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: cave-entrance-rocky-halo-pass
+    title: Add caveEntranceHalo render pass with rocky-grey backdrop
+    spec_id: wide-exits
+    spec_sections:
+      - cave-entrance-rocky-halo
+    context_files:
+      - src/engine/render/passes/ruinEntranceHalo.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/constants.ts
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/render/passes/caveEntranceHalo.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/constants.ts
+    depends_on:
+      - add-exit-tile-types
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: exit-cursor-outline
+    title: Replace cursor inversion with brighter pink outline on exit tiles
+    spec_id: wide-exits
+    spec_sections:
+      - exit-cursor-treatment
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-exit-tile-types
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: sidebar-exit-label
+    title: Map CaveExit and RuinExit tile types to "exit" label in Sidebar
+    spec_id: wide-exits
+    spec_sections:
+      - sidebar-exit-label
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - add-exit-tile-types
+    verification:
+      - npx vitest run src/components/__tests__
+    repair: retry
+    tags:
+      - component
+
+  - id: regression-tests
+    title: Add regression tests for wide exits and 3x3 hitbox
+    spec_id: wide-exits
+    spec_sections:
+      - cave-interior-wide-exit
+      - ruin-interior-wide-exit
+      - exit-transition-detection
+      - overworld-entrance-3x3-hitbox
+      - sidebar-exit-label
+    context_files:
+      - src/engine/__tests__/cave.test.ts
+      - src/engine/__tests__/ruins.test.ts
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/__tests__/cave.test.ts
+      - src/engine/__tests__/ruins.test.ts
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on:
+      - exit-transition-detection
+      - overworld-3x3-hitbox
+      - sidebar-exit-label
+    verification:
+      - npx vitest run src/engine/__tests__/cave.test.ts src/engine/__tests__/ruins.test.ts src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags:
+      - test

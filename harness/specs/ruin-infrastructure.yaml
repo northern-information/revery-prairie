@@ -18,6 +18,7 @@ source_files:
 dependencies:
   - persistent-dual-zone
   - cave-breakable-wall
+  - wide-exits
 
 behaviors:
   - id: zone-type-extension
@@ -94,12 +95,14 @@ behaviors:
       generateRuinInterior(ruin, ruinIndex, archetype, rng) creates a
       RuinInterior. map dimensions scale with radius at 3x the previous
       defaults: width = radius * 24 + 30, height = radius * 18 + 24.
-      shared generation steps: fill grid with RuinWall, place
-      RuinEntrance at bottom center, carve landing area (3 wide, 2
-      tall of RuinFloor). rng seeded from tileHash(ruin.position.x,
-      ruin.position.y) via mulberry32 for determinism. delegates the
-      bulk of layout to generateDormantGarden (the sole per-archetype
-      generator).
+      shared generation steps: fill grid with RuinWall, place a
+      5-tile-wide row of RuinExit tiles at the bottom center
+      (replacing the single RuinEntrance — see wide-exits spec), carve
+      landing area (3 wide, 2 tall of RuinFloor) above the exit row.
+      entranceInterior remains one tile north of the center exit tile.
+      rng seeded from tileHash(ruin.position.x, ruin.position.y) via
+      mulberry32 for determinism. delegates the bulk of layout to
+      generateDormantGarden (the sole per-archetype generator).
     inputs:
       - 'CivilizationRuin, ruinIndex, archetype, seeded rng'
     outputs:
@@ -157,7 +160,7 @@ behaviors:
       heldDirection, previewFn, facingEntityPos, activeDialog, trail,
       cloverGrowthPreviews. calls transitionCoyoteToZone. sets
       explored to true on the RuinInterior. records discovery for
-      zone:ruin-{ruinIndex}. emits an entry toast naming the ruin and
+      zone:ruin-{ruinIndex}. emits a log entry naming the ruin and
       its dormant-garden character.
     inputs:
       - 'player steps on RuinEntrance tile while in overworld'
@@ -192,7 +195,9 @@ behaviors:
     description: >
       exitRuin(state) restores overworld map. sets currentZone to
       Zone.Overworld. sets currentRuinIndex to null. places player
-      one tile south of entranceOverworld. clears same navigation
+      2 tiles south of entranceOverworld (must be outside the 3x3
+      overworld hitbox to prevent immediate re-entry — see wide-exits
+      spec exit-placement-outside-hitbox). clears same navigation
       state as enterRuin. calls transitionCoyoteToZone with Overworld.
     inputs:
       - 'player steps on RuinEntrance tile while inside a ruin'
@@ -206,19 +211,21 @@ behaviors:
       - field: currentRuinIndex
         effect: 'set to null'
       - field: player
-        effect: 'repositioned south of overworld entrance'
+        effect: 'repositioned 2 tiles south of overworld entrance (outside 3x3 hitbox)'
     determinism: deterministic
 
   - id: ruin-transition-detection
     description: >
-      checkRuinTransition(state) detects when the player stands on a
-      RuinEntrance tile. if currentZone is Overworld, finds the
-      matching ruinInterior by entranceOverworld position and calls
-      enterRuin. if currentZone is Ruin, calls exitRuin. returns
-      boolean indicating if a transition occurred. wired into the
-      existing checkTransition call chain in cave.ts.
+      checkRuinTransition(state) detects when the player should
+      transition into or out of a ruin. if currentZone is Overworld,
+      it iterates ruinInteriors and matches the player position
+      against each entranceOverworld using Chebyshev distance ≤ 1
+      (the 3x3 hitbox — see wide-exits spec) and calls enterRuin on
+      the first match. if currentZone is Ruin, it returns true and
+      calls exitRuin when the player stands on any RuinExit tile.
+      wired into the existing checkTransition call chain in cave.ts.
     inputs:
-      - 'player position on RuinEntrance tile'
+      - 'player position on or adjacent to a RuinEntrance tile, or on a RuinExit tile'
     outputs:
       - 'boolean: true if transition occurred'
     state_changes: []

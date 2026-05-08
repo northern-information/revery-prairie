@@ -9,11 +9,20 @@ describe('generateTerrain', () => {
     expect(terrain[0].length).toBe(50)
   })
 
-  it('fills corner tiles with space or sand (never dirt)', () => {
+  it('fills corner tiles with space (never dirt)', () => {
     const terrain = generateTerrain(100, 100)
     const corners = [terrain[0][0], terrain[0][99], terrain[99][0], terrain[99][99]]
     for (const tile of corners) {
-      expect(tile.type).not.toBe(TileType.Dirt)
+      expect(tile.type).toBe(TileType.Space)
+    }
+  })
+
+  it('produces only Space and Dirt tiles (sand only forms around water in genesis)', () => {
+    const terrain = generateTerrain(100, 100)
+    for (const row of terrain) {
+      for (const tile of row) {
+        expect([TileType.Space, TileType.Dirt]).toContain(tile.type)
+      }
     }
   })
 

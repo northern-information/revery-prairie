@@ -1,0 +1,125 @@
+id: credits
+name: 'Credits modal in sys menu'
+priority: low
+layer: integration
+source_files:
+  - src/engine/credits.ts
+  - src/components/Menu.tsx
+  - src/components/CreditsModal.tsx
+  - src/engine/__tests__/credits.test.ts
+  - src/components/__tests__/CreditsModal.test.tsx
+  - src/components/__tests__/Menu.test.tsx
+dependencies: []
+
+behaviors:
+  - id: credits-data-module
+    description: >
+      `src/engine/credits.ts` exports a typed `Credit` shape (`{ name: string; role: string }`)
+      and a `CREDITS` array literal (`as const satisfies readonly Credit[]`) — the single
+      source of truth for the credits list. The array is hand-edited (manually or via the
+      `/credits` skill); no runtime mutation API. Order is the order of appearance in the
+      modal — newly added entries are appended.
+    inputs:
+      - 'module is imported'
+    outputs:
+      - 'CREDITS array exported with at least one entry'
+      - 'Credit type exported'
+    state_changes:
+      - field: credits.ts
+        effect: 'compile-time constant; no runtime state'
+    determinism: deterministic
+
+  - id: sys-menu-credits-button
+    description: >
+      The system (ESC) menu in `Menu.tsx` shows a `Credits` `TextButton` below the
+      existing entries. Clicking it sets local component state `showCredits = true`,
+      which mounts the `CreditsModal` overlay. Closing the modal sets it back to false.
+      The button label is the literal string "Credits" (Title Case).
+    inputs:
+      - 'player opens ESC menu'
+      - 'player clicks the "Credits" button'
+    outputs:
+      - 'CreditsModal renders'
+    state_changes:
+      - field: 'Menu local state showCredits'
+        effect: 'true while modal is open, false otherwise'
+    determinism: deterministic
+
+  - id: credits-modal-presentation
+    description: >
+      `CreditsModal` is a centered fixed overlay (`fixed inset-0`, flex centered),
+      backdrop dims the screen, z-index sits above the permacomputer shell. The
+      modal box has a fixed max-height (e.g. 60vh) and a viewport-bounded width
+      (e.g. 24rem). Inside, entries render as `<div>{name} — {role}</div>` rows
+      in the order of `CREDITS`. A close affordance (clicking the backdrop or a
+      close button) calls `onClose`.
+    inputs:
+      - 'CreditsModal mounts with `credits` prop and `onClose` callback'
+    outputs:
+      - 'centered modal rendered with one row per credit entry'
+      - 'each row shows `{name} — {role}` in sentence/title casing as authored'
+    state_changes:
+      - field: 'no game state'
+        effect: 'pure presentational'
+    determinism: deterministic
+
+  - id: credits-auto-scroll
+    description: >
+      On mount, the modal's inner scroll container animates its `scrollTop` from
+      0 to `scrollHeight - clientHeight` over a duration proportional to content
+      length (e.g. ~30px/sec, min 6s, max 60s). Implementation uses
+      `requestAnimationFrame` with cleanup on unmount. When the bottom is reached,
+      scrolling stops (no loop). The user can override by interacting (mouse
+      wheel / touch) — manual scroll cancels the auto-scroll for the rest of
+      the session.
+    inputs:
+      - 'CreditsModal mounts'
+    outputs:
+      - 'inner scroll container scrolls from top to bottom over time'
+    state_changes:
+      - field: 'modal-local refs (scroll position, animation handle)'
+        effect: 'cleared on unmount'
+    determinism: time-based
+
+  - id: modal-close
+    description: >
+      Pressing Escape, clicking the backdrop, or clicking the close button calls
+      `onClose`, which the parent (Menu) uses to set `showCredits = false`,
+      unmounting the modal. The ESC menu remains open behind the modal — closing
+      Credits returns the player to the SYS tab, not the game.
+    inputs:
+      - 'player presses Escape OR clicks backdrop OR clicks close button'
+    outputs:
+      - 'CreditsModal unmounts'
+      - 'SYS menu visible again'
+    state_changes:
+      - field: 'Menu local state showCredits'
+        effect: 'set to false'
+    determinism: deterministic
+
+edge_cases:
+  - id: empty-credits-array
+    description: 'CREDITS array has zero entries'
+    expected: 'modal renders an empty-state message ("No credits yet.") and skips auto-scroll animation'
+  - id: very-long-credits-list
+    description: 'CREDITS has 200+ entries — scroll height greatly exceeds clamp ceiling'
+    expected: 'auto-scroll duration is clamped to the documented max (60s); animation completes without runtime errors'
+  - id: rapid-open-close
+    description: 'player opens and closes the modal in quick succession'
+    expected: 'rAF handle is cancelled on unmount; no leaked animation frames or console errors'
+  - id: duplicate-names-in-array
+    description: 'CREDITS contains two entries with the same name (e.g. mid-edit before merge)'
+    expected: 'both rows render; modal does not deduplicate. (deduplication is the /credits skill''s responsibility, not the runtime.)'
+
+failure_conditions:
+  - trigger: 'CREDITS export is missing from the module'
+    expected: 'TypeScript build fails — caught at compile time'
+  - trigger: 'a Credit entry is missing `role` or `name`'
+    expected: 'TypeScript error — `Credit` shape requires both fields'
+  - trigger: 'modal mounts before its scroll container ref attaches'
+    expected: 'auto-scroll effect early-returns; no exception'
+
+verification:
+  test_file: src/components/__tests__/CreditsModal.test.tsx
+  test_pattern: 'credits modal'
+  command: 'npx vitest run src/engine/__tests__/credits.test.ts src/components/__tests__/CreditsModal.test.tsx src/components/__tests__/Menu.test.tsx'

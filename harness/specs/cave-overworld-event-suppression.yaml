@@ -1,5 +1,5 @@
-id: cave-toast-suppression
-name: 'Suppress overworld event toasts while in cave'
+id: cave-overworld-event-suppression
+name: 'Suppress overworld event log entries while in cave'
 priority: medium
 layer: engine
 source_files:
@@ -7,35 +7,41 @@ source_files:
 dependencies:
   - shooting-stars
   - lightning-strikes
+  - event-log-overlay
 behaviors:
-  - id: suppress-meteor-shower-toast-in-cave
+  - id: suppress-meteor-shower-event-in-cave
     description: >
       when the player is in the cave zone, the meteor shower onDiscovery
       callback must not fire even though the meteor shower tick still runs
-      against the overworld map.
+      against the overworld map. since onDiscovery is the engine's only
+      hook into the event log, suppression here keeps the cave log free
+      of overworld weather noise the player cannot observe.
     inputs:
       - 'state.currentZone === Zone.Cave'
       - 'meteor shower transitions from inactive to active'
     outputs:
       - 'onDiscovery callback is NOT called'
+      - 'no event log entry appended for the shower'
     state_changes:
       - field: meteorShower.active
         effect: 'still transitions to true (shower runs on overworld map)'
     determinism: time-based
-  - id: show-meteor-shower-toast-in-overworld
+  - id: show-meteor-shower-event-in-overworld
     description: >
       when the player is in the overworld zone and a meteor shower starts,
-      the onDiscovery callback fires normally with the shower announcement.
+      the onDiscovery callback fires normally with the shower announcement
+      and a corresponding event log entry is appended.
     inputs:
       - 'state.currentZone === Zone.Overworld'
       - 'meteor shower transitions from inactive to active'
     outputs:
       - 'onDiscovery called with meteor shower text'
+      - 'event log entry appended'
     state_changes:
       - field: meteorShower.active
         effect: 'transitions to true'
     determinism: time-based
-  - id: suppress-lightning-toast-in-cave
+  - id: suppress-lightning-event-in-cave
     description: >
       when the player is in the cave zone, lightning strike and wildfire
       onDiscovery callbacks must not fire even though the lightning tick
@@ -45,19 +51,22 @@ behaviors:
       - 'lightning strikes a tile on the overworld'
     outputs:
       - 'onDiscovery callback is NOT called for lightning or wildfire'
+      - 'no event log entry appended'
     state_changes:
       - field: world
         effect: 'lightning/wildfire entities still created on overworld map'
     determinism: probabilistic
-  - id: show-lightning-toast-in-overworld
+  - id: show-lightning-event-in-overworld
     description: >
       when the player is in the overworld zone and lightning strikes,
-      the onDiscovery callback fires normally.
+      the onDiscovery callback fires normally and an event log entry
+      is appended.
     inputs:
       - 'state.currentZone === Zone.Overworld'
       - 'lightning strikes a tile'
     outputs:
       - 'onDiscovery called with lightning text'
+      - 'event log entry appended'
     state_changes:
       - field: world
         effect: 'lightning entity created'
@@ -65,29 +74,29 @@ behaviors:
 edge_cases:
   - id: shower-starts-then-player-enters-cave
     description: >
-      shower activates while player is overworld (toast fires), then
-      player enters cave mid-shower. no additional toasts should fire.
-    expected: 'toast fires once on activation in overworld, nothing further in cave'
+      shower activates while player is overworld (event logged), then
+      player enters cave mid-shower. no additional log entries should fire.
+    expected: 'event logged once on activation in overworld, nothing further in cave'
   - id: shower-starts-while-in-cave-then-exits
     description: >
-      shower activates while player is in cave (no toast). player exits
-      cave after shower is already active. no retroactive toast.
-    expected: 'no toast — the activation moment was missed'
+      shower activates while player is in cave (no event logged). player exits
+      cave after shower is already active. no retroactive log entry.
+    expected: 'no log entry — the activation moment was missed'
   - id: lightning-strikes-while-in-cave
     description: >
-      lightning strikes overworld while player is in cave. no toast.
-    expected: 'no toast — lightning effects apply to overworld but player is not notified'
+      lightning strikes overworld while player is in cave. no log entry.
+    expected: 'no log entry — lightning effects apply to overworld but player is not notified'
 
   - id: strike-probability-independent-of-zone
-    description: 'Lightning strike probability is independent of zone; toast suppression is deterministic based on currentZone'
-    expected: 'Strike chance unchanged when player enters cave; only toast display is suppressed'
+    description: 'Lightning strike probability is independent of zone; event suppression is deterministic based on currentZone'
+    expected: 'Strike chance unchanged when player enters cave; only event display is suppressed'
 
 failure_conditions:
   - trigger: 'player is in cave and meteor shower activates'
-    expected: 'no toast or onDiscovery callback fires'
+    expected: 'no onDiscovery callback fires; no log entry appended'
   - trigger: 'player is in cave and lightning strikes overworld'
-    expected: 'no toast or onDiscovery callback fires for lightning or wildfire'
+    expected: 'no onDiscovery callback fires for lightning or wildfire; no log entry appended'
 verification:
   test_file: src/engine/__tests__/gameLoop.test.ts
-  test_pattern: 'overworld toast.*cave'
+  test_pattern: 'overworld.*cave|cave.*overworld'
   command: 'npx vitest run src/engine/__tests__/gameLoop.test.ts'

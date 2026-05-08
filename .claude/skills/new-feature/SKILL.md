@@ -85,3 +85,20 @@ Show the user the complete plan. Iterate on feedback. Do not proceed until the u
 Ask the user: "ready to execute? (`npm run harness:run -- --plan harness/plans/{feature-id}.yaml`)"
 
 Only run if they confirm. Report results from the run summary.
+
+## Anti-rationalizations
+
+When the agent feels the urge to take a shortcut, it will narrate one of these. Don't.
+
+| Excuse the agent will tell itself | Rebuttal |
+| --- | --- |
+| "This feature is too small to need a spec." | The harness gate exists for a reason. Even a 1-behavior, 1-edge-case spec satisfies it and forces you to think about failure modes. |
+| "The user already approved the description verbally — skip the spec review step." | No. Step 5 is a hard checkpoint. Show the spec, wait for approval. |
+| "I'll add the eslint-disable to ship faster." | Never. Fix the underlying type. The repo's eslint config is `strictTypeChecked`; disable comments are not a tool. |
+| "I'll write the lore for the new manual entry." | Never write lore. Use `{ lore: 'TODO' }` in `MANUAL_LORE`. Lore is human-authored. |
+| "Canvas rendering is untestable — skip the test." | Flag it explicitly to the user before skipping. CLAUDE.md says so. Untestable ≠ silent skip. |
+| "I'll add a Skip-Harness trailer to bypass the gate." | The gate is the point. `Skip-Harness` is for emergency patches, not "I don't want to write a spec." |
+
+## Exit criterion
+
+Spec and plan committed in a worktree, `npm run spec:validate` clean, user approved both, harness:run summary surfaced (or user explicitly declined to run).

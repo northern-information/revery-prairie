@@ -23,7 +23,7 @@ behaviors:
       - 'GameState with meteorite at player position'
       - 'time: number (rAF timestamp)'
     outputs:
-      - 'PickUpResult with chainExplosions count for toast'
+      - 'PickUpResult with chainExplosions count for log entry'
     state_changes:
       - field: world
         effect: "up to 3 new meteorite ECS entities created with Position, Pickupable({ definitionId: 'meteorite' }), EntityTag('meteorite'), ChainSource({ fromChain: true }), EntityZone({ zone: Zone.Overworld }) components — always tagged Overworld regardless of current zone"
@@ -64,24 +64,26 @@ behaviors:
         effect: "0-3 new explosion ECS entities created with Position, TimedEffect({ kind: 'explosion', startTime: time }), EntityTag('explosion'), EntityZone({ zone: Zone.Overworld }) components — always Overworld"
     determinism: probabilistic
 
-  - id: chain-explosion-toast
+  - id: chain-explosion-event-log
     description: >
       when a chain explosion triggers, the PickUpResult
       includes a chainExplosions count > 0 and the meteorite
-      is NOT in pickedUp (no pickup toast). the UI layer
-      uses chainExplosions to fire an addEvent toast with
+      is NOT in pickedUp (no pickup log entry). the UI layer
+      uses chainExplosions to fire an addEvent call with
       the text 'oh my!' using the meteorite glyph and color.
+      the event appends to the EventLog overlay only — there
+      is no floating-toast surface.
     inputs:
       - 'PickUpResult with chainExplosions > 0'
     outputs:
-      - "toast event: kind 'discovery', text 'oh my!', icon meteorite glyph, color meteorite color"
+      - "log event: kind 'discovery', text 'oh my!', icon meteorite glyph, color meteorite color"
     state_changes: []
     determinism: deterministic
 
 edge_cases:
   - id: no-valid-tiles
     description: 'all tiles within radius 3 are non-walkable or occupied — chain explosion triggers but 0 meteorites spawn'
-    expected: 'chainExplosions count is 0, no meteorites or explosions added, no toast'
+    expected: 'chainExplosions count is 0, no meteorites or explosions added, no log entry'
   - id: fewer-than-three-tiles
     description: 'only 1-2 valid tiles within radius — spawns only as many meteorites as tiles allow'
     expected: 'spawns the available count, each with a TimedEffect (kind: explosion)'

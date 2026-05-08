@@ -19,7 +19,6 @@ export const EDGE_SCROLL_SPEED_TILES_PER_SEC = 18
 // cursor is in the scroll zone, so the user gets clear feedback.
 export const EDGE_SCROLL_INDICATOR_THICKNESS_PX = 3
 
-export const SAND_BORDER = 1
 export const WATER_SAND_BORDER_MAX = 2
 export const WATER_SAND_PASS_CHANCES = [100, 50]
 
@@ -70,10 +69,20 @@ export const TILE_COLORS: Record<TileType, string> = {
 export const BUILDING_CHARS = ['▓', '▒', '░', '█', '#', '+', 'H', 'T', '=']
 export const CIV_COLORS = ['#666', '#777', '#888', '#999', '#AAA']
 
-// Dark backdrop painted in a 3x3 footprint behind RuinEntrance tiles on the
-// overworld so the entrance reads as a doorway-in-shadow against the warm
-// prairie palette. Overworld-only — never painted in cave or ruin zones.
-export const RUIN_ENTRANCE_HALO_COLOR = '#2E1F12'
+// Verdigris (copper-oxide patina) ramp used for the ruin entrance halo and
+// patina overlay. Reads as bronze infrastructure bleeding into the soil.
+// Ordered dark → bright; the bright end echoes TILE_COLORS[RuinEntrance].
+export const VERDIGRIS_COLORS = ['#2A4A42', '#3A6B5F', '#4A7F70', '#5FA890', '#5FD3BC']
+
+// Backdrop painted in a 3x3 footprint behind RuinEntrance tiles on the
+// overworld — dark verdigris so the entrance reads as patina-stained ground
+// against the warm prairie palette. Overworld-only — never painted in cave
+// or ruin zones.
+export const RUIN_ENTRANCE_HALO_COLOR = '#1A2E2A'
+
+// Sparse patina chars layered over the 8 perimeter cells of the halo
+// footprint. Drawn in the effect slot so they render above terrain glyphs.
+export const PATINA_CHARS = ['·', ':', '+', "'", '.']
 
 // shooting stars
 export const SHOOTING_STAR_TICK_MS = 80
@@ -138,6 +147,12 @@ export const SATELLITE_MIN_LENGTH = 8
 export const SATELLITE_MAX_LENGTH = 12
 export const SATELLITE_IMPACT_RADIUS = 2 // 5x5 zone (center ± 2)
 export const SATELLITE_SOIL_DAMAGE = 30
+// Radial elevation falloff for impact craters. Subtracted from existing
+// elevation, clamped to [0, 100]. Center drops ~one tier on the 4-tier
+// scale (tierSize = 25), giving a visible bowl without an ejecta rim.
+export const SATELLITE_CRATER_DEPTH_CENTER = 25
+export const SATELLITE_CRATER_DEPTH_RING = 10
+export const SATELLITE_CRATER_DEPTH_EDGE = 3
 export const SATELLITE_GOOD_PAYLOAD_CHANCE = 0.3 // 30% chance for seeds
 export const SATELLITE_SEED_COUNT_MIN = 2
 export const SATELLITE_SEED_COUNT_MAX = 4
@@ -208,7 +223,6 @@ export const KEYBOARD_MOVE_TICK_MS = 100
 // while sprinting, the path and keyboard-move ticks fire at this faster cadence
 // with a single move per tick so every tile is a discrete stop point
 export const SPRINT_MOVE_TICK_MS = 50
-export const HOVER_PATH_MAX_DISTANCE = 60 // manhattan distance cap for hover preview pathfinding
 export const WEATHER_TICK_MS = 5000
 
 // ghosts
@@ -294,7 +308,6 @@ export const BEE_CHAR = '*'
 export const BEE_COLOR = '#FFD700'
 export const BG_COLOR = '#1a1a1a'
 export const ACTION_COLOR = '#ff69b4'
-export const HOVER_PATH_COLOR = '#555555'
 export const COIN_GLINTING_COLOR = '#C9B037'
 export const COIN_DULL_COLOR = '#8B7D3C'
 
@@ -344,10 +357,6 @@ export const PRAIRIE_HALO_COLOR = '#FFC078' // muted amber, distinct from angel 
 export const PRAIRIE_HALO_MIN_ALPHA = 0.048
 export const PRAIRIE_HALO_MAX_ALPHA = 0.168
 export const PRAIRIE_HALO_PULSE_SPEED = 0.0015 // radians per ms; gentle breath
-// crisp 1px outline at the land/space border, drawn on top of the halo glow
-export const PRAIRIE_OUTLINE_COLOR = '#FFC078'
-export const PRAIRIE_OUTLINE_ALPHA = 0.55
-export const PRAIRIE_OUTLINE_WIDTH = 1
 
 // deep time endgame
 export const BEE_STARVATION_MS = 30_000
@@ -420,6 +429,6 @@ export const MONARCH_SETTLE_RADIUS = 3 // wander radius when settled
 
 export const INVENTORY_CELL_SIZE = 28
 
-export const RUIN_ENTRY_TOASTS: Record<RuinArchetype, string> = {
+export const RUIN_ENTRY_EVENTS: Record<RuinArchetype, string> = {
   [RuinArchetype.DormantGarden]: 'A dormant garden stirs beneath the dust.',
 }

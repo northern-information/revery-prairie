@@ -2,10 +2,11 @@ import { updateCamera } from './camera'
 import { checkTransition } from './cave'
 import { MOVEMENT_TWEEN_DEFAULT_MS, MOVEMENT_TWEEN_SPRINT_MS, TRAIL_MAX_LENGTH } from './constants'
 import { ComponentType } from './ecs/types'
+import { emitPlayerFootstep, emitPlayerTrailBurst } from './flora'
 import { updateFacingEntity } from './interaction'
 import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
-import { isDiagonalDirection, Zone } from './types'
+import { isDiagonalDirection, TileType, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
 
 import type { Direction, GameState, Position } from './types'
@@ -124,6 +125,8 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
 
   const prevX = state.player.x
   const prevY = state.player.y
+  const prevTileType = state.map[prevY]?.[prevX]?.type
+  const nextTileType = state.map[ny]?.[nx]?.type
 
   state.trail.push({ x: state.player.x, y: state.player.y, time: performance.now() })
   if (state.trail.length > TRAIL_MAX_LENGTH) {
@@ -131,6 +134,19 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   }
   state.player.x = nx
   state.player.y = ny
+
+  // Pollen trail: emit a footstep puff on every step off a clover tile,
+  // count consecutive clover steps, and fire a burst when fully leaving.
+  if (prevTileType === TileType.Clover) {
+    emitPlayerFootstep(state, prevX, prevY, TileType.Clover)
+  }
+  if (nextTileType === TileType.Clover) {
+    if (state.pollenTrailDepth < 8) state.pollenTrailDepth += 1
+  } else if (prevTileType === TileType.Clover) {
+    // Stepped off clover — burst at the last clover tile position.
+    // pollenTrailDepth reset is handled inside emitPlayerTrailBurst.
+    emitPlayerTrailBurst(state, prevX, prevY, TileType.Clover)
+  }
 
   state.playerTween = {
     fromX: prevX,
@@ -141,6 +157,10 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
 
   updateCamera(state)
   updateFacingEntity(state)
+
+  if (state.waterReveryAura !== null) {
+    state.world.addComponent(state.waterReveryAura, ComponentType.Position, { x: nx, y: ny })
+  }
 
   // Glinting zone: restore glint to all dull backpack coins
   if (state.currentZone === Zone.Overworld && state.glintZones.has(posKey(nx, ny))) {

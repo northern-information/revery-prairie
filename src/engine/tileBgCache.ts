@@ -2,8 +2,6 @@ import { isInBounds, posKey } from './position'
 import {
   ELEVATION_TIER_COUNT,
   ELEVATION_TIER_LIFT_PX,
-  WALL_RIGHT_SHADE,
-  darkenColor,
   getElevationTier,
   getPondBgColor,
   getRiverBgColor,
@@ -150,44 +148,11 @@ const paintTileBg = (
   ctx.fill()
 }
 
-const paintTileEdge = (
-  entry: CacheEntry,
-  state: GameState,
-  map: Tile[][],
-  x: number,
-  y: number,
-): void => {
-  const { ctx, charWidth, charHeight } = entry
-  const halfW = charWidth / 2
-  const halfH = charHeight / 2
-  const tile = map[y][x]
-  if (tile.type === TileType.Space) return
-  const caveMaskActive = state.currentZone === Zone.Cave && !state.caveRevealed
-  const effectiveType =
-    caveMaskActive && state.caveHiddenPositions.has(posKey(x, y))
-      ? TileType.CaveWall
-      : tile.type
-  const { px, py } = tileWorldPos(entry, x, y, state)
-  const leftX = px - halfW
-  const rightX = leftX + 2 * charWidth
-  const topY = py
-  const bottomY = topY + charHeight
-  const cx = leftX + charWidth
-  const cy = topY + halfH
-  ctx.strokeStyle = darkenColor(getEffectiveBgColor(state, effectiveType, x, y), WALL_RIGHT_SHADE)
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  ctx.moveTo(leftX, cy)
-  ctx.lineTo(cx, bottomY)
-  ctx.lineTo(rightX, cy)
-  ctx.stroke()
-}
-
 const fullBuild = (entry: CacheEntry, state: GameState, map: Tile[][]): void => {
-  // Two-pass paint matching the original renderer: all bg fills first
-  // in iso painter order so neighbor overlaps land cleanly, then all
-  // edge strokes on top. No clearRect during build — the canvas starts
-  // transparent.
+  // Single-pass paint in iso painter order so neighbor overlaps land
+  // cleanly. Per-tile cube outlines are not drawn — visual definition
+  // comes from the prairie halo glow and the per-frame cube cliffs at
+  // tier transitions and space borders (see renderer.ts).
   const w = entry.mapWidth
   const h = entry.mapHeight
   for (let s = 0; s < w + h - 1; s++) {
@@ -195,11 +160,6 @@ const fullBuild = (entry: CacheEntry, state: GameState, map: Tile[][]): void => 
     const yMax = Math.min(h - 1, s)
     for (let y = yMin; y <= yMax; y++) {
       paintTileBg(entry, state, map, s - y, y)
-    }
-  }
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      paintTileEdge(entry, state, map, x, y)
     }
   }
   entry.built = true
@@ -317,9 +277,6 @@ export const flushDirtyTiles = (state: GameState, map: Tile[][]): void => {
   repaintCoords.sort((a, b) => a.sum - b.sum)
   for (const { x, y } of repaintCoords) {
     paintTileBg(entry, state, map, x, y)
-  }
-  for (const { x, y } of repaintCoords) {
-    paintTileEdge(entry, state, map, x, y)
   }
   entry.dirty.clear()
 }

@@ -13,6 +13,8 @@ const makeState = (overrides: Partial<GameState> = {}): GameState => {
     camera: { x: 50, y: 30 },
     edgeScrollPos: null,
     edgeScrollDirection: { dx: 0, dy: 0 },
+    edgeScrollIndicatorAlpha: 0,
+    edgeScrollIndicatorDirection: { dx: 0, dy: 0 },
     cameraSubpixel: { x: 0, y: 0 },
     viewportWidth: 60,
     viewportHeight: 30,
@@ -191,6 +193,120 @@ describe('tickEdgeScroll', () => {
     state.lastEdgeScrollTime = 100
     tickEdgeScroll(state, metrics, 250)
     expect(state.lastEdgeScrollTime).toBe(250)
+  })
+})
+
+describe('tickEdgeScroll — indicator fade', () => {
+  // Constants mirror edgeScroll.ts. Kept here so the test fails loudly if
+  // those values are tuned without updating the spec.
+  const FADE_IN_MS = 120
+  const FADE_OUT_MS = 280
+
+  it('fades alpha in by dt / FADE_IN_MS while cursor sits in an edge zone', () => {
+    const state = makeState({
+      edgeScrollPos: { x: 5, y: 240 },
+      lastEdgeScrollTime: 0,
+    })
+    tickEdgeScroll(state, metrics, 60)
+    expect(state.edgeScrollIndicatorAlpha).toBeCloseTo(60 / FADE_IN_MS, 5)
+    expect(state.edgeScrollIndicatorDirection).toEqual({ dx: -1, dy: 0 })
+  })
+
+  it('clamps alpha at 1.0 after sustained time in zone', () => {
+    const state = makeState({
+      edgeScrollPos: { x: 5, y: 240 },
+      lastEdgeScrollTime: 0,
+      edgeScrollIndicatorAlpha: 0.95,
+    })
+    tickEdgeScroll(state, metrics, 100)
+    expect(state.edgeScrollIndicatorAlpha).toBe(1)
+  })
+
+  it('fades alpha out by dt / FADE_OUT_MS when cursor returns to centre', () => {
+    const state = makeState({
+      edgeScrollPos: { x: 300, y: 240 },
+      lastEdgeScrollTime: 0,
+      edgeScrollIndicatorAlpha: 1,
+      edgeScrollIndicatorDirection: { dx: -1, dy: 0 },
+    })
+    tickEdgeScroll(state, metrics, 100)
+    expect(state.edgeScrollIndicatorAlpha).toBeCloseTo(1 - 100 / FADE_OUT_MS, 5)
+    // Latched direction must persist so the same edges stay illuminated.
+    expect(state.edgeScrollIndicatorDirection).toEqual({ dx: -1, dy: 0 })
+  })
+
+  it('fades alpha out when edgeScrollPos becomes null (cursor leaves canvas)', () => {
+    const state = makeState({
+      edgeScrollPos: null,
+      lastEdgeScrollTime: 0,
+      edgeScrollIndicatorAlpha: 1,
+      edgeScrollIndicatorDirection: { dx: 1, dy: 1 },
+    })
+    tickEdgeScroll(state, metrics, 100)
+    expect(state.edgeScrollIndicatorAlpha).toBeCloseTo(1 - 100 / FADE_OUT_MS, 5)
+    expect(state.edgeScrollIndicatorDirection).toEqual({ dx: 1, dy: 1 })
+    expect(state.edgeScrollDirection).toEqual({ dx: 0, dy: 0 })
+  })
+
+  it('clamps alpha at 0 after sustained fade-out', () => {
+    const state = makeState({
+      edgeScrollPos: null,
+      lastEdgeScrollTime: 0,
+      edgeScrollIndicatorAlpha: 0.05,
+    })
+    tickEdgeScroll(state, metrics, 100)
+    expect(state.edgeScrollIndicatorAlpha).toBe(0)
+  })
+
+  it('skips alpha update on the first frame (dt = 0)', () => {
+    const state = makeState({
+      edgeScrollPos: { x: 5, y: 240 },
+      lastEdgeScrollTime: 100,
+      edgeScrollIndicatorAlpha: 0.4,
+    })
+    tickEdgeScroll(state, metrics, 100)
+    expect(state.edgeScrollIndicatorAlpha).toBe(0.4)
+    expect(state.lastEdgeScrollTime).toBe(100)
+  })
+
+  it('skips alpha update on background-tab pause (dt > 200ms)', () => {
+    const state = makeState({
+      edgeScrollPos: { x: 5, y: 240 },
+      lastEdgeScrollTime: 0,
+      edgeScrollIndicatorAlpha: 0.4,
+    })
+    tickEdgeScroll(state, metrics, 5000)
+    expect(state.edgeScrollIndicatorAlpha).toBe(0.4)
+    expect(state.lastEdgeScrollTime).toBe(5000)
+  })
+
+  it('updates latched direction when cursor moves between edge zones mid-fade', () => {
+    const state = makeState({
+      edgeScrollPos: { x: 5, y: 240 },
+      lastEdgeScrollTime: 0,
+      edgeScrollIndicatorAlpha: 0.5,
+      edgeScrollIndicatorDirection: { dx: -1, dy: 0 },
+    })
+    // Move cursor from left-edge into bottom-right corner.
+    state.edgeScrollPos = { x: 600 - 2, y: 480 - 2 }
+    tickEdgeScroll(state, metrics, 60)
+    expect(state.edgeScrollIndicatorDirection).toEqual({ dx: 1, dy: 1 })
+    // Alpha should have advanced (still in zone, just a different one).
+    expect(state.edgeScrollIndicatorAlpha).toBeGreaterThan(0.5)
+  })
+
+  it('does not latch direction on a pure no-op centre frame', () => {
+    const state = makeState({
+      edgeScrollPos: { x: 300, y: 240 },
+      lastEdgeScrollTime: 0,
+      edgeScrollIndicatorAlpha: 0.6,
+      edgeScrollIndicatorDirection: { dx: -1, dy: 0 },
+    })
+    tickEdgeScroll(state, metrics, 60)
+    // Latched direction should be untouched (last non-zero value).
+    expect(state.edgeScrollIndicatorDirection).toEqual({ dx: -1, dy: 0 })
+    // Alpha decays toward 0.
+    expect(state.edgeScrollIndicatorAlpha).toBeCloseTo(0.6 - 60 / FADE_OUT_MS, 5)
   })
 })
 

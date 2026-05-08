@@ -70,6 +70,24 @@ export const worldToScreen = (
     viewportHeight,
   )
 
+/**
+ * Iso pixel offset for a fractional world-tile delta. Use to translate
+ * the rendered scene by sub-tile amounts without disturbing integer
+ * camera coordinates that drive tile indexing. dx/dy are world tiles;
+ * positive dx is east, positive dy is south. The returned (px, py) is
+ * the iso-projected canvas-space delta the entire scene would shift
+ * if the camera advanced by (dx, dy) tiles.
+ */
+export const worldDeltaToIsoPx = (
+  dx: number,
+  dy: number,
+  charWidth: number,
+  charHeight: number,
+): ScreenPos => ({
+  px: (dx - dy) * charWidth,
+  py: (dx + dy) * (charHeight / 2),
+})
+
 // Horizontally center the iso footprint so the center viewport tile
 // projects to canvas center x. Solving px(vw/2, vh/2) = vw*cw/2 yields
 // originX = (vh*cw)/2 - cw/2. Independent of viewportWidth because the

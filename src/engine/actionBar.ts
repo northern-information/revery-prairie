@@ -16,12 +16,10 @@ import {
   LIGHTNING_REVERY_RANGE,
   REVERY_ILLUMINATION_RADIUS,
   SOIL_HEALTH_FIRE_REVERY_BONUS,
-  SOIL_HEALTH_WATER_REVERY_BONUS,
-  WATER_MAX,
-  WATER_REVERY_FILL,
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { initiateDeepTime } from './deepTime'
+import { AURA_RADIUS } from './effects'
 import { spreadWildfire } from './lightning'
 import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
@@ -85,7 +83,7 @@ export const getActionBarPreview = (
   if (performance.now() < slot.cooldownEndTime) return []
 
   const def = getReveryDefinition(slot.id)
-  if (def.castStyle === 'scan' || def.castStyle === 'targeted') return []
+  if (def.castStyle === 'scan' || def.castStyle === 'aura' || def.castStyle === 'targeted') return []
 
   const target = getFacingTile(state)
   const positions = getCastPositions(state, target, def.castPattern)
@@ -100,14 +98,7 @@ const applyReveryCastEffects = (state: GameState, reveryId: string, positions: P
     const tile = state.map[pos.y]?.[pos.x]
     if (!tile) continue
 
-    if (reveryId === 'water') {
-      // Water: refill tile water and boost soil health
-      addSoilHealth(state, key, SOIL_HEALTH_WATER_REVERY_BONUS)
-      const currentWater = state.tileWater.get(key)
-      if (currentWater !== undefined) {
-        state.tileWater.set(key, Math.min(currentWater + WATER_REVERY_FILL, WATER_MAX))
-      }
-    } else if (reveryId === 'fire') {
+    if (reveryId === 'fire') {
       addSoilHealth(state, key, SOIL_HEALTH_FIRE_REVERY_BONUS)
       recordDiscovery(state, 'event:fire-revery')
 
@@ -139,6 +130,12 @@ const applyReveryCastEffects = (state: GameState, reveryId: string, positions: P
   }
 }
 
+const clearWaterReveryAura = (state: GameState): void => {
+  if (state.waterReveryAura === null) return
+  state.world.destroyEntity(state.waterReveryAura)
+  state.waterReveryAura = null
+}
+
 export const activateActionBarSlot = (state: GameState, slotIndex: number, now: number): boolean => {
   const slot = state.actionBar[slotIndex]
   if (!slot) return false
@@ -146,6 +143,8 @@ export const activateActionBarSlot = (state: GameState, slotIndex: number, now: 
 
   if (slot.kind === 'revery') {
     const def = getReveryDefinition(slot.id)
+
+    clearWaterReveryAura(state)
 
     if (def.castStyle === 'deepTime') {
       initiateDeepTime(state, now)
@@ -181,6 +180,21 @@ export const activateActionBarSlot = (state: GameState, slotIndex: number, now: 
         addReveryIllumination(state, state.player.x, state.player.y, EARTH_SCAN_RADIUS, now + earthDuration)
       }
 
+      return true
+    }
+
+    if (def.castStyle === 'aura') {
+      slot.cooldownEndTime = now + def.cooldownMs
+      slot.cooldownDurationMs = def.cooldownMs
+
+      const eid = state.world.createEntity()
+      state.world.addComponent(eid, ComponentType.Aura, { kind: 'rain', radius: AURA_RADIUS.rain })
+      state.world.addComponent(eid, ComponentType.Position, { x: state.player.x, y: state.player.y })
+      state.world.addComponent(eid, ComponentType.EntityTag, 'waterReveryAura')
+      state.world.addComponent(eid, ComponentType.EntityZone, getCurrentEntityZone(state))
+      state.waterReveryAura = eid
+
+      recordDiscovery(state, 'event:water-revery')
       return true
     }
 
@@ -273,6 +287,8 @@ export const castLightningAtTarget = (state: GameState, target: Position, slotIn
   if (def.castStyle !== 'targeted') return false
   if (now < slot.cooldownEndTime) return false
   if (!isValidLightningTarget(state, target)) return false
+
+  clearWaterReveryAura(state)
 
   // Generate bolt path
   const length =

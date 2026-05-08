@@ -1,0 +1,84 @@
+id: flora-movement
+name: Flora wind sway
+priority: medium
+layer: engine
+source_files:
+  - src/engine/flora/actions/movement.ts
+  - src/engine/flora/type/clover/clover.ts
+  - src/engine/flora/index.ts
+  - src/engine/weather/wind.ts
+  - src/engine/types.ts
+  - src/engine/__tests__/floraMovement.test.ts
+dependencies:
+  - wind-system
+
+behaviors:
+  - id: profile-registry
+    description: >
+      registerFloraMovement(tileType, profile) stores the profile keyed by
+      tile type. getFloraMovement returns it. unregisterFloraMovement removes
+      it. Side-effect import of flora/type/clover/clover.ts registers clover
+      at module load time.
+    inputs:
+      - 'registerFloraMovement called with a tile type and profile'
+    outputs:
+      - 'getFloraMovement returns the same profile object'
+    state_changes: []
+    determinism: deterministic
+
+  - id: zero-offset-conditions
+    description: >
+      getFloraSwayOffset returns {dx:0, dy:0, color:baseColor} when zone is
+      not Overworld, when the lifecycle stage maps to swayFactor 0, or when
+      smoothed wind speed is effectively zero (< 0.01).
+    inputs:
+      - 'zone = Cave or Ruin; or lifecycleStage dead/burnt; or smoothSpeed < 0.01'
+    outputs:
+      - 'dx = 0, dy = 0, color = baseColor'
+    state_changes: []
+    determinism: deterministic
+
+  - id: sway-offset-with-wind
+    description: >
+      With zone Overworld, a non-zero lifecycle stage, and smoothSpeed >= 0.01,
+      getFloraSwayOffset returns non-zero dx/dy that oscillate over time. The
+      spatial phase uses the fixed diagonal axis (mx + my) rather than
+      wind-direction projection, so phase never jumps on direction change.
+    inputs:
+      - 'zone = Overworld, smoothSpeed > 0, valid lifecycle stage'
+    outputs:
+      - 'at least one time value in [100..2000] produces non-zero dx or dy'
+    state_changes: []
+    determinism: time-based
+
+  - id: sway-factor-scaling
+    description: >
+      dx and dy scale linearly by the swayFactor for the given lifecycle stage.
+      A stage with swayFactor 0.5 produces exactly half the displacement of
+      swayFactor 1.0 at the same inputs.
+    inputs:
+      - 'same wind, position, time, charSize for two different lifecycle stages'
+    outputs:
+      - 'displacement ratio equals swayFactor ratio'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: undefined-lifecycle-stage
+    description: 'lifecycleStage parameter is undefined'
+    expected: 'swayFactor defaults to 1.0; full sway applies'
+  - id: missing-stage-key
+    description: 'Stage string not present in profile.swayFactors'
+    expected: 'swayFactor defaults to 1.0; full sway applies'
+  - id: zero-charsize
+    description: 'charWidth or charHeight is 0'
+    expected: 'dx = 0, dy = 0; no division by zero'
+
+failure_conditions:
+  - trigger: 'Spatial phase projected onto wind direction vector'
+    expected: 'all tiles shift phase simultaneously on wind direction change; visible as hard reset across the field'
+
+verification:
+  test_file: src/engine/__tests__/floraMovement.test.ts
+  test_pattern: flora movement
+  command: npx vitest run src/engine/__tests__/floraMovement.test.ts

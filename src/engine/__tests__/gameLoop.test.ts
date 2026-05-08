@@ -662,8 +662,8 @@ describe('held key movement', () => {
   })
 })
 
-describe('overworld toast suppression in cave', () => {
-  it('meteor shower toast suppressed in cave', () => {
+describe('overworld event suppression in cave', () => {
+  it('meteor shower log entry suppressed in cave', () => {
     const state = createTestState()
     state.currentZone = Zone.Cave
     state.map = state.caveMap
@@ -681,7 +681,7 @@ describe('overworld toast suppression in cave', () => {
 
     // Shower should have activated (the tick function still runs via map-swap)
     expect(state.meteorShower.active).toBe(true)
-    // But the toast should NOT fire because we're in the cave
+    // But the onDiscovery callback should NOT fire because we're in the cave
     expect(onDiscovery).not.toHaveBeenCalledWith(
       'Meteor shower!',
       expect.any(Number),
@@ -691,7 +691,7 @@ describe('overworld toast suppression in cave', () => {
     )
   })
 
-  it('meteor shower toast fires in overworld', () => {
+  it('meteor shower log entry fires in overworld', () => {
     const state = createTestState()
     state.currentZone = Zone.Overworld
     // Schedule shower to activate on next tick
@@ -706,7 +706,7 @@ describe('overworld toast suppression in cave', () => {
 
     // Shower should have activated
     expect(state.meteorShower.active).toBe(true)
-    // Toast should fire in overworld
+    // onDiscovery should fire in overworld
     expect(onDiscovery).toHaveBeenCalledWith(
       'Meteor shower!',
       expect.any(Number),
@@ -716,7 +716,7 @@ describe('overworld toast suppression in cave', () => {
     )
   })
 
-  it('lightning toast suppressed in cave', () => {
+  it('lightning log entry suppressed in cave', () => {
     const state = createTestState()
     state.currentZone = Zone.Cave
     state.map = state.caveMap
@@ -731,13 +731,13 @@ describe('overworld toast suppression in cave', () => {
       gameLoop.tick(t)
     }
 
-    // Even if lightning struck during overworld map-swap ticks, the toast must not fire in cave
+    // Even if lightning struck during overworld map-swap ticks, onDiscovery must not fire in cave
     const lightningCalls = onDiscovery.mock.calls.filter(
       (args: unknown[]) => args[0] === 'lightning strikes!'
     )
     expect(lightningCalls).toHaveLength(0)
 
-    // Also verify no wildfire toasts leaked
+    // Also verify no wildfire events leaked
     const wildfireCalls = onDiscovery.mock.calls.filter(
       (args: unknown[]) => args[0] === 'wildfire!'
     )

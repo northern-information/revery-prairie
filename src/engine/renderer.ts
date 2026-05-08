@@ -32,7 +32,6 @@ import {
   EXPLOSION_COLORS,
   EXPLOSION_DURATION_MS,
   EXPLOSION_RADIUS,
-  HOVER_PATH_COLOR,
   LIGHTNING_BOLT_COLOR_BRIGHT,
   LIGHTNING_BOLT_COLOR_DIM,
   LIGHTNING_BOLT_COLOR_MID,
@@ -86,6 +85,7 @@ import {
   drawCellHighlight,
   drawCellWalls,
   viewportToScreen,
+  worldDeltaToIsoPx,
   worldToScreen,
 } from './projection'
 import { projectBoltPath } from './boltPath'
@@ -114,6 +114,8 @@ import {
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
+import './flora'
+import { getFloraMovement, getFloraSwayOffset } from './flora'
 
 import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState, TransitionFade } from './types'
@@ -213,7 +215,6 @@ const _groundItemMap = new Map<string, { definitionId: string; glinting?: boolea
 const _previewMap = new Map<string, { char: string; color: string; isValid: boolean }>()
 const _pathPositions = new Set<string>()
 const _waypointPositions = new Set<string>()
-const _hoverPathPositions = new Set<string>()
 const _devPaintPositions = new Set<string>()
 const _satelliteMap = new Map<string, { char: string; color: string }>()
 const _satelliteImpactMap = new Map<string, { char: string; color: string }>()
@@ -259,6 +260,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return 0
     return tierGrid[mx + my * state.mapWidth]
   }
+  // Effective neighbor tier for cube-wall depth. Space tiles (and OOB
+  // in overworld) are treated as virtual sub-ground tier (-1) so every
+  // coastal land tile drops a cube cliff face into the void — the
+  // landmass reads as a 3D plateau sitting above space rather than a
+  // flat 2D outline. Inland land-to-land tier transitions are
+  // unaffected.
+  const wallNeighborTier = (mx: number, my: number): number => {
+    if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return -1
+    if (map[my][mx].type === TileType.Space) return -1
+    return tierGrid[mx + my * state.mapWidth]
+  }
   const liftAt = (mx: number, my: number): number =>
     liftAtShared(tierGrid, mx, my, state.mapWidth, state.mapHeight)
 
@@ -288,17 +300,74 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const satelliteShake = time < state.screenShakeUntil
   const shakeActive = deepTimeShake || satelliteShake
 
+  // Player tween: resolve the fractional lerp first so the world translate
+  // below can compose it with edge-scroll drift and screen shake. The
+  // player glyph itself draws at the integer tile through worldToScreen;
+  // the world translate carries it to the visually correct sub-tile
+  // position. Clearing state.playerTween at lerp.t === 1 produces no
+  // visual snap because the offset is already zero on that frame.
+  let playerTweenT = 1
+  let playerTweenFromX = player.x
+  let playerTweenFromY = player.y
+  if (state.playerTween) {
+    playerTweenFromX = state.playerTween.fromX
+    playerTweenFromY = state.playerTween.fromY
+    const lerp = getTweenLerp(state.playerTween, time, player.x, player.y)
+    if (lerp.t >= 1) {
+      state.playerTween = null
+    } else {
+      playerTweenT = lerp.t
+    }
+  }
+  const playerLerpX = playerTweenFromX + (player.x - playerTweenFromX) * playerTweenT
+  const playerLerpY = playerTweenFromY + (player.y - playerTweenFromY) * playerTweenT
+
   // Edge-scroll camera drift: integer camera coords are needed for tile
   // indexing (map[my][mx] etc.), but stepping the camera one full tile per
   // ~3-4 frames of edge-scroll produces visible jumps. Render the scene
   // with a sub-tile pixel translate so motion looks continuous; the
   // remainder is held in cameraSubpixel until it crosses an integer tile.
+  //
+  // The player-follow tween adds a second source of sub-tile drift: while
+  // playerTween is active, state.player.x/y has already snapped to the
+  // destination tile (so the camera centers on the destination), but the
+  // visual world position is mid-step. Without the offset below, world
+  // tiles would jump one full tile every 100ms move tick while the player
+  // glyph fights it — making the player look choppy even though the tween
+  // math is correct. Composing the tween offset into the same translate
+  // path keeps tile indexing integer while the canvas slides smoothly.
   let driftPx = 0
   let driftPy = 0
   if (state.cameraMode === 'free') {
-    driftPx = (state.cameraSubpixel.x - state.cameraSubpixel.y) * charWidth
-    driftPy = (state.cameraSubpixel.x + state.cameraSubpixel.y) * (charHeight / 2)
+    driftPx += (state.cameraSubpixel.x - state.cameraSubpixel.y) * charWidth
+    driftPy += (state.cameraSubpixel.x + state.cameraSubpixel.y) * (charHeight / 2)
   }
+  // Sign: the world translate must shift the scene as if the camera were
+  // at playerLerpX/Y (lagging behind the post-snap player.x/y). With
+  // ctx.translate(-driftPx, ...), a NEGATIVE driftPx shifts the canvas
+  // RIGHT, which is what's needed when player has snapped east of the
+  // lerp position. The world-delta argument is therefore (lerp - player),
+  // not (player - lerp).
+  //
+  // Per-axis gating: updateCamera only tracks the player on an axis when
+  // the map is at least as large as the visible viewport on that axis.
+  // On a smaller map (e.g. the 40x25 cave inside an 80+ wide viewport),
+  // the camera is fixed-centered and never moves with the player. In
+  // that case there is no camera-snap to compensate for, and the world
+  // must NOT translate — the player should slide across stationary
+  // tiles. Mirror updateCamera's check exactly so the renderer's offset
+  // matches what the camera actually did this frame.
+  const visibleWidth = state.viewportWidth - state.rightInsetTiles
+  const xCameraTracksPlayer = state.mapWidth >= visibleWidth
+  const yCameraTracksPlayer = state.mapHeight >= state.viewportHeight
+  const tweenDelta = worldDeltaToIsoPx(
+    xCameraTracksPlayer ? playerLerpX - player.x : 0,
+    yCameraTracksPlayer ? playerLerpY - player.y : 0,
+    charWidth,
+    charHeight,
+  )
+  driftPx += tweenDelta.px
+  driftPy += tweenDelta.py
 
   const worldTransformActive = shakeActive || driftPx !== 0 || driftPy !== 0
   if (worldTransformActive) {
@@ -316,21 +385,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     ctx.translate(sx - driftPx, sy - driftPy)
   }
 
-  // Player tween: glyph draws at the projected fractional world position.
-  // Selection/cursor highlights stay anchored to the integer player tile.
-  // Routing through worldToScreen makes the projection match the renderer —
-  // same path the coyote/ECS lerp post-pass uses.
-  let playerLerpX = player.x
-  let playerLerpY = player.y
-  if (state.playerTween) {
-    const lerp = getTweenLerp(state.playerTween, time, player.x, player.y)
-    if (lerp.t >= 1) {
-      state.playerTween = null
-    } else {
-      playerLerpX = lerp.x
-      playerLerpY = lerp.y
-    }
-  }
+  // Player glyph projects from the fractional lerp position. With the
+  // world translate above (which shifts everything to compensate for the
+  // camera snap), drawing the player at lerp lands the glyph at canvas
+  // center across the entire tween: lerp-position is already (player -
+  // tweenDelta) in screen space, and the translate adds tweenDelta back,
+  // for a net of zero displacement at every t. Selection/cursor
+  // highlights stay anchored to the integer player tile via px/pyLift in
+  // the central tile loop.
   const playerScreen = worldToScreen(
     playerLerpX,
     playerLerpY,
@@ -340,7 +402,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     viewportWidth,
     viewportHeight,
   )
-  const playerLift = liftAt(player.x, player.y)
+  // Vertical lift interpolates between from-tile and to-tile so cube-step
+  // elevation changes don't snap the player up or down at tween start.
+  const playerLiftFrom = liftAt(playerTweenFromX, playerTweenFromY)
+  const playerLiftTo = liftAt(player.x, player.y)
+  const playerLift = playerLiftFrom + (playerLiftTo - playerLiftFrom) * playerTweenT
 
   // Zone filter helper — only render entities in the current zone (including ruinIndex match)
   const inZone = (eid: number): boolean => isEntityInCurrentZone(state, eid)
@@ -352,7 +418,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   _previewMap.clear()
   _pathPositions.clear()
   _waypointPositions.clear()
-  _hoverPathPositions.clear()
   _devPaintPositions.clear()
   _satelliteMap.clear()
   _satelliteImpactMap.clear()
@@ -379,7 +444,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const previewMap = _previewMap
   const pathPositions = _pathPositions
   const waypointPositions = _waypointPositions
-  const hoverPathPositions = _hoverPathPositions
   const devPaintPositions = _devPaintPositions
   const satelliteMap = _satelliteMap
   const satelliteImpactMap = _satelliteImpactMap
@@ -420,6 +484,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     alpha: number
   }
   const deferredEntities: DeferredEntity[] = []
+  const deferredFloraGlyphs: { char: string; color: string; px: number; py: number }[] = []
 
   // Build overworld entrance glyph map (posKey → Greek letter)
   _entranceGlyphMap.clear()
@@ -521,13 +586,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Populate waypoint positions for distinct markers
   for (const w of state.pathWaypoints) {
     waypointPositions.add(posKey(w.x, w.y))
-  }
-
-  // Populate hover path positions for preview rendering (suppressed when dev panel is open)
-  if (state.hoverPath && !state.devPanelOpen) {
-    for (const p of state.hoverPath) {
-      hoverPathPositions.add(posKey(p.x, p.y))
-    }
   }
 
   // Populate dev paint preview positions
@@ -952,7 +1010,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (!multiPos || !effect?.reveryId) continue
 
     const revDef = getReveryDefinition(effect.reveryId)
-    if (revDef.castStyle === 'scan' || revDef.castStyle === 'rain') continue
+    if (revDef.castStyle === 'scan' || revDef.castStyle === 'rain' || revDef.castStyle === 'aura') continue
     const elapsed = time - effect.startTime
     for (const pos of multiPos.positions) {
       const h = tileHash(pos.x, pos.y)
@@ -1113,17 +1171,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
-      // Cosmetic elevation: walls render at tier transitions only,
-      // where this tile sits higher than its south or east neighbor.
-      // Same-tier neighbors share a flat plateau; the cube edge
-      // suggesting "every tile is a discrete block" is drawn by a
-      // separate, much cheaper south+east edge stroke pre-pass below
-      // (see edge-stroke pre-pass). Hidden cave chamber tiles use
-      // the masked CaveWall palette so the wall doesn't leak the
-      // underlying type.
-      if (tileTier > 0) {
-        const southTier = tierAt(mx, my + 1)
-        const eastTier = tierAt(mx + 1, my)
+      // Cosmetic elevation: walls render at tier transitions where
+      // this tile sits higher than its south or east neighbor. Space
+      // neighbors count as virtual sub-ground tier (-1), so coastal
+      // tiles at tier 0 still produce a cliff face into the void.
+      // Same-tier same-surface neighbors share a flat plateau; the
+      // per-tile cube edge suggestion comes from the bg-cache edge
+      // stroke. Hidden cave chamber tiles use the masked CaveWall
+      // palette so the wall doesn't leak the underlying type.
+      {
+        const southTier = wallNeighborTier(mx, my + 1)
+        const eastTier = wallNeighborTier(mx + 1, my)
         const leftDepth = Math.max(0, tileTier - southTier) * ELEVATION_TIER_LIFT_PX
         const rightDepth = Math.max(0, tileTier - eastTier) * ELEVATION_TIER_LIFT_PX
         if (leftDepth > 0 || rightDepth > 0) {
@@ -1268,8 +1326,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         isEntity = true
         if (pathPositions.has(tileKey)) {
           color = ACTION_COLOR
-        } else if (hoverPathPositions.has(tileKey)) {
-          color = HOVER_PATH_COLOR
         } else {
           color = METEORITE_COLOR
         }
@@ -1301,10 +1357,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           char = waypointPositions.has(tileKey) ? '+' : '\u00b7'
           color = ACTION_COLOR
         }
-      } else if (hoverPathPositions.has(tileKey)) {
-        const hoverTile = map[my][mx]
-        char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[hoverTile.type]
-        color = HOVER_PATH_COLOR
       } else if (trailMap.has(tileKey)) {
         const tile = map[my][mx]
         char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[tile.type]
@@ -1459,6 +1511,42 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
+      // Flora wind sway: displaced glyphs are deferred and flushed after the
+      // tile loop so no subsequent tile background can paint over them.
+      // Only applied on the non-highlighted terrain path so the cursor
+      // highlight box stays anchored to the tile centre.
+      // Growth-preview tiles (dirt tiles showing a blinking clover glyph before
+      // conversion) use the Clover profile so they sway in sync with live clover —
+      // without this they snap to the displaced position the frame they convert.
+      if (!highlight) {
+        const swayTileType = state.cloverGrowthPreviews.has(tileKey)
+          ? TileType.Clover
+          : map[my]?.[mx]?.type
+        const floraProfile = swayTileType ? getFloraMovement(swayTileType) : undefined
+        if (floraProfile) {
+          const lifecycleStage = state.cloverLifecycle.get(tileKey)?.stage
+          const sway = getFloraSwayOffset(
+            floraProfile,
+            state,
+            mx,
+            my,
+            time,
+            state.currentZone,
+            lifecycleStage,
+            charWidth,
+            charHeight,
+            color,
+          )
+          // Always defer — even zero-displacement — so tiles never switch between the
+          // deferred and non-deferred draw paths. When the smooth wind vector passes
+          // through zero (e.g. a W→E direction change), dx and dy become near-zero.
+          // Allowing those tiles to fall through to the non-deferred path causes them
+          // to be drawn in tile order and overdrawn by later tiles' backgrounds.
+          deferredFloraGlyphs.push({ char, color: sway.color, px: px + sway.dx, py: pyLift + sway.dy })
+          continue
+        }
+      }
+
       // Non-deferred path: terrain glyphs and overlay tiles. Apply the
       // highlight side effects here. applyEntityFade cannot fire on this
       // path (it requires isEntity, which would have taken the defer
@@ -1481,7 +1569,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         isHighlighted:
           isAngelGroupHighlighted || (isCursor && cursorable) || isFacingEntity || isPendingTarget,
         hasOverlay:
-          pathPositions.has(tileKey) || hoverPathPositions.has(tileKey) || trailMap.has(tileKey),
+          pathPositions.has(tileKey) || trailMap.has(tileKey),
       })
       if (isRuinMultilayer) {
         const layers = getRuinTileLayers(tile.type, mx, my, time)
@@ -1511,6 +1599,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const angelLift = isAngel ? -ANGEL_FLOAT_LIFT_PX : 0
     ctx.fillStyle = t.color
     ctx.fillText(t.char, px, py + liftAt(Math.floor(t.lerpX), Math.floor(t.lerpY)) + angelLift)
+  }
+
+  // Flush deferred flora glyphs — drawn after all terrain backgrounds so no
+  // neighboring tile's background rectangle can clip a displaced glyph.
+  // Flushed before entity glyphs so entities remain on top of flora.
+  for (const f of deferredFloraGlyphs) {
+    ctx.fillStyle = f.color
+    ctx.fillText(f.char, f.px, f.py)
   }
 
   // Flush deferred entity glyphs collected during the central tile loop.

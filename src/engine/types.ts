@@ -1,7 +1,6 @@
-import type { ColorId } from '@revery-prairie/shared'
-
 import type { World } from './ecs/world'
 import type { CivilizationRuin, GenesisSimState } from './genesisTypes'
+import type { ColorId } from '@revery-prairie/shared'
 
 export const TileType = {
   Space: 'space',
@@ -121,7 +120,7 @@ export interface ReveryDefinition {
   glyphColor: string
   cooldownMs: number
   castDurationMs: number
-  castStyle: 'tile' | 'rain' | 'scan' | 'targeted' | 'deepTime'
+  castStyle: 'tile' | 'rain' | 'aura' | 'scan' | 'targeted' | 'deepTime'
   castPattern: Position[]
 }
 
@@ -157,6 +156,59 @@ export interface RemotePlayer {
   y: number
   facing: Direction
   lastUpdateMs: number
+}
+
+// ─── flora pollen ─────────────────────────────────────────────────────────────
+
+export interface PollenParticle {
+  x: number
+  y: number
+  age: number
+  maxAge: number
+  profileId: string
+}
+
+export interface FloraPollinateProfile {
+  glyph: string
+  color: string
+  parsedColor: [number, number, number]
+  windThreshold: number
+  emitRate: number
+  minAge: number
+  maxAge: number
+  emitGate?: (state: GameState, tx: number, ty: number) => boolean
+}
+
+// ─── wind system ─────────────────────────────────────────────────────────────
+
+export type GustPhase = 'none' | 'attack' | 'hold' | 'decay'
+
+export interface WindState {
+  initialized: boolean
+  smoothSx: number
+  smoothSy: number
+  smoothSpeed: number
+  phaseAccum: number
+  gustPhase: GustPhase
+  gustPhaseStart: number
+  gustPhaseDuration: number
+  gustIntensity: number
+  gustPeakIntensity: number
+  gustSx: number
+  gustSy: number
+}
+
+export interface WindSample {
+  sx: number
+  sy: number
+  speed: number
+  gustSx: number
+  gustSy: number
+  gustIntensity: number
+  totalSx: number
+  totalSy: number
+  totalSpeed: number
+  phaseAccum: number
 }
 
 export interface GameState {
@@ -198,8 +250,6 @@ export interface GameState {
   playerTween: MovementTween | null
   cursorTile: Position | null
   cursorScreenPos: { x: number; y: number } | null
-  hoverPath: Position[] | null
-  hoverPathTarget: Position | null
   rainSeed: number
   metric: boolean
   musicEnabled: boolean
@@ -209,6 +259,8 @@ export interface GameState {
   lastEdgeScrollTime: number
   edgeScrollPos: { x: number; y: number } | null
   edgeScrollDirection: { dx: number; dy: number }
+  edgeScrollIndicatorAlpha: number
+  edgeScrollIndicatorDirection: { dx: number; dy: number }
   cameraSubpixel: { x: number; y: number }
   heldKeys: Set<ScreenAxisKey>
   currentZone: Zone
@@ -257,6 +309,9 @@ export interface GameState {
   postGiftActionsCompleted: Set<string>
   rainFrontOffset: number
   rainIntensity: number
+  wind: WindState
+  pollen: PollenParticle[]
+  pollenTrailDepth: number
   waterProximity: Map<string, number>
   genesis: GenesisSimState | null
   genesisTransition: TransitionFade | null
@@ -269,7 +324,7 @@ export interface GameState {
   coyotePath: Position[] | null
   ruinInteriors: RuinInterior[]
   currentRuinIndex: number | null
-  queuedToasts: QueuedToast[]
+  queuedEvents: QueuedEvent[]
   caveFogExplored: Set<string>
   caveFogDiscovered: Set<string>
   caveFogIllumination: Map<string, number>
@@ -287,6 +342,7 @@ export interface GameState {
   remotePlayers: Map<string, RemotePlayer>
   onPlayerMoved: (() => void) | null
   onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null
+  waterReveryAura: number | null
 }
 
 export const CloverStage = {
@@ -351,15 +407,7 @@ export interface Weather {
   season: Season
 }
 
-export type Direction =
-  | 'up'
-  | 'down'
-  | 'left'
-  | 'right'
-  | 'upLeft'
-  | 'upRight'
-  | 'downLeft'
-  | 'downRight'
+export type Direction = 'up' | 'down' | 'left' | 'right' | 'upLeft' | 'upRight' | 'downLeft' | 'downRight'
 
 export const isDiagonalDirection = (dir: Direction): boolean =>
   dir === 'upLeft' || dir === 'upRight' || dir === 'downLeft' || dir === 'downRight'
@@ -416,7 +464,7 @@ export interface DormantGardenData {
   doorPositions: Position[]
 }
 
-export interface QueuedToast {
+export interface QueuedEvent {
   text: string
   icon: string
   iconColor: string

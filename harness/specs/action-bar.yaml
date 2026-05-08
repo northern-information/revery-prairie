@@ -7,6 +7,8 @@ source_files:
   - src/engine/reveries.ts
   - src/engine/deepTime.ts
   - src/engine/types.ts
+  - src/engine/movement.ts
+  - src/engine/state.ts
   - src/components/ActionBar.tsx
   - src/hooks/useKeyboard.ts
 dependencies:
@@ -21,8 +23,8 @@ behaviors:
       scan, castPattern []), fire (glyphs ^/~/*, color #FF4500
       orange-red, cooldownMs 12000, castDurationMs 1200, castStyle
       tile, castPattern SINGLE_PATTERN), water (glyphs |/:/./, color
-      #4488CC blue, cooldownMs 12000, castDurationMs 10000, castStyle
-      rain, castPattern CROSS_PATTERN), lightning (glyphs [|], color
+      #4488CC blue, cooldownMs 12000, castDurationMs 0, castStyle
+      aura, castPattern []), lightning (glyphs [|], color
       #FFFFFF white, cooldownMs 15000, castDurationMs 800, castStyle
       targeted, castPattern []), and deep-time (glyphs [hourglass,
       clock, infinity], color #FFFFFF white, cooldownMs Infinity,
@@ -82,25 +84,33 @@ behaviors:
       activateActionBarSlot fires a revery slot. returns false for
       empty slots, cooldown active, item slots (deferred), or
       targeted-style reveries (deferred to targeting flow). on
-      success: sets cooldownEndTime and cooldownDurationMs from the
-      revery definition. scan-style reveries (earth) create a
-      single-Position ECS entity at the player position. tile-style
-      reveries create a MultiPosition ECS entity at the cast pattern
-      positions. both carry TimedEffect (reveryCast), EntityTag,
-      EntityZone. calls applyReveryCastEffects for tile-style casts.
-      targeted-style reveries (lightning) enter targeting mode instead
-      of casting immediately — see targeted-revery-flow. deepTime-style
-      reveries call initiateDeepTime and return true immediately — see
+      success: if state.waterReveryAura is not null, the existing
+      aura entity is removed from the ECS world and state.waterReveryAura
+      set to null before the new revery activates. sets cooldownEndTime
+      and cooldownDurationMs from the revery definition. scan-style
+      reveries (earth) create a single-Position ECS entity at the
+      player position. tile-style reveries create a MultiPosition ECS
+      entity at the cast pattern positions. both carry TimedEffect
+      (reveryCast), EntityTag, EntityZone. calls applyReveryCastEffects
+      for tile-style casts. aura-style reveries (water) create a
+      persistent Aura ECS entity (kind rain, radius 6) with Position
+      at the player position, tagged with EntityTag and EntityZone;
+      entity ID stored in state.waterReveryAura. targeted-style
+      reveries (lightning) enter targeting mode instead of casting
+      immediately — see targeted-revery-flow. deepTime-style reveries
+      call initiateDeepTime and return true immediately — see
       deep-time-activation.
     inputs:
       - 'GameState, slotIndex (0-3), now (timestamp)'
     outputs:
       - 'boolean: true if activation succeeded'
     state_changes:
+      - field: waterReveryAura
+        effect: 'existing aura entity removed and set to null before any new revery activates'
       - field: actionBar
         effect: 'slot cooldownEndTime set to now + cooldownMs, cooldownDurationMs set to cooldownMs'
       - field: world
-        effect: 'reveryCast ECS entity created — scan-style uses Position, tile-style uses MultiPosition; both have TimedEffect, EntityTag, EntityZone'
+        effect: 'reveryCast ECS entity created — scan-style uses Position, tile-style uses MultiPosition; both have TimedEffect, EntityTag, EntityZone. aura-style creates persistent Aura+Position entity, ID stored in state.waterReveryAura'
     determinism: deterministic
 
   - id: deep-time-activation
@@ -155,18 +165,26 @@ behaviors:
 
   - id: water-revery-effect
     description: >
-      water revery refills clover water meters at the cast pattern
-      positions (cross: center + 4 cardinal neighbors). caps at
-      WATER_MAX. adds SOIL_HEALTH_WATER_REVERY_BONUS to
-      soil health.
+      water revery uses castStyle 'aura' — creates a persistent rain
+      aura centered on the player. the aura entity has Aura (kind
+      rain, radius 6), Position, EntityTag, and EntityZone components.
+      its entity ID is stored in state.waterReveryAura. the aura
+      position is updated to match the player position on every
+      successful movePlayer call. tiles within the aura radius are
+      continuously hydrated by the existing tile-water-rain-fill
+      behavior — no one-shot fill. the aura persists until any
+      revery is cast (including re-casting water). records
+      event:water-revery discovery on first activation.
     inputs:
-      - 'water revery activated, facing clover tiles'
+      - 'water revery activated'
     outputs: []
     state_changes:
-      - field: tileWater
-        effect: 'water refilled at pattern positions, capped at WATER_MAX'
-      - field: soilHealth
-        effect: 'SOIL_HEALTH_WATER_REVERY_BONUS added'
+      - field: world
+        effect: 'persistent Aura ECS entity created with kind rain, radius 6, Position at player, EntityTag, EntityZone'
+      - field: waterReveryAura
+        effect: 'set to the new aura entity ID'
+      - field: manualDiscoveries
+        effect: 'event:water-revery recorded'
     determinism: deterministic
 
   - id: targeted-revery-flow
@@ -322,6 +340,15 @@ edge_cases:
   - id: activate-on-cooldown
     description: 'pressing a slot key while cooldown is still active'
     expected: 'activateActionBarSlot returns false, no effect'
+  - id: water-aura-cleared-on-new-revery
+    description: 'casting any revery (fire, earth, lightning, deep-time) while water aura is active'
+    expected: 'existing water aura entity removed and state.waterReveryAura nulled before the new revery activates'
+  - id: water-aura-recast
+    description: 're-casting the water revery while an aura is already active'
+    expected: 'old aura entity removed, new aura entity created at current player position'
+  - id: water-aura-follows-player
+    description: 'player moves while water aura is active'
+    expected: 'aura entity Position updated to new player position on every successful movePlayer call'
   - id: auto-assign-all-full
     description: 'autoAssignRevery called when all 4 slots are occupied'
     expected: 'no change to actionBar, revery is still in state.reveries'

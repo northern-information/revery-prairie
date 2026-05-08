@@ -78,19 +78,23 @@ behaviors:
         effect: 'transitions based on tileWater === 0 instead of lifecycle.water === 0'
     determinism: time-based
 
-  - id: water-revery-fills-tile-water
+  - id: water-revery-aura-hydrates
     description: >
-      Water revery cast writes to state.tileWater instead of
-      lifecycle.water. Fills affected tiles by WATER_REVERY_FILL,
-      clamped to WATER_MAX.
+      Water revery creates a persistent rain aura entity (kind rain,
+      radius 6) centered on the player (see action-bar spec,
+      water-revery-effect behavior). tiles within the aura radius
+      are hydrated continuously by the tile-water-rain-fill behavior
+      — the same path used by Gron's aura. there is no separate
+      one-shot fill on cast. the aura moves with the player and
+      persists until any revery is cast.
     inputs:
-      - 'player casts water revery targeting positions'
+      - 'player casts water revery; tile-water tick fires while aura is active'
     outputs:
-      - 'tileWater for affected positions increases'
+      - 'tileWater for tiles within radius increases by WATER_RAIN_FILL per tick'
     state_changes:
       - field: tileWater
-        effect: 'min(current + WATER_REVERY_FILL, WATER_MAX) for each targeted position'
-    determinism: deterministic
+        effect: 'min(current + WATER_RAIN_FILL, WATER_MAX) per tick for tiles in aura radius, via tile-water-rain-fill'
+    determinism: time-based
 
   - id: sidebar-shows-water-on-dirt
     description: >

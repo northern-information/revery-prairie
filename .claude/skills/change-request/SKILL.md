@@ -73,3 +73,19 @@ Do not proceed until the user approves.
 ### 8. Execute (optional, only on approval)
 
 Ask the user before running. Report results from the run summary.
+
+## Anti-rationalizations
+
+When the agent feels the urge to take a shortcut, it will narrate one of these. Don't.
+
+| Excuse the agent will tell itself | Rebuttal |
+| --- | --- |
+| "This change is small — I'll skip updating the spec." | The spec is the source of truth for the next `/maintain-harness` run. Drift here costs you future time. Update it. |
+| "I can refactor adjacent code while I'm in here." | No. Touch only what the change requires. Adjacent cleanup belongs in its own change-request. |
+| "The downstream effects are obvious — skip step 1." | Ask the question. The user knows things about gameplay intent that the code doesn't show. |
+| "No spec exists for this behavior — I'll just edit the code and move on." | If step 3 finds no spec, you have a gap. Either create one (escalate to `/new-feature`) or tell the user the gap exists before proceeding. |
+| "I'll preserve the old behavior with a feature flag, just in case." | No. Don't add backwards-compat shims for hypothetical needs. CLAUDE.md says so. |
+
+## Exit criterion
+
+Updated spec(s) and new plan committed in a worktree, `npm run spec:validate` clean, user approved the spec diff and the plan, harness:run summary surfaced (or user explicitly declined to run).

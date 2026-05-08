@@ -5,6 +5,7 @@ import { MOVEMENT_TWEEN_DEFAULT_MS, MOVEMENT_TWEEN_SPRINT_MS } from '../constant
 import { ComponentType } from '../ecs/types'
 import { clearMovementTweens, getTweenLerp } from '../movementTween'
 import { movePlayer } from '../movement'
+import { worldDeltaToIsoPx, worldToScreen } from '../projection'
 import { clearAroundPlayer, createTestState } from './helpers'
 
 const requireComponent = <T>(val: T | undefined): T => {
@@ -218,6 +219,174 @@ describe('smooth move', () => {
     it('returns t=1 when time is NaN', () => {
       const lerp = getTweenLerp(tween, NaN, 11, 5)
       expect(lerp.t).toBe(1)
+    })
+  })
+
+  describe('camera follow tween offset (regression)', () => {
+    // Reproduces the bug where state.player.x snaps to the destination
+    // tile but the renderer's camera follow was implicitly tweening only
+    // the player glyph. The world tiles jumped one full tile per move
+    // tick, fighting the player tween and reading as choppy. The fix
+    // composes a sub-tile world translate from the tween delta.
+
+    it('worldDeltaToIsoPx returns zero for zero delta', () => {
+      const off = worldDeltaToIsoPx(0, 0, 8, 16)
+      expect(off).toEqual({ px: 0, py: 0 })
+    })
+
+    it('worldDeltaToIsoPx projects east step onto iso axes', () => {
+      // East = +x in world, which is upper-right in iso screen.
+      const off = worldDeltaToIsoPx(1, 0, 10, 20)
+      expect(off.px).toBe(10)
+      expect(off.py).toBe(10)
+    })
+
+    it('worldDeltaToIsoPx projects south step onto iso axes', () => {
+      // South = +y in world, which is lower-left in iso screen.
+      const off = worldDeltaToIsoPx(0, 1, 10, 20)
+      expect(off.px).toBe(-10)
+      expect(off.py).toBe(10)
+    })
+
+    it('player drawn at lerp + world translate keeps player visually centered across the tween', () => {
+      // The renderer draws the player at the fractional lerp position
+      // and translates the entire scene by worldDeltaToIsoPx(lerp -
+      // player). The composition must put the player at the same canvas
+      // pixel as worldToScreen(player.x, player.y, camera) — i.e. the
+      // canvas center for follow-mode camera, on every frame of the tween.
+      const charWidth = 10
+      const charHeight = 20
+      const viewportWidth = 80
+      const viewportHeight = 40
+      const camera = { x: 50, y: 30 } // post-snap destination
+      const playerX = 50
+      const playerY = 30
+      const fromX = 49
+      const fromY = 30
+
+      const expectedScreen = worldToScreen(
+        playerX, playerY, camera, charWidth, charHeight, viewportWidth, viewportHeight,
+      )
+
+      for (const t of [0, 0.25, 0.5, 0.75, 1]) {
+        const lerpX = fromX + (playerX - fromX) * t
+        const lerpY = fromY + (playerY - fromY) * t
+
+        // Renderer path: player draws at lerp, then ctx.translate(-drift)
+        // is applied (drift composed from worldDeltaToIsoPx(lerp - player)).
+        const lerpDraw = worldToScreen(
+          lerpX, lerpY, camera, charWidth, charHeight, viewportWidth, viewportHeight,
+        )
+        const drift = worldDeltaToIsoPx(lerpX - playerX, lerpY - playerY, charWidth, charHeight)
+        // ctx.translate(sx - drift) inverts the drift sign.
+        const drawnPx = lerpDraw.px - drift.px
+        const drawnPy = lerpDraw.py - drift.py
+
+        expect(drawnPx).toBeCloseTo(expectedScreen.px)
+        expect(drawnPy).toBeCloseTo(expectedScreen.py)
+      }
+    })
+
+    it('world tile that the player came from slides to the player position at t=0 and away at t=1', () => {
+      // Verifies the world tiles slide smoothly under the player. At t=0
+      // the from-tile sits where the player visually is (under their
+      // feet); at t=1 the to-tile sits there.
+      const charWidth = 10
+      const charHeight = 20
+      const viewportWidth = 80
+      const viewportHeight = 40
+      const camera = { x: 50, y: 30 }
+      const toX = 50
+      const toY = 30
+      const fromX = 49
+      const fromY = 30
+      const expectedCenter = worldToScreen(
+        toX, toY, camera, charWidth, charHeight, viewportWidth, viewportHeight,
+      )
+
+      // At t=0: drift derived from (lerp = from) - (player = to). Tile at
+      // fromX should land where the player visually is (canvas center).
+      const driftAtZero = worldDeltaToIsoPx(fromX - toX, fromY - toY, charWidth, charHeight)
+      const fromTileDrawT0 = worldToScreen(
+        fromX, fromY, camera, charWidth, charHeight, viewportWidth, viewportHeight,
+      )
+      expect(fromTileDrawT0.px - driftAtZero.px).toBeCloseTo(expectedCenter.px)
+      expect(fromTileDrawT0.py - driftAtZero.py).toBeCloseTo(expectedCenter.py)
+
+      // At t=1: drift is zero (lerp == player). Tile at toX is at center.
+      const driftAtOne = worldDeltaToIsoPx(0, 0, charWidth, charHeight)
+      const toTileDrawT1 = worldToScreen(
+        toX, toY, camera, charWidth, charHeight, viewportWidth, viewportHeight,
+      )
+      expect(toTileDrawT1.px - driftAtOne.px).toBeCloseTo(expectedCenter.px)
+      expect(toTileDrawT1.py - driftAtOne.py).toBeCloseTo(expectedCenter.py)
+    })
+
+    it('iso translate keeps tween offset zero on the final tween frame', () => {
+      // Failure case: at lerp.t = 1, lerp = (toX, toY) = (player.x, player.y).
+      // Offset must be exactly zero so the post-tween frame renders
+      // identically to the final tween frame.
+      const offset = worldDeltaToIsoPx(0, 0, 12, 24)
+      expect(offset.px).toBe(0)
+      expect(offset.py).toBe(0)
+    })
+
+    it('player lift interpolates linearly across a cube-step tween', () => {
+      // The renderer interpolates playerLift = liftFrom + (liftTo - liftFrom) * t.
+      // Verify the math holds for an arbitrary cube-step delta.
+      const liftFrom = -8 // negative = up (cube top of a higher tier)
+      const liftTo = 0
+      const at = (t: number): number => liftFrom + (liftTo - liftFrom) * t
+      expect(at(0)).toBe(liftFrom)
+      expect(at(1)).toBe(liftTo)
+      expect(at(0.5)).toBeCloseTo(-4)
+      expect(at(0.25)).toBeCloseTo(-6)
+    })
+
+    it('tween offset is zero on axes where camera does not track player (small map)', () => {
+      // updateCamera centers the map (rather than the player) when the
+      // map is smaller than the visible viewport on an axis. The cave
+      // is 40x25 inside an 80+x40+ viewport — both axes are
+      // small-map. The renderer must mirror that gate so a player
+      // walking inside the cave does NOT shift the world; the player
+      // glyph slides smoothly across stationary tiles via its own
+      // lerp draw. Mirrors the gate the renderer applies inline.
+      const gateOffset = (
+        lerpX: number,
+        lerpY: number,
+        playerX: number,
+        playerY: number,
+        mapWidth: number,
+        mapHeight: number,
+        visibleViewportWidth: number,
+        viewportHeight: number,
+        charWidth: number,
+        charHeight: number,
+      ): { px: number; py: number } => {
+        const xTracks = mapWidth >= visibleViewportWidth
+        const yTracks = mapHeight >= viewportHeight
+        return worldDeltaToIsoPx(
+          xTracks ? lerpX - playerX : 0,
+          yTracks ? lerpY - playerY : 0,
+          charWidth,
+          charHeight,
+        )
+      }
+
+      // Cave-shaped scenario: 40x25 map, 80x40 viewport.
+      const caveOffset = gateOffset(49.5, 12, 50, 12, 40, 25, 80, 40, 10, 20)
+      expect(caveOffset).toEqual({ px: 0, py: 0 })
+
+      // Overworld-shaped scenario: 147x147 map, 80x40 viewport — both axes track.
+      const overworldOffset = gateOffset(49.5, 30, 50, 30, 147, 147, 80, 40, 10, 20)
+      expect(overworldOffset.px).not.toBe(0)
+
+      // Hybrid: narrow x (small map), tall y (tracks). Only y axis offsets.
+      const hybridOffset = gateOffset(49.5, 30.5, 50, 30, 40, 200, 80, 40, 10, 20)
+      // x contribution from worldDeltaToIsoPx(0, dy) = (-dy)*cw, (dy)*halfH
+      // dy = 0.5 - 0 = 0.5 → px = -5, py = 5
+      expect(hybridOffset.px).toBeCloseTo(-5)
+      expect(hybridOffset.py).toBeCloseTo(5)
     })
   })
 })

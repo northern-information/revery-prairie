@@ -7,11 +7,17 @@ import {
   getSlotCooldownFraction,
 } from '../actionBar'
 import { ComponentType } from '../ecs/types'
+import { movePlayer } from '../movement'
 import { createGameState } from '../state'
 import { TileType } from '../types'
 import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
+
+const requireComponent = <T>(val: T | undefined): T => {
+  expect(val).toBeTruthy()
+  return val as T
+}
 
 const makeState = (): GameState => {
   const state = createGameState('test', 40, 30)
@@ -143,6 +149,91 @@ describe('activateActionBarSlot', () => {
     activateActionBarSlot(state, 1, 5000)
 
     expect(state.manualDiscoveries.has('event:earth-revery')).toBe(true)
+  })
+
+  describe('water revery aura', () => {
+    it('creates aura entity at player position and stores ID in waterReveryAura', () => {
+      const state = makeState()
+      assignActionBarSlot(state, 0, 'revery', 'water')
+
+      activateActionBarSlot(state, 0, 5000)
+
+      expect(state.waterReveryAura).not.toBeNull()
+      const eid = state.waterReveryAura ?? -1
+      const aura = requireComponent(state.world.getComponent(eid, ComponentType.Aura))
+      expect(aura.kind).toBe('rain')
+      expect(aura.radius).toBe(6)
+      const pos = requireComponent(state.world.getComponent(eid, ComponentType.Position))
+      expect(pos).toEqual({ x: state.player.x, y: state.player.y })
+    })
+
+    it('records event:water-revery discovery', () => {
+      const state = makeState()
+      assignActionBarSlot(state, 0, 'revery', 'water')
+
+      activateActionBarSlot(state, 0, 5000)
+
+      expect(state.manualDiscoveries.has('event:water-revery')).toBe(true)
+    })
+
+    it('sets cooldown on cast', () => {
+      const state = makeState()
+      assignActionBarSlot(state, 0, 'revery', 'water')
+
+      activateActionBarSlot(state, 0, 5000)
+
+      expect(state.actionBar[0]?.cooldownEndTime).toBe(5000 + 12000)
+      expect(state.actionBar[0]?.cooldownDurationMs).toBe(12000)
+    })
+
+    it('clears existing aura when a new revery is cast', () => {
+      const state = makeState()
+      assignActionBarSlot(state, 0, 'revery', 'water')
+      assignActionBarSlot(state, 1, 'revery', 'earth')
+
+      activateActionBarSlot(state, 0, 1000)
+      const firstAuraId = state.waterReveryAura
+
+      // Advance past cooldown for earth (6000ms), water already set at 1000 so cooldown ends at 13000
+      activateActionBarSlot(state, 1, 20000)
+
+      expect(state.waterReveryAura).toBeNull()
+      // Old entity should no longer have aura component (destroyed)
+      expect(state.world.getComponent(firstAuraId ?? -1, ComponentType.Aura)).toBeUndefined()
+    })
+
+    it('replaces existing aura when water revery is re-cast', () => {
+      const state = makeState()
+      assignActionBarSlot(state, 0, 'revery', 'water')
+
+      activateActionBarSlot(state, 0, 1000)
+      const firstAuraId = state.waterReveryAura
+
+      activateActionBarSlot(state, 0, 20000)
+      const secondAuraId = state.waterReveryAura
+
+      expect(secondAuraId).not.toBeNull()
+      expect(secondAuraId).not.toBe(firstAuraId)
+      expect(state.world.getComponent(firstAuraId ?? -1, ComponentType.Aura)).toBeUndefined()
+    })
+
+    it('aura entity position follows player on movePlayer', () => {
+      const state = makeState()
+      // Ensure north tile is walkable
+      state.map[state.player.y - 1][state.player.x] = { type: TileType.Dirt }
+      assignActionBarSlot(state, 0, 'revery', 'water')
+
+      activateActionBarSlot(state, 0, 5000)
+      expect(state.waterReveryAura).not.toBeNull()
+      const eid = state.waterReveryAura ?? -1
+
+      const originalY = state.player.y
+      movePlayer(state, 'up')
+
+      const pos = requireComponent(state.world.getComponent(eid, ComponentType.Position))
+      expect(pos.x).toBe(state.player.x)
+      expect(pos.y).toBe(originalY - 1)
+    })
   })
 })
 

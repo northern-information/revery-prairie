@@ -1,0 +1,98 @@
+plan:
+  id: camera-follow-tween
+  title: 'Sub-tile camera follow during player movement tween'
+  created: '2026-05-04'
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-tween-offset-helper
+    title: 'Add tween-offset projection helper in projection.ts'
+    spec_id: camera-follow-tween
+    spec_sections:
+      - world-tracks-player-tween
+    context_files:
+      - src/engine/projection.ts
+      - src/engine/movementTween.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/projection.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: ['engine', 'projection']
+
+  - id: apply-tween-offset-in-renderer
+    title: 'Renderer composes player-tween offset into world translate; player draws at integer tile'
+    spec_id: camera-follow-tween
+    spec_sections:
+      - world-tracks-player-tween
+      - player-glyph-stays-centered
+      - tween-end-no-snap
+      - free-mode-uses-tween-offset
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/projection.ts
+      - src/engine/camera.ts
+      - src/engine/types.ts
+      - src/engine/movementTween.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-tween-offset-helper
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__'
+    repair: retry
+    tags: ['engine', 'renderer']
+
+  - id: interpolate-player-lift
+    title: 'Player vertical lift interpolates from tween fromTile to toTile across the tween'
+    spec_id: camera-follow-tween
+    spec_sections:
+      - player-lift-tween
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/projection.ts
+      - src/engine/movementTween.ts
+      - src/engine/render/tierGrid.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - apply-tween-offset-in-renderer
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: ['engine', 'renderer', 'iso']
+
+  - id: write-regression-tests
+    title: 'Author regression tests for tween-offset projection and lift interpolation'
+    spec_id: camera-follow-tween
+    spec_sections:
+      - world-tracks-player-tween
+      - player-glyph-stays-centered
+      - tween-end-no-snap
+      - player-lift-tween
+      - free-mode-uses-tween-offset
+    context_files:
+      - src/engine/projection.ts
+      - src/engine/movementTween.ts
+      - src/engine/__tests__/smoothMove.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/smoothMove.test.ts
+    depends_on:
+      - add-tween-offset-helper
+      - apply-tween-offset-in-renderer
+      - interpolate-player-lift
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/smoothMove.test.ts'
+    repair: retry
+    tags: ['engine', 'test']

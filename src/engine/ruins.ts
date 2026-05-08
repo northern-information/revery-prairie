@@ -1,9 +1,11 @@
 import {
   BUILDING_CHARS,
   CIV_COLORS,
-  RUIN_ENTRY_TOASTS,
+  PATINA_CHARS,
+  RUIN_ENTRY_EVENTS,
   TILE_CHARS,
   TILE_COLORS,
+  VERDIGRIS_COLORS,
 } from './constants'
 import { transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
@@ -24,13 +26,13 @@ import type {
   Tile,
 } from './types'
 
-const queueToast = (
+const queueEvent = (
   state: GameState,
   text: string,
   icon: string,
   iconColor: string,
 ): void => {
-  state.queuedToasts.push({
+  state.queuedEvents.push({
     text,
     icon,
     iconColor,
@@ -789,9 +791,9 @@ export const enterRuin = (state: GameState, ruinIndex: number): void => {
     recordDiscovery(state, discoveryKey)
   }
 
-  const entryToast = RUIN_ENTRY_TOASTS[interior.archetype]
-  if (entryToast) {
-    queueToast(state, entryToast, '☒', '#d8a860')
+  const entryEvent = RUIN_ENTRY_EVENTS[interior.archetype]
+  if (entryEvent) {
+    queueEvent(state, entryEvent, '☒', '#d8a860')
   }
 }
 
@@ -877,6 +879,45 @@ export const getEntranceHaloCells = (
     }
   }
   return cells
+}
+
+export interface PatinaLayer {
+  char: string
+  color: string
+  dx: number
+  dy: number
+}
+
+// Sparse verdigris glyphs layered over the 8 perimeter cells of an entrance
+// halo. Center entrance tile is excluded by the caller — but we also skip it
+// here as a safety net so callers can't accidentally double-glyph the "O".
+// Always returns 1 layer for a perimeter cell, plus a 2nd on ~40% of cells
+// (h % 5 < 2). Position-deterministic via tileHash.
+export const getEntrancePatinaLayers = (
+  cellX: number,
+  cellY: number,
+  entranceX: number,
+  entranceY: number,
+): PatinaLayer[] => {
+  if (cellX === entranceX && cellY === entranceY) return []
+  const h = tileHash(cellX, cellY)
+  const layers: PatinaLayer[] = [
+    {
+      char: PATINA_CHARS[h % PATINA_CHARS.length],
+      color: VERDIGRIS_COLORS[h % VERDIGRIS_COLORS.length],
+      dx: 0,
+      dy: 0,
+    },
+  ]
+  if (h % 5 < 2) {
+    layers.push({
+      char: PATINA_CHARS[(h + 2) % PATINA_CHARS.length],
+      color: VERDIGRIS_COLORS[(h + 1) % VERDIGRIS_COLORS.length],
+      dx: h % 2 === 0 ? 1 : -1,
+      dy: h % 3 === 0 ? 1 : 0,
+    })
+  }
+  return layers
 }
 
 export const placeRuinEntrances = (

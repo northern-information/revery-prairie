@@ -1,9 +1,5 @@
 import { spawnAngel, tickAngelBeeAura, tickAngelCloverAura, tickAngelDrift, tickAngelLifespan } from './angels'
 import { spawnShootingStar, tickMeteorShower, tickShootingStars, triggerPlayerSpawnShower } from './celestial'
-import { spawnSatellite, tickSatellites } from './satellites'
-import { tickCoyote } from './coyote'
-import { pruneSelection } from './selection'
-import { cleanupMoveOrderMarkers, tickUnitCommands } from './unitCommands'
 import { tickCloverGrowth, tickCloverHives } from './clover'
 import { tickCloverLifecycle } from './cloverLifecycle'
 import {
@@ -15,8 +11,8 @@ import {
   CLOVER_GROWTH_TICK_MS,
   CLOVER_HIVE_TICK_MS,
   CLOVER_LIFECYCLE_TICK_MS,
-  CRUMBLE_DURATION_MS,
   COYOTE_TICK_MS,
+  CRUMBLE_DURATION_MS,
   GHOST_TICK_MS,
   GLINT_ZONE_TICK_MS,
   KEYBOARD_MOVE_TICK_MS,
@@ -24,32 +20,39 @@ import {
   METEOR_SHOWER_TICK_MS,
   MONARCH_TICK_MS,
   PATH_TICK_MS,
-  SPRINT_MOVE_TICK_MS,
   SATELLITE_SHAKE_DURATION_MS,
   SATELLITE_SPAWN_TICK_MS,
   SATELLITE_TICK_MS,
   SHOOTING_STAR_SPAWN_TICK_MS,
   SHOOTING_STAR_TICK_MS,
+  SPRINT_MOVE_TICK_MS,
   UNIT_COMMAND_TICK_MS,
   WEATHER_TICK_MS,
 } from './constants'
+import { tickCoyote } from './coyote'
 import { tickDeepTime } from './deepTime'
 import { ComponentType } from './ecs/types'
-import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
-import { completeGenesis, GENESIS_EPOCHS, tickGenesis } from './genesis'
 import { recenterCamera } from './edgeScroll'
+import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
+import { tickPollenDrift, tickPollenEmit } from './flora'
+import { completeGenesis, GENESIS_EPOCHS, tickGenesis } from './genesis'
 import { tickGlintZones } from './glintZones'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { getDefinition } from './items'
 import { spawnLightningStrike, tickLightning } from './lightning'
+import { recordDiscovery } from './manual'
 import { tickMonarchs } from './monarch'
 import { movePlayer, tickPath } from './movement'
 import { getReveryDefinition } from './reveries'
-import { tickTileWater } from './tileWater'
 import { tickDormantGardenDecay } from './ruins'
+import { spawnSatellite, tickSatellites } from './satellites'
+import { pruneSelection } from './selection'
+import { tickTileWater } from './tileWater'
 import { DeepTimePhase, Zone } from './types'
+import { cleanupMoveOrderMarkers, tickUnitCommands } from './unitCommands'
 import { isTileInVisibleViewport } from './viewportBounds'
 import { tickRainIntensity, tickWeather } from './weather'
+import { tickWind } from './weather/wind'
 
 import type { GameState } from './types'
 
@@ -156,17 +159,17 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
-      id: 'drainQueuedToasts',
+      id: 'drainQueuedEvents',
       intervalMs: 0,
       zone: 'always' as const,
       phase: 'gameplay' as const,
       priority: -18,
       fn: (state: GameState) => {
-        if (state.queuedToasts.length === 0) return
-        for (const t of state.queuedToasts) {
+        if (state.queuedEvents.length === 0) return
+        for (const t of state.queuedEvents) {
           callbacks.onDiscovery?.(t.text, t.worldX, t.worldY, t.icon, t.iconColor)
         }
-        state.queuedToasts = []
+        state.queuedEvents = []
       },
     },
     {
@@ -297,7 +300,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
             result.pickedUp.x,
             result.pickedUp.y,
             def.glyph,
-            def.glyphColor,
+            def.glyphColor
           )
         }
         if (result.delivered) {
@@ -308,7 +311,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
             result.delivered.x,
             result.delivered.y,
             def.glyph,
-            def.glyphColor,
+            def.glyphColor
           )
           callbacks.onRefreshUI?.()
         }
@@ -318,7 +321,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       id: 'unit-commands',
       intervalMs: UNIT_COMMAND_TICK_MS,
       zone: 'always',
-      fn: (state) => {
+      fn: state => {
         tickUnitCommands(state)
         pruneSelection(state)
       },
@@ -387,12 +390,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         if (impact && state.currentZone === Zone.Overworld) {
           const vx = impact.x - state.camera.x
           const vy = impact.y - state.camera.y
-          const inViewport = isTileInVisibleViewport(
-            vx,
-            vy,
-            state.viewportWidth,
-            state.viewportHeight,
-          )
+          const inViewport = isTileInVisibleViewport(vx, vy, state.viewportWidth, state.viewportHeight)
           if (inViewport) {
             state.screenShakeUntil = time + SATELLITE_SHAKE_DURATION_MS
             callbacks.onDiscovery?.('Satellite impact!', impact.x, impact.y, '░', '#FF4444')
@@ -432,6 +430,20 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
+      id: 'wind',
+      intervalMs: 0,
+      zone: 'always',
+      fn: (() => {
+        let lastTime = 0
+        return (state: GameState, time: number) => {
+          const dt = lastTime > 0 ? time - lastTime : 0
+          lastTime = time
+          tickWind(state, time, dt)
+          if (state.wind.smoothSpeed > 3) recordDiscovery(state, 'event:wind-sway')
+        }
+      })(),
+    },
+    {
       id: 'rain-intensity',
       intervalMs: 0,
       zone: 'overworld',
@@ -443,6 +455,29 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           tickRainIntensity(state, dt)
         }
       })(),
+    },
+    {
+      // Per-frame: age and drift all active pollen particles.
+      id: 'pollen-drift',
+      intervalMs: 0,
+      zone: 'overworld',
+      fn: (() => {
+        let lastTime = 0
+        return (state: GameState, time: number) => {
+          const dt = lastTime > 0 ? time - lastTime : 0
+          lastTime = time
+          tickPollenDrift(state, dt)
+        }
+      })(),
+    },
+    {
+      // 100 ms interval: probabilistic emission from visible flora tiles above wind threshold.
+      id: 'pollen-emit',
+      intervalMs: 100,
+      zone: 'overworld',
+      fn: state => {
+        tickPollenEmit(state, 100)
+      },
     },
     {
       id: 'clover-growth',

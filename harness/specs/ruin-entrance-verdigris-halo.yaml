@@ -1,0 +1,112 @@
+id: ruin-entrance-verdigris-halo
+name: 'Ruin entrance verdigris halo and patina overlay'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/constants.ts
+  - src/engine/ruins.ts
+  - src/engine/render/passes/ruinEntranceHalo.ts
+  - src/engine/render/passes/ruinEntrancePatina.ts
+  - src/engine/render/passes/index.ts
+dependencies:
+  - ruin-infrastructure
+  - ruin-visual-style
+  - renderer
+
+behaviors:
+  - id: verdigris-halo-backdrop
+    description: >
+      The 3x3 background fill painted around each RuinEntrance on the
+      overworld uses a dark verdigris (teal-green patina) color rather
+      than dark brown. RUIN_ENTRANCE_HALO_COLOR is exported from
+      constants.ts and reads as ground-stained patina from the ruin's
+      bronze infrastructure bleeding into the soil. The fill is still
+      drawn by the ruinEntranceHalo pass in the world-overlay slot,
+      under the tile-glyph terrain layer. Overworld-only — never drawn
+      in the cave or ruin zones.
+    inputs:
+      - 'overworld renderer drawing world-overlay slot with ruinInteriors present'
+    outputs:
+      - '3x3 verdigris-tinted background fill around each entrance'
+    state_changes: []
+    determinism: deterministic
+
+  - id: verdigris-color-palette
+    description: >
+      A VERDIGRIS_COLORS array is exported from constants.ts alongside
+      CIV_COLORS. It contains 3-5 verdigris/patina shades ranging from
+      muted dark teal to lighter copper-oxide green, used by the patina
+      overlay to deterministically tint glyphs per tile. The bright
+      RuinEntrance glyph color (#5FD3BC) is one of the tones the palette
+      can echo, but the palette emphasises darker tones so the patina
+      does not compete with the entrance glyph for attention.
+    inputs:
+      - 'patina or future ruin-tinting code requesting verdigris shades'
+    outputs:
+      - 'array of CSS hex strings importable from constants.ts'
+    state_changes: []
+    determinism: deterministic
+
+  - id: patina-glyph-overlay
+    description: >
+      A new ruinEntrancePatina render pass draws sparse layered ASCII
+      glyphs over the 8 perimeter cells of the halo footprint (the 3x3
+      around each entrance, excluding the center entrance tile itself).
+      Each perimeter cell renders 1 layer always, plus a second layer on
+      ~40% of cells. Char selection uses tileHash(x, y) over a sparse
+      patina char set (e.g. "·", ":", "+", "'", "."). Color selection
+      uses tileHash to index VERDIGRIS_COLORS. Layer offsets follow the
+      existing multilayer convention from getRuinTileLayers (dx/dy in
+      {-1, 0, 1}). Center entrance tile is skipped — its own glyph
+      ("O" + "·") is unchanged.
+    inputs:
+      - 'overworld renderer drawing effect slot with ruinInteriors present'
+    outputs:
+      - 'sparse verdigris glyphs overlaid on the 8 perimeter halo cells'
+    state_changes: []
+    determinism: deterministic
+
+  - id: patina-overworld-only
+    description: >
+      The patina pass is active only when currentZone is Zone.Overworld
+      and ruinInteriors is non-empty, matching the existing
+      ruinEntranceHalo pass active predicate. In cave or ruin zones the
+      pass is a no-op.
+    inputs:
+      - 'renderer running effect slot in any zone'
+    outputs:
+      - 'patina drawn only in overworld'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: entrance-near-map-edge
+    description: 'entrance sits within 1 tile of the map border'
+    expected: 'patina renders only on in-bounds non-Space cells, matching getEntranceHaloCells filtering'
+
+  - id: overlapping-entrance-halos
+    description: 'two entrances 2 tiles apart share a halo column'
+    expected: 'overlapping cells render the same glyphs deterministically — tileHash(x,y) is position-based so both entrances produce identical output for shared cells; visually idempotent'
+
+  - id: entrance-on-coastline
+    description: 'some 3x3 cells fall on Space tiles (off the dirt island)'
+    expected: 'Space cells are excluded from getEntranceHaloCells, so neither backdrop nor patina draws on them'
+
+  - id: cursor-on-patina-cell
+    description: 'cursor hovers over a halo perimeter cell'
+    expected: 'cursor inversion still applies normally to the underlying terrain glyph; patina draws underneath in the effect slot but the inverted cursor background covers it — same behavior as any other effect overlay'
+
+failure_conditions:
+  - trigger: 'patina draws over the center entrance tile'
+    expected: 'must not happen — would obscure the entrance "O" glyph; pass must skip the cell at entranceOverworld coordinates'
+
+  - trigger: 'VERDIGRIS_COLORS not exported from constants.ts'
+    expected: 'compilation error — patina pass and any future verdigris tinting must be able to import it'
+
+  - trigger: 'patina pass drawn in cave or ruin zone'
+    expected: 'must not happen — pass isActive returns false outside Zone.Overworld'
+
+verification:
+  test_file: src/engine/__tests__/ruin-entrance-patina.test.ts
+  test_pattern: 'ruin entrance patina'
+  command: 'npx vitest run src/engine/__tests__/ruin-entrance-patina.test.ts src/engine/__tests__/ruins.test.ts'

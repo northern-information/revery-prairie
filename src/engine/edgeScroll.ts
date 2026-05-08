@@ -35,17 +35,29 @@ export const computeEdgeScrollDirection = (
  * delta between this call and state.lastEdgeScrollTime so velocity is
  * frame-rate independent.
  */
+const FADE_IN_MS = 120
+const FADE_OUT_MS = 280
+
 export const tickEdgeScroll = (state: GameState, metrics: CharMetrics, time: number): void => {
+  // Compute dt before any early returns so the indicator alpha can advance
+  // even when the cursor is outside the edge zone or the camera is paused.
+  const dt = time - state.lastEdgeScrollTime
+  state.lastEdgeScrollTime = time
+  const dtValid = dt > 0 && dt <= 200
+
   // edgeScrollPos is set on canvas mousemove (regardless of sidebar overlay)
   // and cleared on mouseleave. cursorScreenPos can't be used here because
   // it's gated by sidebar overlap so the right-edge scroll never fires.
   if (!state.edgeScrollPos) {
-    state.lastEdgeScrollTime = time
     state.edgeScrollDirection = { dx: 0, dy: 0 }
+    if (dtValid) {
+      state.edgeScrollIndicatorAlpha = Math.max(
+        0,
+        state.edgeScrollIndicatorAlpha - dt / FADE_OUT_MS,
+      )
+    }
     return
   }
-  const dt = time - state.lastEdgeScrollTime
-  state.lastEdgeScrollTime = time
   // Use the visible canvas region (excluding the sidebar columns) so the
   // right-edge scroll zone lands at the visual right edge of the playfield.
   const visibleWidthPx = (state.viewportWidth - state.rightInsetTiles) * metrics.charWidth
@@ -59,6 +71,24 @@ export const tickEdgeScroll = (state: GameState, metrics: CharMetrics, time: num
   // Always publish the active direction so the renderer can draw the
   // hot-pink edge indicator regardless of frame-skip conditions below.
   state.edgeScrollDirection = { dx, dy }
+
+  // Advance indicator alpha and latch the last active direction for
+  // rendering, so the fade-out shows the correct edges.
+  if (dtValid) {
+    if (dx !== 0 || dy !== 0) {
+      state.edgeScrollIndicatorDirection = { dx, dy }
+      state.edgeScrollIndicatorAlpha = Math.min(
+        1,
+        state.edgeScrollIndicatorAlpha + dt / FADE_IN_MS,
+      )
+    } else {
+      state.edgeScrollIndicatorAlpha = Math.max(
+        0,
+        state.edgeScrollIndicatorAlpha - dt / FADE_OUT_MS,
+      )
+    }
+  }
+
   if (dt <= 0 || dt > 200) {
     // First frame or background-tab pause: skip the camera mutation but
     // keep the indicator state up to date.

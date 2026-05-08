@@ -67,8 +67,9 @@ behaviors:
       strike at that tile. calls spawnLightningStrike logic but with a
       forced target position instead of weighted random selection. creates
       the same ECS lightning entity, triggers the same wildfire spread,
-      screen flash, and toast. sets the slot cooldown. clears targeting
-      mode by setting targetingSlot to null and clearing previewFn.
+      screen flash, and event log entry. sets the slot cooldown. clears
+      targeting mode by setting targetingSlot to null and clearing
+      previewFn.
     inputs:
       - 'click on valid tile while targetingSlot is set'
       - 'current time'

@@ -1,0 +1,187 @@
+id: harness-ci-check
+name: 'Harness CI gate'
+priority: high
+layer: integration
+source_files:
+  - harness/src/harness-check.ts
+  - harness/__tests__/harness-check.test.ts
+  - .github/workflows/ci.yml
+  - package.json
+  - CLAUDE.md
+dependencies: []
+
+behaviors:
+  - id: detect-changed-files
+    description: >
+      The check computes the set of files changed in the current branch
+      relative to origin/main using `git diff --name-status`. It
+      classifies each path as "product", "test", "harness-pipeline", or
+      "ignored" using fixed prefix rules. Product paths are anything
+      under `src/`, `worker/src/`, or `shared/src/` that is NOT under
+      `__tests__/` and does not match `*.test.ts` / `*.test.tsx`. Test
+      paths match `**/__tests__/**` or `*.test.ts(x)` anywhere. Harness
+      paths are anything under `harness/`, `.github/workflows/`,
+      `.claude/`, or root config files (`package.json`, `tsconfig*`,
+      `vite*`, `eslint*`, `prettier*`, `*.md`, `.gitignore`,
+      `.prettierrc*`, `.editorconfig`). Ignored paths are everything
+      else (assets, fixtures, public/).
+    inputs:
+      - 'Branch state with diff against origin/main'
+    outputs:
+      - 'Map of path -> classification (product | test | harness-pipeline | ignored)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: classify-pr-size
+    description: >
+      The check classifies the PR as either "minor" or "gated" based
+      only on product-path changes. The PR is "gated" if EITHER (a) any
+      product path was added (status A) OR (b) total added+removed
+      lines across product paths exceeds 150. Otherwise the PR is
+      "minor". Test, harness-pipeline, and ignored paths never
+      contribute to the size or new-file counts.
+    inputs:
+      - 'Classified change set from detect-changed-files'
+    outputs:
+      - "PR classification: 'minor' | 'gated'"
+      - 'Reason string explaining which trigger fired (or none)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: require-spec-and-plan
+    description: >
+      When the PR is "gated", the check requires that the diff contains
+      at least one added/modified file under `harness/specs/` AND at
+      least one added/modified file under `harness/plans/`. If both are
+      present, the check passes. If either is missing, the check fails
+      with a message that lists the gating triggers and instructs the
+      author to run /new-feature, /bug-report, or /change-request.
+    inputs:
+      - 'Classified change set'
+      - "PR classification = 'gated'"
+    outputs:
+      - 'Exit code 0 on pass, 1 on fail'
+      - 'Human-readable report on stdout listing triggers and missing artifacts'
+    state_changes: []
+    determinism: deterministic
+
+  - id: minor-pr-passes
+    description: >
+      When the PR classification is "minor", the check exits 0 with a
+      summary line "harness check: minor PR, no spec required" and does
+      NOT require a spec or plan. This keeps small fixes and chores
+      unblocked.
+    inputs:
+      - "PR classification = 'minor'"
+    outputs:
+      - 'Exit code 0'
+      - 'Stdout summary "harness check: minor PR, no spec required"'
+    state_changes: []
+    determinism: deterministic
+
+  - id: skip-harness-override
+    description: >
+      The check supports an explicit override via the `SKIP_HARNESS`
+      environment variable or a `Skip-Harness:` trailer in the most
+      recent commit message on the branch. When either is present and
+      non-empty, the check exits 0 with a stdout summary that quotes
+      the reason. The override is logged so reviewers can see it during
+      PR review. The override applies regardless of PR classification.
+    inputs:
+      - 'SKIP_HARNESS env var, OR Skip-Harness: <reason> in HEAD commit message'
+    outputs:
+      - 'Exit code 0'
+      - 'Stdout summary "harness check: skipped (reason: <reason>)"'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ci-job-wired
+    description: >
+      The CI workflow `.github/workflows/ci.yml` runs the harness check
+      as part of the `lint` job, after `npm run spec:validate`. The job
+      must check out the full git history (`fetch-depth: 0`) so the
+      diff against `origin/main` resolves correctly. The job invokes
+      `npm run harness:check` which delegates to the harness-check
+      script with `origin/main` as the base.
+    inputs:
+      - 'Pull request targeting main'
+    outputs:
+      - 'CI job step "harness check" passes or fails the build'
+    state_changes: []
+    determinism: deterministic
+
+  - id: local-script-wired
+    description: >
+      `package.json` exposes a `harness:check` script that runs the
+      check against the local diff. By default the base is
+      `origin/main`; the base can be overridden via the
+      `HARNESS_BASE` env var (used in CI to point at a different ref).
+      Running `npm run harness:check` locally produces the same output
+      format as CI.
+    inputs:
+      - 'Local working tree on a feature branch'
+    outputs:
+      - 'Same exit code and report as CI'
+    state_changes: []
+    determinism: deterministic
+
+  - id: claude-md-updated
+    description: >
+      The repo CLAUDE.md is updated with a new "harness gate" section
+      that documents (a) the gate triggers (new product files, >150
+      product LOC), (b) the always-skipped paths, (c) the
+      Skip-Harness override mechanism, and (d) the recommended path
+      (run /new-feature, /bug-report, or /change-request). The section
+      lives near the existing harness/worktree documentation.
+    inputs: []
+    outputs: []
+    state_changes:
+      - field: CLAUDE.md
+        effect: 'adds a "Harness gate" section under the harness section'
+    determinism: deterministic
+
+edge_cases:
+  - id: docs-only-change
+    description: 'PR only modifies *.md files (e.g. CLAUDE.md, README.md)'
+    expected: 'classified as harness-pipeline / ignored, PR is minor, check passes without spec'
+  - id: test-only-change
+    description: 'PR only modifies files under __tests__/ or *.test.ts'
+    expected: 'no product changes, PR is minor, check passes without spec'
+  - id: tiny-bug-fix
+    description: 'PR changes 5 lines in src/engine/movement.ts and adds no new files'
+    expected: 'product change is below the 150-line threshold and adds no new file, PR is minor, check passes'
+  - id: new-engine-module
+    description: 'PR adds src/engine/newSystem.ts with 30 lines'
+    expected: 'PR is gated due to new product file, requires spec+plan in PR'
+  - id: large-refactor
+    description: 'PR modifies 200 lines across existing src/engine files but adds no new files'
+    expected: 'PR is gated due to LOC threshold, requires spec+plan in PR'
+  - id: spec-only-update
+    description: 'PR modifies only harness/specs/*.yaml (e.g. fixing a typo)'
+    expected: 'classified as harness-pipeline, PR is minor, check passes'
+  - id: refactor-with-spec-and-plan
+    description: 'Large refactor includes harness/specs/foo.yaml and harness/plans/foo.yaml'
+    expected: 'PR is gated, both artifacts present, check passes'
+  - id: skip-trailer-on-large-pr
+    description: 'Large PR includes "Skip-Harness: emergency security patch" in HEAD commit'
+    expected: "check exits 0, prints 'harness check: skipped (reason: emergency security patch)'"
+  - id: branch-without-origin-main
+    description: 'Local branch has not fetched origin/main yet'
+    expected: 'check fails fast with a clear error message instructing the user to run `git fetch origin main`, exit code 2'
+
+failure_conditions:
+  - trigger: 'PR adds a new file under src/engine/ but contains no harness/specs/ change'
+    expected: 'check exits 1 with message naming the gating trigger and missing artifact'
+  - trigger: 'PR modifies 200 LOC under src/ but contains no harness/plans/ change'
+    expected: 'check exits 1 with message naming the gating trigger and missing artifact'
+  - trigger: 'PR contains spec but no plan'
+    expected: 'check exits 1 with message "missing harness/plans/ change"'
+  - trigger: 'PR contains plan but no spec'
+    expected: 'check exits 1 with message "missing harness/specs/ change"'
+  - trigger: 'origin/main is not available locally'
+    expected: 'check exits 2 with instructions to fetch'
+
+verification:
+  test_file: harness/__tests__/harness-check.test.ts
+  test_pattern: 'harness-check'
+  command: 'npx vitest run harness/__tests__/harness-check.test.ts'

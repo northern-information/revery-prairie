@@ -1,0 +1,87 @@
+plan:
+  id: credits
+  title: 'Add Credits modal in sys menu, sourced from a hand-curated module'
+  created: '2026-05-04'
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: credits-data-module
+    title: 'Implement Credit type and CREDITS array in src/engine/credits.ts'
+    spec_id: credits
+    spec_sections:
+      - credits-data-module
+    context_files:
+      - src/engine/credits.ts
+    output_files:
+      - src/engine/credits.ts
+      - src/engine/__tests__/credits.test.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/credits.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: credits-modal-component
+    title: 'Implement CreditsModal with centered layout and rAF auto-scroll'
+    spec_id: credits
+    spec_sections:
+      - credits-modal-presentation
+      - credits-auto-scroll
+      - modal-close
+    context_files:
+      - src/engine/credits.ts
+      - src/components/CreditsModal.tsx
+      - src/components/PanelPrimitives.tsx
+      - src/components/CantosScreen.tsx
+    output_files:
+      - src/components/CreditsModal.tsx
+      - src/components/__tests__/CreditsModal.test.tsx
+    depends_on:
+      - credits-data-module
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/components/__tests__/CreditsModal.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: menu-integration
+    title: 'Add Credits button to sys Menu and wire modal open/close state'
+    spec_id: credits
+    spec_sections:
+      - sys-menu-credits-button
+      - modal-close
+    context_files:
+      - src/components/Menu.tsx
+      - src/components/CreditsModal.tsx
+      - src/engine/credits.ts
+      - src/components/__tests__/Menu.test.tsx
+    output_files:
+      - src/components/Menu.tsx
+      - src/components/__tests__/Menu.test.tsx
+    depends_on:
+      - credits-modal-component
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/components/__tests__/Menu.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: credits-skill
+    title: 'Create /credits skill that conversationally appends to src/engine/credits.ts'
+    spec_id: credits
+    spec_sections:
+      - credits-data-module
+    context_files:
+      - .claude/skills/backlog/SKILL.md
+      - src/engine/credits.ts
+    output_files:
+      - .claude/skills/credits/SKILL.md
+    depends_on:
+      - credits-data-module
+    verification: []
+    repair: skip
+    tags: [skill]

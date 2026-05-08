@@ -121,10 +121,10 @@ describe('player spawn ceremony', () => {
       expect(explosions.length).toBeGreaterThan(0)
     })
 
-    it('queues a "falls to the prairie" toast on impact, with the steward name', () => {
+    it('queues a "falls to the prairie" log entry on impact, with the steward name', () => {
       const state = createGameState('Bramble', 40, 30)
       destroyAllStars(state)
-      state.queuedToasts = []
+      state.queuedEvents = []
       clearAroundTile(state, state.player)
       const eid = spawnShootingStarAtTarget(state, state.player, { dx: 1, dy: 0 }, {
         forPlayerSpawn: true,
@@ -137,9 +137,9 @@ describe('player spawn ceremony', () => {
 
       tickShootingStars(state, 200)
 
-      const fallToast = state.queuedToasts.find(t => t.text.includes('falls to the prairie'))
-      expect(fallToast).toBeDefined()
-      expect(fallToast?.text).toBe('Steward Bramble falls to the prairie.')
+      const fallEvent = state.queuedEvents.find(t => t.text.includes('falls to the prairie'))
+      expect(fallEvent).toBeDefined()
+      expect(fallEvent?.text).toBe('Steward Bramble falls to the prairie.')
     })
   })
 
