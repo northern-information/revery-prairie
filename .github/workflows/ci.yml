@@ -12,26 +12,37 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-          cache: npm
+
+      - uses: actions/cache@v4
+        id: cache-modules
+        with:
+          path: |
+            node_modules
+            worker/node_modules
+            shared/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
 
       - run: npm ci
+        if: steps.cache-modules.outputs.cache-hit != 'true'
 
       - run: npm run typecheck
 
       - run: npm run lint
 
-      - run: npm run build
+      - run: npx vite build
 
       - run: npm run spec:validate
 
       - name: harness check
         if: github.event_name == 'pull_request'
-        run: npm run harness:check
+        run: |
+          git fetch origin main --depth=1
+          npm run harness:check
         env:
           HARNESS_BASE: origin/${{ github.base_ref }}
 
@@ -43,9 +54,18 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-          cache: npm
+
+      - uses: actions/cache@v4
+        id: cache-modules
+        with:
+          path: |
+            node_modules
+            worker/node_modules
+            shared/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
 
       - run: npm ci
+        if: steps.cache-modules.outputs.cache-hit != 'true'
 
       - run: npx vitest run --project engine
 
@@ -57,8 +77,17 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-          cache: npm
+
+      - uses: actions/cache@v4
+        id: cache-modules
+        with:
+          path: |
+            node_modules
+            worker/node_modules
+            shared/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
 
       - run: npm ci
+        if: steps.cache-modules.outputs.cache-hit != 'true'
 
       - run: npx vitest run --project ui
