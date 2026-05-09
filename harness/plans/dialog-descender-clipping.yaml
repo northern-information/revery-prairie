@@ -1,0 +1,44 @@
+plan:
+  id: dialog-descender-clipping
+  title: Fix character dialog text clipping letter descenders
+  created: '2026-05-09'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-regression-test
+    title: Add regression test asserting the inner text container has no overflow-hidden
+    spec_id: dialog-descender-clipping
+    spec_sections:
+      - descenders-render-fully
+    context_files:
+      - src/components/DialogBox.tsx
+      - src/components/__tests__/DialogBox.test.tsx
+    output_files:
+      - src/components/__tests__/DialogBox.test.tsx
+    depends_on: []
+    verification:
+      - npx vitest run src/components/__tests__/DialogBox.test.tsx
+    repair: retry
+    tags:
+      - test
+
+  - id: remove-overflow-hidden
+    title: Remove overflow-hidden from the inner text container in DialogBox
+    spec_id: dialog-descender-clipping
+    spec_sections:
+      - descenders-render-fully
+      - layout-stability-preserved
+    context_files:
+      - src/components/DialogBox.tsx
+    output_files:
+      - src/components/DialogBox.tsx
+    depends_on:
+      - add-regression-test
+    verification:
+      - npx vitest run src/components/__tests__/DialogBox.test.tsx
+    repair: retry
+    tags:
+      - component

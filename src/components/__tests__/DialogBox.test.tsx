@@ -177,6 +177,26 @@ describe('DialogBox', () => {
     expect(screen.queryByTestId('dialog-advance-button')).toBeNull()
   })
 
+  it('inner text container does not clip descenders via overflow-hidden', () => {
+    // regression: a previous version applied overflow-hidden to the flex column
+    // wrapping SectionHeader and the paragraph. with text-xs leading-relaxed in
+    // a tight flex-1 region, that clipped the bottom of letter descenders
+    // (y, g, p, q) — making "Coyote" read as "Covote".
+    render(
+      <DialogBox
+        characterName="Gron"
+        line="Coyote hasn't returned"
+        typingIndex={22}
+        typingDone={false}
+      />,
+    )
+
+    const paragraph = screen.getByText("Coyote hasn't returned")
+    const inner = paragraph.parentElement
+    expect(inner).toBeTruthy()
+    expect(inner?.className).not.toMatch(/overflow-hidden/)
+  })
+
   it('calls onAdvance when button is clicked', () => {
     const onAdvance = vi.fn()
     render(
