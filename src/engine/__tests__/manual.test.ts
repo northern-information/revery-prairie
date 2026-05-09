@@ -69,8 +69,9 @@ describe('manual', () => {
     })
 
     it('item entries derive category from item definition', () => {
-      expect(MANUAL_ENTRIES['item:bee'].category).toBe(ManualCategory.Fauna)
-      expect(MANUAL_ENTRIES['item:clover'].category).toBe(ManualCategory.Flora)
+      expect(MANUAL_ENTRIES['item:bee'].category).toBe(ManualCategory.Life)
+      expect(MANUAL_ENTRIES['item:clover'].category).toBe(ManualCategory.Life)
+      expect(MANUAL_ENTRIES['item:honey'].category).toBe(ManualCategory.Life)
       expect(MANUAL_ENTRIES['item:meteorite'].category).toBe(ManualCategory.Celestial)
     })
 
@@ -157,10 +158,10 @@ describe('manual', () => {
 
   describe('getEntriesByCategory', () => {
     it('returns only entries matching the category', () => {
-      const fauna = getEntriesByCategory(ManualCategory.Fauna)
-      expect(fauna.length).toBeGreaterThan(0)
-      for (const entry of fauna) {
-        expect(entry.category).toBe(ManualCategory.Fauna)
+      const life = getEntriesByCategory(ManualCategory.Life)
+      expect(life.length).toBeGreaterThan(0)
+      for (const entry of life) {
+        expect(entry.category).toBe(ManualCategory.Life)
       }
     })
 

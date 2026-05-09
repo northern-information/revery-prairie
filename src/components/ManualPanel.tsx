@@ -29,8 +29,7 @@ const ControlName = ({ name }: { name: string }) => {
 }
 
 const CATEGORY_LABELS: Record<ManualCategory, string> = {
-  [ManualCategory.Flora]: 'FLORA',
-  [ManualCategory.Fauna]: 'FAUNA',
+  [ManualCategory.Life]: 'LIFE',
   [ManualCategory.Celestial]: 'CELESTIAL',
   [ManualCategory.Object]: 'OBJECTS',
   [ManualCategory.Person]: 'PEOPLE',

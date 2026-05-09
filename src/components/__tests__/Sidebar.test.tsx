@@ -8,7 +8,7 @@ import { completeGenesis } from '@/engine/genesis'
 import { placeItem } from '@/engine/inventory'
 import { worldToScreen } from '@/engine/projection'
 import { createGameState } from '@/engine/state'
-import { TileType } from '@/engine/types'
+import { Sky, TileType } from '@/engine/types'
 
 const stockBackpackForCombine = (state: GameState): void => {
   placeItem(state.backpack, 'bee', 0, 0)
@@ -130,6 +130,8 @@ describe('Sidebar', () => {
       }
     }
     stockBackpackForCombine(state)
+    // Force non-rain so spawnBeeOrMonarch deterministically spawns a bee.
+    state.weather.sky = Sky.Sun
     combineFromBackpack(state, 'bee', 'clover')
     render(
       <Sidebar
