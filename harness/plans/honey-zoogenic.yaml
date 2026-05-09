@@ -1,0 +1,125 @@
+plan:
+  id: honey-zoogenic
+  title: 'Reclassify honey as Zoogenic; merge Flora + Fauna manual sections into LIFE'
+  created: '2026-05-08'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-zoogenic-itemcategory
+    title: "Add Zoogenic to ItemCategory in types.ts"
+    spec_id: inventory-management
+    spec_sections:
+      - item-category-taxonomy
+    context_files:
+      - src/engine/types.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on: []
+    verification:
+      - npx tsc --noEmit 2>&1 | head -30
+    repair: retry
+    tags: [engine]
+
+  - id: reclassify-honey
+    title: "Change honey's category from Flora to Zoogenic in items.ts"
+    spec_id: inventory-management
+    spec_sections:
+      - item-category-taxonomy
+    context_files:
+      - src/engine/items.ts
+    output_files:
+      - src/engine/items.ts
+    depends_on:
+      - add-zoogenic-itemcategory
+    verification:
+      - npx tsc --noEmit 2>&1 | head -30
+    repair: retry
+    tags: [engine]
+
+  - id: merge-life-manualcategory
+    title: "Replace ManualCategory.Flora and Fauna with single Life member; update CATEGORY_ORDER, itemCategoryToManualCategory (Zoogenic + Seed + Flora + Fauna -> Life), and all MANUAL_ONLY_ENTRIES references"
+    spec_id: manual-id-namespace
+    spec_sections:
+      - manual-category-taxonomy
+    context_files:
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - add-zoogenic-itemcategory
+    verification:
+      - npx tsc --noEmit 2>&1 | head -30
+    repair: retry
+    tags: [engine]
+
+  - id: update-manual-panel-labels
+    title: "Update CATEGORY_LABELS in ManualPanel.tsx: replace Flora/Fauna entries with single Life -> 'LIFE'"
+    spec_id: manual-id-namespace
+    spec_sections:
+      - manual-category-taxonomy
+    context_files:
+      - src/components/ManualPanel.tsx
+    output_files:
+      - src/components/ManualPanel.tsx
+    depends_on:
+      - merge-life-manualcategory
+    verification:
+      - npx tsc --noEmit 2>&1 | head -30
+    repair: retry
+    tags: [component]
+
+  - id: update-manual-tests
+    title: "Update manual.test.ts assertions: bee and clover now both map to ManualCategory.Life; replace Fauna/Flora references with Life"
+    spec_id: manual-id-namespace
+    spec_sections:
+      - manual-category-taxonomy
+    context_files:
+      - src/engine/__tests__/manual.test.ts
+    output_files:
+      - src/engine/__tests__/manual.test.ts
+    depends_on:
+      - merge-life-manualcategory
+    verification:
+      - npx vitest run src/engine/__tests__/manual.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: add-honey-category-test
+    title: "Add a regression test asserting ITEM_DEFINITIONS.honey.category === ItemCategory.Zoogenic and that the honey manual entry resolves to ManualCategory.Life"
+    spec_id: inventory-management
+    spec_sections:
+      - item-category-taxonomy
+    context_files:
+      - src/engine/__tests__/items.test.ts
+      - src/engine/__tests__/manual.test.ts
+    output_files:
+      - src/engine/__tests__/items.test.ts
+      - src/engine/__tests__/manual.test.ts
+    depends_on:
+      - reclassify-honey
+      - merge-life-manualcategory
+    verification:
+      - npx vitest run src/engine/__tests__/items.test.ts src/engine/__tests__/manual.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: final-verification
+    title: 'Run typecheck, lint, and full test suite'
+    spec_id: inventory-management
+    spec_sections:
+      - item-category-taxonomy
+    context_files: []
+    output_files: []
+    depends_on:
+      - update-manual-panel-labels
+      - update-manual-tests
+      - add-honey-category-test
+    verification:
+      - npm run typecheck
+      - npm run lint
+      - npm run test
+    repair: retry
+    tags: [verification]

@@ -19,8 +19,7 @@ describe('ManualPanel', () => {
     const buttons = screen.getAllByRole('button')
     const tabLabels = buttons.map(b => b.textContent?.trim())
     expect(tabLabels).toContain('ALL')
-    expect(tabLabels).toContain('FLORA')
-    expect(tabLabels).toContain('FAUNA')
+    expect(tabLabels).toContain('LIFE')
     expect(tabLabels).toContain('RECIPES')
   })
 
@@ -38,13 +37,12 @@ describe('ManualPanel', () => {
 
   it('updates manualState.activeCategory when tab is clicked', async () => {
     const { state } = renderManual()
-    // Find the FAUNA button (tab)
     const buttons = screen.getAllByRole('button')
-    const faunaTab = buttons.find(b => b.textContent?.trim() === 'FAUNA')
-    expect(faunaTab).toBeTruthy()
+    const lifeTab = buttons.find(b => b.textContent?.trim() === 'LIFE')
+    expect(lifeTab).toBeTruthy()
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted above
-    await userEvent.click(faunaTab!)
-    expect(state.manualState.activeCategory).toBe('fauna')
+    await userEvent.click(lifeTab!)
+    expect(state.manualState.activeCategory).toBe('life')
   })
 
   it('updates manualState.searchQuery when typing in search', async () => {

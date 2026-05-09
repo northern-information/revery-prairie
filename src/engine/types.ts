@@ -56,6 +56,7 @@ export const ItemCategory = {
   Gizmo: 'gizmo',
   Seed: 'seed',
   Artifact: 'artifact',
+  Zoogenic: 'zoogenic',
 } as const
 
 export type ItemCategory = (typeof ItemCategory)[keyof typeof ItemCategory]

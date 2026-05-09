@@ -124,6 +124,24 @@ behaviors:
         effect: 'same ItemInstance (original uid preserved) pushed with updated position'
     determinism: deterministic
 
+  - id: item-category-taxonomy
+    description: >
+      ItemCategory in src/engine/types.ts is the canonical taxonomy
+      for ItemDefinition.category. members are Fauna ('fauna'),
+      Flora ('flora'), Tool ('tool'), CelestialDebris ('celestial
+      debris'), Gizmo ('gizmo'), Seed ('seed'), Artifact ('artifact'),
+      and Zoogenic ('zoogenic'). Zoogenic covers animal-produced
+      goods that are neither alive flora nor alive fauna —
+      currently honey, which is bee-produced from clover nectar.
+      ItemInfo renders item.category verbatim, so the surface label
+      for honey is 'zoogenic'.
+    inputs:
+      - 'ItemDefinition.category referencing an ItemCategory member'
+    outputs:
+      - "ItemInfo panel renders the lowercase category string verbatim (e.g. 'zoogenic' for honey)"
+    state_changes: []
+    determinism: deterministic
+
 edge_cases:
   - id: full-container
     description: 'all grid cells occupied, placeItem called'

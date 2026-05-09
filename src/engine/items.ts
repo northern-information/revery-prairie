@@ -33,7 +33,7 @@ const ITEMS = {
     name: 'Honey',
     glyph: '~',
     glyphColor: '#DAA520',
-    category: ItemCategory.Flora,
+    category: ItemCategory.Zoogenic,
   },
   coin: {
     name: 'Coin',

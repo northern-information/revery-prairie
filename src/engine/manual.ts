@@ -13,8 +13,7 @@ import type { GameState } from './types'
 // --- Categories ---
 
 export const ManualCategory = {
-  Flora: 'flora',
-  Fauna: 'fauna',
+  Life: 'life',
   Celestial: 'celestial',
   Object: 'object',
   Person: 'person',
@@ -199,17 +198,16 @@ export const getHints = (key: string): ManualHint[] => MANUAL_LORE[key]?.hints ?
 const itemCategoryToManualCategory = (cat: ItemCategory): ManualCategory => {
   switch (cat) {
     case ItemCategory.Fauna:
-      return ManualCategory.Fauna
     case ItemCategory.Flora:
-      return ManualCategory.Flora
+    case ItemCategory.Seed:
+    case ItemCategory.Zoogenic:
+      return ManualCategory.Life
     case ItemCategory.CelestialDebris:
       return ManualCategory.Celestial
     case ItemCategory.Tool:
     case ItemCategory.Gizmo:
     case ItemCategory.Artifact:
       return ManualCategory.Object
-    case ItemCategory.Seed:
-      return ManualCategory.Flora
     default:
       return ManualCategory.Object
   }
@@ -456,7 +454,7 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
   {
     id: 'event:clover-growth',
     name: 'Clover Growth',
-    category: ManualCategory.Flora,
+    category: ManualCategory.Life,
     glyph: '%',
     glyphColor: '#90EE90',
     unlockKey: 'event:clover-growth',
@@ -465,7 +463,7 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
   {
     id: 'event:clover-death',
     name: 'Clover Death',
-    category: ManualCategory.Flora,
+    category: ManualCategory.Life,
     glyph: '%',
     glyphColor: '#8B6914',
     unlockKey: 'event:clover-death',
@@ -474,7 +472,7 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
   {
     id: 'event:clover-harvest',
     name: 'Clover Harvest',
-    category: ManualCategory.Flora,
+    category: ManualCategory.Life,
     glyph: '%',
     glyphColor: '#50C878',
     unlockKey: 'event:clover-harvest',
@@ -483,7 +481,7 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
   {
     id: 'event:clover-cut',
     name: 'Clover Cut',
-    category: ManualCategory.Flora,
+    category: ManualCategory.Life,
     glyph: '%',
     glyphColor: '#50C878',
     unlockKey: 'event:clover-cut',
@@ -511,7 +509,7 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
   {
     id: 'event:wildfire',
     name: 'Wildfire',
-    category: ManualCategory.Flora,
+    category: ManualCategory.Life,
     glyph: '^',
     glyphColor: '#FF4500',
     unlockKey: 'event:wildfire',
@@ -550,7 +548,7 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
   {
     id: 'event:wind-sway',
     name: 'Flora Sway',
-    category: ManualCategory.Flora,
+    category: ManualCategory.Life,
     glyph: '%',
     glyphColor: '#90EE90',
     unlockKey: 'event:wind-sway',
@@ -559,7 +557,7 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
   {
     id: 'event:pollen',
     name: 'Pollen',
-    category: ManualCategory.Flora,
+    category: ManualCategory.Life,
     glyph: '.',
     glyphColor: '#b07fc7',
     unlockKey: 'event:pollen',
@@ -693,8 +691,7 @@ export const filterManualEntries = (entries: ManualEntry[], query: string): Manu
 // --- Category ordering ---
 
 export const CATEGORY_ORDER: ManualCategory[] = [
-  ManualCategory.Flora,
-  ManualCategory.Fauna,
+  ManualCategory.Life,
   ManualCategory.Celestial,
   ManualCategory.Object,
   ManualCategory.Person,

@@ -21,6 +21,11 @@ describe('getDefinition', () => {
     expect(def.category).toBe(ItemCategory.Flora)
   })
 
+  it('classifies honey as Zoogenic', () => {
+    const def = getDefinition('honey')
+    expect(def.category).toBe(ItemCategory.Zoogenic)
+  })
+
   it('throws for unknown id', () => {
     expect(() => getDefinition('nonexistent')).toThrow('unknown item definition: nonexistent')
   })

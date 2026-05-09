@@ -67,6 +67,29 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: manual-category-taxonomy
+    description: >
+      ManualCategory groups manual entries into display sections.
+      members are Life ('life'), Celestial ('celestial'),
+      Object ('object'), Person ('person'), Revery ('revery'),
+      Zone ('zone'), Recipe ('recipe'), Control ('control').
+      Life is a single section that subsumes the previous Flora and
+      Fauna split — bees, clover, milkweed, monarchs, and zoogenic
+      goods (honey) all live under LIFE in the manual. ManualPanel's
+      CATEGORY_LABELS maps Life to 'LIFE'. CATEGORY_ORDER opens with
+      Life. itemCategoryToManualCategory maps ItemCategory Fauna,
+      Flora, Seed, and Zoogenic all to ManualCategory.Life;
+      CelestialDebris maps to Celestial; Tool, Gizmo, and Artifact
+      map to Object.
+    inputs:
+      - 'ManualCategory member used by manual entries and ManualPanel'
+      - 'ItemDefinition.category routed through itemCategoryToManualCategory'
+    outputs:
+      - 'manual UI renders a single LIFE section grouping flora, fauna, seeds, and zoogenic items'
+      - 'honey appears under LIFE'
+    state_changes: []
+    determinism: deterministic
+
 edge_cases:
   - id: colons-in-hint-keys
     description: 'hint toggle keys use entry.id:index format, so namespaced ids produce keys like item:bee:0 with multiple colons'
