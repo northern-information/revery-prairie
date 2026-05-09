@@ -10,6 +10,7 @@ source_files:
   - src/engine/position.ts
   - src/engine/renderer.ts
   - src/engine/interaction.ts
+  - src/engine/characters.ts
   - src/hooks/useKeyboard.ts
   - src/hooks/useMouse.ts
   - src/engine/manual.ts
@@ -76,6 +77,8 @@ behaviors:
       discovery for event:ruin-door-unlocked. clicking any door tile
       pathfinds to the closest walkable adjacent tile and triggers
       the same unlock on arrival (see click-interaction edge case).
+      pressing [e] facing a locked door with NO aqueductKey instead
+      opens the gate dialog (see locked-gate-dialog behavior).
     inputs:
       - '[e] pressed while facing any RuinDoorLocked tile, aqueductKey in backpack'
     outputs:
@@ -89,6 +92,39 @@ behaviors:
         effect: 'event:ruin-door-unlocked recorded'
     determinism: deterministic
 
+  - id: locked-gate-dialog
+    description: >
+      a synthetic 'gate' speaker is registered in CHARACTER_DEFINITIONS
+      (id: 'gate', name: 'Gate', glyph: '#', glyphColor matches the
+      RuinDoorLocked verdigris #5FD3BC, dialog: ['The gate is locked.'],
+      no portrait, no gift, no postGiftDialog). this speaker is not an
+      entity in the world — it has no Position component, getAdjacentCharacter
+      never returns it, and it never appears in entity ticks or rendering.
+      it exists only as a target for state.activeDialog. when the player
+      presses [e] facing any RuinDoorLocked tile while holding NO
+      aqueductKey, openLockedGateDialog(state) is called: it sets
+      state.activeDialog = { characterId: 'gate', lineIndex: 0,
+      typingIndex: 0, typingDone: false, transitioning: false,
+      transitionStartTime: 0 }. the existing DialogBox component renders
+      the typing animation and modal exactly as it does for character
+      dialog. pressing [e] again (or clicking advance) calls advanceDialog
+      which closes the modal, since 'The gate is locked.' is the single
+      and last line. no gift fires (the gate has no gift). no
+      manualDiscoveries entry is recorded — the gate is not a manual entry.
+      the gate speaker is excluded from manual auto-derivation (no
+      character:gate entry). clicking a locked door with no key triggers
+      the same dialog on arrival (see click-without-key edge case).
+    inputs:
+      - '[e] pressed while facing any RuinDoorLocked tile, aqueductKey NOT in backpack'
+      - 'click on any RuinDoorLocked tile with no aqueductKey (after pathfind arrival)'
+    outputs:
+      - "DialogBox renders 'Gate' speaker with line 'The gate is locked.'"
+      - 'no map mutation, no key consumed, no discovery log'
+    state_changes:
+      - field: activeDialog
+        effect: "set to { characterId: 'gate', lineIndex: 0, typingIndex: 0, typingDone: false, transitioning: false, transitionStartTime: 0 }"
+    determinism: deterministic
+
   - id: click-to-unlock
     description: >
       RuinDoorLocked tiles are interactable via mouse click.
@@ -97,7 +133,9 @@ behaviors:
       adjacent tile (typically on the carved landing strip), walks
       there, faces the door, and runs unlockRuinDoor — same
       semantics as pressing [e]. clicking with no aqueductKey in
-      the backpack walks the player but does not open the door.
+      the backpack walks the player to the adjacent tile and opens
+      the locked gate dialog on arrival (see locked-gate-dialog
+      behavior).
     inputs:
       - 'mouse click on a RuinDoorLocked tile while in a Ruin zone'
     outputs:
@@ -139,7 +177,7 @@ behaviors:
 edge_cases:
   - id: face-door-without-key
     description: 'player presses [e] facing RuinDoorLocked with no aqueductKey in backpack'
-    expected: 'no unlock, no key consumed; log entry: the door is locked. (or similar — copy lives in implementation, not spec)'
+    expected: "no unlock, no key consumed; the locked gate dialog opens with single line 'The gate is locked.' (see locked-gate-dialog behavior). pressing [e] again dismisses the modal."
 
   - id: multiple-keys-in-backpack
     description: 'player has more than one aqueductKey when unlocking'
@@ -159,7 +197,19 @@ edge_cases:
 
   - id: click-without-key
     description: 'player clicks a RuinDoorLocked tile with no aqueductKey in backpack'
-    expected: 'player walks to adjacent tile and faces the door, but unlockRuinDoor returns false; door row stays locked'
+    expected: "player walks to adjacent tile, faces the door, and the locked gate dialog opens with single line 'The gate is locked.' on arrival (see locked-gate-dialog behavior); door row stays locked, no key consumed"
+
+  - id: gate-dialog-not-in-manual
+    description: 'player opens the prairie manual after triggering the locked gate dialog'
+    expected: "no 'character:gate' or similar manual entry exists; the synthetic gate speaker is excluded from auto-derived character entries"
+
+  - id: gate-dialog-blocks-movement
+    description: 'player attempts to move (WASD) while the locked gate dialog is open'
+    expected: 'movement is blocked by the existing activeDialog gate in keyboard handling — same behavior as character dialog'
+
+  - id: gate-dialog-dismiss-on-esc
+    description: 'player presses [esc] while the locked gate dialog is open'
+    expected: 'modal closes via the existing activeDialog dismiss path; identical to character dialog dismissal'
 
 failure_conditions:
   - trigger: 'door row placement collides with the entrance landing area'
@@ -170,6 +220,12 @@ failure_conditions:
 
   - trigger: 'unlocking opens only the facing tile, leaving sibling door tiles in the row locked'
     expected: 'spec is violated — unlockRuinDoor must convert every doorPositions entry atomically, mirroring breakWall on cave breakable walls'
+
+  - trigger: 'pressing [e] facing a locked door with no key produces no visible feedback'
+    expected: 'spec is violated — locked-gate-dialog behavior must open the gate modal so the player understands the door is gated, not broken'
+
+  - trigger: "the gate speaker leaks into manual auto-derivation, gameplay tick systems, or getAdjacentCharacter results"
+    expected: 'spec is violated — the gate is dialog-only; it must not appear as a world entity, manual entry, or interactable character'
 
 verification:
   test_file: src/engine/__tests__/ruin-locked-door.test.ts

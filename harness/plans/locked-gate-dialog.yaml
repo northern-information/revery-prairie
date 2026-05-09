@@ -1,0 +1,120 @@
+plan:
+  id: locked-gate-dialog
+  title: 'Show dialog modal "The gate is locked." when pressing [e] on a locked ruin door without an aqueductKey'
+  created: '2026-05-09'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: register-gate-character
+    title: 'Register synthetic gate speaker in CHARACTER_DEFINITIONS (id: gate, name: Gate, glyph: #, glyphColor: #5FD3BC, dialog: ["The gate is locked."])'
+    spec_id: ruin-locked-door
+    spec_sections:
+      - locked-gate-dialog
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: open-gate-dialog-helper
+    title: 'Add openLockedGateDialog(state) in src/engine/interaction.ts that sets state.activeDialog with characterId: "gate"; export from interaction.ts'
+    spec_id: ruin-locked-door
+    spec_sections:
+      - locked-gate-dialog
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - register-gate-character
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: keyboard-no-key-path
+    title: 'In useKeyboard [e] handler: if facing RuinDoorLocked and unlockRuinDoor returned false, call openLockedGateDialog and return (do not fall through to character interaction)'
+    spec_id: ruin-locked-door
+    spec_sections:
+      - locked-gate-dialog
+      - unlock-interaction
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/engine/interaction.ts
+      - src/engine/types.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - open-gate-dialog-helper
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [hook]
+
+  - id: mouse-no-key-path
+    title: 'In useMouse click-to-interact pendingAction for RuinDoorLocked: if unlockRuinDoor returns false, call openLockedGateDialog on arrival instead of leaving the click as a no-op'
+    spec_id: ruin-locked-door
+    spec_sections:
+      - locked-gate-dialog
+      - click-to-unlock
+    context_files:
+      - src/hooks/useMouse.ts
+      - src/engine/interaction.ts
+    output_files:
+      - src/hooks/useMouse.ts
+    depends_on:
+      - open-gate-dialog-helper
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [hook]
+
+  - id: exclude-gate-from-manual
+    title: 'Ensure manual auto-derivation skips the gate speaker (no character:gate manual entry); add an explicit excludeIds list or skip condition in manual.ts as needed'
+    spec_id: ruin-locked-door
+    spec_sections:
+      - locked-gate-dialog
+      - gate-dialog-not-in-manual
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - register-gate-character
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: tests-gate-dialog
+    title: 'Add tests covering: [e] facing locked door without key opens gate dialog; [e] facing locked door WITH key still unlocks (no dialog); pressing [e] again advances and dismisses; click-without-key also opens dialog on arrival; gate has no manual entry; gate is not returned by getAdjacentCharacter'
+    spec_id: ruin-locked-door
+    spec_sections:
+      - locked-gate-dialog
+      - face-door-without-key
+      - click-without-key
+      - gate-dialog-not-in-manual
+    context_files:
+      - src/engine/__tests__/ruin-locked-door.test.ts
+      - src/engine/interaction.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/__tests__/ruin-locked-door.test.ts
+    depends_on:
+      - keyboard-no-key-path
+      - mouse-no-key-path
+      - exclude-gate-from-manual
+    verification:
+      - npx vitest run src/engine/__tests__/ruin-locked-door.test.ts
+    repair: retry
+    tags: [test]

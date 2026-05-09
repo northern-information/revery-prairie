@@ -266,6 +266,30 @@ export const givePostGift = (state: GameState, characterId: string, time?: numbe
   return null
 }
 
+export const isFacingLockedDoor = (state: GameState): boolean => {
+  if (state.currentZone !== Zone.Ruin) return false
+  const d = DIRECTIONS[state.playerFacing]
+  const fx = state.player.x + d.x
+  const fy = state.player.y + d.y
+  if (!isInBounds(fx, fy, state.mapWidth, state.mapHeight)) return false
+  return state.map[fy][fx].type === TileType.RuinDoorLocked
+}
+
+// Open the locked gate dialog using the synthetic 'gate' speaker. Reuses
+// the existing dialog modal so the player gets a visible explanation when
+// they try to open a locked door without an aqueductKey, instead of a
+// silent no-op.
+export const openLockedGateDialog = (state: GameState): void => {
+  state.activeDialog = {
+    characterId: 'gate',
+    lineIndex: 0,
+    typingIndex: 0,
+    typingDone: false,
+    transitioning: false,
+    transitionStartTime: 0,
+  }
+}
+
 /** If the player faces a RuinDoorLocked tile and has at least one
  * aqueductKey in their backpack, consume one key and convert every
  * door tile in the current ruin to RuinDoorOpen. Returns true if the
