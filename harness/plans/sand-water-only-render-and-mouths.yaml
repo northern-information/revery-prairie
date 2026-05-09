@@ -1,0 +1,93 @@
+plan:
+  id: sand-water-only-render-and-mouths
+  title: Render placed sand during fallOfCivilizations and seed shoreline only from ponds, river mouths, and pond-adjacent river tiles
+  created: 2026-05-09
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: render-sand-in-fall-of-civilizations
+    title: Add a TileType.Sand branch to fallOfCivilizations.renderTile so placed sand draws as sand within the same epoch
+    spec_id: sand-water-only
+    spec_sections:
+      - fall-of-civilizations-renders-placed-sand
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: restrict-shoreline-seeds-to-eligible-water
+    title: Seed the water-shoreline BFS only from pond tiles, kept river mouths, and pond-adjacent river tiles
+    spec_id: sand-water-only
+    spec_sections:
+      - water-shoreline-sand-preserved
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: cleanup-stale-corner-sand-test
+    title: Remove the dead Sand-at-corner branch and outdated sandbar comment from the genesis corners test
+    spec_id: sand-water-only
+    spec_sections:
+      - sandbars-removed
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: extend-sand-water-only-regression-tests
+    title: Extend sandWaterOnly.test.ts with cases for thin-river-no-sand, river-mouth-sand, river-pond-junction-sand
+    spec_id: sand-water-only
+    spec_sections:
+      - water-shoreline-sand-preserved
+    context_files:
+      - src/engine/__tests__/sandWaterOnly.test.ts
+      - src/engine/genesis.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/sandWaterOnly.test.ts
+    depends_on:
+      - restrict-shoreline-seeds-to-eligible-water
+    verification:
+      - npx vitest run src/engine/__tests__/sandWaterOnly.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: add-fall-of-civilizations-render-test
+    title: Add a render test confirming fallOfCivilizations.renderTile emits sand glyph for Sand-typed tiles
+    spec_id: sand-water-only
+    spec_sections:
+      - fall-of-civilizations-renders-placed-sand
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesis.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - render-sand-in-fall-of-civilizations
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags: [test]

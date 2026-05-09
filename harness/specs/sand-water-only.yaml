@@ -8,6 +8,7 @@ source_files:
   - src/engine/constants.ts
   - src/engine/renderer.ts
   - src/engine/genesisRenderer.ts
+  - src/engine/genesisTypes.ts
 dependencies:
   - terrain-generation
   - genesis-terrain-realism
@@ -32,18 +33,56 @@ behaviors:
 
   - id: water-shoreline-sand-preserved
     description: >
-      Sand tiles continue to form shorelines around rivers and ponds.
-      The two-pass BFS in genesis (the Holocene-era step that converts
-      dirt-adjacent-to-water to sand) is unchanged. WATER_SAND_BORDER_MAX
-      and WATER_SAND_PASS_CHANCES still control reach and density.
+      Sand tiles continue to form shorelines around water, but the
+      two-pass BFS in genesis is now seeded only from "shoreline-eligible"
+      water tiles, not from every kept water tile. This matches the
+      intuition that sand collects at pond edges and at river mouths /
+      confluences, not along every thin run of a river.
+
+      A water tile is shoreline-eligible iff at least one of:
+        - it is in sim.ponds (every pond tile is eligible)
+        - it is a river mouth — the last tile of any polyline in
+          sim.riverPathsOrdered, restricted to tiles still kept after
+          fallOfCivilizations consolidates water
+        - it is a river tile (sim.riverPaths) cardinally adjacent to a
+          pond tile (sim.ponds) — captures river-into-pond junctions
+
+      Thin midstream river tiles that satisfy none of the above seed
+      no sand. WATER_SAND_BORDER_MAX (= 2) and WATER_SAND_PASS_CHANCES
+      ([100, 50]) still control reach and density from the eligible
+      seeds. The "sand never touches Space" guard (touchesSpace) is
+      unchanged.
     inputs:
-      - 'genesis simulation reaches the water-shoreline pass with kept water tiles'
+      - 'fallOfCivilizations.mutate runs the water-shoreline pass after consolidating water'
+      - 'sim.ponds, sim.riverPaths, sim.riverPathsOrdered populated by earlier epochs'
     outputs:
-      - 'Sand tiles in a probabilistic 1-2 tile band around every kept river and pond'
+      - 'Sand tiles in a probabilistic 1-2 tile band around every kept pond, every river mouth, and every river-pond junction tile'
+      - 'No Sand tiles immediately adjacent to thin midstream river segments'
     state_changes:
       - field: map
-        effect: 'Dirt tiles adjacent to water converted to Sand per existing chance table'
+        effect: 'Dirt tiles adjacent to a shoreline-eligible water tile converted to Sand per existing chance table'
     determinism: probabilistic
+
+  - id: fall-of-civilizations-renders-placed-sand
+    description: >
+      fallOfCivilizations.renderTile draws Sand-typed tiles as sand
+      (golden ":" glyph from SAND_COLORS, matching the gameplay
+      renderer and the presentDay epoch) instead of falling through
+      to renderDirt. Without this branch, Sand tiles placed by the
+      same epoch's mutate are visually rendered as dirt for the
+      entire epoch, then snap to sand only at the cross-fade to
+      presentDay (which was the only renderTile that previously
+      checked for TileType.Sand). The new branch is evaluated after
+      the satellite-crash / crater / building-decay / water blocks
+      but before the vegetation/dirt fallback so existing render
+      precedence is preserved.
+    inputs:
+      - 'fallOfCivilizations is the active or crossfading epoch'
+      - 'sim.grid[y][x].type === TileType.Sand at a non-water, non-crater, non-building tile'
+    outputs:
+      - 'tile renders with sand glyph + SAND_COLORS palette during fallOfCivilizations and across the crossfade into presentDay'
+    state_changes: []
+    determinism: time-based
 
   - id: sandbars-removed
     description: >
@@ -124,6 +163,21 @@ edge_cases:
   - id: water-sand-shoreline-isolated-pond
     description: 'A pond surrounded entirely by Dirt with no nearby Space'
     expected: 'sand ring forms around the pond per the existing 2-pass BFS, unaffected by the space-border change'
+  - id: thin-midstream-river-no-sand
+    description: 'A river tile in the middle of a polyline (not a mouth, not adjacent to a pond) seeds no sand'
+    expected: 'dirt tiles cardinally adjacent to that river tile remain Dirt; no sand placed by the shoreline pass for this seed'
+  - id: river-mouth-has-sand
+    description: 'The final tile of a kept polyline in sim.riverPathsOrdered seeds sand on adjacent dirt'
+    expected: 'at least one neighboring Dirt tile becomes Sand on the first BFS pass (subject to the WATER_SAND_PASS_CHANCES[0] = 100 rule)'
+  - id: river-pond-junction-has-sand
+    description: 'A river tile cardinally adjacent to a pond tile seeds sand'
+    expected: 'dirt tiles around the junction get the same treatment as pond-edge dirt'
+  - id: river-mouth-trimmed-by-water-consolidation
+    description: 'fallOfCivilizations drops a river polyline whose tail tiles fall outside the kept water components'
+    expected: 'the new "river mouth" for that polyline is the last surviving kept tile; if none survive, the polyline contributes no mouth seed'
+  - id: fall-of-civilizations-sand-renders-immediately
+    description: 'Sand tiles placed by fallOfCivilizations.mutate render as sand on the next frame within the same epoch'
+    expected: 'genesisRenderer draws sand glyph + SAND_COLORS palette during fallOfCivilizations — no visible "dirt-then-snap-to-sand" discontinuity at the crossfade into presentDay'
   - id: no-genesis-terrain-fallback
     description: 'Tests call createGameState without a GenesisResult, falling through to generateTerrain'
     expected: 'returned Tile[][] contains only Space and Dirt — no Sand tiles anywhere'
@@ -138,6 +192,10 @@ failure_conditions:
     expected: 'failure — sand only ever borders water'
   - trigger: 'a coastal Dirt tile renders flat against the void with no cliff face'
     expected: 'failure — Space neighbors must be treated as virtual tier -1 so coastal land extrudes into 3D'
+  - trigger: 'sand placed by fallOfCivilizations.mutate renders as dirt during the same epoch'
+    expected: 'failure — fallOfCivilizations.renderTile must check TileType.Sand and emit the sand glyph so placed sand is visible immediately'
+  - trigger: 'a thin midstream river tile (not a mouth, not pond-adjacent) accumulates sand on adjacent dirt'
+    expected: 'failure — the shoreline pass must seed only from shoreline-eligible water tiles'
 
 verification:
   test_file: src/engine/__tests__/sandWaterOnly.test.ts

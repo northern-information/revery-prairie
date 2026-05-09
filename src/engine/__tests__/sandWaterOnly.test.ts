@@ -99,4 +99,95 @@ describe('sand-water-only invariant', () => {
       }
     }
   })
+
+  it('every Sand tile traces back to a shoreline-eligible water seed (pond, river mouth, or river-pond junction) — thin midstream river tiles seed no sand', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 13)
+    runAllMutations(sim, GENESIS_EPOCHS)
+    const result = extractGenesisResult(sim)
+
+    // Reconstruct the eligible seed set the way fallOfCivilizations.mutate
+    // builds it: every kept pond, the last surviving tile of each kept
+    // river polyline (mouth), and any river tile cardinally adjacent to
+    // a pond (river-pond junction).
+    const cardinals = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]
+    const eligible = new Set<string>()
+    for (const key of result.ponds) eligible.add(key)
+    for (const polyline of sim.riverPathsOrdered) {
+      for (let i = polyline.length - 1; i >= 0; i--) {
+        const mouthKey = posKey(polyline[i].x, polyline[i].y)
+        if (result.rivers.has(mouthKey)) {
+          eligible.add(mouthKey)
+          break
+        }
+      }
+    }
+    for (const riverKey of result.rivers) {
+      const [rxStr, ryStr] = riverKey.split(',')
+      const rx = Number(rxStr)
+      const ry = Number(ryStr)
+      for (const [dx, dy] of cardinals) {
+        if (result.ponds.has(posKey(rx + dx, ry + dy))) {
+          eligible.add(riverKey)
+          break
+        }
+      }
+    }
+
+    // BFS through Sand cells from the eligible seeds. Every Sand tile
+    // produced by the shoreline pass must be reachable; any unreachable
+    // Sand tile would mean it was seeded from a midstream river tile.
+    const dirs = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+      [1, 1],
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+    ]
+    const reachable = new Set<string>(eligible)
+    const queue: string[] = [...eligible]
+    while (queue.length > 0) {
+      const key = queue.shift()
+      if (key === undefined) break
+      const [xStr, yStr] = key.split(',')
+      const x = Number(xStr)
+      const y = Number(yStr)
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx
+        const ny = y + dy
+        if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue
+        const nk = posKey(nx, ny)
+        if (reachable.has(nk)) continue
+        if (result.terrain[ny][nx].type !== TileType.Sand) continue
+        reachable.add(nk)
+        queue.push(nk)
+      }
+    }
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+      for (let x = 0; x < MAP_WIDTH; x++) {
+        if (result.terrain[y][x].type !== TileType.Sand) continue
+        expect(reachable.has(posKey(x, y))).toBe(true)
+      }
+    }
+  })
+
+  it('places sand adjacent to ponds (smoke test — shoreline pass actually runs)', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(sim, GENESIS_EPOCHS)
+    const result = extractGenesisResult(sim)
+    let sandCount = 0
+    for (let y = 0; y < MAP_HEIGHT; y++) {
+      for (let x = 0; x < MAP_WIDTH; x++) {
+        if (result.terrain[y][x].type === TileType.Sand) sandCount++
+      }
+    }
+    expect(sandCount).toBeGreaterThan(0)
+  })
 })
