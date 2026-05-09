@@ -1,0 +1,199 @@
+plan:
+  id: coyote-rescue-rubble
+  title: 'Trapped coyote: rubble barrier and approach-based rescue'
+  created: 2026-05-09
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npm run test'
+
+tasks:
+  - id: extend-dormant-garden-data
+    title: 'Add collapseBarrier field to DormantGardenData'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - dormant-garden-data
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine, types]
+
+  - id: place-collapse-barrier
+    title: 'Generate collapseBarrier across spine for coyote-role ruins'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - coyote-collapse-barrier-placement
+      - dormant-garden-data
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - extend-dormant-garden-data
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine, ruins]
+
+  - id: skip-door-and-key-for-coyote-role
+    title: 'Skip door row + landing strip + aqueductKey for coyote-role ruins'
+    spec_id: ruin-locked-door
+    spec_sections:
+      - door-placement
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - extend-dormant-garden-data
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine, ruins]
+
+  - id: relocate-trapped-coyote
+    title: 'Spawn coyote past collapseBarrier instead of at vault'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - vault-contents-by-role
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/coyote.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - place-collapse-barrier
+      - skip-door-and-key-for-coyote-role
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine, ruins]
+
+  - id: e-key-clears-ruin-debris
+    title: 'Add [e]-key clearing for RuinDebris tiles'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - debris-clear-via-e
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/interaction.ts
+      - src/engine/position.ts
+      - src/hooks/useKeyboard.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/ruins.ts
+      - src/engine/interaction.ts
+      - src/engine/manual.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine, interaction]
+
+  - id: click-clears-ruin-debris
+    title: 'Add click-to-clear support for RuinDebris'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - debris-clear-via-e
+    context_files:
+      - src/engine/interaction.ts
+      - src/hooks/useMouse.ts
+      - src/engine/clickResolution.ts
+    output_files:
+      - src/engine/interaction.ts
+      - src/hooks/useMouse.ts
+    depends_on:
+      - e-key-clears-ruin-debris
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine, interaction, mouse]
+
+  - id: move-rescue-trigger-to-approach
+    title: 'Replace door-unlock rescue with adjacency-based rescue'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - coyote-rescue-on-approach
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/movement.ts
+      - src/engine/coyote.ts
+    output_files:
+      - src/engine/interaction.ts
+      - src/engine/movement.ts
+    depends_on:
+      - relocate-trapped-coyote
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine, questline]
+
+  - id: tests-collapse-barrier
+    title: 'Tests for barrier placement, debris clearing, and coyote-role door/key skip'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - coyote-collapse-barrier-placement
+      - debris-clear-via-e
+      - aqueduct-key-placement
+    context_files:
+      - src/engine/__tests__/ruin-dormant-garden.test.ts
+      - src/engine/__tests__/ruin-locked-door.test.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/__tests__/ruin-dormant-garden.test.ts
+      - src/engine/__tests__/ruin-locked-door.test.ts
+    depends_on:
+      - place-collapse-barrier
+      - skip-door-and-key-for-coyote-role
+      - e-key-clears-ruin-debris
+    verification:
+      - 'npx vitest run src/engine/__tests__/ruin-dormant-garden.test.ts'
+      - 'npx vitest run src/engine/__tests__/ruin-locked-door.test.ts'
+    repair: retry
+    tags: [test, engine]
+
+  - id: tests-rescue-on-approach
+    title: 'Tests for adjacency-based rescue trigger'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - coyote-rescue-on-approach
+      - vault-contents-by-role
+    context_files:
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/interaction.ts
+      - src/engine/movement.ts
+    output_files:
+      - src/engine/__tests__/main-questline.test.ts
+    depends_on:
+      - move-rescue-trigger-to-approach
+      - relocate-trapped-coyote
+    verification:
+      - 'npx vitest run src/engine/__tests__/main-questline.test.ts'
+    repair: retry
+    tags: [test, engine, questline]
+
+  - id: global-verify
+    title: 'Full verify suite'
+    spec_id: main-questline-foundation
+    spec_sections: []
+    context_files: []
+    output_files: []
+    depends_on:
+      - tests-collapse-barrier
+      - tests-rescue-on-approach
+      - click-clears-ruin-debris
+    verification:
+      - 'npm run typecheck'
+      - 'npm run lint'
+      - 'npm run test'
+    repair: retry
+    tags: [verify]
