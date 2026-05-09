@@ -100,7 +100,10 @@ const createBaseMap = (
   )
 
   const entranceX = Math.floor(mapWidth / 2)
-  const entranceY = mapHeight - 2
+  // Exit row sits flush with the south map edge so south of the exit is
+  // out-of-bounds (rendered as canvas BG_COLOR by the Zone.Ruin OOB branch),
+  // not another RuinWall row — the doorway reads as an opening.
+  const entranceY = mapHeight - 1
 
   // Exit row: 5 RuinExit tiles centered on entranceX (hot pink, walkable)
   const EXIT_WIDTH = 5
