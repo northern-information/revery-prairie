@@ -56,18 +56,25 @@ behaviors:
   - id: ruin-interior-wide-exit
     description: >
       createBaseMap in ruins.ts places a 5-tile-wide row of RuinExit
-      tiles centered on entranceX at row entranceY (replacing the
-      single RuinEntrance tile in the same row). The RuinExit row is
-      the interior exit back to the overworld. The 3-wide-2-tall
-      landing area carved above is unchanged. entranceInterior remains
-      one tile north of the center exit tile so player placement on
-      enterRuin does not change. The overworld-side RuinEntrance tile
-      placed by placeRuinEntrances is unchanged — it is still a
-      single RuinEntrance tile.
+      tiles centered on entranceX at row entranceY. entranceY is the
+      bottom row of the interior map (mapHeight - 1) so the exit row
+      sits flush with the south map edge — there is no RuinWall row
+      south of the exit. South of the exit row is therefore
+      out-of-bounds, which the renderer paints as the canvas BG_COLOR
+      (matching cave out-of-bounds rendering). This makes the doorway
+      read as an opening rather than a wall section with another wall
+      directly behind it. The 3-wide-2-tall landing area carved above
+      shifts down with entranceY (still 2 rows tall, immediately north
+      of the exit). entranceInterior remains one tile north of the
+      center exit tile so player placement on enterRuin lands on the
+      landing. The overworld-side RuinEntrance tile placed by
+      placeRuinEntrances is unchanged — it is still a single
+      RuinEntrance tile.
     inputs:
       - 'createBaseMap during ruin interior generation'
     outputs:
-      - 'ruin interior map has 5 RuinExit tiles in a row at the bottom-center landing'
+      - 'ruin interior map has 5 RuinExit tiles in a row at the bottom-edge landing (entranceY === mapHeight - 1)'
+      - 'no RuinWall row exists south of the RuinExit row'
     state_changes: []
     determinism: deterministic
 
@@ -205,6 +212,14 @@ edge_cases:
       with radius (radius * 24 + 30) and are always wide enough for
       a 5-tile row, but the same clamp applies.
     expected: 'RuinExit tiles only placed within bounds; row may be narrower if clamped, never wider than 5'
+
+  - id: ruin-exit-on-bottom-edge
+    description: >
+      The RuinExit row is placed at row mapHeight - 1 (the bottom edge
+      of the interior map). When the player stands on the landing
+      directly above the exit, looking south past the pink exit shows
+      out-of-bounds void (canvas BG_COLOR), not RuinWall tiles.
+    expected: 'no RuinWall tiles render directly south of any RuinExit tile; the area south of the exit row paints as the canvas BG_COLOR via the existing Zone.Ruin out-of-bounds branch in renderer.ts'
 
   - id: hitbox-overlaps-cave-and-ruin-entrance
     description: >

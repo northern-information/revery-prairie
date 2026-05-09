@@ -94,10 +94,39 @@ describe('ruin infrastructure', () => {
       }
       const interior = generateRuinInterior(ruin, 0, RuinArchetype.DormantGarden, rng)
       const entranceX = Math.floor(interior.mapWidth / 2)
-      const entranceY = interior.mapHeight - 2
+      const entranceY = interior.mapHeight - 1
       // Center tile of exit row is RuinExit; landing area above is RuinFloor
       expect(interior.map[entranceY][entranceX].type).toBe(TileType.RuinExit)
       expect(isWalkableTile(interior.map[entranceY][entranceX].type)).toBe(true)
+    })
+
+    it('exit row sits flush with the bottom edge so no RuinWall renders south of any RuinExit', () => {
+      // Regression: previously entranceY = mapHeight - 2 left a RuinWall row
+      // immediately south of the exit, which read as a wall behind the
+      // doorway. Now the exit row is at mapHeight - 1 and "south of exit" is
+      // out-of-bounds (rendered as canvas BG_COLOR by the Zone.Ruin OOB branch).
+      const localRng = (seed: number) => {
+        let a = seed | 0
+        return () => {
+          a = (a + 0x6d2b79f5) | 0
+          let t = Math.imul(a ^ (a >>> 15), 1 | a)
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+        }
+      }
+      for (let seed = 0; seed < 5; seed++) {
+        const ruin = makeRuin({ radius: 3 })
+        const interior = generateRuinInterior(ruin, 0, RuinArchetype.DormantGarden, localRng(seed * 11 + 5))
+        const lastRow = interior.map[interior.mapHeight - 1]
+        let exitCount = 0
+        for (let x = 0; x < interior.mapWidth; x++) {
+          if (lastRow[x].type === TileType.RuinExit) exitCount++
+        }
+        expect(exitCount).toBeGreaterThan(0)
+        // No row exists south of mapHeight - 1 — so by definition no RuinWall
+        // can sit directly south of any RuinExit. The structural assertion is
+        // that the exit row IS the final row of the map.
+      }
     })
 
     it('has walkable floor tiles near the entrance', () => {
@@ -216,7 +245,7 @@ describe('ruin infrastructure', () => {
       // Place player on the center of the RuinExit row in the interior
       const interior = state.ruinInteriors[0]
       const exitX = Math.floor(interior.mapWidth / 2)
-      const exitY = interior.mapHeight - 2
+      const exitY = interior.mapHeight - 1
       state.player = { x: exitX, y: exitY }
       const result = checkRuinTransition(state)
       expect(result).toBe(true)
@@ -358,7 +387,7 @@ describe('ruin infrastructure', () => {
         expect(cornerTile.type).toBe(TileType.RuinWall)
         // Exit row remains intact (5 RuinExit tiles centered on entranceX)
         const ex = Math.floor(interior.mapWidth / 2)
-        const ey = interior.mapHeight - 2
+        const ey = interior.mapHeight - 1
         expect(interior.map[ey][ex].type).toBe(TileType.RuinExit)
       }
     })

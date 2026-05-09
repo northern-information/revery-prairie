@@ -1,0 +1,43 @@
+plan:
+  id: remove-wall-behind-ruin-exit
+  title: Place ruin exit row on bottom map edge so no wall renders behind it
+  created: 2026-05-08
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: shift-ruin-exit-to-bottom-edge
+    title: Set entranceY to mapHeight - 1 in createBaseMap
+    spec_id: wide-exits
+    spec_sections:
+      - ruin-interior-wide-exit
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: add-bottom-edge-regression-test
+    title: Add regression test asserting no RuinWall sits directly south of any RuinExit tile
+    spec_id: wide-exits
+    spec_sections:
+      - ruin-interior-wide-exit
+      - ruin-exit-on-bottom-edge
+    context_files:
+      - src/engine/__tests__/ruins.test.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/__tests__/ruins.test.ts
+    depends_on:
+      - shift-ruin-exit-to-bottom-edge
+    verification:
+      - npx vitest run src/engine/__tests__/ruins.test.ts
+    repair: retry
+    tags: [test]
