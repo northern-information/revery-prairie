@@ -14,6 +14,9 @@ import {
   RIVER_COLOR,
   GENESIS_TRANSITION_DURATION_MS,
   SAND_COLORS,
+  SATELLITE_CRATER_DEPTH_CENTER,
+  SATELLITE_CRATER_DEPTH_EDGE,
+  SATELLITE_CRATER_DEPTH_RING,
   SATELLITE_HEAD_COLORS,
   SATELLITE_SOIL_DAMAGE,
   SATELLITE_TRAIL_COLORS,
@@ -2760,6 +2763,18 @@ const fallOfCivilizations: GenesisEpoch = {
           sim.craters.add(tk)
           const current = sim.soilHealth.get(tk) ?? 30
           sim.soilHealth.set(tk, Math.max(0, current - SATELLITE_SOIL_DAMAGE))
+
+          // Deform terrain to match gameplay satellite-impact-elevation:
+          // Chebyshev distance picks center / ring / edge depth.
+          const cheb = Math.max(Math.abs(dx), Math.abs(dy))
+          const drop =
+            cheb === 0
+              ? SATELLITE_CRATER_DEPTH_CENTER
+              : cheb === 1
+                ? SATELLITE_CRATER_DEPTH_RING
+                : SATELLITE_CRATER_DEPTH_EDGE
+          const currentElev = sim.elevation.get(tk) ?? 50
+          sim.elevation.set(tk, clamp(currentElev - drop, 0, 100))
         }
       }
     }

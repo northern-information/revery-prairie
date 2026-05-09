@@ -56,6 +56,34 @@ behaviors:
         effect: 'Reduced by SATELLITE_SOIL_DAMAGE per affected tile, clamped to 0'
     determinism: deterministic
 
+  - id: crash-deforms-elevation
+    description: >
+      Each genesis satellite crash also deforms terrain elevation,
+      matching the gameplay satellite-impact-elevation contract. The
+      5x5 impact zone subtracts a radial Chebyshev falloff from
+      sim.elevation: the center tile drops by SATELLITE_CRATER_DEPTH_CENTER
+      (25), the immediate ring drops by SATELLITE_CRATER_DEPTH_RING
+      (10), and the outer ring drops by SATELLITE_CRATER_DEPTH_EDGE
+      (3). Drops are subtracted from the existing sim.elevation value
+      (default 50 if missing, matching getElevationTier fallback) and
+      clamped to [0, 100]. Mutation is additive — overlapping crashes
+      dig deeper until the floor is reached. The same protected-tile
+      set used for crater marking (Space, Sand, CaveEntrance, CaveWall,
+      CaveBreakableWall, ponds, rivers, ruin building footprints, ruin
+      entrances) is excluded from elevation mutation. No cache
+      invalidation runs in genesis — tileBgCache and the tier grid are
+      seeded fresh from the final sim.elevation when createGameState
+      consumes GenesisResult.
+    inputs:
+      - 'Genesis satellite crash with impact position (impactX, impactY)'
+      - 'Tile within 5x5 zone is not in the protected-tile set'
+    outputs:
+      - 'sim.elevation values reduced by radial falloff, clamped to [0, 100]'
+    state_changes:
+      - field: sim.elevation
+        effect: 'Each non-protected tile in 5x5 zone has its value reduced by the radial falloff (center: -25, ring: -10, edge: -3), clamped to [0, 100]. Mutation is in-place on the existing Map.'
+    determinism: deterministic
+
   - id: crashes-persist-into-gameplay
     description: >
       Genesis crater data is exported via GenesisResult.craters
@@ -135,6 +163,21 @@ edge_cases:
   - id: crash-overlaps-another-crash
     description: 'Two crash zones overlap (within 4 tiles of each other)'
     expected: 'Overlapping posKeys are deduplicated by the Set; soil health damage applies once per tile per crash (so overlap can stack toward 0)'
+  - id: elevation-already-floor-genesis
+    description: 'Tile in genesis crash zone already has elevation 0 when crash applies'
+    expected: 'Elevation stays at 0, clamped — no negative values'
+  - id: elevation-near-floor-genesis
+    description: 'Tile in genesis crash zone has elevation 5 and is the impact center (would drop -25)'
+    expected: 'Elevation clamped to 0, not -20'
+  - id: stacked-genesis-impacts-same-tile
+    description: 'Two genesis crash zones overlap, hitting the same tile twice in the same epoch'
+    expected: 'Each crash subtracts independently from the current sim.elevation; tile digs deeper. No idempotency check, matching gameplay.'
+  - id: protected-tile-elevation-preserved-genesis
+    description: 'Sand, cave entrance, ruin building footprint, pond, or river falls inside a genesis 5x5 zone'
+    expected: 'sim.elevation for that tile is not modified, matching the existing tile-protection used for crater marking'
+  - id: missing-sim-elevation-entry
+    description: 'Tile in genesis crash zone has no entry in sim.elevation Map'
+    expected: 'Treated as default 50, deformation applied, then clamped — matches gameplay behavior'
 
 failure_conditions:
   - trigger: 'Crash count outside [3, 9] inclusive'
@@ -145,6 +188,10 @@ failure_conditions:
     expected: 'state.craters falls back to empty Set; no runtime error'
   - trigger: 'Code attempts to convert cratered tile types to a TileType.Crater value'
     expected: 'TypeScript build fails (TileType.Crater does not exist; tiles remain Dirt or Clover per satellite-crater-as-effect)'
+  - trigger: 'Genesis crash elevation deformation produces a value outside [0, 100]'
+    expected: 'Test failure (every sim.elevation entry must be clamped to [0, 100] after the FallOfCivilizations epoch)'
+  - trigger: 'Genesis crash mutates sim.elevation for a protected tile (Space, Sand, CaveEntrance, pond, river, ruin footprint, ruin entrance)'
+    expected: 'Test failure (protected tiles must retain their pre-crash elevation)'
 
 verification:
   test_file: src/engine/__tests__/satelliteCrashes.test.ts

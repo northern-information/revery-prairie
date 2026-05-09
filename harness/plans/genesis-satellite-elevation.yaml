@@ -1,0 +1,57 @@
+plan:
+  id: genesis-satellite-elevation
+  title: 'Genesis satellite crashes deform elevation like gameplay impacts'
+  created: '2026-05-09'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: deform-elevation-in-fall-epoch
+    title: 'In FallOfCivilizations.mutate, subtract the radial Chebyshev falloff (CENTER 25 / RING 10 / EDGE 3) from sim.elevation for every non-protected tile in each 5x5 crash zone, clamped to [0, 100]. Reuse the existing protected-tile checks in the crash loop so elevation skips the same tiles as crater marking.'
+    spec_id: genesis-satellite-crashes
+    spec_sections:
+      - crash-deforms-elevation
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/satellites.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: tests-for-genesis-elevation-deformation
+    title: 'Extend src/engine/__tests__/satelliteCrashes.test.ts with cases asserting: center -25 / ring -10 / edge -3 from a known starting elevation; clamp to 0 floor; clamp to 100 ceiling not exceeded; protected tiles (Space, Sand, CaveEntrance, pond, river, ruin footprint, ruin entrance) retain pre-crash elevation; overlapping crashes stack additively; same steward name produces identical post-crash elevation map.'
+    spec_id: genesis-satellite-crashes
+    spec_sections:
+      - crash-deforms-elevation
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/__tests__/satelliteCrashes.test.ts
+      - src/engine/__tests__/satelliteImpacts.test.ts
+    output_files:
+      - src/engine/__tests__/satelliteCrashes.test.ts
+    depends_on: [deform-elevation-in-fall-epoch]
+    verification:
+      - npx vitest run src/engine/__tests__/satelliteCrashes.test.ts
+    repair: retry
+    tags: [engine, test]
+
+  - id: regression-genesis-and-gameplay-satellites
+    title: 'Run existing genesis and satellite suites to confirm no regressions in epoch behavior, ruin generation, gameplay satellite impacts, or tier-grid rendering.'
+    spec_id: genesis-satellite-crashes
+    spec_sections:
+      - crash-deforms-elevation
+    context_files: []
+    output_files: []
+    depends_on: [tests-for-genesis-elevation-deformation]
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+      - npx vitest run src/engine/__tests__/satelliteImpacts.test.ts
+    repair: retry
+    tags: [test]
