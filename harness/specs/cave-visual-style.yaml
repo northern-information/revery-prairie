@@ -1,0 +1,134 @@
+id: cave-visual-style
+name: 'Cave multilayer visual style'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/renderer.ts
+  - src/engine/cave.ts
+  - src/engine/constants.ts
+dependencies:
+  - renderer
+  - cave-breakable-wall
+
+behaviors:
+  - id: multilayer-tile-rendering
+    description: >
+      when currentZone is Zone.Cave, the renderer uses a multilayer
+      drawing path for cave terrain tiles. getCaveTileLayers(tileType,
+      x, y) returns an array of { char, color, dx, dy } matching the
+      RuinTileLayer shape. each layer is drawn at px + dx *
+      fractionalPixelOffset, py + dy * fractionalPixelOffset where
+      fractionalPixelOffset is a fraction of the tile cell size.
+      layers composite in order (first layer drawn first, last on top).
+      mirrors the ruin multilayer pipeline so cave walls and floor
+      gain the same per-tile visual variation.
+    inputs:
+      - 'renderer drawing a cave terrain tile'
+    outputs:
+      - 'multiple ASCII glyphs composited per tile cell'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cave-palette-reuse
+    description: >
+      cave wall and floor tile rendering reuses the BUILDING_CHARS
+      (['▓', '▒', '░', '█', '#', '+', 'H', 'T', '=']) and CIV_COLORS
+      (['#666', '#777', '#888', '#999', '#AAA']) palettes already
+      exported from constants.ts. the user explicitly opted to make
+      caves look more like ruins to gain per-tile differentiation,
+      rather than introducing a separate cave-only palette. tileHash(x,
+      y) selects which chars and colors apply per tile for
+      deterministic variety across the map.
+    inputs:
+      - 'cave tile layer calculation'
+    outputs:
+      - 'chars and colors from the shared civilization palette'
+    state_changes: []
+    determinism: deterministic
+
+  - id: wall-tile-layers
+    description: >
+      CaveWall tiles render 2-3 layers of building chars in grays
+      with pixel offsets. layer 1: building char at (0,0). layer 2:
+      different building char at (+1,+1). layer 3 (optional, based
+      on hash): debris dot at (-1,0). matches the RuinWall layer
+      structure in ruins.ts:1226 so the visual treatment is consistent.
+    inputs:
+      - 'CaveWall tile at position (x,y)'
+    outputs:
+      - '2-3 layer array with building chars in grays'
+    state_changes: []
+    determinism: deterministic
+
+  - id: floor-tile-layers
+    description: >
+      CaveFloor tiles render 1-2 layers. layer 1: floor char ('.' or
+      '·') in TILE_COLORS[CaveFloor]. layer 2 (optional, based on
+      hash): debris dot at a horizontal offset using a CIV_COLORS
+      entry. floor layers are sparser than wall layers to keep the
+      player and entities readable.
+    inputs:
+      - 'CaveFloor tile at position (x,y)'
+    outputs:
+      - '1-2 layer array with floor chars'
+    state_changes: []
+    determinism: deterministic
+
+  - id: non-multilayer-tile-passthrough
+    description: >
+      cave tile types that already carry distinguishing visual
+      meaning render as before (single glyph, single color):
+      CaveBreakableWall keeps its warm brown #997755 single layer so
+      it pops against gray walls, CaveEntrance keeps its 'O' glyph,
+      CaveExit keeps its hot pink '█'. these tiles bypass the
+      multilayer path. shouldRenderCaveMultilayer returns true only
+      for CaveWall and CaveFloor.
+    inputs:
+      - 'cave tile of type other than CaveWall or CaveFloor'
+    outputs:
+      - 'single-layer rendering preserved'
+    state_changes: []
+    determinism: deterministic
+
+  - id: hidden-chamber-mask-still-applied
+    description: >
+      when caveRevealed is false and tile is in caveHiddenPositions,
+      the effective tile type passed into the multilayer path is
+      CaveWall (already enforced upstream by the existing renderer
+      mask logic). the hidden chamber must continue to read as wall
+      until broken; the multilayer treatment must not leak the
+      underlying CaveFloor tile through.
+    inputs:
+      - 'renderer drawing a hidden chamber tile, caveRevealed false'
+    outputs:
+      - 'multilayer path receives CaveWall, not the underlying type'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: tile-hash-collision
+    description: 'two adjacent tiles hash to same building char and color'
+    expected: 'visually acceptable — the offset layers still create variation'
+
+  - id: cursor-highlight-on-multilayer
+    description: 'cursor hovers over a multilayer cave tile'
+    expected: 'cursor inversion (pink background + dark text) applies; the multilayer path is bypassed when isHighlighted is true, matching the ruin behavior in shouldRenderRuinMultilayer'
+
+  - id: path-overlay-on-multilayer
+    description: 'pathfinding path crosses a cave wall or floor tile'
+    expected: 'path overlay glyphs render in pink as before; multilayer path is bypassed when hasOverlay is true'
+
+  - id: breakable-wall-adjacent-to-multilayer
+    description: 'a CaveBreakableWall sits next to a multilayer CaveWall'
+    expected: 'breakable wall renders as a single warm brown # so it remains distinguishable from the gray multilayer walls'
+
+failure_conditions:
+  - trigger: 'getCaveTileLayers called with a non-cave-terrain tile type'
+    expected: 'returns a single-layer fallback drawn from TILE_CHARS / TILE_COLORS so the renderer never receives an empty array'
+  - trigger: 'BUILDING_CHARS or CIV_COLORS not exported from constants'
+    expected: 'compilation error — these must be importable by the cave layer module'
+
+verification:
+  test_file: src/engine/__tests__/cave-visual-style.test.ts
+  test_pattern: 'cave visual style'
+  command: 'npx vitest run src/engine/__tests__/cave-visual-style.test.ts'

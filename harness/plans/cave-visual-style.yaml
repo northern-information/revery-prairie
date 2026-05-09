@@ -1,0 +1,71 @@
+plan:
+  id: cave-visual-style
+  title: Apply ruin-style multilayer visual treatment to cave walls and floor
+  created: 2026-05-09
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-cave-tile-layers
+    title: Add getCaveTileLayers and shouldRenderCaveMultilayer in cave.ts
+    spec_id: cave-visual-style
+    spec_sections:
+      - multilayer-tile-rendering
+      - cave-palette-reuse
+      - wall-tile-layers
+      - floor-tile-layers
+      - non-multilayer-tile-passthrough
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/cave.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: wire-renderer
+    title: Wire cave multilayer path into renderer.ts alongside the ruin path
+    spec_id: cave-visual-style
+    spec_sections:
+      - multilayer-tile-rendering
+      - non-multilayer-tile-passthrough
+      - hidden-chamber-mask-still-applied
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/cave.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - add-cave-tile-layers
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags: [engine]
+
+  - id: add-tests
+    title: Add cave-visual-style.test.ts mirroring ruin-visual-style.test.ts
+    spec_id: cave-visual-style
+    spec_sections:
+      - wall-tile-layers
+      - floor-tile-layers
+      - non-multilayer-tile-passthrough
+    context_files:
+      - src/engine/__tests__/ruin-visual-style.test.ts
+      - src/engine/cave.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/cave-visual-style.test.ts
+    depends_on:
+      - add-cave-tile-layers
+    verification:
+      - npx vitest run src/engine/__tests__/cave-visual-style.test.ts
+    repair: retry
+    tags: [test]
