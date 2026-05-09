@@ -122,7 +122,8 @@ describe('runAllMutations', () => {
     const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
-    // Corners should be space or sand (sandbar scattering can land on corners)
+    // Corners sit deep inside SPACE_BORDER and never border water, so
+    // they must always be Space — sand only forms around water.
     const cornerTypes = [
       result.terrain[0][0].type,
       result.terrain[0][MAP_WIDTH - 1].type,
@@ -130,7 +131,7 @@ describe('runAllMutations', () => {
       result.terrain[MAP_HEIGHT - 1][MAP_WIDTH - 1].type,
     ]
     for (const ct of cornerTypes) {
-      expect(ct === TileType.Space || ct === TileType.Sand).toBe(true)
+      expect(ct).toBe(TileType.Space)
     }
   })
 
@@ -849,7 +850,7 @@ describe('water consolidation', () => {
     }
   })
 
-  it('water bodies have sand shoreline (except where the shore tile also borders space)', () => {
+  it('shoreline-eligible water bodies have sand shoreline (ponds, river mouths, river-pond junctions; not thin midstream river tiles)', () => {
     const sim = getCachedSim42()
     const { allWater } = findWaterComponents(sim)
     const allDirs = [...cardinalDirs, [1, 1], [-1, -1], [1, -1], [-1, 1]]
@@ -862,10 +863,39 @@ describe('water consolidation', () => {
       }
       return false
     }
-    // Every dirt tile adjacent to water should have been converted to sand,
-    // unless that tile also borders Space (the dirt-to-Space cliff stays clean
-    // — sand never borders space).
-    for (const key of allWater) {
+
+    // Reconstruct the shoreline-eligible seed set the way
+    // fallOfCivilizations.mutate builds it: every kept pond, every
+    // surviving river mouth (last surviving tile of each polyline), and
+    // any kept river tile cardinally adjacent to a pond. Thin midstream
+    // river tiles are not eligible and seed no sand.
+    const eligible = new Set<string>()
+    for (const key of sim.ponds) eligible.add(key)
+    for (const polyline of sim.riverPathsOrdered) {
+      for (let i = polyline.length - 1; i >= 0; i--) {
+        const k = posKey(polyline[i].x, polyline[i].y)
+        if (sim.riverPaths.has(k)) {
+          eligible.add(k)
+          break
+        }
+      }
+    }
+    for (const rk of sim.riverPaths) {
+      const [rxs, rys] = rk.split(',')
+      const rx = Number(rxs)
+      const ry = Number(rys)
+      for (const [dx, dy] of cardinalDirs) {
+        if (sim.ponds.has(posKey(rx + dx, ry + dy))) {
+          eligible.add(rk)
+          break
+        }
+      }
+    }
+
+    // Every dirt tile adjacent to a shoreline-eligible water tile (and
+    // not bordering Space) should have been converted to sand on the
+    // first BFS pass (chance = 100%).
+    for (const key of eligible) {
       const [xStr, yStr] = key.split(',')
       const x = Number(xStr)
       const y = Number(yStr)
@@ -1230,6 +1260,50 @@ describe('water continuity at genesis-to-game transition', () => {
     // Restore
     sim.riverPaths = savedRivers
     sim.ponds = savedPonds
+  })
+
+  it('fallOfCivilizations renders Sand-typed tiles as sand (no dirt-then-snap discontinuity at the presentDay crossfade)', () => {
+    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
+    runAllMutations(sim, GENESIS_EPOCHS)
+
+    // fallOfCivilizations is index 13; presentDay is 14.
+    const fallEpoch = GENESIS_EPOCHS[13]
+    const time = 5000
+    const progress = 0.99
+
+    // Find a Sand tile placed by the shoreline pass that isn't covered
+    // by a crater, aqueduct, or satellite-crash trail (those branches
+    // legitimately render different glyphs).
+    const inSatelliteCrashPath = new Set<string>()
+    for (const crash of sim.satelliteCrashes) {
+      const totalSteps =
+        Math.abs(crash.impactX - crash.startX) + Math.abs(crash.impactY - crash.startY)
+      for (let s = 0; s <= totalSteps; s++) {
+        const tx = crash.startX + crash.dx * s
+        const ty = crash.startY + crash.dy * s
+        inSatelliteCrashPath.add(posKey(tx, ty))
+      }
+    }
+
+    let found = false
+    for (let y = 0; y < MAP_HEIGHT && !found; y++) {
+      for (let x = 0; x < MAP_WIDTH && !found; x++) {
+        if (sim.grid[y][x].type !== TileType.Sand) continue
+        const key = posKey(x, y)
+        if (sim.craters.has(key)) continue
+        if (sim.aqueductNetwork.has(key)) continue
+        if (inSatelliteCrashPath.has(key)) continue
+        // meltPool tiles render as melt water regardless of underlying
+        // grid type — they're tracked separately and aren't relevant
+        // to the sand-render fix.
+        if (sim.meltPools.has(key)) continue
+        const renders = fallEpoch.renderTile(sim, x, y, progress, time)
+        expect(renders.length).toBeGreaterThan(0)
+        expect(renders[0].char).toBe(':')
+        found = true
+      }
+    }
+    expect(found).toBe(true)
   })
 
   it('fallOfCivilizations does not render elevation-based cosmetic water', () => {

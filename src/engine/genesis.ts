@@ -2558,7 +2558,12 @@ const fallOfCivilizations: GenesisEpoch = {
 
     // 6. Add sand shoreline around remaining water bodies. Sand never
     // forms on a tile that touches Space — the dirt-to-Space cliff
-    // stays clean (sand only ever borders water).
+    // stays clean (sand only ever borders water). The shoreline pass is
+    // seeded only from "shoreline-eligible" water tiles: every kept pond
+    // tile, every kept river mouth (last surviving tile of each polyline
+    // in sim.riverPathsOrdered), and any kept river tile cardinally
+    // adjacent to a pond (river-pond junction). Thin midstream river
+    // tiles seed no sand.
     const shoreDirs = [
       [1, 0],
       [-1, 0],
@@ -2584,7 +2589,29 @@ const fallOfCivilizations: GenesisEpoch = {
       }
       return false
     }
-    let frontier = new Set<string>(keptTiles)
+    const shorelineSeeds = new Set<string>()
+    for (const pondKey of sim.ponds) shorelineSeeds.add(pondKey)
+    for (const polyline of sim.riverPathsOrdered) {
+      for (let i = polyline.length - 1; i >= 0; i--) {
+        const mouthKey = posKey(polyline[i].x, polyline[i].y)
+        if (sim.riverPaths.has(mouthKey)) {
+          shorelineSeeds.add(mouthKey)
+          break
+        }
+      }
+    }
+    for (const riverKey of sim.riverPaths) {
+      const [rxStr, ryStr] = riverKey.split(',')
+      const rxN = Number(rxStr)
+      const ryN = Number(ryStr)
+      for (const [dx, dy] of cardinals) {
+        if (sim.ponds.has(posKey(rxN + dx, ryN + dy))) {
+          shorelineSeeds.add(riverKey)
+          break
+        }
+      }
+    }
+    let frontier = new Set<string>(shorelineSeeds)
     for (let pass = 0; pass < WATER_SAND_BORDER_MAX; pass++) {
       const chance = WATER_SAND_PASS_CHANCES[pass]
       const nextFrontier = new Set<string>()
@@ -2625,6 +2652,10 @@ const fallOfCivilizations: GenesisEpoch = {
       for (let x = 0; x < sim.width; x++) {
         if (sim.grid[y][x].type !== TileType.Dirt) continue
         const startKey = posKey(x, y)
+        // Water tiles store Dirt as their underlying grid type; skip them
+        // here so the BFS does not seed an island from a river/pond tile
+        // and falsely grow the component past the threshold.
+        if (keptTiles.has(startKey)) continue
         if (islandVisited.has(startKey)) continue
 
         // Cardinal BFS to find connected dirt component
@@ -2952,6 +2983,15 @@ const fallOfCivilizations: GenesisEpoch = {
       const waterChars = ['~', '=', '-']
       const ci = (h + Math.floor(time * 0.004)) % waterChars.length
       return [{ char: waterChars[ci], color: '#6688BB', dx: 0, dy: 0 }]
+    }
+
+    // Sand placed by this epoch's water-shoreline pass — render
+    // immediately with the same palette as presentDay / the gameplay
+    // renderer so there is no dirt-then-snap discontinuity at the
+    // crossfade.
+    const tileType = sim.grid[y]?.[x]?.type
+    if (tileType === TileType.Sand) {
+      return [{ char: ':', color: SAND_COLORS[h % SAND_COLORS.length], dx: 0, dy: 0 }]
     }
 
     // No renderLowlandWater here — fallOfCivilizations.mutate consolidates
