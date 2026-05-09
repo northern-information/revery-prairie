@@ -1,8 +1,9 @@
 import { checkCombine } from './combine'
 import { spawnPickupBloom } from './effects'
+import { triggerStewardSeal } from './interaction'
 import { canPlace, removeItem } from './inventory'
 import { recordDiscovery } from './manual'
-import { recipeKey } from './recipes'
+import { isStewardSealRecipe, recipeKey } from './recipes'
 
 import type { Recipe } from './recipes'
 import type { Container, GameState, ItemInstance } from './types'
@@ -83,6 +84,10 @@ export const executeCombine = (
   const key = recipeKey(recipe)
   const success = recipe.execute(state)
   if (!success) return { outcome: 'failed' }
+
+  if (isStewardSealRecipe(recipe)) {
+    triggerStewardSeal(state)
+  }
 
   state.discoveredRecipes.add(key)
   recordDiscovery(state, `recipe:${key}`)

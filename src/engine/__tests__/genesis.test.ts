@@ -145,11 +145,14 @@ describe('runAllMutations', () => {
     }
   })
 
-  it('produces at least 1 civilization ruin', () => {
+  it('produces exactly 3 starter ruins with stable role assignments', () => {
     const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
-    expect(result.ruins.length).toBeGreaterThanOrEqual(1)
+    expect(result.ruins).toHaveLength(3)
+    expect(result.ruins[0].role).toBe('clover')
+    expect(result.ruins[1].role).toBe('bee')
+    expect(result.ruins[2].role).toBe('coyote')
   })
 
   it('places ruins on land tiles (before connectivity enforcement)', () => {
@@ -467,27 +470,22 @@ describe('geological features', () => {
 
 describe('genesis-enhancements', () => {
   describe('chaotic aqueducts', () => {
-    it('generates 8-12 ruins', { timeout: 30_000 }, () => {
-      // Test across a few seeds to verify the range (kept small to avoid timeout)
-      let minRuins = Infinity
-      let maxRuins = 0
+    it('produces exactly 3 starter ruins across multiple seeds', { timeout: 30_000 }, () => {
+      // Starter mode is deterministic-by-design: every seed yields 3 ruins
+      // with the clover/bee/coyote role assignment in fixed order.
       for (let seed = 1; seed <= 5; seed++) {
         const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
         runAllMutations(sim, GENESIS_EPOCHS)
-        minRuins = Math.min(minRuins, sim.ruins.length)
-        maxRuins = Math.max(maxRuins, sim.ruins.length)
+        expect(sim.ruins).toHaveLength(3)
       }
-      // At least 3 ruins always placed (fallback minimum)
-      expect(minRuins).toBeGreaterThanOrEqual(3)
-      // Upper bound allows for distance constraint reducing count
-      expect(maxRuins).toBeLessThanOrEqual(12)
     })
 
-    it('generates roughly 3x more aqueduct tiles than previous baseline', () => {
+    it('still generates a non-empty aqueduct network with 3 starter ruins', () => {
       const sim = getCachedSim42()
-      // Previous baseline was ~200-400 tiles with 3-5 ruins
-      // New should be ~600+ with 8-12 ruins + standalone clusters
-      expect(sim.aqueductNetwork.size).toBeGreaterThan(400)
+      // The 3-ruin starter set produces a smaller network than the previous
+      // 8-12 ruin baseline; we just assert non-empty here. The complex-mode
+      // generator (future spec) will scale this back up.
+      expect(sim.aqueductNetwork.size).toBeGreaterThan(0)
     })
 
     it('generates standalone inland aqueduct clusters', () => {

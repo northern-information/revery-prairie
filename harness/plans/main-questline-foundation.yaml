@@ -1,0 +1,242 @@
+plan:
+  id: main-questline-foundation
+  title: 'Add main questline foundation: quest phases, starter ruins, coyote rescue, Gron dialog'
+  created: '2026-05-08'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: quest-types
+    title: 'Add MainQuestPhase, RuinGenerationMode types and CivilizationRuin.role field'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - quest-phase-state-model
+      - starter-ruin-generation
+    context_files:
+      - src/engine/types.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/genesisTypes.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: state-init
+    title: 'Remove starter bees/clovers and coyote spawn; init mainQuestPhase and ruinGenerationMode'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - quest-phase-state-model
+      - starting-state-empty-backpack
+    context_files:
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/inventory.ts
+      - src/engine/position.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - quest-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: genesis-ruin-modes
+    title: 'Make genesis emit exactly 3 ruins with role assignments in starter mode'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - starter-ruin-generation
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - quest-types
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: ruin-vault-contents
+    title: 'Drive DormantGarden vault payload from ruin role (clover/bee/coyote/default)'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - vault-contents-by-role
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/types.ts
+      - src/engine/inventory.ts
+      - src/engine/characters.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - quest-types
+      - genesis-ruin-modes
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: coyote-rescue
+    title: 'Auto-rescue coyote when coyote-role ruin door is unlocked'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - coyote-rescue-on-door-unlock
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/types.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/ecs/types.ts
+      - src/engine/effects.ts
+      - src/engine/manual.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - quest-types
+      - ruin-vault-contents
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: gron-dialog-dispatch
+    title: 'Strip Gron gift/postGift; rewrite getCharacterDialog to dispatch by quest phase and backpack'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - gron-dialog-phase-dispatch
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/types.ts
+      - src/engine/inventory.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on:
+      - quest-types
+      - state-init
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: combine-seal
+    title: 'Hook bee+clover combine to teleport Gron adjacent and open sealed dialog on overworld'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - combine-seal-overworld
+    context_files:
+      - src/engine/recipes.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/characters.ts
+      - src/engine/position.ts
+      - src/engine/manual.ts
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/recipes.ts
+    depends_on:
+      - quest-types
+      - gron-dialog-dispatch
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: manual-quest-entries
+    title: 'Add event:rescue-coyote and event:steward-sealed MANUAL_ONLY_ENTRIES'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - manual-entries-for-quest-events
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - quest-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: schema-test-update
+    title: 'Add mainQuestPhase and ruinGenerationMode to EXPECTED_FIELDS in schema test'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - quest-phase-state-model
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - state-init
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization
+    repair: retry
+    tags: [test]
+
+  - id: genesis-test-update
+    title: 'Update genesis tests to assert exactly 3 ruins with correct role assignments'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - starter-ruin-generation
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - genesis-ruin-modes
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: questline-tests
+    title: 'Write main-questline.test.ts covering all 8 spec behaviors and 4 edge cases'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - quest-phase-state-model
+      - starting-state-empty-backpack
+      - vault-contents-by-role
+      - coyote-rescue-on-door-unlock
+      - gron-dialog-phase-dispatch
+      - combine-seal-overworld
+      - manual-entries-for-quest-events
+    context_files:
+      - src/engine/types.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/state.ts
+      - src/engine/characters.ts
+      - src/engine/interaction.ts
+      - src/engine/recipes.ts
+      - src/engine/manual.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/main-questline.test.ts
+    depends_on:
+      - state-init
+      - genesis-ruin-modes
+      - ruin-vault-contents
+      - coyote-rescue
+      - gron-dialog-dispatch
+      - combine-seal
+      - manual-quest-entries
+    verification:
+      - npx vitest run src/engine/__tests__/main-questline.test.ts
+    repair: retry
+    tags: [test]

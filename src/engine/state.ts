@@ -7,12 +7,13 @@ import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
 import { createCharacterEntity } from './entities'
 import { createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } from './genesis'
-import { autoSort, placeItem } from './inventory'
+import { autoSort } from './inventory'
 import { createBackpack } from './items'
-import { isInBounds, isWalkableTile, posKey } from './position'
+import { isWalkableTile, posKey } from './position'
 import { buildWaterProximity } from './tileWater'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
-import { CoyoteMode, TileType, Zone } from './types'
+import { CoyoteMode, MainQuestPhase, TileType, Zone } from './types'
+import { RuinGenerationMode } from './genesisTypes'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
 
@@ -71,12 +72,6 @@ export const createGameState = (
   sim.rainSeed = rainSeed
 
   const backpack = createBackpack()
-  placeItem(backpack, 'bee', 0, 0)
-  placeItem(backpack, 'bee', 1, 0)
-  placeItem(backpack, 'bee', 2, 0)
-  placeItem(backpack, 'clover', 0, 1)
-  placeItem(backpack, 'clover', 1, 1)
-  placeItem(backpack, 'clover', 2, 1)
 
   const state: GameState = {
     stewardName,
@@ -176,7 +171,7 @@ export const createGameState = (
     rivers: genesisData.riverPaths,
     burnScars: genesisData.burnScars,
     craters: new Set<string>(genesisData.craters),
-    manualDiscoveries: new Set<string>(['item:bee', 'item:clover']),
+    manualDiscoveries: new Set<string>(),
     manualState: {
       activeCategory: null,
       searchQuery: '',
@@ -190,6 +185,8 @@ export const createGameState = (
     glintOpacity: new Map<string, number>(),
     lastGlintSpawnTime: 0,
     civilizationRuins: genesisData.ruins,
+    mainQuestPhase: MainQuestPhase.AwaitingCoyote,
+    ruinGenerationMode: RuinGenerationMode.Starter,
     deepTime: null,
     deepTimeTransition: null,
     postGiftActionsCompleted: new Set<string>(),
@@ -257,22 +254,6 @@ export const createGameState = (
 
   // Build water proximity map for passive seepage near ponds/rivers
   buildWaterProximity(state)
-
-  // Spawn coyote adjacent to player
-  const coyoteBlocked = new Set<string>([posKey(playerX, playerY), posKey(gronX, gronY)])
-  for (const d of [
-    { x: -1, y: 0 },
-    { x: 1, y: 0 },
-    { x: 0, y: -1 },
-    { x: 0, y: 1 },
-  ]) {
-    const cx = playerX + d.x
-    const cy = playerY + d.y
-    if (isInBounds(cx, cy, MAP_WIDTH, MAP_HEIGHT) && isWalkableTile(map[cy][cx].type) && !coyoteBlocked.has(posKey(cx, cy))) {
-      createCharacterEntity(state, 'coyote', { x: cx, y: cy }, { behavior: { type: 'follow' } })
-      break
-    }
-  }
 
   // Pre-compute reachable tiles from player spawn (belt-and-suspenders with genesis connectivity).
   // Water is walkable, so it does not block reachability.

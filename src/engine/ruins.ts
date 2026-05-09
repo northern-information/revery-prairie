@@ -9,6 +9,7 @@ import {
 } from './constants'
 import { transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
+import { createCharacterEntity } from './entities'
 import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
 import { clearMovementTweens } from './movementTween'
@@ -16,6 +17,7 @@ import { findSafeExitPosition, isWalkableTile, posKey, tileHash } from './positi
 import { deselectAll } from './selection'
 import { clearAllUnitCommands } from './unitCommands'
 import { RuinArchetype, TileType, Zone } from './types'
+import { RuinRole } from './genesisTypes'
 
 import type { CivilizationRuin } from './genesisTypes'
 import type {
@@ -26,7 +28,7 @@ import type {
   Tile,
 } from './types'
 
-const queueEvent = (
+export const queueEvent = (
   state: GameState,
   text: string,
   icon: string,
@@ -997,6 +999,38 @@ export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): vo
   const interior = state.ruinInteriors[ruinIndex]
   if (!interior?.dormantGarden) return
 
+  // Starter-mode role payloads replace the seed scatter. Each role spawns a
+  // single reward at the first vault slot; remaining slots stay empty so the
+  // vault reads as "the thing the player came for" rather than a seed pile.
+  const ruin = state.civilizationRuins[ruinIndex]
+  const role = ruin?.role
+  const vaultSlots = Array.from(interior.dormantGarden.seedDecayTimers.keys())
+
+  if (role === RuinRole.Clover || role === RuinRole.Bee) {
+    const slot = vaultSlots[0]
+    if (!slot) return
+    const parts = slot.split(',')
+    const x = Number(parts[0])
+    const y = Number(parts[1])
+    spawnRuinGroundItem(state, ruinIndex, { x, y }, role)
+    interior.dormantGarden.seedDecayTimers.clear()
+    return
+  }
+
+  if (role === RuinRole.Coyote) {
+    const slot = vaultSlots[0]
+    if (slot) {
+      const parts = slot.split(',')
+      const x = Number(parts[0])
+      const y = Number(parts[1])
+      createCharacterEntity(state, 'coyote', { x, y }, { zone: Zone.Ruin, ruinIndex })
+    }
+    interior.dormantGarden.seedDecayTimers.clear()
+    return
+  }
+
+  // Default: existing wildflower/tallgrass/milkweed seed scatter. Used by
+  // complex-mode ruins (no role) when that generator lands.
   const seedTypes = ['wildflowerSeeds', 'tallGrassSeeds', 'milkweedSeeds']
   for (const [key] of interior.dormantGarden.seedDecayTimers) {
     const parts = key.split(',')

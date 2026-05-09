@@ -44,12 +44,13 @@ describe('gron gift delivery', () => {
     expect(state.giftsReceived.has('gron')).toBe(false)
   })
 
-  it('dialog always returns base dialog (no postGiftDialog branch)', () => {
+  it('dialog returns the awaiting-coyote phase block (no postGiftDialog branch)', () => {
     const state = makeState()
     const dialog = getCharacterDialog(state, 'gron')
-    expect(dialog).toHaveLength(2)
+    // Phase-driven dispatch: 5-line opener while quest phase is awaiting-coyote.
     expect(dialog[0]).toBe('...')
     expect(dialog[1]).toContain('new steward')
+    expect(dialog).toContain('What is a steward without their coyote?')
   })
 })
 

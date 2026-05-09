@@ -5,10 +5,12 @@ import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
+import { queueEvent } from './ruins'
 import { invalidateMapCache } from './tileBgCache'
-import { CARDINAL, DIRECTIONS, isInBounds, posKey } from './position'
+import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { getReveryDefinition } from './reveries'
-import { TileType, Zone } from './types'
+import { CoyoteMode, MainQuestPhase, TileType, Zone } from './types'
+import { RuinRole } from './genesisTypes'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position, ReveryDefinition } from './types'
@@ -316,8 +318,113 @@ export const unlockRuinDoor = (state: GameState): boolean => {
     }
   }
   recordDiscovery(state, 'event:ruin-door-unlocked')
+
+  // If this is the coyote ruin and the player hasn't yet rescued the coyote,
+  // fire the rescue sequence: switch coyote to Follow, teleport adjacent to
+  // the player, queue toast + bloom + manual entries, advance quest phase.
+  // Guarded on mainQuestPhase so re-unlocks (or complex-mode ruins without
+  // a role) never re-fire it.
+  const ruin = state.currentRuinIndex !== null ? state.civilizationRuins[state.currentRuinIndex] : null
+  if (ruin?.role === RuinRole.Coyote && state.mainQuestPhase === MainQuestPhase.AwaitingCoyote) {
+    rescueCoyote(state)
+  }
+
   updateFacingEntity(state)
   return true
+}
+
+const rescueCoyote = (state: GameState): void => {
+  // Find the coyote entity (placed at the vault on first ruin entry).
+  let coyoteEid: number | null = null
+  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
+    const ident = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    if (ident?.definitionId === 'coyote') {
+      coyoteEid = eid
+      break
+    }
+  }
+
+  if (coyoteEid !== null) {
+    // Teleport coyote to a walkable tile adjacent to the player.
+    const target = pickAdjacentWalkableTile(state, state.player.x, state.player.y)
+    if (target) {
+      const pos = state.world.getComponent(coyoteEid, ComponentType.Position)
+      if (pos) {
+        state.world.spatial.move(coyoteEid, pos.x, pos.y, target.x, target.y)
+        pos.x = target.x
+        pos.y = target.y
+      }
+    }
+    // Switch behavior to follow.
+    state.world.addComponent(coyoteEid, ComponentType.Behavior, { type: 'follow' })
+    // Move the coyote into the current zone so it gets carried out on exit.
+    state.world.addComponent(coyoteEid, ComponentType.EntityZone, getCurrentEntityZone(state))
+  }
+
+  state.coyoteMode = CoyoteMode.Follow
+  state.coyoteCargo = null
+  state.coyotePath = null
+
+  queueEvent(state, 'Rescued Coyote!', 'C', '#D4A054')
+  spawnPickupBloom(state, state.player.x, state.player.y, performance.now())
+  recordDiscovery(state, 'character:coyote')
+  recordDiscovery(state, 'event:rescue-coyote')
+
+  state.mainQuestPhase = MainQuestPhase.Gathering
+}
+
+const pickAdjacentWalkableTile = (state: GameState, px: number, py: number): Position | null => {
+  for (const d of CARDINAL) {
+    const nx = px + d.x
+    const ny = py + d.y
+    if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
+    if (!isWalkableTile(state.map[ny][nx].type)) continue
+    return { x: nx, y: ny }
+  }
+  return null
+}
+
+/** Called after a successful bee+clover combine. If the player is on the
+ *  overworld and has not yet been sealed, teleport Gron adjacent to the
+ *  player, advance mainQuestPhase to Sealed, and auto-open Gron's dialog.
+ *  Combines in the cave or inside a ruin are silently no-ops — the next
+ *  overworld combine will fire the beat. */
+export const triggerStewardSeal = (state: GameState): void => {
+  if (state.currentZone !== Zone.Overworld) return
+  if (state.mainQuestPhase === MainQuestPhase.Sealed) return
+
+  let gronEid: number | null = null
+  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
+    const ident = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    if (ident?.definitionId === 'gron') {
+      gronEid = eid
+      break
+    }
+  }
+
+  if (gronEid !== null) {
+    const target = pickAdjacentWalkableTile(state, state.player.x, state.player.y)
+    if (target) {
+      const pos = state.world.getComponent(gronEid, ComponentType.Position)
+      if (pos) {
+        state.world.spatial.move(gronEid, pos.x, pos.y, target.x, target.y)
+        pos.x = target.x
+        pos.y = target.y
+      }
+    }
+  }
+
+  state.mainQuestPhase = MainQuestPhase.Sealed
+  recordDiscovery(state, 'event:steward-sealed')
+
+  state.activeDialog = {
+    characterId: 'gron',
+    lineIndex: 0,
+    typingIndex: 0,
+    typingDone: false,
+    transitioning: false,
+    transitionStartTime: 0,
+  }
 }
 
 export const breakWall = (state: GameState, time: number): boolean => {

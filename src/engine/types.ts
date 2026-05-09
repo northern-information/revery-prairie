@@ -1,5 +1,5 @@
 import type { World } from './ecs/world'
-import type { CivilizationRuin, GenesisSimState } from './genesisTypes'
+import type { CivilizationRuin, GenesisSimState, RuinGenerationMode } from './genesisTypes'
 import type { ColorId } from '@revery-prairie/shared'
 
 export const TileType = {
@@ -101,6 +101,14 @@ export const CoyoteMode = {
 } as const
 
 export type CoyoteMode = (typeof CoyoteMode)[keyof typeof CoyoteMode]
+
+export const MainQuestPhase = {
+  AwaitingCoyote: 'awaiting-coyote',
+  Gathering: 'gathering',
+  Sealed: 'sealed',
+} as const
+
+export type MainQuestPhase = (typeof MainQuestPhase)[keyof typeof MainQuestPhase]
 
 export interface CharacterDefinition {
   id: string
@@ -306,6 +314,8 @@ export interface GameState {
   glintOpacity: Map<string, number>
   lastGlintSpawnTime: number
   civilizationRuins: CivilizationRuin[]
+  mainQuestPhase: MainQuestPhase
+  ruinGenerationMode: RuinGenerationMode
   deepTime: DeepTimeState | null
   deepTimeTransition: TransitionFade | null
   postGiftActionsCompleted: Set<string>

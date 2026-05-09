@@ -3,6 +3,7 @@ import { InventoryPanel } from '../InventoryPanel'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { placeItem } from '@/engine/inventory'
 import { createGameState } from '@/engine/state'
 import type { ItemInfoHandle } from '../ItemInfo'
 
@@ -67,6 +68,8 @@ describe('InventoryPanel', () => {
 
   it('renders item icons in the grid', () => {
     const state = createGameState('Test', 80, 40)
+    placeItem(state.backpack, 'bee', 0, 0)
+    placeItem(state.backpack, 'clover', 1, 0)
     render(
       <InventoryPanel
         state={state}
@@ -80,7 +83,6 @@ describe('InventoryPanel', () => {
       />
     )
 
-    // Starting inventory should include at least one of each starting item glyph
     expect(screen.getAllByText('*').length).toBeGreaterThan(0) // bees
     expect(screen.getAllByText('%').length).toBeGreaterThan(0) // clovers
   })

@@ -27,7 +27,7 @@ import {
 import { generateBoltPath } from './boltPath'
 import { getCharacterDefinition } from './characters'
 import { AURA_RADIUS } from './effects'
-import { GenesisEpochId } from './genesisTypes'
+import { GenesisEpochId, RuinGenerationMode, RuinRole } from './genesisTypes'
 import { rebuildGlintZones, seedGlintPatches } from './glintZones'
 import { posKey, tileHash as rendererTileHash } from './position'
 import { smoothNoiseSeeded } from './terrain'
@@ -2091,8 +2091,15 @@ const riseOfCivilizations: GenesisEpoch = {
   durationMs: 2000,
   commentary: 'Civilizations emerge...',
   mutate: sim => {
-    // Pick 8-12 ruin sites at strategic locations (high soil, near rivers/coast)
-    const numRuins = 8 + Math.floor(sim.rng() * 5)
+    // Starter mode (tutorial): exactly 3 ruins, role-tagged in fixed order
+    // (clover, bee, coyote). Complex mode (post-deep-time, future spec)
+    // currently delegates to starter; replace this branch when the complex
+    // generator lands.
+    const isStarter =
+      sim.ruinGenerationMode === RuinGenerationMode.Starter ||
+      sim.ruinGenerationMode === RuinGenerationMode.Complex
+    const numRuins = isStarter ? 3 : 8 + Math.floor(sim.rng() * 5)
+    const STARTER_ROLES: RuinRole[] = [RuinRole.Clover, RuinRole.Bee, RuinRole.Coyote]
     const candidates: { key: string; score: number }[] = []
 
     for (const key of sim.landMask) {
@@ -2167,6 +2174,9 @@ const riseOfCivilizations: GenesisEpoch = {
         age: Math.floor(sim.rng() * 5000) + 1000,
         aqueductPaths: [],
         buildingFootprints,
+      }
+      if (isStarter && sim.ruins.length < STARTER_ROLES.length) {
+        ruin.role = STARTER_ROLES[sim.ruins.length]
       }
 
       sim.ruins.push(ruin)
@@ -3218,7 +3228,12 @@ export const GENESIS_EPOCHS: GenesisEpoch[] = [
 // Public API
 // ---------------------------------------------------------------------------
 
-export const createGenesisState = (width: number, height: number, seed: number): GenesisSimState => {
+export const createGenesisState = (
+  width: number,
+  height: number,
+  seed: number,
+  ruinGenerationMode: RuinGenerationMode = RuinGenerationMode.Starter
+): GenesisSimState => {
   // Import mulberry32 dynamically would break pure engine convention.
   // Inline a simple mulberry32 PRNG here.
   let a = seed | 0
@@ -3271,6 +3286,7 @@ export const createGenesisState = (width: number, height: number, seed: number):
     mutationsPrecomputed: false,
     rainSeed: 0,
     narratedEpochCount: 0,
+    ruinGenerationMode,
   }
 }
 

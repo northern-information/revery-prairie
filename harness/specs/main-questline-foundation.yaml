@@ -1,0 +1,263 @@
+id: main-questline-foundation
+name: 'Main questline foundation'
+priority: high
+layer: engine
+source_files:
+  - src/engine/types.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/state.ts
+  - src/engine/genesis.ts
+  - src/engine/ruins.ts
+  - src/engine/interaction.ts
+  - src/engine/characters.ts
+  - src/engine/recipes.ts
+  - src/engine/manual.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - ruin-dormant-garden
+  - ruin-locked-door
+  - coyote-companion
+  - dialog-system
+  - recipes
+
+behaviors:
+  - id: quest-phase-state-model
+    description: >
+      GameState gains mainQuestPhase and ruinGenerationMode fields with
+      defined initial values. mainQuestPhase initializes to
+      'awaiting-coyote'; ruinGenerationMode initializes to 'starter'.
+      CivilizationRuin gains an optional role field typed as
+      'clover' | 'bee' | 'coyote'.
+    inputs:
+      - 'createGameState called (genesis result present or absent)'
+    outputs:
+      - 'state.mainQuestPhase === "awaiting-coyote"'
+      - 'state.ruinGenerationMode === "starter"'
+    state_changes:
+      - field: mainQuestPhase
+        effect: 'initialized to "awaiting-coyote"'
+      - field: ruinGenerationMode
+        effect: 'initialized to "starter"'
+    determinism: deterministic
+
+  - id: starter-ruin-generation
+    description: >
+      When ruinGenerationMode is 'starter', genesis produces exactly 3
+      CivilizationRuin entries. Index 0 receives role 'clover', index 1
+      receives role 'bee', index 2 receives role 'coyote'. The
+      'complex' mode stub delegates to 'starter' generation (placeholder
+      for a future spec).
+    inputs:
+      - 'Genesis runs with ruinGenerationMode === "starter"'
+    outputs:
+      - 'state.civilizationRuins.length === 3'
+      - 'state.civilizationRuins[0].role === "clover"'
+      - 'state.civilizationRuins[1].role === "bee"'
+      - 'state.civilizationRuins[2].role === "coyote"'
+    state_changes:
+      - field: civilizationRuins
+        effect: 'exactly 3 entries, each with deterministic role assignment by index'
+    determinism: deterministic
+
+  - id: starting-state-empty-backpack
+    description: >
+      The player begins with an empty backpack: no bee items and no
+      clover items. No coyote entity is present on the overworld map at
+      game start.
+    inputs:
+      - 'createGameState returns a fresh game state'
+    outputs:
+      - 'player backpack contains no bee or clover items'
+      - 'no coyote entity exists in state on game start'
+    state_changes:
+      - field: backpack
+        effect: 'all container cells empty — no bee or clover items pre-populated'
+      - field: coyoteMode
+        effect: 'coyote is not present on the overworld at start (rescued via quest only)'
+    determinism: deterministic
+
+  - id: vault-contents-by-role
+    description: >
+      When a DormantGarden vault is activated, its spawn payload is
+      determined by the ruin role. 'clover' role spawns 1× clover item
+      as a ground item at the vault position. 'bee' role spawns 1× bee
+      item as a ground item at the vault position. 'coyote' role places
+      the coyote NPC at the vault NPC spot in idle mode. Ruins with no
+      role fall back to the existing wildflower seed spawn behavior.
+    inputs:
+      - 'DormantGarden vault activates in a ruin with role "clover"'
+      - 'DormantGarden vault activates in a ruin with role "bee"'
+      - 'DormantGarden vault activates in a ruin with role "coyote"'
+      - 'DormantGarden vault activates in a ruin with no role set'
+    outputs:
+      - 'clover-role vault: 1 clover ground item spawned at vault position'
+      - 'bee-role vault: 1 bee ground item spawned at vault position'
+      - 'coyote-role vault: coyote NPC placed at vault NPC spot, idle'
+      - 'no-role vault: wildflower seed spawns as before'
+    state_changes:
+      - field: groundItems
+        effect: 'clover or bee item appended for the respective role, unchanged for coyote role'
+      - field: coyoteMode
+        effect: 'set to Idle when coyote-role vault activates and coyote not yet rescued'
+    determinism: deterministic
+
+  - id: coyote-rescue-on-door-unlock
+    description: >
+      When the locked door of the coyote-role ruin is unlocked and
+      mainQuestPhase is 'awaiting-coyote', the rescue sequence fires:
+      coyote switches to Follow mode, teleports to a tile adjacent to
+      the player, a toast message "Rescued Coyote!" is queued,
+      recordDiscovery is called with 'character:coyote', a pickupBloom
+      spawns at the player position, and mainQuestPhase transitions to
+      'gathering'.
+    inputs:
+      - 'Player unlocks the locked door of the ruin with role "coyote"'
+      - 'state.mainQuestPhase === "awaiting-coyote"'
+    outputs:
+      - 'coyote is in Follow mode'
+      - 'coyote position is adjacent to player'
+      - 'toast "Rescued Coyote!" queued'
+      - 'pickupBloom spawned at player position'
+      - '"character:coyote" in state.manualDiscoveries'
+    state_changes:
+      - field: coyoteMode
+        effect: 'set to Follow'
+      - field: coyote.x / coyote.y
+        effect: 'teleported to a walkable tile adjacent to the player'
+      - field: mainQuestPhase
+        effect: 'transitions from "awaiting-coyote" to "gathering"'
+      - field: manualDiscoveries
+        effect: '"character:coyote" added via recordDiscovery'
+      - field: pickupBlooms
+        effect: 'new bloom spawned at player tile'
+    determinism: deterministic
+
+  - id: gron-dialog-phase-dispatch
+    description: >
+      getCharacterDialog('gron', state) returns dialog lines keyed to
+      mainQuestPhase. 'awaiting-coyote' returns the 5-line introductory
+      set about the missing coyote. 'gathering' with bee OR clover (not
+      both) returns the one-clover-one-bee hint line. 'gathering' with
+      both bee AND clover returns the impatient "what are you waiting
+      for" line. 'sealed' returns the acknowledgement line. Gron's
+      gift, postGiftDialog, and postGift fields are removed from
+      CHARACTER_DEFINITIONS.
+    inputs:
+      - 'state.mainQuestPhase === "awaiting-coyote"'
+      - 'state.mainQuestPhase === "gathering" and backpack has bee XOR clover'
+      - 'state.mainQuestPhase === "gathering" and backpack has both bee AND clover'
+      - 'state.mainQuestPhase === "sealed"'
+    outputs:
+      - 'awaiting-coyote: ["...", "Oh, you must be the new steward.", "Coyote hasn''t returned from the ruins in some time...", "Worrisome.", "What is a steward without their coyote?"]'
+      - 'gathering + one of bee/clover: ["It takes one clover and one bee."]'
+      - 'gathering + both: ["Well what are you waiting for, steward? One clover and one bee."]'
+      - 'sealed: ["Ahhh, yes. You are indeed the steward."]'
+    state_changes: []
+    determinism: deterministic
+
+  - id: combine-seal-overworld
+    description: >
+      After a successful bee+clover combine, if state.currentZone is
+      Zone.Overworld and mainQuestPhase is not 'sealed', Gron teleports
+      to a tile adjacent to the player, mainQuestPhase flips to
+      'sealed', Gron's dialog opens automatically, and
+      recordDiscovery is called with 'event:steward-sealed'.
+    inputs:
+      - 'Bee+clover combine succeeds'
+      - 'state.currentZone === Zone.Overworld'
+      - 'state.mainQuestPhase !== "sealed"'
+    outputs:
+      - 'Gron position is adjacent to player'
+      - 'Gron dialog opens automatically'
+      - '"event:steward-sealed" in state.manualDiscoveries'
+    state_changes:
+      - field: mainQuestPhase
+        effect: 'flips to "sealed"'
+      - field: gron.x / gron.y
+        effect: 'teleported to a walkable tile adjacent to player'
+      - field: activeDialog
+        effect: 'set to Gron dialog (opens automatically)'
+      - field: manualDiscoveries
+        effect: '"event:steward-sealed" added via recordDiscovery'
+    determinism: deterministic
+
+  - id: manual-entries-for-quest-events
+    description: >
+      Two new MANUAL_ONLY_ENTRIES are present: 'event:rescue-coyote'
+      with lore TODO, and 'event:steward-sealed' with lore TODO.
+      recordDiscovery is called with 'event:rescue-coyote' during the
+      coyote rescue sequence and with 'event:steward-sealed' during the
+      combine seal sequence.
+    inputs:
+      - 'Manual entries array is inspected at runtime'
+    outputs:
+      - '"event:rescue-coyote" entry present in MANUAL_ONLY_ENTRIES'
+      - '"event:steward-sealed" entry present in MANUAL_ONLY_ENTRIES'
+      - 'Both entries carry lore: "TODO" placeholder'
+    state_changes:
+      - field: manualDiscoveries
+        effect: '"event:rescue-coyote" added on coyote rescue; "event:steward-sealed" added on combine seal'
+    determinism: deterministic
+
+edge_cases:
+  - id: combine-seal-skipped-in-cave
+    description: >
+      Bee+clover combine succeeds while the player is in the cave or
+      inside a ruin interior zone (currentZone !== Zone.Overworld). The
+      Gron teleport and dialog auto-open must not fire; mainQuestPhase
+      must not change.
+    expected: >
+      Combine resolves normally (prairie planted or item produced per
+      existing recipe logic). Gron position unchanged. No dialog opened.
+      mainQuestPhase unchanged.
+
+  - id: non-coyote-door-unlock
+    description: >
+      Player unlocks the locked door of the clover-role or bee-role
+      ruin. No coyote rescue sequence fires — coyote mode, mainQuestPhase,
+      manual discoveries, and pickupBlooms are all unaffected.
+    expected: >
+      Door unlocks normally. state.mainQuestPhase remains unchanged.
+      No coyote teleport, no "Rescued Coyote!" toast, no bloom spawned.
+
+  - id: combine-seal-already-sealed
+    description: >
+      Bee+clover combine succeeds on the overworld when mainQuestPhase
+      is already 'sealed'. The prairie planting or item-craft proceeds
+      normally, but the Gron teleport, dialog auto-open, and
+      recordDiscovery for 'event:steward-sealed' must not fire a second
+      time.
+    expected: >
+      Combine outcome proceeds normally. Gron position unchanged.
+      No new dialog opened. manualDiscoveries unchanged. mainQuestPhase
+      stays 'sealed'.
+
+  - id: coyote-role-vault-already-rescued
+    description: >
+      The coyote-role DormantGarden vault activates after the player
+      has already rescued the coyote (mainQuestPhase !== 'awaiting-coyote').
+      The rescue sequence must not re-fire.
+    expected: >
+      Vault activates. Coyote mode and mainQuestPhase unchanged.
+      No toast, no bloom, no duplicate discovery.
+
+failure_conditions:
+  - trigger: >
+      Locked-door unlock fires on the coyote-role ruin but
+      mainQuestPhase is not 'awaiting-coyote' (already 'gathering' or
+      'sealed')
+    expected: >
+      Rescue sequence does not execute. mainQuestPhase is not mutated.
+      No coyote teleport, no toast, no bloom, no discovery duplicate.
+
+  - trigger: >
+      getCharacterDialog('gron', state) called with an unrecognized
+      or undefined mainQuestPhase value
+    expected: >
+      Function falls through gracefully and returns the 'sealed' dialog
+      lines rather than throwing or returning undefined.
+
+verification:
+  test_file: src/engine/__tests__/main-questline.test.ts
+  test_pattern: 'main questline'
+  command: 'npx vitest run src/engine/__tests__/main-questline.test.ts'

@@ -184,6 +184,8 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
     lore: 'The final act of stewardship. A controlled burn followed by a millennium of observation.',
   },
   'event:gron-deep-time': { lore: 'Gron speaks of the Deep Time revery and what it means to let go.' },
+  'event:rescue-coyote': { lore: 'TODO' },
+  'event:steward-sealed': { lore: 'TODO' },
 }
 
 // --- Lore lookup for UI components ---
@@ -609,6 +611,26 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     glyphColor: '#FF4444',
     unlockKey: 'event:satellite-impact',
     sourceKind: 'event',
+  },
+  {
+    id: 'event:rescue-coyote',
+    name: 'Coyote Rescue',
+    category: ManualCategory.Person,
+    glyph: 'C',
+    glyphColor: '#D4A054',
+    unlockKey: 'event:rescue-coyote',
+    sourceKind: 'event',
+    crossRefs: ['character:coyote', 'zone:ruin-dormant-garden'],
+  },
+  {
+    id: 'event:steward-sealed',
+    name: 'Steward Sealed',
+    category: ManualCategory.Person,
+    glyph: 'G',
+    glyphColor: '#FFFFFF',
+    unlockKey: 'event:steward-sealed',
+    sourceKind: 'event',
+    crossRefs: ['character:gron', 'recipe:bee+clover'],
   },
 ]
 

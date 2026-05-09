@@ -84,6 +84,16 @@ export const RECIPES: Recipe[] = [
   },
 ]
 
+const STEWARD_SEAL_RECIPE: [string, string] = ['bee', 'clover']
+
+export const isStewardSealRecipe = (recipe: Recipe): boolean => {
+  const [a, b] = recipe.ingredients
+  return (
+    (a === STEWARD_SEAL_RECIPE[0] && b === STEWARD_SEAL_RECIPE[1]) ||
+    (a === STEWARD_SEAL_RECIPE[1] && b === STEWARD_SEAL_RECIPE[0])
+  )
+}
+
 export const recipeKey = (recipe: Recipe): string => {
   const sorted = [...recipe.ingredients].sort((a, b) => a.localeCompare(b))
   return sorted.join('+')
