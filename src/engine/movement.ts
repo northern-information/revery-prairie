@@ -3,7 +3,7 @@ import { checkTransition } from './cave'
 import { MOVEMENT_TWEEN_DEFAULT_MS, MOVEMENT_TWEEN_SPRINT_MS, TRAIL_MAX_LENGTH } from './constants'
 import { ComponentType } from './ecs/types'
 import { emitPlayerFootstep, emitPlayerTrailBurst } from './flora'
-import { updateFacingEntity } from './interaction'
+import { tryCoyoteRescueOnApproach, updateFacingEntity } from './interaction'
 import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { isDiagonalDirection, TileType, Zone } from './types'
@@ -178,6 +178,8 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
     state.onPlayerMoved?.()
     return true
   }
+
+  tryCoyoteRescueOnApproach(state)
 
   state.onPlayerMoved?.()
   return true

@@ -29,10 +29,15 @@ behaviors:
       seedDecayAcceleration (number multiplier on decay rate, default 1.0),
       waterFlowing (boolean, true when all breaks repaired),
       keyPosition (Position where aqueductKey ground item spawns inside
-      the maze), tabletPosition (Position where stoneTablet ground item
-      spawns inside the maze), doorPositions (Position[] of every
+      the maze; null for coyote-role ruins which have no key/door),
+      tabletPosition (Position where stoneTablet ground item spawns
+      inside the maze), doorPositions (Position[] of every
       RuinDoorLocked tile in the row that gates the seed vault — see
-      ruin-locked-door spec).
+      ruin-locked-door spec; empty array for coyote-role ruins),
+      collapseBarrier (Position[] of RuinDebris tiles placed across
+      the spine corridor as a gating cave-in; null for ruins that
+      don't have one — only coyote-role ruins populate this field
+      today).
     inputs:
       - 'ruin generation creates the sole archetype'
     outputs:
@@ -66,6 +71,39 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: coyote-collapse-barrier-placement
+    description: >
+      for ruins with role 'coyote' only, generateDormantGarden carves a
+      gating cave-in across the spine corridor between the entrance
+      landing and the seed vault door. the barrier is a contiguous span
+      of RuinDebris tiles spanning the full width of the spine corridor
+      (3 tiles, perpendicular to the spine direction) at a chosen point
+      whose BFS distance from the entrance is between 35% and 60% of
+      the deepest reachable distance. the cell column must not collide
+      with branch corridor intersections, the seed vault chamber, the
+      door row, the entrance landing, or any aqueduct break point.
+      barrier positions are recorded on
+      DormantGardenData.collapseBarrier. for non-coyote-role ruins,
+      collapseBarrier is null and no barrier is carved (decorative
+      RuinDebris from the existing scatter step is unaffected). the
+      barrier blocks player movement and pathfinding by virtue of
+      RuinDebris's existing non-walkable behavior, so the trapped
+      coyote spawned past it (see vault-contents-by-role in
+      main-questline-foundation) is unreachable until the player
+      clears at least one tile in the barrier row to a width that
+      A* can route through.
+    inputs:
+      - 'dormant-garden generation runs for a ruin with role "coyote"'
+    outputs:
+      - '3-tile RuinDebris row across the spine corridor at 35-60% depth'
+      - 'collapseBarrier populated with barrier tile positions'
+    state_changes:
+      - field: map
+        effect: '3 RuinFloor tiles in the spine row converted to RuinDebris'
+      - field: dormantGarden.collapseBarrier
+        effect: 'array populated with the 3 barrier tile positions'
+    determinism: deterministic
+
   - id: aqueduct-channels-in-corridors
     description: >
       after corridors are carved, aqueduct channels (RuinAqueduct tiles)
@@ -89,14 +127,21 @@ behaviors:
       any tile in doorPositions. dead-end alcoves are preferred when available.
       the key is the only way to unlock the door without future
       mechanics. recorded on DormantGardenData.keyPosition. spawned as
-      an ItemDrop entity with definitionId 'aqueductKey'.
+      an ItemDrop entity with definitionId 'aqueductKey'. key placement
+      is skipped entirely for ruins with role 'coyote' — those ruins
+      have no door, so no key is needed. keyPosition is null for
+      coyote-role ruins and no aqueductKey ItemDrop is spawned.
     inputs:
       - 'corridor layout, BFS distances, seeded rng'
+      - 'ruin role'
     outputs:
-      - 'aqueductKey ground item spawned in deep corridor cell'
+      - 'aqueductKey ground item spawned in deep corridor cell (non-coyote roles)'
+      - 'no aqueductKey spawned for coyote-role ruins; keyPosition is null'
     state_changes:
       - field: world
-        effect: 'ItemDrop entity created at keyPosition with aqueductKey'
+        effect: 'ItemDrop entity created at keyPosition with aqueductKey for non-coyote roles; no entity created for coyote-role'
+      - field: dormantGarden.keyPosition
+        effect: 'set to chosen corridor cell for non-coyote roles; null for coyote-role'
     determinism: deterministic
 
   - id: stone-tablet-placement
@@ -195,6 +240,31 @@ behaviors:
         effect: 'set to 1.5 (if aqueduct hit)'
     determinism: deterministic
 
+  - id: debris-clear-via-e
+    description: >
+      pressing [e] while facing any RuinDebris tile clears it. tile
+      changes from RuinDebris to RuinFloor. single-hit, no item or
+      revery requirement — mirrors the cave breakable wall mechanic.
+      records discovery 'event:rubble-cleared' on the first clear of
+      the session. clicking a RuinDebris tile pathfinds to the closest
+      walkable adjacent tile and triggers the same clear on arrival
+      via state.pendingAction (same pattern as click-to-unlock for
+      doors). RuinDebris is added to isInteractableAt for Ruin zones.
+      the fire-revery-debris-clear path is preserved as a parallel
+      mechanic — both produce the same state transition.
+    inputs:
+      - '[e] pressed while facing a RuinDebris tile in a Ruin zone'
+      - 'mouse click on a RuinDebris tile in a Ruin zone'
+    outputs:
+      - 'RuinDebris tile becomes RuinFloor'
+      - 'event:rubble-cleared recorded the first time'
+    state_changes:
+      - field: map
+        effect: 'facing/clicked RuinDebris tile becomes RuinFloor'
+      - field: manualDiscoveries
+        effect: '"event:rubble-cleared" added on first clear'
+    determinism: deterministic
+
   - id: dormant-garden-multilayer-visuals
     description: >
       aqueduct channels rendered with box-drawing chars and overlay dots
@@ -239,6 +309,18 @@ edge_cases:
     description: 'player picks up aqueductKey, exits, re-enters'
     expected: 'aqueductKey is not respawned — keyPosition still set on data, but no ItemDrop entity exists'
 
+  - id: collapse-barrier-cleared-on-reenter
+    description: 'player clears one or more collapseBarrier tiles, exits the ruin, re-enters'
+    expected: 'cleared tiles remain RuinFloor (map state persists on RuinInterior); barrier is not regenerated'
+
+  - id: collapse-barrier-deep-band-empty
+    description: 'tiny coyote-role ruin where the 35-60% depth band has no eligible spine column'
+    expected: 'fall back to the deepest spine column that does not collide with door/landing/aqueduct breaks; barrier still placed'
+
+  - id: e-on-decorative-debris
+    description: 'player presses [e] facing one of the 3-5 scattered RuinDebris tiles (not the barrier)'
+    expected: 'tile clears to RuinFloor — the [e] mechanic is uniform across all RuinDebris, not gated to barrier tiles'
+
 failure_conditions:
   - trigger: 'water revery cast with no broken aqueduct tiles in range'
     expected: 'standard water revery effect on ruin floor (cross-pattern water), no repair'
@@ -248,6 +330,12 @@ failure_conditions:
 
   - trigger: 'corridor generation produces no cell at >= 6 BFS distance from entrance'
     expected: 'this should not happen at the new 3x dimensions — failing this means the spine carve algorithm regressed and tests should fail'
+
+  - trigger: 'collapseBarrier placement collides with the entrance landing, door row, vault chamber, or any aqueduct break point'
+    expected: 'generator regression — the barrier must never overlap these protected regions; tests must fail if any collapseBarrier entry hits them'
+
+  - trigger: 'collapseBarrier is null or empty for a coyote-role ruin'
+    expected: 'generator regression — coyote-role ruins must always have a barrier; the trapped coyote depends on it'
 
 verification:
   test_file: src/engine/__tests__/ruin-dormant-garden.test.ts

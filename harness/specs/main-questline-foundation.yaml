@@ -81,9 +81,14 @@ behaviors:
       When a DormantGarden vault is activated, its spawn payload is
       determined by the ruin role. 'clover' role spawns 1× clover item
       as a ground item at the vault position. 'bee' role spawns 1× bee
-      item as a ground item at the vault position. 'coyote' role places
-      the coyote NPC at the vault NPC spot in idle mode. Ruins with no
-      role fall back to the existing wildflower seed spawn behavior.
+      item as a ground item at the vault position. 'coyote' role spawns
+      nothing at the vault — the coyote NPC is instead placed at a
+      walkable RuinFloor tile within 2 tiles past the collapseBarrier
+      on the vault-side of the spine corridor (see ruin-dormant-garden
+      coyote-collapse-barrier-placement). The coyote is in Idle mode
+      and is unreachable until the player clears at least one barrier
+      tile. Ruins with no role fall back to the existing wildflower
+      seed spawn behavior.
     inputs:
       - 'DormantGarden vault activates in a ruin with role "clover"'
       - 'DormantGarden vault activates in a ruin with role "bee"'
@@ -92,42 +97,51 @@ behaviors:
     outputs:
       - 'clover-role vault: 1 clover ground item spawned at vault position'
       - 'bee-role vault: 1 bee ground item spawned at vault position'
-      - 'coyote-role vault: coyote NPC placed at vault NPC spot, idle'
+      - 'coyote-role vault: no vault spawn, no key, no door; coyote NPC placed past the collapseBarrier in Idle mode (the rubble is the only obstacle)'
       - 'no-role vault: wildflower seed spawns as before'
     state_changes:
       - field: groundItems
         effect: 'clover or bee item appended for the respective role, unchanged for coyote role'
       - field: coyoteMode
         effect: 'set to Idle when coyote-role vault activates and coyote not yet rescued'
+      - field: 'world (coyote entity)'
+        effect: 'coyote-role: coyote entity created at a walkable tile within 2 tiles past the collapseBarrier (vault-side), with EntityZone Ruin and ruinIndex set'
     determinism: deterministic
 
-  - id: coyote-rescue-on-door-unlock
+  - id: coyote-rescue-on-approach
     description: >
-      When the locked door of the coyote-role ruin is unlocked and
-      mainQuestPhase is 'awaiting-coyote', the rescue sequence fires:
-      coyote switches to Follow mode, teleports to a tile adjacent to
-      the player, a toast message "Rescued Coyote!" is queued,
-      recordDiscovery is called with 'character:coyote', a pickupBloom
-      spawns at the player position, and mainQuestPhase transitions to
-      'gathering'.
+      When the player walks onto a tile cardinally adjacent to the
+      trapped coyote inside the coyote-role ruin and mainQuestPhase is
+      'awaiting-coyote', the rescue sequence fires: coyote switches to
+      Follow mode, teleports to a tile adjacent to the player (in case
+      the spawn alcove is cramped), a toast message "Rescued Coyote!"
+      is queued, recordDiscovery is called with 'character:coyote' and
+      'event:rescue-coyote', a pickupBloom spawns at the player
+      position, and mainQuestPhase transitions to 'gathering'. The
+      check fires from movePlayer's post-step hook (same point that
+      handles other adjacency-based events). The rescue is decoupled
+      from the locked-door unlock — door unlock now only governs vault
+      access, not the rescue. The trigger is gated on
+      mainQuestPhase === 'awaiting-coyote' so it cannot re-fire after
+      a successful rescue.
     inputs:
-      - 'Player unlocks the locked door of the ruin with role "coyote"'
+      - 'movePlayer succeeds inside the coyote-role ruin and the new player position is cardinally adjacent to the trapped coyote tile'
       - 'state.mainQuestPhase === "awaiting-coyote"'
     outputs:
       - 'coyote is in Follow mode'
       - 'coyote position is adjacent to player'
       - 'toast "Rescued Coyote!" queued'
       - 'pickupBloom spawned at player position'
-      - '"character:coyote" in state.manualDiscoveries'
+      - '"character:coyote" and "event:rescue-coyote" in state.manualDiscoveries'
     state_changes:
       - field: coyoteMode
         effect: 'set to Follow'
-      - field: coyote.x / coyote.y
+      - field: 'world (coyote entity Position component)'
         effect: 'teleported to a walkable tile adjacent to the player'
       - field: mainQuestPhase
         effect: 'transitions from "awaiting-coyote" to "gathering"'
       - field: manualDiscoveries
-        effect: '"character:coyote" added via recordDiscovery'
+        effect: '"character:coyote" and "event:rescue-coyote" added via recordDiscovery'
       - field: pickupBlooms
         effect: 'new bloom spawned at player tile'
     determinism: deterministic
@@ -211,14 +225,35 @@ edge_cases:
       existing recipe logic). Gron position unchanged. No dialog opened.
       mainQuestPhase unchanged.
 
-  - id: non-coyote-door-unlock
+  - id: door-unlock-no-longer-fires-rescue
     description: >
-      Player unlocks the locked door of the clover-role or bee-role
-      ruin. No coyote rescue sequence fires — coyote mode, mainQuestPhase,
-      manual discoveries, and pickupBlooms are all unaffected.
+      Player unlocks the locked door of any ruin (including the
+      coyote-role ruin). Door unlock alone never fires the rescue
+      sequence — rescue is gated on adjacency to the trapped coyote
+      via coyote-rescue-on-approach.
     expected: >
-      Door unlocks normally. state.mainQuestPhase remains unchanged.
-      No coyote teleport, no "Rescued Coyote!" toast, no bloom spawned.
+      Door unlocks normally per ruin-locked-door spec. coyoteMode,
+      mainQuestPhase, manualDiscoveries, and pickupBlooms are all
+      unaffected by the unlock itself.
+
+  - id: rescue-on-approach-without-clearing-barrier
+    description: >
+      The collapseBarrier is intact and the player attempts to reach
+      the trapped coyote without clearing any barrier tile.
+    expected: >
+      Player cannot become adjacent to the coyote because RuinDebris
+      is non-walkable and pathfinding routes are blocked by the
+      barrier — rescue does not fire. The rescue can only occur after
+      the player clears at least one barrier tile (per
+      ruin-dormant-garden:debris-clear-via-e or fire-revery-debris-clear).
+
+  - id: rescue-trigger-via-fire-revery-clearing
+    description: >
+      Player clears the collapseBarrier with fire revery instead of
+      [e], then walks adjacent to the coyote.
+    expected: >
+      Rescue fires identically — the trigger is adjacency, not the
+      clearing method.
 
   - id: combine-seal-already-sealed
     description: >
@@ -243,12 +278,19 @@ edge_cases:
 
 failure_conditions:
   - trigger: >
-      Locked-door unlock fires on the coyote-role ruin but
-      mainQuestPhase is not 'awaiting-coyote' (already 'gathering' or
-      'sealed')
+      Player becomes adjacent to the coyote in the coyote-role ruin
+      but mainQuestPhase is not 'awaiting-coyote' (already 'gathering'
+      or 'sealed' — typically only possible if the rescue has already
+      fired and the coyote is now in Follow mode)
     expected: >
       Rescue sequence does not execute. mainQuestPhase is not mutated.
-      No coyote teleport, no toast, no bloom, no discovery duplicate.
+      No coyote teleport, no toast, no bloom, no duplicate discovery.
+
+  - trigger: >
+      Locked-door unlock fires on any ruin
+    expected: >
+      Rescue sequence is never invoked from the unlock path.
+      interaction.ts unlockRuinDoor must not call rescueCoyote.
 
   - trigger: >
       getCharacterDialog('gron', state) called with an unrecognized

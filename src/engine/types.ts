@@ -475,6 +475,7 @@ export interface DormantGardenData {
   keyPosition: Position | null
   tabletPosition: Position | null
   doorPositions: Position[]
+  collapseBarrier: Position[] | null
 }
 
 export interface QueuedEvent {

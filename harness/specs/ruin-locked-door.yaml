@@ -53,17 +53,24 @@ behaviors:
       carved as RuinFloor so the player can stand under any door
       tile and face up to interact. a 1-wide tunnel from the landing
       center connects down to the spine. the wider hitbox makes the
-      door easy to find with [e] OR click.
+      door easy to find with [e] OR click. door placement is skipped
+      entirely for ruins with role 'coyote' — the spine connects
+      directly to the vault chamber with no gating wall, since the
+      coyote ruin is gated by the collapseBarrier instead (see
+      ruin-dormant-garden:coyote-collapse-barrier-placement).
+      doorPositions is an empty array for coyote-role ruins.
     inputs:
       - 'maze + vault layout from generateDormantGarden'
+      - 'ruin role'
     outputs:
-      - 'a row of RuinDoorLocked tiles spanning the vault south wall'
-      - 'walkable landing strip immediately south of the door row'
+      - 'a row of RuinDoorLocked tiles spanning the vault south wall (non-coyote roles)'
+      - 'walkable landing strip immediately south of the door row (non-coyote roles)'
+      - 'no door row, no landing strip for coyote-role ruins; doorPositions is empty'
     state_changes:
       - field: map
-        effect: 'south wall row of the vault becomes RuinDoorLocked; landing strip below becomes RuinFloor'
+        effect: 'non-coyote roles: south wall row of the vault becomes RuinDoorLocked; landing strip below becomes RuinFloor. coyote role: no door tiles placed.'
       - field: dormantGarden.doorPositions
-        effect: 'array populated with every door tile position'
+        effect: 'array populated with every door tile position for non-coyote roles; empty array for coyote-role'
     determinism: deterministic
 
   - id: unlock-interaction
@@ -210,6 +217,10 @@ edge_cases:
   - id: gate-dialog-dismiss-on-esc
     description: 'player presses [esc] while the locked gate dialog is open'
     expected: 'modal closes via the existing activeDialog dismiss path; identical to character dialog dismissal'
+
+  - id: coyote-ruin-has-no-door
+    description: 'player explores the coyote-role ruin'
+    expected: 'no RuinDoorLocked tiles exist anywhere in the ruin; the vault chamber connects to the spine corridor without a gating wall; doorPositions is an empty array'
 
 failure_conditions:
   - trigger: 'door row placement collides with the entrance landing area'

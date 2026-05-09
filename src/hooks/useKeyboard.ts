@@ -10,6 +10,7 @@ import { keyToScreenAxis, resolveHeldDirection } from '@/engine/heldKeys'
 import {
   advanceDialog,
   breakWall,
+  clearRuinDebris,
   getAdjacentCharacter,
   interactWithCharacter,
   isFacingLockedDoor,
@@ -157,6 +158,13 @@ export const useKeyboard = ({
           return
         }
         if (activeScreen !== 'system') {
+          // Clear facing ruin rubble (mirrors cave breakable wall)
+          if (state.currentZone === Zone.Ruin) {
+            if (clearRuinDebris(state)) {
+              refreshUI()
+              return
+            }
+          }
           // Facing a locked ruin door — unlock if we have a key, otherwise
           // open the locked gate dialog so the player gets a visible reason.
           if (isFacingLockedDoor(state)) {

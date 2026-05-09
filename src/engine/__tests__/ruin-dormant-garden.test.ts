@@ -5,8 +5,11 @@ import {
   repairAqueductBreak,
   tickDormantGardenDecay,
 } from '../ruins'
-import { RuinArchetype, TileType } from '../types'
+import { clearRuinDebris } from '../interaction'
+import { RuinArchetype, TileType, Zone } from '../types'
+import { RuinRole } from '../genesisTypes'
 import { isWalkableTile, posKey } from '../position'
+import { createTestState } from './helpers'
 
 import type { CivilizationRuin } from '../genesisTypes'
 
@@ -384,6 +387,74 @@ describe('ruin dormant garden', () => {
         }
       }
       expect(reachable.has(posKey(vc.x, vc.y))).toBe(false)
+    })
+  })
+
+  describe('coyote-role: collapse barrier and door/key skip', () => {
+    it('places a 3-tile collapseBarrier across the spine for coyote-role ruins', () => {
+      const interior = makeGardenInterior({ role: RuinRole.Coyote })
+      const garden = interior.dormantGarden
+      expect(garden).toBeTruthy()
+      if (!garden) return
+      expect(garden.collapseBarrier).toBeTruthy()
+      const barrier = garden.collapseBarrier
+      if (!barrier) return
+      expect(barrier.length).toBe(3)
+      // All barrier tiles share the same y (one horizontal row).
+      const ys = new Set(barrier.map((p) => p.y))
+      expect(ys.size).toBe(1)
+      // Each barrier tile renders as RuinDebris.
+      for (const bp of barrier) {
+        expect(interior.map[bp.y][bp.x].type).toBe(TileType.RuinDebris)
+      }
+    })
+
+    it('skips door + key for coyote-role ruins', () => {
+      const interior = makeGardenInterior({ role: RuinRole.Coyote })
+      const garden = interior.dormantGarden
+      expect(garden).toBeTruthy()
+      if (!garden) return
+      expect(garden.doorPositions).toEqual([])
+      expect(garden.keyPosition).toBeNull()
+      // No RuinDoorLocked tiles anywhere on the map.
+      for (let y = 0; y < interior.mapHeight; y++) {
+        for (let x = 0; x < interior.mapWidth; x++) {
+          expect(interior.map[y][x].type).not.toBe(TileType.RuinDoorLocked)
+        }
+      }
+    })
+
+    it('keeps collapseBarrier null for non-coyote roles', () => {
+      const interior = makeGardenInterior({ role: RuinRole.Bee })
+      const garden = interior.dormantGarden
+      expect(garden).toBeTruthy()
+      if (!garden) return
+      expect(garden.collapseBarrier).toBeNull()
+    })
+
+    it('clearRuinDebris converts a facing RuinDebris tile to RuinFloor and records discovery', () => {
+      const state = createTestState()
+      state.currentZone = Zone.Ruin
+      const fx = state.player.x
+      const fy = state.player.y - 1
+      state.map[fy][fx] = { type: TileType.RuinDebris }
+      state.playerFacing = 'up'
+
+      expect(clearRuinDebris(state)).toBe(true)
+      expect(state.map[fy][fx].type).toBe(TileType.RuinFloor)
+      expect(state.manualDiscoveries.has('event:rubble-cleared')).toBe(true)
+    })
+
+    it('clearRuinDebris is a no-op when not facing a RuinDebris tile', () => {
+      const state = createTestState()
+      state.currentZone = Zone.Ruin
+      const fx = state.player.x
+      const fy = state.player.y - 1
+      state.map[fy][fx] = { type: TileType.RuinFloor }
+      state.playerFacing = 'up'
+
+      expect(clearRuinDebris(state)).toBe(false)
+      expect(state.manualDiscoveries.has('event:rubble-cleared')).toBe(false)
     })
   })
 })
