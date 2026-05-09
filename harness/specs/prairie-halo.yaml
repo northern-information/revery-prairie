@@ -4,6 +4,8 @@ priority: low
 layer: engine
 source_files:
   - src/engine/renderer.ts
+  - src/engine/render/passes/prairieHalo.ts
+  - src/engine/render/haloCache.ts
   - src/engine/constants.ts
   - src/engine/__tests__/prairie-halo.test.ts
 dependencies:
@@ -14,34 +16,40 @@ behaviors:
     description: >
       A subtle pulsing halo is drawn over space tiles within
       PRAIRIE_HALO_RADIUS (in tiles) of the nearest non-space tile.
-      The halo is drawn as a pre-pass over space cells before the
-      tile pass, similar in structure to the angel gold aura pre-pass
-      in renderer.ts. Sand and dirt tiles never receive the halo;
-      it lives entirely in space.
+      Implemented as a registered render pass (prairieHaloPass, slot
+      world-overlay) that composites a per-map cached offscreen
+      canvas built by haloCache.ts. The cache stores peak-intensity
+      falloff per space tile (one fill per cell at build time); the
+      pulse is applied at composite time via ctx.globalAlpha. Sand
+      and dirt tiles never receive halo paint — only space cells
+      whose Chebyshev distance to land is in [1, PRAIRIE_HALO_RADIUS].
     inputs:
       - 'GameState with currentZone == Zone.Overworld'
       - 'Camera viewport contains space tiles within PRAIRIE_HALO_RADIUS of land'
     outputs:
-      - 'fillRect calls on space cells in the viewport with PRAIRIE_HALO_COLOR and computed alpha'
+      - 'one drawImage call per frame from the cached halo canvas with viewport-clipped source rect and ctx.globalAlpha = pulse'
     state_changes: []
     determinism: time-based
 
   - id: halo-falloff-and-pulse
     description: >
-      Halo alpha is the product of two factors. (1) A radial falloff
-      based on chebyshev (or euclidean) distance from the nearest
-      land tile — alpha is strongest at distance 1 and reaches zero
-      at PRAIRIE_HALO_RADIUS. (2) A subtle global pulse using a sine
+      Halo alpha is the product of two factors applied at different
+      times. (1) Per-tile peak alpha = PRAIRIE_HALO_MAX_ALPHA *
+      falloff, where falloff = 1 - (distance - 1) / PRAIRIE_HALO_RADIUS
+      based on Chebyshev distance from the nearest land tile, baked
+      once into the haloCache. (2) A subtle global pulse using a sine
       wave of the form sin(time * PRAIRIE_HALO_PULSE_SPEED) * 0.5 +
-      0.5 mapped into a small alpha range so the effect breathes
-      rather than flashes. Final alpha is clamped to
-      [PRAIRIE_HALO_MIN_ALPHA, PRAIRIE_HALO_MAX_ALPHA] which sit in
-      the same gentle range used by the angel aura (~0.04 .. ~0.14).
+      0.5, applied at composite time via ctx.globalAlpha so the effect
+      breathes rather than flashes. On-screen alpha therefore lies in
+      [0, PRAIRIE_HALO_MAX_ALPHA]. PRAIRIE_HALO_MIN_ALPHA is a test-
+      only sanity floor — it is asserted in prairie-halo.test.ts
+      against sample peak alphas, but is not enforced as a clamp in
+      the production pipeline.
     inputs:
       - 'tile distance to nearest land tile'
       - 'current animation time (ms)'
     outputs:
-      - 'alpha in [PRAIRIE_HALO_MIN_ALPHA, PRAIRIE_HALO_MAX_ALPHA]'
+      - 'on-screen alpha in [0, PRAIRIE_HALO_MAX_ALPHA]'
     state_changes: []
     determinism: time-based
 
@@ -127,8 +135,8 @@ edge_cases:
     expected: 'cursor inversion still wins via the existing resolve-then-draw pattern; halo is a background pre-pass and does not interfere with cursor highlight'
 
 failure_conditions:
-  - trigger: 'PRAIRIE_HALO_RADIUS, PRAIRIE_HALO_COLOR, PRAIRIE_HALO_MIN_ALPHA, PRAIRIE_HALO_MAX_ALPHA, or PRAIRIE_HALO_PULSE_SPEED missing from constants.ts'
-    expected: 'compilation error — renderer must import these and not inline literals'
+  - trigger: 'PRAIRIE_HALO_RADIUS, PRAIRIE_HALO_COLOR, PRAIRIE_HALO_MAX_ALPHA, or PRAIRIE_HALO_PULSE_SPEED missing from constants.ts'
+    expected: 'compilation error — haloCache.ts and passes/prairieHalo.ts import these and must not inline literals'
 
   - trigger: 'Halo alpha computed outside [0, 1]'
     expected: 'value is clamped before being passed to ctx.globalAlpha'
