@@ -5,9 +5,15 @@ import { render, screen } from '@testing-library/react'
 import { combineFromBackpack } from '@/engine/combine'
 import { ComponentType } from '@/engine/ecs/types'
 import { completeGenesis } from '@/engine/genesis'
+import { placeItem } from '@/engine/inventory'
 import { worldToScreen } from '@/engine/projection'
 import { createGameState } from '@/engine/state'
 import { TileType } from '@/engine/types'
+
+const stockBackpackForCombine = (state: GameState): void => {
+  placeItem(state.backpack, 'bee', 0, 0)
+  placeItem(state.backpack, 'clover', 1, 0)
+}
 import type { CharMetrics, GameState } from '@/engine/types'
 import type { ItemInfoHandle } from '../ItemInfo'
 
@@ -75,6 +81,7 @@ describe('Sidebar', () => {
         state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
       }
     }
+    stockBackpackForCombine(state)
     combineFromBackpack(state, 'bee', 'clover')
     render(
       <Sidebar
@@ -98,6 +105,7 @@ describe('Sidebar', () => {
         state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
       }
     }
+    stockBackpackForCombine(state)
     combineFromBackpack(state, 'bee', 'clover')
     render(
       <Sidebar
@@ -121,6 +129,7 @@ describe('Sidebar', () => {
         state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
       }
     }
+    stockBackpackForCombine(state)
     combineFromBackpack(state, 'bee', 'clover')
     render(
       <Sidebar

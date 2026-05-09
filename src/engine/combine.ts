@@ -1,6 +1,7 @@
+import { triggerStewardSeal } from './interaction'
 import { buildOccupancyGrid, containerHasItem, findItemByDefinition, removeItem } from './inventory'
 import { isWalkableTile } from './position'
-import { findRecipe, recipeKey } from './recipes'
+import { findRecipe, isStewardSealRecipe, recipeKey } from './recipes'
 import { TileType } from './types'
 
 import type { Recipe } from './recipes'
@@ -65,5 +66,9 @@ export const combineFromBackpack = (state: GameState, defIdA: string, defIdB: st
   findAndRemoveItem(state, defIdA)
   findAndRemoveItem(state, defIdB)
 
-  return recipe.execute(state)
+  const succeeded = recipe.execute(state)
+  if (succeeded && isStewardSealRecipe(recipe)) {
+    triggerStewardSeal(state)
+  }
+  return succeeded
 }

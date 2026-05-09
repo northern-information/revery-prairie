@@ -37,6 +37,21 @@ export interface GenesisEpoch {
   renderTile: (sim: GenesisSimState, x: number, y: number, progress: number, time: number) => GenesisTileRender[]
 }
 
+export const RuinGenerationMode = {
+  Starter: 'starter',
+  Complex: 'complex',
+} as const
+
+export type RuinGenerationMode = (typeof RuinGenerationMode)[keyof typeof RuinGenerationMode]
+
+export const RuinRole = {
+  Clover: 'clover',
+  Bee: 'bee',
+  Coyote: 'coyote',
+} as const
+
+export type RuinRole = (typeof RuinRole)[keyof typeof RuinRole]
+
 export interface CivilizationRuin {
   position: Position
   name: string
@@ -44,6 +59,9 @@ export interface CivilizationRuin {
   age: number
   aqueductPaths: Position[][]
   buildingFootprints: Position[]
+  /** Tutorial role tagging used in 'starter' generation mode. Optional —
+   *  'complex'-mode ruins (post-deep-time) leave this undefined. */
+  role?: RuinRole
 }
 
 export interface TectonicAxis {
@@ -145,6 +163,10 @@ export interface GenesisSimState {
   /** Rain aura tile hash seed — set from GameState.rainSeed so presentDay
    *  rain overlay matches the game renderer exactly. */
   rainSeed: number
+  /** Generation mode for civilization ruins. 'starter' produces 3 tutorial
+   *  ruins with role tags (clover/bee/coyote); 'complex' is reserved for the
+   *  post-deep-time regeneration spec and currently delegates to 'starter'. */
+  ruinGenerationMode: RuinGenerationMode
 }
 
 export interface GenesisMeteorStreak {

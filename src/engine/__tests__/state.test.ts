@@ -1,7 +1,8 @@
 import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
 import { ComponentType } from '../ecs/types'
-import { containerHasItem } from '../inventory'
+import { RuinGenerationMode } from '../genesisTypes'
 import { createGameState } from '../state'
+import { MainQuestPhase } from '../types'
 import { describe, expect, it } from 'vitest'
 
 describe('createGameState', () => {
@@ -24,11 +25,24 @@ describe('createGameState', () => {
     expect(state.player.y).toBe(Math.floor(MAP_HEIGHT / 2))
   })
 
-  it('starts with bees and clovers in backpack', () => {
+  it('starts with an empty backpack', () => {
     const state = createGameState('Willow', 80, 40)
-    expect(state.backpack.items.length).toBeGreaterThan(0)
-    expect(containerHasItem(state.backpack, 'bee')).toBe(true)
-    expect(containerHasItem(state.backpack, 'clover')).toBe(true)
+    expect(state.backpack.items).toHaveLength(0)
+  })
+
+  it('starts with mainQuestPhase awaiting-coyote and ruinGenerationMode starter', () => {
+    const state = createGameState('Willow', 80, 40)
+    expect(state.mainQuestPhase).toBe(MainQuestPhase.AwaitingCoyote)
+    expect(state.ruinGenerationMode).toBe(RuinGenerationMode.Starter)
+  })
+
+  it('does not spawn a coyote on the overworld at game start', () => {
+    const state = createGameState('Willow', 80, 40)
+    const coyotes = state.world.query(ComponentType.CharacterIdentity).filter(eid => {
+      const ident = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+      return ident?.definitionId === 'coyote'
+    })
+    expect(coyotes).toHaveLength(0)
   })
 
   it('starts with all four reveries', () => {

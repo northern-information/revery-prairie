@@ -50,11 +50,12 @@ describe('gron has no gift chain', () => {
     expect(result).toBeNull()
   })
 
-  it('gron dialog is base dialog only (no postGiftDialog branch)', () => {
+  it('gron dialog routes through phase dispatch (no postGiftDialog branch)', () => {
     const state = makeState()
     const dialog = getCharacterDialog(state, 'gron')
-    expect(dialog).toHaveLength(2)
+    // Phase-driven dispatch: 5-line opener while quest phase is awaiting-coyote.
     expect(dialog[0]).toBe('...')
     expect(dialog[1]).toContain('new steward')
+    expect(dialog).toContain('What is a steward without their coyote?')
   })
 })

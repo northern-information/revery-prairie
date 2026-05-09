@@ -85,6 +85,8 @@ const EXPECTED_FIELDS = [
   'lastGlintSpawnTime',
   'zoom',
   'civilizationRuins',
+  'mainQuestPhase',
+  'ruinGenerationMode',
   'deepTime',
   'deepTimeTransition',
   'postGiftActionsCompleted',
