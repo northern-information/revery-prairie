@@ -130,6 +130,15 @@ edge_cases:
   - id: zone-suppression
     description: 'tickPollenEmit called while state.currentZone = Cave'
     expected: 'returns immediately; no particles emitted'
+  - id: zoom-invariant-emission-rate
+    description: >
+      tickPollenEmit run for the same wind and tileset across many ticks at
+      zoom = 1, zoom = 2, and zoom = 0.5
+    expected: >
+      total expected particles spawned per unit time is approximately equal
+      across zoom levels because per-tile spawn probability is normalized by
+      zoom squared; total spawn count is still capped by MAX_POLLEN regardless
+      of zoom
 
 failure_conditions:
   - trigger: 'Drift computed even when smoothSpeed < 0.01'
