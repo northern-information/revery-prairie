@@ -152,7 +152,7 @@ tetris-style spatial inventory. items have shapes (`boolean[][]`) that must phys
 
 key types: `ItemDefinition` (template), `ItemInstance` (placed in container), `Container` (grid), `Rotation` (0/1/2/3).
 
-categories: `Fauna`, `Flora`, `Tool`, `CelestialDebris`, `Gizmo` — expand as needed, don't add speculatively.
+categories: `Fauna`, `Flora`, `Tool`, `CelestialDebris`, `Gizmo`, `Seed`, `Artifact`, `Zoogenic` — expand as needed, don't add speculatively.
 
 ## recipes
 
