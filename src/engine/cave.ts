@@ -1,9 +1,11 @@
+import { BUILDING_CHARS, CIV_COLORS, TILE_COLORS } from './constants'
 import { transitionCoyoteToZone } from './coyote'
 import { recordDiscovery } from './manual'
 import { clearMovementTweens } from './movementTween'
-import { findSafeExitPosition } from './position'
+import { tileHash, findSafeExitPosition } from './position'
 import { deselectAll } from './selection'
 import { checkRuinTransition } from './ruins'
+import type { RuinTileLayer } from './ruins'
 import { clearAllUnitCommands } from './unitCommands'
 import { TileType, Zone } from './types'
 
@@ -276,4 +278,73 @@ export const checkTransition = (state: GameState): boolean => {
 
   // Ruin transitions (overworld 3x3 hitbox + interior RuinExit)
   return checkRuinTransition(state)
+}
+
+// ---------------------------------------------------------------------------
+// Multilayer cave tile rendering
+// ---------------------------------------------------------------------------
+
+export interface CaveMultilayerArgs {
+  zone: Zone
+  tileType: TileType | undefined
+  isPlayer: boolean
+  isEntity: boolean
+  hasPreview: boolean
+  isHighlighted: boolean
+  hasOverlay: boolean
+}
+
+const isCaveMultilayerTile = (tileType: TileType | undefined): boolean =>
+  tileType === TileType.CaveWall || tileType === TileType.CaveFloor
+
+export const shouldRenderCaveMultilayer = (args: CaveMultilayerArgs): boolean => {
+  return (
+    args.zone === Zone.Cave &&
+    !args.isPlayer &&
+    !args.isEntity &&
+    !args.hasPreview &&
+    !args.isHighlighted &&
+    !args.hasOverlay &&
+    isCaveMultilayerTile(args.tileType)
+  )
+}
+
+export const getCaveTileLayers = (tileType: TileType, x: number, y: number): RuinTileLayer[] => {
+  const h = tileHash(x, y)
+
+  switch (tileType) {
+    case TileType.CaveWall: {
+      const layers: RuinTileLayer[] = [
+        { char: BUILDING_CHARS[h % BUILDING_CHARS.length], color: CIV_COLORS[h % CIV_COLORS.length], dx: 0, dy: 0 },
+        {
+          char: BUILDING_CHARS[(h + 3) % BUILDING_CHARS.length],
+          color: CIV_COLORS[(h + 2) % CIV_COLORS.length],
+          dx: 1,
+          dy: 1,
+        },
+      ]
+      if (h % 5 < 3) {
+        layers.push({ char: '·', color: CIV_COLORS[(h + 4) % CIV_COLORS.length], dx: -1, dy: 0 })
+      }
+      return layers
+    }
+
+    case TileType.CaveFloor: {
+      const layers: RuinTileLayer[] = [
+        { char: h % 3 === 0 ? '·' : '.', color: TILE_COLORS[TileType.CaveFloor], dx: 0, dy: 0 },
+      ]
+      if (h % 5 < 2) {
+        layers.push({
+          char: '·',
+          color: CIV_COLORS[(h + 1) % CIV_COLORS.length],
+          dx: h % 2 === 0 ? 1 : -1,
+          dy: 0,
+        })
+      }
+      return layers
+    }
+
+    default:
+      return [{ char: '?', color: '#FFFFFF', dx: 0, dy: 0 }]
+  }
 }

@@ -91,6 +91,7 @@ import {
 import { projectBoltPath } from './boltPath'
 import { getReveryDefinition } from './reveries'
 import { getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
+import { getCaveTileLayers, shouldRenderCaveMultilayer } from './cave'
 import { getSelectedUnitPositions } from './selection'
 import {
   ANGEL_FLOAT_LIFT_PX,
@@ -1560,19 +1561,42 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
       // Multilayer drawing for ruin tiles (non-entity, non-highlighted, no overlay)
       const tile = map[my]?.[mx]
-      const isRuinMultilayer = shouldRenderRuinMultilayer({
-        zone: state.currentZone,
-        tileType: tile?.type,
+      // Cave hidden-chamber mask: a CaveFloor inside the hidden chamber must
+      // render as CaveWall until caveRevealed flips, otherwise the multilayer
+      // floor pattern would leak the unrevealed type.
+      const caveEffectiveType =
+        state.currentZone === Zone.Cave &&
+        !state.caveRevealed &&
+        state.caveHiddenPositions.has(tileKey)
+          ? TileType.CaveWall
+          : tile?.type
+      const sharedMultilayerArgs = {
         isPlayer: mx === player.x && my === player.y && state.playerSpawn.visible,
         isEntity,
         hasPreview: previewTile !== undefined,
         isHighlighted:
           isAngelGroupHighlighted || (isCursor && cursorable) || isFacingEntity || isPendingTarget,
-        hasOverlay:
-          pathPositions.has(tileKey) || trailMap.has(tileKey),
+        hasOverlay: pathPositions.has(tileKey) || trailMap.has(tileKey),
+      }
+      const isRuinMultilayer = shouldRenderRuinMultilayer({
+        zone: state.currentZone,
+        tileType: tile?.type,
+        ...sharedMultilayerArgs,
+      })
+      const isCaveMultilayer = shouldRenderCaveMultilayer({
+        zone: state.currentZone,
+        tileType: caveEffectiveType,
+        ...sharedMultilayerArgs,
       })
       if (isRuinMultilayer) {
         const layers = getRuinTileLayers(tile.type, mx, my, time)
+        const offsetScale = charWidth * 0.25
+        for (const layer of layers) {
+          ctx.fillStyle = layer.color
+          ctx.fillText(layer.char, px + layer.dx * offsetScale, pyLift + layer.dy * offsetScale)
+        }
+      } else if (isCaveMultilayer && caveEffectiveType !== undefined) {
+        const layers = getCaveTileLayers(caveEffectiveType, mx, my)
         const offsetScale = charWidth * 0.25
         for (const layer of layers) {
           ctx.fillStyle = layer.color
