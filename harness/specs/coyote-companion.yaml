@@ -98,7 +98,10 @@ behaviors:
       trails the player at 2-3 tile path distance) until new items
       appear. when a ground item spawns while the coyote is mid-follow-
       step, the coyote finishes its current step before switching to
-      collect on the next tick. each pickup and each delivery fires
+      collect on the next tick. when state.currentZone is Zone.Ruin,
+      collect mode is suppressed and the coyote follows the player
+      regardless of coyoteMode (ruin layouts are too cramped for
+      autonomous collection). each pickup and each delivery fires
       addEvent with kind 'pickup', the item icon, and descriptive text.
       COYOTE_COLLECTIBLE_DEFINITIONS is removed — no allowlist filtering.
     inputs:
@@ -159,22 +162,39 @@ behaviors:
         effect: 'moved to adjacent walkable tile when overlapping player'
     determinism: deterministic
 
-  - id: coyote-cave-transition
+  - id: coyote-zone-transition
     description: >
-      when the player enters or exits the cave, the coyote transitions
-      with them. enterCave teleports the coyote to a position adjacent
-      to the player's cave spawn point. exitCave teleports the coyote
-      to a position adjacent to the player's overworld position. the
-      coyote's EntityZone component is updated to match the new zone.
-      if coyoteMode is 'collect', the coyote continues collecting in
-      the new zone (scanning for ground items in the cave or overworld).
+      when the player changes zones (cave entrance/exit, ruin
+      entrance/exit, or any future zone), transitionCoyoteToZone
+      teleports the coyote to a walkable tile adjacent to the
+      player's new position and updates the coyote's EntityZone
+      component to match. the function is zone-agnostic — callers
+      pass the destination Zone after setting state.currentZone /
+      currentRuinIndex. if coyoteMode is 'collect', the coyote
+      continues collecting in the new zone where allowed (collect
+      mode is suppressed in Ruin zones; see coyote-collect-behavior).
     inputs:
-      - 'player triggers cave entrance or exit'
+      - 'player triggers a zone change (cave or ruin entrance/exit)'
     outputs:
-      - 'coyote teleported to adjacent tile in new zone'
+      - 'coyote teleported to adjacent walkable tile in new zone'
     state_changes:
       - field: 'world (coyote entity Position and EntityZone components)'
         effect: 'position set adjacent to player in new zone, EntityZone updated'
+    determinism: deterministic
+
+  - id: coyote-rts-command-suppression
+    description: >
+      when state.unitCommands has an entry for the coyote entity
+      (set by RTS-style player commands — see rts-unit-selection),
+      tickCoyote returns early without running follow or collect
+      behavior. autonomous behavior resumes once the command is
+      cleared. this lets player-issued move orders override the
+      coyote's default tick behavior without race conditions.
+    inputs:
+      - 'state.unitCommands.has(coyoteEid) === true'
+    outputs:
+      - 'no autonomous coyote movement this tick'
+    state_changes: []
     determinism: deterministic
 
   - id: coyote-rendering
@@ -269,6 +289,9 @@ edge_cases:
   - id: coyote-collect-in-cave
     description: 'coyote in collect mode enters cave with player — cave has no ground items'
     expected: 'coyote follows player in cave until items appear or player exits'
+  - id: coyote-collect-in-ruin
+    description: 'coyote in collect mode enters a ruin with player'
+    expected: 'collect mode is suppressed; coyote always follows in Ruin zones regardless of coyoteMode'
   - id: coyote-summon-all-adjacent-blocked
     description: 'summon action but all tiles adjacent to player are blocked or unwalkable'
     expected: 'summon fails silently, coyote stays at current position'
