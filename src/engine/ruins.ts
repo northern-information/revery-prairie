@@ -296,9 +296,13 @@ const generateDormantGarden = (
   // wall pattern (cave.ts) — wider hitbox makes it easy to find with
   // [e] OR click. The landing south of the door is also widened so the
   // player can stand anywhere along the wall and face up to interact.
+  // Coyote-role ruins skip the locked door entirely — the rubble is the
+  // only obstacle in those ruins. The wall row is converted to floor so
+  // the player walks straight in once the barrier is cleared.
   const doorX = vaultCenter.x
   const doorY = sealY
   const doorPositions: Position[] = []
+  const skipDoor = ruin.role === RuinRole.Coyote
   if (doorY < mapHeight && doorY >= 0) {
     // Carve a 1-tile-tall landing strip directly under the door so every
     // door tile has a walkable south neighbor.
@@ -312,11 +316,15 @@ const generateDormantGarden = (
     // Then a 1-wide tunnel from the landing center down to the spine.
     const tunnelEnd: Position = { x: doorX, y: spineTopY }
     carveStraight(map, { x: doorX, y: landingY }, tunnelEnd, 1)
-    // Convert the wall row to door tiles.
+    // Convert the wall row to door tiles, or to plain floor for coyote-role.
     for (let x = vaultX - 1; x <= vaultX + vaultW; x++) {
       if (x < 0 || x >= mapWidth) continue
-      map[doorY][x] = { type: TileType.RuinDoorLocked }
-      doorPositions.push({ x, y: doorY })
+      if (skipDoor) {
+        map[doorY][x] = { type: TileType.RuinFloor }
+      } else {
+        map[doorY][x] = { type: TileType.RuinDoorLocked }
+        doorPositions.push({ x, y: doorY })
+      }
     }
   }
 
@@ -353,6 +361,78 @@ const generateDormantGarden = (
     map[by][bx] = { type: TileType.RuinAqueductBroken }
     breakPoints.push({ x: bx, y: by })
     aqueductTiles.delete(key)
+  }
+
+  // ---- 7.5 Collapse barrier (coyote-role only) ----
+  // A 3-tile RuinDebris row across the spine corridor at 35-60% depth from
+  // the entrance, gating access to the trapped coyote spawned past it.
+  let collapseBarrier: Position[] | null = null
+  if (ruin.role === RuinRole.Coyote) {
+    const spineLength = spineEntryY - spineTopY
+    // y=spineEntryY is at the entrance, y=spineTopY is at the vault.
+    // Depth from entrance increases as y decreases.
+    const minBarrierY = spineEntryY - Math.floor(spineLength * 0.6)
+    const maxBarrierY = spineEntryY - Math.floor(spineLength * 0.35)
+
+    const isCorridorOrChannel = (t: TileType | undefined): boolean =>
+      t === TileType.RuinFloor ||
+      t === TileType.RuinAqueduct ||
+      t === TileType.RuinAqueductBroken
+
+    const tryRow = (y: number): boolean => {
+      if (y < spineTopY + 2 || y > spineEntryY - 2) return false
+      // Don't collide with door area (skipDoor is true here, but the wall
+      // row is at sealY which equals vaultY+vaultH; spineTopY > sealY so
+      // this is automatically excluded). Belt-and-braces: also skip if
+      // within 1 tile of sealY or the carved landing row.
+      if (y >= sealY - 1 && y <= sealY + 1) return false
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!isCorridorOrChannel(map[y]?.[entranceX + dx]?.type)) return false
+      }
+      return true
+    }
+
+    let chosenY: number | null = null
+    if (maxBarrierY >= minBarrierY) {
+      const span = maxBarrierY - minBarrierY + 1
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const y = minBarrierY + Math.floor(rng() * span)
+        if (tryRow(y)) {
+          chosenY = y
+          break
+        }
+      }
+    }
+    if (chosenY === null) {
+      for (let y = minBarrierY; y <= maxBarrierY; y++) {
+        if (tryRow(y)) {
+          chosenY = y
+          break
+        }
+      }
+    }
+    if (chosenY === null) {
+      for (let y = spineTopY + 2; y <= spineEntryY - 2; y++) {
+        if (tryRow(y)) {
+          chosenY = y
+          break
+        }
+      }
+    }
+
+    if (chosenY !== null) {
+      collapseBarrier = []
+      for (let dx = -1; dx <= 1; dx++) {
+        const x = entranceX + dx
+        const y = chosenY
+        const k = posKey(x, y)
+        if (aqueductTiles.has(k)) aqueductTiles.delete(k)
+        const bpIdx = breakPoints.findIndex((bp) => bp.x === x && bp.y === y)
+        if (bpIdx >= 0) breakPoints.splice(bpIdx, 1)
+        map[y][x] = { type: TileType.RuinDebris }
+        collapseBarrier.push({ x, y })
+      }
+    }
   }
 
   // ---- 8. Debris at intersections / spine widening ----
@@ -393,17 +473,28 @@ const generateDormantGarden = (
   }
 
   // ---- 10. Compute BFS distances from the entrance for key/tablet placement ----
-  // For BFS we treat the locked door as walkable so cells beyond it
-  // contribute distance, but we exclude the vault interior from candidates.
-  // Temporarily flip every door tile to floor for BFS, then flip back.
+  // For BFS we treat the locked door and any collapseBarrier tiles as
+  // walkable so cells beyond them contribute distance, but we exclude the
+  // vault interior from candidates. Temporarily flip those tiles to floor
+  // for BFS, then flip back.
   const doorKeySet = new Set<string>()
   for (const dp of doorPositions) {
     doorKeySet.add(posKey(dp.x, dp.y))
     map[dp.y][dp.x] = { type: TileType.RuinFloor }
   }
+  if (collapseBarrier) {
+    for (const bp of collapseBarrier) {
+      map[bp.y][bp.x] = { type: TileType.RuinFloor }
+    }
+  }
   const distances = bfsDistances(map, mapWidth, mapHeight, { x: entranceX, y: entranceY - 1 })
   for (const dp of doorPositions) {
     map[dp.y][dp.x] = { type: TileType.RuinDoorLocked }
+  }
+  if (collapseBarrier) {
+    for (const bp of collapseBarrier) {
+      map[bp.y][bp.x] = { type: TileType.RuinDebris }
+    }
   }
 
   let maxDist = 0
@@ -436,32 +527,36 @@ const generateDormantGarden = (
     return out
   }
 
-  // Key in 60-85% band; allow channels as a last resort.
-  let keyCandidates = cellsInBand(0.6, 0.85, false)
-  if (keyCandidates.length === 0) keyCandidates = cellsInBand(0.6, 0.85, true)
-  if (keyCandidates.length === 0) {
-    // Fallback: deepest non-vault cell
-    let deepestKey: string | null = null
-    let deepestD = -1
-    for (const [key, d] of distances) {
-      const parts = key.split(',')
-      const x = Number(parts[0])
-      const y = Number(parts[1])
-      if (inVault(x, y)) continue
-      if (doorKeySet.has(posKey(x, y))) continue
-      if (d > deepestD) {
-        deepestD = d
-        deepestKey = key
+  // Key in 60-85% band; allow channels as a last resort. Skipped entirely
+  // for coyote-role ruins, which have no door and so need no key.
+  let keyPosition: Position | null = null
+  if (ruin.role !== RuinRole.Coyote) {
+    let keyCandidates = cellsInBand(0.6, 0.85, false)
+    if (keyCandidates.length === 0) keyCandidates = cellsInBand(0.6, 0.85, true)
+    if (keyCandidates.length === 0) {
+      // Fallback: deepest non-vault cell
+      let deepestKey: string | null = null
+      let deepestD = -1
+      for (const [key, d] of distances) {
+        const parts = key.split(',')
+        const x = Number(parts[0])
+        const y = Number(parts[1])
+        if (inVault(x, y)) continue
+        if (doorKeySet.has(posKey(x, y))) continue
+        if (d > deepestD) {
+          deepestD = d
+          deepestKey = key
+        }
+      }
+      if (deepestKey) {
+        const parts = deepestKey.split(',')
+        keyCandidates = [{ x: Number(parts[0]), y: Number(parts[1]) }]
       }
     }
-    if (deepestKey) {
-      const parts = deepestKey.split(',')
-      keyCandidates = [{ x: Number(parts[0]), y: Number(parts[1]) }]
+    if (keyCandidates.length > 0) {
+      keyPosition = keyCandidates[Math.floor(rng() * keyCandidates.length)]
     }
   }
-  const keyPosition = keyCandidates.length > 0
-    ? keyCandidates[Math.floor(rng() * keyCandidates.length)]
-    : null
 
   // Tablet in 25-55% band, excluding the chosen key cell. Channels disallowed.
   const tabletCandidates = cellsInBand(0.25, 0.55, false).filter(
@@ -495,6 +590,7 @@ const generateDormantGarden = (
     keyPosition,
     tabletPosition,
     doorPositions,
+    collapseBarrier,
   }
 }
 
@@ -1018,12 +1114,38 @@ export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): vo
   }
 
   if (role === RuinRole.Coyote) {
-    const slot = vaultSlots[0]
-    if (slot) {
-      const parts = slot.split(',')
-      const x = Number(parts[0])
-      const y = Number(parts[1])
-      createCharacterEntity(state, 'coyote', { x, y }, { zone: Zone.Ruin, ruinIndex })
+    // The trapped coyote spawns past the collapseBarrier on the vault side
+    // (smaller y), within 2 tiles so it's visible through the rubble. The
+    // vault itself is empty for coyote-role ruins — the dog is the prize.
+    const barrier = interior.dormantGarden.collapseBarrier
+    const map = interior.map
+    let coyotePos: Position | null = null
+    if (barrier && barrier.length > 0) {
+      const barrierY = barrier[0].y
+      const centerX = barrier[Math.floor(barrier.length / 2)].x
+      outer: for (let dy = 1; dy <= 2; dy++) {
+        const y = barrierY - dy
+        for (const dxOff of [0, -1, 1, -2, 2]) {
+          const x = centerX + dxOff
+          const t = map[y]?.[x]?.type
+          if (t === TileType.RuinFloor || t === TileType.RuinAqueduct) {
+            coyotePos = { x, y }
+            break outer
+          }
+        }
+      }
+    }
+    if (!coyotePos) {
+      // Fallback for ruins where the barrier didn't place: use the first
+      // vault slot. Should not happen given the barrier-placement contract.
+      const slot = vaultSlots[0]
+      if (slot) {
+        const parts = slot.split(',')
+        coyotePos = { x: Number(parts[0]), y: Number(parts[1]) }
+      }
+    }
+    if (coyotePos) {
+      createCharacterEntity(state, 'coyote', coyotePos, { zone: Zone.Ruin, ruinIndex })
     }
     interior.dormantGarden.seedDecayTimers.clear()
     return

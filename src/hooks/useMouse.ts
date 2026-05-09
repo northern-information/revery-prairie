@@ -11,6 +11,7 @@ import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import {
   advanceDialog,
   breakWall,
+  clearRuinDebris,
   interactWithCharacter,
   isInteractableAt,
   openLockedGateDialog,
@@ -150,6 +151,8 @@ const resolveClickTarget = (
           } else {
             openLockedGateDialog(state)
           }
+        } else if (state.map[targetY]?.[targetX]?.type === TileType.RuinDebris) {
+          clearRuinDebris(state)
         }
         refreshUI()
       }

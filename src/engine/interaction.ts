@@ -45,6 +45,13 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
   ) {
     return true
   }
+  if (
+    state.currentZone === Zone.Ruin &&
+    isInBounds(x, y, state.mapWidth, state.mapHeight) &&
+    state.map[y][x].type === TileType.RuinDebris
+  ) {
+    return true
+  }
   if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Clover) {
     return true
   }
@@ -343,18 +350,50 @@ export const unlockRuinDoor = (state: GameState): boolean => {
   }
   recordDiscovery(state, 'event:ruin-door-unlocked')
 
-  // If this is the coyote ruin and the player hasn't yet rescued the coyote,
-  // fire the rescue sequence: switch coyote to Follow, teleport adjacent to
-  // the player, queue toast + bloom + manual entries, advance quest phase.
-  // Guarded on mainQuestPhase so re-unlocks (or complex-mode ruins without
-  // a role) never re-fire it.
-  const ruin = state.currentRuinIndex !== null ? state.civilizationRuins[state.currentRuinIndex] : null
-  if (ruin?.role === RuinRole.Coyote && state.mainQuestPhase === MainQuestPhase.AwaitingCoyote) {
-    rescueCoyote(state)
-  }
-
   updateFacingEntity(state)
   return true
+}
+
+/** If the player faces a RuinDebris tile, convert it to RuinFloor.
+ *  Mirrors the cave breakable-wall mechanic: single-hit, no item or revery
+ *  required. Coexists with fireOnRuinTile (fire revery clearing). Records
+ *  'event:rubble-cleared' on the first clear. Returns true if cleared. */
+export const clearRuinDebris = (state: GameState): boolean => {
+  if (state.currentZone !== Zone.Ruin) return false
+  const d = DIRECTIONS[state.playerFacing]
+  const fx = state.player.x + d.x
+  const fy = state.player.y + d.y
+  if (!isInBounds(fx, fy, state.mapWidth, state.mapHeight)) return false
+  if (state.map[fy][fx].type !== TileType.RuinDebris) return false
+  setMapTile(state, fx, fy, { type: TileType.RuinFloor })
+  recordDiscovery(state, 'event:rubble-cleared')
+  updateFacingEntity(state)
+  return true
+}
+
+/** Fires the rescue if the player has just become cardinally adjacent to
+ *  the trapped coyote in the coyote-role ruin. Gated on
+ *  mainQuestPhase === AwaitingCoyote so it cannot re-fire after success.
+ *  Called from movement.ts after every successful step. */
+export const tryCoyoteRescueOnApproach = (state: GameState): void => {
+  if (state.mainQuestPhase !== MainQuestPhase.AwaitingCoyote) return
+  if (state.currentZone !== Zone.Ruin) return
+  if (state.currentRuinIndex === null) return
+  const ruin = state.civilizationRuins[state.currentRuinIndex]
+  if (ruin?.role !== RuinRole.Coyote) return
+
+  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
+    const ident = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    if (ident?.definitionId !== 'coyote') continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (!pos) return
+    const dx = Math.abs(pos.x - state.player.x)
+    const dy = Math.abs(pos.y - state.player.y)
+    if (dx + dy === 1) {
+      rescueCoyote(state)
+    }
+    return
+  }
 }
 
 const rescueCoyote = (state: GameState): void => {

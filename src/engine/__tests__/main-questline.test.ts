@@ -6,6 +6,7 @@ import { ComponentType } from '../ecs/types'
 import { createCharacterEntity } from '../entities'
 import { RuinGenerationMode, RuinRole } from '../genesisTypes'
 import { triggerStewardSeal, unlockRuinDoor } from '../interaction'
+import { movePlayer } from '../movement'
 import { placeItem } from '../inventory'
 import { recordDiscovery } from '../manual'
 import { posKey } from '../position'
@@ -68,6 +69,7 @@ const installCoyoteRuin = (state: GameState): { ruinIndex: number; ruin: Civiliz
       keyPosition: null,
       tabletPosition: null,
       doorPositions: [{ x: state.player.x, y: state.player.y - 1 }],
+      collapseBarrier: null,
     },
     fogExplored: new Set<string>(),
     fogDiscovered: new Set<string>(),
@@ -142,14 +144,33 @@ describe('main questline > Gron dialog phase dispatch', () => {
   })
 })
 
-describe('main questline > coyote rescue on door unlock', () => {
+describe('main questline > coyote rescue on approach', () => {
+  // Spawn coyote adjacent to player, then have player walk one tile so the
+  // post-step adjacency hook fires.
+  const setupApproach = (state: GameState): void => {
+    // Walkable tiles around player + coyote spawn so movePlayer can step.
+    for (let dx = -2; dx <= 2; dx++) {
+      for (let dy = -2; dy <= 2; dy++) {
+        const x = state.player.x + dx
+        const y = state.player.y + dy
+        if (state.map[y]?.[x]) state.map[y][x] = { type: TileType.RuinFloor }
+      }
+    }
+    // Place coyote two tiles east; player will step right and become adjacent.
+    createCharacterEntity(
+      state,
+      'coyote',
+      { x: state.player.x + 2, y: state.player.y },
+      { zone: Zone.Ruin, ruinIndex: 0 },
+    )
+  }
+
   it('switches coyote to Follow, advances quest phase, queues toast, records discovery', () => {
     const state = createTestState()
     installCoyoteRuin(state)
-    // Place an idle coyote inside the vault to be rescued.
-    createCharacterEntity(state, 'coyote', { x: state.player.x + 3, y: state.player.y }, { zone: Zone.Ruin, ruinIndex: 0 })
+    setupApproach(state)
 
-    expect(unlockRuinDoor(state)).toBe(true)
+    expect(movePlayer(state, 'right')).toBe(true)
 
     expect(state.mainQuestPhase).toBe(MainQuestPhase.Gathering)
     expect(state.coyoteMode).toBe(CoyoteMode.Follow)
@@ -162,21 +183,37 @@ describe('main questline > coyote rescue on door unlock', () => {
   it('does not re-fire the rescue if the phase has already advanced', () => {
     const state = createTestState()
     installCoyoteRuin(state)
-    state.mainQuestPhase = MainQuestPhase.Gathering // already past awaiting-coyote
-    createCharacterEntity(state, 'coyote', { x: state.player.x + 3, y: state.player.y }, { zone: Zone.Ruin, ruinIndex: 0 })
+    setupApproach(state)
+    state.mainQuestPhase = MainQuestPhase.Gathering
 
     const before = state.queuedEvents.length
-    expect(unlockRuinDoor(state)).toBe(true)
+    expect(movePlayer(state, 'right')).toBe(true)
 
     expect(state.queuedEvents.find(e => e.text === 'Rescued Coyote!')).toBeUndefined()
     expect(state.queuedEvents.length).toBe(before)
   })
 
-  it('does not fire the rescue when the unlocked ruin has a non-coyote role', () => {
+  it('does not fire the rescue in a non-coyote-role ruin', () => {
     const state = createTestState()
     installCoyoteRuin(state)
-    state.civilizationRuins[0].role = RuinRole.Bee // not the coyote ruin
-    createCharacterEntity(state, 'coyote', { x: state.player.x + 3, y: state.player.y }, { zone: Zone.Ruin, ruinIndex: 0 })
+    setupApproach(state)
+    state.civilizationRuins[0].role = RuinRole.Bee
+
+    expect(movePlayer(state, 'right')).toBe(true)
+    expect(state.mainQuestPhase).toBe(MainQuestPhase.AwaitingCoyote)
+    expect(state.queuedEvents.find(e => e.text === 'Rescued Coyote!')).toBeUndefined()
+  })
+
+  it('does not fire on door unlock — rescue is decoupled from the door', () => {
+    const state = createTestState()
+    installCoyoteRuin(state)
+    // Stash coyote far away; unlock alone must not rescue.
+    createCharacterEntity(
+      state,
+      'coyote',
+      { x: state.player.x + 10, y: state.player.y },
+      { zone: Zone.Ruin, ruinIndex: 0 },
+    )
 
     expect(unlockRuinDoor(state)).toBe(true)
     expect(state.mainQuestPhase).toBe(MainQuestPhase.AwaitingCoyote)
