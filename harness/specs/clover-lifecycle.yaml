@@ -31,16 +31,92 @@ behaviors:
   - id: clover-rain-fill
     description: >
       tickTileWater (in tileWater.ts) refills water on overworld
-      tiles when it is raining (global rain or within rain aura).
-      tiles gain WATER_RAIN_FILL (15) units per tick. cave tiles
-      get no global rain. water is capped at WATER_MAX (100). this
-      runs as a separate tick system, not inside tickCloverLifecycle.
+      tiles that are inside the moving rain front or inside an
+      active rain aura. tiles gain WATER_RAIN_FILL (15) units per
+      tick (capped at WATER_MAX (100)). cave tiles never receive
+      rain. tickTileWater early-returns when zone !== Overworld.
+      tickTileWater runs as a separate tick system, not inside
+      tickCloverLifecycle. See `rain-front-sweep` and
+      `rain-aura-water-fill` for the two refill sources.
     inputs:
       - 'rain condition active in overworld'
+      - 'tile inside rain front or rain aura'
     outputs: []
     state_changes:
       - field: tileWater
         effect: 'water incremented by WATER_RAIN_FILL (15) per rain tick, capped at WATER_MAX (100)'
+    determinism: deterministic
+
+  - id: rain-front-sweep
+    description: >
+      Global rain in the overworld is modeled as a moving front, not
+      a uniform fill. When state.rainIntensity > 0, tickTileWater
+      advances state.rainFrontOffset by RAIN_FRONT_SPEED each tick.
+      isInRainFront(state, x, y) maps the wind direction to a sweep
+      axis (windToFrontAxis) and tests whether the tile is inside
+      the front: a fully-wet core zone of width
+      RAIN_FRONT_WIDTH - 2*RAIN_FRONT_FRINGE, flanked by leading
+      and trailing fringe bands of width RAIN_FRONT_FRINGE on each
+      side. Fringe membership is probabilistic — at fringe distance
+      `dist`, a tile is "hit" when (tileHash(x*7, y*13) % 1000) / 1000
+      falls below a quadratic threshold (t*t, where t ramps 0..1
+      from outer edge to core boundary). The front position wraps
+      modulo the overworld map size so rain sweeps across the prairie
+      continuously. Tests asserting rain effects must position tiles
+      in the core zone (between RAIN_FRONT_FRINGE and
+      RAIN_FRONT_WIDTH - RAIN_FRONT_FRINGE) to avoid probabilistic
+      fringe exclusion.
+    inputs:
+      - 'state.rainIntensity > 0'
+      - 'state.weather.windDirection'
+    outputs:
+      - 'isInRainFront returns { hit, edgeAlpha } per tile'
+    state_changes:
+      - field: rainFrontOffset
+        effect: 'incremented by RAIN_FRONT_SPEED per tick while raining'
+    determinism: probabilistic
+
+  - id: rain-aura-water-fill
+    description: >
+      In addition to the global rain front, ECS Aura entities with
+      kind 'rain' (e.g. the persistent water revery aura) fill water
+      on every tile within their squared radius. tickTileWater
+      collects all in-zone rain auras into a flat array once per
+      tick (collectRainAuras) instead of querying per-tile, so the
+      cost is O(n_aura + n_tiles) rather than O(n_aura * n_tiles).
+      A tile inside any aura is filled by WATER_RAIN_FILL the same
+      way as a tile inside the rain front.
+    inputs:
+      - 'ECS entities with Aura(kind: rain) + Position in current zone'
+    outputs:
+      - 'tiles within aura radius receive WATER_RAIN_FILL'
+    state_changes:
+      - field: tileWater
+        effect: 'water incremented by WATER_RAIN_FILL on tiles inside any rain aura'
+    determinism: deterministic
+
+  - id: water-proximity-seepage
+    description: >
+      Tiles within WATER_PROXIMITY_RADIUS (manhattan) of any pond or
+      river receive a per-tick passive water bonus that offsets
+      drain. buildWaterProximity(state) runs once at state init,
+      computes the manhattan distance from each tileWater entry to
+      the nearest pond/river tile, and stores a linear-falloff bonus
+      (WATER_PROXIMITY_FILL * (1 - dist / (radius+1))) in
+      state.waterProximity, keyed by posKey. Each tick, tiles outside
+      both the rain front and any rain aura net `proximityBonus -
+      WATER_DRAIN_RATE`: positive nets fill toward WATER_MAX,
+      negative nets drain toward 0. Tiles with no proximity entry
+      drain at the full WATER_DRAIN_RATE.
+    inputs:
+      - 'state.ponds and state.rivers populated'
+    outputs:
+      - 'state.waterProximity contains per-tile bonuses'
+    state_changes:
+      - field: waterProximity
+        effect: 'populated once during state init by buildWaterProximity'
+      - field: tileWater
+        effect: 'tiles near water bodies drain slower or fill passively'
     determinism: deterministic
 
   - id: clover-death-stages
@@ -85,7 +161,8 @@ behaviors:
       BurntClover tiles (created by fire revery) enter BurntRecovering
       stage in cloverLifecycle. after BURNT_CLOVER_RECOVERY_MS (60s)
       the tile converts to Dirt. if water > 0, recovery time is divided
-      by BURNT_CLOVER_RAIN_MULTIPLIER (3), recovering 3x faster.
+      by BURNT_CLOVER_RAIN_MULTIPLIER (3), recovering 3x faster. The
+      burn scar entry for the recovered tile is also cleared.
     inputs:
       - 'BurntClover tile on map with lifecycle entry in BurntRecovering stage'
     outputs: []
@@ -93,6 +170,8 @@ behaviors:
       - field: map
         effect: 'tile converted to Dirt after recovery period'
       - field: cloverLifecycle
+        effect: 'entry deleted when recovery completes'
+      - field: burnScars
         effect: 'entry deleted when recovery completes'
     determinism: time-based
 
@@ -154,6 +233,17 @@ edge_cases:
   - id: burnt-clover-rain-acceleration
     description: 'BurntClover tile has water > 0 during recovery'
     expected: 'recovery completes in BURNT_CLOVER_RECOVERY_MS / BURNT_CLOVER_RAIN_MULTIPLIER (20s instead of 60s)'
+  - id: rain-front-fringe-distribution
+    description: >
+      Rain front fringe coverage is probabilistic via tileHash noise
+      with a quadratic (t*t) threshold across many tiles inside one
+      fringe band
+    expected: >
+      A tile inside the core zone is hit deterministically (every
+      tick); a tile at the fringe outer edge has ~0% hit rate; a
+      tile at the core boundary has ~100% hit rate; coverage between
+      the two grows quadratically with t. A tile entirely outside
+      both fringe bands is never hit.
 
 failure_conditions:
   - trigger: 'Backpack full when harvesting'
