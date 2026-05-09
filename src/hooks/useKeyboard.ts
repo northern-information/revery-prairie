@@ -12,6 +12,8 @@ import {
   breakWall,
   getAdjacentCharacter,
   interactWithCharacter,
+  isFacingLockedDoor,
+  openLockedGateDialog,
   unlockRuinDoor,
   updateFacingEntity,
 } from '@/engine/interaction'
@@ -155,13 +157,16 @@ export const useKeyboard = ({
           return
         }
         if (activeScreen !== 'system') {
-          // Unlock facing ruin door if holding aqueductKey
-          if (state.currentZone === Zone.Ruin) {
+          // Facing a locked ruin door — unlock if we have a key, otherwise
+          // open the locked gate dialog so the player gets a visible reason.
+          if (isFacingLockedDoor(state)) {
             if (unlockRuinDoor(state)) {
               onDiscovery('the lock turns', state.player.x, state.player.y)
-              refreshUI()
-              return
+            } else {
+              openLockedGateDialog(state)
             }
+            refreshUI()
+            return
           }
           // Break facing breakable wall
           if (state.currentZone === Zone.Cave && !state.caveRevealed) {

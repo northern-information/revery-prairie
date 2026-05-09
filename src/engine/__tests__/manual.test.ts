@@ -30,9 +30,10 @@ describe('manual', () => {
       }
     })
 
-    it('has an entry for each non-ghost character', () => {
+    it('has an entry for each non-ghost world character (excluding the synthetic gate speaker)', () => {
       for (const def of Object.values(CHARACTER_DEFINITIONS)) {
         if (def.id.startsWith('ghost-')) continue
+        if (def.id === 'gate') continue
         expect(MANUAL_ENTRIES[`character:${def.id}`]).toBeDefined()
         expect(MANUAL_ENTRIES[`character:${def.id}`].sourceKind).toBe('character')
       }

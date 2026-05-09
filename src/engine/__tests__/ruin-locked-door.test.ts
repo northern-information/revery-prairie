@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { isInteractableAt, unlockRuinDoor } from '../interaction'
+import { CHARACTER_DEFINITIONS, getCharacterDefinition, getCharacterDialog } from '../characters'
+import {
+  getAdjacentCharacter,
+  isFacingLockedDoor,
+  isInteractableAt,
+  openLockedGateDialog,
+  unlockRuinDoor,
+} from '../interaction'
+import { MANUAL_ENTRIES } from '../manual'
 import { movePlayer } from '../movement'
 import { TileType, Zone } from '../types'
 
@@ -216,6 +224,81 @@ describe('ruin locked door', () => {
       const { doorX, doorY } = setupRuinWithDoor(state)
       state.map[doorY][doorX] = { type: TileType.RuinDoorOpen }
       expect(isInteractableAt(state, doorX, doorY)).toBe(false)
+    })
+  })
+
+  describe('locked gate dialog', () => {
+    it('isFacingLockedDoor is true when facing a RuinDoorLocked tile in a Ruin zone', () => {
+      const state = createTestState()
+      setupRuinWithDoor(state)
+      expect(isFacingLockedDoor(state)).toBe(true)
+    })
+
+    it('isFacingLockedDoor is false when not in a Ruin zone', () => {
+      const state = createTestState()
+      setupRuinWithDoor(state)
+      state.currentZone = Zone.Overworld
+      expect(isFacingLockedDoor(state)).toBe(false)
+    })
+
+    it('isFacingLockedDoor is false when facing a RuinDoorOpen tile', () => {
+      const state = createTestState()
+      const { doorX, doorY } = setupRuinWithDoor(state)
+      state.map[doorY][doorX] = { type: TileType.RuinDoorOpen }
+      expect(isFacingLockedDoor(state)).toBe(false)
+    })
+
+    it('openLockedGateDialog opens a dialog with the gate speaker on a fresh line', () => {
+      const state = createTestState()
+      setupRuinWithDoor(state)
+      expect(state.activeDialog).toBeNull()
+      openLockedGateDialog(state)
+      expect(state.activeDialog).not.toBeNull()
+      expect(state.activeDialog?.characterId).toBe('gate')
+      expect(state.activeDialog?.lineIndex).toBe(0)
+      expect(state.activeDialog?.typingIndex).toBe(0)
+      expect(state.activeDialog?.typingDone).toBe(false)
+      expect(state.activeDialog?.transitioning).toBe(false)
+    })
+
+    it("the gate speaker says 'The gate is locked.'", () => {
+      const state = createTestState()
+      const def = getCharacterDefinition('gate')
+      expect(def.name).toBe('Gate')
+      const lines = getCharacterDialog(state, 'gate')
+      expect(lines).toHaveLength(1)
+      expect(lines[0]).toBe('The gate is locked.')
+    })
+
+    it('unlockRuinDoor returns false without a key (caller is responsible for opening the dialog)', () => {
+      const state = createTestState()
+      setupRuinWithDoor(state)
+      expect(unlockRuinDoor(state)).toBe(false)
+      expect(state.activeDialog).toBeNull()
+    })
+
+    it('unlockRuinDoor with a key opens the door and does not open the gate dialog', () => {
+      const state = createTestState()
+      setupRuinWithDoor(state)
+      addAqueductKey(state, 1)
+      expect(unlockRuinDoor(state)).toBe(true)
+      expect(state.activeDialog).toBeNull()
+    })
+
+    it('the gate is not returned by getAdjacentCharacter (it is not a world entity)', () => {
+      const state = createTestState()
+      setupRuinWithDoor(state)
+      // Even with the player adjacent to the locked door, the gate must not
+      // surface as an adjacent character.
+      expect(getAdjacentCharacter(state)).toBeNull()
+    })
+
+    it('the gate has no manual entry', () => {
+      // The synthetic gate speaker is registered in CHARACTER_DEFINITIONS
+      // (so the existing dialog modal can render it), but it must be
+      // excluded from manual auto-derivation.
+      expect(CHARACTER_DEFINITIONS.gate).toBeDefined()
+      expect(MANUAL_ENTRIES['character:gate']).toBeUndefined()
     })
   })
 })

@@ -13,6 +13,7 @@ import {
   breakWall,
   interactWithCharacter,
   isInteractableAt,
+  openLockedGateDialog,
   unlockRuinDoor,
   updateFacingEntity,
 } from '@/engine/interaction'
@@ -146,6 +147,8 @@ const resolveClickTarget = (
         } else if (state.map[targetY]?.[targetX]?.type === TileType.RuinDoorLocked) {
           if (unlockRuinDoor(state)) {
             onDiscovery('the lock turns', state.player.x, state.player.y)
+          } else {
+            openLockedGateDialog(state)
           }
         }
         refreshUI()

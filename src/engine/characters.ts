@@ -42,6 +42,12 @@ const CHARACTERS = {
     glyphColor: '#D4A054',
     dialog: [],
   },
+  gate: {
+    name: 'Gate',
+    glyph: '#',
+    glyphColor: '#5FD3BC',
+    dialog: ['The gate is locked.'],
+  },
 } as const satisfies Record<string, CharacterEntry>
 
 export const CHARACTER_DEFINITIONS: Record<string, CharacterDefinition> = Object.fromEntries(

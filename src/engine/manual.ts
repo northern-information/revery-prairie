@@ -273,6 +273,8 @@ const buildCharacterEntries = (): ManualEntry[] => {
     // Ghost definitions are registered dynamically at runtime — skip them.
     // Ghosts have a collective manual-only entry below.
     if (def.id.startsWith('ghost-')) continue
+    // The gate is a synthetic dialog speaker, not a world character.
+    if (def.id === 'gate') continue
 
     const loreData = MANUAL_LORE[`character:${def.id}`]
 
