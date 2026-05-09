@@ -1,0 +1,66 @@
+id: dialog-descender-clipping
+name: Character dialog text clips letter descenders
+priority: medium
+layer: component
+source_files:
+  - src/components/DialogBox.tsx
+  - src/components/__tests__/DialogBox.test.tsx
+dependencies:
+  - dialog-box-presentation
+
+behaviors:
+  - id: descenders-render-fully
+    description: >
+      Dialog body text in the character modal must render letter descenders
+      (g, j, p, q, y) without clipping. The inner text container (the flex
+      column wrapping SectionHeader and the paragraph) must not apply
+      overflow-hidden, because the line-box of a single line of text-xs
+      leading-relaxed (~19.5px) exceeds the residual height of the flex-1
+      region after the SectionHeader's text + mb-3 + pb-2 + border-b
+      consume ~33px of the ~50px available.
+    inputs:
+      - dialog opens for a non-angel character with a portrait
+      - dialog body text contains letters with descenders (e.g. "Coyote", "ghost")
+    outputs:
+      - every glyph in the body paragraph renders fully, descenders included
+      - the inner text container (containing SectionHeader and paragraph) does not have overflow-hidden
+    state_changes: []
+    determinism: deterministic
+
+  - id: layout-stability-preserved
+    description: >
+      Removing overflow-hidden from the inner text container must not break
+      layout stability of the dialog. The dialog retains its h-[240px] outer
+      bound; the typewriter effect bounds line length so natural flex flow
+      handles wrapping; the SectionHeader, paragraph, and TextButton still
+      stack vertically without size jumping between dialog lines.
+    inputs:
+      - dialog cycles through multiple lines of dialog text
+      - text length varies between lines
+    outputs:
+      - dialog outer height stays h-[240px] across all lines
+      - portrait, header, paragraph, and button positions remain consistent
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: short-line-no-descenders
+    description: A line of text with no descender characters (e.g. "hello there") still renders correctly after the fix
+    expected: text renders inside the dialog with no visual change from a non-descender perspective
+  - id: line-with-multiple-descenders
+    description: A line containing several descender letters ("Coyote hasn't returned from the ruins in some time...") renders all descenders fully
+    expected: every y, g, p, q descender is fully visible — none clipped at the line-box bottom
+  - id: typewriter-mid-reveal
+    description: While typingIndex is mid-reveal, the partially-typed line still renders descenders for letters already revealed
+    expected: revealed characters render fully including descenders; no clipping during the typewriter animation
+
+failure_conditions:
+  - trigger: A character dialog line containing descenders renders with descenders clipped at the bottom of the line box
+    expected: descenders render fully; the inner text container in DialogBox.tsx does not apply overflow-hidden
+  - trigger: A future change re-introduces overflow-hidden on the inner text container wrapping the paragraph
+    expected: regression test fails because it asserts the inner text container's class list does not include overflow-hidden
+
+verification:
+  test_file: src/components/__tests__/DialogBox.test.tsx
+  test_pattern: descender|overflow-hidden
+  command: npx vitest run src/components/__tests__/DialogBox.test.tsx

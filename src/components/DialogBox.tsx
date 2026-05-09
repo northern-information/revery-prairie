@@ -52,7 +52,7 @@ export const DialogBox = ({
         className="h-32 w-32 shrink-0 [image-rendering:pixelated]"
       />
     )}
-    <div className="flex min-w-0 flex-1 flex-col self-stretch overflow-hidden">
+    <div className="flex min-w-0 flex-1 flex-col self-stretch">
       <SectionHeader className="shrink-0">{characterName}</SectionHeader>
       {isAngel ? (
         <HashGrid hash={line} revealCount={typingIndex} />
