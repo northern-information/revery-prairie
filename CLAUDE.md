@@ -381,7 +381,10 @@ top-level:
 - `plan.id` — matches the spec id
 - `plan.title` — what the plan accomplishes
 - `plan.created` — date (YYYY-MM-DD)
-- `plan.global_verification` — array of commands run after all tasks (e.g. `npm run build`, `npm run test`, `npm run lint`)
+- `plan.global_verification` — array of commands run after all tasks. scope to the touched layer:
+  - **default** (single-component or narrow change): `npm run typecheck`, `npm run lint`, plus the spec's `verification.command` (the targeted vitest run)
+  - **cross-cutting** (engine layer, integration layer, multiple layers, `shared/` wire protocol changes, or anything that mutates `GameState` shape): `npm run typecheck`, `npm run test`, `npm run lint`
+  - the full suite (`npm run test`) takes ~60s and runs in CI on PR open. local iteration stays fast when scoped.
 
 each task in `tasks[]`:
 

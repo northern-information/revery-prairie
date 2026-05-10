@@ -57,7 +57,10 @@ Show the user the complete spec. Iterate on feedback. Do not proceed until the u
 Create `harness/plans/{feature-id}.yaml` with:
 
 - `plan.id`, `plan.title`, `plan.created` (today's date)
-- `plan.global_verification`: `["npm run build", "npm run test", "npm run lint"]`
+- `plan.global_verification`: scope to the touched layer.
+  - **Default** (single-component or narrow change): `["npm run typecheck", "npm run lint", <the spec's verification.command>]`
+  - **Cross-cutting** (engine layer, integration layer, multiple layers, `shared/` wire protocol changes, or anything that mutates `GameState` shape): `["npm run typecheck", "npm run test", "npm run lint"]`
+  - The full suite (`npm run test`) takes ~60s and runs in CI on PR open. Local iteration stays fast when scoped.
 - `tasks`: ordered list with `id`, `title`, `spec_id`, `output_files`, `depends_on`, `spec_sections`, `context_files`, `verification` commands, `repair` policy, `tags`
 
 Each task should:
