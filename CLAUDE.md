@@ -433,7 +433,11 @@ npm run harness:check    # gate the current branch against origin/main
 
 ## worktrees
 
-after `EnterWorktree`, the Bash tool's working directory does **not** automatically change to the worktree. Read/Edit/Write tools use the worktree path, but Bash stays at the original repo root. always prefix git commands with `cd <worktree-path> &&` or they will silently operate on the main checkout.
+after `EnterWorktree`, the Bash tool's working directory does **not** automatically change to the worktree. always prefix git commands with `cd <worktree-path> &&` or they will silently operate on the main checkout.
+
+Read/Edit/Write tools resolve **relative** paths against the worktree. **Absolute** paths go wherever they point — passing `/Users/.../revery-prairie/src/foo.ts` (the main checkout) instead of `/Users/.../revery-prairie/.claude/worktrees/<branch>/src/foo.ts` will silently edit the main checkout. Prefer relative paths after `EnterWorktree`. If you must use absolute paths, include `.claude/worktrees/<branch>/` in them.
+
+sanity check: after the first Read/Edit/Write, run `git status` in Bash. if it shows the file changed in the worktree branch, you're in the right place. if `git status` is clean inside the worktree but the main checkout shows the change, you've edited the wrong tree — revert and redo.
 
 after `/new-feature`, `/bug-report`, or `/change-request` completes, prompt the user if they want to run the dev server in the worktree: `cd <worktree-path> && npm run dev`.
 
