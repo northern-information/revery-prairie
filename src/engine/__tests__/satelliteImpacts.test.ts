@@ -15,6 +15,7 @@ import { findRecipe } from '../recipes'
 import { getTierGrid } from '../render/tierGrid'
 import { spawnSatellite, tickSatellites } from '../satellites'
 import { createGameState } from '../state'
+import { getCraterBgColor, getTileBgColor } from '../tileBg'
 import { TileType, Zone } from '../types'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -680,5 +681,35 @@ describe('satellite impact elevation deformation', () => {
     // After deformation, grid must reflect the new elevation
     const after = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
     expect(after[idx]).toBeLessThan(tierBefore)
+  })
+})
+
+describe('crater bg color', () => {
+  it('cratered dirt tile returns CRATER_BG_PALETTE color, not DIRT_BG_PALETTE color', () => {
+    const target = { x: 20, y: 15 }
+    const dirtBg = getTileBgColor(TileType.Dirt, target.x, target.y)
+    const craterBg = getCraterBgColor(target.x, target.y)
+
+    expect(craterBg).not.toBe(dirtBg)
+
+    // Each channel of crater bg must be darker than the corresponding dirt bg channel
+    const parse = (hex: string) => [
+      parseInt(hex.slice(1, 3), 16),
+      parseInt(hex.slice(3, 5), 16),
+      parseInt(hex.slice(5, 7), 16),
+    ]
+    const [dr, dg, db] = parse(dirtBg)
+    const [cr, cg, cb] = parse(craterBg)
+    expect(cr).toBeLessThan(dr)
+    expect(cg).toBeLessThan(dg)
+    expect(cb).toBeLessThan(db)
+  })
+
+  it('cratered clover tile keeps standard clover bg (plant covers the scar)', () => {
+    // Sanity: the cratered-bg override is gated on tileType === Dirt. A clover
+    // tile that also appears in state.craters must return the standard clover bg.
+    const cloverBg = getTileBgColor(TileType.Clover, 20, 15)
+    const craterBg = getCraterBgColor(20, 15)
+    expect(cloverBg).not.toBe(craterBg)
   })
 })

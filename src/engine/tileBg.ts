@@ -91,6 +91,25 @@ export const getRiverBgColor = (x: number, y: number): string =>
 export const getPondBgColor = (x: number, y: number): string =>
   POND_BG_PALETTE[tileHash(x, y) % POND_BG_PALETTE.length]
 
+// Satellite craters live as a state.craters Set keyed by posKey rather
+// than as a TileType, so they need their own bg palette overlay. Each
+// entry is the corresponding TileType.Dirt palette color multiplied by
+// 0.80, so cratered ground reads as a subtly darker depression beneath
+// the reddish-brown BUILDING_CHARS glyph.
+export const CRATER_BG_PALETTE: readonly string[] = [
+  '#3B3126',
+  '#392E24',
+  '#3E3327',
+  '#362E24',
+  '#3F3429',
+  '#3A3326',
+  '#3C3124',
+  '#382E23',
+]
+
+export const getCraterBgColor = (x: number, y: number): string =>
+  CRATER_BG_PALETTE[tileHash(x, y) % CRATER_BG_PALETTE.length]
+
 // Multiply each RGB channel of a 6-digit hex color by `factor`. Used for
 // directional wall shading: the lit side keeps factor close to 1 (lightly
 // darkened) and the shadow side uses a smaller factor (more darkening).

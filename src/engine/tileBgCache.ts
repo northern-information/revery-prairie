@@ -2,6 +2,7 @@ import { isInBounds, posKey } from './position'
 import {
   ELEVATION_TIER_COUNT,
   ELEVATION_TIER_LIFT_PX,
+  getCraterBgColor,
   getElevationTier,
   getPondBgColor,
   getRiverBgColor,
@@ -19,6 +20,7 @@ const getEffectiveBgColor = (state: GameState, tileType: TileType, x: number, y:
     const key = posKey(x, y)
     if (state.rivers.has(key)) return getRiverBgColor(x, y)
     if (state.ponds.has(key)) return getPondBgColor(x, y)
+    if (tileType === TileType.Dirt && state.craters.has(key)) return getCraterBgColor(x, y)
   }
   return getTileBgColor(tileType, x, y)
 }

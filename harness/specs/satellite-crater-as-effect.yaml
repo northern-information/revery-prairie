@@ -7,6 +7,8 @@ source_files:
   - src/engine/types.ts
   - src/engine/state.ts
   - src/engine/renderer.ts
+  - src/engine/tileBg.ts
+  - src/engine/tileBgCache.ts
   - src/engine/effects.ts
   - src/engine/entities.ts
   - src/engine/recipes.ts
@@ -82,15 +84,22 @@ behaviors:
   - id: crater-renders-visually
     description: >
       Cratered dirt tiles render using civilization ruin glyphs
-      (BUILDING_CHARS) with a reddish-brown color palette — the same
-      visual as before, but gated on state.craters.has(tileKey) rather
-      than tile.type === TileType.Crater. Cratered clover tiles render
-      as clover (the plant covers the scar visually); the crater effect
-      is still tracked and shown in the sidebar.
+      (BUILDING_CHARS) with a reddish-brown foreground color palette and
+      a CRATER_BG_PALETTE background palette that is approximately 20%
+      darker than the corresponding standard DIRT bg palette. The
+      foreground gate remains state.craters.has(tileKey); the background
+      gate is added in tileBg.ts via a new getCraterBgColor(x, y) and
+      consumed by tileBgCache.getEffectiveBgColor for Dirt tiles whose
+      posKey is in state.craters. Like DIRT bg, the crater bg is per-tile
+      varied (hashed across the palette) rather than a single flat shade.
+      Cratered clover tiles continue to render as clover for both glyph
+      and background — the crater effect is still tracked and shown in
+      the sidebar but the bg darkening only applies under Dirt.
     inputs:
       - 'Tile at position is Dirt and posKey is in state.craters'
     outputs:
-      - 'Tile rendered with BUILDING_CHARS glyph and reddish-brown color'
+      - 'Tile rendered with BUILDING_CHARS glyph and reddish-brown foreground color'
+      - 'Tile background filled from CRATER_BG_PALETTE (≈20% darker than DIRT_BG_PALETTE), hashed per-tile'
     state_changes: []
     determinism: deterministic
 
@@ -162,6 +171,12 @@ edge_cases:
   - id: protected-tiles-in-zone
     description: '5x5 impact zone contains sand, cave entrance, or walls'
     expected: 'Protected tiles are not added to state.craters and are not visually changed'
+  - id: runtime-impact-bg-refresh
+    description: 'Satellite impacts a previously-uncratered Dirt tile during gameplay'
+    expected: 'The tileBgCache repaints the affected tiles via the existing onElevationMutated path, so the darker crater bg becomes visible without a manual cache invalidation'
+  - id: genesis-crater-bg-on-first-build
+    description: 'Genesis-era craters are present in state.craters when createGameState completes'
+    expected: 'The first tileBgCache build for the overworld map picks up the darker crater bg for those tiles (no separate invalidation needed)'
 
 failure_conditions:
   - trigger: 'Player hovers a satellite impact site after the impact explosion fades'
@@ -170,6 +185,10 @@ failure_conditions:
     expected: 'Tile becomes Clover, crater entry persists, soil health remains damaged (regression: previously tile-type change masked the soil data)'
   - trigger: 'Code references TileType.Crater after migration'
     expected: 'TypeScript build fails (TileType.Crater removed from types.ts)'
+  - trigger: 'getEffectiveBgColor is called for a Dirt tile whose posKey is in state.craters'
+    expected: 'Returns a CRATER_BG_PALETTE color (≈20% darker than DIRT_BG_PALETTE), not the standard dirt bg'
+  - trigger: 'A Clover tile is in state.craters'
+    expected: 'getEffectiveBgColor returns the standard CLOVER bg (crater bg only applies under Dirt — the plant visually covers the scar)'
 
 verification:
   test_file: src/engine/__tests__/satelliteImpacts.test.ts
