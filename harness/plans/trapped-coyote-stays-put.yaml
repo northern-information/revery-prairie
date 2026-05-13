@@ -1,0 +1,53 @@
+plan:
+  id: trapped-coyote-stays-put
+  title: 'Fix instant coyote rescue: do not teleport trapped coyote on ruin entry/exit'
+  created: '2026-05-13'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/trapped-coyote-stays-put.test.ts
+
+tasks:
+  - id: regression-test
+    title: 'Write regression test that fails on main: entering coyote-role ruin must not place coyote adjacent to player'
+    spec_id: trapped-coyote-stays-put
+    spec_sections:
+      - trapped-coyote-not-teleported-on-ruin-entry
+      - trapped-coyote-not-dragged-on-ruin-exit
+      - rescued-coyote-still-follows-across-zones
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/coyote.ts
+      - src/engine/interaction.ts
+      - src/engine/movement.ts
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/__tests__/ruin-dormant-garden.test.ts
+    output_files:
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/engine/__tests__/trapped-coyote-stays-put.test.ts'
+    repair: retry
+    tags: [engine, test]
+
+  - id: gate-transition-coyote-to-zone
+    title: 'Gate transitionCoyoteToZone position teleport on quest phase past AwaitingCoyote'
+    spec_id: trapped-coyote-stays-put
+    spec_sections:
+      - trapped-coyote-not-teleported-on-ruin-entry
+      - trapped-coyote-not-dragged-on-ruin-exit
+      - rescued-coyote-still-follows-across-zones
+    context_files:
+      - src/engine/coyote.ts
+      - src/engine/types.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/coyote.ts
+    depends_on:
+      - regression-test
+    verification:
+      - 'npx vitest run src/engine/__tests__/trapped-coyote-stays-put.test.ts'
+      - 'npx vitest run src/engine/__tests__/main-questline.test.ts'
+      - 'npx vitest run src/engine/__tests__/coyote.test.ts'
+    repair: retry
+    tags: [engine]

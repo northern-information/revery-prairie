@@ -1,0 +1,111 @@
+id: trapped-coyote-stays-put
+name: 'Trapped coyote stays put on ruin entry'
+priority: high
+layer: engine
+source_files:
+  - src/engine/ruins.ts
+  - src/engine/coyote.ts
+dependencies:
+  - main-questline-foundation
+  - coyote-companion
+
+behaviors:
+  - id: trapped-coyote-not-teleported-on-ruin-entry
+    description: >
+      When the player enters a ruin and the coyote has not yet been
+      rescued (mainQuestPhase === 'awaiting-coyote'), the coyote
+      entity must remain at the position where spawnDormantGardenItems
+      placed it — past the collapseBarrier on the vault side. The
+      zone-following helper that pulls a companion coyote to a tile
+      adjacent to the player on cave/ruin transitions must skip its
+      teleport step while the coyote is still trapped. The coyote's
+      EntityZone may still be updated (so cross-zone bookkeeping
+      stays consistent) but its Position must not be moved.
+    inputs:
+      - 'enterRuin runs for a coyote-role ruin while state.mainQuestPhase === "awaiting-coyote"'
+      - 'spawnDormantGardenItems has just placed the coyote past the collapseBarrier'
+    outputs:
+      - 'coyote Position component is unchanged after enterRuin returns'
+      - 'coyote is not cardinally adjacent to state.player'
+      - 'state.mainQuestPhase remains "awaiting-coyote"'
+      - 'no "Rescued Coyote!" toast is queued'
+    state_changes:
+      - field: 'world (coyote entity Position component)'
+        effect: 'unchanged — coyote remains at its spawn tile past the collapseBarrier'
+      - field: mainQuestPhase
+        effect: 'unchanged — remains "awaiting-coyote"'
+    determinism: deterministic
+
+  - id: trapped-coyote-not-dragged-on-ruin-exit
+    description: >
+      When the player exits a coyote-role ruin without rescuing the
+      coyote (mainQuestPhase === 'awaiting-coyote'), the coyote
+      entity must remain inside the ruin at its trapped position.
+      The zone-following helper must not move the trapped coyote to
+      the overworld adjacent to the player.
+    inputs:
+      - 'exitRuin runs while state.mainQuestPhase === "awaiting-coyote" and a coyote entity exists with EntityZone Ruin'
+    outputs:
+      - 'coyote Position component is unchanged after exitRuin returns'
+      - 'coyote EntityZone remains Zone.Ruin with the original ruinIndex'
+      - 'coyote is not present on the overworld adjacent to state.player'
+    state_changes:
+      - field: 'world (coyote entity Position component)'
+        effect: 'unchanged — coyote stays at its trapped tile'
+      - field: 'world (coyote entity EntityZone component)'
+        effect: 'unchanged — remains Zone.Ruin with original ruinIndex'
+    determinism: deterministic
+
+  - id: rescued-coyote-still-follows-across-zones
+    description: >
+      Once the coyote has been rescued (mainQuestPhase advanced past
+      'awaiting-coyote'), the zone-following helper resumes its
+      original behavior: on every enterRuin / exitRuin / enterCave /
+      exitCave call, the coyote entity is teleported to a walkable
+      tile cardinally adjacent to the player in the destination
+      zone. This is the existing companion-follow behavior and must
+      not regress.
+    inputs:
+      - 'enterRuin or exitRuin runs while state.mainQuestPhase !== "awaiting-coyote" and a coyote entity exists'
+    outputs:
+      - 'coyote is at a walkable tile cardinally adjacent to state.player'
+      - 'coyote EntityZone matches the new zone'
+    state_changes:
+      - field: 'world (coyote entity Position component)'
+        effect: 'moved to a walkable tile adjacent to the player in the destination zone'
+      - field: 'world (coyote entity EntityZone component)'
+        effect: 'updated to match the destination zone (and ruinIndex when applicable)'
+    determinism: deterministic
+
+edge_cases:
+  - id: no-coyote-entity-present
+    description: >
+      enterRuin or exitRuin runs and there is no coyote entity in
+      the world (the player has never entered the coyote-role ruin
+      and the trapped coyote has not been spawned).
+    expected: 'transitionCoyoteToZone is a no-op; no errors thrown; no state changes related to the coyote.'
+
+  - id: trapped-coyote-spawn-and-entry-in-same-call
+    description: >
+      First entry to the coyote-role ruin: spawnDormantGardenItems
+      creates the trapped coyote immediately before
+      transitionCoyoteToZone runs in the same enterRuin call.
+    expected: 'The trapped coyote remains at its spawn tile past the collapseBarrier — its Position is not modified by transitionCoyoteToZone.'
+
+  - id: player-takes-a-step-after-entry
+    description: >
+      Player enters the coyote-role ruin for the first time and
+      then takes one cardinal step in any direction without first
+      clearing the collapseBarrier.
+    expected: 'tryCoyoteRescueOnApproach runs after the step, finds the trapped coyote is more than 1 tile away, and does not fire the rescue. mainQuestPhase remains AwaitingCoyote.'
+
+failure_conditions:
+  - trigger: 'Player enters the coyote-role ruin for the first time and takes a single step without breaking any collapseBarrier tile.'
+    expected: 'No rescue fires. mainQuestPhase remains "awaiting-coyote". No "Rescued Coyote!" toast is queued. The coyote is still on the vault side of the rubble, more than 1 tile away from the player.'
+  - trigger: 'Player enters the coyote-role ruin and exits without rescuing the coyote.'
+    expected: 'Coyote remains inside the ruin at its spawn position; coyote is not visible on the overworld adjacent to the player after exitRuin.'
+
+verification:
+  test_file: src/engine/__tests__/trapped-coyote-stays-put.test.ts
+  test_pattern: 'trapped coyote stays put on ruin entry'
+  command: 'npx vitest run src/engine/__tests__/trapped-coyote-stays-put.test.ts'

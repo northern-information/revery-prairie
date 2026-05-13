@@ -5,7 +5,7 @@ import { findFitPosition, placeItem } from './inventory'
 import { getBlockedPositions } from './movement'
 import { findPath } from './pathfinding'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
-import { CoyoteMode, Zone } from './types'
+import { CoyoteMode, MainQuestPhase, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
@@ -332,12 +332,20 @@ const tickCollect = (
   }
 }
 
-/** Teleport coyote to adjacent tile in a new zone after cave transition. */
+/** Teleport coyote to adjacent tile in a new zone after cave transition.
+ *  Skipped while the coyote is still trapped (mainQuestPhase === AwaitingCoyote)
+ *  — the trapped quest NPC stays at its spawn past the rubble. */
 export const transitionCoyoteToZone = (state: GameState, zone: Zone): void => {
+  const trapped = state.mainQuestPhase === MainQuestPhase.AwaitingCoyote
   // Find coyote in any zone
   for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
     if (identity?.definitionId !== 'coyote') continue
+
+    if (trapped) {
+      state.coyotePath = null
+      return
+    }
 
     // Update zone — caller has already set state.currentZone/currentRuinIndex
     state.world.addComponent(eid, ComponentType.EntityZone, getCurrentEntityZone(state))
