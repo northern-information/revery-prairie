@@ -11,7 +11,7 @@ import {
 import { ComponentType } from '../ecs/types'
 import { getBlockedPositions, getPathfindingBlockers, movePlayer } from '../movement'
 import { posKey } from '../position'
-import { CoyoteMode, TileType, Zone } from '../types'
+import { CoyoteMode, MainQuestPhase, TileType, Zone } from '../types'
 
 import {
   clearAroundPlayer,
@@ -470,6 +470,10 @@ describe('coyote companion', () => {
   describe('cave transition', () => {
     it('moves coyote to cave zone', () => {
       const state = createCoyoteState()
+      // Cave-transition tests describe the rescued companion following the
+      // player across zones, which only happens post-rescue. Advance past
+      // AwaitingCoyote so transitionCoyoteToZone performs the teleport.
+      state.mainQuestPhase = MainQuestPhase.Gathering
       clearAroundPlayer(state, 10)
 
       // Simulate entering cave: set zone and map to cave
@@ -491,6 +495,7 @@ describe('coyote companion', () => {
 
     it('coyote follows player step-by-step through cave corridors', () => {
       const state = createCoyoteState()
+      state.mainQuestPhase = MainQuestPhase.Gathering
 
       // Switch to cave
       state.map = state.caveMap
