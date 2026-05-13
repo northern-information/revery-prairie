@@ -1,3 +1,4 @@
+import { updateCamera } from './camera'
 import { EDGE_SCROLL_SPEED_TILES_PER_SEC, EDGE_SCROLL_ZONE_PX } from './constants'
 
 import type { CharMetrics, GameState } from './types'
@@ -149,7 +150,15 @@ export const tickEdgeScroll = (state: GameState, metrics: CharMetrics, time: num
  * Snap camera back to follow mode and recenter on the player. Called
  * after a successful WASD-driven move. Click-to-move and other
  * movement paths do NOT call this — they leave the user's pan intact.
+ *
+ * Force-recenters in the same call: flipping cameraMode alone is not
+ * enough because tickEdgeScroll will flip it straight back to 'free' on
+ * the next frame whenever state.edgeScrollPos lingers in an edge zone
+ * (e.g. mouse parked near the canvas edge). Without the force-recenter,
+ * movePlayer's internal updateCamera early-returns in free mode and the
+ * player accumulates off-center on canvas with every WASD step.
  */
 export const recenterCamera = (state: GameState): void => {
   state.cameraMode = 'follow'
+  updateCamera(state, true)
 }

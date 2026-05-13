@@ -1,0 +1,48 @@
+plan:
+  id: wasd-camera-recenter
+  title: 'Fix WASD camera drift when mouse cursor lingers in canvas edge zone'
+  created: '2026-05-13'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/edgeScroll.test.ts src/engine/__tests__/camera.test.ts
+
+tasks:
+  - id: regression-tests
+    title: 'Add regression tests that fail on main: recenterCamera must snap the camera onto the player; WASD tick must recenter even with lingering edgeScrollPos'
+    spec_id: wasd-camera-recenter
+    spec_sections:
+      - recenter-snaps-camera-on-player
+      - wasd-recenter-survives-lingering-edge-scroll-pos
+    context_files:
+      - src/engine/edgeScroll.ts
+      - src/engine/camera.ts
+      - src/engine/__tests__/edgeScroll.test.ts
+      - src/engine/__tests__/camera.test.ts
+    output_files:
+      - src/engine/__tests__/edgeScroll.test.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/engine/__tests__/edgeScroll.test.ts -t recenterCamera'
+    repair: retry
+    tags: [engine, test]
+
+  - id: force-recenter-in-recenter-camera
+    title: 'recenterCamera must force-recenter the camera in the same call (flip mode AND call updateCamera with forceCenter)'
+    spec_id: wasd-camera-recenter
+    spec_sections:
+      - recenter-snaps-camera-on-player
+      - wasd-recenter-survives-lingering-edge-scroll-pos
+    context_files:
+      - src/engine/edgeScroll.ts
+      - src/engine/camera.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/edgeScroll.ts
+    depends_on:
+      - regression-tests
+    verification:
+      - 'npx vitest run src/engine/__tests__/edgeScroll.test.ts'
+      - 'npx vitest run src/engine/__tests__/camera.test.ts'
+    repair: retry
+    tags: [engine]

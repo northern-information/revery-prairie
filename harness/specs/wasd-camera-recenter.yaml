@@ -1,0 +1,80 @@
+id: wasd-camera-recenter
+name: 'WASD camera recenter survives lingering edge-scroll position'
+priority: high
+layer: engine
+source_files:
+  - src/engine/edgeScroll.ts
+  - src/engine/gameLoop.ts
+  - src/engine/__tests__/edgeScroll.test.ts
+dependencies:
+  - camera-iso-follow
+
+behaviors:
+  - id: recenter-snaps-camera-on-player
+    description: >
+      recenterCamera flips state.cameraMode to 'follow' AND immediately calls
+      updateCamera(state, true) so the camera position snaps onto the player
+      in the same call. This makes recenterCamera the atomic "stop free pan,
+      restore follow framing" primitive — callers do not have to remember to
+      pair it with a separate updateCamera invocation.
+    inputs:
+      - 'GameState in any cameraMode'
+      - 'GameState.camera at arbitrary position (possibly off-center from player)'
+    outputs:
+      - 'state.cameraMode === follow'
+      - 'state.camera positioned so player projects to canvas center per updateCamera follow-mode math'
+    state_changes:
+      - field: state.cameraMode
+        effect: "set to 'follow'"
+      - field: state.camera.x
+        effect: 'set to player.x - floor(visibleWidth / 2) when map >= visible; otherwise small-map centering'
+      - field: state.camera.y
+        effect: 'set to player.y - floor(viewportHeight / 2) when map >= viewport; otherwise small-map centering'
+    determinism: deterministic
+
+  - id: wasd-recenter-survives-lingering-edge-scroll-pos
+    description: >
+      After a successful WASD-driven move in the game loop, the camera is
+      recentered on the player even when state.edgeScrollPos is still set
+      (e.g. the user's mouse cursor is parked in a canvas edge zone). The
+      sequence per WASD tick is: movePlayer → recenterCamera. movePlayer's
+      internal updateCamera call early-returns when cameraMode is 'free',
+      so the recenter step must do the actual camera snap. Without this,
+      tickEdgeScroll flips the mode back to 'free' on the next frame before
+      the player's next WASD step and the player accumulates off-center on
+      canvas.
+    inputs:
+      - 'state.heldDirection set by keyboard (WASD pressed)'
+      - 'state.edgeScrollPos set to a position inside an edge zone'
+      - 'state.cameraMode possibly toggled to free by prior tickEdgeScroll'
+    outputs:
+      - 'after the WASD move tick, state.camera positions the player at canvas center'
+      - 'player viewport tile coordinates (player.x - camera.x, player.y - camera.y) match follow-mode values'
+    state_changes:
+      - field: state.cameraMode
+        effect: "set to 'follow' after the WASD tick"
+      - field: state.camera
+        effect: 'recentered on player position after the WASD tick, even when edgeScrollPos lingers in an edge zone'
+    determinism: deterministic
+
+edge_cases:
+  - id: idle-mouse-at-edge
+    description: 'User parks the mouse cursor in a canvas edge-scroll zone, then holds WASD to walk'
+    expected: 'Player stays anchored at canvas center every step; mouse position does not pull the camera off the player'
+  - id: edge-pan-then-wasd
+    description: 'User intentionally edge-pans to look ahead, then presses WASD to move'
+    expected: 'First WASD step snaps the camera onto the player; subsequent steps keep the player centered'
+  - id: already-follow-idempotent
+    description: 'recenterCamera called when cameraMode is already follow and camera already centered on player'
+    expected: 'No observable change; idempotent'
+
+failure_conditions:
+  - trigger: 'User holds WASD with mouse parked in canvas edge zone; player drifts off canvas center over multiple steps'
+    expected: 'Cannot occur — every WASD tick force-recenters the camera on the player regardless of cameraMode entering the tick'
+  - trigger: 'recenterCamera sets cameraMode but leaves state.camera stale; next render shows player off-center'
+    expected: 'Cannot occur — recenterCamera always force-recenters the camera in the same call'
+
+verification:
+  test_file: src/engine/__tests__/edgeScroll.test.ts
+  test_pattern: recenterCamera
+  command: 'npx vitest run src/engine/__tests__/edgeScroll.test.ts'

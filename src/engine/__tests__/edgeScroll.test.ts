@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { EDGE_SCROLL_SPEED_TILES_PER_SEC, EDGE_SCROLL_ZONE_PX, MAP_HEIGHT, MAP_WIDTH } from '../constants'
 import { computeEdgeScrollDirection, recenterCamera, tickEdgeScroll } from '../edgeScroll'
+import { createGameState } from '../state'
 
 import type { CharMetrics, GameState } from '../types'
 
@@ -311,15 +312,54 @@ describe('tickEdgeScroll — indicator fade', () => {
 })
 
 describe('recenterCamera', () => {
-  it("sets cameraMode to 'follow'", () => {
-    const state = makeState({ cameraMode: 'free' })
+  // Regression: holding WASD with the mouse cursor parked in a canvas edge
+  // zone used to let tickEdgeScroll repeatedly flip cameraMode to 'free' on
+  // a frame in between WASD moves. movePlayer's updateCamera call would
+  // early-return, recenterCamera flipped the flag but did NOT snap the
+  // camera, and the player drifted off canvas center step by step.
+  it('snaps camera onto player when called from a free-mode stale camera', () => {
+    const state = createGameState('Test', 40, 40)
+    const visibleWidth = state.viewportWidth - state.rightInsetTiles
+    state.player.x = 50
+    state.player.y = 50
+    // Simulate prior edge-scroll: free mode, camera off-center.
+    state.cameraMode = 'free'
+    state.camera.x = state.player.x - Math.floor(visibleWidth / 2) + 8
+    state.camera.y = state.player.y - Math.floor(state.viewportHeight / 2) - 5
+
     recenterCamera(state)
+
     expect(state.cameraMode).toBe('follow')
+    expect(state.camera.x).toBe(state.player.x - Math.floor(visibleWidth / 2))
+    expect(state.camera.y).toBe(state.player.y - Math.floor(state.viewportHeight / 2))
   })
 
-  it('is idempotent', () => {
-    const state = makeState({ cameraMode: 'follow' })
+  it('after recenter, player viewport coords match the follow-mode invariant', () => {
+    const state = createGameState('Test', 40, 40)
+    const visibleWidth = state.viewportWidth - state.rightInsetTiles
+    state.player.x = 90
+    state.player.y = 30
+    state.cameraMode = 'free'
+    state.camera.x = 0
+    state.camera.y = 0
+
+    recenterCamera(state)
+
+    const vx = state.player.x - state.camera.x
+    const vy = state.player.y - state.camera.y
+    expect(vx).toBe(Math.floor(visibleWidth / 2))
+    expect(vy).toBe(Math.floor(state.viewportHeight / 2))
+  })
+
+  it('is idempotent when already in follow mode and centered', () => {
+    const state = createGameState('Test', 40, 40)
+    state.player.x = 60
+    state.player.y = 60
+    state.cameraMode = 'follow'
+    recenterCamera(state)
+    const camAfterFirst = { x: state.camera.x, y: state.camera.y }
     recenterCamera(state)
     expect(state.cameraMode).toBe('follow')
+    expect(state.camera).toEqual(camAfterFirst)
   })
 })
