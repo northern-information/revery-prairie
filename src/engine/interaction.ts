@@ -5,6 +5,7 @@ import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
+import { spawnBeeOrMonarch } from './monarch'
 import { queueEvent } from './ruins'
 import { invalidateMapCache } from './tileBgCache'
 import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
@@ -186,6 +187,12 @@ export const advanceDialog = (
 
   const characterId = state.activeDialog.characterId
   state.activeDialog = null
+
+  // Gron has been saving these — release them when his sealed dialog closes.
+  if (characterId === 'gron' && state.pendingSavedBees) {
+    releaseSavedBees(state)
+    state.pendingSavedBees = false
+  }
 
   // Give initial gift when completing the initial dialog
   if (!state.giftsReceived.has(characterId)) {
@@ -447,6 +454,38 @@ const pickAdjacentWalkableTile = (state: GameState, px: number, py: number): Pos
   return null
 }
 
+/** Release up to 3 bees on tiles in a 3x3 radius around the player. Prefers
+ *  clover tiles; falls back to any walkable non-water tile in the radius if
+ *  fewer than 3 clover tiles are available. Returns the number spawned. */
+const releaseSavedBees = (state: GameState): number => {
+  const cloverTiles: Position[] = []
+  const fallbackTiles: Position[] = []
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const tx = state.player.x + dx
+      const ty = state.player.y + dy
+      if (!isInBounds(tx, ty, state.mapWidth, state.mapHeight)) continue
+      const tile = state.map[ty][tx].type
+      if (!isWalkableTile(tile)) continue
+      const k = posKey(tx, ty)
+      if (state.ponds.has(k) || state.rivers.has(k)) continue
+      if (tile === TileType.Clover) {
+        cloverTiles.push({ x: tx, y: ty })
+      } else {
+        fallbackTiles.push({ x: tx, y: ty })
+      }
+    }
+  }
+  const candidates = [...cloverTiles, ...fallbackTiles]
+  const targetCount = Math.min(3, candidates.length)
+  for (let i = 0; i < targetCount; i++) {
+    const idx = Math.floor(Math.random() * candidates.length)
+    const [pick] = candidates.splice(idx, 1)
+    spawnBeeOrMonarch(state, pick.x, pick.y)
+  }
+  return targetCount
+}
+
 /** Called after a successful bee+clover combine. If the player is on the
  *  overworld and has not yet been sealed, teleport Gron adjacent to the
  *  player, advance mainQuestPhase to Sealed, and auto-open Gron's dialog.
@@ -478,6 +517,7 @@ export const triggerStewardSeal = (state: GameState): void => {
   }
 
   state.mainQuestPhase = MainQuestPhase.Sealed
+  state.pendingSavedBees = true
   recordDiscovery(state, 'event:steward-sealed')
 
   state.activeDialog = {

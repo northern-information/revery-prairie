@@ -87,6 +87,7 @@ const EXPECTED_FIELDS = [
   'civilizationRuins',
   'mainQuestPhase',
   'ruinGenerationMode',
+  'pendingSavedBees',
   'deepTime',
   'deepTimeTransition',
   'postGiftActionsCompleted',
