@@ -1,0 +1,142 @@
+plan:
+  id: pickup-hitbox
+  title: Unify player pickup hitbox to 3x3 Chebyshev for ground items, bees, and meteorites
+  created: 2026-05-13
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/entities.test.ts src/engine/__tests__/meteoriteChainExplosion.test.ts src/engine/__tests__/pickupBloom.test.ts
+
+tasks:
+  - id: expand-bee-pickup
+    title: Expand bee capture hitbox from player tile to 3x3 Chebyshev
+    spec_id: pickup-hitbox
+    spec_sections:
+      - bee-pickup-3x3
+    context_files:
+      - src/engine/entities.ts
+      - harness/specs/pickup-hitbox.yaml
+    output_files:
+      - src/engine/entities.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: expand-meteorite-pickup
+    title: Expand meteorite pickup and chain-explosion hitbox to 3x3 Chebyshev
+    spec_id: pickup-hitbox
+    spec_sections:
+      - meteorite-pickup-3x3
+      - chain-explosion-3x3
+    context_files:
+      - src/engine/entities.ts
+      - harness/specs/pickup-hitbox.yaml
+      - harness/specs/meteorite-chain-explosion.yaml
+    output_files:
+      - src/engine/entities.ts
+    depends_on:
+      - expand-bee-pickup
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: refactor-scan-helper
+    title: Extract a single 3x3 scan helper to share between ground items, bees, and meteorites
+    spec_id: pickup-hitbox
+    spec_sections:
+      - ground-item-pickup-3x3
+      - bee-pickup-3x3
+      - meteorite-pickup-3x3
+    context_files:
+      - src/engine/entities.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on:
+      - expand-meteorite-pickup
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags:
+      - engine
+      - refactor
+
+  - id: add-bee-hitbox-tests
+    title: Add tests asserting bees are captured from each of the 8 neighbor tiles
+    spec_id: pickup-hitbox
+    spec_sections:
+      - bee-pickup-3x3
+    context_files:
+      - src/engine/__tests__/entities.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/entities.test.ts
+    depends_on:
+      - refactor-scan-helper
+    verification:
+      - npx vitest run src/engine/__tests__/entities.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: add-meteorite-hitbox-tests
+    title: Add tests asserting meteorites pick up from each of the 8 neighbor tiles
+    spec_id: pickup-hitbox
+    spec_sections:
+      - meteorite-pickup-3x3
+    context_files:
+      - src/engine/__tests__/entities.test.ts
+      - src/engine/__tests__/meteoriteChainExplosion.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/entities.test.ts
+    depends_on:
+      - refactor-scan-helper
+    verification:
+      - npx vitest run src/engine/__tests__/entities.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: add-chain-explosion-hitbox-tests
+    title: Add tests asserting chain explosion can roll on adjacent meteorites and centers at their tile
+    spec_id: pickup-hitbox
+    spec_sections:
+      - chain-explosion-3x3
+      - chain-roll-independence
+    context_files:
+      - src/engine/__tests__/meteoriteChainExplosion.test.ts
+      - src/engine/entities.ts
+    output_files:
+      - src/engine/__tests__/meteoriteChainExplosion.test.ts
+    depends_on:
+      - refactor-scan-helper
+    verification:
+      - npx vitest run src/engine/__tests__/meteoriteChainExplosion.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: regression-bloom-single-event
+    title: Add regression test confirming a single bloom spawns when multiple 3x3 items are picked up
+    spec_id: pickup-hitbox
+    spec_sections:
+      - bloom-single-event
+    context_files:
+      - src/engine/__tests__/pickupBloom.test.ts
+    output_files:
+      - src/engine/__tests__/pickupBloom.test.ts
+    depends_on:
+      - add-bee-hitbox-tests
+      - add-meteorite-hitbox-tests
+    verification:
+      - npx vitest run src/engine/__tests__/pickupBloom.test.ts
+    repair: retry
+    tags:
+      - test
+      - regression

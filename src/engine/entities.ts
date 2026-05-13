@@ -45,22 +45,31 @@ export interface PickUpResult {
   chainExplosions: number
 }
 
+// Scan the 3x3 Chebyshev footprint centered on (cx, cy) and return all
+// entities at those tiles whose EntityTag matches `tag`. Used for all
+// player pickup checks (ground items, bees, meteorites) so the hitbox
+// is uniform.
+const scanTagged3x3 = (state: GameState, cx: number, cy: number, tag: string): Entity[] => {
+  const result: Entity[] = []
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (const eid of state.world.spatial.at(cx + dx, cy + dy)) {
+        if (state.world.getComponent(eid, ComponentType.EntityTag) === tag) {
+          result.push(eid)
+        }
+      }
+    }
+  }
+  return result
+}
+
 export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult => {
   const px = state.player.x
   const py = state.player.y
   const pickedUp: string[] = []
 
-  // Ground items: scan 3x3 footprint (Chebyshev distance <= 1); bees use exact tile below
-  const groundItemsInRange: number[] = []
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      state.world.spatial
-        .at(px + dx, py + dy)
-        .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
-        .forEach(eid => groundItemsInRange.push(eid))
-    }
-  }
-  for (const eid of groundItemsInRange) {
+  // All three pickup checks share a 3x3 Chebyshev footprint centered on the player.
+  for (const eid of scanTagged3x3(state, px, py, 'groundItem')) {
     const itemDrop = state.world.getComponent(eid, ComponentType.ItemDrop)
     if (!itemDrop) continue
     const fit = findFitPosition(state.backpack, itemDrop.definitionId)
@@ -75,10 +84,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     }
   }
 
-  const beesAtPlayer = state.world.spatial
-    .at(px, py)
-    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
-  for (const eid of beesAtPlayer) {
+  for (const eid of scanTagged3x3(state, px, py, 'bee')) {
     const fit = findFitPosition(state.backpack, 'bee')
     if (fit) {
       placeItem(state.backpack, 'bee', fit.gridX, fit.gridY)
@@ -88,27 +94,33 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     }
   }
 
+  // Snapshot meteorite candidates BEFORE the chain phase mutates the world.
+  // The pickup phase iterates this snapshot so chain-spawned meteorites that
+  // happen to land within the player's 3x3 footprint are not captured on the
+  // same tick — they must be picked up on a later tick, matching the prior
+  // single-tile semantic where chain spawns landed outside the pickup tile.
+  const meteoriteCandidates = scanTagged3x3(state, px, py, 'meteorite')
+
   // Chain explosion: roll first, then capture survivors.
   // Exploded meteorites are consumed (removed, not picked up).
+  // Chain center is the meteorite's own tile, not the player's.
   let chainExplosions = 0
   if (time !== undefined) {
-    const meteoritesAtPlayer = state.world.spatial
-      .at(px, py)
-      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
-    for (const eid of meteoritesAtPlayer) {
+    for (const eid of meteoriteCandidates) {
       const chain = state.world.getComponent(eid, ComponentType.ChainSource)
-      if (!chain?.fromChain && Math.random() < CHAIN_EXPLOSION_CHANCE) {
-        state.world.destroyEntity(eid)
-        chainExplosions += spawnChainMeteorites(state, { x: px, y: py }, time)
-      }
+      if (chain?.fromChain) continue
+      if (Math.random() >= CHAIN_EXPLOSION_CHANCE) continue
+      const mpos = state.world.getComponent(eid, ComponentType.Position)
+      if (!mpos) continue
+      const center = { x: mpos.x, y: mpos.y }
+      state.world.destroyEntity(eid)
+      chainExplosions += spawnChainMeteorites(state, center, time)
     }
   }
 
-  // Capture surviving meteorites at player position
-  const remainingMeteoritesAtPlayer = state.world.spatial
-    .at(px, py)
-    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
-  for (const eid of remainingMeteoritesAtPlayer) {
+  for (const eid of meteoriteCandidates) {
+    // Skip entities the chain phase already destroyed.
+    if (state.world.getComponent(eid, ComponentType.Position) === undefined) continue
     const fit = findFitPosition(state.backpack, 'meteorite')
     if (fit) {
       placeItem(state.backpack, 'meteorite', fit.gridX, fit.gridY)
