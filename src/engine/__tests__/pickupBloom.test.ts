@@ -143,6 +143,24 @@ describe('single bloom per event', () => {
     const blooms = queryPickupBlooms(state)
     expect(blooms).toHaveLength(1)
   })
+
+  it('spawns exactly one bloom when items are spread across the 3x3 footprint', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    // Items at 4 distinct neighbor tiles + a bee at a 5th — all within Chebyshev 1
+    createGroundItemEntity(state, 'honey', state.player.x - 1, state.player.y - 1)
+    createGroundItemEntity(state, 'coin', state.player.x + 1, state.player.y - 1)
+    createGroundItemEntity(state, 'honey', state.player.x - 1, state.player.y + 1)
+    createGroundItemEntity(state, 'coin', state.player.x + 1, state.player.y + 1)
+    createBeeEntity(state, state.player.x, state.player.y + 1)
+
+    const result = pickUpGroundItems(state, 5000)
+    // All 5 items should be picked up
+    expect(result.pickedUp).toHaveLength(5)
+
+    const blooms = queryPickupBlooms(state)
+    expect(blooms).toHaveLength(1)
+  })
 })
 
 describe('harvest bloom', () => {

@@ -408,5 +408,99 @@ describe('chain explosion', () => {
       const result = pickUpGroundItems(state, 1000)
       expect(result.chainExplosions).toBe(0)
     })
+
+    it('rolls chain explosion for meteorite within 3x3 of player', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 5)
+      // Meteorite one tile NE of player — not on player tile
+      const mx = state.player.x + 1
+      const my = state.player.y - 1
+      createMeteoriteEntity(state, mx, my)
+
+      vi.spyOn(Math, 'random').mockReturnValue(0.1)
+      try {
+        const result = pickUpGroundItems(state, 1000)
+        expect(result.chainExplosions).toBe(3)
+        expect(result.pickedUp).not.toContain('meteorite')
+        // Original meteorite consumed
+        const remaining = state.world.spatial
+          .at(mx, my)
+          .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+        expect(remaining).toHaveLength(0)
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('centers chain explosion on the meteorite tile, not the player tile', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 5)
+      const mx = state.player.x + 1
+      const my = state.player.y - 1
+      createMeteoriteEntity(state, mx, my)
+
+      vi.spyOn(Math, 'random').mockReturnValue(0.1)
+      try {
+        pickUpGroundItems(state, 1000)
+        // Spawned chain meteorites should be within CHAIN_EXPLOSION_RADIUS (3)
+        // of (mx, my), and never on the meteorite's own tile.
+        const spawned = getMeteoriteEntities(state)
+        expect(spawned.length).toBeGreaterThan(0)
+        // At least one chain meteorite should land outside the player's 3x3
+        // pickup footprint — proving the chain centered on (mx, my), not (px, py).
+        let outsidePlayer3x3 = 0
+        for (const eid of spawned) {
+          const pos = state.world.getComponent(eid, ComponentType.Position)
+          expect(pos).toBeDefined()
+          if (!pos) continue
+          // Within Chebyshev distance 3 of the source meteorite tile
+          expect(Math.abs(pos.x - mx)).toBeLessThanOrEqual(3)
+          expect(Math.abs(pos.y - my)).toBeLessThanOrEqual(3)
+          // Not on the source meteorite tile itself
+          expect(pos.x === mx && pos.y === my).toBe(false)
+          // Count spawns outside the player's 3x3 pickup footprint
+          if (Math.abs(pos.x - state.player.x) > 1 || Math.abs(pos.y - state.player.y) > 1) {
+            outsidePlayer3x3++
+          }
+        }
+        // If chain centered on the player instead of the meteorite, spawns
+        // would all be within Chebyshev radius 3 of (px, py), but some would
+        // still land outside the 3x3 since CHAIN_EXPLOSION_RADIUS > 1. The
+        // stronger signal: at least one spawn lands at a tile that is within
+        // radius 3 of (mx, my) but more than radius 3 from (px, py) is
+        // impossible since (mx, my) is 1 tile from (px, py). Instead assert
+        // the reverse: chain centered on meteorite tile means at least one
+        // spawn lands at a tile farther from player than from meteorite.
+        const fartherFromPlayer = spawned.some(eid => {
+          const pos = state.world.getComponent(eid, ComponentType.Position)
+          if (!pos) return false
+          const distPlayer = Math.max(Math.abs(pos.x - state.player.x), Math.abs(pos.y - state.player.y))
+          const distMeteor = Math.max(Math.abs(pos.x - mx), Math.abs(pos.y - my))
+          return distPlayer > distMeteor
+        })
+        expect(fartherFromPlayer).toBe(true)
+        expect(outsidePlayer3x3).toBeGreaterThan(0)
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('does not roll chain explosion when forced random is above threshold (3x3 footprint)', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 5)
+      // Two adjacent meteorites — both eligible under 3x3
+      createMeteoriteEntity(state, state.player.x + 1, state.player.y)
+      createMeteoriteEntity(state, state.player.x - 1, state.player.y)
+
+      vi.spyOn(Math, 'random').mockReturnValue(0.99)
+      try {
+        const result = pickUpGroundItems(state, 1000)
+        expect(result.chainExplosions).toBe(0)
+        // Both should be picked up since neither chained
+        expect(result.pickedUp.filter(id => id === 'meteorite')).toHaveLength(2)
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
   })
 })

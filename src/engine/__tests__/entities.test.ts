@@ -9,6 +9,7 @@ import {
   clearAroundPlayer,
   createBeeEntity,
   createGroundItemEntity,
+  createMeteoriteEntity,
   createTestState,
   getBeeEntities,
   getGroundItemEntities,
@@ -292,14 +293,53 @@ describe('pickUpGroundItems', () => {
     expect(getGroundItemEntities(state)).toHaveLength(0)
   })
 
-  it('does not capture bee entity adjacent to player — exact tile required', () => {
+  it('captures bee entity adjacent to player (Chebyshev distance 1)', () => {
     const state = createTestState()
     clearAroundPlayer(state)
-    // Bee entity 1 tile to the east — adjacent but not at exact player position
     createBeeEntity(state, state.player.x + 1, state.player.y)
     pickUpGroundItems(state)
-    // Bee should NOT be captured since player is not on its tile
-    expect(getBeeEntities(state)).toHaveLength(1)
+    expect(getBeeEntities(state)).toHaveLength(0)
+  })
+
+  it.each([
+    ['NW', -1, -1],
+    ['N', 0, -1],
+    ['NE', 1, -1],
+    ['W', -1, 0],
+    ['E', 1, 0],
+    ['SW', -1, 1],
+    ['S', 0, 1],
+    ['SE', 1, 1],
+  ])('captures bee from each neighbor tile (%s)', (_label, dx, dy) => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    createBeeEntity(state, state.player.x + dx, state.player.y + dy)
+    pickUpGroundItems(state)
+    expect(getBeeEntities(state)).toHaveLength(0)
+  })
+
+  it.each([
+    ['NW', -1, -1],
+    ['N', 0, -1],
+    ['NE', 1, -1],
+    ['W', -1, 0],
+    ['E', 1, 0],
+    ['SW', -1, 1],
+    ['S', 0, 1],
+    ['SE', 1, 1],
+  ])('picks up meteorite from each neighbor tile (%s)', (_label, dx, dy) => {
+    const state = createTestState()
+    clearAroundPlayer(state, 3)
+    createMeteoriteEntity(state, state.player.x + dx, state.player.y + dy)
+    // Force chain roll to fail so the meteorite survives to pickup
+    vi.spyOn(Math, 'random').mockReturnValue(0.99)
+    try {
+      const result = pickUpGroundItems(state, 1000)
+      expect(result.pickedUp).toContain('meteorite')
+      expect(containerHasItem(state.backpack, 'meteorite')).toBe(true)
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 
   it('does not capture bee if backpack is full', () => {
