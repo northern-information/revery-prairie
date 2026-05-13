@@ -1,0 +1,61 @@
+plan:
+  id: crater-darker-bg
+  title: Darken crater tile background (~20% darker than dirt)
+  created: 2026-05-13
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/satelliteImpacts.test.ts
+
+tasks:
+  - id: add-crater-bg-palette
+    title: Add CRATER_BG_PALETTE and getCraterBgColor to tileBg.ts
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-renders-visually
+    context_files:
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/tileBg.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: wire-crater-bg-into-cache
+    title: Use crater bg in tileBgCache.getEffectiveBgColor when Dirt+cratered
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-renders-visually
+    context_files:
+      - src/engine/tileBgCache.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/tileBgCache.ts
+    depends_on:
+      - add-crater-bg-palette
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: test-crater-bg
+    title: Add regression test for crater bg color (Dirt darker, Clover unchanged)
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-renders-visually
+    context_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+    depends_on:
+      - wire-crater-bg-into-cache
+    verification:
+      - npx vitest run src/engine/__tests__/satelliteImpacts.test.ts
+    repair: retry
+    tags:
+      - test
