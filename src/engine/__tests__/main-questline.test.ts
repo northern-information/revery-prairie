@@ -5,14 +5,14 @@ import { combineFromBackpack } from '../combine'
 import { ComponentType } from '../ecs/types'
 import { createCharacterEntity } from '../entities'
 import { RuinGenerationMode, RuinRole } from '../genesisTypes'
-import { triggerStewardSeal, unlockRuinDoor } from '../interaction'
+import { advanceDialog, triggerStewardSeal, unlockRuinDoor } from '../interaction'
 import { movePlayer } from '../movement'
 import { placeItem } from '../inventory'
 import { recordDiscovery } from '../manual'
 import { posKey } from '../position'
 import { CoyoteMode, MainQuestPhase, TileType, Zone } from '../types'
 
-import { clearAroundPlayer, createTestState } from './helpers'
+import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'
 
 import type { CivilizationRuin } from '../genesisTypes'
 import type { GameState } from '../types'
@@ -133,14 +133,20 @@ describe('main questline > Gron dialog phase dispatch', () => {
   it('returns the sealed acknowledgement', () => {
     const state = createTestState()
     state.mainQuestPhase = MainQuestPhase.Sealed
-    expect(getCharacterDialog(state, 'gron')).toEqual(['Ahhh, yes. You are indeed the steward.'])
+    expect(getCharacterDialog(state, 'gron')).toEqual([
+      'Ahhh, yes. You are indeed the steward.',
+      "Here, I've been saving these.",
+    ])
   })
 
   it('falls through gracefully to sealed dialog for an unknown phase value', () => {
     const state = createTestState()
     // Force an unrecognized phase to exercise the default branch.
     ;(state as { mainQuestPhase: string }).mainQuestPhase = 'unknown-phase'
-    expect(getCharacterDialog(state, 'gron')).toEqual(['Ahhh, yes. You are indeed the steward.'])
+    expect(getCharacterDialog(state, 'gron')).toEqual([
+      'Ahhh, yes. You are indeed the steward.',
+      "Here, I've been saving these.",
+    ])
   })
 })
 
@@ -293,6 +299,111 @@ describe('main questline > combine seal', () => {
     expect(gronPos.x).toBe(state.player.x + 5)
     expect(gronPos.y).toBe(state.player.y + 5)
     expect(state.activeDialog).toBeNull()
+  })
+
+  it('flips pendingSavedBees on seal', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Overworld
+    state.mainQuestPhase = MainQuestPhase.Gathering
+    stockAndClear(state)
+    createCharacterEntity(state, 'gron', { x: state.player.x + 5, y: state.player.y + 5 }, { zone: Zone.Overworld })
+
+    expect(state.pendingSavedBees).toBe(false)
+    expect(combineFromBackpack(state, 'bee', 'clover')).toBe(true)
+    expect(state.pendingSavedBees).toBe(true)
+  })
+})
+
+describe('main questline > Gron sealed dialog', () => {
+  it('shows two lines on the sealed beat ending with the saving-bees teaser', () => {
+    const state = createTestState()
+    state.mainQuestPhase = MainQuestPhase.Sealed
+    const dialog = getCharacterDialog(state, 'gron')
+    expect(dialog).toEqual(['Ahhh, yes. You are indeed the steward.', "Here, I've been saving these."])
+  })
+})
+
+describe('main questline > saving bees release', () => {
+  const openGronDialogAtLastLine = (state: GameState, lineIndex: number, characterId = 'gron'): void => {
+    state.activeDialog = {
+      characterId,
+      lineIndex,
+      typingIndex: 999,
+      typingDone: true,
+      transitioning: false,
+      transitionStartTime: 0,
+    }
+  }
+
+  it('spawns 3 bees when Gron dialog closes with pendingSavedBees=true', () => {
+    const state = createTestState()
+    state.mainQuestPhase = MainQuestPhase.Sealed
+    state.pendingSavedBees = true
+    clearAroundPlayer(state, 2)
+    // Set a 3x3 of clover around player so candidates are plentiful.
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        state.map[state.player.y + dy][state.player.x + dx].type = TileType.Clover
+      }
+    }
+    const before = getBeeEntities(state).length
+    openGronDialogAtLastLine(state, 1)
+    advanceDialog(state)
+    expect(getBeeEntities(state).length - before).toBe(3)
+    expect(state.pendingSavedBees).toBe(false)
+  })
+
+  it('does not consume the flag when another character\'s dialog closes', () => {
+    const state = createTestState()
+    state.mainQuestPhase = MainQuestPhase.Sealed
+    state.pendingSavedBees = true
+    clearAroundPlayer(state, 2)
+    const before = getBeeEntities(state).length
+    openGronDialogAtLastLine(state, 0, 'moab')
+    advanceDialog(state)
+    expect(getBeeEntities(state).length).toBe(before)
+    expect(state.pendingSavedBees).toBe(true)
+  })
+
+  it('fires only once across repeated Gron dialog closes', () => {
+    const state = createTestState()
+    state.mainQuestPhase = MainQuestPhase.Sealed
+    state.pendingSavedBees = true
+    clearAroundPlayer(state, 2)
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        state.map[state.player.y + dy][state.player.x + dx].type = TileType.Clover
+      }
+    }
+    const before = getBeeEntities(state).length
+
+    openGronDialogAtLastLine(state, 1)
+    advanceDialog(state)
+    const afterFirst = getBeeEntities(state).length
+
+    openGronDialogAtLastLine(state, 1)
+    advanceDialog(state)
+    const afterSecond = getBeeEntities(state).length
+
+    expect(afterFirst - before).toBe(3)
+    expect(afterSecond - afterFirst).toBe(0)
+  })
+
+  it('falls back to walkable non-clover tiles when no clover is available', () => {
+    const state = createTestState()
+    state.mainQuestPhase = MainQuestPhase.Sealed
+    state.pendingSavedBees = true
+    clearAroundPlayer(state, 2)
+    // All dirt — no clover, but all walkable.
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        state.map[state.player.y + dy][state.player.x + dx].type = TileType.Dirt
+      }
+    }
+    const before = getBeeEntities(state).length
+    openGronDialogAtLastLine(state, 1)
+    advanceDialog(state)
+    expect(getBeeEntities(state).length - before).toBe(3)
   })
 })
 

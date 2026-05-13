@@ -1,0 +1,105 @@
+plan:
+  id: gron-saving-bees
+  title: 'Gron releases 3 saved bees after the steward seal dialog closes'
+  created: 2026-05-13
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-pending-saved-bees-field
+    title: 'Add pendingSavedBees to GameState and initialize it'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - quest-phase-state-model
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: append-sealed-dialog-line
+    title: 'Append "Here, I''ve been saving these." to GRON_DIALOG_SEALED'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - gron-dialog-phase-dispatch
+    context_files:
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: set-pending-saved-bees-on-seal
+    title: 'Set pendingSavedBees=true inside triggerStewardSeal'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - combine-seal-overworld
+    context_files:
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - add-pending-saved-bees-field
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: release-bees-on-gron-dialog-close
+    title: 'Spawn 3 bees on close of Gron dialog when pendingSavedBees is true'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - gron-saving-bees-release
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/monarch.ts
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - add-pending-saved-bees-field
+      - set-pending-saved-bees-on-seal
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: tests-for-saving-bees
+    title: 'Add tests covering bee release, single-fire, non-Gron dialog, and dialog text'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - gron-saving-bees-release
+      - combine-seal-overworld
+      - gron-dialog-phase-dispatch
+    context_files:
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/main-questline.test.ts
+    depends_on:
+      - release-bees-on-gron-dialog-close
+      - append-sealed-dialog-line
+    verification:
+      - npx vitest run src/engine/__tests__/main-questline.test.ts
+    repair: retry
+    tags:
+      - test
+      - engine

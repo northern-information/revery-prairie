@@ -317,6 +317,7 @@ export interface GameState {
   civilizationRuins: CivilizationRuin[]
   mainQuestPhase: MainQuestPhase
   ruinGenerationMode: RuinGenerationMode
+  pendingSavedBees: boolean
   deepTime: DeepTimeState | null
   deepTimeTransition: TransitionFade | null
   postGiftActionsCompleted: Set<string>
