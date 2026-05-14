@@ -40,7 +40,8 @@ const CHARACTERS = {
     name: 'Coyote',
     glyph: 'C',
     glyphColor: '#D4A054',
-    dialog: [],
+    portrait: '/gron.gif',
+    dialog: ['Awoo!', 'Awoo!'],
   },
   gate: {
     name: 'Gate',

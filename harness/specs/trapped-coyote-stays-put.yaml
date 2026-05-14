@@ -5,9 +5,12 @@ layer: engine
 source_files:
   - src/engine/ruins.ts
   - src/engine/coyote.ts
+  - src/engine/interaction.ts
+  - src/engine/characters.ts
 dependencies:
   - main-questline-foundation
   - coyote-companion
+  - ruin-dormant-garden
 
 behaviors:
   - id: trapped-coyote-not-teleported-on-ruin-entry
@@ -56,6 +59,107 @@ behaviors:
         effect: 'unchanged — remains Zone.Ruin with original ruinIndex'
     determinism: deterministic
 
+  - id: collapse-barrier-clears-atomically
+    description: >
+      When the player faces a RuinDebris tile that belongs to the
+      coyote-role ruin's collapseBarrier and triggers the debris-clear
+      interaction (the same input that handles scattered rubble), every
+      RuinDebris tile in collapseBarrier converts to RuinFloor in the
+      same call — not just the facing tile. This mirrors the cave
+      breakable-wall pattern in breakWall, where caveBreakableWallPositions
+      all flip to CaveFloor together. Scattered debrisPositions outside
+      collapseBarrier still clear one tile at a time. Atomic clearing
+      records 'event:rubble-cleared' once. The clear also spawns a
+      crumble TimedEffect entity whose MultiPosition covers the
+      collapseBarrier tiles (matching the cave wall-break crumble
+      entity), and spawns a pickupBloom effect at the player position
+      (per the pickup bloom convention — every acquisition or
+      progression event must bloom). The collapseBarrier field on
+      dormantGarden remains populated for save/spec lookup; it is not
+      cleared.
+    inputs:
+      - 'clearRuinDebris runs with the facing tile inside dormantGarden.collapseBarrier'
+    outputs:
+      - 'every tile in dormantGarden.collapseBarrier is RuinFloor'
+      - 'a crumble TimedEffect entity exists with MultiPosition covering the collapseBarrier tiles'
+      - 'a pickupBloom effect is spawned at the player position'
+      - 'event:rubble-cleared recorded'
+    state_changes:
+      - field: map (tiles at collapseBarrier positions)
+        effect: 'all converted from RuinDebris to RuinFloor in one call'
+      - field: world (new entities)
+        effect: 'one crumble TimedEffect entity with MultiPosition over the collapseBarrier tiles; one pickupBloom effect at player position'
+      - field: manualDiscoveries
+        effect: "'event:rubble-cleared' added on first clear"
+    determinism: deterministic
+
+  - id: coyote-runs-to-player-and-opens-dialog-on-rescue
+    description: >
+      When tryCoyoteRescueOnApproach fires rescueCoyote, in addition to
+      the existing behavior (teleport coyote adjacent to player, switch
+      Behavior to follow, queue 'Rescued Coyote!' toast, spawn pickup
+      bloom, advance mainQuestPhase from AwaitingCoyote to Gathering),
+      rescueCoyote also auto-opens an activeDialog targeting the coyote
+      character (mirrors the precedent set by triggerStewardSeal, which
+      auto-opens Gron's dialog after the bee+clover combine). The
+      dialog is opened with characterId 'coyote', lineIndex 0,
+      typingIndex 0, typingDone false, transitioning false,
+      transitionStartTime 0. The coyote character definition's dialog
+      array provides the lines, which are: ['Awoo!', 'Awoo!']. The
+      coyote character definition also has portrait set to '/gron.gif'
+      as a deliberate placeholder until a coyote portrait asset is
+      authored — this is an intentional placeholder, not a typo.
+    inputs:
+      - 'player becomes cardinally adjacent to the trapped coyote with mainQuestPhase === AwaitingCoyote and currentZone === Ruin in a Coyote-role ruin'
+    outputs:
+      - 'coyote Position is moved to a walkable tile cardinally adjacent to state.player'
+      - 'state.activeDialog has characterId "coyote", lineIndex 0, typingDone false'
+      - 'state.mainQuestPhase === Gathering after the call returns'
+      - 'pickupBloom spawned at player position'
+      - "'Rescued Coyote!' toast queued"
+    state_changes:
+      - field: 'world (coyote entity Position, Behavior, EntityZone)'
+        effect: 'Position moved adjacent to player; Behavior set to follow; EntityZone set to current zone'
+      - field: activeDialog
+        effect: 'set to { characterId: "coyote", lineIndex: 0, typingIndex: 0, typingDone: false, transitioning: false, transitionStartTime: 0 }'
+      - field: mainQuestPhase
+        effect: 'AwaitingCoyote → Gathering'
+    determinism: deterministic
+
+  - id: coyote-character-definition-awoo
+    description: >
+      The CHARACTERS.coyote entry in src/engine/characters.ts has its
+      dialog field set to ['Awoo!', 'Awoo!'] (was previously empty).
+      A portrait field is added, set to '/gron.gif' as a deliberate
+      placeholder until a coyote portrait asset is created. The
+      glyph 'C' and glyphColor '#D4A054' remain unchanged.
+    inputs:
+      - 'getCharacterDefinition("coyote") is called'
+    outputs:
+      - 'returned definition has dialog equal to ["Awoo!", "Awoo!"]'
+      - "returned definition has portrait equal to '/gron.gif'"
+      - "returned definition has glyph 'C' and glyphColor '#D4A054'"
+    state_changes: []
+    determinism: deterministic
+
+  - id: scattered-debris-still-clears-one-at-a-time
+    description: >
+      RuinDebris tiles that are NOT part of dormantGarden.collapseBarrier
+      (the scattered debris in dormantGarden.debrisPositions, and any
+      RuinDebris in non-coyote-role ruins) continue to clear exactly
+      one tile per clearRuinDebris call. This preserves the existing
+      contract for general rubble clearing; only the gating
+      collapseBarrier row collapses atomically.
+    inputs:
+      - 'clearRuinDebris runs with the facing tile NOT in dormantGarden.collapseBarrier'
+    outputs:
+      - 'only the single facing tile converts from RuinDebris to RuinFloor'
+      - 'tiles in dormantGarden.collapseBarrier (if any) are unchanged by this call'
+    state_changes:
+      - field: 'map (facing tile only)'
+        effect: 'RuinDebris → RuinFloor'
+    determinism: deterministic
+
   - id: rescued-coyote-still-follows-across-zones
     description: >
       Once the coyote has been rescued (mainQuestPhase advanced past
@@ -92,6 +196,28 @@ edge_cases:
       transitionCoyoteToZone runs in the same enterRuin call.
     expected: 'The trapped coyote remains at its spawn tile past the collapseBarrier — its Position is not modified by transitionCoyoteToZone.'
 
+  - id: collapse-barrier-already-partially-cleared
+    description: >
+      A prior code path (e.g. fire revery hitting one collapseBarrier
+      tile) has already converted some collapseBarrier tiles to
+      RuinFloor before the player triggers clearRuinDebris on a
+      remaining RuinDebris collapseBarrier tile.
+    expected: 'Every collapseBarrier position that is still RuinDebris converts to RuinFloor in this call. Positions already RuinFloor are left as-is (no error, no re-conversion). The crumble TimedEffect MultiPosition covers all collapseBarrier positions regardless of prior state.'
+
+  - id: facing-debris-outside-collapse-barrier-in-coyote-ruin
+    description: >
+      The player is in a coyote-role ruin, faces a scattered debris
+      tile (from dormantGarden.debrisPositions, not collapseBarrier),
+      and triggers clearRuinDebris.
+    expected: 'Only the facing tile converts to RuinFloor. The collapseBarrier row remains intact as RuinDebris until the player faces one of its tiles. No crumble entity is spawned for the scattered clear (matches pre-existing behavior for scattered debris).'
+
+  - id: rescue-fires-while-dialog-system-busy
+    description: >
+      tryCoyoteRescueOnApproach is invoked while state.activeDialog is
+      already non-null (e.g. a stray dialog left open). rescueCoyote
+      overwrites activeDialog with the coyote dialog descriptor.
+    expected: 'activeDialog is replaced with { characterId: "coyote", lineIndex: 0, ... }. No assertion failure. The dialog that was previously open is discarded — same precedent as triggerStewardSeal.'
+
   - id: player-takes-a-step-after-entry
     description: >
       Player enters the coyote-role ruin for the first time and
@@ -104,6 +230,10 @@ failure_conditions:
     expected: 'No rescue fires. mainQuestPhase remains "awaiting-coyote". No "Rescued Coyote!" toast is queued. The coyote is still on the vault side of the rubble, more than 1 tile away from the player.'
   - trigger: 'Player enters the coyote-role ruin and exits without rescuing the coyote.'
     expected: 'Coyote remains inside the ruin at its spawn position; coyote is not visible on the overworld adjacent to the player after exitRuin.'
+  - trigger: 'Player faces and clears a single collapseBarrier tile.'
+    expected: 'All three collapseBarrier tiles convert to RuinFloor atomically; a crumble TimedEffect entity is created with MultiPosition over the collapseBarrier tiles; a pickupBloom is spawned at the player position; event:rubble-cleared is recorded.'
+  - trigger: 'Rescue fires (player becomes adjacent to coyote after clearing the barrier).'
+    expected: "state.activeDialog is set to the coyote dialog descriptor; the coyote definition's dialog returns ['Awoo!', 'Awoo!']; the coyote definition's portrait is '/gron.gif'; mainQuestPhase advances to Gathering; pickupBloom and 'Rescued Coyote!' toast fire as before."
 
 verification:
   test_file: src/engine/__tests__/trapped-coyote-stays-put.test.ts
