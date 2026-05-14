@@ -3,6 +3,7 @@ name: Continuous movement while holding direction keys
 priority: high
 layer: integration
 source_files:
+  - src/engine/heldKeys.ts
   - src/hooks/useKeyboard.ts
   - src/engine/types.ts
   - src/engine/gameLoop.ts
@@ -13,15 +14,25 @@ source_files:
 dependencies: []
 
 behaviors:
-  - id: set-held-direction
-    description: Pressing a direction key sets heldDirection so the game loop moves the player on the next tick
+  - id: keydown-adds-screen-axis
+    description: >
+      Pressing w/a/s/d or an arrow key adds the corresponding ScreenAxisKey
+      ('up' | 'down' | 'left' | 'right') to state.heldKeys, then recomputes
+      state.heldDirection via resolveHeldDirection(state.heldKeys). The
+      game loop moves the player on the next tick using the resolved
+      direction. keyToScreenAxis maps both lowercase and uppercase WASD as
+      well as Arrow keys to the same axis.
     inputs:
       - keydown event for w/a/s/d or arrow keys
     outputs:
-      - heldDirection is set, game loop moves the player within one tick interval
+      - state.heldKeys contains the pressed axis
+      - state.heldDirection is set to the resolveHeldDirection output (may be null if the new set cancels out)
+      - game loop moves the player within one tick interval when heldDirection is non-null
     state_changes:
+      - field: heldKeys
+        effect: pressed ScreenAxisKey added to the set
       - field: heldDirection
-        effect: set to the pressed direction
+        effect: set to resolveHeldDirection(heldKeys) — null if the set is empty or fully cancels
       - field: path
         effect: set to null (cancels click-to-move)
       - field: pathWaypoints
@@ -32,6 +43,25 @@ behaviors:
         effect: set to null
       - field: previewFn
         effect: set to null
+    determinism: deterministic
+
+  - id: screen-to-world-direction-resolution
+    description: >
+      resolveHeldDirection translates a set of screen-axis keys into a
+      world Direction, accounting for the 45° iso rotation. Single-key
+      presses produce world *diagonals*: 'up' → upLeft, 'down' → downRight,
+      'left' → downLeft, 'right' → upRight. Two-key combos collapse to
+      world *cardinals*: up+left → left, up+right → up, down+left → down,
+      down+right → right. Opposite-axis pairs cancel: holding up+down (or
+      left+right) removes that axis from consideration. An empty or fully
+      cancelled set resolves to null.
+    inputs:
+      - state.heldKeys contains 0–4 ScreenAxisKey entries
+    outputs:
+      - state.heldDirection is a world Direction or null
+    state_changes:
+      - field: heldDirection
+        effect: deterministic function of heldKeys per the mapping above
     determinism: deterministic
 
   - id: continuous-held-move
@@ -46,32 +76,44 @@ behaviors:
         effect: position advances one tile per tick in heldDirection
     determinism: time-based
 
-  - id: stop-on-release
-    description: Releasing the held direction key stops continuous movement immediately
+  - id: keyup-removes-screen-axis
+    description: >
+      Releasing a key deletes its ScreenAxisKey from state.heldKeys and
+      recomputes state.heldDirection. If the set becomes empty (or fully
+      cancels), heldDirection becomes null and movement stops on the next
+      tick. If keys remain, the player keeps moving in the newly-resolved
+      direction without interruption.
     inputs:
-      - keyup event for the currently held direction key
+      - keyup event for a held direction key
     outputs:
-      - movement stops
+      - state.heldKeys no longer contains the released axis
+      - state.heldDirection is the new resolveHeldDirection result (null if set is empty)
     state_changes:
+      - field: heldKeys
+        effect: released ScreenAxisKey removed from the set
       - field: heldDirection
-        effect: set to null
-    determinism: deterministic
-
-  - id: direction-change
-    description: Pressing a different direction key while one is held switches heldDirection so the game loop moves in the new direction on the next tick
-    inputs:
-      - keydown event for a different direction while heldDirection is set
-    outputs:
-      - game loop moves the player in the new direction on the next tick
-    state_changes:
-      - field: heldDirection
-        effect: updated to the new direction
+        effect: set to resolveHeldDirection(heldKeys) after the delete
     determinism: deterministic
 
 edge_cases:
+  - id: opposite-axis-cancels
+    description: >
+      Holding two keys on the same screen axis (up+down or left+right)
+      cancels that axis. If the other axis is also empty or cancelled,
+      heldDirection resolves to null and the player stops.
+    expected: heldDirection is null while opposing keys are held; release of one resumes single-key motion
+
+  - id: third-key-while-two-held
+    description: >
+      Pressing a third axis while two are already held adds it to the set;
+      the resolved direction may flip (e.g. up+right is world 'up', then
+      pressing down cancels the up axis leaving 'right' which resolves to
+      world upRight).
+    expected: heldDirection updates to the new resolveHeldDirection output on every key change
+
   - id: release-wrong-key
-    description: Releasing a key that is not the currently held direction does not stop movement
-    expected: heldDirection remains unchanged, movement continues
+    description: Releasing a key that is not in heldKeys does not stop movement
+    expected: state.heldKeys unchanged, heldDirection unchanged, movement continues
 
   - id: blocked-tile-held
     description: Holding a direction into an impassable tile does not move the player but heldDirection remains set
@@ -83,7 +125,7 @@ edge_cases:
 
   - id: menu-blocks-held
     description: Opening the menu while holding a direction clears heldDirection
-    expected: heldDirection is cleared, no movement ticks fire while menu is open
+    expected: heldDirection and heldKeys are cleared, no movement ticks fire while menu is open
 
   - id: path-cleared-on-hold
     description: Pressing a direction key cancels any active click-to-move path (handled in keydown, not game loop)
@@ -99,6 +141,9 @@ failure_conditions:
 
   - trigger: player rapidly taps a direction key
     expected: each tap moves exactly one tile, no extra movement from stale heldDirection
+
+  - trigger: keydown clears state.heldKeys without re-adding the pressed axis
+    expected: cannot occur — useKeyboard's keydown path always calls heldKeys.add(axis) after any clear, then recomputes heldDirection
 
 verification:
   test_file: src/engine/__tests__/gameLoop.test.ts
