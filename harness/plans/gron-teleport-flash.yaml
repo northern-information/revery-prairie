@@ -1,0 +1,69 @@
+plan:
+  id: gron-teleport-flash
+  title: 'Flash screen when Gron teleports on steward seal'
+  created: '2026-05-14'
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npx vitest run src/engine/__tests__/main-questline.test.ts'
+
+tasks:
+  - id: plumb-time-into-trigger-steward-seal
+    title: 'Plumb optional time into triggerStewardSeal and set angelFlashTime on teleport'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - combine-seal-overworld
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/combine.ts
+      - src/engine/drag.ts
+      - src/engine/render/passes/angelSpawnDespawnFlash.ts
+      - src/engine/angels.ts
+    output_files:
+      - src/engine/interaction.ts
+      - src/engine/combine.ts
+      - src/engine/drag.ts
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - engine
+
+  - id: pass-time-from-combine-call-sites
+    title: 'Pass performance.now() time from combineFromBackpack and executeCombine into triggerStewardSeal'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - combine-seal-overworld
+    context_files:
+      - src/engine/combine.ts
+      - src/engine/drag.ts
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/combine.ts
+      - src/engine/drag.ts
+    depends_on:
+      - plumb-time-into-trigger-steward-seal
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - engine
+
+  - id: regression-tests-flash-on-teleport
+    title: 'Add regression tests for flash on Gron teleport and no-op when no walkable tile'
+    spec_id: main-questline-foundation
+    spec_sections:
+      - combine-seal-overworld
+    context_files:
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/__tests__/main-questline.test.ts
+    depends_on:
+      - pass-time-from-combine-call-sites
+    verification:
+      - 'npx vitest run src/engine/__tests__/main-questline.test.ts'
+    repair: retry
+    tags:
+      - engine
+      - test

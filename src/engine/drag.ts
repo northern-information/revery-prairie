@@ -86,7 +86,7 @@ export const executeCombine = (
   if (!success) return { outcome: 'failed' }
 
   if (isStewardSealRecipe(recipe)) {
-    triggerStewardSeal(state)
+    triggerStewardSeal(state, time ?? performance.now())
   }
 
   state.discoveredRecipes.add(key)

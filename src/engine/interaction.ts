@@ -491,7 +491,7 @@ const releaseSavedBees = (state: GameState): number => {
  *  player, advance mainQuestPhase to Sealed, and auto-open Gron's dialog.
  *  Combines in the cave or inside a ruin are silently no-ops — the next
  *  overworld combine will fire the beat. */
-export const triggerStewardSeal = (state: GameState): void => {
+export const triggerStewardSeal = (state: GameState, time?: number): void => {
   if (state.currentZone !== Zone.Overworld) return
   if (state.mainQuestPhase === MainQuestPhase.Sealed) return
 
@@ -512,6 +512,7 @@ export const triggerStewardSeal = (state: GameState): void => {
         state.world.spatial.move(gronEid, pos.x, pos.y, target.x, target.y)
         pos.x = target.x
         pos.y = target.y
+        if (time !== undefined) state.angelFlashTime = time
       }
     }
   }
