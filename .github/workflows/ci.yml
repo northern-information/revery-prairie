@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: 24
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         id: cache-modules
         with:
           path: |
@@ -53,7 +53,7 @@ jobs:
         with:
           node-version: 24
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         id: cache-modules
         with:
           path: |
@@ -76,7 +76,7 @@ jobs:
         with:
           node-version: 24
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         id: cache-modules
         with:
           path: |
