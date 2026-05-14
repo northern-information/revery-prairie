@@ -51,17 +51,21 @@ describe('movePlayer', () => {
   it('updates the camera after moving', () => {
     // Use a small viewport so the player quickly reaches the deadzone edge
     const state = createTestState({ viewportWidth: 10, viewportHeight: 10 })
-    // Carve a deterministic dirt corridor 10 tiles to the right. Genesis places
-    // the cave entrance and surface water randomly — either landing in the
-    // path teleports the player into the cave or blocks movement, breaking
-    // the camera-pan assertion.
-    for (let dx = -1; dx <= 11; dx++) {
-      const tx = state.player.x + dx
-      const ty = state.player.y
-      if (tx >= 0 && tx < state.mapWidth) {
-        state.map[ty][tx] = { type: TileType.Dirt }
-        state.ponds.delete(posKey(tx, ty))
-        state.rivers.delete(posKey(tx, ty))
+    // Carve a deterministic 3-row-tall dirt corridor 10 tiles to the right.
+    // Genesis places the cave entrance and surface water randomly — either
+    // landing in the path teleports the player into the cave or blocks
+    // movement, breaking the camera-pan assertion. checkTransition uses a
+    // 3x3 hitbox, so the rows above and below must also be clear of cave
+    // entrances.
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 11; dx++) {
+        const tx = state.player.x + dx
+        const ty = state.player.y + dy
+        if (tx >= 0 && tx < state.mapWidth && ty >= 0 && ty < state.mapHeight) {
+          state.map[ty][tx] = { type: TileType.Dirt }
+          state.ponds.delete(posKey(tx, ty))
+          state.rivers.delete(posKey(tx, ty))
+        }
       }
     }
     const camBefore = { ...state.camera }

@@ -181,16 +181,24 @@ behaviors:
       'sealed', Gron's dialog opens automatically, recordDiscovery is
       called with 'event:steward-sealed', and pendingSavedBees flips to
       true so the post-dialog bee release can fire when the player
-      closes Gron's dialog.
+      closes Gron's dialog. When Gron's teleport actually moves him to
+      a new tile, a screen flash fires by setting state.angelFlashTime
+      to the current time — the same field and render pass used by
+      angel spawn/despawn. The field is shared across narrative-beat
+      flashes; the render pass is timestamp-driven and renders
+      whichever beat set it most recently. The flash does not fire if
+      no walkable adjacent tile is available and Gron does not move.
     inputs:
       - 'Bee+clover combine succeeds'
       - 'state.currentZone === Zone.Overworld'
       - 'state.mainQuestPhase !== "sealed"'
+      - 'A walkable tile adjacent to the player exists for Gron to occupy'
     outputs:
       - 'Gron position is adjacent to player'
       - 'Gron dialog opens automatically'
       - '"event:steward-sealed" in state.manualDiscoveries'
       - 'state.pendingSavedBees === true'
+      - 'state.angelFlashTime === current time (screen flash visible for the configured duration)'
     state_changes:
       - field: mainQuestPhase
         effect: 'flips to "sealed"'
@@ -202,6 +210,8 @@ behaviors:
         effect: '"event:steward-sealed" added via recordDiscovery'
       - field: pendingSavedBees
         effect: 'flips to true'
+      - field: angelFlashTime
+        effect: 'set to the time passed to triggerStewardSeal when Gron teleports to a new tile'
     determinism: deterministic
 
   - id: gron-saving-bees-release
@@ -291,6 +301,18 @@ edge_cases:
       Rescue fires identically — the trigger is adjacency, not the
       clearing method.
 
+  - id: combine-seal-no-walkable-adjacent
+    description: >
+      Bee+clover combine succeeds on the overworld but every tile
+      cardinally adjacent to the player is non-walkable (water, space,
+      or blocked by entities). Gron cannot teleport — state.angelFlashTime
+      must not be updated so no flash fires for a teleport that did not
+      happen. mainQuestPhase still flips to 'sealed' and the dialog
+      still opens (existing behavior).
+    expected: >
+      Gron position unchanged. state.angelFlashTime unchanged from its
+      prior value. mainQuestPhase flips to 'sealed'. Dialog opens.
+
   - id: combine-seal-already-sealed
     description: >
       Bee+clover combine succeeds on the overworld when mainQuestPhase
@@ -371,6 +393,16 @@ failure_conditions:
     expected: >
       Rescue sequence is never invoked from the unlock path.
       interaction.ts unlockRuinDoor must not call rescueCoyote.
+
+  - trigger: >
+      triggerStewardSeal called without a time argument (e.g. from a
+      caller that did not plumb performance.now() through)
+    expected: >
+      The function still completes the seal — Gron teleports,
+      mainQuestPhase flips, dialog opens — but does not update
+      state.angelFlashTime. No crash. Production call sites
+      (combineFromBackpack, executeCombine) must always pass a time
+      so the flash fires.
 
   - trigger: >
       getCharacterDialog('gron', state) called with an unrecognized

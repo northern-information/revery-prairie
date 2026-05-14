@@ -312,6 +312,55 @@ describe('main questline > combine seal', () => {
     expect(combineFromBackpack(state, 'bee', 'clover')).toBe(true)
     expect(state.pendingSavedBees).toBe(true)
   })
+
+  it('sets angelFlashTime when Gron teleports on combine seal', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Overworld
+    state.mainQuestPhase = MainQuestPhase.Gathering
+    stockAndClear(state)
+    createCharacterEntity(state, 'gron', { x: state.player.x + 5, y: state.player.y + 5 }, { zone: Zone.Overworld })
+    state.angelFlashTime = 0
+
+    const flashTime = 12345
+    expect(combineFromBackpack(state, 'bee', 'clover', flashTime)).toBe(true)
+
+    expect(state.angelFlashTime).toBe(flashTime)
+  })
+
+  it('does not update angelFlashTime when no walkable adjacent tile exists for Gron', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Overworld
+    state.mainQuestPhase = MainQuestPhase.Gathering
+    stockAndClear(state)
+    // Wall off all 4 cardinal neighbors so pickAdjacentWalkableTile returns null.
+    // Player tile stays walkable so combineFromBackpack's standing-tile check passes.
+    const px = state.player.x
+    const py = state.player.y
+    state.map[py][px - 1].type = TileType.Space
+    state.map[py][px + 1].type = TileType.Space
+    state.map[py - 1][px].type = TileType.Space
+    state.map[py + 1][px].type = TileType.Space
+    const gronEid = createCharacterEntity(
+      state,
+      'gron',
+      { x: state.player.x + 5, y: state.player.y + 5 },
+      { zone: Zone.Overworld }
+    )
+    const priorFlash = 999
+    state.angelFlashTime = priorFlash
+
+    expect(combineFromBackpack(state, 'bee', 'clover', 54321)).toBe(true)
+
+    // Gron did not move
+    const gronPos = requireValue(state.world.getComponent(gronEid, ComponentType.Position))
+    expect(gronPos.x).toBe(state.player.x + 5)
+    expect(gronPos.y).toBe(state.player.y + 5)
+    // Flash did not fire
+    expect(state.angelFlashTime).toBe(priorFlash)
+    // Seal still completes
+    expect(state.mainQuestPhase).toBe(MainQuestPhase.Sealed)
+    expect(state.activeDialog?.characterId).toBe('gron')
+  })
 })
 
 describe('main questline > Gron sealed dialog', () => {
