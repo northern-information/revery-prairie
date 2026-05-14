@@ -1,0 +1,91 @@
+plan:
+  id: coyote-rescue-polish
+  title: 'Polish coyote rescue: atomic barrier collapse, pickup bloom, awoo dialog'
+  created: '2026-05-14'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/trapped-coyote-stays-put.test.ts
+
+tasks:
+  - id: regression-test-barrier-and-rescue
+    title: 'Add regression tests for atomic collapseBarrier clear, scattered debris isolation, rescue dialog auto-open, and coyote definition fields'
+    spec_id: trapped-coyote-stays-put
+    spec_sections:
+      - collapse-barrier-clears-atomically
+      - coyote-runs-to-player-and-opens-dialog-on-rescue
+      - coyote-character-definition-awoo
+      - scattered-debris-still-clears-one-at-a-time
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/characters.ts
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+      - src/engine/effects.ts
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+      - src/engine/__tests__/main-questline.test.ts
+    output_files:
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/engine/__tests__/trapped-coyote-stays-put.test.ts'
+    repair: retry
+    tags: [engine, test]
+
+  - id: atomic-collapse-barrier
+    title: 'Make clearRuinDebris atomically clear the full collapseBarrier with crumble + pickupBloom when facing tile is in collapseBarrier'
+    spec_id: trapped-coyote-stays-put
+    spec_sections:
+      - collapse-barrier-clears-atomically
+      - scattered-debris-still-clears-one-at-a-time
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+      - src/engine/effects.ts
+      - src/engine/ecs/components.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - regression-test-barrier-and-rescue
+    verification:
+      - 'npx vitest run src/engine/__tests__/trapped-coyote-stays-put.test.ts'
+      - 'npx vitest run src/engine/__tests__/ruin-dormant-garden.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: coyote-definition-awoo
+    title: 'Set CHARACTERS.coyote.dialog to ["Awoo!", "Awoo!"] and portrait to "/gron.gif" placeholder'
+    spec_id: trapped-coyote-stays-put
+    spec_sections:
+      - coyote-character-definition-awoo
+    context_files:
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on:
+      - regression-test-barrier-and-rescue
+    verification:
+      - 'npx vitest run src/engine/__tests__/trapped-coyote-stays-put.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: rescue-opens-coyote-dialog
+    title: 'Open coyote dialog in rescueCoyote after teleport (mirrors triggerStewardSeal pattern)'
+    spec_id: trapped-coyote-stays-put
+    spec_sections:
+      - coyote-runs-to-player-and-opens-dialog-on-rescue
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - regression-test-barrier-and-rescue
+      - coyote-definition-awoo
+    verification:
+      - 'npx vitest run src/engine/__tests__/trapped-coyote-stays-put.test.ts'
+      - 'npx vitest run src/engine/__tests__/main-questline.test.ts'
+    repair: retry
+    tags: [engine]

@@ -364,15 +364,49 @@ export const unlockRuinDoor = (state: GameState): boolean => {
 /** If the player faces a RuinDebris tile, convert it to RuinFloor.
  *  Mirrors the cave breakable-wall mechanic: single-hit, no item or revery
  *  required. Coexists with fireOnRuinTile (fire revery clearing). Records
- *  'event:rubble-cleared' on the first clear. Returns true if cleared. */
-export const clearRuinDebris = (state: GameState): boolean => {
+ *  'event:rubble-cleared' on the first clear. Returns true if cleared.
+ *
+ *  When the facing tile is part of the current ruin's collapseBarrier
+ *  (the 3-tile gating row in coyote-role ruins), every barrier tile
+ *  collapses in this call — matches breakWall's atomic cave-wall pattern.
+ *  A crumble TimedEffect entity covers all barrier tiles, and a
+ *  pickupBloom fires at the player position. Scattered debris (anywhere
+ *  outside collapseBarrier) keeps its single-tile clear behavior. */
+export const clearRuinDebris = (state: GameState, time = performance.now()): boolean => {
   if (state.currentZone !== Zone.Ruin) return false
   const d = DIRECTIONS[state.playerFacing]
   const fx = state.player.x + d.x
   const fy = state.player.y + d.y
   if (!isInBounds(fx, fy, state.mapWidth, state.mapHeight)) return false
   if (state.map[fy][fx].type !== TileType.RuinDebris) return false
-  setMapTile(state, fx, fy, { type: TileType.RuinFloor })
+
+  const interior =
+    state.currentRuinIndex !== null ? state.ruinInteriors[state.currentRuinIndex] : null
+  const barrier = interior?.dormantGarden?.collapseBarrier ?? null
+  const inBarrier = barrier?.some((p) => p.x === fx && p.y === fy) ?? false
+
+  if (inBarrier && barrier) {
+    for (const bp of barrier) {
+      if (!isInBounds(bp.x, bp.y, state.mapWidth, state.mapHeight)) continue
+      if (state.map[bp.y][bp.x].type === TileType.RuinDebris) {
+        setMapTile(state, bp.x, bp.y, { type: TileType.RuinFloor })
+      }
+    }
+    const crumbleEntity = state.world.createEntity()
+    state.world.addComponent(crumbleEntity, ComponentType.MultiPosition, {
+      positions: barrier.map((p) => ({ x: p.x, y: p.y })),
+    })
+    state.world.addComponent(crumbleEntity, ComponentType.TimedEffect, {
+      kind: 'crumble',
+      startTime: time,
+    })
+    state.world.addComponent(crumbleEntity, ComponentType.EntityTag, 'crumble')
+    state.world.addComponent(crumbleEntity, ComponentType.EntityZone, getCurrentEntityZone(state))
+    spawnPickupBloom(state, state.player.x, state.player.y, time)
+  } else {
+    setMapTile(state, fx, fy, { type: TileType.RuinFloor })
+  }
+
   recordDiscovery(state, 'event:rubble-cleared')
   updateFacingEntity(state)
   return true
@@ -441,6 +475,15 @@ const rescueCoyote = (state: GameState): void => {
   recordDiscovery(state, 'event:rescue-coyote')
 
   state.mainQuestPhase = MainQuestPhase.Gathering
+
+  state.activeDialog = {
+    characterId: 'coyote',
+    lineIndex: 0,
+    typingIndex: 0,
+    typingDone: false,
+    transitioning: false,
+    transitionStartTime: 0,
+  }
 }
 
 const pickAdjacentWalkableTile = (state: GameState, px: number, py: number): Position | null => {
