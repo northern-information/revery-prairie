@@ -177,10 +177,10 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 - `esc` — close panel / open menu
 - `shift` — toggle sprint (double movement speed, works with WASD and click-to-move)
 - `shift+click` — queue waypoints onto existing path (RTS-style)
-- during drag: `r` rotates preview, `esc` cancels (captured by drag hook)
+- during drag: `esc` cancels (captured by drag hook)
 - `1-4` — activate action bar slot (blocked during dialog and menu)
 - `` ` `` — toggle dev panel (dev mode only)
-- `isDraggingRef` blocks `x`/`r` in keyboard hook while drag is active, but allows movement through
+- `isDraggingRef` blocks `x` in keyboard hook while drag is active, but allows movement through
 
 ### reserved keys (not yet implemented)
 
