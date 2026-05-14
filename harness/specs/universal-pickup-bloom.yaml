@@ -49,10 +49,12 @@ behaviors:
 
   - id: bee-pickup-bloom
     description: >
-      When the player walks over a bee and it is captured to the backpack,
-      a pickupBloom spawns at the player position.
+      When the player moves within Chebyshev distance 1 of a bee entity
+      (3x3 footprint around the player, matching the pickup-hitbox spec)
+      and it is captured to the backpack, a pickupBloom spawns at the
+      player position.
     inputs:
-      - 'player walks onto tile containing bee entity'
+      - 'player moves to within Chebyshev distance 1 of a bee entity'
       - 'time parameter is provided'
     outputs:
       - 'pickupBloom at player position'
@@ -63,10 +65,12 @@ behaviors:
 
   - id: meteorite-pickup-bloom
     description: >
-      Meteorite pickup continues to spawn a pickupBloom at the player
-      position, now via the shared helper.
+      When the player moves within Chebyshev distance 1 of a meteorite
+      entity (3x3 footprint around the player, matching the pickup-hitbox
+      spec) and the meteorite survives the chain-explosion roll, a
+      pickupBloom spawns at the player position via the shared helper.
     inputs:
-      - 'player walks onto tile containing meteorite entity'
+      - 'player moves to within Chebyshev distance 1 of a meteorite entity'
       - 'time parameter is provided'
       - 'meteorite survives chain explosion roll'
     outputs:
@@ -128,6 +132,25 @@ behaviors:
     inputs:
       - 'dialog completes with a character that has an unclaimed gift'
       - 'gift is a revery'
+      - 'time parameter is provided'
+    outputs:
+      - 'pickupBloom at player position'
+    state_changes:
+      - field: world
+        effect: 'pickupBloom entity created at player position'
+    determinism: deterministic
+
+  - id: progression-event-bloom
+    description: >
+      Progression events that mark a meaningful gameplay advance also
+      spawn a pickupBloom at the player position, even when no item
+      is acquired. Currently: clearing the coyote-role collapseBarrier
+      via clearRuinDebris, and rescueCoyote firing on adjacency. The
+      bloom marks the narrative beat; the player has not picked up
+      anything but progression has occurred.
+    inputs:
+      - 'collapseBarrier cleared in the coyote-role ruin'
+      - 'tryCoyoteRescueOnApproach fires rescueCoyote'
       - 'time parameter is provided'
     outputs:
       - 'pickupBloom at player position'

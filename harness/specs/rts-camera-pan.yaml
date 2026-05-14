@@ -40,8 +40,12 @@ behaviors:
       state.camera.x and state.camera.y by EDGE_SCROLL_SPEED_TILES_PER_SEC
       times the frame delta in the corresponding axis. Diagonal scroll is
       supported (cursor in a corner moves the camera in both axes).
-      Camera position is clamped to map bounds so the user cannot scroll
-      into the void.
+      Camera position is clamped to map bounds plus a full viewport of
+      overscroll on each side (overscrollX = viewportWidth,
+      overscrollY = viewportHeight) so the iso footprint can be panned
+      fully into view at the map corners. The hard outer clamp prevents
+      runaway panning into infinity but allows generous overscroll past
+      the rectangular tile bounds.
     inputs:
       - 'state.cursorScreenPos at canvas edge'
       - 'time delta from last frame'
@@ -51,9 +55,9 @@ behaviors:
       - field: cameraMode
         effect: "transitions from 'follow' to 'free' on first edge-scroll input"
       - field: camera.x
-        effect: 'shifts in proportion to dt; clamped to map bounds'
+        effect: 'shifts in proportion to dt; clamped to [-viewportWidth, mapWidth - viewportWidth + viewportWidth]'
       - field: camera.y
-        effect: 'shifts in proportion to dt; clamped to map bounds'
+        effect: 'shifts in proportion to dt; clamped to [-viewportHeight, mapHeight - viewportHeight + viewportHeight]'
     determinism: time-based
 
   - id: wasd-recenters-camera
@@ -156,7 +160,7 @@ edge_cases:
     expected: 'updateCamera(state, true) is called by the zone-swap path and bypasses the free-mode gate; cave camera initializes correctly; cameraMode resets to follow on zone swap'
   - id: pan-clamping-at-iso-edges
     description: 'The visible iso footprint extends diagonally past the rectangular tile space; user pans toward the corner'
-    expected: 'camera position clamps to integer tile coordinates [0, mapWidth - viewportWidth] x [0, mapHeight - viewportHeight]; the iso projection only changes how those bounds project visually'
+    expected: 'camera position clamps to [-viewportWidth, mapWidth] x [-viewportHeight, mapHeight] — a full viewport of overscroll on each side so the iso footprint can be fully framed at map corners. Outer clamp prevents runaway scroll into infinity.'
   - id: simultaneous-edge-and-wasd
     description: 'User holds WASD while cursor is at a canvas edge'
     expected: 'WASD-recenter wins each frame: keyboard-move tick runs, recenters, edge-scroll tick may flip back to free on the same frame; visually the camera tracks the player'
@@ -185,7 +189,7 @@ failure_conditions:
   - trigger: 'Click-to-move recenters the camera'
     expected: 'sending units to off-screen tiles snaps the camera away from the user pan; spec violated'
   - trigger: 'Camera position not clamped during free-pan'
-    expected: 'user can scroll into the void / off the map; spec violated'
+    expected: 'user can scroll past the overscroll envelope into infinity; spec violated — the outer clamp must keep the camera within the documented overscrolled range'
   - trigger: 'Indicator render pass reads edgeScrollDirection instead of edgeScrollIndicatorDirection'
     expected: 'fade-out renders with no edges illuminated (dx/dy already zeroed) — the overlay collapses to a dim rectangle; spec violated'
   - trigger: 'tickEdgeScroll skips alpha decay when edgeScrollPos is null'

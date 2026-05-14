@@ -43,15 +43,19 @@ behaviors:
       soil health visualization from the player position. black to green
       gradient (black = depleted, green = thriving). works in both
       overworld and cave. three phases: radial expansion (1.5s), hold
-      (2.5s), radial wave fade-out (1.5s). purely diagnostic — no
-      gameplay effects. skips space and impassable cave walls. records
-      event:earth-revery discovery on first activation.
+      (2.5s), radial wave fade-out (1.5s). diagnostic with one side
+      effect inside caves: the scan radius is added to the cave fog
+      illumination set via addReveryIllumination so the player can
+      see what the scan revealed. skips space and impassable cave
+      walls. records event:earth-revery discovery on first activation.
     inputs:
       - 'earth revery activated'
     outputs: []
     state_changes:
       - field: manualDiscoveries
         effect: 'event:earth-revery recorded'
+      - field: caveFogIllumination
+        effect: 'EARTH_SCAN_RADIUS tiles around the player added (cave only)'
     determinism: deterministic
 
   - id: assign-action-bar-slot
@@ -146,7 +150,10 @@ behaviors:
     description: >
       fire revery burns clover tiles to BurntClover at the cast
       position. adds SOIL_HEALTH_FIRE_REVERY_BONUS to soil health.
-      records event:fire-revery discovery.
+      records event:fire-revery discovery. when cast inside a cave,
+      the cast tiles are also added to the cave fog illumination
+      set via addReveryIllumination so the player can see the
+      burning area.
     inputs:
       - 'fire revery activated, facing a clover tile'
     outputs: []
@@ -161,6 +168,8 @@ behaviors:
         effect: 'wildfire entity created with MultiPosition, TimedEffect, EntityTag, EntityZone when multiple tiles burn'
       - field: manualDiscoveries
         effect: 'event:wildfire recorded'
+      - field: caveFogIllumination
+        effect: 'cast tiles added (cave only)'
     determinism: deterministic
 
   - id: water-revery-effect
@@ -194,12 +203,14 @@ behaviors:
       deferring to the targeting flow. the keyboard hook sets
       state.targetingSlot to the slot index and state.previewFn to
       getTargetingPreview, which highlights valid target tiles.
-      isValidLightningTarget checks that a tile is in-bounds, walkable,
-      and within the cast range. on click or confirmation,
-      castLightningAtTarget fires the revery at the selected position,
-      sets cooldown, creates the lightning ECS entity, and clears
-      targeting state. getTargetingPreview returns { pos, char, color }
-      for each valid tile within range using the revery's glyphColor.
+      isValidLightningTarget checks that a tile is in-bounds,
+      walkable, within the cast range, and not occupied by a
+      blocking entity (characters, bees, beehives). on click or
+      confirmation, castLightningAtTarget fires the revery at the
+      selected position, sets cooldown, creates the lightning ECS
+      entity, and clears targeting state. getTargetingPreview
+      returns { pos, char, color } for each valid tile within range
+      using the revery's glyphColor.
     inputs:
       - 'targeted-style revery slot activated'
     outputs:
@@ -221,7 +232,10 @@ behaviors:
       creates a lightning bolt ECS entity with LightningData containing
       the bolt path, impact position, and branch data. the bolt
       renders as animated ASCII lightning from sky to impact point.
-      records event:lightning-revery discovery on first cast.
+      when cast inside a cave, the bolt path tiles are added to the
+      cave fog illumination set via addReveryIllumination so the
+      strike is visible through the fog. records event:lightning-revery
+      discovery on first cast.
     inputs:
       - 'lightning revery cast at a valid target tile'
     outputs: []
@@ -234,6 +248,8 @@ behaviors:
         effect: 'wildfire entity created with MultiPosition, TimedEffect, EntityTag, EntityZone when multiple tiles burn'
       - field: manualDiscoveries
         effect: 'event:wildfire recorded'
+      - field: caveFogIllumination
+        effect: 'bolt path tiles added (cave only)'
     determinism: deterministic
 
   - id: auto-assign-revery

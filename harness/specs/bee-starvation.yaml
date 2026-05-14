@@ -15,23 +15,26 @@ dependencies:
 behaviors:
   - id: creature-hunger-module
     description: >
-      a new hunger.ts module provides generic creature hunger tracking.
-      tickCreatureHunger(state, entityTag, starvationMs, isNearFood)
-      iterates all entities matching the given tag, reads their
-      HungerTimer component, increments or resets based on the
-      isNearFood predicate, and returns an array of positions where
-      creatures starved. the module does not know about bees or clover
-      specifically — callers provide the food predicate. the
+      a hunger.ts module provides generic creature hunger tracking.
+      tickCreatureHunger(state, entityTag, starvationMs, tickMs,
+      isNearFood) iterates all entities matching the given tag, reads
+      their HungerTimer component, resets hungerMs to 0 when
+      isNearFood returns true and otherwise increments by tickMs,
+      destroys entities whose hungerMs >= starvationMs, and returns
+      an array of positions where creatures starved. the module does
+      not know about bees or clover specifically — callers provide
+      the tag, threshold, tick increment, and food predicate. the
       HungerTimer ECS component stores { hungerMs: number }.
     inputs:
       - 'entityTag string identifying the creature type'
       - 'starvationMs threshold in milliseconds'
+      - 'tickMs increment in milliseconds since the last call'
       - 'isNearFood predicate: (state, position) => boolean'
     outputs:
       - 'array of { x, y } positions where creatures died'
     state_changes:
       - field: 'world.components[eid][ComponentType.HungerTimer]'
-        effect: 'hungerMs reset to 0 if isNearFood returns true, otherwise incremented by tick interval'
+        effect: 'hungerMs reset to 0 if isNearFood returns true, otherwise incremented by tickMs'
       - field: 'world (ECS)'
         effect: 'entities destroyed when hungerMs >= starvationMs'
     determinism: deterministic
@@ -39,15 +42,20 @@ behaviors:
   - id: bee-hunger-integration
     description: >
       tickBees in entities.ts calls tickCreatureHunger after movement
-      with entityTag bee, starvationMs BEE_STARVATION_MS (30000),
-      and a food predicate that checks if the bee is on or cardinally
-      adjacent to a clover tile. deaths returned by the hunger module
-      trigger the onBeeDeath callback for event log display.
+      with entityTag bee, starvationMs BEE_STARVATION_MS (30000), the
+      caller-supplied tickMs, and a food predicate that checks if the
+      bee is on or cardinally adjacent to a clover tile. The hunger
+      module returns the array of death positions; tickBees returns
+      that array to its caller. There is no onBeeDeath callback —
+      the death positions are surfaced via the return value so each
+      caller can route them to the event log or other consumers as
+      needed.
     inputs:
       - 'bee entity with Position and HungerTimer components'
       - 'current map tiles surrounding the bee'
+      - 'tickMs since the previous tickBees call'
     outputs:
-      - 'onBeeDeath callback fires with bee world position for each death'
+      - 'array of { x, y } positions where bees died, returned to caller'
     state_changes:
       - field: 'world (ECS)'
         effect: 'starved bee entities removed'
@@ -55,9 +63,12 @@ behaviors:
 
   - id: bee-spawn-with-hunger
     description: >
-      all bee spawn paths (bee+clover combine, bee item drop, beehive
-      tick) must add HungerTimer component with hungerMs: 0 to the new
-      bee entity.
+      every bee spawn path (bee+clover prairie recipe via
+      spawnBeeOrMonarch, bee item drop, Gron saved-bees release) must
+      add a HungerTimer component with hungerMs: 0 to the new bee
+      entity. Beehives no longer spawn bees — they produce honey
+      ground items only (see bee-hive-lifecycle) — so the hive tick
+      is not a bee-spawn path.
     inputs:
       - 'any bee spawn event'
     outputs: []
@@ -75,19 +86,21 @@ edge_cases:
     expected: 'hungerMs resets to 0, bee survives'
   - id: cave-bees-can-starve
     description: 'bees in the cave zone with no clover tiles will starve after 30 seconds'
-    expected: 'bee destroyed, callback fires'
+    expected: 'bee destroyed, death position appears in the tickBees return value'
   - id: multiple-bees-starve-independently
     description: 'each bee tracks hunger independently. one starving does not affect others'
     expected: 'only the starved bee is destroyed'
   - id: future-creature-reuse
-    description: 'a new creature type can reuse tickCreatureHunger with its own tag, threshold, and food predicate'
-    expected: 'hunger module works generically without bee-specific logic'
+    description: 'a new creature type can reuse tickCreatureHunger with its own tag, threshold, tickMs, and food predicate'
+    expected: 'hunger module works generically without bee-specific logic — monarchs already reuse it via the monarch-butterfly spec'
 
 failure_conditions:
   - trigger: 'entity missing HungerTimer component'
     expected: 'tickCreatureHunger skips that entity gracefully'
   - trigger: 'all clover tiles destroyed on the map'
     expected: 'all bees eventually starve after 30 seconds with no clover contact'
+  - trigger: 'tickCreatureHunger called with the 4-arg signature (missing tickMs)'
+    expected: 'TypeScript compile error — the function requires tickMs as the fourth positional argument'
 
 verification:
   test_file: src/engine/__tests__/hunger.test.ts

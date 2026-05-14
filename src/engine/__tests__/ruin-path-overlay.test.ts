@@ -65,12 +65,6 @@ describe('ruin path overlay', () => {
     })
   })
 
-  describe('hover path overlay', () => {
-    it('skips multilayer on hover-path tiles in ruin zones', () => {
-      expect(shouldRenderRuinMultilayer({ ...baseArgs, hasOverlay: true })).toBe(false)
-    })
-  })
-
   describe('trail overlay', () => {
     it('skips multilayer on player trail tiles in ruin zones', () => {
       expect(shouldRenderRuinMultilayer({ ...baseArgs, hasOverlay: true })).toBe(false)
