@@ -16,6 +16,7 @@ export const TileType = {
   RuinFloor: 'ruinFloor',
   RuinWall: 'ruinWall',
   RuinEntrance: 'ruinEntrance',
+  RuinApron: 'ruinApron',
   RuinExit: 'ruinExit',
   RuinAqueduct: 'ruinAqueduct',
   RuinAqueductBroken: 'ruinAqueductBroken',

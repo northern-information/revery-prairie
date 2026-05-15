@@ -6,8 +6,10 @@ import {
   getElevationTier,
   getPondBgColor,
   getRiverBgColor,
+  getRuinPlatformLift,
   getTileBgColor,
   getTierLift,
+  RUIN_ENTRANCE_LIFT_PX,
 } from './tileBg'
 import { type GameState, type Tile, TileType, Zone } from './types'
 
@@ -54,7 +56,8 @@ const cacheByMap = new WeakMap<Tile[][], CacheEntry>()
 // pixels). Plus a small buffer for the diamond-overlap expansion used
 // when painting tiles.
 const TILE_BG_OVERLAP = 2
-const LIFT_HEADROOM = (ELEVATION_TIER_COUNT - 1) * ELEVATION_TIER_LIFT_PX + TILE_BG_OVERLAP
+const LIFT_HEADROOM =
+  (ELEVATION_TIER_COUNT - 1) * ELEVATION_TIER_LIFT_PX + RUIN_ENTRANCE_LIFT_PX + TILE_BG_OVERLAP
 
 const createCanvas = (width: number, height: number): { canvas: AnyCanvas; ctx: AnyCtx } => {
   if (typeof OffscreenCanvas !== 'undefined') {
@@ -103,16 +106,28 @@ const tierAtFromState = (state: GameState, x: number, y: number): number => {
 const liftAtFromState = (state: GameState, x: number, y: number): number =>
   getTierLift(tierAtFromState(state, x, y))
 
+const platformLiftAtFromState = (state: GameState, map: Tile[][], x: number, y: number): number => {
+  if (state.currentZone !== Zone.Overworld) return 0
+  const tile = map[y]?.[x]
+  if (!tile) return 0
+  return getRuinPlatformLift(tile.type)
+}
+
 const tileWorldPos = (
   entry: CacheEntry,
   x: number,
   y: number,
   state: GameState,
+  map: Tile[][],
 ): { px: number; py: number } => {
   const halfW = entry.charWidth / 2
   const halfH = entry.charHeight / 2
   const px = (x - y) * entry.charWidth + entry.worldOriginX + halfW
-  const py = (x + y) * halfH + entry.worldOriginY + liftAtFromState(state, x, y)
+  const py =
+    (x + y) * halfH +
+    entry.worldOriginY +
+    liftAtFromState(state, x, y) +
+    platformLiftAtFromState(state, map, x, y)
   return { px, py }
 }
 
@@ -133,7 +148,7 @@ const paintTileBg = (
     caveMaskActive && state.caveHiddenPositions.has(posKey(x, y))
       ? TileType.CaveWall
       : tile.type
-  const { px, py } = tileWorldPos(entry, x, y, state)
+  const { px, py } = tileWorldPos(entry, x, y, state, map)
   const leftX = px - halfW
   const rightX = leftX + 2 * charWidth
   const topY = py
@@ -169,10 +184,16 @@ const fullBuild = (entry: CacheEntry, state: GameState, map: Tile[][]): void => 
 
 // Clears the bbox of a single tile (with margin for the 2px overlap
 // fills and edge-stroke widths that intrude into the bbox).
-const clearTileBbox = (entry: CacheEntry, state: GameState, x: number, y: number): void => {
+const clearTileBbox = (
+  entry: CacheEntry,
+  state: GameState,
+  map: Tile[][],
+  x: number,
+  y: number,
+): void => {
   const { ctx, charWidth, charHeight } = entry
   const halfW = charWidth / 2
-  const { px, py } = tileWorldPos(entry, x, y, state)
+  const { px, py } = tileWorldPos(entry, x, y, state, map)
   const leftX = px - halfW
   const topY = py
   const margin = TILE_BG_OVERLAP + 1
@@ -264,7 +285,7 @@ export const flushDirtyTiles = (state: GameState, map: Tile[][]): void => {
     }
   }
   for (const { x, y } of dirtyCoords) {
-    clearTileBbox(entry, state, x, y)
+    clearTileBbox(entry, state, map, x, y)
   }
   const repaintCoords: { x: number; y: number; sum: number }[] = []
   for (const key of repaintSet) {
