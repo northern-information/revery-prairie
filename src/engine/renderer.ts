@@ -358,9 +358,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // must NOT translate — the player should slide across stationary
   // tiles. Mirror updateCamera's check exactly so the renderer's offset
   // matches what the camera actually did this frame.
+  //
+  // Mode gating: in 'free' (RTS pan) mode, the camera never tracks the
+  // player on any axis — the user pans manually. Applying the tween
+  // compensation translate then would slide the world by (lerp - player)
+  // every frame of a WASD step, producing a one-tile jitter visible
+  // especially at high zoom. In free mode the player glyph alone
+  // interpolates; the world tile grid stays anchored.
   const visibleWidth = state.viewportWidth - state.rightInsetTiles
-  const xCameraTracksPlayer = state.mapWidth >= visibleWidth
-  const yCameraTracksPlayer = state.mapHeight >= state.viewportHeight
+  const cameraFollows = state.cameraMode === 'follow'
+  const xCameraTracksPlayer = cameraFollows && state.mapWidth >= visibleWidth
+  const yCameraTracksPlayer = cameraFollows && state.mapHeight >= state.viewportHeight
   const tweenDelta = worldDeltaToIsoPx(
     xCameraTracksPlayer ? playerLerpX - player.x : 0,
     yCameraTracksPlayer ? playerLerpY - player.y : 0,
