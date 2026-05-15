@@ -296,20 +296,18 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: angel-pink-highlight
+  - id: angel-click-to-interact
     description: >
-      All angel body tiles highlight pink on mouse hover, consistent with
-      other interactable characters. The renderer marks angel tiles as
-      cursorable so the two-phase resolve-then-draw pattern applies cursor
-      inversion (pink fillRect background + dark text). Click-to-interact
-      pathfinds to the nearest adjacent walkable tile and triggers dialog
-      on arrival.
+      Right-clicking any angel body tile pathfinds the player to the
+      nearest adjacent walkable tile and triggers dialog on arrival.
+      Angel tiles remain cursorable so the sidebar can show angel info
+      when the mouse hovers over them, but no visual highlight is
+      applied on hover.
     inputs:
-      - 'Mouse cursor hovers over any angel body tile'
-      - 'Or player clicks an angel body tile'
+      - 'Player right-clicks an angel body tile'
     outputs:
-      - 'Pink highlight applied to hovered angel tile'
       - 'Click-to-interact pathfinds and opens dialog on arrival'
+      - 'Sidebar shows angel info while mouse hovers over angel tiles'
     state_changes: []
     determinism: deterministic
 

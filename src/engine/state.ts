@@ -96,6 +96,7 @@ export const createGameState = (
     weather: generateWeather(),
     path: null,
     pathWaypoints: [],
+    pathIsChained: false,
     pendingAction: null,
     pendingInteractionTarget: null,
     heldDirection: null,

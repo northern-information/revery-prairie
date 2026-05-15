@@ -169,8 +169,7 @@ behaviors:
       `state.multiplayerSession.color` via PLAYER_COLORS. In
       offline mode the local player uses the existing default
       color (no behavior change). All eight PLAYER_COLORS entries
-      remain readable against the dirt-tan background and against
-      cursor-highlight pink.
+      remain readable against the dirt-tan background.
     inputs:
       - 'GameState.multiplayerSession is non-null with a valid color'
       - 'render frame'

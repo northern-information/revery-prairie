@@ -132,7 +132,7 @@ edge_cases:
 
   - id: cursor-on-haloed-space-tile
     description: 'cursor hovers over a space tile that is also receiving halo'
-    expected: 'cursor inversion still wins via the existing resolve-then-draw pattern; halo is a background pre-pass and does not interfere with cursor highlight'
+    expected: 'no visual change — the hover cursor highlight has been removed; halo paints as a background pre-pass and no inversion is applied at the cursor tile'
 
 failure_conditions:
   - trigger: 'PRAIRIE_HALO_RADIUS, PRAIRIE_HALO_COLOR, PRAIRIE_HALO_MAX_ALPHA, or PRAIRIE_HALO_PULSE_SPEED missing from constants.ts'

@@ -44,16 +44,18 @@ behaviors:
       - field: targetingSlot
         effect: 'set to the slot index (0-3)'
       - field: previewFn
-        effect: 'set to a function that shows range indicator and cursor highlight'
+        effect: 'set to a function that shows the range indicator and the cursor-tile reticle glyph (no background inversion)'
     determinism: deterministic
 
   - id: targeting-mode-preview
     description: >
-      while in targeting mode, the tile under the cursor is highlighted
-      if it is a valid target (within 20 tiles manhattan distance of
-      player, walkable, on land). invalid tiles show no highlight. the
-      preview shows the lightning glyph | in white at the cursor tile
-      when valid.
+      while in targeting mode, the previewFn paints a faint range
+      indicator tint on tiles within 20 manhattan tiles of the player
+      and draws an animated lightning reticle glyph (white #FFFFFF) at
+      the cursor tile when it is a valid target. invalid cursor tiles
+      show a red X (#CC4444). no pink background inversion is applied
+      to either case — the reticle and X render directly over the
+      normal tile background. see lightning-targeting-visuals.yaml.
     inputs:
       - 'mouse position over canvas while targetingSlot is set'
     outputs:

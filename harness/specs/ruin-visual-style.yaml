@@ -109,10 +109,6 @@ edge_cases:
     description: 'very small font scale makes pixel offsets negligible'
     expected: 'layers overlap more at small scales — still readable, just denser'
 
-  - id: cursor-highlight-on-multilayer
-    description: 'cursor hovers over a multilayer ruin tile'
-    expected: 'cursor inversion (pink background + dark text) applies to the topmost layer only, matching the existing resolve-then-draw pattern'
-
 failure_conditions:
   - trigger: 'BUILDING_CHARS or CIV_COLORS not exported from constants'
     expected: 'compilation error — these must be importable by renderer'

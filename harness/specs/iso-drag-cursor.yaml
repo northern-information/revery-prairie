@@ -17,8 +17,8 @@ behaviors:
       obtain the iso anchor. The snapped left/top in viewport-pixel space
       are added to canvasRect.left / canvasRect.top to produce the fixed
       page-pixel position. The visual drag glyph therefore tracks the
-      same diamond cell that the canvas highlight and click-to-move land
-      on, instead of an orthogonal grid.
+      same diamond cell that click-to-move lands on, instead of an
+      orthogonal grid.
     inputs:
       - 'cursorTarget is "canvas", canvasRect is non-null, metricsRef.current is non-null, and state.viewportWidth / state.viewportHeight are non-zero'
     outputs:
@@ -30,14 +30,14 @@ behaviors:
   - id: drag-cursor-shares-projection-with-canvas
     description: >
       The viewport tile selected by DragCursor for snapping is the same
-      viewport tile that the canvas highlight selects for the same cursor
-      pixel position, because both call screenToTile with identical
-      arguments. Drag-and-drop targeting therefore agrees with the visual
-      drag preview.
+      viewport tile that click-to-move and the sidebar hover info use for
+      the same cursor pixel position, because all three call screenToTile
+      with identical arguments. Drag-and-drop targeting therefore agrees
+      with the visual drag preview.
     inputs:
       - 'cursor is over the canvas at screen pixel (cx, cy)'
     outputs:
-      - 'DragCursor previewed tile == canvas-highlighted tile'
+      - 'DragCursor previewed tile == click-to-move target tile == sidebar hover tile'
     state_changes: []
     determinism: deterministic
 edge_cases:

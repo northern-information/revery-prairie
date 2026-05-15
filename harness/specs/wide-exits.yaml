@@ -164,20 +164,17 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: exit-cursor-treatment
+  - id: exit-rendering
     description: >
-      When the cursor hovers over a CaveExit or RuinExit tile, the
-      renderer skips the standard cursor inversion (which would paint
-      pink-on-pink and disappear) and instead draws a brighter pink
-      outline (1px stroke) around the tile cell using a brighter pink
-      shade (e.g. #ff8fcf — lighter than #ff69b4). The underlying tile
-      fill remains the standard exit pink. This applies in both the
-      cave and ruin interiors. Cursor inversion behavior on every
-      other tile type is unchanged.
+      CaveExit and RuinExit tiles render with their standard pink fill.
+      No hover-cursor treatment is required because the cursor inversion
+      has been removed globally — there is no pink-on-pink conflict to
+      work around. Exit tiles render the same way whether the mouse is
+      over them or not.
     inputs:
-      - 'cursor hovering over an exit tile during render'
+      - 'rendering a CaveExit or RuinExit tile'
     outputs:
-      - 'brighter pink outline drawn around the tile, no inversion'
+      - 'tile renders with the standard exit pink fill'
     state_changes: []
     determinism: deterministic
 
@@ -234,13 +231,6 @@ edge_cases:
       so part of the 3x3 hitbox falls on Space tiles (non-walkable).
     expected: 'player cannot reach Space tiles, so the hitbox is naturally bounded by terrain walkability — no special-case needed in checkTransition'
 
-  - id: cursor-on-non-exit-pink-tile
-    description: >
-      No other tile type uses #ff69b4 as a fill color, so the cursor
-      outline treatment applies only to CaveExit and RuinExit. Path
-      preview dots and cursor inversion on other tiles are unchanged.
-    expected: 'cursor outline treatment is exclusive to exit tile types; all other cursor handling unchanged'
-
   - id: sidebar-effect-row-on-exit
     description: >
       Effect row in sidebar (rain, glinting, prairie halo, etc) is
@@ -254,9 +244,6 @@ failure_conditions:
 
   - trigger: 'overworld 3x3 hitbox overwrites underlying terrain tiles'
     expected: 'must not happen — terrain (dirt, clover, soil health) is preserved. Only the transition detection logic widens.'
-
-  - trigger: 'cursor inversion paints over an exit tile'
-    expected: 'must not happen — exit tiles must use the brighter-pink outline treatment; pink-on-pink inversion is invisible.'
 
   - trigger: 'sidebar shows raw camelCase "caveExit" or "ruinExit"'
     expected: 'must not happen — both types map to the human-readable label "exit"'

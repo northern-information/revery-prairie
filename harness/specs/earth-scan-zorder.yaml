@@ -18,9 +18,6 @@ behaviors:
         effect: Earth scan backgrounds drawn in pre-pass, removed from main glyph loop
     determinism: deterministic
 edge_cases:
-  - id: scan-with-cursor-inversion
-    description: Cursor inversion fillRect still draws correctly on top of earth scan backgrounds in the main loop
-    expected: Cursor highlight covers earth scan background and glyph draws on top
   - id: no-scan-active
     description: When no earth scan is active, the pre-pass is skipped entirely
     expected: Zero performance impact when earthScanBgMap is empty

@@ -85,8 +85,9 @@ behaviors:
     description: >
       isInteractableAt returns true for CaveBreakableWall tiles when
       in cave zone and caveRevealed is false. after reveal, the tiles
-      are CaveFloor and no longer interactable via this check. this
-      enables pink cursor highlight on the wall before breaking.
+      are CaveFloor and no longer interactable via this check. used by
+      right-click-to-interact pathfinding to recognize the wall as a
+      valid target.
     inputs:
       - 'isInteractableAt called with breakable wall coordinates'
     outputs:

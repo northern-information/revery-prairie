@@ -52,15 +52,15 @@ behaviors:
     description: >
       renderer.ts routes every tile-anchored draw call through
       viewportToScreen / worldToScreen. This includes the base tile loop,
-      cursor highlight inversion, facing-entity highlight, pending-target
-      highlight, selectedPositions, path dots, hover preview, drop
-      targets, ground items, characters, bees, monarchs, ghosts, angels,
-      meteorites, satellites, ECS tweened entities, rain overlays,
-      lightning paths, explosion/wildfire/pickup-bloom/crumble effects,
-      ruin layers, earth-scan aura background, glinting sparkles, and
-      action-bar previews. Cell-background fills go through
-      drawCellBackground, which paints a 2:1 diamond. Glyphs draw via
-      fillText at the cell's projected anchor.
+      facing-entity highlight, pending-target highlight, selectedPositions,
+      shift+right-click path dots, hover preview, drop targets, ground
+      items, characters, bees, monarchs, ghosts, angels, meteorites,
+      satellites, ECS tweened entities, rain overlays, lightning paths,
+      explosion/wildfire/pickup-bloom/crumble effects, ruin layers,
+      earth-scan aura background, glinting sparkles, and action-bar
+      previews. Cell-background fills go through drawCellBackground,
+      which paints a 2:1 diamond. Glyphs draw via fillText at the cell's
+      projected anchor.
     inputs:
       - 'render(ctx, state, metrics, time) called from rAF loop'
     outputs:
@@ -83,13 +83,15 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: cursor-highlight-diamond
+  - id: diamond-cell-background
     description: >
       drawCellBackground paints a filled diamond path. The diamond's
       four vertices are top, right, bottom, left of the
       (2*charWidth)x(charHeight) bounding box anchored at the glyph
-      position. The pink cursor invert fills the cell with ACTION_COLOR
-      (#ff69b4) and draws the glyph in BG_COLOR.
+      position. Used by tile-bg pre-pass, pending-target highlight,
+      facing-entity highlight, drop-target preview, and other
+      diamond-shaped cell fills. The hover cursor inversion is no
+      longer one of these call sites.
     inputs:
       - 'ctx (2D canvas context)'
       - 'px, py (cell glyph anchor in pixels)'
@@ -128,7 +130,7 @@ edge_cases:
 
   - id: diamond-cells-tile-the-plane
     description: 'Each diamond fits within a 2*charWidth by charHeight bounding rectangle; adjacent tiles share bounding-rectangle edges'
-    expected: 'diamonds tile the plane; the cursor highlight diamond visually aligns with the four cardinal-adjacent tiles'
+    expected: 'diamonds tile the plane; cell-background diamonds (tile bg, pending-target highlight, facing-entity highlight) visually align with the four cardinal-adjacent tiles'
 
   - id: multiplayer-remote-players-project
     description: 'Remote players are drawn as @ glyphs at their tile coordinates'
@@ -139,10 +141,10 @@ failure_conditions:
     expected: 'visual drift between layers (e.g. base tiles vs lightning paths); spec is violated; renderer must route every draw call through viewportToScreen / worldToScreen'
 
   - trigger: 'screenToTile and viewportToScreen are not exact inverses for tiles inside their diamond'
-    expected: 'click-to-move sends the player to the wrong tile; hover highlight does not match the cell under the cursor; round-trip property test fails'
+    expected: 'click-to-move sends the player to the wrong tile; sidebar hover info points to the wrong tile; round-trip property test fails'
 
   - trigger: 'Cell-background fillRect is left in place while drawCellBackground is used elsewhere'
-    expected: 'cursor highlight or facing-entity highlight paints a rectangle on a diamond grid, producing visual artifacts; spec is violated'
+    expected: 'facing-entity highlight, pending-target highlight, or selection highlight paints a rectangle on a diamond grid, producing visual artifacts; spec is violated'
 
   - trigger: 'Viewport tile-loop bounds are not expanded'
     expected: 'corner tiles of the visible footprint are clipped; spec is violated'

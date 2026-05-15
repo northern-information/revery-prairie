@@ -51,7 +51,7 @@ behaviors:
 edge_cases:
   - id: player-on-ruin-with-cursor
     description: 'Player stands on a ruin tile while cursor is also on the player tile'
-    expected: 'Player glyph is visible with cursor highlight applied, ruin multilayer skipped'
+    expected: 'Player glyph is visible (player-selected highlight applies when playerSelected is true; otherwise no cursor inversion is applied); ruin multilayer skipped'
   - id: more-entrances-than-letters
     description: 'More than 12 ruins generated (exceeding Greek letter pool)'
     expected: 'Extra entrances cycle back through the pool or use fallback glyph'

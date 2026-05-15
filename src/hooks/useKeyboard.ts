@@ -206,7 +206,6 @@ export const useKeyboard = ({
           e.preventDefault()
           state.heldKeys.add(axis)
           state.heldDirection = resolveHeldDirection(state.heldKeys)
-          document.documentElement.classList.add('cursor-hidden')
           if (!e.repeat) {
             state.path = null
             state.pathWaypoints = []
@@ -343,7 +342,6 @@ export const useKeyboard = ({
         e.preventDefault()
         state.heldKeys.add(axis)
         state.heldDirection = resolveHeldDirection(state.heldKeys)
-        document.documentElement.classList.add('cursor-hidden')
         if (!e.repeat) {
           state.path = null
           state.pathWaypoints = []

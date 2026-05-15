@@ -84,19 +84,16 @@ behaviors:
 
   - id: angel-group-highlight-preserved
     description: >
-      When the cursor, `facingEntityPos`, or `pendingInteractionTarget`
-      lands on any tile in an angel's body footprint, the entire angel
-      body renders with the cursor-inversion highlight (action-color
-      cell background, `BG_COLOR` foreground). The highlight applies
-      at the lifted Y position so the inversion box tracks the
-      floating angel, not the terrain underneath. Highlight precedence
-      relative to other entity highlights matches the previous inline
-      behavior (player-selected glow takes precedence; angel-group
-      highlight takes precedence over single-tile cursor inversion for
-      tiles inside the angel body).
+      When `facingEntityPos` or `pendingInteractionTarget` lands on any
+      tile in an angel's body footprint, the entire angel body renders
+      with an inversion highlight (action-color cell background,
+      `BG_COLOR` foreground). The highlight applies at the lifted Y
+      position so the inversion box tracks the floating angel, not the
+      terrain underneath. Player-selected glow takes precedence over
+      the angel-group highlight. The hover-cursor inversion has been
+      removed and no longer triggers this highlight.
     inputs:
-      - cursor, facing entity, or pending interaction target on an angel
-        body tile
+      - facing entity or pending interaction target on an angel body tile
     outputs:
       - all 9x9 body pixels render with action-color background and
         `BG_COLOR` foreground, lifted by `ANGEL_FLOAT_LIFT_PX`
