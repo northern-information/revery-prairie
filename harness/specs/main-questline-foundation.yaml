@@ -121,13 +121,16 @@ behaviors:
       the spawn alcove is cramped), a toast message "Rescued Coyote!"
       is queued, recordDiscovery is called with 'character:coyote' and
       'event:rescue-coyote', a pickupBloom spawns at the player
-      position, and mainQuestPhase transitions to 'gathering'. The
-      check fires from movePlayer's post-step hook (same point that
-      handles other adjacency-based events). The rescue is decoupled
-      from the locked-door unlock — door unlock now only governs vault
-      access, not the rescue. The trigger is gated on
-      mainQuestPhase === 'awaiting-coyote' so it cannot re-fire after
-      a successful rescue.
+      position, state.coyoteCargo and state.coyotePath are reset,
+      mainQuestPhase transitions to 'gathering', and state.activeDialog
+      is opened with the coyote dialog descriptor (see
+      trapped-coyote-stays-put:coyote-runs-to-player-and-opens-dialog-on-rescue
+      for the dialog contract). The check fires from movePlayer's
+      post-step hook (same point that handles other adjacency-based
+      events). The rescue is decoupled from the locked-door unlock —
+      door unlock now only governs vault access, not the rescue. The
+      trigger is gated on mainQuestPhase === 'awaiting-coyote' so it
+      cannot re-fire after a successful rescue.
     inputs:
       - 'movePlayer succeeds inside the coyote-role ruin and the new player position is cardinally adjacent to the trapped coyote tile'
       - 'state.mainQuestPhase === "awaiting-coyote"'
@@ -137,9 +140,14 @@ behaviors:
       - 'toast "Rescued Coyote!" queued'
       - 'pickupBloom spawned at player position'
       - '"character:coyote" and "event:rescue-coyote" in state.manualDiscoveries'
+      - 'state.activeDialog opened with coyote dialog descriptor'
     state_changes:
       - field: coyoteMode
         effect: 'set to Follow'
+      - field: coyoteCargo
+        effect: 'reset to null'
+      - field: coyotePath
+        effect: 'reset to null'
       - field: 'world (coyote entity Position component)'
         effect: 'teleported to a walkable tile adjacent to the player'
       - field: mainQuestPhase
@@ -148,6 +156,8 @@ behaviors:
         effect: '"character:coyote" and "event:rescue-coyote" added via recordDiscovery'
       - field: pickupBlooms
         effect: 'new bloom spawned at player tile'
+      - field: activeDialog
+        effect: 'opened with { characterId: "coyote", lineIndex: 0, typingIndex: 0, typingDone: false, transitioning: false, transitionStartTime: 0 }'
     determinism: deterministic
 
   - id: gron-dialog-phase-dispatch

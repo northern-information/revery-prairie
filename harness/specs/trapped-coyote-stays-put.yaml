@@ -19,22 +19,25 @@ behaviors:
       rescued (mainQuestPhase === 'awaiting-coyote'), the coyote
       entity must remain at the position where spawnDormantGardenItems
       placed it — past the collapseBarrier on the vault side. The
-      zone-following helper that pulls a companion coyote to a tile
-      adjacent to the player on cave/ruin transitions must skip its
-      teleport step while the coyote is still trapped. The coyote's
-      EntityZone may still be updated (so cross-zone bookkeeping
-      stays consistent) but its Position must not be moved.
+      zone-following helper (transitionCoyoteToZone) early-returns
+      before any mutation when the trapped-coyote condition holds, so
+      neither the coyote Position component nor its EntityZone
+      component is modified — the coyote stays in the ruin zone with
+      its original ruinIndex.
     inputs:
       - 'enterRuin runs for a coyote-role ruin while state.mainQuestPhase === "awaiting-coyote"'
       - 'spawnDormantGardenItems has just placed the coyote past the collapseBarrier'
     outputs:
       - 'coyote Position component is unchanged after enterRuin returns'
+      - 'coyote EntityZone component is unchanged (stays Zone.Ruin with the original ruinIndex)'
       - 'coyote is not cardinally adjacent to state.player'
       - 'state.mainQuestPhase remains "awaiting-coyote"'
       - 'no "Rescued Coyote!" toast is queued'
     state_changes:
       - field: 'world (coyote entity Position component)'
         effect: 'unchanged — coyote remains at its spawn tile past the collapseBarrier'
+      - field: 'world (coyote entity EntityZone component)'
+        effect: 'unchanged — early return skips zone bookkeeping while trapped'
       - field: mainQuestPhase
         effect: 'unchanged — remains "awaiting-coyote"'
     determinism: deterministic

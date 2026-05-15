@@ -20,17 +20,25 @@ behaviors:
       and initializes activeDialog with characterId, lineIndex 0,
       typingIndex 0, typingDone false, transitioning false,
       transitionStartTime 0. does not give gifts — gift delivery
-      happens on dialog completion via advanceDialog. always returns
-      { opened: boolean, gift: null }.
+      happens on dialog completion via advanceDialog. always
+      returns { opened: boolean, gift: null, coyoteToggled: false }.
+      the coyoteToggled field is reserved for a legacy interaction
+      that toggled coyote mode via [e]; it is no longer used (coyote
+      mode is controlled via the permacomputer panel), but the
+      field remains in the return type for backward compatibility.
+      coyote and angel characters take alternate paths: coyote
+      adjacency records the character discovery and returns without
+      opening dialog; angels store their canto on first interaction
+      before the dialog opens.
     inputs:
       - 'player adjacent to a character entity, [e] pressed'
     outputs:
-      - '{ opened: boolean, gift: null }'
+      - '{ opened: boolean, gift: null, coyoteToggled: false }'
     state_changes:
       - field: activeDialog
         effect: 'initialized with character dialog state'
       - field: manualDiscoveries
-        effect: 'character discovery recorded'
+        effect: 'character discovery recorded; angel canto stored on first interaction'
     determinism: deterministic
 
   - id: dialog-typing
@@ -55,22 +63,29 @@ behaviors:
 
   - id: dialog-advance
     description: >
-      advanceDialog(state) handles [e] press during dialog. returns
-      { continuing: boolean; gift: ReveryDefinition | null }. if
-      typing is not done, reveals the full line immediately and
+      advanceDialog(state, time?) handles [e] press during dialog.
+      returns { continuing: boolean; gift: ReveryDefinition | null }.
+      if typing is not done, reveals the full line immediately and
       returns { continuing: true, gift: null }. if transitioning,
       ignores the press and returns { continuing: true, gift: null }.
       if more lines remain, sets transitioning to true with
       transitionStartTime and returns { continuing: true, gift: null }.
       if no more lines, nulls activeDialog and triggers the gift
-      delivery flow via dialog-completion-gift.
+      delivery flow via dialog-completion-gift (time is forwarded to
+      giveCharacterGift/givePostGift for pickup-bloom spawning).
+      additionally, when the closing dialog belongs to Gron and
+      state.pendingSavedBees is true, the saved-bees release fires
+      per main-questline-foundation:gron-saving-bees-release before
+      the gift flow runs.
     inputs:
-      - '[e] pressed during active dialog'
+      - '[e] pressed during active dialog, optional time'
     outputs:
       - '{ continuing: boolean, gift: ReveryDefinition | null }'
     state_changes:
       - field: activeDialog
         effect: 'typing completed, or transition started, or set to null'
+      - field: '(gron saved-bees release)'
+        effect: 'when Gron dialog closes with pendingSavedBees true, releaseSavedBees fires per main-questline-foundation:gron-saving-bees-release'
     determinism: deterministic
 
   - id: dialog-completion-gift
@@ -120,16 +135,18 @@ behaviors:
 
   - id: character-gift-delivery
     description: >
-      giveCharacterGift(state, characterId) checks if the character
-      definition has a gift and if it has not already been received.
-      for revery gifts, pushes the revery id to state.reveries,
+      giveCharacterGift(state, characterId, time?) checks if the
+      character definition has a gift and if it has not already been
+      received. for revery gifts, pushes the revery id to state.reveries,
       auto-assigns to the action bar, adds characterId to
-      giftsReceived, and records manual discoveries. returns the
+      giftsReceived, records manual discoveries, and spawns a
+      pickupBloom at the player position when time is provided
+      (per universal-pickup-bloom convention). returns the
       ReveryDefinition or null. called by advanceDialog on dialog
       completion, not during interactWithCharacter. tracked in
       state.giftsReceived so each character gives their gift once.
     inputs:
-      - 'characterId with a gift defined, gift not yet received'
+      - 'characterId with a gift defined, gift not yet received, optional time'
     outputs:
       - 'ReveryDefinition if gift is a revery, null otherwise'
     state_changes:
@@ -139,19 +156,23 @@ behaviors:
         effect: 'characterId added'
       - field: manualDiscoveries
         effect: 'revery and gift event discoveries recorded'
+      - field: world
+        effect: 'pickupBloom entity spawned at player position when time is provided'
     determinism: deterministic
 
   - id: post-gift-delivery
     description: >
-      givePostGift(state, characterId) checks if the character
+      givePostGift(state, characterId, time?) checks if the character
       definition has a postGift field. for revery postGifts, pushes
       the revery id to state.reveries, auto-assigns to the action
-      bar, and records manual discoveries. called by advanceDialog
-      on dialog completion when the initial gift has already been
-      received and postGiftActionsCompleted does not contain the
-      characterId. one-time per character via postGiftActionsCompleted.
+      bar, records manual discoveries, and spawns a pickupBloom at
+      the player position when time is provided. called by
+      advanceDialog on dialog completion when the initial gift has
+      already been received and postGiftActionsCompleted does not
+      contain the characterId. one-time per character via
+      postGiftActionsCompleted.
     inputs:
-      - 'characterId with a postGift defined, postGift not yet completed'
+      - 'characterId with a postGift defined, postGift not yet completed, optional time'
     outputs:
       - 'ReveryDefinition if postGift is a revery, null otherwise'
     state_changes:
@@ -159,6 +180,26 @@ behaviors:
         effect: 'revery id pushed'
       - field: manualDiscoveries
         effect: 'revery and deep-time event discoveries recorded'
+      - field: world
+        effect: 'pickupBloom entity spawned at player position when time is provided'
+    determinism: deterministic
+
+  - id: locked-gate-dialog-entry
+    description: >
+      openLockedGateDialog(state) is a separate dialog-opening pathway
+      that synthesizes a 'gate' speaker (no Position component, never
+      returned by getAdjacentCharacter, excluded from manual
+      auto-derivation) and sets activeDialog to its single line
+      "The gate is locked." used by the ruin-locked-door flow when the
+      player presses [e] on a locked door without an aqueductKey.
+      see ruin-locked-door:locked-gate-dialog for the full contract.
+    inputs:
+      - 'player presses [e] facing a RuinDoorLocked tile with no aqueductKey'
+    outputs:
+      - 'activeDialog set to the gate descriptor'
+    state_changes:
+      - field: activeDialog
+        effect: "set to { characterId: 'gate', lineIndex: 0, typingIndex: 0, typingDone: false, transitioning: false, transitionStartTime: 0 }"
     determinism: deterministic
 
   - id: adjacent-character-detection
@@ -177,13 +218,16 @@ behaviors:
 edge_cases:
   - id: no-adjacent-character
     description: 'player presses [e] with no character in range'
-    expected: 'interactWithCharacter returns { opened: false, gift: null }'
+    expected: 'interactWithCharacter returns { opened: false, gift: null, coyoteToggled: false }'
   - id: gift-already-received
     description: 'player talks to a character whose gift was already given'
     expected: 'postGiftDialog is shown instead of original dialog; gift given on dialog completion not on interaction open'
   - id: advance-during-transition
     description: 'player presses [e] while dialog line is transitioning'
     expected: 'press is ignored, returns { continuing: true, gift: null }'
+  - id: coyote-adjacency-no-dialog
+    description: 'player presses [e] adjacent to the coyote'
+    expected: "interactWithCharacter returns { opened: false, gift: null, coyoteToggled: false } and records 'character:coyote' discovery, but does not open dialog (coyote dialog is auto-opened by the rescue sequence, not [e])"
   - id: rapid-advance
     description: 'player presses [e] rapidly before typing finishes'
     expected: 'first press reveals full line; second press starts transition or closes dialog'
@@ -193,7 +237,7 @@ edge_cases:
 
 failure_conditions:
   - trigger: 'interactWithCharacter called with no active dialog and no adjacent character'
-    expected: 'returns { opened: false, gift: null }; no state changes'
+    expected: 'returns { opened: false, gift: null, coyoteToggled: false }; no state changes'
   - trigger: 'advanceDialog called with no activeDialog'
     expected: 'returns { continuing: false, gift: null }; no state changes'
 

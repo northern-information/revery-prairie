@@ -153,22 +153,33 @@ behaviors:
       For each land tile, compute the dot product of (tile - nearest
       axis midpoint) with the axis perpendicular vector. Positive dot
       product = windward side (assumed prevailing wind from +x);
-      negative = leeward (rain shadow). Windward tiles receive +5 soil
-      health and +10 vegetation density; leeward tiles receive -3 soil
-      health (clamped to floor of 10) and -10 vegetation density
-      (clamped to 0). Bias magnitude scales with axis intensity and
-      decays with distance from axis (0 at radius * 4 tiles).
+      negative = leeward (rain shadow). Per-epoch bias values:
+
+      - EmergenceOfLife: windward +5 soil / +10 vegetation,
+        leeward -3 soil / -10 vegetation (clamped to floor of 10
+        soil and 0 vegetation).
+      - WarmPeriod: same as EmergenceOfLife
+        (+5 / +10 windward, -3 / -10 leeward).
+      - Regrowth: windward +3 soil / +0 vegetation, leeward -2 soil /
+        -0 vegetation. The lower magnitudes reflect ash enrichment
+        only — the comment in code says "land stays barren into the
+        ice age," so vegetation bias is intentionally zero.
+
+      Bias magnitude scales with axis intensity (weight = decay *
+      bestIntensity / 22) and decays with distance from axis (0 at
+      radius * 4 tiles).
     inputs:
       - EmergenceOfLife / Regrowth / WarmPeriod epoch mutate runs
       - sim.tectonicAxes populated by TectonicUplift
     outputs:
       - soil health distribution shows directional banding aligned with tectonic axes
-      - vegetation density visibly differs between sides of tectonic ridges
+      - vegetation density visibly differs between sides of tectonic ridges for EmergenceOfLife and WarmPeriod
+      - Regrowth banding shows soil bias only, no vegetation change
     state_changes:
       - field: sim.soilHealth
-        effect: biased +5 windward, -3 leeward (clamped to [10, SOIL_HEALTH_MAX]) per vegetation epoch
+        effect: 'EmergenceOfLife/WarmPeriod: +5 windward / -3 leeward; Regrowth: +3 windward / -2 leeward; all clamped to [10, SOIL_HEALTH_MAX]'
       - field: sim.vegetationMap
-        effect: biased +10 windward, -10 leeward (clamped >= 0) per vegetation epoch
+        effect: 'EmergenceOfLife/WarmPeriod: +10 windward / -10 leeward (clamped >= 0); Regrowth: no vegetation bias'
     determinism: deterministic
 
   - id: tectonic-axis-snapshot

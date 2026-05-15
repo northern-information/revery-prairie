@@ -22,11 +22,16 @@ dependencies: []
 behaviors:
   - id: satellite-spawning
     description: >
-      Satellites spawn at rare intervals (~180-300s), much rarer than
-      shooting stars. Only one satellite may be active at a time. Spawns
-      from a random edge of the map with slow velocity toward a
-      pre-selected walkable overworld land target. Suppressed in cave
-      zone, during deep time, and during meteor showers.
+      Satellites spawn at rare intervals, much rarer than shooting
+      stars. Spawn is gated by SATELLITE_MIN_SPAWN_INTERVAL_MS
+      (180_000 ms = 3 min) as a hard minimum, combined with a
+      per-tick SATELLITE_SPAWN_CHANCE probability roll. There is no
+      hard upper bound — typical inter-spawn time clusters around
+      3-5 minutes but can run longer. Only one satellite may be
+      active at a time. Spawns from a random edge of the map with
+      slow velocity toward a pre-selected walkable overworld land
+      target. Suppressed in cave zone, during deep time, and during
+      meteor showers.
     inputs:
       - 'GameState with currentZone === overworld'
       - 'Elapsed time since last satellite spawn >= SATELLITE_SPAWN_INTERVAL_MS'
@@ -161,16 +166,20 @@ behaviors:
       Approximately 30% of satellites carry a beneficial payload. When
       a good satellite impacts, it scatters 2-4 seed items (randomly
       selected from wildflowerSeeds, tallGrassSeeds, milkweedSeeds) as
-      ground items on walkable tiles within the 5x5 impact zone. Items
-      are placed on Crater tiles that are not already occupied by ground
-      items. The crater damage still occurs — seeds land in the crater.
+      ground items on walkable tiles within the 5x5 impact zone. Tile
+      eligibility is determined by isWalkableTile alone — there is no
+      explicit "must be cratered" check. In practice the 5x5 zone is
+      dominated by tiles that have just been cratered (Dirt/Clover that
+      passed the same tile-protection filter), so payload placement
+      naturally lands on cratered ground. The crater damage still
+      occurs — seeds land in the crater.
     inputs:
       - 'Satellite impact with payloadType === seeds'
     outputs:
       - '2-4 ground item entities created within impact zone'
     state_changes:
       - field: world
-        effect: '2-4 groundItem entities with ItemDrop component created at crater positions'
+        effect: '2-4 groundItem entities with ItemDrop component created at walkable tiles inside the 5x5 zone'
     determinism: probabilistic
 
   - id: crater-tile-rendering

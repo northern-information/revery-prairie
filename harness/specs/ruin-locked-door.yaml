@@ -171,13 +171,16 @@ behaviors:
 
   - id: door-sidebar-labels
     description: >
-      Sidebar tile-type label map gains RuinDoorLocked (locked door)
-      and RuinDoorOpen (open door). cursor info follows the existing
+      Sidebar tile-type label map gains a RuinDoorLocked entry
+      ("locked door"). RuinDoorOpen is intentionally not added —
+      its glyph and color mirror RuinFloor, so the existing ruin-floor
+      label is reused. cursor info follows the existing
       tile-label pattern.
     inputs:
       - 'cursor hovering over a door tile in a ruin'
     outputs:
-      - 'human-readable door label in sidebar contents'
+      - 'human-readable door label in sidebar contents for locked doors'
+      - 'open doors fall through to the ruin-floor label'
     state_changes: []
     determinism: deterministic
 
