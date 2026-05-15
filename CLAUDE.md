@@ -177,6 +177,7 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 - `esc` — close panel / open menu
 - `shift` — toggle sprint (double movement speed, works with WASD and click-to-move)
 - `shift+click` — queue waypoints onto existing path (RTS-style)
+- `space` — toggle camera mode (follow lock ↔ RTS pan)
 - during drag: `esc` cancels (captured by drag hook)
 - `1-4` — activate action bar slot (blocked during dialog and menu)
 - `` ` `` — toggle dev panel (dev mode only)
@@ -184,7 +185,6 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 
 ### reserved keys (not yet implemented)
 
-- `space` — TBD
 - `left click+drag` — TBD (future RTS-style multi-select)
 - `right click` — TBD
 
