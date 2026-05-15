@@ -23,6 +23,8 @@ npm install
 npm run dev
 ```
 
+node version is pinned to an exact patch in `.node-version` and `.nvmrc` — both must stay in sync. see `CLAUDE.md` for details.
+
 ## deploy
 
 multiplayer ships as a single Cloudflare Worker that serves both the React SPA and the `/api/*` endpoints from one origin (no CORS, no second deploy URL).
