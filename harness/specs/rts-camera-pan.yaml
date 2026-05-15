@@ -3,11 +3,12 @@ name: 'RTS-style camera pan with spacebar toggle and edge-scroll'
 priority: medium
 layer: integration
 source_files:
+  - src/components/CameraLockReticles.tsx
+  - src/components/GameScreen.tsx
   - src/engine/camera.ts
   - src/engine/edgeScroll.ts
   - src/engine/gameLoop.ts
   - src/engine/movement.ts
-  - src/engine/render/passes/cameraLockReticles.ts
   - src/engine/render/passes/edgeScrollIndicator.ts
   - src/engine/render/passes/index.ts
   - src/engine/renderer.ts
@@ -331,11 +332,11 @@ edge_cases:
 
   - id: reticles-only-in-follow
     description: 'cameraMode === free, no edge-scroll active'
-    expected: 'cameraLockReticles pass isActive returns false; no reticles drawn; player can edge-scroll freely'
+    expected: 'CameraLockReticles returns null; no reticles in the DOM tree; player can edge-scroll freely'
 
-  - id: reticles-with-sidebar-inset
-    description: 'Reticles drawn while the Sidebar is visible (rightInsetTiles > 0)'
-    expected: 'right-edge reticles align to the visible playfield right edge (viewportWidth - rightInsetTiles) * charWidth, not the full canvas width; left/top/bottom reticles use the full canvas edge'
+  - id: reticles-anchor-to-viewport
+    description: 'Reticles drawn while the Sidebar and EventLog are visible'
+    expected: 'all four reticles anchor to the browser-viewport corners via CSS `inset`; right-edge reticles sit on top of the sidebar (z-50 over the sidebar`s z-10); bottom-left reticle sits on top of the event log'
 
 failure_conditions:
   - trigger: 'tickEdgeScroll mutates camera or flips cameraMode while in follow mode'
