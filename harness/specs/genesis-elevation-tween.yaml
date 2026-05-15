@@ -1,0 +1,172 @@
+id: genesis-elevation-tween
+name: 'Smooth tile elevation tier transitions during genesis'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/genesisRenderer.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/genesis.ts
+dependencies:
+  - genesis-terrain-realism
+  - genesis-transition
+
+behaviors:
+  - id: per-tile-tier-tween-state
+    description: >
+      genesisRenderer tracks, for each land tile, the previously observed
+      elevation tier and the time at which the tier last changed. on every
+      frame, before the bg fill / wall / glyph passes, the renderer reads
+      the active snapshot's elevation for each visible tile and computes
+      the current tier via getElevationTier. when the current tier differs
+      from the tile's previously stored tier, the renderer records the
+      prior tier as the tile's tween-from value, records the current tier
+      as the tween-to value, and stamps the tween start time to the
+      current frame time. when the current tier matches the previously
+      stored tier, no tween bookkeeping is updated.
+      tween state lives on sim (e.g. sim.tierTweens: Map<posKey, { fromTier, toTier, startMs }>)
+      so it survives across frames within a single genesis run but is
+      cleared/reinitialized in createGenesisSim. it is NOT included in
+      EpochSnapshot — snapshots remain a pure record of the simulation
+      data, not transient render state.
+    inputs:
+      - 'genesis is running (sim.epochIndex < epochs.length)'
+      - 'an epoch boundary has applied a snapshot in which one or more tiles cross a tier boundary relative to the previous frame'
+      - 'time (frame timestamp) is monotonic'
+    outputs:
+      - 'sim.tierTweens has an entry for every tile whose tier has changed at any point during the run'
+      - 'sim.tierTweens entries do not appear for tiles whose tier has never changed'
+    state_changes:
+      - field: sim.tierTweens
+        effect: 'populated/updated per frame by the renderer when the snapshot tier differs from the previously cached tier'
+      - field: GenesisSimState
+        effect: 'gains a tierTweens field plus a per-tile lastObservedTier map; initialized empty in createGenesisSim'
+    determinism: time-based
+
+  - id: tier-lift-tweens-over-fixed-window
+    description: >
+      when reading a tile's lift for diamond placement and wall depth, the
+      renderer uses a tweened lift instead of the raw getTierLift(currentTier).
+      given a tween record { fromTier, toTier, startMs } and the current
+      frame time t, the tween value is
+        u = clamp((t - startMs) / TIER_TWEEN_DURATION_MS, 0, 1)
+        easedU = easeInOutCubic(u)
+        liftPx = lerp(getTierLift(fromTier), getTierLift(toTier), easedU)
+      TIER_TWEEN_DURATION_MS is a new exported constant in tileBg.ts
+      (target 400ms) shared with the wall pass so diamonds and walls
+      always agree on the same tile's current lift. when no tween record
+      exists for a tile, the renderer falls back to getTierLift of its
+      current tier directly. when u >= 1 the renderer may keep the
+      tween record (it produces the same value as the no-tween fallback)
+      or prune it; both behaviors are observably identical.
+    inputs:
+      - 'a tile has a tween record with startMs <= current frame time'
+      - 'TIER_TWEEN_DURATION_MS > 0'
+    outputs:
+      - 'liftAtSim returns a continuous (sub-pixel) value during the tween window'
+      - 'no frame in the tween window snaps from getTierLift(fromTier) to getTierLift(toTier)'
+      - 'after t - startMs >= TIER_TWEEN_DURATION_MS, liftAtSim returns getTierLift(toTier) exactly'
+    state_changes: []
+    determinism: time-based
+
+  - id: walls-track-tweened-lift
+    description: >
+      the wall pass (cube cliff faces at tier transitions) reads the same
+      tweened lift values that the bg/diamond pass uses, so a tile and its
+      south/east neighbors agree on their current rendered lift in every
+      frame. wall depth becomes
+        leftDepth  = max(0, liftAtSim(self) - liftAtSim(self.south))
+        rightDepth = max(0, liftAtSim(self) - liftAtSim(self.east))
+      converted from negative pixel offsets to positive depth via abs/sign
+      so the existing drawCellWalls signature is preserved. when self and
+      neighbor are at the same tier with no active tween, this collapses
+      to the existing tier-difference formula (max(0, tier - neighborTier) * LIFT_PX),
+      so present-day rendering after all tweens have completed is byte-for-byte
+      identical to the current implementation. neighbors outside the land
+      mask still resolve via wallNeighborTierSim to virtual tier -1.
+    inputs:
+      - 'self tile is land (sim.landMask.has(self))'
+      - 'tween records exist (or do not) for self, south neighbor, east neighbor'
+    outputs:
+      - 'cube wall depth grows/shrinks smoothly during any active tween on self or a neighbor'
+      - 'wall depth is identical to the pre-change implementation when no tweens are active'
+      - 'walls and their parent diamond never disagree on lift'
+    state_changes: []
+    determinism: time-based
+
+  - id: cosmetic-only-scope
+    description: >
+      the tween is purely a render-layer artifact. it does not alter
+      sim.elevation, EpochSnapshot.elevation, or any data that flows into
+      the gameplay handoff. getElevationTier still partitions [0,100] into
+      4 discrete tiers; the gameplay renderer (renderer.ts, tileBgCache,
+      cube wall pass) continues to use the discrete tier system unchanged.
+      tween state is dropped at the genesis-to-gameplay handoff (it does
+      not need to be drained — completeGenesis runs after epochSnapshots
+      are precomputed and the genesis renderer stops running, so any
+      in-flight tween simply never produces another frame). by the time
+      the gameplay renderer takes over on the first post-handoff frame,
+      every tile is at its presentDay tier with no residual tween offset.
+    inputs:
+      - 'completeGenesis is called'
+    outputs:
+      - 'gameplay rendering reads only sim/state data, never sim.tierTweens'
+      - 'presentDay tile lift values match the existing 4-tier system exactly'
+      - 'no behavior changes in src/engine/renderer.ts, src/engine/tileBgCache.ts, or any gameplay path'
+    state_changes:
+      - field: sim.tierTweens
+        effect: 'discarded with the rest of sim when the genesis screen unmounts'
+    determinism: deterministic
+
+edge_cases:
+  - id: first-frame-of-epoch-with-snapshot-application
+    description: >
+      on the first frame after sim.epochIndex advances, the renderer
+      applies the new snapshot. tiles that crossed a tier boundary in this
+      snapshot should immediately begin a tween (their fromTier comes from
+      the previous frame's lastObservedTier, captured under the old
+      snapshot). tiles whose tier is unchanged should not begin a tween.
+    expected: 'tween records appear for changed tiles with startMs == current frame time; unchanged tiles have no new record'
+
+  - id: skipped-genesis-via-keypress
+    description: >
+      pressing a key during playback fast-forwards genesis via runAllMutations,
+      then transitions to gameplay. tweens that were in flight at skip time
+      are abandoned — the genesis renderer stops being called.
+    expected: 'no visible tween in gameplay; first gameplay frame renders at the discrete presentDay tier for every tile'
+
+  - id: tile-tier-changes-then-changes-back
+    description: >
+      a tile crosses from tier 2 to tier 3 (epoch N), then back to tier 2
+      (epoch N+1) while the first tween is still in progress.
+    expected: 'second tween starts at the instantaneous tweened lift of the in-progress tween (not at the discrete fromTier), so the visible motion is continuous and does not snap. implementation: when starting a new tween, sample the current tweened lift and store it on the record so the new tween eases from that value.'
+
+  - id: tile-outside-visible-viewport
+    description: >
+      a tile is off-screen during a tier transition.
+    expected: 'tween bookkeeping still runs for it on the first frame where it becomes visible (lastObservedTier is updated lazily on visit); the tile pops in without a tween. acceptable cost — off-screen tiles cannot be seen mid-tween anyway. alternative implementation that runs bookkeeping over the full grid is acceptable but not required.'
+
+  - id: tween-duration-zero-or-negative
+    description: >
+      TIER_TWEEN_DURATION_MS is set to 0 (or negative) by a future change.
+    expected: 'liftAtSim returns getTierLift(toTier) exactly on the same frame the tween starts; behavior is identical to the un-tweened renderer. covered by clamp(_, 0, 1) on the tween u-value.'
+
+failure_conditions:
+  - trigger: 'liftAtSim is called for a tile with an active tween but does not consult sim.tierTweens'
+    expected: 'fail — diamond snaps to new tier instantly, no animation observed'
+
+  - trigger: 'wall pass uses tierAtSim/wallNeighborTierSim integer tiers instead of the tweened lift values used by the diamond pass'
+    expected: 'fail — diamond lifts smoothly but cube walls snap, producing a visible disconnect at the tile boundary during the tween window'
+
+  - trigger: 'sim.tierTweens is included in EpochSnapshot or in the data passed to extractGenesisResult / completeGenesis'
+    expected: 'fail — tween state leaks into gameplay data, violating cosmetic-only scope'
+
+  - trigger: 'TIER_TWEEN_DURATION_MS is defined in genesisRenderer.ts instead of tileBg.ts'
+    expected: 'fail (architectural) — wall pass and diamond pass must import from a single shared constant location; tileBg.ts owns the tier/lift API'
+
+  - trigger: 'lastObservedTier is never updated, so every frame after the first treats the previous frame as having a different tier'
+    expected: 'fail — tweens restart every frame and never complete, producing a permanent in-flight lift offset'
+
+verification:
+  test_file: src/engine/__tests__/genesisElevationTween.test.ts
+  test_pattern: 'genesis elevation tween'
+  command: npx vitest run src/engine/__tests__/genesisElevationTween.test.ts
