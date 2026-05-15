@@ -249,17 +249,17 @@ behaviors:
   - id: path-rendering-restricted-to-chains
     description: >
       the projected click-to-move path renders on the canvas only
-      when state.pathWaypoints.length > 1 (a shift+right-click chain).
-      a plain right-click sets pathWaypoints to a single-element
-      array [target] and renders no path glyphs even though state.path
-      is non-null. waypoint markers (+) follow the same rule — they
-      render only when the chain has 2+ waypoints. the player still
-      walks the path either way; this affects only visual feedback.
+      when state.pathIsChained is true — the flag is set when a path
+      is committed via shift+right-click (whether starting a brand-new
+      path or chaining onto an existing one). a plain right-click
+      clears the flag, so its path moves the player without rendering
+      any glyphs. waypoint markers (+) follow the same rule. the player
+      still walks the path either way; this affects only visual feedback.
     inputs:
       - 'state.path is non-null'
-      - 'state.pathWaypoints'
+      - 'state.pathIsChained'
     outputs:
-      - 'path positions populate the pathPositions set only when pathWaypoints.length > 1'
+      - 'path positions populate the pathPositions set only when pathIsChained is true'
       - 'no path dots or waypoint markers render for plain right-click moves'
     state_changes: []
     determinism: deterministic
@@ -453,10 +453,10 @@ edge_cases:
     description: 'mouse hovers over a tile that has a surface bg'
     expected: 'no cursor highlight or inversion is applied; the tile bg and glyph render exactly as they would without the hover'
   - id: plain-right-click-path-not-rendered
-    description: 'plain right-click sets state.path with pathWaypoints.length === 1'
+    description: 'plain right-click commits state.path with pathIsChained === false'
     expected: 'no path dots (·) or waypoint markers (+) render on the canvas; player still walks the path'
-  - id: shift-right-click-chain-rendered
-    description: 'shift+right-click chains a second waypoint, making pathWaypoints.length === 2'
+  - id: shift-right-click-path-rendered
+    description: 'shift+right-click commits state.path with pathIsChained === true (whether the path is new or chained onto an existing one)'
     expected: 'path dots and waypoint markers render in ACTION_COLOR for every tile in state.path'
   - id: tile-bg-during-fog
     description: 'unexplored or partiallyDiscovered fog tile with surface bg'

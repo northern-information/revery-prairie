@@ -586,10 +586,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   }
 
   // Populate path positions for highlight rendering — only when the
-  // player has chained waypoints via shift+right-click (length > 1).
-  // Plain right-click sets pathWaypoints to a single-element array
-  // and renders no path glyphs even though state.path is non-null.
-  const renderPathOverlay = state.pathWaypoints.length > 1
+  // current path was committed via shift+right-click (state.pathIsChained).
+  // Plain right-click still walks the player but renders no path glyphs.
+  const renderPathOverlay = state.pathIsChained
   if (state.path && renderPathOverlay) {
     for (const p of state.path) {
       pathPositions.add(posKey(p.x, p.y))

@@ -451,7 +451,7 @@ export const useMouse = ({
         return
       }
 
-      // Shift+right-click: chain waypoints onto existing path
+      // Shift+right-click: chain waypoints onto an existing path
       if (e.shiftKey && state.path && state.path.length > 0) {
         const lastWaypoint = state.pathWaypoints[state.pathWaypoints.length - 1]
         if (lastWaypoint?.x === walkTarget.x && lastWaypoint?.y === walkTarget.y) return
@@ -464,6 +464,7 @@ export const useMouse = ({
         state.pathWaypoints.push(walkTarget)
         state.pendingAction = action
         state.previewFn = null
+        state.pathIsChained = true
         refreshUI()
         return
       }
@@ -475,6 +476,10 @@ export const useMouse = ({
         allowDiagonal: true,
       })
       state.pathWaypoints = state.path ? [walkTarget] : []
+      // Shift+right-click with no prior path still marks the path as chained
+      // so the projected-path overlay renders for it. A plain right-click
+      // clears the flag so its path renders no glyphs.
+      state.pathIsChained = e.shiftKey && state.path !== null
       refreshUI()
     }
 

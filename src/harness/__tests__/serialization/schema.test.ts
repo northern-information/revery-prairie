@@ -28,6 +28,7 @@ const EXPECTED_FIELDS = [
   'weather',
   'path',
   'pathWaypoints',
+  'pathIsChained',
   'pendingAction',
   'cursorTile',
   'cursorScreenPos',

@@ -251,6 +251,10 @@ export interface GameState {
   weather: Weather
   path: Position[] | null
   pathWaypoints: Position[]
+  // True when the path was committed via shift+right-click (single or chained).
+  // The renderer gates the projected-path overlay on this flag — plain
+  // right-click moves still walk the player but render no glyphs.
+  pathIsChained: boolean
   pendingAction: (() => void) | null
   pendingInteractionTarget: Position | null
   heldDirection: Direction | null

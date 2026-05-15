@@ -23,21 +23,23 @@ behaviors:
       left-click-to-move behavior. shift+right-click chains waypoints onto
       the existing path. right-clicking on a non-walkable, non-interactable
       tile does nothing. the projected path is NOT rendered on the canvas
-      for a plain right-click — path dots and waypoint markers render only
-      when pathWaypoints.length > 1 (see renderer.yaml
-      path-rendering-restricted-to-chains).
+      for a plain right-click — pathIsChained is set to false so the
+      renderer's path-overlay gate suppresses all path glyphs (see
+      renderer.yaml path-rendering-restricted-to-chains).
     inputs:
-      - 'right click on a walkable tile'
+      - 'right click on a walkable tile (shift not held)'
       - 'selectedUnits is empty and playerSelected is false'
     outputs:
       - 'state.path set to A* path from player to target'
-      - 'pathWaypoints set to [target] (length 1)'
-      - 'no path glyphs rendered for plain right-click'
+      - 'pathWaypoints set to [target]'
+      - 'pathIsChained set to false; no path glyphs rendered'
     state_changes:
       - field: path
         effect: 'set to pathfinding result toward clicked tile'
       - field: pathWaypoints
         effect: 'set to the clicked target tile (single-element array)'
+      - field: pathIsChained
+        effect: 'set to false so the projected path overlay is suppressed'
     determinism: deterministic
 
   - id: right-click-interact
@@ -205,28 +207,30 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: shift-right-click-chains-waypoints
+  - id: shift-right-click-marks-path-chained
     description: >
-      shift+right-click with an existing player path extends the path by
-      pathfinding from the last waypoint to the clicked tile. this
-      replaces the previous shift+left-click chaining. only applies when
-      no NPC units are selected (player commands only) and respects
-      interactables for the final waypoint. once pathWaypoints.length > 1
-      the renderer draws path dots and waypoint markers for the entire
-      chain (see renderer.yaml path-rendering-restricted-to-chains).
+      shift+right-click marks the resulting path as chained
+      (state.pathIsChained = true). when an existing path is present, the
+      new click extends the path by pathfinding from the last waypoint to
+      the clicked tile (multi-waypoint chain). when no path exists yet,
+      the first shift+right-click commits a brand-new path and still sets
+      pathIsChained = true, so the projected-path overlay renders for it.
+      only applies when no NPC units are selected (player commands only)
+      and respects interactables for the final waypoint.
     inputs:
       - 'shift + right click on canvas'
-      - 'state.path is non-empty'
       - 'selectedUnits is empty'
     outputs:
-      - 'path extended with new segment from previous waypoint'
-      - 'pathWaypoints appended with new target (length becomes >= 2)'
-      - 'path dots and waypoint markers now render on the canvas'
+      - 'state.path either committed (no prior path) or extended with new segment from previous waypoint'
+      - 'pathWaypoints appended with new target'
+      - 'pathIsChained set to true; path dots and waypoint markers render on the canvas'
     state_changes:
       - field: path
-        effect: 'extended with A* segment from last waypoint to new target'
+        effect: 'committed or extended with A* segment toward the new target'
       - field: pathWaypoints
         effect: 'appended with the new target'
+      - field: pathIsChained
+        effect: 'set to true so the projected path overlay renders'
     determinism: deterministic
 
   - id: lightning-targeting-remains-left-click

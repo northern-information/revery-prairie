@@ -100,7 +100,7 @@ const hasPathGlyph = (calls: FillTextCall[]): boolean =>
   calls.some(c => (c.text === PATH_DOT || c.text === PATH_WAYPOINT) && c.fillStyle === ACTION_COLOR)
 
 describe('renderer path overlay gate', () => {
-  it('does not render path glyphs in ACTION_COLOR when pathWaypoints has only one waypoint (plain right-click)', () => {
+  it('does not render path glyphs in ACTION_COLOR when pathIsChained is false (plain right-click)', () => {
     const state = setupState()
     state.path = [
       { x: state.player.x + 1, y: state.player.y },
@@ -108,6 +108,7 @@ describe('renderer path overlay gate', () => {
       { x: state.player.x + 3, y: state.player.y },
     ]
     state.pathWaypoints = [{ x: state.player.x + 3, y: state.player.y }]
+    state.pathIsChained = false
 
     vi.spyOn(Math, 'random').mockReturnValue(0.5)
     try {
@@ -119,7 +120,27 @@ describe('renderer path overlay gate', () => {
     expect(hasPathGlyph(spy.fillTextCalls)).toBe(false)
   })
 
-  it('renders path glyphs in ACTION_COLOR when pathWaypoints has two or more waypoints (shift+right-click chain)', () => {
+  it('renders path glyphs in ACTION_COLOR for a single-waypoint path when pathIsChained is true (first shift+right-click)', () => {
+    const state = setupState()
+    state.path = [
+      { x: state.player.x + 1, y: state.player.y },
+      { x: state.player.x + 2, y: state.player.y },
+      { x: state.player.x + 3, y: state.player.y },
+    ]
+    state.pathWaypoints = [{ x: state.player.x + 3, y: state.player.y }]
+    state.pathIsChained = true
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
+    try {
+      render(ctx, state, metrics, 0)
+    } finally {
+      vi.restoreAllMocks()
+    }
+
+    expect(hasPathGlyph(spy.fillTextCalls)).toBe(true)
+  })
+
+  it('renders path glyphs in ACTION_COLOR for a chained path (subsequent shift+right-clicks)', () => {
     const state = setupState()
     state.path = [
       { x: state.player.x + 1, y: state.player.y },
@@ -131,6 +152,7 @@ describe('renderer path overlay gate', () => {
       { x: state.player.x + 3, y: state.player.y },
       { x: state.player.x + 3, y: state.player.y + 1 },
     ]
+    state.pathIsChained = true
 
     vi.spyOn(Math, 'random').mockReturnValue(0.5)
     try {
