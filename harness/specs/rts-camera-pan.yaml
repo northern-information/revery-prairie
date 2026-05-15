@@ -1,17 +1,22 @@
 id: rts-camera-pan
-name: 'RTS-style camera pan with edge-scroll'
+name: 'RTS-style camera pan with spacebar toggle and edge-scroll'
 priority: medium
 layer: integration
 source_files:
+  - src/components/CameraLockReticles.tsx
+  - src/components/GameScreen.tsx
   - src/engine/camera.ts
   - src/engine/edgeScroll.ts
   - src/engine/gameLoop.ts
   - src/engine/movement.ts
   - src/engine/render/passes/edgeScrollIndicator.ts
+  - src/engine/render/passes/index.ts
   - src/engine/renderer.ts
   - src/engine/state.ts
   - src/engine/types.ts
   - src/harness/__tests__/serialization/schema.test.ts
+  - src/hooks/useKeyboard.ts
+  - src/hooks/useMouse.ts
 dependencies:
   - isometric-projection
 
@@ -19,9 +24,12 @@ behaviors:
   - id: camera-mode-default-follow
     description: >
       createGameState initializes state.cameraMode to 'follow'. In follow
-      mode the camera continues to track the player as it does today —
-      updateCamera() centers the player (with overworld deadzone). The
-      field is session-only (no localStorage); reload resets to 'follow'.
+      mode the camera tracks the player via updateCamera() (with overworld
+      deadzone). The field is session-only (no localStorage); reload resets
+      to 'follow'. The two modes are 'follow' (camera locked on player, no
+      edge-scroll) and 'free' (RTS pan, edge-scroll enabled). The mode is
+      only changed by explicit user input — spacebar toggle, WASD move, or
+      click-to-move. There is no auto-toggle from cursor position.
     inputs:
       - 'createGameState called with default options'
     outputs:
@@ -31,71 +39,148 @@ behaviors:
         effect: "set to 'follow' on initialization"
     determinism: deterministic
 
-  - id: edge-scroll-activates-free-mode
+  - id: spacebar-toggles-camera-mode
     description: >
-      An edge-scroll tick runs every frame. It reads state.cursorScreenPos
-      against the canvas edges. When the cursor is within EDGE_SCROLL_ZONE_PX
-      pixels of any of the four canvas edges, the tick (a) sets
-      state.cameraMode to 'free' if it was 'follow', (b) advances
-      state.camera.x and state.camera.y by EDGE_SCROLL_SPEED_TILES_PER_SEC
-      times the frame delta in the corresponding axis. Diagonal scroll is
-      supported (cursor in a corner moves the camera in both axes).
-      Camera position is clamped to map bounds plus a full viewport of
-      overscroll on each side (overscrollX = viewportWidth,
-      overscrollY = viewportHeight) so the iso footprint can be panned
-      fully into view at the map corners. The hard outer clamp prevents
-      runaway panning into infinity but allows generous overscroll past
-      the rectangular tile bounds.
+      Pressing spacebar toggles state.cameraMode between 'follow' and
+      'free'. The handler lives in useKeyboard.ts alongside other
+      single-key bindings. When toggling TO 'follow', call
+      recenterCamera(state) so the camera snaps onto the player. When
+      toggling TO 'free', leave state.camera as-is — the user immediately
+      gains free pan from the current viewport. The keypress is blocked
+      while a text input is focused, during genesis, while the dev panel
+      is open, during dialog, and while a permacomputer screen is open
+      (matches the gating used for [r], [c], [q]). refreshUI() is called
+      after each toggle so the corner reticles / edge-scroll indicator
+      update on the same frame.
     inputs:
-      - 'state.cursorScreenPos at canvas edge'
-      - 'time delta from last frame'
+      - 'KeyboardEvent with key === " " (Space)'
+      - 'no text input focused; no genesis/dev panel/dialog/permacomputer screen blocking'
     outputs:
-      - 'state.camera.x/y advance toward the edge'
+      - 'state.cameraMode flipped to the opposite value'
+      - 'when new mode is follow: camera recentered on player in same call'
+      - 'when new mode is free: camera unchanged'
     state_changes:
       - field: cameraMode
-        effect: "transitions from 'follow' to 'free' on first edge-scroll input"
+        effect: "flipped between 'follow' and 'free'"
       - field: camera.x
-        effect: 'shifts in proportion to dt; clamped to [-viewportWidth, mapWidth - viewportWidth + viewportWidth]'
+        effect: 'set to follow-mode value when toggling to follow; unchanged when toggling to free'
       - field: camera.y
-        effect: 'shifts in proportion to dt; clamped to [-viewportHeight, mapHeight - viewportHeight + viewportHeight]'
+        effect: 'set to follow-mode value when toggling to follow; unchanged when toggling to free'
+    determinism: deterministic
+
+  - id: edge-scroll-only-in-free-mode
+    description: >
+      tickEdgeScroll early-returns when state.cameraMode === 'follow'.
+      In follow mode the cursor sitting in an edge zone has no effect on
+      the camera and does not flip the mode. The indicator alpha also
+      decays toward zero in follow mode so any in-progress fade collapses
+      cleanly. In 'free' mode the existing behavior holds: cursor inside
+      EDGE_SCROLL_ZONE_PX of any canvas edge advances state.camera by
+      EDGE_SCROLL_SPEED_TILES_PER_SEC times the frame delta, with the
+      diamond-aware iso transform and overscroll clamping intact.
+    inputs:
+      - 'state.cameraMode'
+      - 'state.edgeScrollPos at canvas edge'
+      - 'time delta from last frame'
+    outputs:
+      - "in 'follow' mode: no camera movement, no mode flip, indicator alpha decays"
+      - "in 'free' mode: state.camera.x/y advance toward the edge"
+    state_changes:
+      - field: cameraMode
+        effect: 'never modified by tickEdgeScroll (mode changes are explicit user actions only)'
+      - field: camera.x
+        effect: "shifts in proportion to dt only when cameraMode === 'free'; clamped to overscrolled bounds"
+      - field: camera.y
+        effect: "shifts in proportion to dt only when cameraMode === 'free'; clamped to overscrolled bounds"
+      - field: edgeScrollIndicatorAlpha
+        effect: "in 'follow' mode, decays toward 0 regardless of cursor position; in 'free' mode, fades in/out by cursor zone"
     determinism: time-based
 
-  - id: wasd-recenters-camera
+  - id: wasd-preserves-camera-mode
     description: >
-      A successful WASD-driven player move (via the keyboard-move tick)
-      flips state.cameraMode back to 'follow' and re-runs updateCamera()
-      so the camera snaps to the player. Click-to-move (tickPath) does
-      NOT recenter — the user can issue commands to off-screen tiles
-      while the camera stays panned. This matches RTS conventions where
-      panning is independent of unit commands.
+      A successful WASD-driven player move (via the keyboard-move tick in
+      gameLoop.ts) does NOT recenter the camera or change cameraMode. The
+      player walks while the camera stays wherever the user panned it.
+      Only spacebar and click-to-move pull the camera back to the player.
+      In free mode, updateCamera is a no-op for this move and the player
+      may walk off-screen — the offscreenPlayerArrow indicator handles
+      visibility. In follow mode, updateCamera centers as normal.
     inputs:
       - 'state.heldDirection set to a valid Direction'
       - 'movePlayer returns true'
     outputs:
-      - 'camera snaps to player tile'
+      - 'player position advances by one tile; cameraMode unchanged'
     state_changes:
       - field: cameraMode
-        effect: "set to 'follow' after successful WASD move"
+        effect: 'unchanged by WASD movement'
       - field: camera.x
-        effect: 'recomputed via updateCamera; player tile centered'
+        effect: 'follow mode: recomputed via updateCamera; free mode: unchanged'
       - field: camera.y
-        effect: 'recomputed via updateCamera; player tile centered'
+        effect: 'follow mode: recomputed via updateCamera; free mode: unchanged'
+    determinism: deterministic
+
+  - id: click-to-move-recenters-camera
+    description: >
+      Issuing a click-to-move command (left-click on a walkable tile, or
+      click-to-interact, or shift+click waypoint queueing) calls
+      recenterCamera(state) before pathfinding begins. The camera snaps
+      onto the player and cameraMode flips to 'follow'. This is a change
+      from the previous RTS-style behavior where click-to-move left the
+      pan intact — the project's product decision is that any movement
+      input (WASD or click) returns the camera to follow framing.
+      Subsequent steps along the path continue in follow mode and the
+      player stays centered. To re-enter free pan, the user presses
+      spacebar again.
+    inputs:
+      - 'mouse click on canvas resolves to a click-to-move target'
+    outputs:
+      - 'state.path populated; state.cameraMode === follow; camera centered on player'
+    state_changes:
+      - field: cameraMode
+        effect: "set to 'follow' at click registration, before pathfinding"
+      - field: camera.x
+        effect: 'recentered on player via updateCamera at click registration'
+      - field: camera.y
+        effect: 'recentered on player via updateCamera at click registration'
     determinism: deterministic
 
   - id: update-camera-respects-free-mode
     description: >
       updateCamera(state) early-returns when cameraMode is 'free' and
-      forceCenter is false. This means tickPath, follow-collect coyote
-      moves, and any other movement paths that flow through movePlayer
-      no longer fight the user's pan. forceCenter=true (used by
-      GameCanvas mount and zone transitions) bypasses the gate so the
-      camera always re-anchors at game start and zone swaps.
+      forceCenter is false. tickPath, follow-collect coyote moves, and
+      any other movement paths that flow through movePlayer do not fight
+      the user's pan. forceCenter=true (used by GameCanvas mount,
+      recenterCamera, and zone transitions) bypasses the gate so the
+      camera re-anchors at game start and zone swaps.
     inputs:
       - "GameState with cameraMode === 'free'"
       - 'updateCamera(state, false)'
     outputs:
       - 'no camera mutation'
     state_changes: []
+    determinism: deterministic
+
+  - id: zone-swap-preserves-camera-mode
+    description: >
+      enterCave and exitCave do not modify state.cameraMode. The user's
+      chosen mode persists across zone transitions. The zone-swap path
+      calls updateCamera(state, true) (force-center) so the camera
+      re-anchors to the new player position regardless of mode — in
+      'free' mode the user sees the new zone framed on the player and
+      can then edge-scroll from there. The reticle / edge-scroll
+      indicator render passes pick up the persisted mode automatically.
+    inputs:
+      - 'enterCave or exitCave called'
+    outputs:
+      - 'state.cameraMode unchanged'
+      - 'state.camera re-centered on the new player position via force-center'
+    state_changes:
+      - field: cameraMode
+        effect: 'unchanged across zone swap'
+      - field: camera.x
+        effect: 'force-centered on player in the new zone'
+      - field: camera.y
+        effect: 'force-centered on player in the new zone'
     determinism: deterministic
 
   - id: off-screen-player-indicator
@@ -105,11 +190,35 @@ behaviors:
       viewport. The arrow is anchored to the canvas edge nearest the
       player, sits on the line connecting the canvas center to the
       player's projected position, and uses ACTION_COLOR (#ff69b4)
-      consistent with other RTS-style UI.
+      consistent with other RTS-style UI. Only active in 'free' mode
+      (in 'follow' mode the player is always on screen by construction).
     inputs:
       - "state.cameraMode === 'free' and player tile outside viewport"
     outputs:
       - 'arrow glyph drawn at the appropriate canvas edge'
+    state_changes: []
+    determinism: deterministic
+
+  - id: camera-lock-corner-reticles
+    description: >
+      A React DOM overlay component `CameraLockReticles` renders four
+      hot-pink L-shaped corner reticles at the browser-viewport corners
+      while state.cameraMode === 'follow'. The overlay is fixed-position
+      with z-index 50 and pointer-events: none, so it z-orders above the
+      sidebar, event log, and every other UI panel while never blocking
+      input. Each reticle is two perpendicular arms meeting at the
+      viewport corner; geometry uses CAMERA_LOCK_RETICLE_SIZE_PX for arm
+      length and CAMERA_LOCK_RETICLE_THICKNESS_PX for stroke width. Color
+      is #ff69b4 (ACTION_COLOR). Each arm has an inner-glow gradient
+      fading from rgba(255,105,180,0.35) at the edge to fully transparent
+      toward the viewport interior, matching the visual language of the
+      edge-scroll indicator. The reticles are mutually exclusive with the
+      edge-scroll indicator by virtue of mode: the indicator's alpha is
+      forced to 0 in follow mode by edge-scroll-only-in-free-mode.
+    inputs:
+      - "state.cameraMode === 'follow'"
+    outputs:
+      - 'four hot-pink L-shaped reticles rendered as a DOM overlay at the four browser-viewport corners'
     state_changes: []
     determinism: deterministic
 
@@ -119,83 +228,142 @@ behaviors:
       render pass) fades in and out instead of popping on/off. tickEdgeScroll
       maintains state.edgeScrollIndicatorAlpha (0–1) and advances it each
       frame using the dt between calls (clamped to (0, 200] to ignore the
-      first frame and background-tab pauses). When the cursor sits in an
-      edge zone (dx !== 0 || dy !== 0) alpha rises by dt / FADE_IN_MS
-      (120ms full ramp). When the cursor leaves the zone, when
-      edgeScrollPos is null, or when no axis is active, alpha falls by
-      dt / FADE_OUT_MS (280ms full ramp). Alpha is clamped to [0, 1] each tick.
+      first frame and background-tab pauses). When cameraMode === 'free'
+      AND the cursor sits in an edge zone (dx !== 0 || dy !== 0) alpha
+      rises by dt / FADE_IN_MS (120ms full ramp). When the cursor leaves
+      the zone, when edgeScrollPos is null, when no axis is active, OR
+      when cameraMode === 'follow', alpha falls by dt / FADE_OUT_MS (280ms
+      full ramp). Alpha is clamped to [0, 1] each tick.
       state.edgeScrollIndicatorDirection latches the last non-zero
       {dx, dy} so the correct edges stay illuminated during fade-out
       after the cursor leaves the zone. The render pass's isActive checks
-      alpha > 0 (not edgeScrollDirection) so it keeps drawing during
-      fade-out, applies state.edgeScrollIndicatorAlpha via ctx.save +
+      alpha > 0, applies state.edgeScrollIndicatorAlpha via ctx.save +
       ctx.globalAlpha + ctx.restore, and reads
-      edgeScrollIndicatorDirection (not edgeScrollDirection) for which
-      edges to draw.
+      edgeScrollIndicatorDirection for which edges to draw.
     inputs:
+      - 'state.cameraMode'
       - 'state.edgeScrollPos in or out of an edge zone'
       - 'frame dt (ms since last tickEdgeScroll call)'
     outputs:
-      - 'state.edgeScrollIndicatorAlpha advances toward 1 (in zone) or 0 (out of zone)'
+      - "state.edgeScrollIndicatorAlpha advances toward 1 (free mode, in zone) or 0 (otherwise)"
       - 'state.edgeScrollIndicatorDirection latches last non-zero direction'
       - 'render pass draws indicator at globalAlpha = edgeScrollIndicatorAlpha'
     state_changes:
       - field: edgeScrollIndicatorAlpha
-        effect: 'rises by dt / 120 in zone, falls by dt / 280 out of zone, clamped to [0, 1]'
+        effect: "rises by dt / 120 only when cameraMode === 'free' and in zone; falls by dt / 280 otherwise; clamped to [0, 1]"
       - field: edgeScrollIndicatorDirection
         effect: 'latched to {dx, dy} on every tick where the active direction is non-zero'
       - field: lastEdgeScrollTime
-        effect: 'set to time on every call (including the early-return path when edgeScrollPos is null)'
+        effect: 'set to time on every call (including the early-return path when edgeScrollPos is null or cameraMode is follow)'
     determinism: time-based
 
 edge_cases:
-  - id: cursor-leaves-canvas
-    description: 'Mouse leaves the canvas (state.cursorScreenPos becomes null)'
-    expected: 'edge-scroll tick produces zero velocity; cameraMode stays whatever it was; no spurious panning'
+  - id: spacebar-during-text-input
+    description: 'User has focus in a text input (e.g. NamePrompt, NetworkConnect) and presses spacebar'
+    expected: 'spacebar inserts a space into the input as usual; cameraMode is NOT toggled; useKeyboard early-returns the same way it does for other letter keys when an input is focused'
+
+  - id: spacebar-during-genesis
+    description: 'Genesis sequence is running and user presses spacebar'
+    expected: 'existing skip-genesis handler wins; cameraMode toggle does not fire because the genesis branch in useKeyboard returns before the camera handler runs'
+
+  - id: spacebar-during-dialog
+    description: 'A character dialog is open and user presses spacebar'
+    expected: 'cameraMode does not toggle; the existing dialog-advance binding on [e] is unaffected; spacebar is consumed/ignored in dialog state'
+
+  - id: cursor-leaves-canvas-in-follow-mode
+    description: 'Mouse leaves the canvas (state.cursorScreenPos / edgeScrollPos becomes null) while in follow mode'
+    expected: 'edge-scroll tick early-returns; no camera movement; reticles still drawn; indicator alpha stays at 0'
+
+  - id: cursor-in-edge-zone-in-follow-mode
+    description: 'User parks the mouse cursor in a canvas edge zone while cameraMode === follow'
+    expected: 'no camera movement; no mode flip; edgeScrollIndicatorAlpha decays toward 0 (or stays at 0); corner reticles remain drawn'
+
+  - id: spacebar-toggle-while-panned
+    description: "User edge-scrolls in free mode to look at a far corner, then presses spacebar"
+    expected: "cameraMode flips to 'follow'; recenterCamera snaps state.camera onto the player; corner reticles appear on the next frame; edge-scroll indicator (if showing) starts fading out"
+
+  - id: spacebar-toggle-then-click-far-tile
+    description: 'User presses spacebar to enter free mode, edge-scrolls to a far tile, then click-to-moves on that tile'
+    expected: 'click-to-move triggers recenterCamera before pathfinding; camera snaps onto player; cameraMode flips to follow; reticles appear; pathfinding proceeds normally from player to clicked tile'
+
   - id: small-map-no-pan
     description: 'Map smaller than viewport (cave zone): visible footprint already smaller than the viewport'
-    expected: 'updateCamera continues to center the (small) map regardless of cameraMode; pan is a no-op because there is nowhere to pan to'
+    expected: 'updateCamera continues to center the (small) map regardless of cameraMode; edge-scroll in free mode is a no-op because there is nowhere to pan to'
+
   - id: pan-then-zone-swap
-    description: 'User pans freely in overworld, then steps onto a CaveEntrance tile and zone swaps to cave'
-    expected: 'updateCamera(state, true) is called by the zone-swap path and bypasses the free-mode gate; cave camera initializes correctly; cameraMode resets to follow on zone swap'
+    description: 'User edge-pans freely in overworld, then steps onto a CaveEntrance tile and zone swaps to cave'
+    expected: 'state.cameraMode is preserved across zone swap; updateCamera(state, true) force-centers the camera on the new player position; user remains in free mode and can keep edge-scrolling, or sees follow framing if they were in follow'
+
   - id: pan-clamping-at-iso-edges
     description: 'The visible iso footprint extends diagonally past the rectangular tile space; user pans toward the corner'
-    expected: 'camera position clamps to [-viewportWidth, mapWidth] x [-viewportHeight, mapHeight] — a full viewport of overscroll on each side so the iso footprint can be fully framed at map corners. Outer clamp prevents runaway scroll into infinity.'
+    expected: 'camera position clamps to integer tile coordinates [-overscroll, mapWidth - viewportWidth + overscroll] x [-overscroll, mapHeight - viewportHeight + overscroll]; the iso projection only changes how those bounds project visually'
+
   - id: simultaneous-edge-and-wasd
-    description: 'User holds WASD while cursor is at a canvas edge'
-    expected: 'WASD-recenter wins each frame: keyboard-move tick runs, recenters, edge-scroll tick may flip back to free on the same frame; visually the camera tracks the player'
+    description: 'User holds WASD while cursor is at a canvas edge in free mode'
+    expected: 'WASD-recenter wins each tick: keyboard-move tick runs, recenters and flips to follow; tickEdgeScroll then early-returns because cameraMode is follow; visually the camera tracks the player and edge-scroll does NOT re-flip to free'
+
   - id: cursor-over-log-overlay
     description: 'User moves the cursor over the EventLog overlay in the lower-left corner — the overlay sits inside the bottom-left edge-scroll zone'
-    expected: 'Log overlay nulls state.edgeScrollPos on hover (same pattern as the right-hand Sidebar); edge-scroll tick produces zero velocity while hovered; cameraMode does not flip to free from the hover alone; edge-scroll resumes when the cursor leaves the overlay and the next canvas mousemove restores edgeScrollPos'
+    expected: 'Log overlay nulls state.edgeScrollPos on hover (same pattern as the right-hand Sidebar); edge-scroll tick produces zero velocity while hovered; edge-scroll resumes when the cursor leaves the overlay and the next canvas mousemove restores edgeScrollPos'
+
   - id: indicator-fade-out-after-cursor-leaves-zone
-    description: 'Cursor moves from an edge zone back into the centre of the canvas'
+    description: 'Cursor moves from an edge zone back into the centre of the canvas in free mode'
     expected: 'edgeScrollDirection becomes {0,0} immediately; edgeScrollIndicatorAlpha decays linearly toward 0 over ~280ms; edgeScrollIndicatorDirection retains the last active {dx, dy} so the same edges stay illuminated during the fade'
+
+  - id: indicator-fade-out-after-mode-toggle
+    description: 'Cursor is in an edge zone at full alpha, user presses spacebar to toggle to follow mode'
+    expected: 'next tickEdgeScroll sees cameraMode === follow and decays alpha toward 0 over ~280ms; edges fade out smoothly rather than popping; corner reticles appear immediately on the next frame'
+
   - id: indicator-fade-out-after-cursor-leaves-canvas
-    description: 'Mouse leaves the canvas entirely (state.edgeScrollPos becomes null) while the indicator is at full alpha'
-    expected: 'tickEdgeScroll early-returns but still advances dt and decays edgeScrollIndicatorAlpha toward 0 over ~280ms; edgeScrollDirection becomes {0,0}; edgeScrollIndicatorDirection retains the latched direction; isActive returns true until alpha reaches 0'
+    description: 'Mouse leaves the canvas entirely (state.edgeScrollPos becomes null) in free mode while the indicator is at full alpha'
+    expected: 'tickEdgeScroll early-returns but still advances dt and decays edgeScrollIndicatorAlpha toward 0 over ~280ms'
+
   - id: indicator-fade-in-clamps-at-1
-    description: 'Cursor remains in an edge zone for longer than FADE_IN_MS'
-    expected: 'edgeScrollIndicatorAlpha clamps at 1.0; no overshoot; further frames in zone are no-ops for alpha'
+    description: 'Cursor remains in an edge zone in free mode for longer than FADE_IN_MS'
+    expected: 'edgeScrollIndicatorAlpha clamps at 1.0; no overshoot'
+
   - id: indicator-first-frame-and-background-tab
     description: 'First tick after game start (lastEdgeScrollTime === 0) or after a long background-tab pause (dt > 200)'
     expected: 'dt-validity guard (dt > 0 && dt <= 200) suppresses the alpha update for that frame; lastEdgeScrollTime advances; the next valid frame resumes fade-in/out from current alpha without a phase jump'
+
   - id: indicator-direction-change-mid-fade
-    description: 'Cursor moves from one edge zone (e.g. right) directly into another (e.g. bottom-right corner) without leaving an edge zone'
+    description: 'In free mode, cursor moves from one edge zone (e.g. right) directly into another (e.g. bottom-right corner) without leaving an edge zone'
     expected: 'edgeScrollIndicatorDirection updates to the new {dx, dy}; alpha continues rising; the previous edge stops drawing on the same frame and the new edges illuminate at the current alpha'
 
+  - id: reticles-only-in-follow
+    description: 'cameraMode === free, no edge-scroll active'
+    expected: 'CameraLockReticles returns null; no reticles in the DOM tree; player can edge-scroll freely'
+
+  - id: reticles-anchor-to-viewport
+    description: 'Reticles drawn while the Sidebar and EventLog are visible'
+    expected: 'all four reticles anchor to the browser-viewport corners via CSS `inset`; right-edge reticles sit on top of the sidebar (z-50 over the sidebar`s z-10); bottom-left reticle sits on top of the event log'
+
 failure_conditions:
-  - trigger: 'Edge-scroll tick keeps mutating camera in follow mode without flipping to free'
-    expected: "cameraMode stuck at 'follow'; auto-center every move undoes the pan; pan feels broken"
-  - trigger: 'Click-to-move recenters the camera'
-    expected: 'sending units to off-screen tiles snaps the camera away from the user pan; spec violated'
+  - trigger: 'tickEdgeScroll mutates camera or flips cameraMode while in follow mode'
+    expected: "Cannot occur — tickEdgeScroll early-returns when cameraMode === 'follow'; user-initiated mode change is the only path into free mode"
+
+  - trigger: 'Spacebar fires while a text input is focused and toggles the camera'
+    expected: 'Cannot occur — useKeyboard early-returns for non-Escape/Tab keys when an INPUT or TEXTAREA is focused'
+
+  - trigger: 'Click-to-move does not recenter the camera and the camera stays panned'
+    expected: 'Cannot occur — click-to-move calls recenterCamera before pathfinding'
+
+  - trigger: 'Zone swap resets cameraMode to follow'
+    expected: 'Cannot occur — enterCave / exitCave do not touch cameraMode'
+
   - trigger: 'Camera position not clamped during free-pan'
-    expected: 'user can scroll past the overscroll envelope into infinity; spec violated — the outer clamp must keep the camera within the documented overscrolled range'
+    expected: 'user can scroll into the void / off the map; spec violated'
+
   - trigger: 'Indicator render pass reads edgeScrollDirection instead of edgeScrollIndicatorDirection'
     expected: 'fade-out renders with no edges illuminated (dx/dy already zeroed) — the overlay collapses to a dim rectangle; spec violated'
-  - trigger: 'tickEdgeScroll skips alpha decay when edgeScrollPos is null'
-    expected: 'indicator stays at full alpha forever after cursor leaves the canvas; visible until next mousemove returns to a non-edge zone; spec violated'
+
+  - trigger: 'tickEdgeScroll skips alpha decay when edgeScrollPos is null or cameraMode is follow'
+    expected: 'indicator stays at full alpha forever after cursor leaves the canvas or after a mode toggle; spec violated'
+
+  - trigger: 'Corner reticles render while cameraMode === free'
+    expected: 'visual contradiction (reticles signal "locked" but camera is panning); spec violated'
 
 verification:
   test_file: src/engine/__tests__/edgeScroll.test.ts
-  test_pattern: 'edge'
+  test_pattern: 'cameraMode|spacebar|reticle|edge'
   command: 'npx vitest run src/engine/__tests__/edgeScroll.test.ts src/engine/__tests__/camera.test.ts'

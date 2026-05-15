@@ -1,0 +1,129 @@
+plan:
+  id: camera-mode-toggle
+  title: 'Spacebar toggle for camera mode + corner reticles for follow lock'
+  created: '2026-05-14'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/edgeScroll.test.ts src/engine/__tests__/camera.test.ts
+
+tasks:
+  - id: regression-tests
+    title: 'Add tests that fail on main: spacebar toggles cameraMode, edge-scroll early-returns in follow mode, click-to-move recenters, zone-swap preserves mode'
+    spec_id: rts-camera-pan
+    spec_sections:
+      - spacebar-toggles-camera-mode
+      - edge-scroll-only-in-free-mode
+      - click-to-move-recenters-camera
+      - zone-swap-preserves-camera-mode
+    context_files:
+      - src/engine/edgeScroll.ts
+      - src/engine/camera.ts
+      - src/engine/cave.ts
+      - src/engine/movement.ts
+      - src/engine/__tests__/edgeScroll.test.ts
+      - src/engine/__tests__/camera.test.ts
+      - src/hooks/useKeyboard.ts
+      - src/hooks/useMouse.ts
+    output_files:
+      - src/engine/__tests__/edgeScroll.test.ts
+      - src/engine/__tests__/camera.test.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/engine/__tests__/edgeScroll.test.ts src/engine/__tests__/camera.test.ts'
+    repair: retry
+    tags: [engine, test]
+
+  - id: gate-edge-scroll-on-mode
+    title: 'tickEdgeScroll early-returns and decays indicator alpha when cameraMode === follow; remove the auto-flip from edge input'
+    spec_id: rts-camera-pan
+    spec_sections:
+      - edge-scroll-only-in-free-mode
+      - edge-scroll-indicator-fade
+    context_files:
+      - src/engine/edgeScroll.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/edgeScroll.ts
+    depends_on:
+      - regression-tests
+    verification:
+      - 'npx vitest run src/engine/__tests__/edgeScroll.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: spacebar-handler
+    title: 'Bind spacebar in useKeyboard to toggle state.cameraMode; gate behind text-input / genesis / dev-panel / dialog / permacomputer-screen guards; call recenterCamera when toggling to follow'
+    spec_id: rts-camera-pan
+    spec_sections:
+      - spacebar-toggles-camera-mode
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/engine/edgeScroll.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - gate-edge-scroll-on-mode
+    verification:
+      - 'npx vitest run src/engine/__tests__/edgeScroll.test.ts'
+      - 'npm run typecheck'
+    repair: retry
+    tags: [hook]
+
+  - id: click-recenters
+    title: 'useMouse click-to-move handler calls recenterCamera before pathfinding so the camera snaps onto the player and cameraMode flips to follow'
+    spec_id: rts-camera-pan
+    spec_sections:
+      - click-to-move-recenters-camera
+    context_files:
+      - src/hooks/useMouse.ts
+      - src/engine/edgeScroll.ts
+      - src/engine/movement.ts
+    output_files:
+      - src/hooks/useMouse.ts
+    depends_on:
+      - gate-edge-scroll-on-mode
+    verification:
+      - 'npm run typecheck'
+      - 'npx vitest run src/engine/__tests__/edgeScroll.test.ts'
+    repair: retry
+    tags: [hook]
+
+  - id: corner-reticle-pass
+    title: 'Implement cameraLockReticles render pass: four ACTION_COLOR L-brackets at playfield corners (respecting rightInsetTiles) when cameraMode === follow'
+    spec_id: rts-camera-pan
+    spec_sections:
+      - camera-lock-corner-reticles
+    context_files:
+      - src/engine/render/passes/edgeScrollIndicator.ts
+      - src/engine/render/passes.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/render/passes/cameraLockReticles.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/constants.ts
+    depends_on:
+      - regression-tests
+    verification:
+      - 'npm run typecheck'
+      - 'npm run lint'
+    repair: retry
+    tags: [engine, render]
+
+  - id: keybinding-doc
+    title: 'Update CLAUDE.md keybindings section: space now toggles camera mode (remove from reserved keys list)'
+    spec_id: rts-camera-pan
+    spec_sections:
+      - spacebar-toggles-camera-mode
+    context_files:
+      - CLAUDE.md
+    output_files:
+      - CLAUDE.md
+    depends_on:
+      - spacebar-handler
+    verification: []
+    repair: retry
+    tags: [docs]

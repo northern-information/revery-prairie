@@ -95,17 +95,20 @@ describe('tickEdgeScroll', () => {
     expect(state.camera.y).toBe(30)
   })
 
-  it('flips cameraMode to free on first edge input', () => {
-    state.edgeScrollPos ={ x: 5, y: 240 }
+  it('does NOT flip cameraMode or move camera while in follow mode (mode change is explicit-only)', () => {
+    state.edgeScrollPos = { x: 5, y: 240 }
     state.lastEdgeScrollTime = 100
     tickEdgeScroll(state, metrics, 200)
-    expect(state.cameraMode).toBe('free')
+    expect(state.cameraMode).toBe('follow')
+    expect(state.camera.x).toBe(50)
+    expect(state.camera.y).toBe(30)
   })
 
-  it('moves camera in screen-left direction when cursor is at the left edge', () => {
+  it('moves camera in screen-left direction when cursor is at the left edge in free mode', () => {
     // Screen-left input maps through the inverse projection to world delta
     // (-0.5, +0.5) per screen tile: camera moves left and down in world.
     // 200ms at 18 tiles/sec * 0.5 = 1.8 → trunc = 1 step in each axis.
+    state.cameraMode = 'free'
     state.edgeScrollPos = { x: 5, y: 240 }
     state.lastEdgeScrollTime = 0
     tickEdgeScroll(state, metrics, 200)
@@ -113,8 +116,9 @@ describe('tickEdgeScroll', () => {
     expect(state.camera.y).toBeGreaterThan(30)
   })
 
-  it('moves camera diagonally up-left in the top-left corner', () => {
+  it('moves camera diagonally up-left in the top-left corner in free mode', () => {
     // Screen (-1, -1) maps to world (-1.5, -0.5): camera moves left and up.
+    state.cameraMode = 'free'
     state.edgeScrollPos = { x: 5, y: 5 }
     state.lastEdgeScrollTime = 0
     tickEdgeScroll(state, metrics, 200)
@@ -123,6 +127,7 @@ describe('tickEdgeScroll', () => {
   })
 
   it('moves camera by trunc(camDx*speed*dt) tiles per frame, accumulating remainder', () => {
+    state.cameraMode = 'free'
     state.edgeScrollPos = { x: 5, y: 240 }
     state.lastEdgeScrollTime = 0
     tickEdgeScroll(state, metrics, 200)
@@ -136,6 +141,7 @@ describe('tickEdgeScroll', () => {
   })
 
   it('subpixel accumulator drives camera at sub-1-tile-per-frame rates', () => {
+    state.cameraMode = 'free'
     state.edgeScrollPos = { x: 5, y: 240 }
     state.lastEdgeScrollTime = 0
     let now = 0
@@ -149,6 +155,7 @@ describe('tickEdgeScroll', () => {
 
   it('clamps camera to overscroll bounds at the left edge', () => {
     // Free-pan allows overscroll = viewportWidth tiles past the map edge.
+    state.cameraMode = 'free'
     state.camera.x = -state.viewportWidth + 1
     state.edgeScrollPos = { x: 5, y: 240 }
     state.lastEdgeScrollTime = 0
@@ -157,6 +164,7 @@ describe('tickEdgeScroll', () => {
   })
 
   it('clamps camera to overscroll bounds at the right edge', () => {
+    state.cameraMode = 'free'
     const visibleWidth = state.viewportWidth - state.rightInsetTiles
     const maxX = state.mapWidth - visibleWidth + state.viewportWidth
     state.camera.x = maxX - 1
@@ -203,8 +211,9 @@ describe('tickEdgeScroll — indicator fade', () => {
   const FADE_IN_MS = 120
   const FADE_OUT_MS = 280
 
-  it('fades alpha in by dt / FADE_IN_MS while cursor sits in an edge zone', () => {
+  it('fades alpha in by dt / FADE_IN_MS while cursor sits in an edge zone in free mode', () => {
     const state = makeState({
+      cameraMode: 'free',
       edgeScrollPos: { x: 5, y: 240 },
       lastEdgeScrollTime: 0,
     })
@@ -215,6 +224,7 @@ describe('tickEdgeScroll — indicator fade', () => {
 
   it('clamps alpha at 1.0 after sustained time in zone', () => {
     const state = makeState({
+      cameraMode: 'free',
       edgeScrollPos: { x: 5, y: 240 },
       lastEdgeScrollTime: 0,
       edgeScrollIndicatorAlpha: 0.95,
@@ -261,6 +271,7 @@ describe('tickEdgeScroll — indicator fade', () => {
 
   it('skips alpha update on the first frame (dt = 0)', () => {
     const state = makeState({
+      cameraMode: 'free',
       edgeScrollPos: { x: 5, y: 240 },
       lastEdgeScrollTime: 100,
       edgeScrollIndicatorAlpha: 0.4,
@@ -272,6 +283,7 @@ describe('tickEdgeScroll — indicator fade', () => {
 
   it('skips alpha update on background-tab pause (dt > 200ms)', () => {
     const state = makeState({
+      cameraMode: 'free',
       edgeScrollPos: { x: 5, y: 240 },
       lastEdgeScrollTime: 0,
       edgeScrollIndicatorAlpha: 0.4,
@@ -283,6 +295,7 @@ describe('tickEdgeScroll — indicator fade', () => {
 
   it('updates latched direction when cursor moves between edge zones mid-fade', () => {
     const state = makeState({
+      cameraMode: 'free',
       edgeScrollPos: { x: 5, y: 240 },
       lastEdgeScrollTime: 0,
       edgeScrollIndicatorAlpha: 0.5,
@@ -294,6 +307,22 @@ describe('tickEdgeScroll — indicator fade', () => {
     expect(state.edgeScrollIndicatorDirection).toEqual({ dx: 1, dy: 1 })
     // Alpha should have advanced (still in zone, just a different one).
     expect(state.edgeScrollIndicatorAlpha).toBeGreaterThan(0.5)
+  })
+
+  it('decays alpha toward 0 in follow mode even when cursor is in an edge zone', () => {
+    // After a spacebar toggle to follow while the cursor lingers at the
+    // edge, the indicator must fade out rather than stay illuminated.
+    const state = makeState({
+      cameraMode: 'follow',
+      edgeScrollPos: { x: 5, y: 240 },
+      lastEdgeScrollTime: 0,
+      edgeScrollIndicatorAlpha: 1,
+      edgeScrollIndicatorDirection: { dx: -1, dy: 0 },
+    })
+    tickEdgeScroll(state, metrics, 100)
+    expect(state.edgeScrollIndicatorAlpha).toBeCloseTo(1 - 100 / FADE_OUT_MS, 5)
+    expect(state.cameraMode).toBe('follow')
+    expect(state.camera.x).toBe(50)
   })
 
   it('does not latch direction on a pure no-op centre frame', () => {
@@ -361,5 +390,24 @@ describe('recenterCamera', () => {
     recenterCamera(state)
     expect(state.cameraMode).toBe('follow')
     expect(state.camera).toEqual(camAfterFirst)
+  })
+})
+
+describe('zone swap preserves cameraMode', () => {
+  it('enterCave does not reset cameraMode from free to follow', async () => {
+    const { enterCave } = await import('../cave')
+    const state = createGameState('Test', 40, 40)
+    state.cameraMode = 'free'
+    enterCave(state)
+    expect(state.cameraMode).toBe('free')
+  })
+
+  it('exitCave does not reset cameraMode from free to follow', async () => {
+    const { enterCave, exitCave } = await import('../cave')
+    const state = createGameState('Test', 40, 40)
+    enterCave(state)
+    state.cameraMode = 'free'
+    exitCave(state)
+    expect(state.cameraMode).toBe('free')
   })
 })

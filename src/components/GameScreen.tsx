@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { ActionBar } from './ActionBar'
+import { CameraLockReticles } from './CameraLockReticles'
 import { CommandPanel } from './CommandPanel'
 import { CantosScreen } from './CantosScreen'
 import { CoyoteScreen } from './CoyoteScreen'
@@ -296,6 +297,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
         refreshUI={refreshUI}
       />
       <EventLog state={state} eventLog={log} />
+      <CameraLockReticles state={state} />
     </>
   )
 }

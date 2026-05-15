@@ -29,10 +29,12 @@ export const computeEdgeScrollDirection = (
 }
 
 /**
- * Apply edge-scroll for one frame. Mutates state.camera in place when the
- * cursor is in an edge zone, transitioning state.cameraMode to 'free' on
- * the first edge input. Camera position is clamped to integer tile bounds
- * so the user cannot scroll past the map edges. Time-based: uses the
+ * Apply edge-scroll for one frame. Only runs in 'free' (RTS pan) mode —
+ * 'follow' mode early-returns so cursor position at an edge has no effect
+ * on the camera. Mode is changed by explicit user input (spacebar, WASD,
+ * click-to-move) only; tickEdgeScroll never flips it. In free mode the
+ * cursor inside EDGE_SCROLL_ZONE_PX of any canvas edge advances
+ * state.camera, clamped to overscrolled map bounds. Time-based: uses the
  * delta between this call and state.lastEdgeScrollTime so velocity is
  * frame-rate independent.
  */
@@ -45,6 +47,19 @@ export const tickEdgeScroll = (state: GameState, metrics: CharMetrics, time: num
   const dt = time - state.lastEdgeScrollTime
   state.lastEdgeScrollTime = time
   const dtValid = dt > 0 && dt <= 200
+
+  // In follow mode the camera is locked on the player: no edge-scroll, no
+  // mode flip, and any in-progress indicator alpha fades out cleanly.
+  if (state.cameraMode === 'follow') {
+    state.edgeScrollDirection = { dx: 0, dy: 0 }
+    if (dtValid) {
+      state.edgeScrollIndicatorAlpha = Math.max(
+        0,
+        state.edgeScrollIndicatorAlpha - dt / FADE_OUT_MS,
+      )
+    }
+    return
+  }
 
   // edgeScrollPos is set on canvas mousemove (regardless of sidebar overlay)
   // and cleared on mouseleave. cursorScreenPos can't be used here because
@@ -97,9 +112,6 @@ export const tickEdgeScroll = (state: GameState, metrics: CharMetrics, time: num
   }
   if (dx === 0 && dy === 0) return
 
-  // Transition to free pan on first edge input.
-  if (state.cameraMode === 'follow') state.cameraMode = 'free'
-
   const tilesPerMs = EDGE_SCROLL_SPEED_TILES_PER_SEC / 1000
   // Translate the screen-axis edge direction into world-tile camera
   // deltas. The world is rotated 45°: a pure screen-x nudge requires
@@ -123,9 +135,6 @@ export const tickEdgeScroll = (state: GameState, metrics: CharMetrics, time: num
   if (stepX === 0 && stepY === 0) return
   state.cameraSubpixel.x -= stepX
   state.cameraSubpixel.y -= stepY
-
-  // Transition to free pan on first effective camera step.
-  state.cameraMode = 'free'
 
   // Free-pan overscroll: allow the camera to extend past the map by a full
   // viewport on each side so the user can pan the map all the way into a

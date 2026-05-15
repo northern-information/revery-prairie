@@ -4,6 +4,7 @@ import { activateActionBarSlot, getActionBarPreview, getTargetingPreview } from 
 import { getReveryDefinition } from '@/engine/reveries'
 import { getCharacterDefinition } from '@/engine/characters'
 import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
+import { recenterCamera } from '@/engine/edgeScroll'
 import { dropItem } from '@/engine/entities'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import { keyToScreenAxis, resolveHeldDirection } from '@/engine/heldKeys'
@@ -265,6 +266,20 @@ export const useKeyboard = ({
       if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (activeScreen === 'system') return
         setActiveScreen(activeScreen === 'reveries' ? null : 'reveries')
+        return
+      }
+
+      // [space] — toggle camera mode (follow ↔ RTS pan)
+      if (e.key === ' ') {
+        if (state.activeDialog) return
+        if (activeScreen !== null) return
+        e.preventDefault()
+        if (state.cameraMode === 'follow') {
+          state.cameraMode = 'free'
+        } else {
+          recenterCamera(state)
+        }
+        refreshUI()
         return
       }
 

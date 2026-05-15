@@ -19,6 +19,13 @@ export const EDGE_SCROLL_SPEED_TILES_PER_SEC = 18
 // cursor is in the scroll zone, so the user gets clear feedback.
 export const EDGE_SCROLL_INDICATOR_THICKNESS_PX = 3
 
+// Camera-lock corner reticles, drawn in screen-overlay slot while the
+// camera is in follow mode. Hot-pink L-brackets at the four browser-window
+// corners (over the sidebar too, so they always frame the viewport) signal
+// "camera locked on player" to the user.
+export const CAMERA_LOCK_RETICLE_SIZE_PX = 56
+export const CAMERA_LOCK_RETICLE_THICKNESS_PX = 8
+
 export const WATER_SAND_BORDER_MAX = 2
 export const WATER_SAND_PASS_CHANCES = [100, 50]
 
