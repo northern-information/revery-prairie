@@ -95,26 +95,27 @@ behaviors:
         effect: "in 'follow' mode, decays toward 0 regardless of cursor position; in 'free' mode, fades in/out by cursor zone"
     determinism: time-based
 
-  - id: wasd-recenters-camera
+  - id: wasd-preserves-camera-mode
     description: >
       A successful WASD-driven player move (via the keyboard-move tick in
-      gameLoop.ts) calls recenterCamera(state) — see
-      wasd-camera-recenter spec. This flips state.cameraMode to 'follow'
-      and snaps the camera onto the player in one call. Whether the user
-      was in 'free' or 'follow' before the move, after the move they are
-      in 'follow' with the camera anchored on the player.
+      gameLoop.ts) does NOT recenter the camera or change cameraMode. The
+      player walks while the camera stays wherever the user panned it.
+      Only spacebar and click-to-move pull the camera back to the player.
+      In free mode, updateCamera is a no-op for this move and the player
+      may walk off-screen — the offscreenPlayerArrow indicator handles
+      visibility. In follow mode, updateCamera centers as normal.
     inputs:
       - 'state.heldDirection set to a valid Direction'
       - 'movePlayer returns true'
     outputs:
-      - 'camera snaps to player tile; cameraMode === follow'
+      - 'player position advances by one tile; cameraMode unchanged'
     state_changes:
       - field: cameraMode
-        effect: "set to 'follow' after successful WASD move"
+        effect: 'unchanged by WASD movement'
       - field: camera.x
-        effect: 'recomputed via updateCamera; player tile centered'
+        effect: 'follow mode: recomputed via updateCamera; free mode: unchanged'
       - field: camera.y
-        effect: 'recomputed via updateCamera; player tile centered'
+        effect: 'follow mode: recomputed via updateCamera; free mode: unchanged'
     determinism: deterministic
 
   - id: click-to-move-recenters-camera

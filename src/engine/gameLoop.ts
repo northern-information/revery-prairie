@@ -32,7 +32,6 @@ import {
 import { tickCoyote } from './coyote'
 import { tickDeepTime } from './deepTime'
 import { ComponentType } from './ecs/types'
-import { recenterCamera } from './edgeScroll'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
 import { tickPollenDrift, tickPollenEmit } from './flora'
 import { completeGenesis, GENESIS_EPOCHS, tickGenesis } from './genesis'
@@ -225,10 +224,9 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           if (time - lastMoveTime < interval) return
           if (!movePlayer(state, state.heldDirection)) return
           lastMoveTime = time
-          // RTS pan: WASD-driven moves snap the camera back to follow.
-          // Click-to-move (tickPath) deliberately does not recenter so
-          // the user can issue commands to off-screen tiles while panned.
-          recenterCamera(state)
+          // RTS pan: WASD does NOT auto-recenter. Only spacebar and
+          // click-to-move pull the camera back to the player; WASD lets
+          // the user walk while leaving the camera wherever they panned it.
           checkAutoHide(state, callbacks)
           const result = pickUpGroundItems(state, time)
           for (const defId of result.pickedUp) {
