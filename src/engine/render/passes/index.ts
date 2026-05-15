@@ -32,5 +32,8 @@ export { angelSpawnDespawnFlashPass } from './angelSpawnDespawnFlash'
 export { rtsSelectionBoxPass } from './rtsSelectionBox'
 export { moveOrderMarkersPass } from './moveOrderMarkers'
 export { edgeScrollIndicatorPass } from './edgeScrollIndicator'
-export { cameraLockReticlesPass } from './cameraLockReticles'
 export { offscreenPlayerArrowPass } from './offscreenPlayerArrow'
+// cameraLockReticles must register last in screen-overlay so its frame
+// reads as the topmost UI layer, drawn over the sidebar and every other
+// screen-space overlay.
+export { cameraLockReticlesPass } from './cameraLockReticles'
