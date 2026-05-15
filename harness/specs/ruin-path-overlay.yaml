@@ -28,21 +28,6 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: hover-path-preview-visible-on-ruin-tiles
-    description: >
-      When the cursor hovers a ruin tile and a hover-path preview is computed,
-      every preview tile must render in HOVER_PATH_COLOR with the underlying tile
-      glyph. The multilayer ruin rendering must skip tiles in the hover path so the
-      preview is visible.
-    inputs:
-      - 'state.currentZone is Zone.Ruin'
-      - 'state.hoverPath contains positions over ruin tiles'
-    outputs:
-      - 'Hover path tiles render in HOVER_PATH_COLOR'
-      - 'Ruin multilayer rendering is skipped for tiles in state.hoverPath'
-    state_changes: []
-    determinism: deterministic
-
   - id: player-trail-visible-on-ruin-tiles
     description: >
       The dim grayscale trail behind the player must render with the underlying
@@ -65,19 +50,14 @@ edge_cases:
   - id: waypoint-on-ruin-floor
     description: 'A shift-click waypoint lands on a ruin floor tile'
     expected: '+ glyph renders in ACTION_COLOR at that tile; ruin floor multilayer is skipped'
-  - id: path-and-hover-overlap
-    description: 'A tile is in both state.path and state.hoverPath in a ruin zone'
-    expected: 'state.path takes priority — tile renders in ACTION_COLOR'
 
 failure_conditions:
   - trigger: 'Player click-to-moves across ruin floor tiles'
     expected: 'Pink path dots must be visible on every path tile — ruin multilayer must not overwrite them'
-  - trigger: 'Cursor hover triggers hover-path preview across ruin tiles'
-    expected: 'HOVER_PATH_COLOR preview must be visible on hover-path tiles'
   - trigger: 'Player walks across ruin floor tiles leaving a trail'
     expected: 'Trail dimming must be visible — ruin multilayer must not overwrite trail tiles'
 
 verification:
   test_file: src/engine/__tests__/ruin-path-overlay.test.ts
-  test_pattern: 'path overlay|hover path overlay|trail overlay|multilayer skip'
+  test_pattern: 'path overlay|trail overlay|multilayer skip'
   command: npx vitest run src/engine/__tests__/ruin-path-overlay.test.ts

@@ -14,14 +14,16 @@ behaviors:
   - id: follow-distance-threshold
     description: >
       when coyoteMode is 'follow', the coyote should begin moving toward
-      the player when chebyshev distance is >= COYOTE_FOLLOW_MAX_DIST (3).
-      the coyote idles only when distance is < COYOTE_FOLLOW_MAX_DIST
-      and > 0. this means at exactly distance 3 the coyote steps toward
-      the player, not idles. tickFollow uses >= comparison for the
-      max-distance check.
+      the player when the A* path length from the coyote to the player
+      is >= COYOTE_FOLLOW_MAX_DIST (3) tiles. the coyote idles only
+      when path length is < COYOTE_FOLLOW_MAX_DIST and > 0. path
+      distance — not Chebyshev — is used so the coyote does not idle
+      on the other side of an unwalkable obstacle even when Chebyshev
+      distance is small (matches coyote-companion's distance contract).
+      tickFollow uses >= comparison for the max-distance check.
     inputs:
       - "coyoteMode === 'follow'"
-      - 'chebyshev distance from coyote to player >= COYOTE_FOLLOW_MAX_DIST'
+      - 'A* path length from coyote to player >= COYOTE_FOLLOW_MAX_DIST'
     outputs:
       - 'coyote takes one step toward the player'
     state_changes:
@@ -53,7 +55,7 @@ behaviors:
 
 edge_cases:
   - id: follow-at-exact-max-distance
-    description: 'coyote is exactly COYOTE_FOLLOW_MAX_DIST (3) tiles from player in follow mode'
+    description: 'A* path length from coyote to player is exactly COYOTE_FOLLOW_MAX_DIST (3) in follow mode'
     expected: 'coyote moves one step toward player'
   - id: mixed-item-types-on-map
     description: 'multiple item types exist on the map (meteorite, honey, coin, clover, etc.)'
@@ -63,7 +65,7 @@ edge_cases:
     expected: 'coyote finds and collects the item'
 
 failure_conditions:
-  - trigger: 'coyote is exactly 3 tiles from player in follow mode'
+  - trigger: 'A* path length from coyote to player is exactly 3 in follow mode'
     expected: 'coyote moves toward player, not idles'
   - trigger: 'meteorite entity with Pickupable + EntityTag meteorite exists on map, coyote in collect mode'
     expected: 'coyote detects and pathfinds to meteorite, not idles'

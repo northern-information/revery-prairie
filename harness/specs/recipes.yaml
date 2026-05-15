@@ -67,11 +67,17 @@ behaviors:
   - id: execute-combine
     description: >
       executeCombine in drag.ts runs the recipe's execute function.
-      on success: adds recipe key to discoveredRecipes, records
-      manual discovery (recipe:<key>), removes both consumed
-      ingredients from their containers. returns success or failed.
+      accepts an optional time parameter. on success: adds recipe
+      key to discoveredRecipes, records manual discovery (recipe:<key>),
+      removes both consumed ingredients from their containers, spawns
+      a pickupBloom at the player position when time is provided
+      (per universal-pickup-bloom convention), and triggers the
+      steward seal sequence when the recipe is the bee+clover prairie
+      and the overworld combine seal conditions hold (see
+      main-questline-foundation:combine-seal-overworld). returns
+      success or failed.
     inputs:
-      - 'GameState, sourceContainer, targetContainer, draggedItem, combineTarget'
+      - 'GameState, sourceContainer, targetContainer, draggedItem, combineTarget, optional time'
     outputs:
       - "CombineResult: { outcome: 'success' | 'failed' }"
     state_changes:
@@ -81,6 +87,10 @@ behaviors:
         effect: 'recipe:<key> recorded'
       - field: backpack
         effect: 'consumed ingredients removed'
+      - field: world
+        effect: 'pickupBloom entity spawned at player position when time is provided'
+      - field: '(steward seal side effects)'
+        effect: 'when isStewardSealRecipe returns true and overworld conditions hold, triggerStewardSeal fires per main-questline-foundation:combine-seal-overworld'
     determinism: deterministic
 
   - id: prairie-recipe-execute
@@ -88,19 +98,26 @@ behaviors:
       bee+clover prairie recipe plants TileType.Clover in a 3x3
       area around the player (on Dirt, Clover, or CaveFloor tiles).
       clears cloverLifecycle entries for overwritten tiles. spawns a
-      bee ECS entity at player position. excludes CaveEntrance tiles.
-      fails if player is standing on Sand or non-walkable tile.
+      bee or monarch ECS entity at the player position via
+      spawnBeeOrMonarch (per monarch-butterfly spec, a monarch may
+      spawn instead of a bee while it is raining). fails if the
+      player is standing on a non-walkable tile, on Sand, or on a
+      pond/river tile, or if any tile in the 3x3 area is a pond/river
+      (water rejection prevents planting clover into water bodies).
+      CaveEntrance tiles are not allowed as planting targets — the
+      tile-type allowlist (Dirt | Clover | CaveFloor) excludes them
+      by construction.
     inputs:
-      - 'GameState with player on walkable non-Sand tile'
+      - 'GameState with player on walkable non-Sand non-water tile'
     outputs:
       - 'boolean: true if planting succeeded'
     state_changes:
       - field: map
-        effect: '3x3 area around player set to TileType.Clover (walkable tiles only)'
+        effect: '3x3 area around player set to TileType.Clover (Dirt/Clover/CaveFloor tiles only; CaveEntrance and pond/river tiles skipped)'
       - field: cloverLifecycle
         effect: 'entries deleted for overwritten positions'
       - field: world
-        effect: 'bee ECS entity created with Position, EntityTag, EntityZone'
+        effect: 'bee or monarch ECS entity created via spawnBeeOrMonarch with Position, EntityTag, EntityZone, HungerTimer'
     determinism: deterministic
 
   - id: combine-icon-display
@@ -118,14 +135,18 @@ behaviors:
 
   - id: combine-from-backpack
     description: >
-      combineFromBackpack(state, defIdA, defIdB) is a generic
+      combineFromBackpack(state, defIdA, defIdB, time?) is a generic
       auto-combine helper. resolves the recipe via findRecipe.
       validates standing tile (rejects Sand, non-walkable). removes
       one instance of each ingredient from backpack and executes the
-      matched recipe. contains no recipe-specific logic — the function
-      name and parameters do not refer to any single recipe.
+      matched recipe. when time is provided, fires triggerStewardSeal
+      after a successful steward-seal recipe (bee+clover) so the
+      overworld combine seal sequence runs uniformly whether the
+      combine originated from drag-and-drop or auto-combine. contains
+      no recipe-specific logic beyond the steward-seal hook routed
+      through isStewardSealRecipe.
     inputs:
-      - 'GameState, two ingredient definitionIds matching a registered recipe'
+      - 'GameState, two ingredient definitionIds matching a registered recipe, optional time'
     outputs:
       - 'boolean: true if combine succeeded'
     state_changes:
@@ -133,12 +154,39 @@ behaviors:
         effect: 'one instance of each ingredient removed'
       - field: '*'
         effect: 'whatever the matched recipe.execute mutates'
+      - field: '(steward seal side effects)'
+        effect: 'triggerStewardSeal fires when isStewardSealRecipe is true and time is provided, per main-questline-foundation:combine-seal-overworld'
+    determinism: deterministic
+
+  - id: steward-seal-detection
+    description: >
+      isStewardSealRecipe(definitionIdA, definitionIdB) returns true
+      iff the unordered pair matches the bee+clover prairie recipe.
+      executeCombine and combineFromBackpack both consult this
+      helper after a successful combine, and only trigger the
+      steward-seal sequence when it returns true and the
+      overworld/quest preconditions in
+      main-questline-foundation:combine-seal-overworld hold. the
+      function is exported so the recipe layer can keep its
+      no-recipe-specific-logic invariant while still routing the
+      single quest hook centrally.
+    inputs:
+      - 'two ingredient definitionIds (any order)'
+    outputs:
+      - 'boolean: true iff the pair is bee+clover'
+    state_changes: []
     determinism: deterministic
 
 edge_cases:
   - id: combine-on-sand
     description: 'player combines bee+clover while standing on sand tile'
     expected: 'recipe.execute returns false, no items consumed'
+  - id: combine-on-water
+    description: 'player combines bee+clover while standing on a pond or river tile'
+    expected: 'recipe.execute returns false, no items consumed, no clover planted'
+  - id: combine-with-water-in-radius
+    description: 'player stands on dirt but a pond/river tile sits inside the 3x3 planting area'
+    expected: 'recipe.execute returns false, no items consumed — the water-tile check rejects the whole area'
   - id: unknown-pair
     description: 'combineFromBackpack called with two ingredient IDs that have no registered recipe'
     expected: 'returns false; no items consumed'

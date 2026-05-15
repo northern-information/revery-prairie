@@ -27,15 +27,24 @@ behaviors:
     determinism: deterministic
 
   - id: safe-exit-placement
-    description: 'exitRuin and exitCave place the player on the nearest walkable tile instead of blindly using entrance.y+1. Search adjacent tiles in priority order for a walkable, unblocked tile.'
+    description: >
+      exitRuin and exitCave place the player on the nearest walkable
+      tile at Chebyshev distance >= 2 from the overworld entrance,
+      rather than directly adjacent. The 3x3 ring around the entrance
+      is skipped so the player cannot instantly re-enter the ruin/cave
+      after exiting. findSafeExitPosition expands outward from the
+      entrance until a walkable, unblocked tile is found. If no
+      walkable tile exists in the searchable range, fall back to the
+      entrance position itself.
     inputs:
       - 'Player steps on cave exit entrance tile inside a ruin or cave'
     outputs:
-      - 'Player placed on a walkable tile adjacent to the overworld entrance'
+      - 'Player placed on a walkable tile at Chebyshev distance >= 2 from the overworld entrance'
       - 'Player is never placed on sand, space, or other non-walkable tile'
+      - 'Player is never placed inside the 3x3 ring around the entrance (prevents instant re-entry)'
     state_changes:
       - field: 'state.player'
-        effect: 'Set to nearest walkable tile adjacent to entrance, not hardcoded y+1'
+        effect: 'Set to nearest walkable tile at Chebyshev distance >= 2 from entrance'
     determinism: deterministic
 
   - id: seed-position-revalidation
@@ -51,12 +60,17 @@ behaviors:
     determinism: deterministic
 
   - id: sidebar-ruin-name-and-glyph
-    description: 'When inside a ruin, the sidebar stats section shows the ruin name with age on the location row (e.g. "Ashhold Ruins") and the Greek glyph on its own line.'
+    description: >
+      When inside a ruin, the sidebar stats section shows the ruin
+      name on the location row (sentence case, e.g. "Ashhold ruins"),
+      the Greek entrance glyph on its own line, and an archetype
+      "Type" row beneath (e.g. "Dormant garden").
     inputs:
       - 'Player is inside a ruin (state.currentRuinIndex !== null)'
     outputs:
-      - 'Location row shows ruin name + "Ruins"'
+      - 'Location row shows "{name} ruins" in sentence case'
       - 'Separate row shows the Greek entrance glyph'
+      - 'Type row shows the archetype label'
     state_changes: []
     determinism: deterministic
 
@@ -74,8 +88,8 @@ edge_cases:
 failure_conditions:
   - trigger: 'Ruin entrance placed on sandbar surrounded by space'
     expected: 'Adjacent tiles converted to dirt; player can walk to entrance'
-  - trigger: 'exitRuin when tile at entrance.y+1 is sand or space'
-    expected: 'Player placed on nearest walkable adjacent tile instead'
+  - trigger: 'exitRuin when tiles at Chebyshev distance 2 from the overworld entrance include sand or space'
+    expected: 'Player placed on the nearest walkable tile at Chebyshev distance >= 2 instead (sand/space skipped, but the 3x3 ring around the entrance is always skipped to prevent instant re-entry)'
   - trigger: 'Seed spawned at position later overwritten by RuinDebris'
     expected: 'Seed position removed during revalidation; no unreachable ground item'
 
