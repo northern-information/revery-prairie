@@ -369,6 +369,17 @@ describe('useKeyboard', () => {
 
       expect(movePlayer).not.toHaveBeenCalled()
     })
+
+    it('does not add the cursor-hidden class to documentElement', () => {
+      document.documentElement.classList.remove('cursor-hidden')
+      renderKeyboardHook()
+
+      act(() => {
+        fireKey('w')
+      })
+
+      expect(document.documentElement.classList.contains('cursor-hidden')).toBe(false)
+    })
   })
 
   describe('WASD — repeat events', () => {

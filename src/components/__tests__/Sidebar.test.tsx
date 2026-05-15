@@ -257,6 +257,72 @@ describe('Sidebar', () => {
 
       expect(container.textContent).not.toMatch(/Effects/)
     })
+
+    it('keeps the cursor section visible while WASD is held', () => {
+      const state = createGameState('Test', 80, 40)
+      completeGenesis(state)
+      state.glintZones.clear()
+      const gron = findGron(state)
+      const target = { x: gron.x + 2, y: gron.y }
+      state.camera = { x: target.x - Math.floor(state.viewportWidth / 2), y: target.y - Math.floor(state.viewportHeight / 2) }
+      const screenPos = worldToScreen(
+        target.x,
+        target.y,
+        state.camera,
+        metrics.charWidth,
+        metrics.charHeight,
+        state.viewportWidth,
+        state.viewportHeight,
+      )
+      state.cursorScreenPos = { x: screenPos.px + 1, y: screenPos.py + 1 }
+      state.heldDirection = 'right'
+
+      const metricsRef = { current: metrics }
+      render(
+        <Sidebar
+          state={state}
+          activeScreen={null}
+          itemInfoRef={defaultInfoRef}
+          metricsRef={metricsRef}
+          refreshUI={noop}
+        />
+      )
+
+      expect(screen.getByText('rain')).toBeInTheDocument()
+    })
+
+    it('keeps the cursor section visible while a click-to-move path is active', () => {
+      const state = createGameState('Test', 80, 40)
+      completeGenesis(state)
+      state.glintZones.clear()
+      const gron = findGron(state)
+      const target = { x: gron.x + 2, y: gron.y }
+      state.camera = { x: target.x - Math.floor(state.viewportWidth / 2), y: target.y - Math.floor(state.viewportHeight / 2) }
+      const screenPos = worldToScreen(
+        target.x,
+        target.y,
+        state.camera,
+        metrics.charWidth,
+        metrics.charHeight,
+        state.viewportWidth,
+        state.viewportHeight,
+      )
+      state.cursorScreenPos = { x: screenPos.px + 1, y: screenPos.py + 1 }
+      state.path = [{ x: target.x, y: target.y }]
+
+      const metricsRef = { current: metrics }
+      render(
+        <Sidebar
+          state={state}
+          activeScreen={null}
+          itemInfoRef={defaultInfoRef}
+          metricsRef={metricsRef}
+          refreshUI={noop}
+        />
+      )
+
+      expect(screen.getByText('rain')).toBeInTheDocument()
+    })
   })
 
   describe('genesis HUD', () => {

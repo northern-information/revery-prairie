@@ -45,7 +45,7 @@ describe('updateCursorState', () => {
     expect(state.cursorTile).toBeNull()
   })
 
-  it('clears cursorTile when WASD is held', () => {
+  it('keeps cursorTile tracking while WASD is held', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
     const target = { x: 5, y: 10 }
@@ -54,10 +54,10 @@ describe('updateCursorState', () => {
 
     updateCursorState(state, metrics)
 
-    expect(state.cursorTile).toBeNull()
+    expect(state.cursorTile).toEqual(target)
   })
 
-  it('clears cursorTile when click-to-move path is active', () => {
+  it('keeps cursorTile tracking while a click-to-move path is active', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
     const target = { x: 5, y: 10 }
@@ -66,20 +66,17 @@ describe('updateCursorState', () => {
 
     updateCursorState(state, metrics)
 
-    expect(state.cursorTile).toBeNull()
+    expect(state.cursorTile).toEqual(target)
   })
 
-  it('restores cursorTile when movement ends and mouse is over canvas', () => {
+  it('keeps cursorTile tracking when both WASD and path are active', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
-    state.camera = { x: 3, y: 7 }
     const target = { x: 5, y: 10 }
     state.cursorScreenPos = cursorPosForTile(state, target)
     state.heldDirection = 'right'
-    updateCursorState(state, metrics)
-    expect(state.cursorTile).toBeNull()
+    state.path = [{ x: 5, y: 10 }]
 
-    state.heldDirection = null
     updateCursorState(state, metrics)
 
     expect(state.cursorTile).toEqual(target)

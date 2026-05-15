@@ -585,16 +585,22 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Populate path positions for highlight rendering
-  if (state.path) {
+  // Populate path positions for highlight rendering — only when the
+  // player has chained waypoints via shift+right-click (length > 1).
+  // Plain right-click sets pathWaypoints to a single-element array
+  // and renders no path glyphs even though state.path is non-null.
+  const renderPathOverlay = state.pathWaypoints.length > 1
+  if (state.path && renderPathOverlay) {
     for (const p of state.path) {
       pathPositions.add(posKey(p.x, p.y))
     }
   }
 
-  // Populate waypoint positions for distinct markers
-  for (const w of state.pathWaypoints) {
-    waypointPositions.add(posKey(w.x, w.y))
+  // Populate waypoint positions for distinct markers (same gate)
+  if (renderPathOverlay) {
+    for (const w of state.pathWaypoints) {
+      waypointPositions.add(posKey(w.x, w.y))
+    }
   }
 
   // Populate dev paint preview positions
@@ -1152,14 +1158,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
       const tileIsPartiallyDiscovered = tileVis === 'partiallyDiscovered'
 
-      const isCursor = mx === state.cursorTile?.x && my === state.cursorTile?.y
       const isFacingEntity = mx === state.facingEntityPos?.x && my === state.facingEntityPos?.y
       const isPendingTarget = mx === state.pendingInteractionTarget?.x && my === state.pendingInteractionTarget?.y
 
       // Resolve what to draw at this tile — priority order determines z-index
       let char: string
       let color: string
-      let cursorable = true
       // isEntity: true for elements not visible during genesis (ghosts, bees, ground items, etc.)
       // Used during genesis-to-gameplay crossfade to apply fade-in alpha
       let isEntity = false
@@ -1255,7 +1259,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         }
         char = state.deepTime?.active ? state.deepTime.playerGlyph : PLAYER_CHAR
         color = state.deepTime?.active ? state.deepTime.playerGlyphColor : sessionColor
-        cursorable = false
       } else if (remotePlayerMap.has(tileKey)) {
         const rp = remotePlayerMap.get(tileKey)
         char = PLAYER_CHAR
@@ -1285,12 +1288,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       } else if (shootingStarOnLand) {
         char = shootingStarOnLand.char
         color = shootingStarOnLand.color
-        cursorable = false
       } else if (lightningMap.has(tileKey)) {
         const lp = lightningMap.get(tileKey)
         char = lp?.char ?? '|'
         color = lp?.color ?? '#FFFFFF'
-        cursorable = false
       } else if (previewTile) {
         char = previewTile.char
         color = previewTile.color
@@ -1484,7 +1485,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // Resolve highlight state without ctx side effects so the deferred
       // path can capture it and the inline path can apply it.
       // Invalid preview tiles (e.g. red X for lightning targeting) and the
-      // dev panel suppress cursor inversion.
+      // dev panel suppress entity/target inversion.
       const highlightSuppressed =
         (previewTile !== undefined && !previewTile.isValid) || state.devPanelOpen
       const highlight =
@@ -1492,7 +1493,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         (selectedPositions.has(tileKey) ||
           (state.playerSelected && state.playerSpawn.visible && mx === player.x && my === player.y) ||
           isAngelGroupHighlighted ||
-          (isCursor && cursorable) ||
           isFacingEntity ||
           isPendingTarget)
 
@@ -1582,8 +1582,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         isPlayer: mx === player.x && my === player.y && state.playerSpawn.visible,
         isEntity,
         hasPreview: previewTile !== undefined,
-        isHighlighted:
-          isAngelGroupHighlighted || (isCursor && cursorable) || isFacingEntity || isPendingTarget,
+        isHighlighted: isAngelGroupHighlighted || isFacingEntity || isPendingTarget,
         hasOverlay: pathPositions.has(tileKey) || trailMap.has(tileKey),
       }
       const isRuinMultilayer = shouldRenderRuinMultilayer({

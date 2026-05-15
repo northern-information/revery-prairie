@@ -84,7 +84,6 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      document.documentElement.classList.remove('cursor-hidden')
       // Hide when mouse is visually over the sidebar or inventory panel
       // (sidebar is pointer-events-none so e.target is still the canvas)
       const sidebarWidth = 192 // w-48
@@ -119,12 +118,13 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
   }, [metricsRef, state])
 
   // Derive cursor world tile from screen position + current camera each render.
-  // Use the engine's screenToTile so the inverse transform matches the canvas
-  // highlight, click-to-move, and updateCursorState — otherwise the sidebar
-  // reads Position/Contents/Effects for the wrong tile.
+  // Use the engine's screenToTile so the inverse transform matches click-to-move
+  // and updateCursorState — otherwise the sidebar reads Position/Contents/Effects
+  // for the wrong tile. The cursor section keeps tracking during WASD and active
+  // click-to-move paths so the player can see hover info while walking.
   const metrics = metricsRef.current
   const cursorTile =
-    state.cursorScreenPos && metrics && !state.heldDirection && !state.path
+    state.cursorScreenPos && metrics
       ? screenToTile(
           state.cursorScreenPos.x,
           state.cursorScreenPos.y,

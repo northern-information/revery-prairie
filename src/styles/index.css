@@ -29,13 +29,6 @@
   cursor: url('/cursor.cur'), auto;
 }
 
-.cursor-hidden,
-.cursor-hidden *,
-.cursor-hidden *::before,
-.cursor-hidden *::after {
-  cursor: none !important;
-}
-
 input[type='text'],
 input:not([type]),
 textarea,
