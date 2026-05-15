@@ -11,6 +11,16 @@ browser-based prairie game. ASCII rendered on HTML canvas via React + TypeScript
 - Preserve original casing for identifiers (PascalCase, camelCase, SCREAMING_SNAKE_CASE) and product names (GitHub, React, Vite, Tailwind).
 - Exception: the existing body of this CLAUDE.md uses lowercase headings and prose. That's intentional for this repo — match it when editing this file.
 
+## node version
+
+the node version is pinned in three places that must stay in sync:
+
+- `.node-version` — read by nodenv
+- `.nvmrc` — read by nvm
+- `package.json` `engines.node` (when present)
+
+use the exact patch version (e.g. `24.13.0`), never a range or major-only (`^24`, `24`). when bumping node, update all three files in the same commit and regenerate `package-lock.json`.
+
 ## architecture
 
 two distinct layers — keep them separate:
