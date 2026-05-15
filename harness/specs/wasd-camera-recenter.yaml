@@ -32,21 +32,23 @@ behaviors:
         effect: 'set to player.y - floor(viewportHeight / 2) when map >= viewport; otherwise small-map centering'
     determinism: deterministic
 
-  - id: wasd-recenter-survives-lingering-edge-scroll-pos
+  - id: wasd-recenter-from-free-mode
     description: >
       After a successful WASD-driven move in the game loop, the camera is
-      recentered on the player even when state.edgeScrollPos is still set
-      (e.g. the user's mouse cursor is parked in a canvas edge zone). The
-      sequence per WASD tick is: movePlayer → recenterCamera. movePlayer's
-      internal updateCamera call early-returns when cameraMode is 'free',
-      so the recenter step must do the actual camera snap. Without this,
-      tickEdgeScroll flips the mode back to 'free' on the next frame before
-      the player's next WASD step and the player accumulates off-center on
-      canvas.
+      recentered on the player even when the user was previously in 'free'
+      mode (e.g. they pressed spacebar earlier and edge-scrolled away).
+      The sequence per WASD tick is: movePlayer → recenterCamera.
+      movePlayer's internal updateCamera call early-returns when
+      cameraMode is 'free', so the recenter step must do the actual
+      camera snap. Once recenterCamera flips the mode to 'follow',
+      tickEdgeScroll early-returns on subsequent frames (it no longer
+      auto-flips on cursor position — that responsibility belongs to the
+      explicit spacebar toggle), so the player stays centered for the
+      rest of the WASD run.
     inputs:
       - 'state.heldDirection set by keyboard (WASD pressed)'
-      - 'state.edgeScrollPos set to a position inside an edge zone'
-      - 'state.cameraMode possibly toggled to free by prior tickEdgeScroll'
+      - "state.cameraMode === 'free' (set earlier by spacebar toggle)"
+      - 'state.edgeScrollPos may or may not be set'
     outputs:
       - 'after the WASD move tick, state.camera positions the player at canvas center'
       - 'player viewport tile coordinates (player.x - camera.x, player.y - camera.y) match follow-mode values'
@@ -58,12 +60,12 @@ behaviors:
     determinism: deterministic
 
 edge_cases:
-  - id: idle-mouse-at-edge
-    description: 'User parks the mouse cursor in a canvas edge-scroll zone, then holds WASD to walk'
-    expected: 'Player stays anchored at canvas center every step; mouse position does not pull the camera off the player'
+  - id: idle-mouse-at-edge-in-follow
+    description: "User parks the mouse cursor in a canvas edge-scroll zone while cameraMode === 'follow', then holds WASD to walk"
+    expected: 'Player stays anchored at canvas center every step; mouse position is ignored because edge-scroll only runs in free mode'
   - id: edge-pan-then-wasd
-    description: 'User intentionally edge-pans to look ahead, then presses WASD to move'
-    expected: 'First WASD step snaps the camera onto the player; subsequent steps keep the player centered'
+    description: 'User presses spacebar to enter free mode, edge-pans to look ahead, then presses WASD to move'
+    expected: 'First WASD step snaps the camera onto the player and flips cameraMode back to follow; subsequent steps keep the player centered; cursor at edge no longer pans because mode is follow'
   - id: already-follow-idempotent
     description: 'recenterCamera called when cameraMode is already follow and camera already centered on player'
     expected: 'No observable change; idempotent'
