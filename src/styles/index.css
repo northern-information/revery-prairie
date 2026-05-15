@@ -122,6 +122,19 @@ body,
   animation: fade-in 1s ease-in;
 }
 
+@keyframes event-log-flash {
+  from {
+    background-color: rgba(255, 255, 255, 0.35);
+  }
+  to {
+    background-color: rgba(255, 255, 255, 0);
+  }
+}
+
+.animate-event-log-flash {
+  animation: event-log-flash 600ms ease-out forwards;
+}
+
 .game-title {
   font-family: 'Times New Roman', serif;
   font-style: italic;

@@ -77,6 +77,47 @@ describe('EventLog', () => {
     expect(panel?.className).toMatch(/pointer-events-auto/)
   })
 
+  describe('new entry flash animation', () => {
+    it('applies the flash class to newly-appended entries', () => {
+      const state = createGameState('Test', 80, 40)
+      const initial = [makeEvent('1', 'one')]
+      const { rerender } = render(<EventLog state={state} eventLog={initial} />)
+
+      const grown = [makeEvent('2', 'two'), makeEvent('1', 'one')]
+      rerender(<EventLog state={state} eventLog={grown} />)
+
+      const newest = screen.getByTestId('event-log-entry-2')
+      expect(newest.className).toMatch(/animate-event-log-flash/)
+    })
+
+    it('does NOT apply the flash class to entries already present at mount', () => {
+      const state = createGameState('Test', 80, 40)
+      const initial = [makeEvent('2', 'two'), makeEvent('1', 'one')]
+      render(<EventLog state={state} eventLog={initial} />)
+
+      const oldest = screen.getByTestId('event-log-entry-1')
+      const newest = screen.getByTestId('event-log-entry-2')
+      expect(oldest.className).not.toMatch(/animate-event-log-flash/)
+      expect(newest.className).not.toMatch(/animate-event-log-flash/)
+    })
+
+    it('flashes each entry in a burst of appends independently', () => {
+      const state = createGameState('Test', 80, 40)
+      const initial = [makeEvent('1', 'one')]
+      const { rerender } = render(<EventLog state={state} eventLog={initial} />)
+
+      const burst = [makeEvent('3', 'three'), makeEvent('2', 'two'), makeEvent('1', 'one')]
+      rerender(<EventLog state={state} eventLog={burst} />)
+
+      const e2 = screen.getByTestId('event-log-entry-2')
+      const e3 = screen.getByTestId('event-log-entry-3')
+      const e1 = screen.getByTestId('event-log-entry-1')
+      expect(e2.className).toMatch(/animate-event-log-flash/)
+      expect(e3.className).toMatch(/animate-event-log-flash/)
+      expect(e1.className).not.toMatch(/animate-event-log-flash/)
+    })
+  })
+
   describe('auto-scroll resume + unread counter', () => {
     // jsdom does not lay out scrollable elements; stub scroll geometry per test
     const stubScroll = (el: HTMLElement, opts: { scrollHeight: number; clientHeight: number; scrollTop: number }) => {

@@ -29,6 +29,7 @@ export const EventLog = ({ state, eventLog }: EventLogProps) => {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const stuckToBottomRef = useRef(true)
   const prevLengthRef = useRef(eventLog.length)
+  const mountedEntryIdsRef = useRef(new Set(eventLog.map(e => e.id)))
   const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
@@ -91,10 +92,12 @@ export const EventLog = ({ state, eventLog }: EventLogProps) => {
       >
         {ordered.map((entry, i) => {
           const distFromBottom = ordered.length - 1 - i
+          const shouldFlash = !mountedEntryIdsRef.current.has(entry.id)
           return (
             <span
               key={entry.id}
               data-testid={`event-log-entry-${entry.id}`}
+              className={shouldFlash ? 'animate-event-log-flash' : undefined}
               style={{ opacity: computeOpacity(distFromBottom) }}
             >
               <span style={{ color: entry.iconColor }}>{entry.icon}</span> {entry.text}
