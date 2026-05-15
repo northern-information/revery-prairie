@@ -6,6 +6,9 @@ source_files:
   - src/engine/cursor.ts
   - src/engine/coordinates.ts
   - src/engine/types.ts
+  - src/hooks/useKeyboard.ts
+  - src/components/Sidebar.tsx
+  - src/styles/index.css
 dependencies: []
 
 behaviors:
@@ -13,41 +16,53 @@ behaviors:
     description: >
       updateCursorState(state, metrics) converts cursorScreenPos
       (CSS pixel coordinates) to a world tile position via
-      screenToTile, storing the result in state.cursorTile.
-      when state.heldDirection is set (WASD active) or state.path
-      is non-null (click-to-move active), cursorTile is set to null
-      regardless of mouse position. otherwise this runs every frame
-      so the highlight tracks correctly when the camera moves.
+      screenToTile, storing the result in state.cursorTile. this
+      runs every frame so the sidebar hover info tracks correctly
+      while the camera moves and while the player is moving via
+      WASD or click-to-move. cursorTile is only null when the mouse
+      is not over the canvas.
     inputs:
       - 'state.cursorScreenPos, camera position, char metrics'
-      - 'state.heldDirection (null or Direction)'
-      - 'state.path (null or Position[])'
     outputs:
       - 'state.cursorTile updated to world Position or null'
     state_changes:
       - field: cursorTile
-        effect: 'null when movement active; world tile Position or null otherwise'
+        effect: 'world tile Position when mouse is over canvas; null when mouse leaves canvas'
+    determinism: deterministic
+
+  - id: css-cursor-always-visible
+    description: >
+      the custom CSS cursor (cursor.cur) is always visible over the
+      canvas. no input — WASD keypress, active click-to-move path,
+      drag, or any other interaction — hides or flickers the cursor.
+      the `cursor-hidden` CSS class is no longer applied to
+      documentElement by any input handler.
+    inputs:
+      - 'any input event (keyboard, mouse, focus change)'
+    outputs:
+      - 'documentElement does not gain the cursor-hidden class'
+      - 'custom CSS cursor remains rendered'
+    state_changes: []
     determinism: deterministic
 
 edge_cases:
   - id: no-cursor-screen-pos
     description: 'mouse leaves the canvas'
     expected: 'cursorTile set to null'
-  - id: wasd-active-clears-cursor
-    description: 'player holds a WASD direction key'
-    expected: 'cursorTile set to null; canvas highlight and sidebar cursor section absent'
-  - id: active-path-clears-cursor
-    description: 'player is walking a click-to-move path'
-    expected: 'cursorTile set to null while state.path is non-null'
-  - id: cursor-restores-on-mouse-move
-    description: 'mouse moves after WASD or click-to-move ends'
-    expected: 'cursorTile recomputes from cursorScreenPos; highlight and sidebar cursor section reappear'
+  - id: wasd-active-keeps-cursor
+    description: 'player holds a WASD direction key while mouse is over canvas'
+    expected: 'cursorTile continues to track mouse position; sidebar hover info updates live; CSS cursor remains visible'
+  - id: active-path-keeps-cursor
+    description: 'player is walking a click-to-move path while mouse is over canvas'
+    expected: 'cursorTile continues to track mouse position; sidebar hover info updates live; CSS cursor remains visible'
 
 failure_conditions:
   - trigger: 'cursorScreenPos is null (mouse not over canvas)'
     expected: 'cursorTile set to null; no mapping attempted'
   - trigger: 'WASD key held while mouse is over canvas'
-    expected: 'cursorTile is null; canvas shows no highlight; sidebar cursor section is absent'
+    expected: 'cursorTile is NOT cleared; documentElement does NOT gain cursor-hidden class'
+  - trigger: 'click-to-move path is active while mouse is over canvas'
+    expected: 'cursorTile is NOT cleared; documentElement does NOT gain cursor-hidden class'
 
 verification:
   test_file: src/engine/__tests__/cursor.test.ts

@@ -1,0 +1,168 @@
+plan:
+  id: drop-cursor-highlights-and-path
+  title: 'Drop mouse tile highlight, drop path preview for plain right-click, keep CSS cursor always visible'
+  created: '2026-05-15'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: remove-cursor-highlight-from-renderer
+    title: 'Remove hover cursor inversion from renderer.ts'
+    spec_id: cursor-state
+    spec_sections:
+      - screen-to-tile-mapping
+      - css-cursor-always-visible
+    context_files:
+      - src/engine/renderer.ts
+      - harness/specs/renderer.yaml
+      - harness/specs/cursor-state.yaml
+    output_files:
+      - src/engine/renderer.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine, renderer]
+
+  - id: gate-path-rendering-on-waypoint-chain
+    title: 'Suppress path/waypoint glyphs unless pathWaypoints.length > 1 (shift+right-click chain)'
+    spec_id: renderer
+    spec_sections:
+      - path-rendering-restricted-to-chains
+    context_files:
+      - src/engine/renderer.ts
+      - harness/specs/renderer.yaml
+      - harness/specs/right-click-movement-and-player-selection.yaml
+    output_files:
+      - src/engine/renderer.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine, renderer]
+
+  - id: stop-hiding-css-cursor
+    title: 'Remove cursor-hidden CSS class application from WASD/dialog handlers; keep CSS file cleanup'
+    spec_id: cursor-state
+    spec_sections:
+      - css-cursor-always-visible
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/components/Sidebar.tsx
+      - src/styles/index.css
+      - harness/specs/cursor-state.yaml
+    output_files:
+      - src/hooks/useKeyboard.ts
+      - src/components/Sidebar.tsx
+      - src/styles/index.css
+    depends_on: []
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags: [hook, component]
+
+  - id: keep-cursortile-during-movement
+    title: 'updateCursorState no longer clears cursorTile when heldDirection is set or path is non-null'
+    spec_id: cursor-state
+    spec_sections:
+      - screen-to-tile-mapping
+    context_files:
+      - src/engine/cursor.ts
+      - harness/specs/cursor-state.yaml
+    output_files:
+      - src/engine/cursor.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: sidebar-shows-cursor-during-movement
+    title: 'Sidebar Cursor section renders whenever cursorTile is set, regardless of WASD/path state'
+    spec_id: sidebar-iso-cursor-effects
+    spec_sections:
+      - projection-aware-cursor-tile
+      - cursor-leaves-canvas-clears-section
+    context_files:
+      - src/components/Sidebar.tsx
+      - harness/specs/sidebar-iso-cursor-effects.yaml
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - keep-cursortile-during-movement
+    repair: retry
+    tags: [component]
+
+  - id: update-cursor-tests
+    title: 'Rewrite src/engine/__tests__/cursor.test.ts for new cursorTile semantics'
+    spec_id: cursor-state
+    spec_sections:
+      - screen-to-tile-mapping
+      - css-cursor-always-visible
+    context_files:
+      - src/engine/__tests__/cursor.test.ts
+      - harness/specs/cursor-state.yaml
+    output_files:
+      - src/engine/__tests__/cursor.test.ts
+    depends_on:
+      - keep-cursortile-during-movement
+    verification:
+      - npx vitest run src/engine/__tests__/cursor.test.ts
+    repair: retry
+    tags: [test, engine]
+
+  - id: update-sidebar-tests
+    title: 'Update Sidebar tests to assert Cursor section renders during WASD and path-active states'
+    spec_id: sidebar-iso-cursor-effects
+    spec_sections:
+      - projection-aware-cursor-tile
+    context_files:
+      - src/components/__tests__/Sidebar.test.tsx
+      - harness/specs/sidebar-iso-cursor-effects.yaml
+    output_files:
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on:
+      - sidebar-shows-cursor-during-movement
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags: [test, component]
+
+  - id: regression-test-path-render-gate
+    title: 'Add renderer regression test asserting plain right-click does not produce path glyphs and shift+right-click does'
+    spec_id: renderer
+    spec_sections:
+      - path-rendering-restricted-to-chains
+    context_files:
+      - src/engine/__tests__/renderer.test.ts
+      - src/engine/renderer.ts
+      - harness/specs/renderer.yaml
+    output_files:
+      - src/engine/__tests__/renderer.test.ts
+    depends_on:
+      - gate-path-rendering-on-waypoint-chain
+    verification:
+      - npx vitest run src/engine/__tests__/renderer.test.ts
+    repair: retry
+    tags: [test, engine]
+
+  - id: regression-test-css-cursor-not-hidden
+    title: 'Add useKeyboard test asserting WASD keypress does not add cursor-hidden class'
+    spec_id: cursor-state
+    spec_sections:
+      - css-cursor-always-visible
+    context_files:
+      - src/hooks/__tests__/useKeyboard.test.ts
+      - src/hooks/useKeyboard.ts
+      - harness/specs/cursor-state.yaml
+    output_files:
+      - src/hooks/__tests__/useKeyboard.test.ts
+    depends_on:
+      - stop-hiding-css-cursor
+    verification:
+      - npx vitest run src/hooks/__tests__/useKeyboard.test.ts
+    repair: retry
+    tags: [test, hook]

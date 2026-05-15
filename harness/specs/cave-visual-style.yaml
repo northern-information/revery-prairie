@@ -110,10 +110,6 @@ edge_cases:
     description: 'two adjacent tiles hash to same building char and color'
     expected: 'visually acceptable — the offset layers still create variation'
 
-  - id: cursor-highlight-on-multilayer
-    description: 'cursor hovers over a multilayer cave tile'
-    expected: 'cursor inversion (pink background + dark text) applies; the multilayer path is bypassed when isHighlighted is true, matching the ruin behavior in shouldRenderRuinMultilayer'
-
   - id: path-overlay-on-multilayer
     description: 'pathfinding path crosses a cave wall or floor tile'
     expected: 'path overlay glyphs render in pink as before; multilayer path is bypassed when hasOverlay is true'

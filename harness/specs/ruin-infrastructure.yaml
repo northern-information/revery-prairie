@@ -343,7 +343,7 @@ edge_cases:
 
   - id: halo-with-cursor-on-entrance
     description: 'cursor hovers directly over a RuinEntrance tile'
-    expected: 'halo paints first (pre-pass), then cursor inversion (pink fillRect + dark glyph) overrides the entrance cell — the surrounding 8 halo cells remain visible'
+    expected: 'no inversion is applied — the hover cursor highlight has been removed; halo paints as a pre-pass and the entrance cell renders normally with the surrounding 8 halo cells visible'
 
 failure_conditions:
   - trigger: 'player enters ruin with currentRuinIndex already set (should not happen)'

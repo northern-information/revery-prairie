@@ -15,18 +15,16 @@ behaviors:
     description: >
       The Sidebar derives its cursor tile from state.cursorScreenPos using
       the engine's screenToTile transform, passing the current viewport
-      dimensions. The same screen-to-tile path used by the canvas
-      highlight, click-to-move, and updateCursorState applies to the
-      sidebar so the displayed Position, Contents, and Effects rows
-      always describe the tile under the visual cursor highlight.
-      When state.heldDirection is set (WASD active) or state.path is
-      non-null (click-to-move active), the sidebar computes cursorTile
-      as null and does not render the Cursor section.
+      dimensions. The same screen-to-tile path used by click-to-move and
+      updateCursorState applies to the sidebar so the displayed Position,
+      Contents, and Effects rows always describe the tile under the
+      mouse. The Cursor section renders whenever cursorScreenPos is
+      non-null — WASD movement and active click-to-move paths no longer
+      hide it.
     inputs:
       - 'state.cursorScreenPos is non-null and metricsRef.current is non-null'
-      - 'state.heldDirection is null and state.path is null'
     outputs:
-      - 'sidebar Cursor section renders Position, Contents, and Effects for the tile under the visual cursor highlight'
+      - 'sidebar Cursor section renders Position, Contents, and Effects for the tile under the mouse'
     state_changes: []
     determinism: deterministic
   - id: effects-row-reflects-cursor
@@ -43,13 +41,13 @@ behaviors:
     determinism: deterministic
   - id: cursor-leaves-canvas-clears-section
     description: >
-      When the mouse leaves the canvas (state.cursorScreenPos becomes null),
-      when WASD is active (state.heldDirection is set), or when click-to-move
-      is active (state.path is non-null), the sidebar Cursor section is not
-      rendered. The section reappears on the next mouse move event once
-      movement is no longer active.
+      When the mouse leaves the canvas (state.cursorScreenPos becomes
+      null), the sidebar Cursor section is not rendered. The section
+      reappears on the next mouse move event. WASD movement and active
+      click-to-move paths do NOT clear the section — the sidebar keeps
+      tracking the tile under the mouse throughout movement.
     inputs:
-      - 'state.cursorScreenPos is null, OR state.heldDirection is set, OR state.path is non-null'
+      - 'state.cursorScreenPos is null'
     outputs:
       - 'sidebar Cursor section (Position, Contents, Effects) is absent'
     state_changes: []
@@ -68,11 +66,11 @@ edge_cases:
       Hovering any tile within Chebyshev distance 6 of Gron must surface
       "rain" in the Effects row.
     expected: 'sidebar Effects row contains "rain" when cursor tile is within 6 tiles of Gron'
-  - id: wasd-or-path-active-clears-cursor-section
+  - id: wasd-or-path-active-keeps-cursor-section
     description: >
-      Player holds a WASD key or is actively following a click-to-move path
-      while the mouse remains stationary over the canvas.
-    expected: 'sidebar Cursor section is absent; it reappears on the next mouse move after movement ends'
+      Player holds a WASD key or is actively following a click-to-move
+      path while the mouse remains over the canvas.
+    expected: 'sidebar Cursor section continues to render and tracks the tile under the mouse'
 failure_conditions:
   - trigger: 'cursor hovers a tile inside Gron rain aura'
     expected: 'sidebar Effects row shows "rain", not "None"'
@@ -81,7 +79,9 @@ failure_conditions:
   - trigger: 'cursor hovers a glint zone tile'
     expected: 'sidebar Effects row shows "glinting", not "None"'
   - trigger: 'WASD key held while mouse is over canvas'
-    expected: 'sidebar Cursor section is absent'
+    expected: 'sidebar Cursor section is present and tracks the hovered tile'
+  - trigger: 'click-to-move path is active while mouse is over canvas'
+    expected: 'sidebar Cursor section is present and tracks the hovered tile'
 verification:
   test_file: src/components/__tests__/Sidebar.test.tsx
   test_pattern: 'Sidebar effects row'

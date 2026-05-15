@@ -74,8 +74,9 @@ behaviors:
   - id: hidden-during-descent
     description: >
       while playerSpawn.visible is false, the renderer must not draw
-      the player glyph. cursor highlight on the player tile is
-      suppressed (the tile reads as empty terrain). other entities
+      the player glyph. the player tile reads as empty terrain (no
+      player-selected highlight, no facing-entity highlight, no
+      pending-target highlight). other entities
       (ghosts, bees, coyote) treat the player tile as occupied via
       getBlockedPositions so nothing else lands on the spawn tile.
       keyboard input is accepted but movement is short-circuited

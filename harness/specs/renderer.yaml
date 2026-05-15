@@ -136,12 +136,13 @@ behaviors:
            crumble, etc.) into module-level Maps
         6. central tile loop: iterates the visible viewport and
            resolves each tile's char/color via a precedence chain
-           (cursor > preview > effect > entity > ground item >
-           terrain glyph). uses a two-phase resolve-then-draw pattern
-           so cursor inversion (pink fillRect + dark glyph) applies
-           correctly. handles clover lifecycle staging, glints, fog
-           dimming, ponds, rivers, twinkling space stars, drop-target
-           previews, and deep time crossfade for the player glyph.
+           (preview > effect > entity > ground item > terrain glyph).
+           handles clover lifecycle staging, glints, fog dimming,
+           ponds, rivers, twinkling space stars, drop-target previews,
+           and deep time crossfade for the player glyph. the mouse
+           hover cursor inversion (pink fillRect + dark glyph) has
+           been removed — there is no visual highlight on the tile
+           under the mouse.
         7. smooth-movement post-pass — draws tweening ECS entities
            at fractional pixel positions
         8. runPassesInSlot('effect', ...) — rain aura, revery rain,
@@ -245,16 +246,21 @@ behaviors:
         effect: 'markTileDirty adds key, flushDirtyTiles drains the set, invalidateMapCache deletes the whole entry'
     determinism: deterministic
 
-  - id: cursor-inversion
+  - id: path-rendering-restricted-to-chains
     description: >
-      tiles under the cursor that are cursorable get inverted
-      rendering: pink fillRect background with dark BG_COLOR text.
-      this is applied as a final pass after resolving each tile's
-      char and color, not during the resolve phase.
+      the projected click-to-move path renders on the canvas only
+      when state.pathWaypoints.length > 1 (a shift+right-click chain).
+      a plain right-click sets pathWaypoints to a single-element
+      array [target] and renders no path glyphs even though state.path
+      is non-null. waypoint markers (+) follow the same rule — they
+      render only when the chain has 2+ waypoints. the player still
+      walks the path either way; this affects only visual feedback.
     inputs:
-      - 'state.cursorTile matching a cursorable tile'
+      - 'state.path is non-null'
+      - 'state.pathWaypoints'
     outputs:
-      - 'inverted pink/dark rendering at cursor position'
+      - 'path positions populate the pathPositions set only when pathWaypoints.length > 1'
+      - 'no path dots or waypoint markers render for plain right-click moves'
     state_changes: []
     determinism: deterministic
 
@@ -443,9 +449,15 @@ edge_cases:
   - id: tile-bg-on-cave-hidden
     description: 'cave tile in caveHiddenPositions before caveRevealed'
     expected: 'bg uses the masked CaveWall palette (not the actual hidden-tile palette) so the chamber stays hidden'
-  - id: cursor-over-tile-bg
-    description: 'cursor on a cursorable tile that has a surface bg'
-    expected: 'cursor pink fillRect replaces the tile bg in that tile, glyph renders in dark BG_COLOR; cursor inversion is unchanged'
+  - id: mouse-hover-over-tile-bg
+    description: 'mouse hovers over a tile that has a surface bg'
+    expected: 'no cursor highlight or inversion is applied; the tile bg and glyph render exactly as they would without the hover'
+  - id: plain-right-click-path-not-rendered
+    description: 'plain right-click sets state.path with pathWaypoints.length === 1'
+    expected: 'no path dots (·) or waypoint markers (+) render on the canvas; player still walks the path'
+  - id: shift-right-click-chain-rendered
+    description: 'shift+right-click chains a second waypoint, making pathWaypoints.length === 2'
+    expected: 'path dots and waypoint markers render in ACTION_COLOR for every tile in state.path'
   - id: tile-bg-during-fog
     description: 'unexplored or partiallyDiscovered fog tile with surface bg'
     expected: 'the fog-bg-mask spec (harness/specs/fog-bg-mask.yaml) governs how the cached tile-bg interacts with fog. unexplored tiles are masked to BG_COLOR (fully hidden); partiallyDiscovered tiles are dimmed to FOG_EXPLORED_BRIGHTNESS so bg and glyph dim together. the mask is a dedicated pass that runs last in the world-overlay slot.'

@@ -18,9 +18,9 @@ behaviors:
       the reticle renders as an animated lightning glyph that cycles
       through the characters |, /, \, and ~ at a fast interval
       (LIGHTNING_RETICLE_CYCLE_MS, ~120ms). the glyph color is bright
-      white (#FFFFFF). the standard hot pink cursor inversion still
-      applies as the background. this replaces the current static |
-      glyph returned by getTargetingPreview.
+      white (#FFFFFF). no background inversion is applied — the reticle
+      renders over the normal tile background. this replaces the current
+      static | glyph returned by getTargetingPreview.
     inputs:
       - 'cursor over valid target tile while targetingSlot is set'
       - 'current time for animation cycling'
@@ -85,9 +85,9 @@ behaviors:
       getTargetingPreview is extended to return entries for both valid
       and invalid cursor positions. each entry gains an isValid boolean
       field. valid entries carry the animated lightning glyph and white
-      color. invalid entries carry X and #CC4444. the renderer uses
-      isValid to decide whether to apply hot pink cursor inversion
-      (valid only) or draw the red X without inversion (invalid).
+      color. invalid entries carry X and #CC4444. neither valid nor
+      invalid entries apply a background inversion — the previewMap
+      glyph renders directly over the normal tile bg.
     inputs:
       - 'cursor position while targetingSlot is set'
     outputs:

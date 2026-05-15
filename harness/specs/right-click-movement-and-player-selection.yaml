@@ -22,18 +22,22 @@ behaviors:
       the player to that tile using state.path, identical to the previous
       left-click-to-move behavior. shift+right-click chains waypoints onto
       the existing path. right-clicking on a non-walkable, non-interactable
-      tile does nothing.
+      tile does nothing. the projected path is NOT rendered on the canvas
+      for a plain right-click — path dots and waypoint markers render only
+      when pathWaypoints.length > 1 (see renderer.yaml
+      path-rendering-restricted-to-chains).
     inputs:
       - 'right click on a walkable tile'
       - 'selectedUnits is empty and playerSelected is false'
     outputs:
       - 'state.path set to A* path from player to target'
-      - 'pathWaypoints set to [target]'
+      - 'pathWaypoints set to [target] (length 1)'
+      - 'no path glyphs rendered for plain right-click'
     state_changes:
       - field: path
         effect: 'set to pathfinding result toward clicked tile'
       - field: pathWaypoints
-        effect: 'set to the clicked target tile'
+        effect: 'set to the clicked target tile (single-element array)'
     determinism: deterministic
 
   - id: right-click-interact
@@ -207,14 +211,17 @@ behaviors:
       pathfinding from the last waypoint to the clicked tile. this
       replaces the previous shift+left-click chaining. only applies when
       no NPC units are selected (player commands only) and respects
-      interactables for the final waypoint.
+      interactables for the final waypoint. once pathWaypoints.length > 1
+      the renderer draws path dots and waypoint markers for the entire
+      chain (see renderer.yaml path-rendering-restricted-to-chains).
     inputs:
       - 'shift + right click on canvas'
       - 'state.path is non-empty'
       - 'selectedUnits is empty'
     outputs:
       - 'path extended with new segment from previous waypoint'
-      - 'pathWaypoints appended with new target'
+      - 'pathWaypoints appended with new target (length becomes >= 2)'
+      - 'path dots and waypoint markers now render on the canvas'
     state_changes:
       - field: path
         effect: 'extended with A* segment from last waypoint to new target'
