@@ -7,6 +7,7 @@ import { SELECTION_DRAG_THRESHOLD } from '@/engine/constants'
 import { screenToTile } from '@/engine/coordinates'
 import { isDeepTimeLocked } from '@/engine/deepTime'
 import { ComponentType } from '@/engine/ecs/types'
+import { recenterCamera } from '@/engine/edgeScroll'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import {
   advanceDialog,
@@ -370,6 +371,7 @@ export const useMouse = ({
         }
         state.pendingAction = resolved.action
         state.previewFn = null
+        recenterCamera(state)
         state.path = findPath(
           state.map,
           state.mapWidth,
@@ -431,6 +433,8 @@ export const useMouse = ({
       // No selection — right-click moves/interacts the player
       if (!isWalkableTile(state.map[tile.y][tile.x].type) && !isInteractableAt(state, tile.x, tile.y)) return
       if (tile.x === state.player.x && tile.y === state.player.y) return
+
+      recenterCamera(state)
 
       const blocked = getPathfindingBlockers(state, tile)
       const resolved = resolveClickTarget(state, tile, blocked, onDialog, onDiscovery, refreshUI)
