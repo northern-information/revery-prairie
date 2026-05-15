@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { getRuinTileLayers } from '../ruins'
 import { BUILDING_CHARS, CIV_COLORS } from '../constants'
+import {
+  getRuinPlatformLift,
+  RUIN_APRON_LIFT_PX,
+  RUIN_ENTRANCE_LIFT_PX,
+} from '../tileBg'
 import { TileType } from '../types'
 
 describe('ruin visual style', () => {
@@ -119,6 +124,35 @@ describe('ruin visual style', () => {
     it('BUILDING_CHARS and CIV_COLORS are available', () => {
       expect(BUILDING_CHARS.length).toBe(9)
       expect(CIV_COLORS.length).toBe(5)
+    })
+  })
+
+  describe('overworld ruin entrance elevation lift', () => {
+    it('entrance lift exceeds apron lift, both are positive pixel values', () => {
+      expect(RUIN_APRON_LIFT_PX).toBeGreaterThan(0)
+      expect(RUIN_ENTRANCE_LIFT_PX).toBeGreaterThan(RUIN_APRON_LIFT_PX)
+    })
+
+    it('getRuinPlatformLift returns negative offsets for RuinEntrance and RuinApron', () => {
+      expect(getRuinPlatformLift(TileType.RuinEntrance)).toBe(-RUIN_ENTRANCE_LIFT_PX)
+      expect(getRuinPlatformLift(TileType.RuinApron)).toBe(-RUIN_APRON_LIFT_PX)
+    })
+
+    it('getRuinPlatformLift returns 0 for non-platform tile types', () => {
+      const nonPlatformTypes: TileType[] = [
+        TileType.Dirt,
+        TileType.Sand,
+        TileType.Space,
+        TileType.Clover,
+        TileType.RuinFloor,
+        TileType.RuinWall,
+        TileType.RuinAqueduct,
+        TileType.RuinDebris,
+        TileType.CaveEntrance,
+      ]
+      for (const t of nonPlatformTypes) {
+        expect(getRuinPlatformLift(t)).toBe(0)
+      }
     })
   })
 })

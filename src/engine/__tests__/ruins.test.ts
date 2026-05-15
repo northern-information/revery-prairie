@@ -297,6 +297,10 @@ describe('ruin infrastructure', () => {
     it('RuinExit is walkable', () => {
       expect(isWalkableTile(TileType.RuinExit)).toBe(true)
     })
+
+    it('RuinApron is walkable', () => {
+      expect(isWalkableTile(TileType.RuinApron)).toBe(true)
+    })
   })
 
   describe('isInCurrentZone', () => {
@@ -510,15 +514,16 @@ describe('ruin infrastructure', () => {
   })
 
   describe('ruin accessibility', () => {
-    it('placeRuinEntrances converts non-walkable neighbors to dirt', () => {
-      // Create a small map with space surrounding a dirt tile
+    it('placeRuinEntrances converts all 8 neighbors to RuinApron', () => {
       const mapWidth = 10
       const mapHeight = 10
       const map: Tile[][] = Array.from({ length: mapHeight }, () =>
         Array.from({ length: mapWidth }, () => ({ type: TileType.Space })),
       )
-      // Place dirt at (5, 5) for the entrance
+      // Mix of starting tile types — apron should overwrite all of them.
       map[5][5] = { type: TileType.Dirt }
+      map[4][5] = { type: TileType.Sand }
+      map[6][5] = { type: TileType.Dirt }
 
       const interior = {
         entranceOverworld: { x: 5, y: 5 },
@@ -526,16 +531,37 @@ describe('ruin infrastructure', () => {
 
       placeRuinEntrances(map, [interior as never])
 
-      // Entrance tile should be RuinEntrance
       expect(map[5][5].type).toBe(TileType.RuinEntrance)
 
-      // All 8 neighbors should now be dirt (were space, which is non-walkable)
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
           if (dx === 0 && dy === 0) continue
-          expect(map[5 + dy][5 + dx].type).toBe(TileType.Dirt)
+          expect(map[5 + dy][5 + dx].type).toBe(TileType.RuinApron)
         }
       }
+    })
+
+    it('placeRuinEntrances preserves CaveEntrance neighbors (cave is indestructible)', () => {
+      const mapWidth = 10
+      const mapHeight = 10
+      const map: Tile[][] = Array.from({ length: mapHeight }, () =>
+        Array.from({ length: mapWidth }, () => ({ type: TileType.Dirt })),
+      )
+      // Cave entrance sits one tile north of the ruin entrance.
+      map[4][5] = { type: TileType.CaveEntrance }
+
+      const interior = {
+        entranceOverworld: { x: 5, y: 5 },
+      } as { entranceOverworld: { x: number; y: number } }
+
+      placeRuinEntrances(map, [interior as never])
+
+      expect(map[5][5].type).toBe(TileType.RuinEntrance)
+      expect(map[4][5].type).toBe(TileType.CaveEntrance)
+      // Other neighbors still convert to apron.
+      expect(map[6][5].type).toBe(TileType.RuinApron)
+      expect(map[5][4].type).toBe(TileType.RuinApron)
+      expect(map[5][6].type).toBe(TileType.RuinApron)
     })
 
     it('placeRuinEntrances handles map edges gracefully', () => {
@@ -550,13 +576,12 @@ describe('ruin infrastructure', () => {
         entranceOverworld: { x: 0, y: 0 },
       } as { entranceOverworld: { x: number; y: number } }
 
-      // Should not throw
       placeRuinEntrances(map, [interior as never])
       expect(map[0][0].type).toBe(TileType.RuinEntrance)
-      // In-bounds neighbors should be converted
-      expect(map[0][1].type).toBe(TileType.Dirt)
-      expect(map[1][0].type).toBe(TileType.Dirt)
-      expect(map[1][1].type).toBe(TileType.Dirt)
+      // In-bounds neighbors should be converted to apron.
+      expect(map[0][1].type).toBe(TileType.RuinApron)
+      expect(map[1][0].type).toBe(TileType.RuinApron)
+      expect(map[1][1].type).toBe(TileType.RuinApron)
     })
 
     it('findSafeExitPosition prefers south, falls back to other walkable neighbors', () => {

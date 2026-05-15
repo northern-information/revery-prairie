@@ -50,6 +50,7 @@ export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   [TileType.RuinFloor]: ['#2D2D26', '#2F2F28', '#2C2C25', '#2E2E27', '#2B2B24'],
   [TileType.RuinWall]: ['#1F1F1F', '#212121', '#1D1D1D', '#202020', '#1E1E1E'],
   [TileType.RuinEntrance]: ['#1F4D45', '#1E4C44', '#205047', '#214D45'],
+  [TileType.RuinApron]: ['#3A3225', '#3C3427', '#383023', '#3B3326', '#392F22'],
   [TileType.RuinExit]: ['#1F4D45', '#1E4C44', '#205047', '#214D45'],
   [TileType.RuinAqueduct]: ['#2A3D4F', '#2C3F50', '#283C4D', '#2B3E50'],
   [TileType.RuinAqueductBroken]: ['#221C16', '#241D17', '#201B15', '#231D17'],
@@ -166,6 +167,19 @@ export const ELEVATION_TIER_LIFT_PX = 6
 // typical font sizes (charHeight ≈ 14).
 export const CUBE_BASE_DEPTH_PX = 8
 
+// Overworld-only platform lift for ruin entrances. RuinApron tiles
+// (the 8-tile perimeter forced around each entrance) lift by
+// RUIN_APRON_LIFT_PX. The center RuinEntrance tile lifts by
+// RUIN_ENTRANCE_LIFT_PX so the entrance reads as the tallest stone
+// in the cluster. The lift is additive on top of getTierLift(tier),
+// so a ruin sitting on a tier-1 plateau still reads as raised
+// relative to its apron, and the apron still reads as raised
+// relative to surrounding dirt. Applied to both the glyph y and the
+// bg-cache fill + cube-edge stroke so the cube edges peek out below
+// the lifted glyph rather than floating above it.
+export const RUIN_APRON_LIFT_PX = 3
+export const RUIN_ENTRANCE_LIFT_PX = 9
+
 export const getElevationTier = (elevation: number | undefined): number => {
   if (elevation === undefined) return 0
   const tierSize = 100 / ELEVATION_TIER_COUNT
@@ -174,6 +188,15 @@ export const getElevationTier = (elevation: number | undefined): number => {
 }
 
 export const getTierLift = (tier: number): number => -tier * ELEVATION_TIER_LIFT_PX
+
+// Per-tile additional lift (in pixels, negative = up) for ruin
+// platform tiles. Returns 0 for any other tile type so callers can
+// add it unconditionally. Zone-gated by the caller (overworld only).
+export const getRuinPlatformLift = (tileType: TileType): number => {
+  if (tileType === TileType.RuinEntrance) return -RUIN_ENTRANCE_LIFT_PX
+  if (tileType === TileType.RuinApron) return -RUIN_APRON_LIFT_PX
+  return 0
+}
 
 // Constant Y offset (in pixels, negative = up) applied to angel body
 // pixels on top of their tile's pyLift, so the multi-glyph body always

@@ -1064,7 +1064,8 @@ export const placeRuinEntrances = (
     if (tile.type === TileType.CaveEntrance) continue
     row[x] = { type: TileType.RuinEntrance }
 
-    // Ensure all adjacent tiles are walkable so the entrance is reachable
+    // Convert all 8 neighbors to RuinApron so the entrance reads as a
+    // raised stone platform. CaveEntrance is preserved (indestructible).
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         if (dx === 0 && dy === 0) continue
@@ -1073,9 +1074,8 @@ export const placeRuinEntrances = (
         if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) continue
         const neighbor = map[ny][nx]
         if (!neighbor) continue
-        if (!isWalkableTile(neighbor.type)) {
-          map[ny][nx] = { type: TileType.Dirt }
-        }
+        if (neighbor.type === TileType.CaveEntrance) continue
+        map[ny][nx] = { type: TileType.RuinApron }
       }
     }
   }

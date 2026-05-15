@@ -327,6 +327,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
                       if (tileType === TileType.RuinFloor) return 'ruin floor'
                       if (tileType === TileType.RuinWall) return 'ruin wall'
                       if (tileType === TileType.RuinEntrance) return 'ruin entrance'
+                      if (tileType === TileType.RuinApron) return 'ruin apron'
                       if (tileType === TileType.RuinExit) return 'exit'
                       if (tileType === TileType.RuinAqueduct) return 'aqueduct'
                       if (tileType === TileType.RuinAqueductBroken) return 'broken aqueduct'

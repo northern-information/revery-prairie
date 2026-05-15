@@ -97,6 +97,7 @@ import {
   ANGEL_FLOAT_LIFT_PX,
   darkenColor,
   ELEVATION_TIER_LIFT_PX,
+  getRuinPlatformLift,
   getTierLift,
   getTileBgColor,
   WALL_LEFT_SHADE,
@@ -1145,7 +1146,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const tileKey = posKey(mx, my)
       const tileTier = tierAt(mx, my)
       const lift = getTierLift(tileTier)
-      const pyLift = py + lift
+      const platformLift =
+        state.currentZone === Zone.Overworld ? getRuinPlatformLift(map[my][mx].type) : 0
+      const pyLift = py + lift + platformLift
 
       // Fog of war: skip unexplored tiles, dim partiallyDiscovered tiles.
       // fullyDiscovered tiles fall through to the full render path so live
