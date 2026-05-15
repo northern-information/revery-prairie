@@ -267,6 +267,31 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: log-new-entry-flash
+    description: >
+      When a new entry is appended to the log, its row briefly flashes
+      with a subtle white background and fades back to transparent over
+      ~600ms. The flash is per-entry: each new row gets its own
+      independent fade timer, so bursts of events produce parallel
+      fades (entries do not share a single panel-wide flash). The fade
+      is implemented in CSS via a one-shot animation keyed to the
+      entry's id so re-renders during the fade window do not re-trigger
+      it. Once the animation completes the row settles at the normal
+      transparent (event log) background. The flash is purely visual —
+      it does not affect opacity (which remains governed by
+      log-position-based-fade), scroll position, the unread counter, or
+      any game state. Pre-existing entries already in the log when the
+      component first mounts do NOT flash; only entries appended after
+      mount flash.
+    inputs:
+      - 'addEvent appends a new GameEvent to the log'
+    outputs:
+      - 'the new entry row renders with a brief background flash that fades to transparent over ~600ms'
+      - 'each new entry has its own independent fade timer'
+      - 'entries present at component mount do not flash'
+    state_changes: []
+    determinism: time-based
+
   - id: log-hover-suppresses-edge-scroll
     description: >
       The bottom-left corner is inside the RTS edge-scroll zone. While
@@ -343,6 +368,16 @@ edge_cases:
   - id: log-scroll-to-bottom-resumes-autoscroll
     description: 'user has scrolled up in the log; user scrolls back down within 4px of the bottom while cursor is still over the log'
     expected: 'stuck-to-bottom flag flips to true on the scroll handler; unread counter is reset to zero; subsequent new events auto-pin as normal'
+  - id: new-entry-flashes-on-arrival
+    description: 'a new event is appended to a log that already contains entries'
+    expected: 'the newly-appended row renders with a brief flash background and fades to transparent over ~600ms; previously-present rows do not flash'
+  - id: burst-events-flash-independently
+    description: 'multiple events arrive in quick succession (e.g. chain meteorite explosions)'
+    expected: 'each new row flashes on its own timer; overlapping fades render in parallel without re-triggering already-fading rows'
+  - id: mounted-entries-do-not-flash
+    description: 'EventLog mounts with one or more entries already present in the log (e.g. genesis narration after skip)'
+    expected: 'pre-existing rows render at their settled (transparent) background; no flash is triggered for them'
+
   - id: log-unread-counter-displays-while-paused
     description: 'user has scrolled up in the log; new events arrive while the cursor is still over the log'
     expected: 'unread counter increments per new event; "N new events" indicator renders at the bottom of the scroll area; clicking the indicator scrolls to bottom, resumes auto-pin, and resets the counter'
@@ -368,6 +403,10 @@ failure_conditions:
     expected: 'useEventLog returns { log, addEvent } only; no toast lifecycle code remains'
   - trigger: 'GameState still defines `queuedToasts` / `QueuedToast`'
     expected: 'field is renamed to `queuedEvents` / `QueuedEvent`; serialization schema allowlist matches'
+  - trigger: 'new entries do not flash on append, or pre-existing entries flash on mount'
+    expected: 'every newly-appended row must run the flash animation exactly once; mounted entries must not animate; spec violated otherwise'
+  - trigger: 'flash animation re-triggers on unrelated re-renders (e.g. scroll, hover state changes)'
+    expected: 'animation is keyed to the entry id so the same DOM node does not restart its keyframes mid-fade; spec violated otherwise'
 
 verification:
   test_file: src/components/__tests__/EventLog.test.tsx

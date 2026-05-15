@@ -1,0 +1,74 @@
+plan:
+  id: event-log-flash
+  title: 'Flash new event log entries with a brief background fade'
+  created: '2026-05-15'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/components/__tests__/EventLog.test.tsx
+
+tasks:
+  - id: add-flash-keyframes
+    title: 'Add a one-shot `event-log-flash` keyframe animation to global styles that fades a subtle white background to transparent over ~600ms'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-new-entry-flash
+    context_files:
+      - src/styles/index.css
+    output_files:
+      - src/styles/index.css
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [styling]
+
+  - id: track-mounted-entries
+    title: 'In EventLog, capture the set of entry ids present at mount in a ref so they can be excluded from the flash animation'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-new-entry-flash
+    context_files:
+      - src/components/EventLog.tsx
+    output_files:
+      - src/components/EventLog.tsx
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [component]
+
+  - id: apply-flash-class-to-new-entries
+    title: 'Apply the `animate-event-log-flash` (or equivalent) class to entry rows whose id is NOT in the mounted-entries ref; ensure the class is keyed to entry id so re-renders do not re-trigger the animation'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-new-entry-flash
+    context_files:
+      - src/components/EventLog.tsx
+      - src/styles/index.css
+    output_files:
+      - src/components/EventLog.tsx
+    depends_on:
+      - add-flash-keyframes
+      - track-mounted-entries
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [component]
+
+  - id: regression-tests
+    title: 'Add EventLog tests: (1) newly-appended entry receives the flash class; (2) entries present at mount do NOT receive the flash class; (3) burst of two appends both receive the flash class independently'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-new-entry-flash
+    context_files:
+      - src/components/__tests__/EventLog.test.tsx
+      - src/components/EventLog.tsx
+    output_files:
+      - src/components/__tests__/EventLog.test.tsx
+    depends_on:
+      - apply-flash-class-to-new-entries
+    verification:
+      - npx vitest run src/components/__tests__/EventLog.test.tsx
+    repair: retry
+    tags: [test]
