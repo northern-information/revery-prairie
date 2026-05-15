@@ -33,7 +33,6 @@ export { rtsSelectionBoxPass } from './rtsSelectionBox'
 export { moveOrderMarkersPass } from './moveOrderMarkers'
 export { edgeScrollIndicatorPass } from './edgeScrollIndicator'
 export { offscreenPlayerArrowPass } from './offscreenPlayerArrow'
-// cameraLockReticles must register last in screen-overlay so its frame
-// reads as the topmost UI layer, drawn over the sidebar and every other
-// screen-space overlay.
-export { cameraLockReticlesPass } from './cameraLockReticles'
+// Camera-lock reticles live in the React DOM tree (CameraLockReticles
+// component, fixed-position, z-50) so they can z-order above sidebar
+// and event log panels that the canvas cannot reach.

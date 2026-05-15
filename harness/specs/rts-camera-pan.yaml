@@ -200,23 +200,24 @@ behaviors:
 
   - id: camera-lock-corner-reticles
     description: >
-      A new render pass `cameraLockReticles` (slot `screen-overlay`) draws
-      four hot-pink L-shaped corner reticles at the canvas corners while
-      state.cameraMode === 'follow'. The reticles signal "camera locked
-      on player" to the user. Each reticle is two short perpendicular
-      line segments meeting at the canvas corner; geometry uses a
-      constant CAMERA_LOCK_RETICLE_SIZE_PX for arm length and
-      CAMERA_LOCK_RETICLE_THICKNESS_PX for stroke width. Color is
-      ACTION_COLOR (#ff69b4). The right-edge reticles align to the
-      visible canvas edge (viewportWidth - rightInsetTiles) so they sit
-      at the playfield corner, not the offscreen sidebar edge. The pass
-      is mutually exclusive with edgeScrollIndicatorPass by virtue of
-      mode: edge-scroll indicator only ever shows when alpha > 0, and
-      alpha is forced to 0 in follow mode by edge-scroll-only-in-free-mode.
+      A React DOM overlay component `CameraLockReticles` renders four
+      hot-pink L-shaped corner reticles at the browser-viewport corners
+      while state.cameraMode === 'follow'. The overlay is fixed-position
+      with z-index 50 and pointer-events: none, so it z-orders above the
+      sidebar, event log, and every other UI panel while never blocking
+      input. Each reticle is two perpendicular arms meeting at the
+      viewport corner; geometry uses CAMERA_LOCK_RETICLE_SIZE_PX for arm
+      length and CAMERA_LOCK_RETICLE_THICKNESS_PX for stroke width. Color
+      is #ff69b4 (ACTION_COLOR). Each arm has an inner-glow gradient
+      fading from rgba(255,105,180,0.35) at the edge to fully transparent
+      toward the viewport interior, matching the visual language of the
+      edge-scroll indicator. The reticles are mutually exclusive with the
+      edge-scroll indicator by virtue of mode: the indicator's alpha is
+      forced to 0 in follow mode by edge-scroll-only-in-free-mode.
     inputs:
       - "state.cameraMode === 'follow'"
     outputs:
-      - 'four ACTION_COLOR L-shaped reticles drawn at the four playfield corners'
+      - 'four hot-pink L-shaped reticles rendered as a DOM overlay at the four browser-viewport corners'
     state_changes: []
     determinism: deterministic
 
