@@ -127,6 +127,7 @@ const EXPECTED_FIELDS = [
   'remotePlayers',
   'onPlayerMoved',
   'onGenesisEpochStart',
+  'onGenesisComplete',
   'waterReveryAura',
   'cameraMode',
   'lastEdgeScrollTime',

@@ -225,6 +225,7 @@ export const createGameState = (
     remotePlayers: new Map(),
     onPlayerMoved: null,
     onGenesisEpochStart: null,
+    onGenesisComplete: null,
     waterReveryAura: null,
   }
 

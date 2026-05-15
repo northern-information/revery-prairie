@@ -1,0 +1,46 @@
+plan:
+  id: player-glyph-flash-before-spawn
+  title: 'Trigger player spawn ceremony inside completeGenesis to eliminate one-frame @ flash'
+  created: '2026-05-15'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/playerSpawn.test.ts
+
+tasks:
+  - id: add-regression-test
+    title: 'Add regression test asserting completeGenesis flips playerSpawn.visible to false synchronously'
+    spec_id: player-glyph-flash-before-spawn
+    spec_sections:
+      - trigger-runs-in-complete-genesis
+    context_files:
+      - src/engine/__tests__/playerSpawn.test.ts
+      - src/engine/genesis.ts
+      - src/engine/state.ts
+      - src/engine/celestial.ts
+    output_files:
+      - src/engine/__tests__/playerSpawn.test.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/playerSpawn.test.ts -t "completeGenesis triggers spawn ceremony"
+    repair: retry
+    tags: [engine, test]
+
+  - id: trigger-spawn-in-complete-genesis
+    title: 'Call triggerPlayerSpawnShower inside completeGenesis after starting the crossfade'
+    spec_id: player-glyph-flash-before-spawn
+    spec_sections:
+      - trigger-runs-in-complete-genesis
+      - gameloop-trigger-noop-after-complete-genesis
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/celestial.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - add-regression-test
+    verification:
+      - npx vitest run src/engine/__tests__/playerSpawn.test.ts
+    repair: retry
+    tags: [engine]

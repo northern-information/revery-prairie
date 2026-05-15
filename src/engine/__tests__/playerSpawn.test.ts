@@ -8,6 +8,7 @@ import {
 } from '../celestial'
 import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
 import { ComponentType } from '../ecs/types'
+import { completeGenesis } from '../genesis'
 import { createGameState } from '../state'
 import { TileType } from '../types'
 
@@ -237,6 +238,31 @@ describe('player spawn ceremony', () => {
       }
 
       expect(gronPos).toEqual({ x: centerX, y: centerY })
+    })
+  })
+
+  // Regression for the one-frame @ flash that appeared between genesis ending
+  // and the gameloop's player-spawn-trigger system firing. completeGenesis
+  // must trigger the spawn ceremony synchronously (via the onGenesisComplete
+  // callback wired by useGameEngine) so the first gameplay render already
+  // sees playerSpawn.visible === false.
+  describe('completeGenesis triggers spawn ceremony', () => {
+    it('flips playerSpawn.visible to false before returning', () => {
+      const state = createGameState('Test', 40, 30)
+      destroyAllStars(state)
+      clearAroundTile(state, state.player, 3)
+      state.onGenesisComplete = (handoffTime: number) => {
+        triggerPlayerSpawnShower(state, state.player, handoffTime)
+      }
+      expect(state.playerSpawn.visible).toBe(true)
+      expect(state.playerSpawn.triggeredAt).toBe(0)
+      expect(state.playerSpawn.meteorEntityId).toBeNull()
+
+      completeGenesis(state)
+
+      expect(state.playerSpawn.visible).toBe(false)
+      expect(state.playerSpawn.triggeredAt).not.toBe(0)
+      expect(state.playerSpawn.meteorEntityId).not.toBeNull()
     })
   })
 })

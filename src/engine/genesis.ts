@@ -3442,6 +3442,14 @@ export const completeGenesis = (state: GameState): void => {
   seedGlintPatches(state, handoffTime)
   rebuildGlintZones(state, handoffTime)
 
+  // Hand off to the gameplay layer to trigger the player spawn ceremony
+  // synchronously. Without this, the gameloop's player-spawn-trigger
+  // (gameplay phase) fires one tick later than the first gameplay render —
+  // that one-frame gap drew the @ glyph at the spawn tile before the
+  // meteorite descent began. Callback indirection avoids a celestial.ts
+  // import here (genesis sits below celestial in the dependency graph).
+  state.onGenesisComplete?.(handoffTime)
+
   // Clear genesis data
   state.genesis = null
 }

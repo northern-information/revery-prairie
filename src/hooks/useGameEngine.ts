@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
+import { triggerPlayerSpawnShower } from '@/engine/celestial'
 import { completeGenesis } from '@/engine/genesis'
 import { createGameState } from '@/engine/state'
 
@@ -79,6 +80,14 @@ export const useGameEngine = (
       gameState = initial
     } else {
       gameState ??= createGameState(stewardName, viewportWidth, viewportHeight)
+    }
+    // Hand the spawn ceremony trigger to genesis.ts via a callback so the
+    // engine layer doesn't import celestial.ts (which would form a cycle
+    // through manual.ts). Fires synchronously inside completeGenesis so the
+    // first gameplay render already sees playerSpawn.visible === false.
+    gameState.onGenesisComplete = (handoffTime: number) => {
+      if (!gameState) return
+      triggerPlayerSpawnShower(gameState, gameState.player, handoffTime)
     }
     initializedRef.current = true
   }
