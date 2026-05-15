@@ -361,6 +361,7 @@ export interface GameState {
   remotePlayers: Map<string, RemotePlayer>
   onPlayerMoved: (() => void) | null
   onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null
+  onGenesisComplete: ((handoffTime: number) => void) | null
   waterReveryAura: number | null
 }
 
