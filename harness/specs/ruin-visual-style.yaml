@@ -7,6 +7,8 @@ source_files:
   - src/engine/constants.ts
   - src/engine/genesis.ts
   - src/engine/position.ts
+  - src/engine/tileBg.ts
+  - src/engine/tileBgCache.ts
 dependencies:
   - ruin-infrastructure
   - renderer
@@ -100,6 +102,30 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: overworld-ruin-entrance-elevation-lift
+    description: >
+      On the overworld (Zone.Overworld), RuinApron and RuinEntrance
+      tiles render with an additional pixel-space lift on top of any
+      terrain elevation tier they sit on. RuinApron lifts by
+      RUIN_APRON_LIFT_PX (3px). RuinEntrance lifts by
+      RUIN_ENTRANCE_LIFT_PX (9px). The lift is added to the tile's
+      glyph py and to its bg-cache fill/cube-edge stroke so the 3x3
+      footprint reads as a raised stone platform with the entrance
+      glyph sitting taller in the center. The lift is in addition to
+      getTierLift(tier) — a ruin entrance on a tier-1 plateau lifts by
+      tierLift + 9. Ruin interior zones (Zone.Ruin) do not apply this
+      lift. Exports RUIN_APRON_LIFT_PX and RUIN_ENTRANCE_LIFT_PX from
+      tileBg.ts so the renderer, bg-cache, and any future passes share
+      one source of truth.
+    inputs:
+      - 'overworld tile render of RuinApron or RuinEntrance'
+    outputs:
+      - 'glyph and bg fill drawn at py - lift'
+      - 'south/east cube-edge stroke baked at the lifted position'
+      - 'tile footprint reads as raised platform around the entrance'
+    state_changes: []
+    determinism: deterministic
+
 edge_cases:
   - id: tile-hash-collision
     description: 'two adjacent tiles hash to same building char and color'
@@ -109,12 +135,26 @@ edge_cases:
     description: 'very small font scale makes pixel offsets negligible'
     expected: 'layers overlap more at small scales — still readable, just denser'
 
+  - id: ruin-entrance-on-tier-transition
+    description: 'RuinEntrance placed on a tile at a tier boundary (terrain elevation already lifts it)'
+    expected: 'apron + entrance lift composes additively with tierLift — no gap or doubled cube wall'
+
+  - id: ruin-apron-at-map-edge
+    description: 'RuinApron tile at the outer border (next to space)'
+    expected: 'lifted bg fill and cube-edge stroke clip cleanly against the void; no visual bleed into space tiles'
+
 failure_conditions:
   - trigger: 'BUILDING_CHARS or CIV_COLORS not exported from constants'
     expected: 'compilation error — these must be importable by renderer'
 
   - trigger: 'getRuinTileLayers returns empty array'
     expected: 'tile renders as blank — function must always return at least 1 layer'
+
+  - trigger: 'lift applied in Zone.Ruin (interior)'
+    expected: 'ruin interior visuals unchanged — lift is overworld-only by zone guard'
+
+  - trigger: 'bg-cache rebakes without the lift applied to apron/entrance fill'
+    expected: 'visual mismatch — cube-edge stroke floats above the glyph; bake must use the same lift'
 
 verification:
   test_file: src/engine/__tests__/ruin-visual-style.test.ts

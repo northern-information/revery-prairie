@@ -40,17 +40,23 @@ behaviors:
 
   - id: ruin-tile-types
     description: >
-      TileType gains three base ruin types: RuinFloor ('ruinFloor'),
-      RuinWall ('ruinWall'), RuinEntrance ('ruinEntrance'). RuinFloor
-      and RuinEntrance are walkable. RuinWall is not walkable.
-      TILE_CHARS and TILE_COLORS in constants.ts map each type to a
-      char and color. RuinFloor: '.', #7A7A6E. RuinWall: '#', #555555.
-      RuinEntrance: 'O', #5FD3BC (verdigris — chosen so the entrance
-      reads against the warm prairie palette of dirt, sand, and clover).
+      TileType gains four base ruin types: RuinFloor ('ruinFloor'),
+      RuinWall ('ruinWall'), RuinEntrance ('ruinEntrance'), and
+      RuinApron ('ruinApron'). RuinFloor, RuinEntrance, and RuinApron
+      are walkable. RuinWall is not walkable. TILE_CHARS and
+      TILE_COLORS in constants.ts map each type to a char and color.
+      RuinFloor: '.', #7A7A6E. RuinWall: '#', #555555. RuinEntrance:
+      'O', #5FD3BC (verdigris — chosen so the entrance reads against
+      the warm prairie palette of dirt, sand, and clover). RuinApron:
+      '·', #6B5E47 (a dusty stone-tint of dirt — reads as eroded
+      platform fill that frames the entrance without competing with
+      the verdigris O). RuinApron behaves like dirt for the cursor info
+      label ("ruin apron"), clover growth (not allowed — apron is
+      ruin), and pathfinding.
     inputs:
       - 'tile rendering and walkability checks'
     outputs:
-      - 'three new tile types recognized by renderer and position utils'
+      - 'four new tile types recognized by renderer and position utils'
     state_changes: []
     determinism: deterministic
 
