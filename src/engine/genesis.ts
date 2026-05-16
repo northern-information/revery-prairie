@@ -2872,7 +2872,7 @@ const fallOfCivilizations: GenesisEpoch = {
     if (sim.craters.has(key)) {
       const craterH = rendererTileHash(x, y)
       const buildingChar = BUILDING_CHARS[craterH % BUILDING_CHARS.length]
-      const craterColor = SATELLITE_TRAIL_COLORS[craterH % SATELLITE_TRAIL_COLORS.length]
+      const craterColor = CRATER_COLORS[craterH % CRATER_COLORS.length]
       return [{ char: buildingChar, color: craterColor, dx: 0, dy: 0 }]
     }
 
