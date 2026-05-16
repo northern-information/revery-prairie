@@ -3342,6 +3342,8 @@ export const createGenesisState = (
     rainSeed: 0,
     narratedEpochCount: 0,
     ruinGenerationMode,
+    tierTweens: new Map(),
+    lastObservedTier: new Map(),
   }
 }
 

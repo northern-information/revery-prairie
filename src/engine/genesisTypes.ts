@@ -97,6 +97,18 @@ export interface EpochSnapshot {
   lowlandWaterMask: Set<string>
 }
 
+/** Per-tile lift tween record. fromLift is a pixel value (not a tier
+ *  index) so a new tween that starts mid-flight eases from the
+ *  currently-visible lift instead of snapping to the discrete fromTier
+ *  lift. toTier is the destination tier — its lift is recomputed each
+ *  frame via getTierLift to keep the record small and lerp endpoint
+ *  unambiguous. startMs is the frame time at which the tween began. */
+export interface TierTween {
+  fromLift: number
+  toTier: number
+  startMs: number
+}
+
 export interface GenesisSimState {
   grid: Tile[][]
   width: number
@@ -167,6 +179,16 @@ export interface GenesisSimState {
    *  ruins with role tags (clover/bee/coyote); 'complex' is reserved for the
    *  post-deep-time regeneration spec and currently delegates to 'starter'. */
   ruinGenerationMode: RuinGenerationMode
+  /** Cosmetic-only render state: per-tile elevation-tier tween records.
+   *  Populated lazily by the genesis renderer on every frame for visible
+   *  tiles whose tier just changed. NOT part of EpochSnapshot — render
+   *  state, not simulation state. Discarded with the rest of sim at the
+   *  genesis-to-gameplay handoff. Keyed by posKey(x, y). */
+  tierTweens: Map<string, TierTween>
+  /** Cosmetic-only render state: the elevation tier the renderer last
+   *  observed for each visible tile. Used to detect tier changes between
+   *  frames so the renderer can start a tween. Keyed by posKey(x, y). */
+  lastObservedTier: Map<string, number>
 }
 
 export interface GenesisMeteorStreak {
