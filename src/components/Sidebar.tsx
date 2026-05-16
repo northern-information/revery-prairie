@@ -12,10 +12,6 @@ import {
   SPACE_BORDER,
   TILE_COLORS,
   WATER_MAX,
-  ZOOM_DEFAULT,
-  ZOOM_MAX,
-  ZOOM_MIN,
-  ZOOM_STEP,
 } from '@/engine/constants'
 import { screenToTile } from '@/engine/coordinates'
 import { ComponentType } from '@/engine/ecs/types'
@@ -77,7 +73,7 @@ interface SidebarProps {
   refreshUI: () => void
 }
 
-export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshUI }: SidebarProps) => {
+export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: SidebarProps) => {
   const { metric } = state
   const cursorRef = useRef<{ x: number; y: number } | null>(null)
   const [, setCursorVersion] = useState(0)
@@ -578,25 +574,6 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
           </table>
         </div>
 
-        <div>
-          <SectionHeader>View</SectionHeader>
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="text-muted">Zoom</span>
-            <input
-              type="range"
-              min={ZOOM_MIN}
-              max={ZOOM_MAX}
-              step={ZOOM_STEP}
-              value={state.zoom}
-              onChange={e => {
-                state.zoom = parseFloat(e.target.value)
-                refreshUI()
-              }}
-              className="pointer-events-auto h-1 min-w-0 flex-1 appearance-none rounded bg-white/20 accent-white"
-            />
-            <span className="w-8 shrink-0 text-right">{Math.round((state.zoom / ZOOM_DEFAULT) * 100)}%</span>
-          </div>
-        </div>
       </div>
     </div>
   )

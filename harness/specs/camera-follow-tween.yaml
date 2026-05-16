@@ -20,17 +20,15 @@ behaviors:
       instead of jumping by one full tile each move tick. state.camera.x/y
       remain integer so all tile indexing, viewport bounds, and culling
       logic continue to work unchanged. The offset is applied as a canvas
-      pixel translate, mirroring how cameraSubpixel is already applied for
-      free-mode edge-scroll drift in renderer.ts. The translate composes
-      additively with screen shake and edge-scroll drift when those are
-      simultaneously active.
+      pixel translate in renderer.ts. The translate composes additively
+      with screen shake when both are simultaneously active.
     inputs:
       - 'state.playerTween is non-null and lerp.t < 1'
       - 'state.player.x/y (integer destination tile)'
       - 'state.camera.x/y (integer camera tile)'
     outputs:
       - 'canvas translate offsets all world tile draws by the tween delta in iso pixel space'
-      - 'player glyph projects to the same canvas position it would project to with no tween (centered when in follow mode)'
+      - 'player glyph projects to the same canvas position it would project to with no tween (always centered)'
     state_changes:
       - field: 'state.camera.x'
         effect: 'unchanged by the tween — remains the integer camera tile set by updateCamera'
@@ -56,7 +54,7 @@ behaviors:
       - 'active player tween'
       - 'rendered player glyph'
     outputs:
-      - 'player glyph remains at canvas center across every frame of the tween in follow mode'
+      - 'player glyph remains at canvas center across every frame of the tween'
     state_changes:
       - field: 'rendered player position'
         effect: 'matches integer-tile projection under the active world translate; never lags or leads the surrounding world tiles'
@@ -65,11 +63,10 @@ behaviors:
   - id: tween-end-no-snap
     description: >
       When the tween completes (lerp.t >= 1) and state.playerTween is
-      cleared, the world translate falls back to zero (or to the
-      cameraSubpixel drift if free mode is active). The transition from
-      tween-active to tween-complete must produce zero visual delta — the
-      final tween frame and the first post-tween frame render identically.
-      Prevents a one-frame snap at tween end.
+      cleared, the world translate falls back to zero. The transition
+      from tween-active to tween-complete must produce zero visual delta
+      — the final tween frame and the first post-tween frame render
+      identically. Prevents a one-frame snap at tween end.
     inputs:
       - 'final frame of tween at lerp.t = 1'
       - 'first frame after state.playerTween cleared'
@@ -127,32 +124,15 @@ behaviors:
         effect: 'no tween-driven translate on small-map axes; player glyph still draws at lerp position so the player slides smoothly across stationary tiles'
     determinism: deterministic
 
-  - id: free-mode-uses-tween-offset
-    description: >
-      When the player is tweening but cameraMode === 'free' (edge-scroll
-      pan active), the player tween offset still applies — the player must
-      still slide smoothly between tiles relative to whatever pan offset
-      the user has set. The free-mode cameraSubpixel offset and the
-      player-tween offset compose additively in pixel space.
-    inputs:
-      - 'state.cameraMode === free'
-      - 'state.playerTween active'
-    outputs:
-      - 'world translate is the sum of cameraSubpixel drift and player-tween offset'
-    state_changes:
-      - field: 'rendered scene'
-        effect: 'translated by drift + tween-offset; player glyph still smooth between tiles even with active edge-scroll pan'
-    determinism: time-based
-
 edge_cases:
   - id: cardinal-step-east
-    description: 'Player walks one tile east (dx=+1, dy=0) with WASD in follow mode'
+    description: 'Player walks one tile east (dx=+1, dy=0) with WASD'
     expected: 'Across the tween, the player glyph stays at canvas center; world tiles slide one tile west smoothly over the tween duration; no snap-back at tween start'
   - id: cardinal-step-south
-    description: 'Player walks one tile south (dx=0, dy=+1) with WASD in follow mode'
+    description: 'Player walks one tile south (dx=0, dy=+1) with WASD'
     expected: 'Across the tween, the player glyph stays at canvas center; world tiles slide diagonally up-right (iso projection of north) smoothly'
   - id: diagonal-step-northeast
-    description: 'Player walks one tile northeast (dx=+1, dy=-1) with WASD in follow mode'
+    description: 'Player walks one tile northeast (dx=+1, dy=-1) with WASD'
     expected: 'Across the tween, the player glyph stays at canvas center; world tiles slide diagonally down-left smoothly'
   - id: chained-steps-no-pause-snap
     description: 'Player holds a WASD direction so movement chains every 100ms'
@@ -163,9 +143,6 @@ edge_cases:
   - id: tween-end-cleared
     description: 'Tween reaches lerp.t = 1 and renderer clears state.playerTween'
     expected: 'Final tween frame and first post-tween frame render at identical screen positions for both player glyph and world tiles'
-  - id: free-mode-pan-during-tween
-    description: 'User edge-scrolls (cameraMode === free) while playerTween is active'
-    expected: 'Both offsets compose; the player still tweens smoothly between tiles relative to the panned-camera world'
   - id: walking-in-cave-small-map
     description: 'Player walks across the cave (40x25 map inside an 80+x40+ viewport) with WASD'
     expected: 'Tween world translate is zero on both axes; the player glyph slides smoothly between tiles at its fractional lerp position; world tiles do not wobble or shift during the tween'
@@ -180,8 +157,6 @@ failure_conditions:
     expected: 'Cannot occur — sub-tile world translate keeps the player glyph centered at the canvas center across the tween boundary'
   - trigger: "Player's vertical pixel offset jumps when stepping onto or off a different elevation tier"
     expected: 'Cannot occur — lift interpolates from the from-tile lift to the to-tile lift over the tween duration'
-  - trigger: 'During an active edge-scroll pan, the player tween falls back to integer-only motion'
-    expected: 'Cannot occur — the player-tween offset composes additively with cameraSubpixel drift in free mode'
   - trigger: 'World tiles wobble or shift while the player walks across a small map (e.g. cave) where the camera does not track the player'
     expected: 'Cannot occur — the renderer gates the tween world translate per axis on whether updateCamera actually tracks the player on that axis (mapWidth >= visibleWidth, mapHeight >= viewportHeight)'
 

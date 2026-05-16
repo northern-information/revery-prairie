@@ -21,7 +21,6 @@ source_files:
   - src/components/__tests__/Sidebar.test.tsx
   - src/engine/__tests__/genesis.test.ts
 dependencies:
-  - rts-camera-pan
   - action-bar
 
 behaviors:
@@ -159,21 +158,18 @@ behaviors:
       between them (selection-conditional in GameScreen) does not
       shift position. The 4 slots render in a single horizontal row
       at 36px each (total width ~156px). Both components null
-      `state.edgeScrollPos`, `state.cursorScreenPos`, and
-      `state.cursorTile` on hover so mousing over them inside the
-      bottom edge-scroll zone does not strand a stale `edgeScrollPos`
-      and trigger runaway camera pan.
+      `state.cursorScreenPos` and `state.cursorTile` on hover so
+      mousing over them does not leave stale cursor tile info in the
+      sidebar.
     inputs:
       - 'GameScreen renders ActionBar (no selection) or CommandPanel (selection active)'
       - 'mouse enters or moves over the ActionBar / CommandPanel'
     outputs:
       - 'ActionBar / CommandPanel rendered at bottom-center, offset to sit between EventLog and Sidebar'
       - '4 slots rendered horizontally at 36px each, total width ~156px'
-      - 'state.edgeScrollPos / cursorScreenPos / cursorTile nulled while hovered'
+      - 'state.cursorScreenPos / cursorTile nulled while hovered'
       - 'ActionBar and CommandPanel use identical position'
     state_changes:
-      - field: edgeScrollPos
-        effect: 'nulled by ActionBar / CommandPanel mouse handler while hovered'
       - field: cursorScreenPos
         effect: 'nulled by ActionBar / CommandPanel mouse handler while hovered'
       - field: cursorTile
@@ -218,7 +214,7 @@ behaviors:
     description: >
       The overlay container is scrollable. The wheel event over the
       overlay scrolls through the log buffer (up to the 50-entry cap)
-      rather than triggering canvas zoom or other underlying handlers.
+      rather than falling through to underlying canvas handlers.
       Pointer-events on the container are auto so wheel and click
       events are captured. Default scroll position pins to the bottom
       so newest entries are always visible after a new event arrives,
@@ -254,8 +250,8 @@ behaviors:
       The counter also resets to zero when auto-pin resumes through
       either path (scroll-to-bottom or mouseleave). The indicator
       uses the same font-mono / text-xs visual language as the log
-      entries and does not trigger edge-scroll while hovered (it
-      lives inside the same suppression region as the log).
+      entries and lives inside the same hover-suppression region as
+      the log so cursor info does not light up world tiles under it.
     inputs:
       - 'new event added via addEvent while stuck-to-bottom flag is false'
       - 'click on the unread indicator'
@@ -292,27 +288,21 @@ behaviors:
     state_changes: []
     determinism: time-based
 
-  - id: log-hover-suppresses-edge-scroll
+  - id: log-hover-clears-cursor-info
     description: >
-      The bottom-left corner is inside the RTS edge-scroll zone. While
-      the cursor is over the EventLog overlay, edge-scroll is suppressed
-      so the camera does not pan while the user is reading or scrolling
-      the log. This is implemented the same way the Sidebar suppresses
-      edge-scroll: the overlay's mouse handler nulls state.edgeScrollPos
-      (and clears state.cursorScreenPos / cursorTile so the cursor info
-      panel does not light up world tiles under the overlay). When the
-      cursor leaves the overlay, the next canvas mousemove restores
-      edgeScrollPos and edge-scroll resumes normally.
+      While the cursor is over the EventLog overlay, the overlay's
+      mouse handler nulls state.cursorScreenPos and state.cursorTile
+      so the sidebar cursor info panel does not light up world tiles
+      under the log. When the cursor leaves the overlay, the next
+      canvas mousemove restores cursorScreenPos and the cursor info
+      panel resumes normally.
     inputs:
       - 'mouse enters EventLog overlay bounds'
       - 'mouse leaves EventLog overlay bounds'
     outputs:
-      - 'state.edgeScrollPos set to null while hovered'
-      - 'edge-scroll tick produces zero velocity while hovered'
-      - 'edge-scroll resumes on next canvas mousemove after leaving'
+      - 'state.cursorScreenPos / cursorTile set to null while hovered'
+      - 'cursor info resumes on next canvas mousemove after leaving'
     state_changes:
-      - field: edgeScrollPos
-        effect: 'nulled by overlay mouse handler while cursor is over the log'
       - field: cursorScreenPos
         effect: 'nulled by overlay mouse handler so cursor info does not show tiles under the log'
       - field: cursorTile
@@ -350,18 +340,18 @@ edge_cases:
   - id: log-at-cap
     description: 'event log is at the 50-entry cap and a new event arrives'
     expected: 'oldest entry dropped from top; new entry appears at bottom; auto-scroll keeps bottom in view'
-  - id: cursor-leaves-overlay-into-edge-zone
-    description: 'cursor moves off the log overlay while still inside the bottom-left edge-scroll zone'
-    expected: 'next canvas mousemove restores state.edgeScrollPos; edge-scroll resumes panning'
+  - id: cursor-leaves-overlay
+    description: 'cursor moves off the log overlay into the canvas'
+    expected: 'next canvas mousemove restores state.cursorScreenPos; sidebar cursor info resumes'
   - id: log-and-action-bar-no-collision
     description: 'ActionBar sits at bottom-center between EventLog (lower-left) and Sidebar (right); 100px ml-offset places it at the visual center of the gap'
     expected: 'no visual collision; the action bar slots occupy the empty horizontal strip between the EventLog and the Sidebar at the bottom of the viewport'
   - id: command-panel-replaces-action-bar
     description: 'Selection becomes active; GameScreen swaps ActionBar for CommandPanel at the same bottom-center anchor'
     expected: 'CommandPanel uses the same `fixed bottom-2 left-1/2 ml-[100px] -translate-x-1/2` anchor as ActionBar; the panel does not jump when selection toggles'
-  - id: action-bar-hover-suppresses-pan
-    description: 'Cursor on the canvas approaches the action bar through the bottom edge-scroll zone'
-    expected: 'ActionBar / CommandPanel mouse handler nulls state.edgeScrollPos before camera mutation accumulates; pan-down does not run while user reads or clicks slots'
+  - id: action-bar-hover-clears-cursor-info
+    description: 'Cursor on the canvas moves onto the action bar at the bottom'
+    expected: 'ActionBar / CommandPanel mouse handler nulls state.cursorScreenPos / cursorTile so the sidebar cursor info does not show tiles under the panel'
   - id: log-mouseleave-resumes-autoscroll
     description: 'user has scrolled up in the log; cursor leaves the log overlay'
     expected: 'on mouseleave, stuck-to-bottom flag is set true, the scroll container is snapped to the bottom, and the unread counter is reset to zero; the next new event auto-pins as normal'
@@ -385,10 +375,8 @@ edge_cases:
 failure_conditions:
   - trigger: 'rapid events flood the log (e.g. chain meteorite explosions)'
     expected: 'all events rendered; auto-scroll keeps the newest visible; no layout thrashing'
-  - trigger: 'wheel over the log overlay falls through to canvas zoom or pan'
+  - trigger: 'wheel over the log overlay falls through to underlying canvas handlers'
     expected: 'overlay must capture the wheel event; canvas must not respond'
-  - trigger: 'edge-scroll continues panning while cursor is over the log overlay'
-    expected: "log overlay's mouse handler must null edgeScrollPos; spec violated otherwise"
   - trigger: 'sidebar still renders a Log section after this change'
     expected: 'Sidebar must not contain a SectionHeader Log block; spec violated otherwise'
   - trigger: 'genesis runs to completion without producing 14 narration entries in the log'

@@ -11,21 +11,20 @@ dependencies:
 behaviors:
   - id: camera-centering
     description: >
-      updateCamera(state, forceCenter?) centers the camera on the
-      player when cameraMode is 'follow' (default) or when forceCenter
-      is true. centering is uniform across all zones — the renderer
-      projects iso, so the orthogonal viewport center maps to the iso
-      canvas center; placing the player at orthogonal center keeps
-      them at canvas center on screen (see camera-iso-follow spec).
-      visible width is viewportWidth minus rightInsetTiles (sidebar).
-      no map-edge clamping is applied: the map is surrounded by space
-      tiles, so overscroll past the map edges simply renders more
-      space without trapping the player off-canvas at iso corners.
-      when the map is smaller than the viewport on either axis, that
-      axis centers the map with a negative camera offset.
+      updateCamera(state) centers the camera on the player every call.
+      centering is uniform across all zones — the renderer projects iso,
+      so the orthogonal viewport center maps to the iso canvas center;
+      placing the player at orthogonal center keeps them at canvas
+      center on screen (see camera-iso-follow spec). visible width is
+      viewportWidth minus rightInsetTiles (sidebar). no map-edge
+      clamping is applied: the map is surrounded by space tiles, so
+      overscroll past the map edges simply renders more space without
+      trapping the player off-canvas at iso corners. when the map is
+      smaller than the viewport on either axis, that axis centers the
+      map with a negative camera offset. there is no free-pan mode —
+      the camera always follows the player.
     inputs:
-      - 'state with player position, viewport dimensions, rightInsetTiles, map dimensions, currentZone, cameraMode'
-      - 'forceCenter (optional boolean, defaults to false)'
+      - 'state with player position, viewport dimensions, rightInsetTiles, map dimensions, currentZone'
     outputs:
       - 'state.camera.x and state.camera.y updated'
     state_changes:
@@ -33,24 +32,6 @@ behaviors:
         effect: 'player.x - floor(visibleWidth / 2), or negative-centered if mapWidth < visibleWidth'
       - field: camera.y
         effect: 'player.y - floor(viewportHeight / 2), or negative-centered if mapHeight < viewportHeight'
-    determinism: deterministic
-
-  - id: free-pan-mode
-    description: >
-      when state.cameraMode is 'free' (RTS edge-scroll pan mode),
-      updateCamera returns early without auto-centering, unless
-      forceCenter is true. in free mode the rts-camera-pan
-      edge-scroll system mutates state.camera directly; updateCamera
-      must not fight it. zone transitions still call
-      updateCamera(state, true) to bypass the gate and snap the
-      camera back onto the player. cameraMode flips back to 'follow'
-      when the player moves via WASD (see rts-camera-pan spec).
-    inputs:
-      - 'state with cameraMode set to "free" or "follow"'
-      - 'forceCenter (optional boolean)'
-    outputs:
-      - 'state.camera left untouched in free mode unless forceCenter is true'
-    state_changes: []
     determinism: deterministic
 
   - id: sidebar-inset
@@ -71,8 +52,8 @@ edge_cases:
     description: 'cave map (40x25) displayed in a large viewport'
     expected: 'camera uses negative offset to center the small map; no scrolling needed'
   - id: player-at-map-edge
-    description: 'player walks to the far corner of the overworld'
-    expected: 'camera clamps to map bounds; no empty space beyond the map'
+    description: 'player walks to the far edge of the overworld'
+    expected: 'camera keeps centering on the player; canvas shows space tiles past the map without trapping the player off-center'
   - id: sidebar-toggle
     description: 'inventory panel opens, changing rightInsetTiles'
     expected: 'camera re-centers on next updateCamera call to account for reduced visible width'

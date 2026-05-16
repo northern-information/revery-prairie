@@ -1,0 +1,228 @@
+plan:
+  id: remove-camera-modes-and-zoom
+  title: 'Remove RTS camera modes, edge-scroll, lock reticles, and runtime zoom controls; pin zoom at 200%'
+  created: '2026-05-16'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: bump-zoom-default
+    title: 'Set ZOOM_DEFAULT to 2.0 in constants; remove ZOOM_MIN/MAX/STEP'
+    spec_id: renderer
+    spec_sections:
+      - measure-char
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: remove-camera-mode-state
+    title: 'Remove cameraMode, edgeScroll*, and cameraSubpixel fields from GameState'
+    spec_id: camera-viewport
+    spec_sections:
+      - camera-centering
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - bump-zoom-default
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: delete-edge-scroll-and-reticles
+    title: 'Delete edge-scroll engine module, render passes, and CameraLockReticles component'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - follow-mode-centers-player
+    context_files:
+      - src/engine/edgeScroll.ts
+      - src/engine/__tests__/edgeScroll.test.ts
+      - src/engine/render/passes/edgeScrollIndicator.ts
+      - src/engine/render/passes/offscreenPlayerArrow.ts
+      - src/engine/render/passes/index.ts
+      - src/components/CameraLockReticles.tsx
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/engine/render/passes/index.ts
+      - src/components/GameScreen.tsx
+    depends_on:
+      - remove-camera-mode-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, component]
+
+  - id: simplify-update-camera
+    title: 'Simplify updateCamera and recenterCamera — single follow path, no forceCenter gate, no free-mode branch'
+    spec_id: camera-viewport
+    spec_sections:
+      - camera-centering
+      - sidebar-inset
+    context_files:
+      - src/engine/camera.ts
+      - src/engine/movement.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/camera.ts
+      - src/engine/movement.ts
+      - src/engine/gameLoop.ts
+    depends_on:
+      - delete-edge-scroll-and-reticles
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/camera.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: strip-spacebar-binding
+    title: 'Remove spacebar camera-toggle binding from useKeyboard'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - follow-mode-centers-player
+    context_files:
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - remove-camera-mode-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [hook]
+
+  - id: strip-zoom-input-and-ui
+    title: 'Remove wheel-zoom handler, edge-scroll mouse handler, and Sidebar zoom slider'
+    spec_id: renderer
+    spec_sections:
+      - measure-char
+    context_files:
+      - src/components/GameCanvas.tsx
+      - src/components/Sidebar.tsx
+      - src/engine/constants.ts
+    output_files:
+      - src/components/GameCanvas.tsx
+      - src/components/Sidebar.tsx
+    depends_on:
+      - remove-camera-mode-state
+      - bump-zoom-default
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: clean-renderer-and-tween
+    title: 'Remove cameraSubpixel translate from renderer; collapse free-mode branches in tween offset'
+    spec_id: camera-follow-tween
+    spec_sections:
+      - world-tracks-player-tween
+      - small-map-no-tween-offset
+    context_files:
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - remove-camera-mode-state
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/smoothMove.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: clear-cursor-info-only-on-overlay-hover
+    title: 'Update EventLog, ActionBar, CommandPanel to clear cursor info only (no more edgeScrollPos null-assign)'
+    spec_id: event-log-overlay
+    spec_sections:
+      - log-hover-clears-cursor-info
+      - action-bar-hover-clears-cursor-info
+    context_files:
+      - src/components/EventLog.tsx
+      - src/components/ActionBar.tsx
+      - src/components/CommandPanel.tsx
+    output_files:
+      - src/components/EventLog.tsx
+      - src/components/ActionBar.tsx
+      - src/components/CommandPanel.tsx
+    depends_on:
+      - remove-camera-mode-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: rebase-pollen-emit-rates
+    title: 'Bake 2x² = 4 multiplier into flora profile emitRate; remove zoom math from pollinate.ts'
+    spec_id: flora-pollen
+    spec_sections:
+      - emit-from-viewport
+    context_files:
+      - src/engine/flora/actions/pollinate.ts
+      - src/engine/flora/type/clover/clover.ts
+    output_files:
+      - src/engine/flora/actions/pollinate.ts
+      - src/engine/flora/type/clover/clover.ts
+    depends_on:
+      - bump-zoom-default
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/floraPollinate.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: update-camera-tests
+    title: 'Update camera tests to drop cameraMode setup, edge-scroll tests, and free-mode assertions'
+    spec_id: camera-iso-follow
+    spec_sections:
+      - follow-mode-centers-player
+      - small-map-centering
+    context_files:
+      - src/engine/__tests__/camera.test.ts
+      - src/engine/__tests__/smoothMove.test.ts
+    output_files:
+      - src/engine/__tests__/camera.test.ts
+      - src/engine/__tests__/smoothMove.test.ts
+    depends_on:
+      - simplify-update-camera
+      - clean-renderer-and-tween
+    verification:
+      - npx vitest run src/engine/__tests__/camera.test.ts src/engine/__tests__/smoothMove.test.ts
+    repair: retry
+    tags: [test, engine]
+
+  - id: full-regression
+    title: 'Run typecheck, lint, and full test suite to verify nothing else depends on removed fields'
+    spec_id: camera-viewport
+    spec_sections:
+      - camera-centering
+    context_files: []
+    output_files: []
+    depends_on:
+      - simplify-update-camera
+      - strip-spacebar-binding
+      - strip-zoom-input-and-ui
+      - clean-renderer-and-tween
+      - clear-cursor-info-only-on-overlay-hover
+      - rebase-pollen-emit-rates
+      - update-camera-tests
+    verification:
+      - npm run typecheck
+      - npm run lint
+      - npm run test
+    repair: retry
+    tags: [test]

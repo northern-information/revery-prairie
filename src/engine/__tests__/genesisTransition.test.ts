@@ -8,6 +8,7 @@ import {
   RAIN_AURA_DENSITY,
   SATELLITE_TRAIL_COLORS,
   TILE_COLORS,
+  ZOOM_DEFAULT,
 } from '../constants'
 import { GENESIS_EPOCHS, completeGenesis } from '../genesis'
 import { tileHash } from '../position'
@@ -409,13 +410,13 @@ describe('genesis transition', () => {
 
     it('createGameState initializes zoom to ZOOM_DEFAULT', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
-      expect(state.zoom).toBe(1.0)
+      expect(state.zoom).toBe(ZOOM_DEFAULT)
     })
 
     it('zoom remains ZOOM_DEFAULT after completeGenesis', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
       completeGenesis(state)
-      expect(state.zoom).toBe(1.0)
+      expect(state.zoom).toBe(ZOOM_DEFAULT)
       expect(state.genesisTransition).not.toBeNull()
       // The transition object must not carry a zoomStart hint
       expect((state.genesisTransition as unknown as { zoomStart?: number }).zoomStart).toBeUndefined()

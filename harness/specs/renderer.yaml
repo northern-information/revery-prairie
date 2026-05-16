@@ -105,11 +105,15 @@ behaviors:
     description: >
       measureChar(ctx, zoom?) measures the monospace character cell
       dimensions (charWidth, charHeight) at the current font size
-      and zoom level. returns a CharMetrics object used by all
+      multiplied by zoom. returns a CharMetrics object used by all
       rendering and coordinate transforms. font size is
-      BASE_FONT_SIZE * zoom.
+      BASE_FONT_SIZE * zoom. zoom is pinned to ZOOM_DEFAULT (2.0) for
+      the lifetime of every session — there is no zoom in/out UI and
+      no keyboard or wheel input changes it. callers still pass
+      state.zoom so the function stays a pure measurement utility, but
+      the value never varies at runtime.
     inputs:
-      - 'CanvasRenderingContext2D, optional zoom multiplier'
+      - 'CanvasRenderingContext2D, zoom multiplier (always ZOOM_DEFAULT at runtime)'
     outputs:
       - 'CharMetrics { charWidth, charHeight }'
     state_changes: []
