@@ -1,0 +1,109 @@
+plan:
+  id: genesis-elevation-tween
+  title: Smooth tile elevation tier transitions during genesis (cosmetic only)
+  created: '2026-05-15'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-tier-tween-constant
+    title: Add TIER_TWEEN_DURATION_MS constant in tileBg.ts and an easing helper
+    spec_id: genesis-elevation-tween
+    spec_sections:
+      - tier-lift-tweens-over-fixed-window
+    context_files:
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/tileBg.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: extend-sim-state-with-tween-fields
+    title: Add tierTweens and lastObservedTier maps to GenesisSimState; initialize in createGenesisSim
+    spec_id: genesis-elevation-tween
+    spec_sections:
+      - per-tile-tier-tween-state
+      - cosmetic-only-scope
+    context_files:
+      - src/engine/genesisTypes.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesisTypes.ts
+      - src/engine/genesis.ts
+    depends_on:
+      - add-tier-tween-constant
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: rewrite-lift-and-wall-passes
+    title: Replace liftAtSim and wall pass tier math with tween-aware versions in genesisRenderer
+    spec_id: genesis-elevation-tween
+    spec_sections:
+      - per-tile-tier-tween-state
+      - tier-lift-tweens-over-fixed-window
+      - walls-track-tweened-lift
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/tileBg.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+    depends_on:
+      - extend-sim-state-with-tween-fields
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags:
+      - engine
+
+  - id: confirm-handoff-leaves-no-residual
+    title: Verify completeGenesis/extractGenesisResult do not surface tween state to gameplay
+    spec_id: genesis-elevation-tween
+    spec_sections:
+      - cosmetic-only-scope
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/state.ts
+    output_files: []
+    depends_on:
+      - extend-sim-state-with-tween-fields
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine
+
+  - id: write-regression-tests
+    title: Add genesisElevationTween.test.ts covering tween start, midpoint, completion, walls, and cosmetic-only scope
+    spec_id: genesis-elevation-tween
+    spec_sections:
+      - per-tile-tier-tween-state
+      - tier-lift-tweens-over-fixed-window
+      - walls-track-tweened-lift
+      - cosmetic-only-scope
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/__tests__/genesisElevationTween.test.ts
+    depends_on:
+      - rewrite-lift-and-wall-passes
+      - confirm-handoff-leaves-no-residual
+    verification:
+      - npx vitest run src/engine/__tests__/genesisElevationTween.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test

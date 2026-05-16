@@ -189,6 +189,22 @@ export const getElevationTier = (elevation: number | undefined): number => {
 
 export const getTierLift = (tier: number): number => -tier * ELEVATION_TIER_LIFT_PX
 
+// Duration (in ms) of the cosmetic tier-to-tier lift tween used by the
+// genesis renderer. Shared between the diamond pass and the cube-wall
+// pass so they always agree on a tile's current rendered lift. Lives
+// here, beside the tier/lift API, so both pass implementations import
+// from a single location. A value of 0 makes the tween degenerate to
+// the un-tweened renderer (see clamp on u-value in genesisRenderer).
+export const TIER_TWEEN_DURATION_MS = 400
+
+// Standard ease-in-out cubic curve. Pure math helper colocated with the
+// tween duration so the genesis renderer reads both from one module.
+export const easeInOutCubic = (t: number): number => {
+  if (t <= 0) return 0
+  if (t >= 1) return 1
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
+}
+
 // Per-tile additional lift (in pixels, negative = up) for ruin
 // platform tiles. Returns 0 for any other tile type so callers can
 // add it unconditionally. Zone-gated by the caller (overworld only).
@@ -197,6 +213,16 @@ export const getRuinPlatformLift = (tileType: TileType): number => {
   if (tileType === TileType.RuinApron) return -RUIN_APRON_LIFT_PX
   return 0
 }
+
+// Vertical sink (in pixels, positive = down) applied to water tiles
+// (rivers and ponds in gameplay; rivers, ponds, and lowland water in
+// genesis) so water always reads as a depression below the surrounding
+// dirt. Set to half a tier lift so the surface looks meaningfully sunk
+// without dropping below the next-lower tier's plateau. Applied to the
+// diamond bg fill, the glyph anchor, and (via lift accessors) the wall
+// depth math so the cube wall facing water grows taller by exactly this
+// amount.
+export const WATER_SINK_PX = Math.round(ELEVATION_TIER_LIFT_PX / 2)
 
 // Constant Y offset (in pixels, negative = up) applied to angel body
 // pixels on top of their tile's pyLift, so the multi-glyph body always

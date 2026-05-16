@@ -12,9 +12,12 @@ import { getEntranceHaloCells } from './ruins'
 import {
   ELEVATION_TIER_COUNT,
   ELEVATION_TIER_LIFT_PX,
+  TIER_TWEEN_DURATION_MS,
   WALL_LEFT_SHADE,
   WALL_RIGHT_SHADE,
+  WATER_SINK_PX,
   darkenColor,
+  easeInOutCubic,
   getElevationTier,
   getPondBgColor,
   getRiverBgColor,
@@ -33,19 +36,102 @@ import type { CharMetrics } from './types'
 const tierAtSim = (sim: GenesisSimState, mx: number, my: number): number =>
   getElevationTier(sim.elevation.get(posKey(mx, my)))
 
-// Effective neighbor tier for cube-wall depth. Tiles outside the land
-// mask (Space) and OOB are treated as virtual sub-ground tier (-1) so
-// coastal land tiles drop a cube cliff face into the void at every
-// edge. Mirrors wallNeighborTier in renderer.ts so the visual is
-// continuous across the genesis-to-gameplay crossfade.
-const wallNeighborTierSim = (sim: GenesisSimState, mx: number, my: number): number => {
-  if (mx < 0 || mx >= sim.width || my < 0 || my >= sim.height) return -1
-  if (!sim.landMask.has(posKey(mx, my))) return -1
-  return tierAtSim(sim, mx, my)
+/** Pure read: returns the current tweened lift (in pixels, negative = up)
+ *  for a land tile. If the tile has an active tween record, eases from
+ *  its stored fromLift toward getTierLift(toTier) over
+ *  TIER_TWEEN_DURATION_MS using easeInOutCubic. Otherwise returns
+ *  getTierLift of the tile's current tier. Does NOT include the
+ *  water-sink offset — pure tier elevation only. Does NOT mutate sim;
+ *  the bookkeeping pass in recordVisibleTierChange owns all writes. */
+export const liftAtSim = (sim: GenesisSimState, mx: number, my: number, time: number): number => {
+  const key = posKey(mx, my)
+  const tween = sim.tierTweens.get(key)
+  if (tween) {
+    const duration = TIER_TWEEN_DURATION_MS
+    if (duration <= 0) return getTierLift(tween.toTier)
+    const u = Math.max(0, Math.min(1, (time - tween.startMs) / duration))
+    const easedU = easeInOutCubic(u)
+    const toLift = getTierLift(tween.toTier)
+    return tween.fromLift + (toLift - tween.fromLift) * easedU
+  }
+  return getTierLift(tierAtSim(sim, mx, my))
 }
 
-const liftAtSim = (sim: GenesisSimState, mx: number, my: number): number =>
-  getTierLift(tierAtSim(sim, mx, my))
+/** Positive pixel offset that sinks water tiles below the surrounding
+ *  dirt during genesis. Mirrors getWaterBgColor: rivers/ponds always
+ *  sink, lowland-water tiles only sink during the aquatic-phase epochs
+ *  that paint lowland water as a surface. Used by the wall pass and
+ *  the glyph pass so a dirt tile sitting next to sunken water gets a
+ *  wall that extends down to the water surface. */
+const waterSinkAtSim = (sim: GenesisSimState, mx: number, my: number, includeLowland: boolean): number => {
+  const key = posKey(mx, my)
+  if (sim.riverPaths.has(key) || sim.ponds.has(key)) return WATER_SINK_PX
+  if (includeLowland && isLowlandWater(sim, key)) return WATER_SINK_PX
+  return 0
+}
+
+/** Tile-anchor lift = liftAtSim + water sink. Used by the wall pass and
+ *  the glyph py so the cube wall facing water grows taller by exactly
+ *  WATER_SINK_PX. */
+export const tileLiftAtSim = (
+  sim: GenesisSimState,
+  mx: number,
+  my: number,
+  time: number,
+  includeLowland: boolean,
+): number => liftAtSim(sim, mx, my, time) + waterSinkAtSim(sim, mx, my, includeLowland)
+
+/** Wall-pass lift for a tile. For off-land or OOB tiles, returns the
+ *  virtual sub-ground lift directly (no tween, no water sink). For
+ *  land tiles, delegates to tileLiftAtSim so walls and diamonds agree
+ *  on every frame. */
+const wallNeighborLiftAtSim = (
+  sim: GenesisSimState,
+  mx: number,
+  my: number,
+  time: number,
+  includeLowland: boolean,
+): number => {
+  if (mx < 0 || mx >= sim.width || my < 0 || my >= sim.height) return getTierLift(-1)
+  if (!sim.landMask.has(posKey(mx, my))) return getTierLift(-1)
+  return tileLiftAtSim(sim, mx, my, time, includeLowland)
+}
+
+/** Bookkeeping: for each visible land tile, compare its current tier to
+ *  sim.lastObservedTier. On a change, start or replace a tween that eases
+ *  from the currently-visible lift (sampled via liftAtSim BEFORE the
+ *  update) toward the new tier's lift. First observation of a tile (no
+ *  entry in lastObservedTier) records the tier without starting a tween,
+ *  per spec edge case tile-outside-visible-viewport. Called once per
+ *  frame for every visible cell, before the bg/wall/glyph passes. */
+export const recordVisibleTierChange = (
+  sim: GenesisSimState,
+  mx: number,
+  my: number,
+  time: number,
+): void => {
+  const key = posKey(mx, my)
+  if (!sim.landMask.has(key)) return
+  const currentTier = tierAtSim(sim, mx, my)
+  const lastTier = sim.lastObservedTier.get(key)
+  if (lastTier === undefined) {
+    sim.lastObservedTier.set(key, currentTier)
+    return
+  }
+  if (lastTier === currentTier) return
+  // Tier changed. If a tween is already in-flight, sample its current
+  // tweened lift so the new tween eases from the actual visible value
+  // (no snap on change-back-mid-tween). Otherwise the prior tier's lift
+  // is the visible value — sim.elevation already reflects the new tier,
+  // so calling liftAtSim now would return the new tier's lift, not the
+  // old one.
+  const existingTween = sim.tierTweens.get(key)
+  const fromLift = existingTween
+    ? liftAtSim(sim, mx, my, time)
+    : getTierLift(lastTier)
+  sim.tierTweens.set(key, { fromLift, toTier: currentTier, startMs: time })
+  sim.lastObservedTier.set(key, currentTier)
+}
 
 // Lowland water predicate: matches renderLowlandWater in genesis.ts —
 // reads sim.lowlandWaterMask, the coherent 2D-noise + elevation mask
@@ -283,6 +369,10 @@ export const renderGenesis = (
 
   const epoch = epochs[sim.epochIndex]
   const progress = getEpochProgress(sim, epochs)
+  // Lowland water participates in the water-sink offset only during
+  // aquatic-phase epochs that actually paint lowland-water glyphs
+  // (matches the includeLowland gate in computeSurfaceBg).
+  const includeLowlandWater = LOWLAND_WATER_EPOCHS.has(epoch.id)
 
   // Camera: use identical math to updateCamera() in camera.ts so the
   // genesis-to-game transition is pixel-perfect (no rounding drift).
@@ -432,6 +522,23 @@ export const renderGenesis = (
     applySnapshot(sim, sim.epochSnapshots[sim.epochIndex])
   }
 
+  // Tween bookkeeping pass: detect per-tile elevation tier changes on
+  // visible land tiles and start/replace tween records as needed. Runs
+  // AFTER the current epoch's snapshot has been applied (so the tier
+  // read here matches what the bg/wall/glyph passes will see) and
+  // BEFORE the pyLifted precompute so the freshly-started tween is
+  // observed on the same frame the tier flipped. Bookkeeping is
+  // confined to this pass so liftAtSim / wallNeighborLiftAtSim can stay
+  // pure for the rest of the frame.
+  for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
+    for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
+      const mx = cameraX + vx
+      const my = cameraY + vy
+      if (mx < 0 || mx >= sim.width || my < 0 || my >= sim.height) continue
+      recordVisibleTierChange(sim, mx, my, time)
+    }
+  }
+
   // Per-tile precompute: viewportToScreen + lift, stored in Float32Arrays
   // so the bg / skirt / wall / glyph passes don't repeat the work.
   // currentBgByIndex doubles as the gate — null means skip bg/skirt/wall
@@ -455,7 +562,7 @@ export const renderGenesis = (
           viewportHeight,
         )
         pxByIndex[idx] = px
-        pyLiftedByIndex[idx] = py + liftAtSim(sim, cameraX + vx, cameraY + vy)
+        pyLiftedByIndex[idx] = py + tileLiftAtSim(sim, cameraX + vx, cameraY + vy, time, includeLowlandWater)
       }
     }
   }
@@ -509,14 +616,18 @@ export const renderGenesis = (
       const my = cameraY + vy
       // Skip walls when the source tile is itself outside the land mask
       // (Space) — only land draws cliff faces. Tier 0 land tiles still
-      // qualify, since wallNeighborTierSim treats Space as virtual -1.
+      // qualify, since wallNeighborLiftAtSim treats Space as virtual -1.
       if (mx < 0 || mx >= sim.width || my < 0 || my >= sim.height) continue
       if (!sim.landMask.has(posKey(mx, my))) continue
-      const tier = tierAtSim(sim, mx, my)
-      const southTier = wallNeighborTierSim(sim, mx, my + 1)
-      const eastTier = wallNeighborTierSim(sim, mx + 1, my)
-      const leftDepth = Math.max(0, tier - southTier) * ELEVATION_TIER_LIFT_PX
-      const rightDepth = Math.max(0, tier - eastTier) * ELEVATION_TIER_LIFT_PX
+      // Walls track the same tweened lift as the diamond pass, so the
+      // cube face grows/shrinks smoothly when self or a neighbor is
+      // tweening. Lifts are negative-when-up, so a taller (more negative)
+      // self subtracted from a shorter neighbor yields a positive depth.
+      const selfLift = tileLiftAtSim(sim, mx, my, time, includeLowlandWater)
+      const southLift = wallNeighborLiftAtSim(sim, mx, my + 1, time, includeLowlandWater)
+      const eastLift = wallNeighborLiftAtSim(sim, mx + 1, my, time, includeLowlandWater)
+      const leftDepth = Math.max(0, southLift - selfLift)
+      const rightDepth = Math.max(0, eastLift - selfLift)
       if (leftDepth <= 0 && rightDepth <= 0) continue
       drawCellWalls(
         ctx,
@@ -563,7 +674,7 @@ export const renderGenesis = (
             viewportWidth,
             viewportHeight,
           )
-          const lift = liftAtSim(sim, cell.x, cell.y)
+          const lift = liftAtSim(sim, cell.x, cell.y, time)
           drawCellBackground(ctx, px, py + lift, charWidth, charHeight)
         }
       }

@@ -367,9 +367,12 @@ describe('genesis transition', () => {
 
     it('paints cube walls only at south/east tier transitions', () => {
       const source = readGenesisRenderer()
-      // Both leftDepth and rightDepth must be guarded by Math.max(0, tier - neighborTier)
-      expect(source).toMatch(/leftDepth\s*=\s*Math\.max\(0,\s*tier\s*-\s*southTier\)\s*\*\s*ELEVATION_TIER_LIFT_PX/)
-      expect(source).toMatch(/rightDepth\s*=\s*Math\.max\(0,\s*tier\s*-\s*eastTier\)\s*\*\s*ELEVATION_TIER_LIFT_PX/)
+      // Lifts are negative-when-up, so a taller (more negative) self
+      // subtracted from a shorter neighbor yields a positive depth. The
+      // Math.max(0, ...) guard ensures walls only paint where self
+      // outranks the neighbor; a flat plateau collapses to 0.
+      expect(source).toMatch(/leftDepth\s*=\s*Math\.max\(0,\s*southLift\s*-\s*selfLift\)/)
+      expect(source).toMatch(/rightDepth\s*=\s*Math\.max\(0,\s*eastLift\s*-\s*selfLift\)/)
     })
 
     it('lifts the per-tile cube edge skirt by the same amount as the glyph', () => {

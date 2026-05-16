@@ -2,6 +2,7 @@ import { isInBounds, posKey } from './position'
 import {
   ELEVATION_TIER_COUNT,
   ELEVATION_TIER_LIFT_PX,
+  WATER_SINK_PX,
   getCraterBgColor,
   getElevationTier,
   getPondBgColor,
@@ -113,6 +114,16 @@ const platformLiftAtFromState = (state: GameState, map: Tile[][], x: number, y: 
   return getRuinPlatformLift(tile.type)
 }
 
+// Positive pixel offset that pushes water tiles below the surrounding
+// dirt. Caves and ruin interiors have no water sets, so this returns 0
+// for any zone other than overworld.
+const waterSinkAtFromState = (state: GameState, x: number, y: number): number => {
+  if (state.currentZone !== Zone.Overworld) return 0
+  const key = posKey(x, y)
+  if (state.rivers.has(key) || state.ponds.has(key)) return WATER_SINK_PX
+  return 0
+}
+
 const tileWorldPos = (
   entry: CacheEntry,
   x: number,
@@ -127,7 +138,8 @@ const tileWorldPos = (
     (x + y) * halfH +
     entry.worldOriginY +
     liftAtFromState(state, x, y) +
-    platformLiftAtFromState(state, map, x, y)
+    platformLiftAtFromState(state, map, x, y) +
+    waterSinkAtFromState(state, x, y)
   return { px, py }
 }
 

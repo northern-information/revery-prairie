@@ -96,12 +96,12 @@ import { getSelectedUnitPositions } from './selection'
 import {
   ANGEL_FLOAT_LIFT_PX,
   darkenColor,
-  ELEVATION_TIER_LIFT_PX,
   getRuinPlatformLift,
   getTierLift,
   getTileBgColor,
   WALL_LEFT_SHADE,
   WALL_RIGHT_SHADE,
+  WATER_SINK_PX,
 } from './tileBg'
 import { runPassesInSlot } from './render/passes'
 import './render/passes/index'
@@ -262,19 +262,33 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return 0
     return tierGrid[mx + my * state.mapWidth]
   }
-  // Effective neighbor tier for cube-wall depth. Space tiles (and OOB
-  // in overworld) are treated as virtual sub-ground tier (-1) so every
-  // coastal land tile drops a cube cliff face into the void — the
-  // landmass reads as a 3D plateau sitting above space rather than a
-  // flat 2D outline. Inland land-to-land tier transitions are
-  // unaffected.
-  const wallNeighborTier = (mx: number, my: number): number => {
-    if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return -1
-    if (map[my][mx].type === TileType.Space) return -1
-    return tierGrid[mx + my * state.mapWidth]
-  }
   const liftAt = (mx: number, my: number): number =>
     liftAtShared(tierGrid, mx, my, state.mapWidth, state.mapHeight)
+
+  // Positive pixel offset that sinks water tiles below surrounding
+  // dirt. Reads state.rivers / state.ponds (overworld only — caves and
+  // ruin interiors have no water sets). Returns 0 for non-water tiles
+  // so callers can add it unconditionally. Mirrors the same helper in
+  // tileBgCache.ts so the cached bg fill, the per-frame glyph, and the
+  // wall depth math all agree on the same vertical anchor.
+  const waterSinkAt = (mx: number, my: number): number => {
+    if (state.currentZone !== Zone.Overworld) return 0
+    if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return 0
+    const key = posKey(mx, my)
+    if (state.rivers.has(key) || state.ponds.has(key)) return WATER_SINK_PX
+    return 0
+  }
+
+  // Effective tile lift = tier lift + water sink. Wall pass uses this
+  // so a dirt tile next to water gets a taller wall on the water side.
+  // Out-of-bounds and space tiles fall through to a virtual sub-ground
+  // tier (-1) via wallNeighborTier; water sink is land-only.
+  const tileLiftAt = (mx: number, my: number): number => liftAt(mx, my) + waterSinkAt(mx, my)
+  const wallNeighborLiftAt = (mx: number, my: number): number => {
+    if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return getTierLift(-1)
+    if (map[my][mx].type === TileType.Space) return getTierLift(-1)
+    return tileLiftAt(mx, my)
+  }
 
   // Genesis-to-gameplay crossfade: entities not visible in genesis fade in
   const transitionAlpha = getTransitionAlpha(state.genesisTransition, time)
@@ -1148,7 +1162,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const lift = getTierLift(tileTier)
       const platformLift =
         state.currentZone === Zone.Overworld ? getRuinPlatformLift(map[my][mx].type) : 0
-      const pyLift = py + lift + platformLift
+      const waterSink = waterSinkAt(mx, my)
+      const pyLift = py + lift + platformLift + waterSink
 
       // Fog of war: skip unexplored tiles, dim partiallyDiscovered tiles.
       // fullyDiscovered tiles fall through to the full render path so live
@@ -1195,10 +1210,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // stroke. Hidden cave chamber tiles use the masked CaveWall
       // palette so the wall doesn't leak the underlying type.
       {
-        const southTier = wallNeighborTier(mx, my + 1)
-        const eastTier = wallNeighborTier(mx + 1, my)
-        const leftDepth = Math.max(0, tileTier - southTier) * ELEVATION_TIER_LIFT_PX
-        const rightDepth = Math.max(0, tileTier - eastTier) * ELEVATION_TIER_LIFT_PX
+        // Wall depth in lift-space so water sinking participates: a
+        // dirt tile sitting next to a sunken river gets a wall that
+        // reaches down to the water surface, not just the dirt tier
+        // below. Lifts are negative-when-up, so a taller (more
+        // negative) self subtracted from a shorter neighbor yields a
+        // positive depth.
+        const selfLift = tileLiftAt(mx, my)
+        const southLift = wallNeighborLiftAt(mx, my + 1)
+        const eastLift = wallNeighborLiftAt(mx + 1, my)
+        const leftDepth = Math.max(0, southLift - selfLift)
+        const rightDepth = Math.max(0, eastLift - selfLift)
         if (leftDepth > 0 || rightDepth > 0) {
           const baseTile = map[my][mx]
           const wallType =
