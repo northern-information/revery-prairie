@@ -18,6 +18,7 @@ import {
   WATER_SINK_PX,
   darkenColor,
   easeInOutCubic,
+  getCraterBgColor,
   getElevationTier,
   getPondBgColor,
   getRiverBgColor,
@@ -235,6 +236,17 @@ const computeSurfaceBg = (
 ): string | null => {
   if (SKIP_BG_EPOCHS.has(epochId)) return null
   const key = posKey(mx, my)
+  // Crater bg overrides for dirt tiles — mirrors tileBgCache.ts so the
+  // genesis-to-gameplay handoff lands on the same color. Applied to both
+  // fallOfCivilizations (when craters first appear) and presentDay so the
+  // cross-fade lerps brown→brown instead of dark-red→light-dirt.
+  if (
+    tileType === TileType.Dirt &&
+    sim.craters.has(key) &&
+    (epochId === GenesisEpochId.PresentDay || epochId === GenesisEpochId.FallOfCivilizations)
+  ) {
+    return getCraterBgColor(mx, my)
+  }
   if (epochId === GenesisEpochId.PresentDay) {
     return getWaterBgColor(sim, mx, my, key, false) ?? getTileBgColor(tileType, mx, my)
   }
