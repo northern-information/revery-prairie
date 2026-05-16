@@ -19,6 +19,7 @@ import { deselectAll } from './selection'
 import { clearAllUnitCommands } from './unitCommands'
 import { RuinArchetype, TileType, Zone } from './types'
 import { RuinRole } from './genesisTypes'
+import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
 import type { CivilizationRuin } from './genesisTypes'
 import type {
@@ -951,7 +952,12 @@ export const checkRuinTransition = (state: GameState): boolean => {
             (r) => r.entranceOverworld.x === ex && r.entranceOverworld.y === ey,
           )
           if (ruinIndex !== -1) {
-            enterRuin(state, ruinIndex)
+            scheduleZoneTransition(state, performance.now(), {
+              direction: 'enter',
+              kind: 'ruin',
+              irisCenter: { x: ex, y: ey },
+              ruinIndex,
+            })
             return true
           }
         }
@@ -962,13 +968,28 @@ export const checkRuinTransition = (state: GameState): boolean => {
   // Ruin interior: step on any RuinExit tile to exit
   if (state.currentZone === Zone.Ruin) {
     if (state.map[py]?.[px]?.type === TileType.RuinExit) {
-      exitRuin(state)
+      scheduleZoneTransition(state, performance.now(), {
+        direction: 'exit',
+        kind: 'ruin',
+        irisCenter: { x: px, y: py },
+      })
       return true
     }
   }
 
   return false
 }
+
+// Register ruin swap handlers with the zone transition module. The
+// handlers are the existing enterRuin / exitRuin functions; they fire
+// at midpoint via tickZoneTransition. Module-load side effect.
+registerZoneSwapHandler('ruin', 'enter', (state, transition) => {
+  if (transition.ruinIndex === null) return
+  enterRuin(state, transition.ruinIndex)
+})
+registerZoneSwapHandler('ruin', 'exit', (state) => {
+  exitRuin(state)
+})
 
 // ---------------------------------------------------------------------------
 // EntityZone helper

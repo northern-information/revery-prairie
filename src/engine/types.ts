@@ -149,6 +149,26 @@ export interface TransitionFade {
   duration: number
 }
 
+export type ZoneTransitionDirection = 'enter' | 'exit'
+export type ZoneTransitionKind = 'cave' | 'ruin'
+
+export interface ZoneTransition {
+  startTime: number
+  duration: number
+  direction: ZoneTransitionDirection
+  kind: ZoneTransitionKind
+  // Tile-space origin for the iris circle. For 'enter', this is the
+  // entrance tile in the source (overworld) map; for 'exit', this is
+  // the exit tile in the source (interior) map.
+  irisCenter: Position
+  // Set when kind === 'ruin' and direction === 'enter'. Identifies
+  // which ruin interior to swap into at midpoint.
+  ruinIndex: number | null
+  // Whether the deferred map swap has fired yet. Flipped to true the
+  // first frame progress crosses 0.5.
+  swapApplied: boolean
+}
+
 export type MultiplayerStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
 
 export interface MultiplayerSession {
@@ -328,6 +348,7 @@ export interface GameState {
   waterProximity: Map<string, number>
   genesis: GenesisSimState | null
   genesisTransition: TransitionFade | null
+  zoneTransition: ZoneTransition | null
   angelCantos: string[]
   nextAngelSpawnTime: number
   angelEncounterCount: number

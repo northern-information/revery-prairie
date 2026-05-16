@@ -402,6 +402,10 @@ export const GENESIS_TRANSITION_ACTION_BAR_DURATION_MS = 800
 export const DEEP_TIME_TRANSITION_DURATION_MS = 1000
 export const DEEP_TIME_TRANSITION_GLYPH_DURATION_MS = 800
 
+// zone transition (overworld <-> cave/ruin): iris + ASCII dissolve
+export const ZONE_TRANSITION_DURATION_MS = 1400
+export const ZONE_TRANSITION_MIDPOINT = 0.5
+
 // fog of war
 export const CAVE_VISION_RADIUS = 3
 export const RUIN_VISION_RADIUS = 3

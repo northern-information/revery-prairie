@@ -1,0 +1,182 @@
+id: zone-transition-effect
+name: Zone Transition Effect
+priority: medium
+layer: engine
+source_files:
+  - src/engine/zoneTransition.ts
+  - src/engine/cave.ts
+  - src/engine/ruins.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/movement.ts
+  - src/engine/renderer.ts
+  - src/engine/render/passes/zoneTransitionOverlay.ts
+  - src/engine/render/passes/index.ts
+  - src/hooks/useGameEngine.ts
+dependencies: []
+
+behaviors:
+  - id: schedule-on-zone-change
+    description: >
+      When the player steps onto a cave or ruin entrance tile from the
+      overworld, or onto a cave-exit or ruin-exit tile from the interior,
+      checkTransition schedules a ZoneTransition instead of performing
+      the map swap synchronously. The transition captures direction
+      (enter or exit), kind (cave or ruin), the screen-space tile that
+      the iris should radiate from, and the ruinIndex when kind is ruin.
+      The map swap is deferred to tickZoneTransition.
+    inputs:
+      - player crosses a CaveEntrance, CaveExit, RuinEntrance, or RuinExit tile
+      - state.zoneTransition is currently null
+    outputs:
+      - state.zoneTransition is set
+      - state.currentZone is unchanged at this instant (swap happens later at midpoint)
+      - checkTransition returns true so the caller treats this as a transition step
+    state_changes:
+      - field: state.zoneTransition
+        effect: set to ZoneTransition with startTime, duration, direction, kind, irisCenter, and ruinIndex when applicable
+      - field: state.currentZone
+        effect: unchanged until tickZoneTransition crosses midpoint
+    determinism: time-based
+
+  - id: tick-and-swap-at-midpoint
+    description: >
+      Each frame, tickZoneTransition reads state.zoneTransition and time.
+      Before progress reaches 0.5, the active map is the source map. When
+      progress crosses 0.5, the deferred swap fires exactly once. The
+      swap calls the existing enterCave, enterRuin, exitCave, or exitRuin
+      function which mutates state.map, state.player, state.currentZone,
+      state.currentRuinIndex, and clears navigation state. After progress
+      reaches 1, state.zoneTransition is cleared.
+    inputs:
+      - state.zoneTransition is not null
+      - current time
+    outputs:
+      - progress in [0, 1] derived from elapsed time and duration
+      - one map swap performed exactly once per transition at progress >= 0.5
+      - state.zoneTransition cleared when progress >= 1
+    state_changes:
+      - field: state.zoneTransition
+        effect: cleared to null when progress >= 1
+      - field: state.map
+        effect: swapped to destination map exactly once when progress crosses 0.5
+      - field: state.player
+        effect: repositioned to destination spawn at the same moment the map swaps
+      - field: state.currentZone
+        effect: updated to destination zone at midpoint
+      - field: state.currentRuinIndex
+        effect: set when entering a ruin and cleared when exiting, at midpoint
+    determinism: time-based
+
+  - id: render-iris-and-dissolve-overlay
+    description: >
+      A screen-overlay render pass draws two stacked layers while
+      state.zoneTransition is non-null. The dissolve layer scrambles
+      visible tiles to ASCII noise with density curve 0->1 from progress
+      0 to 0.5 and 1->0 from 0.5 to 1. The iris layer draws a dark
+      circle centered on irisCenter, expanding from radius 0 to fill the
+      viewport across progress 0 to 0.5 then contracting 0.5 to 1. The
+      two layers are independent and composited together.
+    inputs:
+      - state.zoneTransition is not null
+      - current time
+      - viewport size
+    outputs:
+      - dissolve noise drawn over the rendered scene with density tied to progress
+      - dark iris circle drawn over the dissolve, expanding then contracting
+      - underlying tile renderer runs normally; the overlay sits on top
+    state_changes: []
+    determinism: time-based
+
+  - id: gate-input-during-transition
+    description: >
+      While state.zoneTransition is non-null, movement and interaction
+      input is rejected. Keyboard movement, click-to-move, shift+click
+      waypoints, pendingAction firing, action bar slot activation, and
+      tickPath are all short-circuited. Inventory toggle, prairie manual
+      toggle, and menu open remain allowed (UI overlays do not affect
+      the transition).
+    inputs:
+      - any movement or interaction input event while state.zoneTransition is non-null
+    outputs:
+      - input is dropped silently
+      - no state mutation other than what the input handler always does
+      - tickPath does not advance the path
+      - pendingAction does not fire
+    state_changes:
+      - field: state.path
+        effect: not modified by rejected input
+      - field: state.player
+        effect: not moved by rejected input
+      - field: state.pendingAction
+        effect: not invoked while transitioning
+    determinism: deterministic
+
+edge_cases:
+  - id: entrance-tile-still-walkable-after-schedule
+    description: >
+      Player steps onto the entrance tile, schedule fires, but the
+      old map still renders for the first half of the transition. The
+      player remains visually on the entrance tile during that window
+      and is not moved by any further movement input.
+    expected: >
+      Player position stays put until midpoint, map swap moves the
+      player to the spawn position in the destination zone, no
+      double-stepping into the destination.
+
+  - id: rapid-reentry
+    description: >
+      Player exits a cave or ruin and immediately re-steps onto the
+      same entrance hitbox on the very next frame after the transition
+      clears.
+    expected: >
+      A fresh transition is scheduled. The two transitions never
+      overlap; the second one cannot begin while state.zoneTransition
+      is non-null.
+
+  - id: dialog-or-menu-open-at-transition-start
+    description: >
+      Although input handlers should prevent walking onto an entrance
+      tile while a dialog or menu is open, if state.activeDialog or
+      state.isMenuOpen ends up set when a transition starts, the
+      transition still runs to completion. enterCave and enterRuin
+      already clear state.activeDialog.
+    expected: >
+      Transition completes normally. Dialog and menu state remain
+      cleared after the swap.
+
+  - id: coyote-and-other-entities
+    description: >
+      The existing enterCave, enterRuin, exitCave, exitRuin functions
+      teleport the coyote to the destination zone via
+      transitionCoyoteToZone. This happens at midpoint when the swap
+      fires, not at schedule time.
+    expected: >
+      Coyote zone matches the player zone after the swap. No coyote
+      movement during the transition window.
+
+  - id: shorter-than-one-frame-duration
+    description: >
+      Theoretical edge: duration is zero or negative.
+    expected: >
+      tickZoneTransition treats this as already complete on its first
+      tick. The swap fires immediately and state.zoneTransition is
+      cleared. No divide-by-zero.
+
+failure_conditions:
+  - trigger: schedule called while state.zoneTransition is already non-null
+    expected: the new call is ignored; the in-flight transition continues unchanged
+
+  - trigger: tickZoneTransition called with state.zoneTransition null
+    expected: no-op; function returns without side effects
+
+  - trigger: player saved and reloaded mid-transition (serialization)
+    expected: state.zoneTransition serializes to null on save or is excluded from the persisted shape so reload does not resume a mid-air transition
+
+  - trigger: enterCave or enterRuin invoked directly by future code (bypassing schedule)
+    expected: the function still performs the map swap; the transition overlay simply does not play because state.zoneTransition was never set. Used by tests and dev tooling
+
+verification:
+  test_file: src/engine/__tests__/zoneTransition.test.ts
+  test_pattern: zone transition
+  command: npx vitest run src/engine/__tests__/zoneTransition.test.ts

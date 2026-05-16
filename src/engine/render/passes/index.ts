@@ -31,3 +31,6 @@ export { lightningScreenFlashPass } from './lightningScreenFlash'
 export { angelSpawnDespawnFlashPass } from './angelSpawnDespawnFlash'
 export { rtsSelectionBoxPass } from './rtsSelectionBox'
 export { moveOrderMarkersPass } from './moveOrderMarkers'
+// Registered last so the zone-transition fade sits above every other
+// screen-overlay (selection box, move markers, etc.).
+export { zoneTransitionOverlayPass } from './zoneTransitionOverlay'

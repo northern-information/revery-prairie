@@ -220,6 +220,7 @@ export const createGameState = (
     waterProximity: new Map<string, number>(),
     genesis: genesisData,
     genesisTransition: null,
+    zoneTransition: null,
     angelCantos: [],
     nextAngelSpawnTime: 60_000, // first angel after ~60s
     angelEncounterCount: 0,
