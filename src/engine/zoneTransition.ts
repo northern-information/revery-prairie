@@ -103,9 +103,8 @@ export const tickZoneTransition = (state: GameState, time: number): void => {
       handler(state, transition)
     }
     // Snap the camera to center on the player's new position so the
-    // fade-out reveals the player at the viewport center. Force-center
-    // overrides RTS free-pan mode for this single tick.
-    updateCamera(state, true)
+    // fade-out reveals the player at the viewport center.
+    updateCamera(state)
     transition.swapApplied = true
   }
 
