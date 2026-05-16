@@ -1,0 +1,51 @@
+plan:
+  id: permacomputer-tab-visibility
+  title: 'Gate permacomputer tabs on per-tab unlock conditions (coyote rescue, cantos, coins, reveries)'
+  created: '2026-05-16'
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npx vitest run src/components/__tests__/PermacomputerShell.test.tsx'
+
+tasks:
+  - id: gate-tabs-in-shell
+    title: 'Pass GameState to PermacomputerShell and filter SCREEN_TABS by per-tab gating predicates'
+    spec_id: permacomputer-tab-visibility
+    spec_sections:
+      - tab-gating
+      - hidden-tab-not-clickable
+      - live-gate-evaluation
+    context_files:
+      - src/components/PermacomputerShell.tsx
+      - src/components/GameScreen.tsx
+      - src/engine/hexagram.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/PermacomputerShell.tsx
+      - src/components/GameScreen.tsx
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: update-shell-tests
+    title: 'Update PermacomputerShell tests to cover per-tab visibility and add regression tests for each gate'
+    spec_id: permacomputer-tab-visibility
+    spec_sections:
+      - tab-gating
+      - hidden-tab-not-clickable
+      - live-gate-evaluation
+    context_files:
+      - src/components/__tests__/PermacomputerShell.test.tsx
+      - src/components/PermacomputerShell.tsx
+      - src/engine/state.ts
+      - src/engine/hexagram.ts
+    output_files:
+      - src/components/__tests__/PermacomputerShell.test.tsx
+    depends_on:
+      - gate-tabs-in-shell
+    verification:
+      - 'npx vitest run src/components/__tests__/PermacomputerShell.test.tsx'
+    repair: retry
+    tags: [test, component]
