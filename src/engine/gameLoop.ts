@@ -28,13 +28,16 @@ import {
   SPRINT_MOVE_TICK_MS,
   UNIT_COMMAND_TICK_MS,
   WEATHER_TICK_MS,
+  ZONE_TRANSITION_FADE_IN_MS,
+  ZONE_TRANSITION_FADE_OUT_MS,
+  ZONE_TRANSITION_HOLD_MS,
 } from './constants'
 import { tickCoyote } from './coyote'
 import { tickDeepTime } from './deepTime'
 import { ComponentType } from './ecs/types'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
 import { tickPollenDrift, tickPollenEmit } from './flora'
-import { completeGenesis, GENESIS_EPOCHS, tickGenesis } from './genesis'
+import { completeGenesis, finalizeGenesisHandoff, GENESIS_EPOCHS, tickGenesis } from './genesis'
 import { tickGlintZones } from './glintZones'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { getDefinition } from './items'
@@ -128,17 +131,33 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       })(),
     },
     {
-      id: 'genesisTransitionCleanup',
-      intervalMs: 100,
+      id: 'bootTitleCardTick',
+      // Fast tick — the midpoint swap should land within ~1 frame of
+      // its scheduled time so the renderer change is invisible under
+      // full-black cover.
+      intervalMs: 16,
       zone: 'always' as const,
-      phase: 'gameplay' as const,
+      // 'always' so this fires both while state.genesis is set (during
+      // the fade-in) and after it's cleared (during the fade-out).
+      phase: 'always' as const,
       priority: -20,
       fn: (state: GameState, time: number) => {
-        if (!state.genesisTransition) return
-        const transition = state.genesisTransition
-        const elapsed = time - transition.startTime
-        if (elapsed >= transition.duration) {
-          state.genesisTransition = null
+        if (!state.bootTitleCard) return
+        const elapsed = time - state.bootTitleCard.startTime
+        const holdMidpoint = ZONE_TRANSITION_FADE_IN_MS + ZONE_TRANSITION_HOLD_MS / 2
+        const total =
+          ZONE_TRANSITION_FADE_IN_MS + ZONE_TRANSITION_HOLD_MS + ZONE_TRANSITION_FADE_OUT_MS
+
+        // Hold-midpoint swap: clear genesis under full-black cover so the
+        // renderer change is invisible. finalizeGenesisHandoff is a
+        // no-op if state.genesis is already null.
+        if (state.genesis && elapsed >= holdMidpoint) {
+          finalizeGenesisHandoff(state, time)
+          callbacks.onRefreshUI?.()
+        }
+
+        if (elapsed >= total) {
+          state.bootTitleCard = null
           callbacks.onRefreshUI?.()
         }
       },

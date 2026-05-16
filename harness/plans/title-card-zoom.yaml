@@ -1,0 +1,233 @@
+plan:
+  id: title-card-zoom
+  title: 'Crisp 32px glyphs, drop zoom multiplier, replace seamless genesis tween with Revery Prairie title card'
+  created: '2026-05-16'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: bump-base-font-and-drop-zoom-constants
+    title: 'Set BASE_FONT_SIZE to 32, delete ZOOM_DEFAULT, delete GENESIS_TRANSITION_* constants, add GENESIS_FONT_SIZE'
+    spec_id: renderer
+    spec_sections:
+      - measure-char
+    context_files:
+      - src/engine/constants.ts
+      - harness/specs/renderer.yaml
+      - harness/specs/genesis-transition.yaml
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: remove-state-zoom-field
+    title: 'Remove zoom field from GameState; remove the schema allowlist entry'
+    spec_id: genesis-transition
+    spec_sections:
+      - sidebar-and-action-bar-reveal
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - bump-base-font-and-drop-zoom-constants
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: simplify-measure-char
+    title: 'measureChar(ctx) — no zoom argument; reads BASE_FONT_SIZE directly'
+    spec_id: renderer
+    spec_sections:
+      - measure-char
+    context_files:
+      - src/engine/renderer.ts
+      - src/components/GameCanvas.tsx
+    output_files:
+      - src/engine/renderer.ts
+      - src/components/GameCanvas.tsx
+    depends_on:
+      - remove-state-zoom-field
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: introduce-boot-title-card-state
+    title: 'Add bootTitleCard: BootTitleCard | null to GameState; remove genesisTransition field and TransitionFade usage'
+    spec_id: genesis-transition
+    spec_sections:
+      - complete-genesis-schedules-title-card
+      - title-card-render-and-clear
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/genesis.ts
+      - src/engine/gameLoop.ts
+      - src/engine/renderer.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/genesis.ts
+      - src/engine/gameLoop.ts
+      - src/engine/renderer.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - simplify-measure-char
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: write-boot-title-card-pass
+    title: 'Implement bootTitleCard render pass — black fade + Revery Prairie gold italic label, reuses ZONE_TRANSITION timings'
+    spec_id: genesis-transition
+    spec_sections:
+      - title-card-render-and-clear
+    context_files:
+      - src/engine/render/passes/zoneTransitionOverlay.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/render/passes/bootTitleCard.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/render/passes/bootTitleCard.ts
+      - src/engine/render/passes/index.ts
+    depends_on:
+      - introduce-boot-title-card-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: gate-input-during-title-card
+    title: 'Gate keyboard, mouse, action-bar, and pendingAction during bootTitleCard, mirroring zoneTransition gating'
+    spec_id: genesis-transition
+    spec_sections:
+      - input-gated-during-boot-title-card
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/hooks/useMouse.ts
+      - src/engine/movement.ts
+      - src/engine/state.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+      - src/hooks/useMouse.ts
+      - src/engine/movement.ts
+    depends_on:
+      - introduce-boot-title-card-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, hook]
+
+  - id: remove-sidebar-action-bar-fade
+    title: 'Remove genesisTransition-driven opacity fade-in from Sidebar and ActionBar'
+    spec_id: genesis-transition
+    spec_sections:
+      - sidebar-and-action-bar-reveal
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/components/ActionBar.tsx
+    output_files:
+      - src/components/Sidebar.tsx
+      - src/components/ActionBar.tsx
+    depends_on:
+      - introduce-boot-title-card-state
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: simplify-genesis-renderer
+    title: 'genesisRenderer uses GENESIS_FONT_SIZE, owns its own measureChar; remove entity-fade-in / crossfade / handoff continuity code paths gated on genesisTransition'
+    spec_id: genesis-transition
+    spec_sections:
+      - genesis-renders-at-zoomed-out-font
+      - midpoint-swap-from-genesis-to-gameplay
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/renderer.ts
+    depends_on:
+      - write-boot-title-card-pass
+      - simplify-measure-char
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: update-genesis-tests
+    title: 'Rewrite genesisTransition.test.ts: assert bootTitleCard scheduling, label, gating, cleanup, skipGenesis bypass'
+    spec_id: genesis-transition
+    spec_sections:
+      - complete-genesis-schedules-title-card
+      - skip-genesis-bypasses-title-card
+      - fast-forward-skip-still-shows-title-card
+      - input-gated-during-boot-title-card
+    context_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+      - src/engine/genesis.ts
+      - src/engine/gameLoop.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+    depends_on:
+      - introduce-boot-title-card-state
+      - write-boot-title-card-pass
+      - gate-input-during-title-card
+    verification:
+      - npx vitest run src/engine/__tests__/genesisTransition.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: update-sidebar-tests
+    title: 'Update Sidebar tests to drop genesisTransition fade-in expectations'
+    spec_id: genesis-transition
+    spec_sections:
+      - sidebar-and-action-bar-reveal
+    context_files:
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on:
+      - remove-sidebar-action-bar-fade
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags: [test]
+
+  - id: regression-test-pixel-size
+    title: 'Add renderer test asserting measureChar returns charHeight matching BASE_FONT_SIZE (32) so future zoom regressions fail loudly'
+    spec_id: renderer
+    spec_sections:
+      - measure-char
+    context_files:
+      - src/engine/__tests__
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/measureChar.test.ts
+    depends_on:
+      - simplify-measure-char
+    verification:
+      - npx vitest run src/engine/__tests__/measureChar.test.ts
+    repair: retry
+    tags: [test]

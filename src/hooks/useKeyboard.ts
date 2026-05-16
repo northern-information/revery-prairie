@@ -20,7 +20,7 @@ import {
 } from '@/engine/interaction'
 import { getDefinition } from '@/engine/items'
 import { DeepTimePhase, Zone } from '@/engine/types'
-import { isZoneTransitioning } from '@/engine/zoneTransition'
+import { isInputGated } from '@/engine/zoneTransition'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
@@ -97,12 +97,13 @@ export const useKeyboard = ({
         return
       }
 
-      // Reject gameplay input while a zone transition is in flight. Only
-      // Tab (inventory), Q (manual), Escape (menu/dialog), and Shift
-      // (sprint toggle, handled above) remain available. WASD is also
-      // dropped by movePlayer itself; this catches action-bar keys,
-      // interact, harvest, drop, and revery toggles.
-      if (isZoneTransitioning(state)) {
+      // Reject gameplay input while a zone transition or boot title card
+      // is in flight. Only Tab (inventory), Q (manual), Escape
+      // (menu/dialog), and Shift (sprint toggle, handled above) remain
+      // available. WASD is also dropped by movePlayer itself; this
+      // catches action-bar keys, interact, harvest, drop, and revery
+      // toggles.
+      if (isInputGated(state)) {
         const allowed = e.key === 'Tab' || e.key === 'q' || e.key === 'Q' || e.key === 'Escape'
         if (!allowed) return
       }

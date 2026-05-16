@@ -7,12 +7,7 @@ import {
   LIGHTNING_BOLT_MAX_LENGTH,
   LIGHTNING_BOLT_MIN_LENGTH,
   POND_COLOR,
-  RAIN_AURA_CHARS,
-  RAIN_AURA_COLORS,
-  RAIN_AURA_DENSITY,
-  RAIN_AURA_SPEED,
   RIVER_COLOR,
-  GENESIS_TRANSITION_DURATION_MS,
   SAND_COLORS,
   SATELLITE_CRATER_DEPTH_CENTER,
   SATELLITE_CRATER_DEPTH_EDGE,
@@ -28,8 +23,6 @@ import {
   WATER_SAND_PASS_CHANCES,
 } from './constants'
 import { generateBoltPath } from './boltPath'
-import { getCharacterDefinition } from './characters'
-import { AURA_RADIUS } from './effects'
 import { GenesisEpochId, RuinGenerationMode, RuinRole } from './genesisTypes'
 import { rebuildGlintZones, seedGlintPatches } from './glintZones'
 import { posKey, tileHash as rendererTileHash } from './position'
@@ -352,27 +345,23 @@ const DIRT_COLORS = ['#8B7355', '#7B6B55', '#806B50']
 const BURN_SCAR_COLORS = ['#3D2B1F', '#4A3728', '#352418']
 const GREEN_COLORS = ['#2E8B57', '#3CB371', '#50C878']
 const BRIGHT_GREEN_COLORS = ['#3CB371', '#50C878', '#66EE88']
-const GRON_RAIN_RADIUS = AURA_RADIUS.rain ?? 6
-
-// Lazy-resolved Gron visuals from character definition (avoids per-tile lookup)
-let gronDefCache: { glyph: string; glyphColor: string } | null = null
-const getGronVisuals = (): { glyph: string; glyphColor: string } => {
-  gronDefCache ??= getCharacterDefinition('gron')
-  return gronDefCache
-}
 
 // Shared rendering for space tiles (stars — no water in space, it's not ocean).
 // coastlineTiles are now a subset of landMask (outermost dirt ring), so they
 // fall through the landMask guard and never reach the star path.
+// Stars match the gameplay renderer: char is stable per tile, only the
+// color slowly cycles via time * 0.0015. Cycling the char would
+// flicker faster than the rest of the scene reads as. STAR_DENSITY = 12
+// also matches gameplay (was 5 here, which painted twice as many stars
+// as the gameplay-renderer's space tiles — now they match).
 const renderSpace = (sim: GenesisSimState, key: string, h: number, time: number): GenesisTileRender[] | null => {
   if (sim.landMask.has(key)) return null
-  if (h % 5 === 0) {
-    const starChars = ['.', '*', '+', '·']
-    const starColors = ['#FFFFFF', '#DDDDFF', '#FFDDDD', '#FFFFDD', '#AAAACC']
-    const phase = (time * 0.0015 + h * 0.001) % 1
-    const ci = Math.floor((h + Math.floor(phase * 4)) % starChars.length)
-    const si = h % starColors.length
-    return [{ char: starChars[ci], color: starColors[si], dx: 0, dy: 0 }]
+  if (h % 12 === 0) {
+    const starChars = ['.', '+', '*']
+    const starColors = ['#333', '#555', '#777', '#999', '#bbb', '#999', '#777', '#555']
+    const phase = (h >> 8) % starColors.length
+    const colorIndex = (phase + Math.floor(time * 0.0015)) % starColors.length
+    return [{ char: starChars[(h >> 4) % starChars.length], color: starColors[colorIndex], dx: 0, dy: 0 }]
   }
   return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
 }
@@ -492,27 +481,13 @@ const cosmicFormation: GenesisEpoch = {
       }
     }
   },
-  renderTile: (_sim, x, y, progress, time) => {
-    const h = tileHash(x, y)
-    const centerX = _sim.width / 2
-    const centerY = _sim.height / 2
-    const d = dist(x, y, centerX, centerY)
-    const maxDist = dist(0, 0, centerX, centerY)
-    const threshold = progress * maxDist * 1.2
-
-    if (d > threshold) return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-
-    // Star twinkling
-    const starChars = ['.', '*', '+', '·']
-    const starColors = ['#FFFFFF', '#DDDDFF', '#FFDDDD', '#FFFFDD', '#AAAACC']
-    const phase = (time * 0.0015 + h * 0.001) % 1
-    const charIdx = Math.floor((h + Math.floor(phase * 4)) % starChars.length)
-    const colorIdx = Math.floor((h + Math.floor(phase * 5)) % starColors.length)
-    const brightness = h % 7 === 0 ? 1 : h % 3 === 0 ? 0.6 : 0.3
-
-    if (brightness < 0.5 && h % 5 !== 0) return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-
-    return [{ char: starChars[charIdx], color: starColors[colorIdx], dx: 0, dy: 0 }]
+  renderTile: () => {
+    // CosmicFormation visuals are owned by the genesis renderer's
+    // full-canvas starfield prepass (paintFullCanvasStarfield in
+    // genesisRenderer.ts) so the big bang is centered on the canvas
+    // rather than on the sim grid. The sim's per-tile path returns
+    // empty so nothing paints from the sim diamond.
+    return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
   },
 }
 
@@ -533,19 +508,38 @@ const landAccretion: GenesisEpoch = {
     const d = dist(x, y, centerX, centerY)
     const maxRadius = Math.min(sim.width, sim.height) * 0.35
     const currentRadius = progress * maxRadius
-
-    // Stars in background
     const h = tileHash(x, y)
-    const starChars = ['.', '*', '+', '·']
-    const starColors = ['#FFFFFF', '#DDDDFF', '#FFDDDD', '#FFFFDD']
 
+    // Soft rim: the outermost ~6 sim tiles of the rock mass scatter
+    // into the surrounding starfield via a probabilistic alpha. Without
+    // this the rock circle has a hard boundary that reads as a visible
+    // cutoff against the prepass-painted stars beyond.
+    const RIM_TILES = 6
     if (d <= currentRadius) {
-      // Solid mass forming
-      const rockChars = ['.', '#', '=', '*']
-      const rockColors = ['#8B7355', '#696969', '#808080', '#6B4226']
-      const ci = (h + Math.floor(time * 0.002)) % rockChars.length
-      const ri = h % rockColors.length
-      return [{ char: rockChars[ci], color: rockColors[ri], dx: 0, dy: 0 }]
+      const distFromRim = currentRadius - d
+      if (distFromRim < RIM_TILES) {
+        // Inside the rim band: paint rock with probability proportional
+        // to how deep into the mass we are. Tiles closer to the rim
+        // drop out more often, producing a stochastic fade.
+        const rimT = distFromRim / RIM_TILES
+        if ((h % 100) / 100 > rimT) {
+          // Tile drops out of the rock mass; fall through to the
+          // drift-particle branch below so something organic can paint.
+        } else {
+          const rockChars = ['.', '#', '=', '*']
+          const rockColors = ['#8B7355', '#696969', '#808080', '#6B4226']
+          const ci = (h + Math.floor(time * 0.002)) % rockChars.length
+          const ri = h % rockColors.length
+          return [{ char: rockChars[ci], color: rockColors[ri], dx: 0, dy: 0 }]
+        }
+      } else {
+        // Solid mass forming (interior)
+        const rockChars = ['.', '#', '=', '*']
+        const rockColors = ['#8B7355', '#696969', '#808080', '#6B4226']
+        const ci = (h + Math.floor(time * 0.002)) % rockChars.length
+        const ri = h % rockColors.length
+        return [{ char: rockChars[ci], color: rockColors[ri], dx: 0, dy: 0 }]
+      }
     }
 
     // Particles drifting inward
@@ -557,14 +551,10 @@ const landAccretion: GenesisEpoch = {
       return [{ char: '.', color: '#887766', dx: 0, dy: 0 }]
     }
 
-    // Background stars (fading as mass grows)
-    if (h % 5 === 0) {
-      const phase = (time * 0.0015 + h * 0.001) % 1
-      const ci = Math.floor((h + Math.floor(phase * 4)) % starChars.length)
-      const si = h % starColors.length
-      return [{ char: starChars[ci], color: starColors[si], dx: 0, dy: 0 }]
-    }
-
+    // Background stars are owned by the genesis renderer's full-canvas
+    // starfield prepass (paintFullCanvasStarfield in genesisRenderer.ts)
+    // so the sky reads as sky-wide rather than ending at the sim's
+    // diamond boundary. Return empty here so the prepass shows through.
     return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
   },
 }
@@ -807,22 +797,13 @@ const lavaEra: GenesisEpoch = {
   },
   renderTile: (sim, x, y, progress, time) => {
     const key = posKey(x, y)
+    const h = tileHash(x, y)
 
-    if (!sim.landMask.has(key)) {
-      // Space — stars
-      const h = tileHash(x, y)
-      if (h % 5 === 0) {
-        const starChars = ['.', '*', '+', '·']
-        const phase = (time * 0.0015 + h * 0.001) % 1
-        const ci = Math.floor((h + Math.floor(phase * 4)) % starChars.length)
-        return [{ char: starChars[ci], color: '#AAAACC', dx: 0, dy: 0 }]
-      }
-      return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-    }
+    const space = renderSpace(sim, key, h, time)
+    if (space) return space
 
     // Lava rendering
     const heat = sim.volcanicHeat.get(key) ?? 50
-    const h = tileHash(x, y)
     const lavaChars = ['~', '=', '^', '*']
     const pulse = Math.sin(time * 0.004 + h * 0.1) * 0.3 + 0.7
     const ci = (h + Math.floor(time * 0.003)) % lavaChars.length
@@ -859,20 +840,12 @@ const crustCooling: GenesisEpoch = {
   },
   renderTile: (sim, x, y, progress, time) => {
     const key = posKey(x, y)
+    const h = tileHash(x, y)
 
-    if (!sim.landMask.has(key)) {
-      const h = tileHash(x, y)
-      if (h % 5 === 0) {
-        const starChars = ['.', '*', '+', '·']
-        const phase = (time * 0.0015 + h * 0.001) % 1
-        const ci = Math.floor((h + Math.floor(phase * 4)) % starChars.length)
-        return [{ char: starChars[ci], color: '#AAAACC', dx: 0, dy: 0 }]
-      }
-      return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-    }
+    const space = renderSpace(sim, key, h, time)
+    if (space) return space
 
     const heat = sim.volcanicHeat.get(key) ?? 50
-    const h = tileHash(x, y)
 
     // Cooling progresses from edges inward
     const centerX = sim.width / 2
@@ -983,16 +956,8 @@ const firstWater: GenesisEpoch = {
     const key = posKey(x, y)
     const h = tileHash(x, y)
 
-    if (!sim.landMask.has(key)) {
-      // Space — stars
-      if (h % 5 === 0) {
-        const starChars = ['.', '*', '+', '·']
-        const phase = (time * 0.0015 + h * 0.001) % 1
-        const ci = Math.floor((h + Math.floor(phase * 4)) % starChars.length)
-        return [{ char: starChars[ci], color: '#AAAACC', dx: 0, dy: 0 }]
-      }
-      return [{ char: ' ', color: '#000', dx: 0, dy: 0 }]
-    }
+    const space = renderSpace(sim, key, h, time)
+    if (space) return space
 
     // Water gathers in lowlands — read the mask built in mutate(). Per-tile
     // elevation still drives the progressive reveal so higher-elevation lake
@@ -2367,13 +2332,8 @@ const riseOfCivilizations: GenesisEpoch = {
     const space = renderSpace(sim, key, h, time)
     if (space) return space
 
-    // Gron appears at the dawn of civilization
-    const gronX = Math.floor(sim.width / 2)
-    const gronY = Math.floor(sim.height / 2)
-    if (x === gronX && y === gronY && progress > 0.3) {
-      const gron = getGronVisuals()
-      return [{ char: gron.glyph, color: gron.glyphColor, dx: 0, dy: 0 }]
-    }
+    // Gron is intentionally absent from genesis — he arrives with the
+    // player in gameplay, after the title card lifts.
 
     // Check if this tile is part of a civilization
     const tileInfo = sim.tileData.get(key)
@@ -2703,16 +2663,11 @@ const fallOfCivilizations: GenesisEpoch = {
       }
     }
 
-    const gronX = Math.floor(sim.width / 2)
-    const gronY = Math.floor(sim.height / 2)
-
-    // Kill vegetation everywhere except within Gron's rain aura
+    // Vegetation collapses with the empires — every land tile clears.
+    // Gron is absent from genesis, so there is no surviving aura.
     for (const key of sim.landMask) {
       const veg = sim.vegetationMap.get(key) ?? 0
       if (veg <= 0) continue
-      const [xStr, yStr] = key.split(',')
-      const d = dist(Number(xStr), Number(yStr), gronX, gronY)
-      if (d <= GRON_RAIN_RADIUS) continue
       sim.vegetationMap.set(key, 0)
       sim.soilHealth.set(key, (sim.soilHealth.get(key) ?? 30) + 3)
     }
@@ -2879,13 +2834,7 @@ const fallOfCivilizations: GenesisEpoch = {
     const space = renderSpace(sim, key, h, time)
     if (space) return space
 
-    // Gron persists
-    const gronX = Math.floor(sim.width / 2)
-    const gronY = Math.floor(sim.height / 2)
-    if (x === gronX && y === gronY) {
-      const gron = getGronVisuals()
-      return [{ char: gron.glyph, color: gron.glyphColor, dx: 0, dy: 0 }]
-    }
+    // Gron is intentionally absent from genesis.
 
     const tileInfo = sim.tileData.get(key)
     const aqueductChar = sim.aqueductNetwork.get(key)
@@ -3001,27 +2950,18 @@ const fallOfCivilizations: GenesisEpoch = {
 
     const veg = sim.vegetationMap.get(key) ?? 0
 
-    // Gron's rain aura — vegetation survives here
-    const dToGron = dist(x, y, gronX, gronY)
+    // Drought wilt — without Gron's surviving rain aura, vegetation
+    // wilts from the prairie edges inward as the empires fall. Wilt
+    // start radiates from the map center outward via a scattered
+    // distance term so the dieback looks organic rather than uniform.
+    const centerX = sim.width / 2
+    const centerY = sim.height / 2
+    const dToCenter = dist(x, y, centerX, centerY)
 
-    if (veg > 20 && dToGron <= GRON_RAIN_RADIUS) {
-      const greenColors = ['#2E8B57', '#3CB371', '#50C878']
-      const gi = h % greenColors.length
-      const base: GenesisTileRender = { char: '%', color: greenColors[gi], dx: 0, dy: 0 }
-      // Rain aura overlay — matches gameplay renderer
-      if (h % RAIN_AURA_DENSITY === 0) {
-        const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
-        const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
-        return [base, { char: RAIN_AURA_CHARS[phase], color: RAIN_AURA_COLORS[colorPhase], dx: 0, dy: 0 }]
-      }
-      return [base]
-    }
-
-    // Drought wilt — dead vegetation shows green then wilts toward Gron
     if (veg <= 0) {
       const maxDist = Math.max(sim.width, sim.height) * 0.5
       const scatter = (h % 30) - 15 + (((h >>> 8) % 20) - 10)
-      const effectiveDist = dToGron + scatter
+      const effectiveDist = dToCenter + scatter
       // Wilt starts after buildings begin decaying (0.4), radiates inward
       const wiltDelay = 0.4 + clamp(1 - effectiveDist / maxDist, 0, 0.5)
 
@@ -3042,7 +2982,9 @@ const fallOfCivilizations: GenesisEpoch = {
       return [{ char: '%', color: greenColors[gi], dx: 0, dy: 0 }]
     }
 
-    // Vegetation still alive (within Gron's aura, rendered above)
+    // Any lingering vegetation (drought mutation runs first, so this
+    // path is reached only for tiles whose veg was reset between
+    // mutate() and renderTile()).
     const vegRender = renderVegetation(sim, x, y, h)
     if (vegRender) return vegRender
 
@@ -3214,16 +3156,8 @@ const presentDay: GenesisEpoch = {
       return [{ char: 'O', color: TILE_COLORS[TileType.CaveEntrance], dx: 0, dy: 0 }]
     }
 
-    // Gron
-    const gronX = Math.floor(sim.width / 2)
-    const gronY = Math.floor(sim.height / 2)
-    if (x === gronX && y === gronY) {
-      const gron = getGronVisuals()
-      return [{ char: gron.glyph, color: gron.glyphColor, dx: 0, dy: 0 }]
-    }
-
-    // Player intentionally not rendered in genesis presentDay — the steward
-    // arrives via the spawn-meteor ceremony after the genesis crossfade.
+    // Gron is intentionally absent from genesis presentDay — he and
+    // the player both arrive after the boot title card lifts.
 
     // Base terrain — craters take priority over burn scars and dirt so
     // post-impact craters render in their resting brown matching
@@ -3241,17 +3175,8 @@ const presentDay: GenesisEpoch = {
       ? { char: dirtChar, color: GAME_BURN_SCAR_COLORS[h % GAME_BURN_SCAR_COLORS.length], dx: 0, dy: 0 }
       : { char: dirtChar, color: GAME_DIRT_COLORS[h % GAME_DIRT_COLORS.length], dx: 0, dy: 0 }
 
-    // Rain aura overlay — matches gameplay renderer (renderer.ts rain overlay pass)
-    // Use rendererTileHash (from position.ts) with rainSeed offset to match
-    // the game renderer's tileHash(wx + state.rainSeed, wy) exactly
-    const dx = x - gronX
-    const dy = y - gronY
-    const rainH = rendererTileHash(x + sim.rainSeed, y)
-    if (dx * dx + dy * dy <= GRON_RAIN_RADIUS * GRON_RAIN_RADIUS && rainH % RAIN_AURA_DENSITY === 0) {
-      const phase = ((rainH >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
-      const colorPhase = ((rainH >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
-      return [baseTile, { char: RAIN_AURA_CHARS[phase], color: RAIN_AURA_COLORS[colorPhase], dx: 0, dy: 0 }]
-    }
+    // No Gron rain aura in genesis — the aura returns in gameplay when
+    // Gron and the player both arrive after the boot title card.
 
     return [baseTile]
   },
@@ -3409,7 +3334,13 @@ export const extractGenesisResult = (sim: GenesisSimState): GenesisResult => ({
   craters: sim.craters,
 })
 
-export const completeGenesis = (state: GameState): void => {
+export interface CompleteGenesisOptions {
+  // When true (dev ?skipGenesis=true), skip scheduling the boot title
+  // card so the player lands directly in gameplay with no overlay.
+  skipTitleCard?: boolean
+}
+
+export const completeGenesis = (state: GameState, options: CompleteGenesisOptions = {}): void => {
   if (!state.genesis) return
 
   // If genesis wasn't fully played out, run remaining mutations
@@ -3429,12 +3360,29 @@ export const completeGenesis = (state: GameState): void => {
     sim.narratedEpochCount++
   }
 
-  // Start the crossfade transition.
-  const handoffTime = performance.now()
-  state.genesisTransition = {
-    startTime: handoffTime,
-    duration: GENESIS_TRANSITION_DURATION_MS,
+  if (options.skipTitleCard) {
+    // Dev fast-path: hand off immediately, no title card cover.
+    finalizeGenesisHandoff(state, performance.now())
+    return
   }
+
+  // Schedule the title card. The genesis renderer keeps painting until
+  // finalizeGenesisHandoff fires at the title card's hold midpoint —
+  // that way the renderer swap is invisible under the full-black cover.
+  state.bootTitleCard = {
+    startTime: performance.now(),
+    label: 'Revery Prairie',
+  }
+}
+
+/**
+ * Final genesis→gameplay swap. Clears state.genesis, seeds glint
+ * patches with the handoff timestamp, and triggers the player spawn
+ * meteor. Called either synchronously by completeGenesis (skip path)
+ * or by gameLoop at the title card's hold midpoint.
+ */
+export const finalizeGenesisHandoff = (state: GameState, handoffTime: number): void => {
+  if (!state.genesis) return
 
   // Seed glinting zone patches now, using the handoff time as the
   // birth-time baseline so every patch starts in fade-in (opacity 0)
@@ -3448,11 +3396,9 @@ export const completeGenesis = (state: GameState): void => {
   // synchronously. Without this, the gameloop's player-spawn-trigger
   // (gameplay phase) fires one tick later than the first gameplay render —
   // that one-frame gap drew the @ glyph at the spawn tile before the
-  // meteorite descent began. Callback indirection avoids a celestial.ts
-  // import here (genesis sits below celestial in the dependency graph).
+  // meteorite descent began.
   state.onGenesisComplete?.(handoffTime)
 
-  // Clear genesis data
   state.genesis = null
 }
 

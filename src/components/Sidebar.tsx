@@ -6,7 +6,6 @@ import { getCharacterDefinition } from '@/engine/characters'
 import {
   DEEP_TIME_TOTAL_YEARS,
   DEEP_TIME_TRANSITION_DURATION_MS,
-  GENESIS_TRANSITION_SIDEBAR_DURATION_MS,
   getEntranceGlyph,
   SOIL_HEALTH_DEFAULT,
   SPACE_BORDER,
@@ -224,12 +223,11 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
     : `${String(weather.windSpeed)} mph ${weather.windDirection}${windSuffix}`
 
   // Fade lives on the inner content wrapper, not the outer shell — so the
-  // black backdrop stays fully opaque through the genesis→gameplay swap.
-  const contentFadeStyle = state.genesisTransition
-    ? { opacity: 0, animation: `fade-in ${String(GENESIS_TRANSITION_SIDEBAR_DURATION_MS)}ms ease-in forwards` }
-    : state.deepTimeTransition
-      ? { opacity: 0, animation: `fade-in ${String(DEEP_TIME_TRANSITION_DURATION_MS)}ms ease-in forwards` }
-      : undefined
+  // black backdrop stays fully opaque during deep-time transitions. The
+  // boot title card covers genesis→gameplay so no fade is needed there.
+  const contentFadeStyle = state.deepTimeTransition
+    ? { opacity: 0, animation: `fade-in ${String(DEEP_TIME_TRANSITION_DURATION_MS)}ms ease-in forwards` }
+    : undefined
 
   return (
     <div data-panel="sidebar" className={SIDEBAR_SHELL_CLASSES}>

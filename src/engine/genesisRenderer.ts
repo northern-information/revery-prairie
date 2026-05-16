@@ -6,7 +6,7 @@ import {
 } from './constants'
 import { getEpochProgress } from './genesis'
 import { GenesisEpochId } from './genesisTypes'
-import { posKey } from './position'
+import { posKey, tileHash } from './position'
 import { drawCellBackground, drawCellWalls, viewportToScreen } from './projection'
 import { getEntranceHaloCells } from './ruins'
 import {
@@ -30,6 +30,120 @@ import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
 
 import type { EpochSnapshot, GenesisEpoch, GenesisSimState, GenesisTileRender } from './genesisTypes'
 import type { CharMetrics } from './types'
+
+// Starfield beyond the sim grid — paints stars on tiles that fall
+// outside the prairie's sim coordinate range so the player sees a
+// continuous starfield to the edge of the canvas instead of a hard
+// black rectangle. Tiles inside the sim grid are skipped because the
+// sim's own renderSpace handles their stars; the sim uses the iso
+// projection (viewportToScreen) so this prepass must too, otherwise
+// the rectilinear pattern outside breaks against the rotated pattern
+// inside at the prairie's diamond boundary.
+//
+// Twinkle rate and palette match the gameplay renderer (renderer.ts
+// STAR_*): the char is stable per tile, only the color cycles slowly
+// via `time * TWINKLE_SPEED`. Cycling the char would flicker faster
+// than the rest of the scene reads.
+const STAR_CHARS = ['.', '+', '*']
+const STAR_COLORS = ['#333', '#555', '#777', '#999', '#bbb', '#999', '#777', '#555']
+const STAR_DENSITY = 12
+const TWINKLE_SPEED = 0.0015
+
+// Bright cosmic palette for the first two epochs — "birth of cosmos"
+// and "dust coalesces" — when the simulated universe is forming and
+// the sky should feel alive and dense across the full screen.
+const COSMIC_STAR_CHARS = ['.', '*', '+', '·']
+const COSMIC_STAR_COLORS = ['#FFFFFF', '#DDDDFF', '#FFDDDD', '#FFFFDD', '#AAAACC']
+const COSMIC_STAR_DENSITY = 5
+const COSMIC_EPOCHS: ReadonlySet<GenesisEpochId> = new Set([
+  GenesisEpochId.CosmicFormation,
+  GenesisEpochId.LandAccretion,
+])
+
+const paintFullCanvasStarfield = (
+  ctx: CanvasRenderingContext2D,
+  epochId: GenesisEpochId,
+  progress: number,
+  charWidth: number,
+  charHeight: number,
+  viewportWidth: number,
+  viewportHeight: number,
+  cameraX: number,
+  cameraY: number,
+  simWidth: number,
+  simHeight: number,
+  time: number,
+): void => {
+  // During cosmic epochs, paint bright stars across the FULL canvas
+  // including over the sim grid, so the "birth of cosmos" reads as
+  // sky-wide rather than confined to the prairie's diamond. The sim's
+  // own renderTile still paints rock-mass/dust on top inside its
+  // bounds. During later epochs, paint dim stars only outside the sim
+  // grid so we don't double-up with the sim's space-border stars.
+  const isCosmic = COSMIC_EPOCHS.has(epochId)
+  const chars = isCosmic ? COSMIC_STAR_CHARS : STAR_CHARS
+  const colors = isCosmic ? COSMIC_STAR_COLORS : STAR_COLORS
+  const density = isCosmic ? COSMIC_STAR_DENSITY : STAR_DENSITY
+  const isPreCosmos = epochId === GenesisEpochId.CosmicFormation
+  // CosmicFormation expands the cosmos from canvas center outward at
+  // progress * radius. Before the wavefront reaches a screen pixel,
+  // the universe doesn't exist there — paint nothing.
+  const canvasCenterPx = (viewportWidth * charWidth) / 2
+  const canvasCenterPy = (viewportHeight * charHeight) / 2
+  // Maximum reach: canvas diagonal so the wavefront covers the full
+  // canvas by end-of-epoch.
+  const maxReach = Math.hypot(canvasCenterPx, canvasCenterPy)
+  const wavefrontPx = isPreCosmos ? progress * maxReach * 1.2 : Infinity
+  ctx.textBaseline = 'top'
+  const canvasW = viewportWidth * charWidth
+  const canvasH = viewportHeight * charHeight
+  // Iso rotation maps a tile (vx, vy) to screen px = (vx - vy) * cw +
+  // ox + cw/2 and py = (vx + vy) * ch/2 + oy. To fill the canvas, we
+  // walk diagonals s = vx + vy from minimum to maximum. py ranges over
+  // [0, canvasH], so s = vx + vy ranges over roughly
+  // [-2*originY/charHeight, 2*(canvasH-originY)/charHeight]. Inside
+  // each diagonal, px = (vx - vy)*cw + ox + cw/2 must land in
+  // [-cw, canvasW], i.e. d = vx - vy ∈
+  // [(-cw - ox - cw/2)/cw, (canvasW - ox - cw/2)/cw].
+  const originX = (viewportHeight * charWidth) / 2 - charWidth / 2
+  const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
+  const halfH = charHeight / 2
+  const sMin = Math.floor(-originY / halfH) - 1
+  const sMax = Math.ceil((canvasH - originY) / halfH) + 1
+  const dMin = Math.floor((-charWidth - originX - charWidth / 2) / charWidth) - 1
+  const dMax = Math.ceil((canvasW - originX - charWidth / 2) / charWidth) + 1
+  for (let s = sMin; s <= sMax; s++) {
+    for (let d = dMin; d <= dMax; d++) {
+      // vx + vy = s, vx - vy = d → vx = (s+d)/2, vy = (s-d)/2. Only
+      // integer (vx, vy) tiles produce stars; if (s + d) is odd the
+      // tile sits between iso cells and we skip it (matches sim).
+      if (((s + d) & 1) !== 0) continue
+      const vx = (s + d) / 2
+      const vy = (s - d) / 2
+      const mx = cameraX + vx
+      const my = cameraY + vy
+      // Outside the cosmic epochs, skip tiles inside the sim grid —
+      // the sim renders those itself. During cosmic epochs, paint
+      // everywhere so the sky reads as full-canvas.
+      if (!isCosmic && mx >= 0 && mx < simWidth && my >= 0 && my < simHeight) continue
+      const h = tileHash(mx, my)
+      if (h % density !== 0) continue
+      const px = d * charWidth + originX + charWidth / 2
+      const py = s * halfH + originY
+      // Pre-cosmos wavefront: skip pixels the cosmos hasn't reached
+      // yet. Centered on the canvas, expanding with progress.
+      if (isPreCosmos) {
+        const dx = px - canvasCenterPx
+        const dy = py - canvasCenterPy
+        if (dx * dx + dy * dy > wavefrontPx * wavefrontPx) continue
+      }
+      const phase = (h >> 8) % colors.length
+      const colorIndex = (phase + Math.floor(time * TWINKLE_SPEED)) % colors.length
+      ctx.fillStyle = colors[colorIndex]
+      ctx.fillText(chars[(h >> 4) % chars.length], px, py)
+    }
+  }
+}
 
 // Cosmetic terrain elevation. Reads sim.elevation (mutated live by
 // epochs like glaciation and warmPeriod), maps to a discrete tier, and
@@ -377,10 +491,13 @@ export const renderGenesis = (
   ctx.fillStyle = BG_COLOR
   ctx.fillRect(0, 0, canvasWidth, canvasHeight)
 
-  if (sim.epochIndex >= epochs.length) return
-
-  const epoch = epochs[sim.epochIndex]
-  const progress = getEpochProgress(sim, epochs)
+  // After the final epoch finishes (epochIndex == length), keep
+  // painting the last epoch (presentDay) at progress=1 so the genesis
+  // renderer stays alive under the rising boot title card overlay.
+  const isPastFinalEpoch = sim.epochIndex >= epochs.length
+  const renderEpochIndex = isPastFinalEpoch ? epochs.length - 1 : sim.epochIndex
+  const epoch = epochs[renderEpochIndex]
+  const progress = isPastFinalEpoch ? 1 : getEpochProgress(sim, epochs)
   // Lowland water participates in the water-sink offset only during
   // aquatic-phase epochs that actually paint lowland-water glyphs
   // (matches the includeLowland gate in computeSurfaceBg).
@@ -408,26 +525,46 @@ export const renderGenesis = (
       ? -Math.floor((viewportHeight - sim.height) / 2)
       : Math.max(0, Math.min(playerY - Math.floor(viewportHeight / 2), sim.height - viewportHeight))
 
+  // Starfield over canvas tiles that fall outside the sim grid — the
+  // sim renders its own space tiles, so we skip those here to avoid
+  // double-painting at the prairie's space border.
+  paintFullCanvasStarfield(
+    ctx,
+    epoch.id,
+    progress,
+    charWidth,
+    charHeight,
+    viewportWidth,
+    viewportHeight,
+    cameraX,
+    cameraY,
+    sim.width,
+    sim.height,
+    time,
+  )
+
   // Main viewport loop
   ctx.textBaseline = 'top'
   ctx.font = metrics.font
 
   // Swap in epoch snapshot so renderTile reads the correct per-epoch data
-  const useSnapshot = sim.mutationsPrecomputed && sim.epochSnapshots.length > sim.epochIndex
+  const useSnapshot = sim.mutationsPrecomputed && sim.epochSnapshots.length > renderEpochIndex
   const liveState = useSnapshot ? captureLiveState(sim) : null
 
   if (useSnapshot) {
-    applySnapshot(sim, sim.epochSnapshots[sim.epochIndex])
+    applySnapshot(sim, sim.epochSnapshots[renderEpochIndex])
   }
 
-  // Cross-fade: blend into next epoch during last 10% of current epoch
-  const hasNextEpoch = sim.epochIndex + 1 < epochs.length
+  // Cross-fade: blend into next epoch during last 10% of current epoch.
+  // Once we're past the final epoch the boot title card covers the
+  // screen, so we just hold presentDay — no next-epoch blending.
+  const hasNextEpoch = !isPastFinalEpoch && renderEpochIndex + 1 < epochs.length
   const needsBlend = progress > CROSSFADE_START && hasNextEpoch && useSnapshot
   const blendT = needsBlend ? (progress - CROSSFADE_START) / (1 - CROSSFADE_START) : 0
-  const nextEpoch = needsBlend ? epochs[sim.epochIndex + 1] : null
+  const nextEpoch = needsBlend ? epochs[renderEpochIndex + 1] : null
   const nextSnapshot =
-    needsBlend && sim.epochSnapshots.length > sim.epochIndex + 1
-      ? sim.epochSnapshots[sim.epochIndex + 1]
+    needsBlend && sim.epochSnapshots.length > renderEpochIndex + 1
+      ? sim.epochSnapshots[renderEpochIndex + 1]
       : null
 
   // The visible footprint is a rotated parallelogram. The shared
@@ -531,7 +668,7 @@ export const renderGenesis = (
         nextRendersByIndex[idx] = nextRenders[0] ?? null
       }
     }
-    applySnapshot(sim, sim.epochSnapshots[sim.epochIndex])
+    applySnapshot(sim, sim.epochSnapshots[renderEpochIndex])
   }
 
   // Tween bookkeeping pass: detect per-tile elevation tier changes on
@@ -664,7 +801,7 @@ export const renderGenesis = (
   // earlier epochs. Fades in across the fallOfCivilizations -> presentDay
   // crossfade and holds at full opacity through presentDay, so the halo
   // is already present when the game renderer takes over.
-  const haloAlpha = computeHaloAlpha(sim.epochIndex, epoch.id, blendT, nextEpoch?.id)
+  const haloAlpha = computeHaloAlpha(renderEpochIndex, epoch.id, blendT, nextEpoch?.id)
   if (haloAlpha > 0) {
     const prevAlpha = ctx.globalAlpha
     ctx.globalAlpha = haloAlpha

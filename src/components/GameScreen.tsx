@@ -4,8 +4,10 @@ import { CoyoteScreen } from './CoyoteScreen'
 import { DialogBox } from './DialogBox'
 import { DevPanel } from './DevPanel'
 import { DragCursor } from './DragCursor'
+import { BootTitleCardOverlay } from './BootTitleCardOverlay'
 import { EventLog } from './EventLog'
 import { GameCanvas } from './GameCanvas'
+import { GenesisBottomBar } from './GenesisBottomBar'
 import { HexagramPanel } from './HexagramPanel'
 import { InventoryPanel } from './InventoryPanel'
 import { ManualPanel } from './ManualPanel'
@@ -254,7 +256,10 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
       {import.meta.env.DEV && state.devPanelOpen && (
         <DevPanel state={state} refreshUI={refreshUI} metricsRef={metricsRef} />
       )}
-      {!state.genesis && (
+      <BootTitleCardOverlay state={state} />
+      {state.genesis ? (
+        <GenesisBottomBar state={state} />
+      ) : (
         <div
           data-panel="bottom-bar"
           className="pointer-events-none fixed inset-x-2 bottom-2 z-10 flex h-48 items-center justify-between gap-2 bg-black/70 p-2"

@@ -6,7 +6,7 @@ import { expandClickTile } from '@/engine/clickResolution'
 import { SELECTION_DRAG_THRESHOLD } from '@/engine/constants'
 import { screenToTile } from '@/engine/coordinates'
 import { isDeepTimeLocked } from '@/engine/deepTime'
-import { isZoneTransitioning } from '@/engine/zoneTransition'
+import { isInputGated } from '@/engine/zoneTransition'
 import { ComponentType } from '@/engine/ecs/types'
 import { updateCamera } from '@/engine/camera'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
@@ -267,7 +267,7 @@ export const useMouse = ({
       if (state.devPanelOpen) return
       if (activeScreenRef.current === 'system') return
       if (isDeepTimeLocked(state)) return
-      if (isZoneTransitioning(state)) return
+      if (isInputGated(state)) return
 
       if (state.targetingSlot !== null) {
         const metrics = metricsRef.current
@@ -391,7 +391,7 @@ export const useMouse = ({
       if (state.devPanelOpen) return
       if (activeScreenRef.current === 'system') return
       if (isDeepTimeLocked(state)) return
-      if (isZoneTransitioning(state)) return
+      if (isInputGated(state)) return
       if (state.activeDialog) return
 
       const metrics = metricsRef.current

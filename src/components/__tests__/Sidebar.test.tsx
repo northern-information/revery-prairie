@@ -361,53 +361,13 @@ describe('Sidebar', () => {
     })
   })
 
-  describe('genesis transition backdrop continuity', () => {
-    it('keeps the outer backdrop at full opacity during genesisTransition', () => {
+  describe('boot title card sidebar behavior', () => {
+    it('renders the sidebar at full opacity while bootTitleCard is active', () => {
+      // The black title-card overlay covers the renderer swap, so the
+      // sidebar no longer needs a fade-in CSS animation.
       const state = createGameState('Test', 80, 40)
       completeGenesis(state)
-      expect(state.genesisTransition).not.toBeNull()
-
-      const { container } = render(
-        <Sidebar
-          state={state}
-          activeScreen={null}
-          itemInfoRef={defaultInfoRef}
-          metricsRef={createRef()}
-          refreshUI={noop}
-        />
-      )
-
-      const backdrop = container.querySelector<HTMLElement>('[data-panel="sidebar"]')
-      expect(backdrop).not.toBeNull()
-      expect(backdrop?.style.opacity).toBe('')
-      expect(backdrop?.style.animation).toBe('')
-    })
-
-    it('applies the fade-in to the inner content wrapper during genesisTransition', () => {
-      const state = createGameState('Test', 80, 40)
-      completeGenesis(state)
-
-      const { container } = render(
-        <Sidebar
-          state={state}
-          activeScreen={null}
-          itemInfoRef={defaultInfoRef}
-          metricsRef={createRef()}
-          refreshUI={noop}
-        />
-      )
-
-      const backdrop = container.querySelector<HTMLElement>('[data-panel="sidebar"]')
-      const content = backdrop?.querySelector<HTMLElement>(':scope > div')
-      expect(content).not.toBeNull()
-      expect(content?.style.opacity).toBe('0')
-      expect(content?.style.animation).toContain('fade-in')
-    })
-
-    it('applies no fade style once genesisTransition is cleared', () => {
-      const state = createGameState('Test', 80, 40)
-      completeGenesis(state)
-      state.genesisTransition = null
+      expect(state.bootTitleCard).not.toBeNull()
 
       const { container } = render(
         <Sidebar
@@ -424,6 +384,28 @@ describe('Sidebar', () => {
       expect(backdrop?.style.opacity).toBe('')
       expect(content?.style.opacity).toBe('')
       expect(content?.style.animation).toBe('')
+    })
+
+    it('still applies the deep-time fade when deepTimeTransition is active', () => {
+      // Deep-time transition still uses the fade-in mechanism.
+      const state = createGameState('Test', 80, 40)
+      completeGenesis(state, { skipTitleCard: true })
+      state.deepTimeTransition = { startTime: 0, duration: 1000 }
+
+      const { container } = render(
+        <Sidebar
+          state={state}
+          activeScreen={null}
+          itemInfoRef={defaultInfoRef}
+          metricsRef={createRef()}
+          refreshUI={noop}
+        />
+      )
+
+      const backdrop = container.querySelector<HTMLElement>('[data-panel="sidebar"]')
+      const content = backdrop?.querySelector<HTMLElement>(':scope > div')
+      expect(content?.style.opacity).toBe('0')
+      expect(content?.style.animation).toContain('fade-in')
     })
   })
 
