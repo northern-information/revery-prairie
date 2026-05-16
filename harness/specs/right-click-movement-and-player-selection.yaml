@@ -44,8 +44,8 @@ behaviors:
 
   - id: right-click-interact
     description: >
-      right-clicking on an interactable tile (character, clover, omnibox,
-      cave breakable wall, angel body) pathfinds the player to the nearest
+      right-clicking on an interactable tile (character, clover, cave
+      breakable wall, angel body) pathfinds the player to the nearest
       adjacent walkable tile and queues pendingAction to execute the
       interaction on arrival. this preserves the previous left-click
       interaction behavior but on right-click.
@@ -123,8 +123,8 @@ behaviors:
 
   - id: left-click-interactable-still-works
     description: >
-      left-clicking an interactable (character, clover, omnibox, cave
-      breakable wall, angel) still pathfinds the player and executes the
+      left-clicking an interactable (character, clover, cave breakable
+      wall, angel) still pathfinds the player and executes the
       interaction on arrival. left-click interaction is preserved from
       the previous behavior; only pure movement (clicking empty ground)
       is removed from left-click.

@@ -177,8 +177,8 @@ edge_cases:
   - id: meteorite-ground-cap-reached
     description: 'overworld already has METEORITE_GROUND_MAX (20) meteorite entities, spawnShootingStar called'
     expected: 'returns early, no new star created; player picking up a meteorite drops count below cap and future ticks may resume spawning'
-  - id: meteorite-cap-excludes-backpack-and-omnibox
-    description: 'player holds meteorite items in backpack/omnibox, zero meteorites on overworld ground'
+  - id: meteorite-cap-excludes-backpack
+    description: 'player holds meteorite items in backpack, zero meteorites on overworld ground'
     expected: 'cap does not apply — only ECS meteorite entities (ground-placed, overworld zone) count toward the 20-entity limit'
   - id: meteorite-cap-excludes-cave
     description: 'cave has meteorite entities (hypothetical), overworld ground is empty'

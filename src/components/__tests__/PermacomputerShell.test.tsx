@@ -83,4 +83,17 @@ describe('PermacomputerShell', () => {
 
     expect(screen.getByTestId('permacomputer-shell')).toBeInTheDocument()
   })
+
+  // Bottom bar (GameScreen) is fixed bottom-2 h-48 (~200px). Shell and backdrop must
+  // stop short of it via bottom-52 so the minimap and event log stay clickable.
+  it('reserves space at the bottom for the minimap and event log', () => {
+    render(
+      <PermacomputerShell {...defaultProps} activeScreen="manual">
+        <div>content</div>
+      </PermacomputerShell>
+    )
+
+    expect(screen.getByTestId('permacomputer-shell').className).toContain('bottom-52')
+    expect(screen.getByTestId('permacomputer-backdrop').className).toContain('bottom-52')
+  })
 })
