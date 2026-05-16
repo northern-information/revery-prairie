@@ -6,9 +6,17 @@ source_files:
   - src/engine/renderer.ts
   - src/engine/cave.ts
   - src/engine/constants.ts
+  - src/engine/tileBg.ts
+  - src/engine/structures.ts
+  - src/engine/state.ts
+  - src/engine/position.ts
+  - src/engine/satellites.ts
+  - src/engine/types.ts
+  - src/components/Sidebar.tsx
 dependencies:
   - renderer
   - cave-breakable-wall
+  - structure-registry
 
 behaviors:
   - id: multilayer-tile-rendering
@@ -29,34 +37,37 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: cave-palette-reuse
+  - id: cave-distinct-palette
     description: >
-      cave wall and floor tile rendering reuses the BUILDING_CHARS
-      (['▓', '▒', '░', '█', '#', '+', 'H', 'T', '=']) and CIV_COLORS
-      (['#666', '#777', '#888', '#999', '#AAA']) palettes already
-      exported from constants.ts. the user explicitly opted to make
-      caves look more like ruins to gain per-tile differentiation,
-      rather than introducing a separate cave-only palette. tileHash(x,
-      y) selects which chars and colors apply per tile for
-      deterministic variety across the map.
+      cave wall and floor tile rendering uses a distinct cool slate-blue
+      palette (CAVE_WALL_COLORS = ['#5A6470', '#646E7A', '#6E7884',
+      '#788290', '#82909C']) sourced from the STRUCTURE_REGISTRY entry
+      for the cave. cave palette is visually distinguishable from the
+      warm CIV_COLORS used by ruins so a glance reads structure type.
+      BUILDING_CHARS (subset ['▓', '▒', '░', '#', '+']) is reused since
+      glyph shapes carry no warm/cool connotation. tileHash(x, y)
+      selects which chars and colors apply per tile for deterministic
+      variety. SUPERSEDES the prior cave-palette-reuse decision — caves
+      no longer share CIV_COLORS with ruins.
     inputs:
       - 'cave tile layer calculation'
     outputs:
-      - 'chars and colors from the shared civilization palette'
+      - 'chars and colors from cave-specific palette in STRUCTURE_REGISTRY'
     state_changes: []
     determinism: deterministic
 
   - id: wall-tile-layers
     description: >
-      CaveWall tiles render 2-3 layers of building chars in grays
-      with pixel offsets. layer 1: building char at (0,0). layer 2:
-      different building char at (+1,+1). layer 3 (optional, based
-      on hash): debris dot at (-1,0). matches the RuinWall layer
-      structure in ruins.ts:1226 so the visual treatment is consistent.
+      CaveWall tiles render 2-3 layers of building chars in cool slate
+      tones with pixel offsets. layer 1: building char at (0,0). layer
+      2: different building char at (+1,+1). layer 3 (optional, based
+      on hash): debris dot at (-1,0). colors are drawn from
+      CAVE_WALL_COLORS so the wall reads as cool stone rather than the
+      warm sandstone of ruins.
     inputs:
       - 'CaveWall tile at position (x,y)'
     outputs:
-      - '2-3 layer array with building chars in grays'
+      - '2-3 layer array with building chars in cool slate colors'
     state_changes: []
     determinism: deterministic
 
@@ -64,7 +75,7 @@ behaviors:
     description: >
       CaveFloor tiles render 1-2 layers. layer 1: floor char ('.' or
       '·') in TILE_COLORS[CaveFloor]. layer 2 (optional, based on
-      hash): debris dot at a horizontal offset using a CIV_COLORS
+      hash): debris dot at a horizontal offset using a CAVE_WALL_COLORS
       entry. floor layers are sparser than wall layers to keep the
       player and entities readable.
     inputs:
@@ -79,7 +90,7 @@ behaviors:
       cave tile types that already carry distinguishing visual
       meaning render as before (single glyph, single color):
       CaveBreakableWall keeps its warm brown #997755 single layer so
-      it pops against gray walls, CaveEntrance keeps its 'O' glyph,
+      it pops against cool walls, CaveEntrance keeps its 'O' glyph,
       CaveExit keeps its hot pink '█'. these tiles bypass the
       multilayer path. shouldRenderCaveMultilayer returns true only
       for CaveWall and CaveFloor.
@@ -105,6 +116,60 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: overworld-cave-entrance-platform
+    description: >
+      On the overworld (Zone.Overworld), the CaveEntrance tile sits on
+      a raised stone platform mirroring the ruin entrance treatment.
+      The 8 neighbors of the CaveEntrance tile are converted to a new
+      CaveApron tile type at world generation in state.ts when the
+      cave entrance is placed. CaveApron lifts by CAVE_APRON_LIFT_PX
+      (3px). CaveEntrance lifts by CAVE_ENTRANCE_LIFT_PX (9px).
+      Lifts come from getStructurePlatformLift(tileType) which reads
+      the STRUCTURE_REGISTRY. The lift is added to the tile's glyph
+      py and to its bg-cache fill/cube-edge stroke so the 3x3
+      footprint reads as a raised stone platform. Lift is additive on
+      top of getTierLift(tier).
+    inputs:
+      - 'overworld tile render of CaveApron or CaveEntrance'
+    outputs:
+      - 'glyph and bg fill drawn at py - lift'
+      - 'south/east cube-edge stroke baked at the lifted position'
+      - 'tile footprint reads as raised platform around the entrance'
+    state_changes:
+      - field: 'state.map'
+        effect: 'CaveEntrance neighbor cells written as TileType.CaveApron at world generation'
+    determinism: deterministic
+
+  - id: cave-apron-tile-type
+    description: >
+      TileType.CaveApron is registered in src/engine/types.ts with
+      TILE_CHARS[CaveApron] = ':' and a cool stone color in
+      TILE_COLORS. CaveApron is walkable (isWalkableTile returns true).
+      Sidebar.tsx returns the human-readable label "cave apron" for
+      cursor tile info. CaveApron is added to the satellite
+      PROTECTED_TILES set so meteorite strikes cannot destroy the
+      platform around a cave entrance.
+    inputs:
+      - 'CaveApron tile read from map'
+    outputs:
+      - 'tile renders, is walkable, has a human label, is meteorite-protected'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cave-interior-no-lift
+    description: >
+      Inside the cave (Zone.Cave), no apron or entrance lift is
+      applied. CaveExit (the return tile) renders as before with no
+      raised-platform treatment. getStructurePlatformLift is gated by
+      the caller on Zone.Overworld, matching the existing ruin
+      pattern.
+    inputs:
+      - 'tile render inside Zone.Cave'
+    outputs:
+      - 'no platform lift applied to any cave interior tile'
+    state_changes: []
+    determinism: deterministic
+
 edge_cases:
   - id: tile-hash-collision
     description: 'two adjacent tiles hash to same building char and color'
@@ -116,13 +181,35 @@ edge_cases:
 
   - id: breakable-wall-adjacent-to-multilayer
     description: 'a CaveBreakableWall sits next to a multilayer CaveWall'
-    expected: 'breakable wall renders as a single warm brown # so it remains distinguishable from the gray multilayer walls'
+    expected: 'breakable wall renders as a single warm brown # so it remains distinguishable from the cool multilayer walls'
+
+  - id: cave-entrance-on-tier-transition
+    description: 'CaveEntrance placed on a tile at a tier boundary (terrain elevation already lifts it)'
+    expected: 'apron + entrance lift composes additively with tierLift — no gap or doubled cube wall'
+
+  - id: cave-apron-at-map-edge
+    description: 'CaveApron tile near the outer border (next to space)'
+    expected: 'lifted bg fill and cube-edge stroke clip cleanly against the void; no visual bleed into space tiles'
+
+  - id: cave-entrance-neighbor-already-special
+    description: 'a CaveEntrance neighbor cell is already a non-dirt tile (e.g. sand, ruin tile) at world generation'
+    expected: 'apron conversion skips cells whose original type is in a documented preserve-list, matching the ruin apron logic at ruins.ts:1077'
 
 failure_conditions:
   - trigger: 'getCaveTileLayers called with a non-cave-terrain tile type'
     expected: 'returns a single-layer fallback drawn from TILE_CHARS / TILE_COLORS so the renderer never receives an empty array'
-  - trigger: 'BUILDING_CHARS or CIV_COLORS not exported from constants'
+
+  - trigger: 'CAVE_WALL_COLORS not exported from constants or structures module'
     expected: 'compilation error — these must be importable by the cave layer module'
+
+  - trigger: 'cave entrance platform lift applied in Zone.Cave (interior)'
+    expected: 'cave interior visuals unchanged — lift is overworld-only by zone guard'
+
+  - trigger: 'bg-cache rebakes without the lift applied to apron/entrance fill'
+    expected: 'visual mismatch — cube-edge stroke floats above the glyph; bake must use the same lift'
+
+  - trigger: 'CaveApron added to TileType but missing from sidebar label switch'
+    expected: 'cursor info shows raw camelCase "caveApron" — violates CLAUDE.md tile label rule; must add label'
 
 verification:
   test_file: src/engine/__tests__/cave-visual-style.test.ts

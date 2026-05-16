@@ -12,6 +12,7 @@ source_files:
 dependencies:
   - ruin-infrastructure
   - renderer
+  - structure-registry
 
 behaviors:
   - id: multilayer-tile-rendering
@@ -108,15 +109,17 @@ behaviors:
       tiles render with an additional pixel-space lift on top of any
       terrain elevation tier they sit on. RuinApron lifts by
       RUIN_APRON_LIFT_PX (3px). RuinEntrance lifts by
-      RUIN_ENTRANCE_LIFT_PX (9px). The lift is added to the tile's
-      glyph py and to its bg-cache fill/cube-edge stroke so the 3x3
-      footprint reads as a raised stone platform with the entrance
-      glyph sitting taller in the center. The lift is in addition to
-      getTierLift(tier) — a ruin entrance on a tier-1 plateau lifts by
-      tierLift + 9. Ruin interior zones (Zone.Ruin) do not apply this
-      lift. Exports RUIN_APRON_LIFT_PX and RUIN_ENTRANCE_LIFT_PX from
-      tileBg.ts so the renderer, bg-cache, and any future passes share
-      one source of truth.
+      RUIN_ENTRANCE_LIFT_PX (9px). Lift values are sourced from
+      STRUCTURE_REGISTRY.ruin and surfaced via
+      getStructurePlatformLift(tileType) (see structure-registry.yaml);
+      RUIN_APRON_LIFT_PX and RUIN_ENTRANCE_LIFT_PX remain exported
+      from tileBg.ts as re-exports for back-compat. The lift is added
+      to the tile's glyph py and to its bg-cache fill/cube-edge stroke
+      so the 3x3 footprint reads as a raised stone platform with the
+      entrance glyph sitting taller in the center. The lift is in
+      addition to getTierLift(tier) — a ruin entrance on a tier-1
+      plateau lifts by tierLift + 9. Ruin interior zones (Zone.Ruin)
+      do not apply this lift.
     inputs:
       - 'overworld tile render of RuinApron or RuinEntrance'
     outputs:

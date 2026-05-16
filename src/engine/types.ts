@@ -12,6 +12,7 @@ export const TileType = {
   CaveWall: 'caveWall',
   CaveBreakableWall: 'caveBreakableWall',
   CaveEntrance: 'caveEntrance',
+  CaveApron: 'caveApron',
   CaveExit: 'caveExit',
   RuinFloor: 'ruinFloor',
   RuinWall: 'ruinWall',

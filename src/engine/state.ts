@@ -67,6 +67,33 @@ export const createGameState = (
   }
   map[caveEntranceOverworld.y][caveEntranceOverworld.x] = { type: TileType.CaveEntrance }
 
+  // Convert the 8 neighbors of the cave entrance to CaveApron so it
+  // reads as a raised stone platform on the overworld (mirrors the
+  // ruin entrance pattern in ruins.ts). Skip tiles that already carry
+  // structural meaning (other entrances, ruin walls/doors, etc.) so
+  // ruin platforms placed earlier by genesis are preserved.
+  const PRESERVE_FROM_APRON_OVERWRITE = new Set<TileType>([
+    TileType.CaveEntrance,
+    TileType.RuinEntrance,
+    TileType.RuinApron,
+    TileType.RuinWall,
+    TileType.RuinDoorLocked,
+    TileType.RuinDoorOpen,
+    TileType.RuinAqueduct,
+  ])
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue
+      const nx = caveEntranceOverworld.x + dx
+      const ny = caveEntranceOverworld.y + dy
+      if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue
+      const neighbor = map[ny][nx]
+      if (!neighbor) continue
+      if (PRESERVE_FROM_APRON_OVERWRITE.has(neighbor.type)) continue
+      map[ny][nx] = { type: TileType.CaveApron }
+    }
+  }
+
   // Generate rain seed early so genesis presentDay can use it for rain aura rendering
   const rainSeed = Math.floor(Math.random() * 2147483647)
   sim.rainSeed = rainSeed

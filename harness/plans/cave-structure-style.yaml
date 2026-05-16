@@ -1,0 +1,269 @@
+plan:
+  id: cave-structure-style
+  title: Style cave entrance like a structure with its own cool slate palette via a shared structure registry
+  created: '2026-05-16'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-cave-apron-tile-type
+    title: Add TileType.CaveApron, TILE_CHARS, TILE_COLORS, and tileBg color rows
+    spec_id: cave-visual-style
+    spec_sections:
+      - cave-apron-tile-type
+      - overworld-cave-entrance-platform
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/tileBg.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-cave-palette-constants
+    title: Add CAVE_WALL_COLORS to constants.ts as the cave structure palette
+    spec_id: cave-visual-style
+    spec_sections:
+      - cave-distinct-palette
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: implement-structure-registry
+    title: Implement STRUCTURE_REGISTRY in src/engine/structures.ts with ruin and cave entries
+    spec_id: structure-registry
+    spec_sections:
+      - structure-registry-shape
+      - ruin-entry-preserved
+      - cave-entry
+      - structure-platform-lift-accessor
+      - structure-tile-layers-accessor
+    context_files:
+      - src/engine/structures.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/structures.ts
+    depends_on:
+      - add-cave-apron-tile-type
+      - add-cave-palette-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: migrate-platform-lift-accessor
+    title: Replace getRuinPlatformLift with getStructurePlatformLift; keep RUIN_*_LIFT_PX as re-exports sourced from registry
+    spec_id: structure-registry
+    spec_sections:
+      - structure-platform-lift-accessor
+    context_files:
+      - src/engine/tileBg.ts
+      - src/engine/structures.ts
+      - src/engine/renderer.ts
+      - src/engine/tileBgCache.ts
+    output_files:
+      - src/engine/tileBg.ts
+      - src/engine/renderer.ts
+      - src/engine/tileBgCache.ts
+    depends_on:
+      - implement-structure-registry
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: route-cave-layers-through-registry
+    title: Update getCaveTileLayers to read palette and chars from STRUCTURE_REGISTRY.cave
+    spec_id: cave-visual-style
+    spec_sections:
+      - cave-distinct-palette
+      - wall-tile-layers
+      - floor-tile-layers
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/structures.ts
+    output_files:
+      - src/engine/cave.ts
+    depends_on:
+      - implement-structure-registry
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: route-ruin-layers-through-registry
+    title: Update getRuinTileLayers to read palette and chars from STRUCTURE_REGISTRY.ruin (no visual change)
+    spec_id: structure-registry
+    spec_sections:
+      - structure-tile-layers-accessor
+      - ruin-entry-preserved
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/structures.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - implement-structure-registry
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: place-cave-apron-at-world-gen
+    title: When CaveEntrance is written in state.ts, also convert 8 neighbors to CaveApron (mirror ruins.ts:1067-1078 preserve-list)
+    spec_id: cave-visual-style
+    spec_sections:
+      - overworld-cave-entrance-platform
+    context_files:
+      - src/engine/state.ts
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - add-cave-apron-tile-type
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: cave-apron-walkability-and-protection
+    title: Add CaveApron to walkable tiles and satellite PROTECTED_TILES
+    spec_id: cave-visual-style
+    spec_sections:
+      - cave-apron-tile-type
+    context_files:
+      - src/engine/position.ts
+      - src/engine/satellites.ts
+    output_files:
+      - src/engine/position.ts
+      - src/engine/satellites.ts
+    depends_on:
+      - add-cave-apron-tile-type
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: cave-apron-sidebar-label
+    title: Add 'cave apron' label to Sidebar.tsx cursor info switch
+    spec_id: cave-visual-style
+    spec_sections:
+      - cave-apron-tile-type
+    context_files:
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - add-cave-apron-tile-type
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  - id: structure-registry-tests
+    title: Write structure-registry unit tests (shape, lift accessor, layer accessor)
+    spec_id: structure-registry
+    spec_sections:
+      - structure-registry-shape
+      - structure-platform-lift-accessor
+      - structure-tile-layers-accessor
+      - ruin-entry-preserved
+      - cave-entry
+    context_files:
+      - src/engine/__tests__/structure-registry.test.ts
+      - src/engine/structures.ts
+    output_files:
+      - src/engine/__tests__/structure-registry.test.ts
+    depends_on:
+      - migrate-platform-lift-accessor
+      - route-cave-layers-through-registry
+      - route-ruin-layers-through-registry
+    verification:
+      - npx vitest run src/engine/__tests__/structure-registry.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: cave-visual-style-tests
+    title: Update cave-visual-style tests for new palette, apron tile, and platform lift
+    spec_id: cave-visual-style
+    spec_sections:
+      - cave-distinct-palette
+      - overworld-cave-entrance-platform
+      - cave-apron-tile-type
+      - cave-interior-no-lift
+    context_files:
+      - src/engine/__tests__/cave-visual-style.test.ts
+      - src/engine/structures.ts
+      - src/engine/cave.ts
+    output_files:
+      - src/engine/__tests__/cave-visual-style.test.ts
+    depends_on:
+      - route-cave-layers-through-registry
+      - place-cave-apron-at-world-gen
+      - cave-apron-walkability-and-protection
+    verification:
+      - npx vitest run src/engine/__tests__/cave-visual-style.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: ruin-visual-style-regression
+    title: Verify ruin-visual-style tests still pass against the registry-routed implementation
+    spec_id: ruin-visual-style
+    spec_sections:
+      - overworld-ruin-entrance-elevation-lift
+    context_files:
+      - src/engine/__tests__/ruin-visual-style.test.ts
+    output_files: []
+    depends_on:
+      - route-ruin-layers-through-registry
+      - migrate-platform-lift-accessor
+    verification:
+      - npx vitest run src/engine/__tests__/ruin-visual-style.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: schema-allowlist-update
+    title: Add CaveApron to EXPECTED_FIELDS / tile-type allowlist if serialization schema test requires it
+    spec_id: cave-visual-style
+    spec_sections:
+      - cave-apron-tile-type
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - add-cave-apron-tile-type
+    verification:
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - test
