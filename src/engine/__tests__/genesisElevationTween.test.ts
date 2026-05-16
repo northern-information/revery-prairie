@@ -1,7 +1,7 @@
 import { createGenesisState, extractGenesisResult } from '../genesis'
-import { liftAtSim, recordVisibleTierChange } from '../genesisRenderer'
+import { liftAtSim, recordVisibleTierChange, tileLiftAtSim } from '../genesisRenderer'
 import { posKey } from '../position'
-import { TIER_TWEEN_DURATION_MS, easeInOutCubic, getTierLift } from '../tileBg'
+import { TIER_TWEEN_DURATION_MS, WATER_SINK_PX, easeInOutCubic, getTierLift } from '../tileBg'
 import { TileType } from '../types'
 import { describe, expect, it } from 'vitest'
 
@@ -213,6 +213,65 @@ describe('genesis elevation tween', () => {
         'craters',
       ]
       expect(Object.keys(result).sort()).toEqual([...expected].sort())
+    })
+  })
+
+  describe('water sinks below dirt', () => {
+    it('tileLiftAtSim returns liftAtSim + WATER_SINK_PX for river tiles', () => {
+      const sim = buildSim()
+      setTier(sim, 1, 1, 0)
+      sim.riverPaths.add(posKey(1, 1))
+      const tierLift = liftAtSim(sim, 1, 1, 0)
+      expect(tileLiftAtSim(sim, 1, 1, 0, false)).toBe(tierLift + WATER_SINK_PX)
+    })
+
+    it('tileLiftAtSim returns liftAtSim + WATER_SINK_PX for pond tiles', () => {
+      const sim = buildSim()
+      setTier(sim, 1, 1, 0)
+      sim.ponds.add(posKey(1, 1))
+      const tierLift = liftAtSim(sim, 1, 1, 0)
+      expect(tileLiftAtSim(sim, 1, 1, 0, false)).toBe(tierLift + WATER_SINK_PX)
+    })
+
+    it('tileLiftAtSim equals liftAtSim for dirt tiles (no water sink)', () => {
+      const sim = buildSim()
+      setTier(sim, 1, 1, 2)
+      expect(tileLiftAtSim(sim, 1, 1, 0, false)).toBe(liftAtSim(sim, 1, 1, 0))
+    })
+
+    it('lowland water sinks only when includeLowland is true', () => {
+      const sim = buildSim()
+      // Use tier 1 so the lift is non-zero, avoiding +0/-0 strict-equality
+      // ambiguity from Math operations on tier 0.
+      setTier(sim, 1, 1, 1)
+      sim.lowlandWaterMask.add(posKey(1, 1))
+      const tierLift = liftAtSim(sim, 1, 1, 0)
+      expect(tileLiftAtSim(sim, 1, 1, 0, false)).toBe(tierLift)
+      expect(tileLiftAtSim(sim, 1, 1, 0, true)).toBe(tierLift + WATER_SINK_PX)
+    })
+
+    it('walls between dirt and adjacent water are taller by WATER_SINK_PX than a flat dirt-to-dirt wall', () => {
+      const sim = buildSim()
+      // Both tiles at tier 0. South is a river.
+      setTier(sim, 1, 1, 0)
+      setTier(sim, 1, 2, 0)
+      sim.riverPaths.add(posKey(1, 2))
+      const selfLift = tileLiftAtSim(sim, 1, 1, 0, false)
+      const southLift = tileLiftAtSim(sim, 1, 2, 0, false)
+      // depth = south_lift - self_lift (lifts are negative-when-up,
+      // positive-when-sunk). Self at 0 lift, south sunk by WATER_SINK_PX.
+      expect(Math.max(0, southLift - selfLift)).toBe(WATER_SINK_PX)
+    })
+
+    it('two water tiles at the same tier produce no wall between them', () => {
+      const sim = buildSim()
+      setTier(sim, 1, 1, 0)
+      setTier(sim, 1, 2, 0)
+      sim.riverPaths.add(posKey(1, 1))
+      sim.riverPaths.add(posKey(1, 2))
+      const selfLift = tileLiftAtSim(sim, 1, 1, 0, false)
+      const southLift = tileLiftAtSim(sim, 1, 2, 0, false)
+      expect(Math.max(0, southLift - selfLift)).toBe(0)
     })
   })
 

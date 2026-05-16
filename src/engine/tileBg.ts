@@ -214,6 +214,16 @@ export const getRuinPlatformLift = (tileType: TileType): number => {
   return 0
 }
 
+// Vertical sink (in pixels, positive = down) applied to water tiles
+// (rivers and ponds in gameplay; rivers, ponds, and lowland water in
+// genesis) so water always reads as a depression below the surrounding
+// dirt. Set to half a tier lift so the surface looks meaningfully sunk
+// without dropping below the next-lower tier's plateau. Applied to the
+// diamond bg fill, the glyph anchor, and (via lift accessors) the wall
+// depth math so the cube wall facing water grows taller by exactly this
+// amount.
+export const WATER_SINK_PX = Math.round(ELEVATION_TIER_LIFT_PX / 2)
+
 // Constant Y offset (in pixels, negative = up) applied to angel body
 // pixels on top of their tile's pyLift, so the multi-glyph body always
 // floats above the tallest possible terrain cube on the map. Equal to

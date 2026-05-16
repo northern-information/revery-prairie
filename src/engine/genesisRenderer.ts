@@ -15,6 +15,7 @@ import {
   TIER_TWEEN_DURATION_MS,
   WALL_LEFT_SHADE,
   WALL_RIGHT_SHADE,
+  WATER_SINK_PX,
   darkenColor,
   easeInOutCubic,
   getElevationTier,
@@ -39,8 +40,9 @@ const tierAtSim = (sim: GenesisSimState, mx: number, my: number): number =>
  *  for a land tile. If the tile has an active tween record, eases from
  *  its stored fromLift toward getTierLift(toTier) over
  *  TIER_TWEEN_DURATION_MS using easeInOutCubic. Otherwise returns
- *  getTierLift of the tile's current tier. Does NOT mutate sim — the
- *  bookkeeping pass in recordVisibleTierChanges owns all writes. */
+ *  getTierLift of the tile's current tier. Does NOT include the
+ *  water-sink offset — pure tier elevation only. Does NOT mutate sim;
+ *  the bookkeeping pass in recordVisibleTierChange owns all writes. */
 export const liftAtSim = (sim: GenesisSimState, mx: number, my: number, time: number): number => {
   const key = posKey(mx, my)
   const tween = sim.tierTweens.get(key)
@@ -55,14 +57,44 @@ export const liftAtSim = (sim: GenesisSimState, mx: number, my: number, time: nu
   return getTierLift(tierAtSim(sim, mx, my))
 }
 
+/** Positive pixel offset that sinks water tiles below the surrounding
+ *  dirt during genesis. Mirrors getWaterBgColor: rivers/ponds always
+ *  sink, lowland-water tiles only sink during the aquatic-phase epochs
+ *  that paint lowland water as a surface. Used by the wall pass and
+ *  the glyph pass so a dirt tile sitting next to sunken water gets a
+ *  wall that extends down to the water surface. */
+const waterSinkAtSim = (sim: GenesisSimState, mx: number, my: number, includeLowland: boolean): number => {
+  const key = posKey(mx, my)
+  if (sim.riverPaths.has(key) || sim.ponds.has(key)) return WATER_SINK_PX
+  if (includeLowland && isLowlandWater(sim, key)) return WATER_SINK_PX
+  return 0
+}
+
+/** Tile-anchor lift = liftAtSim + water sink. Used by the wall pass and
+ *  the glyph py so the cube wall facing water grows taller by exactly
+ *  WATER_SINK_PX. */
+export const tileLiftAtSim = (
+  sim: GenesisSimState,
+  mx: number,
+  my: number,
+  time: number,
+  includeLowland: boolean,
+): number => liftAtSim(sim, mx, my, time) + waterSinkAtSim(sim, mx, my, includeLowland)
+
 /** Wall-pass lift for a tile. For off-land or OOB tiles, returns the
- *  virtual sub-ground lift directly (no tween — these tiles never enter
- *  sim.tierTweens). For land tiles, delegates to liftAtSim so walls and
- *  diamonds agree on every frame. */
-const wallNeighborLiftAtSim = (sim: GenesisSimState, mx: number, my: number, time: number): number => {
+ *  virtual sub-ground lift directly (no tween, no water sink). For
+ *  land tiles, delegates to tileLiftAtSim so walls and diamonds agree
+ *  on every frame. */
+const wallNeighborLiftAtSim = (
+  sim: GenesisSimState,
+  mx: number,
+  my: number,
+  time: number,
+  includeLowland: boolean,
+): number => {
   if (mx < 0 || mx >= sim.width || my < 0 || my >= sim.height) return getTierLift(-1)
   if (!sim.landMask.has(posKey(mx, my))) return getTierLift(-1)
-  return liftAtSim(sim, mx, my, time)
+  return tileLiftAtSim(sim, mx, my, time, includeLowland)
 }
 
 /** Bookkeeping: for each visible land tile, compare its current tier to
@@ -337,6 +369,10 @@ export const renderGenesis = (
 
   const epoch = epochs[sim.epochIndex]
   const progress = getEpochProgress(sim, epochs)
+  // Lowland water participates in the water-sink offset only during
+  // aquatic-phase epochs that actually paint lowland-water glyphs
+  // (matches the includeLowland gate in computeSurfaceBg).
+  const includeLowlandWater = LOWLAND_WATER_EPOCHS.has(epoch.id)
 
   // Camera: use identical math to updateCamera() in camera.ts so the
   // genesis-to-game transition is pixel-perfect (no rounding drift).
@@ -526,7 +562,7 @@ export const renderGenesis = (
           viewportHeight,
         )
         pxByIndex[idx] = px
-        pyLiftedByIndex[idx] = py + liftAtSim(sim, cameraX + vx, cameraY + vy, time)
+        pyLiftedByIndex[idx] = py + tileLiftAtSim(sim, cameraX + vx, cameraY + vy, time, includeLowlandWater)
       }
     }
   }
@@ -587,9 +623,9 @@ export const renderGenesis = (
       // cube face grows/shrinks smoothly when self or a neighbor is
       // tweening. Lifts are negative-when-up, so a taller (more negative)
       // self subtracted from a shorter neighbor yields a positive depth.
-      const selfLift = liftAtSim(sim, mx, my, time)
-      const southLift = wallNeighborLiftAtSim(sim, mx, my + 1, time)
-      const eastLift = wallNeighborLiftAtSim(sim, mx + 1, my, time)
+      const selfLift = tileLiftAtSim(sim, mx, my, time, includeLowlandWater)
+      const southLift = wallNeighborLiftAtSim(sim, mx, my + 1, time, includeLowlandWater)
+      const eastLift = wallNeighborLiftAtSim(sim, mx + 1, my, time, includeLowlandWater)
       const leftDepth = Math.max(0, southLift - selfLift)
       const rightDepth = Math.max(0, eastLift - selfLift)
       if (leftDepth <= 0 && rightDepth <= 0) continue
