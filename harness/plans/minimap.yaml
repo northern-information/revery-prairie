@@ -1,0 +1,139 @@
+plan:
+  id: minimap
+  title: 'Minimap in lower-left, recenter event log, hide stats sidebar and action bar'
+  created: '2026-05-16'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/components/__tests__/Minimap.test.tsx
+
+tasks:
+  - id: implement-minimap-component
+    title: 'Implement src/components/Minimap.tsx — canvas-based zone overview with cached tile layer, structures, characters, player marker, viewport rect, RAF redraw'
+    spec_id: minimap
+    spec_sections:
+      - minimap-render-tiles
+      - minimap-render-structures
+      - minimap-player-marker
+      - minimap-viewport-rect
+      - minimap-refresh
+    context_files:
+      - src/components/Minimap.tsx
+      - src/components/EventLog.tsx
+      - src/components/GameCanvas.tsx
+      - src/engine/types.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/characters.ts
+      - src/engine/ecs/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/components/Minimap.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: recenter-event-log
+    title: 'Change EventLog wrapper from `fixed bottom-2 left-2` to `fixed bottom-2 left-1/2 -translate-x-1/2` (keep w-96 and all other classes/attributes)'
+    spec_id: minimap
+    spec_sections:
+      - event-log-recenter
+    context_files:
+      - src/components/EventLog.tsx
+    output_files:
+      - src/components/EventLog.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: wire-minimap-and-hide-panels
+    title: 'In GameScreen.tsx: render <Minimap state={state} /> in place of the bottom-left slot, remove the Sidebar render call, and remove the ActionBar/CommandPanel wrapper block. Leave imports intact only for components still rendered.'
+    spec_id: minimap
+    spec_sections:
+      - bottom-ui-three-columns
+      - hide-stats-sidebar
+      - hide-action-bar
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/components/Minimap.tsx
+      - src/components/Sidebar.tsx
+      - src/components/ActionBar.tsx
+      - src/components/CommandPanel.tsx
+      - src/components/EventLog.tsx
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on: [implement-minimap-component, recenter-event-log]
+    verification:
+      - npx tsc -b --noEmit
+      - npm run lint
+    repair: retry
+    tags: [component]
+
+  - id: add-minimap-tests
+    title: 'Replace placeholder src/components/__tests__/Minimap.test.tsx with real coverage: renders canvas, draws tile-color blocks for each tile type, draws player marker at expected position, draws viewport rect derived from camera, redraws on zone change (overworld → cave), handles empty civilizationRuins, early-returns on null map'
+    spec_id: minimap
+    spec_sections:
+      - minimap-render-tiles
+      - minimap-render-structures
+      - minimap-player-marker
+      - minimap-viewport-rect
+      - minimap-refresh
+    context_files:
+      - src/components/Minimap.tsx
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/cave.ts
+    output_files:
+      - src/components/__tests__/Minimap.test.tsx
+    depends_on: [implement-minimap-component]
+    verification:
+      - npx vitest run src/components/__tests__/Minimap.test.tsx
+    repair: retry
+    tags: [test]
+
+  - id: update-gamescreen-tests
+    title: 'Audit src/components/__tests__/GameScreen.test.tsx (if present) and any other tests asserting Sidebar/ActionBar/CommandPanel render presence; update them to reflect new layout (Sidebar and ActionBar no longer rendered, Minimap is rendered)'
+    spec_id: minimap
+    spec_sections:
+      - bottom-ui-three-columns
+      - hide-stats-sidebar
+      - hide-action-bar
+    context_files:
+      - src/components/__tests__/GameScreen.test.tsx
+      - src/components/GameScreen.tsx
+      - src/components/Minimap.tsx
+    output_files:
+      - src/components/__tests__/GameScreen.test.tsx
+    depends_on: [wire-minimap-and-hide-panels]
+    verification:
+      - npx vitest run src/components/__tests__/
+    repair: retry
+    tags: [test]
+
+  - id: full-verify
+    title: 'Run typecheck + lint + minimap tests'
+    spec_id: minimap
+    spec_sections:
+      - bottom-ui-three-columns
+      - hide-stats-sidebar
+      - hide-action-bar
+      - event-log-recenter
+      - minimap-render-tiles
+      - minimap-render-structures
+      - minimap-player-marker
+      - minimap-viewport-rect
+      - minimap-refresh
+    context_files: []
+    output_files: []
+    depends_on:
+      - add-minimap-tests
+      - update-gamescreen-tests
+    verification:
+      - npm run typecheck
+      - npm run lint
+      - npx vitest run src/components/__tests__/Minimap.test.tsx
+    repair: retry
+    tags: [test]

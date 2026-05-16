@@ -1,0 +1,201 @@
+id: minimap
+name: 'Minimap and bottom UI rearrangement'
+priority: medium
+layer: component
+source_files:
+  - src/components/Minimap.tsx
+  - src/components/EventLog.tsx
+  - src/components/GameScreen.tsx
+  - src/components/Sidebar.tsx
+  - src/components/ActionBar.tsx
+  - src/components/CommandPanel.tsx
+
+behaviors:
+  - id: minimap-render-tiles
+    description: >
+      The Minimap component renders the entire current zone's map as
+      a grid of colored blocks in a fixed-size canvas anchored to the
+      bottom-left of the viewport. Each tile maps to a small block
+      (roughly 2px per tile, sized so the full map fits inside a
+      192x192 CSS pixel area). Tile colors group by walkability and
+      kind: walkable land tiles (dirt, clover, burntClover,
+      caveFloor) render in a light tan; non-walkable solids (space,
+      caveWall, caveBreakableWall) render dark; water tiles (pond,
+      river) render in blue; sand renders in a sand tone. The
+      minimap reads from `state.map`, `state.mapWidth`,
+      `state.mapHeight` so it automatically reflects the current
+      zone after `enterCave` / `exitCave` swaps. The minimap is
+      always positioned at the bottom-left corner with the same
+      offset previously used by `EventLog`.
+    inputs:
+      - 'GameState with map data for the current zone'
+    outputs:
+      - 'Canvas rendering of the full zone as colored tile blocks'
+    state_changes: []
+    determinism: deterministic
+
+  - id: minimap-render-structures
+    description: >
+      Structures render on top of the tile layer in distinct accent
+      colors. Cave entrance tiles render in light gray. Civilization
+      ruin building footprints (from `state.civilizationRuins`)
+      render in a warm tan when the player is in the overworld zone.
+      Character ECS entities with Position + CharacterIdentity render
+      as small filled blocks in the character's portrait/glyph color
+      when their EntityZone matches the current zone. Structures
+      render at the same scale as tiles (no enlargement). The order
+      is tiles → ruin footprints → cave entrances → characters →
+      viewport rect → player dot, so dynamic elements always sit on
+      top.
+    inputs:
+      - 'GameState with civilizationRuins and character ECS entities in the current zone'
+    outputs:
+      - 'Structure overlays drawn on the minimap canvas'
+    state_changes: []
+    determinism: deterministic
+
+  - id: minimap-player-marker
+    description: >
+      A single hot-pink (#ff69b4) filled marker renders at the
+      player's tile position on top of all other layers. The marker
+      is sized to be visible at small scale (minimum 3x3 CSS pixels
+      even when the per-tile block is smaller). The marker uses the
+      project's reserved user-action pink consistent with cursor
+      highlight and path dots.
+    inputs:
+      - 'GameState.player.x, GameState.player.y'
+    outputs:
+      - 'Hot-pink dot at the player position'
+    state_changes: []
+    determinism: deterministic
+
+  - id: minimap-viewport-rect
+    description: >
+      A 1px hot-pink outlined rectangle indicates the portion of the
+      world currently visible on the main canvas (StarCraft style).
+      The rectangle's position and size derive from the camera
+      position and `state.viewportWidth` / `state.viewportHeight`
+      (tile counts). When the camera is centered on the player at
+      the corners of the map, the rectangle is clamped to the
+      minimap bounds so it never overflows the minimap canvas. The
+      rectangle has no fill — only a 1px stroke — so it does not
+      obscure the underlying tiles.
+    inputs:
+      - 'GameState.camera, GameState.viewportWidth, GameState.viewportHeight, GameState.mapWidth, GameState.mapHeight'
+    outputs:
+      - 'Hot-pink stroked rectangle showing the visible world region'
+    state_changes: []
+    determinism: deterministic
+
+  - id: minimap-refresh
+    description: >
+      The minimap canvas redraws every frame using
+      requestAnimationFrame while mounted. This matches the main
+      canvas's RAF loop and ensures the viewport rectangle, player
+      marker, and character positions stay in sync with movement
+      without depending on React state. The static tile layer is
+      cached to an offscreen canvas keyed by `state.zone` and
+      invalidated when the zone changes, so the per-frame cost is
+      only the dynamic overlay (rect, player dot, characters,
+      ruins-visibility recheck).
+    inputs:
+      - 'Minimap component mounted, GameState reference'
+    outputs:
+      - 'Canvas redrawn each animation frame'
+    state_changes: []
+    determinism: time-based
+
+  - id: bottom-ui-three-columns
+    description: >
+      `GameScreen` arranges the bottom row in three columns. The
+      minimap sits in the lower-left (where the event log used to
+      be). The event log moves to bottom-center, replacing the
+      previous ActionBar position — its container becomes a fixed
+      bottom-center element. The lower-right column is empty (no
+      content). The minimap, event log, and right column do not
+      overlap. The stats Sidebar (top-right) and ReveriesPanel /
+      ActionBar / CommandPanel are not rendered while this layout is
+      active.
+    inputs:
+      - 'GameScreen rendered with state'
+    outputs:
+      - 'Minimap in lower-left, event log in lower-center, no stats sidebar, no action bar'
+    state_changes: []
+    determinism: deterministic
+
+  - id: hide-stats-sidebar
+    description: >
+      The Sidebar component (stats, cursor tile info, weather,
+      genesis countdown) is no longer rendered from GameScreen. The
+      component file itself is preserved; only its render call in
+      GameScreen is removed. Hiding the sidebar removes the
+      fixed-positioned top-right element from the DOM entirely so
+      the canvas occupies the full viewport width.
+    inputs:
+      - 'GameScreen rendered'
+    outputs:
+      - 'No Sidebar component in the rendered tree'
+    state_changes: []
+    determinism: deterministic
+
+  - id: hide-action-bar
+    description: >
+      ActionBar and CommandPanel are no longer rendered from
+      GameScreen. The wrapper div that previously contained the
+      `hasSelection ? CommandPanel : ActionBar` switch is removed.
+      Both component files are preserved. Keyboard activation of
+      reveries via 1-4 still works at the engine layer because that
+      logic lives in useKeyboard, not in the ActionBar component —
+      but no visual feedback is shown.
+    inputs:
+      - 'GameScreen rendered'
+    outputs:
+      - 'No ActionBar or CommandPanel in the rendered tree'
+    state_changes: []
+    determinism: deterministic
+
+  - id: event-log-recenter
+    description: >
+      The EventLog wrapper changes from `fixed bottom-2 left-2` to
+      `fixed bottom-2 left-1/2 -translate-x-1/2` so it is
+      horizontally centered. Internal layout (entry rendering, fade
+      gradient, unread indicator, max-height, scroll behavior) is
+      unchanged. The width stays at `w-96`. Its `data-panel` and
+      `data-testid` attributes are preserved.
+    inputs:
+      - 'EventLog mounted with eventLog data'
+    outputs:
+      - 'Event log centered horizontally at the bottom of the viewport'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: cave-zone-minimap
+    description: 'Player enters the cave; the minimap should swap to the cave map dimensions'
+    expected: 'Minimap re-renders using state.map / mapWidth / mapHeight, showing the cave layout with caveFloor as walkable and caveWall as solid'
+  - id: ruins-hidden-in-cave
+    description: 'Player is in the cave zone'
+    expected: 'Civilization ruin footprints are not drawn (ruins exist only in the overworld)'
+  - id: viewport-rect-clamped-at-edge
+    description: 'Camera is at the corner of the map (player near a map boundary)'
+    expected: 'Viewport rectangle stroke stays inside the minimap canvas bounds — no portion drawn outside the minimap area'
+  - id: player-marker-visible-on-water
+    description: 'Player path is not normally on water, but the marker should remain visible if a future zone allows it'
+    expected: 'Hot-pink player marker is drawn on top of any underlying tile color and is at least 3x3 CSS pixels'
+  - id: empty-civilization-ruins
+    description: 'state.civilizationRuins is an empty array (genesis ran without ruins or in a zone without them)'
+    expected: 'Minimap renders without errors; no ruin footprints drawn'
+  - id: zone-transition-cache-invalidation
+    description: 'Player walks over a cave entrance and the zone changes overworld → cave'
+    expected: 'Static tile cache is regenerated for the new map; next frame shows cave tiles, not stale overworld tiles'
+
+failure_conditions:
+  - trigger: 'state.map is undefined or empty'
+    expected: 'Minimap renders nothing for the tile layer (early return); does not throw'
+  - trigger: 'canvas ref is null when draw is called'
+    expected: 'Draw function early-returns; does not throw'
+
+verification:
+  test_file: src/components/__tests__/Minimap.test.tsx
+  test_pattern: 'minimap'
+  command: 'npx vitest run src/components/__tests__/Minimap.test.tsx'
