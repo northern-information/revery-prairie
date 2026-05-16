@@ -13,7 +13,7 @@ import {
   getMeteoriteEntities,
 } from './helpers'
 
-describe('chain explosion', () => {
+describe('unstable meteorite', () => {
   describe('spawnChainMeteorites', () => {
     it('spawns up to 3 meteorites on nearby walkable tiles', () => {
       const state = createTestState()
@@ -292,7 +292,7 @@ describe('chain explosion', () => {
     })
   })
 
-  describe('pickUpGroundItems chain explosion roll', () => {
+  describe('pickUpGroundItems unstable meteorite roll', () => {
     it('returns chainExplosions > 0 when roll succeeds', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
@@ -496,8 +496,78 @@ describe('chain explosion', () => {
       try {
         const result = pickUpGroundItems(state, 1000)
         expect(result.chainExplosions).toBe(0)
+        expect(result.disintegrations).toBe(0)
         // Both should be picked up since neither chained
         expect(result.pickedUp.filter(id => id === 'meteorite')).toHaveLength(2)
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('returns disintegrations 1 when unstable triggers and sub-roll picks disintegrate', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 5)
+      createMeteoriteEntity(state, state.player.x, state.player.y)
+
+      vi.spyOn(Math, 'random')
+        .mockReturnValueOnce(0.05) // first roll: < 1/7, unstable triggers
+        .mockReturnValueOnce(0.75) // sub-roll: >= 0.5, disintegrate
+      try {
+        const result = pickUpGroundItems(state, 1000)
+        expect(result.chainExplosions).toBe(0)
+        expect(result.disintegrations).toBe(1)
+        expect(result.pickedUp).not.toContain('meteorite')
+        // Original meteorite consumed, no chain meteorites spawned
+        expect(getMeteoriteEntities(state)).toHaveLength(0)
+        // No explosion entities either
+        const explosions = state.world
+          .query(ComponentType.TimedEffect, ComponentType.EntityTag)
+          .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
+        expect(explosions).toHaveLength(0)
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('disintegrate outcome consumes meteorite even when backpack is full', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 5)
+      createMeteoriteEntity(state, state.player.x, state.player.y)
+
+      for (let y = 0; y < state.backpack.height; y++) {
+        for (let x = 0; x < state.backpack.width; x++) {
+          placeItem(state.backpack, 'clover', x, y)
+        }
+      }
+
+      vi.spyOn(Math, 'random')
+        .mockReturnValueOnce(0.05) // unstable triggers
+        .mockReturnValueOnce(0.9) // disintegrate
+      try {
+        const result = pickUpGroundItems(state, 1000)
+        expect(result.disintegrations).toBe(1)
+        expect(result.chainExplosions).toBe(0)
+        expect(result.pickedUp).not.toContain('meteorite')
+        const meteoritesAtPlayer = state.world.spatial
+          .at(state.player.x, state.player.y)
+          .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+        expect(meteoritesAtPlayer).toHaveLength(0)
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('does not roll sub-roll for fromChain meteorites (no disintegrate either)', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 5)
+      createMeteoriteEntity(state, state.player.x, state.player.y, true)
+
+      vi.spyOn(Math, 'random').mockReturnValue(0.0)
+      try {
+        const result = pickUpGroundItems(state, 1000)
+        expect(result.chainExplosions).toBe(0)
+        expect(result.disintegrations).toBe(0)
+        expect(result.pickedUp).toContain('meteorite')
       } finally {
         vi.restoreAllMocks()
       }
