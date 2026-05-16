@@ -149,12 +149,13 @@ behaviors:
            under the mouse.
         7. smooth-movement post-pass — draws tweening ECS entities
            at fractional pixel positions
-        8. runPassesInSlot('effect', ...) — rain aura, revery rain,
-           weather rain, glint sparkle, glint beam, deep time burning
+        8. runPassesInSlot('effect', ...) — ruin entrance patina,
+           rain aura, revery rain, weather rain, glint sparkle, glint
+           beam, deep time burning, pollen overlay
         9. restore world transform
        10. runPassesInSlot('screen-overlay', ...) — lightning flash,
-           angel flash, RTS selection box, move-order markers, edge
-           scroll indicator, off-screen player arrow
+           angel flash, RTS selection box, move-order markers, zone
+           transition overlay
 
       the tile-glyph slot and entity slot are intentionally
       unpopulated in the registry — their work happens in steps 4–7

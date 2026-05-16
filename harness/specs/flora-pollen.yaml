@@ -133,6 +133,12 @@ edge_cases:
   - id: zone-suppression
     description: 'tickPollenEmit called while state.currentZone = Cave'
     expected: 'returns immediately; no particles emitted'
+  - id: particle-count-statistical-bounds
+    description: 'sustained probabilistic emission across many frames with wind above all thresholds'
+    expected: 'state.pollen.length stays within bounds [0, MAX_POLLEN] (150); spawnParticle short-circuits and tickPollenEmit returns early once the cap is reached, regardless of per-tile spawn probability or rate'
+  - id: trail-burst-distribution
+    description: 'emitPlayerTrailBurst called with arbitrarily large pollenTrailDepth'
+    expected: 'burst spawn count is bounded — the distribution is exactly 5 + min(depth, 8) particles (range [5, 13]) regardless of depth or random seed'
 failure_conditions:
   - trigger: 'Drift computed even when smoothSpeed < 0.01'
     expected: 'division by near-zero causes Infinity or NaN particle positions'
