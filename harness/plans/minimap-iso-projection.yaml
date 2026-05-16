@@ -1,0 +1,88 @@
+plan:
+  id: minimap-iso-projection
+  title: 'Reproject minimap tiles, structures, and player marker into 2:1 iso (matching main canvas); keep viewport rect axis-aligned and centered on player'
+  created: '2026-05-16'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/components/__tests__/Minimap.test.tsx
+
+tasks:
+  - id: reproject-minimap-tiles-and-overlays
+    title: 'In src/components/Minimap.tsx: replace top-down (x*tilePx, y*tilePx) placement with shared iso projection (x - y, (x + y) / 2) for tile layer, structures, characters, ruin footprints, and player marker. Compute tilePx from longest projected axis so the diamond fits 176x176. Center the diamond inside the canvas via originX/originY. Update the offscreen tile cache to render the iso diamond once per (state.map, tilePx) and reuse across frames; invalidate when either changes. Keep tile colors, fog tinting, and visibility rules unchanged.'
+    spec_id: minimap
+    spec_sections:
+      - minimap-iso-projection
+      - minimap-render-tiles
+      - minimap-render-structures
+      - minimap-player-marker
+      - minimap-refresh
+    context_files:
+      - src/components/Minimap.tsx
+      - src/engine/projection.ts
+      - src/engine/types.ts
+      - src/engine/visibility.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/components/Minimap.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: rework-viewport-rect-player-centered
+    title: 'In src/components/Minimap.tsx: rewrite drawViewportRect to draw a single axis-aligned rectangle centered on the iso-projected player marker, sized in minimap pixels proportional to viewportWidth * tilePx by viewportHeight * tilePx. The rectangle must remain axis-aligned (never iso-projected) and must clamp to the minimap canvas bounds. Do NOT use state.camera for placement — the rect follows the player marker.'
+    spec_id: minimap
+    spec_sections:
+      - minimap-viewport-rect
+    context_files:
+      - src/components/Minimap.tsx
+    output_files:
+      - src/components/Minimap.tsx
+    depends_on: [reproject-minimap-tiles-and-overlays]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: minimap-iso-tests
+    title: 'Extend src/components/__tests__/Minimap.test.tsx with iso-specific regression tests: (1) projection helper places (0,0) at top, (mapWidth-1, mapHeight-1) at bottom; (2) tilePx is chosen so the projected diamond fits the 176x176 canvas without clipping for both a square overworld map and a non-square cave map; (3) viewport rect stays axis-aligned (assert geometry directly via a render mock or by exposing a pure projection helper for tests); (4) viewport rect is centered on the player marker, not on state.camera. Use existing test patterns (createGameState, render, getByTestId) and prefer testing the pure projection helper directly when canvas pixel inspection is not feasible.'
+    spec_id: minimap
+    spec_sections:
+      - minimap-iso-projection
+      - minimap-viewport-rect
+      - minimap-render-tiles
+    context_files:
+      - src/components/Minimap.tsx
+      - src/components/__tests__/Minimap.test.tsx
+      - src/engine/state.ts
+      - src/engine/cave.ts
+    output_files:
+      - src/components/__tests__/Minimap.test.tsx
+    depends_on: [reproject-minimap-tiles-and-overlays, rework-viewport-rect-player-centered]
+    verification:
+      - npx vitest run src/components/__tests__/Minimap.test.tsx
+    repair: retry
+    tags: [test]
+
+  - id: full-verify
+    title: 'Run typecheck + lint + minimap tests'
+    spec_id: minimap
+    spec_sections:
+      - minimap-iso-projection
+      - minimap-render-tiles
+      - minimap-render-structures
+      - minimap-player-marker
+      - minimap-viewport-rect
+      - minimap-refresh
+    context_files: []
+    output_files: []
+    depends_on:
+      - minimap-iso-tests
+    verification:
+      - npm run typecheck
+      - npm run lint
+      - npx vitest run src/components/__tests__/Minimap.test.tsx
+    repair: retry
+    tags: [test]
