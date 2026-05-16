@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { getCaveTileLayers, shouldRenderCaveMultilayer } from '../cave'
-import { BUILDING_CHARS, CIV_COLORS, TILE_COLORS } from '../constants'
+import { CAVE_BUILDING_CHARS, CAVE_WALL_COLORS, TILE_COLORS } from '../constants'
+import { getStructurePlatformLift, STRUCTURE_REGISTRY } from '../structures'
 import { TileType, Zone } from '../types'
 
 describe('cave visual style', () => {
@@ -29,16 +30,16 @@ describe('cave visual style', () => {
   })
 
   describe('wall tiles', () => {
-    it('renders 2-3 layers with building chars', () => {
+    it('renders 2-3 layers with cave building chars', () => {
       const layers = getCaveTileLayers(TileType.CaveWall, 5, 5)
       expect(layers.length).toBeGreaterThanOrEqual(2)
       expect(layers.length).toBeLessThanOrEqual(3)
-      expect(BUILDING_CHARS).toContain(layers[0].char)
+      expect(CAVE_BUILDING_CHARS).toContain(layers[0].char)
     })
 
-    it('uses CIV_COLORS palette', () => {
+    it('uses CAVE_WALL_COLORS palette (distinct from ruin CIV_COLORS)', () => {
       const layers = getCaveTileLayers(TileType.CaveWall, 5, 5)
-      expect(CIV_COLORS).toContain(layers[0].color)
+      expect(CAVE_WALL_COLORS).toContain(layers[0].color)
     })
 
     it('has offset layers for textured look', () => {
@@ -120,10 +121,29 @@ describe('cave visual style', () => {
     })
   })
 
-  describe('palette reuse', () => {
-    it('BUILDING_CHARS and CIV_COLORS are available', () => {
-      expect(BUILDING_CHARS.length).toBe(9)
-      expect(CIV_COLORS.length).toBe(5)
+  describe('distinct palette', () => {
+    it('cave palette and chars are available from STRUCTURE_REGISTRY.cave', () => {
+      expect(STRUCTURE_REGISTRY.cave.palette).toBe(CAVE_WALL_COLORS)
+      expect(STRUCTURE_REGISTRY.cave.chars).toBe(CAVE_BUILDING_CHARS)
+      expect(CAVE_WALL_COLORS.length).toBe(5)
+      expect(CAVE_BUILDING_CHARS.length).toBe(5)
+    })
+  })
+
+  describe('overworld cave entrance platform', () => {
+    it('CaveEntrance lifts more than CaveApron, both positive', () => {
+      const entranceLift = -getStructurePlatformLift(TileType.CaveEntrance)
+      const apronLift = -getStructurePlatformLift(TileType.CaveApron)
+      expect(entranceLift).toBeGreaterThan(0)
+      expect(apronLift).toBeGreaterThan(0)
+      expect(entranceLift).toBeGreaterThan(apronLift)
+    })
+
+    it('no lift for cave interior tiles (zone gating happens at the caller)', () => {
+      expect(getStructurePlatformLift(TileType.CaveFloor)).toBe(0)
+      expect(getStructurePlatformLift(TileType.CaveWall)).toBe(0)
+      expect(getStructurePlatformLift(TileType.CaveExit)).toBe(0)
+      expect(getStructurePlatformLift(TileType.CaveBreakableWall)).toBe(0)
     })
   })
 })

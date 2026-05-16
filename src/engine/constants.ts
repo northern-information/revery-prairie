@@ -42,6 +42,7 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.CaveWall]: '#',
   [TileType.CaveBreakableWall]: '#',
   [TileType.CaveEntrance]: 'O',
+  [TileType.CaveApron]: '·',
   [TileType.CaveExit]: '█',
   [TileType.RuinFloor]: '·',
   [TileType.RuinWall]: '#',
@@ -65,6 +66,7 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.CaveWall]: '#444444',
   [TileType.CaveBreakableWall]: '#997755',
   [TileType.CaveEntrance]: '#AAAAAA',
+  [TileType.CaveApron]: '#6B7080',
   [TileType.CaveExit]: '#ff69b4',
   [TileType.RuinFloor]: '#7A7A6E',
   [TileType.RuinWall]: '#555555',
@@ -81,6 +83,12 @@ export const TILE_COLORS: Record<TileType, string> = {
 // Ruin visual palette — shared with genesis civilization rendering
 export const BUILDING_CHARS = ['▓', '▒', '░', '█', '#', '+', 'H', 'T', '=']
 export const CIV_COLORS = ['#666', '#777', '#888', '#999', '#AAA']
+
+// Cave visual palette — cool slate-blues, distinct from the warm ruin
+// CIV_COLORS so a glance reads structure type. Sourced by the cave
+// entry in STRUCTURE_REGISTRY (src/engine/structures.ts).
+export const CAVE_WALL_COLORS = ['#5A6470', '#646E7A', '#6E7884', '#788290', '#82909C']
+export const CAVE_BUILDING_CHARS = ['▓', '▒', '░', '#', '+']
 
 // Verdigris (copper-oxide patina) ramp used for the ruin entrance halo and
 // patina overlay. Reads as bronze infrastructure bleeding into the soil.

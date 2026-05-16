@@ -7,7 +7,7 @@ import {
   getElevationTier,
   getPondBgColor,
   getRiverBgColor,
-  getRuinPlatformLift,
+  getStructurePlatformLift,
   getTileBgColor,
   getTierLift,
   RUIN_ENTRANCE_LIFT_PX,
@@ -111,7 +111,7 @@ const platformLiftAtFromState = (state: GameState, map: Tile[][], x: number, y: 
   if (state.currentZone !== Zone.Overworld) return 0
   const tile = map[y]?.[x]
   if (!tile) return 0
-  return getRuinPlatformLift(tile.type)
+  return getStructurePlatformLift(tile.type)
 }
 
 // Positive pixel offset that pushes water tiles below the surrounding

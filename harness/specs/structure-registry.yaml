@@ -1,0 +1,137 @@
+id: structure-registry
+name: 'Shared structure registry'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/structures.ts
+  - src/engine/constants.ts
+  - src/engine/tileBg.ts
+  - src/engine/renderer.ts
+  - src/engine/ruins.ts
+  - src/engine/cave.ts
+dependencies:
+  - renderer
+
+behaviors:
+  - id: structure-registry-shape
+    description: >
+      src/engine/structures.ts exports STRUCTURE_REGISTRY — a typed
+      const object keyed by structure id ('ruin' | 'cave'). each entry
+      has the shape:
+        {
+          id: StructureId,
+          entranceTile: TileType,        // RuinEntrance | CaveEntrance
+          apronTile: TileType,           // RuinApron | CaveApron
+          entranceLiftPx: number,        // 9 for both today
+          apronLiftPx: number,           // 3 for both today
+          palette: readonly string[],    // wall colors
+          chars: readonly string[],      // BUILDING_CHARS subset
+          multilayerTiles: readonly TileType[]  // tile types using multilayer
+        }
+      Declared `as const satisfies Record<StructureId, StructureDef>`
+      so callers get full type-narrowing on lookup, matching the
+      pattern used by ITEM_DEFINITIONS in the codebase.
+    inputs:
+      - 'import STRUCTURE_REGISTRY from structures.ts'
+    outputs:
+      - 'typed const object describing every overworld structure'
+    state_changes: []
+    determinism: deterministic
+
+  - id: structure-platform-lift-accessor
+    description: >
+      getStructurePlatformLift(tileType: TileType): number returns a
+      negative pixel value when the tile is an entrance or apron tile
+      registered in STRUCTURE_REGISTRY, else 0. Returns
+      -entry.entranceLiftPx for any entrance tile and -entry.apronLiftPx
+      for any apron tile. REPLACES getRuinPlatformLift in tileBg.ts;
+      the renderer and bg-cache import the new accessor. The existing
+      RUIN_APRON_LIFT_PX / RUIN_ENTRANCE_LIFT_PX constants are kept
+      as re-exports for back-compat in tileBg.ts but are sourced from
+      STRUCTURE_REGISTRY.ruin (single source of truth).
+    inputs:
+      - 'tile type lookup at render time'
+    outputs:
+      - 'negative pixel lift, or 0 for non-structure tiles'
+    state_changes: []
+    determinism: deterministic
+
+  - id: structure-tile-layers-accessor
+    description: >
+      getStructureTileLayers(structureId, tileType, x, y) returns a
+      RuinTileLayer[] using the structure's palette and chars. Both
+      ruins.ts:getRuinTileLayers and cave.ts:getCaveTileLayers delegate
+      to this for wall and floor multilayer rendering; the
+      structure-specific functions remain as thin wrappers so renderer
+      call sites need no changes. Non-multilayer tiles (entrance,
+      apron, doors, debris, aqueduct, etc.) continue to be handled by
+      the structure-specific functions since they're shape-specific.
+    inputs:
+      - 'structureId + tileType + position'
+    outputs:
+      - 'multilayer array drawn from STRUCTURE_REGISTRY[structureId].palette / chars'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ruin-entry-preserved
+    description: >
+      STRUCTURE_REGISTRY.ruin entry has:
+        entranceTile: TileType.RuinEntrance
+        apronTile: TileType.RuinApron
+        entranceLiftPx: 9
+        apronLiftPx: 3
+        palette: CIV_COLORS (existing warm grays from constants.ts)
+        chars: BUILDING_CHARS (existing from constants.ts)
+        multilayerTiles: [RuinWall, RuinFloor]
+      Existing ruin rendering must be pixel-identical after the
+      migration. ruin-visual-style.yaml continues to govern the
+      ruin-specific behaviors; this spec only governs the shared
+      registry shape and accessors.
+    inputs:
+      - 'STRUCTURE_REGISTRY.ruin lookup'
+    outputs:
+      - 'ruin rendering unchanged at pixel level'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cave-entry
+    description: >
+      STRUCTURE_REGISTRY.cave entry has:
+        entranceTile: TileType.CaveEntrance
+        apronTile: TileType.CaveApron (new tile type)
+        entranceLiftPx: 9
+        apronLiftPx: 3
+        palette: CAVE_WALL_COLORS = ['#5A6470', '#646E7A', '#6E7884',
+                                     '#788290', '#82909C']
+        chars: BUILDING_CHARS subset ['▓', '▒', '░', '#', '+']
+        multilayerTiles: [CaveWall, CaveFloor]
+    inputs:
+      - 'STRUCTURE_REGISTRY.cave lookup'
+    outputs:
+      - 'cave-specific rendering parameters'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: future-structure-additions
+    description: 'a new structure (e.g. shrine, vault) is added to the registry'
+    expected: 'adding a STRUCTURE_REGISTRY entry + the entrance/apron TileType members is sufficient — getStructurePlatformLift and getStructureTileLayers pick it up with no other code changes'
+
+  - id: tile-type-belongs-to-no-structure
+    description: 'getStructurePlatformLift called with a non-structure tile (e.g. Dirt, Clover)'
+    expected: 'returns 0 — accessor is safe to call unconditionally from the renderer'
+
+failure_conditions:
+  - trigger: 'STRUCTURE_REGISTRY declared without `as const satisfies` typing'
+    expected: 'type narrowing fails — must use as const satisfies Record<StructureId, StructureDef>'
+
+  - trigger: 'two structures register the same entranceTile or apronTile'
+    expected: 'compile-time TypeScript error from a uniqueness check, or a runtime invariant test failure'
+
+  - trigger: 'getRuinPlatformLift kept alongside getStructurePlatformLift'
+    expected: 'duplicate accessor — the old function must be removed; back-compat is provided by re-exporting the constants only'
+
+verification:
+  test_file: src/engine/__tests__/structure-registry.test.ts
+  test_pattern: 'structure registry'
+  command: 'npx vitest run src/engine/__tests__/structure-registry.test.ts'

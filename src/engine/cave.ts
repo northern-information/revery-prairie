@@ -1,4 +1,4 @@
-import { BUILDING_CHARS, CIV_COLORS, TILE_COLORS } from './constants'
+import { TILE_COLORS } from './constants'
 import { transitionCoyoteToZone } from './coyote'
 import { recordDiscovery } from './manual'
 import { clearMovementTweens } from './movementTween'
@@ -6,6 +6,7 @@ import { tileHash, findSafeExitPosition } from './position'
 import { deselectAll } from './selection'
 import { checkRuinTransition } from './ruins'
 import type { RuinTileLayer } from './ruins'
+import { STRUCTURE_REGISTRY } from './structures'
 import { clearAllUnitCommands } from './unitCommands'
 import { TileType, Zone } from './types'
 
@@ -311,20 +312,21 @@ export const shouldRenderCaveMultilayer = (args: CaveMultilayerArgs): boolean =>
 
 export const getCaveTileLayers = (tileType: TileType, x: number, y: number): RuinTileLayer[] => {
   const h = tileHash(x, y)
+  const { palette, chars } = STRUCTURE_REGISTRY.cave
 
   switch (tileType) {
     case TileType.CaveWall: {
       const layers: RuinTileLayer[] = [
-        { char: BUILDING_CHARS[h % BUILDING_CHARS.length], color: CIV_COLORS[h % CIV_COLORS.length], dx: 0, dy: 0 },
+        { char: chars[h % chars.length], color: palette[h % palette.length], dx: 0, dy: 0 },
         {
-          char: BUILDING_CHARS[(h + 3) % BUILDING_CHARS.length],
-          color: CIV_COLORS[(h + 2) % CIV_COLORS.length],
+          char: chars[(h + 3) % chars.length],
+          color: palette[(h + 2) % palette.length],
           dx: 1,
           dy: 1,
         },
       ]
       if (h % 5 < 3) {
-        layers.push({ char: '·', color: CIV_COLORS[(h + 4) % CIV_COLORS.length], dx: -1, dy: 0 })
+        layers.push({ char: '·', color: palette[(h + 4) % palette.length], dx: -1, dy: 0 })
       }
       return layers
     }
@@ -336,7 +338,7 @@ export const getCaveTileLayers = (tileType: TileType, x: number, y: number): Rui
       if (h % 5 < 2) {
         layers.push({
           char: '·',
-          color: CIV_COLORS[(h + 1) % CIV_COLORS.length],
+          color: palette[(h + 1) % palette.length],
           dx: h % 2 === 0 ? 1 : -1,
           dy: 0,
         })

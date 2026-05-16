@@ -96,7 +96,7 @@ import { getSelectedUnitPositions } from './selection'
 import {
   ANGEL_FLOAT_LIFT_PX,
   darkenColor,
-  getRuinPlatformLift,
+  getStructurePlatformLift,
   getTierLift,
   getTileBgColor,
   WALL_LEFT_SHADE,
@@ -1161,7 +1161,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const tileTier = tierAt(mx, my)
       const lift = getTierLift(tileTier)
       const platformLift =
-        state.currentZone === Zone.Overworld ? getRuinPlatformLift(map[my][mx].type) : 0
+        state.currentZone === Zone.Overworld ? getStructurePlatformLift(map[my][mx].type) : 0
       const waterSink = waterSinkAt(mx, my)
       const pyLift = py + lift + platformLift + waterSink
 

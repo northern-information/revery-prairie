@@ -7,6 +7,7 @@ import {
   TILE_COLORS,
   VERDIGRIS_COLORS,
 } from './constants'
+import { STRUCTURE_REGISTRY } from './structures'
 import { transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { createCharacterEntity } from './entities'
@@ -1343,22 +1344,23 @@ export const shouldRenderRuinMultilayer = (args: RuinMultilayerArgs): boolean =>
 
 export const getRuinTileLayers = (tileType: TileType, x: number, y: number, _time: number): RuinTileLayer[] => {
   const h = tileHash(x, y)
+  const { palette, chars } = STRUCTURE_REGISTRY.ruin
 
   switch (tileType) {
     case TileType.RuinWall: {
       // 2-3 dense building char layers in grays — thick, cluttered, ancient
       const layers: RuinTileLayer[] = [
-        { char: BUILDING_CHARS[h % BUILDING_CHARS.length], color: CIV_COLORS[h % CIV_COLORS.length], dx: 0, dy: 0 },
+        { char: chars[h % chars.length], color: palette[h % palette.length], dx: 0, dy: 0 },
         {
-          char: BUILDING_CHARS[(h + 3) % BUILDING_CHARS.length],
-          color: CIV_COLORS[(h + 2) % CIV_COLORS.length],
+          char: chars[(h + 3) % chars.length],
+          color: palette[(h + 2) % palette.length],
           dx: 1,
           dy: 1,
         },
       ]
       // ~60% of wall tiles get a third layer
       if (h % 5 < 3) {
-        layers.push({ char: '·', color: CIV_COLORS[(h + 4) % CIV_COLORS.length], dx: -1, dy: 0 })
+        layers.push({ char: '·', color: palette[(h + 4) % palette.length], dx: -1, dy: 0 })
       }
       return layers
     }
@@ -1372,7 +1374,7 @@ export const getRuinTileLayers = (tileType: TileType, x: number, y: number, _tim
       if (h % 5 < 2) {
         layers.push({
           char: '·',
-          color: CIV_COLORS[(h + 1) % CIV_COLORS.length],
+          color: palette[(h + 1) % palette.length],
           dx: h % 2 === 0 ? 1 : -1,
           dy: 0,
         })

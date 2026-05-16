@@ -1,4 +1,5 @@
 import { tileHash } from './position'
+import { STRUCTURE_REGISTRY, getStructurePlatformLift } from './structures'
 import { TileType } from './types'
 
 // Per-tile background color palettes. Each palette is a small set of
@@ -46,6 +47,7 @@ export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   [TileType.CaveWall]: ['#1A1A1A', '#1B1B1B', '#191919', '#1C1C1C', '#181818'],
   [TileType.CaveBreakableWall]: ['#3D2E1F', '#3F3022', '#3B2C1D', '#402F20', '#3C2D1E', '#3E2E1F'],
   [TileType.CaveEntrance]: ['#4A4A4A', '#4D4D4D', '#484848', '#4C4C4C', '#494949'],
+  [TileType.CaveApron]: ['#2E3640', '#303842', '#2C343E', '#2F3741', '#2D3540'],
   [TileType.CaveExit]: ['#4A4A4A', '#4D4D4D', '#484848', '#4C4C4C', '#494949'],
   [TileType.RuinFloor]: ['#2D2D26', '#2F2F28', '#2C2C25', '#2E2E27', '#2B2B24'],
   [TileType.RuinWall]: ['#1F1F1F', '#212121', '#1D1D1D', '#202020', '#1E1E1E'],
@@ -167,18 +169,12 @@ export const ELEVATION_TIER_LIFT_PX = 6
 // typical font sizes (charHeight ≈ 14).
 export const CUBE_BASE_DEPTH_PX = 8
 
-// Overworld-only platform lift for ruin entrances. RuinApron tiles
-// (the 8-tile perimeter forced around each entrance) lift by
-// RUIN_APRON_LIFT_PX. The center RuinEntrance tile lifts by
-// RUIN_ENTRANCE_LIFT_PX so the entrance reads as the tallest stone
-// in the cluster. The lift is additive on top of getTierLift(tier),
-// so a ruin sitting on a tier-1 plateau still reads as raised
-// relative to its apron, and the apron still reads as raised
-// relative to surrounding dirt. Applied to both the glyph y and the
-// bg-cache fill + cube-edge stroke so the cube edges peek out below
-// the lifted glyph rather than floating above it.
-export const RUIN_APRON_LIFT_PX = 3
-export const RUIN_ENTRANCE_LIFT_PX = 9
+// Overworld-only platform lift constants for ruin entrances. Sourced
+// from STRUCTURE_REGISTRY.ruin so this module and the registry can't
+// drift. Re-exported here for back-compat with callers that still read
+// the named constants directly.
+export const RUIN_APRON_LIFT_PX = STRUCTURE_REGISTRY.ruin.apronLiftPx
+export const RUIN_ENTRANCE_LIFT_PX = STRUCTURE_REGISTRY.ruin.entranceLiftPx
 
 export const getElevationTier = (elevation: number | undefined): number => {
   if (elevation === undefined) return 0
@@ -205,14 +201,9 @@ export const easeInOutCubic = (t: number): number => {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
 }
 
-// Per-tile additional lift (in pixels, negative = up) for ruin
-// platform tiles. Returns 0 for any other tile type so callers can
-// add it unconditionally. Zone-gated by the caller (overworld only).
-export const getRuinPlatformLift = (tileType: TileType): number => {
-  if (tileType === TileType.RuinEntrance) return -RUIN_ENTRANCE_LIFT_PX
-  if (tileType === TileType.RuinApron) return -RUIN_APRON_LIFT_PX
-  return 0
-}
+// Re-export from structures.ts so callers that imported this from
+// tileBg keep working. The registry is the single source of truth.
+export { getStructurePlatformLift }
 
 // Vertical sink (in pixels, positive = down) applied to water tiles
 // (rivers and ponds in gameplay; rivers, ponds, and lowland water in

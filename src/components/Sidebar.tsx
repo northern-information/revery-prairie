@@ -322,6 +322,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef, refreshU
                       if (tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall) return 'stone'
                       if (tileType === TileType.CaveFloor) return 'dirt'
                       if (tileType === TileType.CaveEntrance) return 'cave entrance'
+                      if (tileType === TileType.CaveApron) return 'cave apron'
                       if (tileType === TileType.CaveExit) return 'exit'
                       if (tileType === TileType.BurntClover) return 'burnt clover'
                       if (tileType === TileType.RuinFloor) return 'ruin floor'
