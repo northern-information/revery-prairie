@@ -40,8 +40,10 @@ const cloneGenesis = (): GenesisSimState => ({
  */
 export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?: number }): GameState => {
   const state = createGameState('Test', opts?.viewportWidth ?? 20, opts?.viewportHeight ?? 20, cloneGenesis())
-  // Complete genesis immediately so tests start in normal gameplay mode
-  completeGenesis(state)
+  // Complete genesis immediately so tests start in normal gameplay mode.
+  // skipTitleCard so isInputGated returns false — tests expect input to
+  // work in their state setups, not be blocked by a boot title card.
+  completeGenesis(state, { skipTitleCard: true })
   state.backpack.items = []
   // Destroy all character ECS entities (ghosts, gron, etc.)
   for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
