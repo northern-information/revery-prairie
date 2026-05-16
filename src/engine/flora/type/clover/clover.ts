@@ -56,7 +56,7 @@ registerFloraPollinate(TileType.Clover, {
   color: '#b07fc7',
   parsedColor: [176, 127, 199],
   windThreshold: 8, // mph — no emission below this
-  emitRate: 0.1, // particles per eligible tile per second at max wind
+  emitRate: 0.4, // particles per eligible tile per second at max wind (calibrated for ZOOM_DEFAULT viewport)
   minAge: 800, // ms
   maxAge: 1400, // ms
   emitGate: cloverEmitGate,

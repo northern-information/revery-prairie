@@ -5,26 +5,7 @@ export const MAP_HEIGHT = 147
 export const SPACE_BORDER = 10
 export const FONT = '16px monospace'
 export const BASE_FONT_SIZE = 16
-export const ZOOM_MIN = 0.5
-export const ZOOM_MAX = 3.0
-export const ZOOM_STEP = 0.125
-export const ZOOM_DEFAULT = 1.0
-
-// RTS-style edge-scroll: cursor within EDGE_SCROLL_ZONE_PX of any canvas edge
-// pans the camera at EDGE_SCROLL_SPEED_TILES_PER_SEC tiles per second.
-// 80px is a generous hitbox — easier to hit accidentally than miss.
-export const EDGE_SCROLL_ZONE_PX = 80
-export const EDGE_SCROLL_SPEED_TILES_PER_SEC = 18
-// Width of the hot-pink "active edge" indicator line drawn when the
-// cursor is in the scroll zone, so the user gets clear feedback.
-export const EDGE_SCROLL_INDICATOR_THICKNESS_PX = 3
-
-// Camera-lock corner reticles, drawn in screen-overlay slot while the
-// camera is in follow mode. Hot-pink L-brackets at the four browser-window
-// corners (over the sidebar too, so they always frame the viewport) signal
-// "camera locked on player" to the user.
-export const CAMERA_LOCK_RETICLE_SIZE_PX = 56
-export const CAMERA_LOCK_RETICLE_THICKNESS_PX = 8
+export const ZOOM_DEFAULT = 2.0
 
 export const WATER_SAND_BORDER_MAX = 2
 export const WATER_SAND_PASS_CHANCES = [100, 50]

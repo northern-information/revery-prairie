@@ -1,12 +1,6 @@
 import type { GameState } from './types'
 
-export const updateCamera = (state: GameState, forceCenter = false): void => {
-  // RTS free-pan mode: skip auto-centering entirely unless the caller
-  // explicitly forces it (zone swap, game start, resize). Edge-scroll
-  // mutates state.camera directly while in free mode; we don't want
-  // movePlayer or other movement paths to fight that.
-  if (state.cameraMode === 'free' && !forceCenter) return
-
+export const updateCamera = (state: GameState): void => {
   // The rightmost columns are hidden under the sidebar, so center the
   // player within only the visible portion of the viewport.
   const visibleWidth = state.viewportWidth - state.rightInsetTiles

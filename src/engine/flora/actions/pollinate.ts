@@ -106,12 +106,7 @@ export const tickPollenEmit = (state: GameState, dt: number): void => {
     if (windSpeed <= profile.windThreshold) continue
 
     const windFraction = Math.min((windSpeed - profile.windThreshold) / (MAX_WIND_SPEED - profile.windThreshold), 1)
-    // Probability per tile per tick, normalized by zoom².
-    // viewportWidth × viewportHeight scales as 1/zoom², so without correction
-    // zooming out quadruples the scan area and quadruples particle emissions.
-    // Multiplying by zoom² keeps total expected emissions constant across zoom levels.
-    const zoom = state.zoom
-    const emitProb = profile.emitRate * windFraction * (dt / 1000) * (zoom * zoom)
+    const emitProb = profile.emitRate * windFraction * (dt / 1000)
 
     for (let ty = y0; ty <= y1; ty++) {
       for (let tx = x0; tx <= x1; tx++) {

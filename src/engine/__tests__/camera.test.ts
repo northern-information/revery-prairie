@@ -98,31 +98,6 @@ describe('updateCamera', () => {
     })
   })
 
-  describe('free mode', () => {
-    it('does not move camera when cameraMode is free', () => {
-      const state = createGameState('Test', 40, 40)
-      state.cameraMode = 'free'
-      state.camera.x = 999
-      state.camera.y = 888
-      state.player.x = 50
-      state.player.y = 50
-      updateCamera(state)
-      expect(state.camera.x).toBe(999)
-      expect(state.camera.y).toBe(888)
-    })
-
-    it('overrides free mode when forceCenter is true', () => {
-      const state = createGameState('Test', 40, 40)
-      state.cameraMode = 'free'
-      state.player.x = 50
-      state.player.y = 50
-      updateCamera(state, true)
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      expect(state.camera.x).toBe(50 - Math.floor(visibleWidth / 2))
-      expect(state.camera.y).toBe(50 - Math.floor(state.viewportHeight / 2))
-    })
-  })
-
   describe('small-map centering', () => {
     it('centers map when mapWidth and mapHeight are smaller than viewport', () => {
       const state = createGameState('Test', 80, 60)
@@ -170,21 +145,21 @@ describe('updateCamera', () => {
   })
 
   describe('zone transitions', () => {
-    it('forceCenter recenters across cave/overworld swaps', () => {
+    it('recenters across cave/overworld swaps', () => {
       const state = createGameState('Test', 40, 40)
       const visibleWidth = state.viewportWidth - state.rightInsetTiles
 
       state.currentZone = Zone.Cave
       state.player.x = 20
       state.player.y = 12
-      updateCamera(state, true)
+      updateCamera(state)
       expect(state.camera.x).toBe(20 - Math.floor(visibleWidth / 2))
       expect(state.camera.y).toBe(12 - Math.floor(state.viewportHeight / 2))
 
       state.currentZone = Zone.Overworld
       state.player.x = 85
       state.player.y = 47
-      updateCamera(state, true)
+      updateCamera(state)
       expect(state.camera.x).toBe(85 - Math.floor(visibleWidth / 2))
       expect(state.camera.y).toBe(47 - Math.floor(state.viewportHeight / 2))
     })

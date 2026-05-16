@@ -31,8 +31,3 @@ export { lightningScreenFlashPass } from './lightningScreenFlash'
 export { angelSpawnDespawnFlashPass } from './angelSpawnDespawnFlash'
 export { rtsSelectionBoxPass } from './rtsSelectionBox'
 export { moveOrderMarkersPass } from './moveOrderMarkers'
-export { edgeScrollIndicatorPass } from './edgeScrollIndicator'
-export { offscreenPlayerArrowPass } from './offscreenPlayerArrow'
-// Camera-lock reticles live in the React DOM tree (CameraLockReticles
-// component, fixed-position, z-50) so they can z-order above sidebar
-// and event log panels that the canvas cannot reach.

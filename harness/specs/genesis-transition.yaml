@@ -186,13 +186,15 @@ behaviors:
 
   - id: genesis-renders-at-default-zoom
     description: >
-      genesis renders at ZOOM_DEFAULT (1.0) from the very first frame.
+      genesis renders at ZOOM_DEFAULT (2.0) from the very first frame.
       there is no zoom animation: state.zoom is initialized to ZOOM_DEFAULT
       in createGameState, never set to GENESIS_ZOOM, and is not lerped by
       the gameloop during the genesis-to-game transition. the genesisTransition
       object carries only { startTime, duration } — no zoomStart field. the
       GENESIS_ZOOM constant is removed from constants.ts. the dev skip-genesis
-      branch in useGameEngine no longer needs to override state.zoom.
+      branch in useGameEngine no longer needs to override state.zoom. zoom
+      stays at ZOOM_DEFAULT across every screen the canvas renders — genesis,
+      gameplay, cave — because there is no zoom UI or input that can change it.
     inputs:
       - 'createGameState called (with or without skipGenesis)'
       - 'completeGenesis fires when the geological sim ends'
@@ -347,7 +349,8 @@ behaviors:
       epoch index is below GENESIS_EPOCHS.length. the click is consumed —
       the rest of the mousedown pipeline (selection, pathfinding,
       interaction) does not run during genesis. the normal post-completion
-      transition (crossfade, entity fade-in, zoom animation) still plays.
+      transition (crossfade, entity fade-in) still plays. no zoom animation
+      runs — zoom is pinned to ZOOM_DEFAULT.
     inputs:
       - 'left mousedown on the game canvas'
       - 'state.genesis is non-null and epochIndex < GENESIS_EPOCHS.length'

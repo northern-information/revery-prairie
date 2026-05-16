@@ -129,13 +129,6 @@ const EXPECTED_FIELDS = [
   'onGenesisEpochStart',
   'onGenesisComplete',
   'waterReveryAura',
-  'cameraMode',
-  'lastEdgeScrollTime',
-  'edgeScrollPos',
-  'edgeScrollDirection',
-  'edgeScrollIndicatorAlpha',
-  'edgeScrollIndicatorDirection',
-  'cameraSubpixel',
   'heldKeys',
 ].sort((a, b) => a.localeCompare(b))
 

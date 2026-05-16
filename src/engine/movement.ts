@@ -174,7 +174,7 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
 
   // Check for zone transitions (cave entrance/exit)
   if (checkTransition(state)) {
-    updateCamera(state, true)
+    updateCamera(state)
     state.onPlayerMoved?.()
     return true
   }

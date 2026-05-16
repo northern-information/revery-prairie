@@ -54,9 +54,8 @@ describe('EventLog', () => {
     expect(Number(oldest.style.opacity)).toBeCloseTo(0.15, 2)
   })
 
-  it('nulls state.edgeScrollPos / cursorScreenPos / cursorTile on hover', () => {
+  it('nulls state.cursorScreenPos / cursorTile on hover', () => {
     const state = createGameState('Test', 80, 40)
-    state.edgeScrollPos = { x: 10, y: 10 }
     state.cursorScreenPos = { x: 20, y: 20 }
     state.cursorTile = { x: 5, y: 5 }
     const eventLog = [makeEvent('1', 'one')]
@@ -64,7 +63,6 @@ describe('EventLog', () => {
     const panel = screen.getByText('one').closest('[data-panel="event-log"]')
     expect(panel).not.toBeNull()
     fireEvent.mouseEnter(panel as HTMLElement)
-    expect(state.edgeScrollPos).toBeNull()
     expect(state.cursorScreenPos).toBeNull()
     expect(state.cursorTile).toBeNull()
   })

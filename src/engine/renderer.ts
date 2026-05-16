@@ -338,32 +338,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const playerLerpX = playerTweenFromX + (player.x - playerTweenFromX) * playerTweenT
   const playerLerpY = playerTweenFromY + (player.y - playerTweenFromY) * playerTweenT
 
-  // Edge-scroll camera drift: integer camera coords are needed for tile
-  // indexing (map[my][mx] etc.), but stepping the camera one full tile per
-  // ~3-4 frames of edge-scroll produces visible jumps. Render the scene
-  // with a sub-tile pixel translate so motion looks continuous; the
-  // remainder is held in cameraSubpixel until it crosses an integer tile.
-  //
-  // The player-follow tween adds a second source of sub-tile drift: while
-  // playerTween is active, state.player.x/y has already snapped to the
-  // destination tile (so the camera centers on the destination), but the
-  // visual world position is mid-step. Without the offset below, world
-  // tiles would jump one full tile every 100ms move tick while the player
-  // glyph fights it — making the player look choppy even though the tween
-  // math is correct. Composing the tween offset into the same translate
-  // path keeps tile indexing integer while the canvas slides smoothly.
-  let driftPx = 0
-  let driftPy = 0
-  if (state.cameraMode === 'free') {
-    driftPx += (state.cameraSubpixel.x - state.cameraSubpixel.y) * charWidth
-    driftPy += (state.cameraSubpixel.x + state.cameraSubpixel.y) * (charHeight / 2)
-  }
-  // Sign: the world translate must shift the scene as if the camera were
-  // at playerLerpX/Y (lagging behind the post-snap player.x/y). With
-  // ctx.translate(-driftPx, ...), a NEGATIVE driftPx shifts the canvas
-  // RIGHT, which is what's needed when player has snapped east of the
-  // lerp position. The world-delta argument is therefore (lerp - player),
-  // not (player - lerp).
+  // The player-follow tween produces sub-tile drift: while playerTween is
+  // active, state.player.x/y has already snapped to the destination tile
+  // (so the camera centers on the destination), but the visual world
+  // position is mid-step. Without the offset below, world tiles would jump
+  // one full tile every 100ms move tick while the player glyph fights it
+  // — making the player look choppy even though the tween math is correct.
+  // The world translate keeps tile indexing integer while the canvas
+  // slides smoothly.
   //
   // Per-axis gating: updateCamera only tracks the player on an axis when
   // the map is at least as large as the visible viewport on that axis.
@@ -373,25 +355,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // must NOT translate — the player should slide across stationary
   // tiles. Mirror updateCamera's check exactly so the renderer's offset
   // matches what the camera actually did this frame.
-  //
-  // Mode gating: in 'free' (RTS pan) mode, the camera never tracks the
-  // player on any axis — the user pans manually. Applying the tween
-  // compensation translate then would slide the world by (lerp - player)
-  // every frame of a WASD step, producing a one-tile jitter visible
-  // especially at high zoom. In free mode the player glyph alone
-  // interpolates; the world tile grid stays anchored.
   const visibleWidth = state.viewportWidth - state.rightInsetTiles
-  const cameraFollows = state.cameraMode === 'follow'
-  const xCameraTracksPlayer = cameraFollows && state.mapWidth >= visibleWidth
-  const yCameraTracksPlayer = cameraFollows && state.mapHeight >= state.viewportHeight
+  const xCameraTracksPlayer = state.mapWidth >= visibleWidth
+  const yCameraTracksPlayer = state.mapHeight >= state.viewportHeight
   const tweenDelta = worldDeltaToIsoPx(
     xCameraTracksPlayer ? playerLerpX - player.x : 0,
     yCameraTracksPlayer ? playerLerpY - player.y : 0,
     charWidth,
     charHeight,
   )
-  driftPx += tweenDelta.px
-  driftPy += tweenDelta.py
+  const driftPx = tweenDelta.px
+  const driftPy = tweenDelta.py
 
   const worldTransformActive = shakeActive || driftPx !== 0 || driftPy !== 0
   if (worldTransformActive) {

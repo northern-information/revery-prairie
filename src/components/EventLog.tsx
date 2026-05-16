@@ -52,8 +52,7 @@ export const EventLog = ({ state, eventLog }: EventLogProps) => {
   // (oldest at top, newest at bottom).
   const ordered = [...eventLog].reverse()
 
-  const suppressEdgeScroll = () => {
-    state.edgeScrollPos = null
+  const clearCursorInfo = () => {
     state.cursorScreenPos = null
     state.cursorTile = null
   }
@@ -81,8 +80,8 @@ export const EventLog = ({ state, eventLog }: EventLogProps) => {
     <div
       data-panel="event-log"
       className="text-text pointer-events-auto fixed bottom-2 left-2 z-10 w-96 bg-black/70 px-3 py-2 font-mono text-xs"
-      onMouseEnter={suppressEdgeScroll}
-      onMouseMove={suppressEdgeScroll}
+      onMouseEnter={clearCursorInfo}
+      onMouseMove={clearCursorInfo}
       onMouseLeave={handleMouseLeave}
     >
       <div
