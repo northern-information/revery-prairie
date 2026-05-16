@@ -402,9 +402,15 @@ export const GENESIS_TRANSITION_ACTION_BAR_DURATION_MS = 800
 export const DEEP_TIME_TRANSITION_DURATION_MS = 1000
 export const DEEP_TIME_TRANSITION_GLYPH_DURATION_MS = 800
 
-// zone transition (overworld <-> cave/ruin): iris + ASCII dissolve
-export const ZONE_TRANSITION_DURATION_MS = 1400
-export const ZONE_TRANSITION_MIDPOINT = 0.5
+// zone transition (overworld <-> cave/ruin): crossfade with a title hold.
+// Total duration = fade-in + hold + fade-out. The deferred map swap
+// fires at the midpoint of the hold, fully under cover of the black
+// overlay so the swap is invisible.
+export const ZONE_TRANSITION_FADE_IN_MS = 700
+export const ZONE_TRANSITION_HOLD_MS = 2000
+export const ZONE_TRANSITION_FADE_OUT_MS = 700
+export const ZONE_TRANSITION_DURATION_MS =
+  ZONE_TRANSITION_FADE_IN_MS + ZONE_TRANSITION_HOLD_MS + ZONE_TRANSITION_FADE_OUT_MS
 
 // fog of war
 export const CAVE_VISION_RADIUS = 3

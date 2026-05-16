@@ -1,4 +1,9 @@
-import { ZONE_TRANSITION_DURATION_MS, ZONE_TRANSITION_MIDPOINT } from './constants'
+import { updateCamera } from './camera'
+import {
+  ZONE_TRANSITION_DURATION_MS,
+  ZONE_TRANSITION_FADE_IN_MS,
+  ZONE_TRANSITION_HOLD_MS,
+} from './constants'
 import type {
   GameState,
   Position,
@@ -6,6 +11,10 @@ import type {
   ZoneTransitionDirection,
   ZoneTransitionKind,
 } from './types'
+
+// Elapsed time at which the deferred map swap fires. Sits in the
+// middle of the hold so the swap is fully covered by peak black.
+const ZONE_TRANSITION_SWAP_AT_MS = ZONE_TRANSITION_FADE_IN_MS + ZONE_TRANSITION_HOLD_MS / 2
 
 export interface ScheduleZoneTransitionInput {
   direction: ZoneTransitionDirection
@@ -80,13 +89,23 @@ export const tickZoneTransition = (state: GameState, time: number): void => {
   const transition = state.zoneTransition
   if (!transition) return
 
+  const elapsed = time - transition.startTime
   const progress = getZoneTransitionProgress(transition, time)
 
-  if (!transition.swapApplied && progress >= ZONE_TRANSITION_MIDPOINT) {
+  // Fire the swap when (a) we have reached the mid-hold swap moment,
+  // or (b) the transition is already complete (progress >= 1) — the
+  // latter covers zero-or-negative durations where the swap moment
+  // would otherwise never be reached.
+  const shouldSwap = elapsed >= ZONE_TRANSITION_SWAP_AT_MS || progress >= 1
+  if (!transition.swapApplied && shouldSwap) {
     const handler = swapHandlers.get(swapKey(transition.kind, transition.direction))
     if (handler) {
       handler(state, transition)
     }
+    // Snap the camera to center on the player's new position so the
+    // fade-out reveals the player at the viewport center. Force-center
+    // overrides RTS free-pan mode for this single tick.
+    updateCamera(state, true)
     transition.swapApplied = true
   }
 

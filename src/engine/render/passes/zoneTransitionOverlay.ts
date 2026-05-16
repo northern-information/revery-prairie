@@ -1,48 +1,56 @@
-import { BG_COLOR } from '../../constants'
-import { worldToScreen } from '../../projection'
-import { getZoneTransitionProgress } from '../../zoneTransition'
-import type { CharMetrics, GameState, Position } from '../../types'
+import {
+  BG_COLOR,
+  ZONE_TRANSITION_FADE_IN_MS,
+  ZONE_TRANSITION_FADE_OUT_MS,
+  ZONE_TRANSITION_HOLD_MS,
+} from '../../constants'
+import { RuinArchetype } from '../../types'
+import type { CharMetrics, GameState, ZoneTransition } from '../../types'
 import { type RenderPass, registerPass } from '../passes'
 
-// Glyphs used for the ASCII dissolve. A small alphabet keeps the
-// noise field readable and consistent with the game's renderer
-// idiom. Sampled per-cell from a seeded PRNG that uses tile
-// coordinates so the noise pattern is stable per-frame (no flicker)
-// while still varying across the transition.
-const DISSOLVE_GLYPHS = ['.', ':', ';', '%', '#', '*', '/', '\\', '|', '-']
+const ZONE_LABEL_COLOR = '#d8a860'
+// Title Case per writing-style rule for in-game entry names.
+const RUIN_ARCHETYPE_LABEL: Record<string, string> = {
+  [RuinArchetype.DormantGarden]: 'Dormant Garden',
+}
 
-const mulberry32 = (seed: number): (() => number) => {
-  let s = seed >>> 0
-  return () => {
-    s = (s + 0x6D2B79F5) >>> 0
-    let t = s
-    t = Math.imul(t ^ (t >>> 15), t | 1)
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+const getDestinationLabel = (state: GameState, transition: ZoneTransition): string => {
+  if (transition.direction === 'exit') return 'Revery Prairie'
+  if (transition.kind === 'cave') return 'Cave'
+  // Ruin enter — "<archetype> <name>" if both are known, else fall
+  // back to whichever is available, else generic "Ruin".
+  const idx = transition.ruinIndex
+  if (idx !== null) {
+    const interior = state.ruinInteriors[idx]
+    if (interior) {
+      const archetype = RUIN_ARCHETYPE_LABEL[interior.archetype]
+      const name = interior.name
+      if (archetype && name) return `${archetype} ${name}`
+      if (archetype) return archetype
+      if (name) return name
+    }
   }
+  return 'Ruin'
 }
 
-// Density curve: 0 -> 0.5 -> 0 across progress 0..1. Peaks at midpoint.
-const dissolveDensity = (progress: number): number => {
-  // sin pulse: 0 at 0, 1 at 0.5, 0 at 1.
-  return Math.sin(progress * Math.PI)
-}
-
-// Iris radius interpolated from 0 at progress 0 to maxRadius at
-// progress 0.5, then back to 0 at progress 1. Triangle wave.
-const irisRadius = (progress: number, maxRadius: number): number => {
-  const triangle = progress < 0.5 ? progress * 2 : (1 - progress) * 2
-  return triangle * maxRadius
-}
-
-// Iris center tile: pre-midpoint, the captured source tile (entrance
-// or exit). Post-midpoint, the player's new position — they have
-// just been placed at the destination spawn by the deferred swap.
-const getIrisCenterTile = (state: GameState, progress: number): Position => {
-  const transition = state.zoneTransition
-  if (!transition) return state.player
-  if (progress < 0.5) return transition.irisCenter
-  return state.player
+// Crossfade through black with a hold at peak. Three phases keyed
+// off elapsed time (ms) within the transition:
+//   [0, fadeIn)                    -> alpha 0 -> 1, source scene
+//   [fadeIn, fadeIn + hold)        -> alpha 1, swap fires mid-hold
+//   [fadeIn + hold, total)         -> alpha 1 -> 0, destination scene
+const overlayAlpha = (elapsed: number): number => {
+  if (elapsed <= 0) return 0
+  if (elapsed < ZONE_TRANSITION_FADE_IN_MS) {
+    return elapsed / ZONE_TRANSITION_FADE_IN_MS
+  }
+  const holdStart = ZONE_TRANSITION_FADE_IN_MS
+  const holdEnd = holdStart + ZONE_TRANSITION_HOLD_MS
+  if (elapsed < holdEnd) return 1
+  const total = holdEnd + ZONE_TRANSITION_FADE_OUT_MS
+  if (elapsed < total) {
+    return 1 - (elapsed - holdEnd) / ZONE_TRANSITION_FADE_OUT_MS
+  }
+  return 0
 }
 
 const draw = (
@@ -54,53 +62,35 @@ const draw = (
   const transition = state.zoneTransition
   if (!transition) return
 
-  const progress = getZoneTransitionProgress(transition, time)
+  const elapsed = time - transition.startTime
+  const alpha = overlayAlpha(elapsed)
+  if (alpha <= 0) return
+
   const pxWidth = state.viewportWidth * metrics.charWidth
   const pxHeight = state.viewportHeight * metrics.charHeight
 
-  // ----- Dissolve layer (ASCII noise) -----
-  const density = dissolveDensity(progress)
-  if (density > 0) {
-    ctx.font = metrics.font
-    ctx.textBaseline = 'top'
-    const seed = Math.floor(transition.startTime) ^ Math.floor(progress * 1000)
-    const rng = mulberry32(seed)
-    for (let vy = 0; vy < state.viewportHeight; vy++) {
-      for (let vx = 0; vx < state.viewportWidth; vx++) {
-        if (rng() > density) continue
-        const glyph = DISSOLVE_GLYPHS[Math.floor(rng() * DISSOLVE_GLYPHS.length)]
-        const px = vx * metrics.charWidth
-        const py = vy * metrics.charHeight
-        // Solid bg behind the glyph keeps the noise visually weighty.
-        ctx.fillStyle = BG_COLOR
-        ctx.fillRect(px, py, metrics.charWidth, metrics.charHeight)
-        ctx.fillStyle = '#5a5a5a'
-        ctx.fillText(glyph, px, py)
-      }
-    }
-  }
+  const prevAlpha = ctx.globalAlpha
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = BG_COLOR
+  ctx.fillRect(0, 0, pxWidth, pxHeight)
 
-  // ----- Iris layer (dark circle) -----
-  // Max radius covers the screen diagonal so the iris fully fills
-  // the viewport at peak regardless of where its center sits.
-  const maxRadius = Math.hypot(pxWidth, pxHeight)
-  const radius = irisRadius(progress, maxRadius)
-  if (radius > 0) {
-    const centerTile = getIrisCenterTile(state, progress)
-    const centerScreen = worldToScreen(
-      centerTile.x,
-      centerTile.y,
-      state.camera,
-      metrics.charWidth,
-      metrics.charHeight,
-      state.viewportWidth,
-      state.viewportHeight,
-    )
-    ctx.fillStyle = BG_COLOR
-    ctx.beginPath()
-    ctx.arc(centerScreen.px, centerScreen.py, radius, 0, Math.PI * 2)
-    ctx.fill()
-  }
+  // Destination zone label — centered, Times New Roman italic, gold.
+  // Same triangle-wave alpha as the overlay so the text rides the
+  // fade in and out.
+  const prevFont = ctx.font
+  const prevAlign = ctx.textAlign
+  const prevBaseline = ctx.textBaseline
+  // Scale font with charHeight so it adapts to the viewport's grid.
+  const labelSize = Math.max(28, Math.round(metrics.charHeight * 1.6))
+  ctx.font = `italic ${String(labelSize)}px "Times New Roman", Times, serif`
+  ctx.fillStyle = ZONE_LABEL_COLOR
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(getDestinationLabel(state, transition), pxWidth / 2, pxHeight / 2)
+  ctx.font = prevFont
+  ctx.textAlign = prevAlign
+  ctx.textBaseline = prevBaseline
+  ctx.globalAlpha = prevAlpha
 }
 
 export const zoneTransitionOverlayPass: RenderPass = {
