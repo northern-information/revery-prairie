@@ -9,6 +9,7 @@ import type { RuinTileLayer } from './ruins'
 import { STRUCTURE_REGISTRY } from './structures'
 import { clearAllUnitCommands } from './unitCommands'
 import { TileType, Zone } from './types'
+import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
 import type { GameState, Position, Tile } from './types'
 
@@ -262,7 +263,11 @@ export const checkTransition = (state: GameState): boolean => {
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         if (state.map[py + dy]?.[px + dx]?.type === TileType.CaveEntrance) {
-          enterCave(state)
+          scheduleZoneTransition(state, performance.now(), {
+            direction: 'enter',
+            kind: 'cave',
+            irisCenter: { x: px + dx, y: py + dy },
+          })
           return true
         }
       }
@@ -272,7 +277,11 @@ export const checkTransition = (state: GameState): boolean => {
   // Cave interior: step on any CaveExit tile to exit
   if (state.currentZone === Zone.Cave) {
     if (state.map[py]?.[px]?.type === TileType.CaveExit) {
-      exitCave(state)
+      scheduleZoneTransition(state, performance.now(), {
+        direction: 'exit',
+        kind: 'cave',
+        irisCenter: { x: px, y: py },
+      })
       return true
     }
   }
@@ -280,6 +289,16 @@ export const checkTransition = (state: GameState): boolean => {
   // Ruin transitions (overworld 3x3 hitbox + interior RuinExit)
   return checkRuinTransition(state)
 }
+
+// Register cave swap handlers with the zone transition module. The
+// handlers are the existing enterCave / exitCave functions; they fire
+// at midpoint via tickZoneTransition. Module-load side effect.
+registerZoneSwapHandler('cave', 'enter', (state) => {
+  enterCave(state)
+})
+registerZoneSwapHandler('cave', 'exit', (state) => {
+  exitCave(state)
+})
 
 // ---------------------------------------------------------------------------
 // Multilayer cave tile rendering

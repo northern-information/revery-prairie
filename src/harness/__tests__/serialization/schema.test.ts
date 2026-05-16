@@ -100,6 +100,7 @@ const EXPECTED_FIELDS = [
   'waterProximity',
   'genesis',
   'genesisTransition',
+  'zoneTransition',
   'angelCantos',
   'nextAngelSpawnTime',
   'angelEncounterCount',

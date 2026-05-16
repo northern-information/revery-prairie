@@ -8,6 +8,7 @@ import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { isDiagonalDirection, TileType, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
+import { isZoneTransitioning } from './zoneTransition'
 
 import type { Direction, GameState, Position } from './types'
 
@@ -75,6 +76,10 @@ export const getPathfindingBlockers = (state: GameState, target?: Position): Set
 export const movePlayer = (state: GameState, dir: Direction): boolean => {
   // Player cannot leave their landing tile until the spawn meteor lands.
   if (!state.playerSpawn.visible) return false
+
+  // Reject movement while a zone transition is in flight. The deferred
+  // map swap fires at midpoint inside tickZoneTransition.
+  if (isZoneTransitioning(state)) return false
 
   const d = DIRECTIONS[dir]
   const nx = state.player.x + d.x
@@ -186,6 +191,10 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
 }
 
 export const tickPath = (state: GameState): boolean => {
+  // Freeze any active path while a zone transition is in flight; do
+  // not clear it. When the transition completes the path resumes.
+  if (isZoneTransitioning(state)) return false
+
   if (!state.path || state.path.length === 0) {
     state.path = null
     return false

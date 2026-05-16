@@ -52,6 +52,7 @@ import { cleanupMoveOrderMarkers, tickUnitCommands } from './unitCommands'
 import { isTileInVisibleViewport } from './viewportBounds'
 import { tickRainIntensity, tickWeather } from './weather'
 import { tickWind } from './weather/wind'
+import { tickZoneTransition } from './zoneTransition'
 
 import type { GameState } from './types'
 
@@ -138,6 +139,25 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         const elapsed = time - transition.startTime
         if (elapsed >= transition.duration) {
           state.genesisTransition = null
+          callbacks.onRefreshUI?.()
+        }
+      },
+    },
+    {
+      // Drives the iris + ASCII dissolve transition between overworld
+      // and cave / ruin interiors. Fires the deferred map swap at
+      // midpoint and clears state.zoneTransition at progress >= 1.
+      id: 'zoneTransitionTick',
+      intervalMs: 0,
+      zone: 'always' as const,
+      phase: 'gameplay' as const,
+      priority: -19,
+      fn: (state: GameState, time: number) => {
+        if (!state.zoneTransition) return
+        tickZoneTransition(state, time)
+        // When the transition clears, request a UI refresh so the
+        // sidebar / cursor info update against the new zone.
+        if (state.zoneTransition === null) {
           callbacks.onRefreshUI?.()
         }
       },

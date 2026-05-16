@@ -1,4 +1,6 @@
 import { checkTransition, enterCave, exitCave, generateCave } from '../cave'
+import { tickZoneTransition } from '../zoneTransition'
+import { ZONE_TRANSITION_DURATION_MS } from '../constants'
 import { CAVE_HEIGHT, CAVE_WIDTH } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { breakWall, updateFacingEntity } from '../interaction'
@@ -276,6 +278,16 @@ describe('exitCave', () => {
   })
 })
 
+// Advance an in-flight zone transition past its end so the deferred
+// map swap fires and state.zoneTransition clears. checkTransition only
+// schedules; the swap itself happens inside tickZoneTransition at
+// midpoint. Tests that need to assert post-swap state call this.
+const completeZoneTransition = (state: ReturnType<typeof createTestState>): void => {
+  if (!state.zoneTransition) return
+  const endTime = state.zoneTransition.startTime + ZONE_TRANSITION_DURATION_MS + 1
+  tickZoneTransition(state, endTime)
+}
+
 describe('checkTransition', () => {
   it('enters cave when standing on overworld CaveEntrance', () => {
     const state = createTestState()
@@ -283,6 +295,7 @@ describe('checkTransition', () => {
     state.map[state.player.y][state.player.x] = { type: TileType.CaveEntrance }
     const result = checkTransition(state)
     expect(result).toBe(true)
+    completeZoneTransition(state)
     expect(state.currentZone).toBe(Zone.Cave)
   })
 
@@ -296,6 +309,7 @@ describe('checkTransition', () => {
     state.caveEntranceOverworld = { x: cx, y: cy }
     const result = checkTransition(state)
     expect(result).toBe(true)
+    completeZoneTransition(state)
     expect(state.currentZone).toBe(Zone.Cave)
   })
 
@@ -306,6 +320,7 @@ describe('checkTransition', () => {
     state.player = { ...state.caveEntranceInterior }
     const result = checkTransition(state)
     expect(result).toBe(true)
+    completeZoneTransition(state)
     expect(state.currentZone).toBe(Zone.Overworld)
   })
 

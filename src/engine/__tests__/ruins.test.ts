@@ -4,7 +4,16 @@ import { RuinArchetype, TileType, Zone } from '../types'
 import { createGameState } from '../state'
 import { findSafeExitPosition, isWalkableTile, posKey } from '../position'
 import { ITEM_DEFINITIONS } from '../items'
-import { ENTRANCE_GLYPHS, RUIN_ENTRANCE_HALO_COLOR, TILE_COLORS, getEntranceGlyph } from '../constants'
+import { ENTRANCE_GLYPHS, RUIN_ENTRANCE_HALO_COLOR, TILE_COLORS, ZONE_TRANSITION_DURATION_MS, getEntranceGlyph } from '../constants'
+import { tickZoneTransition } from '../zoneTransition'
+
+import type { GameState } from '../types'
+
+const completeZoneTransition = (state: GameState): void => {
+  if (!state.zoneTransition) return
+  const endTime = state.zoneTransition.startTime + ZONE_TRANSITION_DURATION_MS + 1
+  tickZoneTransition(state, endTime)
+}
 
 import type { CivilizationRuin } from '../genesisTypes'
 import type { Tile } from '../types'
@@ -235,6 +244,7 @@ describe('ruin infrastructure', () => {
       state.overworldMap[state.player.y][state.player.x] = { type: TileType.Dirt }
       const result = checkRuinTransition(state)
       expect(result).toBe(true)
+      completeZoneTransition(state)
       expect(state.currentZone).toBe(Zone.Ruin)
     })
 
@@ -249,6 +259,7 @@ describe('ruin infrastructure', () => {
       state.player = { x: exitX, y: exitY }
       const result = checkRuinTransition(state)
       expect(result).toBe(true)
+      completeZoneTransition(state)
       expect(state.currentZone).toBe(Zone.Overworld)
     })
 
