@@ -1,5 +1,5 @@
 id: meteorite-chain-explosion
-name: 'Meteorite chain explosion on pickup'
+name: 'Unstable meteorite discovery, disintegrate or chain explosion on pickup'
 priority: medium
 layer: engine
 source_files:
@@ -10,47 +10,56 @@ dependencies:
   - player-movement
 
 behaviors:
-  - id: chain-explosion-roll
+  - id: unstable-meteorite-roll
     description: >
       when the player walks over a meteorite, there is a
-      1-in-7 chance that a chain explosion triggers. if it
-      triggers, the meteorite is consumed by the explosion
-      (removed from the world, not added to backpack). if
-      it does not trigger, normal pickup proceeds. rolls
-      once per meteorite at the player position. requires
-      time parameter to be defined.
+      1-in-7 chance the meteorite is flagged as unstable.
+      if unstable, a second independent 50/50 sub-roll picks
+      one of two outcomes: 'explode' or 'disintegrate'. on
+      either outcome the original meteorite is consumed
+      (removed from the world, not added to backpack). on
+      explode, chain meteorites spawn as in spawn-nearby-meteorites.
+      on disintegrate, nothing spawns and the player gets
+      no item. if the unstable roll does not trigger,
+      normal pickup proceeds. rolls once per meteorite at
+      the player position. requires time parameter to be
+      defined.
     inputs:
       - 'GameState with meteorite at player position'
       - 'time: number (rAF timestamp)'
     outputs:
-      - 'PickUpResult with chainExplosions count for log entry'
+      - 'PickUpResult with chainExplosions (number of chain meteorites actually spawned) and disintegrations (count of disintegrate outcomes) for log dispatch'
     state_changes:
       - field: world
-        effect: "up to 3 new meteorite ECS entities created with Position, Pickupable({ definitionId: 'meteorite' }), EntityTag('meteorite'), ChainSource({ fromChain: true }), EntityZone({ zone: Zone.Overworld }) components — always tagged Overworld regardless of current zone"
+        effect: 'original meteorite ECS entity destroyed on both explode and disintegrate outcomes'
       - field: world
-        effect: "one explosion ECS entity created per spawned meteorite with Position, TimedEffect({ kind: 'explosion', startTime: time }), EntityTag('explosion'), EntityZone({ zone: Zone.Overworld }) components — always tagged Overworld regardless of current zone"
+        effect: "on explode outcome: up to 3 new meteorite ECS entities created with Position, Pickupable({ definitionId: 'meteorite' }), EntityTag('meteorite'), ChainSource({ fromChain: true }), EntityZone({ zone: Zone.Overworld }) components — always tagged Overworld regardless of current zone"
+      - field: world
+        effect: "on explode outcome: one explosion ECS entity created per spawned meteorite with Position, TimedEffect({ kind: 'explosion', startTime: time }), EntityTag('explosion'), EntityZone({ zone: Zone.Overworld }) components — always tagged Overworld regardless of current zone"
       - field: manualDiscoveries
-        effect: 'event:chain-explosion recorded when at least one meteorite is spawned'
+        effect: 'event:chain-explosion recorded on explode outcome when at least one chain meteorite is spawned. disintegrate outcome does not record this event.'
     determinism: probabilistic
 
   - id: spawn-nearby-meteorites
     description: >
-      when a chain explosion triggers, 3 new meteorites are
-      placed on distinct walkable tiles within a radius of 3
-      tiles from the pickup position. tiles must be in-bounds,
-      walkable per isWalkableTile on state.map (always uses the
-      current active map, which is overworld or cave depending on
-      zone), not on water tiles (ponds/rivers), and not occupied by
-      any entity (checked via state.world.spatial index — catches all
-      entity types at a position) or the player. a TimedEffect
-      (kind: 'explosion') entity is created for each spawned meteorite
-      so the existing ring-expansion
-      animation plays. if fewer than 3 valid tiles exist, only as
-      many meteorites as there are valid tiles are spawned. spawned
-      meteorites are marked with fromChain: true so they cannot
-      trigger further chain explosions on pickup. all spawned
-      entities are tagged EntityZone Overworld regardless of the
-      current zone.
+      when the explode outcome is selected, 3 new meteorites
+      are placed on distinct walkable tiles within a radius
+      of 3 tiles from the pickup position. tiles must be
+      in-bounds, walkable per isWalkableTile on state.map
+      (always uses the current active map, which is
+      overworld or cave depending on zone), not on water
+      tiles (ponds/rivers), and not occupied by any entity
+      (checked via state.world.spatial index — catches all
+      entity types at a position) or the player. a
+      TimedEffect (kind: 'explosion') entity is created for
+      each spawned meteorite so the existing ring-expansion
+      animation plays. if fewer than 3 valid tiles exist,
+      only as many meteorites as there are valid tiles are
+      spawned. spawned meteorites are marked with
+      fromChain: true so they cannot trigger further
+      unstable rolls on pickup. all spawned entities are
+      tagged EntityZone Overworld regardless of the current
+      zone.
     inputs:
       - 'GameState'
       - 'pickup position: Position'
@@ -64,35 +73,46 @@ behaviors:
         effect: "0-3 new explosion ECS entities created with Position, TimedEffect({ kind: 'explosion', startTime: time }), EntityTag('explosion'), EntityZone({ zone: Zone.Overworld }) components — always Overworld"
     determinism: probabilistic
 
-  - id: chain-explosion-event-log
+  - id: unstable-meteorite-event-log
     description: >
-      when a chain explosion triggers, the PickUpResult
-      includes a chainExplosions count > 0 and the meteorite
-      is NOT in pickedUp (no pickup log entry). the UI layer
-      uses chainExplosions to fire an addEvent call with
-      the text 'oh my!' using the meteorite glyph and color.
-      the event appends to the EventLog overlay only — there
-      is no floating-toast surface.
+      whenever the unstable roll triggers, the UI layer
+      fires a 'discovery' log event with the text 'Unstable
+      meteorite discovered!' using the meteorite glyph and
+      color. this fires once per unstable meteorite,
+      regardless of which 50/50 outcome follows. when the
+      outcome is disintegrate, a second 'discovery' log
+      event fires with the text 'Meteorite disintegrated...'
+      using the meteorite glyph and color. when the outcome
+      is explode, no extra log event is fired beyond the
+      'Unstable meteorite discovered!' entry; the chain
+      meteorites become visible on the map. the
+      PickUpResult exposes chainExplosions (chain spawn
+      count, > 0 on explode with valid tiles) and
+      disintegrations (count of disintegrate outcomes
+      this call). the meteorite is NOT in pickedUp on either
+      outcome. events append to the EventLog overlay only —
+      there is no floating-toast surface.
     inputs:
-      - 'PickUpResult with chainExplosions > 0'
+      - 'PickUpResult with chainExplosions and/or disintegrations indicating unstable outcomes'
     outputs:
-      - "log event: kind 'discovery', text 'oh my!', icon meteorite glyph, color meteorite color"
+      - "log event per unstable outcome: kind 'discovery', text 'Unstable meteorite discovered!', icon meteorite glyph, color meteorite color"
+      - "additional log event per disintegrate outcome: kind 'discovery', text 'Meteorite disintegrated...', icon meteorite glyph, color meteorite color"
     state_changes: []
     determinism: deterministic
 
 edge_cases:
   - id: no-valid-tiles
-    description: 'all tiles within radius 3 are non-walkable or occupied — chain explosion triggers but 0 meteorites spawn'
-    expected: 'chainExplosions count is 0, no meteorites or explosions added, no log entry'
+    description: 'explode outcome but all tiles within radius 3 are non-walkable or occupied — chain spawns 0 meteorites'
+    expected: "chainExplosions count is 0, no meteorites or explosions added, 'Unstable meteorite discovered!' log entry still fires, no 'Meteorite disintegrated...' entry"
   - id: fewer-than-three-tiles
-    description: 'only 1-2 valid tiles within radius — spawns only as many meteorites as tiles allow'
+    description: 'explode outcome with only 1-2 valid tiles within radius — spawns only as many meteorites as tiles allow'
     expected: 'spawns the available count, each with a TimedEffect (kind: explosion)'
   - id: multiple-meteorites-same-tile
     description: 'two meteorites at the same position picked up in one call — each rolls independently'
-    expected: 'each meteorite has its own 1/7 chance, chain explosions stack'
+    expected: 'each meteorite has its own 1/7 unstable chance and independent 50/50 sub-roll. chainExplosions and disintegrations aggregate across rolls.'
   - id: cave-zone
-    description: 'meteorite pickup in cave zone — chain explosion still applies if meteorites exist there'
-    expected: 'uses state.map (which is the active zone map after context swap) for walkability checks. spawned entities are always tagged Overworld.'
+    description: 'meteorite pickup in cave zone — unstable roll still applies if meteorites exist there'
+    expected: 'uses state.map (active zone map after context swap) for walkability checks. spawned entities are always tagged Overworld.'
   - id: chain-meteorite-on-player
     description: 'player tile is excluded from candidate spawn tiles since the player occupies it'
     expected: 'no meteorite spawns on the player position'
@@ -100,18 +120,25 @@ edge_cases:
     description: 'a candidate tile is occupied by a ground item, character (including ghost), or existing meteorite'
     expected: 'that tile is skipped, meteorite spawns on next valid candidate'
   - id: chain-children-cannot-explode
-    description: 'meteorites spawned by a chain explosion have fromChain: true and are skipped by the explosion roll'
-    expected: 'walking over a fromChain meteorite picks it up normally, never triggers a chain explosion'
+    description: 'meteorites spawned by a chain explosion have fromChain: true and are skipped by the unstable roll'
+    expected: 'walking over a fromChain meteorite picks it up normally, never triggers an unstable roll'
+  - id: disintegrate-no-spawn
+    description: 'unstable roll triggers and sub-roll selects disintegrate'
+    expected: "original meteorite consumed, no new meteorites or explosion entities spawned, PickUpResult.disintegrations incremented by 1, chainExplosions unchanged, 'Unstable meteorite discovered!' and 'Meteorite disintegrated...' log entries both fire"
 
 failure_conditions:
   - trigger: 'time parameter is undefined (no rAF timestamp)'
-    expected: 'chain explosion does not trigger, pickup proceeds normally without roll'
+    expected: 'unstable roll does not trigger, pickup proceeds normally without roll'
   - trigger: 'backpack is full and meteorite cannot be captured'
-    expected: 'chain explosion still rolls — if it triggers, the meteorite is consumed by the explosion. if not, the meteorite stays on the ground'
-  - trigger: 'Math.random returns value >= 1/7'
-    expected: 'no chain explosion, normal pickup behavior'
+    expected: 'unstable roll still rolls — if it triggers, the meteorite is consumed regardless of outcome (explode or disintegrate). if it does not trigger, the meteorite stays on the ground.'
+  - trigger: 'Math.random returns value >= 1/7 on the first roll'
+    expected: 'no unstable outcome, normal pickup behavior'
+  - trigger: 'first roll < 1/7 and Math.random returns value < 0.5 on the sub-roll'
+    expected: 'explode outcome — chain meteorites spawn'
+  - trigger: 'first roll < 1/7 and Math.random returns value >= 0.5 on the sub-roll'
+    expected: 'disintegrate outcome — meteorite consumed, no chain spawn'
 
 verification:
   test_file: src/engine/__tests__/meteoriteChainExplosion.test.ts
-  test_pattern: 'chain explosion'
+  test_pattern: 'unstable meteorite'
   command: 'npx vitest run src/engine/__tests__/meteoriteChainExplosion.test.ts'

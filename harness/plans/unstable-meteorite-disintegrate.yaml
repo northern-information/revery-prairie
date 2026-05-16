@@ -1,0 +1,80 @@
+plan:
+  id: unstable-meteorite-disintegrate
+  title: 'Unstable meteorite: 50/50 explode or disintegrate, with renamed log copy'
+  created: 2026-05-16
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: pickup-result-disintegrations
+    title: 'Add disintegrations field to PickUpResult'
+    spec_id: meteorite-chain-explosion
+    spec_sections:
+      - unstable-meteorite-roll
+      - unstable-meteorite-event-log
+    context_files:
+      - src/engine/entities.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine, types]
+
+  - id: unstable-sub-roll
+    title: 'Wire 50/50 sub-roll: explode (existing chain spawn) or disintegrate (consume only) in pickUpGroundItems'
+    spec_id: meteorite-chain-explosion
+    spec_sections:
+      - unstable-meteorite-roll
+      - spawn-nearby-meteorites
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/celestial.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on:
+      - pickup-result-disintegrations
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine]
+
+  - id: rename-and-add-log-events
+    title: "Rename 'Oh my!' to 'Unstable meteorite discovered!' and emit 'Meteorite disintegrated...' for disintegrate outcomes in gameLoop"
+    spec_id: meteorite-chain-explosion
+    spec_sections:
+      - unstable-meteorite-event-log
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/entities.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - unstable-sub-roll
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine, integration]
+
+  - id: regression-tests
+    title: 'Update meteoriteChainExplosion tests for disintegrate path and renamed log copy'
+    spec_id: meteorite-chain-explosion
+    spec_sections:
+      - unstable-meteorite-roll
+      - unstable-meteorite-event-log
+    context_files:
+      - src/engine/__tests__/meteoriteChainExplosion.test.ts
+      - src/engine/entities.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/__tests__/meteoriteChainExplosion.test.ts
+    depends_on:
+      - unstable-sub-roll
+      - rename-and-add-log-events
+    verification:
+      - 'npx vitest run src/engine/__tests__/meteoriteChainExplosion.test.ts'
+    repair: retry
+    tags: [test]
