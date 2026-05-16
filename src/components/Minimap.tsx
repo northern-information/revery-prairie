@@ -9,7 +9,13 @@ import { getLastVisibleSet, getTileVisibility, hasFogOfWar } from '@/engine/visi
 import type { GameState, Tile } from '@/engine/types'
 import type { TileVisibility } from '@/engine/visibility'
 
-const MINIMAP_CSS_SIZE = 176
+import {
+  MINIMAP_CSS_SIZE,
+  computeIsoLayout,
+  getPlayerCenter,
+  projectIso,
+} from './minimapProjection'
+import type { IsoLayout } from './minimapProjection'
 
 const PLAYER_MARKER_COLOR = '#ff69b4'
 const VIEWPORT_RECT_COLOR = '#ff69b4'
@@ -35,10 +41,24 @@ const applyFogTint = (color: string, vis: TileVisibility): string => {
   return color
 }
 
+const drawIsoTile = (
+  ctx: CanvasRenderingContext2D,
+  layout: IsoLayout,
+  worldX: number,
+  worldY: number,
+  color: string,
+) => {
+  const { px, py } = projectIso(worldX, worldY, layout)
+  const w = layout.tilePx * 2
+  const h = layout.tilePx
+  ctx.fillStyle = color
+  ctx.fillRect(Math.round(px - layout.tilePx), Math.round(py), w, h)
+}
+
 const drawTileLayer = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
-  tilePx: number,
+  layout: IsoLayout,
   visibleSet: Set<string> | null,
 ) => {
   const w = state.mapWidth
@@ -50,37 +70,31 @@ const drawTileLayer = (
     const row = state.map[y]
     for (let x = 0; x < w; x++) {
       const tileType = row[x].type
-      // Skip space — let the parent bar show through.
       if (tileType === TileType.Space) continue
       const base = tileColor(row[x], state, x, y)
       if (!fogged) {
-        ctx.fillStyle = base
-        ctx.fillRect(x * tilePx, y * tilePx, tilePx, tilePx)
+        drawIsoTile(ctx, layout, x, y, base)
         continue
       }
       const vis = getTileVisibility(state, x, y, fallbackVisible)
       if (vis === 'unexplored') {
-        // Leave the background showing through
         continue
       }
-      ctx.fillStyle = applyFogTint(base, vis)
-      ctx.fillRect(x * tilePx, y * tilePx, tilePx, tilePx)
+      drawIsoTile(ctx, layout, x, y, applyFogTint(base, vis))
     }
   }
 }
 
-const buildOverworldCache = (state: GameState, tilePx: number): HTMLCanvasElement | null => {
-  const w = state.mapWidth
-  const h = state.mapHeight
-  if (w === 0 || h === 0) return null
+const buildOverworldCache = (state: GameState, layout: IsoLayout): HTMLCanvasElement | null => {
+  if (state.mapWidth === 0 || state.mapHeight === 0) return null
 
   const offscreen = document.createElement('canvas')
-  offscreen.width = w * tilePx
-  offscreen.height = h * tilePx
+  offscreen.width = MINIMAP_CSS_SIZE
+  offscreen.height = MINIMAP_CSS_SIZE
   const ctx = offscreen.getContext('2d')
   if (!ctx) return null
 
-  drawTileLayer(ctx, state, tilePx, null)
+  drawTileLayer(ctx, state, layout, null)
   return offscreen
 }
 
@@ -93,14 +107,13 @@ const isTileExplored = (state: GameState, x: number, y: number, visibleSet: Set<
 const drawStructures = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
-  tilePx: number,
+  layout: IsoLayout,
   visibleSet: Set<string> | null,
 ) => {
   if (state.currentZone === Zone.Overworld) {
-    ctx.fillStyle = RUIN_FOOTPRINT_COLOR
     for (const ruin of state.civilizationRuins) {
       for (const pos of ruin.buildingFootprints) {
-        ctx.fillRect(pos.x * tilePx, pos.y * tilePx, tilePx, tilePx)
+        drawIsoTile(ctx, layout, pos.x, pos.y, RUIN_FOOTPRINT_COLOR)
       }
     }
   }
@@ -111,8 +124,7 @@ const drawStructures = (
       const t = row[x].type
       if (t === TileType.CaveEntrance || t === TileType.RuinEntrance) {
         if (!isTileExplored(state, x, y, visibleSet)) continue
-        ctx.fillStyle = TILE_COLORS[t]
-        ctx.fillRect(x * tilePx, y * tilePx, tilePx, tilePx)
+        drawIsoTile(ctx, layout, x, y, TILE_COLORS[t])
       }
     }
   }
@@ -127,7 +139,6 @@ const drawStructures = (
     if (zone?.zone !== state.currentZone) continue
     const pos = state.world.getComponent(e, ComponentType.Position)
     if (!pos) continue
-    // Hide characters in fogged zones unless their tile is currently visible
     if (hasFogOfWar(state.currentZone)) {
       const key = posKey(pos.x, pos.y)
       if (!visibleSet?.has(key)) continue
@@ -135,43 +146,49 @@ const drawStructures = (
     const ident = state.world.getComponent(e, ComponentType.CharacterIdentity)
     if (!ident) continue
     const def = getCharacterDefinition(ident.definitionId)
-    ctx.fillStyle = def.glyphColor
-    ctx.fillRect(pos.x * tilePx, pos.y * tilePx, tilePx, tilePx)
+    drawIsoTile(ctx, layout, pos.x, pos.y, def.glyphColor)
   }
 }
 
 const drawViewportRect = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
-  tilePx: number,
-  canvasSize: number,
+  layout: IsoLayout,
 ) => {
-  const x = state.camera.x * tilePx
-  const y = state.camera.y * tilePx
-  const w = state.viewportWidth * tilePx
-  const h = state.viewportHeight * tilePx
-
-  const clampedX = Math.max(0, Math.min(canvasSize - 1, x))
-  const clampedY = Math.max(0, Math.min(canvasSize - 1, y))
-  const clampedW = Math.max(1, Math.min(canvasSize - clampedX, w - (clampedX - x)))
-  const clampedH = Math.max(1, Math.min(canvasSize - clampedY, h - (clampedY - y)))
-
+  if (layout.tilePx === 0) return
+  const { cx, cy } = getPlayerCenter(state, layout)
+  const w = state.viewportWidth * layout.tilePx
+  const h = state.viewportHeight * layout.tilePx
+  const halfW = w / 2
+  const halfH = h / 2
+  let x = cx - halfW
+  let y = cy - halfH
+  let drawW = w
+  let drawH = h
+  if (x < 0) {
+    drawW = Math.max(1, w + x)
+    x = 0
+  }
+  if (y < 0) {
+    drawH = Math.max(1, h + y)
+    y = 0
+  }
+  if (x + drawW > MINIMAP_CSS_SIZE) drawW = Math.max(1, MINIMAP_CSS_SIZE - x)
+  if (y + drawH > MINIMAP_CSS_SIZE) drawH = Math.max(1, MINIMAP_CSS_SIZE - y)
   ctx.strokeStyle = VIEWPORT_RECT_COLOR
   ctx.lineWidth = 1
-  ctx.strokeRect(clampedX + 0.5, clampedY + 0.5, clampedW - 1, clampedH - 1)
+  ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(drawW) - 1, Math.round(drawH) - 1)
 }
 
 const drawPlayerMarker = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
-  tilePx: number,
-  canvasSize: number,
+  layout: IsoLayout,
 ) => {
-  const markerSize = Math.max(3, tilePx)
-  const cx = state.player.x * tilePx + tilePx / 2
-  const cy = state.player.y * tilePx + tilePx / 2
-  const x = Math.max(0, Math.min(canvasSize - markerSize, Math.round(cx - markerSize / 2)))
-  const y = Math.max(0, Math.min(canvasSize - markerSize, Math.round(cy - markerSize / 2)))
+  const markerSize = Math.max(3, layout.tilePx)
+  const { cx, cy } = getPlayerCenter(state, layout)
+  const x = Math.max(0, Math.min(MINIMAP_CSS_SIZE - markerSize, Math.round(cx - markerSize / 2)))
+  const y = Math.max(0, Math.min(MINIMAP_CSS_SIZE - markerSize, Math.round(cy - markerSize / 2)))
   ctx.fillStyle = PLAYER_MARKER_COLOR
   ctx.fillRect(x, y, markerSize, markerSize)
 }
@@ -203,8 +220,7 @@ export const Minimap = ({ state }: MinimapProps) => {
       raf = requestAnimationFrame(draw)
       if (state.mapWidth === 0 || state.mapHeight === 0) return
 
-      const longest = Math.max(state.mapWidth, state.mapHeight)
-      const tilePx = Math.max(1, Math.floor(MINIMAP_CSS_SIZE / longest))
+      const layout = computeIsoLayout(state.mapWidth, state.mapHeight)
 
       ctx.clearRect(0, 0, MINIMAP_CSS_SIZE, MINIMAP_CSS_SIZE)
 
@@ -214,25 +230,21 @@ export const Minimap = ({ state }: MinimapProps) => {
         const cacheStale =
           overworldCacheRef.current === null ||
           cacheMapRef.current !== state.map ||
-          cacheTilePxRef.current !== tilePx
+          cacheTilePxRef.current !== layout.tilePx
         if (cacheStale) {
-          overworldCacheRef.current = buildOverworldCache(state, tilePx)
+          overworldCacheRef.current = buildOverworldCache(state, layout)
           cacheMapRef.current = state.map
-          cacheTilePxRef.current = tilePx
+          cacheTilePxRef.current = layout.tilePx
         }
         const cache = overworldCacheRef.current
         if (cache) ctx.drawImage(cache, 0, 0)
       } else {
-        // Fogged zones (Cave, Ruin) — repaint each frame so newly explored
-        // tiles appear as the player walks.
-        drawTileLayer(ctx, state, tilePx, visibleSet)
+        drawTileLayer(ctx, state, layout, visibleSet)
       }
 
-      drawStructures(ctx, state, tilePx, visibleSet)
-
-      const drawnSize = Math.max(state.mapWidth, state.mapHeight) * tilePx
-      drawViewportRect(ctx, state, tilePx, drawnSize)
-      drawPlayerMarker(ctx, state, tilePx, drawnSize)
+      drawStructures(ctx, state, layout, visibleSet)
+      drawViewportRect(ctx, state, layout)
+      drawPlayerMarker(ctx, state, layout)
     }
 
     raf = requestAnimationFrame(draw)

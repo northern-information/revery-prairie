@@ -9,81 +9,118 @@ source_files:
   - src/components/Sidebar.tsx
   - src/components/ActionBar.tsx
   - src/components/CommandPanel.tsx
+  - src/engine/projection.ts
 
 behaviors:
   - id: minimap-render-tiles
     description: >
-      The Minimap component renders the entire current zone's map as
-      a grid of colored blocks in a fixed-size canvas anchored to the
-      bottom-left of the viewport. Each tile maps to a small block
-      (roughly 2px per tile, sized so the full map fits inside a
-      192x192 CSS pixel area). Tile colors group by walkability and
-      kind: walkable land tiles (dirt, clover, burntClover,
-      caveFloor) render in a light tan; non-walkable solids (space,
-      caveWall, caveBreakableWall) render dark; water tiles (pond,
-      river) render in blue; sand renders in a sand tone. The
-      minimap reads from `state.map`, `state.mapWidth`,
-      `state.mapHeight` so it automatically reflects the current
-      zone after `enterCave` / `exitCave` swaps. The minimap is
-      always positioned at the bottom-left corner with the same
-      offset previously used by `EventLog`.
+      The Minimap renders the entire current zone using the same iso
+      projection as the main canvas: each world tile `(x, y)` is
+      placed at iso position `(x - y, (x + y) / 2)` so the rendered
+      map is a 2:1 diamond rotated 45° with world north (low y) at
+      the top. The diamond is scaled and centered to fit inside a
+      fixed-size 176x176 CSS pixel canvas (longest projected axis
+      sized to fit the canvas). Tiles are drawn as small filled
+      blocks at their projected position with a per-tile pixel size
+      chosen so the whole diamond fits. Tile colors group by
+      walkability and kind: walkable land tiles (dirt, clover,
+      burntClover, caveFloor) render in a light tan; non-walkable
+      solids (caveWall, caveBreakableWall) render dark; space tiles
+      are skipped so the parent background shows through; water
+      tiles (pond, river) render in blue; sand renders in a sand
+      tone. The minimap reads from `state.map`, `state.mapWidth`,
+      `state.mapHeight`, `state.currentZone` so it automatically
+      reflects the current zone after `enterCave` / `exitCave`
+      swaps. The minimap is positioned at the bottom-left of the
+      viewport.
     inputs:
       - 'GameState with map data for the current zone'
     outputs:
-      - 'Canvas rendering of the full zone as colored tile blocks'
+      - 'Canvas rendering of the full zone as colored tile blocks projected into a 2:1 iso diamond'
+    state_changes: []
+    determinism: deterministic
+
+  - id: minimap-iso-projection
+    description: >
+      Every map-space coordinate drawn by the minimap (tiles,
+      structures, characters, ruin footprints, player marker)
+      passes through a shared iso projection helper that mirrors
+      the main canvas projection in `src/engine/projection.ts`. A
+      tile at world `(x, y)` projects to minimap pixel
+      `(originX + (x - y) * tilePx, originY + (x + y) * tilePx / 2)`
+      where `tilePx` is the per-tile size chosen so the longest
+      projected axis fits inside `MINIMAP_CSS_SIZE` (176), and
+      `originX` / `originY` are chosen so the diamond is centered
+      inside the canvas. World north (low y) projects to the top
+      of the diamond; world east (high x) projects to the right.
+      The viewport-rect overlay does NOT use this projection — see
+      `minimap-viewport-rect`.
+    inputs:
+      - 'World tile coordinate (x, y) and current map dimensions'
+    outputs:
+      - 'Minimap canvas pixel position (px, py) inside the centered diamond'
     state_changes: []
     determinism: deterministic
 
   - id: minimap-render-structures
     description: >
       Structures render on top of the tile layer in distinct accent
-      colors. Cave entrance tiles render in light gray. Civilization
-      ruin building footprints (from `state.civilizationRuins`)
-      render in a warm tan when the player is in the overworld zone.
-      Character ECS entities with Position + CharacterIdentity render
-      as small filled blocks in the character's portrait/glyph color
-      when their EntityZone matches the current zone. Structures
-      render at the same scale as tiles (no enlargement). The order
-      is tiles → ruin footprints → cave entrances → characters →
-      viewport rect → player dot, so dynamic elements always sit on
-      top.
+      colors using the same iso projection as tiles. Cave entrance
+      tiles render in light gray. Civilization ruin building
+      footprints (from `state.civilizationRuins`) render in a warm
+      tan when the player is in the overworld zone. Character ECS
+      entities with Position + CharacterIdentity render as small
+      filled blocks in the character's portrait/glyph color when
+      their EntityZone matches the current zone. Structures render
+      at the same scale as tiles (no enlargement). The order is
+      tiles → ruin footprints → cave entrances → characters →
+      viewport rect → player marker, so dynamic elements always sit
+      on top.
     inputs:
       - 'GameState with civilizationRuins and character ECS entities in the current zone'
     outputs:
-      - 'Structure overlays drawn on the minimap canvas'
+      - 'Structure overlays drawn on the minimap canvas at iso-projected positions'
     state_changes: []
     determinism: deterministic
 
   - id: minimap-player-marker
     description: >
       A single hot-pink (#ff69b4) filled marker renders at the
-      player's tile position on top of all other layers. The marker
-      is sized to be visible at small scale (minimum 3x3 CSS pixels
-      even when the per-tile block is smaller). The marker uses the
-      project's reserved user-action pink consistent with cursor
-      highlight and path dots.
+      player's iso-projected position on top of all other layers.
+      The marker is sized to be visible at small scale (minimum 3x3
+      CSS pixels even when the per-tile block is smaller). The
+      marker uses the project's reserved user-action pink consistent
+      with cursor highlight and path dots. Because the marker uses
+      the same iso projection as the tile layer, the player sits
+      directly on top of the tile they occupy in the diamond.
     inputs:
       - 'GameState.player.x, GameState.player.y'
     outputs:
-      - 'Hot-pink dot at the player position'
+      - 'Hot-pink dot at the player position in iso projection'
     state_changes: []
     determinism: deterministic
 
   - id: minimap-viewport-rect
     description: >
-      A 1px hot-pink outlined rectangle indicates the portion of the
-      world currently visible on the main canvas (StarCraft style).
-      The rectangle's position and size derive from the camera
-      position and `state.viewportWidth` / `state.viewportHeight`
-      (tile counts). When the camera is centered on the player at
-      the corners of the map, the rectangle is clamped to the
-      minimap bounds so it never overflows the minimap canvas. The
+      A 1px hot-pink outlined axis-aligned rectangle indicates the
+      portion of the world currently visible on the main canvas
+      (StarCraft style). The rectangle represents the player's
+      *screen* — which is always rectangular — not the diamond slice
+      of world tiles those screen pixels happen to cover. The
+      rectangle is centered on the player marker on the minimap and
+      sized in minimap pixels proportional to
+      `state.viewportWidth * tilePx` by
+      `state.viewportHeight * tilePx`. The rectangle is clamped to
+      the minimap canvas bounds so it never overflows. The
       rectangle has no fill — only a 1px stroke — so it does not
-      obscure the underlying tiles.
+      obscure the underlying tiles. Unlike every other map-space
+      element, the viewport rect does NOT pass through the iso
+      projection — it stays axis-aligned because it depicts a
+      screen-space artifact.
     inputs:
-      - 'GameState.camera, GameState.viewportWidth, GameState.viewportHeight, GameState.mapWidth, GameState.mapHeight'
+      - 'GameState.player.x, GameState.player.y, GameState.viewportWidth, GameState.viewportHeight, derived minimap tilePx'
     outputs:
-      - 'Hot-pink stroked rectangle showing the visible world region'
+      - 'Axis-aligned hot-pink stroked rectangle centered on the player marker'
     state_changes: []
     determinism: deterministic
 
@@ -93,15 +130,16 @@ behaviors:
       requestAnimationFrame while mounted. This matches the main
       canvas's RAF loop and ensures the viewport rectangle, player
       marker, and character positions stay in sync with movement
-      without depending on React state. The static tile layer is
-      cached to an offscreen canvas keyed by `state.zone` and
-      invalidated when the zone changes, so the per-frame cost is
-      only the dynamic overlay (rect, player dot, characters,
-      ruins-visibility recheck).
+      without depending on React state. The static iso-projected
+      tile layer is cached to an offscreen canvas keyed by
+      `state.map` reference and the chosen `tilePx`, and
+      invalidated when either changes (e.g. on zone swap). The
+      per-frame cost is only the dynamic overlay (rect, player
+      marker, characters, ruin footprints visibility recheck).
     inputs:
       - 'Minimap component mounted, GameState reference'
     outputs:
-      - 'Canvas redrawn each animation frame'
+      - 'Canvas redrawn each animation frame; static iso tile layer reused from cache when state.map and tilePx are unchanged'
     state_changes: []
     determinism: time-based
 
@@ -172,22 +210,31 @@ behaviors:
 edge_cases:
   - id: cave-zone-minimap
     description: 'Player enters the cave; the minimap should swap to the cave map dimensions'
-    expected: 'Minimap re-renders using state.map / mapWidth / mapHeight, showing the cave layout with caveFloor as walkable and caveWall as solid'
+    expected: 'Minimap re-renders using state.map / mapWidth / mapHeight, projecting the cave layout into iso with caveFloor as walkable and caveWall as solid'
   - id: ruins-hidden-in-cave
     description: 'Player is in the cave zone'
     expected: 'Civilization ruin footprints are not drawn (ruins exist only in the overworld)'
   - id: viewport-rect-clamped-at-edge
-    description: 'Camera is at the corner of the map (player near a map boundary)'
-    expected: 'Viewport rectangle stroke stays inside the minimap canvas bounds — no portion drawn outside the minimap area'
+    description: 'Player is near a map boundary so the player-centered viewport rect would extend past the minimap canvas'
+    expected: 'Axis-aligned viewport rectangle stroke is clamped to the minimap canvas bounds — no portion drawn outside the minimap area'
   - id: player-marker-visible-on-water
     description: 'Player path is not normally on water, but the marker should remain visible if a future zone allows it'
-    expected: 'Hot-pink player marker is drawn on top of any underlying tile color and is at least 3x3 CSS pixels'
+    expected: 'Hot-pink player marker is drawn on top of any underlying tile color and is at least 3x3 CSS pixels at its iso-projected position'
   - id: empty-civilization-ruins
     description: 'state.civilizationRuins is an empty array (genesis ran without ruins or in a zone without them)'
     expected: 'Minimap renders without errors; no ruin footprints drawn'
   - id: zone-transition-cache-invalidation
     description: 'Player walks over a cave entrance and the zone changes overworld → cave'
-    expected: 'Static tile cache is regenerated for the new map; next frame shows cave tiles, not stale overworld tiles'
+    expected: 'Static iso tile cache is regenerated for the new map; next frame shows cave tiles iso-projected, not stale overworld tiles'
+  - id: iso-diamond-fits-canvas
+    description: 'Map is square (e.g. 147x147 overworld); the iso-projected diamond is roughly 2N wide × N tall in tilePx units'
+    expected: 'tilePx is derived from the longer projected axis so the entire diamond fits inside the 176x176 minimap canvas with no clipping. North points up, east points right, west points left, south points down.'
+  - id: iso-non-square-map
+    description: 'Map is non-square (e.g. cave 40x25); the projected diamond is asymmetric'
+    expected: 'Diamond is sized and centered so its widest projected extent fits inside the minimap canvas; no clipping along any edge'
+  - id: viewport-rect-not-iso-projected
+    description: 'Camera moves; the viewport rect must not become a diamond outline'
+    expected: 'Viewport rectangle remains a single axis-aligned rectangle centered on the player marker, never a 4-vertex diamond polygon. Its size is viewportWidth × viewportHeight scaled by tilePx (or proportionally if a different scaling is used to keep the rect inside the diamond).'
 
 failure_conditions:
   - trigger: 'state.map is undefined or empty'
