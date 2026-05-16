@@ -115,7 +115,6 @@ const EXPECTED_FIELDS = [
   'caveFogDiscovered',
   'caveFogIllumination',
   'selectedUnits',
-  'playerSelected',
   'selectionBox',
   'unitCommands',
   'moveOrderMarkers',

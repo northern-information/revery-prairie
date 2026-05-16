@@ -29,8 +29,6 @@ import {
   getControllableUnitAt,
   getControllableUnitsInRect,
   hasSelection,
-  isPlayerInRect,
-  selectPlayer,
   selectUnit,
 } from '@/engine/selection'
 import { issueMoveCommand } from '@/engine/unitCommands'
@@ -243,8 +241,7 @@ export const useMouse = ({
             state.viewportHeight,
           )
           const units = getControllableUnitsInRect(state, startTile, endTile)
-          const includePlayer = isPlayerInRect(state, startTile, endTile)
-          commitBoxSelection(state, units, includePlayer)
+          commitBoxSelection(state, units)
           refreshUI()
         }
         state.selectionBox = null
@@ -325,18 +322,8 @@ export const useMouse = ({
       // a cardinal-neighbor tile that does.
       const tile = expandClickTile(state, rawTile)
 
-      // Click on the player tile — toggle player selection
+      // Click on the player tile — no-op (player is not mouse-selectable)
       if (tile.x === state.player.x && tile.y === state.player.y) {
-        state.path = null
-        state.pathWaypoints = []
-        state.pendingAction = null
-        state.pendingInteractionTarget = null
-        if (state.playerSelected && state.selectedUnits.size === 0) {
-          deselectAll(state)
-        } else {
-          selectPlayer(state)
-        }
-        refreshUI()
         return
       }
 
@@ -347,11 +334,7 @@ export const useMouse = ({
         state.pathWaypoints = []
         state.pendingAction = null
         state.pendingInteractionTarget = null
-        if (
-          state.selectedUnits.size === 1 &&
-          state.selectedUnits.has(clickedUnit) &&
-          !state.playerSelected
-        ) {
+        if (state.selectedUnits.size === 1 && state.selectedUnits.has(clickedUnit)) {
           deselectAll(state)
         } else {
           selectUnit(state, clickedUnit)
@@ -425,64 +408,11 @@ export const useMouse = ({
       )
       if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return
 
-      // With a selection, issue a unit move command (handles player + NPCs).
-      if (hasSelection(state)) {
-        if (!isWalkableTile(state.map[tile.y][tile.x].type)) return
-        issueMoveCommand(state, tile)
-        refreshUI()
-        return
-      }
-
-      // No selection — right-click moves/interacts the player
-      if (!isWalkableTile(state.map[tile.y][tile.x].type) && !isInteractableAt(state, tile.x, tile.y)) return
-      if (tile.x === state.player.x && tile.y === state.player.y) return
-
-      updateCamera(state)
-
-      const blocked = getPathfindingBlockers(state, tile)
-      const resolved = resolveClickTarget(state, tile, blocked, onDialog, onDiscovery, refreshUI)
-      if (!resolved) return
-
-      const { walkTarget, action, interactableTile } = resolved
-      if (interactableTile) {
-        state.pendingInteractionTarget = interactableTile
-      }
-
-      if (walkTarget.x === state.player.x && walkTarget.y === state.player.y) {
-        action?.()
-        refreshUI()
-        return
-      }
-
-      // Shift+right-click: chain waypoints onto an existing path
-      if (e.shiftKey && state.path && state.path.length > 0) {
-        const lastWaypoint = state.pathWaypoints[state.pathWaypoints.length - 1]
-        if (lastWaypoint?.x === walkTarget.x && lastWaypoint?.y === walkTarget.y) return
-        const chainFrom = state.path[state.path.length - 1]
-        const extension = findPath(state.map, state.mapWidth, state.mapHeight, chainFrom, walkTarget, blocked, {
-          allowDiagonal: true,
-        })
-        if (!extension || extension.length === 0) return
-        state.path.push(...extension)
-        state.pathWaypoints.push(walkTarget)
-        state.pendingAction = action
-        state.previewFn = null
-        state.pathIsChained = true
-        refreshUI()
-        return
-      }
-
-      state.pendingAction = action
-      if (!action) state.pendingInteractionTarget = null
-      state.previewFn = null
-      state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, walkTarget, blocked, {
-        allowDiagonal: true,
-      })
-      state.pathWaypoints = state.path ? [walkTarget] : []
-      // Shift+right-click with no prior path still marks the path as chained
-      // so the projected-path overlay renders for it. A plain right-click
-      // clears the flag so its path renders no glyphs.
-      state.pathIsChained = e.shiftKey && state.path !== null
+      // Right-click only commands selected NPC units. Without a selection,
+      // it is a no-op — the player is not mouse-movable.
+      if (!hasSelection(state)) return
+      if (!isWalkableTile(state.map[tile.y][tile.x].type)) return
+      issueMoveCommand(state, tile)
       refreshUI()
     }
 
