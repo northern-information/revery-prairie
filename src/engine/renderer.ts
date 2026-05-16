@@ -1489,7 +1489,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const highlight =
         !highlightSuppressed &&
         (selectedPositions.has(tileKey) ||
-          (state.playerSelected && state.playerSpawn.visible && mx === player.x && my === player.y) ||
           isAngelGroupHighlighted ||
           isFacingEntity ||
           isPendingTarget)

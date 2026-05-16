@@ -9,9 +9,7 @@ import {
   getControllableUnitsInRect,
   hasSelection,
   isControllableUnit,
-  isPlayerInRect,
   pruneSelection,
-  selectPlayer,
   selectUnit,
   selectUnits,
   getSelectedUnitPositions,
@@ -404,130 +402,103 @@ describe('gron mobility', () => {
     expect(pos?.x).not.toBe(gronX)
   })
 
-  describe('playerSelected — right-click movement and player selection', () => {
-    it('selectPlayer sets playerSelected and clears NPC selection', () => {
+  describe('player-not-mouse-selectable — player is not a selectable unit', () => {
+    it('getControllableUnitAt returns null on the player tile', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
-      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 1, state.player.y, {
-        behavior: { type: 'follow' },
-      })
-      selectUnit(state, eid)
-      selectPlayer(state)
-      expect(state.playerSelected).toBe(true)
-      expect(state.selectedUnits.size).toBe(0)
+      expect(getControllableUnitAt(state, { x: state.player.x, y: state.player.y })).toBeNull()
     })
 
-    it('selectUnit clears playerSelected', () => {
+    it('getControllableUnitsInRect excludes the player even when the rectangle covers it', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 5)
+      const { x, y } = state.player
+      const eid = createCharacterTestEntity(state, 'coyote', x + 1, y, {
+        behavior: { type: 'follow' },
+      })
+      const units = getControllableUnitsInRect(state, { x: x - 1, y: y - 1 }, { x: x + 1, y: y + 1 })
+      expect(units).toEqual([eid])
+    })
+
+    it('commitBoxSelection with only NPC units sets selectedUnits to those units', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
       const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 1, state.player.y, {
         behavior: { type: 'follow' },
       })
-      selectPlayer(state)
-      selectUnit(state, eid)
-      expect(state.playerSelected).toBe(false)
+      commitBoxSelection(state, [eid])
       expect(state.selectedUnits.has(eid)).toBe(true)
-    })
-
-    it('selectUnits clears playerSelected', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 5)
-      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 1, state.player.y, {
-        behavior: { type: 'follow' },
-      })
-      selectPlayer(state)
-      selectUnits(state, [eid])
-      expect(state.playerSelected).toBe(false)
-      expect(state.selectedUnits.has(eid)).toBe(true)
-    })
-
-    it('deselectAll clears playerSelected and selectedUnits', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 5)
-      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 1, state.player.y, {
-        behavior: { type: 'follow' },
-      })
-      commitBoxSelection(state, [eid], true)
-      expect(state.playerSelected).toBe(true)
       expect(state.selectedUnits.size).toBe(1)
-      deselectAll(state)
-      expect(state.playerSelected).toBe(false)
+    })
+
+    it('commitBoxSelection with no units clears the selection', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 5)
+      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 1, state.player.y, {
+        behavior: { type: 'follow' },
+      })
+      selectUnit(state, eid)
+      commitBoxSelection(state, [])
       expect(state.selectedUnits.size).toBe(0)
     })
 
-    it('hasSelection is true when only playerSelected', () => {
+    it('deselectAll clears selectedUnits', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
-      selectPlayer(state)
+      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 1, state.player.y, {
+        behavior: { type: 'follow' },
+      })
+      selectUnit(state, eid)
+      deselectAll(state)
+      expect(state.selectedUnits.size).toBe(0)
+    })
+
+    it('hasSelection is false when no NPC units are selected', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 5)
+      expect(hasSelection(state)).toBe(false)
+    })
+
+    it('hasSelection is true when at least one NPC unit is selected', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 5)
+      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 1, state.player.y, {
+        behavior: { type: 'follow' },
+      })
+      selectUnit(state, eid)
       expect(hasSelection(state)).toBe(true)
     })
 
-    it('isPlayerInRect returns true when player tile is inside rectangle', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 5)
-      const { x, y } = state.player
-      expect(
-        isPlayerInRect(state, { x: x - 1, y: y - 1 }, { x: x + 1, y: y + 1 })
-      ).toBe(true)
-    })
-
-    it('isPlayerInRect returns false when player tile is outside rectangle', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 5)
-      const { x, y } = state.player
-      expect(
-        isPlayerInRect(state, { x: x + 2, y: y + 2 }, { x: x + 4, y: y + 4 })
-      ).toBe(false)
-    })
-
-    it('commitBoxSelection with includePlayer=true sets playerSelected', () => {
+    it('selectUnits replaces the selection with the given NPC units only', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
       const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 1, state.player.y, {
         behavior: { type: 'follow' },
       })
-      commitBoxSelection(state, [eid], true)
-      expect(state.playerSelected).toBe(true)
+      selectUnits(state, [eid])
       expect(state.selectedUnits.has(eid)).toBe(true)
+      expect(state.selectedUnits.size).toBe(1)
     })
 
-    it('commitBoxSelection with no units and includePlayer=false clears everything', () => {
+    it('getSelectedUnitPositions never includes the player position', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
-      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 1, state.player.y, {
-        behavior: { type: 'follow' },
-      })
-      selectUnit(state, eid)
-      commitBoxSelection(state, [], false)
-      expect(state.playerSelected).toBe(false)
-      expect(state.selectedUnits.size).toBe(0)
+      const positions = getSelectedUnitPositions(state)
+      expect(positions.size).toBe(0)
     })
+  })
 
-    it('issueMoveCommand with only playerSelected routes player via state.path', () => {
+  describe('player-not-mouse-movable — issueMoveCommand never moves the player', () => {
+    it('issueMoveCommand with no NPC selection does nothing', () => {
       const state = createTestState()
       clearAroundPlayer(state, 10)
-      selectPlayer(state)
-      const target = { x: state.player.x + 4, y: state.player.y }
-      issueMoveCommand(state, target)
-      expect(state.path).not.toBeNull()
-      expect(state.path?.length).toBeGreaterThan(0)
+      const pathBefore = state.path
+      issueMoveCommand(state, { x: state.player.x + 3, y: state.player.y })
+      expect(state.path).toBe(pathBefore)
       expect(state.unitCommands.size).toBe(0)
     })
 
-    it('issueMoveCommand routes player and NPC independently to same target', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 10)
-      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 2, state.player.y, {
-        behavior: { type: 'follow' },
-      })
-      commitBoxSelection(state, [eid], true)
-      const target = { x: state.player.x + 5, y: state.player.y }
-      issueMoveCommand(state, target)
-      expect(state.path).not.toBeNull()
-      expect(state.unitCommands.has(eid)).toBe(true)
-    })
-
-    it('issueMoveCommand with only NPC selected does not set state.path', () => {
+    it('issueMoveCommand with NPC selection issues a command but does NOT set state.path', () => {
       const state = createTestState()
       clearAroundPlayer(state, 10)
       const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 2, state.player.y, {
@@ -540,52 +511,39 @@ describe('gron mobility', () => {
       expect(state.unitCommands.has(eid)).toBe(true)
     })
 
-    it('issueMoveCommand with no selection and no playerSelected does nothing', () => {
+    it('issueMoveCommand on non-walkable target is a no-op even with NPC selection', () => {
       const state = createTestState()
       clearAroundPlayer(state, 10)
-      const pathBefore = state.path
-      issueMoveCommand(state, { x: state.player.x + 3, y: state.player.y })
-      expect(state.path).toBe(pathBefore)
-      expect(state.unitCommands.size).toBe(0)
-    })
-
-    it('issueMoveCommand with playerSelected does not issue command on non-walkable tile', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 10)
-      selectPlayer(state)
-      const pathBefore = state.path
+      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 2, state.player.y, {
+        behavior: { type: 'follow' },
+      })
+      selectUnit(state, eid)
       // space tile at (0,0)
       issueMoveCommand(state, { x: 0, y: 0 })
-      expect(state.path).toBe(pathBefore)
-    })
-
-    it('getSelectedUnitPositions does not include player (player highlight is handled separately)', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 5)
-      selectPlayer(state)
-      const positions = getSelectedUnitPositions(state)
-      expect(positions.size).toBe(0)
+      expect(state.unitCommands.has(eid)).toBe(false)
     })
   })
 
-  describe('regression: drag release does not move player', () => {
-    it('commitBoxSelection does not set state.path (bug: previously left-click release fell through to move)', () => {
+  describe('drag-release-does-not-move-player', () => {
+    it('commitBoxSelection over NPC units does not set state.path', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
       state.path = null
       const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 1, state.player.y, {
         behavior: { type: 'follow' },
       })
-      commitBoxSelection(state, [eid], false)
+      commitBoxSelection(state, [eid])
       expect(state.path).toBeNull()
     })
 
-    it('commitBoxSelection over player tile selects player without setting state.path', () => {
+    it('commitBoxSelection over the player tile with no NPC units clears selection and does not move', () => {
       const state = createTestState()
       clearAroundPlayer(state, 5)
       state.path = null
-      commitBoxSelection(state, [], true)
-      expect(state.playerSelected).toBe(true)
+      // Rectangle would have covered the player, but the player is ignored;
+      // no NPC units in rect, so selection is cleared.
+      commitBoxSelection(state, [])
+      expect(state.selectedUnits.size).toBe(0)
       expect(state.path).toBeNull()
     })
   })

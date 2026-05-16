@@ -363,7 +363,6 @@ export interface GameState {
   caveFogDiscovered: Set<string>
   caveFogIllumination: Map<string, number>
   selectedUnits: Set<number>
-  playerSelected: boolean
   selectionBox: SelectionBox | null
   unitCommands: Map<number, UnitCommand>
   moveOrderMarkers: MoveOrderMarker[]
