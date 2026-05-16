@@ -79,7 +79,7 @@ export const EventLog = ({ state, eventLog }: EventLogProps) => {
   return (
     <div
       data-panel="event-log"
-      className="text-text pointer-events-auto fixed bottom-2 left-2 z-10 w-96 bg-black/70 px-3 py-2 font-mono text-xs"
+      className="text-text pointer-events-auto w-96 font-mono text-xs"
       onMouseEnter={clearCursorInfo}
       onMouseMove={clearCursorInfo}
       onMouseLeave={handleMouseLeave}
@@ -87,7 +87,7 @@ export const EventLog = ({ state, eventLog }: EventLogProps) => {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="scrollbar-custom flex max-h-48 flex-col gap-1 overflow-y-auto"
+        className="scrollbar-custom flex max-h-40 flex-col gap-1 overflow-y-auto"
       >
         {ordered.map((entry, i) => {
           const distFromBottom = ordered.length - 1 - i

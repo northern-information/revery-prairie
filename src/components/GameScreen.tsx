@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { ActionBar } from './ActionBar'
-import { CommandPanel } from './CommandPanel'
 import { CantosScreen } from './CantosScreen'
 import { CoyoteScreen } from './CoyoteScreen'
 import { DialogBox } from './DialogBox'
@@ -12,22 +10,16 @@ import { HexagramPanel } from './HexagramPanel'
 import { InventoryPanel } from './InventoryPanel'
 import { ManualPanel } from './ManualPanel'
 import { Menu } from './Menu'
+import { Minimap } from './Minimap'
 import { PermacomputerShell } from './PermacomputerShell'
 import { ReveriesPanel } from './ReveriesPanel'
-import { Sidebar } from './Sidebar'
 
 import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
 import { advanceDialog } from '@/engine/interaction'
-import {
-  COIN_GLINTING_COLOR,
-  GENESIS_TRANSITION_ACTION_BAR_DELAY_MS,
-  GENESIS_TRANSITION_ACTION_BAR_DURATION_MS,
-} from '@/engine/constants'
-import { isDeepTimeLocked } from '@/engine/deepTime'
+import { COIN_GLINTING_COLOR } from '@/engine/constants'
 import { canCast } from '@/engine/hexagram'
 import { getDefinition } from '@/engine/items'
-import { hasSelection } from '@/engine/selection'
 import { useEventLog } from '@/hooks/useEventLog'
 import { useGameEngine, type MultiplayerHookArgs } from '@/hooks/useGameEngine'
 import { useKeyboard } from '@/hooks/useKeyboard'
@@ -258,44 +250,23 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           viewportHeight={state.viewportHeight}
         />
       )}
-      {!state.genesis && (
-        <div
-          style={
-            state.genesisTransition
-              ? {
-                  opacity: 0,
-                  animation: `fade-in ${String(GENESIS_TRANSITION_ACTION_BAR_DURATION_MS)}ms ease-in ${String(GENESIS_TRANSITION_ACTION_BAR_DELAY_MS)}ms forwards`,
-                }
-              : isDeepTimeLocked(state)
-                ? { opacity: 0, transition: 'opacity 500ms ease-out', pointerEvents: 'none' as const }
-                : undefined
-          }
-        >
-          {hasSelection(state) ? (
-            <CommandPanel state={state} refreshUI={refreshUI} />
-          ) : (
-            <ActionBar
-              state={state}
-              refreshUI={refreshUI}
-              dragState={dragOverlayRef.current?.dragState ?? null}
-              onSetActionBarTarget={() => {
-                // Handled via drag system — placeholder for now
-              }}
-            />
-          )}
-        </div>
-      )}
       {import.meta.env.DEV && state.devPanelOpen && (
         <DevPanel state={state} refreshUI={refreshUI} metricsRef={metricsRef} />
       )}
-      <Sidebar
-        state={state}
-        activeScreen={activeScreen}
-        itemInfoRef={itemInfoRef}
-        metricsRef={metricsRef}
-        refreshUI={refreshUI}
-      />
-      <EventLog state={state} eventLog={log} />
+      {!state.genesis && (
+        <div
+          data-panel="bottom-bar"
+          className="pointer-events-none fixed inset-x-2 bottom-2 z-10 flex h-48 items-center justify-between gap-2 bg-black/70 p-2"
+        >
+          <div className="pointer-events-auto">
+            <Minimap state={state} />
+          </div>
+          <div className="pointer-events-auto flex-1">
+            <EventLog state={state} eventLog={log} />
+          </div>
+          <div className="pointer-events-auto w-44" />
+        </div>
+      )}
     </>
   )
 }
