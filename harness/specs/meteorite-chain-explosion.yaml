@@ -75,35 +75,29 @@ behaviors:
 
   - id: unstable-meteorite-event-log
     description: >
-      whenever the unstable roll triggers, the UI layer
-      fires a 'discovery' log event with the text 'Unstable
-      meteorite discovered!' using the meteorite glyph and
-      color. this fires once per unstable meteorite,
-      regardless of which 50/50 outcome follows. when the
-      outcome is disintegrate, a second 'discovery' log
-      event fires with the text 'Meteorite disintegrated...'
-      using the meteorite glyph and color. when the outcome
-      is explode, no extra log event is fired beyond the
-      'Unstable meteorite discovered!' entry; the chain
-      meteorites become visible on the map. the
-      PickUpResult exposes chainExplosions (chain spawn
-      count, > 0 on explode with valid tiles) and
-      disintegrations (count of disintegrate outcomes
-      this call). the meteorite is NOT in pickedUp on either
-      outcome. events append to the EventLog overlay only —
-      there is no floating-toast surface.
+      when the explode outcome spawns at least one chain
+      meteorite (PickUpResult.chainExplosions > 0), the UI
+      layer fires a 'discovery' log event with the text
+      'Unstable meteorite discovered!' using the meteorite
+      glyph and color. when the disintegrate outcome
+      occurs (PickUpResult.disintegrations > 0), the UI
+      layer fires a 'discovery' log event with the text
+      'Meteorite disintegrated...' using the meteorite
+      glyph and color. the meteorite is NOT in pickedUp on
+      either outcome. events append to the EventLog overlay
+      only — there is no floating-toast surface.
     inputs:
       - 'PickUpResult with chainExplosions and/or disintegrations indicating unstable outcomes'
     outputs:
-      - "log event per unstable outcome: kind 'discovery', text 'Unstable meteorite discovered!', icon meteorite glyph, color meteorite color"
-      - "additional log event per disintegrate outcome: kind 'discovery', text 'Meteorite disintegrated...', icon meteorite glyph, color meteorite color"
+      - "log event when chainExplosions > 0: kind 'discovery', text 'Unstable meteorite discovered!', icon meteorite glyph, color meteorite color"
+      - "log event when disintegrations > 0: kind 'discovery', text 'Meteorite disintegrated...', icon meteorite glyph, color meteorite color"
     state_changes: []
     determinism: deterministic
 
 edge_cases:
   - id: no-valid-tiles
     description: 'explode outcome but all tiles within radius 3 are non-walkable or occupied — chain spawns 0 meteorites'
-    expected: "chainExplosions count is 0, no meteorites or explosions added, 'Unstable meteorite discovered!' log entry still fires, no 'Meteorite disintegrated...' entry"
+    expected: "chainExplosions count is 0, no meteorites or explosions added, no log entry (original meteorite is still consumed by the explode outcome). matches prior behavior where chain rolls with no spawn surface were silent."
   - id: fewer-than-three-tiles
     description: 'explode outcome with only 1-2 valid tiles within radius — spawns only as many meteorites as tiles allow'
     expected: 'spawns the available count, each with a TimedEffect (kind: explosion)'

@@ -43,6 +43,7 @@ export const createCharacterEntity = (
 export interface PickUpResult {
   pickedUp: string[]
   chainExplosions: number
+  disintegrations: number
 }
 
 // Scan the 3x3 Chebyshev footprint centered on (cx, cy) and return all
@@ -101,10 +102,13 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   // single-tile semantic where chain spawns landed outside the pickup tile.
   const meteoriteCandidates = scanTagged3x3(state, px, py, 'meteorite')
 
-  // Chain explosion: roll first, then capture survivors.
-  // Exploded meteorites are consumed (removed, not picked up).
-  // Chain center is the meteorite's own tile, not the player's.
+  // Unstable meteorite: 1-in-7 roll flags as unstable, then an
+  // independent 50/50 sub-roll picks explode vs disintegrate.
+  // On either outcome the original meteorite is consumed
+  // (removed, not picked up). Chain center is the meteorite's
+  // own tile, not the player's.
   let chainExplosions = 0
+  let disintegrations = 0
   if (time !== undefined) {
     for (const eid of meteoriteCandidates) {
       const chain = state.world.getComponent(eid, ComponentType.ChainSource)
@@ -114,7 +118,11 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
       if (!mpos) continue
       const center = { x: mpos.x, y: mpos.y }
       state.world.destroyEntity(eid)
-      chainExplosions += spawnChainMeteorites(state, center, time)
+      if (Math.random() < 0.5) {
+        chainExplosions += spawnChainMeteorites(state, center, time)
+      } else {
+        disintegrations += 1
+      }
     }
   }
 
@@ -134,7 +142,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     spawnPickupBloom(state, px, py, time)
   }
 
-  return { pickedUp, chainExplosions }
+  return { pickedUp, chainExplosions, disintegrations }
 }
 
 const isBeeNearFood = (state: GameState, pos: Position): boolean => {

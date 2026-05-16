@@ -214,15 +214,26 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
             const def = getDefinition(defId)
             callbacks.onPickup?.(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
           }
-          if (result.chainExplosions > 0) {
+          if (result.chainExplosions > 0 || result.disintegrations > 0) {
             const meteoriteDef = getDefinition('meteorite')
-            callbacks.onDiscovery?.(
-              'Oh my!',
-              state.player.x,
-              state.player.y,
-              meteoriteDef.glyph,
-              meteoriteDef.glyphColor
-            )
+            if (result.chainExplosions > 0) {
+              callbacks.onDiscovery?.(
+                'Unstable meteorite discovered!',
+                state.player.x,
+                state.player.y,
+                meteoriteDef.glyph,
+                meteoriteDef.glyphColor
+              )
+            }
+            if (result.disintegrations > 0) {
+              callbacks.onDiscovery?.(
+                'Meteorite disintegrated...',
+                state.player.x,
+                state.player.y,
+                meteoriteDef.glyph,
+                meteoriteDef.glyphColor
+              )
+            }
           }
           callbacks.onRefreshUI?.()
         }
@@ -253,15 +264,26 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
             const def = getDefinition(defId)
             callbacks.onPickup?.(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
           }
-          if (result.chainExplosions > 0) {
+          if (result.chainExplosions > 0 || result.disintegrations > 0) {
             const meteoriteDef = getDefinition('meteorite')
-            callbacks.onDiscovery?.(
-              'Oh my!',
-              state.player.x,
-              state.player.y,
-              meteoriteDef.glyph,
-              meteoriteDef.glyphColor
-            )
+            if (result.chainExplosions > 0) {
+              callbacks.onDiscovery?.(
+                'Unstable meteorite discovered!',
+                state.player.x,
+                state.player.y,
+                meteoriteDef.glyph,
+                meteoriteDef.glyphColor
+              )
+            }
+            if (result.disintegrations > 0) {
+              callbacks.onDiscovery?.(
+                'Meteorite disintegrated...',
+                state.player.x,
+                state.player.y,
+                meteoriteDef.glyph,
+                meteoriteDef.glyphColor
+              )
+            }
           }
           callbacks.onRefreshUI?.()
         }
