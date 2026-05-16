@@ -135,6 +135,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
       />
       {activeScreen && (
         <PermacomputerShell
+          state={state}
           activeScreen={activeScreen}
           onClose={() => {
             setActiveScreen(null)

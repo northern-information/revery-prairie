@@ -1,26 +1,36 @@
 import { Tab } from './PanelPrimitives'
 
+import { canCast } from '@/engine/hexagram'
+import type { GameState } from '@/engine/types'
 import type { PermacomputerScreen } from '@/hooks/useKeyboard'
 
-const SCREEN_TABS: { screen: NonNullable<PermacomputerScreen>; label: string }[] = [
-  { screen: 'pack', label: 'PACK' },
-  { screen: 'manual', label: 'MANUAL' },
-  { screen: 'reveries', label: 'REVERIES' },
-  { screen: 'divination', label: 'DIVINATION' },
-  { screen: 'cantos', label: 'CANTOS' },
-  { screen: 'coyote', label: 'COYOTE' },
-  { screen: 'system', label: 'SYS' },
+type TabScreen = NonNullable<PermacomputerScreen>
+
+const SCREEN_TABS: { screen: TabScreen; label: string; isVisible: (state: GameState) => boolean }[] = [
+  { screen: 'pack', label: 'PACK', isVisible: () => true },
+  { screen: 'manual', label: 'MANUAL', isVisible: () => true },
+  { screen: 'reveries', label: 'REVERIES', isVisible: state => state.reveries.length > 0 },
+  { screen: 'divination', label: 'DIVINATION', isVisible: state => canCast(state) },
+  { screen: 'cantos', label: 'CANTOS', isVisible: state => state.angelCantos.length > 0 },
+  {
+    screen: 'coyote',
+    label: 'COYOTE',
+    isVisible: state => state.manualDiscoveries.has('event:rescue-coyote'),
+  },
+  { screen: 'system', label: 'SYS', isVisible: () => true },
 ]
 
 interface PermacomputerShellProps {
+  state: GameState
   activeScreen: NonNullable<PermacomputerScreen>
   onClose: () => void
   onSwitchScreen: (screen: PermacomputerScreen) => void
   children: React.ReactNode
 }
 
-export const PermacomputerShell = ({ activeScreen, onClose, onSwitchScreen, children }: PermacomputerShellProps) => {
+export const PermacomputerShell = ({ state, activeScreen, onClose, onSwitchScreen, children }: PermacomputerShellProps) => {
   const isPackScreen = activeScreen === 'pack'
+  const visibleTabs = SCREEN_TABS.filter(tab => tab.isVisible(state))
 
   return (
     <>
@@ -53,7 +63,7 @@ export const PermacomputerShell = ({ activeScreen, onClose, onSwitchScreen, chil
           >
             ⚙
           </button>
-          {SCREEN_TABS.map(tab => (
+          {visibleTabs.map(tab => (
             <Tab
               key={tab.screen}
               active={activeScreen === tab.screen}

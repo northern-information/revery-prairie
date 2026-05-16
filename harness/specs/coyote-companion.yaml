@@ -240,18 +240,24 @@ behaviors:
 
   - id: coyote-permacomputer-tab
     description: >
-      a new 'COYOTE' tab is added to the permacomputer shell between
-      CANTOS and SYS. the PermacomputerScreen type is extended with
-      'coyote'. the CoyoteScreen component displays the current coyote
-      mode and a 'summon' action. activating summon teleports the
-      coyote to an adjacent walkable tile next to the player (using
-      the same adjacency-finding logic as cave transition). the tab
-      shows the coyote's current cargo status (empty or carrying an
-      item name).
+      a 'COYOTE' tab is rendered in the permacomputer shell between
+      CANTOS and SYS, but only after the coyote has been rescued —
+      specifically when state.manualDiscoveries contains
+      'event:rescue-coyote'. before rescue the tab is hidden and there
+      is no way for the player to reach the CoyoteScreen. the
+      PermacomputerScreen type still includes 'coyote' as a valid
+      activeScreen value; visibility is enforced at the tab-bar render
+      layer (see permacomputer-tab-visibility spec). once visible, the
+      CoyoteScreen component displays the current coyote mode and a
+      'summon' action. activating summon teleports the coyote to an
+      adjacent walkable tile next to the player (using the same
+      adjacency-finding logic as cave transition). the tab shows the
+      coyote's current cargo status (empty or carrying an item name).
     inputs:
-      - 'permacomputer open, COYOTE tab selected'
+      - 'permacomputer open, COYOTE tab selected (only available post-rescue)'
       - 'summon action activated'
     outputs:
+      - 'COYOTE tab rendered only when event:rescue-coyote has been recorded'
       - 'coyote teleported to tile adjacent to player'
     state_changes:
       - field: 'world (coyote entity Position component)'

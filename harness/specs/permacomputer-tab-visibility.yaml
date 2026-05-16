@@ -1,0 +1,97 @@
+id: permacomputer-tab-visibility
+name: 'Permacomputer Tab Visibility'
+priority: medium
+layer: component
+source_files:
+  - src/components/PermacomputerShell.tsx
+  - src/components/GameScreen.tsx
+dependencies:
+  - coyote-companion
+  - angels
+  - hexagram-casting
+  - main-questline-foundation
+behaviors:
+  - id: tab-gating
+    description: >
+      the permacomputer shell renders only the tabs whose unlock
+      condition is satisfied by the current GameState. PACK, MANUAL,
+      and SYS are always visible. REVERIES is visible when
+      state.reveries.length > 0 (the player starts with 'earth' and
+      'lightning' so this is effectively always true, but the predicate
+      is enforced). DIVINATION is visible when canCast(state) is true
+      — i.e. the player currently has at least 3 glinting coins in
+      their backpack. CANTOS is visible when state.angelCantos.length
+      is greater than 0. COYOTE is visible when
+      state.manualDiscoveries has 'event:rescue-coyote'. tab order is
+      preserved: PACK, MANUAL, REVERIES, DIVINATION, CANTOS, COYOTE,
+      SYS — hidden tabs are skipped without leaving a gap.
+    inputs:
+      - 'GameState passed to PermacomputerShell as a prop'
+    outputs:
+      - 'tab buttons rendered for visible tabs only, in canonical order'
+    state_changes: []
+    determinism: deterministic
+
+  - id: hidden-tab-not-clickable
+    description: >
+      a tab that is hidden cannot be activated via the shell UI because
+      its button is not rendered. there is no keybinding that opens
+      the COYOTE, CANTOS, REVERIES, or DIVINATION screens directly —
+      tab clicks are the only entry point. if external code sets
+      activeScreen to a hidden tab's value, the shell still renders
+      its tab bar without that tab (the content area continues to
+      reflect whatever activeScreen is, since content rendering is
+      owned by GameScreen, not the shell).
+    inputs:
+      - 'tab is hidden by its gating predicate'
+    outputs:
+      - 'no Tab button rendered for that screen'
+    state_changes: []
+    determinism: deterministic
+
+  - id: live-gate-evaluation
+    description: >
+      tab visibility is re-evaluated on every render. when the player
+      acquires their third glinting coin, DIVINATION appears on the
+      next refreshUI without requiring the panel to be re-opened.
+      symmetrically, if the player drops or consumes coins so that
+      fewer than 3 remain, DIVINATION disappears. CANTOS and COYOTE
+      use one-way gates (cantos and rescue discovery are append-only),
+      so once visible they stay visible.
+    inputs:
+      - 'GameState mutates a field that affects a gating predicate'
+      - 'refreshUI fires'
+    outputs:
+      - 'shell re-renders with updated set of visible tabs'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: divination-active-when-coins-dropped
+    description: 'DIVINATION is the active screen, then the player drops a coin so backpack drops below 3 glinting coins'
+    expected: "DIVINATION tab disappears from the tab bar on the next render. activeScreen remains 'divination' (the shell does not auto-close), but the player has no way to return to that screen if they switch away. GameScreen continues to render the DivinationScreen content while activeScreen === 'divination'."
+  - id: coyote-tab-after-cave-transition
+    description: 'player rescues coyote, then transitions between overworld and cave/ruin zones'
+    expected: "COYOTE tab remains visible across zone transitions because manualDiscoveries.has('event:rescue-coyote') is set once and never cleared."
+  - id: cantos-after-first-angel-gift
+    description: 'player completes their first angel dialog and receives a canto'
+    expected: 'CANTOS tab becomes visible on the next render. order is preserved (between DIVINATION and COYOTE).'
+  - id: all-optional-tabs-hidden
+    description: 'fresh game, no coins picked up, no angels met, no coyote rescued — but starting reveries are present'
+    expected: 'tab bar shows PACK, MANUAL, REVERIES, SYS. DIVINATION, CANTOS, COYOTE are hidden.'
+  - id: skip-genesis-reveries-zero
+    description: 'developer override or test fixture starts the game with state.reveries empty'
+    expected: 'REVERIES tab is hidden until the player receives a revery.'
+
+failure_conditions:
+  - trigger: 'shell receives a state where every gating predicate is false (e.g. reveries empty, no coins, no cantos, no rescue)'
+    expected: 'PACK, MANUAL, SYS tabs render. no crash. no console error.'
+  - trigger: 'activeScreen is set to a hidden tab via external code or stale React state'
+    expected: 'shell renders the tab bar without that tab. content area is owned by GameScreen and is unaffected. no crash.'
+  - trigger: 'state.manualDiscoveries is undefined or null'
+    expected: 'COYOTE tab is hidden (treated as not discovered). no crash.'
+
+verification:
+  test_file: src/components/__tests__/PermacomputerShell.test.tsx
+  test_pattern: tab visibility
+  command: npx vitest run src/components/__tests__/PermacomputerShell.test.tsx

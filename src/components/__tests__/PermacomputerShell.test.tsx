@@ -1,49 +1,42 @@
-import { PermacomputerShell } from '../PermacomputerShell'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-describe('PermacomputerShell', () => {
-  const defaultProps = {
+import { createGameState } from '@/engine/state'
+import type { GameState } from '@/engine/types'
+
+import { PermacomputerShell } from '../PermacomputerShell'
+
+const buildState = (mutate?: (state: GameState) => void): GameState => {
+  const state = createGameState('Tester', 80, 40)
+  if (mutate) mutate(state)
+  return state
+}
+
+const renderShell = (overrides: Partial<Parameters<typeof PermacomputerShell>[0]> = {}, state: GameState = buildState()) => {
+  const props = {
+    state,
     activeScreen: 'pack' as const,
     onClose: vi.fn(),
     onSwitchScreen: vi.fn(),
+    children: <div>content</div>,
+    ...overrides,
   }
+  return { ...render(<PermacomputerShell {...props} />), props }
+}
 
+describe('PermacomputerShell', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('renders all tab labels', () => {
-    render(
-      <PermacomputerShell {...defaultProps}>
-        <div>content</div>
-      </PermacomputerShell>
-    )
-
-    expect(screen.getByText('PACK')).toBeInTheDocument()
-    expect(screen.getByText('MANUAL')).toBeInTheDocument()
-    expect(screen.getByText('REVERIES')).toBeInTheDocument()
-    expect(screen.getByText('DIVINATION')).toBeInTheDocument()
-    expect(screen.getByText('SYS')).toBeInTheDocument()
-  })
-
   it('renders children in the content area', () => {
-    render(
-      <PermacomputerShell {...defaultProps}>
-        <div>test content</div>
-      </PermacomputerShell>
-    )
-
+    renderShell({ children: <div>test content</div> })
     expect(screen.getByText('test content')).toBeInTheDocument()
   })
 
-  it('calls onSwitchScreen when a tab is clicked', async () => {
+  it('calls onSwitchScreen when a visible tab is clicked', async () => {
     const onSwitchScreen = vi.fn()
-    render(
-      <PermacomputerShell {...defaultProps} onSwitchScreen={onSwitchScreen}>
-        <div>content</div>
-      </PermacomputerShell>
-    )
+    renderShell({ onSwitchScreen })
 
     await userEvent.click(screen.getByTestId('tab-manual'))
     expect(onSwitchScreen).toHaveBeenCalledWith('manual')
@@ -51,11 +44,7 @@ describe('PermacomputerShell', () => {
 
   it('calls onClose when backdrop is clicked (non-pack screen)', async () => {
     const onClose = vi.fn()
-    render(
-      <PermacomputerShell {...defaultProps} activeScreen="manual" onClose={onClose}>
-        <div>content</div>
-      </PermacomputerShell>
-    )
+    renderShell({ activeScreen: 'manual', onClose })
 
     await userEvent.click(screen.getByTestId('permacomputer-backdrop'))
     expect(onClose).toHaveBeenCalledOnce()
@@ -63,37 +52,133 @@ describe('PermacomputerShell', () => {
 
   it('does not close on backdrop click when pack screen is active', async () => {
     const onClose = vi.fn()
-    render(
-      <PermacomputerShell {...defaultProps} activeScreen="pack" onClose={onClose}>
-        <div>content</div>
-      </PermacomputerShell>
-    )
+    renderShell({ activeScreen: 'pack', onClose })
 
     // Backdrop has pointer-events-none on pack screen, so click goes through
     await userEvent.click(screen.getByTestId('permacomputer-backdrop'))
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('renders the permacomputer glyph', () => {
-    render(
-      <PermacomputerShell {...defaultProps}>
-        <div>content</div>
-      </PermacomputerShell>
-    )
-
+  it('renders the permacomputer shell', () => {
+    renderShell()
     expect(screen.getByTestId('permacomputer-shell')).toBeInTheDocument()
   })
 
   // Bottom bar (GameScreen) is fixed bottom-2 h-48 (~200px). Shell and backdrop must
   // stop short of it via bottom-52 so the minimap and event log stay clickable.
   it('reserves space at the bottom for the minimap and event log', () => {
-    render(
-      <PermacomputerShell {...defaultProps} activeScreen="manual">
-        <div>content</div>
-      </PermacomputerShell>
-    )
+    renderShell({ activeScreen: 'manual' })
 
     expect(screen.getByTestId('permacomputer-shell').className).toContain('bottom-52')
     expect(screen.getByTestId('permacomputer-backdrop').className).toContain('bottom-52')
+  })
+
+  describe('tab visibility', () => {
+    it('always renders PACK, MANUAL, and SYS tabs', () => {
+      renderShell()
+
+      expect(screen.getByTestId('tab-pack')).toBeInTheDocument()
+      expect(screen.getByTestId('tab-manual')).toBeInTheDocument()
+      expect(screen.getByTestId('tab-system')).toBeInTheDocument()
+    })
+
+    it('hides COYOTE tab before rescue', () => {
+      renderShell()
+      expect(screen.queryByTestId('tab-coyote')).not.toBeInTheDocument()
+    })
+
+    it('shows COYOTE tab once event:rescue-coyote is discovered', () => {
+      const state = buildState(s => {
+        s.manualDiscoveries.add('event:rescue-coyote')
+      })
+      renderShell({}, state)
+      expect(screen.getByTestId('tab-coyote')).toBeInTheDocument()
+    })
+
+    it('hides CANTOS tab when angelCantos is empty', () => {
+      renderShell()
+      expect(screen.queryByTestId('tab-cantos')).not.toBeInTheDocument()
+    })
+
+    it('shows CANTOS tab once at least one canto is received', () => {
+      const state = buildState(s => {
+        s.angelCantos.push('first-canto')
+      })
+      renderShell({}, state)
+      expect(screen.getByTestId('tab-cantos')).toBeInTheDocument()
+    })
+
+    it('hides REVERIES tab when state.reveries is empty', () => {
+      const state = buildState(s => {
+        s.reveries = []
+      })
+      renderShell({}, state)
+      expect(screen.queryByTestId('tab-reveries')).not.toBeInTheDocument()
+    })
+
+    it('shows REVERIES tab when state.reveries has at least one entry', () => {
+      // createGameState seeds the starter reveries, so the default fixture is sufficient.
+      renderShell()
+      expect(screen.getByTestId('tab-reveries')).toBeInTheDocument()
+    })
+
+    it('hides DIVINATION tab when fewer than 3 glinting coins are in the pack', () => {
+      renderShell()
+      expect(screen.queryByTestId('tab-divination')).not.toBeInTheDocument()
+    })
+
+    it('shows DIVINATION tab when canCast is true (>=3 glinting coins in pack)', () => {
+      const state = buildState(s => {
+        // Place three glinting coins directly in the backpack.
+        for (let i = 0; i < 3; i++) {
+          const uid = `test-coin-${String(i)}`
+          s.backpack.items.push({ uid, definitionId: 'coin', gridX: i, gridY: 0 })
+          s.glintingCoins.add(uid)
+        }
+      })
+      renderShell({}, state)
+      expect(screen.getByTestId('tab-divination')).toBeInTheDocument()
+    })
+
+    it('shows only PACK, MANUAL, REVERIES, SYS on a fresh game with no unlocks beyond starter reveries', () => {
+      renderShell()
+
+      expect(screen.getByTestId('tab-pack')).toBeInTheDocument()
+      expect(screen.getByTestId('tab-manual')).toBeInTheDocument()
+      expect(screen.getByTestId('tab-reveries')).toBeInTheDocument()
+      expect(screen.getByTestId('tab-system')).toBeInTheDocument()
+
+      expect(screen.queryByTestId('tab-divination')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('tab-cantos')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('tab-coyote')).not.toBeInTheDocument()
+    })
+
+    it('renders all visible tabs in canonical order', () => {
+      const state = buildState(s => {
+        s.angelCantos.push('canto-a')
+        s.manualDiscoveries.add('event:rescue-coyote')
+        for (let i = 0; i < 3; i++) {
+          const uid = `coin-${String(i)}`
+          s.backpack.items.push({ uid, definitionId: 'coin', gridX: i, gridY: 0 })
+          s.glintingCoins.add(uid)
+        }
+      })
+      renderShell({}, state)
+
+      const order = [
+        screen.getByTestId('tab-pack'),
+        screen.getByTestId('tab-manual'),
+        screen.getByTestId('tab-reveries'),
+        screen.getByTestId('tab-divination'),
+        screen.getByTestId('tab-cantos'),
+        screen.getByTestId('tab-coyote'),
+        screen.getByTestId('tab-system'),
+      ]
+      for (let i = 1; i < order.length; i++) {
+        const prev = order[i - 1]
+        const cur = order[i]
+        expect(prev.compareDocumentPosition(cur) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      }
+    })
   })
 })
