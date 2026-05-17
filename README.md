@@ -86,6 +86,16 @@ slash commands start the pipeline. each is conversational — the AI gathers req
 - `harness/src/` — harness tooling
 - `.claude/skills/` — slash command definitions
 
+### sequencing the precis
+
+the long-running precis rollout (13 features, from "delete the four player-cast spells" through the Revery, controlled burn, genetics, egregoric flora, and failure-state biomes) is sequenced separately from any single harness spec:
+
+- `docs/precis-thinktank-v3.md` — locked doctrine: vocabulary, cosmology, time, genetics decision, the sequence + dependency graph
+- `docs/precis-status.yaml` — running state: each feature's status, spec/plan/pr links, notes
+- `npm run precis` — terminal kanban (TODO / NEXT / IN PROGRESS / SHIPPED) rendered from the YAML. live-reloads when you edit it
+
+start each feature by checking the dashboard's NEXT column, then run `/new-feature` (or `/change-request` / `/bug-report`) and reference v3 for doctrine.
+
 ## commands
 
 | command              | description                              |
@@ -98,3 +108,4 @@ slash commands start the pipeline. each is conversational — the AI gathers req
 | `npm run test:watch` | run tests in watch mode                  |
 | `npm run preview`    | preview production build                 |
 | `npm run deploy`     | build + ship to Cloudflare (multiplayer) |
+| `npm run precis`     | terminal kanban for the precis rollout   |

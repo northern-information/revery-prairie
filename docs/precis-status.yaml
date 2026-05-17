@@ -1,0 +1,162 @@
+# Precis sequencing — current status
+# Source of truth for the precis dashboard TUI. Run: `npm run precis`.
+# Doctrine lives in docs/precis-thinktank-v3.md. This file is the running state.
+#
+# Status values: todo | in-progress | shipped
+# The dashboard derives a fourth bucket — `next` — for any `todo` whose deps are all `shipped`.
+# Field order is locked. Keep it diff-friendly.
+
+features:
+  - id: '0'
+    name: Reclaim Revery
+    summary: Delete the four player-cast spells; action bar becomes tools/seeds/practices.
+    size: S
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '1'
+    name: Multi-species Flora
+    summary: Clover → Flora; add wildflower and tall grass species under a shared registry.
+    size: M
+    depends_on: ['0']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '8a'
+    name: Egregoric flora — thematic
+    summary: One inert tile type, Voynich manual entries, NPC refusal lines, folk-name divergence. Foreshadowing pass.
+    size: XS
+    depends_on: ['0']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '2'
+    name: Phenological seasons
+    summary: Seasons derived from weather; plant lifecycle reads from it.
+    size: S/M
+    depends_on: ['1']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '3'
+    name: Genetics v1
+    summary: SHA256 identity layer + trait-bag inheritance (option C). Not a breed-spike port. Hex grid stays buried.
+    size: M
+    depends_on: ['1', '2']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '4'
+    name: The Revery (long-form phase)
+    summary: Omen-triggered entry, observation UX, end-of-Revery summary (bilingual ASCII + Voynich).
+    size: L
+    depends_on: ['1', '2', '3', '8a']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '5'
+    name: Ruin → first non-clover species
+    summary: DormantGarden payload delivers the first non-clover species.
+    size: S
+    depends_on: ['1']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '6'
+    name: Naturalist's manual
+    summary: Traits surface as discovered phenotypes. No numbers. No genome viewer.
+    size: S
+    depends_on: ['3']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '7'
+    name: Pollinator routes & preference
+    summary: Pollinators favor certain species and route through the prairie.
+    size: S
+    depends_on: ['1', '3']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '8b'
+    name: Egregoric flora — mechanical
+    summary: Parallel species set, invisible pollinator, winter-phased spread, "no compatible regions" crossbreeding.
+    size: M/L
+    depends_on: ['1', '2', '3', '4', '7']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '9'
+    name: Controlled burn
+    summary: Torchbearer NPC, player walks the line, voice pass before behavior pass.
+    size: M
+    depends_on: ['1', '2', '3']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '10'
+    name: Failure-state biomes
+    summary: Ash, fungal, Far Garden conversion as Revery outcomes.
+    size: M
+    depends_on: ['4', '8b', '9']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '11'
+    name: Seed / genetic-fragment taxonomy
+    summary: Item taxonomy for seeds and genetic fragments.
+    size: S
+    depends_on: ['3', '5']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
+  - id: '12'
+    name: Crossbreeding UX
+    summary: Adjacent → pollinator-mediated crossbreeding.
+    size: M
+    depends_on: ['3', '7']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
