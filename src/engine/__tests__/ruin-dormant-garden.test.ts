@@ -1,7 +1,7 @@
 import { RuinRole } from '../genesisTypes'
 import { clearRuinDebris } from '../interaction'
 import { isWalkableTile, posKey } from '../position'
-import { fireOnRuinTile, generateRuinInterior, repairAqueductBreak, tickDormantGardenDecay } from '../ruins'
+import { generateRuinInterior, repairAqueductBreak, tickDormantGardenDecay } from '../ruins'
 import { RuinArchetype, TileType, Zone } from '../types'
 import { createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
@@ -243,71 +243,6 @@ describe('ruin dormant garden', () => {
 
       const result = repairAqueductBreak(state, 0, 0)
       expect(result).toBe(false)
-    })
-  })
-
-  describe('fire interaction', () => {
-    it('clears debris to RuinFloor', () => {
-      const interior = makeGardenInterior()
-      const garden = interior.dormantGarden
-      expect(garden).toBeTruthy()
-      if (!garden) return
-      if (garden.debrisPositions.length === 0) return
-
-      const dp = garden.debrisPositions[0]
-      const ruin = { ...interior, entranceOverworld: { x: 50, y: 50 } }
-      const state = {
-        currentRuinIndex: 0,
-        ruinInteriors: [ruin],
-        map: ruin.map,
-      } as never
-
-      expect(interior.map[dp.y][dp.x].type).toBe(TileType.RuinDebris)
-      const result = fireOnRuinTile(state, dp.x, dp.y)
-      expect(result).toBe(true)
-      expect(interior.map[dp.y][dp.x].type).toBe(TileType.RuinFloor)
-    })
-
-    it('accelerates decay when fire hits aqueduct', () => {
-      const interior = makeGardenInterior()
-      const garden = interior.dormantGarden
-      expect(garden).toBeTruthy()
-      if (!garden) return
-      if (garden.aqueductTiles.size === 0) return
-
-      const aqueductKey = [...garden.aqueductTiles][0]
-      const parts = aqueductKey.split(',')
-      const ax = Number(parts[0])
-      const ay = Number(parts[1])
-
-      const state = {
-        currentRuinIndex: 0,
-        ruinInteriors: [{ ...interior, entranceOverworld: { x: 50, y: 50 } }],
-      } as never
-
-      expect(garden.seedDecayAcceleration).toBe(1)
-      fireOnRuinTile(state, ax, ay)
-      expect(garden.seedDecayAcceleration).toBe(1.5)
-    })
-
-    it('does not accelerate decay when water is flowing', () => {
-      const interior = makeGardenInterior()
-      const garden = interior.dormantGarden
-      expect(garden).toBeTruthy()
-      if (!garden) return
-      if (garden.aqueductTiles.size === 0) return
-
-      garden.waterFlowing = true
-      const aqueductKey = [...garden.aqueductTiles][0]
-      const parts = aqueductKey.split(',')
-
-      const state = {
-        currentRuinIndex: 0,
-        ruinInteriors: [{ ...interior, entranceOverworld: { x: 50, y: 50 } }],
-      } as never
-
-      fireOnRuinTile(state, Number(parts[0]), Number(parts[1]))
-      expect(garden.seedDecayAcceleration).toBe(1)
     })
   })
 

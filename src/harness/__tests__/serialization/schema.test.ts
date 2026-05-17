@@ -108,7 +108,6 @@ const EXPECTED_FIELDS = [
   'queuedEvents',
   'caveFogExplored',
   'caveFogDiscovered',
-  'caveFogIllumination',
   'selectedUnits',
   'selectionBox',
   'unitCommands',

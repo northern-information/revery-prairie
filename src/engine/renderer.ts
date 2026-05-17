@@ -109,7 +109,7 @@ import './render/passes/index'
 
 import { getTierGrid as getTierGridShared, liftAt as liftAtShared } from './render/tierGrid'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
-import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
+import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar } from './visibility'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
 
@@ -1045,10 +1045,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // one cached visible set. Result is cached on visibility.ts module
   // state, readable via getLastVisibleSet().
   const fogActive = hasFogOfWar(state.currentZone)
-  if (fogActive) tickIllumination(state, time)
   const visibleSet = fogActive ? computeZoneVisibility(state) : null
 
-  // world-overlay slot: earth scan, ruin entrance halo, lightning targeting
+  // world-overlay slot: ruin entrance halo
   // range, angel gold aura, prairie halo composite, prairie outline, then
   // the fog-of-war mask (last, so it covers cached bg + every overlay above).
   // See src/engine/render/passes/.
@@ -1618,8 +1617,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (e.alpha !== 1) ctx.globalAlpha = 1
   }
 
-  // effect slot: rain aura, revery rain, weather rain, glint sparkle,
-  // glint beam, deep time burning. See src/engine/render/passes/.
+  // effect slot: rain aura, weather rain, glint sparkle, glint beam,
+  // deep time burning. See src/engine/render/passes/.
   runPassesInSlot('effect', ctx, state, metrics, time)
 
   // Deep Time year counter moved to Sidebar.tsx

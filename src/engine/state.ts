@@ -229,7 +229,6 @@ export const createGameState = (
     queuedEvents: [],
     caveFogExplored: new Set<string>(),
     caveFogDiscovered: new Set<string>(),
-    caveFogIllumination: new Map<string, number>(),
     selectedUnits: new Set<number>(),
     selectionBox: null,
     unitCommands: new Map(),

@@ -336,9 +336,9 @@ export const unlockRuinDoor = (state: GameState): boolean => {
 }
 
 /** If the player faces a RuinDebris tile, convert it to RuinFloor.
- *  Mirrors the cave breakable-wall mechanic: single-hit, no item or revery
- *  required. Coexists with fireOnRuinTile (fire revery clearing). Records
- *  'event:rubble-cleared' on the first clear. Returns true if cleared.
+ *  Mirrors the cave breakable-wall mechanic: single-hit, no item
+ *  required. Records 'event:rubble-cleared' on the first clear.
+ *  Returns true if cleared.
  *
  *  When the facing tile is part of the current ruin's collapseBarrier
  *  (the 3-tile gating row in coyote-role ruins), every barrier tile

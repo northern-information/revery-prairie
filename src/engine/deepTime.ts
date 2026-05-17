@@ -11,7 +11,6 @@ import {
 import { ComponentType } from './ecs/types'
 import { tickBees } from './entities'
 import { forceSpawnLightningStrike, spreadWildfire } from './lightning'
-import { recordDiscovery } from './manual'
 import { tickTileWater } from './tileWater'
 import { DeepTimePhase, TileType, Zone } from './types'
 import { tickWeather } from './weather'
@@ -51,9 +50,6 @@ export const initiateDeepTime = (state: GameState, time: number): void => {
   for (const eid of toRemove) {
     state.world.destroyEntity(eid)
   }
-
-  // Record discovery
-  recordDiscovery(state, 'event:deep-time')
 
   // Spawn initial fire ignition points (3-5 random positions on clover tiles)
   const cloverPositions: Position[] = []

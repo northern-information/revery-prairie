@@ -42,7 +42,6 @@ const makeRuinInterior = (ruinIndex: number, w: number, h: number): RuinInterior
   dormantGarden: null,
   fogExplored: new Set<string>(),
   fogDiscovered: new Set<string>(),
-  fogIllumination: new Map<string, number>(),
 })
 
 const enterRuinWithInterior = (state: GameState, interior: RuinInterior): void => {

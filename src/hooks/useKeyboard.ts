@@ -99,8 +99,7 @@ export const useKeyboard = ({
       // is in flight. Only Tab (inventory), Q (manual), Escape
       // (menu/dialog), and Shift (sprint toggle, handled above) remain
       // available. WASD is also dropped by movePlayer itself; this
-      // catches action-bar keys, interact, harvest, drop, and revery
-      // toggles.
+      // catches interact, harvest, and drop.
       if (isInputGated(state)) {
         const allowed = e.key === 'Tab' || e.key === 'q' || e.key === 'Q' || e.key === 'Escape'
         if (!allowed) return

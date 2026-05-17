@@ -141,26 +141,23 @@ const scanOctant = (
 }
 
 /**
- * Get the fog state sets and illumination map for the current zone.
+ * Get the fog state sets for the current zone.
  * Cave uses GameState fields; Ruin uses per-interior fields.
  * Returns null if the current zone has no fog of war.
  *
  * - fogExplored: tiles ever in player FOV (drives partiallyDiscovered)
  * - fogDiscovered: tiles ever within DISCOVERY_RADIUS AND in LOS (drives fullyDiscovered)
- * - fogIllumination: temporary revery illumination → expiration time
  */
 const getFogState = (
   state: GameState
 ): {
   fogExplored: Set<string>
   fogDiscovered: Set<string>
-  fogIllumination: Map<string, number>
 } | null => {
   if (state.currentZone === Zone.Cave) {
     return {
       fogExplored: state.caveFogExplored,
       fogDiscovered: state.caveFogDiscovered,
-      fogIllumination: state.caveFogIllumination,
     }
   }
   if (state.currentZone === Zone.Ruin && state.currentRuinIndex !== null) {
@@ -169,7 +166,6 @@ const getFogState = (
       return {
         fogExplored: interior.fogExplored,
         fogDiscovered: interior.fogDiscovered,
-        fogIllumination: interior.fogIllumination,
       }
     }
   }
@@ -205,7 +201,6 @@ export const getLastVisibleSet = (): Set<string> | null => _lastVisibleSet
 
 /**
  * Compute the full visible set for the current frame.
- * Unions player vision with any active illumination sources (revery effects).
  * Also updates the fog explored set with newly visible tiles.
  *
  * Returns an empty set if the current zone has no fog of war
@@ -223,15 +218,8 @@ export const computeZoneVisibility = (state: GameState): Set<string> => {
   // Pick vision radius based on zone
   const radius = state.currentZone === Zone.Ruin ? RUIN_VISION_RADIUS : CAVE_VISION_RADIUS
 
-  // Player's natural vision (separate from total visible — used below for
-  // fullyDiscovered promotion, since revery illumination must not promote)
   const playerFOV = computeFOV(player.x, player.y, radius, map, mapWidth, mapHeight)
   const visible = new Set(playerFOV)
-
-  // Add illumination from revery effects (fire, lightning)
-  for (const key of fog.fogIllumination.keys()) {
-    visible.add(key)
-  }
 
   // Entrance is always visible (so player can always find the exit)
   let entrance: { x: number; y: number } | null = null
@@ -263,8 +251,6 @@ export const computeZoneVisibility = (state: GameState): Set<string> => {
 
   // Promote tiles within DISCOVERY_RADIUS of the player AND in the player's
   // natural FOV (LOS-checked) to fullyDiscovered. Permanent — never reverts.
-  // Revery illumination is excluded by checking playerFOV (not visible),
-  // so remote casts cannot full-discover tiles.
   const minX = player.x - DISCOVERY_RADIUS
   const maxX = player.x + DISCOVERY_RADIUS
   const minY = player.y - DISCOVERY_RADIUS
@@ -285,53 +271,6 @@ export const computeZoneVisibility = (state: GameState): Set<string> => {
 
 /** @deprecated Use computeZoneVisibility instead. Alias kept for call-site compatibility. */
 export const computeCaveVisibility = computeZoneVisibility
-
-/**
- * Add illumination from a revery effect at a given origin.
- * Computes FOV from the origin point (walls block LOS) and adds
- * all visible tiles to both the illumination map and explored set.
- *
- * @param expiresAt - timestamp when the illumination expires
- */
-export const addReveryIllumination = (
-  state: GameState,
-  originX: number,
-  originY: number,
-  radius: number,
-  expiresAt: number
-): void => {
-  const fog = getFogState(state)
-  if (!fog) return
-
-  const illuminated = computeFOV(originX, originY, radius, state.map, state.mapWidth, state.mapHeight)
-
-  for (const key of illuminated) {
-    const existing = fog.fogIllumination.get(key)
-    // Keep the later expiration if already illuminated
-    if (existing === undefined || existing < expiresAt) {
-      fog.fogIllumination.set(key, expiresAt)
-    }
-    fog.fogExplored.add(key)
-  }
-}
-
-/**
- * Expire old illumination entries. Call once per frame.
- */
-export const tickIllumination = (state: GameState, time: number): void => {
-  const fog = getFogState(state)
-  if (!fog) return
-
-  const expired: string[] = []
-  for (const [key, expiresAt] of fog.fogIllumination) {
-    if (time >= expiresAt) {
-      expired.push(key)
-    }
-  }
-  for (const key of expired) {
-    fog.fogIllumination.delete(key)
-  }
-}
 
 /**
  * Dimming helper: given an RGB hex color string, return it at reduced brightness.

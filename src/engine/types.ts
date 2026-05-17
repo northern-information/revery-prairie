@@ -343,7 +343,6 @@ export interface GameState {
   queuedEvents: QueuedEvent[]
   caveFogExplored: Set<string>
   caveFogDiscovered: Set<string>
-  caveFogIllumination: Map<string, number>
   selectedUnits: Set<number>
   selectionBox: SelectionBox | null
   unitCommands: Map<number, UnitCommand>
@@ -502,7 +501,6 @@ export interface RuinInterior {
   dormantGarden: DormantGardenData | null
   fogExplored: Set<string>
   fogDiscovered: Set<string>
-  fogIllumination: Map<string, number>
   glyph?: string
 }
 

@@ -33,7 +33,6 @@ const CATEGORY_LABELS: Record<ManualCategory, string> = {
   [ManualCategory.Celestial]: 'CELESTIAL',
   [ManualCategory.Object]: 'OBJECTS',
   [ManualCategory.Person]: 'PEOPLE',
-  [ManualCategory.Revery]: 'REVERIES',
   [ManualCategory.Zone]: 'ZONES',
   [ManualCategory.Recipe]: 'RECIPES',
   [ManualCategory.Control]: 'CONTROLS',

@@ -15,7 +15,7 @@ import {
   LIGHTNING_WEIGHT_ISOLATED,
   LIGHTNING_WEIGHT_METAL,
   LIGHTNING_WEIGHT_NEAR_WATER,
-  SOIL_HEALTH_FIRE_REVERY_BONUS,
+  SOIL_HEALTH_BURN_BONUS,
   SPACE_BORDER,
   WATER_MAX,
   WILDFIRE_DRY_THRESHOLD,
@@ -206,7 +206,7 @@ export const spreadWildfire = (
       hasLight: true,
     })
     state.cloverGrowthPreviews.delete(key)
-    addSoilHealth(state, key, SOIL_HEALTH_FIRE_REVERY_BONUS)
+    addSoilHealth(state, key, SOIL_HEALTH_BURN_BONUS)
 
     // Enqueue neighbors
     for (const dir of CARDINAL) {

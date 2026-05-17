@@ -1,4 +1,6 @@
-import { FIRE_REVERY_MAX_SPREAD, WATER_MAX, WILDFIRE_MAX_SPREAD } from '../constants'
+import { WATER_MAX, WILDFIRE_MAX_SPREAD } from '../constants'
+
+const SMALL_MAX_SPREAD = 7
 import { spreadWildfire } from '../lightning'
 import { posKey } from '../position'
 import { CloverStage, TileType } from '../types'
@@ -29,8 +31,8 @@ describe('wildfire spread', () => {
     })
   })
 
-  describe('fire revery max spread cap', () => {
-    it('limits spread to FIRE_REVERY_MAX_SPREAD when passed as maxSpread', () => {
+  describe('maxSpread parameter', () => {
+    it('limits spread to maxSpread when passed', () => {
       const state = createTestState()
       // Fill entire map with dry clover for maximum spread potential
       for (let y = 0; y < state.mapHeight; y++) {
@@ -45,14 +47,14 @@ describe('wildfire spread', () => {
         }
       }
 
-      const burned = spreadWildfire(state, 0, state.player.x + 5, state.player.y + 5, FIRE_REVERY_MAX_SPREAD)
-      expect(burned.size).toBeLessThanOrEqual(FIRE_REVERY_MAX_SPREAD)
+      const burned = spreadWildfire(state, 0, state.player.x + 5, state.player.y + 5, SMALL_MAX_SPREAD)
+      expect(burned.size).toBeLessThanOrEqual(SMALL_MAX_SPREAD)
       expect(burned.size).toBeGreaterThan(0)
     })
   })
 
   describe('lightning uses default max spread', () => {
-    it('allows spread up to WILDFIRE_MAX_SPREAD (exceeding FIRE_REVERY_MAX_SPREAD)', () => {
+    it('allows spread up to WILDFIRE_MAX_SPREAD (exceeding the small cap)', () => {
       // BFS spread is probabilistic, so run multiple trials.
       // Reuse a single state and reset the map each trial to avoid
       // expensive genesis precomputation on every iteration.
@@ -77,12 +79,12 @@ describe('wildfire spread', () => {
         expect(burned.size).toBeLessThanOrEqual(WILDFIRE_MAX_SPREAD)
         if (burned.size > maxBurned) maxBurned = burned.size
       }
-      // Over 50 trials on an all-dry field, at least one should exceed FIRE_REVERY_MAX_SPREAD
-      expect(maxBurned).toBeGreaterThan(FIRE_REVERY_MAX_SPREAD)
+      // Over 50 trials on an all-dry field, at least one should exceed the small cap
+      expect(maxBurned).toBeGreaterThan(SMALL_MAX_SPREAD)
     })
   })
 
-  describe('water barrier stops fire revery spread', () => {
+  describe('water barrier stops wildfire spread', () => {
     it('does not spread across pond tiles', () => {
       const state = createTestState()
       clearAroundPlayer(state, 15)
@@ -109,7 +111,7 @@ describe('wildfire spread', () => {
       }
 
       // Start fire on the left side
-      const burned = spreadWildfire(state, 0, cx - 1, cy, FIRE_REVERY_MAX_SPREAD)
+      const burned = spreadWildfire(state, 0, cx - 1, cy, SMALL_MAX_SPREAD)
 
       // No burned tile should be on the right side of the pond
       for (const key of burned) {

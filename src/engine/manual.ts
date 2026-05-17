@@ -16,7 +16,6 @@ export const ManualCategory = {
   Celestial: 'celestial',
   Object: 'object',
   Person: 'person',
-  Revery: 'revery',
   Zone: 'zone',
   Recipe: 'recipe',
   Control: 'control',
@@ -41,7 +40,7 @@ export interface ManualEntry {
   hints: ManualHint[]
   crossRefs?: string[]
   unlockKey: string
-  sourceKind: 'item' | 'recipe' | 'character' | 'revery' | 'zone' | 'event' | 'entity' | 'manual-only'
+  sourceKind: 'item' | 'recipe' | 'character' | 'zone' | 'event' | 'entity' | 'manual-only'
 }
 
 // --- Hand-authored lore ---
@@ -163,9 +162,6 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'event:wind-sway': { lore: 'TODO' },
   'event:pollen': { lore: 'TODO' },
   // Events — endgame
-  'event:deep-time': {
-    lore: 'The final act of stewardship. A controlled burn followed by a millennium of observation.',
-  },
   'event:rescue-coyote': { lore: 'TODO' },
   'event:steward-sealed': { lore: 'TODO' },
 }
@@ -523,15 +519,6 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     sourceKind: 'event',
   },
   {
-    id: 'event:deep-time',
-    name: 'Deep Time',
-    category: ManualCategory.Revery,
-    glyph: '⧖',
-    glyphColor: '#FFFFFF',
-    unlockKey: 'event:deep-time',
-    sourceKind: 'event',
-  },
-  {
     id: 'event:angel',
     name: 'Angel',
     category: ManualCategory.Celestial,
@@ -644,7 +631,6 @@ export const CATEGORY_ORDER: ManualCategory[] = [
   ManualCategory.Celestial,
   ManualCategory.Object,
   ManualCategory.Person,
-  ManualCategory.Revery,
   ManualCategory.Zone,
   ManualCategory.Recipe,
   ManualCategory.Control,
