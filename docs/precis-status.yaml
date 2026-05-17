@@ -15,8 +15,8 @@ features:
     status: in-progress
     spec: harness/specs/precis-0-reclaim-revery.yaml
     plan: harness/plans/precis-0-reclaim-revery.yaml
-    pr: null
-    notes: 'v3 doctrine updated — action bar deleted in #0, not retained.'
+    pr: https://github.com/northern-information/revery-prairie/pull/314
+    notes: 'v3 doctrine updated — action bar deleted in #0, not retained. PR is draft pending review; flip status to shipped after merge.'
 
   - id: '1'
     name: Multi-species Flora
