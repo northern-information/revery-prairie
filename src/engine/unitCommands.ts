@@ -1,4 +1,4 @@
-import { MOVE_ORDER_MARKER_DURATION_MS } from './constants'
+import { MOVE_ORDER_MARKER_DURATION_MS, UNIT_COMMAND_TICK_MS } from './constants'
 import { ComponentType } from './ecs/types'
 import { getBlockedPositions } from './movement'
 import { findPath } from './pathfinding'
@@ -131,7 +131,7 @@ export const tickUnitCommands = (state: GameState): void => {
       continue
     }
 
-    state.world.moveEntity(eid, next.x, next.y)
+    state.world.moveEntity(eid, next.x, next.y, UNIT_COMMAND_TICK_MS)
     blocked.add(posKey(next.x, next.y))
     cmd.path.shift()
 

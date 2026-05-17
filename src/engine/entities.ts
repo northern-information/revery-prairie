@@ -1,5 +1,5 @@
 import { CHAIN_EXPLOSION_CHANCE, spawnChainMeteorites } from './celestial'
-import { BEE_STARVATION_MS, BEE_TICK_MS } from './constants'
+import { BEE_STARVATION_MS, BEE_TICK_MS, GHOST_TICK_MS } from './constants'
 import { ComponentType } from './ecs/types'
 import { AURA_RADIUS, spawnPickupBloom } from './effects'
 import { tickCreatureHunger } from './hunger'
@@ -191,7 +191,7 @@ export const tickBees = (state: GameState, zone?: Zone): Position[] => {
     const candidates = cloverCandidates.length > 0 ? cloverCandidates : walkableCandidates
     if (candidates.length > 0) {
       const target = candidates[Math.floor(Math.random() * candidates.length)]
-      state.world.moveEntity(eid, target.x, target.y)
+      state.world.moveEntity(eid, target.x, target.y, BEE_TICK_MS)
     }
   }
 
@@ -230,7 +230,7 @@ const tickDrift = (
   if (candidates.length > 0) {
     const target = candidates[Math.floor(Math.random() * candidates.length)]
     blocked.add(posKey(target.x, target.y))
-    state.world.moveEntity(eid, target.x, target.y)
+    state.world.moveEntity(eid, target.x, target.y, GHOST_TICK_MS)
   } else {
     // Re-add self to blocked set since we didn't move
     blocked.add(selfKey)

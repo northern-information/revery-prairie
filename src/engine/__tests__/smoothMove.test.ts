@@ -1,10 +1,33 @@
+import { spawnAngel, tickAngelDrift } from '../angels'
 import { enterCave, exitCave } from '../cave'
-import { MOVEMENT_TWEEN_DEFAULT_MS, MOVEMENT_TWEEN_SPRINT_MS } from '../constants'
+import {
+  ANGEL_DRIFT_TICK_MS,
+  BEE_TICK_MS,
+  COYOTE_TICK_MS,
+  GHOST_TICK_MS,
+  MONARCH_TICK_MS,
+  MOVEMENT_TWEEN_DEFAULT_MS,
+  MOVEMENT_TWEEN_SPRINT_MS,
+  SPACE_BORDER,
+  UNIT_COMMAND_TICK_MS,
+} from '../constants'
+import { tickCoyote } from '../coyote'
 import { ComponentType } from '../ecs/types'
+import { tickBees, tickCharacterBehaviors } from '../entities'
+import { spawnMonarch, tickMonarchs } from '../monarch'
 import { movePlayer } from '../movement'
 import { clearMovementTweens, getTweenLerp } from '../movementTween'
 import { worldDeltaToIsoPx, worldToScreen } from '../projection'
-import { clearAroundPlayer, createTestState } from './helpers'
+import { selectUnit } from '../selection'
+import { CoyoteMode, TileType, Zone } from '../types'
+import { issueMoveCommand, tickUnitCommands } from '../unitCommands'
+import {
+  clearArea,
+  clearAroundPlayer,
+  createBeeEntity,
+  createCharacterTestEntity,
+  createTestState,
+} from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const requireComponent = <T>(val: T | undefined): T => {
@@ -379,6 +402,150 @@ describe('smooth move', () => {
       // dy = 0.5 - 0 = 0.5 → px = -5, py = 5
       expect(hybridOffset.px).toBeCloseTo(-5)
       expect(hybridOffset.py).toBeCloseTo(5)
+    })
+  })
+
+  describe('tick-cadence tween duration', () => {
+    // Each periodic tick that calls world.moveEntity must pass its tick
+    // interval as durationMs so the tween fills the gap to the next tick.
+    // Default tween (100ms) on a 150ms+ tick leaves an idle gap at the
+    // destination tile and reads as choppy.
+
+    it('unit-command: tickUnitCommands writes a tween with durationMs = UNIT_COMMAND_TICK_MS', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 2, state.player.y, {
+        behavior: { type: 'follow' },
+      })
+      selectUnit(state, eid)
+      issueMoveCommand(state, { x: state.player.x + 5, y: state.player.y })
+
+      tickUnitCommands(state)
+
+      const tween = state.world.getComponent(eid, ComponentType.MovementTween)
+      expect(tween).toBeTruthy()
+      expect(tween?.durationMs).toBe(UNIT_COMMAND_TICK_MS)
+    })
+
+    it('coyote follow: tickCoyote writes a tween with durationMs = COYOTE_TICK_MS', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 5, state.player.y, {
+        behavior: { type: 'follow' },
+      })
+
+      tickCoyote(state)
+
+      const tween = state.world.getComponent(eid, ComponentType.MovementTween)
+      expect(tween).toBeTruthy()
+      expect(tween?.durationMs).toBe(COYOTE_TICK_MS)
+    })
+
+    it('coyote collect: tickCoyote writes a tween with durationMs = COYOTE_TICK_MS when stepping toward a collectible', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 2, state.player.y, {
+        behavior: { type: 'follow' },
+      })
+      state.coyoteMode = CoyoteMode.Collect
+      // Place a ground item several tiles away to force a step toward it.
+      const itemX = state.player.x + 6
+      const itemY = state.player.y
+      clearArea(state, itemX, itemY, 1)
+      const gItem = state.world.createEntity()
+      state.world.addComponent(gItem, ComponentType.Position, { x: itemX, y: itemY })
+      state.world.addComponent(gItem, ComponentType.ItemDrop, { definitionId: 'clover' })
+      state.world.addComponent(gItem, ComponentType.EntityTag, 'groundItem')
+      state.world.addComponent(gItem, ComponentType.EntityZone, { zone: state.currentZone })
+
+      tickCoyote(state)
+
+      const tween = state.world.getComponent(eid, ComponentType.MovementTween)
+      expect(tween).toBeTruthy()
+      expect(tween?.durationMs).toBe(COYOTE_TICK_MS)
+    })
+
+    it('character drift: tickCharacterBehaviors writes a tween with durationMs = GHOST_TICK_MS', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      // Spawn a ghost far enough from the player not to be the player tile.
+      const eid = createCharacterTestEntity(state, 'ghost-1', state.player.x + 4, state.player.y, {
+        behavior: { type: 'drift', moveChance: 1, freezeOnDialog: false },
+      })
+      clearArea(state, state.player.x + 4, state.player.y, 2)
+      // Force a move: moveChance gate is `Math.random() > moveChance` → return 0 to pass.
+      vi.spyOn(Math, 'random').mockReturnValue(0)
+
+      tickCharacterBehaviors(state, Zone.Overworld)
+
+      const tween = state.world.getComponent(eid, ComponentType.MovementTween)
+      expect(tween).toBeTruthy()
+      expect(tween?.durationMs).toBe(GHOST_TICK_MS)
+    })
+
+    it('bees: tickBees writes a tween with durationMs = BEE_TICK_MS', () => {
+      const state = createTestState()
+      const bx = state.player.x + 5
+      const by = state.player.y
+      clearArea(state, bx, by, 2)
+      const eid = createBeeEntity(state, bx, by)
+      // Force the bee to move every tick (gate is `Math.random() > 0.3` → 0 passes).
+      vi.spyOn(Math, 'random').mockReturnValue(0)
+
+      tickBees(state)
+
+      const tween = state.world.getComponent(eid, ComponentType.MovementTween)
+      expect(tween).toBeTruthy()
+      expect(tween?.durationMs).toBe(BEE_TICK_MS)
+    })
+
+    it('monarchs: tickMonarchs writes a tween with durationMs = MONARCH_TICK_MS', () => {
+      const state = createTestState()
+      const mx = state.player.x + 5
+      const my = state.player.y
+      clearArea(state, mx, my, 3)
+      const eid = spawnMonarch(state, mx, my)
+      // Put the monarch into the settled phase so tickSettled's wander branch
+      // (monarch.ts:308) drives the moveEntity call we care about.
+      const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
+      if (monarchState) {
+        monarchState.phase = 'settled'
+        monarchState.target = { x: mx, y: my }
+      }
+      // Force the 15% wander gate to fire.
+      vi.spyOn(Math, 'random').mockReturnValue(0)
+
+      tickMonarchs(state, 1000, Zone.Overworld)
+
+      const tween = state.world.getComponent(eid, ComponentType.MovementTween)
+      expect(tween).toBeTruthy()
+      expect(tween?.durationMs).toBe(MONARCH_TICK_MS)
+    })
+
+    it('angels: tickAngelDrift writes a tween with durationMs = ANGEL_DRIFT_TICK_MS', () => {
+      const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
+      state.player.x = SPACE_BORDER + 5
+      state.player.y = SPACE_BORDER + 5
+      for (let y = 0; y < state.mapHeight; y++) {
+        for (let x = 0; x < state.mapWidth; x++) {
+          state.map[y][x] = { type: TileType.Dirt }
+        }
+      }
+      state.nextAngelSpawnTime = 0
+      const spawned = spawnAngel(state, 1000)
+      expect(spawned).toBe(true)
+      const angels = state.world.query(ComponentType.AngelData)
+      expect(angels).toHaveLength(1)
+      const eid = angels[0]
+      // First random() gates ANGEL_DRIFT_CHANCE (return 0 to pass), second
+      // picks a cardinal direction (any tile is dirt so any pick is valid).
+      vi.spyOn(Math, 'random').mockReturnValue(0)
+
+      tickAngelDrift(state)
+
+      const tween = state.world.getComponent(eid, ComponentType.MovementTween)
+      expect(tween).toBeTruthy()
+      expect(tween?.durationMs).toBe(ANGEL_DRIFT_TICK_MS)
     })
   })
 })
