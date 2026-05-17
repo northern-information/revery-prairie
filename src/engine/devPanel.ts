@@ -45,9 +45,7 @@ export const ENTITY_TAG_SUGGESTIONS = [
   'meteorite',
   'monarch',
   'pickupBloom',
-  'reveryCast',
   'satellite',
-  'waterReveryAura',
   'satelliteImpact',
   'shootingStar',
   'wildfire',
@@ -96,9 +94,8 @@ export const COMPONENT_META: ComponentMeta[] = [
     type: ComponentType.TimedEffect,
     label: 'TimedEffect',
     fields: [
-      select('kind', ['explosion', 'pickupBloom', 'crumble', 'reveryCast', 'lightning', 'wildfire', 'satelliteImpact']),
+      select('kind', ['explosion', 'pickupBloom', 'crumble', 'lightning', 'wildfire', 'satelliteImpact']),
       pos('startTime'),
-      str('reveryId'),
     ],
   },
   { type: ComponentType.Pickupable, label: 'Pickupable', fields: [str('definitionId')] },
@@ -457,7 +454,6 @@ const ENTITY_TAG_GLYPHS: Record<string, { char: string; color: string }> = {
   explosion: { char: '*', color: '#FFD700' },
   lightning: { char: '|', color: LIGHTNING_BOLT_COLOR_BRIGHT },
   wildfire: { char: '^', color: '#FF4500' },
-  reveryCast: { char: '~', color: '#4466aa' },
   crumble: { char: '#', color: '#997755' },
   pickupBloom: { char: '*', color: '#FFE4B5' },
 }

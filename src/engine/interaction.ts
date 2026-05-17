@@ -1,4 +1,3 @@
-import { autoAssignRevery } from './actionBar'
 import { storeAngelCanto } from './angels'
 import { getCharacterDefinition, getCharacterDialog } from './characters'
 import { ComponentType } from './ecs/types'
@@ -8,13 +7,18 @@ import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
-import { getReveryDefinition } from './reveries'
 import { queueEvent } from './ruins'
 import { invalidateMapCache } from './tileBgCache'
 import { CoyoteMode, MainQuestPhase, TileType, Zone } from './types'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
 
-import type { GameState, Position, ReveryDefinition } from './types'
+import type { GameState, Position } from './types'
+
+export interface GiftAnnouncement {
+  name: string
+  glyphs: string[]
+  glyphColor: string
+}
 
 export const isInteractableAt = (state: GameState, x: number, y: number): boolean => {
   if (
@@ -133,7 +137,7 @@ export const getAdjacentCharacter = (
 
 export const interactWithCharacter = (
   state: GameState
-): { opened: boolean; gift: ReveryDefinition | null; coyoteToggled: boolean } => {
+): { opened: boolean; gift: GiftAnnouncement | null; coyoteToggled: boolean } => {
   const character = getAdjacentCharacter(state)
   if (!character) return { opened: false, gift: null, coyoteToggled: false }
   recordDiscovery(state, `character:${character.definitionId}`)
@@ -163,7 +167,7 @@ export const interactWithCharacter = (
 export const advanceDialog = (
   state: GameState,
   time?: number
-): { continuing: boolean; gift: ReveryDefinition | null } => {
+): { continuing: boolean; gift: GiftAnnouncement | null } => {
   if (!state.activeDialog) return { continuing: false, gift: null }
 
   // If still typing, reveal the full line instantly
@@ -239,44 +243,26 @@ export const tickDialogTyping = (state: GameState, now: number): void => {
 
 export { DIALOG_TRANSITION_MS }
 
-export const giveCharacterGift = (state: GameState, characterId: string, time?: number): ReveryDefinition | null => {
+export const giveCharacterGift = (
+  state: GameState,
+  characterId: string,
+  _time?: number
+): GiftAnnouncement | null => {
   const def = getCharacterDefinition(characterId)
   if (!def.gift) return null
   if (state.giftsReceived.has(characterId)) return null
-
-  if (def.gift.kind === 'revery') {
-    const reveryDef = getReveryDefinition(def.gift.id)
-    state.reveries.push(def.gift.id)
-    autoAssignRevery(state, def.gift.id)
-    state.giftsReceived.add(characterId)
-    recordDiscovery(state, `revery:${def.gift.id}`)
-    recordDiscovery(state, `event:${characterId}-gift`)
-    if (time !== undefined) {
-      spawnPickupBloom(state, state.player.x, state.player.y, time)
-    }
-    return reveryDef
-  }
-
-  // Item gifts — deferred
+  // Item gifts — deferred to precis #5 (ruin recovery).
   return null
 }
 
-export const givePostGift = (state: GameState, characterId: string, time?: number): ReveryDefinition | null => {
+export const givePostGift = (
+  _state: GameState,
+  characterId: string,
+  _time?: number
+): GiftAnnouncement | null => {
   const def = getCharacterDefinition(characterId)
   if (!def.postGift) return null
-
-  if (def.postGift.kind === 'revery') {
-    const reveryDef = getReveryDefinition(def.postGift.id)
-    state.reveries.push(def.postGift.id)
-    autoAssignRevery(state, def.postGift.id)
-    recordDiscovery(state, `revery:${def.postGift.id}`)
-    recordDiscovery(state, `event:${characterId}-deep-time`)
-    if (time !== undefined) {
-      spawnPickupBloom(state, state.player.x, state.player.y, time)
-    }
-    return reveryDef
-  }
-
+  // Item postGifts — deferred to a later feature.
   return null
 }
 
@@ -343,17 +329,6 @@ export const unlockRuinDoor = (state: GameState): boolean => {
     setMapTile(state, pos.x, pos.y, { type: TileType.RuinDoorOpen })
   }
 
-  // Clear any action bar slot that referenced the now-consumed key, if no
-  // more keys remain in the backpack.
-  const stillHasKey = state.backpack.items.some(i => i.definitionId === 'aqueductKey')
-  if (!stillHasKey) {
-    for (let i = 0; i < state.actionBar.length; i++) {
-      const slot = state.actionBar[i]
-      if (slot?.kind === 'item' && slot.id === 'aqueductKey') {
-        state.actionBar[i] = null
-      }
-    }
-  }
   recordDiscovery(state, 'event:ruin-door-unlocked')
 
   updateFacingEntity(state)

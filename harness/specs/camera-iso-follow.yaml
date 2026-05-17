@@ -5,7 +5,6 @@ layer: engine
 source_files:
   - src/engine/camera.ts
   - src/engine/gameLoop.ts
-  - src/engine/render/passes/reveryRainOverlay.ts
   - src/engine/render/passes/glintingBeam.ts
   - src/engine/render/passes/ruinEntranceHalo.ts
   - src/engine/viewportBounds.ts

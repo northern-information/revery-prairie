@@ -17,7 +17,6 @@ export interface DragState {
   isValid: boolean
   combineTarget: { uid: string; recipe: Recipe; isDiscovered: boolean } | null
   cannotCombine: boolean
-  actionBarTarget: { slotIndex: number } | null
 }
 
 export interface PlacementPreview {

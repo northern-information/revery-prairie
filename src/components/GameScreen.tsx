@@ -14,7 +14,6 @@ import { ManualPanel } from './ManualPanel'
 import { Menu } from './Menu'
 import { Minimap } from './Minimap'
 import { PermacomputerShell } from './PermacomputerShell'
-import { ReveriesPanel } from './ReveriesPanel'
 
 import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
@@ -171,7 +170,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
               initialView={canCast(state) ? 'casting' : 'compendium'}
             />
           )}
-          {activeScreen === 'reveries' && <ReveriesPanel state={state} refreshUI={refreshUI} />}
           {activeScreen === 'cantos' && <CantosScreen cantos={state.angelCantos} />}
           {activeScreen === 'coyote' && <CoyoteScreen state={state} refreshUI={refreshUI} />}
           {activeScreen === 'system' && (

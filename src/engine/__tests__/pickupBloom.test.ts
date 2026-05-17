@@ -327,24 +327,11 @@ describe('craft bloom', () => {
   })
 })
 
-describe('revery gift bloom', () => {
-  it('spawns bloom at player position when receiving a revery gift', () => {
+describe('character gift bloom', () => {
+  it('does not spawn bloom for moab — gift removed in precis #0', () => {
     const state = createTestState()
 
     giveCharacterGift(state, 'moab', 5000)
-
-    const blooms = queryPickupBlooms(state)
-    expect(blooms).toHaveLength(1)
-    expect(state.world.getComponent(blooms[0], ComponentType.Position)).toEqual({
-      x: state.player.x,
-      y: state.player.y,
-    })
-  })
-
-  it('does not spawn bloom when time is omitted', () => {
-    const state = createTestState()
-
-    giveCharacterGift(state, 'moab')
 
     expect(queryPickupBlooms(state)).toHaveLength(0)
   })
@@ -352,7 +339,6 @@ describe('revery gift bloom', () => {
   it('does not spawn bloom for characters without postGift', () => {
     const state = createTestState()
 
-    // No characters currently have a postGift; givePostGift always returns null
     givePostGift(state, 'moab', 6000)
 
     expect(queryPickupBlooms(state)).toHaveLength(0)

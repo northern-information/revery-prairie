@@ -1,4 +1,3 @@
-import { autoAssignRevery } from './actionBar'
 import { generateCave } from './cave'
 import { registerGhostDefinitions } from './characters'
 import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, WATER_MAX } from './constants'
@@ -129,8 +128,6 @@ export const createGameState = (
     pendingAction: null,
     pendingInteractionTarget: null,
     heldDirection: null,
-    heldActionSlot: null,
-    targetingSlot: null,
     sprinting: false,
     trail: [],
     playerTween: null,
@@ -156,8 +153,6 @@ export const createGameState = (
     caveNpcSpot: cave.npcSpot,
     caveHiddenPositions: new Set(cave.hiddenChamberPositions.map(p => posKey(p.x, p.y))),
     caveBreakableWallPositions: cave.breakableWallPositions,
-    reveries: [],
-    actionBar: [null, null, null, null],
     giftsReceived: new Set<string>(),
     world: createWorld(),
     meteorShower: {
@@ -247,7 +242,6 @@ export const createGameState = (
     onPlayerMoved: null,
     onGenesisEpochStart: null,
     onGenesisComplete: null,
-    waterReveryAura: null,
   }
 
   // Glinting zone patches are seeded later, inside completeGenesis,
@@ -362,16 +356,6 @@ export const createGameState = (
   createCharacterEntity(state, 'moab', { ...cave.npcSpot }, { zone: Zone.Cave })
 
   autoSort(backpack)
-
-  // Player starts with all four reveries
-  state.reveries.push('earth')
-  autoAssignRevery(state, 'earth')
-  state.reveries.push('lightning')
-  autoAssignRevery(state, 'lightning')
-  state.reveries.push('water')
-  autoAssignRevery(state, 'water')
-  state.reveries.push('deep-time')
-  autoAssignRevery(state, 'deep-time')
 
   return state
 }

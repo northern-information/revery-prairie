@@ -18,14 +18,6 @@ import type { GameState } from '@/engine/types'
 
 // --- mocks ---
 
-vi.mock('@/engine/actionBar', async importOriginal => {
-  const actual = await importOriginal<typeof import('@/engine/actionBar')>()
-  return {
-    ...actual,
-    activateActionBarSlot: vi.fn(() => false),
-  }
-})
-
 vi.mock('@/engine/entities', async importOriginal => {
   const actual = await importOriginal<typeof import('@/engine/entities')>()
   return {
@@ -469,31 +461,6 @@ describe('useKeyboard', () => {
       })
 
       expect(dropItem).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('R key — toggle reveries screen', () => {
-    it('opens reveries screen when closed', () => {
-      const { result } = renderKeyboardHook()
-
-      act(() => {
-        fireKey('r')
-      })
-
-      expect(result.current.activeScreen).toBe('reveries')
-    })
-
-    it('closes reveries screen when open', () => {
-      const { result } = renderKeyboardHook()
-
-      act(() => {
-        result.current.setActiveScreen('reveries')
-      })
-      act(() => {
-        fireKey('r')
-      })
-
-      expect(result.current.activeScreen).toBeNull()
     })
   })
 

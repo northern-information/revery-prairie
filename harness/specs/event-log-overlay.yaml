@@ -6,7 +6,6 @@ source_files:
   - src/components/EventLog.tsx
   - src/components/GameScreen.tsx
   - src/components/Sidebar.tsx
-  - src/components/ActionBar.tsx
   - src/components/CommandPanel.tsx
   - src/hooks/useEventLog.ts
   - src/hooks/useGameEngine.ts
@@ -20,8 +19,7 @@ source_files:
   - src/components/__tests__/EventLog.test.tsx
   - src/components/__tests__/Sidebar.test.tsx
   - src/engine/__tests__/genesis.test.ts
-dependencies:
-  - action-bar
+dependencies: []
 
 behaviors:
   - id: no-floating-toast-surface
@@ -142,33 +140,20 @@ behaviors:
         effect: 'set to GENESIS_EPOCHS.length after the flush completes'
     determinism: deterministic
 
-  - id: action-bar-anchored-bottom-center-gap
+  - id: bottom-gap-reserved-for-future-surface
     description: >
-      ActionBar and CommandPanel are anchored at the bottom of the
-      viewport, horizontally centered within the gap between the
-      EventLog overlay (lower-left, `left-2 w-96` → right edge at
+      The bottom center of the viewport — the horizontal gap between
+      the EventLog overlay (lower-left, `left-2 w-96` → right edge at
       ~392px from the viewport's left) and the right Sidebar
-      (`right-0 w-48` → left edge at viewport-192px). Achieved with
-      `fixed bottom-2 left-1/2 ml-[100px] -translate-x-1/2` — the
-      100px ml-offset shifts the centered element rightward by half
-      the difference between EventLog's left-side occupancy (392px)
-      and Sidebar's right-side occupancy (192px), placing the slots
-      at the visual center of the available horizontal gap. Both
-      ActionBar and CommandPanel use identical anchors so swapping
-      between them (selection-conditional in GameScreen) does not
-      shift position. The 4 slots render in a single horizontal row
-      at 36px each (total width ~156px). Both components null
-      `state.cursorScreenPos` and `state.cursorTile` on hover so
-      mousing over them does not leave stale cursor tile info in the
-      sidebar.
+      (`right-0 w-48` → left edge at viewport-192px) — is intentionally
+      left empty after precis #0 (Reclaim Revery) deleted the action
+      bar. A future feature will reintroduce a surface there
+      (tools/seeds/practices). The EventLog and Sidebar layout
+      anchors do not change to fill the gap.
     inputs:
-      - 'GameScreen renders ActionBar (no selection) or CommandPanel (selection active)'
-      - 'mouse enters or moves over the ActionBar / CommandPanel'
+      - 'GameScreen renders without any bottom-center surface'
     outputs:
-      - 'ActionBar / CommandPanel rendered at bottom-center, offset to sit between EventLog and Sidebar'
-      - '4 slots rendered horizontally at 36px each, total width ~156px'
-      - 'state.cursorScreenPos / cursorTile nulled while hovered'
-      - 'ActionBar and CommandPanel use identical position'
+      - 'EventLog anchored at lower-left, Sidebar anchored at right; the bottom-center horizontal strip is empty'
     state_changes:
       - field: cursorScreenPos
         effect: 'nulled by ActionBar / CommandPanel mouse handler while hovered'
@@ -343,15 +328,6 @@ edge_cases:
   - id: cursor-leaves-overlay
     description: 'cursor moves off the log overlay into the canvas'
     expected: 'next canvas mousemove restores state.cursorScreenPos; sidebar cursor info resumes'
-  - id: log-and-action-bar-no-collision
-    description: 'ActionBar sits at bottom-center between EventLog (lower-left) and Sidebar (right); 100px ml-offset places it at the visual center of the gap'
-    expected: 'no visual collision; the action bar slots occupy the empty horizontal strip between the EventLog and the Sidebar at the bottom of the viewport'
-  - id: command-panel-replaces-action-bar
-    description: 'Selection becomes active; GameScreen swaps ActionBar for CommandPanel at the same bottom-center anchor'
-    expected: 'CommandPanel uses the same `fixed bottom-2 left-1/2 ml-[100px] -translate-x-1/2` anchor as ActionBar; the panel does not jump when selection toggles'
-  - id: action-bar-hover-clears-cursor-info
-    description: 'Cursor on the canvas moves onto the action bar at the bottom'
-    expected: 'ActionBar / CommandPanel mouse handler nulls state.cursorScreenPos / cursorTile so the sidebar cursor info does not show tiles under the panel'
   - id: log-mouseleave-resumes-autoscroll
     description: 'user has scrolled up in the log; cursor leaves the log overlay'
     expected: 'on mouseleave, stuck-to-bottom flag is set true, the scroll container is snapped to the bottom, and the unread counter is reset to zero; the next new event auto-pins as normal'

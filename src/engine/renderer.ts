@@ -92,7 +92,6 @@ import {
   worldToScreen,
 } from './projection'
 import { runPassesInSlot } from './render/passes'
-import { getReveryDefinition } from './reveries'
 import { getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
 import {
@@ -222,7 +221,6 @@ const _explosionMap = new Map<string, { char: string; color: string }>()
 const _lightningMap = new Map<string, { char: string; color: string }>()
 const _wildfireMap = new Map<string, { char: string; color: string }>()
 const _pickupEffectMap = new Map<string, { char: string; color: string }>()
-const _reveryCastMap = new Map<string, { char: string; color: string }>()
 const _crumbleMap = new Map<string, { char: string; color: string }>()
 const _entranceGlyphMap = new Map<string, string>()
 
@@ -452,7 +450,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   _lightningMap.clear()
   _wildfireMap.clear()
   _pickupEffectMap.clear()
-  _reveryCastMap.clear()
   _crumbleMap.clear()
 
   // Alias pooled collections for readability
@@ -478,7 +475,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const lightningMap = _lightningMap
   const wildfireMap = _wildfireMap
   const pickupEffectMap = _pickupEffectMap
-  const reveryCastMap = _reveryCastMap
   const crumbleMap = _crumbleMap
 
   // Build selected unit position set for highlight rendering
@@ -1021,30 +1017,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
   }
 
-  // Populate revery cast effect pixels (tile-style only; scan-style and
-  // rain-style are handled by their own passes that do their own ECS
-  // iteration).
-  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (!inZone(eid)) continue
-    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-    if (tag !== 'reveryCast') continue
-    const multiPos = state.world.getComponent(eid, ComponentType.MultiPosition)
-    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
-    if (!multiPos || !effect?.reveryId) continue
-
-    const revDef = getReveryDefinition(effect.reveryId)
-    if (revDef.castStyle === 'scan' || revDef.castStyle === 'rain' || revDef.castStyle === 'aura') continue
-    const elapsed = time - effect.startTime
-    for (const pos of multiPos.positions) {
-      const h = tileHash(pos.x, pos.y)
-      const frameIndex = (Math.floor(elapsed / 200) + (h % revDef.glyphs.length)) % revDef.glyphs.length
-      reveryCastMap.set(posKey(pos.x, pos.y), {
-        char: revDef.glyphs[frameIndex],
-        color: revDef.glyphColor,
-      })
-    }
-  }
-
   // Populate crumble effect pixels (breakable wall, from ECS)
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
     if (!inZone(eid)) continue
@@ -1331,10 +1303,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const pe = pickupEffectMap.get(tileKey)
         char = pe?.char ?? '*'
         color = pe?.color ?? '#C8C8FF'
-      } else if (reveryCastMap.has(tileKey)) {
-        const rc = reveryCastMap.get(tileKey)
-        char = rc?.char ?? '^'
-        color = rc?.color ?? '#FF4500'
       } else if (crumbleMap.has(tileKey)) {
         const cr = crumbleMap.get(tileKey)
         char = cr?.char ?? '#'

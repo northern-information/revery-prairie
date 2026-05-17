@@ -4,7 +4,6 @@ priority: critical
 layer: integration
 source_files:
   - src/engine/characters.ts
-  - src/engine/reveries.ts
   - src/engine/types.ts
   - src/engine/deepTime.ts
   - src/engine/gameLoop.ts

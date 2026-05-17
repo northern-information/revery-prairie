@@ -63,13 +63,9 @@ const EXPECTED_FIELDS = [
   'craters',
   'manualDiscoveries',
   'manualState',
-  'reveries',
-  'actionBar',
   'giftsReceived',
   'pendingInteractionTarget',
   'heldDirection',
-  'heldActionSlot',
-  'targetingSlot',
   'sprinting',
   'trail',
   'playerTween',
@@ -127,7 +123,6 @@ const EXPECTED_FIELDS = [
   'onPlayerMoved',
   'onGenesisEpochStart',
   'onGenesisComplete',
-  'waterReveryAura',
   'heldKeys',
 ].sort((a, b) => a.localeCompare(b))
 

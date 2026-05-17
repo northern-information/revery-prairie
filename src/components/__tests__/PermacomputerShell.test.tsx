@@ -110,18 +110,9 @@ describe('PermacomputerShell', () => {
       expect(screen.getByTestId('tab-cantos')).toBeInTheDocument()
     })
 
-    it('hides REVERIES tab when state.reveries is empty', () => {
-      const state = buildState(s => {
-        s.reveries = []
-      })
-      renderShell({}, state)
-      expect(screen.queryByTestId('tab-reveries')).not.toBeInTheDocument()
-    })
-
-    it('shows REVERIES tab when state.reveries has at least one entry', () => {
-      // createGameState seeds the starter reveries, so the default fixture is sufficient.
+    it('no longer renders REVERIES tab (action bar deleted in precis #0)', () => {
       renderShell()
-      expect(screen.getByTestId('tab-reveries')).toBeInTheDocument()
+      expect(screen.queryByTestId('tab-reveries')).not.toBeInTheDocument()
     })
 
     it('hides DIVINATION tab when fewer than 3 glinting coins are in the pack', () => {
@@ -142,17 +133,17 @@ describe('PermacomputerShell', () => {
       expect(screen.getByTestId('tab-divination')).toBeInTheDocument()
     })
 
-    it('shows only PACK, MANUAL, REVERIES, SYS on a fresh game with no unlocks beyond starter reveries', () => {
+    it('shows only PACK, MANUAL, SYS on a fresh game with no unlocks', () => {
       renderShell()
 
       expect(screen.getByTestId('tab-pack')).toBeInTheDocument()
       expect(screen.getByTestId('tab-manual')).toBeInTheDocument()
-      expect(screen.getByTestId('tab-reveries')).toBeInTheDocument()
       expect(screen.getByTestId('tab-system')).toBeInTheDocument()
 
       expect(screen.queryByTestId('tab-divination')).not.toBeInTheDocument()
       expect(screen.queryByTestId('tab-cantos')).not.toBeInTheDocument()
       expect(screen.queryByTestId('tab-coyote')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('tab-reveries')).not.toBeInTheDocument()
     })
 
     it('renders all visible tabs in canonical order', () => {
@@ -170,7 +161,6 @@ describe('PermacomputerShell', () => {
       const order = [
         screen.getByTestId('tab-pack'),
         screen.getByTestId('tab-manual'),
-        screen.getByTestId('tab-reveries'),
         screen.getByTestId('tab-divination'),
         screen.getByTestId('tab-cantos'),
         screen.getByTestId('tab-coyote'),

@@ -8,7 +8,6 @@ source_files:
   - src/engine/state.ts
   - src/engine/types.ts
   - src/engine/cave.ts
-  - src/engine/actionBar.ts
   - src/engine/constants.ts
   - src/engine/effects.ts
   - src/engine/manual.ts
@@ -147,29 +146,6 @@ behaviors:
     state_changes:
       - field: caveFogExplored
         effect: 'LOS-reachable tiles within fire illumination radius added'
-    determinism: deterministic
-
-  - id: lightning-revery-illumination
-    description: >
-      when the lightning revery is cast in the cave, the bolt path
-      and a small radius (3 tiles) around the strike tile are
-      temporarily illuminated. line-of-sight applies from the
-      strike point — walls block. illuminated tiles are added to
-      caveFogExplored only — they are NOT promoted to
-      fullyDiscovered. during the lightning effect duration,
-      illuminated tiles render as visible. after the effect ends,
-      they revert to partiallyDiscovered (or fullyDiscovered if
-      previously promoted by player proximity).
-    inputs:
-      - 'lightning revery cast targeting a cave tile'
-      - 'lightning illumination radius: 3 tiles from strike point'
-      - 'bolt path tiles from player to target'
-    outputs:
-      - 'bolt path tiles and tiles within strike illumination radius render as visible during effect'
-      - 'tiles added to caveFogExplored only'
-    state_changes:
-      - field: caveFogExplored
-        effect: 'bolt path tiles and LOS-reachable tiles within strike radius added'
     determinism: deterministic
 
   - id: entity-visibility-culling

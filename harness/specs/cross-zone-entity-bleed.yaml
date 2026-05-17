@@ -7,7 +7,6 @@ source_files:
   - src/engine/ruins.ts
   - src/engine/ecs/spatial.ts
   - src/engine/interaction.ts
-  - src/engine/actionBar.ts
   - src/engine/entities.ts
   - src/engine/coyote.ts
   - src/engine/satellites.ts

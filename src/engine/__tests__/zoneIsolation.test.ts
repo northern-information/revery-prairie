@@ -96,7 +96,6 @@ describe('zone isolation: Moab not reachable from outside cave', () => {
     const result = interactWithCharacter(state)
     expect(result.opened).toBe(false)
     expect(state.activeDialog).toBeNull()
-    expect(state.reveries).not.toContain('fire')
   })
 })
 

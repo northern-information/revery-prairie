@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 
-import { castLightningAtTarget, isValidLightningTarget } from '@/engine/actionBar'
 import { updateCamera } from '@/engine/camera'
 import { getCharacterDefinition } from '@/engine/characters'
 import { expandClickTile } from '@/engine/clickResolution'
@@ -268,27 +267,6 @@ export const useMouse = ({
       if (isDeepTimeLocked(state)) return
       if (isInputGated(state)) return
 
-      if (state.targetingSlot !== null) {
-        const metrics = metricsRef.current
-        if (!metrics) return
-        const tile = screenToTile(
-          e.offsetX,
-          e.offsetY,
-          state.camera,
-          metrics.charWidth,
-          metrics.charHeight,
-          state.viewportWidth,
-          state.viewportHeight
-        )
-        if (!isValidLightningTarget(state, tile)) return
-        const success = castLightningAtTarget(state, tile, state.targetingSlot, performance.now())
-        if (success) {
-          onDiscovery?.('Lightning strikes.', tile.x, tile.y, '|', '#FFFFFF')
-        }
-        refreshUI()
-        return
-      }
-
       if (state.activeDialog) {
         const result = advanceDialog(state, performance.now())
         if (result.gift) {
@@ -373,13 +351,6 @@ export const useMouse = ({
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault()
-
-      if (state.targetingSlot !== null) {
-        state.targetingSlot = null
-        state.previewFn = null
-        refreshUI()
-        return
-      }
 
       if (state.devPanelOpen) return
       if (activeScreenRef.current === 'system') return

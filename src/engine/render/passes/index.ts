@@ -7,20 +7,17 @@
 // bg-cache
 export { tileBgCompositePass } from './tileBgComposite'
 // world-overlay
-export { earthScanPass } from './earthScan'
 export { ruinEntranceHaloPass } from './ruinEntranceHalo'
-export { lightningTargetingRangePass } from './lightningTargetingRange'
 export { angelGoldAuraPass } from './angelGoldAura'
 export { prairieHaloPass } from './prairieHalo'
 // fogMask must register last in world-overlay so its mask covers both the
-// cached tile-bg AND every other world-overlay pass (earth scan, halos,
-// lightning targeting range, angel aura, prairie halo).
+// cached tile-bg AND every other world-overlay pass (halos, angel aura,
+// prairie halo).
 // Within a slot, registration order is preserved by the registry.
 export { fogMaskPass } from './fogMask'
 // effect (post-tile overlays)
 export { ruinEntrancePatinaPass } from './ruinEntrancePatina'
 export { rainAuraOverlayPass } from './rainAuraOverlay'
-export { reveryRainOverlayPass } from './reveryRainOverlay'
 export { weatherRainOverlayPass } from './weatherRainOverlay'
 export { glintingZoneSparklePass } from './glintingZoneSparkle'
 export { glintingBeamPass } from './glintingBeam'

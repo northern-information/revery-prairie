@@ -5,17 +5,26 @@ layer: integration
 source_files:
   - docs/precis-thinktank-v3.md
   - docs/precis-status.yaml
-  - src/engine/reveries.ts
-  - src/engine/actionBar.ts
+  - CLAUDE.md
   - src/engine/state.ts
   - src/engine/types.ts
   - src/engine/characters.ts
   - src/engine/interaction.ts
-  - src/components/ActionBar.tsx
-  - src/components/ReveriesPanel.tsx
+  - src/engine/manual.ts
+  - src/engine/effects.ts
+  - src/engine/renderer.ts
+  - src/engine/gameLoop.ts
+  - src/engine/deepTime.ts
+  - src/engine/drag.ts
+  - src/engine/devPanel.ts
+  - src/engine/movement.ts
+  - src/engine/ecs/types.ts
+  - src/engine/render/passes/index.ts
   - src/components/GameScreen.tsx
+  - src/components/PermacomputerShell.tsx
   - src/hooks/useKeyboard.ts
   - src/hooks/useInventoryDrag.ts
+  - src/hooks/useMouse.ts
   - src/harness/__tests__/serialization/schema.test.ts
 dependencies: []
 

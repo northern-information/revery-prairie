@@ -10,9 +10,9 @@ interface CharacterEntry {
   portrait?: string
   dialog: string[]
   music?: string
-  gift?: { kind: 'revery' | 'item'; id: string }
+  gift?: { kind: 'item'; id: string }
   postGiftDialog?: string[]
-  postGift?: { kind: 'revery' | 'item'; id: string }
+  postGift?: { kind: 'item'; id: string }
 }
 
 const CHARACTERS = {
@@ -33,8 +33,6 @@ const CHARACTERS = {
     glyph: 'M',
     glyphColor: '#FFFFFF',
     dialog: ['...'],
-    gift: { kind: 'revery' as const, id: 'fire' },
-    postGiftDialog: ['...'],
   },
   coyote: {
     name: 'Coyote',

@@ -40,9 +40,7 @@ export const initiateDeepTime = (state: GameState, time: number): void => {
   state.path = null
   state.pathWaypoints = []
   state.heldDirection = null
-  state.actionBar = [null, null, null, null]
   state.previewFn = null
-  state.targetingSlot = null
 
   // Remove all character entities from ECS
   const toRemove: number[] = []

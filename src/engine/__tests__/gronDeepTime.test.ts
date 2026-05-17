@@ -14,36 +14,13 @@ const makeState = (): GameState => {
   return state
 }
 
-describe('player starts with deep-time revery', () => {
-  it('deep-time revery is in state.reveries from game start', () => {
-    const state = makeState()
-    expect(state.reveries).toContain('deep-time')
-  })
-
-  it('water revery is in state.reveries from game start', () => {
-    const state = makeState()
-    expect(state.reveries).toContain('water')
-  })
-
-  it('deep-time revery is auto-assigned to action bar slot 3', () => {
-    const state = makeState()
-    expect(state.actionBar[3]?.kind).toBe('revery')
-    expect(state.actionBar[3]?.id).toBe('deep-time')
-  })
-
-  it('water revery is auto-assigned to action bar slot 2', () => {
-    const state = makeState()
-    expect(state.actionBar[2]?.kind).toBe('revery')
-    expect(state.actionBar[2]?.id).toBe('water')
-  })
-
+describe('gron has no gift chain', () => {
   it('postGiftActionsCompleted does not include gron', () => {
     const state = makeState()
     expect(state.postGiftActionsCompleted.has('gron')).toBe(false)
   })
-})
 
-describe('gron has no gift chain', () => {
+
   it('giveCharacterGift returns null for gron', () => {
     const state = makeState()
     const result = giveCharacterGift(state, 'gron')

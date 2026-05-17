@@ -10,7 +10,6 @@ source_files:
   - src/engine/position.ts
   - src/engine/renderer.ts
   - src/engine/gameLoop.ts
-  - src/engine/actionBar.ts
   - src/engine/interaction.ts
   - src/engine/manual.ts
 dependencies:

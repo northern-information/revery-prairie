@@ -7,7 +7,6 @@ source_files:
   - src/components/EventLog.tsx
   - src/components/GameScreen.tsx
   - src/components/Sidebar.tsx
-  - src/components/ActionBar.tsx
   - src/components/CommandPanel.tsx
   - src/engine/projection.ts
 
