@@ -1,22 +1,36 @@
-import { describe, expect, it, vi } from 'vitest'
-import { assignArchetype, checkRuinTransition, enterRuin, exitRuin, generateAllRuinInteriors, generateRuinInterior, getEntranceHaloCells, isInCurrentZone, placeRuinEntrances } from '../ruins'
-import { RuinArchetype, TileType, Zone } from '../types'
-import { createGameState } from '../state'
-import { findSafeExitPosition, isWalkableTile, posKey } from '../position'
+import {
+  ENTRANCE_GLYPHS,
+  getEntranceGlyph,
+  RUIN_ENTRANCE_HALO_COLOR,
+  TILE_COLORS,
+  ZONE_TRANSITION_DURATION_MS,
+} from '../constants'
 import { ITEM_DEFINITIONS } from '../items'
-import { ENTRANCE_GLYPHS, RUIN_ENTRANCE_HALO_COLOR, TILE_COLORS, ZONE_TRANSITION_DURATION_MS, getEntranceGlyph } from '../constants'
+import { findSafeExitPosition, isWalkableTile, posKey } from '../position'
+import {
+  assignArchetype,
+  checkRuinTransition,
+  enterRuin,
+  exitRuin,
+  generateAllRuinInteriors,
+  generateRuinInterior,
+  getEntranceHaloCells,
+  isInCurrentZone,
+  placeRuinEntrances,
+} from '../ruins'
+import { createGameState } from '../state'
+import { RuinArchetype, TileType, Zone } from '../types'
 import { tickZoneTransition } from '../zoneTransition'
+import { describe, expect, it, vi } from 'vitest'
 
-import type { GameState } from '../types'
+import type { CivilizationRuin } from '../genesisTypes'
+import type { GameState, Tile } from '../types'
 
 const completeZoneTransition = (state: GameState): void => {
   if (!state.zoneTransition) return
   const endTime = state.zoneTransition.startTime + ZONE_TRANSITION_DURATION_MS + 1
   tickZoneTransition(state, endTime)
 }
-
-import type { CivilizationRuin } from '../genesisTypes'
-import type { Tile } from '../types'
 
 const withSeededRandom = <T>(seed: number, fn: () => T): T => {
   const spy = vi.spyOn(Math, 'random').mockReturnValue(seed / 2147483647)
@@ -35,10 +49,15 @@ const makeRuin = (overrides: Partial<CivilizationRuin> = {}): CivilizationRuin =
   radius: 4,
   age: 3000,
   aqueductPaths: [
-    [{ x: 50, y: 50 }, { x: 60, y: 50 }],
+    [
+      { x: 50, y: 50 },
+      { x: 60, y: 50 },
+    ],
   ],
   buildingFootprints: [
-    { x: 50, y: 50 }, { x: 51, y: 50 }, { x: 52, y: 50 },
+    { x: 50, y: 50 },
+    { x: 51, y: 50 },
+    { x: 52, y: 50 },
   ],
   ...overrides,
 })
@@ -165,7 +184,7 @@ describe('ruin infrastructure', () => {
   describe('overworld entrance placement', () => {
     it('places RuinEntrance tiles on the overworld map', () => {
       const map: Tile[][] = Array.from({ length: 100 }, () =>
-        Array.from({ length: 100 }, () => ({ type: TileType.Dirt })),
+        Array.from({ length: 100 }, () => ({ type: TileType.Dirt }))
       )
       const ruins = [makeRuin({ position: { x: 50, y: 50 } })]
       const interiors = generateAllRuinInteriors(ruins)
@@ -175,7 +194,7 @@ describe('ruin infrastructure', () => {
 
     it('does not overwrite CaveEntrance tiles', () => {
       const map: Tile[][] = Array.from({ length: 100 }, () =>
-        Array.from({ length: 100 }, () => ({ type: TileType.Dirt })),
+        Array.from({ length: 100 }, () => ({ type: TileType.Dirt }))
       )
       map[50][50] = { type: TileType.CaveEntrance }
       const ruins = [makeRuin({ position: { x: 50, y: 50 } })]
@@ -352,7 +371,6 @@ describe('ruin infrastructure', () => {
     })
   })
 
-
   describe('greek letter entrance glyphs', () => {
     it('getEntranceGlyph returns unique letters for cave and ruin indices', () => {
       const cave = getEntranceGlyph(0)
@@ -454,7 +472,12 @@ describe('ruin infrastructure', () => {
         while (queue.length > 0) {
           const pos = queue.shift()
           if (!pos) break
-          for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
+          for (const [dx, dy] of [
+            [0, -1],
+            [0, 1],
+            [-1, 0],
+            [1, 0],
+          ] as const) {
             const nx = pos.x + dx
             const ny = pos.y + dy
             if (nx < 0 || nx >= interior.mapWidth || ny < 0 || ny >= interior.mapHeight) continue
@@ -508,7 +531,12 @@ describe('ruin infrastructure', () => {
             const parts = key.split(',')
             const x = Number(parts[0])
             const y = Number(parts[1])
-            for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
+            for (const [dx, dy] of [
+              [0, -1],
+              [0, 1],
+              [-1, 0],
+              [1, 0],
+            ] as const) {
               const nk = posKey(x + dx, y + dy)
               if (spaceTiles.has(nk) && !visited.has(nk)) {
                 visited.add(nk)
@@ -529,7 +557,7 @@ describe('ruin infrastructure', () => {
       const mapWidth = 10
       const mapHeight = 10
       const map: Tile[][] = Array.from({ length: mapHeight }, () =>
-        Array.from({ length: mapWidth }, () => ({ type: TileType.Space })),
+        Array.from({ length: mapWidth }, () => ({ type: TileType.Space }))
       )
       // Mix of starting tile types — apron should overwrite all of them.
       map[5][5] = { type: TileType.Dirt }
@@ -556,7 +584,7 @@ describe('ruin infrastructure', () => {
       const mapWidth = 10
       const mapHeight = 10
       const map: Tile[][] = Array.from({ length: mapHeight }, () =>
-        Array.from({ length: mapWidth }, () => ({ type: TileType.Dirt })),
+        Array.from({ length: mapWidth }, () => ({ type: TileType.Dirt }))
       )
       // Cave entrance sits one tile north of the ruin entrance.
       map[4][5] = { type: TileType.CaveEntrance }
@@ -579,7 +607,7 @@ describe('ruin infrastructure', () => {
       const mapWidth = 5
       const mapHeight = 5
       const map: Tile[][] = Array.from({ length: mapHeight }, () =>
-        Array.from({ length: mapWidth }, () => ({ type: TileType.Space })),
+        Array.from({ length: mapWidth }, () => ({ type: TileType.Space }))
       )
       map[0][0] = { type: TileType.Dirt }
 
@@ -599,7 +627,7 @@ describe('ruin infrastructure', () => {
       const mapWidth = 5
       const mapHeight = 5
       const map: Tile[][] = Array.from({ length: mapHeight }, () =>
-        Array.from({ length: mapWidth }, () => ({ type: TileType.Space })),
+        Array.from({ length: mapWidth }, () => ({ type: TileType.Space }))
       )
       const entrance = { x: 2, y: 2 }
 
@@ -616,7 +644,7 @@ describe('ruin infrastructure', () => {
       const mapWidth = 5
       const mapHeight = 5
       const map: Tile[][] = Array.from({ length: mapHeight }, () =>
-        Array.from({ length: mapWidth }, () => ({ type: TileType.Space })),
+        Array.from({ length: mapWidth }, () => ({ type: TileType.Space }))
       )
       const entrance = { x: 2, y: 2 }
       map[2][2] = { type: TileType.Dirt }
@@ -656,7 +684,17 @@ describe('ruin infrastructure', () => {
     }
 
     it('dormant garden seeds are only on walkable tiles after generation', () => {
-      const ruin = makeRuin({ radius: 5, age: 4000, aqueductPaths: [[{ x: 50, y: 50 }, { x: 60, y: 50 }, { x: 70, y: 50 }]] })
+      const ruin = makeRuin({
+        radius: 5,
+        age: 4000,
+        aqueductPaths: [
+          [
+            { x: 50, y: 50 },
+            { x: 60, y: 50 },
+            { x: 70, y: 50 },
+          ],
+        ],
+      })
       const interior = generateRuinInterior(ruin, 0, RuinArchetype.DormantGarden, makeRng(SEED))
       if (!interior.dormantGarden) return
       for (const key of interior.dormantGarden.seedDecayTimers.keys()) {
@@ -681,7 +719,7 @@ describe('ruin infrastructure', () => {
       const map = buildMap(10, 10)
       const cells = getEntranceHaloCells(map, 10, 10, 5, 5, new Set(), new Set())
       expect(cells).toHaveLength(9)
-      const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
+      const keys = new Set(cells.map(c => `${String(c.x)},${String(c.y)}`))
       for (let dy = -1; dy <= 1; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
           expect(keys.has(`${String(5 + dx)},${String(5 + dy)}`)).toBe(true)
@@ -694,7 +732,7 @@ describe('ruin infrastructure', () => {
       // Top-left corner: only the SE quadrant of the 3x3 is inside bounds
       const cells = getEntranceHaloCells(map, 5, 5, 0, 0, new Set(), new Set())
       expect(cells).toHaveLength(4)
-      const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
+      const keys = new Set(cells.map(c => `${String(c.x)},${String(c.y)}`))
       expect(keys).toEqual(new Set(['0,0', '1,0', '0,1', '1,1']))
     })
 
@@ -705,7 +743,7 @@ describe('ruin infrastructure', () => {
       map[0][2] = { type: TileType.Space }
       map[0][3] = { type: TileType.Space }
       const cells = getEntranceHaloCells(map, 5, 5, 2, 1, new Set(), new Set())
-      const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
+      const keys = new Set(cells.map(c => `${String(c.x)},${String(c.y)}`))
       // 6 in-bounds non-space cells (the 3 north tiles are skipped)
       expect(cells).toHaveLength(6)
       expect(keys.has('1,0')).toBe(false)
@@ -723,8 +761,8 @@ describe('ruin infrastructure', () => {
       const b = getEntranceHaloCells(map, 10, 10, 6, 5, new Set(), new Set())
       expect(a).toHaveLength(9)
       expect(b).toHaveLength(9)
-      const aKeys = new Set(a.map((c) => `${String(c.x)},${String(c.y)}`))
-      const bKeys = new Set(b.map((c) => `${String(c.x)},${String(c.y)}`))
+      const aKeys = new Set(a.map(c => `${String(c.x)},${String(c.y)}`))
+      const bKeys = new Set(b.map(c => `${String(c.x)},${String(c.y)}`))
       // Overlap column at x=5
       expect(aKeys.has('5,4')).toBe(true)
       expect(aKeys.has('5,5')).toBe(true)
@@ -744,7 +782,7 @@ describe('ruin infrastructure', () => {
       const map = buildMap(5, 5)
       const rivers = new Set<string>(['1,1', '2,1', '3,1'])
       const cells = getEntranceHaloCells(map, 5, 5, 2, 2, rivers, new Set())
-      const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
+      const keys = new Set(cells.map(c => `${String(c.x)},${String(c.y)}`))
       expect(cells).toHaveLength(6)
       expect(keys.has('1,1')).toBe(false)
       expect(keys.has('2,1')).toBe(false)
@@ -758,22 +796,17 @@ describe('ruin infrastructure', () => {
       const map = buildMap(5, 5)
       const ponds = new Set<string>(['3,3'])
       const cells = getEntranceHaloCells(map, 5, 5, 2, 2, new Set(), ponds)
-      const keys = new Set(cells.map((c) => `${String(c.x)},${String(c.y)}`))
+      const keys = new Set(cells.map(c => `${String(c.x)},${String(c.y)}`))
       expect(cells).toHaveLength(8)
       expect(keys.has('3,3')).toBe(false)
     })
 
     it('returns only the entrance tile when surrounded on all 8 sides by water', () => {
       const map = buildMap(5, 5)
-      const rivers = new Set<string>([
-        '1,1', '2,1', '3,1',
-        '1,2',          '3,2',
-        '1,3', '2,3', '3,3',
-      ])
+      const rivers = new Set<string>(['1,1', '2,1', '3,1', '1,2', '3,2', '1,3', '2,3', '3,3'])
       const cells = getEntranceHaloCells(map, 5, 5, 2, 2, rivers, new Set())
       expect(cells).toHaveLength(1)
       expect(cells[0]).toEqual({ x: 2, y: 2 })
     })
   })
 })
-

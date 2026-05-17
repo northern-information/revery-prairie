@@ -143,9 +143,7 @@ export const tickUnitCommands = (state: GameState): void => {
 
 /** Remove expired move-order markers. */
 export const cleanupMoveOrderMarkers = (state: GameState, time: number): void => {
-  state.moveOrderMarkers = state.moveOrderMarkers.filter(
-    (m) => time - m.time < MOVE_ORDER_MARKER_DURATION_MS
-  )
+  state.moveOrderMarkers = state.moveOrderMarkers.filter(m => time - m.time < MOVE_ORDER_MARKER_DURATION_MS)
 }
 
 /** Clear all unit commands (used on zone transitions). */

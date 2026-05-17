@@ -1,7 +1,5 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { describe, expect, it } from 'vitest'
-
 import {
   BUILDING_CHARS,
   RAIN_AURA_DENSITY,
@@ -11,11 +9,12 @@ import {
   ZONE_TRANSITION_FADE_OUT_MS,
   ZONE_TRANSITION_HOLD_MS,
 } from '../constants'
-import { GENESIS_EPOCHS, completeGenesis } from '../genesis'
+import { completeGenesis, GENESIS_EPOCHS } from '../genesis'
 import { tileHash } from '../position'
 import { createGameState } from '../state'
 import { TileType } from '../types'
 import { withSeededRandom } from '@/harness/prng'
+import { describe, expect, it } from 'vitest'
 
 const CRATER_COLORS = ['#8B4513', '#7A3B10', '#6B320D', '#5C290A', '#4D2007']
 
@@ -234,8 +233,7 @@ describe('boot title card', () => {
   })
 
   describe('elevation rendering in genesis', () => {
-    const readGenesisRenderer = (): string =>
-      readFileSync(join(__dirname, '../genesisRenderer.ts'), 'utf-8')
+    const readGenesisRenderer = (): string => readFileSync(join(__dirname, '../genesisRenderer.ts'), 'utf-8')
 
     it('imports the shared elevation primitives from tileBg and projection', () => {
       const source = readGenesisRenderer()

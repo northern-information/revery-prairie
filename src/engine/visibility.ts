@@ -13,21 +13,14 @@ import type { GameState, Tile } from './types'
  *   — terrain and live entities at full brightness even when out of LOS (permanent)
  * - 'visible': currently in line-of-sight — full rendering with cursor/effects
  */
-export type TileVisibility =
-  | 'unexplored'
-  | 'partiallyDiscovered'
-  | 'fullyDiscovered'
-  | 'visible'
+export type TileVisibility = 'unexplored' | 'partiallyDiscovered' | 'fullyDiscovered' | 'visible'
 
 /** Returns true if the given zone has fog of war. */
-export const hasFogOfWar = (zone: string): boolean =>
-  zone === Zone.Cave || zone === Zone.Ruin
+export const hasFogOfWar = (zone: string): boolean => zone === Zone.Cave || zone === Zone.Ruin
 
 /** Returns true if a tile type blocks line-of-sight. */
 export const blocksLOS = (tileType: TileType): boolean =>
-  tileType === TileType.CaveWall ||
-  tileType === TileType.CaveBreakableWall ||
-  tileType === TileType.RuinWall
+  tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall || tileType === TileType.RuinWall
 
 /**
  * Compute field of view from a given origin using symmetric shadowcasting.
@@ -47,7 +40,7 @@ export const computeFOV = (
   radius: number,
   map: Tile[][],
   mapWidth: number,
-  mapHeight: number,
+  mapHeight: number
 ): Set<string> => {
   const visible = new Set<string>()
 
@@ -93,7 +86,7 @@ const scanOctant = (
   mapWidth: number,
   mapHeight: number,
   transform: (row: number, col: number) => { x: number; y: number },
-  visible: Set<string>,
+  visible: Set<string>
 ): void => {
   if (startSlope < endSlope) return
 
@@ -157,7 +150,7 @@ const scanOctant = (
  * - fogIllumination: temporary revery illumination → expiration time
  */
 const getFogState = (
-  state: GameState,
+  state: GameState
 ): {
   fogExplored: Set<string>
   fogDiscovered: Set<string>
@@ -191,12 +184,7 @@ const getFogState = (
  * fullyDiscovered (was within DISCOVERY_RADIUS in LOS) wins over
  * partiallyDiscovered (was once in FOV); else unexplored.
  */
-export const getTileVisibility = (
-  state: GameState,
-  x: number,
-  y: number,
-  visibleSet: Set<string>,
-): TileVisibility => {
+export const getTileVisibility = (state: GameState, x: number, y: number, visibleSet: Set<string>): TileVisibility => {
   if (!hasFogOfWar(state.currentZone)) return 'visible'
 
   const key = posKey(x, y)
@@ -310,7 +298,7 @@ export const addReveryIllumination = (
   originX: number,
   originY: number,
   radius: number,
-  expiresAt: number,
+  expiresAt: number
 ): void => {
   const fog = getFogState(state)
   if (!fog) return

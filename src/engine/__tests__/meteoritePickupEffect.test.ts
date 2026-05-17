@@ -1,9 +1,9 @@
-import { vi } from 'vitest'
 import { tickShootingStars } from '../celestial'
 import { PICKUP_EFFECT_DURATION_MS } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
 import { clearAroundPlayer, createMeteoriteEntity, createTestState, getMeteoriteEntities } from './helpers'
+import { vi } from 'vitest'
 
 const queryPickupBlooms = (state: ReturnType<typeof createTestState>) =>
   state.world

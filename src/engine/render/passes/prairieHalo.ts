@@ -1,12 +1,14 @@
 import { PRAIRIE_HALO_PULSE_SPEED } from '../../constants'
-import { DeepTimePhase, Zone, type CharMetrics, type GameState } from '../../types'
+import { DeepTimePhase, Zone } from '../../types'
 import { getOrBuildHaloCache } from '../haloCache'
-import { type RenderPass, registerPass } from '../passes'
+import { registerPass } from '../passes'
+
+import type { CharMetrics, GameState } from '../../types'
+import type { RenderPass } from '../passes'
 
 const isActive = (state: GameState): boolean => {
   if (state.currentZone !== Zone.Overworld) return false
-  if (state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering)
-    return false
+  if (state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering) return false
   return true
 }
 
@@ -27,12 +29,7 @@ let _blurPx = -1
 // point. We only need source pixels whose blurred spread overlaps the
 // viewport, i.e. screen range [-blurPx, canvasW+blurPx] × [-blurPx, canvasH+blurPx],
 // which maps to halo coords [-blurPx-dx, canvasW+blurPx-dx] × [-blurPx-dy, canvasH+blurPx-dy].
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   const { camera, viewportWidth, viewportHeight, map } = state
   const { charWidth, charHeight } = metrics
   const halo = getOrBuildHaloCache(map, charWidth, charHeight)

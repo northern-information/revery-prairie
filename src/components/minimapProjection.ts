@@ -21,19 +21,12 @@ export const computeIsoLayout = (mapWidth: number, mapHeight: number): IsoLayout
   return { tilePx, originX, originY }
 }
 
-export const projectIso = (
-  worldX: number,
-  worldY: number,
-  layout: IsoLayout,
-): { px: number; py: number } => ({
+export const projectIso = (worldX: number, worldY: number, layout: IsoLayout): { px: number; py: number } => ({
   px: layout.originX + (worldX - worldY) * layout.tilePx,
   py: layout.originY + (worldX + worldY) * (layout.tilePx / 2),
 })
 
-export const getPlayerCenter = (
-  state: GameState,
-  layout: IsoLayout,
-): { cx: number; cy: number } => {
+export const getPlayerCenter = (state: GameState, layout: IsoLayout): { cx: number; cy: number } => {
   const { px, py } = projectIso(state.player.x, state.player.y, layout)
   return { cx: px, cy: py + layout.tilePx / 2 }
 }

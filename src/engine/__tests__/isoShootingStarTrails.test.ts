@@ -1,5 +1,7 @@
+import { SHOOTING_STAR_TRAIL_CHARS } from '../constants'
 import { describe, expect, it } from 'vitest'
-import { SHOOTING_STAR_TRAIL_CHARS, type VelocityKey } from '../constants'
+
+import type { VelocityKey } from '../constants'
 
 // Pick the glyph that visually matches a screen delta.
 // screen_dx == 0 → vertical → '|'
@@ -19,16 +21,7 @@ const projectScreen = (dx: number, dy: number): { sdx: number; sdy: number } => 
   sdy: dx + dy,
 })
 
-const VELOCITY_KEYS: VelocityKey[] = [
-  '1,1',
-  '-1,-1',
-  '1,-1',
-  '-1,1',
-  '1,0',
-  '-1,0',
-  '0,1',
-  '0,-1',
-]
+const VELOCITY_KEYS: VelocityKey[] = ['1,1', '-1,-1', '1,-1', '-1,1', '1,0', '-1,0', '0,1', '0,-1']
 
 describe('shooting star trail glyphs', () => {
   it('table maps each velocity to the glyph that matches its projected screen direction', () => {

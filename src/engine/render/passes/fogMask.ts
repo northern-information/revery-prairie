@@ -1,9 +1,12 @@
 import { BG_COLOR, FOG_EXPLORED_BRIGHTNESS } from '../../constants'
 import { isInBounds, posKey } from '../../position'
 import { getElevationTier, getTierLift } from '../../tileBg'
-import { type CharMetrics, type GameState, TileType } from '../../types'
+import { TileType } from '../../types'
 import { getLastVisibleSet, getTileVisibility, hasFogOfWar } from '../../visibility'
-import { type RenderPass, registerPass } from '../passes'
+import { registerPass } from '../passes'
+
+import type { CharMetrics, GameState } from '../../types'
+import type { RenderPass } from '../passes'
 
 // Fog-of-war background mask. Runs in world-overlay AFTER tileBgComposite
 // and every other world-overlay pass, so masks cover both the cached tile
@@ -30,12 +33,7 @@ const tierAt = (state: GameState, x: number, y: number): number => {
   return getElevationTier(state.elevation.get(posKey(x, y)))
 }
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  _time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, _time: number): void => {
   const visibleSet = getLastVisibleSet() ?? new Set<string>()
   const { camera, viewportWidth, viewportHeight, map, mapWidth, mapHeight } = state
   const { charWidth, charHeight } = metrics

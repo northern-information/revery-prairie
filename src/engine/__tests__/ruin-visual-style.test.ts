@@ -1,12 +1,8 @@
-import { describe, expect, it } from 'vitest'
-import { getRuinTileLayers } from '../ruins'
 import { BUILDING_CHARS, CIV_COLORS } from '../constants'
-import {
-  getStructurePlatformLift,
-  RUIN_APRON_LIFT_PX,
-  RUIN_ENTRANCE_LIFT_PX,
-} from '../tileBg'
+import { getRuinTileLayers } from '../ruins'
+import { getStructurePlatformLift, RUIN_APRON_LIFT_PX, RUIN_ENTRANCE_LIFT_PX } from '../tileBg'
 import { TileType } from '../types'
+import { describe, expect, it } from 'vitest'
 
 describe('ruin visual style', () => {
   describe('getRuinTileLayers', () => {
@@ -54,7 +50,7 @@ describe('ruin visual style', () => {
       expect(layers[0].dx).toBe(0)
       expect(layers[0].dy).toBe(0)
       if (layers.length >= 2) {
-        const hasOffset = layers.slice(1).some((l) => l.dx !== 0 || l.dy !== 0)
+        const hasOffset = layers.slice(1).some(l => l.dx !== 0 || l.dy !== 0)
         expect(hasOffset).toBe(true)
       }
     })
@@ -115,7 +111,9 @@ describe('ruin visual style', () => {
       const layers1 = getRuinTileLayers(TileType.RuinWall, 10, 20, 0)
       const layers2 = getRuinTileLayers(TileType.RuinWall, 11, 20, 0)
       // At least one property should differ
-      const same = layers1.length === layers2.length && layers1.every((l, i) => l.char === layers2[i].char && l.color === layers2[i].color)
+      const same =
+        layers1.length === layers2.length &&
+        layers1.every((l, i) => l.char === layers2[i].char && l.color === layers2[i].color)
       expect(same).toBe(false)
     })
   })

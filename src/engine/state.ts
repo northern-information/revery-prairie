@@ -7,13 +7,13 @@ import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
 import { createCharacterEntity } from './entities'
 import { createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } from './genesis'
+import { RuinGenerationMode } from './genesisTypes'
 import { autoSort } from './inventory'
 import { createBackpack } from './items'
 import { isWalkableTile, posKey } from './position'
-import { buildWaterProximity } from './tileWater'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
+import { buildWaterProximity } from './tileWater'
 import { CoyoteMode, MainQuestPhase, TileType, Zone } from './types'
-import { RuinGenerationMode } from './genesisTypes'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
 
@@ -27,12 +27,14 @@ export const createGameState = (
   genesisResult?: GenesisSimState
 ): GameState => {
   // Create genesis state, precompute all epochs, extract terrain
-  const sim = genesisResult ?? (() => {
-    const seed = nameToSeed(stewardName)
-    const s = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
-    precomputeGenesis(s, GENESIS_EPOCHS)
-    return s
-  })()
+  const sim =
+    genesisResult ??
+    (() => {
+      const seed = nameToSeed(stewardName)
+      const s = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
+      precomputeGenesis(s, GENESIS_EPOCHS)
+      return s
+    })()
   const map = sim.grid
   const genesisData: GenesisSimState = sim
 

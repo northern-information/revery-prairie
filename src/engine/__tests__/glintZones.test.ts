@@ -1,14 +1,4 @@
 import {
-  computeBeamSegmentOpacity,
-  rebuildGlintZones,
-  seedGlintPatches,
-  spawnGlintPatch,
-  tickGlintZones,
-  tileBeamLength,
-  tileBeamMaxOpacity,
-  tileHasBeam,
-} from '../glintZones'
-import {
   GLINT_BEAM_CHANCE,
   GLINT_BEAM_CYCLE_MS,
   GLINT_BEAM_LENGTH_MAX,
@@ -22,6 +12,16 @@ import {
   GLINT_ZONE_HOLD_MS,
   GLINT_ZONE_SPAWN_MS,
 } from '../constants'
+import {
+  computeBeamSegmentOpacity,
+  rebuildGlintZones,
+  seedGlintPatches,
+  spawnGlintPatch,
+  tickGlintZones,
+  tileBeamLength,
+  tileBeamMaxOpacity,
+  tileHasBeam,
+} from '../glintZones'
 import { posKey } from '../position'
 import { TileType } from '../types'
 import { clearArea, createTestState } from './helpers'
@@ -55,7 +55,7 @@ describe('seedGlintPatches', () => {
 
     expect(state.glintPatches).toHaveLength(GLINT_ZONE_COUNT)
 
-    const birthTimes = state.glintPatches.map((p) => p.birthTime)
+    const birthTimes = state.glintPatches.map(p => p.birthTime)
     // Birth times should be staggered — not all the same
     const uniqueBirthTimes = new Set(birthTimes)
     expect(uniqueBirthTimes.size).toBeGreaterThan(1)

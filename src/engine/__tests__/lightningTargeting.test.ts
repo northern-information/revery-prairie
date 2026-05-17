@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
 import { assignActionBarSlot, getTargetingPreview, isValidLightningTarget } from '../actionBar'
 import {
   LIGHTNING_INVALID_TARGET_CHAR,
@@ -11,8 +9,8 @@ import {
 import { ComponentType } from '../ecs/types'
 import { posKey } from '../position'
 import { TileType } from '../types'
-
 import { clearAroundPlayer, createBeeEntity, createBeehiveEntity, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 describe('lightning targeting visuals', () => {
   describe('animated reticle', () => {

@@ -3,15 +3,15 @@ import { storeAngelCanto } from './angels'
 import { getCharacterDefinition, getCharacterDialog } from './characters'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
-import { setMapTile } from './map'
+import { RuinRole } from './genesisTypes'
 import { recordDiscovery } from './manual'
+import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
-import { queueEvent } from './ruins'
-import { invalidateMapCache } from './tileBgCache'
 import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { getReveryDefinition } from './reveries'
+import { queueEvent } from './ruins'
+import { invalidateMapCache } from './tileBgCache'
 import { CoyoteMode, MainQuestPhase, TileType, Zone } from './types'
-import { RuinRole } from './genesisTypes'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position, ReveryDefinition } from './types'
@@ -318,16 +318,15 @@ export const unlockRuinDoor = (state: GameState): boolean => {
   const fy = state.player.y + d.y
   if (!isInBounds(fx, fy, state.mapWidth, state.mapHeight)) return false
   if (state.map[fy][fx].type !== TileType.RuinDoorLocked) return false
-  const keyItem = state.backpack.items.find((i) => i.definitionId === 'aqueductKey')
+  const keyItem = state.backpack.items.find(i => i.definitionId === 'aqueductKey')
   if (!keyItem) return false
-  state.backpack.items = state.backpack.items.filter((i) => i.uid !== keyItem.uid)
+  state.backpack.items = state.backpack.items.filter(i => i.uid !== keyItem.uid)
 
   // Open every door tile in the current ruin atomically. Always include
   // the facing tile as a fallback in case dormantGarden.doorPositions is
   // unset (older saves, non-dormant-garden archetypes, or test stubs that
   // override state.map directly).
-  const interior =
-    state.currentRuinIndex !== null ? state.ruinInteriors[state.currentRuinIndex] : null
+  const interior = state.currentRuinIndex !== null ? state.ruinInteriors[state.currentRuinIndex] : null
   const positions: Position[] = [{ x: fx, y: fy }]
   if (interior?.dormantGarden) {
     for (const dp of interior.dormantGarden.doorPositions) {
@@ -346,7 +345,7 @@ export const unlockRuinDoor = (state: GameState): boolean => {
 
   // Clear any action bar slot that referenced the now-consumed key, if no
   // more keys remain in the backpack.
-  const stillHasKey = state.backpack.items.some((i) => i.definitionId === 'aqueductKey')
+  const stillHasKey = state.backpack.items.some(i => i.definitionId === 'aqueductKey')
   if (!stillHasKey) {
     for (let i = 0; i < state.actionBar.length; i++) {
       const slot = state.actionBar[i]
@@ -380,10 +379,9 @@ export const clearRuinDebris = (state: GameState, time = performance.now()): boo
   if (!isInBounds(fx, fy, state.mapWidth, state.mapHeight)) return false
   if (state.map[fy][fx].type !== TileType.RuinDebris) return false
 
-  const interior =
-    state.currentRuinIndex !== null ? state.ruinInteriors[state.currentRuinIndex] : null
+  const interior = state.currentRuinIndex !== null ? state.ruinInteriors[state.currentRuinIndex] : null
   const barrier = interior?.dormantGarden?.collapseBarrier ?? null
-  const inBarrier = barrier?.some((p) => p.x === fx && p.y === fy) ?? false
+  const inBarrier = barrier?.some(p => p.x === fx && p.y === fy) ?? false
 
   if (inBarrier && barrier) {
     for (const bp of barrier) {
@@ -394,7 +392,7 @@ export const clearRuinDebris = (state: GameState, time = performance.now()): boo
     }
     const crumbleEntity = state.world.createEntity()
     state.world.addComponent(crumbleEntity, ComponentType.MultiPosition, {
-      positions: barrier.map((p) => ({ x: p.x, y: p.y })),
+      positions: barrier.map(p => ({ x: p.x, y: p.y })),
     })
     state.world.addComponent(crumbleEntity, ComponentType.TimedEffect, {
       kind: 'crumble',

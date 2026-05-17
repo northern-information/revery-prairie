@@ -9,6 +9,7 @@ date: 2026-04-14
 `render()` in `renderer.ts` is 1,089 lines — the single largest function in the codebase. it handles terrain, entities, effects, overlays, cursor, path preview, and transition fades in one monolithic function.
 
 split into ~4 phase functions:
+
 - `renderTerrain` — tile/clover/soil/water/stars
 - `renderEntities` — bees/ghosts/characters/items/meteorites/angels
 - `renderEffects` — explosions/weather/lightning/glint/blooms/wildfire

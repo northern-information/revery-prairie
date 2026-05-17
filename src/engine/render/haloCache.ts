@@ -1,9 +1,7 @@
-import {
-  PRAIRIE_HALO_COLOR,
-  PRAIRIE_HALO_MAX_ALPHA,
-  PRAIRIE_HALO_RADIUS,
-} from '../constants'
-import { TileType, type Tile } from '../types'
+import { PRAIRIE_HALO_COLOR, PRAIRIE_HALO_MAX_ALPHA, PRAIRIE_HALO_RADIUS } from '../constants'
+import { TileType } from '../types'
+
+import type { Tile } from '../types'
 
 // World-space halo cache. The prairie halo is a soft glow over space
 // tiles adjacent to land — its per-tile alpha is
@@ -34,10 +32,7 @@ const cacheByMap = new WeakMap<Tile[][], HaloCacheEntry>()
 
 const HALO_PAINT_OVERLAP = 2
 
-const createCanvas = (
-  width: number,
-  height: number,
-): { canvas: AnyCanvas; ctx: AnyCtx } => {
+const createCanvas = (width: number, height: number): { canvas: AnyCanvas; ctx: AnyCtx } => {
   if (typeof OffscreenCanvas !== 'undefined') {
     const canvas = new OffscreenCanvas(width, height)
     const ctx = canvas.getContext('2d')
@@ -58,7 +53,7 @@ const computeWorldDimensions = (
   mapWidth: number,
   mapHeight: number,
   charWidth: number,
-  charHeight: number,
+  charHeight: number
 ): { width: number; height: number; worldOriginX: number; worldOriginY: number } => {
   const halfW = charWidth / 2
   const halfH = charHeight / 2
@@ -72,13 +67,7 @@ const computeWorldDimensions = (
 // Chebyshev distance from (x, y) to nearest non-Space, in-bounds tile,
 // capped at PRAIRIE_HALO_RADIUS. Returns Infinity beyond the cap. The
 // caller has already determined (x, y) is space.
-const nearestLandDistance = (
-  map: Tile[][],
-  mapWidth: number,
-  mapHeight: number,
-  x: number,
-  y: number,
-): number => {
+const nearestLandDistance = (map: Tile[][], mapWidth: number, mapHeight: number, x: number, y: number): number => {
   for (let r = 1; r <= PRAIRIE_HALO_RADIUS; r++) {
     const x0 = x - r
     const x1 = x + r
@@ -105,12 +94,7 @@ const peakAlpha = (distance: number): number => {
   return PRAIRIE_HALO_MAX_ALPHA * falloff
 }
 
-const paintHaloDiamond = (
-  entry: HaloCacheEntry,
-  x: number,
-  y: number,
-  alpha: number,
-): void => {
+const paintHaloDiamond = (entry: HaloCacheEntry, x: number, y: number, alpha: number): void => {
   const { ctx, charWidth, charHeight } = entry
   const halfW = charWidth / 2
   const halfH = charHeight / 2
@@ -147,11 +131,7 @@ const fullBuild = (entry: HaloCacheEntry, map: Tile[][]): void => {
   ctx.globalAlpha = 1
 }
 
-export const getOrBuildHaloCache = (
-  map: Tile[][],
-  charWidth: number,
-  charHeight: number,
-): HaloCacheEntry => {
+export const getOrBuildHaloCache = (map: Tile[][], charWidth: number, charHeight: number): HaloCacheEntry => {
   let entry = cacheByMap.get(map)
   if (entry && (entry.charWidth !== charWidth || entry.charHeight !== charHeight)) {
     cacheByMap.delete(map)
@@ -164,7 +144,7 @@ export const getOrBuildHaloCache = (
     mapWidth,
     mapHeight,
     charWidth,
-    charHeight,
+    charHeight
   )
   const { canvas, ctx } = createCanvas(width, height)
   entry = {

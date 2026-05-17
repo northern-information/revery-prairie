@@ -707,13 +707,7 @@ describe('overworld event suppression in cave', () => {
     // Shower should have activated
     expect(state.meteorShower.active).toBe(true)
     // onDiscovery should fire in overworld
-    expect(onDiscovery).toHaveBeenCalledWith(
-      'Meteor shower!',
-      expect.any(Number),
-      expect.any(Number),
-      '*',
-      '#FFD700'
-    )
+    expect(onDiscovery).toHaveBeenCalledWith('Meteor shower!', expect.any(Number), expect.any(Number), '*', '#FFD700')
   })
 
   it('lightning log entry suppressed in cave', () => {
@@ -732,15 +726,11 @@ describe('overworld event suppression in cave', () => {
     }
 
     // Even if lightning struck during overworld map-swap ticks, onDiscovery must not fire in cave
-    const lightningCalls = onDiscovery.mock.calls.filter(
-      (args: unknown[]) => args[0] === 'lightning strikes!'
-    )
+    const lightningCalls = onDiscovery.mock.calls.filter((args: unknown[]) => args[0] === 'lightning strikes!')
     expect(lightningCalls).toHaveLength(0)
 
     // Also verify no wildfire events leaked
-    const wildfireCalls = onDiscovery.mock.calls.filter(
-      (args: unknown[]) => args[0] === 'wildfire!'
-    )
+    const wildfireCalls = onDiscovery.mock.calls.filter((args: unknown[]) => args[0] === 'wildfire!')
     expect(wildfireCalls).toHaveLength(0)
   })
 })

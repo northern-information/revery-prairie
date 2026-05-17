@@ -1,9 +1,8 @@
 import { invalidateMapCache, markTileDirty } from '../tileBgCache'
-import type { Tile } from '../types'
 import { invalidateHaloCache } from './haloCache'
 import { invalidateTierGrid } from './tierGrid'
 
-import type { Position } from '../types'
+import type { Position, Tile } from '../types'
 
 // Single source of truth for cached-layer invalidation. See
 // harness/specs/renderer.yaml `cache-contract` behavior.

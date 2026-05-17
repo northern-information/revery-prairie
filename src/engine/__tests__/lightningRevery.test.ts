@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
 import {
   activateActionBarSlot,
   assignActionBarSlot,
@@ -17,8 +15,8 @@ import { ComponentType } from '../ecs/types'
 import { posKey } from '../position'
 import { getReveryDefinition, REVERY_DEFINITIONS } from '../reveries'
 import { CloverStage, TileType } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 describe('lightning revery', () => {
   describe('definition', () => {

@@ -20,11 +20,7 @@ const inZoneForBlocking = (state: GameState, eid: number, zone: Zone): boolean =
   return state.world.getComponent(eid, ComponentType.EntityZone)?.zone === zone
 }
 
-export const getBlockedPositions = (
-  state: GameState,
-  zone?: Zone,
-  opts?: { ignoreCoyote?: boolean }
-): Set<string> => {
+export const getBlockedPositions = (state: GameState, zone?: Zone, opts?: { ignoreCoyote?: boolean }): Set<string> => {
   const z = zone ?? state.currentZone
   const set = new Set<string>()
   for (const eid of state.world.query(ComponentType.Blocking, ComponentType.Position)) {

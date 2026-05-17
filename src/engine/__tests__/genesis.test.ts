@@ -1,10 +1,4 @@
-import {
-  MAP_HEIGHT,
-  MAP_WIDTH,
-  POND_COLOR,
-  RIVER_COLOR,
-  SOIL_HEALTH_MAX,
-} from '../constants'
+import { MAP_HEIGHT, MAP_WIDTH, POND_COLOR, RIVER_COLOR, SOIL_HEALTH_MAX } from '../constants'
 import {
   completeGenesis,
   createGenesisState,
@@ -161,9 +155,7 @@ describe('runAllMutations', () => {
     const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
-    const onLand = result.ruins.filter(
-      ruin => result.terrain[ruin.position.y][ruin.position.x].type !== TileType.Space
-    )
+    const onLand = result.ruins.filter(ruin => result.terrain[ruin.position.y][ruin.position.x].type !== TileType.Space)
     expect(onLand.length).toBeGreaterThanOrEqual(Math.ceil(result.ruins.length / 2))
   })
 
@@ -833,9 +825,7 @@ describe('water consolidation', () => {
       const [xStr, yStr] = key.split(',')
       const x = Number(xStr)
       const y = Number(yStr)
-      const hasNeighbor = cardinalDirs.some(([ddx, ddy]) =>
-        allWater.has(posKey(x + ddx, y + ddy)),
-      )
+      const hasNeighbor = cardinalDirs.some(([ddx, ddy]) => allWater.has(posKey(x + ddx, y + ddy)))
       expect(hasNeighbor).toBe(true)
     }
   })
@@ -1008,14 +998,7 @@ describe('water consolidation', () => {
         const nx = x + ddx
         const ny = y + ddy
         const nk = posKey(nx, ny)
-        if (
-          ny >= 0 &&
-          ny < sim.height &&
-          nx >= 0 &&
-          nx < sim.width &&
-          sim.landMask.has(nk) &&
-          !allWater.has(nk)
-        ) {
+        if (ny >= 0 && ny < sim.height && nx >= 0 && nx < sim.width && sim.landMask.has(nk) && !allWater.has(nk)) {
           dist1Sand.add(nk)
         }
       }
@@ -1273,8 +1256,7 @@ describe('water continuity at genesis-to-game transition', () => {
     // legitimately render different glyphs).
     const inSatelliteCrashPath = new Set<string>()
     for (const crash of sim.satelliteCrashes) {
-      const totalSteps =
-        Math.abs(crash.impactX - crash.startX) + Math.abs(crash.impactY - crash.startY)
+      const totalSteps = Math.abs(crash.impactX - crash.startX) + Math.abs(crash.impactY - crash.startY)
       for (let s = 0; s <= totalSteps; s++) {
         const tx = crash.startX + crash.dx * s
         const ty = crash.startY + crash.dy * s

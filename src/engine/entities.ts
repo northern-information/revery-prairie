@@ -26,9 +26,7 @@ export const createCharacterEntity = (
   state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
   state.world.addComponent(e, ComponentType.EntityTag, 'character')
   const entityZone =
-    opts?.zone !== undefined
-      ? { zone: opts.zone, ruinIndex: opts.ruinIndex }
-      : getCurrentEntityZone(state)
+    opts?.zone !== undefined ? { zone: opts.zone, ruinIndex: opts.ruinIndex } : getCurrentEntityZone(state)
   state.world.addComponent(e, ComponentType.EntityZone, entityZone)
   if (opts?.aura) {
     const radius = AURA_RADIUS[opts.aura] ?? 6

@@ -1,3 +1,5 @@
+import { tickCloverGrowth } from './clover'
+import { tickCloverLifecycle } from './cloverLifecycle'
 import {
   DEEP_TIME_BURN_DURATION_MS,
   DEEP_TIME_LIGHTNING_COUNT,
@@ -6,8 +8,6 @@ import {
   DEEP_TIME_TRANSITION_DURATION_MS,
   DEEP_TIME_YEARS_PER_FRAME,
 } from './constants'
-import { tickCloverGrowth } from './clover'
-import { tickCloverLifecycle } from './cloverLifecycle'
 import { ComponentType } from './ecs/types'
 import { tickBees } from './entities'
 import { forceSpawnLightningStrike, spreadWildfire } from './lightning'

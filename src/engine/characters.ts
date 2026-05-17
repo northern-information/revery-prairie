@@ -95,10 +95,7 @@ const GRON_DIALOG_GATHERING: string[] = ['It takes one clover and one bee.']
 
 const GRON_DIALOG_COMBINING: string[] = ['Well what are you waiting for, steward? One clover and one bee.']
 
-const GRON_DIALOG_SEALED: string[] = [
-  'Ahhh, yes. You are indeed the steward.',
-  "Here, I've been saving these.",
-]
+const GRON_DIALOG_SEALED: string[] = ['Ahhh, yes. You are indeed the steward.', "Here, I've been saving these."]
 
 const getGronDialog = (state: GameState): string[] => {
   switch (state.mainQuestPhase) {

@@ -1,20 +1,17 @@
 import { RUIN_ENTRANCE_HALO_COLOR } from '../../constants'
 import { drawCellBackground, viewportToScreen } from '../../projection'
 import { getEntranceHaloCells } from '../../ruins'
-import { Zone, type CharMetrics, type GameState } from '../../types'
+import { Zone } from '../../types'
 import { isTileInVisibleViewport } from '../../viewportBounds'
+import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
-import { type RenderPass, registerPass } from '../passes'
 
-const isActive = (state: GameState): boolean =>
-  state.currentZone === Zone.Overworld && state.ruinInteriors.length > 0
+import type { CharMetrics, GameState } from '../../types'
+import type { RenderPass } from '../passes'
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  _time: number,
-): void => {
+const isActive = (state: GameState): boolean => state.currentZone === Zone.Overworld && state.ruinInteriors.length > 0
+
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, _time: number): void => {
   const { camera, viewportWidth, viewportHeight, map } = state
   const { charWidth, charHeight } = metrics
   const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
@@ -27,7 +24,7 @@ const draw = (
       interior.entranceOverworld.x,
       interior.entranceOverworld.y,
       state.rivers,
-      state.ponds,
+      state.ponds
     )
     for (const cell of cells) {
       const vx = cell.x - camera.x
@@ -39,7 +36,7 @@ const draw = (
         px,
         py + liftAt(tierGrid, cell.x, cell.y, state.mapWidth, state.mapHeight),
         charWidth,
-        charHeight,
+        charHeight
       )
     }
   }

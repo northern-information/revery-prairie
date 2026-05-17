@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest'
-import { createGameState } from '../state'
 import { getCharacterDialog } from '../characters'
 import { ComponentType } from '../ecs/types'
 import { giveCharacterGift } from '../interaction'
+import { createGameState } from '../state'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
 

@@ -1,10 +1,5 @@
 import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
-import {
-  createGenesisState,
-  extractGenesisResult,
-  GENESIS_EPOCHS,
-  runAllMutations,
-} from '../genesis'
+import { createGenesisState, extractGenesisResult, GENESIS_EPOCHS, runAllMutations } from '../genesis'
 import { posKey } from '../position'
 import { generateTerrain } from '../terrain'
 import { TileType } from '../types'

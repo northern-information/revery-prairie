@@ -1,17 +1,16 @@
 import { getAngelRenderData } from './angelAnimation'
+import { projectBoltPath } from './boltPath'
+import { getCaveTileLayers, shouldRenderCaveMultilayer } from './cave'
 import { getCharacterDefinition } from './characters'
 import {
   ACTION_COLOR,
   ANGEL_BODY_SIZE,
   BASE_FONT_SIZE,
-  GENESIS_FONT_SIZE,
   BEE_CHAR,
   BEE_COLOR,
   BEEHIVE_CHAR,
   BEEHIVE_COLOR,
   BG_COLOR,
-  DEEP_TIME_SHAKE_AMPLITUDE,
-  DEEP_TIME_TRANSITION_GLYPH_DURATION_MS,
   BUILDING_CHARS,
   BURN_SCAR_COLORS,
   CLOVER_BLACK_COLOR,
@@ -27,12 +26,16 @@ import {
   CRUMBLE_CHARS,
   CRUMBLE_COLORS,
   CRUMBLE_DURATION_MS,
+  DEEP_TIME_SHAKE_AMPLITUDE,
+  DEEP_TIME_TRANSITION_GLYPH_DURATION_MS,
   DIRT_COLORS,
-  FOG_EXPLORED_BRIGHTNESS,
   EXPLOSION_CHARS,
   EXPLOSION_COLORS,
   EXPLOSION_DURATION_MS,
   EXPLOSION_RADIUS,
+  FOG_EXPLORED_BRIGHTNESS,
+  GENESIS_FONT_SIZE,
+  getEntranceGlyph,
   LIGHTNING_BOLT_COLOR_BRIGHT,
   LIGHTNING_BOLT_COLOR_DIM,
   LIGHTNING_BOLT_COLOR_MID,
@@ -59,9 +62,9 @@ import {
   RIVER_COLOR,
   SAND_COLORS,
   SATELLITE_HEAD_COLORS,
-  SATELLITE_SHAKE_AMPLITUDE,
   SATELLITE_IMPACT_DURATION_MS,
   SATELLITE_IMPACT_RADIUS_VISUAL,
+  SATELLITE_SHAKE_AMPLITUDE,
   SATELLITE_TRAIL_COLORS,
   SHOOTING_STAR_HEAD_CHAR,
   SHOOTING_STAR_HEAD_COLOR,
@@ -69,7 +72,6 @@ import {
   SHOOTING_STAR_TRAIL_COLORS,
   TILE_CHARS,
   TILE_COLORS,
-  getEntranceGlyph,
   TRAIL_DURATION_MS,
   WILDFIRE_CHARS,
   WILDFIRE_COLORS,
@@ -89,10 +91,9 @@ import {
   worldDeltaToIsoPx,
   worldToScreen,
 } from './projection'
-import { projectBoltPath } from './boltPath'
+import { runPassesInSlot } from './render/passes'
 import { getReveryDefinition } from './reveries'
 import { getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
-import { getCaveTileLayers, shouldRenderCaveMultilayer } from './cave'
 import { getSelectedUnitPositions } from './selection'
 import {
   ANGEL_FLOAT_LIFT_PX,
@@ -104,20 +105,17 @@ import {
   WALL_RIGHT_SHADE,
   WATER_SINK_PX,
 } from './tileBg'
-import { runPassesInSlot } from './render/passes'
+
 import './render/passes/index'
+
 import { getTierGrid as getTierGridShared, liftAt as liftAtShared } from './render/tierGrid'
-import {
-  computeZoneVisibility,
-  dimColor,
-  getTileVisibility,
-  hasFogOfWar,
-  tickIllumination,
-} from './visibility'
 import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
+import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar, tickIllumination } from './visibility'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
+
 import './flora'
+
 import { getFloraMovement, getFloraSwayOffset } from './flora'
 
 import type { VelocityKey } from './constants'
@@ -142,7 +140,7 @@ export const nearestLandDistance = (
   mapHeight: number,
   x: number,
   y: number,
-  maxRadius: number,
+  maxRadius: number
 ): number => {
   for (let r = 1; r <= maxRadius; r++) {
     const x0 = x - r
@@ -177,10 +175,7 @@ export const computePrairieHaloAlpha = (distance: number, time: number): number 
   return Math.max(0, Math.min(PRAIRIE_HALO_MAX_ALPHA, raw))
 }
 
-export const measureChar = (
-  ctx: CanvasRenderingContext2D,
-  fontSize: number = BASE_FONT_SIZE,
-): CharMetrics => {
+export const measureChar = (ctx: CanvasRenderingContext2D, fontSize: number = BASE_FONT_SIZE): CharMetrics => {
   const font = `${String(fontSize)}px monospace`
   ctx.font = font
   const metrics = ctx.measureText('M')
@@ -253,12 +248,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     // the canvas at the zoomed-out font.
     const gameCharWidth = metrics.charWidth
     const gameCharHeight = metrics.charHeight
-    const genesisViewportWidth = Math.ceil(
-      (state.viewportWidth * gameCharWidth) / _genesisMetrics.charWidth,
-    )
-    const genesisViewportHeight = Math.ceil(
-      (state.viewportHeight * gameCharHeight) / _genesisMetrics.charHeight,
-    )
+    const genesisViewportWidth = Math.ceil((state.viewportWidth * gameCharWidth) / _genesisMetrics.charWidth)
+    const genesisViewportHeight = Math.ceil((state.viewportHeight * gameCharHeight) / _genesisMetrics.charHeight)
     renderGenesis(
       ctx,
       state.genesis,
@@ -266,7 +257,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       _genesisMetrics,
       genesisViewportWidth,
       genesisViewportHeight,
-      time,
+      time
     )
     // Screen-overlay passes still run during genesis so the cinematic
     // commentary pass and the boot title card overlay can paint above
@@ -296,8 +287,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return 0
     return tierGrid[mx + my * state.mapWidth]
   }
-  const liftAt = (mx: number, my: number): number =>
-    liftAtShared(tierGrid, mx, my, state.mapWidth, state.mapHeight)
+  const liftAt = (mx: number, my: number): number => liftAtShared(tierGrid, mx, my, state.mapWidth, state.mapHeight)
 
   // Positive pixel offset that sinks water tiles below surrounding
   // dirt. Reads state.rivers / state.ponds (overworld only — caves and
@@ -392,7 +382,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     xCameraTracksPlayer ? playerLerpX - player.x : 0,
     yCameraTracksPlayer ? playerLerpY - player.y : 0,
     charWidth,
-    charHeight,
+    charHeight
   )
   const driftPx = tweenDelta.px
   const driftPy = tweenDelta.py
@@ -428,7 +418,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     charWidth,
     charHeight,
     viewportWidth,
-    viewportHeight,
+    viewportHeight
   )
   // Vertical lift interpolates between from-tile and to-tile so cube-step
   // elevation changes don't snap the player up or down at tween start.
@@ -1118,8 +1108,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         }
 
         // Deep time: space turns crimson during Burning and Simulating
-        const deepTimeLocked =
-          state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
+        const deepTimeLocked = state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
         if (deepTimeLocked) {
           const h = tileHash(mx, my)
           const pulse = Math.sin(time * 0.003 + (h & 0xff) * 0.05) * 0.5 + 0.5
@@ -1164,15 +1153,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const tileKey = posKey(mx, my)
       const tileTier = tierAt(mx, my)
       const lift = getTierLift(tileTier)
-      const platformLift =
-        state.currentZone === Zone.Overworld ? getStructurePlatformLift(map[my][mx].type) : 0
+      const platformLift = state.currentZone === Zone.Overworld ? getStructurePlatformLift(map[my][mx].type) : 0
       const waterSink = waterSinkAt(mx, my)
       const pyLift = py + lift + platformLift + waterSink
 
       // Fog of war: skip unexplored tiles, dim partiallyDiscovered tiles.
       // fullyDiscovered tiles fall through to the full render path so live
       // entities show even when out of LOS.
-      const tileVis = fogActive ? getTileVisibility(state, mx, my, visibleSet ?? new Set()) : 'visible' as const
+      const tileVis = fogActive ? getTileVisibility(state, mx, my, visibleSet ?? new Set()) : ('visible' as const)
       if (tileVis === 'unexplored') {
         // Unexplored — leave as dark background
         continue
@@ -1229,9 +1217,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         if (leftDepth > 0 || rightDepth > 0) {
           const baseTile = map[my][mx]
           const wallType =
-            state.currentZone === Zone.Cave &&
-            !state.caveRevealed &&
-            state.caveHiddenPositions.has(tileKey)
+            state.currentZone === Zone.Cave && !state.caveRevealed && state.caveHiddenPositions.has(tileKey)
               ? TileType.CaveWall
               : baseTile.type
           const wallBg = getTileBgColor(wallType, mx, my)
@@ -1244,7 +1230,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             leftDepth,
             rightDepth,
             darkenColor(wallBg, WALL_LEFT_SHADE),
-            darkenColor(wallBg, WALL_RIGHT_SHADE),
+            darkenColor(wallBg, WALL_RIGHT_SHADE)
           )
         }
       }
@@ -1498,21 +1484,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           Boolean(state.facingEntityPos && angelGroup.has(posKey(state.facingEntityPos.x, state.facingEntityPos.y))) ||
           Boolean(
             state.pendingInteractionTarget &&
-              angelGroup.has(posKey(state.pendingInteractionTarget.x, state.pendingInteractionTarget.y))
+            angelGroup.has(posKey(state.pendingInteractionTarget.x, state.pendingInteractionTarget.y))
           ))
 
       // Resolve highlight state without ctx side effects so the deferred
       // path can capture it and the inline path can apply it.
       // Invalid preview tiles (e.g. red X for lightning targeting) and the
       // dev panel suppress entity/target inversion.
-      const highlightSuppressed =
-        (previewTile !== undefined && !previewTile.isValid) || state.devPanelOpen
+      const highlightSuppressed = (previewTile !== undefined && !previewTile.isValid) || state.devPanelOpen
       const highlight =
         !highlightSuppressed &&
-        (selectedPositions.has(tileKey) ||
-          isAngelGroupHighlighted ||
-          isFacingEntity ||
-          isPendingTarget)
+        (selectedPositions.has(tileKey) || isAngelGroupHighlighted || isFacingEntity || isPendingTarget)
 
       // Defer entity glyphs (and the local player on its own tile) to a
       // post-tile-loop flush so neighboring high-elevation tiles drawn
@@ -1546,9 +1528,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // conversion) use the Clover profile so they sway in sync with live clover —
       // without this they snap to the displaced position the frame they convert.
       if (!highlight) {
-        const swayTileType = state.cloverGrowthPreviews.has(tileKey)
-          ? TileType.Clover
-          : map[my]?.[mx]?.type
+        const swayTileType = state.cloverGrowthPreviews.has(tileKey) ? TileType.Clover : map[my]?.[mx]?.type
         const floraProfile = swayTileType ? getFloraMovement(swayTileType) : undefined
         if (floraProfile) {
           const lifecycleStage = state.cloverLifecycle.get(tileKey)?.stage
@@ -1562,7 +1542,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             lifecycleStage,
             charWidth,
             charHeight,
-            color,
+            color
           )
           // Always defer — even zero-displacement — so tiles never switch between the
           // deferred and non-deferred draw paths. When the smooth wind vector passes
@@ -1590,9 +1570,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // render as CaveWall until caveRevealed flips, otherwise the multilayer
       // floor pattern would leak the unrevealed type.
       const caveEffectiveType =
-        state.currentZone === Zone.Cave &&
-        !state.caveRevealed &&
-        state.caveHiddenPositions.has(tileKey)
+        state.currentZone === Zone.Cave && !state.caveRevealed && state.caveHiddenPositions.has(tileKey)
           ? TileType.CaveWall
           : tile?.type
       const sharedMultilayerArgs = {

@@ -1,19 +1,13 @@
-import {
-  LIGHTNING_SCREEN_FLASH_MS,
-  LIGHTNING_SCREEN_FLASH_OPACITY,
-} from '../../constants'
+import { LIGHTNING_SCREEN_FLASH_MS, LIGHTNING_SCREEN_FLASH_OPACITY } from '../../constants'
+import { registerPass } from '../passes'
+
 import type { CharMetrics, GameState } from '../../types'
-import { type RenderPass, registerPass } from '../passes'
+import type { RenderPass } from '../passes'
 
 // Reuses the lightning screen flash duration/opacity constants — a
 // deliberate visual rhyme with the lightning flash, kept in sync.
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   const elapsed = time - state.angelFlashTime
   if (elapsed >= LIGHTNING_SCREEN_FLASH_MS) return
   const alpha = LIGHTNING_SCREEN_FLASH_OPACITY * (1 - elapsed / LIGHTNING_SCREEN_FLASH_MS)

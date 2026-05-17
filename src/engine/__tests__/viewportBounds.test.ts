@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
 import { screenToTile } from '../projection'
 import { getVisibleTileBounds, isTileInVisibleViewport } from '../viewportBounds'
+import { describe, expect, it } from 'vitest'
 
 const charWidth = 10
 const charHeight = 16
@@ -77,8 +77,7 @@ describe('isTileInVisibleViewport', () => {
     // Spot-check a grid spanning the bounds plus a frame outside.
     for (let vy = bounds.vyStart - 3; vy < bounds.vyEnd + 3; vy++) {
       for (let vx = bounds.vxStart - 3; vx < bounds.vxEnd + 3; vx++) {
-        const expected =
-          vx >= bounds.vxStart && vx < bounds.vxEnd && vy >= bounds.vyStart && vy < bounds.vyEnd
+        const expected = vx >= bounds.vxStart && vx < bounds.vxEnd && vy >= bounds.vyStart && vy < bounds.vyEnd
         expect(isTileInVisibleViewport(vx, vy, vw, vh)).toBe(expected)
       }
     }

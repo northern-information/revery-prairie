@@ -1,9 +1,5 @@
+import { ELEVATION_LIFT_FRACTION, getCellSideQuads, getElevationLift } from '../projection'
 import { describe, expect, it } from 'vitest'
-import {
-  ELEVATION_LIFT_FRACTION,
-  getCellSideQuads,
-  getElevationLift,
-} from '../projection'
 
 describe('getElevationLift', () => {
   const charHeight = 16
@@ -30,7 +26,7 @@ describe('getElevationLift', () => {
 
   it('is monotonic: higher elevation -> smaller (more negative) y', () => {
     const samples = [0, 10, 25, 40, 50, 60, 75, 90, 100]
-    const lifts = samples.map((e) => getElevationLift(e, charHeight))
+    const lifts = samples.map(e => getElevationLift(e, charHeight))
     for (let i = 1; i < lifts.length; i++) {
       expect(lifts[i]).toBeLessThanOrEqual(lifts[i - 1])
     }

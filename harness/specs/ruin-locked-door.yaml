@@ -238,7 +238,7 @@ failure_conditions:
   - trigger: 'pressing [e] facing a locked door with no key produces no visible feedback'
     expected: 'spec is violated — locked-gate-dialog behavior must open the gate modal so the player understands the door is gated, not broken'
 
-  - trigger: "the gate speaker leaks into manual auto-derivation, gameplay tick systems, or getAdjacentCharacter results"
+  - trigger: 'the gate speaker leaks into manual auto-derivation, gameplay tick systems, or getAdjacentCharacter results'
     expected: 'spec is violated — the gate is dialog-only; it must not appear as a world entity, manual entry, or interactable character'
 
 verification:

@@ -1,8 +1,6 @@
-import {
-  PRAIRIE_CREATE_PATH,
-  prairieConnectPath,
-} from '@revery-prairie/shared'
+import { PRAIRIE_CREATE_PATH, prairieConnectPath } from '@revery-prairie/shared'
 
+import type { NetworkClientEvents, NetworkClientStatus } from './types'
 import type {
   ColorId,
   CreatePrairieResponse,
@@ -11,11 +9,6 @@ import type {
   PositionFrame,
   ServerMessage,
 } from '@revery-prairie/shared'
-
-import type {
-  NetworkClientEvents,
-  NetworkClientStatus,
-} from './types'
 
 // Backoff schedule: 1s, 2s, 4s, 8s, 16s, 30s, then 6x30s. After 12 attempts, give up.
 const BACKOFF_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000]
@@ -47,11 +40,7 @@ export class NetworkClient {
     this.workerUrl = workerUrl.replace(/\/+$/, '')
   }
 
-  static async createPrairie(
-    workerUrl: string,
-    stewardName: string,
-    color: ColorId
-  ): Promise<CreatePrairieResponse> {
+  static async createPrairie(workerUrl: string, stewardName: string, color: ColorId): Promise<CreatePrairieResponse> {
     const base = workerUrl.replace(/\/+$/, '')
     const res = await fetch(`${base}${PRAIRIE_CREATE_PATH}`, {
       method: 'POST',
@@ -90,20 +79,14 @@ export class NetworkClient {
     this.ws.send(JSON.stringify(frame))
   }
 
-  on<K extends keyof NetworkClientEvents>(
-    event: K,
-    handler: NetworkClientEvents[K]
-  ): void {
+  on<K extends keyof NetworkClientEvents>(event: K, handler: NetworkClientEvents[K]): void {
     const existing = this.listeners[event]
     const list: NetworkClientEvents[K][] = existing ?? []
     list.push(handler)
     this.listeners[event] = list as Listeners[K]
   }
 
-  off<K extends keyof NetworkClientEvents>(
-    event: K,
-    handler: NetworkClientEvents[K]
-  ): void {
+  off<K extends keyof NetworkClientEvents>(event: K, handler: NetworkClientEvents[K]): void {
     const list = this.listeners[event]
     if (!list) return
     const idx = list.indexOf(handler)
@@ -213,10 +196,7 @@ export class NetworkClient {
     this.emit('status-change', next)
   }
 
-  private emit<K extends keyof NetworkClientEvents>(
-    event: K,
-    ...args: Parameters<NetworkClientEvents[K]>
-  ): void {
+  private emit<K extends keyof NetworkClientEvents>(event: K, ...args: Parameters<NetworkClientEvents[K]>): void {
     const list = this.listeners[event]
     if (!list) return
     for (const handler of list) {

@@ -145,8 +145,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         if (!state.bootTitleCard) return
         const elapsed = time - state.bootTitleCard.startTime
         const holdMidpoint = ZONE_TRANSITION_FADE_IN_MS + ZONE_TRANSITION_HOLD_MS / 2
-        const total =
-          ZONE_TRANSITION_FADE_IN_MS + ZONE_TRANSITION_HOLD_MS + ZONE_TRANSITION_FADE_OUT_MS
+        const total = ZONE_TRANSITION_FADE_IN_MS + ZONE_TRANSITION_HOLD_MS + ZONE_TRANSITION_FADE_OUT_MS
 
         // Hold-midpoint swap: clear genesis under full-black cover so the
         // renderer change is invisible. finalizeGenesisHandoff is a

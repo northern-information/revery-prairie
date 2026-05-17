@@ -1,16 +1,14 @@
 import { GLINT_BEAM_CHAR, GLINT_ZONE_COLORS } from '../../constants'
-import {
-  computeBeamSegmentOpacity,
-  tileBeamLength,
-  tileBeamMaxOpacity,
-  tileHasBeam,
-} from '../../glintZones'
+import { computeBeamSegmentOpacity, tileBeamLength, tileBeamMaxOpacity, tileHasBeam } from '../../glintZones'
 import { tileHash } from '../../position'
 import { viewportToScreen } from '../../projection'
-import { Zone, type CharMetrics, type GameState } from '../../types'
+import { Zone } from '../../types'
 import { isTileInVisibleViewport } from '../../viewportBounds'
+import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
-import { type RenderPass, registerPass } from '../passes'
+
+import type { CharMetrics, GameState } from '../../types'
+import type { RenderPass } from '../passes'
 
 // Diagonal '/' beams pour from upper-right onto ~30% of glinting tiles.
 // Per-segment opacity blends patch opacity, beam max opacity, and a
@@ -18,12 +16,7 @@ import { type RenderPass, registerPass } from '../passes'
 
 const isActive = (state: GameState): boolean => state.currentZone === Zone.Overworld
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   const { camera, viewportWidth, viewportHeight } = state
   const { charWidth, charHeight } = metrics
   const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
@@ -57,11 +50,7 @@ const draw = (
       ctx.globalAlpha = finalOpacity
       ctx.fillStyle = GLINT_ZONE_COLORS[colorIndex]
       const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
-      ctx.fillText(
-        GLINT_BEAM_CHAR,
-        px,
-        py + liftAt(tierGrid, wx, wy, state.mapWidth, state.mapHeight),
-      )
+      ctx.fillText(GLINT_BEAM_CHAR, px, py + liftAt(tierGrid, wx, wy, state.mapWidth, state.mapHeight))
     }
   }
   ctx.globalAlpha = savedAlpha

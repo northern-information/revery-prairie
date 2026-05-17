@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import {
-  ZONE_TRANSITION_FADE_IN_MS,
-  ZONE_TRANSITION_FADE_OUT_MS,
-  ZONE_TRANSITION_HOLD_MS,
-} from '@/engine/constants'
+import { ZONE_TRANSITION_FADE_IN_MS, ZONE_TRANSITION_FADE_OUT_MS, ZONE_TRANSITION_HOLD_MS } from '@/engine/constants'
 import type { GameState } from '@/engine/types'
 
 // Triangle wave: 0 → 1 across fade-in, 1 across hold, 1 → 0 across
@@ -35,7 +31,7 @@ export const BootTitleCardOverlay = ({ state }: { state: GameState }): React.Rea
     let alive = true
     const loop = (): void => {
       if (!alive) return
-      force((n) => n + 1)
+      force(n => n + 1)
       rafRef.current = requestAnimationFrame(loop)
     }
     rafRef.current = requestAnimationFrame(loop)

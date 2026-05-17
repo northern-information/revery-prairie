@@ -1,15 +1,12 @@
 import { ACTION_COLOR } from '../../constants'
+import { registerPass } from '../passes'
+
 import type { CharMetrics, GameState } from '../../types'
-import { type RenderPass, registerPass } from '../passes'
+import type { RenderPass } from '../passes'
 
 const isActive = (state: GameState): boolean => state.selectionBox !== null
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  _metrics: CharMetrics,
-  _time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, _metrics: CharMetrics, _time: number): void => {
   const box = state.selectionBox
   if (!box) return
   const x = Math.min(box.startScreen.x, box.endScreen.x)

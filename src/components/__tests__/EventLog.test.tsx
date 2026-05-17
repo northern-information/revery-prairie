@@ -1,6 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-
 import { EventLog } from '../EventLog'
+import { fireEvent, render, screen } from '@testing-library/react'
 
 import { createGameState } from '@/engine/state'
 import type { GameEvent } from '@/hooks/useEventLog'
@@ -46,9 +45,7 @@ describe('EventLog', () => {
   it('clamps opacity at MIN_OPACITY for entries far from the bottom', () => {
     const state = createGameState('Test', 80, 40)
     // 12 entries: top of buffer should be clamped at MIN_OPACITY (0.15)
-    const eventLog = Array.from({ length: 12 }, (_, i) =>
-      makeEvent(String(12 - i), `entry-${String(12 - i)}`)
-    )
+    const eventLog = Array.from({ length: 12 }, (_, i) => makeEvent(String(12 - i), `entry-${String(12 - i)}`))
     render(<EventLog state={state} eventLog={eventLog} />)
     const oldest = screen.getByTestId('event-log-entry-1')
     expect(Number(oldest.style.opacity)).toBeCloseTo(0.15, 2)

@@ -1,13 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-
 import { harvestClover, HarvestResult } from '../cloverLifecycle'
 import { getBlockedPositions, movePlayer } from '../movement'
 import { findPath } from '../pathfinding'
 import { posKey } from '../position'
 import { RECIPES } from '../recipes'
 import { TileType } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
 

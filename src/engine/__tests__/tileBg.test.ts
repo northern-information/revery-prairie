@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest'
 import {
   darkenColor,
   ELEVATION_TIER_COUNT,
@@ -9,6 +8,7 @@ import {
   TILE_BG_PALETTES,
 } from '../tileBg'
 import { TileType } from '../types'
+import { describe, expect, it } from 'vitest'
 
 describe('TILE_BG_PALETTES', () => {
   it('has at least one color for every tile type', () => {

@@ -8,8 +8,8 @@ import {
   CLOVER_MAX_GROWTH_PER_TICK,
 } from './constants'
 import { ComponentType } from './ecs/types'
-import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
+import { setMapTile } from './map'
 import { CARDINAL, isInBounds, posKey, tileHash } from './position'
 import { TileType, Zone } from './types'
 import { spatialAtInCurrentZone } from './zone'
@@ -301,9 +301,7 @@ export const tickCloverHives = (state: GameState): void => {
   }
 
   const isTooCloseToHive = (pos: Position): boolean =>
-    existingHivePositions.some(
-      hp => Math.abs(pos.x - hp.x) + Math.abs(pos.y - hp.y) < BEEHIVE_MIN_DISTANCE
-    )
+    existingHivePositions.some(hp => Math.abs(pos.x - hp.x) + Math.abs(pos.y - hp.y) < BEEHIVE_MIN_DISTANCE)
 
   for (const patch of patches) {
     patch.beeCount = countBeesOnPatch(patch, state)
@@ -331,9 +329,7 @@ export const tickCloverHives = (state: GameState): void => {
           if (isInterior) interiorTiles.push(pos)
         }
 
-        const candidates = (interiorTiles.length > 0 ? interiorTiles : allTiles).filter(
-          pos => !isTooCloseToHive(pos)
-        )
+        const candidates = (interiorTiles.length > 0 ? interiorTiles : allTiles).filter(pos => !isTooCloseToHive(pos))
         if (candidates.length > 0) {
           const target = candidates[Math.floor(Math.random() * candidates.length)]
           spawnBeehive(state, target)

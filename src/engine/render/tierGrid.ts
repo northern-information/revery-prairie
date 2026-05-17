@@ -16,11 +16,7 @@ let _cache: Int8Array | null = null
 let _for: Map<string, number> | null = null
 let _width = 0
 
-export const getTierGrid = (
-  elevation: Map<string, number>,
-  mapWidth: number,
-  mapHeight: number,
-): Int8Array => {
+export const getTierGrid = (elevation: Map<string, number>, mapWidth: number, mapHeight: number): Int8Array => {
   if (_cache !== null && _for === elevation && _width === mapWidth) {
     return _cache
   }
@@ -45,13 +41,7 @@ export const invalidateTierGrid = (): void => {
   _width = 0
 }
 
-export const liftAt = (
-  grid: Int8Array,
-  mx: number,
-  my: number,
-  mapWidth: number,
-  mapHeight: number,
-): number => {
+export const liftAt = (grid: Int8Array, mx: number, my: number, mapWidth: number, mapHeight: number): number => {
   if (mx < 0 || mx >= mapWidth || my < 0 || my >= mapHeight) return 0
   return getTierLift(grid[mx + my * mapWidth])
 }

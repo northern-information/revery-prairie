@@ -144,12 +144,7 @@ const ActionBarSlotView = ({
   )
 }
 
-export const ActionBar = ({
-  state,
-  refreshUI,
-  dragState,
-  onSetActionBarTarget,
-}: ActionBarProps) => {
+export const ActionBar = ({ state, refreshUI, dragState, onSetActionBarTarget }: ActionBarProps) => {
   const rafRef = useRef(0)
   const [now, setNow] = useState(() => performance.now())
 

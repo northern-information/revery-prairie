@@ -1,14 +1,13 @@
 import { useEffect, useRef } from 'react'
 
 import { castLightningAtTarget, isValidLightningTarget } from '@/engine/actionBar'
+import { updateCamera } from '@/engine/camera'
 import { getCharacterDefinition } from '@/engine/characters'
 import { expandClickTile } from '@/engine/clickResolution'
 import { SELECTION_DRAG_THRESHOLD } from '@/engine/constants'
 import { screenToTile } from '@/engine/coordinates'
 import { isDeepTimeLocked } from '@/engine/deepTime'
-import { isInputGated } from '@/engine/zoneTransition'
 import { ComponentType } from '@/engine/ecs/types'
-import { updateCamera } from '@/engine/camera'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import {
   advanceDialog,
@@ -31,8 +30,9 @@ import {
   hasSelection,
   selectUnit,
 } from '@/engine/selection'
-import { issueMoveCommand } from '@/engine/unitCommands'
 import { TileType } from '@/engine/types'
+import { issueMoveCommand } from '@/engine/unitCommands'
+import { isInputGated } from '@/engine/zoneTransition'
 import type { PermacomputerScreen } from './useKeyboard'
 import type { CharMetrics, GameState, Position } from '@/engine/types'
 
@@ -93,8 +93,7 @@ const resolveClickTarget = (
       }
     }
   }
-  const clickedInteractableTile =
-    !clickedCharacterIdentity && isInteractableAt(state, tile.x, tile.y)
+  const clickedInteractableTile = !clickedCharacterIdentity && isInteractableAt(state, tile.x, tile.y)
 
   if (clickedCharacterIdentity || clickedInteractableTile) {
     const bodyTiles = clickedBodyPositions ?? [tile]
@@ -229,7 +228,7 @@ export const useMouse = ({
             metrics.charWidth,
             metrics.charHeight,
             state.viewportWidth,
-            state.viewportHeight,
+            state.viewportHeight
           )
           const endTile = screenToTile(
             Math.max(mouseDownPos.x, e.offsetX),
@@ -238,7 +237,7 @@ export const useMouse = ({
             metrics.charWidth,
             metrics.charHeight,
             state.viewportWidth,
-            state.viewportHeight,
+            state.viewportHeight
           )
           const units = getControllableUnitsInRect(state, startTile, endTile)
           commitBoxSelection(state, units)
@@ -279,7 +278,7 @@ export const useMouse = ({
           metrics.charWidth,
           metrics.charHeight,
           state.viewportWidth,
-          state.viewportHeight,
+          state.viewportHeight
         )
         if (!isValidLightningTarget(state, tile)) return
         const success = castLightningAtTarget(state, tile, state.targetingSlot, performance.now())
@@ -315,7 +314,7 @@ export const useMouse = ({
         metrics.charWidth,
         metrics.charHeight,
         state.viewportWidth,
-        state.viewportHeight,
+        state.viewportHeight
       )
       if (rawTile.x < 0 || rawTile.x >= state.mapWidth || rawTile.y < 0 || rawTile.y >= state.mapHeight) return
       // Forgiving hit-test: if the geometric tile has no clickable, snap to
@@ -357,15 +356,9 @@ export const useMouse = ({
         state.pendingAction = resolved.action
         state.previewFn = null
         updateCamera(state)
-        state.path = findPath(
-          state.map,
-          state.mapWidth,
-          state.mapHeight,
-          state.player,
-          resolved.walkTarget,
-          blocked,
-          { allowDiagonal: true },
-        )
+        state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, resolved.walkTarget, blocked, {
+          allowDiagonal: true,
+        })
         state.pathWaypoints = state.path ? [resolved.walkTarget] : []
         refreshUI()
         return
@@ -404,7 +397,7 @@ export const useMouse = ({
         metrics.charWidth,
         metrics.charHeight,
         state.viewportWidth,
-        state.viewportHeight,
+        state.viewportHeight
       )
       if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return
 

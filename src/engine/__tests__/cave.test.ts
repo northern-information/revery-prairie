@@ -1,7 +1,5 @@
 import { checkTransition, enterCave, exitCave, generateCave } from '../cave'
-import { tickZoneTransition } from '../zoneTransition'
-import { ZONE_TRANSITION_DURATION_MS } from '../constants'
-import { CAVE_HEIGHT, CAVE_WIDTH } from '../constants'
+import { CAVE_HEIGHT, CAVE_WIDTH, ZONE_TRANSITION_DURATION_MS } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { breakWall, updateFacingEntity } from '../interaction'
 import { getBlockedPositions } from '../movement'
@@ -9,6 +7,7 @@ import { findPath } from '../pathfinding'
 import { isWalkableTile } from '../position'
 import { createGameState } from '../state'
 import { TileType, Zone } from '../types'
+import { tickZoneTransition } from '../zoneTransition'
 import {
   createBeeEntity,
   createCharacterTestEntity,

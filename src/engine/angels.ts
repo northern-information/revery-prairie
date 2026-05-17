@@ -14,8 +14,8 @@ import {
   SPACE_BORDER,
 } from './constants'
 import { ComponentType } from './ecs/types'
-import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
+import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
 import { CloverStage, TileType, Zone } from './types'

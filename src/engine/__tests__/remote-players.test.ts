@@ -1,6 +1,5 @@
 import { movePlayer } from '../movement'
 import { TileType } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
 
 import type { ColorId } from '@revery-prairie/shared'

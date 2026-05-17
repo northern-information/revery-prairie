@@ -15,7 +15,6 @@ import {
   LIGHTNING_WEIGHT_ISOLATED,
   LIGHTNING_WEIGHT_METAL,
   LIGHTNING_WEIGHT_NEAR_WATER,
-
   SOIL_HEALTH_FIRE_REVERY_BONUS,
   SPACE_BORDER,
   WATER_MAX,
@@ -24,8 +23,8 @@ import {
   WILDFIRE_MAX_SPREAD,
 } from './constants'
 import { ComponentType } from './ecs/types'
-import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
+import { setMapTile } from './map'
 import { CARDINAL, isInBounds, posKey } from './position'
 import { CloverStage, Sky, TileType, Zone } from './types'
 

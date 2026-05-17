@@ -66,7 +66,7 @@ const createSatelliteEntity = (
     age: number
     landingTarget: Position
     payloadType: 'destructive' | 'seeds'
-  }> = {},
+  }> = {}
 ): Entity => {
   const target = overrides.landingTarget ?? { x: 20, y: 15 }
   const e = state.world.createEntity()
@@ -86,8 +86,7 @@ const createSatelliteEntity = (
   return e
 }
 
-const getSatelliteCount = (state: GameState): number =>
-  state.world.query(ComponentType.SatelliteData).length
+const getSatelliteCount = (state: GameState): number => state.world.query(ComponentType.SatelliteData).length
 
 const createGhostAt = (state: GameState, x: number, y: number): Entity => {
   const e = state.world.createEntity()
@@ -428,7 +427,11 @@ describe('ghost crater avoidance', () => {
     state.world.addComponent(e, ComponentType.Position, { x: gx, y: gy })
     state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId: 'ghost-avoidance' })
     state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
-    state.world.addComponent(e, ComponentType.Behavior, { type: 'drift' as const, moveChance: 1.0, freezeOnDialog: false })
+    state.world.addComponent(e, ComponentType.Behavior, {
+      type: 'drift' as const,
+      moveChance: 1.0,
+      freezeOnDialog: false,
+    })
     state.world.addComponent(e, ComponentType.EntityTag, 'character')
     state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 

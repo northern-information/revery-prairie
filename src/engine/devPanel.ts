@@ -8,8 +8,8 @@ import {
   GHOST_CHAR,
   GHOST_COLOR,
   LIGHTNING_BOLT_COLOR_BRIGHT,
-  LIGHTNING_BOLT_MIN_LENGTH,
   LIGHTNING_BOLT_MAX_LENGTH,
+  LIGHTNING_BOLT_MIN_LENGTH,
   MAP_HEIGHT,
   MAP_WIDTH,
   METEORITE_CHAR,
@@ -90,11 +90,7 @@ export const COMPONENT_META: ComponentMeta[] = [
   {
     type: ComponentType.Behavior,
     label: 'Behavior',
-    fields: [
-      select('type', ['drift']),
-      pos('moveChance'),
-      bool('freezeOnDialog'),
-    ],
+    fields: [select('type', ['drift']), pos('moveChance'), bool('freezeOnDialog')],
   },
   {
     type: ComponentType.TimedEffect,
@@ -146,18 +142,12 @@ export const COMPONENT_META: ComponentMeta[] = [
   {
     type: ComponentType.SatelliteData,
     label: 'SatelliteData',
-    fields: [
-      pos('length'),
-      pos('age'),
-      select('payloadType', ['destructive', 'seeds']),
-    ],
+    fields: [pos('length'), pos('age'), select('payloadType', ['destructive', 'seeds'])],
   },
   {
     type: ComponentType.MonarchState,
     label: 'MonarchState',
-    fields: [
-      select('phase', ['wandering', 'fleeing', 'settled']),
-    ],
+    fields: [select('phase', ['wandering', 'fleeing', 'settled'])],
   },
 ]
 
@@ -369,9 +359,7 @@ export const spawnDevEntity = (
     }
 
     if (type === ComponentType.EntityTag) {
-      const tagValue = (values.value as string | undefined) ??
-        (defaults as string) ??
-        'unknown'
+      const tagValue = (values.value as string | undefined) ?? (defaults as string) ?? 'unknown'
       state.world.addComponent(e, ComponentType.EntityTag, typeof tagValue === 'string' ? tagValue : 'unknown')
       continue
     }
@@ -392,7 +380,8 @@ export const spawnDevEntity = (
 
     // SatelliteData: drop position becomes the landing target, satellite starts off-screen
     if (type === ComponentType.SatelliteData) {
-      const length = SATELLITE_MIN_LENGTH + Math.floor(Math.random() * (SATELLITE_MAX_LENGTH - SATELLITE_MIN_LENGTH + 1))
+      const length =
+        SATELLITE_MIN_LENGTH + Math.floor(Math.random() * (SATELLITE_MAX_LENGTH - SATELLITE_MIN_LENGTH + 1))
       const payloadType = (values.payloadType as string) ?? 'destructive'
       state.world.addComponent(e, ComponentType.SatelliteData, {
         length,
@@ -416,16 +405,16 @@ export const spawnDevEntity = (
 
     // LightningData: generate a real bolt path from the drop position
     if (type === ComponentType.LightningData) {
-      const length = LIGHTNING_BOLT_MIN_LENGTH + Math.floor(Math.random() * (LIGHTNING_BOLT_MAX_LENGTH - LIGHTNING_BOLT_MIN_LENGTH + 1))
+      const length =
+        LIGHTNING_BOLT_MIN_LENGTH +
+        Math.floor(Math.random() * (LIGHTNING_BOLT_MAX_LENGTH - LIGHTNING_BOLT_MIN_LENGTH + 1))
       const { path, branch } = generateBoltPath(position.x, position.y, length, Math.random)
       state.world.addComponent(e, ComponentType.LightningData, { path, branch })
       continue
     }
 
     // For all other components, merge defaults with overrides
-    const merged = typeof defaults === 'object' && defaults !== null
-      ? { ...defaults, ...values }
-      : values
+    const merged = typeof defaults === 'object' && defaults !== null ? { ...defaults, ...values } : values
     state.world.addComponent(e, type, merged as ComponentDataMap[typeof type])
   }
 }
@@ -439,22 +428,15 @@ export const TILE_TYPE_LIST = Object.entries(TileType).map(([label, value]) => (
 
 export const paintTile = (state: GameState, x: number, y: number, tileType: string): void => {
   if (y < 0 || y >= state.mapHeight || x < 0 || x >= state.mapWidth) return
-  setMapTile(state, x, y, { type: tileType as typeof TileType[keyof typeof TileType] })
+  setMapTile(state, x, y, { type: tileType as (typeof TileType)[keyof typeof TileType] })
 }
 
-export const paintRect = (
-  state: GameState,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  tileType: string
-): void => {
+export const paintRect = (state: GameState, x1: number, y1: number, x2: number, y2: number, tileType: string): void => {
   const minX = Math.max(0, Math.min(x1, x2))
   const maxX = Math.min(state.mapWidth - 1, Math.max(x1, x2))
   const minY = Math.max(0, Math.min(y1, y2))
   const maxY = Math.min(state.mapHeight - 1, Math.max(y1, y2))
-  const tt = tileType as typeof TileType[keyof typeof TileType]
+  const tt = tileType as (typeof TileType)[keyof typeof TileType]
   for (let y = minY; y <= maxY; y++) {
     for (let x = minX; x <= maxX; x++) {
       setMapTile(state, x, y, { type: tt })
@@ -564,7 +546,7 @@ export const spawnDevRuin = (
   state: GameState,
   position: Position,
   archetype: RuinArchetype,
-  glyph: string,
+  glyph: string
 ): boolean => {
   if (!isValidRuinDropTile(state, position.x, position.y)) return false
 
@@ -573,9 +555,7 @@ export const spawnDevRuin = (
   const interior = generateRuinInterior(ruin, ruinIndex, archetype, Math.random)
 
   const resolvedGlyph =
-    glyph === RUIN_GLYPH_RANDOM
-      ? ENTRANCE_GLYPHS[Math.floor(Math.random() * ENTRANCE_GLYPHS.length)]
-      : glyph
+    glyph === RUIN_GLYPH_RANDOM ? ENTRANCE_GLYPHS[Math.floor(Math.random() * ENTRANCE_GLYPHS.length)] : glyph
 
   state.ruinInteriors.push({
     ...interior,

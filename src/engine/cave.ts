@@ -2,15 +2,15 @@ import { TILE_COLORS } from './constants'
 import { transitionCoyoteToZone } from './coyote'
 import { recordDiscovery } from './manual'
 import { clearMovementTweens } from './movementTween'
-import { tileHash, findSafeExitPosition } from './position'
-import { deselectAll } from './selection'
+import { findSafeExitPosition, tileHash } from './position'
 import { checkRuinTransition } from './ruins'
-import type { RuinTileLayer } from './ruins'
+import { deselectAll } from './selection'
 import { STRUCTURE_REGISTRY } from './structures'
-import { clearAllUnitCommands } from './unitCommands'
 import { TileType, Zone } from './types'
+import { clearAllUnitCommands } from './unitCommands'
 import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
+import type { RuinTileLayer } from './ruins'
 import type { GameState, Position, Tile } from './types'
 
 export interface CaveResult {
@@ -80,7 +80,10 @@ export const generateCave = (width: number, height: number, rng: () => number = 
   const entranceY = height - 2
   const EXIT_WIDTH = 5
   const exitMargin = 3
-  const exitStartX = Math.max(exitMargin, Math.min(width - exitMargin - EXIT_WIDTH, entranceX - Math.floor(EXIT_WIDTH / 2)))
+  const exitStartX = Math.max(
+    exitMargin,
+    Math.min(width - exitMargin - EXIT_WIDTH, entranceX - Math.floor(EXIT_WIDTH / 2))
+  )
   for (let i = 0; i < EXIT_WIDTH; i++) {
     const ex = exitStartX + i
     if (ex >= 0 && ex < width) map[entranceY][ex] = { type: TileType.CaveExit }
@@ -225,13 +228,7 @@ export const exitCave = (state: GameState): void => {
   state.currentZone = Zone.Overworld
 
   // Place player outside the 3x3 overworld hitbox (Chebyshev distance >= 2)
-  state.player = findSafeExitPosition(
-    state.caveEntranceOverworld,
-    state.map,
-    state.mapWidth,
-    state.mapHeight,
-    2,
-  )
+  state.player = findSafeExitPosition(state.caveEntranceOverworld, state.map, state.mapWidth, state.mapHeight, 2)
 
   // Clear navigation state
   state.path = null
@@ -293,10 +290,10 @@ export const checkTransition = (state: GameState): boolean => {
 // Register cave swap handlers with the zone transition module. The
 // handlers are the existing enterCave / exitCave functions; they fire
 // at midpoint via tickZoneTransition. Module-load side effect.
-registerZoneSwapHandler('cave', 'enter', (state) => {
+registerZoneSwapHandler('cave', 'enter', state => {
   enterCave(state)
 })
-registerZoneSwapHandler('cave', 'exit', (state) => {
+registerZoneSwapHandler('cave', 'exit', state => {
   exitCave(state)
 })
 

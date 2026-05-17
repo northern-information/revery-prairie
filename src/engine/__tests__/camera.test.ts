@@ -58,9 +58,7 @@ describe('updateCamera', () => {
       state.player.y = state.mapHeight - 1
       updateCamera(state)
       expect(state.camera.x).toBe(state.mapWidth - 1 - Math.floor(visibleWidth / 2))
-      expect(state.camera.y).toBe(
-        state.mapHeight - 1 - Math.floor(state.viewportHeight / 2)
-      )
+      expect(state.camera.y).toBe(state.mapHeight - 1 - Math.floor(state.viewportHeight / 2))
     })
 
     it('places the player at the iso canvas center every frame', () => {

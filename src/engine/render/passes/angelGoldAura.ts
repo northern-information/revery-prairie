@@ -2,11 +2,14 @@ import { ANGEL_AURA_RADIUS } from '../../constants'
 import { ComponentType } from '../../ecs/types'
 import { isInBounds } from '../../position'
 import { drawCellBackground, viewportToScreen } from '../../projection'
-import { TileType, type CharMetrics, type GameState } from '../../types'
+import { TileType } from '../../types'
 import { getVisibleTileBounds } from '../../viewportBounds'
 import { isEntityInCurrentZone } from '../../zone'
+import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
-import { type RenderPass, registerPass } from '../passes'
+
+import type { CharMetrics, GameState } from '../../types'
+import type { RenderPass } from '../passes'
 
 const collectAngelCenters = (state: GameState): { x: number; y: number }[] => {
   const centers: { x: number; y: number }[] = []
@@ -28,12 +31,7 @@ const isActive = (state: GameState): boolean => {
   return false
 }
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   const { camera, viewportWidth, viewportHeight, map } = state
   const { charWidth, charHeight } = metrics
   const centers = collectAngelCenters(state)
@@ -73,7 +71,7 @@ const draw = (
           px,
           py + liftAt(tierGrid, mx, my, state.mapWidth, state.mapHeight),
           charWidth,
-          charHeight,
+          charHeight
         )
         break // only one angel aura can contribute per tile
       }

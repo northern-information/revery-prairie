@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
 import { checkTransition, enterCave } from '../cave'
 import { ZONE_TRANSITION_DURATION_MS } from '../constants'
 import { movePlayer, tickPath } from '../movement'
@@ -11,14 +9,10 @@ import {
   scheduleZoneTransition,
   tickZoneTransition,
 } from '../zoneTransition'
-
 import { createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
-const setCaveEntranceAt = (
-  state: ReturnType<typeof createTestState>,
-  x: number,
-  y: number,
-): void => {
+const setCaveEntranceAt = (state: ReturnType<typeof createTestState>, x: number, y: number): void => {
   state.map[y][x] = { type: TileType.CaveEntrance }
   state.caveEntranceOverworld = { x, y }
 }
@@ -202,14 +196,7 @@ describe('zone transition', () => {
       const state = createTestState()
       // Set up a real path with at least one step ahead.
       const target = { x: state.player.x + 3, y: state.player.y }
-      const path = findPath(
-        state.map,
-        state.mapWidth,
-        state.mapHeight,
-        state.player,
-        target,
-        new Set(),
-      )
+      const path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, target, new Set())
       expect(path).not.toBeNull()
       state.path = path
 

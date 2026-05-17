@@ -1,3 +1,4 @@
+import { PrairieDO } from '../src/PrairieDO'
 import { describe, expect, it } from 'vitest'
 
 import type {
@@ -8,8 +9,6 @@ import type {
   PositionFrame,
   WelcomeFrame,
 } from '@revery-prairie/shared'
-
-import { PrairieDO } from '../src/PrairieDO'
 
 // --- Mocks for the Cloudflare Workers runtime APIs we use ---
 

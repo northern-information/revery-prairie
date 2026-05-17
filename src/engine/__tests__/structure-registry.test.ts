@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
 import { BUILDING_CHARS, CAVE_BUILDING_CHARS, CAVE_WALL_COLORS, CIV_COLORS } from '../constants'
-import { STRUCTURE_REGISTRY, getStructurePlatformLift } from '../structures'
+import { getStructurePlatformLift, STRUCTURE_REGISTRY } from '../structures'
 import { TileType } from '../types'
+import { describe, expect, it } from 'vitest'
 
 describe('structure registry', () => {
   describe('shape', () => {

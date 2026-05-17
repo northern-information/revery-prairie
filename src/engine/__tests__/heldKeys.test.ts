@@ -1,6 +1,5 @@
-import { describe, expect, it } from 'vitest'
-
 import { keyToScreenAxis, resolveHeldDirection } from '../heldKeys'
+import { describe, expect, it } from 'vitest'
 
 import type { ScreenAxisKey } from '../types'
 

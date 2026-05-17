@@ -2,17 +2,19 @@ import { isInBounds, posKey } from './position'
 import {
   ELEVATION_TIER_COUNT,
   ELEVATION_TIER_LIFT_PX,
-  WATER_SINK_PX,
   getCraterBgColor,
   getElevationTier,
   getPondBgColor,
   getRiverBgColor,
   getStructurePlatformLift,
-  getTileBgColor,
   getTierLift,
+  getTileBgColor,
   RUIN_ENTRANCE_LIFT_PX,
+  WATER_SINK_PX,
 } from './tileBg'
-import { type GameState, type Tile, TileType, Zone } from './types'
+import { TileType, Zone } from './types'
+
+import type { GameState, Tile } from './types'
 
 // Water tracked in state.rivers / state.ponds (overworld only) overrides
 // the underlying tile.type's bg palette. Without this, water glyphs sit
@@ -57,8 +59,7 @@ const cacheByMap = new WeakMap<Tile[][], CacheEntry>()
 // pixels). Plus a small buffer for the diamond-overlap expansion used
 // when painting tiles.
 const TILE_BG_OVERLAP = 2
-const LIFT_HEADROOM =
-  (ELEVATION_TIER_COUNT - 1) * ELEVATION_TIER_LIFT_PX + RUIN_ENTRANCE_LIFT_PX + TILE_BG_OVERLAP
+const LIFT_HEADROOM = (ELEVATION_TIER_COUNT - 1) * ELEVATION_TIER_LIFT_PX + RUIN_ENTRANCE_LIFT_PX + TILE_BG_OVERLAP
 
 const createCanvas = (width: number, height: number): { canvas: AnyCanvas; ctx: AnyCtx } => {
   if (typeof OffscreenCanvas !== 'undefined') {
@@ -79,7 +80,7 @@ const computeWorldDimensions = (
   mapWidth: number,
   mapHeight: number,
   charWidth: number,
-  charHeight: number,
+  charHeight: number
 ): { width: number; height: number; worldOriginX: number; worldOriginY: number } => {
   const halfW = charWidth / 2
   const halfH = charHeight / 2
@@ -92,10 +93,8 @@ const computeWorldDimensions = (
   // [0, mapWidth+mapHeight-2]. Min lift is -LIFT_HEADROOM. We want min
   // diamond-top y >= 0 → worldOriginY >= LIFT_HEADROOM.
   const worldOriginY = LIFT_HEADROOM
-  const width =
-    (mapWidth - 1) * charWidth + worldOriginX + halfW + charWidth + TILE_BG_OVERLAP
-  const height =
-    (mapWidth + mapHeight - 2) * halfH + worldOriginY + charHeight + TILE_BG_OVERLAP
+  const width = (mapWidth - 1) * charWidth + worldOriginX + halfW + charWidth + TILE_BG_OVERLAP
+  const height = (mapWidth + mapHeight - 2) * halfH + worldOriginY + charHeight + TILE_BG_OVERLAP
   return { width: Math.ceil(width), height: Math.ceil(height), worldOriginX, worldOriginY }
 }
 
@@ -104,8 +103,7 @@ const tierAtFromState = (state: GameState, x: number, y: number): number => {
   return getElevationTier(state.elevation.get(posKey(x, y)))
 }
 
-const liftAtFromState = (state: GameState, x: number, y: number): number =>
-  getTierLift(tierAtFromState(state, x, y))
+const liftAtFromState = (state: GameState, x: number, y: number): number => getTierLift(tierAtFromState(state, x, y))
 
 const platformLiftAtFromState = (state: GameState, map: Tile[][], x: number, y: number): number => {
   if (state.currentZone !== Zone.Overworld) return 0
@@ -129,7 +127,7 @@ const tileWorldPos = (
   x: number,
   y: number,
   state: GameState,
-  map: Tile[][],
+  map: Tile[][]
 ): { px: number; py: number } => {
   const halfW = entry.charWidth / 2
   const halfH = entry.charHeight / 2
@@ -143,23 +141,14 @@ const tileWorldPos = (
   return { px, py }
 }
 
-const paintTileBg = (
-  entry: CacheEntry,
-  state: GameState,
-  map: Tile[][],
-  x: number,
-  y: number,
-): void => {
+const paintTileBg = (entry: CacheEntry, state: GameState, map: Tile[][], x: number, y: number): void => {
   const { ctx, charWidth, charHeight } = entry
   const halfW = charWidth / 2
   const halfH = charHeight / 2
   const tile = map[y][x]
   if (tile.type === TileType.Space) return
   const caveMaskActive = state.currentZone === Zone.Cave && !state.caveRevealed
-  const effectiveType =
-    caveMaskActive && state.caveHiddenPositions.has(posKey(x, y))
-      ? TileType.CaveWall
-      : tile.type
+  const effectiveType = caveMaskActive && state.caveHiddenPositions.has(posKey(x, y)) ? TileType.CaveWall : tile.type
   const { px, py } = tileWorldPos(entry, x, y, state, map)
   const leftX = px - halfW
   const rightX = leftX + 2 * charWidth
@@ -196,33 +185,17 @@ const fullBuild = (entry: CacheEntry, state: GameState, map: Tile[][]): void => 
 
 // Clears the bbox of a single tile (with margin for the 2px overlap
 // fills and edge-stroke widths that intrude into the bbox).
-const clearTileBbox = (
-  entry: CacheEntry,
-  state: GameState,
-  map: Tile[][],
-  x: number,
-  y: number,
-): void => {
+const clearTileBbox = (entry: CacheEntry, state: GameState, map: Tile[][], x: number, y: number): void => {
   const { ctx, charWidth, charHeight } = entry
   const halfW = charWidth / 2
   const { px, py } = tileWorldPos(entry, x, y, state, map)
   const leftX = px - halfW
   const topY = py
   const margin = TILE_BG_OVERLAP + 1
-  ctx.clearRect(
-    leftX - margin,
-    topY - margin,
-    2 * charWidth + 2 * margin,
-    charHeight + 2 * margin,
-  )
+  ctx.clearRect(leftX - margin, topY - margin, 2 * charWidth + 2 * margin, charHeight + 2 * margin)
 }
 
-export const getOrBuildCache = (
-  state: GameState,
-  map: Tile[][],
-  charWidth: number,
-  charHeight: number,
-): CacheEntry => {
+export const getOrBuildCache = (state: GameState, map: Tile[][], charWidth: number, charHeight: number): CacheEntry => {
   let entry = cacheByMap.get(map)
   // If metrics changed (font scale toggle), rebuild from scratch.
   if (entry && (entry.charWidth !== charWidth || entry.charHeight !== charHeight)) {
@@ -236,7 +209,7 @@ export const getOrBuildCache = (
       mapWidth,
       mapHeight,
       charWidth,
-      charHeight,
+      charHeight
     )
     const { canvas, ctx } = createCanvas(width, height)
     entry = {
@@ -320,9 +293,7 @@ export const invalidateMapCache = (map: Tile[][]): void => {
   cacheByMap.delete(map)
 }
 
-export const getCacheWorldOrigin = (
-  entry: CacheEntry,
-): { worldOriginX: number; worldOriginY: number } => ({
+export const getCacheWorldOrigin = (entry: CacheEntry): { worldOriginX: number; worldOriginY: number } => ({
   worldOriginX: entry.worldOriginX,
   worldOriginY: entry.worldOriginY,
 })

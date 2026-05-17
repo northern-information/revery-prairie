@@ -1,9 +1,4 @@
-import {
-  countOverworldMeteorites,
-  spawnShootingStar,
-  spawnShootingStarAtTarget,
-  tickShootingStars,
-} from '../celestial'
+import { countOverworldMeteorites, spawnShootingStar, spawnShootingStarAtTarget, tickShootingStars } from '../celestial'
 import {
   EXPLOSION_DURATION_MS,
   MAP_HEIGHT,

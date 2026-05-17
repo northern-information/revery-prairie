@@ -10,20 +10,20 @@ import { posKey, tileHash } from './position'
 import { drawCellBackground, drawCellWalls, viewportToScreen } from './projection'
 import { getEntranceHaloCells } from './ruins'
 import {
-  ELEVATION_TIER_COUNT,
-  ELEVATION_TIER_LIFT_PX,
-  TIER_TWEEN_DURATION_MS,
-  WALL_LEFT_SHADE,
-  WALL_RIGHT_SHADE,
-  WATER_SINK_PX,
   darkenColor,
   easeInOutCubic,
+  ELEVATION_TIER_COUNT,
+  ELEVATION_TIER_LIFT_PX,
   getCraterBgColor,
   getElevationTier,
   getPondBgColor,
   getRiverBgColor,
   getTierLift,
   getTileBgColor,
+  TIER_TWEEN_DURATION_MS,
+  WALL_LEFT_SHADE,
+  WALL_RIGHT_SHADE,
+  WATER_SINK_PX,
 } from './tileBg'
 import { TileType } from './types'
 import { getVisibleTileBounds, isTileInVisibleViewport } from './viewportBounds'
@@ -72,7 +72,7 @@ const paintFullCanvasStarfield = (
   cameraY: number,
   simWidth: number,
   simHeight: number,
-  time: number,
+  time: number
 ): void => {
   // During cosmic epochs, paint bright stars across the FULL canvas
   // including over the sim grid, so the "birth of cosmos" reads as
@@ -193,7 +193,7 @@ export const tileLiftAtSim = (
   mx: number,
   my: number,
   time: number,
-  includeLowland: boolean,
+  includeLowland: boolean
 ): number => liftAtSim(sim, mx, my, time) + waterSinkAtSim(sim, mx, my, includeLowland)
 
 /** Wall-pass lift for a tile. For off-land or OOB tiles, returns the
@@ -205,7 +205,7 @@ const wallNeighborLiftAtSim = (
   mx: number,
   my: number,
   time: number,
-  includeLowland: boolean,
+  includeLowland: boolean
 ): number => {
   if (mx < 0 || mx >= sim.width || my < 0 || my >= sim.height) return getTierLift(-1)
   if (!sim.landMask.has(posKey(mx, my))) return getTierLift(-1)
@@ -219,12 +219,7 @@ const wallNeighborLiftAtSim = (
  *  entry in lastObservedTier) records the tier without starting a tween,
  *  per spec edge case tile-outside-visible-viewport. Called once per
  *  frame for every visible cell, before the bg/wall/glyph passes. */
-export const recordVisibleTierChange = (
-  sim: GenesisSimState,
-  mx: number,
-  my: number,
-  time: number,
-): void => {
+export const recordVisibleTierChange = (sim: GenesisSimState, mx: number, my: number, time: number): void => {
   const key = posKey(mx, my)
   if (!sim.landMask.has(key)) return
   const currentTier = tierAtSim(sim, mx, my)
@@ -241,9 +236,7 @@ export const recordVisibleTierChange = (
   // so calling liftAtSim now would return the new tier's lift, not the
   // old one.
   const existingTween = sim.tierTweens.get(key)
-  const fromLift = existingTween
-    ? liftAtSim(sim, mx, my, time)
-    : getTierLift(lastTier)
+  const fromLift = existingTween ? liftAtSim(sim, mx, my, time) : getTierLift(lastTier)
   sim.tierTweens.set(key, { fromLift, toTier: currentTier, startMs: time })
   sim.lastObservedTier.set(key, currentTier)
 }
@@ -253,8 +246,7 @@ export const recordVisibleTierChange = (
 // built once during FirstWater.mutate. Used so the bg fill paints
 // water-blue under aquatic-phase lowland water glyphs (which the
 // various epoch renderTile functions emit) instead of brown dirt.
-const isLowlandWater = (sim: GenesisSimState, key: string): boolean =>
-  sim.lowlandWaterMask.has(key)
+const isLowlandWater = (sim: GenesisSimState, key: string): boolean => sim.lowlandWaterMask.has(key)
 
 // Genesis water lives in three buckets: sim.riverPaths (mature rivers),
 // sim.ponds (pooled basins), and the elevation-based lowland predicate
@@ -271,7 +263,7 @@ const getWaterBgColor = (
   mx: number,
   my: number,
   key: string,
-  includeLowland: boolean,
+  includeLowland: boolean
 ): string | null => {
   if (sim.riverPaths.has(key)) return getRiverBgColor(mx, my)
   if (sim.ponds.has(key)) return getPondBgColor(mx, my)
@@ -302,10 +294,7 @@ const toHexColor = (color: string): string => {
 // BG_COLOR, so a brown/lava/etc diamond would look like a floating
 // landmass in the void. Lift still applies for elevation but the
 // underlying canvas color shows through.
-const SKIP_BG_EPOCHS = new Set<GenesisEpochId>([
-  GenesisEpochId.CosmicFormation,
-  GenesisEpochId.LandAccretion,
-])
+const SKIP_BG_EPOCHS = new Set<GenesisEpochId>([GenesisEpochId.CosmicFormation, GenesisEpochId.LandAccretion])
 
 // Epochs whose renderTile actually paints lowland water (firstWater
 // through warmPeriod). The bg fill applies the lowland predicate only
@@ -346,7 +335,7 @@ const computeSurfaceBg = (
   mx: number,
   my: number,
   tileType: TileType,
-  surfaceColor: string | undefined,
+  surfaceColor: string | undefined
 ): string | null => {
   if (SKIP_BG_EPOCHS.has(epochId)) return null
   const key = posKey(mx, my)
@@ -417,11 +406,14 @@ const computeHaloAlpha = (
   epochIndex: number,
   currentEpochId: GenesisEpochId,
   blendT: number,
-  nextEpochId: GenesisEpochId | undefined,
+  nextEpochId: GenesisEpochId | undefined
 ): number => {
   if (currentEpochId === GenesisEpochId.PresentDay) return 1
-  if (epochIndex >= 0 && currentEpochId === GenesisEpochId.FallOfCivilizations
-      && nextEpochId === GenesisEpochId.PresentDay) {
+  if (
+    epochIndex >= 0 &&
+    currentEpochId === GenesisEpochId.FallOfCivilizations &&
+    nextEpochId === GenesisEpochId.PresentDay
+  ) {
     return blendT
   }
   return 0
@@ -540,7 +532,7 @@ export const renderGenesis = (
     cameraY,
     sim.width,
     sim.height,
-    time,
+    time
   )
 
   // Main viewport loop
@@ -563,15 +555,17 @@ export const renderGenesis = (
   const blendT = needsBlend ? (progress - CROSSFADE_START) / (1 - CROSSFADE_START) : 0
   const nextEpoch = needsBlend ? epochs[renderEpochIndex + 1] : null
   const nextSnapshot =
-    needsBlend && sim.epochSnapshots.length > renderEpochIndex + 1
-      ? sim.epochSnapshots[renderEpochIndex + 1]
-      : null
+    needsBlend && sim.epochSnapshots.length > renderEpochIndex + 1 ? sim.epochSnapshots[renderEpochIndex + 1] : null
 
   // The visible footprint is a rotated parallelogram. The shared
   // `viewportBounds` helper expands the tile-iteration range to cover
   // every on-screen tile (matching renderer.ts effect passes).
-  const { vxStart: tileLoopStartX, vxEnd: tileLoopEndX, vyStart: tileLoopStartY, vyEnd: tileLoopEndY } =
-    getVisibleTileBounds(viewportWidth, viewportHeight)
+  const {
+    vxStart: tileLoopStartX,
+    vxEnd: tileLoopEndX,
+    vyStart: tileLoopStartY,
+    vyEnd: tileLoopEndY,
+  } = getVisibleTileBounds(viewportWidth, viewportHeight)
 
   // Off-canvas cull margin: tiles whose anchor falls outside [-cw, canvasW] ×
   // [-cH, canvasH] cannot contribute visible pixels. Skipping them avoids
@@ -593,8 +587,7 @@ export const renderGenesis = (
   const loopWidth = tileLoopEndX - tileLoopStartX
   const loopHeight = tileLoopEndY - tileLoopStartY
   const cellCount = loopWidth * loopHeight
-  const idxOf = (vx: number, vy: number): number =>
-    (vy - tileLoopStartY) * loopWidth + (vx - tileLoopStartX)
+  const idxOf = (vx: number, vy: number): number => (vy - tileLoopStartY) * loopWidth + (vx - tileLoopStartX)
 
   const currentRendersByIndex = new Array<GenesisTileRender[] | null>(cellCount)
   const currentBgByIndex = new Array<string | null>(cellCount)
@@ -604,14 +597,7 @@ export const renderGenesis = (
     for (let vy = tileLoopStartY; vy < tileLoopEndY; vy++) {
       for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
         const idx = i++
-        const { px, py } = viewportToScreen(
-          vx,
-          vy,
-          charWidth,
-          charHeight,
-          viewportWidth,
-          viewportHeight,
-        )
+        const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
         if (px < cullLeft || px > cullRight || py < cullTop || py > cullBottom) {
           currentRendersByIndex[idx] = null
           currentBgByIndex[idx] = null
@@ -633,9 +619,7 @@ export const renderGenesis = (
         const renders = epoch.renderTile(sim, mx, my, progress, time)
         currentRendersByIndex[idx] = renders
         currentBgByIndex[idx] =
-          tile.type === TileType.Space
-            ? null
-            : computeSurfaceBg(sim, epoch.id, mx, my, tile.type, renders[0]?.color)
+          tile.type === TileType.Space ? null : computeSurfaceBg(sim, epoch.id, mx, my, tile.type, renders[0]?.color)
         visibleTileTypeByIndex[idx] = tile.type
       }
     }
@@ -702,14 +686,7 @@ export const renderGenesis = (
       for (let vx = tileLoopStartX; vx < tileLoopEndX; vx++) {
         const idx = i++
         if (currentRendersByIndex[idx] === null) continue
-        const { px, py } = viewportToScreen(
-          vx,
-          vy,
-          charWidth,
-          charHeight,
-          viewportWidth,
-          viewportHeight,
-        )
+        const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
         pxByIndex[idx] = px
         pyLiftedByIndex[idx] = py + tileLiftAtSim(sim, cameraX + vx, cameraY + vy, time, includeLowlandWater)
       }
@@ -787,7 +764,7 @@ export const renderGenesis = (
         leftDepth,
         rightDepth,
         darkenColor(bg, WALL_LEFT_SHADE),
-        darkenColor(bg, WALL_RIGHT_SHADE),
+        darkenColor(bg, WALL_RIGHT_SHADE)
       )
     }
   }
@@ -815,14 +792,7 @@ export const renderGenesis = (
           const vx = cell.x - cameraX
           const vy = cell.y - cameraY
           if (!isTileInVisibleViewport(vx, vy, viewportWidth, viewportHeight)) continue
-          const { px, py } = viewportToScreen(
-            vx,
-            vy,
-            charWidth,
-            charHeight,
-            viewportWidth,
-            viewportHeight,
-          )
+          const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
           const lift = liftAtSim(sim, cell.x, cell.y, time)
           drawCellBackground(ctx, px, py + lift, charWidth, charHeight)
         }

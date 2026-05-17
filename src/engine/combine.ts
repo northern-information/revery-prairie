@@ -50,12 +50,7 @@ const findAndRemoveItem = (state: GameState, definitionId: string): boolean => {
   return false
 }
 
-export const combineFromBackpack = (
-  state: GameState,
-  defIdA: string,
-  defIdB: string,
-  time?: number
-): boolean => {
+export const combineFromBackpack = (state: GameState, defIdA: string, defIdB: string, time?: number): boolean => {
   const recipe = findRecipe(defIdA, defIdB)
   if (!recipe) return false
 

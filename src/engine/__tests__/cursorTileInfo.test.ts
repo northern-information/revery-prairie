@@ -4,7 +4,7 @@ import { getTileEffects } from '../effects'
 import { posKey } from '../position'
 import { worldToScreen } from '../projection'
 import { Sky, TileType, WindDirection, Zone } from '../types'
-import { clearAroundPlayer, createBeehiveEntity, createBeeEntity, createTestState } from './helpers'
+import { clearAroundPlayer, createBeeEntity, createBeehiveEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 import type { CharMetrics, GameState, Position } from '../types'
@@ -19,7 +19,7 @@ const cursorPosForTile = (state: GameState, target: Position) => {
     metrics.charWidth,
     metrics.charHeight,
     state.viewportWidth,
-    state.viewportHeight,
+    state.viewportHeight
   )
   return { x: px + 0.01, y: py + metrics.charHeight / 2 + 0.01 }
 }
@@ -37,9 +37,7 @@ const deriveContentsLabel = (state: ReturnType<typeof createTestState>, x: numbe
     .at(x, y)
     .some(eid => world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
   if (hasMeteorite) return 'meteorite'
-  const hasBeehive = world.spatial
-    .at(x, y)
-    .some(eid => world.getComponent(eid, ComponentType.EntityTag) === 'beehive')
+  const hasBeehive = world.spatial.at(x, y).some(eid => world.getComponent(eid, ComponentType.EntityTag) === 'beehive')
   if (hasBeehive) return 'beehive'
   const key = posKey(x, y)
   if (state.ponds.has(key) || state.rivers.has(key)) return 'fresh water'

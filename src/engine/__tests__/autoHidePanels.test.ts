@@ -1,4 +1,4 @@
-import { createGameLoop, AUTO_HIDE_THRESHOLD } from '../gameLoop'
+import { AUTO_HIDE_THRESHOLD, createGameLoop } from '../gameLoop'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it, vi } from 'vitest'
 

@@ -17,7 +17,7 @@ const cursorPosForTile = (state: GameState, target: Position) => {
     metrics.charWidth,
     metrics.charHeight,
     state.viewportWidth,
-    state.viewportHeight,
+    state.viewportHeight
   )
   return { x: px + 0.01, y: py + metrics.charHeight / 2 + 0.01 }
 }

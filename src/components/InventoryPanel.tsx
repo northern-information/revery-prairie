@@ -76,10 +76,7 @@ export const InventoryPanel = ({
 
   // Combine preview on map
   const combinePreviewRef = useRef<
-    | ((
-        s: GameState,
-        t: number
-      ) => { pos: { x: number; y: number }; char: string; color: string; isValid: boolean }[])
+    | ((s: GameState, t: number) => { pos: { x: number; y: number }; char: string; color: string; isValid: boolean }[])
     | null
   >(null)
   useEffect(() => {

@@ -1,9 +1,12 @@
 import { isInBounds, tileHash } from '../../position'
 import { viewportToScreen } from '../../projection'
-import { DeepTimePhase, TileType, type CharMetrics, type GameState } from '../../types'
+import { DeepTimePhase, TileType } from '../../types'
 import { getVisibleTileBounds } from '../../viewportBounds'
+import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
-import { type RenderPass, registerPass } from '../passes'
+
+import type { CharMetrics, GameState } from '../../types'
+import type { RenderPass } from '../passes'
 
 // Sparse animated fire chars on burnt clover during the Deep Time
 // burning phase. Hardcoded glyph + color sets — these are visual props
@@ -14,12 +17,7 @@ const FIRE_COLORS = ['#FF4500', '#FF6600', '#FF8800', '#FFAA00']
 const isActive = (state: GameState): boolean =>
   state.deepTime?.active === true && state.deepTime.phase === DeepTimePhase.Burning
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   const { camera, viewportWidth, viewportHeight, map } = state
   const { charWidth, charHeight } = metrics
   const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
@@ -40,11 +38,7 @@ const draw = (
 
       const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
       ctx.fillStyle = FIRE_COLORS[colorPhase]
-      ctx.fillText(
-        FIRE_CHARS[phase],
-        px,
-        py + liftAt(tierGrid, wx, wy, state.mapWidth, state.mapHeight),
-      )
+      ctx.fillText(FIRE_CHARS[phase], px, py + liftAt(tierGrid, wx, wy, state.mapWidth, state.mapHeight))
     }
   }
 }

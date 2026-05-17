@@ -209,11 +209,18 @@ describe('useInventoryDrag', () => {
         result.current.drop(state.backpack.id)
       })
 
-      expect(executeCombine).toHaveBeenCalledWith(state, state.backpack, state.backpack, item, {
-        uid: 'target-1',
-        recipe: fakeRecipe,
-        isDiscovered: false,
-      }, expect.any(Number))
+      expect(executeCombine).toHaveBeenCalledWith(
+        state,
+        state.backpack,
+        state.backpack,
+        item,
+        {
+          uid: 'target-1',
+          recipe: fakeRecipe,
+          isDiscovered: false,
+        },
+        expect.any(Number)
+      )
       expect(onCombine).toHaveBeenCalledWith(fakeRecipe)
       expect(onDrop).toHaveBeenCalledOnce()
       expect(result.current.dragState).toBeNull()

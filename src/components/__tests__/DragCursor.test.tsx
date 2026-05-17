@@ -1,7 +1,7 @@
+import { DragCursor } from '../DragCursor'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { DragCursor } from '../DragCursor'
 import { screenToTile, viewportToScreen } from '@/engine/projection'
 import type { DragState } from '@/engine/drag'
 import type { CharMetrics } from '@/engine/types'
@@ -102,7 +102,7 @@ describe('DragCursor', () => {
       metrics.charWidth,
       metrics.charHeight,
       VIEWPORT_WIDTH,
-      VIEWPORT_HEIGHT,
+      VIEWPORT_HEIGHT
     )
     const anchor = viewportToScreen(
       tile.x,
@@ -110,7 +110,7 @@ describe('DragCursor', () => {
       metrics.charWidth,
       metrics.charHeight,
       VIEWPORT_WIDTH,
-      VIEWPORT_HEIGHT,
+      VIEWPORT_HEIGHT
     )
     const expectedLeft = canvasRect.left + anchor.px - metrics.charWidth / 2
     const expectedTop = canvasRect.top + anchor.py

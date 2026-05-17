@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest'
 import { getCaveTileLayers, shouldRenderCaveMultilayer } from '../cave'
 import { CAVE_BUILDING_CHARS, CAVE_WALL_COLORS, TILE_COLORS } from '../constants'
 import { getStructurePlatformLift, STRUCTURE_REGISTRY } from '../structures'
 import { TileType, Zone } from '../types'
+import { describe, expect, it } from 'vitest'
 
 describe('cave visual style', () => {
   describe('getCaveTileLayers', () => {
@@ -46,7 +46,7 @@ describe('cave visual style', () => {
       const layers = getCaveTileLayers(TileType.CaveWall, 5, 5)
       expect(layers[0].dx).toBe(0)
       expect(layers[0].dy).toBe(0)
-      const hasOffset = layers.slice(1).some((l) => l.dx !== 0 || l.dy !== 0)
+      const hasOffset = layers.slice(1).some(l => l.dx !== 0 || l.dy !== 0)
       expect(hasOffset).toBe(true)
     })
   })

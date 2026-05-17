@@ -112,7 +112,7 @@ behaviors:
       - 'addEvent called for each pickup and delivery'
     state_changes:
       - field: coyoteCargo
-        effect: "set to item definitionId when picking up, cleared to null on delivery"
+        effect: 'set to item definitionId when picking up, cleared to null on delivery'
       - field: 'world (ground item entities)'
         effect: 'ground item entity destroyed when coyote picks it up'
       - field: 'backpack containers'
@@ -206,7 +206,7 @@ behaviors:
     inputs:
       - 'GameState with coyote in viewport'
     outputs:
-      - "C character drawn in #D4A054 at coyote position"
+      - 'C character drawn in #D4A054 at coyote position'
     state_changes: []
     determinism: deterministic
 
@@ -220,7 +220,7 @@ behaviors:
       - 'mouse cursor over coyote tile'
     outputs:
       - "sidebar contents: 'Coyote'"
-      - "sidebar shows current coyote mode"
+      - 'sidebar shows current coyote mode'
     state_changes: []
     determinism: deterministic
 

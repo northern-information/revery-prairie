@@ -1,4 +1,3 @@
-import { ComponentType } from '../../ecs/types'
 import {
   EARTH_SCAN_COLOR_HIGH,
   EARTH_SCAN_COLOR_LOW,
@@ -8,13 +7,17 @@ import {
   EARTH_SCAN_RADIUS,
   SOIL_HEALTH_DEFAULT,
 } from '../../constants'
+import { ComponentType } from '../../ecs/types'
 import { isInBounds, posKey } from '../../position'
 import { drawCellBackground, viewportToScreen } from '../../projection'
+import { TileType } from '../../types'
 import { getVisibleTileBounds } from '../../viewportBounds'
 import { isEntityInCurrentZone } from '../../zone'
-import { TileType, type CharMetrics, type GameState } from '../../types'
+import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
-import { type RenderPass, registerPass } from '../passes'
+
+import type { CharMetrics, GameState } from '../../types'
+import type { RenderPass } from '../passes'
 
 const hexToRgb = (hex: string): [number, number, number] => {
   const n = parseInt(hex.slice(1), 16)
@@ -46,12 +49,7 @@ const hasActiveEarthScan = (state: GameState): boolean => {
   return false
 }
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   const { camera, viewportWidth, viewportHeight, map } = state
   const { charWidth, charHeight } = metrics
   const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
@@ -83,11 +81,7 @@ const draw = (
         const my = camera.y + vy
         if (!isInBounds(mx, my, state.mapWidth, state.mapHeight)) continue
         const tileType = map[my][mx].type
-        if (
-          tileType === TileType.Space ||
-          tileType === TileType.CaveWall ||
-          tileType === TileType.CaveBreakableWall
-        )
+        if (tileType === TileType.Space || tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall)
           continue
 
         const dx = mx - origin.x
@@ -116,7 +110,7 @@ const draw = (
           px,
           py + liftAt(tierGrid, mx, my, state.mapWidth, state.mapHeight),
           charWidth,
-          charHeight,
+          charHeight
         )
       }
     }

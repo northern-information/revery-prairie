@@ -28,7 +28,13 @@ interface PermacomputerShellProps {
   children: React.ReactNode
 }
 
-export const PermacomputerShell = ({ state, activeScreen, onClose, onSwitchScreen, children }: PermacomputerShellProps) => {
+export const PermacomputerShell = ({
+  state,
+  activeScreen,
+  onClose,
+  onSwitchScreen,
+  children,
+}: PermacomputerShellProps) => {
   const isPackScreen = activeScreen === 'pack'
   const visibleTabs = SCREEN_TABS.filter(tab => tab.isVisible(state))
 

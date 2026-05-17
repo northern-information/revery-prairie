@@ -13,8 +13,8 @@ import {
 } from './constants'
 import { spawnPickupBloom } from './effects'
 import { findFitPosition, placeItem } from './inventory'
-import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
+import { setMapTile } from './map'
 import { isInBounds, posKey } from './position'
 import { CloverStage, TileType, Zone } from './types'
 

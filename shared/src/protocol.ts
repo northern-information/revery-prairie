@@ -97,12 +97,7 @@ export interface ErrorFrame {
 }
 
 export type ClientMessage = HelloFrame | PositionFrame
-export type ServerMessage =
-  | WelcomeFrame
-  | PeerJoinedFrame
-  | PeerPositionFrame
-  | PeerLeftFrame
-  | ErrorFrame
+export type ServerMessage = WelcomeFrame | PeerJoinedFrame | PeerPositionFrame | PeerLeftFrame | ErrorFrame
 
 // WebSocket close codes (4xxx range is application-defined per RFC 6455)
 export const WS_CLOSE_CODES = {

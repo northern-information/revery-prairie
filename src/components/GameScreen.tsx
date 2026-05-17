@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react'
+import { BootTitleCardOverlay } from './BootTitleCardOverlay'
 import { CantosScreen } from './CantosScreen'
 import { CoyoteScreen } from './CoyoteScreen'
-import { DialogBox } from './DialogBox'
 import { DevPanel } from './DevPanel'
+import { DialogBox } from './DialogBox'
 import { DragCursor } from './DragCursor'
-import { BootTitleCardOverlay } from './BootTitleCardOverlay'
 import { EventLog } from './EventLog'
 import { GameCanvas } from './GameCanvas'
 import { GenesisBottomBar } from './GenesisBottomBar'
@@ -18,17 +18,18 @@ import { ReveriesPanel } from './ReveriesPanel'
 
 import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
-import { advanceDialog } from '@/engine/interaction'
 import { COIN_GLINTING_COLOR } from '@/engine/constants'
 import { canCast } from '@/engine/hexagram'
+import { advanceDialog } from '@/engine/interaction'
 import { getDefinition } from '@/engine/items'
 import { useEventLog } from '@/hooks/useEventLog'
-import { useGameEngine, type MultiplayerHookArgs } from '@/hooks/useGameEngine'
+import { useGameEngine } from '@/hooks/useGameEngine'
 import { useKeyboard } from '@/hooks/useKeyboard'
 import { useMusic } from '@/hooks/useMusic'
 import type { DragOverlayData } from './InventoryPanel'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { CharMetrics } from '@/engine/types'
+import type { MultiplayerHookArgs } from '@/hooks/useGameEngine'
 
 interface GameScreenProps {
   stewardName: string
@@ -234,7 +235,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
                     result.gift.glyphs[0],
                     result.gift.glyphColor,
                     state.player.x,
-                    state.player.y,
+                    state.player.y
                   )
                 }
                 refreshUI()

@@ -1,5 +1,5 @@
 import { tileHash } from './position'
-import { STRUCTURE_REGISTRY, getStructurePlatformLift } from './structures'
+import { getStructurePlatformLift, STRUCTURE_REGISTRY } from './structures'
 import { TileType } from './types'
 
 // Per-tile background color palettes. Each palette is a small set of
@@ -13,37 +13,11 @@ import { TileType } from './types'
 // stars on the canvas BG_COLOR.
 export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   [TileType.Space]: ['#000000'],
-  [TileType.Dirt]: [
-    '#4A3D2F',
-    '#473A2D',
-    '#4D4031',
-    '#443A2D',
-    '#4F4133',
-    '#48402F',
-    '#4B3D2D',
-    '#463A2C',
-  ],
-  [TileType.Clover]: [
-    '#224F30',
-    '#1F4D2E',
-    '#255231',
-    '#234E2F',
-    '#205030',
-    '#26542F',
-    '#214D2E',
-    '#244F31',
-  ],
+  [TileType.Dirt]: ['#4A3D2F', '#473A2D', '#4D4031', '#443A2D', '#4F4133', '#48402F', '#4B3D2D', '#463A2C'],
+  [TileType.Clover]: ['#224F30', '#1F4D2E', '#255231', '#234E2F', '#205030', '#26542F', '#214D2E', '#244F31'],
   [TileType.BurntClover]: ['#1A0F0A', '#1D110B', '#180D08', '#1B0E0A', '#170C08', '#1C100B'],
   [TileType.Sand]: ['#6E5F3F', '#6B5C3D', '#71623F', '#6D5E3E', '#6A5B3D', '#705F3E', '#6E5D3D'],
-  [TileType.CaveFloor]: [
-    '#2A2A2A',
-    '#2C2C2C',
-    '#282828',
-    '#2B2B2B',
-    '#292929',
-    '#2D2D2D',
-    '#272727',
-  ],
+  [TileType.CaveFloor]: ['#2A2A2A', '#2C2C2C', '#282828', '#2B2B2B', '#292929', '#2D2D2D', '#272727'],
   [TileType.CaveWall]: ['#1A1A1A', '#1B1B1B', '#191919', '#1C1C1C', '#181818'],
   [TileType.CaveBreakableWall]: ['#3D2E1F', '#3F3022', '#3B2C1D', '#402F20', '#3C2D1E', '#3E2E1F'],
   [TileType.CaveEntrance]: ['#4A4A4A', '#4D4D4D', '#484848', '#4C4C4C', '#494949'],
@@ -72,27 +46,14 @@ export const getTileBgColor = (tileType: TileType, x: number, y: number): string
 // don't render as brown dirt under blue water glyphs. Palettes are
 // slightly desaturated/darkened RIVER_COLOR / POND_COLOR variants so the
 // blue glyphs ('~', '=', '-') still read as foliage on the water.
-export const RIVER_BG_PALETTE: readonly string[] = [
-  '#3A557F',
-  '#3D5985',
-  '#37527B',
-  '#405E8A',
-  '#385479',
-]
+export const RIVER_BG_PALETTE: readonly string[] = ['#3A557F', '#3D5985', '#37527B', '#405E8A', '#385479']
 
-export const POND_BG_PALETTE: readonly string[] = [
-  '#2F4870',
-  '#324B73',
-  '#2C456D',
-  '#354E76',
-  '#304770',
-]
+export const POND_BG_PALETTE: readonly string[] = ['#2F4870', '#324B73', '#2C456D', '#354E76', '#304770']
 
 export const getRiverBgColor = (x: number, y: number): string =>
   RIVER_BG_PALETTE[tileHash(x, y) % RIVER_BG_PALETTE.length]
 
-export const getPondBgColor = (x: number, y: number): string =>
-  POND_BG_PALETTE[tileHash(x, y) % POND_BG_PALETTE.length]
+export const getPondBgColor = (x: number, y: number): string => POND_BG_PALETTE[tileHash(x, y) % POND_BG_PALETTE.length]
 
 // Satellite craters live as a state.craters Set keyed by posKey rather
 // than as a TileType, so they need their own bg palette overlay. Each

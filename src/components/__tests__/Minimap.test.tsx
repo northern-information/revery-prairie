@@ -1,13 +1,7 @@
+import { Minimap } from '../Minimap'
+import { computeIsoLayout, getPlayerCenter, MINIMAP_CSS_SIZE, projectIso } from '../minimapProjection'
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-
-import { Minimap } from '../Minimap'
-import {
-  MINIMAP_CSS_SIZE,
-  computeIsoLayout,
-  getPlayerCenter,
-  projectIso,
-} from '../minimapProjection'
 
 import { createGameState } from '@/engine/state'
 import { Zone } from '@/engine/types'

@@ -1,8 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
 import { expandClickTile, tileHasClickable } from '../clickResolution'
-
 import { clearAroundPlayer, createCharacterTestEntity, createTestState } from './helpers'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 afterEach(() => {
   vi.restoreAllMocks()

@@ -14,7 +14,7 @@ export const updateCursorState = (state: GameState, metrics: CharMetrics): void 
       charWidth,
       charHeight,
       state.viewportWidth,
-      state.viewportHeight,
+      state.viewportHeight
     )
   } else {
     state.cursorTile = null

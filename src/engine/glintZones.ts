@@ -28,7 +28,7 @@ const computePatchTiles = (
   cy: number,
   radius: number,
   width: number,
-  height: number,
+  height: number
 ): Set<string> => {
   const tiles = new Set<string>()
   for (let dy = -radius; dy <= radius; dy++) {
@@ -53,8 +53,7 @@ export const spawnGlintPatch = (state: GameState, birthTime: number): GlintPatch
     const cy = SPACE_BORDER + Math.floor(Math.random() * (mapHeight - SPACE_BORDER * 2))
     if (map[cy][cx].type !== TileType.Dirt && map[cy][cx].type !== TileType.Clover) continue
     const radius =
-      GLINT_ZONE_RADIUS_MIN +
-      Math.floor(Math.random() * (GLINT_ZONE_RADIUS_MAX - GLINT_ZONE_RADIUS_MIN + 1))
+      GLINT_ZONE_RADIUS_MIN + Math.floor(Math.random() * (GLINT_ZONE_RADIUS_MAX - GLINT_ZONE_RADIUS_MIN + 1))
     const tiles = computePatchTiles(map, cx, cy, radius, mapWidth, mapHeight)
     if (tiles.size === 0) continue
     return {
@@ -120,7 +119,7 @@ export const seedGlintPatches = (state: GameState, time: number): void => {
 
 export const tickGlintZones = (state: GameState, time: number): void => {
   // 1. Remove expired patches
-  state.glintPatches = state.glintPatches.filter((patch) => {
+  state.glintPatches = state.glintPatches.filter(patch => {
     const elapsed = time - patch.birthTime
     return elapsed < TOTAL_LIFECYCLE_MS
   })
@@ -128,9 +127,7 @@ export const tickGlintZones = (state: GameState, time: number): void => {
   // 2. Drift patches in hold phase
   for (const patch of state.glintPatches) {
     const elapsed = time - patch.birthTime
-    const inHold =
-      elapsed >= GLINT_ZONE_FADE_IN_MS &&
-      elapsed < GLINT_ZONE_FADE_IN_MS + GLINT_ZONE_HOLD_MS
+    const inHold = elapsed >= GLINT_ZONE_FADE_IN_MS && elapsed < GLINT_ZONE_FADE_IN_MS + GLINT_ZONE_HOLD_MS
     if (!inHold) continue
     if (time - patch.lastDriftTime < GLINT_ZONE_DRIFT_MS) continue
 
@@ -153,24 +150,14 @@ export const tickGlintZones = (state: GameState, time: number): void => {
       if (tile === TileType.Dirt || tile === TileType.Clover) {
         patch.centerX = newCx
         patch.centerY = newCy
-        patch.tiles = computePatchTiles(
-          state.map,
-          newCx,
-          newCy,
-          patch.radius,
-          state.mapWidth,
-          state.mapHeight,
-        )
+        patch.tiles = computePatchTiles(state.map, newCx, newCy, patch.radius, state.mapWidth, state.mapHeight)
       }
     }
     patch.lastDriftTime = time
   }
 
   // 3. Spawn new patch if below cap
-  if (
-    state.glintPatches.length < GLINT_ZONE_COUNT &&
-    time - state.lastGlintSpawnTime >= GLINT_ZONE_SPAWN_MS
-  ) {
+  if (state.glintPatches.length < GLINT_ZONE_COUNT && time - state.lastGlintSpawnTime >= GLINT_ZONE_SPAWN_MS) {
     const patch = spawnGlintPatch(state, time)
     if (patch) {
       state.glintPatches.push(patch)
@@ -236,11 +223,7 @@ const BEAM_HOLD_FRACTION = 0.15
  * @param length total beam segments
  * @param time current animation time (ms)
  */
-export const computeBeamSegmentOpacity = (
-  segmentIndex: number,
-  length: number,
-  time: number,
-): number => {
+export const computeBeamSegmentOpacity = (segmentIndex: number, length: number, time: number): number => {
   if (length <= 0) return 0
   const distFromTop = length - 1 - segmentIndex
   const cyclePhase = (time % GLINT_BEAM_CYCLE_MS) / GLINT_BEAM_CYCLE_MS

@@ -9,7 +9,6 @@ import {
 import { ComponentType } from '../ecs/types'
 import { createGameState } from '../state'
 import { TileType } from '../types'
-
 import { afterEach, vi } from 'vitest'
 
 import type { GameState } from '../types'

@@ -1,4 +1,3 @@
-import { vi } from 'vitest'
 import { spawnChainMeteorites } from '../celestial'
 import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
@@ -12,6 +11,7 @@ import {
   createTestState,
   getMeteoriteEntities,
 } from './helpers'
+import { vi } from 'vitest'
 
 describe('unstable meteorite', () => {
   describe('spawnChainMeteorites', () => {

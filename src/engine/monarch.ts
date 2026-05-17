@@ -27,8 +27,7 @@ import type { GameState, Position } from './types'
 // --- Spawn ---
 
 /** Returns true if the current weather is rain — the only condition under which monarchs spawn. */
-export const isMonarchSpawnCondition = (state: GameState): boolean =>
-  state.weather.sky === Sky.Rain
+export const isMonarchSpawnCondition = (state: GameState): boolean => state.weather.sky === Sky.Rain
 
 /** Roll whether a spawning bee should become a monarch instead. */
 export const shouldSpawnMonarch = (state: GameState): boolean =>
@@ -87,11 +86,7 @@ const isMonarchNearFood = (state: GameState, pos: Position): boolean => {
 // --- Zig-zag waypoint generation ---
 
 /** Pick a random waypoint 5-10 tiles away, biased toward nearby clover. */
-const pickZigzagWaypoint = (
-  state: GameState,
-  from: Position,
-  biasTarget?: Position | null,
-): Position | null => {
+const pickZigzagWaypoint = (state: GameState, from: Position, biasTarget?: Position | null): Position | null => {
   const dist = MONARCH_ZIGZAG_MIN + Math.floor(Math.random() * (MONARCH_ZIGZAG_MAX - MONARCH_ZIGZAG_MIN + 1))
 
   // If biased toward a target (clover or flee destination), 70% chance to head that direction
@@ -200,11 +195,7 @@ const findFertileSoilTarget = (state: GameState, from: Position): Position | nul
   return searchForFertileTile(state, from, MONARCH_SOIL_THRESHOLD_LOW)
 }
 
-const searchForFertileTile = (
-  state: GameState,
-  from: Position,
-  threshold: number,
-): Position | null => {
+const searchForFertileTile = (state: GameState, from: Position, threshold: number): Position | null => {
   const candidates: Position[] = []
   const r = MONARCH_SEARCH_RADIUS
 

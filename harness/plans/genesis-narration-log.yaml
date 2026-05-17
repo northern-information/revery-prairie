@@ -24,7 +24,7 @@ tasks:
     tags: [hook]
 
   - id: add-genesis-narration-callback-state
-    title: "Add state.onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null to GameState; default null in createGameState; mirror onPlayerMoved pattern"
+    title: 'Add state.onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null to GameState; default null in createGameState; mirror onPlayerMoved pattern'
     spec_id: event-log-overlay
     spec_sections:
       - genesis-narration-entries
@@ -41,7 +41,7 @@ tasks:
     tags: [engine]
 
   - id: track-narrated-epochs-in-sim
-    title: "Add narratedEpochCount: number to GenesisSimState (initial 0); initialize in createGenesisState"
+    title: 'Add narratedEpochCount: number to GenesisSimState (initial 0); initialize in createGenesisState'
     spec_id: event-log-overlay
     spec_sections:
       - genesis-narration-entries
@@ -59,7 +59,7 @@ tasks:
     tags: [engine]
 
   - id: fire-narration-on-epoch-start
-    title: "In tickGenesis, fire state.onGenesisEpochStart(epoch.commentary, epochIndex) once per epoch on first tick (when epochStartTime transitions from 0); bump narratedEpochCount; guard against double-fire"
+    title: 'In tickGenesis, fire state.onGenesisEpochStart(epoch.commentary, epochIndex) once per epoch on first tick (when epochStartTime transitions from 0); bump narratedEpochCount; guard against double-fire'
     spec_id: event-log-overlay
     spec_sections:
       - genesis-narration-entries
@@ -77,7 +77,7 @@ tasks:
     tags: [engine]
 
   - id: flush-narration-on-complete-genesis
-    title: "In completeGenesis, fire state.onGenesisEpochStart for every epoch index in [narratedEpochCount, GENESIS_EPOCHS.length); set narratedEpochCount to length; runs synchronously before genesisTransition is set"
+    title: 'In completeGenesis, fire state.onGenesisEpochStart for every epoch index in [narratedEpochCount, GENESIS_EPOCHS.length); set narratedEpochCount to length; runs synchronously before genesisTransition is set'
     spec_id: event-log-overlay
     spec_sections:
       - genesis-narration-skip-flush
@@ -115,7 +115,7 @@ tasks:
     tags: [hook]
 
   - id: remove-commentary-from-sidebar
-    title: "Remove the <p>{getGenesisCommentary(...)}</p> line from the genesis HUD branch in Sidebar.tsx; keep the year table and progress bar; drop the now-unused getGenesisCommentary import"
+    title: 'Remove the <p>{getGenesisCommentary(...)}</p> line from the genesis HUD branch in Sidebar.tsx; keep the year table and progress bar; drop the now-unused getGenesisCommentary import'
     spec_id: event-log-overlay
     spec_sections:
       - genesis-narration-entries
@@ -130,7 +130,7 @@ tasks:
     tags: [component]
 
   - id: engine-tests-narration
-    title: "Add tests in src/engine/__tests__/genesis.test.ts: (1) tickGenesis fires onGenesisEpochStart exactly once per epoch in order; (2) completeGenesis flushes remaining unfired epochs; (3) skip-from-start produces 14 callbacks in epoch order; (4) no double-firing when ticking past an already-narrated epoch"
+    title: 'Add tests in src/engine/__tests__/genesis.test.ts: (1) tickGenesis fires onGenesisEpochStart exactly once per epoch in order; (2) completeGenesis flushes remaining unfired epochs; (3) skip-from-start produces 14 callbacks in epoch order; (4) no double-firing when ticking past an already-narrated epoch'
     spec_id: event-log-overlay
     spec_sections:
       - genesis-narration-entries
@@ -150,7 +150,7 @@ tasks:
     tags: [test, engine]
 
   - id: sidebar-test-no-commentary
-    title: "Update src/components/__tests__/Sidebar.test.tsx: assert that during genesis the sidebar renders the year/epoch HUD but NOT the commentary <p>"
+    title: 'Update src/components/__tests__/Sidebar.test.tsx: assert that during genesis the sidebar renders the year/epoch HUD but NOT the commentary <p>'
     spec_id: event-log-overlay
     spec_sections:
       - genesis-narration-entries
@@ -167,7 +167,7 @@ tasks:
     tags: [test, component]
 
   - id: schema-allowlist-update
-    title: "If onGenesisEpochStart and/or narratedEpochCount need to be excluded from the serialization schema check, add them to EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts"
+    title: 'If onGenesisEpochStart and/or narratedEpochCount need to be excluded from the serialization schema check, add them to EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts'
     spec_id: event-log-overlay
     spec_sections:
       - genesis-narration-entries

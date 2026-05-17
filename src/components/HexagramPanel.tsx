@@ -75,11 +75,7 @@ const StaticFigure = ({ lines }: { lines: boolean[] }) => (
 const MiniFigure = ({ lines, dimmed }: { lines: boolean[]; dimmed: boolean }) => (
   <div className={`flex flex-col-reverse gap-px leading-none ${dimmed ? 'opacity-20' : ''}`}>
     {lines.map((yang, i) => (
-      <span
-        key={i}
-        className="text-text block text-center"
-        style={{ fontSize: 7, lineHeight: '5px' }}
-      >
+      <span key={i} className="text-text block text-center" style={{ fontSize: 7, lineHeight: '5px' }}>
         {yang ? '———' : '— —'}
       </span>
     ))}
@@ -88,13 +84,7 @@ const MiniFigure = ({ lines, dimmed }: { lines: boolean[]; dimmed: boolean }) =>
 
 // --- Hexagram Compendium grid ---
 
-const HexagramCompendium = ({
-  state,
-  onBack,
-}: {
-  state: GameState
-  onBack: () => void
-}) => {
+const HexagramCompendium = ({ state, onBack }: { state: GameState; onBack: () => void }) => {
   const [selected, setSelected] = useState<HexagramDefinition | null>(null)
   const [selectedDivined, setSelectedDivined] = useState(false)
 
@@ -124,9 +114,7 @@ const HexagramCompendium = ({
                 key={`${String(ri)}-${String(ci)}`}
                 type="button"
                 className={`flex flex-col items-center gap-0.5 rounded px-0.5 py-1 transition-colors ${
-                  isSelected
-                    ? 'bg-pink/20 border-pink border'
-                    : 'border-border-dim border hover:border-pink/50'
+                  isSelected ? 'bg-pink/20 border-pink border' : 'border-border-dim hover:border-pink/50 border'
                 }`}
                 onClick={() => {
                   handleSelect(h)
@@ -134,15 +122,12 @@ const HexagramCompendium = ({
                 title={divined ? `#${String(h.id)} ${h.name}` : `#${String(h.id)} ???`}
               >
                 <MiniFigure lines={h.lines} dimmed={!divined} />
-                <span
-                  className={`text-center ${divined ? 'text-dim' : 'opacity-20'}`}
-                  style={{ fontSize: 8 }}
-                >
+                <span className={`text-center ${divined ? 'text-dim' : 'opacity-20'}`} style={{ fontSize: 8 }}>
                   {h.id}
                 </span>
               </button>
             )
-          }),
+          })
         )}
       </div>
 

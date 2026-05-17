@@ -17,13 +17,7 @@ interface UseInventoryDragOptions {
   onCombineFail?: () => void
 }
 
-export const useInventoryDrag = ({
-  containers,
-  state,
-  onDrop,
-  onCombine,
-  onCombineFail,
-}: UseInventoryDragOptions) => {
+export const useInventoryDrag = ({ containers, state, onDrop, onCombine, onCombineFail }: UseInventoryDragOptions) => {
   const [dragState, setDragState] = useState<DragState | null>(null)
 
   const getContainer = useCallback((id: string) => containers.find(c => c.id === id)?.container ?? null, [containers])
@@ -118,13 +112,7 @@ export const useInventoryDrag = ({
       if (dragState.sourceContainerId === targetContainerId) {
         moveItem(sourceContainer, dragState.item.uid, dragState.previewX, dragState.previewY)
       } else {
-        transferItem(
-          sourceContainer,
-          targetContainer,
-          dragState.item.uid,
-          dragState.previewX,
-          dragState.previewY
-        )
+        transferItem(sourceContainer, targetContainer, dragState.item.uid, dragState.previewX, dragState.previewY)
       }
 
       setDragState(null)

@@ -209,12 +209,7 @@ export const tickCoyote = (state: GameState, time?: number): CoyoteTickResult =>
   return result
 }
 
-const tickFollow = (
-  state: GameState,
-  eid: Entity,
-  pos: { x: number; y: number },
-  blocked: Set<string>
-): void => {
+const tickFollow = (state: GameState, eid: Entity, pos: { x: number; y: number }, blocked: Set<string>): void => {
   // Nudge: if overlapping the player, step to an adjacent walkable tile
   if (pos.x === state.player.x && pos.y === state.player.y) {
     const selfKey = posKey(pos.x, pos.y)

@@ -143,5 +143,4 @@ describe('Menu', () => {
     await userEvent.click(screen.getByLabelText(/close credits/i))
     expect(screen.queryByTestId('credits-modal')).not.toBeInTheDocument()
   })
-
 })

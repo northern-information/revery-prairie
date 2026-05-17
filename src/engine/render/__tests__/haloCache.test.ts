@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-
+import { TileType } from '../../types'
+import { getOrBuildHaloCache, invalidateHaloCache } from '../haloCache'
 import { beforeAll, describe, expect, it } from 'vitest'
 
-import { TileType, type Tile } from '../../types'
-import { getOrBuildHaloCache, invalidateHaloCache } from '../haloCache'
+import type { Tile } from '../../types'
 
 // jsdom returns null from getContext('2d'). Install a minimal stub so the
 // cache module's path/fill calls run without throwing.
@@ -24,8 +24,7 @@ beforeAll(() => {
   installCanvasContextStub()
 })
 
-const makeMap = (cells: TileType[][]): Tile[][] =>
-  cells.map((row) => row.map((type) => ({ type })))
+const makeMap = (cells: TileType[][]): Tile[][] => cells.map(row => row.map(type => ({ type })))
 
 const tinyMap = (): Tile[][] =>
   makeMap([

@@ -15,7 +15,11 @@ import { isEntityInCurrentZone } from './zone'
 
 import type { GameState, Zone as ZoneType } from './types'
 
-interface RainAura { x: number; y: number; radiusSq: number }
+interface RainAura {
+  x: number
+  y: number
+  radiusSq: number
+}
 
 // Collect all active rain auras in the given zone into a plain array.
 // Called once per tickTileWater so the ECS query runs once instead of
@@ -40,9 +44,7 @@ const collectRainAuras = (state: GameState, zone: ZoneType): RainAura[] => {
 // Wind direction → rain front sweep axis. The front moves perpendicular-ish
 // to how real weather fronts sweep across the prairie.
 // Returns { axis, sign } where axis is 'x' or 'y' and sign is direction.
-export const windToFrontAxis = (
-  dir: WindDirection
-): { axis: 'x' | 'y'; sign: 1 | -1 } => {
+export const windToFrontAxis = (dir: WindDirection): { axis: 'x' | 'y'; sign: 1 | -1 } => {
   switch (dir) {
     case WindDirection.N:
       return { axis: 'y', sign: -1 }
@@ -66,11 +68,7 @@ export const windToFrontAxis = (
 // Returns whether a tile is in the rain front (including blotchy fringe),
 // and its edge alpha (1.0 in core, 0.0-1.0 in fringe, 0.0 outside).
 // Fringe uses tileHash noise so the boundary is organic, not a straight line.
-export const isInRainFront = (
-  state: GameState,
-  x: number,
-  y: number
-): { hit: boolean; edgeAlpha: number } => {
+export const isInRainFront = (state: GameState, x: number, y: number): { hit: boolean; edgeAlpha: number } => {
   const { axis, sign } = windToFrontAxis(state.weather.windDirection)
   const mapSize = axis === 'x' ? state.overworldMapWidth : state.overworldMapHeight
   const coord = axis === 'x' ? x : y

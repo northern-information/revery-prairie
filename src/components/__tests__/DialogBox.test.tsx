@@ -1,31 +1,16 @@
-import { render, screen } from '@testing-library/react'
-
 import { DialogBox } from '../DialogBox'
+import { render, screen } from '@testing-library/react'
 
 describe('DialogBox', () => {
   it('renders character name and dialog text', () => {
-    render(
-      <DialogBox
-        characterName="Moab"
-        line="hello traveler"
-        typingIndex={14}
-        typingDone={false}
-      />,
-    )
+    render(<DialogBox characterName="Moab" line="hello traveler" typingIndex={14} typingDone={false} />)
 
     expect(screen.getByText('Moab')).toBeTruthy()
     expect(screen.getByText('hello traveler')).toBeTruthy()
   })
 
   it('renders with z-30 to sit above the action bar', () => {
-    const { container } = render(
-      <DialogBox
-        characterName="Moab"
-        line="hello"
-        typingIndex={5}
-        typingDone={false}
-      />,
-    )
+    const { container } = render(<DialogBox characterName="Moab" line="hello" typingIndex={5} typingDone={false} />)
 
     const dialogRoot = container.firstElementChild as HTMLElement
     expect(dialogRoot.className).toMatch(/z-30/)
@@ -33,14 +18,7 @@ describe('DialogBox', () => {
   })
 
   it('is centered within the game canvas area (left-0 to right-48)', () => {
-    const { container } = render(
-      <DialogBox
-        characterName="Moab"
-        line="hello"
-        typingIndex={5}
-        typingDone={false}
-      />,
-    )
+    const { container } = render(<DialogBox characterName="Moab" line="hello" typingIndex={5} typingDone={false} />)
 
     const dialogRoot = container.firstElementChild as HTMLElement
     // horizontally: left-0 + right-48 + mx-auto centers within game canvas area
@@ -53,14 +31,7 @@ describe('DialogBox', () => {
   })
 
   it('does not use left-1/2 -translate-x-1/2 (viewport-center overflow pattern)', () => {
-    const { container } = render(
-      <DialogBox
-        characterName="Moab"
-        line="hello"
-        typingIndex={5}
-        typingDone={false}
-      />,
-    )
+    const { container } = render(<DialogBox characterName="Moab" line="hello" typingIndex={5} typingDone={false} />)
 
     const dialogRoot = container.firstElementChild as HTMLElement
     expect(dialogRoot.className).not.toMatch(/left-1\/2/)
@@ -69,13 +40,7 @@ describe('DialogBox', () => {
 
   it('renders portrait when provided', () => {
     render(
-      <DialogBox
-        characterName="Moab"
-        portrait="/portraits/moab.png"
-        line="hello"
-        typingIndex={5}
-        typingDone={false}
-      />,
+      <DialogBox characterName="Moab" portrait="/portraits/moab.png" line="hello" typingIndex={5} typingDone={false} />
     )
 
     const img = screen.getByAltText('portrait of moab')
@@ -90,7 +55,7 @@ describe('DialogBox', () => {
         typingIndex={10}
         typingDone={false}
         isAngel
-      />,
+      />
     )
 
     expect(screen.getByTestId('angel-hash-grid')).toBeTruthy()
@@ -104,7 +69,7 @@ describe('DialogBox', () => {
         typingIndex={64}
         typingDone={false}
         isAngel
-      />,
+      />
     )
 
     const dialogRoot = container.firstElementChild as HTMLElement
@@ -112,15 +77,7 @@ describe('DialogBox', () => {
   })
 
   it('renders portrait at 128x128 when provided', () => {
-    render(
-      <DialogBox
-        characterName="Gron"
-        portrait="/gron.gif"
-        line="hello"
-        typingIndex={5}
-        typingDone={false}
-      />,
-    )
+    render(<DialogBox characterName="Gron" portrait="/gron.gif" line="hello" typingIndex={5} typingDone={false} />)
 
     const img = screen.getByAltText('portrait of gron')
     expect(img.className).toMatch(/h-32/)
@@ -137,7 +94,7 @@ describe('DialogBox', () => {
         typingDone={true}
         isLastLine={false}
         onAdvance={onAdvance}
-      />,
+      />
     )
 
     const button = screen.getByTestId('dialog-advance-button')
@@ -154,7 +111,7 @@ describe('DialogBox', () => {
         typingDone={true}
         isLastLine={true}
         onAdvance={onAdvance}
-      />,
+      />
     )
 
     const button = screen.getByTestId('dialog-advance-button')
@@ -171,7 +128,7 @@ describe('DialogBox', () => {
         typingDone={false}
         isLastLine={false}
         onAdvance={onAdvance}
-      />,
+      />
     )
 
     expect(screen.queryByTestId('dialog-advance-button')).toBeNull()
@@ -182,14 +139,7 @@ describe('DialogBox', () => {
     // wrapping SectionHeader and the paragraph. with text-xs leading-relaxed in
     // a tight flex-1 region, that clipped the bottom of letter descenders
     // (y, g, p, q) — making "Coyote" read as "Covote".
-    render(
-      <DialogBox
-        characterName="Gron"
-        line="Coyote hasn't returned"
-        typingIndex={22}
-        typingDone={false}
-      />,
-    )
+    render(<DialogBox characterName="Gron" line="Coyote hasn't returned" typingIndex={22} typingDone={false} />)
 
     const paragraph = screen.getByText("Coyote hasn't returned")
     const inner = paragraph.parentElement
@@ -207,7 +157,7 @@ describe('DialogBox', () => {
         typingDone={true}
         isLastLine={false}
         onAdvance={onAdvance}
-      />,
+      />
     )
 
     const button = screen.getByTestId('dialog-advance-button')

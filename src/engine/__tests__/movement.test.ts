@@ -1,5 +1,5 @@
-import { movePlayer, tickPath } from '../movement'
 import { placeItem } from '../inventory'
+import { movePlayer, tickPath } from '../movement'
 import { posKey } from '../position'
 import { TileType, Zone } from '../types'
 import { clearAroundPlayer, createCharacterTestEntity, createTestState } from './helpers'

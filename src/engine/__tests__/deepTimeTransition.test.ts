@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
 import {
   DEEP_TIME_BURN_DURATION_MS,
   DEEP_TIME_TOTAL_YEARS,
@@ -10,6 +8,7 @@ import {
 import { initiateDeepTime, tickDeepTime } from '../deepTime'
 import { DeepTimePhase } from '../types'
 import { createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
 

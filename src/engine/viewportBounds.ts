@@ -12,11 +12,7 @@ export interface VisibleTileBounds {
   vyEnd: number
 }
 
-export const getVisibleTileBounds = (
-  viewportWidth: number,
-  viewportHeight: number,
-  margin = 0,
-): VisibleTileBounds => ({
+export const getVisibleTileBounds = (viewportWidth: number, viewportHeight: number, margin = 0): VisibleTileBounds => ({
   vxStart: -viewportHeight - margin,
   vxEnd: viewportWidth + viewportHeight + margin,
   vyStart: -viewportHeight - margin,
@@ -28,12 +24,8 @@ export const isTileInVisibleViewport = (
   vy: number,
   viewportWidth: number,
   viewportHeight: number,
-  margin = 0,
+  margin = 0
 ): boolean => {
-  const { vxStart, vxEnd, vyStart, vyEnd } = getVisibleTileBounds(
-    viewportWidth,
-    viewportHeight,
-    margin,
-  )
+  const { vxStart, vxEnd, vyStart, vyEnd } = getVisibleTileBounds(viewportWidth, viewportHeight, margin)
   return vx >= vxStart && vx < vxEnd && vy >= vyStart && vy < vyEnd
 }

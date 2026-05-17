@@ -1,16 +1,10 @@
-import { describe, expect, it } from 'vitest'
-
-import {
-  spawnShootingStarAtTarget,
-  tickMeteorShower,
-  tickShootingStars,
-  triggerPlayerSpawnShower,
-} from '../celestial'
+import { spawnShootingStarAtTarget, tickMeteorShower, tickShootingStars, triggerPlayerSpawnShower } from '../celestial'
 import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { completeGenesis } from '../genesis'
 import { createGameState } from '../state'
 import { TileType } from '../types'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState, Position } from '../types'
 
@@ -33,7 +27,9 @@ const destroyAllStars = (state: GameState): void => {
 }
 
 const countMeteorites = (state: GameState): number =>
-  state.world.query(ComponentType.EntityTag).filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite').length
+  state.world
+    .query(ComponentType.EntityTag)
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite').length
 
 describe('player spawn ceremony', () => {
   describe('triggerPlayerSpawnShower', () => {
@@ -99,10 +95,15 @@ describe('player spawn ceremony', () => {
       destroyAllStars(state)
       clearAroundTile(state, state.player)
       // Place a forPlayerSpawn star one tick away from the player, moving onto the player tile.
-      const eid = spawnShootingStarAtTarget(state, state.player, { dx: 1, dy: 0 }, {
-        forPlayerSpawn: true,
-        backtrackTiles: 1,
-      })
+      const eid = spawnShootingStarAtTarget(
+        state,
+        state.player,
+        { dx: 1, dy: 0 },
+        {
+          forPlayerSpawn: true,
+          backtrackTiles: 1,
+        }
+      )
       state.playerSpawn.meteorEntityId = eid
       state.playerSpawn.spawnPos = { ...state.player }
       state.playerSpawn.triggeredAt = 100
@@ -127,10 +128,15 @@ describe('player spawn ceremony', () => {
       destroyAllStars(state)
       state.queuedEvents = []
       clearAroundTile(state, state.player)
-      const eid = spawnShootingStarAtTarget(state, state.player, { dx: 1, dy: 0 }, {
-        forPlayerSpawn: true,
-        backtrackTiles: 1,
-      })
+      const eid = spawnShootingStarAtTarget(
+        state,
+        state.player,
+        { dx: 1, dy: 0 },
+        {
+          forPlayerSpawn: true,
+          backtrackTiles: 1,
+        }
+      )
       state.playerSpawn.meteorEntityId = eid
       state.playerSpawn.spawnPos = { ...state.player }
       state.playerSpawn.triggeredAt = 100

@@ -1,8 +1,10 @@
+import { getFloraPollinate } from '../../flora'
 import { tileHash } from '../../position'
 import { worldToScreen } from '../../projection'
-import { getFloraPollinate } from '../../flora'
+import { registerPass } from '../passes'
+
 import type { CharMetrics, GameState } from '../../types'
-import { type RenderPass, registerPass } from '../passes'
+import type { RenderPass } from '../passes'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -24,12 +26,7 @@ const shiftLuminanceFast = (rgb: [number, number, number], delta: number): strin
 
 // ─── draw ─────────────────────────────────────────────────────────────────────
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   if (state.pollen.length === 0) return
 
   const { charWidth, charHeight } = metrics
@@ -42,7 +39,15 @@ const draw = (
 
     // Snap to integer tile coords so particles move in discrete steps (limited
     // animation), matching the stepped look of shooting stars, meteors, and glints.
-    const { px, py } = worldToScreen(Math.round(p.x), Math.round(p.y), camera, charWidth, charHeight, viewportWidth, viewportHeight)
+    const { px, py } = worldToScreen(
+      Math.round(p.x),
+      Math.round(p.y),
+      camera,
+      charWidth,
+      charHeight,
+      viewportWidth,
+      viewportHeight
+    )
 
     // Linear fade: opacity 1 → 0 over the particle's lifetime.
     const opacity = 1 - p.age / p.maxAge

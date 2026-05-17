@@ -1,6 +1,8 @@
 import { flushDirtyTiles, getOrBuildCache } from '../../tileBgCache'
+import { registerPass } from '../passes'
+
 import type { CharMetrics, GameState } from '../../types'
-import { type RenderPass, registerPass } from '../passes'
+import type { RenderPass } from '../passes'
 
 // bg-cache slot: composites the per-map tile-bg + cube-edge cache onto the
 // main canvas. The cache is sized to the full world iso bounding box, so
@@ -16,12 +18,7 @@ import { type RenderPass, registerPass } from '../passes'
 //   dx = (camera.y - camera.x) * charWidth + originX - cache.worldOriginX
 //   dy = -(camera.x + camera.y) * halfH + originY - cache.worldOriginY
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  _time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, _time: number): void => {
   const { camera, viewportWidth, viewportHeight, map } = state
   const { charWidth, charHeight } = metrics
   flushDirtyTiles(state, map)

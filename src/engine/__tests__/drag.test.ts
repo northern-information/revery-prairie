@@ -1,7 +1,4 @@
-import {
-  computePlacementPreview,
-  executeCombine,
-} from '../drag'
+import { computePlacementPreview, executeCombine } from '../drag'
 import { placeItem } from '../inventory'
 import { recipeKey, RECIPES } from '../recipes'
 import { clearAroundPlayer, createTestState } from './helpers'

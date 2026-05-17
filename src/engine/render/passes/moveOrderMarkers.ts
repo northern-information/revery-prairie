@@ -1,21 +1,14 @@
-import {
-  ACTION_COLOR,
-  BG_COLOR,
-  MOVE_ORDER_MARKER_DURATION_MS,
-} from '../../constants'
+import { ACTION_COLOR, BG_COLOR, MOVE_ORDER_MARKER_DURATION_MS } from '../../constants'
 import { drawCellHighlight, worldToScreen } from '../../projection'
-import type { CharMetrics, GameState } from '../../types'
+import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
-import { type RenderPass, registerPass } from '../passes'
+
+import type { CharMetrics, GameState } from '../../types'
+import type { RenderPass } from '../passes'
 
 const isActive = (state: GameState): boolean => state.moveOrderMarkers.length > 0
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   const { camera, viewportWidth, viewportHeight } = state
   const { charWidth, charHeight } = metrics
   const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
@@ -30,7 +23,7 @@ const draw = (
       charWidth,
       charHeight,
       viewportWidth,
-      viewportHeight,
+      viewportHeight
     )
     const pyLift = py + liftAt(tierGrid, marker.position.x, marker.position.y, state.mapWidth, state.mapHeight)
     ctx.globalAlpha = alpha

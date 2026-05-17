@@ -1,4 +1,4 @@
-import { CARDINAL, ORDINAL, isInBounds, isWalkableTile, posKey } from './position'
+import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 
 import type { Position, Tile } from './types'
 

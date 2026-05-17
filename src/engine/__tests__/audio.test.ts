@@ -1,5 +1,6 @@
-import type { Track } from '../audio'
 import { _getState, _reset, setAmbient, setMusicEnabled, startDialogMusic, stopAll, stopDialogMusic } from '../audio'
+
+import type { Track } from '../audio'
 
 // --- Web Audio API mocks ---
 
@@ -38,13 +39,13 @@ vi.stubGlobal('AudioContext', MockAudioContext)
 const mockFetch = vi.fn(() =>
   Promise.resolve({
     arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
-  }),
+  })
 )
 vi.stubGlobal('fetch', mockFetch)
 
 // Flush microtasks so createTrack resolves
 const flush = async () => {
-  await new Promise((r) => setTimeout(r, 0))
+  await new Promise(r => setTimeout(r, 0))
 }
 
 // Use fake rAF that executes callbacks synchronously
@@ -87,8 +88,8 @@ beforeEach(async () => {
     vi.fn(() =>
       Promise.resolve({
         arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
-      }),
-    ),
+      })
+    )
   )
   vi.stubGlobal('requestAnimationFrame', (cb: (time: number) => void) => {
     rafCallbacks.push(cb)
@@ -102,8 +103,7 @@ beforeEach(async () => {
 const getSource = (track: Track | null): MockAudioBufferSourceNode | null =>
   track?.source as unknown as MockAudioBufferSourceNode | null
 
-const getGain = (track: Track | null): MockGainNode | null =>
-  track ? (track.gain as unknown as MockGainNode) : null
+const getGain = (track: Track | null): MockGainNode | null => (track ? (track.gain as unknown as MockGainNode) : null)
 
 describe('audio manager', () => {
   describe('setAmbient', () => {
@@ -238,7 +238,7 @@ describe('audio manager', () => {
         class extends MockAudioContext {
           override state = 'suspended'
           override resume = vi.fn().mockRejectedValue(new DOMException('NotAllowedError'))
-        },
+        }
       )
 
       setAmbient('/music/overworld.mp3', 0)
@@ -341,9 +341,7 @@ describe('audio manager', () => {
 
       // fetch should only have been called once for this URL (cached buffer)
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
-      expect(
-        fetchMock.mock.calls.filter((c: string[]) => c[0] === '/music/overworld.mp3'),
-      ).toHaveLength(1)
+      expect(fetchMock.mock.calls.filter((c: string[]) => c[0] === '/music/overworld.mp3')).toHaveLength(1)
     })
   })
 })

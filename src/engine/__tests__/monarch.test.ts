@@ -1,4 +1,3 @@
-import { describe, expect, it, vi } from 'vitest'
 import {
   MONARCH_FLEE_RADIUS,
   MONARCH_POLLINATE_MS,
@@ -18,6 +17,7 @@ import {
 import { posKey } from '../position'
 import { Sky, TileType, Zone } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { Entity } from '../ecs/types'
 
@@ -415,7 +415,12 @@ describe('monarch butterfly', () => {
 
       // One adjacent dirt tile should now be clover
       let newCloverCount = 0
-      for (const d of [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }]) {
+      for (const d of [
+        { x: 0, y: -1 },
+        { x: 0, y: 1 },
+        { x: -1, y: 0 },
+        { x: 1, y: 0 },
+      ]) {
         if (state.map[cy + d.y][cx + d.x].type === TileType.Clover) {
           newCloverCount++
         }
@@ -451,7 +456,12 @@ describe('monarch butterfly', () => {
       }
 
       // Find the newly placed clover tile
-      for (const d of [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }]) {
+      for (const d of [
+        { x: 0, y: -1 },
+        { x: 0, y: 1 },
+        { x: -1, y: 0 },
+        { x: 1, y: 0 },
+      ]) {
         const tx = cx + d.x
         const ty = cy + d.y
         if (state.map[ty][tx].type === TileType.Clover && !(tx === cx && ty === cy)) {

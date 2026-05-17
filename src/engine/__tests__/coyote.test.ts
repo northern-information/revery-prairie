@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
 import {
   findCoyoteEntity,
   getCoyotePosition,
@@ -12,7 +10,6 @@ import { ComponentType } from '../ecs/types'
 import { getBlockedPositions, getPathfindingBlockers, movePlayer } from '../movement'
 import { posKey } from '../position'
 import { CoyoteMode, MainQuestPhase, TileType, Zone } from '../types'
-
 import {
   clearAroundPlayer,
   createCharacterTestEntity,
@@ -20,6 +17,7 @@ import {
   createMeteoriteEntity,
   createTestState,
 } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 /** Assert a value is truthy and return it typed — avoids non-null assertions */
 const requireValue = <T>(val: T | null | undefined): T => {
@@ -555,5 +553,4 @@ describe('coyote companion', () => {
       expect(finalCoyote.x !== startCoyote.x || finalCoyote.y !== startCoyote.y).toBe(true)
     })
   })
-
 })

@@ -3,7 +3,6 @@ import { SectionHeader, TextButton } from './PanelPrimitives'
 import { COYOTE_COLOR } from '@/engine/constants'
 import { getCoyotePosition, summonCoyote } from '@/engine/coyote'
 import { getDefinition } from '@/engine/items'
-
 import type { GameState } from '@/engine/types'
 
 interface CoyoteScreenProps {

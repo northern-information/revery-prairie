@@ -17,15 +17,15 @@ import {
   REVERY_ILLUMINATION_RADIUS,
   SOIL_HEALTH_FIRE_REVERY_BONUS,
 } from './constants'
-import { ComponentType } from './ecs/types'
 import { initiateDeepTime } from './deepTime'
+import { ComponentType } from './ecs/types'
 import { AURA_RADIUS } from './effects'
 import { spreadWildfire } from './lightning'
 import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { getReveryDefinition } from './reveries'
-import { addReveryIllumination } from './visibility'
 import { TileType, Zone } from './types'
+import { addReveryIllumination } from './visibility'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { ActionBarSlot, GameState, Position } from './types'

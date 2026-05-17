@@ -67,13 +67,13 @@ Do not apply changes without approval. The user reviews and decides what to acce
 
 When the agent feels the urge to take a shortcut, it will narrate one of these. Don't.
 
-| Excuse the agent will tell itself | Rebuttal |
-| --- | --- |
-| "The spec mostly matches — close enough." | Close enough is drift. Either it matches or it needs a patch. Document the gap. |
-| "This new GameState field doesn't need a spec." | Adding to `EXPECTED_FIELDS` in `schema.test.ts` is not the same as having behavior coverage. Spec it (or escalate to `/new-feature` if it's substantial). |
-| "I'll apply the obvious patches without showing them." | Step 6 is a hard checkpoint. Always present diffs for approval — even the obvious ones. The user is calibrating their trust in this skill by seeing your reasoning. |
-| "These four specs are all stale in the same way — I'll bundle them into one mega-patch." | Present them separately so the user can accept/reject each. Bundled patches force all-or-nothing decisions. |
-| "I don't need to read every file in `source_files` — I can tell from the spec." | Read every file. The point of this skill is comparing spec to reality; skipping reads defeats it. |
+| Excuse the agent will tell itself                                                        | Rebuttal                                                                                                                                                            |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "The spec mostly matches — close enough."                                                | Close enough is drift. Either it matches or it needs a patch. Document the gap.                                                                                     |
+| "This new GameState field doesn't need a spec."                                          | Adding to `EXPECTED_FIELDS` in `schema.test.ts` is not the same as having behavior coverage. Spec it (or escalate to `/new-feature` if it's substantial).           |
+| "I'll apply the obvious patches without showing them."                                   | Step 6 is a hard checkpoint. Always present diffs for approval — even the obvious ones. The user is calibrating their trust in this skill by seeing your reasoning. |
+| "These four specs are all stale in the same way — I'll bundle them into one mega-patch." | Present them separately so the user can accept/reject each. Bundled patches force all-or-nothing decisions.                                                         |
+| "I don't need to read every file in `source_files` — I can tell from the spec."          | Read every file. The point of this skill is comparing spec to reality; skipping reads defeats it.                                                                   |
 
 ## Exit criterion
 

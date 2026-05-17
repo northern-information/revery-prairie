@@ -15,7 +15,7 @@ export const tickCreatureHunger = (
   entityTag: string,
   starvationMs: number,
   tickMs: number,
-  isNearFood: (state: GameState, pos: Position) => boolean,
+  isNearFood: (state: GameState, pos: Position) => boolean
 ): Position[] => {
   const deaths: Position[] = []
 
