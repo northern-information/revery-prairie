@@ -1,4 +1,4 @@
-import { COYOTE_FOLLOW_MAX_DIST, COYOTE_FOLLOW_MIN_DIST } from './constants'
+import { COYOTE_FOLLOW_MAX_DIST, COYOTE_FOLLOW_MIN_DIST, COYOTE_TICK_MS } from './constants'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { findFitPosition, placeItem } from './inventory'
@@ -150,7 +150,7 @@ const stepToward = (state: GameState, eid: Entity, target: Position, blocked: Se
 
   const next = path[0]
   blocked.add(posKey(next.x, next.y))
-  state.world.moveEntity(eid, next.x, next.y)
+  state.world.moveEntity(eid, next.x, next.y, COYOTE_TICK_MS)
   return true
 }
 
@@ -216,7 +216,7 @@ const tickFollow = (state: GameState, eid: Entity, pos: { x: number; y: number }
     blocked.delete(selfKey)
     const adjacent = findAdjacentWalkable(state, { x: pos.x, y: pos.y }, blocked)
     if (adjacent) {
-      state.world.moveEntity(eid, adjacent.x, adjacent.y)
+      state.world.moveEntity(eid, adjacent.x, adjacent.y, COYOTE_TICK_MS)
     }
     return
   }
@@ -239,7 +239,7 @@ const tickFollow = (state: GameState, eid: Entity, pos: { x: number; y: number }
   if (path.length >= COYOTE_FOLLOW_MAX_DIST) {
     const next = path[0]
     blocked.add(posKey(next.x, next.y))
-    state.world.moveEntity(eid, next.x, next.y)
+    state.world.moveEntity(eid, next.x, next.y, COYOTE_TICK_MS)
   }
 }
 

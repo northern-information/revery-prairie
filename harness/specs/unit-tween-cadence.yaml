@@ -1,0 +1,174 @@
+id: unit-tween-cadence
+name: 'ECS movement tween duration matches the caller tick cadence'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/unitCommands.ts
+  - src/engine/coyote.ts
+  - src/engine/entities.ts
+  - src/engine/monarch.ts
+  - src/engine/angels.ts
+  - src/engine/__tests__/smoothMove.test.ts
+dependencies:
+  - smooth-move
+  - right-click-movement-and-player-selection
+
+behaviors:
+  - id: unit-command-tween-matches-tick
+    description: >
+      tickUnitCommands moves each commanded entity one tile per tick at
+      UNIT_COMMAND_TICK_MS cadence. When it calls world.moveEntity it passes
+      UNIT_COMMAND_TICK_MS as the durationMs argument so the tween fills the
+      full tick interval. The visual effect is a continuous slide between
+      tiles with no idle frames at the destination tile before the next step
+      starts. This applies to every commanded unit (currently the coyote and
+      Gron, and any future controllable IDs added to CONTROLLABLE_IDS).
+    inputs:
+      - 'state: GameState with one or more entries in state.unitCommands'
+      - 'periodic tick at intervalMs = UNIT_COMMAND_TICK_MS'
+    outputs:
+      - 'void'
+    state_changes:
+      - field: ComponentType.Position
+        effect: 'advanced one tile along the unit command path'
+      - field: ComponentType.MovementTween
+        effect: 'written with durationMs = UNIT_COMMAND_TICK_MS (not MOVEMENT_TWEEN_DEFAULT_MS)'
+    determinism: deterministic
+
+  - id: coyote-tween-matches-tick
+    description: >
+      tickCoyote moves the coyote one tile per tick at COYOTE_TICK_MS cadence
+      in both Follow and Collect modes. When it calls world.moveEntity it
+      passes COYOTE_TICK_MS as the durationMs argument so the tween fills the
+      full tick interval. The follow-mode nudge case (coyote overlapping the
+      player) also uses COYOTE_TICK_MS. The summon-coyote call (one-shot
+      teleport adjacent to the player) is intentionally excluded — it is not
+      part of the periodic tick and continues to use the default tween
+      duration.
+    inputs:
+      - 'state: GameState'
+      - 'periodic tick at intervalMs = COYOTE_TICK_MS'
+    outputs:
+      - 'CoyoteTickResult'
+    state_changes:
+      - field: ComponentType.Position
+        effect: 'advanced one tile per tick along the follow or collect path'
+      - field: ComponentType.MovementTween
+        effect: 'written with durationMs = COYOTE_TICK_MS (not MOVEMENT_TWEEN_DEFAULT_MS)'
+    determinism: deterministic
+
+  - id: character-drift-tween-matches-tick
+    description: >
+      tickCharacterBehaviors runs drift-behavior characters (ghosts) on the
+      GHOST_TICK_MS cadence. When tickDrift calls world.moveEntity it passes
+      GHOST_TICK_MS as the durationMs argument. The probabilistic moveChance
+      gate is unchanged — when a tick does not produce a move, no tween is
+      written. When a tick does produce a move, the tween fills the tick
+      interval so the drift step is a continuous slide rather than a snap
+      followed by an idle gap.
+    inputs:
+      - 'state: GameState'
+      - 'periodic tick at intervalMs = GHOST_TICK_MS'
+    outputs:
+      - 'void'
+    state_changes:
+      - field: ComponentType.MovementTween
+        effect: 'written with durationMs = GHOST_TICK_MS (not MOVEMENT_TWEEN_DEFAULT_MS) when a drift move occurs'
+    determinism: probabilistic
+
+  - id: bee-tween-matches-tick
+    description: >
+      tickBees runs on the BEE_TICK_MS cadence. When it calls world.moveEntity
+      it passes BEE_TICK_MS as the durationMs argument. The probabilistic
+      wander gate (Math.random() > 0.3 skip) is unchanged.
+    inputs:
+      - 'state: GameState'
+      - 'periodic tick at intervalMs = BEE_TICK_MS'
+    outputs:
+      - 'Position[] of bee deaths'
+    state_changes:
+      - field: ComponentType.MovementTween
+        effect: 'written with durationMs = BEE_TICK_MS when a bee step occurs'
+    determinism: probabilistic
+
+  - id: monarch-tween-matches-tick
+    description: >
+      tickMonarchs runs on the MONARCH_TICK_MS cadence. Both monarch movement
+      paths (settle-area wander at monarch.ts:309 and waypoint-following step
+      at monarch.ts:366) pass MONARCH_TICK_MS as the durationMs argument when
+      calling world.moveEntity.
+    inputs:
+      - 'state: GameState'
+      - 'periodic tick at intervalMs = MONARCH_TICK_MS'
+    outputs:
+      - 'void'
+    state_changes:
+      - field: ComponentType.MovementTween
+        effect: 'written with durationMs = MONARCH_TICK_MS when a monarch step occurs'
+    determinism: probabilistic
+
+  - id: angel-tween-matches-tick
+    description: >
+      tickAngelDrift runs on the ANGEL_DRIFT_TICK_MS cadence. When it calls
+      world.moveEntity to slide an angel's anchor it passes
+      ANGEL_DRIFT_TICK_MS as the durationMs argument. The probabilistic
+      ANGEL_DRIFT_CHANCE gate is unchanged.
+    inputs:
+      - 'state: GameState'
+      - 'periodic tick at intervalMs = ANGEL_DRIFT_TICK_MS'
+    outputs:
+      - 'void'
+    state_changes:
+      - field: ComponentType.MovementTween
+        effect: 'written with durationMs = ANGEL_DRIFT_TICK_MS when an angel step occurs'
+    determinism: probabilistic
+
+edge_cases:
+  - id: rapid-tween-overwrite
+    description: >
+      A unit completes a tween, then the next tick immediately fires another
+      moveEntity. The existing MovementTween is overwritten in place with
+      fromX/fromY equal to the entity's current Position and a fresh
+      startTime. With durationMs equal to the tick interval, the new tween
+      begins at t=0 exactly when the previous tween ended at t=1 — no idle
+      gap, no overshoot.
+    expected: 'Adjacent tweens chain seamlessly; renderer interpolates without visible pause between tiles.'
+
+  - id: tick-with-no-move
+    description: >
+      A periodic tick fires but the entity does not move (probabilistic skip,
+      blocked path, no candidate tile). moveEntity is not called, so no tween
+      is written or refreshed.
+    expected: 'The entity sits stationary at its integer tile. Any in-flight tween from a prior tick completes naturally and is removed by the renderer at t >= 1.'
+
+  - id: summon-coyote-uses-default
+    description: >
+      summonCoyote teleports the coyote adjacent to the player as a one-shot
+      action, not as part of the periodic coyote tick.
+    expected: 'summonCoyote continues to call moveEntity with no durationMs argument, falling back to MOVEMENT_TWEEN_DEFAULT_MS. The visual snap-to-summon is preserved.'
+
+  - id: zone-transition-during-active-tween
+    description: >
+      An entity zone changes (cave enter/exit, ruin enter/exit) while a long
+      tick-cadence tween is in flight.
+    expected: 'clearMovementTweens removes the in-flight tween as it does today (smooth-move spec). No regression: longer durationMs values do not extend the tween past a zone change.'
+
+failure_conditions:
+  - trigger: 'world.moveEntity is called from a periodic tick without a durationMs argument'
+    expected: >
+      The tween defaults to MOVEMENT_TWEEN_DEFAULT_MS (100ms). When the tick
+      interval exceeds 100ms (every tick caller listed in this spec does)
+      the unit visibly pauses at the destination tile for
+      (tickIntervalMs - 100)ms before the next step starts — the choppy
+      tween bug this spec corrects.
+
+  - trigger: 'durationMs is set to a value greater than the tick interval'
+    expected: >
+      Tweens overlap: a new tween overwrites the previous one before it has
+      finished, snapping the visible position to the new fromX/fromY. Avoid
+      this — durationMs should equal the tick interval, not exceed it.
+
+verification:
+  test_file: src/engine/__tests__/smoothMove.test.ts
+  test_pattern: 'tick-cadence'
+  command: 'npx vitest run src/engine/__tests__/smoothMove.test.ts -t "tick-cadence"'

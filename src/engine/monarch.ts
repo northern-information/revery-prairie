@@ -297,7 +297,7 @@ const tickSettled = (state: GameState, eid: Entity, now: number): void => {
       const clover = candidates.filter(c => state.map[c.y][c.x].type === TileType.Clover)
       const pick = clover.length > 0 ? clover : candidates
       const target = pick[Math.floor(Math.random() * pick.length)]
-      state.world.moveEntity(eid, target.x, target.y)
+      state.world.moveEntity(eid, target.x, target.y, MONARCH_TICK_MS)
     }
   }
 
@@ -354,7 +354,7 @@ const moveTowardWaypoint = (state: GameState, eid: Entity, pos: Position, waypoi
   const path = findPath(state.map, state.mapWidth, state.mapHeight, pos, waypoint)
   if (path && path.length > 0) {
     const next = path[0]
-    state.world.moveEntity(eid, next.x, next.y)
+    state.world.moveEntity(eid, next.x, next.y, MONARCH_TICK_MS)
   } else {
     // Can't reach waypoint — clear it so a new one is picked next tick
     const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)

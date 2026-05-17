@@ -7,6 +7,7 @@ import {
   ANGEL_BODY_SIZE,
   ANGEL_CLOVER_GROW_INTERVAL_MS,
   ANGEL_DRIFT_CHANCE,
+  ANGEL_DRIFT_TICK_MS,
   ANGEL_LIFESPAN_MS,
   ANGEL_MIN_PLAYER_DIST,
   ANGEL_SPAWN_INTERVAL_MS,
@@ -218,7 +219,7 @@ export const tickAngelDrift = (state: GameState): void => {
     // Move
     const newCenterX = anchorX + Math.floor(ANGEL_BODY_SIZE / 2)
     const newCenterY = anchorY + Math.floor(ANGEL_BODY_SIZE / 2)
-    state.world.moveEntity(eid, newCenterX, newCenterY)
+    state.world.moveEntity(eid, newCenterX, newCenterY, ANGEL_DRIFT_TICK_MS)
     multi.positions = getAngelBodyPositions(anchorX, anchorY)
   }
 }
