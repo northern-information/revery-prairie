@@ -9,14 +9,14 @@
 features:
   - id: '0'
     name: Reclaim Revery
-    summary: Delete the four player-cast spells; action bar becomes tools/seeds/practices.
-    size: S
+    summary: Delete the four player-cast spells and the action bar entirely (state, UI, keybinds, drag targets).
+    size: M
     depends_on: []
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/precis-0-reclaim-revery.yaml
+    plan: harness/plans/precis-0-reclaim-revery.yaml
     pr: null
-    notes: ''
+    notes: 'v3 doctrine updated — action bar deleted in #0, not retained.'
 
   - id: '1'
     name: Multi-species Flora
