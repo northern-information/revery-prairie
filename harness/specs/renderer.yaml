@@ -103,19 +103,18 @@ behaviors:
 
   - id: measure-char
     description: >
-      measureChar(ctx, zoom?) measures the monospace character cell
-      dimensions (charWidth, charHeight) at the current font size
-      multiplied by zoom. returns a CharMetrics object used by all
-      rendering and coordinate transforms. font size is
-      BASE_FONT_SIZE * zoom. zoom is pinned to ZOOM_DEFAULT (2.0) for
-      the lifetime of every session — there is no zoom in/out UI and
-      no keyboard or wheel input changes it. callers still pass
-      state.zoom so the function stays a pure measurement utility, but
-      the value never varies at runtime.
+      measureChar(ctx) measures the monospace character cell dimensions
+      (charWidth, charHeight) at BASE_FONT_SIZE (32px). there is no zoom
+      multiplier — the glyph is rendered at its native pixel size for
+      crisp output. an earlier iteration rendered at 16px and upscaled
+      via canvas DPR / zoom, which made the ASCII glyphs look pixelated
+      on high-density displays. doubling the base font size and dropping
+      the zoom multiplier produces the same on-screen tile footprint
+      with sharper text. state.zoom no longer exists.
     inputs:
-      - 'CanvasRenderingContext2D, zoom multiplier (always ZOOM_DEFAULT at runtime)'
+      - 'CanvasRenderingContext2D'
     outputs:
-      - 'CharMetrics { charWidth, charHeight }'
+      - 'CharMetrics { charWidth, charHeight } computed from BASE_FONT_SIZE'
     state_changes: []
     determinism: deterministic
 

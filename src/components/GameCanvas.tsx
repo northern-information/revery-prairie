@@ -64,7 +64,7 @@ export const GameCanvas = ({
     if (!ctx) return
 
     const updateSize = () => {
-      metricsRef.current ??= measureChar(ctx, state.zoom)
+      metricsRef.current ??= measureChar(ctx)
 
       const { charWidth, charHeight } = metricsRef.current
 

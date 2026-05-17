@@ -149,6 +149,11 @@ export interface TransitionFade {
   duration: number
 }
 
+export interface BootTitleCard {
+  startTime: number
+  label: string
+}
+
 export type ZoneTransitionDirection = 'enter' | 'exit'
 export type ZoneTransitionKind = 'cave' | 'ruin'
 
@@ -291,7 +296,6 @@ export interface GameState {
   metric: boolean
   musicEnabled: boolean
   fontScale: number
-  zoom: number
   heldKeys: Set<ScreenAxisKey>
   currentZone: Zone
   overworldMap: Tile[][]
@@ -347,7 +351,7 @@ export interface GameState {
   pollenTrailDepth: number
   waterProximity: Map<string, number>
   genesis: GenesisSimState | null
-  genesisTransition: TransitionFade | null
+  bootTitleCard: BootTitleCard | null
   zoneTransition: ZoneTransition | null
   angelCantos: string[]
   nextAngelSpawnTime: number

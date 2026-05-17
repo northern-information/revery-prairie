@@ -119,3 +119,11 @@ export const tickZoneTransition = (state: GameState, time: number): void => {
  */
 export const isZoneTransitioning = (state: GameState): boolean =>
   state.zoneTransition !== null
+
+/**
+ * True while any full-screen overlay is gating input — zone transition
+ * or the boot title card. Movement and interaction handlers route
+ * through here so the player can't walk while the canvas is black.
+ */
+export const isInputGated = (state: GameState): boolean =>
+  state.zoneTransition !== null || state.bootTitleCard !== null

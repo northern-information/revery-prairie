@@ -1,5 +1,5 @@
 id: genesis-transition
-name: 'Seamless genesis-to-gameplay transition'
+name: 'Genesis-to-gameplay boot title card'
 priority: high
 layer: integration
 source_files:
@@ -9,517 +9,216 @@ source_files:
   - src/engine/gameLoop.ts
   - src/engine/constants.ts
   - src/engine/types.ts
-  - src/engine/projection.ts
-  - src/engine/tileBg.ts
+  - src/engine/state.ts
+  - src/components/BootTitleCardOverlay.tsx
+  - src/components/GenesisBottomBar.tsx
+  - src/engine/render/passes/index.ts
   - src/components/GameScreen.tsx
   - src/components/Sidebar.tsx
   - src/components/ActionBar.tsx
-  - src/hooks/useKeyboard.ts
   - src/hooks/useMouse.ts
   - src/hooks/useGameEngine.ts
 dependencies:
   - player-movement
+  - zone-transition-effect
 
 behaviors:
-  - id: canvas-crossfade
+  - id: complete-genesis-schedules-title-card
     description: >
-      when completeGenesis fires, the renderer enters a crossfade window
-      (~1500ms). during this window it blends the final genesis frame
-      (terrain only, no entities) with the live gameplay frame (terrain +
-      entities) using a global alpha ramp from 0 to 1. the genesis frame
-      is a static snapshot captured at the moment of completion. terrain
-      tiles that are identical between genesis and gameplay remain fully
-      opaque throughout — only new elements (entities, player, overlays)
-      fade in.
+      When completeGenesis fires, state.genesis is cleared and a new
+      BootTitleCard object is written to state.bootTitleCard with
+      { startTime, label: 'Revery Prairie' }. The previous seamless
+      crossfade is removed. There is no genesisTransition field on
+      GameState anymore — the boot title card replaces it.
     inputs:
-      - 'completeGenesis sets state.genesis = null'
-      - 'performance.now() timestamp at genesis completion'
+      - 'completeGenesis runs (sim end or fast-forward)'
     outputs:
-      - 'canvas renders a smooth blend from genesis final frame to gameplay frame over ~1500ms'
+      - 'state.genesis = null'
+      - 'state.bootTitleCard set to { startTime, label }'
     state_changes:
-      - field: genesisTransition
-        effect: 'set to { startTime, duration } when genesis completes, cleared to null after duration elapses'
+      - field: bootTitleCard
+        effect: 'set to { startTime: performance.now(), label: "Revery Prairie" } when genesis completes'
+      - field: genesis
+        effect: 'cleared to null'
     determinism: time-based
 
-  - id: entity-fade-in
+  - id: title-card-render-and-clear
     description: >
-      during the crossfade window, entities that were not visible in
-      genesis (ghosts, bees, beehives, coyote, ground items, meteorites,
-      angels) render with opacity ramping from 0 to 1 over the crossfade
-      duration. gron is excluded from the entity fade because he is
-      rendered in the presentDay genesis epoch and must remain
-      continuously visible. the player is NOT rendered in genesis
-      presentDay and is NOT rendered at the start of the crossfade —
-      the player emerges via the spawn-meteor sequence (see player-spawn
-      spec). the isEntity flag is not set for character tiles whose
-      characterId matches a character rendered in genesis (currently
-      only gron).
+      A screen-overlay render pass (bootTitleCard) reuses the
+      ZONE_TRANSITION_FADE_IN_MS / ZONE_TRANSITION_HOLD_MS /
+      ZONE_TRANSITION_FADE_OUT_MS timings (700/2000/700 ms). The
+      overlay fills the viewport with BG_COLOR at alpha matching the
+      same triangle curve as zoneTransitionOverlay, and draws the
+      label 'Revery Prairie' centered in italic Times New Roman gold
+      (#d8a860), identical to the zone transition label style. After
+      total elapsed time exceeds the sum of fade-in + hold + fade-out,
+      a cleanup step in gameLoop nulls state.bootTitleCard.
     inputs:
-      - 'genesisTransition active with startTime and duration'
-      - 'entities present in game state (ghosts, bees, coyote, etc.)'
+      - 'state.bootTitleCard is non-null'
+      - 'current time'
     outputs:
-      - 'non-genesis entities render at fractional opacity during crossfade'
-      - 'gron remains at full opacity throughout the transition'
-      - 'player is not rendered until the spawn meteor lands'
-    state_changes: []
-    determinism: time-based
-
-  - id: star-rendering-continuity
-    description: >
-      the genesis presentDay epoch renders stars using the same tileHash
-      function (from position.ts) as the game renderer. this ensures
-      star positions, chars, and colors are identical before and after
-      the transition. earlier genesis epochs use a different star style
-      intentionally — only presentDay must match.
-    inputs:
-      - 'genesis presentDay renderTile called on Space tiles'
-      - 'game renderer star rendering pass for Space tiles'
-    outputs:
-      - 'stars appear at identical positions with identical chars across the transition'
-    state_changes: []
-    determinism: deterministic
-
-  - id: rain-aura-continuity
-    description: >
-      the rain aura overlay uses the same tile hash seed in both the
-      genesis presentDay renderer and the game renderer so rain drop
-      positions do not shift when the renderer switches. genesis
-      presentDay uses tileHash(x + rainSeed, y) matching the game
-      renderer's tileHash(wx + state.rainSeed, wy). this prevents a
-      visual pop where green rain chars jump to different tile positions
-      on transition.
-    inputs:
-      - 'genesis presentDay renderTile called with sim and tile coords'
-      - 'game renderer rain aura overlay pass runs after genesis ends'
-    outputs:
-      - 'rain aura drops appear at identical tile positions before and after transition'
-    state_changes: []
-    determinism: deterministic
-
-  - id: crater-continuity
-    description: >
-      the genesis presentDay epoch renders satellite-impact craters with
-      the same glyphs and palette the game renderer uses for state.craters.
-      both use BUILDING_CHARS keyed by tileHash, with the brown crater
-      palette ['#8B4513','#7A3B10','#6B320D','#5C290A','#4D2007']. the
-      cross-fade window in genesisRenderer (last 10% of fallOfCivilizations
-      blending into presentDay) handles the color shift from the red
-      SATELLITE_TRAIL_COLORS used during the crash animation to the brown
-      crater palette used at rest. this prevents craters from disappearing
-      during presentDay and reappearing in a different color after the
-      handoff.
-    inputs:
-      - 'genesis presentDay renderTile called on a tile in sim.craters'
-      - 'game renderer renders the same tile with state.craters set after handoff'
-    outputs:
-      - 'crater glyph and color are identical at the last frame of presentDay and the first frame of gameplay'
-      - 'crater glyphs remain visible continuously through the crossfade with no blank-dirt gap'
-    state_changes: []
-    determinism: deterministic
-
-  - id: ruin-entrance-continuity
-    description: >
-      the genesis presentDay epoch renders RuinEntrance tiles with the
-      same glyph, color, and 3x3 dark halo backdrop the game renderer
-      uses. both render the 'O' glyph in TILE_COLORS[RuinEntrance]
-      (#5FD3BC verdigris) and paint RUIN_ENTRANCE_HALO_COLOR (#2E1F12)
-      across the 3x3 footprint behind the entrance. RuinEntrance tiles
-      are placed on sim.grid by placeRuinEntrances during createGameState
-      before genesis renders, so they exist in sim.grid throughout
-      genesis. only the presentDay epoch must reproduce the gameplay
-      visual, since earlier epochs intentionally paint epoch-specific
-      visuals (lava, ice, etc.) over the underlying grid.
-    inputs:
-      - 'genesis presentDay renderTile called on a tile of type RuinEntrance'
-      - 'game renderer renders the same RuinEntrance tile after handoff'
-    outputs:
-      - 'RuinEntrance glyph, color, and halo are identical at the last frame of presentDay and the first frame of gameplay'
-    state_changes: []
-    determinism: deterministic
-
-  - id: cave-entrance-continuity
-    description: >
-      the genesis presentDay epoch renders CaveEntrance tiles with the
-      same glyph and color the game renderer uses — 'O' in
-      TILE_COLORS[CaveEntrance] (#AAAAAA). the cave entrance is placed
-      on sim.grid by createGameState before genesis renders, so it exists
-      in sim.grid throughout genesis. only the presentDay epoch must
-      reproduce the gameplay visual.
-    inputs:
-      - 'genesis presentDay renderTile called on a tile of type CaveEntrance'
-      - 'game renderer renders the same CaveEntrance tile after handoff'
-    outputs:
-      - 'CaveEntrance glyph and color are identical at the last frame of presentDay and the first frame of gameplay'
-    state_changes: []
-    determinism: deterministic
-
-  - id: sidebar-crossfade
-    description: >
-      when genesis completes, the sidebar morphs from the genesis HUD
-      (year counter, epoch progress, commentary) to the gameplay sidebar
-      (weather, coordinates, tile counts). the gameplay sidebar div starts
-      with opacity 0 and uses a CSS fade-in animation over ~1000ms
-      synchronized with the canvas crossfade start. the initial opacity 0
-      prevents a flash where the gameplay sidebar renders at full opacity
-      for one frame before the animation begins.
-    inputs:
-      - 'state.genesis becomes null'
-      - 'state.genesisTransition is active'
-    outputs:
-      - 'gameplay sidebar fades in smoothly from opacity 0 to 1 over ~1000ms with no flash'
-    state_changes: []
-    determinism: time-based
-
-  - id: action-bar-fade-in
-    description: >
-      the action bar fades in from opacity 0 to 1 over ~800ms, starting
-      after a short delay (~500ms into the crossfade) so it does not
-      compete with the terrain transition. uses CSS animation with an
-      explicit opacity 0 initial style to prevent FOUC.
-    inputs:
-      - 'state.genesis is null'
-      - 'state.genesisTransition is active or recently completed'
-    outputs:
-      - 'action bar appears with a smooth fade-in animation, no pop or flash'
-    state_changes: []
-    determinism: time-based
-
-  - id: genesis-renders-at-default-zoom
-    description: >
-      genesis renders at ZOOM_DEFAULT (2.0) from the very first frame.
-      there is no zoom animation: state.zoom is initialized to ZOOM_DEFAULT
-      in createGameState, never set to GENESIS_ZOOM, and is not lerped by
-      the gameloop during the genesis-to-game transition. the genesisTransition
-      object carries only { startTime, duration } — no zoomStart field. the
-      GENESIS_ZOOM constant is removed from constants.ts. the dev skip-genesis
-      branch in useGameEngine no longer needs to override state.zoom. zoom
-      stays at ZOOM_DEFAULT across every screen the canvas renders — genesis,
-      gameplay, cave — because there is no zoom UI or input that can change it.
-    inputs:
-      - 'createGameState called (with or without skipGenesis)'
-      - 'completeGenesis fires when the geological sim ends'
-    outputs:
-      - 'state.zoom = ZOOM_DEFAULT throughout genesis, the transition window, and gameplay'
-      - 'no per-frame zoom interpolation runs in gameLoop'
+      - 'viewport painted with black overlay at the curve alpha for the elapsed window'
+      - 'centered gold italic label drawn at full overlay alpha throughout the hold'
+      - 'state.bootTitleCard cleared when elapsed >= total duration'
     state_changes:
-      - field: zoom
-        effect: 'initialized to ZOOM_DEFAULT and unchanged by genesis or transition logic'
-      - field: genesisTransition
-        effect: 'shape is { startTime, duration } only — zoomStart removed from the type'
-    determinism: deterministic
+      - field: bootTitleCard
+        effect: 'cleared to null in gameLoop once elapsed exceeds the total duration'
+    determinism: time-based
 
-  - id: genesis-elevation-rendering
+  - id: midpoint-swap-from-genesis-to-gameplay
     description: >
-      every genesis epoch renders terrain with the same iso 3D elevation
-      treatment the game renderer uses. for each visible tile, the genesis
-      renderer reads sim.elevation.get(posKey(mx, my)), maps it through
-      getElevationTier (4 tiers across [0, 100]) and getTierLift
-      (-tier * ELEVATION_TIER_LIFT_PX = -tier*6 px), and adds the resulting
-      lift to the tile's screen y before drawing the glyph. tiles whose
-      tier is higher than the south or east neighbor tier paint cube walls
-      via drawCellWalls(ctx, px, py+lift, charWidth, charHeight, leftDepth,
-      rightDepth, darkenColor(bg, WALL_LEFT_SHADE),
-      darkenColor(bg, WALL_RIGHT_SHADE)) where leftDepth/rightDepth are the
-      tier delta * ELEVATION_TIER_LIFT_PX. every tile also paints a per-tile
-      cube edge skirt (south + east edge stroke darkened by WALL_RIGHT_SHADE)
-      so plateaus read as discrete blocks, matching paintTileEdge in
-      tileBgCache. the lift is recomputed every frame from current
-      sim.elevation, so glaciation valley-carving and river erosion are
-      visible as live deformation. the renderer does NOT cache this layer
-      (unlike the gameplay tileBgCache, which is keyed on the gameplay map
-      ref and assumes elevation is frozen) — recomputation is per-frame.
-      the halo pre-pass (RuinEntrance backdrop) and the crossfade pre-pass
-      (next-epoch render buffer) apply the same lift so positioning stays
-      consistent across all draw stages. the off-canvas cull margin is
-      expanded by the max possible lift (ELEVATION_TIER_COUNT-1) *
-      ELEVATION_TIER_LIFT_PX so high-tier tiles near the viewport top edge
-      remain visible.
+      The gameplay renderer takes over the moment state.genesis is
+      cleared. Because the black overlay is at full alpha during the
+      hold phase, the underlying renderer swap is invisible to the
+      player. Genesis renderer paints during fade-in (genesis still
+      visible underneath the rising black), gameplay renderer paints
+      during hold and fade-out (gameplay revealed as black falls).
+      The hold midpoint is the cleanest moment to assert the swap
+      visually but there is no per-frame conditional — once
+      state.genesis is null, gameLoop and renderer follow their normal
+      gameplay paths.
     inputs:
-      - 'sim.elevation Map<string, number> populated by baseElevation epoch and mutated by glaciation, river erosion, etc.'
-      - 'every renderTile call (all 14 epochs)'
+      - 'state.bootTitleCard active'
+      - 'state.genesis transitions from non-null to null at the same instant'
     outputs:
-      - 'each visible tile draws lifted by getTierLift(elevationTier) px'
-      - 'cube walls paint at south/east tier transitions in every epoch'
-      - 'per-tile cube edge skirt strokes paint south + east edges'
-      - 'lift updates every frame as elevation mutates during the sim'
+      - 'no visible pop because the overlay covers the renderer swap during the hold'
+    state_changes: []
+    determinism: time-based
+
+  - id: input-gated-during-boot-title-card
+    description: >
+      While state.bootTitleCard is non-null, keyboard and mouse input
+      that drives movement, click-to-move, interaction, action-bar
+      slot activation, and pendingAction firing are short-circuited
+      the same way zone transitions gate input. UI panel toggles
+      (inventory, manual, menu) remain allowed.
+    inputs:
+      - 'any input event while state.bootTitleCard is non-null'
+    outputs:
+      - 'input dropped silently — no movement, no path, no action bar fire'
     state_changes: []
     determinism: deterministic
 
-  - id: genesis-surface-bg-fill
+  - id: skip-genesis-bypasses-title-card
     description: >
-      every visible non-space tile receives a diamond bg fill before the
-      cube edge skirt, cube walls, and glyph render on top. the bg color
-      is derived per epoch by getEpochSurfaceBg in genesisRenderer.ts:
-
-        - presentDay: existing tile.type lookup (TILE_BG_PALETTES via
-          getTileBgColor) with state.rivers/state.ponds-equivalent water
-          override (sim.riverPaths, sim.ponds, plus the elevation-based
-          lowland predicate matching renderLowlandWater). this keeps the
-          genesis-to-game handoff pixel-perfect against tileBgCache.
-        - other epochs: take the epoch's primary glyph color from
-          renderTile and darken by SURFACE_BG_DARKEN (0.45). gives lava
-          a red-orange surface, ice/glacial a pale-blue surface, fire a
-          burning surface, vegetation a green surface — no per-epoch
-          wiring required.
-
-      cosmicFormation and landAccretion are excluded entirely: their
-      visuals are stars / cosmic dust on the canvas BG_COLOR, with no
-      land surface yet, so a diamond fill would produce floating brown
-      patches in the void. for these two epochs the bg fill, cube edge
-      skirt, and cube wall pre-passes all skip every tile. lift still
-      applies for elevation but the underlying canvas BG_COLOR shows
-      through.
+      The dev-only ?skipGenesis=true path calls completeGenesis before
+      any epochs render. In this code path completeGenesis does NOT set
+      state.bootTitleCard — it lands directly in gameplay with full
+      sidebar, action bar, and player visibility. The title card is
+      part of the canonical production boot only.
     inputs:
-      - 'epoch.id and epoch.renderTile for the active epoch'
-      - 'sim.riverPaths, sim.ponds, sim.elevation, sim.landMask for water predicate (presentDay only)'
+      - 'skipGenesis flag is true on createGameState'
     outputs:
-      - 'diamond bg fill painted under every visible non-space tile in every epoch except cosmicFormation and landAccretion'
-      - 'bg color matches the epoch theme: lava red-orange, ice pale-blue, fire burnt, vegetation green, water blue, dirt brown'
-      - 'cosmicFormation and landAccretion render glyphs only on BG_COLOR — no diamond fill, no skirt, no walls'
+      - 'state.bootTitleCard remains null'
+      - 'gameplay UI immediately visible at full opacity'
+    state_changes:
+      - field: bootTitleCard
+        effect: 'remains null'
+    determinism: deterministic
+
+  - id: sidebar-and-action-bar-reveal
+    description: >
+      The sidebar (gameplay content) and action bar render with their
+      mounted content already visible the first frame after the title
+      card finishes — there are no fade-in animations driven by the
+      previous genesisTransition field. The previous opacity-0 CSS
+      animations and GENESIS_TRANSITION_SIDEBAR_DURATION_MS /
+      GENESIS_TRANSITION_ACTION_BAR_DELAY_MS /
+      GENESIS_TRANSITION_ACTION_BAR_DURATION_MS constants are removed.
+      The black title-card overlay covered the moment of reveal, so a
+      separate fade-in is no longer needed.
+    inputs:
+      - 'state.bootTitleCard is non-null or recently cleared'
+    outputs:
+      - 'sidebar gameplay content renders at full opacity from its first paint after the title card'
+      - 'action bar renders at full opacity from its first paint after the title card'
     state_changes: []
     determinism: deterministic
 
-  - id: genesis-bg-snaps-at-boundaries
+  - id: genesis-renders-at-zoomed-out-font
     description: >
-      the surface tile-bg color does NOT crossfade across epoch
-      boundaries — only the glyphs blend during the last 10% of an
-      epoch (see existing crossfade-progress behavior). bg snaps at the
-      moment epochIndex increments. an earlier iteration tried lerping
-      bg colors through BG_COLOR for cosmicFormation / landAccretion
-      transitions and through current → next bg for everything else,
-      but the result felt muddy: lava-red bleeding into ice-blue
-      through brown produced visually distracting intermediate frames
-      that the player read as "the renderer is broken" rather than "the
-      world is changing." Snapping the bg keeps each epoch's surface
-      visually distinct and avoids extra per-tile lerpColor work.
+      The genesis renderer uses its own font size (GENESIS_FONT_SIZE)
+      that is smaller than BASE_FONT_SIZE so the entire 147x147 prairie
+      fits on screen as a "zoomed out" view. genesisRenderer.ts owns
+      its own CharMetrics computation — it does not share metricsRef
+      with the gameplay renderer. Concretely, GameCanvas computes
+      gameplay metrics once via measureChar(ctx), and the genesis
+      render path computes its own metrics via measureChar(ctx) at a
+      genesis-specific font size on each frame (cheap; an
+      ctx.measureText call). The genesis viewport is sized to the
+      full prairie footprint at the genesis font size, not the
+      browser window. When state.genesis transitions to null, control
+      returns to the gameplay renderer at its native font size — the
+      apparent zoom-in happens entirely under the black title-card
+      overlay.
     inputs:
-      - 'epoch.id changes when sim.epochIndex increments'
+      - 'state.genesis is non-null on a render frame'
     outputs:
-      - 'currentBgByIndex used directly for bg fill / skirt / walls — no lerp'
-      - 'next-epoch glyph crossfade still runs over the last 10% of each epoch'
+      - 'genesis renders the full 147x147 prairie at a smaller font size'
+      - 'gameplay renders at BASE_FONT_SIZE after the title card finishes'
     state_changes: []
     determinism: deterministic
 
-  - id: genesis-rendertile-cache
+  - id: fast-forward-skip-still-shows-title-card
     description: >
-      genesisRenderer.ts builds a per-frame cache of currentEpoch and
-      nextEpoch renderTile results — one entry per visible tile —
-      populated once before any pre-pass runs. the bg fill, cube edge
-      skirt, cube wall, and main glyph passes all read from this cache
-      instead of calling renderTile again. without the cache, each tile
-      paid four renderTile calls per frame (plus more during crossfade
-      via the next-epoch buffer), driving genesis frame time well past
-      budget. one call per tile per frame keeps draw work bounded by
-      visible-tile count, not pass count.
+      A left-click on the canvas, or Escape/Space/Enter, during genesis
+      fast-forwards remaining epochs by calling completeGenesis
+      synchronously. The title card then runs normally — same
+      bootTitleCard timing and label as a natural genesis completion.
+      No animation runs during the fast-forward itself; the click
+      handler is consumed and the rest of the mousedown pipeline does
+      not run while state.genesis is active.
     inputs:
-      - 'visible tile range (vyStart, vyEnd, vxStart, vxEnd) from getVisibleTileBounds'
-      - 'currentEpoch and (when crossfading) nextEpoch'
+      - 'left mousedown or skip key while state.genesis is non-null'
     outputs:
-      - 'currentRendersByIndex and nextRendersByIndex populated once per frame'
-      - 'all subsequent passes consume the cache; no pass calls renderTile again'
-    state_changes: []
-    determinism: deterministic
-
-  - id: genesis-elevation-matches-gameplay
-    description: >
-      the final genesis frame and the first gameplay frame produce
-      pixel-identical tile positions and cube geometry. both renderers use
-      getElevationTier, getTierLift, ELEVATION_TIER_LIFT_PX, drawCellWalls,
-      WALL_LEFT_SHADE, and WALL_RIGHT_SHADE from the same shared modules
-      (tileBg.ts and projection.ts). there is no separate genesis tier
-      formula. the only renderer-side difference is that gameplay caches
-      the static layer in tileBgCache while genesis recomputes per-frame.
-      this guarantees the canvas-crossfade behavior remains seamless: the
-      terrain positions do not pop when the game renderer takes over.
-    inputs:
-      - 'genesisRenderer in its final frame (presentDay epoch, progress=1)'
-      - 'game renderer in its first frame (genesisTransition just started)'
-    outputs:
-      - 'every visible tile sits at the same px coords and lift in both frames'
-      - 'cube walls and edge strokes are identical at the handoff'
-    state_changes: []
-    determinism: deterministic
-
-  - id: click-fast-forward-genesis
-    description: >
-      a left-click anywhere on the game canvas during genesis fast-forwards
-      remaining epochs. parallel to the keyboard skip (Escape, Space, or
-      Enter), the click handler in useMouse calls completeGenesis(state)
-      and refreshes the UI when state.genesis is active and the current
-      epoch index is below GENESIS_EPOCHS.length. the click is consumed —
-      the rest of the mousedown pipeline (selection, pathfinding,
-      interaction) does not run during genesis. the normal post-completion
-      transition (crossfade, entity fade-in) still plays. no zoom animation
-      runs — zoom is pinned to ZOOM_DEFAULT.
-    inputs:
-      - 'left mousedown on the game canvas'
-      - 'state.genesis is non-null and epochIndex < GENESIS_EPOCHS.length'
-    outputs:
-      - 'completeGenesis runs synchronously, all remaining mutations apply'
-      - 'genesisTransition is set, crossfade begins normally'
-      - 'no selection box, no pathfinding, no interaction triggered by the click'
+      - 'completeGenesis runs synchronously'
+      - 'state.bootTitleCard populated immediately afterward'
+      - 'no selection, no pathfinding, no interaction from the click'
     state_changes:
       - field: genesis
-        effect: 'cleared via completeGenesis (state.genesis = null after all epoch mutations run)'
-      - field: genesisTransition
-        effect: 'populated by completeGenesis with startTime, duration'
-    determinism: deterministic
-
-  - id: skip-genesis-bypasses-transition
-    description: >
-      when genesis is skipped (dev mode ?skipGenesis=true or
-      completeGenesis called before any epochs run), the crossfade
-      is skipped entirely. genesisTransition is never set. all
-      entities and UI render at full opacity immediately. state.zoom
-      is already ZOOM_DEFAULT (no override needed).
-    inputs:
-      - 'skipGenesis flag is true'
-    outputs:
-      - 'no crossfade and no entity fade-in — immediate full render at ZOOM_DEFAULT'
-    state_changes:
-      - field: genesisTransition
-        effect: 'remains null'
-      - field: zoom
-        effect: 'remains at ZOOM_DEFAULT (its initial value)'
+        effect: 'cleared via completeGenesis'
+      - field: bootTitleCard
+        effect: 'populated by completeGenesis with startTime and label'
     determinism: deterministic
 
 edge_cases:
-  - id: key-skip-during-crossfade
+  - id: resize-during-title-card
     description: >
-      player presses a key during the crossfade window (not to skip
-      genesis, since genesis already completed — just normal input).
-      movement and interaction process identically to post-crossfade
-      gameplay. the crossfade continues visually without blocking input.
-    expected: 'crossfade is purely visual — all gameplay systems active during the fade'
+      Browser window resizes during the title card window. The renderer
+      recalculates viewport dimensions as normal. The overlay refills
+      the new viewport on its next frame.
+    expected: 'overlay adapts to new viewport size without visual glitch; label stays centered'
 
-  - id: resize-during-crossfade
+  - id: rapid-skip-then-resize
     description: >
-      browser window resizes during the crossfade. the renderer
-      recalculates viewport dimensions as normal. the crossfade
-      continues with the new dimensions.
-    expected: 'crossfade adapts to new viewport size without visual glitch'
+      Player fast-forwards genesis and resizes the window before the
+      title card finishes. The cleanup timer is wall-clock based, so
+      the title card still clears on schedule regardless of resize.
+    expected: 'title card clears at startTime + total duration regardless of resize events'
 
-  - id: fast-forward-skip
+  - id: title-card-during-multiplayer-join
     description: >
-      player presses a key (Escape, Space, or Enter) or left-clicks the
-      canvas to fast-forward genesis. remaining epoch mutations run
-      synchronously, completeGenesis fires, the crossfade begins
-      normally from whatever the last rendered genesis frame was.
-    expected: 'crossfade starts from the fast-forwarded final frame, same duration, regardless of skip input source'
-
-  - id: elevation-shifts-during-glaciation
-    description: >
-      glaciation epoch carves valleys (lowers elevation by ~15) on tiles
-      under glacial paths. the genesis renderer must reflect the new lift
-      on the next frame — tiles visibly drop as the glacier passes. no
-      snap, no flicker, no caching artifact.
-    expected: 'tiles under retreating glaciers visibly lower in real time as sim.elevation mutates'
-
-  - id: elevation-shifts-during-river-erosion
-    description: >
-      river generation in warmPeriod erodes elevation by 2 along river
-      paths. the genesis renderer reflects this on the next frame.
-    expected: 'tiles along forming rivers visibly lower as sim.elevation is decremented'
-
-  - id: handoff-no-elevation-pop
-    description: >
-      at the moment the genesis renderer hands off to the game renderer,
-      every visible tile must sit at the same px coords with the same
-      cube walls and edge skirt. no vertical jump, no wall thickness
-      change, no per-tile snap.
-    expected: 'tile positions and cube geometry are pixel-identical across the genesis-to-game handoff frame'
-
-  - id: right-click-during-genesis
-    description: >
-      right-click on the canvas during genesis. the handler ignores
-      non-left-button mousedown events (e.button !== 0 short-circuits
-      the same way it does in normal gameplay) — right-click does NOT
-      fast-forward genesis. only left-click skips.
-    expected: 'right-click during genesis is ignored, genesis continues normally'
-
-  - id: gron-continuously-visible
-    description: >
-      gron is rendered in the genesis presentDay epoch at his spawn
-      position. when the game renderer takes over, gron must not
-      disappear or flash — he remains at full opacity throughout.
-    expected: 'gron is visible before, during, and after the transition with no opacity change'
-
-  - id: player-absent-until-spawn-meteor
-    description: >
-      the player must NOT be rendered during genesis presentDay, the
-      crossfade window, or the brief window before the spawn meteor lands.
-      the player tile remains empty terrain until the player-spawn star
-      impacts.
-    expected: 'no player glyph visible at the start of the gameplay screen; player appears only when the spawn meteor lands (~2s in)'
-
-  - id: stars-no-shift
-    description: >
-      stars in the space border must not shift position, change
-      character, or change color when the renderer switches from
-      genesis presentDay to the game renderer.
-    expected: 'star positions and glyphs are identical across the transition boundary'
-
-  - id: rain-aura-no-shift
-    description: >
-      the rain aura overlay pattern around gron must not visually
-      shift when the renderer switches from genesis to game. the
-      same tile hash seed ensures drop positions are identical.
-    expected: 'rain drops stay in the same tile positions across the transition boundary'
-
-  - id: crater-no-blink
-    description: >
-      satellite craters created during the fallOfCivilizations epoch
-      must remain visible without disappearing during presentDay or
-      reappearing after the genesis-to-game handoff. they may shift
-      color smoothly during the fallOfCivilizations -> presentDay
-      crossfade (red trail palette -> brown crater palette) but must
-      hold the brown palette continuously from the start of presentDay
-      onward.
-    expected: 'no frame in the genesis-to-game handoff renders a known crater tile as plain dirt'
-
-  - id: ruin-entrance-no-blink
-    description: >
-      RuinEntrance tiles placed on the overworld map must be visible
-      with their 'O' glyph, verdigris color, and dark halo throughout
-      the genesis presentDay epoch and the genesis-to-game handoff.
-    expected: 'RuinEntrance glyph and halo are visible during presentDay and remain visible through the crossfade with no pop'
-
-  - id: cave-entrance-no-blink
-    description: >
-      the CaveEntrance tile placed on the overworld map must be visible
-      with its 'O' glyph and gray color throughout the genesis presentDay
-      epoch and the genesis-to-game handoff.
-    expected: 'CaveEntrance glyph is visible during presentDay and remains visible through the crossfade with no pop'
+      In multiplayer the boot title card is purely client-side. It
+      does not gate network message processing for the local session;
+      remote-player position updates can still apply to state behind
+      the overlay so when the card lifts, peers are already in their
+      current positions.
+    expected: 'remote player state updates during the title card window; positions are correct on first visible frame after the card lifts'
 
 failure_conditions:
-  - trigger: 'genesisTransition.startTime is in the future (clock skew)'
-    expected: 'clamp progress to 0, crossfade starts immediately on next frame'
+  - trigger: 'state.bootTitleCard.startTime is in the future (clock skew)'
+    expected: 'render pass treats alpha as 0; cleanup leaves the field until the wall clock catches up'
 
-  - trigger: 'genesisTransition is somehow still active after 2x duration'
-    expected: 'force-clear genesisTransition to null, render at full opacity'
+  - trigger: 'state.bootTitleCard is somehow still set after 2x total duration'
+    expected: 'gameLoop cleanup force-clears it to null'
 
-  - trigger: 'a tile in sim.craters is rendered by genesis presentDay'
-    expected: 'renders crater glyph and brown crater color matching the game renderer (BUILDING_CHARS keyed by tileHash, brown palette), not plain dirt'
+  - trigger: 'completeGenesis is called twice'
+    expected: 'second call is a no-op because state.genesis is already null'
 
-  - trigger: 'a RuinEntrance tile is rendered by genesis presentDay'
-    expected: 'renders the O glyph in verdigris with the 3x3 dark halo backdrop matching the game renderer, not plain dirt'
-
-  - trigger: 'a CaveEntrance tile is rendered by genesis presentDay'
-    expected: 'renders the O glyph in light gray matching the game renderer, not plain dirt'
-
-  - trigger: 'a tile with elevation tier > 0 is rendered by any genesis epoch'
-    expected: 'glyph is drawn at py + getTierLift(tier), not at the flat baseline'
-
-  - trigger: 'a genesis tile sits one tier higher than its south or east neighbor'
-    expected: 'a cube wall is painted with the appropriate depth, color, and shading via drawCellWalls'
-
-  - trigger: 'sim.elevation is mutated mid-render (e.g. glacier carving on the same frame)'
-    expected: 'the next rendered frame reads the new value — no stale lift cached across frames'
-
-  - trigger: 'completeGenesis populates genesisTransition'
-    expected: 'object shape is { startTime, duration } — no zoomStart field is set or read anywhere'
+  - trigger: 'GENESIS_TRANSITION_DURATION_MS or related constants are referenced after the rewrite'
+    expected: 'compile error — the constants must be removed from constants.ts'
 
 verification:
   test_file: src/engine/__tests__/genesisTransition.test.ts
-  test_pattern: 'genesis transition'
+  test_pattern: 'boot title card'
   command: npx vitest run src/engine/__tests__/genesisTransition.test.ts

@@ -3,9 +3,14 @@ import { RuinArchetype, TileType } from './types'
 export const MAP_WIDTH = 147
 export const MAP_HEIGHT = 147
 export const SPACE_BORDER = 10
-export const FONT = '16px monospace'
-export const BASE_FONT_SIZE = 16
-export const ZOOM_DEFAULT = 2.0
+// Native 32px monospace — no zoom upscale. An earlier iteration rendered
+// at 16px and applied a 2x zoom, which produced pixelated glyphs on
+// retina. 32x1 = same on-screen tile footprint, crisp text.
+export const FONT = '32px monospace'
+export const BASE_FONT_SIZE = 32
+// Genesis renders the full 147x147 prairie zoomed out at this smaller
+// font size. Gameplay always uses BASE_FONT_SIZE.
+export const GENESIS_FONT_SIZE = 8
 
 export const WATER_SAND_BORDER_MAX = 2
 export const WATER_SAND_PASS_CHANCES = [100, 50]
@@ -391,12 +396,6 @@ export const COYOTE_FOLLOW_MAX_DIST = 3
 export const MOVE_ORDER_MARKER_DURATION_MS = 500
 export const UNIT_COMMAND_TICK_MS = 150
 export const SELECTION_DRAG_THRESHOLD = 3 // px — minimum drag distance to start box select
-
-// genesis-to-gameplay transition
-export const GENESIS_TRANSITION_DURATION_MS = 1500
-export const GENESIS_TRANSITION_SIDEBAR_DURATION_MS = 1000
-export const GENESIS_TRANSITION_ACTION_BAR_DELAY_MS = 500
-export const GENESIS_TRANSITION_ACTION_BAR_DURATION_MS = 800
 
 // deep time-to-wandering transition
 export const DEEP_TIME_TRANSITION_DURATION_MS = 1000

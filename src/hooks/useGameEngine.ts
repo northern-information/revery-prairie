@@ -102,7 +102,7 @@ export const useGameEngine = (
   useLayoutEffect(() => {
     if (skipGenesis && state.genesis && !skipFiredRef.current) {
       skipFiredRef.current = true
-      completeGenesis(state)
+      completeGenesis(state, { skipTitleCard: true })
     }
   }, [skipGenesis, state])
 

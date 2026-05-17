@@ -4,6 +4,7 @@ import {
   ACTION_COLOR,
   ANGEL_BODY_SIZE,
   BASE_FONT_SIZE,
+  GENESIS_FONT_SIZE,
   BEE_CHAR,
   BEE_COLOR,
   BEEHIVE_CHAR,
@@ -120,17 +121,7 @@ import './flora'
 import { getFloraMovement, getFloraSwayOffset } from './flora'
 
 import type { VelocityKey } from './constants'
-import type { CharMetrics, GameState, TransitionFade } from './types'
-
-/** Compute transition progress (0→1) from a TransitionFade, or 1 if null. */
-const getTransitionAlpha = (transition: TransitionFade | null, time: number): number => {
-  if (!transition) return 1
-  if (transition.duration <= 0) return 1
-  const elapsed = time - transition.startTime
-  if (elapsed <= 0) return 0
-  if (elapsed >= transition.duration) return 1
-  return elapsed / transition.duration
-}
+import type { CharMetrics, GameState } from './types'
 
 const STAR_CHARS = ['.', '+', '*']
 const STAR_COLORS = ['#333', '#555', '#777', '#999', '#bbb', '#999', '#777', '#555']
@@ -186,8 +177,11 @@ export const computePrairieHaloAlpha = (distance: number, time: number): number 
   return Math.max(0, Math.min(PRAIRIE_HALO_MAX_ALPHA, raw))
 }
 
-export const measureChar = (ctx: CanvasRenderingContext2D, zoom = 1): CharMetrics => {
-  const font = `${String(Math.round(BASE_FONT_SIZE * zoom))}px monospace`
+export const measureChar = (
+  ctx: CanvasRenderingContext2D,
+  fontSize: number = BASE_FONT_SIZE,
+): CharMetrics => {
+  const font = `${String(fontSize)}px monospace`
   ctx.font = font
   const metrics = ctx.measureText('M')
   const charWidth = metrics.width
@@ -237,10 +231,50 @@ const _reveryCastMap = new Map<string, { char: string; color: string }>()
 const _crumbleMap = new Map<string, { char: string; color: string }>()
 const _entranceGlyphMap = new Map<string, string>()
 
+// Genesis renders at GENESIS_FONT_SIZE for a zoomed-out view of the
+// whole prairie. Gameplay renders at BASE_FONT_SIZE for crisp ASCII.
+// We measure the genesis-font metrics on demand and cache them. The
+// boot title card covers the renderer swap, so any minor pixel
+// difference between the two paths is invisible.
+let _genesisMetrics: CharMetrics | null = null
+
 export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
-  // Genesis mode — delegate to genesis renderer
-  if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
-    renderGenesis(ctx, state.genesis, GENESIS_EPOCHS, metrics, state.viewportWidth, state.viewportHeight, time)
+  // Genesis mode — delegate to genesis renderer at its own font size.
+  // Note: we stay in genesis-render mode even after epochIndex has
+  // advanced past the last epoch. completeGenesis schedules a title
+  // card; genesis keeps painting (last frame) underneath the rising
+  // black overlay until finalizeGenesisHandoff clears state.genesis at
+  // the hold midpoint.
+  if (state.genesis) {
+    _genesisMetrics ??= measureChar(ctx, GENESIS_FONT_SIZE)
+    // The canvas is sized to viewportWidth * BASE_FONT_SIZE char-widths.
+    // Genesis paints at GENESIS_FONT_SIZE so each tile is smaller; the
+    // tile-count viewport scales up proportionally so the prairie fills
+    // the canvas at the zoomed-out font.
+    const gameCharWidth = metrics.charWidth
+    const gameCharHeight = metrics.charHeight
+    const genesisViewportWidth = Math.ceil(
+      (state.viewportWidth * gameCharWidth) / _genesisMetrics.charWidth,
+    )
+    const genesisViewportHeight = Math.ceil(
+      (state.viewportHeight * gameCharHeight) / _genesisMetrics.charHeight,
+    )
+    renderGenesis(
+      ctx,
+      state.genesis,
+      GENESIS_EPOCHS,
+      _genesisMetrics,
+      genesisViewportWidth,
+      genesisViewportHeight,
+      time,
+    )
+    // Screen-overlay passes still run during genesis so the cinematic
+    // commentary pass and the boot title card overlay can paint above
+    // the genesis world. The genesis commentary uses _genesisMetrics so
+    // its text scales with the zoomed-out font; the boot title card
+    // uses the gameplay metrics passed in, so its label is rendered at
+    // the gameplay viewport scale (full size).
+    runPassesInSlot('screen-overlay', ctx, state, metrics, time)
     return
   }
 
@@ -289,10 +323,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (map[my][mx].type === TileType.Space) return getTierLift(-1)
     return tileLiftAt(mx, my)
   }
-
-  // Genesis-to-gameplay crossfade: entities not visible in genesis fade in
-  const transitionAlpha = getTransitionAlpha(state.genesisTransition, time)
-  const isTransitioning = transitionAlpha < 1
 
   const pxWidth = viewportWidth * charWidth
   const pxHeight = viewportHeight * charHeight
@@ -1155,8 +1185,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // Resolve what to draw at this tile — priority order determines z-index
       let char: string
       let color: string
-      // isEntity: true for elements not visible during genesis (ghosts, bees, ground items, etc.)
-      // Used during genesis-to-gameplay crossfade to apply fade-in alpha
+      // isEntity: true for elements that defer to the post-tile-loop flush
+      // (ghosts, bees, characters, ground items, etc.) so neighboring
+      // high-elevation tiles can't overpaint them.
       let isEntity = false
 
       // partiallyDiscovered tiles: render terrain only at dimmed brightness.
@@ -1266,14 +1297,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const ch = characterMap.get(tileKey)
         char = ch?.glyph ?? 'G'
         color = ch?.color ?? '#FFFFFF'
-        // Characters visible in genesis (Gron, coyote) stay at full opacity
-        // during the transition — only fade entities not rendered in genesis
-        if (isTransitioning) {
-          const isGenesisVisible = ch?.id === 'gron' || ch?.id === 'coyote'
-          if (!isGenesisVisible) isEntity = true
-        } else {
-          isEntity = true
-        }
+        isEntity = true
       } else if (beehivePositions.has(tileKey)) {
         char = BEEHIVE_CHAR
         color = BEEHIVE_COLOR
@@ -1477,9 +1501,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
               angelGroup.has(posKey(state.pendingInteractionTarget.x, state.pendingInteractionTarget.y))
           ))
 
-      // Genesis-to-gameplay crossfade: fade in entities not visible during genesis
-      const applyEntityFade = isTransitioning && isEntity
-
       // Resolve highlight state without ctx side effects so the deferred
       // path can capture it and the inline path can apply it.
       // Invalid preview tiles (e.g. red X for lightning targeting) and the
@@ -1512,7 +1533,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           highlight,
           highlightPx: px,
           highlightPy: pyLift + angelLift,
-          alpha: applyEntityFade ? transitionAlpha : 1,
+          alpha: 1,
         })
         continue
       }
@@ -1554,9 +1575,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
 
       // Non-deferred path: terrain glyphs and overlay tiles. Apply the
-      // highlight side effects here. applyEntityFade cannot fire on this
-      // path (it requires isEntity, which would have taken the defer
-      // branch above), so no globalAlpha bookkeeping is needed.
+      // highlight side effects here. Entity glyphs take the defer branch
+      // above and are flushed after the tile loop.
       if (highlight) {
         drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, ACTION_COLOR)
         ctx.fillStyle = BG_COLOR

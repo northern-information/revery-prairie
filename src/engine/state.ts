@@ -1,7 +1,7 @@
 import { autoAssignRevery } from './actionBar'
 import { generateCave } from './cave'
 import { registerGhostDefinitions } from './characters'
-import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, WATER_MAX, ZOOM_DEFAULT } from './constants'
+import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, WATER_MAX } from './constants'
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
@@ -140,7 +140,6 @@ export const createGameState = (
     autoHidePanels: true,
     panelOpenMoveCount: 0,
     fontScale: 1.25,
-    zoom: ZOOM_DEFAULT,
     heldKeys: new Set(),
     currentZone: Zone.Overworld,
     overworldMap: map,
@@ -219,7 +218,7 @@ export const createGameState = (
     pollenTrailDepth: 0,
     waterProximity: new Map<string, number>(),
     genesis: genesisData,
-    genesisTransition: null,
+    bootTitleCard: null,
     zoneTransition: null,
     angelCantos: [],
     nextAngelSpawnTime: 60_000, // first angel after ~60s
