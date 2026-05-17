@@ -61,7 +61,7 @@ describe('genesis handoff pops', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 40, 40))
       expect(state.glintPatches).toEqual([])
 
-      completeGenesis(state)
+      completeGenesis(state, { skipTitleCard: true })
 
       expect(state.glintPatches.length).toBe(GLINT_ZONE_COUNT)
     })
@@ -69,7 +69,7 @@ describe('genesis handoff pops', () => {
     it('no patch has a birthTime that would make it pre-aged at handoff', () => {
       const before = performance.now()
       const state = withSeededRandom(SEED, () => createGameState('test', 40, 40))
-      completeGenesis(state)
+      completeGenesis(state, { skipTitleCard: true })
 
       // Every patch must have birthTime >= the handoff baseline, so
       // every patch enters the fade-in phase from opacity 0 (or is not
@@ -86,7 +86,7 @@ describe('genesis handoff pops', () => {
     it('lastGlintSpawnTime is set to the handoff time', () => {
       const before = performance.now()
       const state = withSeededRandom(SEED, () => createGameState('test', 40, 40))
-      completeGenesis(state)
+      completeGenesis(state, { skipTitleCard: true })
       const after = performance.now()
 
       expect(state.lastGlintSpawnTime).toBeGreaterThanOrEqual(before)
@@ -95,7 +95,7 @@ describe('genesis handoff pops', () => {
 
     it('glintOpacity is approximately 0 on the first gameplay frame (no pop)', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 40, 40))
-      completeGenesis(state)
+      completeGenesis(state, { skipTitleCard: true })
 
       // The "first gameplay frame" reads opacities from rebuildGlintZones,
       // which completeGenesis already ran with the handoff time. Every
@@ -110,10 +110,10 @@ describe('genesis handoff pops', () => {
 
     it('does not re-seed glint patches when called twice', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 40, 40))
-      completeGenesis(state)
+      completeGenesis(state, { skipTitleCard: true })
       const firstBirthTimes = state.glintPatches.map((p) => p.birthTime)
 
-      completeGenesis(state)
+      completeGenesis(state, { skipTitleCard: true })
       const secondBirthTimes = state.glintPatches.map((p) => p.birthTime)
 
       expect(secondBirthTimes).toEqual(firstBirthTimes)

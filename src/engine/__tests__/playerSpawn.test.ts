@@ -242,11 +242,14 @@ describe('player spawn ceremony', () => {
   })
 
   // Regression for the one-frame @ flash that appeared between genesis ending
-  // and the gameloop's player-spawn-trigger system firing. completeGenesis
-  // must trigger the spawn ceremony synchronously (via the onGenesisComplete
-  // callback wired by useGameEngine) so the first gameplay render already
-  // sees playerSpawn.visible === false.
-  describe('completeGenesis triggers spawn ceremony', () => {
+  // and the gameloop's player-spawn-trigger system firing. In production,
+  // completeGenesis schedules the boot title card and defers the spawn
+  // ceremony to finalizeGenesisHandoff (gameLoop fires it at hold
+  // midpoint, under full-black cover). With skipTitleCard:true the
+  // handoff runs inline; we use that path here to keep the test
+  // synchronous and assert that onGenesisComplete fires as soon as the
+  // handoff completes.
+  describe('completeGenesis triggers spawn ceremony (skip-title-card path)', () => {
     it('flips playerSpawn.visible to false before returning', () => {
       const state = createGameState('Test', 40, 30)
       destroyAllStars(state)
@@ -258,7 +261,7 @@ describe('player spawn ceremony', () => {
       expect(state.playerSpawn.triggeredAt).toBe(0)
       expect(state.playerSpawn.meteorEntityId).toBeNull()
 
-      completeGenesis(state)
+      completeGenesis(state, { skipTitleCard: true })
 
       expect(state.playerSpawn.visible).toBe(false)
       expect(state.playerSpawn.triggeredAt).not.toBe(0)

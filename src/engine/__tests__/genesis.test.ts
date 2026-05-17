@@ -2,9 +2,6 @@ import {
   MAP_HEIGHT,
   MAP_WIDTH,
   POND_COLOR,
-  RAIN_AURA_CHARS,
-  RAIN_AURA_COLORS,
-  RAIN_AURA_DENSITY,
   RIVER_COLOR,
   SOIL_HEALTH_MAX,
 } from '../constants'
@@ -20,7 +17,7 @@ import {
   runAllMutations,
   tickGenesis,
 } from '../genesis'
-import { posKey, tileHash } from '../position'
+import { posKey } from '../position'
 import { createGameState } from '../state'
 import { TileType } from '../types'
 import { describe, expect, it, vi } from 'vitest'
@@ -1410,79 +1407,28 @@ describe('phase-based system filtering', () => {
   })
 })
 
-describe('presentDay rain aura rendering', () => {
-  it('renders rain overlay on tiles within Gron rain radius', () => {
+describe('presentDay — Gron is absent from genesis', () => {
+  it('does not render Gron at the map center', () => {
     const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
     precomputeGenesis(sim, GENESIS_EPOCHS)
 
     const presentDay = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
     const gronX = Math.floor(sim.width / 2)
     const gronY = Math.floor(sim.height / 2)
-
-    // Apply the final epoch snapshot
     sim.epochIndex = GENESIS_EPOCHS.length - 1
 
-    // Check tiles around Gron for rain overlay
-    let rainFound = false
-    for (let dy = -5; dy <= 5; dy++) {
-      for (let dx = -5; dx <= 5; dx++) {
-        if (dx === 0 && dy === 0) continue // Gron tile itself
-        const tx = gronX + dx
-        const ty = gronY + dy
-        if (dx * dx + dy * dy > 36) continue // outside radius
-
-        const h = tileHash(tx, ty)
-        if (h % RAIN_AURA_DENSITY !== 0) continue // density check
-
-        const renders = presentDay.renderTile(sim, tx, ty, 0.8, 1000)
-        if (renders.length > 1) {
-          // Second entry should be rain overlay
-          const rainChar = renders[1].char
-          const rainColor = renders[1].color
-          expect(RAIN_AURA_CHARS).toContain(rainChar)
-          expect(RAIN_AURA_COLORS).toContain(rainColor)
-          rainFound = true
-        }
-      }
+    const renders = presentDay.renderTile(sim, gronX, gronY, 0.8, 1000)
+    for (const r of renders) {
+      expect(r.char).not.toBe('G')
     }
-
-    expect(rainFound).toBe(true)
   })
 
-  it('does not render rain on the Gron tile', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    precomputeGenesis(sim, GENESIS_EPOCHS)
-
-    const presentDay = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
-    const gronX = Math.floor(sim.width / 2)
-    const gronY = Math.floor(sim.height / 2)
-
-    sim.epochIndex = GENESIS_EPOCHS.length - 1
-
-    // Gron tile — should be single entry (character glyph only).
-    // The player tile is intentionally not asserted here: the player
-    // is not drawn during genesis presentDay (the steward arrives via
-    // the spawn-meteor ceremony), so rain may or may not animate at
-    // the eventual spawn tile based on the rainH density gate. Either
-    // outcome is benign because no player glyph is drawn yet.
-    const gronRenders = presentDay.renderTile(sim, gronX, gronY, 0.8, 1000)
-    expect(gronRenders.length).toBe(1)
-  })
-
-  it('uses shared AURA_RADIUS.rain for Gron rain radius', async () => {
+  it('does not render a rain-aura overlay anywhere in genesis presentDay', async () => {
     const source = await readSource('../genesis.ts')
-    // GRON_RAIN_RADIUS should derive from AURA_RADIUS, not be a raw literal
-    expect(source).toContain('GRON_RAIN_RADIUS = AURA_RADIUS.rain')
-    // No hardcoded '= 6' for the radius (the ?? 6 fallback is acceptable)
-    expect(source).not.toMatch(/GRON_RAIN_RADIUS\s*=\s*6\s*[;\n]/)
-  })
-
-  it('uses character definition for Gron glyph', async () => {
-    const source = await readSource('../genesis.ts')
-    // No hardcoded Gron glyph in renderTile
-    expect(source).not.toMatch(/char: 'G', color: '#FFFFFF'/)
-    // Uses getGronVisuals or getCharacterDefinition
-    expect(source).toContain('getGronVisuals')
+    // The rain aura rendering and its constants were owned by the Gron
+    // path in presentDay; both should be gone now.
+    expect(source).not.toMatch(/GRON_RAIN_RADIUS/)
+    expect(source).not.toMatch(/getGronVisuals/)
   })
 })
 

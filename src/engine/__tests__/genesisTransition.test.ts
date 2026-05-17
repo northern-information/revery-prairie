@@ -30,20 +30,28 @@ describe('boot title card', () => {
 
       completeGenesis(state)
 
-      expect(state.genesis).toBeNull()
+      // state.genesis stays alive during the title card fade-in so the
+      // genesis renderer keeps painting underneath. finalizeGenesisHandoff
+      // (called by gameLoop at hold midpoint) is what clears it.
+      expect(state.genesis).not.toBeNull()
       expect(state.bootTitleCard).not.toBeNull()
       expect(state.bootTitleCard?.label).toBe('Revery Prairie')
       expect(typeof state.bootTitleCard?.startTime).toBe('number')
     })
 
-    it('does nothing if genesis is already null', () => {
+    it('subsequent calls re-schedule a title card while genesis is still alive', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
       completeGenesis(state)
-      const card = state.bootTitleCard
+      const firstCard = state.bootTitleCard
+      expect(firstCard).not.toBeNull()
+      expect(state.genesis).not.toBeNull()
 
-      // Calling completeGenesis again should not create a new title card
+      // Genesis is still alive (handoff hasn't fired yet); a second
+      // completeGenesis call will overwrite the title card. The
+      // important guarantee is that completeGenesis is idempotent
+      // once finalizeGenesisHandoff has actually nulled state.genesis.
       completeGenesis(state)
-      expect(state.bootTitleCard).toBe(card)
+      expect(state.bootTitleCard).not.toBeNull()
     })
   })
 
@@ -78,7 +86,7 @@ describe('boot title card', () => {
   })
 
   describe('genesis presentDay rendering', () => {
-    it('renders Gron at his spawn position', () => {
+    it('does NOT render Gron — Gron arrives with the player after the title card', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
       const sim = state.genesis
       expect(sim).not.toBeNull()
@@ -89,8 +97,9 @@ describe('boot title card', () => {
       const lastEpoch = GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1]
       const tiles = lastEpoch.renderTile(sim, gronX, gronY, 1, 1000)
 
-      expect(tiles).toHaveLength(1)
-      expect(tiles[0].char).toBe('G')
+      for (const t of tiles) {
+        expect(t.char).not.toBe('G')
+      }
     })
 
     it('does NOT render the player — the player arrives via the spawn meteor', () => {
