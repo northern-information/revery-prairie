@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-
 import { activateActionBarSlot, assignActionBarSlot } from '../actionBar'
 import { RAIN_FRONT_FRINGE, RAIN_FRONT_WIDTH, WATER_DRAIN_RATE, WATER_MAX, WATER_RAIN_FILL } from '../constants'
 import { posKey } from '../position'
@@ -7,6 +5,7 @@ import { createGameState } from '../state'
 import { isInRainFront, tickTileWater } from '../tileWater'
 import { Sky, TileType, WindDirection, Zone } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
 

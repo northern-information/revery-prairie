@@ -1,3 +1,4 @@
+import { generateBoltPath } from './boltPath'
 import {
   BURN_SCAR_COLORS as GAME_BURN_SCAR_COLORS,
   DIRT_COLORS as GAME_DIRT_COLORS,
@@ -22,7 +23,6 @@ import {
   WATER_SAND_BORDER_MAX,
   WATER_SAND_PASS_CHANCES,
 } from './constants'
-import { generateBoltPath } from './boltPath'
 import { GenesisEpochId, RuinGenerationMode, RuinRole } from './genesisTypes'
 import { rebuildGlintZones, seedGlintPatches } from './glintZones'
 import { posKey, tileHash as rendererTileHash } from './position'
@@ -103,11 +103,7 @@ const sampleLattice = (
 }
 
 // Three-octave fBm with domain warp. Returns [-1, 1] range.
-const fbmWarp2D = (
-  width: number,
-  height: number,
-  rng: () => number
-): ((x: number, y: number) => number) => {
+const fbmWarp2D = (width: number, height: number, rng: () => number): ((x: number, y: number) => number) => {
   const baseCell = 14
   const lat0 = buildValueLattice(width, height, baseCell, rng)
   const lat1 = buildValueLattice(width, height, baseCell / 2, rng)
@@ -121,7 +117,9 @@ const fbmWarp2D = (
     const oy = sampleLattice(wy, x, y) * warpAmp
     const wxC = x + ox
     const wyC = y + oy
-    return sampleLattice(lat0, wxC, wyC) * 1.0 + sampleLattice(lat1, wxC, wyC) * 0.5 + sampleLattice(lat2, wxC, wyC) * 0.25
+    return (
+      sampleLattice(lat0, wxC, wyC) * 1.0 + sampleLattice(lat1, wxC, wyC) * 0.5 + sampleLattice(lat2, wxC, wyC) * 0.25
+    )
   }
 }
 
@@ -1167,7 +1165,8 @@ const fireSeason: GenesisEpoch = {
       const [bxStr, byStr] = boltKey.split(',')
       const bx = Number(bxStr)
       const by = Number(byStr)
-      const length = LIGHTNING_BOLT_MIN_LENGTH + Math.floor(sim.rng() * (LIGHTNING_BOLT_MAX_LENGTH - LIGHTNING_BOLT_MIN_LENGTH + 1))
+      const length =
+        LIGHTNING_BOLT_MIN_LENGTH + Math.floor(sim.rng() * (LIGHTNING_BOLT_MAX_LENGTH - LIGHTNING_BOLT_MIN_LENGTH + 1))
       const { path, branch } = generateBoltPath(bx, by, length, sim.rng)
 
       // Stagger start times to interleave with meteorites
@@ -1312,7 +1311,12 @@ const fireSeason: GenesisEpoch = {
       if (bolt.branch) {
         for (const bp of bolt.branch) {
           if (bp.x === x && bp.y === y) {
-            const bcolor = boltProgress < 0.3 ? LIGHTNING_BOLT_COLOR_BRIGHT : boltProgress < 0.7 ? LIGHTNING_BOLT_COLOR_MID : LIGHTNING_BOLT_COLOR_DIM
+            const bcolor =
+              boltProgress < 0.3
+                ? LIGHTNING_BOLT_COLOR_BRIGHT
+                : boltProgress < 0.7
+                  ? LIGHTNING_BOLT_COLOR_MID
+                  : LIGHTNING_BOLT_COLOR_DIM
             return [{ char: '/', color: bcolor, dx: 0, dy: 0 }]
           }
         }
@@ -2064,8 +2068,7 @@ const riseOfCivilizations: GenesisEpoch = {
     // currently delegates to starter; replace this branch when the complex
     // generator lands.
     const isStarter =
-      sim.ruinGenerationMode === RuinGenerationMode.Starter ||
-      sim.ruinGenerationMode === RuinGenerationMode.Complex
+      sim.ruinGenerationMode === RuinGenerationMode.Starter || sim.ruinGenerationMode === RuinGenerationMode.Complex
     const numRuins = isStarter ? 3 : 8 + Math.floor(sim.rng() * 5)
     const STARTER_ROLES: RuinRole[] = [RuinRole.Clover, RuinRole.Bee, RuinRole.Coyote]
     const candidates: { key: string; score: number }[] = []
@@ -2501,8 +2504,7 @@ const fallOfCivilizations: GenesisEpoch = {
 
     // 4. Keep 1-3 of the largest viable components
     const targetCount = 1 + Math.floor(sim.rng() * 3)
-    const kept =
-      viable.length >= 1 ? viable.slice(0, targetCount) : waterComponents.slice(0, targetCount)
+    const kept = viable.length >= 1 ? viable.slice(0, targetCount) : waterComponents.slice(0, targetCount)
     const keptTiles = new Set<string>()
     for (const comp of kept) {
       for (const key of comp) keptTiles.add(key)
@@ -2677,8 +2679,7 @@ const fallOfCivilizations: GenesisEpoch = {
     // reduces soil health (matching gameplay satellite-impacts contract).
     // Protected tiles (space, sand, ponds, rivers, ruin entrances, ruin
     // building footprints, cave entrance) are excluded.
-    const numCrashes =
-      SATELLITE_CRASH_MIN + Math.floor(sim.rng() * (SATELLITE_CRASH_MAX - SATELLITE_CRASH_MIN + 1))
+    const numCrashes = SATELLITE_CRASH_MIN + Math.floor(sim.rng() * (SATELLITE_CRASH_MAX - SATELLITE_CRASH_MIN + 1))
 
     // Build a fast-lookup set of ruin building footprints for protection
     const ruinProtected = new Set<string>()
@@ -2720,9 +2721,7 @@ const fallOfCivilizations: GenesisEpoch = {
       const impactX = Number(cxStr)
       const impactY = Number(cyStr)
 
-      sim.satelliteCrashes.push(
-        createSatelliteCrashStreak(sim, impactX, impactY, i, numCrashes)
-      )
+      sim.satelliteCrashes.push(createSatelliteCrashStreak(sim, impactX, impactY, i, numCrashes))
 
       // Apply 5x5 crater zone
       for (let dy = -SATELLITE_CRASH_RADIUS; dy <= SATELLITE_CRASH_RADIUS; dy++) {
@@ -3034,11 +3033,7 @@ export const enforceConnectivity = (sim: GenesisSimState): void => {
 
       const tile = sim.grid[ny][nx]
       // Walkable = anything that's not Space, CaveWall, or CaveBreakableWall
-      if (
-        tile.type === TileType.Space ||
-        tile.type === TileType.CaveWall ||
-        tile.type === TileType.CaveBreakableWall
-      ) {
+      if (tile.type === TileType.Space || tile.type === TileType.CaveWall || tile.type === TileType.CaveBreakableWall) {
         continue
       }
 
@@ -3170,10 +3165,15 @@ const presentDay: GenesisEpoch = {
     // rendered '·', producing a per-tile char swap at the handoff.
     const dirtChar = TILE_CHARS[TileType.Dirt]
     const baseTile: GenesisTileRender = sim.craters.has(key)
-      ? { char: BUILDING_CHARS[h % BUILDING_CHARS.length], color: CRATER_COLORS[h % CRATER_COLORS.length], dx: 0, dy: 0 }
+      ? {
+          char: BUILDING_CHARS[h % BUILDING_CHARS.length],
+          color: CRATER_COLORS[h % CRATER_COLORS.length],
+          dx: 0,
+          dy: 0,
+        }
       : sim.burnScars.has(key)
-      ? { char: dirtChar, color: GAME_BURN_SCAR_COLORS[h % GAME_BURN_SCAR_COLORS.length], dx: 0, dy: 0 }
-      : { char: dirtChar, color: GAME_DIRT_COLORS[h % GAME_DIRT_COLORS.length], dx: 0, dy: 0 }
+        ? { char: dirtChar, color: GAME_BURN_SCAR_COLORS[h % GAME_BURN_SCAR_COLORS.length], dx: 0, dy: 0 }
+        : { char: dirtChar, color: GAME_DIRT_COLORS[h % GAME_DIRT_COLORS.length], dx: 0, dy: 0 }
 
     // No Gron rain aura in genesis — the aura returns in gameplay when
     // Gron and the player both arrive after the boot title card.

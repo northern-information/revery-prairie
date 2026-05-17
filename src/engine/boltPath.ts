@@ -20,7 +20,7 @@ interface BoltPos {
 // projected arrays.
 export const projectBoltPath = (
   path: BoltPos[],
-  branch: BoltPos[] | null,
+  branch: BoltPos[] | null
 ): { path: BoltPos[]; branch: BoltPos[] | null } => {
   const n = path.length
   if (n === 0) return { path: [], branch: null }

@@ -1,15 +1,8 @@
+import { NetworkClient } from '../client'
+import { WS_CLOSE_CODES } from '@revery-prairie/shared'
 import { afterEach, beforeEach } from 'vitest'
 
-import { WS_CLOSE_CODES } from '@revery-prairie/shared'
-
-import { NetworkClient } from '../client'
-
-import type {
-  PeerJoinedFrame,
-  PeerLeftFrame,
-  PeerPositionFrame,
-  WelcomeFrame,
-} from '@revery-prairie/shared'
+import type { PeerJoinedFrame, PeerLeftFrame, PeerPositionFrame, WelcomeFrame } from '@revery-prairie/shared'
 
 interface SentFrame {
   data: string

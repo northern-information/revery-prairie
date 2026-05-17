@@ -47,15 +47,7 @@ export const computePlacementPreview = (
   let cannotCombine = false
 
   if (!isValid) {
-    const result = checkCombine(
-      container,
-      item,
-      gridX,
-      gridY,
-      sourceContainerId,
-      targetContainerId,
-      discoveredRecipes
-    )
+    const result = checkCombine(container, item, gridX, gridY, sourceContainerId, targetContainerId, discoveredRecipes)
     if (result.kind === 'no-recipe') {
       cannotCombine = true
     } else if (result.kind === 'recipe') {

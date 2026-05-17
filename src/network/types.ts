@@ -6,11 +6,7 @@ import type {
   WelcomeFrame,
 } from '@revery-prairie/shared'
 
-export type NetworkClientStatus =
-  | 'connecting'
-  | 'connected'
-  | 'reconnecting'
-  | 'disconnected'
+export type NetworkClientStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
 
 export interface NetworkClientEvents {
   'status-change': (status: NetworkClientStatus) => void

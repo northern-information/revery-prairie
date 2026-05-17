@@ -1,19 +1,14 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { describe, expect, it } from 'vitest'
-
-import {
-  GLINT_ZONE_COUNT,
-  GLINT_ZONE_FADE_IN_MS,
-} from '../constants'
+import { GLINT_ZONE_COUNT, GLINT_ZONE_FADE_IN_MS } from '../constants'
 import { completeGenesis } from '../genesis'
 import { createGameState } from '../state'
 import { withSeededRandom } from '@/harness/prng'
+import { describe, expect, it } from 'vitest'
 
 const SEED = 42
 
-const readGenesisRenderer = (): string =>
-  readFileSync(join(__dirname, '../genesisRenderer.ts'), 'utf-8')
+const readGenesisRenderer = (): string => readFileSync(join(__dirname, '../genesisRenderer.ts'), 'utf-8')
 
 describe('genesis handoff pops', () => {
   describe('ruin-entrance halo paints on top of bg in genesisRenderer', () => {
@@ -111,10 +106,10 @@ describe('genesis handoff pops', () => {
     it('does not re-seed glint patches when called twice', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 40, 40))
       completeGenesis(state, { skipTitleCard: true })
-      const firstBirthTimes = state.glintPatches.map((p) => p.birthTime)
+      const firstBirthTimes = state.glintPatches.map(p => p.birthTime)
 
       completeGenesis(state, { skipTitleCard: true })
-      const secondBirthTimes = state.glintPatches.map((p) => p.birthTime)
+      const secondBirthTimes = state.glintPatches.map(p => p.birthTime)
 
       expect(secondBirthTimes).toEqual(firstBirthTimes)
     })

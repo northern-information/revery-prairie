@@ -1,7 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
 import { createGameLoop } from '../gameLoop'
 import { clearArea, clearAroundPlayer, createGroundItemEntity, createTestState } from './helpers'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 afterEach(() => {
   vi.restoreAllMocks()

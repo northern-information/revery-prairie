@@ -3,7 +3,8 @@ import { useCallback, useState } from 'react'
 import { resetGameState } from '@/hooks/useGameEngine'
 import { GameScreen } from '@/components/GameScreen'
 import { NamePrompt } from '@/components/NamePrompt'
-import { NetworkConnect, type NetworkConnectResult } from '@/components/NetworkConnect'
+import { NetworkConnect } from '@/components/NetworkConnect'
+import type { NetworkConnectResult } from '@/components/NetworkConnect'
 
 const generateDevName = (): string => crypto.randomUUID().slice(0, 8)
 
@@ -12,10 +13,7 @@ const shouldSkipGenesis = (): boolean =>
 
 const PRAIRIE_PATH = /^\/p\/([^/]+)\/?$/
 
-type Route =
-  | { type: 'offline' }
-  | { type: 'online-create' }
-  | { type: 'online-join'; prairieId: string }
+type Route = { type: 'offline' } | { type: 'online-create' } | { type: 'online-join'; prairieId: string }
 
 const detectRoute = (): Route => {
   const path = window.location.pathname

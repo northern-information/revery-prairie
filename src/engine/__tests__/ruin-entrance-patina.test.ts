@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest'
 import { PATINA_CHARS, VERDIGRIS_COLORS } from '../constants'
-import { getEntrancePatinaLayers } from '../ruins'
 import { ruinEntrancePatinaPass } from '../render/passes/ruinEntrancePatina'
-import { Zone, type GameState } from '../types'
+import { getEntrancePatinaLayers } from '../ruins'
+import { Zone } from '../types'
+import { describe, expect, it } from 'vitest'
+
+import type { GameState } from '../types'
 
 describe('ruin entrance patina', () => {
   describe('VERDIGRIS_COLORS palette', () => {

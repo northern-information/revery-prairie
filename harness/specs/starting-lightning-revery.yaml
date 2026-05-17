@@ -60,7 +60,7 @@ edge_cases:
       createTestState (which wraps createGameState) includes all four
       starting reveries and a full action bar, so all tests using
       createTestState reflect the new starting state
-    expected: "state.reveries contains all four reveries; actionBar[0-3] are earth/lightning/water/deep-time"
+    expected: 'state.reveries contains all four reveries; actionBar[0-3] are earth/lightning/water/deep-time'
 
 failure_conditions:
   - trigger: 'lightning revery definition missing from REVERIES'

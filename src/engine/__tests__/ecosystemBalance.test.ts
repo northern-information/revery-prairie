@@ -1,11 +1,7 @@
-import { tickCloverLifecycle } from '../cloverLifecycle'
 import { tickCloverHives } from '../clover'
+import { tickCloverLifecycle } from '../cloverLifecycle'
+import { BURNT_CLOVER_RAIN_MULTIPLIER, BURNT_CLOVER_RECOVERY_MS, WATER_MAX } from '../constants'
 import { spreadWildfire } from '../lightning'
-import {
-  BURNT_CLOVER_RAIN_MULTIPLIER,
-  BURNT_CLOVER_RECOVERY_MS,
-  WATER_MAX,
-} from '../constants'
 import { posKey } from '../position'
 import { CloverStage, Sky, TileType, Zone } from '../types'
 import { clearAroundPlayer, createBeeEntity, createBeehiveEntity, createTestState, getBeehiveEntities } from './helpers'

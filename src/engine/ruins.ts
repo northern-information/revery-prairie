@@ -7,35 +7,24 @@ import {
   TILE_COLORS,
   VERDIGRIS_COLORS,
 } from './constants'
-import { STRUCTURE_REGISTRY } from './structures'
 import { transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { createCharacterEntity } from './entities'
-import { setMapTile } from './map'
+import { RuinRole } from './genesisTypes'
 import { recordDiscovery } from './manual'
+import { setMapTile } from './map'
 import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition, isWalkableTile, posKey, tileHash } from './position'
 import { deselectAll } from './selection'
-import { clearAllUnitCommands } from './unitCommands'
+import { STRUCTURE_REGISTRY } from './structures'
 import { RuinArchetype, TileType, Zone } from './types'
-import { RuinRole } from './genesisTypes'
+import { clearAllUnitCommands } from './unitCommands'
 import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
 import type { CivilizationRuin } from './genesisTypes'
-import type {
-  DormantGardenData,
-  GameState,
-  Position,
-  RuinInterior,
-  Tile,
-} from './types'
+import type { DormantGardenData, GameState, Position, RuinInterior, Tile } from './types'
 
-export const queueEvent = (
-  state: GameState,
-  text: string,
-  icon: string,
-  iconColor: string,
-): void => {
+export const queueEvent = (state: GameState, text: string, icon: string, iconColor: string): void => {
   state.queuedEvents.push({
     text,
     icon,
@@ -69,7 +58,7 @@ const carveRect = (
   y: number,
   w: number,
   h: number,
-  tileType: TileType = TileType.RuinFloor,
+  tileType: TileType = TileType.RuinFloor
 ): void => {
   for (let dy = 0; dy < h; dy++) {
     for (let dx = 0; dx < w; dx++) {
@@ -97,10 +86,10 @@ const MARGIN = 2
 
 const createBaseMap = (
   mapWidth: number,
-  mapHeight: number,
+  mapHeight: number
 ): { map: Tile[][]; entranceX: number; entranceY: number; entranceInterior: Position } => {
   const map: Tile[][] = Array.from({ length: mapHeight }, () =>
-    Array.from({ length: mapWidth }, () => ({ type: TileType.RuinWall })),
+    Array.from({ length: mapWidth }, () => ({ type: TileType.RuinWall }))
   )
 
   const entranceX = Math.floor(mapWidth / 2)
@@ -112,7 +101,10 @@ const createBaseMap = (
   // Exit row: 5 RuinExit tiles centered on entranceX (hot pink, walkable)
   const EXIT_WIDTH = 5
   const exitMargin = 3
-  const exitStartX = Math.max(exitMargin, Math.min(mapWidth - exitMargin - EXIT_WIDTH, entranceX - Math.floor(EXIT_WIDTH / 2)))
+  const exitStartX = Math.max(
+    exitMargin,
+    Math.min(mapWidth - exitMargin - EXIT_WIDTH, entranceX - Math.floor(EXIT_WIDTH / 2))
+  )
   for (let i = 0; i < EXIT_WIDTH; i++) {
     const ex = exitStartX + i
     if (ex >= 0 && ex < mapWidth) map[entranceY][ex] = { type: TileType.RuinExit }
@@ -136,12 +128,7 @@ const SEED_DECAY_MIN_MS = 45_000
  * ALL walkable tile types (floor, aqueduct, debris=no, door=no) uniformly.
  * Returns a Map of posKey -> distance.
  */
-const bfsDistances = (
-  map: Tile[][],
-  mapWidth: number,
-  mapHeight: number,
-  start: Position,
-): Map<string, number> => {
+const bfsDistances = (map: Tile[][], mapWidth: number, mapHeight: number, start: Position): Map<string, number> => {
   const distances = new Map<string, number>()
   const queue: Position[] = [start]
   distances.set(posKey(start.x, start.y), 0)
@@ -200,7 +187,7 @@ const generateDormantGarden = (
   entranceX: number,
   entranceY: number,
   ruin: CivilizationRuin,
-  rng: () => number,
+  rng: () => number
 ): DormantGardenData => {
   const SPINE_WIDTH = 3
   const BRANCH_WIDTH = 3
@@ -241,9 +228,7 @@ const generateDormantGarden = (
     const alcoveLen = 3 + Math.floor(rng() * 4)
     const alcoveWidth = 1 + Math.floor(rng() * 2) // 1-2 wide
     const startX = goLeft ? entranceX - 2 : entranceX + 2
-    const endX = goLeft
-      ? Math.max(MARGIN + 1, startX - alcoveLen)
-      : Math.min(mapWidth - MARGIN - 2, startX + alcoveLen)
+    const endX = goLeft ? Math.max(MARGIN + 1, startX - alcoveLen) : Math.min(mapWidth - MARGIN - 2, startX + alcoveLen)
     const start: Position = { x: startX, y: anchorY }
     const end: Position = { x: endX, y: anchorY }
     carveStraight(map, start, end, alcoveWidth === 1 ? 1 : 2)
@@ -358,7 +343,7 @@ const generateDormantGarden = (
     const parts = key.split(',')
     const bx = Number(parts[0])
     const by = Number(parts[1])
-    const tooClose = breakPoints.some((bp) => Math.abs(bp.x - bx) + Math.abs(bp.y - by) < 4)
+    const tooClose = breakPoints.some(bp => Math.abs(bp.x - bx) + Math.abs(bp.y - by) < 4)
     if (tooClose) continue
     map[by][bx] = { type: TileType.RuinAqueductBroken }
     breakPoints.push({ x: bx, y: by })
@@ -377,9 +362,7 @@ const generateDormantGarden = (
     const maxBarrierY = spineEntryY - Math.floor(spineLength * 0.35)
 
     const isCorridorOrChannel = (t: TileType | undefined): boolean =>
-      t === TileType.RuinFloor ||
-      t === TileType.RuinAqueduct ||
-      t === TileType.RuinAqueductBroken
+      t === TileType.RuinFloor || t === TileType.RuinAqueduct || t === TileType.RuinAqueductBroken
 
     const tryRow = (y: number): boolean => {
       if (y < spineTopY + 2 || y > spineEntryY - 2) return false
@@ -429,7 +412,7 @@ const generateDormantGarden = (
         const y = chosenY
         const k = posKey(x, y)
         if (aqueductTiles.has(k)) aqueductTiles.delete(k)
-        const bpIdx = breakPoints.findIndex((bp) => bp.x === x && bp.y === y)
+        const bpIdx = breakPoints.findIndex(bp => bp.x === x && bp.y === y)
         if (bpIdx >= 0) breakPoints.splice(bpIdx, 1)
         map[y][x] = { type: TileType.RuinDebris }
         collapseBarrier.push({ x, y })
@@ -450,12 +433,7 @@ const generateDormantGarden = (
     if (Math.abs(dx - entranceX) <= 1 && dy >= entranceY - 3) continue
     // Avoid the door row and the carved landing strip directly south of it
     // so every door tile remains reachable.
-    if (
-      dx >= vaultX - 1 &&
-      dx <= vaultX + vaultW &&
-      dy >= doorY - 1 &&
-      dy <= doorY + 1
-    ) continue
+    if (dx >= vaultX - 1 && dx <= vaultX + vaultW && dy >= doorY - 1 && dy <= doorY + 1) continue
     map[dy][dx] = { type: TileType.RuinDebris }
     debrisPositions.push({ x: dx, y: dy })
   }
@@ -502,8 +480,7 @@ const generateDormantGarden = (
   let maxDist = 0
   for (const d of distances.values()) if (d > maxDist) maxDist = d
 
-  const inVault = (x: number, y: number) =>
-    x >= vaultX && x < vaultX + vaultW && y >= vaultY && y < vaultY + vaultH
+  const inVault = (x: number, y: number) => x >= vaultX && x < vaultX + vaultW && y >= vaultY && y < vaultY + vaultH
 
   const isCandidateCell = (x: number, y: number, allowAqueduct: boolean): boolean => {
     if (inVault(x, y)) return false
@@ -561,9 +538,7 @@ const generateDormantGarden = (
   }
 
   // Tablet in 25-55% band, excluding the chosen key cell. Channels disallowed.
-  const tabletCandidates = cellsInBand(0.25, 0.55, false).filter(
-    (c) => c.x !== keyPosition?.x || c.y !== keyPosition.y,
-  )
+  const tabletCandidates = cellsInBand(0.25, 0.55, false).filter(c => c.x !== keyPosition?.x || c.y !== keyPosition.y)
   if (tabletCandidates.length === 0) {
     // Fallback: nearest non-conflicting floor cell at any depth
     for (const key of distances.keys()) {
@@ -576,9 +551,8 @@ const generateDormantGarden = (
       break
     }
   }
-  const tabletPosition = tabletCandidates.length > 0
-    ? tabletCandidates[Math.floor(rng() * tabletCandidates.length)]
-    : null
+  const tabletPosition =
+    tabletCandidates.length > 0 ? tabletCandidates[Math.floor(rng() * tabletCandidates.length)] : null
 
   return {
     aqueductTiles,
@@ -601,12 +575,7 @@ const generateDormantGarden = (
 // ---------------------------------------------------------------------------
 
 /** Flood-fill from a start position, returning all reachable walkable posKeys. */
-const floodFillReachable = (
-  map: Tile[][],
-  mapWidth: number,
-  mapHeight: number,
-  start: Position,
-): Set<string> => {
+const floodFillReachable = (map: Tile[][], mapWidth: number, mapHeight: number, start: Position): Set<string> => {
   const reachable = new Set<string>()
   const queue: Position[] = [start]
   const startKey = posKey(start.x, start.y)
@@ -630,10 +599,7 @@ const floodFillReachable = (
 }
 
 /** Collect critical positions that must remain reachable from the entrance. */
-const getCriticalPositions = (
-  entranceInterior: Position,
-  dormantGarden: DormantGardenData | null,
-): Set<string> => {
+const getCriticalPositions = (entranceInterior: Position, dormantGarden: DormantGardenData | null): Set<string> => {
   const critical = new Set<string>()
   // Entrance + corridor
   critical.add(posKey(entranceInterior.x, entranceInterior.y))
@@ -664,7 +630,7 @@ export const placeVoidPonds = (
   mapHeight: number,
   entranceInterior: Position,
   dormantGarden: DormantGardenData | null,
-  rng: () => number,
+  rng: () => number
 ): void => {
   // Count plain floor tiles eligible for void conversion
   let walkableCount = 0
@@ -774,7 +740,7 @@ export const generateRuinInterior = (
   ruin: CivilizationRuin,
   ruinIndex: number,
   archetype: RuinArchetype,
-  rng: () => number,
+  rng: () => number
 ): Omit<RuinInterior, 'entranceOverworld'> => {
   const mapWidth = ruin.radius * 24 + 30
   const mapHeight = ruin.radius * 18 + 24
@@ -920,13 +886,7 @@ export const exitRuin = (state: GameState): void => {
   state.currentZone = Zone.Overworld
 
   // Place player outside the 3x3 overworld hitbox (Chebyshev distance >= 2)
-  state.player = findSafeExitPosition(
-    interior.entranceOverworld,
-    state.map,
-    state.mapWidth,
-    state.mapHeight,
-    2,
-  )
+  state.player = findSafeExitPosition(interior.entranceOverworld, state.map, state.mapWidth, state.mapHeight, 2)
 
   state.currentRuinIndex = null
 
@@ -934,7 +894,6 @@ export const exitRuin = (state: GameState): void => {
 
   // Teleport coyote to overworld
   transitionCoyoteToZone(state, Zone.Overworld)
-
 }
 
 export const checkRuinTransition = (state: GameState): boolean => {
@@ -949,7 +908,7 @@ export const checkRuinTransition = (state: GameState): boolean => {
           const ex = px + dx
           const ey = py + dy
           const ruinIndex = state.ruinInteriors.findIndex(
-            (r) => r.entranceOverworld.x === ex && r.entranceOverworld.y === ey,
+            r => r.entranceOverworld.x === ex && r.entranceOverworld.y === ey
           )
           if (ruinIndex !== -1) {
             scheduleZoneTransition(state, performance.now(), {
@@ -987,7 +946,7 @@ registerZoneSwapHandler('ruin', 'enter', (state, transition) => {
   if (transition.ruinIndex === null) return
   enterRuin(state, transition.ruinIndex)
 })
-registerZoneSwapHandler('ruin', 'exit', (state) => {
+registerZoneSwapHandler('ruin', 'exit', state => {
   exitRuin(state)
 })
 
@@ -1014,7 +973,7 @@ export const getEntranceHaloCells = (
   entranceX: number,
   entranceY: number,
   rivers: Set<string>,
-  ponds: Set<string>,
+  ponds: Set<string>
 ): Position[] => {
   const cells: Position[] = []
   for (let dy = -1; dy <= 1; dy++) {
@@ -1047,7 +1006,7 @@ export const getEntrancePatinaLayers = (
   cellX: number,
   cellY: number,
   entranceX: number,
-  entranceY: number,
+  entranceY: number
 ): PatinaLayer[] => {
   if (cellX === entranceX && cellY === entranceY) return []
   const h = tileHash(cellX, cellY)
@@ -1070,10 +1029,7 @@ export const getEntrancePatinaLayers = (
   return layers
 }
 
-export const placeRuinEntrances = (
-  map: Tile[][],
-  ruinInteriors: RuinInterior[],
-): void => {
+export const placeRuinEntrances = (map: Tile[][], ruinInteriors: RuinInterior[]): void => {
   const mapHeight = map.length
   const mapWidth = map[0]?.length ?? 0
   for (const interior of ruinInteriors) {
@@ -1107,7 +1063,12 @@ export const placeRuinEntrances = (
 // Cardinal deltas (used by flood-fill helpers)
 // ---------------------------------------------------------------------------
 
-const CARDINAL_DELTAS: readonly [number, number][] = [[0, -1], [0, 1], [-1, 0], [1, 0]]
+const CARDINAL_DELTAS: readonly [number, number][] = [
+  [0, -1],
+  [0, 1],
+  [-1, 0],
+  [1, 0],
+]
 
 // ---------------------------------------------------------------------------
 // Dormant garden seed spawning
@@ -1292,7 +1253,7 @@ export const repairAqueductBreak = (state: GameState, x: number, y: number): boo
   garden.aqueductTiles.add(posKey(x, y))
 
   // Check if all breaks are now repaired
-  const allRepaired = garden.breakPoints.every((bp) => garden.repairedBreaks.has(posKey(bp.x, bp.y)))
+  const allRepaired = garden.breakPoints.every(bp => garden.repairedBreaks.has(posKey(bp.x, bp.y)))
   if (allRepaired) {
     garden.waterFlowing = true
   }

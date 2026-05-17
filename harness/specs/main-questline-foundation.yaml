@@ -238,7 +238,7 @@ behaviors:
       is gated on the closing dialog belonging to Gron — closing any
       other character's dialog must not consume the flag.
     inputs:
-      - 'advanceDialog completes Gron''s dialog (returns continuing=false)'
+      - "advanceDialog completes Gron's dialog (returns continuing=false)"
       - 'state.pendingSavedBees === true at the moment dialog closes'
     outputs:
       - 'up to 3 new bee entities exist on the map'

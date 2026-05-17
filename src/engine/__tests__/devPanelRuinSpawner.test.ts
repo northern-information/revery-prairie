@@ -1,25 +1,22 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
 import { ENTRANCE_GLYPHS } from '../constants'
 import {
+  getRuinPreviewGlyph,
   RUIN_ARCHETYPE_OPTIONS,
   RUIN_GLYPH_OPTIONS,
   RUIN_GLYPH_RANDOM,
   RUIN_PRESET_KEY,
   RUIN_PRESET_LABEL,
-  getRuinPreviewGlyph,
   spawnDevRuin,
 } from '../devPanel'
 import { createWorld } from '../ecs/world'
 import { posKey } from '../position'
 import { RuinArchetype, TileType, Zone } from '../types'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { GameState, RuinInterior } from '../types'
 
 const makeOverworldState = (): GameState => {
-  const map = Array.from({ length: 20 }, () =>
-    Array.from({ length: 20 }, () => ({ type: TileType.Dirt as TileType })),
-  )
+  const map = Array.from({ length: 20 }, () => Array.from({ length: 20 }, () => ({ type: TileType.Dirt as TileType })))
   const interiors: RuinInterior[] = []
   return {
     world: createWorld(),

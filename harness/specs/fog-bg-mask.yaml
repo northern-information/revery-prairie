@@ -120,7 +120,7 @@ edge_cases:
     expected: 'space tiles in viewport receive no mask; canvas BG_COLOR + twinkling stars render normally'
   - id: hidden-chamber-still-hidden
     description: 'cave hidden-chamber tiles (caveHiddenPositions, before caveRevealed) are baked into the cache as CaveWall via existing masking. the fog mask does not need to handle them specially — fog state still applies to them like any other cave tile.'
-    expected: 'hidden chamber tiles render with the masked CaveWall bg; fog mask additionally hides/dims them per the player''s visibility state'
+    expected: "hidden chamber tiles render with the masked CaveWall bg; fog mask additionally hides/dims them per the player's visibility state"
   - id: cave-entrance-always-visible-bg
     description: 'cave entrance and its 1-tile neighbors are force-added to the visible set by computeZoneVisibility, so their tiles never reach unexplored or partiallyDiscovered.'
     expected: 'entrance tiles never receive a mask; their bg + edge always show at full saturation'

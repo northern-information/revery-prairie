@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CreditsModal } from './CreditsModal'
 import { TextButton } from './PanelPrimitives'
+
 import { CREDITS } from '@/engine/credits'
 
 const FONT_SCALES = [1, 1.25, 1.5] as const
@@ -65,9 +66,7 @@ export const Menu = ({
         )}
         <TextButton onClick={onToggleUnits}>Units: {metric ? 'Metric' : 'Imperial'}</TextButton>
         <TextButton onClick={onToggleMusic}>Music: {musicEnabled ? 'On' : 'Off'}</TextButton>
-        <TextButton onClick={onToggleAutoHidePanels}>
-          Auto-hide panels: {autoHidePanels ? 'On' : 'Off'}
-        </TextButton>
+        <TextButton onClick={onToggleAutoHidePanels}>Auto-hide panels: {autoHidePanels ? 'On' : 'Off'}</TextButton>
         <TextButton onClick={onCycleFontScale}>Font: {FONT_SCALE_LABELS[fontScale] ?? 'Medium'}</TextButton>
         <TextButton
           onClick={() => {

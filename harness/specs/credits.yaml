@@ -109,7 +109,7 @@ edge_cases:
     expected: 'rAF handle is cancelled on unmount; no leaked animation frames or console errors'
   - id: duplicate-names-in-array
     description: 'CREDITS contains two entries with the same name (e.g. mid-edit before merge)'
-    expected: 'both rows render; modal does not deduplicate. (deduplication is the /credits skill''s responsibility, not the runtime.)'
+    expected: "both rows render; modal does not deduplicate. (deduplication is the /credits skill's responsibility, not the runtime.)"
 
 failure_conditions:
   - trigger: 'CREDITS export is missing from the module'

@@ -44,12 +44,12 @@ const getStarCount = (state: GameState): number => state.world.query(ComponentTy
 const getMeteoriteEntities = (state: GameState): Entity[] =>
   state.world
     .query(ComponentType.EntityTag)
-    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
 
 const getExplosionEntities = (state: GameState): Entity[] =>
   state.world
     .query(ComponentType.TimedEffect, ComponentType.EntityTag)
-    .filter((eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
+    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'explosion')
 
 const destroyAllStars = (state: GameState): void => {
   for (const eid of state.world.query(ComponentType.ShootingStarData)) {

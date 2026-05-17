@@ -3,18 +3,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { triggerPlayerSpawnShower } from '@/engine/celestial'
 import { completeGenesis } from '@/engine/genesis'
 import { createGameState } from '@/engine/state'
-
 import { collapseFacingToCardinal } from '@/engine/types'
-
-import type { NetworkClient } from '@/network/client'
-import type {
-  ColorId,
-  PeerJoinedFrame,
-  PeerLeftFrame,
-  PeerPositionFrame,
-  WelcomeFrame,
-} from '@revery-prairie/shared'
 import type { GameState } from '@/engine/types'
+import type { NetworkClient } from '@/network/client'
+import type { ColorId, PeerJoinedFrame, PeerLeftFrame, PeerPositionFrame, WelcomeFrame } from '@revery-prairie/shared'
 
 // Game state lives outside React's render cycle.
 // It is created once and mutated by the engine.

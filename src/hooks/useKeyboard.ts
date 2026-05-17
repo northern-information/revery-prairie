@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { activateActionBarSlot, getActionBarPreview, getTargetingPreview } from '@/engine/actionBar'
-import { getReveryDefinition } from '@/engine/reveries'
 import { getCharacterDefinition } from '@/engine/characters'
 import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
 import { dropItem } from '@/engine/entities'
@@ -19,6 +18,7 @@ import {
   updateFacingEntity,
 } from '@/engine/interaction'
 import { getDefinition } from '@/engine/items'
+import { getReveryDefinition } from '@/engine/reveries'
 import { DeepTimePhase, Zone } from '@/engine/types'
 import { isInputGated } from '@/engine/zoneTransition'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
@@ -280,8 +280,7 @@ export const useKeyboard = ({
       }
 
       // Block permacomputer during deep time burning/simulating
-      const deepTimeBlocking =
-        state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
+      const deepTimeBlocking = state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
 
       // Toggle pack
       if (e.key === 'Tab') {
@@ -348,7 +347,19 @@ export const useKeyboard = ({
         }
       }
     },
-    [state, refreshUI, activeScreen, setActiveScreen, itemInfoRef, onPickup, onDrop, onDialog, onDiscovery, onGift, isDraggingRef]
+    [
+      state,
+      refreshUI,
+      activeScreen,
+      setActiveScreen,
+      itemInfoRef,
+      onPickup,
+      onDrop,
+      onDialog,
+      onDiscovery,
+      onGift,
+      isDraggingRef,
+    ]
   )
 
   const handleKeyUp = useCallback(

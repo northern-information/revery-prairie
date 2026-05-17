@@ -97,16 +97,22 @@ const safeStart = (track: Track): void => {
   }
 
   if (audioCtx.state === 'suspended') {
-    audioCtx.resume().then(doStart).catch(() => {
-      // Autoplay blocked — retry on next user interaction
-      pendingResume = () => {
-        audioCtx.resume().then(doStart).catch(() => {
-          // Still blocked — give up silently
-        })
-      }
-      document.addEventListener('click', resumePending, { once: true })
-      document.addEventListener('keydown', resumePending, { once: true })
-    })
+    audioCtx
+      .resume()
+      .then(doStart)
+      .catch(() => {
+        // Autoplay blocked — retry on next user interaction
+        pendingResume = () => {
+          audioCtx
+            .resume()
+            .then(doStart)
+            .catch(() => {
+              // Still blocked — give up silently
+            })
+        }
+        document.addEventListener('click', resumePending, { once: true })
+        document.addEventListener('keydown', resumePending, { once: true })
+      })
   } else {
     doStart()
   }
@@ -125,7 +131,7 @@ const fadeBoth = (
   fadeOutGain: GainNode | null,
   fadeOutTarget: number,
   durationMs: number,
-  onComplete?: () => void,
+  onComplete?: () => void
 ): void => {
   cancelFade()
 
@@ -145,8 +151,7 @@ const fadeBoth = (
     const t = Math.min(elapsed / durationMs, 1)
 
     if (fadeInGain) fadeInGain.gain.value = fadeInStart + (fadeInTarget - fadeInStart) * t
-    if (fadeOutGain)
-      fadeOutGain.gain.value = fadeOutStart + (fadeOutTarget - fadeOutStart) * t
+    if (fadeOutGain) fadeOutGain.gain.value = fadeOutStart + (fadeOutTarget - fadeOutStart) * t
 
     if (t < 1) {
       fadeRafId = requestAnimationFrame(step)
@@ -176,7 +181,7 @@ export const setAmbient = (url: string, fadeMs: number = FADE_MS): void => {
   const requestedUrl = url
 
   void createTrack(url)
-    .then((track) => {
+    .then(track => {
       if (ambientUrl !== requestedUrl) {
         destroyTrack(track)
         return
@@ -202,7 +207,7 @@ export const startDialogMusic = (url: string, fadeMs: number = FADE_MS): void =>
   }
 
   void createTrack(url)
-    .then((track) => {
+    .then(track => {
       dialogTrack = track
       safeStart(track)
       fadeBoth(track.gain, 1, ambientTrack?.gain ?? null, 0, fadeMs)

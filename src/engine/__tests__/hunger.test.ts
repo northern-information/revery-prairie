@@ -1,8 +1,7 @@
-import { describe, expect, it } from 'vitest'
-
 import { ComponentType } from '../ecs/types'
 import { tickCreatureHunger } from '../hunger'
 import { createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState, Position } from '../types'
 

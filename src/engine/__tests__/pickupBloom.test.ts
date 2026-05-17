@@ -1,16 +1,13 @@
-import { describe, expect, it, vi } from 'vitest'
-
+import { harvestClover } from '../cloverLifecycle'
 import { tickCoyote } from '../coyote'
+import { executeCombine } from '../drag'
 import { ComponentType } from '../ecs/types'
 import { spawnPickupBloom } from '../effects'
 import { pickUpGroundItems } from '../entities'
-import { harvestClover } from '../cloverLifecycle'
-import { executeCombine } from '../drag'
 import { giveCharacterGift, givePostGift, updateFacingEntity } from '../interaction'
 import { placeItem } from '../inventory'
 import { RECIPES } from '../recipes'
 import { CoyoteMode, TileType, Zone } from '../types'
-
 import {
   clearAroundPlayer,
   createBeeEntity,
@@ -19,9 +16,10 @@ import {
   createMeteoriteEntity,
   createTestState,
 } from './helpers'
+import { describe, expect, it, vi } from 'vitest'
 
-import type { GameState, ItemInstance } from '../types'
 import type { Recipe } from '../recipes'
+import type { GameState, ItemInstance } from '../types'
 
 /** Assert a value is truthy and return it typed — avoids non-null assertions */
 const requireValue = <T>(val: T | null | undefined): T => {
@@ -323,13 +321,7 @@ describe('craft bloom', () => {
   it('does not spawn bloom when time is omitted', () => {
     const { state, bee, clover, prairieRecipe } = setupCombine()
 
-    executeCombine(
-      state,
-      state.backpack,
-      state.backpack,
-      bee,
-      { uid: clover.uid, recipe: prairieRecipe }
-    )
+    executeCombine(state, state.backpack, state.backpack, bee, { uid: clover.uid, recipe: prairieRecipe })
 
     expect(queryPickupBlooms(state)).toHaveLength(0)
   })

@@ -1,11 +1,10 @@
+import { ActionBar } from '../ActionBar'
 import { act, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { assignActionBarSlot } from '@/engine/actionBar'
 import { completeGenesis } from '@/engine/genesis'
 import { createGameState } from '@/engine/state'
-
-import { ActionBar } from '../ActionBar'
 
 const noop = () => undefined
 
@@ -17,7 +16,9 @@ const flushFrame = () => {
 
 describe('ActionBar', () => {
   beforeEach(() => {
-    vi.useFakeTimers({ toFake: ['performance', 'requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout', 'clearTimeout'] })
+    vi.useFakeTimers({
+      toFake: ['performance', 'requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout', 'clearTimeout'],
+    })
   })
 
   afterEach(() => {
@@ -40,7 +41,9 @@ describe('ActionBar', () => {
 
     const overlays = container.querySelectorAll('div[style*="conic-gradient"]')
     expect(overlays.length).toBeGreaterThan(0)
-    const overlayHtml = Array.from(overlays).map((el) => el.getAttribute('style') ?? '').join('\n')
+    const overlayHtml = Array.from(overlays)
+      .map(el => el.getAttribute('style') ?? '')
+      .join('\n')
     // jsdom normalizes hex (#ff69b4) to rgb(255, 105, 180)
     expect(overlayHtml).toMatch(/rgb\(\s*255,\s*105,\s*180\s*\)/)
     expect(overlayHtml).not.toMatch(/rgb\(\s*218,\s*165,\s*32\s*\)/) // gold rgb

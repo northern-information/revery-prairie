@@ -1,7 +1,7 @@
-import { MAP_WIDTH, MAP_HEIGHT } from '../constants'
+import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { createCharacterEntity } from '../entities'
-import { createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis, completeGenesis } from '../genesis'
+import { completeGenesis, createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } from '../genesis'
 import { isInBounds } from '../position'
 import { createGameState } from '../state'
 import { Sky, TileType } from '../types'
@@ -27,7 +27,11 @@ const cloneGenesis = (): GenesisSimState => ({
   ponds: new Set(_cachedSim.ponds),
   riverPaths: new Set(_cachedSim.riverPaths),
   burnScars: new Set(_cachedSim.burnScars),
-  ruins: _cachedSim.ruins.map(r => ({ ...r, aqueductPaths: r.aqueductPaths.map(p => [...p]), buildingFootprints: [...r.buildingFootprints] })),
+  ruins: _cachedSim.ruins.map(r => ({
+    ...r,
+    aqueductPaths: r.aqueductPaths.map(p => [...p]),
+    buildingFootprints: [...r.buildingFootprints],
+  })),
 })
 
 /**

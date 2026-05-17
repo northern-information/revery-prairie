@@ -1,4 +1,3 @@
-import { describe, it, expect, vi } from 'vitest'
 import { activateActionBarSlot, assignActionBarSlot } from '../actionBar'
 import { spawnShootingStar } from '../celestial'
 import {
@@ -12,7 +11,8 @@ import { ComponentType } from '../ecs/types'
 import { tickCharacterBehaviors } from '../entities'
 import { createGameLoop } from '../gameLoop'
 import { DeepTimePhase } from '../types'
-import { createTestState, createCharacterTestEntity, getCharacterEntities } from './helpers'
+import { createCharacterTestEntity, createTestState, getCharacterEntities } from './helpers'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { GameState } from '../types'
 

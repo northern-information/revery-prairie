@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 
 import { setMapTile } from '../map'
-import {
-  flushDirtyTiles,
-  getOrBuildCache,
-  invalidateMapCache,
-  markTileDirty,
-} from '../tileBgCache'
+import { flushDirtyTiles, getOrBuildCache, invalidateMapCache, markTileDirty } from '../tileBgCache'
 import { TileType } from '../types'
 import { createTestState } from './helpers'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'

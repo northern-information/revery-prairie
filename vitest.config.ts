@@ -22,10 +22,7 @@ export default defineConfig({
             'harness/**/*.test.ts',
             'src/harness/**/*.test.ts',
           ],
-          exclude: [
-            'src/harness/__tests__/boot/**',
-            'src/engine/__tests__/audio.test.ts',
-          ],
+          exclude: ['src/harness/__tests__/boot/**', 'src/engine/__tests__/audio.test.ts'],
         },
       },
       {

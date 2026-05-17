@@ -5,6 +5,7 @@ import {
   COMPONENT_META,
   DEV_PRESETS,
   ENTITY_TAG_SUGGESTIONS,
+  getComponentDefaults,
   getEntityPreviewGlyph,
   getRuinPreviewGlyph,
   paintRect,
@@ -16,12 +17,10 @@ import {
   spawnDevEntity,
   spawnDevRuin,
   TILE_TYPE_LIST,
-  getComponentDefaults,
 } from '@/engine/devPanel'
 import { ComponentType } from '@/engine/ecs/types'
 import { screenToTile } from '@/engine/projection'
 import { RuinArchetype } from '@/engine/types'
-
 import type { ComponentMeta, FieldMeta } from '@/engine/devPanel'
 import type { CharMetrics, GameState, Position } from '@/engine/types'
 
@@ -55,21 +54,13 @@ const screenToTilePos = (
     metrics.charWidth,
     metrics.charHeight,
     state.viewportWidth,
-    state.viewportHeight,
+    state.viewportHeight
   )
 }
 
 // --- Field editor components ---
 
-const NumberField = ({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: number
-  onChange: (v: number) => void
-}) => (
+const NumberField = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
   <label className="flex items-center justify-between gap-2">
     <span className="text-muted">{label}</span>
     <input
@@ -124,15 +115,7 @@ const StringField = ({
   </label>
 )
 
-const BoolField = ({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: boolean
-  onChange: (v: boolean) => void
-}) => (
+const BoolField = ({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) => (
   <label className="flex items-center justify-between gap-2">
     <span className="text-muted">{label}</span>
     <input
@@ -196,14 +179,7 @@ const FieldEditor = ({
   }
   if (field.kind === 'select') {
     const selectVal = typeof value === 'string' ? value : (field.options?.[0] ?? '')
-    return (
-      <SelectField
-        label={field.name}
-        value={selectVal}
-        options={field.options ?? []}
-        onChange={onChange}
-      />
-    )
+    return <SelectField label={field.name} value={selectVal} options={field.options ?? []} onChange={onChange} />
   }
   // string
   const strVal = typeof value === 'string' ? value : ''
@@ -238,12 +214,7 @@ const ComponentSection = ({
   return (
     <div className="border-border-dim border-b">
       <div className="flex items-center gap-1 py-1">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={onToggle}
-          className="accent-pink"
-        />
+        <input type="checkbox" checked={checked} onChange={onToggle} className="accent-pink" />
         <button
           type="button"
           className={`text-xs ${checked ? 'text-text' : 'text-muted'} flex-1 text-left`}
@@ -351,9 +322,7 @@ const EntityTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
       if (!ruinMode && checked.size === 0) return
       e.preventDefault()
 
-      const glyph = ruinMode
-        ? getRuinPreviewGlyph(ruinGlyph)
-        : getEntityPreviewGlyph(buildComponentMap())
+      const glyph = ruinMode ? getRuinPreviewGlyph(ruinGlyph) : getEntityPreviewGlyph(buildComponentMap())
 
       const handleUp = (ue: MouseEvent) => {
         window.removeEventListener('mousemove', handleMove)
@@ -627,9 +596,7 @@ const TileTab = ({ state, refreshUI, metricsRef }: DevPanelProps) => {
               activatePaint(tile.value)
             }}
             className={`shrink-0 rounded px-2 py-1 text-left text-xs ${
-              selectedTile === tile.value
-                ? 'bg-pink text-bg'
-                : 'text-text hover:bg-pink/20'
+              selectedTile === tile.value ? 'bg-pink text-bg' : 'text-text hover:bg-pink/20'
             }`}
           >
             {tile.label.toUpperCase()}
@@ -673,10 +640,20 @@ export const DevPanel = (props: DevPanelProps) => {
         </div>
 
         <div className="border-border-dim flex shrink-0 border-b">
-          <Tab active={tab === 'entity'} onClick={() => { setTab('entity') }}>
+          <Tab
+            active={tab === 'entity'}
+            onClick={() => {
+              setTab('entity')
+            }}
+          >
             ENTITY
           </Tab>
-          <Tab active={tab === 'tile'} onClick={() => { setTab('tile') }}>
+          <Tab
+            active={tab === 'tile'}
+            onClick={() => {
+              setTab('tile')
+            }}
+          >
             TILE
           </Tab>
         </div>

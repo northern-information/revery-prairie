@@ -1,9 +1,5 @@
+import { ANGEL_FLOAT_LIFT_PX, ELEVATION_TIER_COUNT, ELEVATION_TIER_LIFT_PX } from '../tileBg'
 import { describe, expect, it } from 'vitest'
-import {
-  ANGEL_FLOAT_LIFT_PX,
-  ELEVATION_TIER_COUNT,
-  ELEVATION_TIER_LIFT_PX,
-} from '../tileBg'
 
 // Canvas rendering cannot be unit-tested per CLAUDE.md, so the
 // deferred-draw flush itself is verified visually by the user. These

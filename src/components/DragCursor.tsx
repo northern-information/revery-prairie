@@ -37,7 +37,7 @@ export const DragCursor = ({
       metrics.charWidth,
       metrics.charHeight,
       viewportWidth,
-      viewportHeight,
+      viewportHeight
     )
     const { px, py } = viewportToScreen(
       tile.x,
@@ -45,7 +45,7 @@ export const DragCursor = ({
       metrics.charWidth,
       metrics.charHeight,
       viewportWidth,
-      viewportHeight,
+      viewportHeight
     )
     const snapX = canvasRect.left + px - metrics.charWidth / 2
     const snapY = canvasRect.top + py

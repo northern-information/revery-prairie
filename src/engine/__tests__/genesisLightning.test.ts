@@ -1,10 +1,8 @@
-import { describe, expect, it } from 'vitest'
-
-import { withSeededRandom } from '@/harness/prng'
-
 import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
 import { createGenesisState, GENESIS_EPOCHS, runAllMutations } from '../genesis'
 import { posKey } from '../position'
+import { withSeededRandom } from '@/harness/prng'
+import { describe, expect, it } from 'vitest'
 
 const SEED = 42
 

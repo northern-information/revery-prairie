@@ -1,12 +1,10 @@
-import {
-  LIGHTNING_DURATION_MS,
-  LIGHTNING_SCREEN_FLASH_MS,
-  LIGHTNING_SCREEN_FLASH_OPACITY,
-} from '../../constants'
+import { LIGHTNING_DURATION_MS, LIGHTNING_SCREEN_FLASH_MS, LIGHTNING_SCREEN_FLASH_OPACITY } from '../../constants'
 import { ComponentType } from '../../ecs/types'
 import { isEntityInCurrentZone } from '../../zone'
+import { registerPass } from '../passes'
+
 import type { CharMetrics, GameState } from '../../types'
-import { type RenderPass, registerPass } from '../passes'
+import type { RenderPass } from '../passes'
 
 const earliestLightningElapsed = (state: GameState, time: number): number => {
   let earliest = Infinity
@@ -23,12 +21,7 @@ const earliestLightningElapsed = (state: GameState, time: number): number => {
   return earliest
 }
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   const elapsed = earliestLightningElapsed(state, time)
   if (elapsed >= LIGHTNING_SCREEN_FLASH_MS) return
   const alpha = LIGHTNING_SCREEN_FLASH_OPACITY * (1 - elapsed / LIGHTNING_SCREEN_FLASH_MS)

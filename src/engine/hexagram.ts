@@ -590,9 +590,7 @@ export const HEXAGRAMS: HexagramDefinition[] = [
 // --- 8x8 grid indexed by [lowerTrigram][upperTrigram] ---
 
 const buildHexagramGrid = (): HexagramDefinition[][] => {
-  const grid: HexagramDefinition[][] = Array.from({ length: 8 }, () =>
-    Array(8).fill(null) as HexagramDefinition[]
-  )
+  const grid: HexagramDefinition[][] = Array.from({ length: 8 }, () => Array(8).fill(null) as HexagramDefinition[])
   for (const h of HEXAGRAMS) {
     const row = trigramIndex(h.lines, 0) // lower trigram
     const col = trigramIndex(h.lines, 3) // upper trigram

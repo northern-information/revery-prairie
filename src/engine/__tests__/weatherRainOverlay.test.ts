@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
 import { createGameState } from '../state'
 import { Sky, Zone } from '../types'
+import { describe, expect, it } from 'vitest'
 
 describe('weather rain overlay', () => {
   it('weather sky can be set to rain', () => {

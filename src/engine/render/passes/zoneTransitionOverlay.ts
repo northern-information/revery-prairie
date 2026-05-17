@@ -5,8 +5,10 @@ import {
   ZONE_TRANSITION_HOLD_MS,
 } from '../../constants'
 import { RuinArchetype } from '../../types'
+import { registerPass } from '../passes'
+
 import type { CharMetrics, GameState, ZoneTransition } from '../../types'
-import { type RenderPass, registerPass } from '../passes'
+import type { RenderPass } from '../passes'
 
 const ZONE_LABEL_COLOR = '#d8a860'
 // Title Case per writing-style rule for in-game entry names.
@@ -53,12 +55,7 @@ const overlayAlpha = (elapsed: number): number => {
   return 0
 }
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   const transition = state.zoneTransition
   if (!transition) return
 
@@ -96,7 +93,7 @@ const draw = (
 export const zoneTransitionOverlayPass: RenderPass = {
   id: 'zone-transition-overlay',
   slot: 'screen-overlay',
-  isActive: (state) => state.zoneTransition !== null,
+  isActive: state => state.zoneTransition !== null,
   draw,
 }
 

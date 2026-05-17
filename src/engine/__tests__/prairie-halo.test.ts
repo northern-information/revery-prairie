@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
 import {
   PRAIRIE_HALO_MAX_ALPHA,
   PRAIRIE_HALO_MIN_ALPHA,
@@ -8,9 +6,9 @@ import {
 } from '../constants'
 import { computePrairieHaloAlpha, nearestLandDistance } from '../renderer'
 import { TileType } from '../types'
+import { describe, expect, it } from 'vitest'
 
-const makeMap = (cells: TileType[][]): { type: TileType }[][] =>
-  cells.map((row) => row.map((type) => ({ type })))
+const makeMap = (cells: TileType[][]): { type: TileType }[][] => cells.map(row => row.map(type => ({ type })))
 
 describe('prairie halo nearestLandDistance', () => {
   it('returns 1 when an immediately adjacent tile is land', () => {
@@ -107,12 +105,12 @@ describe('prairie halo computePrairieHaloAlpha', () => {
       }
     }
     // Sanity: alpha should reach above the configured min for some samples
-    expect(samples.some((a) => a > PRAIRIE_HALO_MIN_ALPHA)).toBe(true)
+    expect(samples.some(a => a > PRAIRIE_HALO_MIN_ALPHA)).toBe(true)
   })
 
   it('is stronger near land than far from land at peak pulse', () => {
     // Find a time where the pulse is at its peak (sin = 1)
-    const peakTime = (Math.PI / 2) / PRAIRIE_HALO_PULSE_SPEED
+    const peakTime = Math.PI / 2 / PRAIRIE_HALO_PULSE_SPEED
     const near = computePrairieHaloAlpha(1, peakTime)
     const far = computePrairieHaloAlpha(PRAIRIE_HALO_RADIUS, peakTime)
     expect(near).toBeGreaterThan(far)

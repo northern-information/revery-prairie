@@ -243,7 +243,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
               <tbody>
                 <tr>
                   <td className="text-muted py-0.5">Position</td>
-                  <td className="py-0.5 text-right truncate">
+                  <td className="truncate py-0.5 text-right">
                     {state.currentZone === Zone.Cave
                       ? `${String(cursorTile.x)}, ${String(cursorTile.y)}`
                       : `${String(cursorTile.x - SPACE_BORDER)}, ${String(cursorTile.y - SPACE_BORDER)}`}
@@ -251,7 +251,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
                 </tr>
                 <tr>
                   <td className="text-muted py-0.5">Contents</td>
-                  <td className="py-0.5 text-right truncate">
+                  <td className="truncate py-0.5 text-right">
                     {(() => {
                       const cx = cursorTile.x
                       const cy = cursorTile.y
@@ -341,7 +341,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
                       return (
                         <tr>
                           <td className="text-muted py-0.5">Effects</td>
-                          <td className="text-muted py-0.5 text-right truncate">None</td>
+                          <td className="text-muted truncate py-0.5 text-right">None</td>
                         </tr>
                       )
                     }
@@ -350,7 +350,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
                   return (
                     <tr>
                       <td className="text-muted py-0.5">Effects</td>
-                      <td className={`py-0.5 text-right truncate ${effects.length > 0 ? 'text-effect' : 'text-muted'}`}>
+                      <td className={`truncate py-0.5 text-right ${effects.length > 0 ? 'text-effect' : 'text-muted'}`}>
                         {effects.length > 0 ? effects.join(', ') : 'None'}
                       </td>
                     </tr>
@@ -383,15 +383,15 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
                       <>
                         <tr>
                           <td className="text-muted py-0.5">Water</td>
-                          <td className="py-0.5 text-right truncate">{Math.round(water ?? WATER_MAX)}%</td>
+                          <td className="truncate py-0.5 text-right">{Math.round(water ?? WATER_MAX)}%</td>
                         </tr>
                         <tr>
                           <td className="text-muted py-0.5">Soil</td>
-                          <td className="py-0.5 text-right truncate">{soilHealth}</td>
+                          <td className="truncate py-0.5 text-right">{soilHealth}</td>
                         </tr>
                         <tr>
                           <td className="text-muted py-0.5">Status</td>
-                          <td className={`py-0.5 text-right truncate ${statusClass}`}>{statusLabel}</td>
+                          <td className={`truncate py-0.5 text-right ${statusClass}`}>{statusLabel}</td>
                         </tr>
                       </>
                     )
@@ -403,12 +403,12 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
                         {water !== undefined && (
                           <tr>
                             <td className="text-muted py-0.5">Water</td>
-                            <td className="py-0.5 text-right truncate">{Math.round(water)}%</td>
+                            <td className="truncate py-0.5 text-right">{Math.round(water)}%</td>
                           </tr>
                         )}
                         <tr>
                           <td className="text-muted py-0.5">Soil</td>
-                          <td className="py-0.5 text-right truncate">{soilHealth}</td>
+                          <td className="truncate py-0.5 text-right">{soilHealth}</td>
                         </tr>
                       </>
                     )
@@ -424,7 +424,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
                   return (
                     <tr>
                       <td className="text-muted py-0.5">Elevation</td>
-                      <td className={`py-0.5 text-right truncate ${elev === undefined ? 'text-muted' : ''}`}>
+                      <td className={`truncate py-0.5 text-right ${elev === undefined ? 'text-muted' : ''}`}>
                         {elev !== undefined ? Math.round(elev) : '—'}
                       </td>
                     </tr>
@@ -571,7 +571,6 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
             </tbody>
           </table>
         </div>
-
       </div>
     </div>
   )

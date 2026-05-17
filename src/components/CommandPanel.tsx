@@ -1,7 +1,6 @@
 import { getCharacterDefinition } from '@/engine/characters'
 import { ComponentType } from '@/engine/ecs/types'
 import { CoyoteMode } from '@/engine/types'
-
 import type { GameState } from '@/engine/types'
 
 interface CommandPanelProps {
@@ -45,7 +44,7 @@ const UnitPortrait = ({
   size: number
 }) => (
   <div
-    className="flex items-center justify-center rounded border border-border"
+    className="border-border flex items-center justify-center rounded border"
     style={{ width: size, height: size, backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
   >
     {portrait ? (
@@ -58,13 +57,7 @@ const UnitPortrait = ({
   </div>
 )
 
-const CoyoteCommands = ({
-  state,
-  refreshUI,
-}: {
-  state: GameState
-  refreshUI: () => void
-}) => (
+const CoyoteCommands = ({ state, refreshUI }: { state: GameState; refreshUI: () => void }) => (
   <div className="flex gap-1">
     <button
       className="rounded border px-2 py-1 font-mono text-xs transition-colors"
@@ -129,21 +122,13 @@ export const CommandPanel = ({ state, refreshUI }: CommandPanelProps) => {
           />
           <div className="flex flex-col gap-1">
             <span className="font-mono text-sm text-white">{singleUnit.name}</span>
-            {singleUnit.definitionId === 'coyote' && (
-              <CoyoteCommands state={state} refreshUI={refreshUI} />
-            )}
+            {singleUnit.definitionId === 'coyote' && <CoyoteCommands state={state} refreshUI={refreshUI} />}
           </div>
         </>
       ) : (
         <div className="flex gap-1">
           {units.map((unit, i) => (
-            <UnitPortrait
-              key={i}
-              glyph={unit.glyph}
-              glyphColor={unit.glyphColor}
-              portrait={unit.portrait}
-              size={36}
-            />
+            <UnitPortrait key={i} glyph={unit.glyph} glyphColor={unit.glyphColor} portrait={unit.portrait} size={36} />
           ))}
         </div>
       )}

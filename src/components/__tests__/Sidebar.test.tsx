@@ -9,13 +9,13 @@ import { placeItem } from '@/engine/inventory'
 import { worldToScreen } from '@/engine/projection'
 import { createGameState } from '@/engine/state'
 import { Sky, TileType } from '@/engine/types'
+import type { ItemInfoHandle } from '../ItemInfo'
+import type { CharMetrics, GameState } from '@/engine/types'
 
 const stockBackpackForCombine = (state: GameState): void => {
   placeItem(state.backpack, 'bee', 0, 0)
   placeItem(state.backpack, 'clover', 1, 0)
 }
-import type { CharMetrics, GameState } from '@/engine/types'
-import type { ItemInfoHandle } from '../ItemInfo'
 
 const defaultInfoRef = createRef<ItemInfoHandle>()
 const noop = () => undefined
@@ -211,7 +211,10 @@ describe('Sidebar', () => {
 
       // Place the camera so target is on-screen, then convert world → screen
       // via the same transform the renderer uses.
-      state.camera = { x: target.x - Math.floor(state.viewportWidth / 2), y: target.y - Math.floor(state.viewportHeight / 2) }
+      state.camera = {
+        x: target.x - Math.floor(state.viewportWidth / 2),
+        y: target.y - Math.floor(state.viewportHeight / 2),
+      }
       const screenPos = worldToScreen(
         target.x,
         target.y,
@@ -219,7 +222,7 @@ describe('Sidebar', () => {
         metrics.charWidth,
         metrics.charHeight,
         state.viewportWidth,
-        state.viewportHeight,
+        state.viewportHeight
       )
       // Nudge into the diamond's interior — anchors sit at the centerline so
       // exact-corner positions can floor either way.
@@ -264,7 +267,10 @@ describe('Sidebar', () => {
       state.glintZones.clear()
       const gron = findGron(state)
       const target = { x: gron.x + 2, y: gron.y }
-      state.camera = { x: target.x - Math.floor(state.viewportWidth / 2), y: target.y - Math.floor(state.viewportHeight / 2) }
+      state.camera = {
+        x: target.x - Math.floor(state.viewportWidth / 2),
+        y: target.y - Math.floor(state.viewportHeight / 2),
+      }
       const screenPos = worldToScreen(
         target.x,
         target.y,
@@ -272,7 +278,7 @@ describe('Sidebar', () => {
         metrics.charWidth,
         metrics.charHeight,
         state.viewportWidth,
-        state.viewportHeight,
+        state.viewportHeight
       )
       state.cursorScreenPos = { x: screenPos.px + 1, y: screenPos.py + 1 }
       state.heldDirection = 'right'
@@ -297,7 +303,10 @@ describe('Sidebar', () => {
       state.glintZones.clear()
       const gron = findGron(state)
       const target = { x: gron.x + 2, y: gron.y }
-      state.camera = { x: target.x - Math.floor(state.viewportWidth / 2), y: target.y - Math.floor(state.viewportHeight / 2) }
+      state.camera = {
+        x: target.x - Math.floor(state.viewportWidth / 2),
+        y: target.y - Math.floor(state.viewportHeight / 2),
+      }
       const screenPos = worldToScreen(
         target.x,
         target.y,
@@ -305,7 +314,7 @@ describe('Sidebar', () => {
         metrics.charWidth,
         metrics.charHeight,
         state.viewportWidth,
-        state.viewportHeight,
+        state.viewportHeight
       )
       state.cursorScreenPos = { x: screenPos.px + 1, y: screenPos.py + 1 }
       state.path = [{ x: target.x, y: target.y }]
@@ -408,5 +417,4 @@ describe('Sidebar', () => {
       expect(content?.style.animation).toContain('fade-in')
     })
   })
-
 })

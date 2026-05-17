@@ -37,14 +37,7 @@ describe('boot: component smoke tests', () => {
   describe('DialogBox', () => {
     it('renders without throwing', () => {
       expect(() => {
-        render(
-          <DialogBox
-            characterName="Gron"
-            line="Hello there."
-            typingIndex={12}
-            typingDone={true}
-          />
-        )
+        render(<DialogBox characterName="Gron" line="Hello there." typingIndex={12} typingDone={true} />)
       }).not.toThrow()
     })
   })

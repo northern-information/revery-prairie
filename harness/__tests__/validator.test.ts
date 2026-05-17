@@ -120,7 +120,6 @@ describe('validator', () => {
       expect(result.valid).toBe(false)
       expect(result.errors.some(e => e.code === 'SCHEMA_VALIDATION' && e.field.includes('id'))).toBe(true)
     })
-
   })
 
   // --- 3. Duplicate IDs ---

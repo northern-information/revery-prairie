@@ -60,12 +60,7 @@ export const removeItem = (container: Container, uid: string): ItemInstance | nu
   return container.items.splice(idx, 1)[0] ?? null
 }
 
-export const moveItem = (
-  container: Container,
-  uid: string,
-  newGridX: number,
-  newGridY: number
-): boolean => {
+export const moveItem = (container: Container, uid: string, newGridX: number, newGridY: number): boolean => {
   const item = container.items.find(i => i.uid === uid)
   if (!item) return false
 

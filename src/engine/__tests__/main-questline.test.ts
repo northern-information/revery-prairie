@@ -1,18 +1,16 @@
-import { describe, expect, it } from 'vitest'
-
 import { getCharacterDialog } from '../characters'
 import { combineFromBackpack } from '../combine'
 import { ComponentType } from '../ecs/types'
 import { createCharacterEntity } from '../entities'
 import { RuinGenerationMode, RuinRole } from '../genesisTypes'
 import { advanceDialog, triggerStewardSeal, unlockRuinDoor } from '../interaction'
-import { movePlayer } from '../movement'
 import { placeItem } from '../inventory'
 import { recordDiscovery } from '../manual'
+import { movePlayer } from '../movement'
 import { posKey } from '../position'
 import { CoyoteMode, MainQuestPhase, TileType, Zone } from '../types'
-
 import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { CivilizationRuin } from '../genesisTypes'
 import type { GameState } from '../types'
@@ -167,7 +165,7 @@ describe('main questline > coyote rescue on approach', () => {
       state,
       'coyote',
       { x: state.player.x + 2, y: state.player.y },
-      { zone: Zone.Ruin, ruinIndex: 0 },
+      { zone: Zone.Ruin, ruinIndex: 0 }
     )
   }
 
@@ -218,7 +216,7 @@ describe('main questline > coyote rescue on approach', () => {
       state,
       'coyote',
       { x: state.player.x + 10, y: state.player.y },
-      { zone: Zone.Ruin, ruinIndex: 0 },
+      { zone: Zone.Ruin, ruinIndex: 0 }
     )
 
     expect(unlockRuinDoor(state)).toBe(true)
@@ -402,7 +400,7 @@ describe('main questline > saving bees release', () => {
     expect(state.pendingSavedBees).toBe(false)
   })
 
-  it('does not consume the flag when another character\'s dialog closes', () => {
+  it("does not consume the flag when another character's dialog closes", () => {
     const state = createTestState()
     state.mainQuestPhase = MainQuestPhase.Sealed
     state.pendingSavedBees = true

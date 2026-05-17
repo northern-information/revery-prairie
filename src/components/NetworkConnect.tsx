@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { PLAYER_COLORS } from '@revery-prairie/shared'
-
 import { NetworkClient } from '@/network/client'
+import { PLAYER_COLORS } from '@revery-prairie/shared'
 
 import type { ColorId, CreatePrairieResponse, WelcomeFrame } from '@revery-prairie/shared'
 
@@ -69,11 +68,7 @@ export const NetworkConnect = ({ workerUrl, prairieId, onConnected }: NetworkCon
       let resolvedOwnerToken: string | null
 
       if (mode === 'create') {
-        const response: CreatePrairieResponse = await NetworkClient.createPrairie(
-          workerUrl,
-          trimmed,
-          color
-        )
+        const response: CreatePrairieResponse = await NetworkClient.createPrairie(workerUrl, trimmed, color)
         window.localStorage.setItem(ownerTokenKey(response.prairieId), response.ownerToken)
         window.history.replaceState(null, '', `/p/${response.prairieId}`)
         resolvedPrairieId = response.prairieId

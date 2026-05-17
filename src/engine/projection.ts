@@ -41,7 +41,7 @@ export const viewportToScreen = (
   charWidth: number,
   charHeight: number,
   viewportWidth: number,
-  viewportHeight: number,
+  viewportHeight: number
 ): ScreenPos => {
   const halfH = charHeight / 2
   const originX = isoOriginX(viewportWidth, viewportHeight, charWidth)
@@ -59,16 +59,9 @@ export const worldToScreen = (
   charWidth: number,
   charHeight: number,
   viewportWidth: number,
-  viewportHeight: number,
+  viewportHeight: number
 ): ScreenPos =>
-  viewportToScreen(
-    worldX - camera.x,
-    worldY - camera.y,
-    charWidth,
-    charHeight,
-    viewportWidth,
-    viewportHeight,
-  )
+  viewportToScreen(worldX - camera.x, worldY - camera.y, charWidth, charHeight, viewportWidth, viewportHeight)
 
 /**
  * Iso pixel offset for a fractional world-tile delta. Use to translate
@@ -78,12 +71,7 @@ export const worldToScreen = (
  * the iso-projected canvas-space delta the entire scene would shift
  * if the camera advanced by (dx, dy) tiles.
  */
-export const worldDeltaToIsoPx = (
-  dx: number,
-  dy: number,
-  charWidth: number,
-  charHeight: number,
-): ScreenPos => ({
+export const worldDeltaToIsoPx = (dx: number, dy: number, charWidth: number, charHeight: number): ScreenPos => ({
   px: (dx - dy) * charWidth,
   py: (dx + dy) * (charHeight / 2),
 })
@@ -109,7 +97,7 @@ export const screenToTile = (
   charWidth: number,
   charHeight: number,
   viewportWidth: number,
-  viewportHeight: number,
+  viewportHeight: number
 ): Position => {
   const halfH = charHeight / 2
   const originX = isoOriginX(viewportWidth, viewportHeight, charWidth)
@@ -140,7 +128,7 @@ export const getCellDiamondCorners = (
   px: number,
   py: number,
   charWidth: number,
-  charHeight: number,
+  charHeight: number
 ): DiamondCorners => {
   const nudge = ISO_GLYPH_VERTICAL_NUDGE(charHeight)
   const leftX = px - charWidth / 2
@@ -174,7 +162,7 @@ export const drawCellHighlight = (
   py: number,
   charWidth: number,
   charHeight: number,
-  color: string,
+  color: string
 ): void => {
   const savedFill = ctx.fillStyle
   const savedShadowBlur = ctx.shadowBlur
@@ -199,14 +187,9 @@ export const drawCellBackground = (
   px: number,
   py: number,
   charWidth: number,
-  charHeight: number,
+  charHeight: number
 ): void => {
-  const { leftX, rightX, topY, bottomY, cx, cy } = getCellDiamondCorners(
-    px,
-    py,
-    charWidth,
-    charHeight,
-  )
+  const { leftX, rightX, topY, bottomY, cx, cy } = getCellDiamondCorners(px, py, charWidth, charHeight)
   ctx.beginPath()
   ctx.moveTo(cx, topY)
   ctx.lineTo(rightX, cy)
@@ -224,10 +207,7 @@ export const drawCellBackground = (
  */
 export const ELEVATION_LIFT_FRACTION = 0.35
 
-export const getElevationLift = (
-  elevation: number | undefined,
-  charHeight: number,
-): number => {
+export const getElevationLift = (elevation: number | undefined, charHeight: number): number => {
   if (elevation === undefined) return 0
   const max = charHeight * ELEVATION_LIFT_FRACTION
   return -((elevation - 50) / 50) * max
@@ -249,7 +229,7 @@ export const getCellSideQuads = (
   py: number,
   charWidth: number,
   charHeight: number,
-  lift: number,
+  lift: number
 ): SideQuads | null => {
   if (lift >= 0) return null
   const top = getCellDiamondCorners(px, py, charWidth, charHeight)
@@ -289,7 +269,7 @@ export const drawCellWalls = (
   leftDepth: number,
   rightDepth: number,
   leftColor: string,
-  rightColor: string,
+  rightColor: string
 ): void => {
   if (leftDepth <= 0 && rightDepth <= 0) return
   const top = getCellDiamondCorners(px, py, charWidth, charHeight)

@@ -25,7 +25,7 @@ behaviors:
       select NPC controllable units within the rectangle. there is no
       playerSelected field on GameState.
     inputs:
-      - 'left or right click on the player''s tile'
+      - "left or right click on the player's tile"
       - 'drag-select rectangle that covers the player tile'
     outputs:
       - 'no selection change attributable to the player'
@@ -202,10 +202,10 @@ behaviors:
 
 edge_cases:
   - id: left-click-on-player-tile
-    description: 'Left click directly on the player''s tile with no drag and no selection'
+    description: "Left click directly on the player's tile with no drag and no selection"
     expected: 'No-op — no selection, no movement, no path. Any prior NPC selection is preserved (player tile is not "empty ground" — it is occupied but unselectable).'
   - id: right-click-on-player-tile
-    description: 'Right click on the player''s own tile with no selection'
+    description: "Right click on the player's own tile with no selection"
     expected: 'No-op — no movement, no error.'
   - id: shift-right-click-on-empty-tile
     description: 'Shift + right click on empty walkable tile with no NPC selection'
@@ -241,7 +241,7 @@ edge_cases:
 failure_conditions:
   - trigger: 'Drag-select release anywhere on canvas'
     expected: 'state.path is NOT set; player does NOT begin walking'
-  - trigger: 'Left or right click on the player''s tile'
+  - trigger: "Left or right click on the player's tile"
     expected: 'No selection change attributable to the player; state.path unchanged'
   - trigger: 'Bare right-click on empty walkable tile with no selection'
     expected: 'state.path is NOT set; no pendingAction'

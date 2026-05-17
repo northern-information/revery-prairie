@@ -70,7 +70,7 @@ export const findSafeExitPosition = (
   map: Tile[][],
   mapWidth: number,
   mapHeight: number,
-  minDistance = 1,
+  minDistance = 1
 ): Position => {
   for (let dist = minDistance; dist <= minDistance + 4; dist++) {
     const shell: Position[] = []

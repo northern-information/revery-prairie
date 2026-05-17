@@ -86,8 +86,7 @@ export const spawnSatellite = (state: GameState, time: number): void => {
     sy -= dy
   }
 
-  const length =
-    SATELLITE_MIN_LENGTH + Math.floor(Math.random() * (SATELLITE_MAX_LENGTH - SATELLITE_MIN_LENGTH + 1))
+  const length = SATELLITE_MIN_LENGTH + Math.floor(Math.random() * (SATELLITE_MAX_LENGTH - SATELLITE_MIN_LENGTH + 1))
 
   const payloadType = Math.random() < SATELLITE_GOOD_PAYLOAD_CHANCE ? 'seeds' : 'destructive'
 
@@ -174,7 +173,8 @@ const applyImpact = (state: GameState, center: Position, time: number): void => 
 /** Scatter seed items as ground items in the crater zone. */
 const scatterSeeds = (state: GameState, center: Position): void => {
   const r = SATELLITE_IMPACT_RADIUS
-  const count = SATELLITE_SEED_COUNT_MIN + Math.floor(Math.random() * (SATELLITE_SEED_COUNT_MAX - SATELLITE_SEED_COUNT_MIN + 1))
+  const count =
+    SATELLITE_SEED_COUNT_MIN + Math.floor(Math.random() * (SATELLITE_SEED_COUNT_MAX - SATELLITE_SEED_COUNT_MIN + 1))
 
   // Collect valid placement positions (crater tiles, no existing ground items)
   const candidates: Position[] = []
@@ -187,7 +187,7 @@ const scatterSeeds = (state: GameState, center: Position): void => {
       // Check no ground items already here
       const entities = spatialAtInCurrentZone(state, x, y)
       const hasGroundItem = entities.some(
-        (eid) => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem',
+        eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem'
       )
       if (hasGroundItem) continue
       candidates.push({ x, y })
@@ -214,11 +214,7 @@ const scatterSeeds = (state: GameState, center: Position): void => {
 
 export const tickSatellites = (state: GameState, time: number): Position | null => {
   let impactPos: Position | null = null
-  const satellites = state.world.query(
-    ComponentType.SatelliteData,
-    ComponentType.Position,
-    ComponentType.Velocity,
-  )
+  const satellites = state.world.query(ComponentType.SatelliteData, ComponentType.Position, ComponentType.Velocity)
 
   for (const eid of satellites) {
     const pos = state.world.getComponent(eid, ComponentType.Position)

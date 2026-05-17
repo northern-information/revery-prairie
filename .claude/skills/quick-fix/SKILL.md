@@ -80,13 +80,13 @@ CI will run the full suite on PR open. Local iteration stays fast.
 
 ## Anti-rationalizations
 
-| Excuse the agent will tell itself | Rebuttal |
-| --- | --- |
-| "It's a one-line CSS change — no regression test needed." | The test is what stops the bug from coming back. Even a `className` assertion ("does not include `overflow-hidden`") is enough. Skip it and the next refactor will silently re-introduce the clip. |
-| "I don't need to enter a worktree for something this small." | Yes you do. The worktree isolates the fix and prevents stray edits to the main checkout. Per project convention, all code changes happen in worktrees. |
-| "The targeted test passed without my fix — close enough." | If the test passed before the fix, it isn't the right test. Rework it so it fails red on `main` and passes green on the branch. |
-| "This is actually a state bug, but I'm already here — I'll just fix it." | No. Stop and switch to `/bug-report`. State and control-flow bugs need a spec. |
-| "Skip the rebase — I just branched." | No. Squash-merged PRs from other worktrees can silently diverge. Always rebase before pushing. |
+| Excuse the agent will tell itself                                        | Rebuttal                                                                                                                                                                                           |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "It's a one-line CSS change — no regression test needed."                | The test is what stops the bug from coming back. Even a `className` assertion ("does not include `overflow-hidden`") is enough. Skip it and the next refactor will silently re-introduce the clip. |
+| "I don't need to enter a worktree for something this small."             | Yes you do. The worktree isolates the fix and prevents stray edits to the main checkout. Per project convention, all code changes happen in worktrees.                                             |
+| "The targeted test passed without my fix — close enough."                | If the test passed before the fix, it isn't the right test. Rework it so it fails red on `main` and passes green on the branch.                                                                    |
+| "This is actually a state bug, but I'm already here — I'll just fix it." | No. Stop and switch to `/bug-report`. State and control-flow bugs need a spec.                                                                                                                     |
+| "Skip the rebase — I just branched."                                     | No. Squash-merged PRs from other worktrees can silently diverge. Always rebase before pushing.                                                                                                     |
 
 ## Exit criterion
 

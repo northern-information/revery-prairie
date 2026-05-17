@@ -88,13 +88,13 @@ slash commands start the pipeline. each is conversational — the AI gathers req
 
 ## commands
 
-| command              | description                   |
-| -------------------- | ----------------------------- |
-| `npm run dev`        | start dev server                          |
-| `npm run build`      | type-check + production build             |
-| `npm run lint`       | eslint                                    |
-| `npm run format`     | prettier                                  |
-| `npm run test`       | run tests                                 |
-| `npm run test:watch` | run tests in watch mode                   |
-| `npm run preview`    | preview production build                  |
-| `npm run deploy`     | build + ship to Cloudflare (multiplayer)  |
+| command              | description                              |
+| -------------------- | ---------------------------------------- |
+| `npm run dev`        | start dev server                         |
+| `npm run build`      | type-check + production build            |
+| `npm run lint`       | eslint                                   |
+| `npm run format`     | prettier                                 |
+| `npm run test`       | run tests                                |
+| `npm run test:watch` | run tests in watch mode                  |
+| `npm run preview`    | preview production build                 |
+| `npm run deploy`     | build + ship to Cloudflare (multiplayer) |

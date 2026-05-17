@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
 import { CHARACTER_DEFINITIONS, getCharacterDefinition, getCharacterDialog } from '../characters'
 import {
   getAdjacentCharacter,
@@ -11,15 +9,15 @@ import {
 import { MANUAL_ENTRIES } from '../manual'
 import { movePlayer } from '../movement'
 import { TileType, Zone } from '../types'
-
 import { createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState, Position, RuinInterior } from '../types'
 
 const setupRuinWithDoor = (state: GameState): { doorX: number; doorY: number } => {
   // Build a tiny ruin interior with a single locked door directly south of the player.
   const interiorMap: { type: TileType }[][] = Array.from({ length: 10 }, () =>
-    Array.from({ length: 10 }, () => ({ type: TileType.RuinFloor as TileType })),
+    Array.from({ length: 10 }, () => ({ type: TileType.RuinFloor as TileType }))
   )
   const doorX = 5
   const doorY = 6
@@ -125,11 +123,9 @@ describe('ruin locked door', () => {
   })
 
   describe('multi-tile door row', () => {
-    const setupMultiTileDoor = (
-      state: GameState,
-    ): { doorY: number; doorPositions: Position[] } => {
+    const setupMultiTileDoor = (state: GameState): { doorY: number; doorPositions: Position[] } => {
       const interiorMap: { type: TileType }[][] = Array.from({ length: 10 }, () =>
-        Array.from({ length: 10 }, () => ({ type: TileType.RuinFloor as TileType })),
+        Array.from({ length: 10 }, () => ({ type: TileType.RuinFloor as TileType }))
       )
       const doorY = 6
       const doorPositions: Position[] = []
@@ -197,10 +193,10 @@ describe('ruin locked door', () => {
       const state = createTestState()
       setupMultiTileDoor(state)
       addAqueductKey(state, 3)
-      const before = state.backpack.items.filter((i) => i.definitionId === 'aqueductKey').length
+      const before = state.backpack.items.filter(i => i.definitionId === 'aqueductKey').length
       expect(before).toBe(3)
       expect(unlockRuinDoor(state)).toBe(true)
-      const after = state.backpack.items.filter((i) => i.definitionId === 'aqueductKey').length
+      const after = state.backpack.items.filter(i => i.definitionId === 'aqueductKey').length
       expect(after).toBe(2)
     })
   })

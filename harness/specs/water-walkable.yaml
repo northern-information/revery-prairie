@@ -84,7 +84,7 @@ behaviors:
       usually ringed by sand, but it must be supported.
     inputs:
       - 'player stands on a water tile with clover on an adjacent land tile'
-      - "player presses [f] or [x] facing the clover"
+      - 'player presses [f] or [x] facing the clover'
     outputs:
       - 'clover is harvested or cut normally'
     state_changes:

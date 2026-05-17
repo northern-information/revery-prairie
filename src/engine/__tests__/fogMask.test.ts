@@ -1,12 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
-
 import { BG_COLOR, FOG_EXPLORED_BRIGHTNESS } from '../constants'
 import { posKey } from '../position'
 import { fogMaskPass } from '../render/passes/fogMask'
 import { TileType, Zone } from '../types'
 import { computeZoneVisibility } from '../visibility'
-
 import { createTestState } from './helpers'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { CharMetrics, GameState, Tile } from '../types'
 
@@ -107,9 +105,7 @@ describe('fog mask pass', () => {
       fogMaskPass.draw(ctx, state, METRICS, 0)
 
       expect(fills.length).toBeGreaterThan(0)
-      const opaqueBgFills = fills.filter(
-        (f) => f.fillStyle === BG_COLOR && f.globalAlpha === 1,
-      )
+      const opaqueBgFills = fills.filter(f => f.fillStyle === BG_COLOR && f.globalAlpha === 1)
       expect(opaqueBgFills.length).toBeGreaterThan(0)
     })
 
@@ -126,9 +122,7 @@ describe('fog mask pass', () => {
       fogMaskPass.draw(ctx, state, METRICS, 0)
 
       const expectedAlpha = 1 - FOG_EXPLORED_BRIGHTNESS
-      const partialFills = fills.filter(
-        (f) => f.fillStyle === '#000' && Math.abs(f.globalAlpha - expectedAlpha) < 1e-6,
-      )
+      const partialFills = fills.filter(f => f.fillStyle === '#000' && Math.abs(f.globalAlpha - expectedAlpha) < 1e-6)
       expect(partialFills.length).toBeGreaterThan(0)
     })
 
@@ -187,9 +181,7 @@ describe('fog mask pass', () => {
       fogMaskPass.draw(ctx, state, METRICS, 0)
 
       // At least one mask must be opaque BG_COLOR — covering an unexplored tile.
-      const hasOpaqueMask = fills.some(
-        (f) => f.fillStyle === BG_COLOR && f.globalAlpha === 1,
-      )
+      const hasOpaqueMask = fills.some(f => f.fillStyle === BG_COLOR && f.globalAlpha === 1)
       expect(hasOpaqueMask).toBe(true)
     })
   })

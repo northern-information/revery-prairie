@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
 import { shouldRenderRuinMultilayer } from '../ruins'
 import { TileType, Zone } from '../types'
+import { describe, expect, it } from 'vitest'
 
 const baseArgs = {
   zone: Zone.Ruin,

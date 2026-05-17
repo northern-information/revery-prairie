@@ -36,17 +36,10 @@ export interface RenderPass {
   id: string
   slot: RenderPassSlot
   isActive: (state: GameState) => boolean
-  draw: (
-    ctx: CanvasRenderingContext2D,
-    state: GameState,
-    metrics: CharMetrics,
-    time: number,
-  ) => void
+  draw: (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number) => void
 }
 
-const slotOrder = new Map<RenderPassSlot, number>(
-  RENDER_PASS_SLOTS.map((slot, index) => [slot, index]),
-)
+const slotOrder = new Map<RenderPassSlot, number>(RENDER_PASS_SLOTS.map((slot, index) => [slot, index]))
 
 const registry: RenderPass[] = []
 
@@ -65,7 +58,7 @@ export const runPasses = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   metrics: CharMetrics,
-  time: number,
+  time: number
 ): void => {
   for (const pass of registry) {
     if (!pass.isActive(state)) continue
@@ -78,7 +71,7 @@ export const runPassesInSlot = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   metrics: CharMetrics,
-  time: number,
+  time: number
 ): void => {
   for (const pass of registry) {
     if (pass.slot !== slot) continue

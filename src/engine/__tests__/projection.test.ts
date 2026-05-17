@@ -1,5 +1,3 @@
-import { describe, expect, it, vi } from 'vitest'
-
 import {
   drawCellBackground,
   drawCellHighlight,
@@ -8,6 +6,7 @@ import {
   viewportToScreen,
   worldToScreen,
 } from '../projection'
+import { describe, expect, it, vi } from 'vitest'
 
 const charWidth = 10
 const charHeight = 16
@@ -22,14 +21,7 @@ describe('viewportToScreen', () => {
     const expectedPx = (viewportWidth * charWidth) / 2
     const expectedPy = (viewportHeight * charHeight) / 2
     expect(
-      viewportToScreen(
-        viewportWidth / 2,
-        viewportHeight / 2,
-        charWidth,
-        charHeight,
-        viewportWidth,
-        viewportHeight,
-      ),
+      viewportToScreen(viewportWidth / 2, viewportHeight / 2, charWidth, charHeight, viewportWidth, viewportHeight)
     ).toEqual({
       px: expectedPx,
       py: expectedPy,
@@ -83,9 +75,7 @@ describe('screenToTile round-trip with viewportToScreen', () => {
         const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
         const sampleX = px + 0.1
         const sampleY = py + charHeight / 2 + 0.1
-        expect(
-          screenToTile(sampleX, sampleY, camera, charWidth, charHeight, viewportWidth, viewportHeight),
-        ).toEqual({
+        expect(screenToTile(sampleX, sampleY, camera, charWidth, charHeight, viewportWidth, viewportHeight)).toEqual({
           x: camera.x + vx,
           y: camera.y + vy,
         })
@@ -243,9 +233,7 @@ describe('glyph alignment with diamond bbox', () => {
         // Diamond center: (px, py + charHeight/2). This is the safe interior.
         const sampleX = px
         const sampleY = py + charHeight / 2
-        expect(
-          screenToTile(sampleX, sampleY, camera, charWidth, charHeight, viewportWidth, viewportHeight),
-        ).toEqual({
+        expect(screenToTile(sampleX, sampleY, camera, charWidth, charHeight, viewportWidth, viewportHeight)).toEqual({
           x: camera.x + vx,
           y: camera.y + vy,
         })

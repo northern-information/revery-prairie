@@ -1,22 +1,21 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
-
+import { tickCoyote } from '../coyote'
 import { ComponentType } from '../ecs/types'
-import { CoyoteMode } from '../types'
 import {
   commitBoxSelection,
   deselectAll,
   getControllableUnitAt,
   getControllableUnitsInRect,
+  getSelectedUnitPositions,
   hasSelection,
   isControllableUnit,
   pruneSelection,
   selectUnit,
   selectUnits,
-  getSelectedUnitPositions,
 } from '../selection'
-import { issueMoveCommand, tickUnitCommands, clearAllUnitCommands, cleanupMoveOrderMarkers } from '../unitCommands'
-import { tickCoyote } from '../coyote'
+import { CoyoteMode } from '../types'
+import { cleanupMoveOrderMarkers, clearAllUnitCommands, issueMoveCommand, tickUnitCommands } from '../unitCommands'
 import { clearAroundPlayer, createCharacterTestEntity, createTestState } from './helpers'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -332,18 +331,14 @@ describe('unitCommands', () => {
   describe('cleanupMoveOrderMarkers', () => {
     it('removes expired markers', () => {
       const state = createTestState()
-      state.moveOrderMarkers = [
-        { position: { x: 10, y: 10 }, time: 0 },
-      ]
+      state.moveOrderMarkers = [{ position: { x: 10, y: 10 }, time: 0 }]
       cleanupMoveOrderMarkers(state, 1000)
       expect(state.moveOrderMarkers).toHaveLength(0)
     })
 
     it('keeps fresh markers', () => {
       const state = createTestState()
-      state.moveOrderMarkers = [
-        { position: { x: 10, y: 10 }, time: 900 },
-      ]
+      state.moveOrderMarkers = [{ position: { x: 10, y: 10 }, time: 900 }]
       cleanupMoveOrderMarkers(state, 1000)
       expect(state.moveOrderMarkers).toHaveLength(1)
     })

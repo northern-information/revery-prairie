@@ -1,15 +1,13 @@
-import {
-  GLINT_ZONE_CHARS,
-  GLINT_ZONE_COLORS,
-  GLINT_ZONE_DENSITY,
-  GLINT_ZONE_SPEED,
-} from '../../constants'
+import { GLINT_ZONE_CHARS, GLINT_ZONE_COLORS, GLINT_ZONE_DENSITY, GLINT_ZONE_SPEED } from '../../constants'
 import { tileHash } from '../../position'
 import { viewportToScreen } from '../../projection'
-import { Zone, type CharMetrics, type GameState } from '../../types'
+import { Zone } from '../../types'
 import { getVisibleTileBounds } from '../../viewportBounds'
+import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
-import { type RenderPass, registerPass } from '../passes'
+
+import type { CharMetrics, GameState } from '../../types'
+import type { RenderPass } from '../passes'
 
 // Animated sparkle chars on tiles in state.glintZones (overworld only).
 // Per-tile density scales with glintOpacity so sparser tiles fade out
@@ -17,12 +15,7 @@ import { type RenderPass, registerPass } from '../passes'
 
 const isActive = (state: GameState): boolean => state.currentZone === Zone.Overworld
 
-const draw = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  metrics: CharMetrics,
-  time: number,
-): void => {
+const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   if (state.glintZones.size === 0) return
 
   const { camera, viewportWidth, viewportHeight, player } = state
@@ -54,18 +47,12 @@ const draw = (
     const effectiveDensity = Math.ceil(GLINT_ZONE_DENSITY / opacity)
     if (h % effectiveDensity !== 0) continue
 
-    const glintPhase =
-      ((h >> 4) + Math.floor(time * GLINT_ZONE_SPEED)) % GLINT_ZONE_CHARS.length
-    const glintColorPhase =
-      ((h >> 8) + Math.floor(time * GLINT_ZONE_SPEED * 0.7)) % GLINT_ZONE_COLORS.length
+    const glintPhase = ((h >> 4) + Math.floor(time * GLINT_ZONE_SPEED)) % GLINT_ZONE_CHARS.length
+    const glintColorPhase = ((h >> 8) + Math.floor(time * GLINT_ZONE_SPEED * 0.7)) % GLINT_ZONE_COLORS.length
 
     const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
     ctx.fillStyle = GLINT_ZONE_COLORS[glintColorPhase]
-    ctx.fillText(
-      GLINT_ZONE_CHARS[glintPhase],
-      px,
-      py + liftAt(tierGrid, wx, wy, state.mapWidth, state.mapHeight),
-    )
+    ctx.fillText(GLINT_ZONE_CHARS[glintPhase], px, py + liftAt(tierGrid, wx, wy, state.mapWidth, state.mapHeight))
   }
 }
 

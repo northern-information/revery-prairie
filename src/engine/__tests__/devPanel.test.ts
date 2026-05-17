@@ -1,8 +1,5 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-
-import { describe, expect, it } from 'vitest'
-
 import {
   COMPONENT_META,
   DEV_PRESETS,
@@ -14,15 +11,14 @@ import {
   TILE_TYPE_LIST,
 } from '../devPanel'
 import { ComponentType } from '../ecs/types'
-import { TileType, Zone } from '../types'
 import { createWorld } from '../ecs/world'
+import { TileType, Zone } from '../types'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
 
 const makeMinimalState = (): GameState => {
-  const map = Array.from({ length: 10 }, () =>
-    Array.from({ length: 10 }, () => ({ type: TileType.Dirt as TileType }))
-  )
+  const map = Array.from({ length: 10 }, () => Array.from({ length: 10 }, () => ({ type: TileType.Dirt as TileType })))
   return {
     world: createWorld(),
     map,

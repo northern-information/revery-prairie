@@ -1,6 +1,5 @@
-import { PRAIRIE_CREATE_PATH } from '@revery-prairie/shared'
-
 import { PrairieDO } from './PrairieDO'
+import { PRAIRIE_CREATE_PATH } from '@revery-prairie/shared'
 
 export { PrairieDO }
 

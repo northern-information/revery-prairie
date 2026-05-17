@@ -241,7 +241,7 @@ behaviors:
       - 'mutations via setMapTile(state, x, y, tile)'
       - 'invalidateMapCache(map) on whole-map invalidation events'
     outputs:
-      - 'offscreen canvas per map, drawImage''d once per frame for the camera-aligned slice'
+      - "offscreen canvas per map, drawImage'd once per frame for the camera-aligned slice"
       - 'dirty tiles repainted before drawImage so cache stays consistent with state.map'
     state_changes:
       - field: 'tileBgCache (module-internal WeakMap)'
@@ -511,7 +511,7 @@ failure_conditions:
   - trigger: 'inline draw logic added directly inside render() in renderer.ts instead of as a registered pass'
     expected: 'spec is violated; the registry walk is the only sanctioned drawing path. all draws must live in a pass module under src/engine/render/passes/ and be registered in passes.ts'
   - trigger: 'a cached layer is rebuilt every frame regardless of dirty state'
-    expected: 'spec is violated; cacheContract.ts must declare the layer''s invalidation triggers and the owning pass must consult the dirty flag before rebuilding'
+    expected: "spec is violated; cacheContract.ts must declare the layer's invalidation triggers and the owning pass must consult the dirty flag before rebuilding"
   - trigger: 'halo offscreen canvas rebuilt every frame as it does in the pre-refactor renderer'
     expected: 'spec is violated; halo-cache pass must rebuild only when contract triggers fire'
 

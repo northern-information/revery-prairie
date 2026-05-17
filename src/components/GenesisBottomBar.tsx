@@ -1,12 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import {
-  formatYear,
-  GENESIS_EPOCHS,
-  getEpochProgress,
-  getGenesisCommentary,
-  getGenesisYear,
-} from '@/engine/genesis'
+import { formatYear, GENESIS_EPOCHS, getEpochProgress, getGenesisCommentary, getGenesisYear } from '@/engine/genesis'
 import type { GameState } from '@/engine/types'
 
 // Genesis commentary: large italic gold line + year subtitle in a
@@ -24,7 +18,7 @@ export const GenesisBottomBar = ({ state }: { state: GameState }): React.ReactEl
     let alive = true
     const loop = (): void => {
       if (!alive) return
-      force((n) => n + 1)
+      force(n => n + 1)
       rafRef.current = requestAnimationFrame(loop)
     }
     rafRef.current = requestAnimationFrame(loop)
@@ -50,21 +44,14 @@ export const GenesisBottomBar = ({ state }: { state: GameState }): React.ReactEl
   const FADE_IN = 0.15
   const FADE_OUT = 0.15
   const commentaryAlpha =
-    progress < FADE_IN
-      ? progress / FADE_IN
-      : progress > 1 - FADE_OUT
-        ? Math.max(0, (1 - progress) / FADE_OUT)
-        : 1
+    progress < FADE_IN ? progress / FADE_IN : progress > 1 - FADE_OUT ? Math.max(0, (1 - progress) / FADE_OUT) : 1
 
   return (
     <div
       data-panel="genesis-bottom-bar"
       className="pointer-events-none fixed right-4 bottom-4 z-10 text-right font-serif"
     >
-      <p
-        className="text-lg italic"
-        style={{ color: '#d8a860', opacity: commentaryAlpha }}
-      >
+      <p className="text-lg italic" style={{ color: '#d8a860', opacity: commentaryAlpha }}>
         {commentary}
       </p>
       <p className="font-mono text-xl tabular-nums" style={{ color: '#d8a860' }}>

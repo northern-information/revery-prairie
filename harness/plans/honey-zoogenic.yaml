@@ -9,7 +9,7 @@ plan:
 
 tasks:
   - id: add-zoogenic-itemcategory
-    title: "Add Zoogenic to ItemCategory in types.ts"
+    title: 'Add Zoogenic to ItemCategory in types.ts'
     spec_id: inventory-management
     spec_sections:
       - item-category-taxonomy
@@ -40,7 +40,7 @@ tasks:
     tags: [engine]
 
   - id: merge-life-manualcategory
-    title: "Replace ManualCategory.Flora and Fauna with single Life member; update CATEGORY_ORDER, itemCategoryToManualCategory (Zoogenic + Seed + Flora + Fauna -> Life), and all MANUAL_ONLY_ENTRIES references"
+    title: 'Replace ManualCategory.Flora and Fauna with single Life member; update CATEGORY_ORDER, itemCategoryToManualCategory (Zoogenic + Seed + Flora + Fauna -> Life), and all MANUAL_ONLY_ENTRIES references'
     spec_id: manual-id-namespace
     spec_sections:
       - manual-category-taxonomy
@@ -72,7 +72,7 @@ tasks:
     tags: [component]
 
   - id: update-manual-tests
-    title: "Update manual.test.ts assertions: bee and clover now both map to ManualCategory.Life; replace Fauna/Flora references with Life"
+    title: 'Update manual.test.ts assertions: bee and clover now both map to ManualCategory.Life; replace Fauna/Flora references with Life'
     spec_id: manual-id-namespace
     spec_sections:
       - manual-category-taxonomy
@@ -88,7 +88,7 @@ tasks:
     tags: [test]
 
   - id: add-honey-category-test
-    title: "Add a regression test asserting ITEM_DEFINITIONS.honey.category === ItemCategory.Zoogenic and that the honey manual entry resolves to ManualCategory.Life"
+    title: 'Add a regression test asserting ITEM_DEFINITIONS.honey.category === ItemCategory.Zoogenic and that the honey manual entry resolves to ManualCategory.Life'
     spec_id: inventory-management
     spec_sections:
       - item-category-taxonomy

@@ -1,10 +1,9 @@
+import { PermacomputerShell } from '../PermacomputerShell'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { createGameState } from '@/engine/state'
 import type { GameState } from '@/engine/types'
-
-import { PermacomputerShell } from '../PermacomputerShell'
 
 const buildState = (mutate?: (state: GameState) => void): GameState => {
   const state = createGameState('Tester', 80, 40)
@@ -12,7 +11,10 @@ const buildState = (mutate?: (state: GameState) => void): GameState => {
   return state
 }
 
-const renderShell = (overrides: Partial<Parameters<typeof PermacomputerShell>[0]> = {}, state: GameState = buildState()) => {
+const renderShell = (
+  overrides: Partial<Parameters<typeof PermacomputerShell>[0]> = {},
+  state: GameState = buildState()
+) => {
   const props = {
     state,
     activeScreen: 'pack' as const,

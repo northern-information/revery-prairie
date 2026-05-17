@@ -286,9 +286,9 @@ describe('pickUpGroundItems', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     // Place items at several different adjacent positions
-    createGroundItemEntity(state, 'clover', state.player.x, state.player.y - 1)  // north
-    createGroundItemEntity(state, 'clover', state.player.x + 1, state.player.y)  // east
-    createGroundItemEntity(state, 'clover', state.player.x, state.player.y + 1)  // south
+    createGroundItemEntity(state, 'clover', state.player.x, state.player.y - 1) // north
+    createGroundItemEntity(state, 'clover', state.player.x + 1, state.player.y) // east
+    createGroundItemEntity(state, 'clover', state.player.x, state.player.y + 1) // south
     pickUpGroundItems(state)
     expect(getGroundItemEntities(state)).toHaveLength(0)
   })

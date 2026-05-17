@@ -1,7 +1,6 @@
-import { describe, expect, it } from 'vitest'
-
 import { generateBoltPath, projectBoltPath } from '../boltPath'
 import { viewportToScreen } from '../projection'
+import { describe, expect, it } from 'vitest'
 
 const seededRng = (seed: number) => {
   let s = seed
@@ -42,8 +41,8 @@ describe('projectBoltPath', () => {
     const charHeight = 20
     const vw = 80
     const vh = 40
-    const screens = path.map((p) => viewportToScreen(p.x, p.y, charWidth, charHeight, vw, vh))
-    const xs = screens.map((s) => s.px)
+    const screens = path.map(p => viewportToScreen(p.x, p.y, charWidth, charHeight, vw, vh))
+    const xs = screens.map(s => s.px)
     expect(new Set(xs).size).toBe(1) // all same screen x → vertical bolt
 
     // y values should strictly decrease as we move from impact toward the top
@@ -73,7 +72,7 @@ describe('projectBoltPath', () => {
     const charHeight = 20
     const vw = 80
     const vh = 40
-    const screens = path.map((p) => viewportToScreen(p.x, p.y, charWidth, charHeight, vw, vh))
+    const screens = path.map(p => viewportToScreen(p.x, p.y, charWidth, charHeight, vw, vh))
 
     // Going from impact (last) toward top (first), screen py should monotonically decrease
     for (let i = path.length - 1; i > 0; i--) {
@@ -81,8 +80,8 @@ describe('projectBoltPath', () => {
     }
     // And the bolt should be largely vertical: total horizontal screen spread
     // should be ≤ path length cells (one cell of lateral drift per step at most)
-    const minPx = Math.min(...screens.map((s) => s.px))
-    const maxPx = Math.max(...screens.map((s) => s.px))
+    const minPx = Math.min(...screens.map(s => s.px))
+    const maxPx = Math.max(...screens.map(s => s.px))
     expect(maxPx - minPx).toBeLessThanOrEqual(path.length * charWidth)
 
     // If a branch was generated, its tiles should differ from main path tiles

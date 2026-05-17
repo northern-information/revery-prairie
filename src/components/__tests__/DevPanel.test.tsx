@@ -1,7 +1,7 @@
+import { DevPanel } from '../DevPanel'
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { DevPanel } from '../DevPanel'
 import { createGameState } from '@/engine/state'
 
 const noop = () => {
@@ -13,9 +13,7 @@ describe('DevPanel', () => {
     const state = createGameState('Test', 80, 40)
     state.devPanelOpen = true
 
-    const { container } = render(
-      <DevPanel state={state} refreshUI={noop} metricsRef={{ current: null }} />,
-    )
+    const { container } = render(<DevPanel state={state} refreshUI={noop} metricsRef={{ current: null }} />)
 
     const panel = container.querySelector('[data-panel="dev-panel"]')
     expect(panel).toBeTruthy()

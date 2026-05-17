@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { computeIsoLayout, getPlayerCenter, MINIMAP_CSS_SIZE, projectIso } from './minimapProjection'
 
 import { getCharacterDefinition } from '@/engine/characters'
 import { TILE_COLORS } from '@/engine/constants'
@@ -6,16 +7,9 @@ import { ComponentType } from '@/engine/ecs/types'
 import { posKey } from '@/engine/position'
 import { TileType, Zone } from '@/engine/types'
 import { getLastVisibleSet, getTileVisibility, hasFogOfWar } from '@/engine/visibility'
+import type { IsoLayout } from './minimapProjection'
 import type { GameState, Tile } from '@/engine/types'
 import type { TileVisibility } from '@/engine/visibility'
-
-import {
-  MINIMAP_CSS_SIZE,
-  computeIsoLayout,
-  getPlayerCenter,
-  projectIso,
-} from './minimapProjection'
-import type { IsoLayout } from './minimapProjection'
 
 const PLAYER_MARKER_COLOR = '#ff69b4'
 const VIEWPORT_RECT_COLOR = '#ff69b4'
@@ -46,7 +40,7 @@ const drawIsoTile = (
   layout: IsoLayout,
   worldX: number,
   worldY: number,
-  color: string,
+  color: string
 ) => {
   const { px, py } = projectIso(worldX, worldY, layout)
   const w = layout.tilePx * 2
@@ -59,7 +53,7 @@ const drawTileLayer = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   layout: IsoLayout,
-  visibleSet: Set<string> | null,
+  visibleSet: Set<string> | null
 ) => {
   const w = state.mapWidth
   const h = state.mapHeight
@@ -108,7 +102,7 @@ const drawStructures = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   layout: IsoLayout,
-  visibleSet: Set<string> | null,
+  visibleSet: Set<string> | null
 ) => {
   if (state.currentZone === Zone.Overworld) {
     for (const ruin of state.civilizationRuins) {
@@ -132,7 +126,7 @@ const drawStructures = (
   const charEntities = state.world.query(
     ComponentType.Position,
     ComponentType.CharacterIdentity,
-    ComponentType.EntityZone,
+    ComponentType.EntityZone
   )
   for (const e of charEntities) {
     const zone = state.world.getComponent(e, ComponentType.EntityZone)
@@ -150,11 +144,7 @@ const drawStructures = (
   }
 }
 
-const drawViewportRect = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  layout: IsoLayout,
-) => {
+const drawViewportRect = (ctx: CanvasRenderingContext2D, state: GameState, layout: IsoLayout) => {
   if (layout.tilePx === 0) return
   const { cx, cy } = getPlayerCenter(state, layout)
   const w = state.viewportWidth * layout.tilePx
@@ -180,11 +170,7 @@ const drawViewportRect = (
   ctx.strokeRect(Math.round(x) + 0.5, Math.round(y) + 0.5, Math.round(drawW) - 1, Math.round(drawH) - 1)
 }
 
-const drawPlayerMarker = (
-  ctx: CanvasRenderingContext2D,
-  state: GameState,
-  layout: IsoLayout,
-) => {
+const drawPlayerMarker = (ctx: CanvasRenderingContext2D, state: GameState, layout: IsoLayout) => {
   const markerSize = Math.max(3, layout.tilePx)
   const { cx, cy } = getPlayerCenter(state, layout)
   const x = Math.max(0, Math.min(MINIMAP_CSS_SIZE - markerSize, Math.round(cx - markerSize / 2)))
@@ -253,7 +239,5 @@ export const Minimap = ({ state }: MinimapProps) => {
     }
   }, [state])
 
-  return (
-    <canvas ref={canvasRef} data-testid="minimap-canvas" className="block" />
-  )
+  return <canvas ref={canvasRef} data-testid="minimap-canvas" className="block" />
 }

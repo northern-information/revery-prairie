@@ -1,7 +1,7 @@
 import { createGenesisState, extractGenesisResult } from '../genesis'
 import { liftAtSim, recordVisibleTierChange, tileLiftAtSim } from '../genesisRenderer'
 import { posKey } from '../position'
-import { TIER_TWEEN_DURATION_MS, WATER_SINK_PX, easeInOutCubic, getTierLift } from '../tileBg'
+import { easeInOutCubic, getTierLift, TIER_TWEEN_DURATION_MS, WATER_SINK_PX } from '../tileBg'
 import { TileType } from '../types'
 import { describe, expect, it } from 'vitest'
 
@@ -175,8 +175,7 @@ describe('genesis elevation tween', () => {
       const t1 = TIER_TWEEN_DURATION_MS * 0.25
       const t2 = TIER_TWEEN_DURATION_MS * 0.75
       const t3 = TIER_TWEEN_DURATION_MS
-      const depth = (time: number): number =>
-        Math.max(0, liftAtSim(sim, 1, 2, time) - liftAtSim(sim, 1, 1, time))
+      const depth = (time: number): number => Math.max(0, liftAtSim(sim, 1, 2, time) - liftAtSim(sim, 1, 1, time))
       expect(depth(t0)).toBe(0) // self lift still 0 at u=0
       expect(depth(t3)).toBe(12) // fully landed at tier 2 vs tier 0
       expect(depth(t1)).toBeGreaterThan(0)

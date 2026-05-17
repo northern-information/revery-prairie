@@ -6,13 +6,7 @@ import {
   SATELLITE_CRATER_DEPTH_RING,
   SATELLITE_SOIL_DAMAGE,
 } from '../constants'
-import {
-  createGenesisState,
-  extractGenesisResult,
-  GENESIS_EPOCHS,
-  nameToSeed,
-  runAllMutations,
-} from '../genesis'
+import { createGenesisState, extractGenesisResult, GENESIS_EPOCHS, nameToSeed, runAllMutations } from '../genesis'
 import { posKey } from '../position'
 import { createGameState } from '../state'
 import { TileType } from '../types'
@@ -169,7 +163,7 @@ describe('genesis satellite crashes', () => {
             other =>
               other !== crash &&
               Math.abs(other.impactX - crash.impactX) <= 2 &&
-              Math.abs(other.impactY - crash.impactY) <= 2,
+              Math.abs(other.impactY - crash.impactY) <= 2
           )
           if (!overlap) return { x: crash.impactX, y: crash.impactY }
         }

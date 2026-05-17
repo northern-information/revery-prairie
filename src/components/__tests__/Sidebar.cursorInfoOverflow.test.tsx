@@ -7,8 +7,8 @@ import { posKey } from '@/engine/position'
 import { worldToScreen } from '@/engine/projection'
 import { createGameState } from '@/engine/state'
 import { TileType } from '@/engine/types'
-import type { CharMetrics, GameState } from '@/engine/types'
 import type { ItemInfoHandle } from '../ItemInfo'
+import type { CharMetrics, GameState } from '@/engine/types'
 
 const defaultInfoRef = createRef<ItemInfoHandle>()
 const noop = () => undefined
@@ -20,7 +20,15 @@ const aimAt = (state: GameState, x: number, y: number) => {
     x: x - Math.floor(state.viewportWidth / 2),
     y: y - Math.floor(state.viewportHeight / 2),
   }
-  const sp = worldToScreen(x, y, state.camera, metrics.charWidth, metrics.charHeight, state.viewportWidth, state.viewportHeight)
+  const sp = worldToScreen(
+    x,
+    y,
+    state.camera,
+    metrics.charWidth,
+    metrics.charHeight,
+    state.viewportWidth,
+    state.viewportHeight
+  )
   state.cursorScreenPos = { x: sp.px + 1, y: sp.py + 1 }
 }
 

@@ -25,11 +25,7 @@ export const getControllableUnitAt = (state: GameState, pos: Position): Entity |
 }
 
 /** Find all controllable units whose positions fall within a tile rectangle. */
-export const getControllableUnitsInRect = (
-  state: GameState,
-  topLeft: Position,
-  bottomRight: Position
-): Entity[] => {
+export const getControllableUnitsInRect = (state: GameState, topLeft: Position, bottomRight: Position): Entity[] => {
   const result: Entity[] = []
   for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
     if (!isControllableUnit(state, eid)) continue

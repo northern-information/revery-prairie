@@ -1,12 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
 import { enterCave, exitCave } from '../cave'
 import { MOVEMENT_TWEEN_DEFAULT_MS, MOVEMENT_TWEEN_SPRINT_MS } from '../constants'
 import { ComponentType } from '../ecs/types'
-import { clearMovementTweens, getTweenLerp } from '../movementTween'
 import { movePlayer } from '../movement'
+import { clearMovementTweens, getTweenLerp } from '../movementTween'
 import { worldDeltaToIsoPx, worldToScreen } from '../projection'
 import { clearAroundPlayer, createTestState } from './helpers'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const requireComponent = <T>(val: T | undefined): T => {
   expect(val).toBeTruthy()
@@ -265,7 +264,13 @@ describe('smooth move', () => {
       const fromY = 30
 
       const expectedScreen = worldToScreen(
-        playerX, playerY, camera, charWidth, charHeight, viewportWidth, viewportHeight,
+        playerX,
+        playerY,
+        camera,
+        charWidth,
+        charHeight,
+        viewportWidth,
+        viewportHeight
       )
 
       for (const t of [0, 0.25, 0.5, 0.75, 1]) {
@@ -274,9 +279,7 @@ describe('smooth move', () => {
 
         // Renderer path: player draws at lerp, then ctx.translate(-drift)
         // is applied (drift composed from worldDeltaToIsoPx(lerp - player)).
-        const lerpDraw = worldToScreen(
-          lerpX, lerpY, camera, charWidth, charHeight, viewportWidth, viewportHeight,
-        )
+        const lerpDraw = worldToScreen(lerpX, lerpY, camera, charWidth, charHeight, viewportWidth, viewportHeight)
         const drift = worldDeltaToIsoPx(lerpX - playerX, lerpY - playerY, charWidth, charHeight)
         // ctx.translate(sx - drift) inverts the drift sign.
         const drawnPx = lerpDraw.px - drift.px
@@ -300,24 +303,18 @@ describe('smooth move', () => {
       const toY = 30
       const fromX = 49
       const fromY = 30
-      const expectedCenter = worldToScreen(
-        toX, toY, camera, charWidth, charHeight, viewportWidth, viewportHeight,
-      )
+      const expectedCenter = worldToScreen(toX, toY, camera, charWidth, charHeight, viewportWidth, viewportHeight)
 
       // At t=0: drift derived from (lerp = from) - (player = to). Tile at
       // fromX should land where the player visually is (canvas center).
       const driftAtZero = worldDeltaToIsoPx(fromX - toX, fromY - toY, charWidth, charHeight)
-      const fromTileDrawT0 = worldToScreen(
-        fromX, fromY, camera, charWidth, charHeight, viewportWidth, viewportHeight,
-      )
+      const fromTileDrawT0 = worldToScreen(fromX, fromY, camera, charWidth, charHeight, viewportWidth, viewportHeight)
       expect(fromTileDrawT0.px - driftAtZero.px).toBeCloseTo(expectedCenter.px)
       expect(fromTileDrawT0.py - driftAtZero.py).toBeCloseTo(expectedCenter.py)
 
       // At t=1: drift is zero (lerp == player). Tile at toX is at center.
       const driftAtOne = worldDeltaToIsoPx(0, 0, charWidth, charHeight)
-      const toTileDrawT1 = worldToScreen(
-        toX, toY, camera, charWidth, charHeight, viewportWidth, viewportHeight,
-      )
+      const toTileDrawT1 = worldToScreen(toX, toY, camera, charWidth, charHeight, viewportWidth, viewportHeight)
       expect(toTileDrawT1.px - driftAtOne.px).toBeCloseTo(expectedCenter.px)
       expect(toTileDrawT1.py - driftAtOne.py).toBeCloseTo(expectedCenter.py)
     })
@@ -361,16 +358,11 @@ describe('smooth move', () => {
         visibleViewportWidth: number,
         viewportHeight: number,
         charWidth: number,
-        charHeight: number,
+        charHeight: number
       ): { px: number; py: number } => {
         const xTracks = mapWidth >= visibleViewportWidth
         const yTracks = mapHeight >= viewportHeight
-        return worldDeltaToIsoPx(
-          xTracks ? lerpX - playerX : 0,
-          yTracks ? lerpY - playerY : 0,
-          charWidth,
-          charHeight,
-        )
+        return worldDeltaToIsoPx(xTracks ? lerpX - playerX : 0, yTracks ? lerpY - playerY : 0, charWidth, charHeight)
       }
 
       // Cave-shaped scenario: 40x25 map, 80x40 viewport.

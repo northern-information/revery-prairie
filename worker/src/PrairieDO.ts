@@ -1,8 +1,4 @@
-import {
-  isColorId,
-  SPAWN_DEFAULT,
-  WS_CLOSE_CODES,
-} from '@revery-prairie/shared'
+import { isColorId, SPAWN_DEFAULT, WS_CLOSE_CODES } from '@revery-prairie/shared'
 
 import type {
   ClientMessage,
@@ -74,11 +70,7 @@ export class PrairieDO implements DurableObject {
       stewardName?: string
       color?: string
     }
-    if (
-      typeof body.prairieId !== 'string' ||
-      typeof body.stewardName !== 'string' ||
-      !isColorId(body.color)
-    ) {
+    if (typeof body.prairieId !== 'string' || typeof body.stewardName !== 'string' || !isColorId(body.color)) {
       return new Response(JSON.stringify({ error: 'invalid create body' }), {
         status: 400,
         headers: { 'content-type': 'application/json' },
@@ -92,10 +84,10 @@ export class PrairieDO implements DurableObject {
       createdAt: Date.now(),
     }
     await this.ctx.storage.put('meta', meta)
-    return new Response(
-      JSON.stringify({ prairieId: meta.prairieId, ownerToken: meta.ownerToken }),
-      { status: 201, headers: { 'content-type': 'application/json' } }
-    )
+    return new Response(JSON.stringify({ prairieId: meta.prairieId, ownerToken: meta.ownerToken }), {
+      status: 201,
+      headers: { 'content-type': 'application/json' },
+    })
   }
 
   private async handleConnect(request: Request): Promise<Response> {
@@ -145,12 +137,7 @@ export class PrairieDO implements DurableObject {
     ws.close(WS_CLOSE_CODES.malformedHello, 'unexpected message type after hello')
   }
 
-  async webSocketClose(
-    ws: WebSocket,
-    _code: number,
-    _reason: string,
-    _wasClean: boolean
-  ): Promise<void> {
+  async webSocketClose(ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): Promise<void> {
     const attachment = ws.deserializeAttachment() as Attachment | null
     if (!attachment) return
     const frame: PeerLeftFrame = {
@@ -174,8 +161,7 @@ export class PrairieDO implements DurableObject {
       ws.close(WS_CLOSE_CODES.invalidColor, 'invalid color')
       return
     }
-    const isOwner =
-      typeof hello.ownerToken === 'string' && hello.ownerToken === meta.ownerToken
+    const isOwner = typeof hello.ownerToken === 'string' && hello.ownerToken === meta.ownerToken
     const sessionId = crypto.randomUUID()
     const attachment: Attachment = {
       sessionId,
@@ -210,11 +196,7 @@ export class PrairieDO implements DurableObject {
     this.broadcast(joinedFrame, ws)
   }
 
-  private handlePosition(
-    ws: WebSocket,
-    attachment: Attachment,
-    msg: PositionFrame
-  ): void {
+  private handlePosition(ws: WebSocket, attachment: Attachment, msg: PositionFrame): void {
     const updated: Attachment = {
       ...attachment,
       x: msg.x,

@@ -22,7 +22,7 @@ export const tileHasClickable = (state: GameState, tile: Position): boolean => {
   for (const eid of state.world.query(
     ComponentType.AngelData,
     ComponentType.MultiPosition,
-    ComponentType.CharacterIdentity,
+    ComponentType.CharacterIdentity
   )) {
     const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
     if (multi?.positions.some(p => posKey(p.x, p.y) === tileKey)) return true

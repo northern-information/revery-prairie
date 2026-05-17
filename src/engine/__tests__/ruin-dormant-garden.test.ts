@@ -1,15 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import {
-  fireOnRuinTile,
-  generateRuinInterior,
-  repairAqueductBreak,
-  tickDormantGardenDecay,
-} from '../ruins'
-import { clearRuinDebris } from '../interaction'
-import { RuinArchetype, TileType, Zone } from '../types'
 import { RuinRole } from '../genesisTypes'
+import { clearRuinDebris } from '../interaction'
 import { isWalkableTile, posKey } from '../position'
+import { fireOnRuinTile, generateRuinInterior, repairAqueductBreak, tickDormantGardenDecay } from '../ruins'
+import { RuinArchetype, TileType, Zone } from '../types'
 import { createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { CivilizationRuin } from '../genesisTypes'
 
@@ -19,8 +14,14 @@ const makeRuin = (overrides: Partial<CivilizationRuin> = {}): CivilizationRuin =
   radius: 4,
   age: 3000,
   aqueductPaths: [
-    [{ x: 50, y: 50 }, { x: 60, y: 50 }],
-    [{ x: 50, y: 50 }, { x: 50, y: 40 }],
+    [
+      { x: 50, y: 50 },
+      { x: 60, y: 50 },
+    ],
+    [
+      { x: 50, y: 50 },
+      { x: 50, y: 40 },
+    ],
   ],
   buildingFootprints: [{ x: 50, y: 50 }],
   ...overrides,
@@ -355,7 +356,7 @@ describe('ruin dormant garden', () => {
         expect(interior.map[dp.y][dp.x].type).toBe(TileType.RuinDoorLocked)
       }
       // All door tiles share the same y (a single horizontal wall row).
-      const ys = new Set(positions.map((p) => p.y))
+      const ys = new Set(positions.map(p => p.y))
       expect(ys.size).toBe(1)
     })
 
@@ -373,7 +374,12 @@ describe('ruin dormant garden', () => {
       while (queue.length > 0) {
         const pos = queue.shift()
         if (!pos) break
-        for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
+        for (const [dx, dy] of [
+          [0, -1],
+          [0, 1],
+          [-1, 0],
+          [1, 0],
+        ] as const) {
           const nx = pos.x + dx
           const ny = pos.y + dy
           if (nx < 0 || nx >= interior.mapWidth || ny < 0 || ny >= interior.mapHeight) continue
@@ -401,7 +407,7 @@ describe('ruin dormant garden', () => {
       if (!barrier) return
       expect(barrier.length).toBe(3)
       // All barrier tiles share the same y (one horizontal row).
-      const ys = new Set(barrier.map((p) => p.y))
+      const ys = new Set(barrier.map(p => p.y))
       expect(ys.size).toBe(1)
       // Each barrier tile renders as RuinDebris.
       for (const bp of barrier) {

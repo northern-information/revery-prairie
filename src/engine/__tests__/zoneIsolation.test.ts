@@ -1,15 +1,14 @@
-import { describe, expect, it } from 'vitest'
-
 import { enterCave } from '../cave'
 import { ComponentType } from '../ecs/types'
-import { dropItem, createCharacterEntity } from '../entities'
+import { createCharacterEntity, dropItem } from '../entities'
 import { getAdjacentCharacter, interactWithCharacter, isInteractableAt } from '../interaction'
-import { getBlockedPositions } from '../movement'
 import { placeItem } from '../inventory'
+import { getBlockedPositions } from '../movement'
 import { posKey } from '../position'
 import { createGameState } from '../state'
 import { TileType, Zone } from '../types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from '../zone'
+import { describe, expect, it } from 'vitest'
 
 import type { Entity } from '../ecs/types'
 import type { GameState, RuinInterior, Tile } from '../types'
@@ -140,7 +139,7 @@ describe('zone isolation: cross-ruin entity bleed', () => {
       state,
       'ghost-1',
       { x: 5, y: 5 },
-      { zone: Zone.Ruin, ruinIndex: 0, behavior: { type: 'drift', moveChance: 0, freezeOnDialog: false } },
+      { zone: Zone.Ruin, ruinIndex: 0, behavior: { type: 'drift', moveChance: 0, freezeOnDialog: false } }
     )
 
     // Now enter ruin 1
@@ -220,13 +219,11 @@ describe('zone isolation: producer contract', () => {
 
     expect(dropItem(state, 'coin')).toBe(true)
 
-    const ruinDrops = state.world
-      .query(ComponentType.EntityTag, ComponentType.EntityZone)
-      .filter((eid: Entity) => {
-        if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundItem') return false
-        const ez = state.world.getComponent(eid, ComponentType.EntityZone)
-        return ez?.zone === Zone.Ruin && ez.ruinIndex === 3
-      })
+    const ruinDrops = state.world.query(ComponentType.EntityTag, ComponentType.EntityZone).filter((eid: Entity) => {
+      if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundItem') return false
+      const ez = state.world.getComponent(eid, ComponentType.EntityZone)
+      return ez?.zone === Zone.Ruin && ez.ruinIndex === 3
+    })
     expect(ruinDrops.length).toBe(1)
     const ez = state.world.getComponent(ruinDrops[0], ComponentType.EntityZone)
     expect(ez?.zone).toBe(Zone.Ruin)

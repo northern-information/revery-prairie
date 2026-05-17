@@ -1,18 +1,8 @@
-import {
-  type ChangedFile,
-  type CheckOutcome,
-  classifyPath,
-  evaluate,
-  formatReport,
-  PRODUCT_LOC_THRESHOLD,
-} from '../src/harness-check.ts'
+import { classifyPath, evaluate, formatReport, PRODUCT_LOC_THRESHOLD } from '../src/harness-check.ts'
 
-const file = (
-  path: string,
-  status: ChangedFile['status'] = 'M',
-  added = 0,
-  removed = 0
-): ChangedFile => ({
+import type { ChangedFile, CheckOutcome } from '../src/harness-check.ts'
+
+const file = (path: string, status: ChangedFile['status'] = 'M', added = 0, removed = 0): ChangedFile => ({
   path,
   status,
   added,
@@ -86,7 +76,7 @@ describe('harness-check evaluate', () => {
     expect(outcome.kind).toBe('gated-fail')
     if (outcome.kind === 'gated-fail') {
       expect(outcome.missing.sort()).toEqual(['plan', 'spec'])
-      expect(outcome.triggers.some((t) => t.includes('new product file'))).toBe(true)
+      expect(outcome.triggers.some(t => t.includes('new product file'))).toBe(true)
     }
   })
 
@@ -96,7 +86,7 @@ describe('harness-check evaluate', () => {
     })
     expect(outcome.kind).toBe('gated-fail')
     if (outcome.kind === 'gated-fail') {
-      expect(outcome.triggers.some((t) => t.includes('product LOC'))).toBe(true)
+      expect(outcome.triggers.some(t => t.includes('product LOC'))).toBe(true)
     }
   })
 
@@ -128,10 +118,7 @@ describe('harness-check evaluate', () => {
 
   it('gated PR with spec but no plan fails with missing=plan', () => {
     const outcome = evaluate({
-      files: [
-        file('src/engine/newSystem.ts', 'A', 30, 0),
-        file('harness/specs/new-system.yaml', 'A', 50, 0),
-      ],
+      files: [file('src/engine/newSystem.ts', 'A', 30, 0), file('harness/specs/new-system.yaml', 'A', 50, 0)],
     })
     expect(outcome.kind).toBe('gated-fail')
     if (outcome.kind === 'gated-fail') expect(outcome.missing).toEqual(['plan'])
@@ -139,10 +126,7 @@ describe('harness-check evaluate', () => {
 
   it('gated PR with plan but no spec fails with missing=spec', () => {
     const outcome = evaluate({
-      files: [
-        file('src/engine/newSystem.ts', 'A', 30, 0),
-        file('harness/plans/new-system.yaml', 'A', 40, 0),
-      ],
+      files: [file('src/engine/newSystem.ts', 'A', 30, 0), file('harness/plans/new-system.yaml', 'A', 40, 0)],
     })
     expect(outcome.kind).toBe('gated-fail')
     if (outcome.kind === 'gated-fail') expect(outcome.missing).toEqual(['spec'])
@@ -179,10 +163,7 @@ describe('harness-check evaluate', () => {
 
   it('test changes inside a gated PR do not contribute to LOC count', () => {
     const outcome = evaluate({
-      files: [
-        file('src/engine/movement.ts', 'M', 50, 0),
-        file('src/engine/__tests__/movement.test.ts', 'M', 500, 200),
-      ],
+      files: [file('src/engine/movement.ts', 'M', 50, 0), file('src/engine/__tests__/movement.test.ts', 'M', 500, 200)],
     })
     expect(outcome.kind).toBe('minor')
   })
@@ -202,9 +183,7 @@ describe('harness-check formatReport', () => {
   })
 
   it('formats minor outcome', () => {
-    expect(formatReport({ kind: 'minor' })).toBe(
-      'harness check: minor PR, no spec required'
-    )
+    expect(formatReport({ kind: 'minor' })).toBe('harness check: minor PR, no spec required')
   })
 
   it('formats gated-pass with triggers', () => {

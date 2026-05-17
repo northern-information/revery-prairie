@@ -1,5 +1,3 @@
-import { describe, expect, it, vi } from 'vitest'
-
 import { CAVE_VISION_RADIUS, REVERY_ILLUMINATION_RADIUS, RUIN_VISION_RADIUS } from '../constants'
 import { posKey } from '../position'
 import { TileType, Zone } from '../types'
@@ -13,8 +11,8 @@ import {
   hasFogOfWar,
   tickIllumination,
 } from '../visibility'
-
 import { createTestState } from './helpers'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { GameState, RuinInterior, Tile } from '../types'
 
@@ -636,7 +634,7 @@ describe('fog of war', () => {
       ruinIndex: number,
       mapWidth: number,
       mapHeight: number,
-      entranceInterior: { x: number; y: number },
+      entranceInterior: { x: number; y: number }
     ): RuinInterior => ({
       ruinIndex,
       archetype: 'dormantGarden',

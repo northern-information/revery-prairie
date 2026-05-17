@@ -132,10 +132,10 @@ const EntryCard = ({
         {isRecipe ? (
           <span className="text-text text-sm">
             {entry.crossRefs
-                  ?.slice(0, 2)
-                  .map(ref => MANUAL_ENTRIES[ref]?.name ?? capitalize(ref.replace(/^[^:]+:/, '')))
-                  .join(' + ')}{' '}
-                ={' '}
+              ?.slice(0, 2)
+              .map(ref => MANUAL_ENTRIES[ref]?.name ?? capitalize(ref.replace(/^[^:]+:/, '')))
+              .join(' + ')}{' '}
+            ={' '}
             <RecipeResultSpoiler
               entry={entry}
               discovered={discovered}

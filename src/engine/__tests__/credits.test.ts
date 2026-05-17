@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest'
-import { CREDITS, type Credit } from '../credits'
+import { CREDITS } from '../credits'
+import { describe, expect, it } from 'vitest'
+
+import type { Credit } from '../credits'
 
 describe('credits module', () => {
   it('exports a readonly CREDITS array', () => {

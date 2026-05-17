@@ -66,32 +66,24 @@ export const evaluate = (input: CheckInput): CheckOutcome => {
     return { kind: 'skip', reason: input.skipReason }
   }
 
-  const product = input.files.filter((f) => f.classification === 'product')
-  const newProductFiles = product.filter((f) => f.status === 'A')
+  const product = input.files.filter(f => f.classification === 'product')
+  const newProductFiles = product.filter(f => f.status === 'A')
   const productLoc = product.reduce((sum, f) => sum + f.added + f.removed, 0)
 
   const triggers: string[] = []
   if (newProductFiles.length > 0) {
     triggers.push(
-      `${String(newProductFiles.length)} new product file(s): ${newProductFiles
-        .map((f) => f.path)
-        .join(', ')}`
+      `${String(newProductFiles.length)} new product file(s): ${newProductFiles.map(f => f.path).join(', ')}`
     )
   }
   if (productLoc > PRODUCT_LOC_THRESHOLD) {
-    triggers.push(
-      `${String(productLoc)} product LOC changed (threshold ${String(PRODUCT_LOC_THRESHOLD)})`
-    )
+    triggers.push(`${String(productLoc)} product LOC changed (threshold ${String(PRODUCT_LOC_THRESHOLD)})`)
   }
 
   if (triggers.length === 0) return { kind: 'minor' }
 
-  const hasSpec = input.files.some(
-    (f) => f.path.startsWith('harness/specs/') && f.status !== 'D'
-  )
-  const hasPlan = input.files.some(
-    (f) => f.path.startsWith('harness/plans/') && f.status !== 'D'
-  )
+  const hasSpec = input.files.some(f => f.path.startsWith('harness/specs/') && f.status !== 'D')
+  const hasPlan = input.files.some(f => f.path.startsWith('harness/plans/') && f.status !== 'D')
 
   const missing: ('spec' | 'plan')[] = []
   if (!hasSpec) missing.push('spec')
@@ -110,16 +102,13 @@ export const formatReport = (outcome: CheckOutcome): string => {
     case 'gated-pass':
       return [
         'harness check: gated PR, spec + plan present — pass',
-        ...outcome.triggers.map((t) => `  trigger: ${t}`),
+        ...outcome.triggers.map(t => `  trigger: ${t}`),
       ].join('\n')
     case 'gated-fail':
       return [
         'harness check: gated PR, missing harness artifacts — fail',
-        ...outcome.triggers.map((t) => `  trigger: ${t}`),
-        ...outcome.missing.map(
-          (m) =>
-            `  missing: harness/${m === 'spec' ? 'specs' : 'plans'}/ change in this PR`
-        ),
+        ...outcome.triggers.map(t => `  trigger: ${t}`),
+        ...outcome.missing.map(m => `  missing: harness/${m === 'spec' ? 'specs' : 'plans'}/ change in this PR`),
         '',
         'every gated PR must go through /new-feature, /bug-report, or /change-request.',
         'if this is intentionally not a feature change, add a `Skip-Harness: <reason>` trailer to the most recent commit.',
@@ -184,9 +173,7 @@ export const readSkipReason = (base?: string): string | undefined => {
     // Fall back to HEAD-only if the range ref doesn't exist (local dev without
     // a fetched origin/main).
     const range = refExists(ref) ? `${ref}..HEAD` : null
-    const message = range
-      ? runGit(['log', '--pretty=%B', range])
-      : runGit(['log', '-1', '--pretty=%B', 'HEAD'])
+    const message = range ? runGit(['log', '--pretty=%B', range]) : runGit(['log', '-1', '--pretty=%B', 'HEAD'])
     for (const line of message.split('\n')) {
       const match = /^Skip-Harness:\s*(.+)$/.exec(line.trim())
       if (match !== null && match[1].trim().length > 0) return match[1].trim()
@@ -214,8 +201,6 @@ const main = (): void => {
   if (outcome.kind === 'gated-fail') process.exit(1)
 }
 
-const isEntrypoint =
-  import.meta.url === `file://${process.argv[1]}` ||
-  process.argv[1].endsWith('harness-check.ts')
+const isEntrypoint = import.meta.url === `file://${process.argv[1]}` || process.argv[1].endsWith('harness-check.ts')
 
 if (isEntrypoint) main()

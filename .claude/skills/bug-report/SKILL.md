@@ -83,14 +83,14 @@ Ask the user before running. Report results from the run summary.
 
 When the agent feels the urge to take a shortcut, it will narrate one of these. Don't.
 
-| Excuse the agent will tell itself | Rebuttal |
-| --- | --- |
-| "This bug is obvious — skip the investigation step." | No. Step 2 requires file:line + snippet + mechanism. Pattern-matching against training data is not evidence. |
-| "I'll add the regression test after the fix lands." | The plan must include the failing test as a task before (or alongside) the fix task. The test must fail on `main` and pass on the branch — that's how you know the fix actually fixed it. |
-| "The fix is one line — no spec needed." | One-line fixes still imply a behavior. Write the 1-behavior spec describing the correct behavior; the failing-then-passing test depends on it. |
-| "I'll mock `Math.random` to make this test pass." | Mocking random controls *which path* the code takes, not *whether tiles are valid*. If the test needs a valid tile, prepare terrain (`clearAroundPlayer()` or set tiles to dirt). See CLAUDE.md testing section. |
-| "The existing tests cover this — no regression test needed." | If they covered it, the bug wouldn't exist. Add the regression test that would have caught it. |
-| "I can fix this adjacent thing while I'm here." | No. Touch only the root cause. Adjacent issues are separate `/bug-report` runs. |
+| Excuse the agent will tell itself                            | Rebuttal                                                                                                                                                                                                         |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "This bug is obvious — skip the investigation step."         | No. Step 2 requires file:line + snippet + mechanism. Pattern-matching against training data is not evidence.                                                                                                     |
+| "I'll add the regression test after the fix lands."          | The plan must include the failing test as a task before (or alongside) the fix task. The test must fail on `main` and pass on the branch — that's how you know the fix actually fixed it.                        |
+| "The fix is one line — no spec needed."                      | One-line fixes still imply a behavior. Write the 1-behavior spec describing the correct behavior; the failing-then-passing test depends on it.                                                                   |
+| "I'll mock `Math.random` to make this test pass."            | Mocking random controls _which path_ the code takes, not _whether tiles are valid_. If the test needs a valid tile, prepare terrain (`clearAroundPlayer()` or set tiles to dirt). See CLAUDE.md testing section. |
+| "The existing tests cover this — no regression test needed." | If they covered it, the bug wouldn't exist. Add the regression test that would have caught it.                                                                                                                   |
+| "I can fix this adjacent thing while I'm here."              | No. Touch only the root cause. Adjacent issues are separate `/bug-report` runs.                                                                                                                                  |
 
 ## Exit criterion
 

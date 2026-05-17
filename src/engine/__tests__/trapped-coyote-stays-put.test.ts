@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
 import { getCharacterDefinition } from '../characters'
 import { transitionCoyoteToZone } from '../coyote'
 import { ComponentType } from '../ecs/types'
@@ -7,8 +5,8 @@ import { RuinRole } from '../genesisTypes'
 import { clearRuinDebris } from '../interaction'
 import { movePlayer } from '../movement'
 import { CoyoteMode, MainQuestPhase, RuinArchetype, TileType, Zone } from '../types'
-
 import { clearAroundPlayer, createCharacterTestEntity, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { CivilizationRuin } from '../genesisTypes'
 import type { GameState, RuinInterior } from '../types'
@@ -125,7 +123,7 @@ describe('trapped coyote stays put on ruin entry', () => {
 const installCoyoteRuinWithBarrier = (
   state: GameState,
   barrier: { x: number; y: number }[],
-  scatteredDebris: { x: number; y: number }[] = [],
+  scatteredDebris: { x: number; y: number }[] = []
 ): void => {
   const ruin: CivilizationRuin = {
     position: { x: 0, y: 0 },
@@ -242,7 +240,7 @@ describe('collapse barrier clears atomically', () => {
 
     const crumbleEid = requireValue(findCrumbleEntity(state))
     const mp = requireValue(state.world.getComponent(crumbleEid, ComponentType.MultiPosition))
-    const keys = new Set(mp.positions.map((p) => `${String(p.x)},${String(p.y)}`))
+    const keys = new Set(mp.positions.map(p => `${String(p.x)},${String(p.y)}`))
     for (const bp of barrier) {
       expect(keys.has(`${String(bp.x)},${String(bp.y)}`)).toBe(true)
     }
