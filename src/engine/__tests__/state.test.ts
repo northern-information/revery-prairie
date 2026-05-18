@@ -45,33 +45,8 @@ describe('createGameState', () => {
     expect(coyotes).toHaveLength(0)
   })
 
-  it('starts with all four reveries', () => {
+  it('starts with no gifts received', () => {
     const state = createGameState('Willow', 80, 40)
-    expect(state.reveries).toEqual(['earth', 'lightning', 'water', 'deep-time'])
-    expect(state.actionBar[0]).toEqual({
-      kind: 'revery',
-      id: 'earth',
-      cooldownEndTime: 0,
-      cooldownDurationMs: 0,
-    })
-    expect(state.actionBar[1]).toEqual({
-      kind: 'revery',
-      id: 'lightning',
-      cooldownEndTime: 0,
-      cooldownDurationMs: 0,
-    })
-    expect(state.actionBar[2]).toEqual({
-      kind: 'revery',
-      id: 'water',
-      cooldownEndTime: 0,
-      cooldownDurationMs: 0,
-    })
-    expect(state.actionBar[3]).toEqual({
-      kind: 'revery',
-      id: 'deep-time',
-      cooldownEndTime: 0,
-      cooldownDurationMs: 0,
-    })
     expect(state.giftsReceived.size).toBe(0)
   })
 

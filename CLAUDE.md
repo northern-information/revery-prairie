@@ -69,7 +69,7 @@ defined in `shared/src/protocol.ts`. summary:
 
 ### sync scope
 
-position-only in the foundation spec (`multiplayer-foundation`). mutations (harvest, drop, combine), entity ticks (bees, ghosts, weather), and reveries are deferred to follow-up specs (`multiplayer-mutations`, `multiplayer-entity-tick`, `multiplayer-reveries`, etc.).
+position-only in the foundation spec (`multiplayer-foundation`). mutations (harvest, drop, combine) and entity ticks (bees, ghosts, weather) are deferred to follow-up specs (`multiplayer-mutations`, `multiplayer-entity-tick`, etc.).
 
 server-side game ticks only run while at least one websocket is open. there is no Cron Trigger or `alarm()` keeping the world ticking 24/7 — true 24/7 persistence is a follow-up spec.
 
@@ -151,7 +151,7 @@ custom cursor from `public/cursor.cur` (diablo II style). set globally via CSS o
 the sidebar shows data for whatever tile the mouse hovers over. three rules apply to all current and future content:
 
 1. **every entity that renders on the map must appear in the contents row.** if the renderer draws it at a tile position, the sidebar contents IIFE in `Sidebar.tsx` must check for it and return a human-readable label. transient timed effects (explosions, pickup blooms, wildfire, crumble) are exempt — they are visual-only.
-2. **every persistent map-visible effect must appear in the effects row.** if an overlay is drawn on tiles (rain, glinting, aura, revery cast), `getTileEffects()` in `effects.ts` must detect and return it. transient timed effects are exempt.
+2. **every persistent map-visible effect must appear in the effects row.** if an overlay is drawn on tiles (rain, glinting, aura), `getTileEffects()` in `effects.ts` must detect and return it. transient timed effects are exempt.
 3. **tile type labels must be human-readable.** never show raw camelCase type strings (e.g. `burntClover`). map every tile type to a plain-english label (e.g. "burnt clover").
 
 when adding new entities, effects, or tile types — wire up cursor info at the same time.
@@ -178,7 +178,6 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 
 - `wasd` — movement (works with inventory open, blocked in menu, during drag, and when a text input is focused)
 - `e` — context-dependent: talk to character / advance dialog / toss coins in divination / close divination result / break facing cave breakable wall
-- `r` — toggle reveries screen (blocked when modifier held to avoid overriding Cmd+R / Ctrl+R browser refresh)
 - `f` — harvest facing clover tile (tile → dirt, clover item to backpack, no soil enrichment)
 - `x` — drop hovered item; also cuts facing clover when no item is hovered (tile → dirt, soil enrichment, no item)
 - `c` — toggle divination screen (overworld only, blocked during dialog and menu)
@@ -189,7 +188,6 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 - `shift+click` — queue waypoints onto existing path (RTS-style)
 - `space` — toggle camera mode (follow lock ↔ RTS pan)
 - during drag: `esc` cancels (captured by drag hook)
-- `1-4` — activate action bar slot (blocked during dialog and menu)
 - `` ` `` — toggle dev panel (dev mode only)
 - `isDraggingRef` blocks `x` in keyboard hook while drag is active, but allows movement through
 
@@ -221,29 +219,17 @@ hand-authored lore goes in `MANUAL_LORE` table in `manual.ts`. run `/maintain-ma
 
 ## pickup bloom
 
-every item acquisition must spawn a `pickupBloom` effect at the player position via `spawnPickupBloom(state, x, y, time)` in `effects.ts`. this includes: walking over ground items, capturing bees, collecting meteorites, harvesting clover, coyote delivering to backpack, crafting via recipes, and receiving revery gifts. one bloom per acquisition event (not per item). no bloom when `time` is omitted or when the acquisition fails.
+every item acquisition must spawn a `pickupBloom` effect at the player position via `spawnPickupBloom(state, x, y, time)` in `effects.ts`. this includes: walking over ground items, capturing bees, collecting meteorites, harvesting clover, coyote delivering to backpack, and crafting via recipes. one bloom per acquisition event (not per item). no bloom when `time` is omitted or when the acquisition fails.
 
-when adding new acquisition paths — any code that adds items to the backpack, grants reveries, or otherwise gives the player something — call `spawnPickupBloom` at the same time.
+when adding new acquisition paths — any code that adds items to the backpack or otherwise gives the player something — call `spawnPickupBloom` at the same time.
 
 ## reveries
 
-key items that don't occupy inventory grid space. stored as `state.reveries: string[]`. given as gifts by characters on dialog completion.
-
-registry in `src/engine/reveries.ts`. current reveries:
-
-- `earth` (starting revery) — `castStyle: 'scan'`. radiates a 20-tile radius soil health visualization from the player position. black → green gradient (black = depleted, green = thriving). works in both overworld and cave. three phases: radial expansion (1.5s), hold (2.5s), radial wave fade-out (1.5s). purely diagnostic — no gameplay effects. skips space and impassable cave walls.
-- `lightning` (starting revery) — `castStyle: 'targeted'`. player selects a tile within range, lightning strikes it. 15s cooldown.
-- `fire` (from Moab) — `castStyle: 'tile'`. burns the facing tile. 12s cooldown.
-- `water` (from Gron) — `castStyle: 'rain'`. rain pattern on cross shape. 12s cooldown.
-- `deep-time` (from Gron post-deep-time) — `castStyle: 'deepTime'`. initiates the deep time endgame sequence. single use (infinite cooldown).
+deleted in precis #0 (Reclaim Revery). the four player-cast spells (fire, water, earth, lightning, deep-time) are gone, the action bar is gone, and the `r` / `1-4` keybinds are gone. the `lightning.ts` and `deepTime.ts` simulation kernels remain — they are reused by precis #4 (the long-form Revery phase) and #9 (Controlled Burn). the word *Revery* is reserved for the long-form phase only — see `docs/precis-thinktank-v3.md`.
 
 ## character gifts
 
-characters have optional `gift` and `postGiftDialog` fields. gifts are one-time per character, tracked in `state.giftsReceived: Set<string>`. `getCharacterDialog` returns `postGiftDialog` if gift has been given.
-
-## action bar
-
-bottom-center UI with 4 slots for reveries or items. `1-4` keybinds. new reveries auto-fill first empty slot. items can be dragged from inventory onto slots.
+characters have optional `gift` and `postGift` fields on `CharacterDefinition`, plus `postGiftDialog` for dialog branching. gifts are one-time per character, tracked in `state.giftsReceived: Set<string>`. as of precis #0, both `giveCharacterGift` and `givePostGift` in `interaction.ts` return `null` for every character — no character grants anything until precis #5 (ruin recovery) wires up item gifts. the fields and flow are retained on the type for that purpose.
 
 ## movement blocking
 

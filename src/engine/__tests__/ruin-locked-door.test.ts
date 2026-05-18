@@ -107,21 +107,6 @@ describe('ruin locked door', () => {
     expect(state.backpack.items).toHaveLength(1)
   })
 
-  it('clears action bar slot referencing the consumed last key', () => {
-    const state = createTestState()
-    setupRuinWithDoor(state)
-    addAqueductKey(state, 1)
-    state.actionBar[0] = {
-      kind: 'item',
-      id: 'aqueductKey',
-      cooldownEndTime: 0,
-      cooldownDurationMs: 0,
-    }
-    const opened = unlockRuinDoor(state)
-    expect(opened).toBe(true)
-    expect(state.actionBar[0]).toBeNull()
-  })
-
   describe('multi-tile door row', () => {
     const setupMultiTileDoor = (state: GameState): { doorY: number; doorPositions: Position[] } => {
       const interiorMap: { type: TileType }[][] = Array.from({ length: 10 }, () =>

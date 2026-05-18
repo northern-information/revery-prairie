@@ -1,7 +1,7 @@
 import { generateBoltPath } from '../boltPath'
 import {
   LIGHTNING_DURATION_MS,
-  SOIL_HEALTH_FIRE_REVERY_BONUS,
+  SOIL_HEALTH_BURN_BONUS,
   WATER_MAX,
   WILDFIRE_DURATION_MS,
   WILDFIRE_MAX_SPREAD,
@@ -291,7 +291,7 @@ describe('lightning', () => {
       state.soilHealth.set(posKey(cx, cy), 10)
       spreadWildfire(state, 0, cx, cy)
       const after = state.soilHealth.get(posKey(cx, cy)) ?? 0
-      expect(after).toBe(10 + SOIL_HEALTH_FIRE_REVERY_BONUS)
+      expect(after).toBe(10 + SOIL_HEALTH_BURN_BONUS)
     })
 
     it('deletes cloverLifecycle entries for burned tiles', () => {

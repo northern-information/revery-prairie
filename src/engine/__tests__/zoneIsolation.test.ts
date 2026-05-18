@@ -42,7 +42,6 @@ const makeRuinInterior = (ruinIndex: number, w: number, h: number): RuinInterior
   dormantGarden: null,
   fogExplored: new Set<string>(),
   fogDiscovered: new Set<string>(),
-  fogIllumination: new Map<string, number>(),
 })
 
 const enterRuinWithInterior = (state: GameState, interior: RuinInterior): void => {
@@ -96,7 +95,6 @@ describe('zone isolation: Moab not reachable from outside cave', () => {
     const result = interactWithCharacter(state)
     expect(result.opened).toBe(false)
     expect(state.activeDialog).toBeNull()
-    expect(state.reveries).not.toContain('fire')
   })
 })
 

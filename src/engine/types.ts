@@ -121,27 +121,9 @@ export interface CharacterDefinition {
   portrait?: string
   dialog: string[]
   music?: string
-  gift?: { kind: 'revery' | 'item'; id: string }
+  gift?: { kind: 'item'; id: string }
   postGiftDialog?: string[]
-  postGift?: { kind: 'revery' | 'item'; id: string }
-}
-
-export interface ReveryDefinition {
-  id: string
-  name: string
-  glyphs: string[]
-  glyphColor: string
-  cooldownMs: number
-  castDurationMs: number
-  castStyle: 'tile' | 'rain' | 'aura' | 'scan' | 'targeted' | 'deepTime'
-  castPattern: Position[]
-}
-
-export interface ActionBarSlot {
-  kind: 'revery' | 'item'
-  id: string
-  cooldownEndTime: number
-  cooldownDurationMs: number
+  postGift?: { kind: 'item'; id: string }
 }
 
 export interface TransitionFade {
@@ -285,8 +267,6 @@ export interface GameState {
   pendingAction: (() => void) | null
   pendingInteractionTarget: Position | null
   heldDirection: Direction | null
-  heldActionSlot: number | null
-  targetingSlot: number | null
   sprinting: boolean
   trail: TrailPoint[]
   playerTween: MovementTween | null
@@ -310,8 +290,6 @@ export interface GameState {
   caveHiddenPositions: Set<string>
   caveNpcSpot: Position
   caveBreakableWallPositions: Position[]
-  reveries: string[]
-  actionBar: (ActionBarSlot | null)[]
   giftsReceived: Set<string>
   world: World
   cloverGrowthPreviews: Set<string>
@@ -365,7 +343,6 @@ export interface GameState {
   queuedEvents: QueuedEvent[]
   caveFogExplored: Set<string>
   caveFogDiscovered: Set<string>
-  caveFogIllumination: Map<string, number>
   selectedUnits: Set<number>
   selectionBox: SelectionBox | null
   unitCommands: Map<number, UnitCommand>
@@ -380,7 +357,6 @@ export interface GameState {
   onPlayerMoved: (() => void) | null
   onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null
   onGenesisComplete: ((handoffTime: number) => void) | null
-  waterReveryAura: number | null
 }
 
 export const CloverStage = {
@@ -525,7 +501,6 @@ export interface RuinInterior {
   dormantGarden: DormantGardenData | null
   fogExplored: Set<string>
   fogDiscovered: Set<string>
-  fogIllumination: Map<string, number>
   glyph?: string
 }
 

@@ -3,13 +3,11 @@ name: 'Wildfire spread from fire and lightning reveries'
 priority: high
 layer: engine
 source_files:
-  - src/engine/actionBar.ts
   - src/engine/lightning.ts
   - src/engine/constants.ts
   - src/engine/__tests__/wildfire.test.ts
 dependencies:
   - lightning-strikes
-  - lightning-revery
 
 behaviors:
   - id: forced-origin-ignition

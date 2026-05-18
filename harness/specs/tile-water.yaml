@@ -7,7 +7,6 @@ source_files:
   - src/engine/constants.ts
   - src/engine/state.ts
   - src/engine/cloverLifecycle.ts
-  - src/engine/actionBar.ts
   - src/engine/genesis.ts
   - src/engine/genesisTypes.ts
   - src/components/Sidebar.tsx

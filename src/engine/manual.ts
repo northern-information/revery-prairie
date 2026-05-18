@@ -4,7 +4,6 @@ import { GENESIS_EPOCHS } from './genesis'
 import { KEYBINDINGS } from './input'
 import { ITEM_DEFINITIONS } from './items'
 import { recipeKey, RECIPES } from './recipes'
-import { REVERY_DEFINITIONS } from './reveries'
 import { ItemCategory, TileType } from './types'
 import { WORLD_ENTITY_DEFINITIONS } from './worldEntities'
 
@@ -17,7 +16,6 @@ export const ManualCategory = {
   Celestial: 'celestial',
   Object: 'object',
   Person: 'person',
-  Revery: 'revery',
   Zone: 'zone',
   Recipe: 'recipe',
   Control: 'control',
@@ -42,7 +40,7 @@ export interface ManualEntry {
   hints: ManualHint[]
   crossRefs?: string[]
   unlockKey: string
-  sourceKind: 'item' | 'recipe' | 'character' | 'revery' | 'zone' | 'event' | 'entity' | 'manual-only'
+  sourceKind: 'item' | 'recipe' | 'character' | 'zone' | 'event' | 'entity' | 'manual-only'
 }
 
 // --- Hand-authored lore ---
@@ -65,12 +63,6 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'item:milkweedSeeds': { lore: 'TODO' },
   'item:stoneTablet': { lore: 'TODO' },
   'item:aqueductKey': { lore: 'Its verdigris filigree promises passage.' },
-  // Reveries
-  'revery:fire': { lore: 'TODO' },
-  'revery:water': { lore: 'TODO' },
-  'revery:earth': { lore: 'TODO' },
-  'revery:lightning': { lore: 'TODO' },
-  'revery:deep-time': { lore: 'TODO' },
   // World entities
   'entity:beehive': { lore: 'Awareness is to watch as the millions of drones you captured just walk away.' },
   'entity:monarch': { lore: 'Danaus plexippus. Milkweed is vital to its lifecycle.' },
@@ -152,15 +144,6 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
       },
     ],
   },
-  'event:lightning-revery': {
-    lore: 'The lightning revery lets you choose where the bolt falls. Press the hotkey to enter targeting mode, then click a tile within range. The strike follows the same rules as natural lightning — dry clover ignites, fire spreads, soil enriches.',
-    hints: [
-      {
-        prompt: 'How to target',
-        answer: 'Press the action bar key, then click a tile within 20 steps. Press Esc or right-click to cancel.',
-      },
-    ],
-  },
   // Events — divination
   'event:hexagram-cast': {
     lore: 'Three ancient coins, tossed six times. Each toss builds a line — solid or broken, stable or changing. The hexagram that forms speaks in the language of the prairie. Listen closely.',
@@ -179,10 +162,6 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'event:wind-sway': { lore: 'TODO' },
   'event:pollen': { lore: 'TODO' },
   // Events — endgame
-  'event:deep-time': {
-    lore: 'The final act of stewardship. A controlled burn followed by a millennium of observation.',
-  },
-  'event:gron-deep-time': { lore: 'Gron speaks of the Deep Time revery and what it means to let go.' },
   'event:rescue-coyote': { lore: 'TODO' },
   'event:steward-sealed': { lore: 'TODO' },
 }
@@ -228,22 +207,6 @@ const buildItemEntries = (): ManualEntry[] =>
       hints: loreData?.hints ?? [],
       unlockKey: `item:${def.id}`,
       sourceKind: 'item',
-    }
-  })
-
-const buildReveryEntries = (): ManualEntry[] =>
-  Object.values(REVERY_DEFINITIONS).map(def => {
-    const loreData = MANUAL_LORE[`revery:${def.id}`]
-    return {
-      id: `revery:${def.id}`,
-      name: def.name,
-      category: ManualCategory.Revery,
-      glyph: def.glyphs[0],
-      glyphColor: def.glyphColor,
-      lore: loreData?.lore ?? def.name,
-      hints: loreData?.hints ?? [],
-      unlockKey: `revery:${def.id}`,
-      sourceKind: 'revery' as const,
     }
   })
 
@@ -529,16 +492,6 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     crossRefs: ['event:lightning-strike', 'event:wildfire'],
   },
   {
-    id: 'event:lightning-revery',
-    name: 'Lightning Revery Cast',
-    category: ManualCategory.Celestial,
-    glyph: '|',
-    glyphColor: '#FFFFFF',
-    unlockKey: 'event:lightning-revery',
-    sourceKind: 'event',
-    crossRefs: ['event:lightning-strike', 'event:wildfire', 'event:lightning-attraction'],
-  },
-  {
     id: 'event:glint-zone',
     name: 'Glinting Zone',
     category: ManualCategory.Zone,
@@ -563,24 +516,6 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     glyph: '.',
     glyphColor: '#b07fc7',
     unlockKey: 'event:pollen',
-    sourceKind: 'event',
-  },
-  {
-    id: 'event:deep-time',
-    name: 'Deep Time',
-    category: ManualCategory.Revery,
-    glyph: '⧖',
-    glyphColor: '#FFFFFF',
-    unlockKey: 'event:deep-time',
-    sourceKind: 'event',
-  },
-  {
-    id: 'event:gron-deep-time',
-    name: "Gron's Final Words",
-    category: ManualCategory.Person,
-    glyph: 'G',
-    glyphColor: '#FFFFFF',
-    unlockKey: 'event:gron-deep-time',
     sourceKind: 'event',
   },
   {
@@ -646,7 +581,6 @@ const buildManualOnlyEntries = (): ManualEntry[] =>
 export const MANUAL_ENTRIES: Record<string, ManualEntry> = Object.fromEntries(
   [
     ...buildItemEntries(),
-    ...buildReveryEntries(),
     ...buildRecipeEntries(),
     ...buildCharacterEntries(),
     ...buildWorldEntityEntries(),
@@ -697,7 +631,6 @@ export const CATEGORY_ORDER: ManualCategory[] = [
   ManualCategory.Celestial,
   ManualCategory.Object,
   ManualCategory.Person,
-  ManualCategory.Revery,
   ManualCategory.Zone,
   ManualCategory.Recipe,
   ManualCategory.Control,

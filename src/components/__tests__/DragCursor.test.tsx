@@ -23,7 +23,6 @@ const makeDragState = (overrides?: Partial<DragState>): DragState => ({
   previewY: 0,
   isValid: true,
   combineTarget: null,
-  actionBarTarget: null,
   cannotCombine: false,
   ...overrides,
 })

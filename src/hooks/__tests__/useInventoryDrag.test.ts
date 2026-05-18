@@ -102,7 +102,6 @@ describe('useInventoryDrag', () => {
         previewY: 3,
         isValid: true,
         combineTarget: null,
-        actionBarTarget: null,
         cannotCombine: false,
       })
     })

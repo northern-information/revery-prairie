@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { activateActionBarSlot, getActionBarPreview, getTargetingPreview } from '@/engine/actionBar'
 import { getCharacterDefinition } from '@/engine/characters'
 import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
 import { dropItem } from '@/engine/entities'
@@ -18,13 +17,12 @@ import {
   updateFacingEntity,
 } from '@/engine/interaction'
 import { getDefinition } from '@/engine/items'
-import { getReveryDefinition } from '@/engine/reveries'
 import { DeepTimePhase, Zone } from '@/engine/types'
 import { isInputGated } from '@/engine/zoneTransition'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
-export type PermacomputerScreen = 'pack' | 'system' | 'manual' | 'divination' | 'reveries' | 'cantos' | 'coyote' | null
+export type PermacomputerScreen = 'pack' | 'system' | 'manual' | 'divination' | 'cantos' | 'coyote' | null
 
 interface UseKeyboardOptions {
   state: GameState
@@ -101,21 +99,14 @@ export const useKeyboard = ({
       // is in flight. Only Tab (inventory), Q (manual), Escape
       // (menu/dialog), and Shift (sprint toggle, handled above) remain
       // available. WASD is also dropped by movePlayer itself; this
-      // catches action-bar keys, interact, harvest, drop, and revery
-      // toggles.
+      // catches interact, harvest, and drop.
       if (isInputGated(state)) {
         const allowed = e.key === 'Tab' || e.key === 'q' || e.key === 'Q' || e.key === 'Escape'
         if (!allowed) return
       }
 
-      // Escape: cancel targeting first, then close dialog, then screen, then open system
+      // Escape: close dialog, then screen, then open system
       if (e.key === 'Escape') {
-        if (state.targetingSlot !== null) {
-          state.targetingSlot = null
-          state.previewFn = null
-          refreshUI()
-          return
-        }
         if (state.activeDialog) {
           state.activeDialog = null
           refreshUI()
@@ -130,24 +121,6 @@ export const useKeyboard = ({
           return
         }
         setActiveScreen('system')
-        return
-      }
-
-      // [1-4] — hold to preview revery cast, release to cast
-      if (e.key >= '1' && e.key <= '4') {
-        if (state.activeDialog) return
-        if (activeScreen === 'system') return
-        if (state.deepTime?.active) return
-        if (e.repeat) return
-        // Cancel active targeting if pressing a different slot
-        if (state.targetingSlot !== null) {
-          state.targetingSlot = null
-          state.previewFn = null
-        }
-        const slotIndex = parseInt(e.key) - 1
-        state.heldActionSlot = slotIndex
-        state.previewFn = (s, _t) => getActionBarPreview(s, slotIndex)
-        refreshUI()
         return
       }
 
@@ -271,14 +244,6 @@ export const useKeyboard = ({
         return
       }
 
-      // Toggle reveries screen
-      // Block when modifier held (Cmd+R / Ctrl+R is browser refresh)
-      if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        if (activeScreen === 'system') return
-        setActiveScreen(activeScreen === 'reveries' ? null : 'reveries')
-        return
-      }
-
       // Block permacomputer during deep time burning/simulating
       const deepTimeBlocking = state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
 
@@ -369,33 +334,8 @@ export const useKeyboard = ({
         state.heldKeys.delete(axis)
         state.heldDirection = resolveHeldDirection(state.heldKeys)
       }
-
-      // Release number key → cast revery or enter targeting mode
-      if (e.key >= '1' && e.key <= '4') {
-        const slotIndex = parseInt(e.key) - 1
-        if (state.heldActionSlot === slotIndex) {
-          state.heldActionSlot = null
-          state.previewFn = null
-
-          // Check if this is a targeted revery
-          const slot = state.actionBar[slotIndex]
-          if (slot?.kind === 'revery') {
-            const def = getReveryDefinition(slot.id)
-            if (def.castStyle === 'targeted' && performance.now() >= slot.cooldownEndTime) {
-              // Enter targeting mode
-              state.targetingSlot = slotIndex
-              state.previewFn = (s, t) => getTargetingPreview(s, slotIndex, t)
-              refreshUI()
-              return
-            }
-          }
-
-          activateActionBarSlot(state, slotIndex, performance.now())
-          refreshUI()
-        }
-      }
     },
-    [state, refreshUI]
+    [state]
   )
 
   useEffect(() => {

@@ -779,7 +779,6 @@ export const generateRuinInterior = (
     dormantGarden: dormantGardenData,
     fogExplored: new Set<string>(),
     fogDiscovered: new Set<string>(),
-    fogIllumination: new Map<string, number>(),
   }
 }
 
@@ -1259,33 +1258,6 @@ export const repairAqueductBreak = (state: GameState, x: number, y: number): boo
   }
 
   return true
-}
-
-// ---------------------------------------------------------------------------
-// Dormant garden fire interaction
-// ---------------------------------------------------------------------------
-
-export const fireOnRuinTile = (state: GameState, x: number, y: number): boolean => {
-  if (state.currentRuinIndex === null) return false
-  const interior = state.ruinInteriors[state.currentRuinIndex]
-  if (!interior?.dormantGarden) return false
-
-  const tile = interior.map[y]?.[x]
-  if (!tile) return false
-
-  // Fire on debris: clear it
-  if (tile.type === TileType.RuinDebris) {
-    setMapTile(state, x, y, { type: TileType.RuinFloor })
-    return true
-  }
-
-  // Fire on aqueduct: accelerate seed decay (if water isn't already flowing)
-  if (tile.type === TileType.RuinAqueduct && !interior.dormantGarden.waterFlowing) {
-    interior.dormantGarden.seedDecayAcceleration = 1.5
-    return true
-  }
-
-  return false
 }
 
 // ---------------------------------------------------------------------------

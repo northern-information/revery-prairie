@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { assignActionBarSlot } from '@/engine/actionBar'
 import { computePlacementPreview, executeCombine } from '@/engine/drag'
 import { moveItem, transferItem } from '@/engine/inventory'
 import type { DragState } from '@/engine/drag'
@@ -31,7 +30,6 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine, onCombi
       previewY: item.gridY,
       isValid: true,
       combineTarget: null,
-      actionBarTarget: null,
       cannotCombine: false,
     })
   }, [])
@@ -68,14 +66,6 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine, onCombi
   const drop = useCallback(
     (targetContainerId: string) => {
       if (!dragState) return
-
-      // Handle action bar assignment (item stays in inventory — bar is a shortcut)
-      if (dragState.actionBarTarget) {
-        assignActionBarSlot(state, dragState.actionBarTarget.slotIndex, 'item', dragState.item.definitionId)
-        setDragState(null)
-        onDrop()
-        return
-      }
 
       // Handle combine
       if (dragState.combineTarget) {

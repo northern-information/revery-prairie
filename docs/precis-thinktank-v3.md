@@ -16,7 +16,7 @@ A sequencing plan for 13 features (#0–#12, with #8 split). Not a code change. 
 ### Vocabulary
 
 - **Revery** means *only* the long-form phase of surrender (item #4). The four player-cast "reveries" (fire, water, earth, lightning, deep-time) are deleted — not renamed.
-- Player actions are **stewardship practices**, never spells. The action bar holds tools/seeds/practices.
+- Player actions are **stewardship practices**, never spells. #0 deletes the action bar entirely; a future feature reintroduces a surface for tools/seeds/practices when there is actually something to hold there.
 - Working term in spec, code, and dev docs for the parallel ecology: **egregores** / **egregoric flora** / `TileType.Egregore`.
 - **Player-facing term for the egregores: none.** The word *invasive* does not appear anywhere a player will read it. NPCs use folk register ("the Far Garden," "the other clover," "we don't grow that"). **No two NPCs ever agree** on a folk name. Specs that introduce *invasive* in player-facing text fail review. Recommended: CI lint guard.
 
@@ -133,7 +133,7 @@ Ordered by player-experience priority. Build dependencies in the second column.
 
 | #   | feature                                                                                                                    | depends on    | size |
 | --- | -------------------------------------------------------------------------------------------------------------------------- | ------------- | ---- |
-| 0   | Reclaim *Revery* — delete the four player-cast spells; action bar becomes tools/seeds/practices                            | —             | S    |
+| 0   | Reclaim *Revery* — delete the four player-cast spells *and* the action bar (state, UI, keybinds, drag targets)             | —             | M    |
 | 1   | Multi-species Flora (clover → Flora; +wildflower, +tall grass)                                                             | 0             | M    |
 | 8a  | Egregoric flora — thematic allusions (one tile type, Voynich manual entries, NPC refusal lines, folk-name divergence)      | 0             | XS   |
 | 2   | Phenological seasons (derived from weather; plant lifecycle reads from it)                                                 | 1             | S/M  |
@@ -164,7 +164,7 @@ Each loop has one defining ceremonial moment:
 
 - `src/engine/reveries.ts:13-60` — `REVERIES` const; deleted in #0
 - `src/engine/state.ts:367-374` — starting reveries pushed in `createGameState`; deleted in #0
-- `src/engine/actionBar.ts:95-227,283-351` — cast effects, lightning targeting; stripped in #0, slot scaffold retained
+- `src/engine/actionBar.ts` — entire file deleted in #0 (cast effects, lightning targeting, slot scaffold). A new practices surface, if needed, is introduced fresh by a later feature.
 - `src/engine/characters.ts:36` — Moab's revery gift; remapped in #0, re-anchored in #9
 - `src/engine/interaction.ts:242-273` — gift/postGift granting; touch where revery IDs are referenced
 - `src/engine/clover.ts`, `src/engine/cloverLifecycle.ts` — generalize to Flora in #1

@@ -159,10 +159,6 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   updateCamera(state)
   updateFacingEntity(state)
 
-  if (state.waterReveryAura !== null) {
-    state.world.addComponent(state.waterReveryAura, ComponentType.Position, { x: nx, y: ny })
-  }
-
   // Glinting zone: restore glint to all dull backpack coins
   if (state.currentZone === Zone.Overworld && state.glintZones.has(posKey(nx, ny))) {
     for (const item of state.backpack.items) {

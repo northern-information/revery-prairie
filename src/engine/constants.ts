@@ -199,18 +199,9 @@ export const LIGHTNING_ISOLATED_RADIUS = 2
 export const LIGHTNING_ISOLATED_CLOVER_THRESHOLD = 0.4
 export const LIGHTNING_TARGET_SAMPLE_SIZE = 50
 
-// lightning revery
-export const LIGHTNING_REVERY_RANGE = 20
-export const LIGHTNING_RETICLE_CYCLE_MS = 120
-export const LIGHTNING_RETICLE_CHARS = ['|', '/', '\\', '~']
-export const LIGHTNING_INVALID_TARGET_CHAR = 'X'
-export const LIGHTNING_INVALID_TARGET_COLOR = '#CC4444'
-export const LIGHTNING_RANGE_HIGHLIGHT_COLOR = '#222233'
-
 // wildfire
 export const WILDFIRE_DURATION_MS = 1500
 export const WILDFIRE_MAX_SPREAD = 15
-export const FIRE_REVERY_MAX_SPREAD = 7
 export const WILDFIRE_DRY_THRESHOLD = 30
 export const WILDFIRE_CHARS = ['^', '~', '*']
 export const WILDFIRE_COLORS = ['#FF4500', '#FF6347', '#FFD700', '#FF8C00']
@@ -290,15 +281,8 @@ export const SOIL_HEALTH_DEFAULT = 50
 export const SOIL_HEALTH_MAX = 100
 export const SOIL_HEALTH_CLOVER_DEATH_BONUS = 15
 export const SOIL_HEALTH_CUT_BONUS = 10
-export const SOIL_HEALTH_WATER_REVERY_BONUS = 10
-export const SOIL_HEALTH_FIRE_REVERY_BONUS = 25
-export const WATER_REVERY_FILL = 50
+export const SOIL_HEALTH_BURN_BONUS = 25
 
-// earth revery (soil scan)
-export const EARTH_SCAN_EXPAND_MS = 1500
-export const EARTH_SCAN_HOLD_MS = 2500
-export const EARTH_SCAN_FADE_MS = 1500
-export const EARTH_SCAN_RADIUS = 20
 // red → green gradient (0 = depleted, 100 = thriving)
 export const EARTH_SCAN_COLOR_LOW = '#FF3333' // red — depleted
 export const EARTH_SCAN_COLOR_HIGH = '#33CC33' // green — thriving
@@ -415,7 +399,6 @@ export const ZONE_TRANSITION_DURATION_MS =
 export const CAVE_VISION_RADIUS = 3
 export const RUIN_VISION_RADIUS = 3
 export const FOG_EXPLORED_BRIGHTNESS = 0.4 // dimmed brightness for partiallyDiscovered tiles
-export const REVERY_ILLUMINATION_RADIUS = 3 // fire/lightning reveal radius from impact point
 export const DISCOVERY_RADIUS = 2 // Chebyshev distance for player-proximity full-discovery promotion
 
 // Greek letter glyphs for overworld entrances (index 0 = cave, 1+ = ruins by ruinIndex)

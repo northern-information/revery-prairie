@@ -165,7 +165,6 @@ const installCoyoteRuinWithBarrier = (
     },
     fogExplored: new Set<string>(),
     fogDiscovered: new Set<string>(),
-    fogIllumination: new Map<string, number>(),
   }
   state.ruinInteriors = [interior]
 }

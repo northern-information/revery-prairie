@@ -2,7 +2,6 @@ import { RAIN_FRONT_WIDTH } from './constants'
 import { ComponentType } from './ecs/types'
 import { getFloraMovement } from './flora/actions/movement'
 import { posKey } from './position'
-import { getReveryDefinition } from './reveries'
 import { Sky, WindDirection, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
@@ -40,24 +39,6 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
     const dy = y - pos.y
     if (dx * dx + dy * dy <= r * r) {
       seen.add(aura.kind)
-    }
-  }
-
-  // Revery cast effects
-  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (!isEntityInCurrentZone(state, eid)) continue
-    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-    if (tag !== 'reveryCast') continue
-    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
-    if (!effect?.reveryId) continue
-    const multiPos = state.world.getComponent(eid, ComponentType.MultiPosition)
-    if (!multiPos) continue
-    for (const pos of multiPos.positions) {
-      if (pos.x === x && pos.y === y) {
-        const def = getReveryDefinition(effect.reveryId)
-        seen.add(def.name.toLowerCase())
-        break
-      }
     }
   }
 

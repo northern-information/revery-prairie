@@ -1,4 +1,3 @@
-import { activateActionBarSlot, assignActionBarSlot } from '../actionBar'
 import { spawnShootingStar } from '../celestial'
 import {
   DEEP_TIME_BURN_DURATION_MS,
@@ -48,14 +47,11 @@ describe('deep time', () => {
         transitionStartTime: 0,
       }
       state.path = [{ x: 10, y: 10 }]
-      assignActionBarSlot(state, 0, 'revery', 'earth')
-      assignActionBarSlot(state, 1, 'revery', 'fire')
 
       initiateDeepTime(state, 1000)
 
       expect(state.activeDialog).toBeNull()
       expect(state.path).toBeNull()
-      expect(state.actionBar).toEqual([null, null, null, null])
     })
 
     it('initiateDeepTime removes character entities', () => {
@@ -71,15 +67,6 @@ describe('deep time', () => {
       expect(afterCount).toBe(0)
     })
 
-    it('casting deep-time revery triggers initiation', () => {
-      const state = createTestState()
-      state.reveries.push('deep-time')
-      assignActionBarSlot(state, 0, 'revery', 'deep-time')
-
-      activateActionBarSlot(state, 0, 1000)
-
-      expect(state.deepTime?.active).toBe(true)
-    })
   })
 
   describe('burning phase', () => {

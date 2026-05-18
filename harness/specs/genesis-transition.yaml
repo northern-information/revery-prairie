@@ -15,7 +15,6 @@ source_files:
   - src/engine/render/passes/index.ts
   - src/components/GameScreen.tsx
   - src/components/Sidebar.tsx
-  - src/components/ActionBar.tsx
   - src/hooks/useMouse.ts
   - src/hooks/useGameEngine.ts
 dependencies:

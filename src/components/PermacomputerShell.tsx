@@ -9,7 +9,6 @@ type TabScreen = NonNullable<PermacomputerScreen>
 const SCREEN_TABS: { screen: TabScreen; label: string; isVisible: (state: GameState) => boolean }[] = [
   { screen: 'pack', label: 'PACK', isVisible: () => true },
   { screen: 'manual', label: 'MANUAL', isVisible: () => true },
-  { screen: 'reveries', label: 'REVERIES', isVisible: state => state.reveries.length > 0 },
   { screen: 'divination', label: 'DIVINATION', isVisible: state => canCast(state) },
   { screen: 'cantos', label: 'CANTOS', isVisible: state => state.angelCantos.length > 0 },
   {

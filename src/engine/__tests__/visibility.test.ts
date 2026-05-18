@@ -1,16 +1,7 @@
-import { CAVE_VISION_RADIUS, REVERY_ILLUMINATION_RADIUS, RUIN_VISION_RADIUS } from '../constants'
+import { CAVE_VISION_RADIUS, RUIN_VISION_RADIUS } from '../constants'
 import { posKey } from '../position'
 import { TileType, Zone } from '../types'
-import {
-  addReveryIllumination,
-  blocksLOS,
-  computeFOV,
-  computeZoneVisibility,
-  dimColor,
-  getTileVisibility,
-  hasFogOfWar,
-  tickIllumination,
-} from '../visibility'
+import { blocksLOS, computeFOV, computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar } from '../visibility'
 import { createTestState } from './helpers'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -330,28 +321,6 @@ describe('fog of war', () => {
       }
     })
 
-    it('revery illumination does NOT promote tiles to caveFogDiscovered', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        const map = makeCaveMap(30, 30)
-        enterCaveWithMap(state, map, 30, 30)
-        state.player = { x: 5, y: 5 }
-        state.caveEntranceInterior = { x: 5, y: 29 }
-
-        // Cast revery far from the player, illuminating tiles around (20,20)
-        addReveryIllumination(state, 20, 20, REVERY_ILLUMINATION_RADIUS, 99999)
-        computeZoneVisibility(state)
-
-        // Illuminated tile is in visible set (via fogIllumination), but
-        // should be in fogExplored only — never fogDiscovered
-        expect(state.caveFogExplored.has(posKey(20, 20))).toBe(true)
-        expect(state.caveFogDiscovered.has(posKey(20, 20))).toBe(false)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
     it('fullyDiscovered state persists after the player moves away (out of LOS)', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
@@ -376,132 +345,6 @@ describe('fog of war', () => {
       }
     })
 
-    it('includes illumination tiles in visible set', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        const map = makeCaveMap(20, 20)
-        enterCaveWithMap(state, map, 20, 20)
-        state.player = { x: 5, y: 5 }
-        state.caveEntranceInterior = { x: 5, y: 19 }
-
-        // Add illumination far from the player
-        state.caveFogIllumination.set(posKey(15, 15), 99999)
-
-        const visible = computeZoneVisibility(state)
-        expect(visible.has(posKey(15, 15))).toBe(true)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-  })
-
-  describe('addReveryIllumination', () => {
-    it('adds tiles within radius to explored and illumination', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        const map = makeCaveMap(20, 20)
-        enterCaveWithMap(state, map, 20, 20)
-        state.caveEntranceInterior = { x: 10, y: 19 }
-
-        addReveryIllumination(state, 10, 10, REVERY_ILLUMINATION_RADIUS, 5000)
-
-        // Origin and nearby tiles should be illuminated
-        expect(state.caveFogIllumination.has(posKey(10, 10))).toBe(true)
-        expect(state.caveFogIllumination.get(posKey(10, 10))).toBe(5000)
-
-        // Should also be added to explored
-        expect(state.caveFogExplored.has(posKey(10, 10))).toBe(true)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
-    it('walls block illumination LOS', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        const map = makeCaveMap(20, 20)
-        // Wall between origin and target
-        map[10][12] = { type: TileType.CaveWall }
-        enterCaveWithMap(state, map, 20, 20)
-        state.caveEntranceInterior = { x: 10, y: 19 }
-
-        addReveryIllumination(state, 10, 10, 5, 5000)
-
-        // Wall is illuminated (can see its face)
-        expect(state.caveFogIllumination.has(posKey(12, 10))).toBe(true)
-        // Behind wall is not
-        expect(state.caveFogIllumination.has(posKey(13, 10))).toBe(false)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
-    it('does nothing when not in cave', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        state.currentZone = Zone.Overworld
-        addReveryIllumination(state, 10, 10, 3, 5000)
-        expect(state.caveFogIllumination.size).toBe(0)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
-    it('keeps latest expiration when stacking', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        const map = makeCaveMap(20, 20)
-        enterCaveWithMap(state, map, 20, 20)
-        state.caveEntranceInterior = { x: 10, y: 19 }
-
-        addReveryIllumination(state, 10, 10, 1, 3000)
-        addReveryIllumination(state, 10, 10, 1, 5000)
-
-        expect(state.caveFogIllumination.get(posKey(10, 10))).toBe(5000)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-  })
-
-  describe('tickIllumination', () => {
-    it('removes expired illumination entries', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        state.currentZone = Zone.Cave
-        state.caveFogIllumination.set(posKey(1, 1), 1000)
-        state.caveFogIllumination.set(posKey(2, 2), 5000)
-
-        tickIllumination(state, 2000)
-
-        expect(state.caveFogIllumination.has(posKey(1, 1))).toBe(false)
-        expect(state.caveFogIllumination.has(posKey(2, 2))).toBe(true)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
-    it('leaves unexpired entries intact', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        state.currentZone = Zone.Cave
-        state.caveFogIllumination.set(posKey(1, 1), 5000)
-        state.caveFogIllumination.set(posKey(2, 2), 6000)
-
-        tickIllumination(state, 1000)
-
-        expect(state.caveFogIllumination.size).toBe(2)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
   })
 
   describe('fog persists across cave visits', () => {
@@ -649,7 +492,6 @@ describe('fog of war', () => {
       dormantGarden: null,
       fogExplored: new Set<string>(),
       fogDiscovered: new Set<string>(),
-      fogIllumination: new Map<string, number>(),
     })
 
     /** Put a state into ruin mode with a specific ruin interior. */
@@ -776,44 +618,6 @@ describe('fog of war', () => {
       }
     })
 
-    it('revery illumination works in ruins', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        const interior = makeRuinInterior(0, 20, 20, { x: 10, y: 19 })
-        enterRuinWithInterior(state, interior)
-
-        addReveryIllumination(state, 10, 10, REVERY_ILLUMINATION_RADIUS, 5000)
-
-        // Illumination stored on the ruin interior, not on caveFogIllumination
-        expect(interior.fogIllumination.has(posKey(10, 10))).toBe(true)
-        expect(interior.fogIllumination.get(posKey(10, 10))).toBe(5000)
-        expect(interior.fogExplored.has(posKey(10, 10))).toBe(true)
-        expect(state.caveFogIllumination.size).toBe(0)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
-    it('tickIllumination expires ruin illumination', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        const interior = makeRuinInterior(0, 20, 20, { x: 10, y: 19 })
-        enterRuinWithInterior(state, interior)
-
-        interior.fogIllumination.set(posKey(1, 1), 1000)
-        interior.fogIllumination.set(posKey(2, 2), 5000)
-
-        tickIllumination(state, 2000)
-
-        expect(interior.fogIllumination.has(posKey(1, 1))).toBe(false)
-        expect(interior.fogIllumination.has(posKey(2, 2))).toBe(true)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
     it('per-ruin fog state is independent across ruins', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
@@ -933,22 +737,5 @@ describe('fog of war', () => {
       }
     })
 
-    it('revery illumination in a ruin does NOT promote to fogDiscovered', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        const interior = makeRuinInterior(0, 30, 30, { x: 5, y: 29 })
-        enterRuinWithInterior(state, interior)
-        state.player = { x: 5, y: 5 }
-
-        addReveryIllumination(state, 20, 20, REVERY_ILLUMINATION_RADIUS, 99999)
-        computeZoneVisibility(state)
-
-        expect(interior.fogExplored.has(posKey(20, 20))).toBe(true)
-        expect(interior.fogDiscovered.has(posKey(20, 20))).toBe(false)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
   })
 })
