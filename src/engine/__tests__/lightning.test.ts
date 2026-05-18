@@ -9,7 +9,7 @@ import {
 import { ComponentType } from '../ecs/types'
 import { selectStrikeTarget, spawnLightningStrike, spreadWildfire, tickLightning } from '../lightning'
 import { posKey } from '../position'
-import { FloraStage, Sky, TileType, Zone } from '../types'
+import { FloraSpecies, FloraStage, Sky, TileType, Zone } from '../types'
 import { clearAroundPlayer, createMeteoriteEntity, createTestState } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -214,6 +214,8 @@ describe('lightning', () => {
         stage: FloraStage.Healthy,
         stageStartTime: 0,
         hasLight: true,
+
+        species: FloraSpecies.Clover,
       })
       state.tileWater.set(posKey(x, y), WATER_MAX)
       const burned = spreadWildfire(state, 0, x, y)
@@ -240,6 +242,8 @@ describe('lightning', () => {
             stage: FloraStage.Healthy,
             stageStartTime: 0,
             hasLight: true,
+
+            species: FloraSpecies.Clover,
           })
           state.tileWater.set(posKey(x, y), 0)
         }
@@ -263,6 +267,8 @@ describe('lightning', () => {
             stage: FloraStage.Healthy,
             stageStartTime: 0,
             hasLight: true,
+
+            species: FloraSpecies.Clover,
           })
           state.tileWater.set(posKey(x, y), 0)
         }
@@ -285,6 +291,8 @@ describe('lightning', () => {
         stage: FloraStage.Healthy,
         stageStartTime: 0,
         hasLight: true,
+
+        species: FloraSpecies.Clover,
       })
       state.tileWater.set(posKey(cx, cy), 0)
 
@@ -304,6 +312,8 @@ describe('lightning', () => {
         stage: FloraStage.Healthy,
         stageStartTime: 0,
         hasLight: true,
+
+        species: FloraSpecies.Clover,
       })
       state.tileWater.set(posKey(cx, cy), 0)
 
@@ -323,6 +333,8 @@ describe('lightning', () => {
             stage: FloraStage.Healthy,
             stageStartTime: 0,
             hasLight: true,
+
+            species: FloraSpecies.Clover,
           })
           state.tileWater.set(posKey(x, y), 0)
         }
@@ -346,6 +358,8 @@ describe('lightning', () => {
           stage: FloraStage.Healthy,
           stageStartTime: 0,
           hasLight: true,
+
+          species: FloraSpecies.Clover,
         })
         state.tileWater.set(posKey(cx + dx, cy), 0)
       }

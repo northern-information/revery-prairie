@@ -1,15 +1,13 @@
-import { cutClover, harvestClover, HarvestResult, tickFloraLifecycle } from '../floraLifecycle'
+import { tickFloraLifecycle } from '../floraLifecycle'
 import {
   CLOVER_BLACK_DURATION_MS,
   CLOVER_BLINK_RED_DURATION_MS,
   CLOVER_BROWN_DURATION_MS,
   CLOVER_DECOMPOSE_DURATION_MS,
   SOIL_HEALTH_CLOVER_DEATH_BONUS,
-  SOIL_HEALTH_CUT_BONUS,
   SOIL_HEALTH_DEFAULT,
   WATER_MAX,
 } from '../constants'
-import { placeItem } from '../inventory'
 import { posKey } from '../position'
 import { FloraStage, Sky, TileType, Zone } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
@@ -34,13 +32,6 @@ const placeClover = (x: number, y: number) => {
   if (!state.tileWater.has(posKey(x, y))) {
     state.tileWater.set(posKey(x, y), WATER_MAX)
   }
-}
-
-const facingPos = () => {
-  // player faces down by default in test state
-  const pos = { x: px(), y: py() + 1 }
-  state.facingEntityPos = pos
-  return pos
 }
 
 describe('tickFloraLifecycle', () => {
@@ -207,123 +198,5 @@ describe('tickFloraLifecycle', () => {
   })
 })
 
-describe('harvestClover', () => {
-  it('harvests facing clover tile into backpack', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-
-    const result = harvestClover(state)
-
-    expect(result).toBe(HarvestResult.Success)
-    expect(state.map[fp.y][fp.x].type).toBe(TileType.Dirt)
-    expect(state.backpack.items.some(i => i.definitionId === 'clover')).toBe(true)
-  })
-
-  it('does not enrich soil', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-
-    harvestClover(state)
-
-    const key = posKey(fp.x, fp.y)
-    expect(state.soilHealth.has(key)).toBe(false)
-  })
-
-  it('removes lifecycle entry on healthy harvest', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-    const key = posKey(fp.x, fp.y)
-    state.floraLifecycle.set(key, {
-      stage: FloraStage.Healthy,
-      stageStartTime: 0,
-      hasLight: true,
-    })
-
-    harvestClover(state)
-
-    expect(state.floraLifecycle.has(key)).toBe(false)
-  })
-
-  it('rejects dying clover', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-    state.floraLifecycle.set(posKey(fp.x, fp.y), {
-      stage: FloraStage.Brown,
-      stageStartTime: 0,
-      hasLight: true,
-    })
-
-    expect(harvestClover(state)).toBe(HarvestResult.Dying)
-    expect(state.map[fp.y][fp.x].type).toBe(TileType.Flora)
-  })
-
-  it('fails when backpack is full', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-
-    // Fill backpack completely with 1x1 items (clover is 1x1)
-    for (let gy = 0; gy < state.backpack.height; gy++) {
-      for (let gx = 0; gx < state.backpack.width; gx++) {
-        placeItem(state.backpack, 'clover', gx, gy)
-      }
-    }
-
-    const result = harvestClover(state)
-    expect(result).toBe(HarvestResult.BackpackFull)
-    expect(state.map[fp.y][fp.x].type).toBe(TileType.Flora)
-  })
-
-  it('returns no-clover when facing non-clover tile', () => {
-    expect(harvestClover(state)).toBe(HarvestResult.NoClover)
-  })
-})
-
-describe('cutClover', () => {
-  it('cuts facing clover tile to dirt', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-
-    const result = cutClover(state)
-
-    expect(result).toBe(true)
-    expect(state.map[fp.y][fp.x].type).toBe(TileType.Dirt)
-  })
-
-  it('enriches soil', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-    const key = posKey(fp.x, fp.y)
-
-    cutClover(state)
-
-    expect(state.soilHealth.get(key)).toBe(SOIL_HEALTH_DEFAULT + SOIL_HEALTH_CUT_BONUS)
-  })
-
-  it('does not add item to backpack', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-
-    cutClover(state)
-
-    expect(state.backpack.items.length).toBe(0)
-  })
-
-  it('removes lifecycle entry', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-    const key = posKey(fp.x, fp.y)
-    state.floraLifecycle.set(key, {
-      stage: FloraStage.Brown,
-      stageStartTime: 0,
-      hasLight: true,
-    })
-
-    cutClover(state)
-
-    expect(state.floraLifecycle.has(key)).toBe(false)
-  })
-
-  it('returns false when facing non-clover tile', () => {
-    expect(cutClover(state)).toBe(false)
-  })
-})
+// harvestClover and cutClover were deleted in precis #1.
+// Clover acquisition routes through ruin recovery (precis #5).

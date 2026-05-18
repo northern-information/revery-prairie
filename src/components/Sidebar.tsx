@@ -37,6 +37,20 @@ const countTiles = (state: GameState, type: TileType): number => {
   return count
 }
 
+// Count Flora tiles of a specific species. Used by the sidebar's
+// per-species counts so wildflower and tall grass don't inflate the
+// clover total.
+const countFloraSpecies = (state: GameState, species: FloraSpecies): number => {
+  let count = 0
+  for (let y = 0; y < state.mapHeight; y++) {
+    for (let x = 0; x < state.mapWidth; x++) {
+      if (state.map[y][x].type !== TileType.Flora) continue
+      if (state.floraLifecycle.get(posKey(x, y))?.species === species) count++
+    }
+  }
+  return count
+}
+
 const SKY_LABEL = {
   sun: 'Sunny',
   cloudy: 'Cloudy',
@@ -211,7 +225,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
   }
 
   const total = state.mapWidth * state.mapHeight
-  const cloverCount = countTiles(state, TileType.Flora)
+  const cloverCount = countFloraSpecies(state, FloraSpecies.Clover)
   const sandCount = countTiles(state, TileType.Sand)
   const dirtCount = total - cloverCount - sandCount
   const { weather } = state

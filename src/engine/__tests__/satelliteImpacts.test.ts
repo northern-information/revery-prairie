@@ -449,7 +449,9 @@ describe('ghost crater avoidance', () => {
 })
 
 describe('satellite payload', () => {
-  it('scatters seed ground items for good payload', () => {
+  // Seed items were deleted in precis #1 — the good-payload satellite
+  // scatter is a no-op until precis #11 rehydrates them.
+  it('scatters no ground items for good payload after seed deletion', () => {
     const state = makeState()
     const target = { x: 20, y: 15 }
     clearArea(state, target.x, target.y, 5)
@@ -468,23 +470,11 @@ describe('satellite payload', () => {
     })
     tickSatellites(state, 1000)
 
-    // Check that ground items were created
     const groundItems = state.world
       .query(ComponentType.EntityTag, ComponentType.ItemDrop)
       .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
 
-    // Should have some seed items (at least 2 given SATELLITE_SEED_COUNT_MIN)
-    expect(groundItems.length).toBeGreaterThanOrEqual(2)
-
-    // Verify they are seed items
-    const seedIds = new Set(['wildflowerSeeds', 'tallGrassSeeds', 'milkweedSeeds'])
-    for (const eid of groundItems) {
-      const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
-      expect(drop).toBeTruthy()
-      if (drop) {
-        expect(seedIds.has(drop.definitionId)).toBe(true)
-      }
-    }
+    expect(groundItems.length).toBe(0)
   })
 
   it('does not scatter seeds for destructive payload', () => {
