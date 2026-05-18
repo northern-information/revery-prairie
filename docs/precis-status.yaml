@@ -23,10 +23,10 @@ features:
     summary: Clover → Flora; add wildflower (Echinacea purpurea) and tall grass (Andropogon gerardii) under a shared registry. Harvest [f] and cut [x] mechanics deleted.
     size: L
     depends_on: ['0']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-1-multi-species-flora.yaml
     plan: harness/plans/precis-1-multi-species-flora.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/316
     notes: 'Latin binomials locked: Trifolium repens (clover), Echinacea purpurea (wildflower), Andropogon gerardii (tall grass). Seed items (wildflowerSeeds, tallGrassSeeds, milkweedSeeds) deleted — re-introduced in #11.'
 
   - id: '8a'
