@@ -8,7 +8,7 @@ source_files:
   - CLAUDE.md
   - src/engine/types.ts
   - src/engine/state.ts
-  - src/engine/cloverLifecycle.ts
+  - src/engine/floraLifecycle.ts
   - src/engine/clover.ts
   - src/engine/flora/index.ts
   - src/engine/flora/actions/movement.ts
@@ -58,14 +58,14 @@ behaviors:
 
   - id: flora-stage-renamed
     description: >
-      CloverStage is renamed to FloraStage. All six stage values
+      FloraStage is renamed to FloraStage. All six stage values
       (Healthy, Brown, BlinkingRed, Black, Decomposing,
-      BurntRecovering) carry over verbatim. CloverLifecycleState is
+      BurntRecovering) carry over verbatim. FloraLifecycleState is
       renamed to FloraLifecycleState.
     inputs:
       - 'codebase after #1 lands'
     outputs:
-      - "CloverStage and CloverLifecycleState do not exist"
+      - "FloraStage and FloraLifecycleState do not exist"
       - "FloraStage and FloraLifecycleState exist"
     state_changes: []
     determinism: deterministic
@@ -394,7 +394,7 @@ edge_cases:
 
   - id: dead-references-grep
     description: >
-      A grep for TileType.Clover, CloverStage, CloverLifecycleState,
+      A grep for TileType.Clover, FloraStage, FloraLifecycleState,
       cloverLifecycle, cloverGrowthPreviews, BurntClover,
       harvestClover, cutClover, HarvestResult, wildflowerSeeds,
       tallGrassSeeds, milkweedSeeds returns no hits outside of
@@ -428,7 +428,7 @@ edge_cases:
       symbol.
 
 failure_conditions:
-  - trigger: 'A grep for "TileType\\.Clover\\b\\|CloverStage\\b\\|state\\.cloverLifecycle\\|harvestClover\\|cutClover\\|wildflowerSeeds\\|tallGrassSeeds\\|milkweedSeeds" in src/ returns any non-test, non-deleted-file results'
+  - trigger: 'A grep for "TileType\\.Clover\\b\\|FloraStage\\b\\|state\\.cloverLifecycle\\|harvestClover\\|cutClover\\|wildflowerSeeds\\|tallGrassSeeds\\|milkweedSeeds" in src/ returns any non-test, non-deleted-file results'
     expected: 'CI fails — #1 is incomplete'
   - trigger: 'A new game produces zero wildflower tiles or zero tall grass tiles after genesis'
     expected: 'CI fails — genesis post-process did not run or seeded no patches'

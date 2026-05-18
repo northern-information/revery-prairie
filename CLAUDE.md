@@ -108,7 +108,7 @@ two paths:
 
 odd dimensions guarantee a single exact-center tile at `(73, 73)`. Gron sits on it. the player spawns one tile west of Gron at `(72, 73)`. the cave entrance is placed in a ring just outside Gron's rain aura.
 
-player cannot walk on space. clover cannot grow on space or sand.
+player cannot walk on space. flora cannot grow on space or sand.
 
 displayed coordinates are offset by `SPACE_BORDER` so the land starts at (0, 0).
 
@@ -117,8 +117,8 @@ displayed coordinates are offset by `SPACE_BORDER` so the land starts at (0, 0).
 defined in `src/engine/types.ts` as a const object (not an enum — `erasableSyntaxOnly` is enabled in tsconfig).
 
 - `dirt` — empty ground (`.`, tan)
-- `clover` — planted clover field (`%`, green)
-- `burntClover` — fire-scorched clover (`%`, dark charcoal `#3D2B1F`) — walkable, clover cannot regrow on it. created by fire revery.
+- `flora` — any flora species (`%` / `*` / `"`, per-species color). The species (clover / wildflower / tallGrass) is read from the floraLifecycle entry; see `## flora` below.
+- `burntFlora` — fire-scorched flora (`%`, dark charcoal `#3D2B1F`) — walkable, flora cannot regrow on it. Species is preserved on the lifecycle entry through the BurntRecovering stage.
 - `sand` — shoreline (`:`, tan-gold)
 - `space` — surrounding void (twinkling stars on black)
 - `caveFloor` — walkable cave ground (`.`, dark gray)
@@ -152,7 +152,7 @@ the sidebar shows data for whatever tile the mouse hovers over. three rules appl
 
 1. **every entity that renders on the map must appear in the contents row.** if the renderer draws it at a tile position, the sidebar contents IIFE in `Sidebar.tsx` must check for it and return a human-readable label. transient timed effects (explosions, pickup blooms, wildfire, crumble) are exempt — they are visual-only.
 2. **every persistent map-visible effect must appear in the effects row.** if an overlay is drawn on tiles (rain, glinting, aura), `getTileEffects()` in `effects.ts` must detect and return it. transient timed effects are exempt.
-3. **tile type labels must be human-readable.** never show raw camelCase type strings (e.g. `burntClover`). map every tile type to a plain-english label (e.g. "burnt clover").
+3. **tile type labels must be human-readable.** never show raw camelCase type strings (e.g. `burntFlora`). map every tile type to a plain-english label. flora and burntFlora labels read from the per-species displayName via `FLORA_SPECIES[lifecycle.species]` (e.g. "clover", "burnt purple coneflower").
 
 when adding new entities, effects, or tile types — wire up cursor info at the same time.
 
@@ -178,8 +178,7 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 
 - `wasd` — movement (works with inventory open, blocked in menu, during drag, and when a text input is focused)
 - `e` — context-dependent: talk to character / advance dialog / toss coins in divination / close divination result / break facing cave breakable wall
-- `f` — harvest facing clover tile (tile → dirt, clover item to backpack, no soil enrichment)
-- `x` — drop hovered item; also cuts facing clover when no item is hovered (tile → dirt, soil enrichment, no item)
+- `x` — drop hovered inventory item to the ground (only when an item is hovered in the pack)
 - `c` — toggle divination screen (overworld only, blocked during dialog and menu)
 - `tab` — toggle inventory
 - `q` — toggle prairie manual
@@ -210,7 +209,7 @@ hand-authored lore goes in `MANUAL_LORE` table in `manual.ts`. run `/maintain-ma
 
 ## entities
 
-- **bees** — spawn on bee+clover combine or bee item drop. wander randomly preferring clover. rendered as `*` in gold. walking over captures to backpack.
+- **bees** — spawn on bee+clover combine or bee item drop. wander randomly preferring clover (species-filtered — wildflower and tall grass do not attract bees in this PR; broader pollinator routes are precis #7). rendered as `*` in gold. walking over captures to backpack.
 - **ghosts** — 3 spawn at random positions on game start. drift slowly (15% move chance per 500ms). block movement/pathfinding. freeze during dialog. each has a 3-line dialog tree.
 - **angels** — biblically accurate ASCII entities. 9x9 body rendered from seeded animation. spawn periodically (~90s intervals), drift slowly, despawn after ~120s. have gold aura background, bee-spawning and clover-growing effects. dialog grants cantos (poems). tracked via `angelCantos`, `angelEncounterCount`, `angelFlashTime` on GameState.
 - **coyote** — companion NPC. follows the player in `Follow` mode (stays 2-3 tiles behind). `Collect` mode: roams and picks up ground items, delivers them to the player's backpack. toggled via coyote screen. tracked via `state.coyoteMode`, `state.coyoteCargo`, `state.coyotePath`.
@@ -219,7 +218,7 @@ hand-authored lore goes in `MANUAL_LORE` table in `manual.ts`. run `/maintain-ma
 
 ## pickup bloom
 
-every item acquisition must spawn a `pickupBloom` effect at the player position via `spawnPickupBloom(state, x, y, time)` in `effects.ts`. this includes: walking over ground items, capturing bees, collecting meteorites, harvesting clover, coyote delivering to backpack, and crafting via recipes. one bloom per acquisition event (not per item). no bloom when `time` is omitted or when the acquisition fails.
+every item acquisition must spawn a `pickupBloom` effect at the player position via `spawnPickupBloom(state, x, y, time)` in `effects.ts`. this includes: walking over ground items, capturing bees, collecting meteorites, coyote delivering to backpack, and crafting via recipes. one bloom per acquisition event (not per item). no bloom when `time` is omitted or when the acquisition fails.
 
 when adding new acquisition paths — any code that adds items to the backpack or otherwise gives the player something — call `spawnPickupBloom` at the same time.
 
@@ -268,13 +267,29 @@ mutable game state has no access control. these conventions document write patte
 
 midwest illinois spring conditions. temperature 35-72°F, wind 3-25 mph, humidity 45-85%. weather drifts every 5 seconds. season hardcoded to "spring". imperial/metric toggle in sidebar.
 
-## clover lifecycle
+## flora
 
-clover needs light and water to survive. without either, it dies through stages: healthy → brown → blinkingRed → black → decomposing → dirt.
+three flora species share `TileType.Flora`: clover (Trifolium repens, `%` green), wildflower / Purple Coneflower (Echinacea purpurea, `*` magenta), and tall grass / Big Bluestem (Andropogon gerardii, `"` tawny).
+
+per-species visual identity (glyph, color, displayName, latinBinomial) lives in `FLORA_SPECIES` in `src/engine/flora/species.ts`. the renderer reads glyph + healthy color from this registry via the `species` field on the floraLifecycle entry. wind-sway and pollen registries are keyed by tile type — they're shared across species — but pollen emission is gated to clover only, mirroring bee preference.
+
+genesis seeds clover via the epoch chain. wildflower and tall grass are scattered in `postProcessMultiSpeciesFlora` (6-10 patches each, 2-4 tiles per patch) on walkable dirt after the epoch chain runs. determinism is preserved — same steward name produces the same patch layout via `sim.rng`. wildflower and tall grass do not self-propagate in this PR (no growth-preview system). they persist or die per the shared lifecycle.
+
+clover-specific behaviors retained per precis #1:
+- bee + clover recipe ingredient list checks for the `'clover'` item id, not any flora item
+- gron quest gate checks `containerHasItem(state.backpack, 'clover')` specifically
+- bees, monarchs, angels prefer / grow / capture on clover only (filtered via `floraLifecycle.species === 'clover'`)
+- the `floraGrowthPreviews` field only ever contains positions slated to become clover
+
+broader pollinator routes are deferred to precis #7.
+
+## flora lifecycle
+
+all three flora species share the same six-stage lifecycle. each tile needs light and water to survive; without either, it dies through stages: healthy → brown → blinkingRed → black → decomposing → dirt. burnt tiles enter BurntRecovering and convert back to dirt after the recovery duration; species is preserved on the lifecycle entry through the burn so wildfire's recovery path knows what to regrow.
 
 - overworld = light + rain water. cave = no light, no water.
 - brown stage recovers if conditions improve. blinkingRed and beyond = terminal.
-- death enriches soil. harvest (`[f]`) does not enrich. cut (`[x]`) enriches but gives no item.
+- natural death enriches soil. harvest and cut mechanics were deleted in precis #1 — clover acquisition routes through ruin recovery (precis #5).
 
 ## genesis
 
@@ -296,7 +311,7 @@ app flow: `NamePrompt → GenesisScreen → GameScreen`. genesis runs its own rA
 
 ## soil health
 
-`soilHealth: Map<string, number>` keyed by posKey. default `SOIL_HEALTH_DEFAULT` (50), max `SOIL_HEALTH_MAX` (100). geologically derived when genesis runs (base 30, accumulated through epochs, clamped [10, 100]). enriched by natural clover death and cutting. not enriched by harvesting.
+`soilHealth: Map<string, number>` keyed by posKey. default `SOIL_HEALTH_DEFAULT` (50), max `SOIL_HEALTH_MAX` (100). geologically derived when genesis runs (base 30, accumulated through epochs, clamped [10, 100]). enriched by natural flora death and by wildfire burn recovery.
 
 ## music
 

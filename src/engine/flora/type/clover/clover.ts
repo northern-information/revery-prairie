@@ -50,7 +50,7 @@ const countCloverNeighbors = (state: GameState, tx: number, ty: number): number 
 // broader pollinator routes are deferred to precis #7.
 const cloverEmitGate = (state: GameState, tx: number, ty: number): boolean => {
   const lc = state.floraLifecycle.get(posKey(tx, ty))
-  if (!lc || lc.species !== FloraSpecies.Clover) return false
+  if (lc?.species !== FloraSpecies.Clover) return false
   if (lc.stage !== FloraStage.Healthy) return false
 
   const neighbors = countCloverNeighbors(state, tx, ty)

@@ -3,7 +3,7 @@ name: 'Clover lifecycle system'
 priority: high
 layer: engine
 source_files:
-  - src/engine/cloverLifecycle.ts
+  - src/engine/floraLifecycle.ts
   - src/engine/tileWater.ts
   - src/engine/types.ts
   - src/engine/constants.ts

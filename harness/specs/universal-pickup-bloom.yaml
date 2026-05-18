@@ -6,7 +6,7 @@ source_files:
   - src/engine/entities.ts
   - src/engine/effects.ts
   - src/engine/coyote.ts
-  - src/engine/cloverLifecycle.ts
+  - src/engine/floraLifecycle.ts
   - src/engine/drag.ts
   - src/engine/interaction.ts
   - src/engine/gameLoop.ts
