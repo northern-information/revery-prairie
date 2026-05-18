@@ -41,9 +41,22 @@ const ITEMS = {
     glyphColor: COIN_GLINTING_COLOR,
     category: ItemCategory.Tool,
   },
-  // Seed items (wildflowerSeeds, tallGrassSeeds, milkweedSeeds) were
-  // deleted in precis #1 — they had no planting interaction wired up.
-  // They will be reintroduced in precis #11 with proper seed taxonomy.
+  // Seed items reintroduced in precis #5 as DormantGarden vault
+  // payloads — collectibles only, no planting interaction. Precis #11
+  // will wire planting and add the broader seed taxonomy (genetic
+  // fragments, etc.). milkweedSeeds remains absent for now.
+  wildflowerSeeds: {
+    name: 'Wildflower Seeds',
+    glyph: '*',
+    glyphColor: '#D85FB7',
+    category: ItemCategory.Flora,
+  },
+  tallGrassSeeds: {
+    name: 'Tall Grass Seeds',
+    glyph: '"',
+    glyphColor: '#A89968',
+    category: ItemCategory.Flora,
+  },
   stoneTablet: {
     name: 'Stone Tablet',
     glyph: '▪',

@@ -48,6 +48,10 @@ export interface ManualEntry {
 const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }>> = {
   // Items
   'item:bee': { lore: 'Apis mellifera.' },
+  // Seed items — reintroduced in precis #5 as ruin-recovery payloads.
+  // Lore is TODO per repo policy (lore is human-authored only).
+  'item:wildflowerSeeds': { lore: 'TODO' },
+  'item:tallGrassSeeds': { lore: 'TODO' },
   // Flora species — clover lore preserved; wildflower and tall grass
   // are TODO per repo policy (lore is human-authored only).
   'flora:clover': { lore: 'Trifolium repens.' },

@@ -1095,6 +1095,21 @@ export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): vo
     return
   }
 
+  // Flora-species ruins (precis #5): vault spawns a single seed item
+  // matching the role. No collapseBarrier, no trapped entity — the vault
+  // is the destination.
+  if (role === RuinRole.Wildflower || role === RuinRole.TallGrass) {
+    const slot = vaultSlots[0]
+    if (!slot) return
+    const parts = slot.split(',')
+    const x = Number(parts[0])
+    const y = Number(parts[1])
+    const itemId = role === RuinRole.Wildflower ? 'wildflowerSeeds' : 'tallGrassSeeds'
+    spawnRuinGroundItem(state, ruinIndex, { x, y }, itemId)
+    interior.dormantGarden.seedDecayTimers.clear()
+    return
+  }
+
   if (role === RuinRole.Coyote) {
     // The trapped coyote spawns past the collapseBarrier on the vault side
     // (smaller y), within 2 tiles so it's visible through the rubble. The
@@ -1133,11 +1148,12 @@ export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): vo
     return
   }
 
-  // Default scatter previously spawned wildflower / tall grass / milkweed
-  // seed ground items in complex-mode ruins. Those item definitions were
-  // deleted in precis #1 and will return in precis #11 with a proper
-  // taxonomy. The decay-timer slots stay registered so #11 can repopulate
-  // them without re-deriving the layout.
+  // Default (no role match) is intentionally empty. The starter roles —
+  // Clover, Bee, Coyote (precis #0/#1) plus Wildflower, TallGrass (precis
+  // #5) — handle every fresh game allocation. Complex-mode ruins
+  // (future spec) will spawn additional seed scatter when the broader
+  // taxonomy lands in precis #11. The decay-timer slots stay registered
+  // so #11 can repopulate them without re-deriving the layout.
 }
 
 const spawnRuinGroundItem = (state: GameState, ruinIndex: number, pos: Position, definitionId: string): void => {
