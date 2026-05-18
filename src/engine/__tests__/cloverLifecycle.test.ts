@@ -1,17 +1,15 @@
-import { cutClover, harvestClover, HarvestResult, tickCloverLifecycle } from '../cloverLifecycle'
+import { tickFloraLifecycle } from '../floraLifecycle'
 import {
   CLOVER_BLACK_DURATION_MS,
   CLOVER_BLINK_RED_DURATION_MS,
   CLOVER_BROWN_DURATION_MS,
   CLOVER_DECOMPOSE_DURATION_MS,
-  SOIL_HEALTH_CLOVER_DEATH_BONUS,
-  SOIL_HEALTH_CUT_BONUS,
+  SOIL_HEALTH_FLORA_DEATH_BONUS,
   SOIL_HEALTH_DEFAULT,
   WATER_MAX,
 } from '../constants'
-import { placeItem } from '../inventory'
 import { posKey } from '../position'
-import { CloverStage, Sky, TileType, Zone } from '../types'
+import { FloraStage, Sky, TileType, Zone } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -29,30 +27,23 @@ beforeEach(() => {
 })
 
 const placeClover = (x: number, y: number) => {
-  state.map[y][x] = { type: TileType.Clover }
+  state.map[y][x] = { type: TileType.Flora }
   // Ensure tile has water entry (like createGameState does for walkable tiles)
   if (!state.tileWater.has(posKey(x, y))) {
     state.tileWater.set(posKey(x, y), WATER_MAX)
   }
 }
 
-const facingPos = () => {
-  // player faces down by default in test state
-  const pos = { x: px(), y: py() + 1 }
-  state.facingEntityPos = pos
-  return pos
-}
-
-describe('tickCloverLifecycle', () => {
+describe('tickFloraLifecycle', () => {
   describe('stress detection', () => {
     it('creates healthy entry on first tick for new clover', () => {
       placeClover(px(), py() + 1)
-      tickCloverLifecycle(state, Zone.Overworld, 1000)
+      tickFloraLifecycle(state, Zone.Overworld, 1000)
 
       const key = posKey(px(), py() + 1)
-      const entry = state.cloverLifecycle.get(key)
+      const entry = state.floraLifecycle.get(key)
       expect(entry).toBeDefined()
-      expect(entry?.stage).toBe(CloverStage.Healthy)
+      expect(entry?.stage).toBe(FloraStage.Healthy)
     })
 
     it('reads water from tileWater, not lifecycle entry', () => {
@@ -61,9 +52,9 @@ describe('tickCloverLifecycle', () => {
 
       // Set tile water to 0 — lifecycle should detect stress
       state.tileWater.set(key, 0)
-      tickCloverLifecycle(state, Zone.Overworld, 1000)
+      tickFloraLifecycle(state, Zone.Overworld, 1000)
 
-      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Brown)
+      expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Brown)
     })
 
     it('stays healthy when tile water > 0 and has light', () => {
@@ -71,8 +62,8 @@ describe('tickCloverLifecycle', () => {
       const key = posKey(px(), py() + 1)
 
       state.tileWater.set(key, WATER_MAX)
-      tickCloverLifecycle(state, Zone.Overworld, 1000)
-      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Healthy)
+      tickFloraLifecycle(state, Zone.Overworld, 1000)
+      expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Healthy)
     })
   })
 
@@ -81,8 +72,8 @@ describe('tickCloverLifecycle', () => {
       placeClover(px(), py() + 1)
       const key = posKey(px(), py() + 1)
 
-      tickCloverLifecycle(state, Zone.Overworld, 1000)
-      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Healthy)
+      tickFloraLifecycle(state, Zone.Overworld, 1000)
+      expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Healthy)
     })
 
     it('transitions to brown when water reaches 0', () => {
@@ -92,17 +83,17 @@ describe('tickCloverLifecycle', () => {
       // Set water to 0 so lifecycle detects stress
       state.tileWater.set(key, 0)
 
-      tickCloverLifecycle(state, Zone.Overworld, 1000)
-      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Brown)
+      tickFloraLifecycle(state, Zone.Overworld, 1000)
+      expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Brown)
     })
 
     it('cave clover transitions to brown immediately (no light)', () => {
       placeClover(px(), py() + 1)
       const key = posKey(px(), py() + 1)
 
-      tickCloverLifecycle(state, Zone.Cave, 1000)
-      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Brown)
-      expect(state.cloverLifecycle.get(key)?.hasLight).toBe(false)
+      tickFloraLifecycle(state, Zone.Cave, 1000)
+      expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Brown)
+      expect(state.floraLifecycle.get(key)?.hasLight).toBe(false)
     })
 
     it('progresses brown → blinkingRed after duration', () => {
@@ -110,12 +101,12 @@ describe('tickCloverLifecycle', () => {
       const key = posKey(px(), py() + 1)
 
       // Enter brown stage
-      tickCloverLifecycle(state, Zone.Cave, 1000)
-      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Brown)
+      tickFloraLifecycle(state, Zone.Cave, 1000)
+      expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Brown)
 
       // Advance past brown duration
-      tickCloverLifecycle(state, Zone.Cave, 1000 + CLOVER_BROWN_DURATION_MS)
-      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.BlinkingRed)
+      tickFloraLifecycle(state, Zone.Cave, 1000 + CLOVER_BROWN_DURATION_MS)
+      expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.BlinkingRed)
     })
 
     it('progresses blinkingRed → black after duration', () => {
@@ -123,15 +114,15 @@ describe('tickCloverLifecycle', () => {
       const key = posKey(px(), py() + 1)
 
       let t = 1000
-      tickCloverLifecycle(state, Zone.Cave, t)
+      tickFloraLifecycle(state, Zone.Cave, t)
 
       t += CLOVER_BROWN_DURATION_MS
-      tickCloverLifecycle(state, Zone.Cave, t)
-      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.BlinkingRed)
+      tickFloraLifecycle(state, Zone.Cave, t)
+      expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.BlinkingRed)
 
       t += CLOVER_BLINK_RED_DURATION_MS
-      tickCloverLifecycle(state, Zone.Cave, t)
-      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Black)
+      tickFloraLifecycle(state, Zone.Cave, t)
+      expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Black)
     })
 
     it('progresses black → decomposing after duration', () => {
@@ -139,14 +130,14 @@ describe('tickCloverLifecycle', () => {
       const key = posKey(px(), py() + 1)
 
       let t = 1000
-      tickCloverLifecycle(state, Zone.Cave, t)
+      tickFloraLifecycle(state, Zone.Cave, t)
       t += CLOVER_BROWN_DURATION_MS
-      tickCloverLifecycle(state, Zone.Cave, t)
+      tickFloraLifecycle(state, Zone.Cave, t)
       t += CLOVER_BLINK_RED_DURATION_MS
-      tickCloverLifecycle(state, Zone.Cave, t)
+      tickFloraLifecycle(state, Zone.Cave, t)
       t += CLOVER_BLACK_DURATION_MS
-      tickCloverLifecycle(state, Zone.Cave, t)
-      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Decomposing)
+      tickFloraLifecycle(state, Zone.Cave, t)
+      expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Decomposing)
     })
 
     it('converts decomposing to dirt and enriches soil', () => {
@@ -154,19 +145,19 @@ describe('tickCloverLifecycle', () => {
       const key = posKey(px(), py() + 1)
 
       let t = 1000
-      tickCloverLifecycle(state, Zone.Cave, t)
+      tickFloraLifecycle(state, Zone.Cave, t)
       t += CLOVER_BROWN_DURATION_MS
-      tickCloverLifecycle(state, Zone.Cave, t)
+      tickFloraLifecycle(state, Zone.Cave, t)
       t += CLOVER_BLINK_RED_DURATION_MS
-      tickCloverLifecycle(state, Zone.Cave, t)
+      tickFloraLifecycle(state, Zone.Cave, t)
       t += CLOVER_BLACK_DURATION_MS
-      tickCloverLifecycle(state, Zone.Cave, t)
+      tickFloraLifecycle(state, Zone.Cave, t)
       t += CLOVER_DECOMPOSE_DURATION_MS
-      tickCloverLifecycle(state, Zone.Cave, t)
+      tickFloraLifecycle(state, Zone.Cave, t)
 
       expect(state.map[py() + 1][px()].type).toBe(TileType.Dirt)
-      expect(state.cloverLifecycle.has(key)).toBe(false)
-      expect(state.soilHealth.get(key)).toBe(SOIL_HEALTH_DEFAULT + SOIL_HEALTH_CLOVER_DEATH_BONUS)
+      expect(state.floraLifecycle.has(key)).toBe(false)
+      expect(state.soilHealth.get(key)).toBe(SOIL_HEALTH_DEFAULT + SOIL_HEALTH_FLORA_DEATH_BONUS)
     })
   })
 
@@ -176,13 +167,13 @@ describe('tickCloverLifecycle', () => {
       const key = posKey(px(), py() + 1)
 
       // Enter brown via cave (no light)
-      tickCloverLifecycle(state, Zone.Cave, 1000)
-      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Brown)
+      tickFloraLifecycle(state, Zone.Cave, 1000)
+      expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Brown)
 
       // Now give it light and water (overworld with tile water > 0)
       state.tileWater.set(key, 50)
-      tickCloverLifecycle(state, Zone.Overworld, 4000)
-      expect(state.cloverLifecycle.get(key)?.stage).toBe(CloverStage.Healthy)
+      tickFloraLifecycle(state, Zone.Overworld, 4000)
+      expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Healthy)
     })
 
     it('blinkingRed does NOT recover', () => {
@@ -190,140 +181,22 @@ describe('tickCloverLifecycle', () => {
       const key = posKey(px(), py() + 1)
 
       // Advance to blinkingRed
-      tickCloverLifecycle(state, Zone.Cave, 1000)
-      const entry = state.cloverLifecycle.get(key)
+      tickFloraLifecycle(state, Zone.Cave, 1000)
+      const entry = state.floraLifecycle.get(key)
       expect(entry).toBeDefined()
       if (!entry) return
-      entry.stage = CloverStage.BlinkingRed
+      entry.stage = FloraStage.BlinkingRed
       entry.stageStartTime = 1000
 
       // Try to recover with water and light
       state.tileWater.set(key, 50)
-      tickCloverLifecycle(state, Zone.Overworld, 4000)
+      tickFloraLifecycle(state, Zone.Overworld, 4000)
 
       // Should still be blinkingRed (or advanced), not healthy
-      expect(state.cloverLifecycle.get(key)?.stage).not.toBe(CloverStage.Healthy)
+      expect(state.floraLifecycle.get(key)?.stage).not.toBe(FloraStage.Healthy)
     })
   })
 })
 
-describe('harvestClover', () => {
-  it('harvests facing clover tile into backpack', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-
-    const result = harvestClover(state)
-
-    expect(result).toBe(HarvestResult.Success)
-    expect(state.map[fp.y][fp.x].type).toBe(TileType.Dirt)
-    expect(state.backpack.items.some(i => i.definitionId === 'clover')).toBe(true)
-  })
-
-  it('does not enrich soil', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-
-    harvestClover(state)
-
-    const key = posKey(fp.x, fp.y)
-    expect(state.soilHealth.has(key)).toBe(false)
-  })
-
-  it('removes lifecycle entry on healthy harvest', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-    const key = posKey(fp.x, fp.y)
-    state.cloverLifecycle.set(key, {
-      stage: CloverStage.Healthy,
-      stageStartTime: 0,
-      hasLight: true,
-    })
-
-    harvestClover(state)
-
-    expect(state.cloverLifecycle.has(key)).toBe(false)
-  })
-
-  it('rejects dying clover', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-    state.cloverLifecycle.set(posKey(fp.x, fp.y), {
-      stage: CloverStage.Brown,
-      stageStartTime: 0,
-      hasLight: true,
-    })
-
-    expect(harvestClover(state)).toBe(HarvestResult.Dying)
-    expect(state.map[fp.y][fp.x].type).toBe(TileType.Clover)
-  })
-
-  it('fails when backpack is full', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-
-    // Fill backpack completely with 1x1 items (clover is 1x1)
-    for (let gy = 0; gy < state.backpack.height; gy++) {
-      for (let gx = 0; gx < state.backpack.width; gx++) {
-        placeItem(state.backpack, 'clover', gx, gy)
-      }
-    }
-
-    const result = harvestClover(state)
-    expect(result).toBe(HarvestResult.BackpackFull)
-    expect(state.map[fp.y][fp.x].type).toBe(TileType.Clover)
-  })
-
-  it('returns no-clover when facing non-clover tile', () => {
-    expect(harvestClover(state)).toBe(HarvestResult.NoClover)
-  })
-})
-
-describe('cutClover', () => {
-  it('cuts facing clover tile to dirt', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-
-    const result = cutClover(state)
-
-    expect(result).toBe(true)
-    expect(state.map[fp.y][fp.x].type).toBe(TileType.Dirt)
-  })
-
-  it('enriches soil', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-    const key = posKey(fp.x, fp.y)
-
-    cutClover(state)
-
-    expect(state.soilHealth.get(key)).toBe(SOIL_HEALTH_DEFAULT + SOIL_HEALTH_CUT_BONUS)
-  })
-
-  it('does not add item to backpack', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-
-    cutClover(state)
-
-    expect(state.backpack.items.length).toBe(0)
-  })
-
-  it('removes lifecycle entry', () => {
-    const fp = facingPos()
-    placeClover(fp.x, fp.y)
-    const key = posKey(fp.x, fp.y)
-    state.cloverLifecycle.set(key, {
-      stage: CloverStage.Brown,
-      stageStartTime: 0,
-      hasLight: true,
-    })
-
-    cutClover(state)
-
-    expect(state.cloverLifecycle.has(key)).toBe(false)
-  })
-
-  it('returns false when facing non-clover tile', () => {
-    expect(cutClover(state)).toBe(false)
-  })
-})
+// harvestClover and cutClover were deleted in precis #1.
+// Clover acquisition routes through ruin recovery (precis #5).

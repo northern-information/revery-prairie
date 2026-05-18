@@ -21,8 +21,8 @@ export const CAVE_HEIGHT = 25
 export const TILE_CHARS: Record<TileType, string> = {
   [TileType.Space]: ' ',
   [TileType.Dirt]: '·',
-  [TileType.Clover]: '%',
-  [TileType.BurntClover]: '%',
+  [TileType.Flora]: '%',
+  [TileType.BurntFlora]: '%',
   [TileType.Sand]: ':',
   [TileType.CaveFloor]: '·',
   [TileType.CaveWall]: '#',
@@ -45,8 +45,8 @@ export const TILE_CHARS: Record<TileType, string> = {
 export const TILE_COLORS: Record<TileType, string> = {
   [TileType.Space]: '#000',
   [TileType.Dirt]: '#8B7355',
-  [TileType.Clover]: '#50C878',
-  [TileType.BurntClover]: '#3D2B1F',
+  [TileType.Flora]: '#50C878',
+  [TileType.BurntFlora]: '#3D2B1F',
   [TileType.Sand]: '#C2B280',
   [TileType.CaveFloor]: '#666666',
   [TileType.CaveWall]: '#444444',
@@ -276,10 +276,22 @@ export const CLOVER_DYING_OSCILLATION_SPEED = 0.002
 export const CLOVER_BLACK_COLOR = '#222222'
 export const CLOVER_DECOMPOSE_COLOR = '#4A3728'
 
+// Genesis post-process flora patch seeding (precis #1). After the
+// epoch chain runs and stamps clover, genesis scatters a handful of
+// wildflower (Echinacea purpurea) and tall grass (Andropogon gerardii)
+// patches across walkable dirt tiles. Determinism is preserved because
+// both passes consume the same nameToSeed PRNG via sim.rng.
+export const GENESIS_WILDFLOWER_PATCH_COUNT_MIN = 6
+export const GENESIS_WILDFLOWER_PATCH_COUNT_MAX = 10
+export const GENESIS_TALL_GRASS_PATCH_COUNT_MIN = 6
+export const GENESIS_TALL_GRASS_PATCH_COUNT_MAX = 10
+export const GENESIS_FLORA_PATCH_TILES_MIN = 2
+export const GENESIS_FLORA_PATCH_TILES_MAX = 4
+
 // soil health
 export const SOIL_HEALTH_DEFAULT = 50
 export const SOIL_HEALTH_MAX = 100
-export const SOIL_HEALTH_CLOVER_DEATH_BONUS = 15
+export const SOIL_HEALTH_FLORA_DEATH_BONUS = 15
 export const SOIL_HEALTH_CUT_BONUS = 10
 export const SOIL_HEALTH_BURN_BONUS = 25
 

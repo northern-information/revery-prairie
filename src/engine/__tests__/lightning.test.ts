@@ -9,7 +9,7 @@ import {
 import { ComponentType } from '../ecs/types'
 import { selectStrikeTarget, spawnLightningStrike, spreadWildfire, tickLightning } from '../lightning'
 import { posKey } from '../position'
-import { CloverStage, Sky, TileType, Zone } from '../types'
+import { FloraSpecies, FloraStage, Sky, TileType, Zone } from '../types'
 import { clearAroundPlayer, createMeteoriteEntity, createTestState } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -135,7 +135,7 @@ describe('lightning', () => {
       for (let y = 0; y < state.mapHeight; y++) {
         for (let x = 0; x < state.mapWidth; x++) {
           // Half clover, half dirt
-          state.map[y][x] = { type: x % 2 === 0 ? TileType.Clover : TileType.Dirt }
+          state.map[y][x] = { type: x % 2 === 0 ? TileType.Flora : TileType.Dirt }
         }
       }
 
@@ -145,7 +145,7 @@ describe('lightning', () => {
         const rng = seededRng(seed)
         const target = selectStrikeTarget(state, rng)
         if (target) {
-          if (state.map[target.y][target.x].type === TileType.Clover) cloverHits++
+          if (state.map[target.y][target.x].type === TileType.Flora) cloverHits++
           else dirtHits++
         }
       }
@@ -209,18 +209,20 @@ describe('lightning', () => {
       const state = createTestState()
       const x = state.player.x + 4
       const y = state.player.y + 4
-      state.map[y][x] = { type: TileType.Clover }
-      state.cloverLifecycle.set(posKey(x, y), {
-        stage: CloverStage.Healthy,
+      state.map[y][x] = { type: TileType.Flora }
+      state.floraLifecycle.set(posKey(x, y), {
+        stage: FloraStage.Healthy,
         stageStartTime: 0,
         hasLight: true,
+
+        species: FloraSpecies.Clover,
       })
       state.tileWater.set(posKey(x, y), WATER_MAX)
       const burned = spreadWildfire(state, 0, x, y)
       // Origin always burns — water is forced to 0
       expect(burned.size).toBe(1)
       expect(state.tileWater.get(posKey(x, y))).toBe(0)
-      expect(state.map[y][x].type).toBe(TileType.BurntClover)
+      expect(state.map[y][x].type).toBe(TileType.BurntFlora)
     })
 
     it('spreads on dry clover', () => {
@@ -235,11 +237,13 @@ describe('lightning', () => {
         for (let dx = -2; dx <= 2; dx++) {
           const x = cx + dx
           const y = cy + dy
-          state.map[y][x] = { type: TileType.Clover }
-          state.cloverLifecycle.set(posKey(x, y), {
-            stage: CloverStage.Healthy,
+          state.map[y][x] = { type: TileType.Flora }
+          state.floraLifecycle.set(posKey(x, y), {
+            stage: FloraStage.Healthy,
             stageStartTime: 0,
             hasLight: true,
+
+            species: FloraSpecies.Clover,
           })
           state.tileWater.set(posKey(x, y), 0)
         }
@@ -258,11 +262,13 @@ describe('lightning', () => {
         for (let dx = -1; dx <= 1; dx++) {
           const x = cx + dx
           const y = cy + dy
-          state.map[y][x] = { type: TileType.Clover }
-          state.cloverLifecycle.set(posKey(x, y), {
-            stage: CloverStage.Healthy,
+          state.map[y][x] = { type: TileType.Flora }
+          state.floraLifecycle.set(posKey(x, y), {
+            stage: FloraStage.Healthy,
             stageStartTime: 0,
             hasLight: true,
+
+            species: FloraSpecies.Clover,
           })
           state.tileWater.set(posKey(x, y), 0)
         }
@@ -271,7 +277,7 @@ describe('lightning', () => {
       const burned = spreadWildfire(state, 0, cx, cy)
       for (const key of burned) {
         const [xStr, yStr] = key.split(',')
-        expect(state.map[Number(yStr)][Number(xStr)].type).toBe(TileType.BurntClover)
+        expect(state.map[Number(yStr)][Number(xStr)].type).toBe(TileType.BurntFlora)
       }
     })
 
@@ -280,11 +286,13 @@ describe('lightning', () => {
       clearAroundPlayer(state, 10)
       const cx = state.player.x + 5
       const cy = state.player.y + 5
-      state.map[cy][cx] = { type: TileType.Clover }
-      state.cloverLifecycle.set(posKey(cx, cy), {
-        stage: CloverStage.Healthy,
+      state.map[cy][cx] = { type: TileType.Flora }
+      state.floraLifecycle.set(posKey(cx, cy), {
+        stage: FloraStage.Healthy,
         stageStartTime: 0,
         hasLight: true,
+
+        species: FloraSpecies.Clover,
       })
       state.tileWater.set(posKey(cx, cy), 0)
 
@@ -294,23 +302,25 @@ describe('lightning', () => {
       expect(after).toBe(10 + SOIL_HEALTH_BURN_BONUS)
     })
 
-    it('deletes cloverLifecycle entries for burned tiles', () => {
+    it('deletes floraLifecycle entries for burned tiles', () => {
       const state = createTestState()
       clearAroundPlayer(state, 10)
       const cx = state.player.x + 5
       const cy = state.player.y + 5
-      state.map[cy][cx] = { type: TileType.Clover }
-      state.cloverLifecycle.set(posKey(cx, cy), {
-        stage: CloverStage.Healthy,
+      state.map[cy][cx] = { type: TileType.Flora }
+      state.floraLifecycle.set(posKey(cx, cy), {
+        stage: FloraStage.Healthy,
         stageStartTime: 0,
         hasLight: true,
+
+        species: FloraSpecies.Clover,
       })
       state.tileWater.set(posKey(cx, cy), 0)
 
       spreadWildfire(state, 0, cx, cy)
-      const entry = state.cloverLifecycle.get(posKey(cx, cy))
+      const entry = state.floraLifecycle.get(posKey(cx, cy))
       expect(entry).toBeTruthy()
-      expect(entry?.stage).toBe(CloverStage.BurntRecovering)
+      expect(entry?.stage).toBe(FloraStage.BurntRecovering)
     })
 
     it('respects WILDFIRE_MAX_SPREAD limit', () => {
@@ -318,11 +328,13 @@ describe('lightning', () => {
       // Create a massive dry clover field
       for (let y = 0; y < state.mapHeight; y++) {
         for (let x = 0; x < state.mapWidth; x++) {
-          state.map[y][x] = { type: TileType.Clover }
-          state.cloverLifecycle.set(posKey(x, y), {
-            stage: CloverStage.Healthy,
+          state.map[y][x] = { type: TileType.Flora }
+          state.floraLifecycle.set(posKey(x, y), {
+            stage: FloraStage.Healthy,
             stageStartTime: 0,
             hasLight: true,
+
+            species: FloraSpecies.Clover,
           })
           state.tileWater.set(posKey(x, y), 0)
         }
@@ -341,11 +353,13 @@ describe('lightning', () => {
       // Create dry clover on both sides of a river
       for (let dx = -3; dx <= 3; dx++) {
         if (dx === 0) continue // river in the middle
-        state.map[cy][cx + dx] = { type: TileType.Clover }
-        state.cloverLifecycle.set(posKey(cx + dx, cy), {
-          stage: CloverStage.Healthy,
+        state.map[cy][cx + dx] = { type: TileType.Flora }
+        state.floraLifecycle.set(posKey(cx + dx, cy), {
+          stage: FloraStage.Healthy,
           stageStartTime: 0,
           hasLight: true,
+
+          species: FloraSpecies.Clover,
         })
         state.tileWater.set(posKey(cx + dx, cy), 0)
       }

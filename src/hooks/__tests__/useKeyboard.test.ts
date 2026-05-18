@@ -108,7 +108,6 @@ const fireKeyUp = (key: string) => {
 
 let state: GameState
 let refreshUI: ReturnType<typeof vi.fn>
-let onPickup: ReturnType<typeof vi.fn>
 let onDrop: ReturnType<typeof vi.fn>
 let onDialog: ReturnType<typeof vi.fn>
 let onDiscovery: ReturnType<typeof vi.fn>
@@ -132,7 +131,6 @@ const renderKeyboardHook = () =>
       state,
       refreshUI,
       itemInfoRef,
-      onPickup,
       onDrop,
       onDialog,
       onDiscovery,
@@ -145,7 +143,6 @@ beforeEach(() => {
   vi.clearAllMocks()
   state = createTestState()
   refreshUI = vi.fn()
-  onPickup = vi.fn()
   onDrop = vi.fn()
   onDialog = vi.fn()
   onDiscovery = vi.fn()

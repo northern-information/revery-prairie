@@ -1,0 +1,445 @@
+id: precis-1-multi-species-flora
+name: 'Precis #1 — Multi-species Flora'
+priority: high
+layer: integration
+source_files:
+  - docs/precis-thinktank-v3.md
+  - docs/precis-status.yaml
+  - CLAUDE.md
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/floraLifecycle.ts
+  - src/engine/clover.ts
+  - src/engine/flora/index.ts
+  - src/engine/flora/actions/movement.ts
+  - src/engine/flora/actions/pollinate.ts
+  - src/engine/flora/type/clover/clover.ts
+  - src/engine/genesis.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/items.ts
+  - src/engine/manual.ts
+  - src/engine/recipes.ts
+  - src/engine/renderer.ts
+  - src/engine/tileBg.ts
+  - src/engine/lightning.ts
+  - src/engine/interaction.ts
+  - src/engine/characters.ts
+  - src/engine/entities.ts
+  - src/engine/angels.ts
+  - src/engine/monarch.ts
+  - src/engine/movement.ts
+  - src/engine/satellites.ts
+  - src/engine/celestial.ts
+  - src/engine/glintZones.ts
+  - src/engine/constants.ts
+  - src/engine/deepTime.ts
+  - src/hooks/useKeyboard.ts
+  - src/hooks/useMouse.ts
+  - src/components/Sidebar.tsx
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - precis-0-reclaim-revery
+
+behaviors:
+  - id: tile-type-renamed-to-flora
+    description: >
+      TileType.Clover is renamed to TileType.Flora. Every site that
+      previously checked `tile.type === TileType.Clover` now checks
+      `tile.type === TileType.Flora`. The string value of the tile
+      type changes from 'clover' to 'flora' to reflect the
+      generalization.
+    inputs:
+      - 'codebase after #1 lands'
+    outputs:
+      - "TileType.Clover does not exist"
+      - "TileType.Flora exists and is the type of every clover, wildflower, and tall grass tile"
+    state_changes: []
+    determinism: deterministic
+
+  - id: flora-stage-renamed
+    description: >
+      The CloverStage enum is renamed to FloraStage. All six stage
+      values (Healthy, Brown, BlinkingRed, Black, Decomposing,
+      BurntRecovering) carry over verbatim. CloverLifecycleState is
+      renamed to FloraLifecycleState.
+    inputs:
+      - 'codebase after #1 lands'
+    outputs:
+      - "CloverStage and CloverLifecycleState do not exist as identifiers"
+      - "FloraStage and FloraLifecycleState exist"
+    state_changes: []
+    determinism: deterministic
+
+  - id: flora-species-id-on-lifecycle-record
+    description: >
+      The per-tile lifecycle record (state.floraLifecycle, formerly
+      state.cloverLifecycle) carries a new `species` field of type
+      `'clover' | 'wildflower' | 'tallGrass'`. The species is set
+      when the tile is created (via genesis seeding or via clover
+      growth from the existing growth system) and never changes for
+      the life of that tile. The render pipeline, pollination
+      gates, harvest/cut sites, and wildfire reads use this field
+      to dispatch per-species behavior.
+    inputs:
+      - 'a flora tile at any position'
+    outputs:
+      - 'state.floraLifecycle.get(posKey).species returns one of clover, wildflower, tallGrass'
+    state_changes:
+      - field: floraLifecycle
+        effect: 'each entry has { stage, stageStartTime, hasLight, species }'
+      - field: cloverLifecycle
+        effect: 'field removed from GameState'
+      - field: cloverGrowthPreviews
+        effect: 'renamed to floraGrowthPreviews; entries still only created by clover growth (clover is the only species that spreads via the growth-preview system in this PR)'
+    determinism: deterministic
+
+  - id: per-species-glyph-registry
+    description: >
+      A flora species registry (FLORA_SPECIES) is created under
+      src/engine/flora/ that maps each species id to its glyph,
+      glyph color, display name, Latin binomial, and any
+      species-specific render hooks. The renderer consults this
+      registry instead of the per-tile-type TILE_CHARS / TILE_COLORS
+      constants for flora tiles. Glyphs are distinct: clover stays
+      '%' in its current green, wildflower uses a different glyph
+      and hue, tall grass uses a different glyph and hue.
+    inputs:
+      - 'a flora tile of any species at a visible position'
+    outputs:
+      - 'the renderer draws the per-species glyph + color'
+    state_changes: []
+    determinism: deterministic
+
+  - id: lifecycle-shared-across-species
+    description: >
+      All three species share the six-stage lifecycle (Healthy →
+      Brown → BlinkingRed → Black → Decomposing → Dirt, plus the
+      BurntRecovering recovery path after fire). Stage transition
+      timings and the light/water requirement rules are identical
+      across species. The lifecycle tick reads the species field
+      only to dispatch the per-species visual sway profile and
+      pollen emission gate; the stage transitions themselves are
+      species-agnostic.
+    inputs:
+      - 'a flora tile aging through the lifecycle'
+    outputs:
+      - 'all species transition through the same stages on the same triggers'
+    state_changes:
+      - field: floraLifecycle entry stage
+        effect: 'advances per the unified rules'
+    determinism: deterministic
+
+  - id: genesis-seeds-wildflower-patches
+    description: >
+      Genesis post-processes the dirt island after the existing
+      epoch chain and seeds N small patches of wildflower at random
+      positions on walkable dirt tiles. N and patch size are
+      tunable constants. Each placed tile becomes a Flora tile with
+      species='wildflower' and stage=Healthy. The PRNG used is
+      derived from the same nameToSeed seed that drives the rest
+      of genesis, so the same steward name produces the same patch
+      layout.
+    inputs:
+      - 'genesis pipeline runs with a given steward name'
+    outputs:
+      - 'a deterministic set of wildflower patches on the map'
+    state_changes:
+      - field: map
+        effect: 'N wildflower-species Flora tiles placed at deterministic positions'
+      - field: floraLifecycle
+        effect: 'entries created for each placed tile with species=wildflower'
+    determinism: deterministic
+
+  - id: genesis-seeds-tall-grass-patches
+    description: >
+      Mirror behavior to genesis-seeds-wildflower-patches but for
+      tall grass. Same seed source, same post-processing step, same
+      deterministic output rule.
+    inputs:
+      - 'genesis pipeline runs with a given steward name'
+    outputs:
+      - 'a deterministic set of tall grass patches on the map'
+    state_changes:
+      - field: map
+        effect: 'M tallGrass-species Flora tiles placed at deterministic positions'
+      - field: floraLifecycle
+        effect: 'entries created for each placed tile with species=tallGrass'
+    determinism: deterministic
+
+  - id: clover-genesis-and-growth-unchanged
+    description: >
+      Existing clover seeding (whatever genesis path currently
+      produces clover tiles) continues to produce species=clover
+      tiles. The existing clover growth-preview system continues
+      to operate on clover only — wildflower and tall grass do not
+      spread or self-propagate in this PR. They start where genesis
+      placed them and persist or die per the shared lifecycle.
+    inputs:
+      - 'genesis runs and the simulation ticks'
+    outputs:
+      - 'clover tiles spread as before; wildflower and tall grass do not spread'
+    state_changes:
+      - field: floraGrowthPreviews
+        effect: 'only ever contains positions slated to become clover'
+    determinism: deterministic
+
+  - id: wildfire-spreads-through-all-flora
+    description: >
+      The wildfire kernel (spreadWildfire in lightning.ts)
+      generalizes from "tile is Clover" to "tile is Flora". Dry
+      wildflower and dry tall grass burn under the same rules as
+      dry clover. The struck or origin tile becomes BurntClover
+      (renamed in this PR to BurntFlora) regardless of species,
+      and the floraLifecycle entry retains its species value
+      through the BurntRecovering stage. Soil burn bonus applies
+      uniformly. Wildfire never converts the species — burnt
+      wildflower recovers as wildflower.
+    inputs:
+      - 'a Flora tile of any species is struck by lightning or wildfire spread'
+    outputs:
+      - 'the tile converts to BurntFlora and recovery resumes the original species'
+    state_changes:
+      - field: map
+        effect: 'tile type Flora → BurntFlora'
+      - field: floraLifecycle
+        effect: 'entry stage → BurntRecovering, species unchanged'
+    determinism: probabilistic
+
+  - id: burnt-clover-tile-renamed
+    description: >
+      TileType.BurntClover is renamed to TileType.BurntFlora. All
+      check sites update accordingly. The tile glyph and color may
+      be tuned later to reflect that it represents a burnt patch
+      of any flora species, not just clover.
+    inputs:
+      - 'codebase after #1 lands'
+    outputs:
+      - 'TileType.BurntClover does not exist; TileType.BurntFlora does'
+    state_changes: []
+    determinism: deterministic
+
+  - id: harvest-mechanic-deleted
+    description: >
+      The harvest mechanic is removed in full. harvestClover in
+      cloverLifecycle.ts is deleted along with its HarvestResult
+      enum and the [f] keybind in useKeyboard.ts. The
+      'event:clover-harvest' manual discovery key is removed from
+      the manual registry. Clover and other flora items are no
+      longer obtainable via harvest in this PR — per user direction,
+      clover acquisition routes through ruin recovery (a path
+      either already present in code under another name or
+      slated for a later precis feature).
+    inputs:
+      - 'codebase after #1 lands'
+    outputs:
+      - 'harvestClover does not exist'
+      - 'the [f] keybind has no game effect'
+      - 'pressing [f] in a fresh game logs nothing and mutates nothing'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cut-mechanic-deleted
+    description: >
+      The cut mechanic is removed in full. cutClover in
+      cloverLifecycle.ts is deleted along with the cutClover
+      branch of the [x] keybind. The [x] keybind retains its drop-item
+      behavior (hovered inventory item drops to the ground); only
+      the "cut facing clover when no item is hovered" branch is
+      removed. The 'event:clover-cut' manual discovery key is
+      removed.
+    inputs:
+      - 'codebase after #1 lands'
+    outputs:
+      - 'cutClover does not exist'
+      - "pressing [x] with no hovered item does nothing facing a flora tile"
+    state_changes: []
+    determinism: deterministic
+
+  - id: seed-items-deleted
+    description: >
+      The three orphaned seed items in ITEM_DEFINITIONS are
+      removed: wildflowerSeeds, tallGrassSeeds, milkweedSeeds.
+      Their manual entries and any incidental references are
+      removed. These items had no planting interaction wired up;
+      they're re-introduced in precis #11 with proper seed taxonomy.
+    inputs:
+      - 'codebase after #1 lands'
+    outputs:
+      - "ITEM_DEFINITIONS has no entries for wildflowerSeeds, tallGrassSeeds, or milkweedSeeds"
+      - 'no manual entry references these item ids'
+    state_changes: []
+    determinism: deterministic
+
+  - id: bee-clover-recipe-stays-clover-specific
+    description: >
+      The bee + clover recipe is preserved exactly as-is. Its
+      ingredient list still requires the 'clover' item
+      specifically, not any flora item. Wildflower and tall grass
+      cannot be substituted into the recipe. The recipe's result
+      (prairie tile creation) is unchanged.
+    inputs:
+      - 'player attempts to combine bee + clover in inventory'
+    outputs:
+      - 'recipe fires as before'
+    state_changes: []
+    determinism: deterministic
+
+  - id: gron-quest-clover-check-stays-clover-specific
+    description: >
+      The Gron main-quest gate that checks
+      `containerHasItem(state.backpack, 'clover')` continues to
+      check the clover item specifically. Wildflower or tall grass
+      items in the backpack do not satisfy the gate. The dialog
+      branching in getGronDialog and the postGiftActions wiring
+      stay clover-keyed.
+    inputs:
+      - 'player talks to Gron during the Gathering phase'
+    outputs:
+      - 'dialog branches based on clover-item presence, ignoring other flora items'
+    state_changes: []
+    determinism: deterministic
+
+  - id: bee-mechanics-stay-clover-specific
+    description: >
+      Bee wandering preference, capture-on-step, and any clover-
+      keyed entity behaviors continue to target species=clover
+      flora tiles specifically. Wildflower and tall grass do not
+      attract bees, do not capture bees when walked over, and are
+      not part of the bee/clover ecosystem balance in this PR.
+      These behaviors are intentionally narrow because the broader
+      pollinator-routes spec is precis #7.
+    inputs:
+      - 'a bee entity ticking near flora tiles'
+    outputs:
+      - 'the bee only prefers / interacts with clover tiles'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: per-species-manual-entries
+    description: >
+      The manual registry has one entry per flora species. Each
+      entry uses the species' real Latin binomial as the primary
+      identifier per cosmology doctrine (the prairie is a fragment
+      of Earth, native flora carry real binomials). The binomials
+      are Trifolium repens (clover), Echinacea purpurea (purple
+      coneflower — wildflower), and Andropogon gerardii (big
+      bluestem — tall grass). Lore for wildflower and tall grass
+      is { lore: 'TODO' } per repo policy (lore is human-authored
+      only). Clover's existing lore is preserved.
+    inputs:
+      - 'manual UI opens'
+    outputs:
+      - "three life-category entries — Clover (Trifolium repens), Purple Coneflower (Echinacea purpurea), Big Bluestem (Andropogon gerardii)"
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'discovery keys remain per-species and are recorded the first time each species appears in the player view'
+    determinism: deterministic
+
+  - id: schema-allowlist-updated
+    description: >
+      src/harness/__tests__/serialization/schema.test.ts replaces
+      cloverLifecycle and cloverGrowthPreviews with floraLifecycle
+      and floraGrowthPreviews in the EXPECTED_FIELDS allowlist.
+    inputs:
+      - 'serialization schema test run'
+    outputs:
+      - 'test passes'
+    state_changes: []
+    determinism: deterministic
+
+  - id: doctrine-and-status-aligned
+    description: >
+      docs/precis-status.yaml flips feature 1 to in-progress with
+      spec and plan links (during PR) and to shipped after merge.
+      CLAUDE.md sections that mention clover-specific lifecycle,
+      harvest, or cut keybinds are updated to reflect the
+      generalized flora system and the deleted mechanics.
+      docs/precis-thinktank-v3.md is unchanged — its row #1
+      description already says "clover → Flora; +wildflower,
+      +tall grass".
+    inputs:
+      - 'codebase after #1 lands'
+    outputs:
+      - 'precis-status.yaml feature 1 has spec, plan, and pr fields populated'
+      - 'CLAUDE.md does not describe deleted mechanics as current behavior'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: clover-tile-from-bee-clover-recipe
+    description: >
+      When the player triggers the bee + clover recipe, the
+      resulting tile must be Flora species=clover (matching the
+      historical behavior, just under the new type).
+    expected: >
+      The recipe places a Flora tile with species=clover; the
+      floraLifecycle entry is created with stage=Healthy and
+      species=clover.
+
+  - id: wildfire-on-mixed-flora-cluster
+    description: >
+      A lightning strike hits a tile adjacent to one clover and
+      one wildflower, both Healthy and dry.
+    expected: >
+      Both tiles burn; their floraLifecycle entries transition
+      to BurntRecovering with their original species preserved.
+
+  - id: genesis-determinism
+    description: >
+      Two calls to createGameState with the same steward name
+      produce identical wildflower and tall grass patch layouts.
+    expected: >
+      The post-process step uses the same PRNG seed derived from
+      the steward name. Patch positions match byte-for-byte.
+
+  - id: dead-references-grep
+    description: >
+      A grep for TileType.Clover, FloraStage, FloraLifecycleState,
+      cloverLifecycle, cloverGrowthPreviews, BurntClover,
+      harvestClover, cutClover, HarvestResult, wildflowerSeeds,
+      tallGrassSeeds, milkweedSeeds returns no hits outside of
+      doctrine docs (precis-thinktank-v3.md and similar) and the
+      precis-1 spec file itself.
+    expected: >
+      Production code, tests, and registries are clean. The only
+      surviving 'clover' references are the species id literal,
+      the manual entry id `flora:clover`, and the lore/recipe
+      strings.
+
+  - id: wildfire-spread-probability-bounds
+    description: >
+      Over many runs on a uniform Healthy dry mixed-species flora
+      field, wildfire spread from a single strike point burns
+      between 1 and WILDFIRE_MAX_SPREAD tiles. The species mix of
+      burned tiles roughly tracks the species mix of the field
+      (no species is fire-resistant; no species is fire-attracting).
+    expected: >
+      Tile-count distribution stays within [1, WILDFIRE_MAX_SPREAD]
+      across all trials. Per-species burn rate over 50 trials on
+      a 50/50 clover/wildflower field is within ±20% of 50/50.
+
+  - id: harness-spec-files-touching-deleted-symbols
+    description: >
+      Harness specs that reference the removed symbols (harvest,
+      cut, the old TileType names) are edited to drop those
+      references. No spec is deleted in this PR.
+    expected: >
+      npm run spec:validate passes; no spec references a deleted
+      symbol.
+
+failure_conditions:
+  - trigger: 'A grep for "TileType\\.Clover\\b\\|FloraStage\\b\\|state\\.cloverLifecycle\\|harvestClover\\|cutClover\\|wildflowerSeeds\\|tallGrassSeeds\\|milkweedSeeds" in src/ returns any non-test, non-deleted-file results'
+    expected: 'CI fails — #1 is incomplete'
+  - trigger: 'A new game produces zero wildflower tiles or zero tall grass tiles after genesis'
+    expected: 'CI fails — genesis post-process did not run or seeded no patches'
+  - trigger: 'The bee + clover recipe fires when the player has wildflower or tall grass items instead of clover'
+    expected: 'CI fails — the recipe lost its species specificity'
+  - trigger: 'Pressing [f] or pressing [x] without a hovered item produces any state mutation when facing a flora tile'
+    expected: 'CI fails — the harvest or cut mechanic was not fully removed'
+  - trigger: 'src/engine/lightning.ts spreadWildfire still only burns species=clover'
+    expected: 'CI fails — the wildfire generalization was not applied'
+
+verification:
+  test_file: src/engine/__tests__/genesis.test.ts
+  test_pattern: 'flora'
+  command: 'npx vitest run src/engine/__tests__/genesis.test.ts -t flora'

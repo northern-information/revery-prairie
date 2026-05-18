@@ -1,4 +1,3 @@
-import { harvestClover, HarvestResult } from '../cloverLifecycle'
 import { getBlockedPositions, movePlayer } from '../movement'
 import { findPath } from '../pathfinding'
 import { posKey } from '../position'
@@ -137,7 +136,7 @@ describe('water walkable', () => {
       expect(state.map[py][px + 1].type).toBe(TileType.Dirt)
       expect(state.ponds.has(waterKey)).toBe(true)
       // Adjacent non-water tile was converted to clover
-      expect(state.map[py][px - 1].type).toBe(TileType.Clover)
+      expect(state.map[py][px - 1].type).toBe(TileType.Flora)
     })
 
     it('execute returns false when the player stands on a water tile', () => {
@@ -160,24 +159,6 @@ describe('water walkable', () => {
     })
   })
 
-  describe('harvesting adjacent clover while standing on water', () => {
-    it('allows the player to harvest clover on the adjacent land tile', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 2)
-      const px = state.player.x
-      const py = state.player.y
-      // Player is on a water tile (underlying tile is dirt; overlay via state.ponds)
-      state.ponds.add(posKey(px, py))
-      // Clover on the tile the player faces
-      state.playerFacing = 'down'
-      state.map[py + 1][px] = { type: TileType.Clover }
-      state.facingEntityPos = { x: px, y: py + 1 }
-
-      const result = harvestClover(state)
-
-      expect(result).toBe(HarvestResult.Success)
-      expect(state.map[py + 1][px].type).toBe(TileType.Dirt)
-      expect(state.backpack.items.some(i => i.definitionId === 'clover')).toBe(true)
-    })
-  })
+  // The harvest-adjacent-clover-from-water test was deleted with the
+  // harvest mechanic in precis #1.
 })

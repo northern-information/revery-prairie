@@ -15,7 +15,7 @@ import {
   tickMonarchs,
 } from '../monarch'
 import { posKey } from '../position'
-import { Sky, TileType, Zone } from '../types'
+import { FloraSpecies, FloraStage, Sky, TileType, Zone } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -31,6 +31,18 @@ const getMonarchEntities = (state: ReturnType<typeof createTestState>): Entity[]
   state.world
     .query(ComponentType.EntityTag)
     .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'monarch')
+
+// Mark a tile as clover-species Flora — monarch behaviors filter by
+// species post precis #1, so a bare TileType.Flora write isn't enough.
+const placeCloverTile = (state: ReturnType<typeof createTestState>, x: number, y: number): void => {
+  state.map[y][x] = { type: TileType.Flora }
+  state.floraLifecycle.set(posKey(x, y), {
+    stage: FloraStage.Healthy,
+    stageStartTime: 0,
+    hasLight: true,
+    species: FloraSpecies.Clover,
+  })
+}
 
 describe('monarch butterfly', () => {
   describe('spawn conditions', () => {
@@ -164,7 +176,7 @@ describe('monarch butterfly', () => {
       // Place clover patch to the east
       for (let dy = -2; dy <= 2; dy++) {
         for (let dx = 8; dx <= 12; dx++) {
-          state.map[py + dy][px + dx] = { type: TileType.Clover }
+          placeCloverTile(state, px + dx, py + dy)
         }
       }
 
@@ -403,7 +415,7 @@ describe('monarch butterfly', () => {
       const cy = state.player.y
 
       // Place a single clover tile
-      state.map[cy][cx] = { type: TileType.Clover }
+      placeCloverTile(state, cx, cy)
 
       vi.spyOn(Math, 'random').mockReturnValue(0) // pick first candidate
       try {
@@ -421,7 +433,7 @@ describe('monarch butterfly', () => {
         { x: -1, y: 0 },
         { x: 1, y: 0 },
       ]) {
-        if (state.map[cy + d.y][cx + d.x].type === TileType.Clover) {
+        if (state.map[cy + d.y][cx + d.x].type === TileType.Flora) {
           newCloverCount++
         }
       }
@@ -446,7 +458,7 @@ describe('monarch butterfly', () => {
       const cx = state.player.x + 8
       const cy = state.player.y
 
-      state.map[cy][cx] = { type: TileType.Clover }
+      placeCloverTile(state, cx, cy)
 
       vi.spyOn(Math, 'random').mockReturnValue(0)
       try {
@@ -464,8 +476,8 @@ describe('monarch butterfly', () => {
       ]) {
         const tx = cx + d.x
         const ty = cy + d.y
-        if (state.map[ty][tx].type === TileType.Clover && !(tx === cx && ty === cy)) {
-          const lifecycle = state.cloverLifecycle.get(posKey(tx, ty))
+        if (state.map[ty][tx].type === TileType.Flora && !(tx === cx && ty === cy)) {
+          const lifecycle = state.floraLifecycle.get(posKey(tx, ty))
           expect(lifecycle).toBeTruthy()
           expect(lifecycle?.stage).toBe('healthy')
           expect(lifecycle?.hasLight).toBe(true)
@@ -481,7 +493,7 @@ describe('monarch butterfly', () => {
       const my = state.player.y
 
       // Place clover so pollination can happen
-      state.map[my][mx] = { type: TileType.Clover }
+      placeCloverTile(state, mx, my)
 
       const eid = spawnMonarch(state, mx, my)
       const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
@@ -504,7 +516,7 @@ describe('monarch butterfly', () => {
       const r = MONARCH_SETTLE_RADIUS
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
-          if (state.map[my + dy][mx + dx].type === TileType.Clover) {
+          if (state.map[my + dy][mx + dx].type === TileType.Flora) {
             cloverCount++
           }
         }
@@ -518,7 +530,7 @@ describe('monarch butterfly', () => {
       const mx = state.player.x + 8
       const my = state.player.y
 
-      state.map[my][mx] = { type: TileType.Clover }
+      placeCloverTile(state, mx, my)
 
       const eid = spawnMonarch(state, mx, my)
       const monarchState = requireComponent(state.world.getComponent(eid, ComponentType.MonarchState))
@@ -539,7 +551,7 @@ describe('monarch butterfly', () => {
       const r = MONARCH_SETTLE_RADIUS
       for (let dy = -r; dy <= r; dy++) {
         for (let dx = -r; dx <= r; dx++) {
-          if (state.map[my + dy][mx + dx].type === TileType.Clover) {
+          if (state.map[my + dy][mx + dx].type === TileType.Flora) {
             cloverCount++
           }
         }
@@ -579,7 +591,7 @@ describe('monarch butterfly', () => {
       // Fill area around monarch with clover (settled monarch has bounded movement)
       for (let dy = -MONARCH_SETTLE_RADIUS - 1; dy <= MONARCH_SETTLE_RADIUS + 1; dy++) {
         for (let dx = -MONARCH_SETTLE_RADIUS - 1; dx <= MONARCH_SETTLE_RADIUS + 1; dx++) {
-          state.map[py + dy][px + dx] = { type: TileType.Clover }
+          placeCloverTile(state, px + dx, py + dy)
         }
       }
 
@@ -614,8 +626,8 @@ describe('monarch butterfly', () => {
       const eid2 = spawnMonarch(state, px + MONARCH_FLEE_RADIUS + 5, py + MONARCH_FLEE_RADIUS + 5)
 
       // Place clover near both so they don't starve
-      state.map[py + MONARCH_FLEE_RADIUS + 3][px + MONARCH_FLEE_RADIUS + 4] = { type: TileType.Clover }
-      state.map[py + MONARCH_FLEE_RADIUS + 5][px + MONARCH_FLEE_RADIUS + 6] = { type: TileType.Clover }
+      placeCloverTile(state, px + MONARCH_FLEE_RADIUS + 4, py + MONARCH_FLEE_RADIUS + 3)
+      placeCloverTile(state, px + MONARCH_FLEE_RADIUS + 6, py + MONARCH_FLEE_RADIUS + 5)
 
       expect(getMonarchEntities(state)).toHaveLength(2)
       expect(state.world.isAlive(eid1)).toBe(true)

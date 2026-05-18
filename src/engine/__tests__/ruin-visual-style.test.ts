@@ -141,7 +141,7 @@ describe('ruin visual style', () => {
         TileType.Dirt,
         TileType.Sand,
         TileType.Space,
-        TileType.Clover,
+        TileType.Flora,
         TileType.RuinFloor,
         TileType.RuinWall,
         TileType.RuinAqueduct,

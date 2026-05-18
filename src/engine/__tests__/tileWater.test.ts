@@ -19,10 +19,10 @@ describe('tileWater', () => {
         for (let x = 0; x < state.mapWidth; x++) {
           const key = posKey(x, y)
           const tile = state.map[y][x].type
-          if (tile === TileType.Dirt || tile === TileType.Clover || tile === TileType.BurntClover) {
+          if (tile === TileType.Dirt || tile === TileType.Flora || tile === TileType.BurntFlora) {
             expect(state.tileWater.get(key)).toBe(WATER_MAX)
             if (tile === TileType.Dirt) hasDirt = true
-            if (tile === TileType.Clover) hasClover = true
+            if (tile === TileType.Flora) hasClover = true
           }
         }
       }
@@ -144,7 +144,7 @@ describe('tileWater', () => {
       state.tileWater.set(key, 75)
 
       // Change to clover (like planting)
-      state.map[y][x] = { type: TileType.Clover }
+      state.map[y][x] = { type: TileType.Flora }
 
       // Water should still be 75
       expect(state.tileWater.get(key)).toBe(75)
@@ -156,7 +156,7 @@ describe('tileWater', () => {
       const key = posKey(x, y)
 
       // Start as clover with some water
-      state.map[y][x] = { type: TileType.Clover }
+      state.map[y][x] = { type: TileType.Flora }
       state.tileWater.set(key, 60)
 
       // Change to dirt (like harvest/death)

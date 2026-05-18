@@ -106,7 +106,7 @@ describe('runAllMutations', () => {
     const centerY = Math.floor(MAP_HEIGHT / 2)
     // Center is within Gron's rain aura — may be clover or dirt
     const centerType = result.terrain[centerY][centerX].type
-    expect(centerType === TileType.Dirt || centerType === TileType.Clover).toBe(true)
+    expect(centerType === TileType.Dirt || centerType === TileType.Flora).toBe(true)
   })
 
   it('produces Space tiles at corners', () => {
@@ -1532,5 +1532,42 @@ describe('lowland water mask (terrain-realism)', () => {
     for (const k of a.lowlandWaterMask) if (!b.lowlandWaterMask.has(k)) symDiff++
     for (const k of b.lowlandWaterMask) if (!a.lowlandWaterMask.has(k)) symDiff++
     expect(symDiff).toBeGreaterThan(0)
+  })
+})
+
+describe('multi-species flora post-process', () => {
+  it('seeds wildflower and tall grass patches deterministically per steward name', () => {
+    const a = createGameState('PrecisOne', 20, 20)
+    const b = createGameState('PrecisOne', 20, 20)
+
+    let aWildflower = 0
+    let aTallGrass = 0
+    let aClover = 0
+    for (const entry of a.floraLifecycle.values()) {
+      if (entry.species === 'wildflower') aWildflower++
+      else if (entry.species === 'tallGrass') aTallGrass++
+      else if (entry.species === 'clover') aClover++
+    }
+
+    let bWildflower = 0
+    let bTallGrass = 0
+    for (const entry of b.floraLifecycle.values()) {
+      if (entry.species === 'wildflower') bWildflower++
+      else if (entry.species === 'tallGrass') bTallGrass++
+    }
+
+    // The post-process must place at least one patch of each non-clover
+    // species — patch counts are bounded to [6,10] each with [2,4] tiles
+    // per patch (worst case 6*2 = 12 tiles).
+    expect(aWildflower).toBeGreaterThanOrEqual(1)
+    expect(aTallGrass).toBeGreaterThanOrEqual(1)
+    // Clover is the only species the epoch chain places — its count
+    // depends on the chain, but the registry must reflect it.
+    expect(aClover).toBeGreaterThanOrEqual(0)
+
+    // Same steward name produces the same wildflower and tall grass
+    // counts (determinism — sim.rng is seeded from nameToSeed).
+    expect(bWildflower).toBe(aWildflower)
+    expect(bTallGrass).toBe(aTallGrass)
   })
 })

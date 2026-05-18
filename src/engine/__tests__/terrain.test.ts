@@ -35,7 +35,7 @@ describe('generateTerrain', () => {
 
   it('creates independent rows (no shared references)', () => {
     const terrain = generateTerrain(100, 100)
-    terrain[50][50] = { type: TileType.Clover }
+    terrain[50][50] = { type: TileType.Flora }
     expect(terrain[51][50].type).toBe(TileType.Dirt)
   })
 })

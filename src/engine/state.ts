@@ -5,7 +5,7 @@ import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
 import { createCharacterEntity } from './entities'
-import { createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } from './genesis'
+import { createGenesisState, GENESIS_EPOCHS, nameToSeed, postProcessMultiSpeciesFlora, precomputeGenesis } from './genesis'
 import { RuinGenerationMode } from './genesisTypes'
 import { autoSort } from './inventory'
 import { createBackpack } from './items'
@@ -34,6 +34,20 @@ export const createGameState = (
       precomputeGenesis(s, GENESIS_EPOCHS)
       return s
     })()
+  // Multi-species flora post-process (precis #1): scatter wildflower
+  // and tall grass patches across walkable dirt and tag every Flora tile
+  // with its species. Determinism preserved — same steward name, same
+  // patch layout.
+  const initialFloraLifecycle = postProcessMultiSpeciesFlora(sim)
+
+  // Track which species the post-process actually placed so the manual
+  // entries unlock on first sight. The genesis post-process is
+  // deterministic per steward name so if a species is missing here it
+  // legitimately did not appear in this world.
+  const seededSpecies = new Set<string>()
+  for (const entry of initialFloraLifecycle.values()) {
+    seededSpecies.add(entry.species)
+  }
   const map = sim.grid
   const genesisData: GenesisSimState = sim
 
@@ -179,8 +193,8 @@ export const createGameState = (
     },
     lastSatelliteSpawnTime: 0,
     screenShakeUntil: 0,
-    cloverGrowthPreviews: new Set<string>(),
-    cloverLifecycle: new Map(),
+    floraGrowthPreviews: new Set<string>(),
+    floraLifecycle: initialFloraLifecycle,
     tileWater: new Map<string, number>(),
     soilHealth: genesisData.soilHealth,
     elevation: genesisData.elevation,
@@ -248,11 +262,18 @@ export const createGameState = (
   // at game-state creation with time=0 made patches age throughout
   // genesis (~25s) and pop in at full opacity at the handoff.
 
+  // Unlock manual entries for each species that the post-process
+  // placed. The prairie is visible from spawn, so species that are
+  // present read as "discovered" immediately.
+  for (const species of seededSpecies) {
+    state.manualDiscoveries.add(`flora:${species}`)
+  }
+
   // Place ruin entrances on the overworld
   placeRuinEntrances(map, state.ruinInteriors)
 
   // Place Gron at the exact center
-  if (map[gronY][gronX].type !== TileType.Dirt && map[gronY][gronX].type !== TileType.Clover) {
+  if (map[gronY][gronX].type !== TileType.Dirt && map[gronY][gronX].type !== TileType.Flora) {
     map[gronY][gronX] = { type: TileType.Dirt }
   }
   createCharacterEntity(state, 'gron', { x: gronX, y: gronY }, { aura: 'rain' })
@@ -263,7 +284,7 @@ export const createGameState = (
   for (let y = 0; y < MAP_HEIGHT; y++) {
     for (let x = 0; x < MAP_WIDTH; x++) {
       const tileType = map[y][x].type
-      if (tileType === TileType.Dirt || tileType === TileType.Clover || tileType === TileType.BurntClover) {
+      if (tileType === TileType.Dirt || tileType === TileType.Flora || tileType === TileType.BurntFlora) {
         state.tileWater.set(posKey(x, y), WATER_MAX)
       }
     }

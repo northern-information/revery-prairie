@@ -11,10 +11,19 @@ import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { CARDINAL, isInBounds, posKey, tileHash } from './position'
-import { TileType, Zone } from './types'
+import { FloraSpecies, FloraStage, TileType, Zone } from './types'
 import { spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
+
+// Clover-specific tile check. Flora tiles of other species (wildflower,
+// tall grass) share TileType.Flora but do not participate in clover patch
+// detection, growth, or beehive/honey production. Broader pollinator
+// routes are deferred to precis #7.
+const isCloverTile = (state: GameState, x: number, y: number): boolean => {
+  if (state.map[y]?.[x]?.type !== TileType.Flora) return false
+  return state.floraLifecycle.get(posKey(x, y))?.species === FloraSpecies.Clover
+}
 
 // --- Patch data ---
 
@@ -39,13 +48,12 @@ const spiralState = new Map<string, GrowthFront>()
 export const floodFillCloverPatches = (state: GameState): CloverPatch[] => {
   const visited = new Set<string>()
   const patches: CloverPatch[] = []
-  const map = state.map
   const w = state.mapWidth
   const h = state.mapHeight
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      if (map[y][x].type !== TileType.Clover) continue
+      if (!isCloverTile(state, x, y)) continue
       const startKey = posKey(x, y)
       if (visited.has(startKey)) continue
 
@@ -69,7 +77,7 @@ export const floodFillCloverPatches = (state: GameState): CloverPatch[] => {
           const nx = pos.x + d.x
           const ny = pos.y + d.y
           if (!isInBounds(nx, ny, w, h)) continue
-          if (map[ny][nx].type !== TileType.Clover) continue
+          if (!isCloverTile(state, nx, ny)) continue
           const nk = posKey(nx, ny)
           if (!visited.has(nk)) {
             queue.push({ x: nx, y: ny })
@@ -220,19 +228,26 @@ export const selectSpiralGrowth = (patch: CloverPatch, candidates: Position[]): 
 // --- Main growth tick ---
 
 export const tickCloverGrowth = (state: GameState): void => {
-  // Phase 1: convert previous previews to actual clover
-  for (const key of state.cloverGrowthPreviews) {
+  // Phase 1: convert previous previews to actual clover tiles. Clover is
+  // the only species that spreads via the growth-preview system; every
+  // tile placed here is species=clover.
+  for (const key of state.floraGrowthPreviews) {
     const [xStr, yStr] = key.split(',')
     const x = Number(xStr)
     const y = Number(yStr)
     if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Dirt) {
-      setMapTile(state, x, y, { type: TileType.Clover })
-      state.cloverLifecycle.delete(key)
+      setMapTile(state, x, y, { type: TileType.Flora })
+      state.floraLifecycle.set(key, {
+        stage: FloraStage.Healthy,
+        stageStartTime: 0,
+        hasLight: true,
+        species: FloraSpecies.Clover,
+      })
     }
   }
 
-  const grewClover = state.cloverGrowthPreviews.size > 0
-  state.cloverGrowthPreviews = new Set<string>()
+  const grewClover = state.floraGrowthPreviews.size > 0
+  state.floraGrowthPreviews = new Set<string>()
 
   // Phase 2: detect patches and compute new previews
   const patches = floodFillCloverPatches(state)
@@ -256,7 +271,7 @@ export const tickCloverGrowth = (state: GameState): void => {
     const selected = selectSpiralGrowth(patch, candidates)
 
     for (const pos of selected) {
-      state.cloverGrowthPreviews.add(posKey(pos.x, pos.y))
+      state.floraGrowthPreviews.add(posKey(pos.x, pos.y))
     }
   }
 

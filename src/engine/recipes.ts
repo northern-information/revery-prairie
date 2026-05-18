@@ -2,7 +2,7 @@ import { ACTION_COLOR } from './constants'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { isInBounds, posKey } from './position'
-import { TileType } from './types'
+import { FloraSpecies, FloraStage, TileType } from './types'
 
 import type { GameState, Position } from './types'
 
@@ -44,7 +44,7 @@ export const RECIPES: Recipe[] = [
             const t = state.map[ty][tx].type
             const k = posKey(tx, ty)
             const isWater = state.ponds.has(k) || state.rivers.has(k)
-            if (!isWater && (t === TileType.Dirt || t === TileType.Clover || t === TileType.CaveFloor)) {
+            if (!isWater && (t === TileType.Dirt || t === TileType.Flora || t === TileType.CaveFloor)) {
               tiles.push({ pos: { x: tx, y: ty }, char: '#', color: ACTION_COLOR, isValid: true })
             }
           }
@@ -58,7 +58,7 @@ export const RECIPES: Recipe[] = [
       const standingOnWater = state.ponds.has(standingKey) || state.rivers.has(standingKey)
       if (
         standingOnWater ||
-        (standingOn !== TileType.Dirt && standingOn !== TileType.Clover && standingOn !== TileType.CaveFloor)
+        (standingOn !== TileType.Dirt && standingOn !== TileType.Flora && standingOn !== TileType.CaveFloor)
       )
         return false
 
@@ -70,9 +70,15 @@ export const RECIPES: Recipe[] = [
             const t = state.map[ty][tx].type
             const k = posKey(tx, ty)
             const isWater = state.ponds.has(k) || state.rivers.has(k)
-            if (!isWater && (t === TileType.Dirt || t === TileType.Clover || t === TileType.CaveFloor)) {
-              setMapTile(state, tx, ty, { type: TileType.Clover })
-              state.cloverLifecycle.delete(k)
+            if (!isWater && (t === TileType.Dirt || t === TileType.Flora || t === TileType.CaveFloor)) {
+              // Bee + clover seeds Flora tiles as clover specifically.
+              setMapTile(state, tx, ty, { type: TileType.Flora })
+              state.floraLifecycle.set(k, {
+                stage: FloraStage.Healthy,
+                stageStartTime: 0,
+                hasLight: true,
+                species: FloraSpecies.Clover,
+              })
             }
           }
         }

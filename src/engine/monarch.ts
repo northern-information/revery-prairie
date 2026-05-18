@@ -18,7 +18,7 @@ import { tickCreatureHunger } from './hunger'
 import { setMapTile } from './map'
 import { findPath } from './pathfinding'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
-import { CloverStage, Sky, TileType, Zone } from './types'
+import { FloraSpecies, FloraStage, Sky, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
@@ -73,12 +73,12 @@ export const spawnBeeOrMonarch = (state: GameState, x: number, y: number, zone?:
 // --- Hunger helper ---
 
 const isMonarchNearFood = (state: GameState, pos: Position): boolean => {
-  if (isInBounds(pos.x, pos.y, state.mapWidth, state.mapHeight) && state.map[pos.y][pos.x].type === TileType.Clover)
+  if (isInBounds(pos.x, pos.y, state.mapWidth, state.mapHeight) && state.map[pos.y][pos.x].type === TileType.Flora)
     return true
   for (const d of CARDINAL) {
     const nx = pos.x + d.x
     const ny = pos.y + d.y
-    if (isInBounds(nx, ny, state.mapWidth, state.mapHeight) && state.map[ny][nx].type === TileType.Clover) return true
+    if (isInBounds(nx, ny, state.mapWidth, state.mapHeight) && state.map[ny][nx].type === TileType.Flora) return true
   }
   return false
 }
@@ -128,7 +128,7 @@ const findNearbyClover = (state: GameState, from: Position, radius: number): Pos
       const x = from.x + dx
       const y = from.y + dy
       if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
-      if (state.map[y][x].type !== TileType.Clover) continue
+      if (state.map[y][x].type !== TileType.Flora) continue
       const d = dx * dx + dy * dy
       if (d < bestDist) {
         bestDist = d
@@ -207,7 +207,7 @@ const searchForFertileTile = (state: GameState, from: Position, threshold: numbe
       if (dx * dx + dy * dy > r * r) continue
       const tile = state.map[y][x].type
       // Accept clover or dirt with good soil
-      if (tile !== TileType.Dirt && tile !== TileType.Clover) continue
+      if (tile !== TileType.Dirt && tile !== TileType.Flora) continue
       const health = state.soilHealth.get(posKey(x, y)) ?? SOIL_HEALTH_DEFAULT
       if (health >= threshold) {
         candidates.push({ x, y })
@@ -293,8 +293,14 @@ const tickSettled = (state: GameState, eid: Entity, now: number): void => {
       candidates.push({ x: nx, y: ny })
     }
     if (candidates.length > 0) {
-      // Prefer clover tiles
-      const clover = candidates.filter(c => state.map[c.y][c.x].type === TileType.Clover)
+      // Prefer clover tiles. Wildflower and tall grass tiles share
+      // TileType.Flora but monarchs target only clover per precis #1 —
+      // broader pollinator routes are precis #7.
+      const clover = candidates.filter(
+        c =>
+          state.map[c.y][c.x].type === TileType.Flora &&
+          state.floraLifecycle.get(posKey(c.x, c.y))?.species === FloraSpecies.Clover
+      )
       const pick = clover.length > 0 ? clover : candidates
       const target = pick[Math.floor(Math.random() * pick.length)]
       state.world.moveEntity(eid, target.x, target.y, MONARCH_TICK_MS)
@@ -320,15 +326,17 @@ export const pollinate = (state: GameState, center: Position): boolean => {
       if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
       if (state.map[y][x].type !== TileType.Dirt) continue
 
-      // Only spread to dirt tiles adjacent to existing clover
+      // Only spread to dirt tiles adjacent to existing clover. Wildflower
+      // and tall grass do not trigger monarch propagation per precis #1.
       let adjacentToClover = false
       for (const d of CARDINAL) {
         const nx = x + d.x
         const ny = y + d.y
-        if (isInBounds(nx, ny, state.mapWidth, state.mapHeight) && state.map[ny][nx].type === TileType.Clover) {
-          adjacentToClover = true
-          break
-        }
+        if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
+        if (state.map[ny][nx].type !== TileType.Flora) continue
+        if (state.floraLifecycle.get(posKey(nx, ny))?.species !== FloraSpecies.Clover) continue
+        adjacentToClover = true
+        break
       }
       if (adjacentToClover) {
         candidates.push({ x, y })
@@ -338,12 +346,15 @@ export const pollinate = (state: GameState, center: Position): boolean => {
 
   if (candidates.length === 0) return false
 
+  // Monarchs grow clover specifically — wildflower and tall grass do not
+  // self-propagate in this PR. Pollinator routes are precis #7.
   const tile = candidates[Math.floor(Math.random() * candidates.length)]
-  setMapTile(state, tile.x, tile.y, { type: TileType.Clover })
-  state.cloverLifecycle.set(posKey(tile.x, tile.y), {
-    stage: CloverStage.Healthy,
+  setMapTile(state, tile.x, tile.y, { type: TileType.Flora })
+  state.floraLifecycle.set(posKey(tile.x, tile.y), {
+    stage: FloraStage.Healthy,
     stageStartTime: Date.now(),
     hasLight: state.currentZone === Zone.Overworld,
+    species: FloraSpecies.Clover,
   })
   return true
 }

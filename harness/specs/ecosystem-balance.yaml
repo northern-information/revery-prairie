@@ -4,7 +4,7 @@ priority: high
 layer: engine
 source_files:
   - src/engine/clover.ts
-  - src/engine/cloverLifecycle.ts
+  - src/engine/floraLifecycle.ts
   - src/engine/lightning.ts
   - src/engine/constants.ts
   - src/engine/types.ts

@@ -114,7 +114,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
     state,
     refreshUI,
     itemInfoRef,
-    onPickup,
     onDrop,
     onDialog,
     onDiscovery,

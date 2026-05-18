@@ -819,7 +819,7 @@ const clearNavigationState = (state: GameState): void => {
   state.facingEntityPos = null
   state.activeDialog = null
   state.trail = []
-  state.cloverGrowthPreviews = new Set<string>()
+  state.floraGrowthPreviews = new Set<string>()
   clearMovementTweens(state)
   deselectAll(state)
   clearAllUnitCommands(state)
@@ -1133,20 +1133,11 @@ export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): vo
     return
   }
 
-  // Default: existing wildflower/tallgrass/milkweed seed scatter. Used by
-  // complex-mode ruins (no role) when that generator lands.
-  const seedTypes = ['wildflowerSeeds', 'tallGrassSeeds', 'milkweedSeeds']
-  for (const [key] of interior.dormantGarden.seedDecayTimers) {
-    const parts = key.split(',')
-    const x = Number(parts[0])
-    const y = Number(parts[1])
-    const seedType = seedTypes[Math.floor(Math.random() * seedTypes.length)]
-    const e = state.world.createEntity()
-    state.world.addComponent(e, ComponentType.Position, { x, y })
-    state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: seedType })
-    state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
-  }
+  // Default scatter previously spawned wildflower / tall grass / milkweed
+  // seed ground items in complex-mode ruins. Those item definitions were
+  // deleted in precis #1 and will return in precis #11 with a proper
+  // taxonomy. The decay-timer slots stay registered so #11 can repopulate
+  // them without re-deriving the layout.
 }
 
 const spawnRuinGroundItem = (state: GameState, ruinIndex: number, pos: Position, definitionId: string): void => {

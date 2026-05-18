@@ -155,7 +155,7 @@ describe('generateCave', () => {
 describe('isWalkableTile', () => {
   it('returns true for walkable tiles', () => {
     expect(isWalkableTile(TileType.Dirt)).toBe(true)
-    expect(isWalkableTile(TileType.Clover)).toBe(true)
+    expect(isWalkableTile(TileType.Flora)).toBe(true)
     expect(isWalkableTile(TileType.Sand)).toBe(true)
     expect(isWalkableTile(TileType.CaveFloor)).toBe(true)
     expect(isWalkableTile(TileType.CaveEntrance)).toBe(true)

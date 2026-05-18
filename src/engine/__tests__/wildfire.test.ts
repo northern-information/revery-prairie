@@ -3,7 +3,7 @@ import { WATER_MAX, WILDFIRE_MAX_SPREAD } from '../constants'
 const SMALL_MAX_SPREAD = 7
 import { spreadWildfire } from '../lightning'
 import { posKey } from '../position'
-import { CloverStage, TileType } from '../types'
+import { FloraSpecies, FloraStage, TileType } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -14,11 +14,13 @@ describe('wildfire spread', () => {
       clearAroundPlayer(state, 10)
       const x = state.player.x + 5
       const y = state.player.y + 5
-      state.map[y][x] = { type: TileType.Clover }
-      state.cloverLifecycle.set(posKey(x, y), {
-        stage: CloverStage.Healthy,
+      state.map[y][x] = { type: TileType.Flora }
+      state.floraLifecycle.set(posKey(x, y), {
+        stage: FloraStage.Healthy,
         stageStartTime: 0,
         hasLight: true,
+
+        species: FloraSpecies.Clover,
       })
       state.tileWater.set(posKey(x, y), WATER_MAX)
 
@@ -27,7 +29,7 @@ describe('wildfire spread', () => {
       expect(burned.size).toBe(1)
       expect(burned.has(posKey(x, y))).toBe(true)
       expect(state.tileWater.get(posKey(x, y))).toBe(0)
-      expect(state.map[y][x].type).toBe(TileType.BurntClover)
+      expect(state.map[y][x].type).toBe(TileType.BurntFlora)
     })
   })
 
@@ -37,11 +39,13 @@ describe('wildfire spread', () => {
       // Fill entire map with dry clover for maximum spread potential
       for (let y = 0; y < state.mapHeight; y++) {
         for (let x = 0; x < state.mapWidth; x++) {
-          state.map[y][x] = { type: TileType.Clover }
-          state.cloverLifecycle.set(posKey(x, y), {
-            stage: CloverStage.Healthy,
+          state.map[y][x] = { type: TileType.Flora }
+          state.floraLifecycle.set(posKey(x, y), {
+            stage: FloraStage.Healthy,
             stageStartTime: 0,
             hasLight: true,
+
+            species: FloraSpecies.Clover,
           })
           state.tileWater.set(posKey(x, y), 0)
         }
@@ -64,11 +68,13 @@ describe('wildfire spread', () => {
         // Fill entire map with dry clover
         for (let y = 0; y < state.mapHeight; y++) {
           for (let x = 0; x < state.mapWidth; x++) {
-            state.map[y][x] = { type: TileType.Clover }
-            state.cloverLifecycle.set(posKey(x, y), {
-              stage: CloverStage.Healthy,
+            state.map[y][x] = { type: TileType.Flora }
+            state.floraLifecycle.set(posKey(x, y), {
+              stage: FloraStage.Healthy,
               stageStartTime: 0,
               hasLight: true,
+
+              species: FloraSpecies.Clover,
             })
             state.tileWater.set(posKey(x, y), 0)
           }
@@ -97,11 +103,13 @@ describe('wildfire spread', () => {
           if (dx === 0) continue // pond column
           const x = cx + dx
           const y = cy + dy
-          state.map[y][x] = { type: TileType.Clover }
-          state.cloverLifecycle.set(posKey(x, y), {
-            stage: CloverStage.Healthy,
+          state.map[y][x] = { type: TileType.Flora }
+          state.floraLifecycle.set(posKey(x, y), {
+            stage: FloraStage.Healthy,
             stageStartTime: 0,
             hasLight: true,
+
+            species: FloraSpecies.Clover,
           })
           state.tileWater.set(posKey(x, y), 0)
         }

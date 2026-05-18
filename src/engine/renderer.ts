@@ -108,14 +108,14 @@ import {
 import './render/passes/index'
 
 import { getTierGrid as getTierGridShared, liftAt as liftAtShared } from './render/tierGrid'
-import { CloverStage, DeepTimePhase, TileType, Zone } from './types'
+import { FloraStage, DeepTimePhase, TileType, Zone } from './types'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar } from './visibility'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
 
 import './flora'
 
-import { getFloraMovement, getFloraSwayOffset } from './flora'
+import { FLORA_SPECIES, getFloraMovement, getFloraSwayOffset } from './flora'
 
 import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState } from './types'
@@ -1327,11 +1327,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[tile.type]
           color = TILE_COLORS[tile.type]
         }
-      } else if (state.cloverGrowthPreviews.has(tileKey)) {
+      } else if (state.floraGrowthPreviews.has(tileKey)) {
         const h = tileHash(mx, my)
         const phase = (h >> 8) % CLOVER_PREVIEW_COLORS.length
         const colorIndex = (phase + Math.floor(time * CLOVER_PREVIEW_BLINK_SPEED)) % CLOVER_PREVIEW_COLORS.length
-        char = TILE_CHARS[TileType.Clover]
+        char = TILE_CHARS[TileType.Flora]
         color = CLOVER_PREVIEW_COLORS[colorIndex]
       } else if (pathPositions.has(tileKey)) {
         const pathTile = map[my][mx]
@@ -1368,14 +1368,22 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         } else {
           const tile = map[my][mx]
           char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[tile.type]
-          // Dying clover: override color based on lifecycle stage
-          const lifecycle = tile.type === TileType.Clover ? state.cloverLifecycle.get(tileKey) : undefined
-          if (lifecycle && lifecycle.stage !== CloverStage.Healthy) {
+          // Flora tiles: glyph + healthy color come from the per-species
+          // FLORA_SPECIES registry. Dying-stage colors are shared across
+          // species (the chromatic decline reads as "dying plant"
+          // regardless of family).
+          const lifecycle = tile.type === TileType.Flora ? state.floraLifecycle.get(tileKey) : undefined
+          if (tile.type === TileType.Flora && lifecycle) {
+            const speciesDef = FLORA_SPECIES[lifecycle.species]
+            char = speciesDef.glyph
+            color = speciesDef.color
+          }
+          if (lifecycle && lifecycle.stage !== FloraStage.Healthy) {
             switch (lifecycle.stage) {
-              case CloverStage.Brown:
+              case FloraStage.Brown:
                 color = CLOVER_BROWN_COLOR
                 break
-              case CloverStage.BlinkingRed: {
+              case FloraStage.BlinkingRed: {
                 const h = tileHash(mx, my)
                 const phase = (h % 628) / 100
                 const t = (Math.sin(time * CLOVER_DYING_OSCILLATION_SPEED + phase) + 1) / 2
@@ -1391,16 +1399,19 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
                 color = `rgb(${String(r)},${String(g)},${String(b)})`
                 break
               }
-              case CloverStage.Black:
+              case FloraStage.Black:
                 color = CLOVER_BLACK_COLOR
                 break
-              case CloverStage.Decomposing:
+              case FloraStage.Decomposing:
                 color = CLOVER_DECOMPOSE_COLOR
                 break
               default:
                 color = CLOVER_HEALTHY_COLORS[tileHash(mx, my) % CLOVER_HEALTHY_COLORS.length]
             }
-          } else if (tile.type === TileType.Clover) {
+          } else if (tile.type === TileType.Flora && !lifecycle) {
+            // Flora tile without a lifecycle entry — shouldn't normally
+            // happen, but render the prior pre-multi-species mix as a
+            // fallback to preserve visual variety.
             color = CLOVER_HEALTHY_COLORS[tileHash(mx, my) % CLOVER_HEALTHY_COLORS.length]
           } else if (tile.type === TileType.Dirt) {
             if (state.craters.has(tileKey)) {
@@ -1495,10 +1506,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // conversion) use the Clover profile so they sway in sync with live clover —
       // without this they snap to the displaced position the frame they convert.
       if (!highlight) {
-        const swayTileType = state.cloverGrowthPreviews.has(tileKey) ? TileType.Clover : map[my]?.[mx]?.type
+        const swayTileType = state.floraGrowthPreviews.has(tileKey) ? TileType.Flora : map[my]?.[mx]?.type
         const floraProfile = swayTileType ? getFloraMovement(swayTileType) : undefined
         if (floraProfile) {
-          const lifecycleStage = state.cloverLifecycle.get(tileKey)?.stage
+          const lifecycleStage = state.floraLifecycle.get(tileKey)?.stage
           const sway = getFloraSwayOffset(
             floraProfile,
             state,

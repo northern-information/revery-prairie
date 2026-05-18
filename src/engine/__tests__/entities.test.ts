@@ -44,7 +44,7 @@ describe('tickBees', () => {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const pos = state.world.getComponent(eid, ComponentType.Position)!
       const tile = state.map[pos.y][pos.x]
-      expect(tile.type).toBe(TileType.Clover)
+      expect(tile.type).toBe(TileType.Flora)
     }
   })
 
@@ -52,7 +52,7 @@ describe('tickBees', () => {
     const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     const bx = 50
     const by = 12
-    state.map[by][bx] = { type: TileType.Clover }
+    state.map[by][bx] = { type: TileType.Flora }
     // Surround with space so bee has nowhere to go
     for (const d of [
       [-1, -1],

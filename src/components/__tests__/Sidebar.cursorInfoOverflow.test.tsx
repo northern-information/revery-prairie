@@ -115,7 +115,7 @@ describe('cursor info overflow', () => {
 
     const x = 23
     const y = 23
-    state.map[y][x] = { type: TileType.Clover }
+    state.map[y][x] = { type: TileType.Flora }
     state.tileWater.set(posKey(x, y), 12.7)
     state.elevation.set(posKey(x, y), 40)
     aimAt(state, x, y)

@@ -9,7 +9,7 @@ import {
 } from '../clover'
 import { ComponentType } from '../ecs/types'
 import { posKey } from '../position'
-import { TileType } from '../types'
+import { FloraSpecies, FloraStage, TileType } from '../types'
 import {
   clearArea,
   createBeeEntity,
@@ -29,6 +29,19 @@ const findPatchAt = (patches: CloverPatch[], x: number, y: number): CloverPatch 
   return patch
 }
 
+// Place clover tiles and register them in floraLifecycle with
+// species=clover so floodFillCloverPatches counts them (post precis #1
+// the patch detector filters by species).
+const placeCloverTile = (state: ReturnType<typeof createTestState>, x: number, y: number): void => {
+  state.map[y][x] = { type: TileType.Flora }
+  state.floraLifecycle.set(posKey(x, y), {
+    stage: FloraStage.Healthy,
+    stageStartTime: 0,
+    hasLight: true,
+    species: FloraSpecies.Clover,
+  })
+}
+
 const placeCloverRect = (
   state: ReturnType<typeof createTestState>,
   cx: number,
@@ -38,7 +51,7 @@ const placeCloverRect = (
 ): void => {
   for (let dy = -halfH; dy <= halfH; dy++) {
     for (let dx = -halfW; dx <= halfW; dx++) {
-      state.map[cy + dy][cx + dx] = { type: TileType.Clover }
+      placeCloverTile(state, cx + dx, cy + dy)
     }
   }
 }
@@ -70,8 +83,8 @@ describe('floodFillCloverPatches', () => {
   it('diagonal clover tiles are separate patches', () => {
     const state = createTestState()
     clearArea(state, 50, 50, 5)
-    state.map[50][50] = { type: TileType.Clover }
-    state.map[51][51] = { type: TileType.Clover }
+    placeCloverTile(state, 50, 50)
+    placeCloverTile(state, 51, 51)
 
     const patches = floodFillCloverPatches(state)
     const cloverPatches = patches.filter(p => [...p.tiles].some(k => k === posKey(50, 50) || k === posKey(51, 51)))
@@ -81,7 +94,7 @@ describe('floodFillCloverPatches', () => {
   it('single-tile patch', () => {
     const state = createTestState()
     clearArea(state, 50, 50, 3)
-    state.map[50][50] = { type: TileType.Clover }
+    placeCloverTile(state, 50, 50)
 
     const patches = floodFillCloverPatches(state)
     const matching = patches.filter(p => p.tiles.has(posKey(50, 50)))
@@ -95,16 +108,16 @@ describe('floodFillCloverPatches', () => {
 
     // 26 tiles = 0 hives (below threshold)
     for (let i = 0; i < 26; i++) {
-      state.map[50][30 + i] = { type: TileType.Clover }
+      placeCloverTile(state, 30 + i, 50)
     }
     expect(findPatchAt(floodFillCloverPatches(state), 30, 50).maxHives).toBe(0)
 
     // 27 tiles = 1 hive
-    state.map[50][56] = { type: TileType.Clover }
+    placeCloverTile(state, 56, 50)
     expect(findPatchAt(floodFillCloverPatches(state), 30, 50).maxHives).toBe(1)
 
     // 28 tiles = 2 hives
-    state.map[50][57] = { type: TileType.Clover }
+    placeCloverTile(state, 57, 50)
     expect(findPatchAt(floodFillCloverPatches(state), 30, 50).maxHives).toBe(2)
   })
 })
@@ -113,7 +126,7 @@ describe('computeGrowthFront', () => {
   it('finds dirt tiles adjacent to clover', () => {
     const state = createTestState()
     clearArea(state, 50, 50, 5)
-    state.map[50][50] = { type: TileType.Clover }
+    placeCloverTile(state, 50, 50)
 
     const patches = floodFillCloverPatches(state)
     const patch = findPatchAt(patches, 50, 50)
@@ -130,7 +143,7 @@ describe('computeGrowthFront', () => {
   it('excludes sand and space tiles', () => {
     const state = createTestState()
     clearArea(state, 50, 50, 5)
-    state.map[50][50] = { type: TileType.Clover }
+    placeCloverTile(state, 50, 50)
     state.map[49][50] = { type: TileType.Sand }
     state.map[51][50] = { type: TileType.Space }
 
@@ -226,31 +239,31 @@ describe('tickCloverGrowth', () => {
   it('converts previews to clover on next tick', () => {
     const state = createTestState()
     clearArea(state, 50, 50, 5)
-    state.map[50][50] = { type: TileType.Clover }
+    placeCloverTile(state, 50, 50)
 
     // Manually set a preview to simulate previous tick
-    state.cloverGrowthPreviews = new Set([posKey(51, 50)])
+    state.floraGrowthPreviews = new Set([posKey(51, 50)])
 
     createBeeEntity(state, 50, 50)
     tickCloverGrowth(state)
 
     // The preview tile should now be clover
-    expect(state.map[50][51].type).toBe(TileType.Clover)
+    expect(state.map[50][51].type).toBe(TileType.Flora)
   })
 
   it('does not grow without bees', () => {
     const state = createTestState()
     clearArea(state, 50, 50, 5)
-    state.map[50][50] = { type: TileType.Clover }
+    placeCloverTile(state, 50, 50)
 
     tickCloverGrowth(state)
-    expect(state.cloverGrowthPreviews.size).toBe(0)
+    expect(state.floraGrowthPreviews.size).toBe(0)
   })
 
   it('does not grow onto sand or space', () => {
     const state = createTestState()
     clearArea(state, 50, 50, 5)
-    state.map[50][50] = { type: TileType.Clover }
+    placeCloverTile(state, 50, 50)
     state.map[49][50] = { type: TileType.Sand }
     state.map[51][50] = { type: TileType.Sand }
     state.map[50][49] = { type: TileType.Space }
@@ -260,18 +273,18 @@ describe('tickCloverGrowth', () => {
 
     for (let i = 0; i < 20; i++) {
       resetSpiralState()
-      state.cloverGrowthPreviews = new Set()
+      state.floraGrowthPreviews = new Set()
       tickCloverGrowth(state)
     }
-    expect(state.cloverGrowthPreviews.size).toBe(0)
+    expect(state.floraGrowthPreviews.size).toBe(0)
   })
 
   it('records discovery on first growth', () => {
     const state = createTestState()
     clearArea(state, 50, 50, 5)
-    state.map[50][50] = { type: TileType.Clover }
+    placeCloverTile(state, 50, 50)
 
-    state.cloverGrowthPreviews = new Set([posKey(51, 50)])
+    state.floraGrowthPreviews = new Set([posKey(51, 50)])
     createBeeEntity(state, 50, 50)
     tickCloverGrowth(state)
 
@@ -316,7 +329,7 @@ describe('tickCloverHives', () => {
     const state = createTestState()
     clearArea(state, 50, 50, 15)
     for (let i = 0; i < 27; i++) {
-      state.map[50][34 + i] = { type: TileType.Clover }
+      placeCloverTile(state, 34 + i, 50)
     }
 
     createBeehiveEntity(state, 40, 50)
@@ -423,7 +436,7 @@ describe('honey production', () => {
     const state = createTestState()
     clearArea(state, 50, 50, 5)
     // Single clover tile with a hive — patch too small for new hives
-    state.map[50][50] = { type: TileType.Clover }
+    placeCloverTile(state, 50, 50)
 
     createBeehiveEntity(state, 50, 50)
     // Block all 4 cardinal neighbors with ground items

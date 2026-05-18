@@ -19,7 +19,8 @@ import { formatYear, GENESIS_END_YEAR, GENESIS_EPOCHS, getEpochProgress, getGene
 import { getDefinition } from '@/engine/items'
 import { isInBounds, posKey } from '@/engine/position'
 import { getLastVisibleSet } from '@/engine/renderer'
-import { CloverStage, DeepTimePhase, TileType, Zone } from '@/engine/types'
+import { FLORA_SPECIES } from '@/engine/flora'
+import { FloraSpecies, FloraStage, DeepTimePhase, TileType, Zone } from '@/engine/types'
 import { getTileVisibility, hasFogOfWar } from '@/engine/visibility'
 import { fToC, mphToKph } from '@/engine/weather'
 import type { ItemInfoHandle } from './ItemInfo'
@@ -31,6 +32,20 @@ const countTiles = (state: GameState, type: TileType): number => {
   for (let y = 0; y < state.mapHeight; y++) {
     for (let x = 0; x < state.mapWidth; x++) {
       if (state.map[y][x].type === type) count++
+    }
+  }
+  return count
+}
+
+// Count Flora tiles of a specific species. Used by the sidebar's
+// per-species counts so wildflower and tall grass don't inflate the
+// clover total.
+const countFloraSpecies = (state: GameState, species: FloraSpecies): number => {
+  let count = 0
+  for (let y = 0; y < state.mapHeight; y++) {
+    for (let x = 0; x < state.mapWidth; x++) {
+      if (state.map[y][x].type !== TileType.Flora) continue
+      if (state.floraLifecycle.get(posKey(x, y))?.species === species) count++
     }
   }
   return count
@@ -210,7 +225,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
   }
 
   const total = state.mapWidth * state.mapHeight
-  const cloverCount = countTiles(state, TileType.Clover)
+  const cloverCount = countFloraSpecies(state, FloraSpecies.Clover)
   const sandCount = countTiles(state, TileType.Sand)
   const dirtCount = total - cloverCount - sandCount
   const { weather } = state
@@ -318,7 +333,16 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
                       if (tileType === TileType.CaveEntrance) return 'cave entrance'
                       if (tileType === TileType.CaveApron) return 'cave apron'
                       if (tileType === TileType.CaveExit) return 'exit'
-                      if (tileType === TileType.BurntClover) return 'burnt clover'
+                      if (tileType === TileType.Flora) {
+                        const species =
+                          state.floraLifecycle.get(posKey(cx, cy))?.species ?? FloraSpecies.Clover
+                        return FLORA_SPECIES[species].displayName.toLowerCase()
+                      }
+                      if (tileType === TileType.BurntFlora) {
+                        const species =
+                          state.floraLifecycle.get(posKey(cx, cy))?.species ?? FloraSpecies.Clover
+                        return `burnt ${FLORA_SPECIES[species].displayName.toLowerCase()}`
+                      }
                       if (tileType === TileType.RuinFloor) return 'ruin floor'
                       if (tileType === TileType.RuinWall) return 'ruin wall'
                       if (tileType === TileType.RuinEntrance) return 'ruin entrance'
@@ -364,21 +388,21 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
                   const key = posKey(cx, cy)
                   const soilHealth = state.soilHealth.get(key) ?? SOIL_HEALTH_DEFAULT
                   const water = state.tileWater.get(key)
-                  const lifecycle = state.cloverLifecycle.get(key)
+                  const lifecycle = state.floraLifecycle.get(key)
 
-                  if (tile.type === TileType.Clover) {
-                    const stage = lifecycle?.stage ?? CloverStage.Healthy
+                  if (tile.type === TileType.Flora) {
+                    const stage = lifecycle?.stage ?? FloraStage.Healthy
                     const statusLabel =
-                      stage === CloverStage.Healthy
+                      stage === FloraStage.Healthy
                         ? 'Healthy'
-                        : stage === CloverStage.Brown
+                        : stage === FloraStage.Brown
                           ? 'Wilting'
-                          : stage === CloverStage.BlinkingRed
+                          : stage === FloraStage.BlinkingRed
                             ? 'Dying'
-                            : stage === CloverStage.Black
+                            : stage === FloraStage.Black
                               ? 'Dead'
                               : 'Decomposing'
-                    const statusClass = stage === CloverStage.Healthy ? 'text-clover' : 'text-danger'
+                    const statusClass = stage === FloraStage.Healthy ? 'text-clover' : 'text-danger'
                     return (
                       <>
                         <tr>
@@ -397,7 +421,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
                     )
                   }
 
-                  if (tile.type === TileType.Dirt || tile.type === TileType.BurntClover) {
+                  if (tile.type === TileType.Dirt || tile.type === TileType.BurntFlora) {
                     return (
                       <>
                         {water !== undefined && (

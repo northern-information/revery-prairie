@@ -389,7 +389,7 @@ describe('main questline > saving bees release', () => {
     // Set a 3x3 of clover around player so candidates are plentiful.
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        state.map[state.player.y + dy][state.player.x + dx].type = TileType.Clover
+        state.map[state.player.y + dy][state.player.x + dx].type = TileType.Flora
       }
     }
     const before = getBeeEntities(state).length
@@ -418,7 +418,7 @@ describe('main questline > saving bees release', () => {
     clearAroundPlayer(state, 2)
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        state.map[state.player.y + dy][state.player.x + dx].type = TileType.Clover
+        state.map[state.player.y + dy][state.player.x + dx].type = TileType.Flora
       }
     }
     const before = getBeeEntities(state).length

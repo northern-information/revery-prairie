@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { getCharacterDefinition } from '@/engine/characters'
-import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
 import { dropItem } from '@/engine/entities'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import { keyToScreenAxis, resolveHeldDirection } from '@/engine/heldKeys'
@@ -16,7 +15,6 @@ import {
   unlockRuinDoor,
   updateFacingEntity,
 } from '@/engine/interaction'
-import { getDefinition } from '@/engine/items'
 import { DeepTimePhase, Zone } from '@/engine/types'
 import { isInputGated } from '@/engine/zoneTransition'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
@@ -28,7 +26,6 @@ interface UseKeyboardOptions {
   state: GameState
   refreshUI: () => void
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
-  onPickup: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   onDrop: (definitionId: string, worldX: number, worldY: number) => void
   onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
   onDiscovery: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
@@ -40,7 +37,6 @@ export const useKeyboard = ({
   state,
   refreshUI,
   itemInfoRef,
-  onPickup,
   onDrop,
   onDialog,
   onDiscovery,
@@ -200,25 +196,9 @@ export const useKeyboard = ({
         return
       }
 
-      // [f] — harvest facing clover
-      if (e.key === 'f' || e.key === 'F') {
-        if (state.activeDialog) return
-        if (activeScreen === 'system') return
-        const harvestResult = harvestClover(state, performance.now())
-        if (harvestResult === HarvestResult.Success) {
-          const def = getDefinition('clover')
-          onPickup(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
-          updateFacingEntity(state)
-          refreshUI()
-        } else if (harvestResult === HarvestResult.BackpackFull) {
-          onDiscovery('Backpack full.', state.player.x, state.player.y)
-        } else if (harvestResult === HarvestResult.Dying) {
-          onDiscovery('Too withered to harvest.', state.player.x, state.player.y)
-        }
-        return
-      }
-
-      // [x] — drop item from pack (only when hovering an item), or cut facing clover
+      // [x] — drop hovered inventory item to the ground. The cut-facing-
+      // clover branch was deleted in precis #1 (harvest and cut mechanics
+      // removed entirely; clover acquisition routes through ruin recovery).
       if (e.key === 'x' || e.key === 'X') {
         if (activeScreen === 'pack') {
           const hoveredId = itemInfoRef.current?.getCurrentId()
@@ -231,14 +211,6 @@ export const useKeyboard = ({
               refreshUI()
             }
             return
-          }
-        }
-        // Cut facing clover when no inventory item is hovered
-        if (activeScreen !== 'system' && !state.activeDialog) {
-          if (cutClover(state)) {
-            onDiscovery('Clover trimmed.', state.player.x, state.player.y, '%', '#50C878')
-            updateFacingEntity(state)
-            refreshUI()
           }
         }
         return
@@ -318,7 +290,6 @@ export const useKeyboard = ({
       activeScreen,
       setActiveScreen,
       itemInfoRef,
-      onPickup,
       onDrop,
       onDialog,
       onDiscovery,

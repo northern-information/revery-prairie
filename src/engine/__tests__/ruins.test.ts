@@ -351,19 +351,11 @@ describe('ruin infrastructure', () => {
   })
 
   describe('seed and artifact items', () => {
-    it('defines wildflower seeds', () => {
-      expect(ITEM_DEFINITIONS.wildflowerSeeds).toBeDefined()
-      expect(ITEM_DEFINITIONS.wildflowerSeeds.category).toBe('seed')
-    })
-
+    // Seed items (wildflowerSeeds, tallGrassSeeds, milkweedSeeds) were
+    // deleted in precis #1. The artifact, key, and tablet items remain.
     it('defines stone tablet artifact', () => {
       expect(ITEM_DEFINITIONS.stoneTablet).toBeDefined()
       expect(ITEM_DEFINITIONS.stoneTablet.category).toBe('artifact')
-    })
-
-    it('defines all seed types', () => {
-      expect(ITEM_DEFINITIONS.tallGrassSeeds).toBeDefined()
-      expect(ITEM_DEFINITIONS.milkweedSeeds).toBeDefined()
     })
 
     it('defines aqueduct key', () => {

@@ -2,6 +2,12 @@ import { generateBoltPath } from './boltPath'
 import {
   BURN_SCAR_COLORS as GAME_BURN_SCAR_COLORS,
   DIRT_COLORS as GAME_DIRT_COLORS,
+  GENESIS_FLORA_PATCH_TILES_MAX,
+  GENESIS_FLORA_PATCH_TILES_MIN,
+  GENESIS_TALL_GRASS_PATCH_COUNT_MAX,
+  GENESIS_TALL_GRASS_PATCH_COUNT_MIN,
+  GENESIS_WILDFLOWER_PATCH_COUNT_MAX,
+  GENESIS_WILDFLOWER_PATCH_COUNT_MIN,
   LIGHTNING_BOLT_COLOR_BRIGHT,
   LIGHTNING_BOLT_COLOR_DIM,
   LIGHTNING_BOLT_COLOR_MID,
@@ -27,7 +33,9 @@ import { GenesisEpochId, RuinGenerationMode, RuinRole } from './genesisTypes'
 import { rebuildGlintZones, seedGlintPatches } from './glintZones'
 import { posKey, tileHash as rendererTileHash } from './position'
 import { smoothNoiseSeeded } from './terrain'
-import { TileType } from './types'
+import { FloraSpecies, FloraStage, TileType } from './types'
+
+import type { FloraLifecycleState } from './types'
 
 import type {
   CivilizationRuin,
@@ -2697,7 +2705,7 @@ const fallOfCivilizations: GenesisEpoch = {
       const cx = Number(xStr)
       const cy = Number(yStr)
       const tileType = sim.grid[cy][cx].type
-      if (tileType !== TileType.Dirt && tileType !== TileType.Clover) continue
+      if (tileType !== TileType.Dirt && tileType !== TileType.Flora) continue
       candidateKeys.push(key)
     }
 
@@ -2743,7 +2751,7 @@ const fallOfCivilizations: GenesisEpoch = {
           }
           if (sim.ponds.has(tk) || sim.riverPaths.has(tk)) continue
           if (ruinProtected.has(tk)) continue
-          if (tileType !== TileType.Dirt && tileType !== TileType.Clover) continue
+          if (tileType !== TileType.Dirt && tileType !== TileType.Flora) continue
 
           sim.craters.add(tk)
           const current = sim.soilHealth.get(tk) ?? 30
@@ -3333,6 +3341,132 @@ export const extractGenesisResult = (sim: GenesisSimState): GenesisResult => ({
   burnScars: sim.burnScars,
   craters: sim.craters,
 })
+
+// ---------------------------------------------------------------------------
+// Multi-species flora post-process (precis #1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Seed wildflower and tall grass patches on walkable dirt tiles after the
+ * epoch chain has stamped the terrain and clover. Mutates `sim.grid` in
+ * place (flipping selected dirt tiles to Flora) and returns a Map of
+ * floraLifecycle entries the caller installs on the new GameState.
+ *
+ * Existing Flora tiles from the epoch chain are recorded as species=clover.
+ * Wildflower and tall grass tiles get species set on creation. Determinism
+ * is preserved because the post-process consumes only `sim.rng` (seeded
+ * from the steward name).
+ *
+ * Per spec precis-1-multi-species-flora:
+ *   - clover keeps spreading via the growth-preview system (not here)
+ *   - wildflower and tall grass start where genesis places them and do
+ *     not self-propagate in this PR
+ *   - same steward name → same patch layout
+ */
+export const postProcessMultiSpeciesFlora = (sim: GenesisSimState): Map<string, FloraLifecycleState> => {
+  const lifecycle = new Map<string, FloraLifecycleState>()
+
+  // Record every existing Flora tile from the epoch chain as clover.
+  for (let y = 0; y < sim.height; y++) {
+    for (let x = 0; x < sim.width; x++) {
+      if (sim.grid[y][x].type !== TileType.Flora) continue
+      lifecycle.set(posKey(x, y), {
+        stage: FloraStage.Healthy,
+        stageStartTime: 0,
+        hasLight: true,
+        species: FloraSpecies.Clover,
+      })
+    }
+  }
+
+  // Collect candidate dirt tiles inside the land mask (excludes space,
+  // sand, water, structures). Sort the keys so iteration order is
+  // deterministic across JS engines — sim.landMask is a Set and Set
+  // iteration order is insertion order, but explicit sort removes any
+  // residual ambiguity for the PRNG-driven sampling below.
+  const candidates: string[] = []
+  for (const key of sim.landMask) {
+    if (sim.ponds.has(key)) continue
+    if (sim.riverPaths.has(key)) continue
+    const [xStr, yStr] = key.split(',')
+    const cx = Number(xStr)
+    const cy = Number(yStr)
+    if (sim.grid[cy][cx].type !== TileType.Dirt) continue
+    candidates.push(key)
+  }
+  candidates.sort()
+  if (candidates.length === 0) return lifecycle
+
+  const pickPatchCount = (min: number, max: number): number => min + Math.floor(sim.rng() * (max - min + 1))
+  const pickPatchSize = (): number =>
+    GENESIS_FLORA_PATCH_TILES_MIN +
+    Math.floor(sim.rng() * (GENESIS_FLORA_PATCH_TILES_MAX - GENESIS_FLORA_PATCH_TILES_MIN + 1))
+
+  const used = new Set<string>()
+  const placePatch = (species: FloraSpecies): void => {
+    if (candidates.length === 0) return
+    let seedKey: string | null = null
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const idx = Math.floor(sim.rng() * candidates.length)
+      const key = candidates[idx]
+      if (used.has(key)) continue
+      seedKey = key
+      break
+    }
+    if (!seedKey) return
+
+    const [sxStr, syStr] = seedKey.split(',')
+    const sx = Number(sxStr)
+    const sy = Number(syStr)
+
+    const target = pickPatchSize()
+    const placed: { x: number; y: number; key: string }[] = []
+    const frontier: { x: number; y: number; key: string }[] = [{ x: sx, y: sy, key: seedKey }]
+    while (placed.length < target && frontier.length > 0) {
+      const idx = Math.floor(sim.rng() * frontier.length)
+      const next = frontier.splice(idx, 1)[0]
+      if (used.has(next.key)) continue
+      if (sim.grid[next.y][next.x].type !== TileType.Dirt) continue
+      used.add(next.key)
+      placed.push(next)
+      // Enqueue 4-neighborhood candidates that are still dirt + unused
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]) {
+        const nx = next.x + dx
+        const ny = next.y + dy
+        if (nx < 0 || nx >= sim.width || ny < 0 || ny >= sim.height) continue
+        const nKey = posKey(nx, ny)
+        if (used.has(nKey)) continue
+        if (sim.grid[ny][nx].type !== TileType.Dirt) continue
+        if (!sim.landMask.has(nKey)) continue
+        if (sim.ponds.has(nKey) || sim.riverPaths.has(nKey)) continue
+        frontier.push({ x: nx, y: ny, key: nKey })
+      }
+    }
+
+    for (const cell of placed) {
+      sim.grid[cell.y][cell.x] = { type: TileType.Flora }
+      lifecycle.set(cell.key, {
+        stage: FloraStage.Healthy,
+        stageStartTime: 0,
+        hasLight: true,
+        species,
+      })
+    }
+  }
+
+  const wildflowerPatches = pickPatchCount(GENESIS_WILDFLOWER_PATCH_COUNT_MIN, GENESIS_WILDFLOWER_PATCH_COUNT_MAX)
+  for (let i = 0; i < wildflowerPatches; i++) placePatch(FloraSpecies.Wildflower)
+
+  const tallGrassPatches = pickPatchCount(GENESIS_TALL_GRASS_PATCH_COUNT_MIN, GENESIS_TALL_GRASS_PATCH_COUNT_MAX)
+  for (let i = 0; i < tallGrassPatches; i++) placePatch(FloraSpecies.TallGrass)
+
+  return lifecycle
+}
 
 export interface CompleteGenesisOptions {
   // When true (dev ?skipGenesis=true), skip scheduling the boot title

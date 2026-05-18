@@ -28,7 +28,7 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
       const wx = camera.x + vx
       const wy = camera.y + vy
       if (!isInBounds(wx, wy, state.mapWidth, state.mapHeight)) continue
-      if (map[wy][wx].type !== TileType.BurntClover) continue
+      if (map[wy][wx].type !== TileType.BurntFlora) continue
 
       const h = tileHash(wx, wy)
       if (h % 3 !== 0) continue

@@ -45,7 +45,7 @@ const deriveContentsLabel = (state: ReturnType<typeof createTestState>, x: numbe
   if (tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall) return 'stone'
   if (tileType === TileType.CaveFloor) return 'dirt'
   if (tileType === TileType.CaveEntrance) return 'cave entrance'
-  if (tileType === TileType.BurntClover) return 'burnt clover'
+  if (tileType === TileType.BurntFlora) return 'burnt clover'
   return tileType ?? 'void'
 }
 
@@ -222,7 +222,7 @@ describe('cursor tile info', () => {
       clearAroundPlayer(state, 3)
       const x = state.player.x + 1
       const y = state.player.y
-      state.map[y][x] = { type: TileType.Clover }
+      state.map[y][x] = { type: TileType.Flora }
       createBeehiveEntity(state, x, y)
 
       expect(deriveContentsLabel(state, x, y)).toBe('beehive')
@@ -246,7 +246,7 @@ describe('cursor tile info', () => {
       clearAroundPlayer(state, 3)
       const x = state.player.x + 1
       const y = state.player.y
-      state.map[y][x] = { type: TileType.BurntClover }
+      state.map[y][x] = { type: TileType.BurntFlora }
 
       expect(deriveContentsLabel(state, x, y)).toBe('burnt clover')
     })
@@ -256,7 +256,7 @@ describe('cursor tile info', () => {
       clearAroundPlayer(state, 3)
       const x = state.player.x + 1
       const y = state.player.y
-      state.map[y][x] = { type: TileType.BurntClover }
+      state.map[y][x] = { type: TileType.BurntFlora }
 
       expect(deriveContentsLabel(state, x, y)).not.toBe('burntClover')
     })

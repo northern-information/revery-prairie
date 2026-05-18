@@ -26,7 +26,7 @@ const TEST_PROFILE: FloraPollinateProfile = {
 }
 
 const registerTestProfile = () => {
-  registerFloraPollinate(TileType.Clover, TEST_PROFILE)
+  registerFloraPollinate(TileType.Flora, TEST_PROFILE)
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ const windyState = (): GameState => {
 
 afterEach(() => {
   vi.restoreAllMocks()
-  unregisterFloraPollinate(TileType.Clover)
+  unregisterFloraPollinate(TileType.Flora)
   unregisterFloraPollinate('test-pollinate')
   unregisterFloraPollinate('gated-tile')
 })
@@ -175,7 +175,7 @@ describe('emitPlayerTrailBurst', () => {
     const state = windyState()
     state.pollenTrailDepth = 3
 
-    emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Clover)
+    emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Flora)
 
     expect(state.pollen).toHaveLength(5 + 3)
   })
@@ -184,7 +184,7 @@ describe('emitPlayerTrailBurst', () => {
     const state = windyState()
     state.pollenTrailDepth = 5
 
-    emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Clover)
+    emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Flora)
 
     expect(state.pollenTrailDepth).toBe(0)
   })
@@ -193,7 +193,7 @@ describe('emitPlayerTrailBurst', () => {
     const state = windyState()
     state.pollenTrailDepth = 0
 
-    emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Clover)
+    emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Flora)
 
     expect(state.pollen).toHaveLength(5)
   })
@@ -202,7 +202,7 @@ describe('emitPlayerTrailBurst', () => {
     const state = windyState()
     state.pollenTrailDepth = 8
 
-    emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Clover)
+    emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Flora)
 
     expect(state.pollen).toHaveLength(13)
   })
@@ -214,7 +214,7 @@ describe('emitPlayerTrailBurst', () => {
     }
     state.pollenTrailDepth = 8
 
-    emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Clover)
+    emitPlayerTrailBurst(state, state.player.x, state.player.y, TileType.Flora)
 
     expect(state.pollen.length).toBeLessThanOrEqual(MAX_POLLEN)
   })

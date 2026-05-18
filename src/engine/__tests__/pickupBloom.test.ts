@@ -1,13 +1,12 @@
-import { harvestClover } from '../cloverLifecycle'
 import { tickCoyote } from '../coyote'
 import { executeCombine } from '../drag'
 import { ComponentType } from '../ecs/types'
 import { spawnPickupBloom } from '../effects'
 import { pickUpGroundItems } from '../entities'
-import { giveCharacterGift, givePostGift, updateFacingEntity } from '../interaction'
+import { giveCharacterGift, givePostGift } from '../interaction'
 import { placeItem } from '../inventory'
 import { RECIPES } from '../recipes'
-import { CoyoteMode, TileType, Zone } from '../types'
+import { CoyoteMode, Zone } from '../types'
 import {
   clearAroundPlayer,
   createBeeEntity,
@@ -161,48 +160,7 @@ describe('single bloom per event', () => {
   })
 })
 
-describe('harvest bloom', () => {
-  it('spawns bloom when harvesting clover', () => {
-    const state = createTestState()
-    clearAroundPlayer(state)
-    // Place clover in front of player and update facing entity
-    const fx = state.player.x
-    const fy = state.player.y + 1
-    state.map[fy][fx] = { type: TileType.Clover }
-    updateFacingEntity(state)
-
-    harvestClover(state, 5000)
-
-    const blooms = queryPickupBlooms(state)
-    expect(blooms).toHaveLength(1)
-    expect(state.world.getComponent(blooms[0], ComponentType.Position)).toEqual({
-      x: state.player.x,
-      y: state.player.y,
-    })
-  })
-
-  it('does not spawn bloom when time is omitted', () => {
-    const state = createTestState()
-    clearAroundPlayer(state)
-    const fx = state.player.x
-    const fy = state.player.y + 1
-    state.map[fy][fx] = { type: TileType.Clover }
-    updateFacingEntity(state)
-
-    harvestClover(state)
-
-    expect(queryPickupBlooms(state)).toHaveLength(0)
-  })
-
-  it('does not spawn bloom when harvest fails (no clover)', () => {
-    const state = createTestState()
-    clearAroundPlayer(state)
-
-    harvestClover(state, 5000)
-
-    expect(queryPickupBlooms(state)).toHaveLength(0)
-  })
-})
+// Harvest bloom tests were deleted with the harvest mechanic in precis #1.
 
 describe('coyote delivery bloom', () => {
   it('spawns bloom at player position when coyote delivers to backpack', () => {

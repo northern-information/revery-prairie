@@ -57,7 +57,7 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
   ) {
     return true
   }
-  if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Clover) {
+  if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Flora) {
     return true
   }
   return false
@@ -485,7 +485,7 @@ const releaseSavedBees = (state: GameState): number => {
       if (!isWalkableTile(tile)) continue
       const k = posKey(tx, ty)
       if (state.ponds.has(k) || state.rivers.has(k)) continue
-      if (tile === TileType.Clover) {
+      if (tile === TileType.Flora) {
         cloverTiles.push({ x: tx, y: ty })
       } else {
         fallbackTiles.push({ x: tx, y: ty })

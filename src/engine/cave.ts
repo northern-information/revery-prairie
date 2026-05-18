@@ -209,7 +209,7 @@ export const enterCave = (state: GameState): void => {
   state.facingEntityPos = null
   state.activeDialog = null
   state.trail = []
-  state.cloverGrowthPreviews = new Set<string>()
+  state.floraGrowthPreviews = new Set<string>()
   clearMovementTweens(state)
 
   // Clear selection and unit commands
@@ -240,7 +240,7 @@ export const exitCave = (state: GameState): void => {
   state.facingEntityPos = null
   state.activeDialog = null
   state.trail = []
-  state.cloverGrowthPreviews = new Set<string>()
+  state.floraGrowthPreviews = new Set<string>()
   clearMovementTweens(state)
 
   // Clear selection and unit commands

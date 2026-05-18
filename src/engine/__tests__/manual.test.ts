@@ -15,8 +15,16 @@ import { describe, expect, it } from 'vitest'
 
 describe('manual', () => {
   describe('MANUAL_ENTRIES registry', () => {
-    it('has an entry for every item definition', () => {
+    it('has an entry for every non-hidden item definition', () => {
+      // The clover item is intentionally hidden from the manual in precis #1
+      // because the flora:clover species entry covers the same concept with
+      // richer lore. The item still exists in the inventory.
+      const hiddenItemIds = new Set(['clover'])
       for (const id of Object.keys(ITEM_DEFINITIONS)) {
+        if (hiddenItemIds.has(id)) {
+          expect(MANUAL_ENTRIES[`item:${id}`]).toBeUndefined()
+          continue
+        }
         expect(MANUAL_ENTRIES[`item:${id}`]).toBeDefined()
         expect(MANUAL_ENTRIES[`item:${id}`].sourceKind).toBe('item')
       }
@@ -71,7 +79,6 @@ describe('manual', () => {
 
     it('item entries derive category from item definition', () => {
       expect(MANUAL_ENTRIES['item:bee'].category).toBe(ManualCategory.Life)
-      expect(MANUAL_ENTRIES['item:clover'].category).toBe(ManualCategory.Life)
       expect(MANUAL_ENTRIES['item:honey'].category).toBe(ManualCategory.Life)
       expect(MANUAL_ENTRIES['item:meteorite'].category).toBe(ManualCategory.Celestial)
     })
@@ -98,9 +105,12 @@ describe('manual', () => {
     })
 
     it('recipe entries cross-ref their ingredients', () => {
+      // The clover ingredient cross-refs the flora:clover species entry
+      // because item:clover is hidden from the manual (see manual.ts
+      // MANUAL_ITEM_REDIRECTS).
       const prairieRecipe = MANUAL_ENTRIES['recipe:bee+clover']
       expect(prairieRecipe.crossRefs).toContain('item:bee')
-      expect(prairieRecipe.crossRefs).toContain('item:clover')
+      expect(prairieRecipe.crossRefs).toContain('flora:clover')
     })
 
     it('all cross-refs point to valid entry IDs', () => {

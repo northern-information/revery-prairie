@@ -41,24 +41,9 @@ const ITEMS = {
     glyphColor: COIN_GLINTING_COLOR,
     category: ItemCategory.Tool,
   },
-  wildflowerSeeds: {
-    name: 'Wildflower Seeds',
-    glyph: '·',
-    glyphColor: '#DA70D6',
-    category: ItemCategory.Seed,
-  },
-  tallGrassSeeds: {
-    name: 'Tall Grass Seeds',
-    glyph: '·',
-    glyphColor: '#8FBC8F',
-    category: ItemCategory.Seed,
-  },
-  milkweedSeeds: {
-    name: 'Milkweed Seeds',
-    glyph: '·',
-    glyphColor: '#F5DEB3',
-    category: ItemCategory.Seed,
-  },
+  // Seed items (wildflowerSeeds, tallGrassSeeds, milkweedSeeds) were
+  // deleted in precis #1 — they had no planting interaction wired up.
+  // They will be reintroduced in precis #11 with proper seed taxonomy.
   stoneTablet: {
     name: 'Stone Tablet',
     glyph: '▪',
