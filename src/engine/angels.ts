@@ -19,7 +19,7 @@ import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
-import { FloraStage, TileType, Zone } from './types'
+import { FloraSpecies, FloraStage, TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'
 
@@ -320,11 +320,14 @@ export const tickAngelCloverAura = (state: GameState, time: number): void => {
       if (state.map[oy][ox].type !== TileType.Dirt) continue
       if (isWaterTile(state, ox, oy)) continue
 
+      // Angels grow clover specifically — wildflower and tall grass do not
+      // self-propagate in this PR. Pollinator routes are precis #7.
       setMapTile(state, ox, oy, { type: TileType.Flora })
       state.floraLifecycle.set(posKey(ox, oy), {
         stage: FloraStage.Healthy,
         stageStartTime: time,
         hasLight: true,
+        species: FloraSpecies.Clover,
       })
       data.lastCloverGrowTime = time
       break

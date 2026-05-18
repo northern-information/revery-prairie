@@ -1,7 +1,7 @@
 import { spawnAngel, tickAngelBeeAura, tickAngelCloverAura, tickAngelDrift, tickAngelLifespan } from './angels'
 import { spawnShootingStar, tickMeteorShower, tickShootingStars, triggerPlayerSpawnShower } from './celestial'
 import { tickCloverGrowth, tickCloverHives } from './clover'
-import { tickCloverLifecycle } from './floraLifecycle'
+import { tickFloraLifecycle } from './floraLifecycle'
 import {
   ANGEL_BEE_SPAWN_INTERVAL_MS,
   ANGEL_CLOVER_GROW_INTERVAL_MS,
@@ -569,7 +569,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'overworld',
       priority: 52,
       fn: (state, time) => {
-        tickCloverLifecycle(state, Zone.Overworld, time)
+        tickFloraLifecycle(state, Zone.Overworld, time)
       },
     },
     {
@@ -578,7 +578,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'cave',
       priority: 52,
       fn: (state, time) => {
-        tickCloverLifecycle(state, Zone.Cave, time)
+        tickFloraLifecycle(state, Zone.Cave, time)
       },
     },
     {

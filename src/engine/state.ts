@@ -5,7 +5,7 @@ import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
 import { createCharacterEntity } from './entities'
-import { createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } from './genesis'
+import { createGenesisState, GENESIS_EPOCHS, nameToSeed, postProcessMultiSpeciesFlora, precomputeGenesis } from './genesis'
 import { RuinGenerationMode } from './genesisTypes'
 import { autoSort } from './inventory'
 import { createBackpack } from './items'
@@ -34,6 +34,11 @@ export const createGameState = (
       precomputeGenesis(s, GENESIS_EPOCHS)
       return s
     })()
+  // Multi-species flora post-process (precis #1): scatter wildflower
+  // and tall grass patches across walkable dirt and tag every Flora tile
+  // with its species. Determinism preserved — same steward name, same
+  // patch layout.
+  const initialFloraLifecycle = postProcessMultiSpeciesFlora(sim)
   const map = sim.grid
   const genesisData: GenesisSimState = sim
 
@@ -180,7 +185,7 @@ export const createGameState = (
     lastSatelliteSpawnTime: 0,
     screenShakeUntil: 0,
     floraGrowthPreviews: new Set<string>(),
-    floraLifecycle: new Map(),
+    floraLifecycle: initialFloraLifecycle,
     tileWater: new Map<string, number>(),
     soilHealth: genesisData.soilHealth,
     elevation: genesisData.elevation,

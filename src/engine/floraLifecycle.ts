@@ -74,7 +74,7 @@ const nextStage = (stage: FloraStage): FloraStage | null => {
 
 // --- Main lifecycle tick ---
 
-export const tickCloverLifecycle = (state: GameState, zone: ZoneType, time: number): void => {
+export const tickFloraLifecycle = (state: GameState, zone: ZoneType, time: number): void => {
   const map = state.map
   const w = state.mapWidth
   const h = state.mapHeight

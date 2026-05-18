@@ -26,7 +26,7 @@ import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { CARDINAL, isInBounds, posKey } from './position'
-import { FloraStage, Sky, TileType, Zone } from './types'
+import { FloraSpecies, FloraStage, Sky, TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'
 
@@ -197,13 +197,16 @@ export const spreadWildfire = (
       if (Math.random() < 1 - spreadChance) continue
     }
 
-    // Burn this tile
+    // Burn this tile — preserve the original species through the recovery
+    // path so burnt wildflower recovers as wildflower, etc.
     burned.add(key)
+    const priorSpecies = state.floraLifecycle.get(key)?.species ?? FloraSpecies.Clover
     setMapTile(state, pos.x, pos.y, { type: TileType.BurntFlora })
     state.floraLifecycle.set(key, {
       stage: FloraStage.BurntRecovering,
       stageStartTime: time,
       hasLight: true,
+      species: priorSpecies,
     })
     state.floraGrowthPreviews.delete(key)
     addSoilHealth(state, key, SOIL_HEALTH_BURN_BONUS)

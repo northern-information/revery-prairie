@@ -1,5 +1,5 @@
 import { tickCloverGrowth } from './clover'
-import { tickCloverLifecycle } from './floraLifecycle'
+import { tickFloraLifecycle } from './floraLifecycle'
 import {
   DEEP_TIME_BURN_DURATION_MS,
   DEEP_TIME_LIGHTNING_COUNT,
@@ -106,7 +106,7 @@ export const tickDeepTime = (state: GameState, time: number): void => {
     tickTileWater(state, Zone.Overworld)
 
     // Clover lifecycle — run once per frame
-    tickCloverLifecycle(state, Zone.Overworld, time)
+    tickFloraLifecycle(state, Zone.Overworld, time)
 
     // Clover growth — run once per frame
     tickCloverGrowth(state)

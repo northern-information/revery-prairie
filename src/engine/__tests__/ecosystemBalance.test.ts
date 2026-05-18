@@ -1,5 +1,5 @@
 import { tickCloverHives } from '../clover'
-import { tickCloverLifecycle } from '../floraLifecycle'
+import { tickFloraLifecycle } from '../floraLifecycle'
 import { BURNT_CLOVER_RAIN_MULTIPLIER, BURNT_CLOVER_RECOVERY_MS, WATER_MAX } from '../constants'
 import { spreadWildfire } from '../lightning'
 import { posKey } from '../position'
@@ -45,7 +45,7 @@ describe('burnt clover recovery', () => {
     const y = py() + 2
     placeBurntClover(x, y, 0)
 
-    tickCloverLifecycle(state, Zone.Overworld, BURNT_CLOVER_RECOVERY_MS + 1)
+    tickFloraLifecycle(state, Zone.Overworld, BURNT_CLOVER_RECOVERY_MS + 1)
 
     expect(state.map[y][x].type).toBe(TileType.Dirt)
     expect(state.floraLifecycle.has(posKey(x, y))).toBe(false)
@@ -56,7 +56,7 @@ describe('burnt clover recovery', () => {
     const y = py() + 2
     placeBurntClover(x, y, 0)
 
-    tickCloverLifecycle(state, Zone.Overworld, BURNT_CLOVER_RECOVERY_MS - 1)
+    tickFloraLifecycle(state, Zone.Overworld, BURNT_CLOVER_RECOVERY_MS - 1)
 
     expect(state.map[y][x].type).toBe(TileType.BurntFlora)
     expect(state.floraLifecycle.has(posKey(x, y))).toBe(true)
@@ -72,7 +72,7 @@ describe('burnt clover recovery', () => {
 
     // Time just past the rain-accelerated duration but well before the normal duration
     const rainDuration = BURNT_CLOVER_RECOVERY_MS / BURNT_CLOVER_RAIN_MULTIPLIER
-    tickCloverLifecycle(state, Zone.Overworld, rainDuration + 1)
+    tickFloraLifecycle(state, Zone.Overworld, rainDuration + 1)
 
     expect(state.map[y][x].type).toBe(TileType.Dirt)
     expect(state.floraLifecycle.has(posKey(x, y))).toBe(false)
@@ -85,7 +85,7 @@ describe('burnt clover recovery', () => {
     placeBurntClover(x, y, 0)
     state.burnScars.add(key)
 
-    tickCloverLifecycle(state, Zone.Overworld, BURNT_CLOVER_RECOVERY_MS + 1)
+    tickFloraLifecycle(state, Zone.Overworld, BURNT_CLOVER_RECOVERY_MS + 1)
 
     expect(state.map[y][x].type).toBe(TileType.Dirt)
     expect(state.burnScars.has(key)).toBe(false)
