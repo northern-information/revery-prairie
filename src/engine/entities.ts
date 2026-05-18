@@ -8,7 +8,7 @@ import { recordDiscovery } from './manual'
 import { spawnBeeOrMonarch } from './monarch'
 import { getBlockedPositions } from './movement'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
-import { TileType, Zone } from './types'
+import { FloraSpecies, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
@@ -143,15 +143,18 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   return { pickedUp, chainExplosions, disintegrations }
 }
 
+// Bees treat clover as food; wildflower and tall grass are not bee food
+// in this PR. Broader pollinator routes are precis #7.
+const isCloverTileAt = (state: GameState, x: number, y: number): boolean => {
+  if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
+  if (state.map[y][x].type !== TileType.Flora) return false
+  return state.floraLifecycle.get(posKey(x, y))?.species === FloraSpecies.Clover
+}
+
 const isBeeNearFood = (state: GameState, pos: Position): boolean => {
-  // Check the bee's own tile
-  if (isInBounds(pos.x, pos.y, state.mapWidth, state.mapHeight) && state.map[pos.y][pos.x].type === TileType.Flora)
-    return true
-  // Check cardinal neighbors
+  if (isCloverTileAt(state, pos.x, pos.y)) return true
   for (const d of CARDINAL) {
-    const nx = pos.x + d.x
-    const ny = pos.y + d.y
-    if (isInBounds(nx, ny, state.mapWidth, state.mapHeight) && state.map[ny][nx].type === TileType.Flora) return true
+    if (isCloverTileAt(state, pos.x + d.x, pos.y + d.y)) return true
   }
   return false
 }
@@ -171,7 +174,8 @@ export const tickBees = (state: GameState, zone?: Zone): Position[] => {
     // Only move sometimes — gives a lazy, buzzing feel
     if (Math.random() > 0.3) continue
 
-    // Collect neighboring clover tiles
+    // Collect neighboring clover tiles. Wildflower and tall grass share
+    // TileType.Flora but bees prefer clover only in this PR.
     const cloverCandidates: Position[] = []
     const walkableCandidates: Position[] = []
     for (const d of ORDINAL) {
@@ -179,7 +183,7 @@ export const tickBees = (state: GameState, zone?: Zone): Position[] => {
       const ny = pos.y + d.y
       if (isInBounds(nx, ny, state.mapWidth, state.mapHeight)) {
         const tile = state.map[ny][nx]
-        if (tile.type === TileType.Flora) {
+        if (tile.type === TileType.Flora && isCloverTileAt(state, nx, ny)) {
           cloverCandidates.push({ x: nx, y: ny })
         } else if (isWalkableTile(tile.type)) {
           walkableCandidates.push({ x: nx, y: ny })

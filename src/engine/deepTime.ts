@@ -51,24 +51,26 @@ export const initiateDeepTime = (state: GameState, time: number): void => {
     state.world.destroyEntity(eid)
   }
 
-  // Spawn initial fire ignition points (3-5 random positions on clover tiles)
-  const cloverPositions: Position[] = []
+  // Spawn initial fire ignition points (3-5 random positions on Flora
+  // tiles — any species; wildfire spreads through clover, wildflower,
+  // and tall grass uniformly per precis #1).
+  const floraPositions: Position[] = []
   for (let y = 0; y < state.mapHeight; y++) {
     for (let x = 0; x < state.mapWidth; x++) {
       if (state.map[y][x].type === TileType.Flora) {
-        cloverPositions.push({ x, y })
+        floraPositions.push({ x, y })
       }
     }
   }
 
   // Fisher-Yates shuffle
-  for (let i = cloverPositions.length - 1; i > 0; i--) {
+  for (let i = floraPositions.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
-    ;[cloverPositions[i], cloverPositions[j]] = [cloverPositions[j], cloverPositions[i]]
+    ;[floraPositions[i], floraPositions[j]] = [floraPositions[j], floraPositions[i]]
   }
 
   const ignitionCount = 3 + Math.floor(Math.random() * 3) // 3-5
-  const ignitionPoints = cloverPositions.slice(0, ignitionCount)
+  const ignitionPoints = floraPositions.slice(0, ignitionCount)
   for (const point of ignitionPoints) {
     spreadWildfire(state, time, point.x, point.y)
   }

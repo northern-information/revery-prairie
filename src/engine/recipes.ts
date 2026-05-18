@@ -2,7 +2,7 @@ import { ACTION_COLOR } from './constants'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { isInBounds, posKey } from './position'
-import { TileType } from './types'
+import { FloraSpecies, FloraStage, TileType } from './types'
 
 import type { GameState, Position } from './types'
 
@@ -71,8 +71,14 @@ export const RECIPES: Recipe[] = [
             const k = posKey(tx, ty)
             const isWater = state.ponds.has(k) || state.rivers.has(k)
             if (!isWater && (t === TileType.Dirt || t === TileType.Flora || t === TileType.CaveFloor)) {
+              // Bee + clover seeds Flora tiles as clover specifically.
               setMapTile(state, tx, ty, { type: TileType.Flora })
-              state.floraLifecycle.delete(k)
+              state.floraLifecycle.set(k, {
+                stage: FloraStage.Healthy,
+                stageStartTime: 0,
+                hasLight: true,
+                species: FloraSpecies.Clover,
+              })
             }
           }
         }

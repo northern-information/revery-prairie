@@ -39,6 +39,15 @@ export const createGameState = (
   // with its species. Determinism preserved — same steward name, same
   // patch layout.
   const initialFloraLifecycle = postProcessMultiSpeciesFlora(sim)
+
+  // Track which species the post-process actually placed so the manual
+  // entries unlock on first sight. The genesis post-process is
+  // deterministic per steward name so if a species is missing here it
+  // legitimately did not appear in this world.
+  const seededSpecies = new Set<string>()
+  for (const entry of initialFloraLifecycle.values()) {
+    seededSpecies.add(entry.species)
+  }
   const map = sim.grid
   const genesisData: GenesisSimState = sim
 
@@ -252,6 +261,13 @@ export const createGameState = (
   // using performance.now() so all patches start in fade-in. Seeding
   // at game-state creation with time=0 made patches age throughout
   // genesis (~25s) and pop in at full opacity at the handoff.
+
+  // Unlock manual entries for each species that the post-process
+  // placed. The prairie is visible from spawn, so species that are
+  // present read as "discovered" immediately.
+  for (const species of seededSpecies) {
+    state.manualDiscoveries.add(`flora:${species}`)
+  }
 
   // Place ruin entrances on the overworld
   placeRuinEntrances(map, state.ruinInteriors)

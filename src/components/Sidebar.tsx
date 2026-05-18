@@ -19,7 +19,8 @@ import { formatYear, GENESIS_END_YEAR, GENESIS_EPOCHS, getEpochProgress, getGene
 import { getDefinition } from '@/engine/items'
 import { isInBounds, posKey } from '@/engine/position'
 import { getLastVisibleSet } from '@/engine/renderer'
-import { FloraStage, DeepTimePhase, TileType, Zone } from '@/engine/types'
+import { FLORA_SPECIES } from '@/engine/flora'
+import { FloraSpecies, FloraStage, DeepTimePhase, TileType, Zone } from '@/engine/types'
 import { getTileVisibility, hasFogOfWar } from '@/engine/visibility'
 import { fToC, mphToKph } from '@/engine/weather'
 import type { ItemInfoHandle } from './ItemInfo'
@@ -318,7 +319,16 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
                       if (tileType === TileType.CaveEntrance) return 'cave entrance'
                       if (tileType === TileType.CaveApron) return 'cave apron'
                       if (tileType === TileType.CaveExit) return 'exit'
-                      if (tileType === TileType.BurntFlora) return 'burnt clover'
+                      if (tileType === TileType.Flora) {
+                        const species =
+                          state.floraLifecycle.get(posKey(cx, cy))?.species ?? FloraSpecies.Clover
+                        return FLORA_SPECIES[species].displayName.toLowerCase()
+                      }
+                      if (tileType === TileType.BurntFlora) {
+                        const species =
+                          state.floraLifecycle.get(posKey(cx, cy))?.species ?? FloraSpecies.Clover
+                        return `burnt ${FLORA_SPECIES[species].displayName.toLowerCase()}`
+                      }
                       if (tileType === TileType.RuinFloor) return 'ruin floor'
                       if (tileType === TileType.RuinWall) return 'ruin wall'
                       if (tileType === TileType.RuinEntrance) return 'ruin entrance'

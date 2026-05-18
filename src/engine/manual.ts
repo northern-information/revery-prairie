@@ -49,6 +49,11 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   // Items
   'item:bee': { lore: 'Apis mellifera.' },
   'item:clover': { lore: 'Dalea purpurea.' },
+  // Flora species — clover lore preserved; wildflower and tall grass
+  // are TODO per repo policy (lore is human-authored only).
+  'flora:clover': { lore: 'Trifolium repens.' },
+  'flora:wildflower': { lore: 'TODO' },
+  'flora:tallGrass': { lore: 'TODO' },
   'item:meteorite': {
     lore: 'O, fallen stars! What celestial bounty do ye bring? Shower us with your metals, your riches, your mystery.',
   },
@@ -424,6 +429,37 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     glyphColor: '#8B6914',
     unlockKey: 'event:clover-death',
     sourceKind: 'event',
+  },
+  // Flora species — one entry per species. The Latin binomials and
+  // visual identity come from FLORA_SPECIES (src/engine/flora/species.ts).
+  // Per cosmology doctrine the prairie is a fragment of Earth, so native
+  // flora carry real binomials.
+  {
+    id: 'flora:clover',
+    name: 'Clover (Trifolium repens)',
+    category: ManualCategory.Life,
+    glyph: '%',
+    glyphColor: '#50C878',
+    unlockKey: 'flora:clover',
+    sourceKind: 'manual-only',
+  },
+  {
+    id: 'flora:wildflower',
+    name: 'Purple Coneflower (Echinacea purpurea)',
+    category: ManualCategory.Life,
+    glyph: '*',
+    glyphColor: '#D85FB7',
+    unlockKey: 'flora:wildflower',
+    sourceKind: 'manual-only',
+  },
+  {
+    id: 'flora:tallGrass',
+    name: 'Big Bluestem (Andropogon gerardii)',
+    category: ManualCategory.Life,
+    glyph: '"',
+    glyphColor: '#A89968',
+    unlockKey: 'flora:tallGrass',
+    sourceKind: 'manual-only',
   },
   {
     id: 'event:hexagram-cast',
