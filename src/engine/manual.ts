@@ -48,7 +48,6 @@ export interface ManualEntry {
 const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }>> = {
   // Items
   'item:bee': { lore: 'Apis mellifera.' },
-  'item:clover': { lore: 'Trifolium repens.' },
   // Flora species — clover lore preserved; wildflower and tall grass
   // are TODO per repo policy (lore is human-authored only).
   'flora:clover': { lore: 'Trifolium repens.' },
@@ -117,22 +116,22 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'event:angel-canto': {
     lore: 'It is said their choirs are arranged in fractals and have sung the cantos since time immemorial.',
   },
-  // Events — clover
+  // Events — flora
   'event:clover-growth': {
     lore: 'When bees settle on a clover patch, the clover begins to grow in spiraling patterns across the dirt. The more bees tend a patch, the faster it spreads.',
   },
-  'event:clover-death': {
-    lore: 'Clover needs both light and water to survive. Without them it slowly browns, then blinks red in distress, turns black, and finally decomposes back into the earth — enriching the soil as it goes.',
+  'event:flora-death': {
+    lore: 'Flora needs both light and water to survive. Without them it slowly browns, then blinks red in distress, turns black, and finally decomposes back into the earth — enriching the soil as it goes. Every native species follows the same path.',
   },
   // Events — lightning
   'event:lightning-strike': {
     lore: 'Lightning strikes the prairie during storms. Rain, high humidity, and strong wind all increase the chance. The bolt is brief but unmistakable — the whole sky flashes white.',
   },
   'event:wildfire': {
-    lore: 'When lightning strikes dry clover, fire spreads to neighboring patches. The drier the clover, the farther it burns. Wet clover resists ignition. The fire enriches the soil as it passes.',
+    lore: 'When lightning strikes dry flora, fire spreads to neighboring patches. The drier the plants, the farther it burns. Wet flora resists ignition. The fire enriches the soil as it passes.',
   },
   'event:lightning-attraction': {
-    lore: 'High ground draws lightning down from the clouds. Water-soaked earth conducts the charge — tiles near ponds and rivers are struck more often. Metal objects left on the ground act as conductors — meteorites attract bolts. A lone beehive standing in open dirt is a target — isolated tall features on flat terrain invite strikes. Clover fields conduct slightly better than bare dirt.',
+    lore: 'High ground draws lightning down from the clouds. Water-soaked earth conducts the charge — tiles near ponds and rivers are struck more often. Metal objects left on the ground act as conductors — meteorites attract bolts. A lone beehive standing in open dirt is a target — isolated tall features on flat terrain invite strikes. Flora fields conduct slightly better than bare dirt.',
     hints: [
       {
         prompt: 'How to protect clover',
@@ -190,21 +189,40 @@ const itemCategoryToManualCategory = (cat: ItemCategory): ManualCategory => {
 
 // --- Builder functions ---
 
+// Items that exist in the inventory but should not generate their own
+// manual entry — typically because a richer entry exists elsewhere (the
+// clover item is documented via the flora:clover species entry).
+const MANUAL_HIDDEN_ITEM_IDS: ReadonlySet<string> = new Set(['clover'])
+
+// When a hidden item is referenced by another entry's crossRefs (e.g. a
+// recipe ingredient), the cross-ref redirects to the alternate manual
+// entry that documents the same concept.
+const MANUAL_ITEM_REDIRECTS: Record<string, string> = {
+  clover: 'flora:clover',
+}
+
+const itemCrossRefId = (itemId: string): string => {
+  const redirect = MANUAL_ITEM_REDIRECTS[itemId]
+  return redirect ?? `item:${itemId}`
+}
+
 const buildItemEntries = (): ManualEntry[] =>
-  Object.values(ITEM_DEFINITIONS).map(def => {
-    const loreData = MANUAL_LORE[`item:${def.id}`]
-    return {
-      id: `item:${def.id}`,
-      name: def.name,
-      category: itemCategoryToManualCategory(def.category),
-      glyph: def.glyph,
-      glyphColor: def.glyphColor,
-      lore: loreData?.lore ?? def.name,
-      hints: loreData?.hints ?? [],
-      unlockKey: `item:${def.id}`,
-      sourceKind: 'item',
-    }
-  })
+  Object.values(ITEM_DEFINITIONS)
+    .filter(def => !MANUAL_HIDDEN_ITEM_IDS.has(def.id))
+    .map(def => {
+      const loreData = MANUAL_LORE[`item:${def.id}`]
+      return {
+        id: `item:${def.id}`,
+        name: def.name,
+        category: itemCategoryToManualCategory(def.category),
+        glyph: def.glyph,
+        glyphColor: def.glyphColor,
+        lore: loreData?.lore ?? def.name,
+        hints: loreData?.hints ?? [],
+        unlockKey: `item:${def.id}`,
+        sourceKind: 'item',
+      }
+    })
 
 const buildRecipeEntries = (): ManualEntry[] =>
   RECIPES.map(recipe => {
@@ -219,7 +237,7 @@ const buildRecipeEntries = (): ManualEntry[] =>
       glyphColor: '#ff69b4',
       lore: loreData?.lore ?? recipe.resultName,
       hints: loreData?.hints ?? [],
-      crossRefs: recipe.ingredients.map(id => `item:${id}`),
+      crossRefs: recipe.ingredients.map(itemCrossRefId),
       unlockKey: `recipe:${key}`,
       sourceKind: 'recipe',
     }
@@ -422,12 +440,12 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     sourceKind: 'event',
   },
   {
-    id: 'event:clover-death',
-    name: 'Clover Death',
+    id: 'event:flora-death',
+    name: 'Flora Death',
     category: ManualCategory.Life,
     glyph: '%',
     glyphColor: '#8B6914',
-    unlockKey: 'event:clover-death',
+    unlockKey: 'event:flora-death',
     sourceKind: 'event',
   },
   // Flora species — one entry per species. The Latin binomials and

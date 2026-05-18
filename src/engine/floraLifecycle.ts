@@ -5,7 +5,7 @@ import {
   CLOVER_BLINK_RED_DURATION_MS,
   CLOVER_BROWN_DURATION_MS,
   CLOVER_DECOMPOSE_DURATION_MS,
-  SOIL_HEALTH_CLOVER_DEATH_BONUS,
+  SOIL_HEALTH_FLORA_DEATH_BONUS,
   SOIL_HEALTH_DEFAULT,
   SOIL_HEALTH_MAX,
   WATER_MAX,
@@ -148,9 +148,9 @@ export const tickFloraLifecycle = (state: GameState, zone: ZoneType, time: numbe
         if (time - entry.stageStartTime >= stageDuration(FloraStage.Decomposing)) {
           // Convert to dirt, enrich soil, clean up
           map[y][x] = { type: TileType.Dirt }
-          addSoilHealth(state, key, SOIL_HEALTH_CLOVER_DEATH_BONUS)
+          addSoilHealth(state, key, SOIL_HEALTH_FLORA_DEATH_BONUS)
           state.floraLifecycle.delete(key)
-          recordDiscovery(state, 'event:clover-death')
+          recordDiscovery(state, 'event:flora-death')
         }
       } else {
         // BlinkingRed or Black — advance if duration elapsed (no recovery)

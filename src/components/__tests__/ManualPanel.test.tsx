@@ -30,9 +30,10 @@ describe('ManualPanel', () => {
 
   it('renders entry names from the registry', () => {
     renderManual()
-    // Bee and Clover entries should appear (may appear multiple times as cross-refs)
+    // Bee item and Clover flora-species entries should appear (may appear
+    // multiple times as cross-refs).
     expect(screen.getAllByText('Bee').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Clover').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Clover (Trifolium repens)').length).toBeGreaterThan(0)
   })
 
   it('updates manualState.activeCategory when tab is clicked', async () => {

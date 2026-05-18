@@ -4,7 +4,7 @@ import {
   CLOVER_BLINK_RED_DURATION_MS,
   CLOVER_BROWN_DURATION_MS,
   CLOVER_DECOMPOSE_DURATION_MS,
-  SOIL_HEALTH_CLOVER_DEATH_BONUS,
+  SOIL_HEALTH_FLORA_DEATH_BONUS,
   SOIL_HEALTH_DEFAULT,
   WATER_MAX,
 } from '../constants'
@@ -157,7 +157,7 @@ describe('tickFloraLifecycle', () => {
 
       expect(state.map[py() + 1][px()].type).toBe(TileType.Dirt)
       expect(state.floraLifecycle.has(key)).toBe(false)
-      expect(state.soilHealth.get(key)).toBe(SOIL_HEALTH_DEFAULT + SOIL_HEALTH_CLOVER_DEATH_BONUS)
+      expect(state.soilHealth.get(key)).toBe(SOIL_HEALTH_DEFAULT + SOIL_HEALTH_FLORA_DEATH_BONUS)
     })
   })
 

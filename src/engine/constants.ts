@@ -291,7 +291,7 @@ export const GENESIS_FLORA_PATCH_TILES_MAX = 4
 // soil health
 export const SOIL_HEALTH_DEFAULT = 50
 export const SOIL_HEALTH_MAX = 100
-export const SOIL_HEALTH_CLOVER_DEATH_BONUS = 15
+export const SOIL_HEALTH_FLORA_DEATH_BONUS = 15
 export const SOIL_HEALTH_CUT_BONUS = 10
 export const SOIL_HEALTH_BURN_BONUS = 25
 
