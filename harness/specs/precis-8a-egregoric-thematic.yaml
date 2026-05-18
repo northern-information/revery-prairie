@@ -1,0 +1,287 @@
+id: precis-8a-egregoric-thematic
+name: 'Precis #8a — Egregoric flora (thematic allusions)'
+priority: medium
+layer: integration
+source_files:
+  - docs/precis-thinktank-v3.md
+  - docs/precis-status.yaml
+  - CLAUDE.md
+  - package.json
+  - src/engine/types.ts
+  - src/engine/genesis.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/constants.ts
+  - src/engine/renderer.ts
+  - src/engine/tileBg.ts
+  - src/engine/manual.ts
+  - src/engine/characters.ts
+  - src/engine/state.ts
+  - src/components/Sidebar.tsx
+  - src/styles/index.css
+dependencies:
+  - precis-0-reclaim-revery
+
+behaviors:
+  - id: egregore-tile-type-exists
+    description: >
+      A new TileType.Egregore is added to the TileType enum with
+      string value 'egregore'. The tile is inert in this PR — it
+      blocks no movement, triggers no interaction, and has no
+      lifecycle. It is visually distinct from all other tiles.
+      Player can walk onto it (per the player-name-drift / passive-
+      transmission spec note in v3 layer (a), though the drift
+      tracking itself is deferred to #4).
+    inputs:
+      - 'codebase after #8a lands'
+    outputs:
+      - "TileType.Egregore exists with string value 'egregore'"
+      - 'players can walk onto and off of egregore tiles'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-glyph-registry
+    description: >
+      A new src/engine/egregore.ts module exports an EGREGORE_GLYPHS
+      array of 3 to 5 single-character glyphs drawn from a curated
+      subset of the Voynich Unicode block (U+0AB000–U+0AB1FF, the
+      Mayan Numerals fallback if Voynich isn't available is NOT
+      acceptable — must be the actual Voynich block). Each glyph
+      is selected deterministically per tile by hashing the tile
+      position. Stable across reloads for the same steward name
+      (genesis seed). Varies across tiles — different positions
+      pick different glyphs.
+    inputs:
+      - 'an egregore tile at a specific position'
+    outputs:
+      - 'the renderer draws the same Voynich glyph at that position across reloads'
+      - 'different egregore positions render different glyphs from the EGREGORE_GLYPHS allowlist'
+    state_changes: []
+    determinism: deterministic
+
+  - id: voynich-font-installed
+    description: >
+      The kreativekorp/voynich-unicode (or equivalent) Voynich font
+      is installed as an npm dependency. A @font-face declaration
+      in src/styles/index.css registers it under font-family
+      'Voynich'. The renderer applies this font specifically when
+      drawing TileType.Egregore tiles; all other tiles continue to
+      use the existing monospace font stack. When the font fails to
+      load (e.g. offline first-load), the fallback rendering shows
+      '?' or '□' — this is intended behavior per the doctrine and
+      MUST NOT be patched.
+    inputs:
+      - 'browser loads the SPA bundle including the Voynich font asset'
+    outputs:
+      - 'egregore tiles render in the Voynich typeface when the font is present'
+      - 'fallback rendering (? or □) when the font fails to load'
+    state_changes: []
+    determinism: deterministic
+
+  - id: genesis-places-egregore-tiles
+    description: >
+      Genesis post-processing places approximately 3 egregore
+      tiles. Placement is biased near meteorite-derived craters
+      (sim.craters set). Position selection uses the same nameToSeed-
+      derived RNG that drives the rest of genesis, so the layout
+      is deterministic per steward name. Tiles are placed on
+      walkable dirt only; never on space, sand, water, ruins, or
+      cave tiles. The exact count is governed by a constant
+      (EGREGORE_TILE_COUNT) that may vary slightly (e.g. 2–4) to
+      account for placement failures, with a target of 3.
+    inputs:
+      - 'genesis pipeline runs with a given steward name and meteorite spawns'
+    outputs:
+      - 'between 2 and 4 egregore tiles placed on walkable dirt'
+      - 'placement positions cluster near (within ~5 tiles of) crater positions'
+    state_changes:
+      - field: map
+        effect: 'tiles converted from Dirt to Egregore at deterministic positions'
+    determinism: deterministic
+
+  - id: egregore-manual-entries-voynich-page
+    description: >
+      Each egregore tile gets its own manual entry, generated
+      deterministically per tile position. The entry uses the
+      manual's standard structure (binomial line, description
+      paragraph, three labeled fields) but the *content* is
+      generated from the EVA token allowlist sampled per-tile via
+      the same position hash. Each tile's content is stable across
+      reloads. The entry has no English name — the binomial line
+      is itself a Voynich EVA token sequence. The entry's manual
+      category is a new ManualCategory.Egregore, label 'EGREGORE'.
+      The lore is auto-generated (NOT a TODO) because it is not
+      human-authored prose — it is procedurally sampled from a
+      curated token table.
+    inputs:
+      - 'manual UI opens after #8a lands and egregore tiles are placed'
+    outputs:
+      - 'one manual entry per egregore tile'
+      - 'each entry renders in the Voynich typeface'
+      - 'entries are unique per position but stable across reloads'
+    state_changes:
+      - field: manualDiscoveries
+        effect: "egregore tile entries are unlocked when the player's vision overlaps the tile"
+    determinism: deterministic
+
+  - id: latin-pierces-in-egregore-entries
+    description: >
+      Approximately 1 tile in 5 has its manual entry seeded such
+      that exactly one readable English word from the cosmology
+      allowlist appears in the otherwise-Voynich body. The
+      allowlist is (verbatim from v3 doctrine):
+      threshold, between, garden, before, not, here, was, meteor,
+      Earth, line, thin, near, moved, past, us, them. The pierce
+      word renders in the standard ASCII font, adjacent to the
+      Voynich glyphs. Pierce selection is deterministic per tile
+      (same hash used for glyph + content selection).
+    inputs:
+      - 'an egregore tile whose position-hash falls in the pierce bucket (1-in-5 selection)'
+    outputs:
+      - 'the tile manual entry body contains exactly one ASCII English word from the allowlist'
+      - 'the rest of the body remains Voynich EVA tokens'
+    state_changes: []
+    determinism: deterministic
+
+  - id: moab-refusal-line
+    description: >
+      Moab Coldë's dialog gains at least one refusal line referring
+      to the egregores in folk register. The line never uses the
+      word 'invasive' or 'egregore'. Moab's folk name for them is
+      consistent across his lines. Example placeholder line
+      (replace with human-authored lore before merge):
+      'I don't grow that. Nobody grows that.' Or
+      'The other clover. Different from this one. We don't speak it.'
+      The line is gated on a condition that is observable today —
+      whether any egregore tile exists on the map (i.e. always,
+      since genesis places them).
+    inputs:
+      - 'player completes Moab dialog after #8a lands'
+    outputs:
+      - 'Moab has at least one dialog line about the egregores'
+      - 'the line does not contain the word "invasive" or "egregore"'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ghost-refusal-line
+    description: >
+      At least one of the three ghosts gains a refusal line about
+      the egregores using a *different* folk name than Moab's.
+      Examples (placeholders — final lore is human-authored):
+      'The Far Garden. We don't go there.' or
+      'Something else grew here. Before us.' Same constraints:
+      no 'invasive', no 'egregore'.
+    inputs:
+      - 'player completes the targeted ghost dialog'
+    outputs:
+      - "at least one ghost has a dialog line about the egregores using a folk name distinct from Moab's"
+    state_changes: []
+    determinism: deterministic
+
+  - id: cursor-info-shows-egregore-as-tile-type
+    description: >
+      The sidebar cursor-info contents row labels egregore tiles
+      using a human-readable label (e.g. "egregore" or the chosen
+      folk-register label — but NOT a Latin binomial; egregores
+      have none). The label does not use the word "invasive".
+    inputs:
+      - 'cursor hovers over an egregore tile'
+    outputs:
+      - 'sidebar contents row shows the egregore label'
+    state_changes: []
+    determinism: deterministic
+
+  - id: invasive-lint-guard
+    description: >
+      A CI lint check verifies that the word 'invasive' does not
+      appear in any player-facing string in the codebase. Implemented
+      as a grep-based test in the harness (src/harness/__tests__/) or
+      a simple npm script. Internal code comments and engineering
+      docs may use the word; only player-facing strings are guarded.
+    inputs:
+      - 'CI run'
+    outputs:
+      - "no occurrence of 'invasive' in player-facing string literals (dialog, manual lore, sidebar labels, etc.)"
+    state_changes: []
+    determinism: deterministic
+
+  - id: doctrine-and-status-aligned
+    description: >
+      docs/precis-status.yaml flips feature 8a to in-progress with
+      spec/plan links (during PR) and to shipped after merge.
+      CLAUDE.md gains a `## egregores` section briefly noting the
+      cosmology vocabulary (egregoric flora, Far Garden), the
+      no-'invasive' rule, the font installation, and the
+      EGREGORE_GLYPHS / EVA token registry locations. The doctrine
+      doc docs/precis-thinktank-v3.md does not change.
+    inputs:
+      - 'codebase after #8a lands'
+    outputs:
+      - 'CLAUDE.md has an egregores section'
+      - 'precis-status.yaml feature 8a has spec/plan/pr fields populated'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: no-meteorites-no-craters
+    description: >
+      Edge: a genesis run produces zero craters (unlikely but
+      possible if the meteorite generation skips all impacts).
+    expected: >
+      Egregore placement falls back to random walkable dirt across
+      the map (still biased toward soil-low regions or similar
+      genesis-derived signals if available, but never crashes).
+      At minimum, 2 tiles are placed.
+
+  - id: font-fails-to-load
+    description: >
+      Browser cannot fetch the Voynich font (offline first-load,
+      CSP blocked, etc.).
+    expected: >
+      Egregore tiles render as the browser's default
+      missing-glyph fallback ('?', '□', or '☐'). This is intended
+      behavior per v3 doctrine — DO NOT patch.
+
+  - id: walk-over-egregore-tile
+    description: >
+      Player walks across an egregore tile.
+    expected: >
+      No special effect in this PR. movePlayer succeeds normally.
+      The passive-transmission cosmologicalDrift tracking (v3
+      layer (a)) is deferred to #4.
+
+  - id: egregore-tile-during-wildfire-spread
+    description: >
+      Wildfire spread (via lightning + dry flora chain) reaches
+      a position containing an egregore tile.
+    expected: >
+      The wildfire does not propagate through the egregore tile —
+      it is not a Flora tile, so spreadWildfire's tile-type check
+      excludes it naturally. Egregore tiles are not affected by
+      wildfire.
+
+  - id: deterministic-same-name
+    description: >
+      Two calls to createGameState with the same steward name
+      produce identical egregore tile positions, glyphs, and
+      manual entry content.
+    expected: >
+      Position list, per-tile glyph assignments, EVA token
+      sequences, and Latin pierce assignments all match
+      byte-for-byte.
+
+failure_conditions:
+  - trigger: "grep for 'invasive' in any player-facing string (dialog arrays, manual lore, sidebar labels, item names) returns at least one match"
+    expected: 'CI fails — the no-invasive rule was violated'
+  - trigger: "TileType.Egregore is missing from the TileType enum"
+    expected: 'CI fails — egregore tile type was not added'
+  - trigger: "A new game produces zero egregore tiles after genesis"
+    expected: 'CI fails — genesis placement is broken'
+  - trigger: "An egregore manual entry uses a Latin binomial format like 'Egregora invasiva'"
+    expected: 'CI fails — egregores are not-of-this-Earth and have no real binomial. Manual entries are Voynich EVA only.'
+  - trigger: "The Voynich font file is missing from the bundled assets or the @font-face declaration is absent from src/styles/index.css"
+    expected: 'CI fails — font installation is incomplete (though the rendering will fall back gracefully)'
+
+verification:
+  test_file: src/engine/__tests__/genesis.test.ts
+  test_pattern: 'egregore'
+  command: 'npx vitest run src/engine/__tests__/genesis.test.ts -t egregore'
