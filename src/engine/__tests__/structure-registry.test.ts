@@ -79,7 +79,7 @@ describe('structure registry', () => {
     it('returns 0 for tiles not registered as a structure platform', () => {
       const nonPlatform: TileType[] = [
         TileType.Dirt,
-        TileType.Clover,
+        TileType.Flora,
         TileType.Sand,
         TileType.Space,
         TileType.CaveFloor,

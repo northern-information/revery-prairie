@@ -43,7 +43,7 @@ const makeState = (): GameState => {
   for (let y = 0; y < state.mapHeight; y++) {
     for (let x = 0; x < state.mapWidth; x++) {
       const t = state.map[y][x].type
-      if (t === TileType.Dirt || t === TileType.Clover || t === TileType.BurntClover || t === TileType.Sand) {
+      if (t === TileType.Dirt || t === TileType.Flora || t === TileType.BurntFlora || t === TileType.Sand) {
         state.map[y][x] = { type: TileType.Dirt }
       }
     }
@@ -305,12 +305,12 @@ describe('satellite impact', () => {
     const state = makeState()
     const target = { x: 20, y: 15 }
     clearArea(state, target.x, target.y, 5)
-    state.map[target.y][target.x + 1] = { type: TileType.Clover }
+    state.map[target.y][target.x + 1] = { type: TileType.Flora }
 
     createSatelliteEntity(state, { pos: target, landingTarget: target })
     tickSatellites(state, 1000)
 
-    expect(state.map[target.y][target.x + 1].type).toBe(TileType.Clover)
+    expect(state.map[target.y][target.x + 1].type).toBe(TileType.Flora)
     expect(state.craters.has(posKey(target.x + 1, target.y))).toBe(true)
   })
 
@@ -575,7 +575,7 @@ describe('crater effect semantics', () => {
     expect(ok).toBe(true)
 
     // Tile becomes Clover; crater entry persists beneath it
-    expect(state.map[target.y][target.x].type).toBe(TileType.Clover)
+    expect(state.map[target.y][target.x].type).toBe(TileType.Flora)
     expect(state.craters.has(key)).toBe(true)
   })
 })
@@ -711,7 +711,7 @@ describe('crater bg color', () => {
   it('cratered clover tile keeps standard clover bg (plant covers the scar)', () => {
     // Sanity: the cratered-bg override is gated on tileType === Dirt. A clover
     // tile that also appears in state.craters must return the standard clover bg.
-    const cloverBg = getTileBgColor(TileType.Clover, 20, 15)
+    const cloverBg = getTileBgColor(TileType.Flora, 20, 15)
     const craterBg = getCraterBgColor(20, 15)
     expect(cloverBg).not.toBe(craterBg)
   })

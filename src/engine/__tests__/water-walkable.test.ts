@@ -1,4 +1,4 @@
-import { harvestClover, HarvestResult } from '../cloverLifecycle'
+import { harvestClover, HarvestResult } from '../floraLifecycle'
 import { getBlockedPositions, movePlayer } from '../movement'
 import { findPath } from '../pathfinding'
 import { posKey } from '../position'
@@ -137,7 +137,7 @@ describe('water walkable', () => {
       expect(state.map[py][px + 1].type).toBe(TileType.Dirt)
       expect(state.ponds.has(waterKey)).toBe(true)
       // Adjacent non-water tile was converted to clover
-      expect(state.map[py][px - 1].type).toBe(TileType.Clover)
+      expect(state.map[py][px - 1].type).toBe(TileType.Flora)
     })
 
     it('execute returns false when the player stands on a water tile', () => {
@@ -170,7 +170,7 @@ describe('water walkable', () => {
       state.ponds.add(posKey(px, py))
       // Clover on the tile the player faces
       state.playerFacing = 'down'
-      state.map[py + 1][px] = { type: TileType.Clover }
+      state.map[py + 1][px] = { type: TileType.Flora }
       state.facingEntityPos = { x: px, y: py + 1 }
 
       const result = harvestClover(state)

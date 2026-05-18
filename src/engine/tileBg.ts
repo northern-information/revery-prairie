@@ -14,8 +14,8 @@ import { TileType } from './types'
 export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   [TileType.Space]: ['#000000'],
   [TileType.Dirt]: ['#4A3D2F', '#473A2D', '#4D4031', '#443A2D', '#4F4133', '#48402F', '#4B3D2D', '#463A2C'],
-  [TileType.Clover]: ['#224F30', '#1F4D2E', '#255231', '#234E2F', '#205030', '#26542F', '#214D2E', '#244F31'],
-  [TileType.BurntClover]: ['#1A0F0A', '#1D110B', '#180D08', '#1B0E0A', '#170C08', '#1C100B'],
+  [TileType.Flora]: ['#224F30', '#1F4D2E', '#255231', '#234E2F', '#205030', '#26542F', '#214D2E', '#244F31'],
+  [TileType.BurntFlora]: ['#1A0F0A', '#1D110B', '#180D08', '#1B0E0A', '#170C08', '#1C100B'],
   [TileType.Sand]: ['#6E5F3F', '#6B5C3D', '#71623F', '#6D5E3E', '#6A5B3D', '#705F3E', '#6E5D3D'],
   [TileType.CaveFloor]: ['#2A2A2A', '#2C2C2C', '#282828', '#2B2B2B', '#292929', '#2D2D2D', '#272727'],
   [TileType.CaveWall]: ['#1A1A1A', '#1B1B1B', '#191919', '#1C1C1C', '#181818'],

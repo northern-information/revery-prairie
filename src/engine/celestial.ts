@@ -252,7 +252,7 @@ export const tickShootingStars = (state: GameState, time: number): void => {
       } else if (isInBounds(x, y, MAP_WIDTH, MAP_HEIGHT)) {
         // Untargeted landing — land on first walkable tile
         const tile = state.map[y][x]
-        if (tile.type === TileType.Dirt || tile.type === TileType.Clover) {
+        if (tile.type === TileType.Dirt || tile.type === TileType.Flora) {
           if (!isWaterTile(state, x, y)) {
             const me = state.world.createEntity()
             state.world.addComponent(me, ComponentType.Position, { x, y })
@@ -339,7 +339,7 @@ export const findShowerTargets = (state: GameState, count: number): Position[] =
     const y = SPACE_BORDER + Math.floor(Math.random() * (state.mapHeight - SPACE_BORDER * 2))
     if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
     const tile = state.map[y][x].type
-    if (tile !== TileType.Dirt && tile !== TileType.Clover) continue
+    if (tile !== TileType.Dirt && tile !== TileType.Flora) continue
     if (isTileOccupied(state, x, y)) continue
     if (isWaterTile(state, x, y)) continue
 

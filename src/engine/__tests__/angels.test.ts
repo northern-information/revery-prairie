@@ -300,7 +300,7 @@ describe('angel aura - clover', () => {
         const x = pos.x + dx
         const y = pos.y + dy
         if (x >= 0 && x < state.mapWidth && y >= 0 && y < state.mapHeight) {
-          if (state.map[y][x].type === TileType.Clover) cloverBefore++
+          if (state.map[y][x].type === TileType.Flora) cloverBefore++
         }
       }
     }
@@ -313,7 +313,7 @@ describe('angel aura - clover', () => {
         const x = pos.x + dx
         const y = pos.y + dy
         if (x >= 0 && x < state.mapWidth && y >= 0 && y < state.mapHeight) {
-          if (state.map[y][x].type === TileType.Clover) cloverAfter++
+          if (state.map[y][x].type === TileType.Flora) cloverAfter++
         }
       }
     }

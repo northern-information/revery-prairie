@@ -179,8 +179,8 @@ export const createGameState = (
     },
     lastSatelliteSpawnTime: 0,
     screenShakeUntil: 0,
-    cloverGrowthPreviews: new Set<string>(),
-    cloverLifecycle: new Map(),
+    floraGrowthPreviews: new Set<string>(),
+    floraLifecycle: new Map(),
     tileWater: new Map<string, number>(),
     soilHealth: genesisData.soilHealth,
     elevation: genesisData.elevation,
@@ -252,7 +252,7 @@ export const createGameState = (
   placeRuinEntrances(map, state.ruinInteriors)
 
   // Place Gron at the exact center
-  if (map[gronY][gronX].type !== TileType.Dirt && map[gronY][gronX].type !== TileType.Clover) {
+  if (map[gronY][gronX].type !== TileType.Dirt && map[gronY][gronX].type !== TileType.Flora) {
     map[gronY][gronX] = { type: TileType.Dirt }
   }
   createCharacterEntity(state, 'gron', { x: gronX, y: gronY }, { aura: 'rain' })
@@ -263,7 +263,7 @@ export const createGameState = (
   for (let y = 0; y < MAP_HEIGHT; y++) {
     for (let x = 0; x < MAP_WIDTH; x++) {
       const tileType = map[y][x].type
-      if (tileType === TileType.Dirt || tileType === TileType.Clover || tileType === TileType.BurntClover) {
+      if (tileType === TileType.Dirt || tileType === TileType.Flora || tileType === TileType.BurntFlora) {
         state.tileWater.set(posKey(x, y), WATER_MAX)
       }
     }

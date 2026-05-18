@@ -1,4 +1,4 @@
-import { harvestClover } from '../cloverLifecycle'
+import { harvestClover } from '../floraLifecycle'
 import { tickCoyote } from '../coyote'
 import { executeCombine } from '../drag'
 import { ComponentType } from '../ecs/types'
@@ -168,7 +168,7 @@ describe('harvest bloom', () => {
     // Place clover in front of player and update facing entity
     const fx = state.player.x
     const fy = state.player.y + 1
-    state.map[fy][fx] = { type: TileType.Clover }
+    state.map[fy][fx] = { type: TileType.Flora }
     updateFacingEntity(state)
 
     harvestClover(state, 5000)
@@ -186,7 +186,7 @@ describe('harvest bloom', () => {
     clearAroundPlayer(state)
     const fx = state.player.x
     const fy = state.player.y + 1
-    state.map[fy][fx] = { type: TileType.Clover }
+    state.map[fy][fx] = { type: TileType.Flora }
     updateFacingEntity(state)
 
     harvestClover(state)

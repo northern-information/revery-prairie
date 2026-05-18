@@ -76,8 +76,8 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   state.path = null
   state.pathWaypoints = []
   state.pendingAction = null
-  state.cloverGrowthPreviews = new Set()
-  state.cloverLifecycle = new Map()
+  state.floraGrowthPreviews = new Set()
+  state.floraLifecycle = new Map()
   state.soilHealth = new Map()
   state.tileWater = new Map()
   // Ensure no rain so spawnBeeOrMonarch always creates bees in existing tests

@@ -1,9 +1,9 @@
 import { tickCloverHives } from '../clover'
-import { tickCloverLifecycle } from '../cloverLifecycle'
+import { tickCloverLifecycle } from '../floraLifecycle'
 import { BURNT_CLOVER_RAIN_MULTIPLIER, BURNT_CLOVER_RECOVERY_MS, WATER_MAX } from '../constants'
 import { spreadWildfire } from '../lightning'
 import { posKey } from '../position'
-import { CloverStage, Sky, TileType, Zone } from '../types'
+import { FloraStage, Sky, TileType, Zone } from '../types'
 import { clearAroundPlayer, createBeeEntity, createBeehiveEntity, createTestState, getBeehiveEntities } from './helpers'
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -21,9 +21,9 @@ beforeEach(() => {
 })
 
 const placeBurntClover = (x: number, y: number, stageStartTime: number) => {
-  state.map[y][x] = { type: TileType.BurntClover }
-  state.cloverLifecycle.set(posKey(x, y), {
-    stage: CloverStage.BurntRecovering,
+  state.map[y][x] = { type: TileType.BurntFlora }
+  state.floraLifecycle.set(posKey(x, y), {
+    stage: FloraStage.BurntRecovering,
     stageStartTime,
     hasLight: true,
   })
@@ -33,7 +33,7 @@ const placeBurntClover = (x: number, y: number, stageStartTime: number) => {
 }
 
 const placeClover = (x: number, y: number) => {
-  state.map[y][x] = { type: TileType.Clover }
+  state.map[y][x] = { type: TileType.Flora }
   if (!state.tileWater.has(posKey(x, y))) {
     state.tileWater.set(posKey(x, y), WATER_MAX)
   }
@@ -48,7 +48,7 @@ describe('burnt clover recovery', () => {
     tickCloverLifecycle(state, Zone.Overworld, BURNT_CLOVER_RECOVERY_MS + 1)
 
     expect(state.map[y][x].type).toBe(TileType.Dirt)
-    expect(state.cloverLifecycle.has(posKey(x, y))).toBe(false)
+    expect(state.floraLifecycle.has(posKey(x, y))).toBe(false)
   })
 
   it('BurntClover does not recover before duration elapses', () => {
@@ -58,8 +58,8 @@ describe('burnt clover recovery', () => {
 
     tickCloverLifecycle(state, Zone.Overworld, BURNT_CLOVER_RECOVERY_MS - 1)
 
-    expect(state.map[y][x].type).toBe(TileType.BurntClover)
-    expect(state.cloverLifecycle.has(posKey(x, y))).toBe(true)
+    expect(state.map[y][x].type).toBe(TileType.BurntFlora)
+    expect(state.floraLifecycle.has(posKey(x, y))).toBe(true)
   })
 
   it('rain accelerates recovery', () => {
@@ -75,7 +75,7 @@ describe('burnt clover recovery', () => {
     tickCloverLifecycle(state, Zone.Overworld, rainDuration + 1)
 
     expect(state.map[y][x].type).toBe(TileType.Dirt)
-    expect(state.cloverLifecycle.has(posKey(x, y))).toBe(false)
+    expect(state.floraLifecycle.has(posKey(x, y))).toBe(false)
   })
 
   it('burn scar removed on recovery', () => {
@@ -102,11 +102,11 @@ describe('burnt clover recovery', () => {
     const burned = spreadWildfire(state, 5000, x, y)
 
     expect(burned.size).toBeGreaterThanOrEqual(1)
-    expect(state.map[y][x].type).toBe(TileType.BurntClover)
+    expect(state.map[y][x].type).toBe(TileType.BurntFlora)
 
-    const entry = state.cloverLifecycle.get(posKey(x, y))
+    const entry = state.floraLifecycle.get(posKey(x, y))
     expect(entry).toBeDefined()
-    expect(entry?.stage).toBe(CloverStage.BurntRecovering)
+    expect(entry?.stage).toBe(FloraStage.BurntRecovering)
     expect(entry?.stageStartTime).toBe(5000)
   })
 })

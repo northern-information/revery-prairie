@@ -106,7 +106,7 @@ describe('runAllMutations', () => {
     const centerY = Math.floor(MAP_HEIGHT / 2)
     // Center is within Gron's rain aura — may be clover or dirt
     const centerType = result.terrain[centerY][centerX].type
-    expect(centerType === TileType.Dirt || centerType === TileType.Clover).toBe(true)
+    expect(centerType === TileType.Dirt || centerType === TileType.Flora).toBe(true)
   })
 
   it('produces Space tiles at corners', () => {

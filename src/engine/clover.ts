@@ -45,7 +45,7 @@ export const floodFillCloverPatches = (state: GameState): CloverPatch[] => {
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      if (map[y][x].type !== TileType.Clover) continue
+      if (map[y][x].type !== TileType.Flora) continue
       const startKey = posKey(x, y)
       if (visited.has(startKey)) continue
 
@@ -69,7 +69,7 @@ export const floodFillCloverPatches = (state: GameState): CloverPatch[] => {
           const nx = pos.x + d.x
           const ny = pos.y + d.y
           if (!isInBounds(nx, ny, w, h)) continue
-          if (map[ny][nx].type !== TileType.Clover) continue
+          if (map[ny][nx].type !== TileType.Flora) continue
           const nk = posKey(nx, ny)
           if (!visited.has(nk)) {
             queue.push({ x: nx, y: ny })
@@ -221,18 +221,18 @@ export const selectSpiralGrowth = (patch: CloverPatch, candidates: Position[]): 
 
 export const tickCloverGrowth = (state: GameState): void => {
   // Phase 1: convert previous previews to actual clover
-  for (const key of state.cloverGrowthPreviews) {
+  for (const key of state.floraGrowthPreviews) {
     const [xStr, yStr] = key.split(',')
     const x = Number(xStr)
     const y = Number(yStr)
     if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Dirt) {
-      setMapTile(state, x, y, { type: TileType.Clover })
-      state.cloverLifecycle.delete(key)
+      setMapTile(state, x, y, { type: TileType.Flora })
+      state.floraLifecycle.delete(key)
     }
   }
 
-  const grewClover = state.cloverGrowthPreviews.size > 0
-  state.cloverGrowthPreviews = new Set<string>()
+  const grewClover = state.floraGrowthPreviews.size > 0
+  state.floraGrowthPreviews = new Set<string>()
 
   // Phase 2: detect patches and compute new previews
   const patches = floodFillCloverPatches(state)
@@ -256,7 +256,7 @@ export const tickCloverGrowth = (state: GameState): void => {
     const selected = selectSpiralGrowth(patch, candidates)
 
     for (const pos of selected) {
-      state.cloverGrowthPreviews.add(posKey(pos.x, pos.y))
+      state.floraGrowthPreviews.add(posKey(pos.x, pos.y))
     }
   }
 

@@ -233,7 +233,7 @@ describe('meteor shower', () => {
 
       for (const t of targets) {
         const tile = state.map[t.y][t.x].type
-        expect(tile === TileType.Dirt || tile === TileType.Clover).toBe(true)
+        expect(tile === TileType.Dirt || tile === TileType.Flora).toBe(true)
       }
     })
 

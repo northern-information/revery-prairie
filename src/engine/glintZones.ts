@@ -38,7 +38,7 @@ const computePatchTiles = (
       const ty = cy + dy
       if (tx < 0 || tx >= width || ty < 0 || ty >= height) continue
       const tile = map[ty][tx].type
-      if (tile === TileType.Dirt || tile === TileType.Clover) {
+      if (tile === TileType.Dirt || tile === TileType.Flora) {
         tiles.add(posKey(tx, ty))
       }
     }
@@ -51,7 +51,7 @@ export const spawnGlintPatch = (state: GameState, birthTime: number): GlintPatch
   for (let attempt = 0; attempt < 50; attempt++) {
     const cx = SPACE_BORDER + Math.floor(Math.random() * (mapWidth - SPACE_BORDER * 2))
     const cy = SPACE_BORDER + Math.floor(Math.random() * (mapHeight - SPACE_BORDER * 2))
-    if (map[cy][cx].type !== TileType.Dirt && map[cy][cx].type !== TileType.Clover) continue
+    if (map[cy][cx].type !== TileType.Dirt && map[cy][cx].type !== TileType.Flora) continue
     const radius =
       GLINT_ZONE_RADIUS_MIN + Math.floor(Math.random() * (GLINT_ZONE_RADIUS_MAX - GLINT_ZONE_RADIUS_MIN + 1))
     const tiles = computePatchTiles(map, cx, cy, radius, mapWidth, mapHeight)
@@ -147,7 +147,7 @@ export const tickGlintZones = (state: GameState, time: number): void => {
       newCy < state.mapHeight - SPACE_BORDER
     ) {
       const tile = state.map[newCy][newCx].type
-      if (tile === TileType.Dirt || tile === TileType.Clover) {
+      if (tile === TileType.Dirt || tile === TileType.Flora) {
         patch.centerX = newCx
         patch.centerY = newCy
         patch.tiles = computePatchTiles(state.map, newCx, newCy, patch.radius, state.mapWidth, state.mapHeight)

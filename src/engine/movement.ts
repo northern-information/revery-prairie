@@ -138,15 +138,15 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
 
   // Pollen trail: emit a footstep puff on every step off a clover tile,
   // count consecutive clover steps, and fire a burst when fully leaving.
-  if (prevTileType === TileType.Clover) {
-    emitPlayerFootstep(state, prevX, prevY, TileType.Clover)
+  if (prevTileType === TileType.Flora) {
+    emitPlayerFootstep(state, prevX, prevY, TileType.Flora)
   }
-  if (nextTileType === TileType.Clover) {
+  if (nextTileType === TileType.Flora) {
     if (state.pollenTrailDepth < 8) state.pollenTrailDepth += 1
-  } else if (prevTileType === TileType.Clover) {
+  } else if (prevTileType === TileType.Flora) {
     // Stepped off clover — burst at the last clover tile position.
     // pollenTrailDepth reset is handled inside emitPlayerTrailBurst.
-    emitPlayerTrailBurst(state, prevX, prevY, TileType.Clover)
+    emitPlayerTrailBurst(state, prevX, prevY, TileType.Flora)
   }
 
   state.playerTween = {

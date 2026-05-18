@@ -35,8 +35,8 @@ describe('getTileBgColor', () => {
   })
 
   it('returns the same color for the same (type, x, y) — no flicker', () => {
-    const a = getTileBgColor(TileType.Clover, 12, 7)
-    const b = getTileBgColor(TileType.Clover, 12, 7)
+    const a = getTileBgColor(TileType.Flora, 12, 7)
+    const b = getTileBgColor(TileType.Flora, 12, 7)
     expect(a).toBe(b)
   })
 
@@ -57,7 +57,7 @@ describe('getTileBgColor', () => {
     for (let y = 0; y < 20; y++) {
       for (let x = 0; x < 20; x++) {
         dirtColors.add(getTileBgColor(TileType.Dirt, x, y))
-        cloverColors.add(getTileBgColor(TileType.Clover, x, y))
+        cloverColors.add(getTileBgColor(TileType.Flora, x, y))
       }
     }
     // Two surfaces shouldn't produce overlapping color sets.

@@ -107,7 +107,7 @@ describe('combineFromBackpack', () => {
     const py = state.player.y
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        expect(state.map[py + dy][px + dx].type).toBe(TileType.Clover)
+        expect(state.map[py + dy][px + dx].type).toBe(TileType.Flora)
       }
     }
   })
@@ -138,7 +138,7 @@ describe('combineFromBackpack', () => {
     combineFromBackpack(state, 'bee', 'clover')
 
     expect(state.map[py][px - 1].type).toBe(TileType.Sand)
-    expect(state.map[py + 1][px].type).toBe(TileType.Clover)
+    expect(state.map[py + 1][px].type).toBe(TileType.Flora)
   })
 
   it('removes one bee and one clover from backpack', () => {
@@ -213,7 +213,7 @@ describe('combineFromBackpack', () => {
 
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        expect(state.map[py + dy][px + dx].type).toBe(TileType.Clover)
+        expect(state.map[py + dy][px + dx].type).toBe(TileType.Flora)
         expect(state.craters.has(posKey(px + dx, py + dy))).toBe(true)
       }
     }
@@ -236,8 +236,8 @@ describe('combineFromBackpack', () => {
     const result = combineFromBackpack(state, 'bee', 'clover')
     expect(result).toBe(true)
 
-    expect(state.map[py][px].type).toBe(TileType.Clover)
-    expect(state.map[py - 1][px].type).toBe(TileType.Clover)
+    expect(state.map[py][px].type).toBe(TileType.Flora)
+    expect(state.map[py - 1][px].type).toBe(TileType.Flora)
     // Sand is unchanged
     expect(state.map[py][px + 1].type).toBe(TileType.Sand)
     // Crater entries persist beneath the new clover

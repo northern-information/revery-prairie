@@ -87,7 +87,7 @@ describe('prairie recipe execute', () => {
 
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        expect(state.map[py + dy][px + dx].type).toBe(TileType.Clover)
+        expect(state.map[py + dy][px + dx].type).toBe(TileType.Flora)
       }
     }
   })
@@ -136,7 +136,7 @@ describe('prairie recipe execute', () => {
 
     prairieRecipe.execute(state)
     expect(state.map[py - 1][px - 1].type).toBe(TileType.Sand)
-    expect(state.map[py][px].type).toBe(TileType.Clover)
+    expect(state.map[py][px].type).toBe(TileType.Flora)
   })
 
   it('does not overwrite CaveEntrance tiles in the 3x3 area', () => {
@@ -149,7 +149,7 @@ describe('prairie recipe execute', () => {
 
     prairieRecipe.execute(state)
     expect(state.map[py - 1][px].type).toBe(TileType.CaveEntrance)
-    expect(state.map[py][px].type).toBe(TileType.Clover)
+    expect(state.map[py][px].type).toBe(TileType.Flora)
   })
 })
 
@@ -177,7 +177,7 @@ describe('prairie recipe preview', () => {
 
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        state.map[py + dy][px + dx] = { type: TileType.Clover }
+        state.map[py + dy][px + dx] = { type: TileType.Flora }
       }
     }
 

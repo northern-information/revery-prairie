@@ -1,5 +1,5 @@
 import { generateBoltPath } from './boltPath'
-import { addSoilHealth } from './cloverLifecycle'
+import { addSoilHealth } from './floraLifecycle'
 import {
   LIGHTNING_BASE_CHANCE,
   LIGHTNING_BOLT_MAX_LENGTH,
@@ -26,7 +26,7 @@ import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { CARDINAL, isInBounds, posKey } from './position'
-import { CloverStage, Sky, TileType, Zone } from './types'
+import { FloraStage, Sky, TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'
 
@@ -56,7 +56,7 @@ const isIsolatedFeature = (state: GameState, x: number, y: number): boolean => {
       const ny = y + dy
       if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
       total++
-      if (state.map[ny][nx].type === TileType.Clover) cloverCount++
+      if (state.map[ny][nx].type === TileType.Flora) cloverCount++
     }
   }
   return total > 0 && cloverCount / total < LIGHTNING_ISOLATED_CLOVER_THRESHOLD
@@ -138,7 +138,7 @@ export const selectStrikeTarget = (state: GameState, rng: () => number): Positio
     }
 
     // Clover density factor
-    if (tile.type === TileType.Clover) score *= LIGHTNING_WEIGHT_CLOVER
+    if (tile.type === TileType.Flora) score *= LIGHTNING_WEIGHT_CLOVER
 
     candidates.push({ x, y, score })
   }
@@ -170,7 +170,7 @@ export const spreadWildfire = (
   const burned = new Set<string>()
 
   // Check if strike tile is clover
-  if (state.map[strikeY][strikeX].type !== TileType.Clover) return burned
+  if (state.map[strikeY][strikeX].type !== TileType.Flora) return burned
   const strikeKey = posKey(strikeX, strikeY)
 
   // Force origin tile water to 0 — fire/lightning always ignites the target
@@ -185,7 +185,7 @@ export const spreadWildfire = (
     const key = posKey(pos.x, pos.y)
     if (burned.has(key)) continue
     if (!isInBounds(pos.x, pos.y, state.mapWidth, state.mapHeight)) continue
-    if (state.map[pos.y][pos.x].type !== TileType.Clover) continue
+    if (state.map[pos.y][pos.x].type !== TileType.Flora) continue
 
     // Check water level (skip for origin which we already checked)
     if (key !== strikeKey) {
@@ -199,13 +199,13 @@ export const spreadWildfire = (
 
     // Burn this tile
     burned.add(key)
-    setMapTile(state, pos.x, pos.y, { type: TileType.BurntClover })
-    state.cloverLifecycle.set(key, {
-      stage: CloverStage.BurntRecovering,
+    setMapTile(state, pos.x, pos.y, { type: TileType.BurntFlora })
+    state.floraLifecycle.set(key, {
+      stage: FloraStage.BurntRecovering,
       stageStartTime: time,
       hasLight: true,
     })
-    state.cloverGrowthPreviews.delete(key)
+    state.floraGrowthPreviews.delete(key)
     addSoilHealth(state, key, SOIL_HEALTH_BURN_BONUS)
 
     // Enqueue neighbors

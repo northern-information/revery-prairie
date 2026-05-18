@@ -1,7 +1,7 @@
 import { spawnAngel, tickAngelBeeAura, tickAngelCloverAura, tickAngelDrift, tickAngelLifespan } from './angels'
 import { spawnShootingStar, tickMeteorShower, tickShootingStars, triggerPlayerSpawnShower } from './celestial'
 import { tickCloverGrowth, tickCloverHives } from './clover'
-import { tickCloverLifecycle } from './cloverLifecycle'
+import { tickCloverLifecycle } from './floraLifecycle'
 import {
   ANGEL_BEE_SPAWN_INTERVAL_MS,
   ANGEL_CLOVER_GROW_INTERVAL_MS,

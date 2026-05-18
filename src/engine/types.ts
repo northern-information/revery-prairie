@@ -5,8 +5,8 @@ import type { ColorId } from '@revery-prairie/shared'
 export const TileType = {
   Space: 'space',
   Dirt: 'dirt',
-  Clover: 'clover',
-  BurntClover: 'burntClover',
+  Flora: 'flora',
+  BurntFlora: 'burntFlora',
   Sand: 'sand',
   CaveFloor: 'caveFloor',
   CaveWall: 'caveWall',
@@ -292,8 +292,8 @@ export interface GameState {
   caveBreakableWallPositions: Position[]
   giftsReceived: Set<string>
   world: World
-  cloverGrowthPreviews: Set<string>
-  cloverLifecycle: Map<string, CloverLifecycleState>
+  floraGrowthPreviews: Set<string>
+  floraLifecycle: Map<string, FloraLifecycleState>
   soilHealth: Map<string, number>
   elevation: Map<string, number>
   ponds: Set<string>
@@ -359,7 +359,7 @@ export interface GameState {
   onGenesisComplete: ((handoffTime: number) => void) | null
 }
 
-export const CloverStage = {
+export const FloraStage = {
   Healthy: 'healthy',
   Brown: 'brown',
   BlinkingRed: 'blinkingRed',
@@ -368,12 +368,21 @@ export const CloverStage = {
   BurntRecovering: 'burntRecovering',
 } as const
 
-export type CloverStage = (typeof CloverStage)[keyof typeof CloverStage]
+export type FloraStage = (typeof FloraStage)[keyof typeof FloraStage]
 
-export interface CloverLifecycleState {
-  stage: CloverStage
+export const FloraSpecies = {
+  Clover: 'clover',
+  Wildflower: 'wildflower',
+  TallGrass: 'tallGrass',
+} as const
+
+export type FloraSpecies = (typeof FloraSpecies)[keyof typeof FloraSpecies]
+
+export interface FloraLifecycleState {
+  stage: FloraStage
   stageStartTime: number
   hasLight: boolean
+  species: FloraSpecies
 }
 
 export interface ManualState {

@@ -1,5 +1,5 @@
 import { tickCloverGrowth } from './clover'
-import { tickCloverLifecycle } from './cloverLifecycle'
+import { tickCloverLifecycle } from './floraLifecycle'
 import {
   DEEP_TIME_BURN_DURATION_MS,
   DEEP_TIME_LIGHTNING_COUNT,
@@ -55,7 +55,7 @@ export const initiateDeepTime = (state: GameState, time: number): void => {
   const cloverPositions: Position[] = []
   for (let y = 0; y < state.mapHeight; y++) {
     for (let x = 0; x < state.mapWidth; x++) {
-      if (state.map[y][x].type === TileType.Clover) {
+      if (state.map[y][x].type === TileType.Flora) {
         cloverPositions.push({ x, y })
       }
     }

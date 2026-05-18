@@ -19,7 +19,7 @@ import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
-import { CloverStage, TileType, Zone } from './types'
+import { FloraStage, TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'
 
@@ -320,9 +320,9 @@ export const tickAngelCloverAura = (state: GameState, time: number): void => {
       if (state.map[oy][ox].type !== TileType.Dirt) continue
       if (isWaterTile(state, ox, oy)) continue
 
-      setMapTile(state, ox, oy, { type: TileType.Clover })
-      state.cloverLifecycle.set(posKey(ox, oy), {
-        stage: CloverStage.Healthy,
+      setMapTile(state, ox, oy, { type: TileType.Flora })
+      state.floraLifecycle.set(posKey(ox, oy), {
+        stage: FloraStage.Healthy,
         stageStartTime: time,
         hasLight: true,
       })

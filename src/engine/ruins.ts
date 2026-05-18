@@ -819,7 +819,7 @@ const clearNavigationState = (state: GameState): void => {
   state.facingEntityPos = null
   state.activeDialog = null
   state.trail = []
-  state.cloverGrowthPreviews = new Set<string>()
+  state.floraGrowthPreviews = new Set<string>()
   clearMovementTweens(state)
   deselectAll(state)
   clearAllUnitCommands(state)

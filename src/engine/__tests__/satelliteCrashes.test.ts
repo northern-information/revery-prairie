@@ -47,7 +47,7 @@ describe('genesis satellite crashes', () => {
     const sim = runFallEpoch(nameToSeed('Tyler'))
     for (const crash of sim.satelliteCrashes) {
       const tile = sim.grid[crash.impactY][crash.impactX].type
-      expect([TileType.Dirt, TileType.Clover]).toContain(tile)
+      expect([TileType.Dirt, TileType.Flora]).toContain(tile)
     }
   })
 

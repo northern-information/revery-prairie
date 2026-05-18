@@ -48,7 +48,7 @@ const findSatelliteTarget = (state: GameState): Position | null => {
     const y = SPACE_BORDER + Math.floor(Math.random() * (state.mapHeight - SPACE_BORDER * 2))
     if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
     const tile = state.map[y][x].type
-    if (tile !== TileType.Dirt && tile !== TileType.Clover) continue
+    if (tile !== TileType.Dirt && tile !== TileType.Flora) continue
     // Avoid landing directly on the player
     if (state.player.x === x && state.player.y === y) continue
     return { x, y }
@@ -134,7 +134,7 @@ const applyImpact = (state: GameState, center: Position, time: number): void => 
 
       // Mark the tile as cratered (persistent effect; tile type is unchanged)
       const key = posKey(x, y)
-      if (tile.type === TileType.Dirt || tile.type === TileType.Clover) {
+      if (tile.type === TileType.Dirt || tile.type === TileType.Flora) {
         state.craters.add(key)
       }
 

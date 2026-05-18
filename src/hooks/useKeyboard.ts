@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { getCharacterDefinition } from '@/engine/characters'
-import { cutClover, harvestClover, HarvestResult } from '@/engine/cloverLifecycle'
+import { cutClover, harvestClover, HarvestResult } from '@/engine/floraLifecycle'
 import { dropItem } from '@/engine/entities'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import { keyToScreenAxis, resolveHeldDirection } from '@/engine/heldKeys'

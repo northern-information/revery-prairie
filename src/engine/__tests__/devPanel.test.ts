@@ -191,17 +191,17 @@ describe('dev panel', () => {
       const state = makeMinimalState()
       expect(state.map[3][4].type).toBe(TileType.Dirt)
 
-      paintTile(state, 4, 3, TileType.Clover)
+      paintTile(state, 4, 3, TileType.Flora)
 
-      expect(state.map[3][4].type).toBe(TileType.Clover)
+      expect(state.map[3][4].type).toBe(TileType.Flora)
     })
 
     it('does nothing for out-of-bounds coordinates', () => {
       const state = makeMinimalState()
-      paintTile(state, -1, 0, TileType.Clover)
-      paintTile(state, 0, -1, TileType.Clover)
-      paintTile(state, 100, 0, TileType.Clover)
-      paintTile(state, 0, 100, TileType.Clover)
+      paintTile(state, -1, 0, TileType.Flora)
+      paintTile(state, 0, -1, TileType.Flora)
+      paintTile(state, 100, 0, TileType.Flora)
+      paintTile(state, 0, 100, TileType.Flora)
 
       // All tiles should still be dirt
       for (let y = 0; y < 10; y++) {
@@ -221,11 +221,11 @@ describe('dev panel', () => {
   describe('rectangle painting', () => {
     it('fills a rectangular area with the selected tile type', () => {
       const state = makeMinimalState()
-      paintRect(state, 2, 3, 5, 6, TileType.Clover)
+      paintRect(state, 2, 3, 5, 6, TileType.Flora)
 
       for (let y = 3; y <= 6; y++) {
         for (let x = 2; x <= 5; x++) {
-          expect(state.map[y][x].type).toBe(TileType.Clover)
+          expect(state.map[y][x].type).toBe(TileType.Flora)
         }
       }
       // Outside the rect should still be dirt
@@ -260,9 +260,9 @@ describe('dev panel', () => {
 
     it('paints a single tile when start equals end', () => {
       const state = makeMinimalState()
-      paintRect(state, 4, 4, 4, 4, TileType.Clover)
+      paintRect(state, 4, 4, 4, 4, TileType.Flora)
 
-      expect(state.map[4][4].type).toBe(TileType.Clover)
+      expect(state.map[4][4].type).toBe(TileType.Flora)
       expect(state.map[4][3].type).toBe(TileType.Dirt)
       expect(state.map[3][4].type).toBe(TileType.Dirt)
     })

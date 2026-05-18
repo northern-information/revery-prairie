@@ -145,13 +145,13 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
 
 const isBeeNearFood = (state: GameState, pos: Position): boolean => {
   // Check the bee's own tile
-  if (isInBounds(pos.x, pos.y, state.mapWidth, state.mapHeight) && state.map[pos.y][pos.x].type === TileType.Clover)
+  if (isInBounds(pos.x, pos.y, state.mapWidth, state.mapHeight) && state.map[pos.y][pos.x].type === TileType.Flora)
     return true
   // Check cardinal neighbors
   for (const d of CARDINAL) {
     const nx = pos.x + d.x
     const ny = pos.y + d.y
-    if (isInBounds(nx, ny, state.mapWidth, state.mapHeight) && state.map[ny][nx].type === TileType.Clover) return true
+    if (isInBounds(nx, ny, state.mapWidth, state.mapHeight) && state.map[ny][nx].type === TileType.Flora) return true
   }
   return false
 }
@@ -179,7 +179,7 @@ export const tickBees = (state: GameState, zone?: Zone): Position[] => {
       const ny = pos.y + d.y
       if (isInBounds(nx, ny, state.mapWidth, state.mapHeight)) {
         const tile = state.map[ny][nx]
-        if (tile.type === TileType.Clover) {
+        if (tile.type === TileType.Flora) {
           cloverCandidates.push({ x: nx, y: ny })
         } else if (isWalkableTile(tile.type)) {
           walkableCandidates.push({ x: nx, y: ny })

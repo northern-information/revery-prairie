@@ -21,8 +21,8 @@ export const CAVE_HEIGHT = 25
 export const TILE_CHARS: Record<TileType, string> = {
   [TileType.Space]: ' ',
   [TileType.Dirt]: '·',
-  [TileType.Clover]: '%',
-  [TileType.BurntClover]: '%',
+  [TileType.Flora]: '%',
+  [TileType.BurntFlora]: '%',
   [TileType.Sand]: ':',
   [TileType.CaveFloor]: '·',
   [TileType.CaveWall]: '#',
@@ -45,8 +45,8 @@ export const TILE_CHARS: Record<TileType, string> = {
 export const TILE_COLORS: Record<TileType, string> = {
   [TileType.Space]: '#000',
   [TileType.Dirt]: '#8B7355',
-  [TileType.Clover]: '#50C878',
-  [TileType.BurntClover]: '#3D2B1F',
+  [TileType.Flora]: '#50C878',
+  [TileType.BurntFlora]: '#3D2B1F',
   [TileType.Sand]: '#C2B280',
   [TileType.CaveFloor]: '#666666',
   [TileType.CaveWall]: '#444444',

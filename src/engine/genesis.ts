@@ -2697,7 +2697,7 @@ const fallOfCivilizations: GenesisEpoch = {
       const cx = Number(xStr)
       const cy = Number(yStr)
       const tileType = sim.grid[cy][cx].type
-      if (tileType !== TileType.Dirt && tileType !== TileType.Clover) continue
+      if (tileType !== TileType.Dirt && tileType !== TileType.Flora) continue
       candidateKeys.push(key)
     }
 
@@ -2743,7 +2743,7 @@ const fallOfCivilizations: GenesisEpoch = {
           }
           if (sim.ponds.has(tk) || sim.riverPaths.has(tk)) continue
           if (ruinProtected.has(tk)) continue
-          if (tileType !== TileType.Dirt && tileType !== TileType.Clover) continue
+          if (tileType !== TileType.Dirt && tileType !== TileType.Flora) continue
 
           sim.craters.add(tk)
           const current = sim.soilHealth.get(tk) ?? 30
