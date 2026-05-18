@@ -11,22 +11,23 @@ import {
   SATELLITE_MAX_LENGTH,
   SATELLITE_MIN_LENGTH,
   SATELLITE_MIN_SPAWN_INTERVAL_MS,
-  SATELLITE_SEED_COUNT_MAX,
-  SATELLITE_SEED_COUNT_MIN,
   SATELLITE_SOIL_DAMAGE,
   SATELLITE_SPAWN_CHANCE,
   SPACE_BORDER,
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
-import { isInBounds, isWalkableTile, posKey } from './position'
+import { isInBounds, posKey } from './position'
 import { onElevationMutated } from './render/cacheContract'
 import { TileType, Zone } from './types'
-import { spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
 
-const SEED_ITEM_IDS = ['wildflowerSeeds', 'tallGrassSeeds', 'milkweedSeeds']
+// Seed items (wildflowerSeeds, tallGrassSeeds, milkweedSeeds) were
+// deleted in precis #1. Satellite seed payloads scatter no items in this
+// PR — the satellite still impacts and deforms terrain, but no ground
+// items are dropped. Seed items will return in precis #11 with a proper
+// taxonomy and planting interaction.
 
 const PROTECTED_TILES = new Set<TileType>([
   TileType.Space,
@@ -170,46 +171,16 @@ const applyImpact = (state: GameState, center: Position, time: number): void => 
   recordDiscovery(state, 'event:satellite-impact')
 }
 
-/** Scatter seed items as ground items in the crater zone. */
-const scatterSeeds = (state: GameState, center: Position): void => {
-  const r = SATELLITE_IMPACT_RADIUS
-  const count =
-    SATELLITE_SEED_COUNT_MIN + Math.floor(Math.random() * (SATELLITE_SEED_COUNT_MAX - SATELLITE_SEED_COUNT_MIN + 1))
-
-  // Collect valid placement positions (crater tiles, no existing ground items)
-  const candidates: Position[] = []
-  for (let dy = -r; dy <= r; dy++) {
-    for (let dx = -r; dx <= r; dx++) {
-      const x = center.x + dx
-      const y = center.y + dy
-      if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
-      if (!isWalkableTile(state.map[y][x].type)) continue
-      // Check no ground items already here
-      const entities = spatialAtInCurrentZone(state, x, y)
-      const hasGroundItem = entities.some(
-        eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem'
-      )
-      if (hasGroundItem) continue
-      candidates.push({ x, y })
-    }
-  }
-
-  // Shuffle candidates
-  for (let i = candidates.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[candidates[i], candidates[j]] = [candidates[j], candidates[i]]
-  }
-
-  const toPlace = Math.min(count, candidates.length)
-  for (let i = 0; i < toPlace; i++) {
-    const pos = candidates[i]
-    const seedId = SEED_ITEM_IDS[Math.floor(Math.random() * SEED_ITEM_IDS.length)]
-    const ge = state.world.createEntity()
-    state.world.addComponent(ge, ComponentType.Position, { x: pos.x, y: pos.y })
-    state.world.addComponent(ge, ComponentType.ItemDrop, { definitionId: seedId })
-    state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
-    state.world.addComponent(ge, ComponentType.EntityZone, { zone: Zone.Overworld })
-  }
+/**
+ * Seed-payload satellites had previously scattered Wildflower / Tall
+ * Grass / Milkweed seed items into the crater zone. Those item
+ * definitions were deleted in precis #1, so the scatter is now a no-op
+ * pending precis #11. Function kept (rather than removing the
+ * payloadType check at the call site) so the routing surface stays
+ * intact and #11 can rehydrate it.
+ */
+const scatterSeeds = (_state: GameState, _center: Position): void => {
+  // Intentionally empty — see comment above.
 }
 
 export const tickSatellites = (state: GameState, time: number): Position | null => {

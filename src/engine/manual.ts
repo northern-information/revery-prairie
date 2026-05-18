@@ -58,9 +58,6 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'item:coin': {
     lore: 'A relic from a more barbaric age. Still has some utility for divination, if you can find the glint.',
   },
-  'item:wildflowerSeeds': { lore: 'TODO' },
-  'item:tallGrassSeeds': { lore: 'TODO' },
-  'item:milkweedSeeds': { lore: 'TODO' },
   'item:stoneTablet': { lore: 'TODO' },
   'item:aqueductKey': { lore: 'Its verdigris filigree promises passage.' },
   // World entities
@@ -121,12 +118,6 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   },
   'event:clover-death': {
     lore: 'Clover needs both light and water to survive. Without them it slowly browns, then blinks red in distress, turns black, and finally decomposes back into the earth — enriching the soil as it goes.',
-  },
-  'event:clover-harvest': {
-    lore: 'Pressing [f] while facing clover harvests it into your backpack. The tile returns to bare dirt. Harvested clover does not enrich the soil.',
-  },
-  'event:clover-cut': {
-    lore: 'Pressing [x] while facing clover cuts it down to bare dirt. Unlike harvesting, cutting returns nutrients to the earth, enriching the soil.',
   },
   // Events — lightning
   'event:lightning-strike': {
@@ -432,24 +423,6 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     glyph: '%',
     glyphColor: '#8B6914',
     unlockKey: 'event:clover-death',
-    sourceKind: 'event',
-  },
-  {
-    id: 'event:clover-harvest',
-    name: 'Clover Harvest',
-    category: ManualCategory.Life,
-    glyph: '%',
-    glyphColor: '#50C878',
-    unlockKey: 'event:clover-harvest',
-    sourceKind: 'event',
-  },
-  {
-    id: 'event:clover-cut',
-    name: 'Clover Cut',
-    category: ManualCategory.Life,
-    glyph: '%',
-    glyphColor: '#50C878',
-    unlockKey: 'event:clover-cut',
     sourceKind: 'event',
   },
   {

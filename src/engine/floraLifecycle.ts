@@ -6,16 +6,12 @@ import {
   CLOVER_BROWN_DURATION_MS,
   CLOVER_DECOMPOSE_DURATION_MS,
   SOIL_HEALTH_CLOVER_DEATH_BONUS,
-  SOIL_HEALTH_CUT_BONUS,
   SOIL_HEALTH_DEFAULT,
   SOIL_HEALTH_MAX,
   WATER_MAX,
 } from './constants'
-import { spawnPickupBloom } from './effects'
-import { findFitPosition, placeItem } from './inventory'
 import { recordDiscovery } from './manual'
-import { setMapTile } from './map'
-import { isInBounds, posKey } from './position'
+import { posKey } from './position'
 import { FloraSpecies, FloraStage, TileType, Zone } from './types'
 
 import type { FloraLifecycleState, GameState, Zone as ZoneType } from './types'
@@ -168,56 +164,10 @@ export const tickFloraLifecycle = (state: GameState, zone: ZoneType, time: numbe
   }
 }
 
-// --- Player actions ---
-
-const getFacingCloverPos = (state: GameState): { x: number; y: number } | null => {
-  const pos = state.facingEntityPos
-  if (!pos) return null
-  if (!isInBounds(pos.x, pos.y, state.mapWidth, state.mapHeight)) return null
-  if (state.map[pos.y][pos.x].type !== TileType.Flora) return null
-  return pos
-}
-
-export const HarvestResult = {
-  Success: 'success',
-  NoClover: 'no-clover',
-  BackpackFull: 'backpack-full',
-  Dying: 'dying',
-} as const
-
-export type HarvestResult = (typeof HarvestResult)[keyof typeof HarvestResult]
-
-export const harvestClover = (state: GameState, time?: number): HarvestResult => {
-  const pos = getFacingCloverPos(state)
-  if (!pos) return HarvestResult.NoClover
-
-  const entry = state.floraLifecycle.get(posKey(pos.x, pos.y))
-  if (entry && entry.stage !== FloraStage.Healthy) return HarvestResult.Dying
-
-  const fit = findFitPosition(state.backpack, 'clover')
-  if (!fit) return HarvestResult.BackpackFull
-
-  setMapTile(state, pos.x, pos.y, { type: TileType.Dirt })
-  placeItem(state.backpack, 'clover', fit.gridX, fit.gridY)
-  state.floraLifecycle.delete(posKey(pos.x, pos.y))
-  recordDiscovery(state, 'event:clover-harvest')
-  if (time !== undefined) {
-    spawnPickupBloom(state, state.player.x, state.player.y, time)
-  }
-  return HarvestResult.Success
-}
-
-export const cutClover = (state: GameState): boolean => {
-  const pos = getFacingCloverPos(state)
-  if (!pos) return false
-
-  const key = posKey(pos.x, pos.y)
-  setMapTile(state, pos.x, pos.y, { type: TileType.Dirt })
-  addSoilHealth(state, key, SOIL_HEALTH_CUT_BONUS)
-  state.floraLifecycle.delete(key)
-  recordDiscovery(state, 'event:clover-cut')
-  return true
-}
+// Player-facing harvest and cut mechanics were deleted in precis #1.
+// Clover acquisition routes through ruin recovery (precis #5) and the
+// [f] / [x]-without-hovered-item keybind branches were dropped from
+// src/hooks/useKeyboard.ts.
 
 // --- Renderer utility ---
 
