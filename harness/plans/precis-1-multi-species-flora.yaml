@@ -1,0 +1,651 @@
+plan:
+  id: precis-1-multi-species-flora
+  title: Multi-species Flora — clover becomes a Flora species; add wildflower and tall grass
+  created: 2026-05-18
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine + dashboard status (eager, low risk) ---
+
+  - id: doctrine-status-update
+    title: Flip precis-status.yaml feature 1 to in-progress with spec/plan links
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - doctrine-and-status-aligned
+    context_files:
+      - docs/precis-status.yaml
+    output_files:
+      - docs/precis-status.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Type rename (TileType.Clover → Flora; BurntClover → BurntFlora;
+  # CloverStage → FloraStage; CloverLifecycleState → FloraLifecycleState; add
+  # species field). Done as one task to minimize typecheck thrash. ---
+
+  - id: rename-types-and-add-species-field
+    title: Rename TileType.Clover→Flora and BurntClover→BurntFlora; rename CloverStage→FloraStage; add species field to lifecycle state
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - tile-type-renamed-to-flora
+      - flora-stage-renamed
+      - flora-species-id-on-lifecycle-record
+      - burnt-clover-tile-renamed
+    context_files:
+      - src/engine/types.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/genesisTypes.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - types
+
+  - id: rename-gamestate-fields
+    title: Rename state.cloverLifecycle → floraLifecycle and state.cloverGrowthPreviews → floraGrowthPreviews; thread the species field through createGameState
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - flora-species-id-on-lifecycle-record
+    context_files:
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - rename-types-and-add-species-field
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - state
+
+  - id: schema-allowlist
+    title: Replace cloverLifecycle and cloverGrowthPreviews entries with their renamed counterparts in the serialization schema allowlist
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - schema-allowlist-updated
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - rename-gamestate-fields
+    verification:
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - test
+      - harness
+
+  # --- Tier 2: Flora species registry + renderer wiring ---
+
+  - id: flora-species-registry
+    title: Create FLORA_SPECIES registry under src/engine/flora/species.ts with id, glyph, color, display name, Latin binomial for clover, wildflower, tallGrass
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - per-species-glyph-registry
+      - per-species-manual-entries
+    context_files:
+      - src/engine/flora/index.ts
+      - src/engine/flora/type/clover/clover.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/flora/species.ts
+      - src/engine/flora/index.ts
+    depends_on:
+      - rename-types-and-add-species-field
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - flora
+
+  - id: register-wildflower-tallgrass-flora-types
+    title: Register wildflower and tall grass under src/engine/flora/type/{wildflower,tallGrass}/ with movement and pollinate profiles
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - per-species-glyph-registry
+      - lifecycle-shared-across-species
+    context_files:
+      - src/engine/flora/type/clover/clover.ts
+      - src/engine/flora/actions/movement.ts
+      - src/engine/flora/actions/pollinate.ts
+      - src/engine/flora/species.ts
+    output_files:
+      - src/engine/flora/type/wildflower/wildflower.ts
+      - src/engine/flora/type/tallGrass/tallGrass.ts
+      - src/engine/flora/index.ts
+    depends_on:
+      - flora-species-registry
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - flora
+
+  - id: renderer-per-species-glyph
+    title: Renderer consults FLORA_SPECIES (via species field on floraLifecycle) instead of the per-tile-type TILE_CHARS/TILE_COLORS for Flora tiles
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - per-species-glyph-registry
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+      - src/engine/constants.ts
+      - src/engine/flora/species.ts
+    output_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+    depends_on:
+      - register-wildflower-tallgrass-flora-types
+      - rename-gamestate-fields
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - render
+
+  # --- Tier 3: Lifecycle generalization ---
+
+  - id: generalize-clover-lifecycle
+    title: Generalize cloverLifecycle.ts to floraLifecycle.ts; remove harvestClover and cutClover (deferred to their own tasks); keep the per-stage transition rules and recovery path
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - lifecycle-shared-across-species
+    context_files:
+      - src/engine/cloverLifecycle.ts
+      - src/engine/clover.ts
+      - src/engine/flora/species.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/floraLifecycle.ts
+      - src/engine/cloverLifecycle.ts
+      - src/engine/clover.ts
+    depends_on:
+      - rename-gamestate-fields
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - flora
+
+  # --- Tier 4: Wildfire kernel generalization ---
+
+  - id: wildfire-generalized-to-all-flora
+    title: Generalize spreadWildfire to burn any Flora species; preserve species on burnt tiles for recovery
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - wildfire-spreads-through-all-flora
+    context_files:
+      - src/engine/lightning.ts
+      - src/engine/floraLifecycle.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/lightning.ts
+    depends_on:
+      - generalize-clover-lifecycle
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/wildfire.test.ts
+    repair: retry
+    tags:
+      - engine
+      - simulation
+
+  # --- Tier 5: Genesis patch placement ---
+
+  - id: genesis-flora-patches
+    title: Add a post-process step to genesis that deterministically seeds N wildflower patches and M tall grass patches on walkable dirt tiles, using the nameToSeed PRNG
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - genesis-seeds-wildflower-patches
+      - genesis-seeds-tall-grass-patches
+      - clover-genesis-and-growth-unchanged
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/floraLifecycle.ts
+      - src/engine/flora/species.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/genesis.ts
+      - src/engine/constants.ts
+    depends_on:
+      - generalize-clover-lifecycle
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+      - genesis
+
+  # --- Tier 6: Deletions (harvest, cut, seed items) ---
+
+  - id: delete-harvest-mechanic
+    title: Delete harvestClover, HarvestResult, the [f] keybind branch in useKeyboard.ts, and 'event:clover-harvest' manual lore + entry
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - harvest-mechanic-deleted
+    context_files:
+      - src/engine/floraLifecycle.ts
+      - src/engine/manual.ts
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/engine/floraLifecycle.ts
+      - src/hooks/useKeyboard.ts
+      - src/engine/manual.ts
+    depends_on:
+      - generalize-clover-lifecycle
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - hook
+
+  - id: delete-cut-mechanic
+    title: Delete cutClover and the cut branch of the [x] keybind; preserve the drop-hovered-item branch; remove 'event:clover-cut' manual entry
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - cut-mechanic-deleted
+    context_files:
+      - src/engine/floraLifecycle.ts
+      - src/engine/manual.ts
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/engine/floraLifecycle.ts
+      - src/hooks/useKeyboard.ts
+      - src/engine/manual.ts
+    depends_on:
+      - delete-harvest-mechanic
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - hook
+
+  - id: delete-seed-items
+    title: Remove wildflowerSeeds, tallGrassSeeds, milkweedSeeds entries from ITEM_DEFINITIONS and their MANUAL_LORE stubs
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - seed-items-deleted
+    context_files:
+      - src/engine/items.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/items.ts
+      - src/engine/manual.ts
+    depends_on:
+      - delete-cut-mechanic
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - items
+
+  # --- Tier 7: Preserve clover-specific behaviors (recipe, quest, bees) ---
+
+  - id: preserve-clover-specific-mechanics
+    title: Audit and update clover-specific check sites (bee+clover recipe, Gron quest gate, bee preference / capture, monarch, angels, satellites) to filter by floraLifecycle species instead of the deleted TileType.Clover
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - bee-clover-recipe-stays-clover-specific
+      - gron-quest-clover-check-stays-clover-specific
+      - bee-mechanics-stay-clover-specific
+    context_files:
+      - src/engine/recipes.ts
+      - src/engine/characters.ts
+      - src/engine/entities.ts
+      - src/engine/angels.ts
+      - src/engine/monarch.ts
+      - src/engine/satellites.ts
+      - src/engine/celestial.ts
+      - src/engine/glintZones.ts
+      - src/engine/movement.ts
+      - src/engine/floraLifecycle.ts
+    output_files:
+      - src/engine/recipes.ts
+      - src/engine/entities.ts
+      - src/engine/angels.ts
+      - src/engine/monarch.ts
+      - src/engine/satellites.ts
+      - src/engine/celestial.ts
+      - src/engine/glintZones.ts
+      - src/engine/movement.ts
+    depends_on:
+      - generalize-clover-lifecycle
+      - renderer-per-species-glyph
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: deep-time-flora-survey
+    title: Update deepTime.ts simulation to read floraLifecycle/species instead of the old clover-specific paths
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - lifecycle-shared-across-species
+      - wildfire-spreads-through-all-flora
+    context_files:
+      - src/engine/deepTime.ts
+      - src/engine/floraLifecycle.ts
+      - src/engine/flora/species.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/deepTime.ts
+    depends_on:
+      - generalize-clover-lifecycle
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - simulation
+
+  - id: sidebar-cursor-info-per-species
+    title: Sidebar cursor info renders per-species labels for flora tiles (Clover / Purple Coneflower / Big Bluestem) using the species field
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - per-species-glyph-registry
+      - per-species-manual-entries
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/flora/species.ts
+      - src/engine/floraLifecycle.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - renderer-per-species-glyph
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  # --- Tier 8: Manual entries per species ---
+
+  - id: manual-entries-per-species
+    title: Add manual entries for the three flora species (Clover, Purple Coneflower, Big Bluestem) under Life category with Latin binomials; preserve clover lore; wildflower and tall grass lore = TODO
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - per-species-manual-entries
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/flora/species.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - flora-species-registry
+      - delete-seed-items
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - manual
+
+  # --- Tier 9: Tests + harness specs that reference renamed/deleted symbols ---
+
+  - id: update-engine-tests
+    title: Update engine tests to use the new names (Flora, FloraStage, floraLifecycle) and species field; remove tests for deleted harvestClover / cutClover; remove tests for deleted seed items
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - tile-type-renamed-to-flora
+      - flora-stage-renamed
+      - flora-species-id-on-lifecycle-record
+      - harvest-mechanic-deleted
+      - cut-mechanic-deleted
+      - seed-items-deleted
+    context_files:
+      - src/engine/__tests__/tileWater.test.ts
+      - src/engine/__tests__/meteorShower.test.ts
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/__tests__/satelliteCrashes.test.ts
+      - src/engine/__tests__/angels.test.ts
+      - src/engine/__tests__/cursorTileInfo.test.ts
+      - src/engine/__tests__/cave.test.ts
+      - src/engine/__tests__/monarch.test.ts
+      - src/engine/__tests__/devPanel.test.ts
+      - src/engine/__tests__/wildfire.test.ts
+      - src/engine/__tests__/lightning.test.ts
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/__tests__/entities.test.ts
+      - src/engine/__tests__/coyote.test.ts
+      - src/engine/__tests__/deepTime.test.ts
+      - src/engine/__tests__/moab-colde.test.ts
+      - src/engine/__tests__/pickupBloom.test.ts
+      - src/engine/__tests__/gron-gift.test.ts
+      - src/engine/__tests__/glintZones.test.ts
+      - src/engine/__tests__/cloverLifecycle.test.ts
+      - src/engine/__tests__/smoothMove.test.ts
+      - src/engine/__tests__/state.test.ts
+      - src/engine/__tests__/ruin-locked-door.test.ts
+      - src/engine/__tests__/zoneIsolation.test.ts
+    output_files:
+      - src/engine/__tests__/tileWater.test.ts
+      - src/engine/__tests__/meteorShower.test.ts
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/__tests__/satelliteCrashes.test.ts
+      - src/engine/__tests__/angels.test.ts
+      - src/engine/__tests__/cursorTileInfo.test.ts
+      - src/engine/__tests__/cave.test.ts
+      - src/engine/__tests__/monarch.test.ts
+      - src/engine/__tests__/devPanel.test.ts
+      - src/engine/__tests__/wildfire.test.ts
+      - src/engine/__tests__/lightning.test.ts
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/__tests__/entities.test.ts
+      - src/engine/__tests__/coyote.test.ts
+      - src/engine/__tests__/deepTime.test.ts
+      - src/engine/__tests__/moab-colde.test.ts
+      - src/engine/__tests__/pickupBloom.test.ts
+      - src/engine/__tests__/gron-gift.test.ts
+      - src/engine/__tests__/glintZones.test.ts
+      - src/engine/__tests__/cloverLifecycle.test.ts
+      - src/engine/__tests__/smoothMove.test.ts
+      - src/engine/__tests__/state.test.ts
+      - src/engine/__tests__/ruin-locked-door.test.ts
+      - src/engine/__tests__/zoneIsolation.test.ts
+    depends_on:
+      - preserve-clover-specific-mechanics
+      - delete-seed-items
+      - manual-entries-per-species
+      - wildfire-generalized-to-all-flora
+      - deep-time-flora-survey
+      - genesis-flora-patches
+    verification:
+      - npx vitest run src/engine/__tests__/
+    repair: retry
+    tags:
+      - test
+      - engine
+
+  - id: update-component-and-hook-tests
+    title: Update Sidebar test fixture for per-species labels; update useKeyboard and useMouse tests for the deleted [f] keybind and [x] cut branch
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - harvest-mechanic-deleted
+      - cut-mechanic-deleted
+      - per-species-glyph-registry
+    context_files:
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/components/__tests__/Sidebar.cursorInfoOverflow.test.tsx
+      - src/hooks/__tests__/useKeyboard.test.ts
+    output_files:
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/components/__tests__/Sidebar.cursorInfoOverflow.test.tsx
+      - src/hooks/__tests__/useKeyboard.test.ts
+    depends_on:
+      - sidebar-cursor-info-per-species
+      - delete-cut-mechanic
+    verification:
+      - npx vitest run src/components/__tests__/ src/hooks/__tests__/
+    repair: retry
+    tags:
+      - test
+      - component
+      - hook
+
+  - id: update-harness-specs
+    title: Edit harness specs that reference TileType.Clover, CloverStage, cloverLifecycle, BurntClover, harvestClover, cutClover, or the deleted seed items to use the new names / drop dead references
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - tile-type-renamed-to-flora
+      - flora-stage-renamed
+      - harvest-mechanic-deleted
+      - cut-mechanic-deleted
+      - seed-items-deleted
+    context_files:
+      - harness/specs/clover-lifecycle.yaml
+      - harness/specs/flora-movement.yaml
+      - harness/specs/flora-pollen.yaml
+      - harness/specs/wildfire-spread.yaml
+      - harness/specs/lightning-strikes.yaml
+      - harness/specs/genesis-transition.yaml
+      - harness/specs/genesis-playback-bugs.yaml
+      - harness/specs/genesis-gameplay-formalization.yaml
+      - harness/specs/genesis-terrain-realism.yaml
+      - harness/specs/cursor-tile-info-all-types.yaml
+      - harness/specs/cross-zone-entity-bleed.yaml
+      - harness/specs/tile-water.yaml
+      - harness/specs/cave-fog-of-war.yaml
+      - harness/specs/recipes.yaml
+      - harness/specs/main-questline-foundation.yaml
+      - harness/specs/coyote-companion.yaml
+      - harness/specs/bee-hive-lifecycle.yaml
+      - harness/specs/bee-starvation.yaml
+      - harness/specs/ecosystem-balance.yaml
+      - harness/specs/monarch-butterfly.yaml
+      - harness/specs/deep-time-endgame.yaml
+      - harness/specs/satellite-impacts.yaml
+      - harness/specs/genesis-satellite-crashes.yaml
+      - harness/specs/glinting-zones.yaml
+      - harness/specs/angels.yaml
+      - harness/specs/dev-panel.yaml
+      - harness/specs/event-log-overlay.yaml
+      - harness/specs/permacomputer-tab-visibility.yaml
+      - harness/specs/ruin-dormant-garden.yaml
+      - harness/specs/sand-water-only.yaml
+      - harness/specs/water-walkable.yaml
+      - harness/specs/structure-registry.yaml
+      - harness/specs/crater-prairie-combine.yaml
+      - harness/specs/iso-shooting-star-trails.yaml
+    output_files:
+      - harness/specs/clover-lifecycle.yaml
+      - harness/specs/flora-movement.yaml
+      - harness/specs/flora-pollen.yaml
+      - harness/specs/wildfire-spread.yaml
+      - harness/specs/lightning-strikes.yaml
+      - harness/specs/genesis-transition.yaml
+      - harness/specs/genesis-playback-bugs.yaml
+      - harness/specs/genesis-gameplay-formalization.yaml
+      - harness/specs/genesis-terrain-realism.yaml
+      - harness/specs/cursor-tile-info-all-types.yaml
+      - harness/specs/cross-zone-entity-bleed.yaml
+      - harness/specs/tile-water.yaml
+      - harness/specs/cave-fog-of-war.yaml
+      - harness/specs/recipes.yaml
+      - harness/specs/main-questline-foundation.yaml
+      - harness/specs/coyote-companion.yaml
+      - harness/specs/bee-hive-lifecycle.yaml
+      - harness/specs/bee-starvation.yaml
+      - harness/specs/ecosystem-balance.yaml
+      - harness/specs/monarch-butterfly.yaml
+      - harness/specs/deep-time-endgame.yaml
+      - harness/specs/satellite-impacts.yaml
+      - harness/specs/genesis-satellite-crashes.yaml
+      - harness/specs/glinting-zones.yaml
+      - harness/specs/angels.yaml
+      - harness/specs/dev-panel.yaml
+      - harness/specs/event-log-overlay.yaml
+      - harness/specs/permacomputer-tab-visibility.yaml
+      - harness/specs/ruin-dormant-garden.yaml
+      - harness/specs/sand-water-only.yaml
+      - harness/specs/water-walkable.yaml
+      - harness/specs/structure-registry.yaml
+      - harness/specs/crater-prairie-combine.yaml
+      - harness/specs/iso-shooting-star-trails.yaml
+    depends_on:
+      - preserve-clover-specific-mechanics
+      - wildfire-generalized-to-all-flora
+      - genesis-flora-patches
+      - delete-seed-items
+    verification:
+      - npm run spec:validate
+    repair: retry
+    tags:
+      - harness
+
+  # --- Tier 10: CLAUDE.md updates ---
+
+  - id: claude-md-update
+    title: Update CLAUDE.md sections that reference clover-specific lifecycle, harvest, or cut keybinds to reflect the generalized flora system and the deleted mechanics
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - harvest-mechanic-deleted
+      - cut-mechanic-deleted
+      - lifecycle-shared-across-species
+      - doctrine-and-status-aligned
+    context_files:
+      - CLAUDE.md
+    output_files:
+      - CLAUDE.md
+    depends_on:
+      - delete-cut-mechanic
+      - genesis-flora-patches
+      - preserve-clover-specific-mechanics
+    verification: []
+    repair: retry
+    tags:
+      - docs
+
+  # --- Tier 11: Final sweep ---
+
+  - id: dead-symbol-sweep
+    title: Grep src/ for stale TileType.Clover / CloverStage / cloverLifecycle / cloverGrowthPreviews / BurntClover / harvestClover / cutClover / HarvestResult / wildflowerSeeds / tallGrassSeeds / milkweedSeeds references; fix any survivors; run the full triple
+    spec_id: precis-1-multi-species-flora
+    spec_sections:
+      - dead-references-grep
+      - harness-spec-files-touching-deleted-symbols
+    context_files:
+      - src/
+    output_files: []
+    depends_on:
+      - update-engine-tests
+      - update-component-and-hook-tests
+      - update-harness-specs
+      - claude-md-update
+      - sidebar-cursor-info-per-species
+      - manual-entries-per-species
+      - deep-time-flora-survey
+      - schema-allowlist
+    verification:
+      - npm run typecheck
+      - npm run lint
+      - npm run test
+      - npm run spec:validate
+    repair: retry
+    tags:
+      - sweep
