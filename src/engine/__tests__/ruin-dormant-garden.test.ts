@@ -1,7 +1,8 @@
+import { ComponentType } from '../ecs/types'
 import { RuinRole } from '../genesisTypes'
 import { clearRuinDebris } from '../interaction'
 import { isWalkableTile, posKey } from '../position'
-import { generateRuinInterior, repairAqueductBreak, tickDormantGardenDecay } from '../ruins'
+import { generateRuinInterior, repairAqueductBreak, spawnDormantGardenSeeds, tickDormantGardenDecay } from '../ruins'
 import { RuinArchetype, TileType, Zone } from '../types'
 import { createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
@@ -396,6 +397,87 @@ describe('ruin dormant garden', () => {
 
       expect(clearRuinDebris(state)).toBe(false)
       expect(state.manualDiscoveries.has('event:rubble-cleared')).toBe(false)
+    })
+  })
+
+  describe('flora-species vault payload (precis #5)', () => {
+    const installRuinWithRole = (role: RuinRole): { state: ReturnType<typeof createTestState>; ruinIndex: number } => {
+      const state = createTestState()
+      // createTestState seeds the world with genesis-derived ruins; clear them
+      // so this test's freshly-constructed ruin is the only one and ground-item
+      // queries are not polluted by pre-existing payloads.
+      state.civilizationRuins = []
+      state.ruinInteriors = []
+      const ruin: CivilizationRuin = {
+        position: { x: 50, y: 50 },
+        name: 'Test Flora Ruin',
+        radius: 4,
+        age: 3000,
+        aqueductPaths: [
+          [
+            { x: 50, y: 50 },
+            { x: 60, y: 50 },
+          ],
+        ],
+        buildingFootprints: [{ x: 50, y: 50 }],
+        role,
+      }
+      const baseInterior = generateRuinInterior(ruin, 0, RuinArchetype.DormantGarden, makeRng())
+      const interior = { ...baseInterior, entranceOverworld: { x: ruin.position.x, y: ruin.position.y } }
+      state.civilizationRuins.push(ruin)
+      state.ruinInteriors.push(interior)
+      return { state, ruinIndex: 0 }
+    }
+
+    const groundItemIdAtRuin = (state: ReturnType<typeof createTestState>, ruinIndex: number): string[] => {
+      const ids: string[] = []
+      for (const eid of state.world.query(ComponentType.ItemDrop, ComponentType.EntityZone)) {
+        const zone = state.world.getComponent(eid, ComponentType.EntityZone)
+        if (zone?.zone !== Zone.Ruin || zone.ruinIndex !== ruinIndex) continue
+        const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
+        if (drop) ids.push(drop.definitionId)
+      }
+      return ids
+    }
+
+    it('Wildflower-role ruin spawns one wildflowerSeeds at the first vault slot', () => {
+      const { state, ruinIndex } = installRuinWithRole(RuinRole.Wildflower)
+      spawnDormantGardenSeeds(state, ruinIndex)
+      const ids = groundItemIdAtRuin(state, ruinIndex)
+      expect(ids).toEqual(['wildflowerSeeds'])
+    })
+
+    it('TallGrass-role ruin spawns one tallGrassSeeds at the first vault slot', () => {
+      const { state, ruinIndex } = installRuinWithRole(RuinRole.TallGrass)
+      spawnDormantGardenSeeds(state, ruinIndex)
+      const ids = groundItemIdAtRuin(state, ruinIndex)
+      expect(ids).toEqual(['tallGrassSeeds'])
+    })
+
+    it('Wildflower ruin has no collapseBarrier (non-coyote standard layout)', () => {
+      const { state, ruinIndex } = installRuinWithRole(RuinRole.Wildflower)
+      const interior = state.ruinInteriors[ruinIndex]
+      expect(interior?.dormantGarden?.collapseBarrier).toBeNull()
+    })
+
+    it('TallGrass ruin has no collapseBarrier (non-coyote standard layout)', () => {
+      const { state, ruinIndex } = installRuinWithRole(RuinRole.TallGrass)
+      const interior = state.ruinInteriors[ruinIndex]
+      expect(interior?.dormantGarden?.collapseBarrier).toBeNull()
+    })
+
+    it('clover-role ruin still spawns clover (preserved behavior)', () => {
+      const { state, ruinIndex } = installRuinWithRole(RuinRole.Clover)
+      spawnDormantGardenSeeds(state, ruinIndex)
+      const ids = groundItemIdAtRuin(state, ruinIndex)
+      expect(ids).toEqual(['clover'])
+    })
+
+    it('bee-role ruin still spawns bee (preserved behavior)', () => {
+      const { state, ruinIndex } = installRuinWithRole(RuinRole.Bee)
+      spawnDormantGardenSeeds(state, ruinIndex)
+      const ids = groundItemIdAtRuin(state, ruinIndex)
+      expect(ids).toEqual(['bee'])
     })
   })
 })

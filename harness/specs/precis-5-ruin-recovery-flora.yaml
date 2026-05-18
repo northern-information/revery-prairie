@@ -1,0 +1,208 @@
+id: precis-5-ruin-recovery-flora
+name: 'Precis #5 — Ruin recovery delivers first non-clover species'
+priority: medium
+layer: integration
+source_files:
+  - docs/precis-thinktank-v3.md
+  - docs/precis-status.yaml
+  - CLAUDE.md
+  - src/engine/genesis.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/items.ts
+  - src/engine/manual.ts
+  - src/engine/ruins.ts
+  - src/engine/state.ts
+dependencies:
+  - precis-1-multi-species-flora
+
+behaviors:
+  - id: ruin-role-extended-with-flora-species
+    description: >
+      The RuinRole enum in genesisTypes.ts gains two new values
+      alongside the existing Clover, Bee, Coyote: Wildflower and
+      TallGrass. The string values are 'wildflower' and
+      'tallGrass' to match the FloraSpecies ids. Existing roles
+      keep their string values verbatim.
+    inputs:
+      - 'codebase after #5 lands'
+    outputs:
+      - 'RuinRole has five values: Clover, Bee, Coyote, Wildflower, TallGrass'
+    state_changes: []
+    determinism: deterministic
+
+  - id: starter-mode-spawns-five-ruins
+    description: >
+      Genesis starter ruin generation increases from 3 to 5 ruins.
+      The STARTER_ROLES array gains Wildflower and TallGrass
+      entries in positions 3 and 4. The first three positions —
+      Clover, Bee, Coyote — keep their order and roles so the
+      existing main quest is not disturbed.
+    inputs:
+      - 'genesis pipeline runs in Starter ruin generation mode'
+    outputs:
+      - 'sim.ruins.length === 5 (or fewer if candidate placement fails repeatedly)'
+      - 'ruin roles assigned in order [Clover, Bee, Coyote, Wildflower, TallGrass]'
+    state_changes:
+      - field: civilizationRuins
+        effect: 'array has up to 5 entries with the new role ordering'
+    determinism: deterministic
+
+  - id: wildflower-seed-item-reintroduced
+    description: >
+      ITEM_DEFINITIONS gains a 'wildflowerSeeds' entry. The item is
+      a 1x1 collectible in the Flora category with glyph '*' and
+      color #D85FB7 (matching the wildflower flora species). The
+      item has no planting interaction in this PR — players
+      collect it as proof of recovery. Precis #11 (seed taxonomy)
+      will wire planting behavior later.
+    inputs:
+      - 'ITEM_DEFINITIONS registry'
+    outputs:
+      - "ITEM_DEFINITIONS['wildflowerSeeds'] is defined"
+      - "the item appears in the player's pack when picked up from a ruin vault"
+    state_changes: []
+    determinism: deterministic
+
+  - id: tall-grass-seed-item-reintroduced
+    description: >
+      Mirror of wildflower-seed-item-reintroduced for 'tallGrassSeeds':
+      1x1 collectible in the Flora category with glyph '"' and
+      color #A89968 (matching the tall grass flora species). No
+      planting interaction in this PR.
+    inputs:
+      - 'ITEM_DEFINITIONS registry'
+    outputs:
+      - "ITEM_DEFINITIONS['tallGrassSeeds'] is defined"
+    state_changes: []
+    determinism: deterministic
+
+  - id: dormant-garden-spawns-flora-seeds
+    description: >
+      spawnDormantGardenSeeds in ruins.ts handles two new branches
+      for the new RuinRole values. When the ruin's role is
+      RuinRole.Wildflower, the vault payload is a single
+      wildflowerSeeds ground item at the first vault slot.
+      Similarly for RuinRole.TallGrass with tallGrassSeeds. The
+      existing Clover, Bee, and Coyote role branches are
+      unchanged.
+    inputs:
+      - 'player enters a Wildflower- or TallGrass-role ruin for the first time'
+    outputs:
+      - 'a single wildflowerSeeds or tallGrassSeeds ground item appears at the seed vault'
+      - 'the rest of the vault slots are empty'
+    state_changes:
+      - field: world
+        effect: 'a ground item entity is created at the vault position'
+    determinism: deterministic
+
+  - id: seed-item-manual-entries
+    description: >
+      The wildflowerSeeds and tallGrassSeeds items get auto-generated
+      manual entries from buildItemEntries (they are not in the
+      MANUAL_HIDDEN_ITEM_IDS set). Their lore is { lore: 'TODO' }
+      per repo policy — lore is human-authored only. The entries
+      appear in the Life category alongside the existing flora
+      species entries.
+    inputs:
+      - 'manual UI opens after #5 lands'
+    outputs:
+      - "manual entry 'item:wildflowerSeeds' exists with category Life"
+      - "manual entry 'item:tallGrassSeeds' exists with category Life"
+    state_changes: []
+    determinism: deterministic
+
+  - id: existing-clover-recovery-path-preserved
+    description: >
+      The Clover, Bee, and Coyote role payloads in
+      spawnDormantGardenSeeds are not modified. The bee + clover
+      recipe and the Gron main quest continue to operate
+      identically. Specifically, the Clover-role ruin still spawns
+      a clover ground item at the vault slot, the Bee-role ruin
+      still spawns a bee item, and the Coyote-role ruin still
+      releases the coyote on the vault side of the collapse
+      barrier.
+    inputs:
+      - 'player enters a Clover/Bee/Coyote-role ruin'
+    outputs:
+      - 'existing payload behavior unchanged'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ruin-distinct-from-flora-species-ruins
+    description: >
+      The main-quest-gating Clover/Bee/Coyote ruins remain a
+      distinct concern from the new flora-species ruins.
+      Specifically, the new Wildflower and TallGrass ruins are
+      not coyote-role ruins (they have no trapped coyote, no
+      collapse barrier, no main-quest dialog gating). They use
+      the standard DormantGarden vault layout that the existing
+      non-coyote roles share.
+    inputs:
+      - 'a Wildflower- or TallGrass-role ruin is generated'
+    outputs:
+      - 'no coyote entity is spawned'
+      - 'no collapse barrier is placed'
+      - 'standard aqueduct + door + vault layout'
+    state_changes: []
+    determinism: deterministic
+
+  - id: doctrine-and-status-aligned
+    description: >
+      docs/precis-status.yaml flips feature 5 to in-progress
+      with spec and plan links (during PR) and to shipped after
+      merge. CLAUDE.md does not need a new section — the existing
+      flora and ruin descriptions remain accurate at the doctrine
+      level. docs/precis-thinktank-v3.md row 5 description is
+      already correct ("Ruin recovery delivers first non-clover
+      species (DormantGarden payload)").
+    inputs:
+      - 'codebase after #5 lands'
+    outputs:
+      - 'precis-status.yaml feature 5 has spec, plan, and pr fields populated'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: ruin-placement-failure
+    description: >
+      Genesis ruin placement aborts before reaching 5 ruins due to
+      the candidate-cluster minimum-distance check failing more
+      than 50 times in a row.
+    expected: >
+      The placement loop bails as it does today. Fewer than 5
+      ruins exist; the STARTER_ROLES array indexes safely (no
+      out-of-bounds reads). The new species ruins are absent in
+      this rare case but the game does not crash.
+
+  - id: same-seed-determinism
+    description: >
+      Two calls to createGameState with the same steward name
+      produce identical ruin layouts including the new species
+      ruins.
+    expected: >
+      Same number of ruins per role, same positions, same
+      vault payloads (positions and item ids match byte-for-byte).
+
+  - id: pickup-bloom-on-vault-recovery
+    description: >
+      Player walks onto a flora-species vault tile holding a
+      seed item.
+    expected: >
+      The seed item is auto-picked-up per the existing ground-item
+      proximity logic; a pickupBloom effect spawns at the player
+      position; the seeds appear in the player's pack.
+
+failure_conditions:
+  - trigger: 'A grep for RuinRole.Wildflower or RuinRole.TallGrass in src/engine/genesis.ts STARTER_ROLES returns zero hits'
+    expected: 'CI fails — the new roles were not added to the starter rotation'
+  - trigger: "ITEM_DEFINITIONS['wildflowerSeeds'] or ITEM_DEFINITIONS['tallGrassSeeds'] is undefined"
+    expected: 'CI fails — seed items were not re-added'
+  - trigger: 'A new game produces zero wildflowerSeeds or zero tallGrassSeeds ground items across all ruin interiors'
+    expected: 'CI fails — vault payload wiring is broken'
+  - trigger: 'A wildflower or tall grass ruin contains a trapped coyote, collapse barrier, or main-quest dialog gating'
+    expected: 'CI fails — the new roles bled into coyote-role behavior'
+
+verification:
+  test_file: src/engine/__tests__/ruin-dormant-garden.test.ts
+  test_pattern: 'wildflower'
+  command: 'npx vitest run src/engine/__tests__/ruin-dormant-garden.test.ts -t wildflower'

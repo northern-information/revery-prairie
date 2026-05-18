@@ -48,6 +48,8 @@ export const RuinRole = {
   Clover: 'clover',
   Bee: 'bee',
   Coyote: 'coyote',
+  Wildflower: 'wildflower',
+  TallGrass: 'tallGrass',
 } as const
 
 export type RuinRole = (typeof RuinRole)[keyof typeof RuinRole]
