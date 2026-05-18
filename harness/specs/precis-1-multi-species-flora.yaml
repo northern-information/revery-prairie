@@ -58,14 +58,14 @@ behaviors:
 
   - id: flora-stage-renamed
     description: >
-      FloraStage is renamed to FloraStage. All six stage values
-      (Healthy, Brown, BlinkingRed, Black, Decomposing,
-      BurntRecovering) carry over verbatim. FloraLifecycleState is
+      The CloverStage enum is renamed to FloraStage. All six stage
+      values (Healthy, Brown, BlinkingRed, Black, Decomposing,
+      BurntRecovering) carry over verbatim. CloverLifecycleState is
       renamed to FloraLifecycleState.
     inputs:
       - 'codebase after #1 lands'
     outputs:
-      - "FloraStage and FloraLifecycleState do not exist"
+      - "CloverStage and CloverLifecycleState do not exist as identifiers"
       - "FloraStage and FloraLifecycleState exist"
     state_changes: []
     determinism: deterministic
