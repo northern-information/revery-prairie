@@ -25,6 +25,7 @@ export const ComponentType = {
   AngelData: 'angelData',
   SatelliteData: 'satelliteData',
   MonarchState: 'monarchState',
+  PickupExemption: 'pickupExemption',
 } as const
 
 export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType]
@@ -82,4 +83,5 @@ export interface ComponentDataMap {
     waypoint: Position | null
     lastPollinateTime: number
   }
+  [ComponentType.PickupExemption]: Record<string, never>
 }

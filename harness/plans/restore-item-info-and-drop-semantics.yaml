@@ -1,0 +1,209 @@
+plan:
+  id: restore-item-info-and-drop-semantics
+  title: 'Restore ItemInfo next to backpack; fix drop-and-immediately-pickup'
+  created: 2026-05-19
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: regression-test-drop-exemption
+    title: 'Add failing regression tests for drop exemption and ItemInfo mount'
+    spec_id: restore-item-info-and-drop-semantics
+    spec_sections:
+      - drag-drop-not-immediately-re-picked-up
+      - drop-then-move-away-then-back
+      - item-info-renders-next-to-backpack
+      - x-key-drops-hovered-item
+    context_files:
+      - harness/specs/restore-item-info-and-drop-semantics.yaml
+      - src/engine/entities.ts
+      - src/engine/__tests__/entities.test.ts
+      - src/components/InventoryPanel.tsx
+      - src/components/ItemInfo.tsx
+      - src/components/__tests__/InventoryPanel.test.tsx
+      - src/hooks/useKeyboard.ts
+      - src/hooks/__tests__/useKeyboard.test.ts
+    output_files:
+      - src/engine/__tests__/entities.test.ts
+      - src/components/__tests__/InventoryPanel.test.tsx
+      - src/hooks/__tests__/useKeyboard.test.ts
+    notes: >
+      Four regression tests, each must fail on main and pass on
+      this branch after the fix tasks land:
+
+      1. entities.test.ts — drop an item via dropItem so the
+         entity lands at a tile within 3x3 of the player; call
+         pickUpGroundItems(state, time); assert the item is NOT
+         in the backpack and the ground entity still exists.
+         Then mutate state.player.x by 2 (entity now outside
+         3x3) and call pickUpGroundItems again; the exemption
+         clears on this tick. Mutate state.player.x back by 2
+         and call again; assert the item IS picked up. Prepare
+         terrain with clearAroundPlayer() to avoid stray
+         blockers. Reset entity arrays before asserting counts.
+      2. entities.test.ts (perimeter walk) — drop an item, then
+         simulate the player walking each of the eight adjacent
+         tiles around the drop point, calling pickUpGroundItems
+         after each move. Assert the entity is never picked up
+         and the exemption marker is still present on the
+         entity at the end.
+      3. InventoryPanel.test.tsx — render the GameScreen bottom
+         bar; assert that an ItemInfo region (by role / data
+         attribute / test id) is present in the document and is
+         a sibling of the backpack grid.
+      4. useKeyboard.test.ts — wire a real ItemInfo ref bound to
+         a test ItemInfo mount; hover a backpack cell via the
+         existing handler path; press X; assert dropItem was
+         invoked with the hovered definitionId and the item is
+         removed from state.backpack.
+    depends_on: []
+    verification:
+      - 'npx vitest run src/engine/__tests__/entities.test.ts'
+      - 'npx vitest run src/components/__tests__/InventoryPanel.test.tsx'
+      - 'npx vitest run src/hooks/__tests__/useKeyboard.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: mount-item-info-next-to-backpack
+    title: 'Mount ItemInfo in the bottom bar adjacent to InventoryPanel'
+    spec_id: restore-item-info-and-drop-semantics
+    spec_sections:
+      - item-info-renders-next-to-backpack
+      - item-info-empty-state
+      - x-key-drops-hovered-item
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/components/InventoryPanel.tsx
+      - src/components/ItemInfo.tsx
+      - harness/specs/restore-item-info-and-drop-semantics.yaml
+      - harness/specs/backpack-bottom-bar.yaml
+    output_files:
+      - src/components/GameScreen.tsx
+      - src/components/InventoryPanel.tsx
+    notes: >
+      Two acceptable approaches:
+
+      A) Render <ItemInfo ref={itemInfoRef} ... /> inside
+         GameScreen's bottom-bar `<div data-panel="bottom-bar">`
+         as a new sibling slot to the left of the InventoryPanel
+         div. InventoryPanel's pointer-events-auto container is
+         unchanged.
+
+      B) Render ItemInfo inside InventoryPanel itself (top of
+         its returned JSX, or in a sibling flex column) and
+         forward itemInfoRef through props (already provided).
+
+      Prefer A — keeps InventoryPanel focused on the backpack
+      grid and matches the bottom-bar's slot composition
+      (Minimap | EventLog | ItemInfo | Backpack). Mind the bar's
+      h-48 height and pointer-events-none wrapper. ItemInfo's
+      empty state renders nothing visible (item === null), so
+      reserve a fixed-width slot or wrap with a min-width div so
+      the bar layout doesn't shift when hover starts/stops.
+
+      Do NOT re-render the Sidebar component — it carries
+      unrelated cursor info that was intentionally retired with
+      the bottom-bar refactor. Only re-home ItemInfo.
+    depends_on:
+      - regression-test-drop-exemption
+    verification:
+      - 'npx vitest run src/components/__tests__/InventoryPanel.test.tsx'
+      - 'npx vitest run src/hooks/__tests__/useKeyboard.test.ts'
+      - 'npm run typecheck'
+    repair: retry
+    tags: [component]
+
+  - id: add-pickup-exemption-to-drop-paths
+    title: 'Tag dropped entities with a player-tile pickup exemption and honor it in pickUpGroundItems'
+    spec_id: restore-item-info-and-drop-semantics
+    spec_sections:
+      - drag-drop-not-immediately-re-picked-up
+      - drag-drop-on-player-tile-still-rejected-or-exempt
+      - drop-then-move-away-then-back
+      - drop-while-not-moving
+      - multiple-just-dropped-items
+      - coyote-not-affected
+    context_files:
+      - src/engine/entities.ts
+      - src/hooks/useCanvasDrop.ts
+      - src/engine/coyote.ts
+      - src/engine/ecs/types.ts
+      - harness/specs/restore-item-info-and-drop-semantics.yaml
+      - harness/specs/pickup-hitbox.yaml
+    output_files:
+      - src/engine/entities.ts
+      - src/hooks/useCanvasDrop.ts
+      - src/engine/ecs/types.ts
+    notes: >
+      Implementation sketch (the executor may adjust the storage
+      mechanism but must satisfy the spec):
+
+      1. Track the exemption on the dropped entity itself, not
+         on a global state.justDroppedAt — that way "multiple
+         items dropped in succession" works without bookkeeping
+         and there is no risk of stale state across zone
+         transitions or save/load. The marker is just a flag
+         (an ECS component with no payload, or a boolean
+         component like PickupExemption {}). No need to store
+         drop coordinates — the clearing rule uses the entity's
+         current Position vs the player's current position.
+
+      2. Both drop sites attach the component at creation:
+         - src/engine/entities.ts dropItem (X-key path)
+         - src/hooks/useCanvasDrop.ts executeDrop (drag path)
+
+      3. pickUpGroundItems (src/engine/entities.ts) does, for
+         each scanned groundItem:
+           - if entity has PickupExemption AND chebyshev(entity.pos,
+             player) <= 1 → SKIP (don't pick up, don't clear).
+           - if entity has PickupExemption AND chebyshev > 1 →
+             REMOVE the component (this is the one-shot clear);
+             but the entity is, by construction, outside the 3x3
+             so it is not picked up this tick. It becomes a
+             normal ground item from the next tick onward.
+           - if no PickupExemption → normal pickup logic
+             (already exists).
+
+         Note: the 3x3 scan via scanTagged3x3 only yields
+         entities within Chebyshev distance 1, so the "clear
+         when > 1" branch fires through a separate sweep — not
+         via scanTagged3x3. Either (a) add a small per-tick
+         sweep over all entities with PickupExemption to clear
+         stale markers, or (b) skip the explicit clear and just
+         re-check the exemption every tick (the entity stays
+         tagged forever but the gate is benign because chebyshev
+         > 1 means scanTagged3x3 doesn't surface it anyway, and
+         when the player walks back into range the gate
+         evaluates to "exempt && in range → skip" again — which
+         would WRONGLY suppress the intended re-pickup).
+
+         (a) is required for correctness. Implement it as a
+         cheap pass over the entities tagged with the
+         exemption component: if chebyshev(pos, player) > 1,
+         remove the component.
+
+      4. coyote.ts pickup branch (line ~70) ignores
+         PickupExemption — leave coyote logic untouched.
+
+      5. Bee released via dropItem (definitionId === 'bee')
+         spawns a live bee entity, not a groundItem — no change
+         needed for that branch.
+
+      6. If EXPECTED_FIELDS in
+         src/harness/__tests__/serialization/schema.test.ts
+         enumerates ECS component types, add PickupExemption
+         there per CLAUDE.md.
+
+      Do NOT modify the 3x3 Chebyshev scan in
+      pickUpGroundItems — pickup-hitbox spec is intentional.
+    depends_on:
+      - regression-test-drop-exemption
+    verification:
+      - 'npx vitest run src/engine/__tests__/entities.test.ts'
+      - 'npx vitest run src/engine/__tests__/pickupBloom.test.ts'
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine]
+

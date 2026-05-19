@@ -1,0 +1,209 @@
+id: restore-item-info-and-drop-semantics
+name: 'Restore item info next to backpack; fix drop-and-immediately-pickup; wire X key'
+priority: high
+layer: component
+source_files:
+  - src/components/GameScreen.tsx
+  - src/components/InventoryPanel.tsx
+  - src/components/ItemInfo.tsx
+  - src/hooks/useCanvasDrop.ts
+  - src/hooks/useKeyboard.ts
+  - src/engine/entities.ts
+  - src/engine/__tests__/entities.test.ts
+  - src/components/__tests__/InventoryPanel.test.tsx
+  - src/hooks/__tests__/useKeyboard.test.ts
+dependencies:
+  - backpack-bottom-bar
+  - pickup-hitbox
+
+behaviors:
+  - id: item-info-renders-next-to-backpack
+    description: >
+      The ItemInfo panel renders inside the bottom-bar overlay
+      adjacent to the InventoryPanel (left of the backpack grid)
+      so the player sees the name, category, and lore of the item
+      currently hovered in the backpack. Prior to PR #324
+      (Inline backpack into bottom bar), ItemInfo lived inside
+      the Sidebar component; that mount was dropped when the
+      Sidebar was removed from GameScreen, orphaning the
+      itemInfoRef. Re-homing the mount restores the visible
+      hover info and re-binds the ref that the X-key drop and
+      drag start handlers depend on.
+    inputs:
+      - 'GameScreen renders outside genesis (state.genesis is null)'
+      - 'player hovers an occupied cell in the backpack grid'
+    outputs:
+      - 'an ItemInfo component is mounted inside the bottom-bar overlay adjacent to InventoryPanel'
+      - 'on hover the panel shows the item glyph, name, category, and lore line'
+      - 'itemInfoRef.current is non-null while the bottom-bar is mounted'
+    state_changes: []
+    determinism: deterministic
+
+  - id: x-key-drops-hovered-item
+    description: >
+      Pressing `x` or `X` while a backpack item is hovered (i.e.
+      itemInfoRef.current.getCurrentId() returns a non-null
+      definitionId) drops that item to a tile adjacent to the
+      player via the existing dropItem engine function, clears the
+      hovered state, refreshes the facing entity, logs a drop
+      event, and triggers a UI refresh. With ItemInfo re-mounted,
+      this keybinding now functions end-to-end. The handler logic
+      itself is unchanged from the current useKeyboard.ts
+      implementation — only its dependency (itemInfoRef being
+      bound to a live ItemInfo) is restored.
+    inputs:
+      - 'player hovers an occupied backpack cell'
+      - 'player presses x or X (not while dragging, not while a screen overlay other than allowed is active)'
+    outputs:
+      - 'dropItem(state, hoveredId) is called; on success the item moves from backpack to a ground entity'
+      - 'itemInfoRef.current.clear() is called'
+      - 'onDrop callback fires (drop event logged)'
+      - 'refreshUI is called'
+    state_changes:
+      - field: state.backpack.items
+        effect: 'hovered item removed'
+      - field: state.world
+        effect: 'new groundItem entity created at a tile adjacent to the player (or on the player tile only as last-resort fallback per DROP_DELTAS)'
+    determinism: deterministic
+
+  - id: drag-drop-not-immediately-re-picked-up
+    description: >
+      When the player drops an item (drag-to-canvas or X-key),
+      the resulting groundItem is not picked back up while it
+      remains inside the player's 3x3 Chebyshev footprint. The
+      pickup hitbox itself is unchanged from the pickup-hitbox
+      spec — instead, the dropped entity is tagged with a
+      one-shot pickup exemption that is honored by
+      pickUpGroundItems as long as the entity's tile is within
+      Chebyshev distance 1 of the player. The exemption clears
+      the first time the entity is found to be outside the
+      player's 3x3 footprint. After clearing, the entity is a
+      normal ground item again — if the player later walks back
+      into the 3x3 the item is picked up like any other. Coyote
+      retrieval is unaffected (coyote pickup does not consult
+      this exemption).
+    inputs:
+      - 'player drops an item via drag-to-canvas or X-key at tile (ix, iy)'
+      - 'on each pickup tick, pickUpGroundItems scans the 3x3 around (state.player.x, state.player.y)'
+    outputs:
+      - 'while max(|ix - state.player.x|, |iy - state.player.y|) <= 1, the entity is skipped by pickUpGroundItems'
+      - 'on the first pickup tick where max(|ix - state.player.x|, |iy - state.player.y|) > 1, the exemption is cleared from the entity (one-shot)'
+      - 'after the exemption clears, the entity is eligible for normal 3x3 pickup on any subsequent tick'
+    state_changes:
+      - field: 'dropped entity'
+        effect: 'tagged at creation with a pickup-exemption marker (a flag — no per-entity coordinates required since the check uses the entity''s own Position vs the player''s)'
+      - field: 'exemption marker'
+        effect: 'removed from the entity the first time the entity sits outside the player''s 3x3 footprint during pickUpGroundItems'
+    determinism: deterministic
+
+  - id: drag-drop-on-player-tile-still-exempt
+    description: >
+      Drag-drops whose target tile is the player's own tile are
+      handled identically to drops on adjacent tiles for the
+      purposes of the exemption — the entity is created at the
+      target tile (no change to placement) and carries the
+      pickup-exemption marker. The existing useCanvasDrop guards
+      (in-bounds, walkable, not Space, no overlapping groundItem)
+      remain unchanged. Because the item starts inside the 3x3,
+      the exemption is honored until the player has moved at
+      least two tiles away (Chebyshev distance > 1).
+    inputs:
+      - 'player releases a drag with cursor over their own tile'
+    outputs:
+      - 'entity is created at the player tile with the pickup-exemption marker'
+      - 'pickup is suppressed until the entity is outside the player''s 3x3 footprint'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: drop-then-walk-perimeter
+    description: >
+      Player drops at (ix, iy) and walks the eight adjacent
+      tiles around the item without ever stepping more than one
+      tile away. The entity stays within the player's 3x3
+      footprint the entire time, so the exemption is never
+      cleared and the item is never picked up.
+    expected: 'item stays on the ground for the full perimeter walk'
+
+  - id: drop-then-move-away-then-back
+    description: >
+      Player drops at (ix, iy), walks two tiles away so the
+      entity falls outside the 3x3 footprint — the exemption
+      clears on that pickup tick. If the player then walks back
+      so the entity re-enters the 3x3, it is picked up normally
+      on that next move tick.
+    expected: 'item picked up on return after exemption clears'
+
+  - id: drop-while-not-moving
+    description: >
+      Player drops via X-key while standing still and never moves.
+      pickUpGroundItems is not called (it runs only after a move
+      tick), so the exemption is moot. Item remains on the
+      ground.
+    expected: 'item stays on the ground indefinitely until the player moves'
+
+  - id: drop-during-active-drag
+    description: >
+      The X-key handler returns early when isDraggingRef.current
+      is true (existing guard at useKeyboard.ts lines 183-197).
+      No drop occurs from the X key during an active inventory
+      drag. Drag-to-canvas remains the active drop path.
+    expected: 'X key has no effect while a backpack drag is in progress'
+
+  - id: x-key-with-no-hovered-item
+    description: >
+      Pressing X with itemInfoRef.current.getCurrentId() === null
+      (no hover) is a no-op — no dropItem call, no log, no
+      refresh.
+    expected: 'no-op'
+
+  - id: item-info-empty-state
+    description: >
+      When nothing is hovered, ItemInfo renders nothing visible
+      (its internal `item` state is null and the JSX returns
+      `null` for the body). The mount remains so the ref is
+      bound; only the visible content is empty.
+    expected: 'no SectionHeader, no glyph, no lore visible; layout reserves no space or reserves the same space as a sibling without crashing'
+
+  - id: multiple-just-dropped-items
+    description: >
+      Player drops two items in quick succession (either at the
+      same tile or at different adjacent tiles) without moving.
+      Both carry the exemption marker. Each entity's exemption
+      clears independently the first time that entity is outside
+      the player's 3x3 footprint — so dropping at two different
+      tiles and then walking can clear one exemption before the
+      other.
+    expected: 'each item''s exemption clears independently based on its own tile vs the player''s position'
+
+  - id: coyote-not-affected
+    description: >
+      Coyote pickup logic (src/engine/coyote.ts) collects ground
+      items via a separate code path and does not honor the
+      pickup-exemption marker. A coyote can still pick up a
+      just-dropped item before the player moves.
+    expected: 'coyote pickup behavior unchanged by this spec'
+
+failure_conditions:
+  - trigger: 'ItemInfo not mounted anywhere in the gameplay scene (state.genesis is null)'
+    expected: 'itemInfoRef.current is null; hover display, X-key drop, and drag-start hover all silently fail. spec violated.'
+
+  - trigger: 'Player drops; the item is picked back up on any tick where the entity is still inside the player''s 3x3 footprint (including the full perimeter walk)'
+    expected: 'pickup must be suppressed for as long as the entity sits within the 3x3 footprint of the player; spec violated otherwise'
+
+  - trigger: 'Player drops, walks two or more tiles away (entity outside 3x3), walks back, and the item is NOT picked up'
+    expected: 'exemption must clear the first tick the entity is outside the 3x3; spec violated if it persists across that boundary'
+
+  - trigger: 'Exemption clears based on the drop tile rather than the entity''s actual tile vs the player (e.g. comparing player to a stored marker position)'
+    expected: 'the perimeter-walk case requires the check to compare the entity''s current tile to the player''s current tile, not a frozen drop marker'
+
+  - trigger: 'X key drops an item that was not hovered'
+    expected: 'X must read the current hovered id; dropping a different (or arbitrary) item is a regression'
+
+  - trigger: 'pickup-hitbox spec violated (3x3 Chebyshev footprint shrunk to 1x1 or otherwise narrowed) as a "fix" for the re-pickup bug'
+    expected: 'pickup hitbox is intentional per pickup-hitbox spec; the fix must preserve it'
+
+verification:
+  test_file: src/engine/__tests__/entities.test.ts
+  test_pattern: 'pickup exemption'
+  command: 'npx vitest run src/engine/__tests__/entities.test.ts src/components/__tests__/InventoryPanel.test.tsx src/hooks/__tests__/useKeyboard.test.ts'

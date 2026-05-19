@@ -146,6 +146,11 @@ export const COMPONENT_META: ComponentMeta[] = [
     label: 'MonarchState',
     fields: [select('phase', ['wandering', 'fleeing', 'settled'])],
   },
+  {
+    type: ComponentType.PickupExemption,
+    label: 'PickupExemption',
+    fields: [],
+  },
 ]
 
 // --- Default values per component ---
@@ -201,6 +206,8 @@ const componentDefaults = (type: ComponentType, now: number, zone: Zone): Record
       }
     case ComponentType.MonarchState:
       return { phase: 'wandering', target: null, waypoint: null, lastPollinateTime: 0 }
+    case ComponentType.PickupExemption:
+      return {}
     default:
       return {}
   }

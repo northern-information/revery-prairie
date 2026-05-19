@@ -10,6 +10,7 @@ import { GameCanvas } from './GameCanvas'
 import { GenesisBottomBar } from './GenesisBottomBar'
 import { HexagramPanel } from './HexagramPanel'
 import { InventoryPanel } from './InventoryPanel'
+import { ItemInfo } from './ItemInfo'
 import { ManualPanel } from './ManualPanel'
 import { Menu } from './Menu'
 import { Minimap } from './Minimap'
@@ -255,6 +256,12 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           </div>
           <div className="pointer-events-auto flex-1">
             <EventLog state={state} eventLog={log} />
+          </div>
+          <div
+            data-panel="item-info"
+            className="pointer-events-auto h-full w-48 self-stretch overflow-hidden font-mono text-xs"
+          >
+            <ItemInfo ref={itemInfoRef} glintingCoins={state.glintingCoins} />
           </div>
           <div className="pointer-events-auto">
             <InventoryPanel
