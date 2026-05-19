@@ -21,3 +21,15 @@ all `FloraLifecycleState` construction must route through `createFloraLifecycleE
 ## doctrine override
 
 v3 doctrine (`docs/precis-thinktank-v3.md` lines 62-63) was overridden during #3 planning. the original "hex grid stays buried, only visible in late-game ritual" framing has been replaced. the 8×8 grid surfaces in #6 (naturalist's manual), player-facing. trait *numbers* are still never shown.
+
+## phenotype label split — #6 vs #4 (decided 2026-05-19)
+
+phenotype labels ("suspected: late blooming", "cold hardy", etc.) are *not* in #6. they ship in #4 (The Revery).
+
+#6 ships the hex grid + per-species manual discovery only. it does not surface any phenotype labels derived from the trait bag.
+
+reasoning: every walk-over-based reveal mechanism collapses into a grind. walking past a clover to "observe" it incentivizes the player to optimize tile coverage. a running-average observation log has the same problem in slow motion. doctrine asks for friction and mystery; cheap reveal mechanisms produce neither.
+
+#4 is the right home because the Revery already encodes "the year reveals what changed." each Revery resolves one phenotype axis for one species the player has been living with. labels remain hedged ("suspected: …"). reveries are omen-gated, not player-triggered, so the label loop can't be ground.
+
+when implementing #6: do not add `getPhenotypeLabel()` or any equivalent. do not add per-species observation logs. do not add a "study" key. the trait bag is invisible to the player until #4 introduces the slow-reveal mechanic.
