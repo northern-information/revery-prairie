@@ -71,8 +71,24 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   const py = state.player.y
   const pickedUp: string[] = []
 
+  // Sweep stale pickup exemptions: any entity tagged PickupExemption whose
+  // position is outside the player's 3x3 footprint gets its marker cleared
+  // (one-shot). Entities still inside the 3x3 keep the marker so the
+  // perimeter-walk case continues to suppress pickup.
+  for (const eid of state.world.query(ComponentType.PickupExemption)) {
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (!pos) {
+      state.world.removeComponent(eid, ComponentType.PickupExemption)
+      continue
+    }
+    if (Math.max(Math.abs(pos.x - px), Math.abs(pos.y - py)) > 1) {
+      state.world.removeComponent(eid, ComponentType.PickupExemption)
+    }
+  }
+
   // All three pickup checks share a 3x3 Chebyshev footprint centered on the player.
   for (const eid of scanTagged3x3(state, px, py, 'groundItem')) {
+    if (state.world.hasComponent(eid, ComponentType.PickupExemption)) continue
     const itemDrop = state.world.getComponent(eid, ComponentType.ItemDrop)
     if (!itemDrop) continue
     const fit = findFitPosition(state.backpack, itemDrop.definitionId)
@@ -326,6 +342,7 @@ export const dropItem = (state: GameState, definitionId: string): boolean => {
         state.world.addComponent(ge, ComponentType.ItemDrop, dropData)
         state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
         state.world.addComponent(ge, ComponentType.EntityZone, getCurrentEntityZone(state))
+        state.world.addComponent(ge, ComponentType.PickupExemption, {})
       }
       return true
     }

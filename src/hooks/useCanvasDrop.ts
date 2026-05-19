@@ -102,6 +102,7 @@ export const useCanvasDrop = ({
           state.world.addComponent(ge, ComponentType.ItemDrop, { definitionId: defId })
           state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
           state.world.addComponent(ge, ComponentType.EntityZone, getCurrentEntityZone(state))
+          state.world.addComponent(ge, ComponentType.PickupExemption, {})
         }
         onDropLog(defId, mx, my)
         refreshUI()

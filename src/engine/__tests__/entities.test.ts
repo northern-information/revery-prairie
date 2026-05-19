@@ -357,3 +357,112 @@ describe('pickUpGroundItems', () => {
   })
 
 })
+
+describe('pickup exemption (just-dropped items)', () => {
+  it('does not re-pick up an item dropped via dropItem while the player is still in 3x3', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    placeItem(state.backpack, 'clover', 0, 0)
+    const dropped = dropItem(state, 'clover')
+    expect(dropped).toBe(true)
+    expect(getGroundItemEntities(state)).toHaveLength(1)
+
+    pickUpGroundItems(state)
+
+    expect(getGroundItemEntities(state)).toHaveLength(1)
+    expect(containerHasItem(state.backpack, 'clover')).toBe(false)
+  })
+
+  it('does not pick up across a full perimeter walk while the item stays inside 3x3', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 3)
+    placeItem(state.backpack, 'clover', 0, 0)
+    const dropped = dropItem(state, 'clover')
+    expect(dropped).toBe(true)
+
+    const groundItems = getGroundItemEntities(state)
+    expect(groundItems).toHaveLength(1)
+    const itemEid = groundItems[0]
+    const itemPos = state.world.getComponent(itemEid, ComponentType.Position)
+    expect(itemPos).toBeDefined()
+    if (!itemPos) return
+
+    const perimeter = [
+      { x: itemPos.x - 1, y: itemPos.y - 1 },
+      { x: itemPos.x, y: itemPos.y - 1 },
+      { x: itemPos.x + 1, y: itemPos.y - 1 },
+      { x: itemPos.x + 1, y: itemPos.y },
+      { x: itemPos.x + 1, y: itemPos.y + 1 },
+      { x: itemPos.x, y: itemPos.y + 1 },
+      { x: itemPos.x - 1, y: itemPos.y + 1 },
+      { x: itemPos.x - 1, y: itemPos.y },
+    ]
+
+    for (const p of perimeter) {
+      state.player.x = p.x
+      state.player.y = p.y
+      pickUpGroundItems(state)
+      expect(getGroundItemEntities(state)).toHaveLength(1)
+      expect(containerHasItem(state.backpack, 'clover')).toBe(false)
+    }
+  })
+
+  it('clears the exemption once the item is outside 3x3, then picks up on return', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 4)
+    placeItem(state.backpack, 'clover', 0, 0)
+
+    const startX = state.player.x
+    const startY = state.player.y
+
+    const dropped = dropItem(state, 'clover')
+    expect(dropped).toBe(true)
+    const groundItems = getGroundItemEntities(state)
+    expect(groundItems).toHaveLength(1)
+    const itemEid = groundItems[0]
+    const itemPos = state.world.getComponent(itemEid, ComponentType.Position)
+    expect(itemPos).toBeDefined()
+    if (!itemPos) return
+
+    state.player.x = startX + 3
+    state.player.y = startY
+    pickUpGroundItems(state)
+    expect(getGroundItemEntities(state)).toHaveLength(1)
+    expect(containerHasItem(state.backpack, 'clover')).toBe(false)
+
+    state.player.x = itemPos.x
+    state.player.y = itemPos.y
+    pickUpGroundItems(state)
+    expect(getGroundItemEntities(state)).toHaveLength(0)
+    expect(containerHasItem(state.backpack, 'clover')).toBe(true)
+  })
+
+  it('multiple dropped items each track their own exemption', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 5)
+    placeItem(state.backpack, 'clover', 0, 0)
+    placeItem(state.backpack, 'coin', 1, 0)
+
+    const startX = state.player.x
+    const startY = state.player.y
+
+    expect(dropItem(state, 'clover')).toBe(true)
+    expect(dropItem(state, 'coin')).toBe(true)
+    expect(getGroundItemEntities(state)).toHaveLength(2)
+
+    pickUpGroundItems(state)
+    expect(getGroundItemEntities(state)).toHaveLength(2)
+
+    state.player.x = startX + 3
+    state.player.y = startY
+    pickUpGroundItems(state)
+    expect(getGroundItemEntities(state)).toHaveLength(2)
+
+    state.player.x = startX
+    state.player.y = startY
+    pickUpGroundItems(state)
+    expect(getGroundItemEntities(state)).toHaveLength(0)
+    expect(containerHasItem(state.backpack, 'clover')).toBe(true)
+    expect(containerHasItem(state.backpack, 'coin')).toBe(true)
+  })
+})
