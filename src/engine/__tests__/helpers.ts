@@ -4,7 +4,7 @@ import { createCharacterEntity } from '../entities'
 import { completeGenesis, createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } from '../genesis'
 import { isInBounds } from '../position'
 import { createGameState } from '../state'
-import { Sky, TileType } from '../types'
+import { Season, Sky, TileType } from '../types'
 
 import type { Entity } from '../ecs/types'
 import type { GenesisSimState } from '../genesisTypes'
@@ -82,6 +82,12 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   state.tileWater = new Map()
   // Ensure no rain so spawnBeeOrMonarch always creates bees in existing tests
   state.weather.sky = Sky.Sun
+  // Default to a benign spring day so flora lifecycle tests don't accidentally
+  // run into winter dormancy. Tests that exercise winter behavior override this.
+  // (precis #2)
+  state.weather.season = Season.Spring
+  state.weather.temperatureF = 65
+  state.seasonalPhase = 0.25
   // Mark the spawn ceremony as already completed — tests that don't exercise
   // it should see a visible, movable player even when running the game loop.
   state.playerSpawn = {

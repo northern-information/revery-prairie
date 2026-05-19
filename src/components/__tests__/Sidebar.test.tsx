@@ -8,7 +8,7 @@ import { completeGenesis } from '@/engine/genesis'
 import { placeItem } from '@/engine/inventory'
 import { worldToScreen } from '@/engine/projection'
 import { createGameState } from '@/engine/state'
-import { Sky, TileType } from '@/engine/types'
+import { Season, Sky, TileType } from '@/engine/types'
 import type { ItemInfoHandle } from '../ItemInfo'
 import type { CharMetrics, GameState } from '@/engine/types'
 
@@ -150,6 +150,9 @@ describe('Sidebar', () => {
   it('renders weather section in metric by default', () => {
     const state = createGameState('Test', 80, 40)
     completeGenesis(state)
+    // Pin a spring day — generateWeather is initial-phase based and may
+    // produce other seasons in fresh states. (precis #2)
+    state.weather.season = Season.Spring
     render(
       <Sidebar
         state={state}
