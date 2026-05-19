@@ -1,0 +1,123 @@
+id: egregore-font-fix
+name: Egregoric flora manual header derives from the glyph allowlist
+priority: medium
+layer: component
+source_files:
+  - src/engine/egregore.ts
+  - src/components/ManualPanel.tsx
+  - src/components/ManualPanel.constants.ts
+  - public/fonts/README.md
+  - docs/claude/egregores.md
+  - package.json
+dependencies:
+  - precis-8a-egregoric-thematic
+
+behaviors:
+  - id: manual-header-derives-from-glyph-allowlist
+    description: >
+      The ManualCategory.Egregore tab label rendered in ManualPanel is
+      derived from EGREGORE_GLYPHS rather than hardcoded as a separate
+      string of code points. The header consists of (at minimum) the
+      first four EGREGORE_GLYPHS entries joined together. Drift between
+      the two allowlists becomes impossible because there is only one
+      source of truth — changing EGREGORE_GLYPHS changes the header
+      automatically.
+    inputs:
+      - 'manual panel renders with the Egregore category present'
+    outputs:
+      - 'the rendered tab label is composed of code points that all appear in EGREGORE_GLYPHS'
+      - 'changing EGREGORE_GLYPHS changes the tab label automatically'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-comment-accurately-describes-range
+    description: >
+      The comment block above EGREGORE_GLYPHS in src/engine/egregore.ts
+      accurately states that these code points are from Latin Extended-E
+      (U+AB10..U+AB1F), not from "the Voynich Unicode block" (there is
+      no official Voynich block in Unicode). The comment also notes that
+      visible OS-font fallback for these code points is intentional —
+      visible Latin-ish glyphs are preferred over the missing-glyph box
+      when the Voynich font isn't loaded.
+    inputs:
+      - 'codebase after this fix lands'
+    outputs:
+      - 'the comment does not claim U+AB00..U+AB1F is "the Voynich Unicode block"'
+      - 'the comment documents the visible-fallback rationale'
+    state_changes: []
+    determinism: deterministic
+
+  - id: voynich-font-fetch-script-available
+    description: >
+      package.json defines an npm script (`npm run fetch-font`) that
+      downloads the CC0 kreativekorp Voynich Unicode font into
+      public/fonts/voynich.ttf. The font file itself is gitignored
+      (no binary blob committed). The script is referenced from
+      public/fonts/README.md. The script is opt-in convenience — it
+      does not change the visible render of egregore tiles today
+      (the kreativekorp font maps a different Unicode range), but
+      it is in place for future doctrine changes that may want real
+      Voynich script.
+    inputs:
+      - 'a developer runs `npm run fetch-font` after cloning'
+    outputs:
+      - 'public/fonts/voynich.ttf is present on disk after the script completes'
+      - 'the font file is gitignored — no binary in the commit'
+    state_changes: []
+    determinism: deterministic
+
+  - id: docs-reflect-new-design
+    description: >
+      docs/claude/egregores.md and public/fonts/README.md describe
+      the current design: EGREGORE_GLYPHS uses Latin Extended-E for
+      visible-fallback reasons; the kreativekorp font maps the PUA
+      and does not affect current rendering; the fetch script is
+      available for future use; the doctrine "fallback is acceptable"
+      is preserved.
+    inputs:
+      - 'docs after this fix lands'
+    outputs:
+      - 'no documentation claims U+AB00..U+AB1F is the Voynich block'
+      - 'fetch-font workflow is documented in public/fonts/README.md'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: future-egregore-glyph-additions
+    description: >
+      A future change adds a sixth code point to EGREGORE_GLYPHS.
+    expected: >
+      The ManualPanel tab label continues to render the first four
+      glyphs from the allowlist with no edits to ManualPanel code.
+
+  - id: fetch-script-network-failure
+    description: >
+      `npm run fetch-font` fails because the upstream URL is
+      unreachable or returns non-200.
+    expected: >
+      The script exits non-zero with a clear error message naming
+      the URL and the HTTP status. The .ttf is not partially
+      written. Egregore tiles continue rendering with their
+      OS-font fallback glyphs.
+
+  - id: stewards-with-existing-saves
+    description: >
+      A player with a save from before this fix loads it.
+    expected: >
+      EGREGORE_GLYPHS is consulted at render time via tileHash —
+      not stored in the save. Visual rendering is unchanged from
+      pre-fix because the glyph code points are unchanged; only
+      the ManualPanel tab label changes (to match the tile glyphs).
+
+failure_conditions:
+  - trigger: "ManualPanel.tsx or ManualPanel.constants.ts contains a hardcoded string literal of egregore-intent code points that is not derived from EGREGORE_GLYPHS"
+    expected: 'CI fails — the tab label and the glyph allowlist must agree by construction'
+  - trigger: "the comment block above EGREGORE_GLYPHS claims U+AB00..U+AB1F is 'the Voynich Unicode block'"
+    expected: 'CI fails — that range is Latin Extended-E and the documentation must not mislead future contributors'
+  - trigger: "package.json has no script that fetches voynich.ttf into public/fonts/"
+    expected: 'CI fails — the fetch workflow is documented and must exist in code'
+
+verification:
+  test_file: src/components/__tests__/ManualPanel.test.tsx
+  test_pattern: 'Egregore category label'
+  command: 'npx vitest run src/engine/__tests__/egregore.test.ts src/components/__tests__/ManualPanel.test.tsx'

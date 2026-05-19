@@ -17,12 +17,20 @@ import { tileHash } from './position'
 
 // --- EGREGORE_GLYPHS -------------------------------------------------------
 //
-// Five glyphs sampled from the Voynich Unicode block (U+0AB00..U+0AB1F).
-// Per v3 doctrine: "single Voynich glyph from a small consistent subset."
-// The glyphs render correctly when the Voynich font (kreativekorp/
-// voynich-unicode) is loaded; otherwise the browser substitutes its
-// missing-glyph fallback (□ or ?) — this is intended behavior per
-// doctrine and MUST NOT be patched.
+// Five code points from the Latin Extended-E block (U+AB10..U+AB1F).
+// There is no official Voynich Unicode block; the kreativekorp Voynich
+// Unicode font maps its glyphs in the BMP Private Use Area (U+F120..U+F15F).
+// We deliberately render these tiles using Latin Extended-E code points
+// instead so that — even when the Voynich font is not loaded — most
+// default OS UI fonts substitute a visible Latin-ish glyph (Ħ, H, etc.)
+// rather than the bare missing-glyph indicator (□). The rendered character
+// is not what matters; the *visual texture* of "not-Earth script" is.
+//
+// If the Voynich font is loaded the renderer still applies font-family
+// 'Voynich' to these tiles, but the typeface does not map this range,
+// so the OS fallback wins. Treat this as intentional: the doctrine
+// "the medium failing is the cosmology" is preserved, but we prefer
+// visible glyphs to empty boxes when the medium fails.
 export const EGREGORE_GLYPHS = [
   '\u{0AB10}',
   '\u{0AB12}',
