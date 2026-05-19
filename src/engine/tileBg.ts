@@ -108,6 +108,44 @@ export const darkenColor = (hex: string, factor: number): string => {
   return result
 }
 
+// Winter palette wash (precis #2). Blends a tile glyph or bg color toward
+// the winter target grey when state.weather.season === Winter. The blend
+// is fixed-intensity — there's no gradient between seasons, just a binary
+// on/off keyed to the derived season. Per v3 doctrine egregore tiles are
+// exempt so the violet script pops against the grey; the renderer must
+// short-circuit before calling this for those tiles.
+//
+// Memoized via the same two-level cache pattern as darkenColor — the
+// input space is small (~80 base colors × 1 wash intensity).
+export const WINTER_WASH_TARGET = '#B8BCC0'
+export const WINTER_WASH_INTENSITY = 0.4 // 40% blend toward grey
+
+const _winterCache = new Map<string, Map<number, string>>()
+
+export const applyWinterWash = (hex: string, intensity: number = WINTER_WASH_INTENSITY): string => {
+  let intensityMap = _winterCache.get(hex)
+  if (intensityMap !== undefined) {
+    const cached = intensityMap.get(intensity)
+    if (cached !== undefined) return cached
+  } else {
+    intensityMap = new Map()
+    _winterCache.set(hex, intensityMap)
+  }
+  const sr = parseInt(hex.slice(1, 3), 16)
+  const sg = parseInt(hex.slice(3, 5), 16)
+  const sb = parseInt(hex.slice(5, 7), 16)
+  const tr = parseInt(WINTER_WASH_TARGET.slice(1, 3), 16)
+  const tg = parseInt(WINTER_WASH_TARGET.slice(3, 5), 16)
+  const tb = parseInt(WINTER_WASH_TARGET.slice(5, 7), 16)
+  const r = Math.round(sr + (tr - sr) * intensity)
+  const g = Math.round(sg + (tg - sg) * intensity)
+  const b = Math.round(sb + (tb - sb) * intensity)
+  const toHex = (n: number): string => n.toString(16).padStart(2, '0')
+  const result = `#${toHex(r)}${toHex(g)}${toHex(b)}`
+  intensityMap.set(intensity, result)
+  return result
+}
+
 // Wall shading factors. Iso projection makes both side faces visible;
 // directional light from the upper-left makes the left face lit and
 // the right face shadowed. Walls only render at tier transitions (see

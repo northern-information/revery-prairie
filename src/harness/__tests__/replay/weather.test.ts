@@ -14,10 +14,10 @@ describe('replay: weather drift', () => {
       const state = createSeededState()
       withSeededRandom(TICK_SEED, () => {
         for (let i = 0; i < 50; i++) {
-          tickWeather(state.weather)
+          tickWeather(state, 5000)
         }
       })
-      return { ...state.weather }
+      return { ...state.weather, seasonalPhase: state.seasonalPhase }
     }
 
     expect(run()).toEqual(run())
@@ -31,7 +31,7 @@ describe('replay: weather drift', () => {
 
     withSeededRandom(TICK_SEED, () => {
       for (let i = 0; i < 100; i++) {
-        tickWeather(state.weather)
+        tickWeather(state, 5000)
       }
     })
 
@@ -43,38 +43,38 @@ describe('replay: weather drift', () => {
     expect(changed).toBe(true)
   })
 
-  it('temperature stays within spring bounds', () => {
+  it('temperature stays within operational bounds', () => {
     const state = createSeededState()
 
     withSeededRandom(TICK_SEED, () => {
       for (let i = 0; i < 200; i++) {
-        tickWeather(state.weather)
-        expect(state.weather.temperatureF).toBeGreaterThanOrEqual(35)
-        expect(state.weather.temperatureF).toBeLessThanOrEqual(72)
+        tickWeather(state, 5000)
+        expect(state.weather.temperatureF).toBeGreaterThanOrEqual(-5)
+        expect(state.weather.temperatureF).toBeLessThanOrEqual(95)
       }
     })
   })
 
-  it('humidity stays within spring bounds', () => {
+  it('humidity stays within operational bounds', () => {
     const state = createSeededState()
 
     withSeededRandom(TICK_SEED, () => {
       for (let i = 0; i < 200; i++) {
-        tickWeather(state.weather)
-        expect(state.weather.humidity).toBeGreaterThanOrEqual(45)
-        expect(state.weather.humidity).toBeLessThanOrEqual(85)
+        tickWeather(state, 5000)
+        expect(state.weather.humidity).toBeGreaterThanOrEqual(30)
+        expect(state.weather.humidity).toBeLessThanOrEqual(95)
       }
     })
   })
 
-  it('wind speed stays within spring bounds', () => {
+  it('wind speed stays within operational bounds', () => {
     const state = createSeededState()
 
     withSeededRandom(TICK_SEED, () => {
       for (let i = 0; i < 200; i++) {
-        tickWeather(state.weather)
-        expect(state.weather.windSpeed).toBeGreaterThanOrEqual(3)
-        expect(state.weather.windSpeed).toBeLessThanOrEqual(25)
+        tickWeather(state, 5000)
+        expect(state.weather.windSpeed).toBeGreaterThanOrEqual(1)
+        expect(state.weather.windSpeed).toBeLessThanOrEqual(30)
       }
     })
   })

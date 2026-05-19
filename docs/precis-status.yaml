@@ -42,14 +42,14 @@ features:
 
   - id: '2'
     name: Phenological seasons
-    summary: Seasons derived from weather; plant lifecycle reads from it.
-    size: S/M
+    summary: Annual phase clock + temperature-derived season, FloraStage.Dormant, snow render pass, winter palette wash. rainIntensity → precipitationIntensity rename.
+    size: M
     depends_on: ['1']
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/precis-2-phenological-seasons.yaml
+    plan: harness/plans/precis-2-phenological-seasons.yaml
     pr: null
-    notes: ''
+    notes: 'Resized S/M → M after winter palette + snow scope. No debounce on the dormant transition — plants follow weather literally. Egregore tiles exempt from the winter wash so the violet script pops against the grey.'
 
   - id: '3'
     name: Genetics v1

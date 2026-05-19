@@ -97,7 +97,7 @@ describe('tileWater', () => {
       const key = posKey(state.player.x + 1, state.player.y)
       state.tileWater.set(key, 50)
       state.weather.sky = Sky.Rain
-      state.rainIntensity = 1
+      state.precipitationIntensity = 1
 
       tickTileWater(state, Zone.Overworld)
 
@@ -108,7 +108,7 @@ describe('tileWater', () => {
       const key = posKey(state.player.x + 1, state.player.y)
       state.tileWater.set(key, WATER_MAX)
       state.weather.sky = Sky.Rain
-      state.rainIntensity = 1
+      state.precipitationIntensity = 1
 
       tickTileWater(state, Zone.Overworld)
 
@@ -166,11 +166,11 @@ describe('tileWater', () => {
       expect(state.tileWater.get(key)).toBe(60)
     })
 
-    it('does not hydrate when rainIntensity is 0 even if sky is rain', () => {
+    it('does not hydrate when precipitationIntensity is 0 even if sky is rain', () => {
       const key = posKey(state.player.x + 1, state.player.y)
       state.tileWater.set(key, 50)
       state.weather.sky = Sky.Rain
-      state.rainIntensity = 0
+      state.precipitationIntensity = 0
 
       tickTileWater(state, Zone.Overworld)
 

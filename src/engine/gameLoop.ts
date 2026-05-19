@@ -52,7 +52,7 @@ import { tickTileWater } from './tileWater'
 import { DeepTimePhase, Zone } from './types'
 import { cleanupMoveOrderMarkers, tickUnitCommands } from './unitCommands'
 import { isTileInVisibleViewport } from './viewportBounds'
-import { tickRainIntensity, tickWeather } from './weather'
+import { tickPrecipitationIntensity, tickWeather } from './weather'
 import { tickWind } from './weather/wind'
 import { tickZoneTransition } from './zoneTransition'
 
@@ -482,9 +482,14 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       id: 'weather',
       intervalMs: WEATHER_TICK_MS,
       zone: 'overworld',
-      fn: state => {
-        tickWeather(state.weather)
-      },
+      fn: (() => {
+        let lastTime = 0
+        return (state: GameState, time: number) => {
+          const dt = lastTime > 0 ? time - lastTime : WEATHER_TICK_MS
+          lastTime = time
+          tickWeather(state, dt)
+        }
+      })(),
     },
     {
       id: 'wind',
@@ -509,7 +514,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         return (state: GameState, time: number) => {
           const dt = lastTime > 0 ? time - lastTime : 0
           lastTime = time
-          tickRainIntensity(state, dt)
+          tickPrecipitationIntensity(state, dt)
         }
       })(),
     },

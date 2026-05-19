@@ -11,7 +11,7 @@ import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { CARDINAL, isInBounds, posKey, tileHash } from './position'
-import { FloraSpecies, FloraStage, TileType, Zone } from './types'
+import { FloraSpecies, FloraStage, Season, TileType, Zone } from './types'
 import { spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
@@ -228,6 +228,17 @@ export const selectSpiralGrowth = (patch: CloverPatch, candidates: Position[]): 
 // --- Main growth tick ---
 
 export const tickCloverGrowth = (state: GameState): void => {
+  // Seasonal dormancy (precis #2): clover does not grow in winter. Clear
+  // any stale previews from the previous (non-winter) tick so the renderer
+  // doesn't display blinking preview glyphs over a frozen prairie, then
+  // bail out before any new growth is computed.
+  if (state.weather.season === Season.Winter) {
+    if (state.floraGrowthPreviews.size > 0) {
+      state.floraGrowthPreviews = new Set<string>()
+    }
+    return
+  }
+
   // Phase 1: convert previous previews to actual clover tiles. Clover is
   // the only species that spreads via the growth-preview system; every
   // tile placed here is species=clover.

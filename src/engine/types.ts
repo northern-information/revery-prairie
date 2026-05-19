@@ -335,7 +335,11 @@ export interface GameState {
   deepTimeTransition: TransitionFade | null
   postGiftActionsCompleted: Set<string>
   rainFrontOffset: number
-  rainIntensity: number
+  precipitationIntensity: number
+  // Fractional position in the annual cycle, [0, 1). Advances only in the
+  // overworld; 0.0/1.0 = deep winter, 0.25 = mid-spring, 0.5 = summer peak,
+  // 0.75 = mid-autumn. Drives seasonal temperature bias and dormancy.
+  seasonalPhase: number
   wind: WindState
   pollen: PollenParticle[]
   pollenTrailDepth: number
@@ -378,6 +382,10 @@ export const FloraStage = {
   Black: 'black',
   Decomposing: 'decomposing',
   BurntRecovering: 'burntRecovering',
+  // Winter pause stage (precis #2). Set when state.weather.season is Winter.
+  // Dormant tiles are not subject to drying/stress death and do not advance.
+  // Cleared back to Healthy when the season is no longer Winter.
+  Dormant: 'dormant',
 } as const
 
 export type FloraStage = (typeof FloraStage)[keyof typeof FloraStage]
@@ -407,6 +415,7 @@ export const Sky = {
   Sun: 'sun',
   Cloudy: 'cloudy',
   Rain: 'rain',
+  Snow: 'snow',
 } as const
 
 export type Sky = (typeof Sky)[keyof typeof Sky]

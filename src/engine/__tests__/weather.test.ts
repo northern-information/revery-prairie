@@ -1,44 +1,44 @@
-import { RAIN_FADE_DURATION_MS } from '../constants'
-import { Season, Sky } from '../types'
-import { fToC, generateWeather, mphToKph, tickRainIntensity, tickWeather } from '../weather'
+import { RAIN_FADE_DURATION_MS, SEASONAL_PHASE_PERIOD_MS } from '../constants'
+import { Season, Sky, Zone } from '../types'
+import { deriveSeason, fToC, generateWeather, mphToKph, tickPrecipitationIntensity, tickWeather } from '../weather'
 import { createTestState } from './helpers'
 
 import type { GameState } from '../types'
 
 describe('generateWeather', () => {
-  it('returns weather with spring season', () => {
+  it('returns weather with a valid season', () => {
     const weather = generateWeather()
-    expect(weather.season).toBe(Season.Spring)
+    expect([Season.Spring, Season.Summer, Season.Autumn, Season.Winter]).toContain(weather.season)
   })
 
-  it('returns temperature within spring range', () => {
+  it('returns temperature within operational range', () => {
     for (let i = 0; i < 50; i++) {
       const weather = generateWeather()
-      expect(weather.temperatureF).toBeGreaterThanOrEqual(35)
-      expect(weather.temperatureF).toBeLessThanOrEqual(72)
+      expect(weather.temperatureF).toBeGreaterThanOrEqual(-5)
+      expect(weather.temperatureF).toBeLessThanOrEqual(95)
     }
   })
 
-  it('returns wind speed within spring range', () => {
+  it('returns wind speed within operational range', () => {
     for (let i = 0; i < 50; i++) {
       const weather = generateWeather()
-      expect(weather.windSpeed).toBeGreaterThanOrEqual(3)
-      expect(weather.windSpeed).toBeLessThanOrEqual(25)
+      expect(weather.windSpeed).toBeGreaterThanOrEqual(1)
+      expect(weather.windSpeed).toBeLessThanOrEqual(30)
     }
   })
 
-  it('returns humidity within spring range', () => {
+  it('returns humidity within operational range', () => {
     for (let i = 0; i < 50; i++) {
       const weather = generateWeather()
-      expect(weather.humidity).toBeGreaterThanOrEqual(45)
-      expect(weather.humidity).toBeLessThanOrEqual(85)
+      expect(weather.humidity).toBeGreaterThanOrEqual(30)
+      expect(weather.humidity).toBeLessThanOrEqual(95)
     }
   })
 
   it('returns a valid sky condition', () => {
     for (let i = 0; i < 50; i++) {
       const weather = generateWeather()
-      expect([Sky.Sun, Sky.Cloudy, Sky.Rain]).toContain(weather.sky)
+      expect([Sky.Sun, Sky.Cloudy, Sky.Rain, Sky.Snow]).toContain(weather.sky)
     }
   })
 
@@ -52,39 +52,39 @@ describe('generateWeather', () => {
 })
 
 describe('tickWeather', () => {
-  it('keeps temperature within spring range after many ticks', () => {
-    const weather = generateWeather()
+  it('keeps temperature within operational range after many ticks', () => {
+    const state = createTestState()
     for (let i = 0; i < 200; i++) {
-      tickWeather(weather)
-      expect(weather.temperatureF).toBeGreaterThanOrEqual(35)
-      expect(weather.temperatureF).toBeLessThanOrEqual(72)
+      tickWeather(state, 5000)
+      expect(state.weather.temperatureF).toBeGreaterThanOrEqual(-5)
+      expect(state.weather.temperatureF).toBeLessThanOrEqual(95)
     }
   })
 
-  it('keeps humidity within spring range after many ticks', () => {
-    const weather = generateWeather()
+  it('keeps humidity within operational range after many ticks', () => {
+    const state = createTestState()
     for (let i = 0; i < 200; i++) {
-      tickWeather(weather)
-      expect(weather.humidity).toBeGreaterThanOrEqual(45)
-      expect(weather.humidity).toBeLessThanOrEqual(85)
+      tickWeather(state, 5000)
+      expect(state.weather.humidity).toBeGreaterThanOrEqual(30)
+      expect(state.weather.humidity).toBeLessThanOrEqual(95)
     }
   })
 
-  it('keeps wind speed within spring range after many ticks', () => {
-    const weather = generateWeather()
+  it('keeps wind speed within operational range after many ticks', () => {
+    const state = createTestState()
     for (let i = 0; i < 200; i++) {
-      tickWeather(weather)
-      expect(weather.windSpeed).toBeGreaterThanOrEqual(3)
-      expect(weather.windSpeed).toBeLessThanOrEqual(25)
+      tickWeather(state, 5000)
+      expect(state.weather.windSpeed).toBeGreaterThanOrEqual(1)
+      expect(state.weather.windSpeed).toBeLessThanOrEqual(30)
     }
   })
 
-  it('does not change season', () => {
-    const weather = generateWeather()
+  it('updates season via the derived classifier', () => {
+    const state = createTestState()
     for (let i = 0; i < 50; i++) {
-      tickWeather(weather)
+      tickWeather(state, 5000)
     }
-    expect(weather.season).toBe(Season.Spring)
+    expect([Season.Spring, Season.Summer, Season.Autumn, Season.Winter]).toContain(state.weather.season)
   })
 })
 
@@ -120,62 +120,182 @@ describe('mphToKph', () => {
   })
 })
 
-describe('tickRainIntensity', () => {
+describe('tickPrecipitationIntensity', () => {
   let state: GameState
 
   beforeEach(() => {
     state = createTestState()
-    state.rainIntensity = 0
+    state.precipitationIntensity = 0
   })
 
   it('ramps up when sky is rain', () => {
     state.weather.sky = Sky.Rain
-    tickRainIntensity(state, 1000)
-    expect(state.rainIntensity).toBeCloseTo(1000 / RAIN_FADE_DURATION_MS)
+    tickPrecipitationIntensity(state, 1000)
+    expect(state.precipitationIntensity).toBeCloseTo(1000 / RAIN_FADE_DURATION_MS)
   })
 
   it('ramps down when sky is not rain', () => {
-    state.rainIntensity = 1
+    state.precipitationIntensity = 1
     state.weather.sky = Sky.Sun
-    tickRainIntensity(state, 1000)
-    expect(state.rainIntensity).toBeCloseTo(1 - 1000 / RAIN_FADE_DURATION_MS)
+    tickPrecipitationIntensity(state, 1000)
+    expect(state.precipitationIntensity).toBeCloseTo(1 - 1000 / RAIN_FADE_DURATION_MS)
   })
 
   it('clamps to 1.0 and does not exceed', () => {
-    state.rainIntensity = 0.9
+    state.precipitationIntensity = 0.9
     state.weather.sky = Sky.Rain
-    tickRainIntensity(state, RAIN_FADE_DURATION_MS)
-    expect(state.rainIntensity).toBe(1)
+    tickPrecipitationIntensity(state, RAIN_FADE_DURATION_MS)
+    expect(state.precipitationIntensity).toBe(1)
   })
 
   it('clamps to 0.0 and does not go below', () => {
-    state.rainIntensity = 0.1
+    state.precipitationIntensity = 0.1
     state.weather.sky = Sky.Sun
-    tickRainIntensity(state, RAIN_FADE_DURATION_MS)
-    expect(state.rainIntensity).toBe(0)
+    tickPrecipitationIntensity(state, RAIN_FADE_DURATION_MS)
+    expect(state.precipitationIntensity).toBe(0)
   })
 
   it('reaches 1.0 after exactly RAIN_FADE_DURATION_MS of rain', () => {
     state.weather.sky = Sky.Rain
-    tickRainIntensity(state, RAIN_FADE_DURATION_MS)
-    expect(state.rainIntensity).toBe(1)
+    tickPrecipitationIntensity(state, RAIN_FADE_DURATION_MS)
+    expect(state.precipitationIntensity).toBe(1)
   })
 
   it('stays at 0 when not raining and already 0', () => {
     state.weather.sky = Sky.Sun
-    tickRainIntensity(state, 1000)
-    expect(state.rainIntensity).toBe(0)
+    tickPrecipitationIntensity(state, 1000)
+    expect(state.precipitationIntensity).toBe(0)
   })
 
   it('stays at 1 when raining and already 1', () => {
-    state.rainIntensity = 1
+    state.precipitationIntensity = 1
     state.weather.sky = Sky.Rain
-    tickRainIntensity(state, 1000)
-    expect(state.rainIntensity).toBe(1)
+    tickPrecipitationIntensity(state, 1000)
+    expect(state.precipitationIntensity).toBe(1)
   })
 
   it('initializes to 0 in createGameState', () => {
     const fresh = createTestState()
-    expect(fresh.rainIntensity).toBe(0)
+    expect(fresh.precipitationIntensity).toBe(0)
+  })
+
+  it('targets 1 when sky is snow', () => {
+    const fresh = createTestState()
+    fresh.precipitationIntensity = 0
+    fresh.weather.sky = Sky.Snow
+    tickPrecipitationIntensity(fresh, 1000)
+    expect(fresh.precipitationIntensity).toBeCloseTo(1000 / RAIN_FADE_DURATION_MS)
+  })
+})
+
+describe('deriveSeason', () => {
+  it('returns Winter below the cold threshold regardless of phase', () => {
+    expect(deriveSeason(30, 0)).toBe(Season.Winter)
+    expect(deriveSeason(30, 0.25)).toBe(Season.Winter)
+    expect(deriveSeason(30, 0.5)).toBe(Season.Winter)
+    expect(deriveSeason(30, 0.75)).toBe(Season.Winter)
+    expect(deriveSeason(0, 0.5)).toBe(Season.Winter)
+    expect(deriveSeason(-5, 0.5)).toBe(Season.Winter)
+  })
+
+  it('returns Summer above the hot threshold regardless of phase', () => {
+    expect(deriveSeason(80, 0)).toBe(Season.Summer)
+    expect(deriveSeason(80, 0.25)).toBe(Season.Summer)
+    expect(deriveSeason(80, 0.5)).toBe(Season.Summer)
+    expect(deriveSeason(80, 0.75)).toBe(Season.Summer)
+    expect(deriveSeason(95, 0)).toBe(Season.Summer)
+  })
+
+  it('returns Spring at mid-range temperatures when phase is rising', () => {
+    // phases in [0, 0.5) are the rising half — heading toward summer peak
+    expect(deriveSeason(55, 0.1)).toBe(Season.Spring)
+    expect(deriveSeason(55, 0.25)).toBe(Season.Spring)
+    expect(deriveSeason(45, 0.4)).toBe(Season.Spring)
+  })
+
+  it('returns Autumn at mid-range temperatures when phase is falling', () => {
+    // phases in [0.5, 1) are the falling half — heading toward deep winter
+    expect(deriveSeason(55, 0.6)).toBe(Season.Autumn)
+    expect(deriveSeason(55, 0.75)).toBe(Season.Autumn)
+    expect(deriveSeason(45, 0.9)).toBe(Season.Autumn)
+  })
+})
+
+describe('seasonal phase clock', () => {
+  it('advances when in the overworld', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Overworld
+    state.seasonalPhase = 0
+    tickWeather(state, 5000)
+    // 5000 / 1_200_000 ≈ 0.00417
+    expect(state.seasonalPhase).toBeGreaterThan(0)
+    expect(state.seasonalPhase).toBeCloseTo(5000 / SEASONAL_PHASE_PERIOD_MS, 5)
+  })
+
+  it('does not advance in the cave zone', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Cave
+    state.seasonalPhase = 0.3
+    tickWeather(state, 5000)
+    expect(state.seasonalPhase).toBe(0.3)
+  })
+
+  it('does not advance in ruin interiors', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Ruin
+    state.seasonalPhase = 0.6
+    tickWeather(state, 5000)
+    expect(state.seasonalPhase).toBe(0.6)
+  })
+
+  it('wraps modulo 1 across the year boundary', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Overworld
+    state.seasonalPhase = 0.999
+    tickWeather(state, 5000)
+    expect(state.seasonalPhase).toBeLessThan(1)
+    expect(state.seasonalPhase).toBeGreaterThanOrEqual(0)
+  })
+
+  it('is deterministic per game (same dt sequence -> same phase)', () => {
+    const a = createTestState()
+    const b = createTestState()
+    a.currentZone = Zone.Overworld
+    b.currentZone = Zone.Overworld
+    a.seasonalPhase = 0
+    b.seasonalPhase = 0
+    for (let i = 0; i < 100; i++) {
+      tickWeather(a, 5000)
+      tickWeather(b, 5000)
+    }
+    expect(a.seasonalPhase).toBe(b.seasonalPhase)
+  })
+})
+
+describe('seasonal sky picking', () => {
+  it('Sky.Snow is reachable during humid winter conditions', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Overworld
+    state.seasonalPhase = 0 // deep winter
+    state.weather.season = Season.Winter
+    state.weather.temperatureF = 20
+    state.weather.humidity = 90
+    // Run many ticks; pickSky is probabilistic but with humidity ≥ 75 and
+    // season = Winter, snow is the dominant humid-sky outcome (60% of the
+    // time over cloudy). Across 200 ticks we should see at least one snow
+    // sky.
+    let sawSnow = false
+    for (let i = 0; i < 200; i++) {
+      tickWeather(state, 5000)
+      if (state.weather.sky === Sky.Snow) {
+        sawSnow = true
+        break
+      }
+      // Re-pin winter conditions so the ticks don't drift out before we sample.
+      state.weather.season = Season.Winter
+      state.weather.temperatureF = 20
+      state.weather.humidity = 90
+    }
+    expect(sawSnow).toBe(true)
   })
 })

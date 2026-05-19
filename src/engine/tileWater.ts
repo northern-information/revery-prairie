@@ -108,11 +108,11 @@ export const isInRainFront = (state: GameState, x: number, y: number): { hit: bo
 export const tickTileWater = (state: GameState, zone: ZoneType): void => {
   if (zone !== Zone.Overworld) return
 
-  const hasRainIntensity = state.rainIntensity > 0
+  const hasPrecipitation = state.precipitationIntensity > 0
 
   // Advance rain front when raining (even during fade-out so the front
   // doesn't freeze mid-map while intensity drains)
-  if (hasRainIntensity) {
+  if (hasPrecipitation) {
     state.rainFrontOffset += RAIN_FRONT_SPEED
   }
 
@@ -129,7 +129,7 @@ export const tickTileWater = (state: GameState, zone: ZoneType): void => {
     // Water proximity to ponds/rivers — passive seepage
     const proximityBonus = state.waterProximity.get(key) ?? 0
 
-    const inFront = hasRainIntensity && isInRainFront(state, x, y).hit
+    const inFront = hasPrecipitation && isInRainFront(state, x, y).hit
     let inAura = false
     for (const aura of rainAuras) {
       const dx = x - aura.x

@@ -12,7 +12,7 @@ import {
 } from './constants'
 import { recordDiscovery } from './manual'
 import { posKey } from './position'
-import { FloraSpecies, FloraStage, TileType, Zone } from './types'
+import { FloraSpecies, FloraStage, Season, TileType, Zone } from './types'
 
 import type { FloraLifecycleState, GameState, Zone as ZoneType } from './types'
 
@@ -128,6 +128,30 @@ export const tickFloraLifecycle = (state: GameState, zone: ZoneType, time: numbe
       // Read water from tile-level state
       const water = state.tileWater.get(key) ?? WATER_MAX
       const isStressed = water === 0 || !entry.hasLight
+
+      // Seasonal dormancy (precis #2): in winter, healthy flora goes Dormant
+      // and stays that way until the season is no longer winter. Dormant
+      // tiles do not advance, do not enter the stress death path, and do not
+      // emit pollen. Transitions are immediate per the locked design — a
+      // single warm tick really does thaw the plants. Per spec there is no
+      // debounce.
+      const isWinter = state.weather.season === Season.Winter
+      if (entry.stage === FloraStage.Healthy && isWinter) {
+        entry.stage = FloraStage.Dormant
+        // Preserve stageStartTime so thaw can resume; freezing isn't a new
+        // life event.
+        continue
+      }
+      if (entry.stage === FloraStage.Dormant) {
+        if (!isWinter) {
+          entry.stage = FloraStage.Healthy
+          entry.stageStartTime = time
+        }
+        // Whether or not we just thawed, dormant tiles take no further
+        // action this tick — no stress check, no decay advance, no
+        // species effects.
+        continue
+      }
 
       // Stage logic
       if (entry.stage === FloraStage.Healthy) {

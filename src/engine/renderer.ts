@@ -96,6 +96,7 @@ import { getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
 import {
   ANGEL_FLOAT_LIFT_PX,
+  applyWinterWash,
   darkenColor,
   getStructurePlatformLift,
   getTierLift,
@@ -108,7 +109,7 @@ import {
 import './render/passes/index'
 
 import { getTierGrid as getTierGridShared, liftAt as liftAtShared } from './render/tierGrid'
-import { FloraStage, DeepTimePhase, TileType, Zone } from './types'
+import { FloraStage, DeepTimePhase, Season, TileType, Zone } from './types'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar } from './visibility'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
@@ -1068,6 +1069,19 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // bg-cache slot: tile bg + cube edges composite.
   runPassesInSlot('bg-cache', ctx, state, metrics, time)
 
+  // Winter palette wash on the bg cache (precis #2). A translucent grey
+  // rect drawn over the freshly-composited bg layer drains warmth from
+  // the cached tile palettes without touching the cache itself. World-
+  // overlay passes and per-tile glyphs (washed individually in the
+  // central tile loop) draw on top.
+  if (state.weather.season === Season.Winter && state.currentZone === Zone.Overworld) {
+    const savedAlpha = ctx.globalAlpha
+    ctx.globalAlpha = 0.35
+    ctx.fillStyle = '#B8BCC0'
+    ctx.fillRect(0, 0, viewportWidth * charWidth, viewportHeight * charHeight)
+    ctx.globalAlpha = savedAlpha
+  }
+
   // Fog of war: compute visibility before world-overlay so the fog mask
   // pass (last in world-overlay) and the central tile loop below share
   // one cached visible set. Result is cached on visibility.ts module
@@ -1087,6 +1101,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const tileLoopStart = -viewportHeight
   const tileLoopEndX = viewportWidth + viewportHeight
   const tileLoopEndY = viewportHeight + viewportWidth
+
+  // Precompute the per-frame winter-wash gate. The wash blends every
+  // native tile glyph toward winter grey when the overworld season is
+  // Winter; egregore tiles (precis #8a) are exempt and short-circuit
+  // the wash so their violet Voynich script pops against the grey.
+  const winterWash = state.weather.season === Season.Winter && state.currentZone === Zone.Overworld
   for (let vy = tileLoopStart; vy < tileLoopEndY; vy++) {
     for (let vx = tileLoopStart; vx < tileLoopEndX; vx++) {
       const mx = camera.x + vx
@@ -1408,6 +1428,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           }
           if (lifecycle && lifecycle.stage !== FloraStage.Healthy) {
             switch (lifecycle.stage) {
+              case FloraStage.Dormant:
+                // Winter pause (precis #2). Glyph unchanged; color is
+                // the per-species dormantColor from FLORA_SPECIES.
+                color = FLORA_SPECIES[lifecycle.species].dormantColor
+                break
               case FloraStage.Brown:
                 color = CLOVER_BROWN_COLOR
                 break
@@ -1568,6 +1593,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           deferredFloraGlyphs.push({ char, color: sway.color, px: px + sway.dx, py: pyLift + sway.dy })
           continue
         }
+      }
+
+      // Winter palette wash (precis #2): when the overworld season is
+      // Winter, blend every native tile glyph toward the winter grey.
+      // Egregore tiles are exempt so the violet Voynich script pops
+      // against the wash, per v3 doctrine.
+      const tileForWash = map[my]?.[mx]
+      if (winterWash && tileForWash?.type !== TileType.Egregore) {
+        color = applyWinterWash(color)
       }
 
       // Non-deferred path: terrain glyphs and overlay tiles. Apply the

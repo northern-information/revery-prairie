@@ -11,7 +11,7 @@ describe('weather rain overlay', () => {
 
   it('weather sky defaults to a valid value', () => {
     const state = createGameState('test', 80, 24)
-    expect([Sky.Sun, Sky.Cloudy, Sky.Rain]).toContain(state.weather.sky)
+    expect([Sky.Sun, Sky.Cloudy, Sky.Rain, Sky.Snow]).toContain(state.weather.sky)
   })
 
   it('currentZone defaults to overworld', () => {

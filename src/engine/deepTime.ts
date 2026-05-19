@@ -101,8 +101,11 @@ export const tickDeepTime = (state: GameState, time: number): void => {
     // Run accelerated tick systems
     // Each frame simulates ~50 years, so we run multiple ticks of each system
 
-    // Weather — run once per frame (it already drifts by small amounts)
-    tickWeather(state.weather)
+    // Weather — run once per frame (it already drifts by small amounts).
+    // Pass a 0 dt so deep time doesn't double-advance the seasonal phase —
+    // deep time has its own years-per-frame accounting and the year-cycle is
+    // not the right semantic for geological compression.
+    tickWeather(state, 0)
 
     // Tile water — run once per frame
     tickTileWater(state, Zone.Overworld)

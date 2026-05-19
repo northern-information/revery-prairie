@@ -4,6 +4,12 @@ export interface FloraSpeciesDef {
   id: FloraSpecies
   glyph: string
   color: string
+  // Dormant color rendered when state.weather.season === Winter and the
+  // tile's lifecycle entry is in FloraStage.Dormant. Each species blends
+  // its base color toward a winter-drained variant — same glyph, lower
+  // saturation, cooler hue. The doctrine says winter is the prairie at
+  // rest; the muted color should read as "paused" not "dying."
+  dormantColor: string
   displayName: string
   latinBinomial: string
 }
@@ -26,6 +32,7 @@ export const FLORA_SPECIES = {
     id: FloraSpecies.Clover,
     glyph: '%',
     color: '#50C878',
+    dormantColor: '#4A5040',
     displayName: 'Clover',
     latinBinomial: 'Trifolium repens',
   },
@@ -33,6 +40,7 @@ export const FLORA_SPECIES = {
     id: FloraSpecies.Wildflower,
     glyph: '*',
     color: '#D85FB7',
+    dormantColor: '#604550',
     displayName: 'Purple Coneflower',
     latinBinomial: 'Echinacea purpurea',
   },
@@ -40,6 +48,7 @@ export const FLORA_SPECIES = {
     id: FloraSpecies.TallGrass,
     glyph: '"',
     color: '#A89968',
+    dormantColor: '#5C5547',
     displayName: 'Big Bluestem',
     latinBinomial: 'Andropogon gerardii',
   },

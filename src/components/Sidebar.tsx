@@ -54,6 +54,7 @@ const SKY_LABEL = {
   sun: 'Sunny',
   cloudy: 'Cloudy',
   rain: 'Rain',
+  snow: 'Snow',
 } as const
 
 // Arrows show on-screen blow direction derived from WIND_SCREEN_VECTORS.
@@ -580,6 +581,10 @@ export const Sidebar = ({ state, itemInfoRef, metricsRef }: SidebarProps) => {
               <tr>
                 <td className="text-muted py-0.5">Temp</td>
                 <td className="py-0.5 text-right">{temp}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">Season</td>
+                <td className="py-0.5 text-right">{weather.season}</td>
               </tr>
               <tr>
                 <td className="text-muted py-0.5">Wind</td>

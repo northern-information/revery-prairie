@@ -9,7 +9,7 @@ import {
   WATER_MAX,
 } from '../constants'
 import { posKey } from '../position'
-import { FloraStage, Sky, TileType, Zone } from '../types'
+import { FloraSpecies, FloraStage, Season, Sky, TileType, Zone } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -195,6 +195,65 @@ describe('tickFloraLifecycle', () => {
       // Should still be blinkingRed (or advanced), not healthy
       expect(state.floraLifecycle.get(key)?.stage).not.toBe(FloraStage.Healthy)
     })
+  })
+})
+
+describe('seasonal dormancy', () => {
+  it('transitions healthy flora to dormant when season is winter', () => {
+    state.weather.season = Season.Winter
+    placeClover(px(), py() + 1)
+    const key = posKey(px(), py() + 1)
+    // Seed the entry as healthy with tile water so it doesn't get marked
+    // stressed before the dormancy check runs.
+    state.floraLifecycle.set(key, {
+      stage: FloraStage.Healthy,
+      stageStartTime: 0,
+      hasLight: true,
+      species: FloraSpecies.Clover,
+    })
+    tickFloraLifecycle(state, Zone.Overworld, 1000)
+    expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Dormant)
+  })
+
+  it('thaws dormant flora back to healthy outside winter', () => {
+    state.weather.season = Season.Winter
+    placeClover(px(), py() + 1)
+    const key = posKey(px(), py() + 1)
+    tickFloraLifecycle(state, Zone.Overworld, 1000)
+    expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Dormant)
+
+    state.weather.season = Season.Spring
+    tickFloraLifecycle(state, Zone.Overworld, 5000)
+    const entry = state.floraLifecycle.get(key)
+    expect(entry?.stage).toBe(FloraStage.Healthy)
+    expect(entry?.stageStartTime).toBe(5000)
+  })
+
+  it('dormant tiles do not advance to brown even when stressed', () => {
+    state.weather.season = Season.Winter
+    placeClover(px(), py() + 1)
+    const key = posKey(px(), py() + 1)
+    // Drop water to 0 — outside winter this would force brown.
+    state.tileWater.set(key, 0)
+    tickFloraLifecycle(state, Zone.Overworld, 1000)
+    expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Dormant)
+    // Another tick — still dormant, never brown.
+    tickFloraLifecycle(state, Zone.Overworld, 2000)
+    expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Dormant)
+  })
+
+  it('non-winter dormancy is a no-op (and just thaws)', () => {
+    state.weather.season = Season.Spring
+    placeClover(px(), py() + 1)
+    const key = posKey(px(), py() + 1)
+    state.floraLifecycle.set(key, {
+      stage: FloraStage.Healthy,
+      stageStartTime: 500,
+      hasLight: true,
+      species: FloraSpecies.Clover,
+    })
+    tickFloraLifecycle(state, Zone.Overworld, 1000)
+    expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Healthy)
   })
 })
 
