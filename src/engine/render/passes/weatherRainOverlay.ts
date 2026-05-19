@@ -2,7 +2,7 @@ import { RAIN_AURA_CHARS, RAIN_AURA_COLORS, RAIN_AURA_SPEED, WEATHER_RAIN_DENSIT
 import { isInBounds, tileHash } from '../../position'
 import { viewportToScreen } from '../../projection'
 import { isInRainFront } from '../../tileWater'
-import { Zone } from '../../types'
+import { Sky, Zone } from '../../types'
 import { getVisibleTileBounds } from '../../viewportBounds'
 import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
@@ -10,7 +10,11 @@ import { getTierGrid, liftAt } from '../tierGrid'
 import type { CharMetrics, GameState } from '../../types'
 import type { RenderPass } from '../passes'
 
-const isActive = (state: GameState): boolean => state.precipitationIntensity > 0 && state.currentZone === Zone.Overworld
+// Gate strictly on Sky.Rain so the rain front does not double-draw during
+// snowfall (precis #2 routes winter humid weather to Sky.Snow, which has
+// its own overlay pass).
+const isActive = (state: GameState): boolean =>
+  state.weather.sky === Sky.Rain && state.precipitationIntensity > 0 && state.currentZone === Zone.Overworld
 
 // Animated rain follows the sweeping rain front (overworld only).
 // Uses precipitationIntensity for fade in/out and isInRainFront for blotchy edges.

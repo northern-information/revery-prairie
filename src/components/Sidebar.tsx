@@ -585,6 +585,10 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
                 <td className="py-0.5 text-right">{temp}</td>
               </tr>
               <tr>
+                <td className="text-muted py-0.5">Season</td>
+                <td className="py-0.5 text-right">{weather.season}</td>
+              </tr>
+              <tr>
                 <td className="text-muted py-0.5">Wind</td>
                 <td className="py-0.5 text-right">{wind}</td>
               </tr>

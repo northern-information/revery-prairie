@@ -405,6 +405,14 @@ export const RAIN_AURA_COLORS = ['#4466aa', '#335588', '#556699', '#445577']
 export const RAIN_AURA_DENSITY = 3 // ~1 in 3 tiles has a visible raindrop
 export const RAIN_AURA_SPEED = 0.008 // cycles per millisecond
 
+// Snow render constants (precis #2). Snow falls slower than rain and
+// uses round / dot glyphs in white-grey. Density is sparser so the
+// scene reads as snowfall, not a blizzard whiteout.
+export const SNOW_AURA_CHARS = ['*', '.', '·', '✦']
+export const SNOW_AURA_COLORS = ['#F0F4F8', '#D8DCE0', '#BCC0C4', '#E8ECF0']
+export const SNOW_AURA_SPEED = 0.003 // ~1/3 the rain speed — slower drift
+export const WEATHER_SNOW_DENSITY = 8 // ~1 in 8 tiles has a flake visible
+
 export const DEEP_TIME_BURN_DURATION_MS = 5_000
 export const DEEP_TIME_YEARS_PER_FRAME = 1
 export const DEEP_TIME_TOTAL_YEARS = 1000
