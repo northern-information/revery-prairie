@@ -4,7 +4,7 @@ referenced from `CLAUDE.md`. read when touching bees, ghosts, angels, the coyote
 
 ## entities
 
-- **bees** — spawn on bee+clover combine or bee item drop. wander randomly preferring clover (species-filtered — wildflower and tall grass do not attract bees in this PR; broader pollinator routes are precis #7). rendered as `*` in gold. walking over captures to backpack.
+- **bees** — spawn on bee+clover combine or bee item drop. wander toward neighboring tiles weighted by per-tile bee preference (species baseline × per-plant `pollinatorPreference` trait, clamped to `[0, 1]`); bare ground gets a small 0.05 baseline weight so bees still wander. species baselines live on `FloraSpeciesDef.beePreference` (clover 1.0, wildflower 0.6, tall grass 0.3). bee starvation accepts any flora with nonzero species preference. rendered as `*` in gold. walking over captures to backpack.
 - **ghosts** — 3 spawn at random positions on game start. drift slowly (15% move chance per 500ms). block movement/pathfinding. freeze during dialog. each has a 3-line dialog tree.
 - **angels** — biblically accurate ASCII entities. 9x9 body rendered from seeded animation. spawn periodically (~90s intervals), drift slowly, despawn after ~120s. have gold aura background, bee-spawning and clover-growing effects. dialog grants cantos (poems). tracked via `angelCantos`, `angelEncounterCount`, `angelFlashTime` on GameState.
 - **coyote** — companion NPC. follows the player in `Follow` mode (stays 2-3 tiles behind). `Collect` mode: roams and picks up ground items, delivers them to the player's backpack. toggled via coyote screen. tracked via `state.coyoteMode`, `state.coyoteCargo`, `state.coyotePath`.

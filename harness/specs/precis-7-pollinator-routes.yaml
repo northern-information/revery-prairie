@@ -1,0 +1,145 @@
+id: precis-7-pollinator-routes
+name: 'Pollinator routes & preference (precis #7)'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/flora/species.ts
+  - src/engine/entities.ts
+  - src/engine/flora/actions/pollinate.ts
+dependencies:
+  - precis-1-multi-species-flora
+  - precis-3-genetics-v1
+
+# Doctrine reference: docs/precis-thinktank-v3.md line 148 — "Pollinator routes
+# & species preference". v3 itself is sparse on this feature; intent gathered
+# 2026-05-19:
+#   - Bees and pollen drift both respond to preference (both, not one).
+#   - Subtle — behavior only, no UI, no manual entry, no event log.
+#   - Two-layer preference: species baseline + per-plant genetics variation.
+#
+# What this feature does NOT do:
+#   - No new pollinator entities (monarchs, hummingbirds). Bees only.
+#   - No cursor-info or manual surfacing of preference values.
+#   - No wiring of #3 phenotype labels (those ship in #4).
+#   - No starvation-rule change. isBeeNearFood still allows non-clover food now
+#     that wildflower and tall grass count as bee food too (this is the only
+#     food-rule change in scope).
+
+behaviors:
+  - id: species-bee-preference-baseline
+    description: >
+      Each FloraSpeciesDef carries a static beePreference value in [0, 1]
+      representing the species-level baseline attractiveness to bees.
+      Clover = 1.0 (the historical max — preserves prior behavior at the
+      species level). Wildflower and tall grass are nonzero so bees can
+      see them as food, but lower than clover. Values are locked in the
+      species registry and stable for the life of the game.
+    inputs:
+      - 'FloraSpecies enum value'
+    outputs:
+      - 'beePreference: number in [0, 1]'
+    state_changes: []
+    determinism: deterministic
+
+  - id: tile-bee-preference-blend
+    description: >
+      A pure function getTileBeePreference(state, x, y) returns the
+      effective bee preference for one map tile in [0, 1]. For a Flora
+      tile with a floraLifecycle entry, the value is the species baseline
+      blended with the plant's genetics-derived pollinatorPreference trait
+      using the formula `species.beePreference * (0.75 + 0.5 * traits.pollinatorPreference)`.
+      That formula keeps the per-plant variation inside ±25% of the
+      species baseline (traits.pollinatorPreference is itself in [0, 1]).
+      For non-Flora tiles or tiles missing a lifecycle entry, the function
+      returns 0.
+    inputs:
+      - 'GameState'
+      - 'x: number'
+      - 'y: number'
+    outputs:
+      - 'preference: number in [0, 1]'
+    state_changes: []
+    determinism: deterministic
+
+  - id: bee-routing-by-preference
+    description: >
+      tickBees replaces the binary clover/walkable split with a weighted
+      pick over neighboring tiles. For each ordinal neighbor in bounds,
+      compute getTileBeePreference. Walkable non-Flora tiles get a small
+      baseline weight of 0.05 (bees still wander). Sum all weights; pick
+      one neighbor with probability proportional to its weight. If the
+      total weight is 0 (rare — e.g. surrounded by unwalkable), the bee
+      stays. The "move only 30% of the time" gate is preserved.
+    inputs:
+      - 'GameState with a bee entity at position (x, y)'
+    outputs:
+      - 'bee may move to a neighboring tile'
+    state_changes:
+      - field: 'world (Position component of bee entity)'
+        effect: 'bee position may move by one ordinal step toward a neighbor chosen weighted by per-tile bee preference; clover-rich neighbors are favored, non-clover flora are weakly favored over bare ground'
+    determinism: probabilistic
+
+  - id: bee-starvation-multi-species
+    description: >
+      isBeeNearFood returns true if the bee's tile OR any of the four
+      cardinal neighbors is a Flora tile of any species with a nonzero
+      species-level beePreference. Previously the check was clover-only.
+      Wildflower and tall grass become valid food sources because their
+      species baseline is nonzero.
+    inputs:
+      - 'GameState'
+      - 'Position of a bee'
+    outputs:
+      - 'boolean: true if a non-zero-preference flora tile is within distance 1'
+    state_changes: []
+    determinism: deterministic
+
+  - id: pollen-emit-bias
+    description: >
+      tickPollenEmit existing per-tile emission gets multiplied by the
+      tile's per-plant pollinatorPreference (range [0, 1]). For a Flora
+      tile with a lifecycle entry, the effective emit probability becomes
+      `emitProb * (0.5 + 0.5 * traits.pollinatorPreference)` — i.e. the
+      trait scales emission within ±50% of the species baseline. Plants
+      with a high trait emit more visible pollen than their siblings.
+      Species-level baseline differences are NOT introduced here; this
+      pass only wires per-plant genetics into emission. Non-Flora pollen
+      emitters (if any are ever registered later) are untouched.
+    inputs:
+      - 'GameState (entering tickPollenEmit)'
+    outputs:
+      - 'Pollen particles emitted at higher rates from high-pollinatorPreference plants'
+    state_changes:
+      - field: pollen
+        effect: 'particles are spawned more often from Flora tiles with high pollinatorPreference traits; particles from low-preference plants are rarer. Total particle cap MAX_POLLEN unchanged.'
+    determinism: probabilistic
+
+edge_cases:
+  - id: bee-on-non-walkable-island
+    description: 'Bee is in a position where every ordinal neighbor is non-walkable (shouldn''t happen in normal play but possible during dev)'
+    expected: 'Total weight is 0; bee does not move this tick; no crash'
+  - id: flora-tile-no-lifecycle-entry
+    description: 'A tile is map[y][x].type === TileType.Flora but state.floraLifecycle has no entry for posKey(x, y) (mid-construction state)'
+    expected: 'getTileBeePreference returns 0; pollen emit multiplier is treated as no Flora tile (baseline emitProb only — no negative or NaN)'
+  - id: trait-bag-extreme-values
+    description: 'A plant has traits.pollinatorPreference exactly 0 or exactly 1'
+    expected: 'Blended values clamp inside [0, 1]: at 0 the blended bee pref is 75% of species baseline; at 1 it is 125% of species baseline. Both fall inside [0, 1] for any species baseline ≤ 0.8. Clover (baseline 1.0) at trait=1 produces 1.25 — callers must accept >1 as "very attractive" or the function must clamp. Decision: clamp the blended output to [0, 1] so downstream weighting is bounded.'
+  - id: winter-dormancy-still-suppresses-pollen
+    description: 'Winter season: tickPollenEmit early-returns before reaching the bias multiplier'
+    expected: 'No emission, regardless of trait values. Existing winter behavior unchanged.'
+  - id: bee-tick-zero-preference-flora
+    description: 'A bee is adjacent only to flora whose species.beePreference is 0 (hypothetical future species)'
+    expected: 'That flora contributes 0 weight; bee picks among the 0.05-weighted walkable non-Flora tiles only, like ordinary wander.'
+
+failure_conditions:
+  - trigger: 'getTileBeePreference called with x/y out of bounds'
+    expected: 'Returns 0 (callers in tickBees already gate with isInBounds; this is defense-in-depth)'
+  - trigger: 'Bee entity has a Position component but the tile under it is non-walkable (stale state)'
+    expected: 'No crash; bee evaluates neighbors normally regardless of its own tile'
+  - trigger: 'tickPollenEmit reads a Flora tile whose lifecycle entry is missing'
+    expected: 'Falls back to species baseline emit (multiplier defaults to 1.0), no NaN, no early-exit'
+
+verification:
+  test_file: src/engine/__tests__/precis-7-pollinator-routes.test.ts
+  test_pattern: 'pollinator routes'
+  command: 'npx vitest run src/engine/__tests__/precis-7-pollinator-routes.test.ts'

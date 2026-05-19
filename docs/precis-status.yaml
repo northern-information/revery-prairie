@@ -100,11 +100,11 @@ features:
     summary: Pollinators favor certain species and route through the prairie.
     size: S
     depends_on: ['1', '3']
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/precis-7-pollinator-routes.yaml
+    plan: harness/plans/precis-7-pollinator-routes.yaml
     pr: null
-    notes: ''
+    notes: 'Scope locked 2026-05-19: two-layer preference (species baseline on FloraSpeciesDef + per-plant `pollinatorPreference` trait from #3). Bees use weighted neighbor pick over preference; pollen emission gets a per-plant trait multiplier. Subtle — no UI, no manual entry, no event log. Bees only — no new pollinator entities. Phenotype labels stay in #4.'
 
   - id: '8b'
     name: Egregoric flora — mechanical

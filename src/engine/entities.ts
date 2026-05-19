@@ -5,10 +5,11 @@ import { AURA_RADIUS, spawnPickupBloom } from './effects'
 import { tickCreatureHunger } from './hunger'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
 import { recordDiscovery } from './manual'
+import { FLORA_SPECIES, getTileBeePreference } from './flora/species'
 import { spawnBeeOrMonarch } from './monarch'
 import { getBlockedPositions } from './movement'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
-import { FloraSpecies, TileType, Zone } from './types'
+import { TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
@@ -153,21 +154,29 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   return { pickedUp, chainExplosions, disintegrations }
 }
 
-// Bees treat clover as food; wildflower and tall grass are not bee food
-// in this PR. Broader pollinator routes are precis #7.
-const isCloverTileAt = (state: GameState, x: number, y: number): boolean => {
+// Precis #7 — bee food is any Flora tile whose species has nonzero
+// beePreference. Clover historically was the only food; wildflower and tall
+// grass now also count.
+const isFloraFoodAt = (state: GameState, x: number, y: number): boolean => {
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
   if (state.map[y][x].type !== TileType.Flora) return false
-  return state.floraLifecycle.get(posKey(x, y))?.species === FloraSpecies.Clover
+  const entry = state.floraLifecycle.get(posKey(x, y))
+  if (!entry) return false
+  return FLORA_SPECIES[entry.species].beePreference > 0
 }
 
 const isBeeNearFood = (state: GameState, pos: Position): boolean => {
-  if (isCloverTileAt(state, pos.x, pos.y)) return true
+  if (isFloraFoodAt(state, pos.x, pos.y)) return true
   for (const d of CARDINAL) {
-    if (isCloverTileAt(state, pos.x + d.x, pos.y + d.y)) return true
+    if (isFloraFoodAt(state, pos.x + d.x, pos.y + d.y)) return true
   }
   return false
 }
+
+// Precis #7 — non-Flora walkable tiles still receive a small baseline weight
+// so bees wander even when no flora is adjacent. Tuned to keep clover (1.0)
+// roughly 20× more attractive than bare dirt; wildflower (0.6) ~12×.
+const WANDER_BASELINE_WEIGHT = 0.05
 
 export const tickBees = (state: GameState, zone?: Zone): Position[] => {
   const z = zone ?? state.currentZone
@@ -184,28 +193,34 @@ export const tickBees = (state: GameState, zone?: Zone): Position[] => {
     // Only move sometimes — gives a lazy, buzzing feel
     if (Math.random() > 0.3) continue
 
-    // Collect neighboring clover tiles. Wildflower and tall grass share
-    // TileType.Flora but bees prefer clover only in this PR.
-    const cloverCandidates: Position[] = []
-    const walkableCandidates: Position[] = []
+    // Precis #7 — weighted neighbor pick. Each walkable neighbor gets a
+    // weight: Flora tiles use getTileBeePreference (species baseline ×
+    // per-plant trait, clamped to [0, 1]); non-Flora walkable tiles use a
+    // small baseline so bees still wander. Cumulative-weight selection.
+    const candidates: { pos: Position; weight: number }[] = []
+    let totalWeight = 0
     for (const d of ORDINAL) {
       const nx = pos.x + d.x
       const ny = pos.y + d.y
-      if (isInBounds(nx, ny, state.mapWidth, state.mapHeight)) {
-        const tile = state.map[ny][nx]
-        if (tile.type === TileType.Flora && isCloverTileAt(state, nx, ny)) {
-          cloverCandidates.push({ x: nx, y: ny })
-        } else if (isWalkableTile(tile.type)) {
-          walkableCandidates.push({ x: nx, y: ny })
-        }
-      }
+      if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
+      const tile = state.map[ny][nx]
+      if (!isWalkableTile(tile.type)) continue
+      const preference = getTileBeePreference(state, nx, ny)
+      const weight = preference > 0 ? preference : WANDER_BASELINE_WEIGHT
+      candidates.push({ pos: { x: nx, y: ny }, weight })
+      totalWeight += weight
     }
 
-    // Prefer clover, otherwise wander randomly on walkable tiles
-    const candidates = cloverCandidates.length > 0 ? cloverCandidates : walkableCandidates
-    if (candidates.length > 0) {
-      const target = candidates[Math.floor(Math.random() * candidates.length)]
-      state.world.moveEntity(eid, target.x, target.y, BEE_TICK_MS)
+    if (totalWeight === 0) continue
+
+    const roll = Math.random() * totalWeight
+    let cumulative = 0
+    for (const c of candidates) {
+      cumulative += c.weight
+      if (roll < cumulative) {
+        state.world.moveEntity(eid, c.pos.x, c.pos.y, BEE_TICK_MS)
+        break
+      }
     }
   }
 

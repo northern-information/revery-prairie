@@ -1,4 +1,6 @@
-import { FloraSpecies } from '@/engine/types'
+import { isInBounds, posKey } from '@/engine/position'
+import { FloraSpecies, TileType } from '@/engine/types'
+import type { GameState } from '@/engine/types'
 
 export interface FloraSpeciesDef {
   id: FloraSpecies
@@ -12,6 +14,12 @@ export interface FloraSpeciesDef {
   dormantColor: string
   displayName: string
   latinBinomial: string
+  // Precis #7 — species-level baseline attractiveness to bees, in [0, 1].
+  // Combined with the per-plant `traits.pollinatorPreference` trait from #3
+  // via getTileBeePreference. Clover stays at 1.0 to preserve historical
+  // bee-prefers-clover behavior; wildflower and tall grass are nonzero so
+  // they participate in routing and starvation but rank below clover.
+  beePreference: number
 }
 
 // Visual + display metadata for each flora species. The renderer reads
@@ -35,6 +43,7 @@ export const FLORA_SPECIES = {
     dormantColor: '#4A5040',
     displayName: 'Clover',
     latinBinomial: 'Trifolium repens',
+    beePreference: 1.0,
   },
   [FloraSpecies.Wildflower]: {
     id: FloraSpecies.Wildflower,
@@ -43,6 +52,7 @@ export const FLORA_SPECIES = {
     dormantColor: '#604550',
     displayName: 'Purple Coneflower',
     latinBinomial: 'Echinacea purpurea',
+    beePreference: 0.6,
   },
   [FloraSpecies.TallGrass]: {
     id: FloraSpecies.TallGrass,
@@ -51,7 +61,32 @@ export const FLORA_SPECIES = {
     dormantColor: '#5C5547',
     displayName: 'Big Bluestem',
     latinBinomial: 'Andropogon gerardii',
+    beePreference: 0.3,
   },
 } as const satisfies Record<FloraSpecies, FloraSpeciesDef>
 
 export const getFloraSpeciesDef = (species: FloraSpecies): FloraSpeciesDef => FLORA_SPECIES[species]
+
+// Precis #7 — per-tile bee preference.
+//
+// Returns the effective bee attractiveness of one map tile in [0, 1], blending
+// the species-level baseline with the per-plant `pollinatorPreference` trait
+// from #3 genetics. The blend formula is
+//   `species.beePreference * (0.75 + 0.5 * traits.pollinatorPreference)`
+// which keeps per-plant variation inside ±25% of the species baseline (the
+// trait itself is in [0, 1]). Output is clamped to [0, 1] so callers can
+// treat it as a bounded weight.
+//
+// Returns 0 for any non-Flora tile, for out-of-bounds coords, or when the
+// floraLifecycle entry for the Flora tile is missing (mid-construction state).
+const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n)
+
+export const getTileBeePreference = (state: GameState, x: number, y: number): number => {
+  if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return 0
+  if (state.map[y][x].type !== TileType.Flora) return 0
+  const entry = state.floraLifecycle.get(posKey(x, y))
+  if (!entry) return 0
+  const species = FLORA_SPECIES[entry.species]
+  const trait = entry.traits.pollinatorPreference
+  return clamp01(species.beePreference * (0.75 + 0.5 * trait))
+}

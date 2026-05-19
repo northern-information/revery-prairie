@@ -1,4 +1,5 @@
 import { recordDiscovery } from '@/engine/manual'
+import { posKey } from '@/engine/position'
 import { Season, Zone } from '@/engine/types'
 import { getWindAt, MAX_WIND_SPEED } from '@/engine/weather/wind'
 import type { FloraPollinateProfile, GameState, PollenParticle } from '@/engine/types'
@@ -116,7 +117,13 @@ export const tickPollenEmit = (state: GameState, dt: number): void => {
         if (state.pollen.length >= MAX_POLLEN) return
         if (state.map[ty]?.[tx]?.type !== tileType) continue
         if (profile.emitGate && !profile.emitGate(state, tx, ty)) continue
-        if (Math.random() < emitProb) {
+        // Precis #7 — per-plant pollinatorPreference biases emission within
+        // ±50% of the species baseline (trait ∈ [0, 1]). Plants with high
+        // preference visibly emit more pollen than siblings. Missing
+        // lifecycle entries fall back to the unbiased rate.
+        const entry = state.floraLifecycle.get(posKey(tx, ty))
+        const traitMultiplier = entry ? 0.5 + 0.5 * entry.traits.pollinatorPreference : 1.0
+        if (Math.random() < emitProb * traitMultiplier) {
           spawnParticle(state, tx, ty, tileType, profile)
         }
       }
