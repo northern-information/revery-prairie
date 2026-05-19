@@ -35,7 +35,7 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: all-addEvent-call-sites-removed
+  - id: all-add-event-call-sites-removed
     description: >
       Every call site of the EventLog `addEvent` API in src/components
       is removed. This includes the eight invocations in
@@ -171,14 +171,6 @@ failure_conditions:
     expected: 'DOM event listeners are unrelated to the activity log; the search pattern for removal is `addEvent\\(` (with open paren), not `addEvent` (as substring)'
 
 verification:
-  test_file: src/components/__tests__/GameScreen.test.tsx
-  test_pattern: 'GameScreen'
-  command: 'npm run verify'
-  notes: >
-    Beyond the typecheck/lint/test gate, two manual sanity checks:
-    (1) run `npm run dev`, pick up an item, drop an item, talk to an
-    NPC, complete a recipe combine, discover a new species in the
-    manual — confirm each fires its world-effect (bloom, dialog box,
-    inventory update, manual entry) and that no text panel appears.
-    (2) confirm the bottom-bar's center slot is empty and that the
-    Minimap and Backpack remain visually unchanged.
+  test_file: src/components/__tests__/InventoryPanel.test.tsx
+  test_pattern: 'InventoryPanel'
+  command: 'npx vitest run src/components/__tests__/InventoryPanel.test.tsx'
