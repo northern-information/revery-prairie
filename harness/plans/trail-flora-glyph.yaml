@@ -1,0 +1,76 @@
+plan:
+  id: trail-flora-glyph
+  title: 'Footprint trail uses underlying flora species glyph'
+  created: 2026-05-19
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: regression-test
+    title: 'Add renderer regression test for trail-over-flora glyph'
+    spec_id: trail-flora-glyph
+    spec_sections:
+      - trail-tile-glyph-matches-species
+      - trail-non-flora-unchanged
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/flora/species.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/rendererPathGate.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/trailFloraGlyph.test.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/engine/__tests__/trailFloraGlyph.test.ts'
+    repair: retry
+    tags: [test]
+    notes: |
+      Follow the canvas-context spy pattern from rendererPathGate.test.ts.
+      Set up three trail tiles, each over a different flora species (Clover,
+      Wildflower, TallGrass) with floraLifecycle entries. Use createTestState
+      + clearAroundPlayer from helpers.ts to prepare terrain. Place flora
+      tiles via state.map mutation + floraLifecycle.set(). Push TrailPoints
+      to state.trail at those coords. Render one frame and assert the
+      fillText calls include '*' and '"' (and '%' for the clover control),
+      not three '%'s. This test must fail on the current main branch (where
+      all three render as '%') and pass after the renderer fix.
+
+  - id: fix-renderer-trail-branch
+    title: 'Resolve flora species glyph in the trail render branch'
+    spec_id: trail-flora-glyph
+    spec_sections:
+      - trail-tile-glyph-matches-species
+      - trail-non-flora-unchanged
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/flora/species.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - regression-test
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/trailFloraGlyph.test.ts'
+    repair: retry
+    tags: [engine, render]
+    notes: |
+      In src/engine/renderer.ts:1418-1423 (the `else if (trailMap.has(tileKey))`
+      branch), look up the flora species when tile.type === TileType.Flora and
+      a state.floraLifecycle entry exists for tileKey. Mirror the pattern
+      already used at renderer.ts:1448-1453:
+
+        const lifecycle = tile.type === TileType.Flora
+          ? state.floraLifecycle.get(tileKey)
+          : undefined
+        const baseChar = entranceGlyphMap.get(tileKey)
+          ?? (lifecycle ? FLORA_SPECIES[lifecycle.species].glyph : TILE_CHARS[tile.type])
+        char = baseChar
+
+      Do NOT change the color logic — the trail's grayscale brightness
+      (rgb(b, b, b)) is preserved. Only the glyph changes. Do not touch the
+      pollen-trail emit calls at movement.ts:139-150 — those are out of scope
+      for this bug.
