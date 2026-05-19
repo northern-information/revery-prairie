@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { BootTitleCardOverlay } from './BootTitleCardOverlay'
 import { CantosScreen } from './CantosScreen'
+import { CommandPanel } from './CommandPanel'
 import { CoyoteScreen } from './CoyoteScreen'
 import { DevPanel } from './DevPanel'
 import { DialogBox } from './DialogBox'
@@ -246,6 +247,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
       )}
       <BootTitleCardOverlay state={state} />
       <ScanProgressBar state={state} activeScreen={activeScreen} />
+      {!state.genesis && <CommandPanel state={state} refreshUI={refreshUI} />}
       {state.genesis ? (
         <GenesisBottomBar state={state} />
       ) : (

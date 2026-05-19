@@ -7,6 +7,7 @@ import {
   transitionCoyoteToZone,
 } from '../coyote'
 import { ComponentType } from '../ecs/types'
+import { interactWithCharacter } from '../interaction'
 import { getBlockedPositions, getPathfindingBlockers, movePlayer } from '../movement'
 import { posKey } from '../position'
 import { CoyoteMode, MainQuestPhase, TileType, Zone } from '../types'
@@ -551,6 +552,54 @@ describe('coyote companion', () => {
       // Coyote should have followed — it should NOT still be at its start position
       const finalCoyote = requireValue(getCoyotePosition(state))
       expect(finalCoyote.x !== startCoyote.x || finalCoyote.y !== startCoyote.y).toBe(true)
+    })
+  })
+
+  describe('interact selects coyote', () => {
+    it('interactWithCharacter adjacent to coyote adds the coyote to selectedUnits', () => {
+      const state = createCoyoteState()
+      const coyoteEid = requireValue(findCoyoteEntity(state))
+      expect(state.selectedUnits.size).toBe(0)
+
+      const result = interactWithCharacter(state)
+
+      expect(result.opened).toBe(false)
+      expect(state.selectedUnits.has(coyoteEid)).toBe(true)
+      expect(state.selectedUnits.size).toBe(1)
+    })
+
+    it('replaces any prior selection with the coyote', () => {
+      const state = createCoyoteState()
+      const coyoteEid = requireValue(findCoyoteEntity(state))
+      // Pre-existing selection of some other entity
+      const gronEid = createCharacterTestEntity(state, 'gron', state.player.x, state.player.y + 2)
+      state.selectedUnits.add(gronEid)
+
+      interactWithCharacter(state)
+
+      expect(state.selectedUnits.has(coyoteEid)).toBe(true)
+      expect(state.selectedUnits.has(gronEid)).toBe(false)
+      expect(state.selectedUnits.size).toBe(1)
+    })
+
+    it('does not modify selectedUnits when interacting with gron (dialog character)', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+      createCharacterTestEntity(state, 'gron', state.player.x + 1, state.player.y)
+
+      interactWithCharacter(state)
+
+      expect(state.selectedUnits.size).toBe(0)
+    })
+
+    it('does nothing when no character is adjacent', () => {
+      const state = createTestState()
+      clearAroundPlayer(state, 10)
+
+      const result = interactWithCharacter(state)
+
+      expect(result.opened).toBe(false)
+      expect(state.selectedUnits.size).toBe(0)
     })
   })
 })

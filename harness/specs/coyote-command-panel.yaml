@@ -1,0 +1,105 @@
+id: coyote-command-panel
+name: 'Coyote contextual command panel — restore Follow/Collect controls'
+priority: medium
+layer: component
+source_files:
+  - src/components/GameScreen.tsx
+  - src/components/CommandPanel.tsx
+  - src/engine/interaction.ts
+  - src/engine/selection.ts
+
+behaviors:
+  - id: render-command-panel-when-controllable-selected
+    description: >
+      `GameScreen` renders `<CommandPanel state={state} refreshUI={refreshUI} />`
+      whenever `state.selectedUnits` contains at least one live controllable
+      NPC (currently coyote or gron, as defined by `CONTROLLABLE_IDS` in
+      `src/engine/selection.ts`). When `selectedUnits` is empty, or contains
+      no controllable units, `CommandPanel` does not render. The panel is
+      positioned per its existing implementation: fixed bottom-center,
+      offset to the right of the Minimap (`bottom-2 left-1/2 ml-[100px]
+      -translate-x-1/2`). Rendering does not depend on which zone the
+      player is in or whether a dialog is open.
+    inputs:
+      - 'GameState with selectedUnits containing one or more controllable NPC entity ids'
+    outputs:
+      - 'CommandPanel mounted in the GameScreen tree, visible above the canvas'
+    state_changes: []
+    determinism: deterministic
+
+  - id: interact-with-coyote-selects-coyote
+    description: >
+      Pressing the interact key (the existing interaction binding in
+      `useKeyboard`) while standing adjacent to a coyote calls
+      `interactWithCharacter(state)`. For the coyote (which has no dialog),
+      the function additionally calls `selectUnit(state, coyoteEid)` so
+      that `state.selectedUnits` ends up containing exactly the coyote
+      entity. Any previous selection is replaced. This is the single
+      behavior change in `interactWithCharacter`; the return shape
+      `{ opened: false, gift: null, coyoteToggled: false }` is preserved.
+      Other characters (gron, angels) are unaffected — they continue to
+      open dialog without modifying `selectedUnits`.
+    inputs:
+      - 'Player stands adjacent to a coyote entity'
+      - 'Player presses the interact key'
+    outputs:
+      - '`state.selectedUnits` contains exactly the coyote entity id'
+      - 'CommandPanel becomes visible on the next render (via refreshUI)'
+    state_changes:
+      - field: selectedUnits
+        effect: 'replaced with a single-entry set containing the adjacent coyote entity id'
+    determinism: deterministic
+
+  - id: coyote-follow-collect-buttons
+    description: >
+      The existing `CommandPanel` already renders Follow and Collect
+      buttons when exactly one controllable unit of definitionId `coyote`
+      is selected. Clicking `follow` sets `state.coyoteMode = CoyoteMode.Follow`
+      and clears `state.coyotePath`. Clicking `collect` sets
+      `state.coyoteMode = CoyoteMode.Collect` and clears `state.coyotePath`.
+      The active mode is highlighted with the pink active-mode background
+      style. This behavior is unchanged; it is restated here so the spec
+      enumerates the full contextual control surface.
+    inputs:
+      - 'CommandPanel is mounted with exactly one selected coyote'
+    outputs:
+      - 'Two buttons rendered: follow, collect — clicking each sets state.coyoteMode and resets state.coyotePath'
+    state_changes:
+      - field: coyoteMode
+        effect: 'set to CoyoteMode.Follow on follow click, CoyoteMode.Collect on collect click'
+      - field: coyotePath
+        effect: 'cleared to null on either click'
+    determinism: deterministic
+
+edge_cases:
+  - id: dead-selected-coyote
+    description: 'Coyote is selected, then dies (e.g. enters Deep Time and becomes a ghost, or zone transition prunes it).'
+    expected: 'pruneSelection removes the dead entity from selectedUnits; CommandPanel stops rendering on the next refresh because no live controllable unit remains.'
+  - id: gron-selected-instead-of-coyote
+    description: 'Player drag-selects gron (another controllable in CONTROLLABLE_IDS).'
+    expected: 'CommandPanel renders. The follow/collect buttons (coyote-specific) are not shown because the existing single-unit branch checks `definitionId === ''coyote''`. Only the portrait + name is shown for gron.'
+  - id: multiple-units-selected
+    description: 'selectedUnits contains both coyote and gron after a drag-select.'
+    expected: 'CommandPanel renders the multi-portrait branch (existing behavior). Follow/Collect buttons are not shown in multi-select mode.'
+  - id: interact-near-coyote-and-other-character
+    description: 'Player is adjacent to both a coyote and a non-coyote character (e.g. an angel) at once.'
+    expected: '`getAdjacentCharacter` returns the facing-direction match first, then any cardinal neighbor. Whatever character it returns is what gets interacted with. If it returns the coyote, selection is set to coyote; if it returns the other character, dialog opens for that character and selection is untouched.'
+  - id: interact-with-coyote-while-other-selected
+    description: 'Player has gron selected (or some other selection) and interacts with an adjacent coyote.'
+    expected: 'selectUnit replaces the prior selection — only coyote remains in selectedUnits afterward.'
+  - id: command-panel-unmounts-on-deselect
+    description: 'Player deselects (e.g. clicks empty terrain in a way that calls deselectAll).'
+    expected: 'CommandPanel unmounts (returns null) because `getSelectedUnitInfo` yields zero units.'
+
+failure_conditions:
+  - trigger: 'CommandPanel is not imported or rendered from GameScreen'
+    expected: 'Follow/Collect buttons must be visible whenever a coyote is selected via any path (drag-select, click, or interact). This is the regression case from PR #299.'
+  - trigger: 'interactWithCharacter is called for coyote and selectedUnits is not modified'
+    expected: 'After pressing interact next to a coyote, state.selectedUnits must contain exactly the coyote entity id.'
+  - trigger: 'selectedUnits contains a dead/non-controllable entity'
+    expected: 'CommandPanel renders nothing (returns null from the existing units.length === 0 guard) because getSelectedUnitInfo skips dead entities and entities without CharacterIdentity.'
+
+verification:
+  test_file: src/components/__tests__/CommandPanel.test.tsx
+  test_pattern: 'coyote command panel'
+  command: 'npx vitest run src/components/__tests__/CommandPanel.test.tsx src/engine/__tests__/coyote.test.ts'
