@@ -1,0 +1,115 @@
+plan:
+  id: egregore-font-fix
+  title: 'Derive ManualPanel Egregore tab label from EGREGORE_GLYPHS, correct the source comment, add an opt-in fetch-font script'
+  created: '2026-05-19'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/egregore.test.ts src/components/__tests__/ManualPanel.test.tsx
+
+tasks:
+  - id: regression-test-manual-header-derives
+    title: 'Add regression test: ManualPanel Egregore tab label is built from EGREGORE_GLYPHS, not a hardcoded literal'
+    spec_id: egregore-font-fix
+    spec_sections:
+      - manual-header-derives-from-glyph-allowlist
+    context_files:
+      - src/components/ManualPanel.tsx
+      - src/engine/egregore.ts
+      - src/components/__tests__/ManualPanel.test.tsx
+    output_files:
+      - src/components/__tests__/ManualPanel.test.tsx
+    depends_on: []
+    verification:
+      - 'npx vitest run src/components/__tests__/ManualPanel.test.tsx'
+    repair: retry
+    tags: [component, test, regression]
+
+  - id: extract-category-labels-constants
+    title: 'Extract CATEGORY_LABELS into src/components/ManualPanel.constants.ts so the component file only exports React components (Fast Refresh)'
+    spec_id: egregore-font-fix
+    spec_sections:
+      - manual-header-derives-from-glyph-allowlist
+    context_files:
+      - src/components/ManualPanel.tsx
+    output_files:
+      - src/components/ManualPanel.tsx
+      - src/components/ManualPanel.constants.ts
+    depends_on:
+      - regression-test-manual-header-derives
+    verification:
+      - 'npx vitest run src/components/__tests__/ManualPanel.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: derive-manual-header-from-allowlist
+    title: 'Replace the hardcoded category header string in ManualPanel.constants.ts with EGREGORE_GLYPHS.slice(0,4).join("")'
+    spec_id: egregore-font-fix
+    spec_sections:
+      - manual-header-derives-from-glyph-allowlist
+    context_files:
+      - src/components/ManualPanel.constants.ts
+      - src/engine/egregore.ts
+    output_files:
+      - src/components/ManualPanel.constants.ts
+    depends_on:
+      - extract-category-labels-constants
+    verification:
+      - 'npx vitest run src/components/__tests__/ManualPanel.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: correct-egregore-comment
+    title: 'Correct the comment block above EGREGORE_GLYPHS: clarify that U+AB10..U+AB1F is Latin Extended-E (not Voynich) and document the visible-fallback rationale'
+    spec_id: egregore-font-fix
+    spec_sections:
+      - egregore-comment-accurately-describes-range
+    context_files:
+      - src/engine/egregore.ts
+    output_files:
+      - src/engine/egregore.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/engine/__tests__/egregore.test.ts'
+    repair: retry
+    tags: [engine, docs]
+
+  - id: add-fetch-font-script
+    title: 'Add npm run fetch-font script that downloads kreativekorp Voynich Unicode font into public/fonts/voynich.ttf; gitignore the .ttf; update README'
+    spec_id: egregore-font-fix
+    spec_sections:
+      - voynich-font-fetch-script-available
+      - docs-reflect-new-design
+    context_files:
+      - package.json
+      - .gitignore
+      - public/fonts/README.md
+    output_files:
+      - package.json
+      - .gitignore
+      - public/fonts/README.md
+      - tools/fetch-voynich-font.mjs
+    depends_on: []
+    verification:
+      - 'node -e "const pkg = require(\"./package.json\"); if (!pkg.scripts || !pkg.scripts[\"fetch-font\"]) { console.error(\"missing fetch-font script\"); process.exit(1); } console.log(\"ok\");"'
+    repair: retry
+    tags: [tooling, docs]
+
+  - id: update-egregore-doc
+    title: 'Update docs/claude/egregores.md: state the Latin Extended-E choice explicitly, note the kreativekorp PUA mapping mismatch, document the fetch-font opt-in workflow'
+    spec_id: egregore-font-fix
+    spec_sections:
+      - docs-reflect-new-design
+    context_files:
+      - docs/claude/egregores.md
+      - src/engine/egregore.ts
+      - public/fonts/README.md
+    output_files:
+      - docs/claude/egregores.md
+    depends_on:
+      - correct-egregore-comment
+      - add-fetch-font-script
+    verification:
+      - 'grep -q "Latin Extended-E" docs/claude/egregores.md && echo ok'
+    repair: retry
+    tags: [docs]

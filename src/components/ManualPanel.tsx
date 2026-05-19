@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { CATEGORY_LABELS } from './ManualPanel.constants'
 import { SectionHeader, Tab, TextButton } from './PanelPrimitives'
 import { SpecimenStack } from './SpecimenStack'
 
@@ -28,21 +29,6 @@ const ControlName = ({ name }: { name: string }) => {
       <span className="text-pink">{match[1]}</span> {match[2]}
     </span>
   )
-}
-
-const CATEGORY_LABELS: Record<ManualCategory, string> = {
-  [ManualCategory.Life]: 'LIFE',
-  [ManualCategory.Celestial]: 'CELESTIAL',
-  [ManualCategory.Object]: 'OBJECTS',
-  [ManualCategory.Person]: 'PEOPLE',
-  [ManualCategory.Zone]: 'ZONES',
-  [ManualCategory.Recipe]: 'RECIPES',
-  [ManualCategory.Control]: 'CONTROLS',
-  // Egregoric category — no English label. Renders as four Voynich
-  // glyphs (the same allowlist subset used for tile glyphs). The tab
-  // label deliberately resists naming; per v3 doctrine the player-facing
-  // term for the egregores is none.
-  [ManualCategory.Egregore]: '\u{0AB10}\u{0AB11}\u{0AB12}\u{0AB13}',
 }
 
 const HintBlock = ({

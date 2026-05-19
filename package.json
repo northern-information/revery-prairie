@@ -26,6 +26,7 @@
     "harness:status": "tsx harness/src/plan-cli.ts status",
     "harness:check": "tsx harness/src/harness-check.ts",
     "precis": "tsx --tsconfig tools/precis/tsconfig.json tools/precis/index.tsx",
+    "fetch-font": "node tools/fetch-voynich-font.mjs",
     "verify": "npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {

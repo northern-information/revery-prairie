@@ -1,9 +1,11 @@
 import { ManualPanel } from '../ManualPanel'
+import { CATEGORY_LABELS } from '../ManualPanel.constants'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
+import { EGREGORE_GLYPHS } from '@/engine/egregore'
 import { createTestState } from '@/engine/__tests__/helpers'
-import { MANUAL_ENTRIES } from '@/engine/manual'
+import { ManualCategory, MANUAL_ENTRIES } from '@/engine/manual'
 import { recipeKey, RECIPES } from '@/engine/recipes'
 
 const renderManual = (overrides?: Partial<ReturnType<typeof createTestState>>) => {
@@ -120,6 +122,21 @@ describe('ManualPanel', () => {
     // Overworld and Shooting Star have unlockKey 'always' (may appear as cross-refs too)
     expect(screen.getAllByText(/The Prairie/).length).toBeGreaterThan(0)
     expect(screen.getAllByText('Shooting Star').length).toBeGreaterThan(0)
+  })
+
+  // Regression guard for egregore-font-fix: the Egregore category label was
+  // previously hardcoded as four U+0AB10..U+0AB13 code points, which drifted
+  // from EGREGORE_GLYPHS (U+0AB10, AB12, AB15, AB18, AB1A). The two
+  // allowlists must agree by construction — the label must be composed
+  // only of code points present in EGREGORE_GLYPHS so that any future
+  // change to the glyph allowlist updates the header automatically.
+  it('Egregore category label is composed only of code points in EGREGORE_GLYPHS', () => {
+    const label = CATEGORY_LABELS[ManualCategory.Egregore]
+    expect(label.length).toBeGreaterThan(0)
+    const allowed = new Set<string>(EGREGORE_GLYPHS)
+    for (const ch of label) {
+      expect(allowed, `label code point ${JSON.stringify(ch)} is not in EGREGORE_GLYPHS`).toContain(ch)
+    }
   })
 
   describe('flora entries — scan-to-discover (precis #6)', () => {
