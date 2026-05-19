@@ -1,0 +1,64 @@
+plan:
+  id: walk-over-bee-no-capture
+  title: 'Remove walk-over capture of live bee entities; only the ruin-bee ground item remains pickup-able'
+  created: '2026-05-18'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/entities.test.ts src/engine/__tests__/pickupBloom.test.ts src/engine/__tests__/ruin-dormant-garden.test.ts
+
+tasks:
+  - id: regression-test
+    title: 'Update entities.test.ts: invert walk-over bee tests, delete obsolete full-backpack test, add ruin-bee ground-item regression guard'
+    spec_id: pickup-hitbox
+    spec_sections:
+      - live-bees-not-captured-by-walk-over
+      - ground-item-bee-still-picked-up
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/__tests__/entities.test.ts
+      - src/engine/__tests__/ruin-dormant-garden.test.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/__tests__/entities.test.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/engine/__tests__/entities.test.ts'
+    repair: retry
+    tags: [engine, test]
+
+  - id: remove-walk-over-bee-capture
+    title: 'Delete the bee branch from pickUpGroundItems in entities.ts; preserve the groundItem branch'
+    spec_id: pickup-hitbox
+    spec_sections:
+      - live-bees-not-captured-by-walk-over
+      - ground-item-bee-still-picked-up
+    context_files:
+      - src/engine/entities.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on:
+      - regression-test
+    verification:
+      - 'npx vitest run src/engine/__tests__/entities.test.ts'
+      - 'npx vitest run src/engine/__tests__/pickupBloom.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: pickup-bloom-test-cleanup
+    title: 'Update pickupBloom.test.ts: remove tests asserting bloom on live bee walk-over; keep / add a test asserting bloom on ruin-bee ground-item pickup'
+    spec_id: universal-pickup-bloom
+    spec_sections:
+      - ground-item-bloom
+    context_files:
+      - src/engine/__tests__/pickupBloom.test.ts
+      - src/engine/entities.ts
+      - src/engine/effects.ts
+    output_files:
+      - src/engine/__tests__/pickupBloom.test.ts
+    depends_on:
+      - remove-walk-over-bee-capture
+    verification:
+      - 'npx vitest run src/engine/__tests__/pickupBloom.test.ts'
+    repair: retry
+    tags: [engine, test]

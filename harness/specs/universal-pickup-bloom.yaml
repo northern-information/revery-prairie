@@ -47,22 +47,6 @@ behaviors:
         effect: 'pickupBloom entity created at player position'
     determinism: deterministic
 
-  - id: bee-pickup-bloom
-    description: >
-      When the player moves within Chebyshev distance 1 of a bee entity
-      (3x3 footprint around the player, matching the pickup-hitbox spec)
-      and it is captured to the backpack, a pickupBloom spawns at the
-      player position.
-    inputs:
-      - 'player moves to within Chebyshev distance 1 of a bee entity'
-      - 'time parameter is provided'
-    outputs:
-      - 'pickupBloom at player position'
-    state_changes:
-      - field: world
-        effect: 'pickupBloom entity created at player position'
-    determinism: deterministic
-
   - id: meteorite-pickup-bloom
     description: >
       When the player moves within Chebyshev distance 1 of a meteorite

@@ -45,9 +45,10 @@ export interface PickUpResult {
 }
 
 // Scan the 3x3 Chebyshev footprint centered on (cx, cy) and return all
-// entities at those tiles whose EntityTag matches `tag`. Used for all
-// player pickup checks (ground items, bees, meteorites) so the hitbox
-// is uniform.
+// entities at those tiles whose EntityTag matches `tag`. Used for player
+// pickup checks (ground items, meteorites) so the hitbox is uniform.
+// Live bees are intentionally not captured by walk-over — see the bee
+// branch removal note inside pickUpGroundItems.
 const scanTagged3x3 = (state: GameState, cx: number, cy: number, tag: string): Entity[] => {
   const result: Entity[] = []
   for (let dy = -1; dy <= 1; dy++) {
@@ -80,16 +81,6 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
       recordDiscovery(state, `item:${itemDrop.definitionId}`)
       pickedUp.push(itemDrop.definitionId)
       state.world.destroyEntity(eid)
-    }
-  }
-
-  for (const eid of scanTagged3x3(state, px, py, 'bee')) {
-    const fit = findFitPosition(state.backpack, 'bee')
-    if (fit) {
-      placeItem(state.backpack, 'bee', fit.gridX, fit.gridY)
-      state.world.destroyEntity(eid)
-      recordDiscovery(state, 'item:bee')
-      pickedUp.push('bee')
     }
   }
 
