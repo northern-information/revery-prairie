@@ -301,13 +301,16 @@ behaviors:
 
   - id: bee-mechanics-stay-clover-specific
     description: >
-      Bee wandering preference, capture-on-step, and any clover-
-      keyed entity behaviors continue to target species=clover
-      flora tiles specifically. Wildflower and tall grass do not
-      attract bees, do not capture bees when walked over, and are
-      not part of the bee/clover ecosystem balance in this PR.
-      These behaviors are intentionally narrow because the broader
-      pollinator-routes spec is precis #7.
+      Bee wandering preference and any clover-keyed entity
+      behaviors continue to target species=clover flora tiles
+      specifically. Wildflower and tall grass do not attract
+      bees and are not part of the bee/clover ecosystem balance
+      in this PR. (Walk-over bee capture was removed in a
+      follow-up change — see pickup-hitbox spec, behavior live-
+      bees-not-captured-by-walk-over — and is no longer a
+      flora-species concern.) These behaviors are intentionally
+      narrow because the broader pollinator-routes spec is
+      precis #7.
     inputs:
       - 'a bee entity ticking near flora tiles'
     outputs:

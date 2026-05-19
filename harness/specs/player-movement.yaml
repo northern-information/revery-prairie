@@ -141,9 +141,12 @@ behaviors:
     description: >
       after each successful movePlayer, pickUpGroundItems scans all 9 tiles
       in the player's 3x3 footprint (Chebyshev distance ≤ 1) for ground
-      item entities and picks them all up in one pass. bees are excluded
-      from proximity pickup — capturing a bee still requires the player
-      to stand on the exact tile.
+      item entities and picks them all up in one pass. live bee entities
+      (EntityTag = 'bee') are not eligible for any walk-over capture —
+      see the pickup-hitbox spec (live-bees-not-captured-by-walk-over).
+      A groundItem-tagged entity whose payload happens to be a bee item
+      (e.g. the ruin-bee vault payload) IS picked up by this branch like
+      any other ground item.
     inputs:
       - 'player position is within Chebyshev distance 1 of one or more ground item entities'
     outputs:
@@ -178,9 +181,9 @@ edge_cases:
   - id: multiple-items-in-proximity
     description: 'player moves to a position with ground items in several neighboring tiles simultaneously'
     expected: 'all items within Chebyshev distance 1 are picked up in the same move; exactly one pickupBloom fires'
-  - id: bee-proximity-exception
-    description: 'player is adjacent to a bee but not standing on its tile'
-    expected: 'bee is not captured; player must step onto the exact tile to capture'
+  - id: bee-walk-over-noop
+    description: 'player walks onto or adjacent to a live bee entity (EntityTag = "bee")'
+    expected: 'bee is never captured by walk-over; the bee entity persists and the backpack is unchanged. Bee acquisition routes only through the bee + clover recipe, the bee-role ruin vault ground item, and any future explicit interaction.'
 
 failure_conditions:
   - trigger: 'Target tile is non-walkable (Space, CaveWall, CaveBreakableWall)'

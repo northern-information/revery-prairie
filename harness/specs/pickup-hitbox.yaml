@@ -33,25 +33,25 @@ behaviors:
         effect: 'placed groundItem entities destroyed'
     determinism: deterministic
 
-  - id: bee-pickup-3x3
+  - id: live-bees-not-captured-by-walk-over
     description: >
-      Bees within Chebyshev distance 1 of the player (the 3x3 footprint
-      centered on the player, including the player's own tile) are captured
-      to the backpack if a fit is found. This expands the prior single-tile
-      check so the bee capture hitbox matches the ground-item hitbox.
-      Multiple bees in range are processed in turn; each fitted bee is
-      placed and destroyed.
+      Live bee entities (EntityTag = 'bee') are never captured by
+      pickUpGroundItems regardless of proximity to the player. Walking
+      onto or adjacent to a bee tile has no effect on the bee or the
+      backpack. Bee acquisition routes through the bee + clover recipe,
+      the bee-role ruin vault (which spawns a groundItem-tagged bee, not
+      a live bee entity), and any future explicit interactions; never
+      through ambient walk-over. Monarchs (EntityTag = 'monarch') are
+      unaffected by this rule since they were never captured by walk-
+      over.
     inputs:
       - 'bee-tagged entities exist within 3x3 of player'
       - 'pickUpGroundItems(state, time?) is called'
     outputs:
-      - 'each bee with a backpack fit is placed and destroyed'
-      - 'pickedUp[] contains "bee" for each captured bee'
-    state_changes:
-      - field: backpack
-        effect: 'bee item placed at findFitPosition result'
-      - field: world
-        effect: 'captured bee entities destroyed'
+      - 'no bee entity destroyed'
+      - 'no bee item added to backpack from this branch'
+      - 'pickedUp[] contains no "bee" entry from this branch'
+    state_changes: []
     determinism: deterministic
 
   - id: meteorite-pickup-3x3
@@ -130,8 +130,20 @@ edge_cases:
     description: >
       When pickUpGroundItems is called without a time argument (e.g. from
       test helpers), chain explosions do not roll. Pickup still proceeds
-      on the 3x3 hitbox for ground items, bees, and surviving meteorites.
+      on the 3x3 hitbox for ground items and surviving meteorites.
     expected: 'chainExplosions = 0; pickup phase still runs'
+
+  - id: ground-item-bee-still-picked-up
+    description: >
+      A groundItem-tagged entity whose ItemDrop.definitionId is 'bee'
+      (e.g. the ruin-bee vault payload spawned by spawnDormantGardenSeeds
+      for a RuinRole.Bee ruin) is picked up by the groundItem branch of
+      pickUpGroundItems exactly like any other ground item. This is the
+      only walk-over route by which the player acquires a bee. The
+      live-bees-not-captured-by-walk-over behavior governs entities
+      tagged 'bee', not ground items whose payload happens to be a bee
+      item.
+    expected: 'groundItem with definitionId "bee" is placed in the backpack and the entity is destroyed; pickedUp[] contains "bee"'
 
   - id: backpack-full-leaves-on-ground
     description: >

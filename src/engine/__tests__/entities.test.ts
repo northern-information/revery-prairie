@@ -261,14 +261,28 @@ describe('pickUpGroundItems', () => {
     expect(getGroundItemEntities(state)).toHaveLength(1)
   })
 
-  it('captures a bee at the player position', () => {
+  it('does not capture a live bee at the player position', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     createBeeEntity(state, state.player.x, state.player.y)
     const beeItemsBefore = state.backpack.items.filter(i => i.definitionId === 'bee').length
     const result = pickUpGroundItems(state)
-    expect(getBeeEntities(state)).toHaveLength(0)
-    expect(state.backpack.items.filter(i => i.definitionId === 'bee')).toHaveLength(beeItemsBefore + 1)
+    expect(getBeeEntities(state)).toHaveLength(1)
+    expect(state.backpack.items.filter(i => i.definitionId === 'bee')).toHaveLength(beeItemsBefore)
+    expect(result.pickedUp).not.toContain('bee')
+  })
+
+  // Ruin-bee regression guard: a groundItem-tagged entity whose payload is
+  // 'bee' (the bee-role ruin vault drop) is still picked up via the
+  // groundItem branch — only live bee entities are immune to walk-over
+  // capture.
+  it('picks up a ground-item bee at the player position (ruin-bee path)', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    createGroundItemEntity(state, 'bee', state.player.x, state.player.y)
+    const result = pickUpGroundItems(state)
+    expect(getGroundItemEntities(state)).toHaveLength(0)
+    expect(containerHasItem(state.backpack, 'bee')).toBe(true)
     expect(result.pickedUp).toContain('bee')
   })
 
@@ -293,12 +307,12 @@ describe('pickUpGroundItems', () => {
     expect(getGroundItemEntities(state)).toHaveLength(0)
   })
 
-  it('captures bee entity adjacent to player (Chebyshev distance 1)', () => {
+  it('does not capture a live bee adjacent to player (Chebyshev distance 1)', () => {
     const state = createTestState()
     clearAroundPlayer(state)
     createBeeEntity(state, state.player.x + 1, state.player.y)
     pickUpGroundItems(state)
-    expect(getBeeEntities(state)).toHaveLength(0)
+    expect(getBeeEntities(state)).toHaveLength(1)
   })
 
   it.each([
@@ -310,12 +324,12 @@ describe('pickUpGroundItems', () => {
     ['SW', -1, 1],
     ['S', 0, 1],
     ['SE', 1, 1],
-  ])('captures bee from each neighbor tile (%s)', (_label, dx, dy) => {
+  ])('does not capture a live bee from each neighbor tile (%s)', (_label, dx, dy) => {
     const state = createTestState()
     clearAroundPlayer(state)
     createBeeEntity(state, state.player.x + dx, state.player.y + dy)
     pickUpGroundItems(state)
-    expect(getBeeEntities(state)).toHaveLength(0)
+    expect(getBeeEntities(state)).toHaveLength(1)
   })
 
   it.each([
@@ -342,23 +356,4 @@ describe('pickUpGroundItems', () => {
     }
   })
 
-  it('does not capture bee if backpack is full', () => {
-    const state = createTestState()
-    clearAroundPlayer(state)
-    state.backpack.items = []
-    for (let y = 0; y < state.backpack.height; y++) {
-      for (let x = 0; x < state.backpack.width; x++) {
-        state.backpack.items.push({
-          uid: crypto.randomUUID(),
-          definitionId: 'clover',
-
-          gridX: x,
-          gridY: y,
-        })
-      }
-    }
-    createBeeEntity(state, state.player.x, state.player.y)
-    pickUpGroundItems(state)
-    expect(getBeeEntities(state)).toHaveLength(1)
-  })
 })
