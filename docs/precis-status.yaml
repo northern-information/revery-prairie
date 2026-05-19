@@ -45,10 +45,10 @@ features:
     summary: Annual phase clock + temperature-derived season, FloraStage.Dormant, snow render pass, winter palette wash. rainIntensity → precipitationIntensity rename.
     size: M
     depends_on: ['1']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-2-phenological-seasons.yaml
     plan: harness/plans/precis-2-phenological-seasons.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/325
     notes: 'Resized S/M → M after winter palette + snow scope. No debounce on the dormant transition — plants follow weather literally. Egregore tiles exempt from the winter wash so the violet script pops against the grey.'
 
   - id: '3'
@@ -160,3 +160,30 @@ features:
     plan: null
     pr: null
     notes: ''
+
+  - id: '13'
+    name: Emergent Angels
+    summary: >
+      Rewire angel spawning so the angel's hash and aura derive from the prairie's
+      current flora identities, not from a 90s timer + stewardName + spawn coords.
+      The angel becomes a witness of the ecology as it exists at that moment.
+      PMs need to discuss before this is sequenced.
+    size: M/L
+    depends_on: ['3']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      Discussion needed. Open questions: threshold trigger (cumulative diversity,
+      sudden ecological shift, specific trait configurations, or hybrid
+      weather×ecology); hash composition (whole-prairie sample, spatial sample,
+      or temporal-weighted); aura kind derivation (does aura also derive from
+      ecology, opening new aura kinds as new species establish); fallback for
+      barren prairies.
+
+      Design intent — angel SHA outputs should be treated like wildcards or
+      egregoric adaptors. Very powerful. Maybe only use once. A canto an angel
+      speaks is not lore; it is a key. Single-use, irrevocable, and potent enough
+      that the player thinks before using it. Mechanics TBD — this is the seed
+      of the idea.
