@@ -482,9 +482,14 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       id: 'weather',
       intervalMs: WEATHER_TICK_MS,
       zone: 'overworld',
-      fn: state => {
-        tickWeather(state.weather)
-      },
+      fn: (() => {
+        let lastTime = 0
+        return (state: GameState, time: number) => {
+          const dt = lastTime > 0 ? time - lastTime : WEATHER_TICK_MS
+          lastTime = time
+          tickWeather(state, dt)
+        }
+      })(),
     },
     {
       id: 'wind',

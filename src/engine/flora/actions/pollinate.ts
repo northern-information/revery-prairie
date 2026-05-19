@@ -1,5 +1,5 @@
 import { recordDiscovery } from '@/engine/manual'
-import { Zone } from '@/engine/types'
+import { Season, Zone } from '@/engine/types'
 import { getWindAt, MAX_WIND_SPEED } from '@/engine/weather/wind'
 import type { FloraPollinateProfile, GameState, PollenParticle } from '@/engine/types'
 
@@ -92,6 +92,9 @@ export const tickPollenDrift = (state: GameState, dt: number): void => {
 
 export const tickPollenEmit = (state: GameState, dt: number): void => {
   if (state.currentZone !== Zone.Overworld) return
+  // Seasonal dormancy (precis #2): winter flora is paused and emits no pollen.
+  // Existing in-flight pollen continues to drift and age through tickPollenDrift.
+  if (state.weather.season === Season.Winter) return
   if (pollinateRegistry.size === 0) return
 
   const wind = getWindAt(state, 0, 0)

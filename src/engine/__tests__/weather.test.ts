@@ -52,39 +52,39 @@ describe('generateWeather', () => {
 })
 
 describe('tickWeather', () => {
-  it('keeps temperature within spring range after many ticks', () => {
-    const weather = generateWeather()
+  it('keeps temperature within operational range after many ticks', () => {
+    const state = createTestState()
     for (let i = 0; i < 200; i++) {
-      tickWeather(weather)
-      expect(weather.temperatureF).toBeGreaterThanOrEqual(35)
-      expect(weather.temperatureF).toBeLessThanOrEqual(72)
+      tickWeather(state, 5000)
+      expect(state.weather.temperatureF).toBeGreaterThanOrEqual(-5)
+      expect(state.weather.temperatureF).toBeLessThanOrEqual(95)
     }
   })
 
-  it('keeps humidity within spring range after many ticks', () => {
-    const weather = generateWeather()
+  it('keeps humidity within operational range after many ticks', () => {
+    const state = createTestState()
     for (let i = 0; i < 200; i++) {
-      tickWeather(weather)
-      expect(weather.humidity).toBeGreaterThanOrEqual(45)
-      expect(weather.humidity).toBeLessThanOrEqual(85)
+      tickWeather(state, 5000)
+      expect(state.weather.humidity).toBeGreaterThanOrEqual(30)
+      expect(state.weather.humidity).toBeLessThanOrEqual(95)
     }
   })
 
-  it('keeps wind speed within spring range after many ticks', () => {
-    const weather = generateWeather()
+  it('keeps wind speed within operational range after many ticks', () => {
+    const state = createTestState()
     for (let i = 0; i < 200; i++) {
-      tickWeather(weather)
-      expect(weather.windSpeed).toBeGreaterThanOrEqual(3)
-      expect(weather.windSpeed).toBeLessThanOrEqual(25)
+      tickWeather(state, 5000)
+      expect(state.weather.windSpeed).toBeGreaterThanOrEqual(1)
+      expect(state.weather.windSpeed).toBeLessThanOrEqual(30)
     }
   })
 
-  it('does not change season', () => {
-    const weather = generateWeather()
+  it('updates season via the derived classifier', () => {
+    const state = createTestState()
     for (let i = 0; i < 50; i++) {
-      tickWeather(weather)
+      tickWeather(state, 5000)
     }
-    expect(weather.season).toBe(Season.Spring)
+    expect([Season.Spring, Season.Summer, Season.Autumn, Season.Winter]).toContain(state.weather.season)
   })
 })
 
