@@ -121,9 +121,13 @@ export const useKeyboard = ({
         return
       }
 
-      // [e] — advance dialog / talk / break wall / toss coins
-      if (e.key === 'e' || e.key === 'E') {
-        // Divination panel owns [e] for tossing — don't interfere
+      // [f] — interact: advance dialog / talk / break wall / unlock door.
+      // Key repeat is ignored so a held [f] doesn't re-trigger; the second
+      // keydown falls through to the scan handler below, which also ignores
+      // repeats. If no interaction fires, we fall through so the same press
+      // can begin a hold-to-scan (precis-6) when a scannable target exists.
+      if ((e.key === 'f' || e.key === 'F') && !e.repeat) {
+        // Divination panel owns [f] for tossing — don't interfere
         if (activeScreen === 'divination') return
         if (state.activeDialog) {
           const result = advanceDialog(state, performance.now())
@@ -175,8 +179,9 @@ export const useKeyboard = ({
               onDialog(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
               refreshUI()
             }
+            return
           }
-          return
+          // Nothing to interact with — fall through to the scan handler below.
         }
       }
 

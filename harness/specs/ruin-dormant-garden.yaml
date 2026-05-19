@@ -241,7 +241,7 @@ behaviors:
 
   - id: debris-clear-via-e
     description: >
-      pressing [e] while facing any RuinDebris tile clears it. single-hit,
+      pressing [f] while facing any RuinDebris tile clears it. single-hit,
       no item or revery requirement — mirrors the cave breakable wall
       mechanic. clicking a RuinDebris tile pathfinds to the closest
       walkable adjacent tile and triggers the same clear on arrival
@@ -263,7 +263,7 @@ behaviors:
       'event:rubble-cleared' on the first clear of the session
       (atomic or single-tile).
     inputs:
-      - '[e] pressed while facing a RuinDebris tile in a Ruin zone'
+      - '[f] pressed while facing a RuinDebris tile in a Ruin zone'
       - 'mouse click on a RuinDebris tile in a Ruin zone'
       - 'optional time parameter for bloom/crumble timestamps'
     outputs:
@@ -332,8 +332,8 @@ edge_cases:
     expected: 'fall back to the deepest spine column that does not collide with door/landing/aqueduct breaks; barrier still placed'
 
   - id: e-on-decorative-debris
-    description: 'player presses [e] facing one of the 3-5 scattered RuinDebris tiles (not the barrier)'
-    expected: 'tile clears to RuinFloor — the [e] mechanic is uniform across all RuinDebris, not gated to barrier tiles'
+    description: 'player presses [f] facing one of the 3-5 scattered RuinDebris tiles (not the barrier)'
+    expected: 'tile clears to RuinFloor — the [f] mechanic is uniform across all RuinDebris, not gated to barrier tiles'
 
 failure_conditions:
   - trigger: 'water revery cast with no broken aqueduct tiles in range'

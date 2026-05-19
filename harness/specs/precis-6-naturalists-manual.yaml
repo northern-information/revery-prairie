@@ -69,20 +69,23 @@ behaviors:
 
   - id: hold-to-scan-keybinding
     description: >
-      The keyboard handler in src/hooks/useKeyboard.ts gains a hold-down
-      binding for the f key (chosen because it is unused per the current
-      keybinds documented in CLAUDE.md). On keydown of v, if
-      state.scanInProgress is null and selectScanTarget(state) returns a
-      non-null target, set state.scanInProgress to { target.position,
-      target.species, startTime: performance.now() }. On keyup of f while
-      a scan is in progress, evaluate elapsed = now - startTime. If
-      elapsed >= SCAN_DURATION_MS (1500), commit the scan via commitScan(state)
-      and clear state.scanInProgress. Otherwise just clear state.scanInProgress
-      (early release aborts). Any movement key press (wasd) or click-to-move
-      while a scan is in progress also aborts — the scan is cancelled and
-      state.scanInProgress is set to null. The scan key is blocked when a
-      text input is focused, during dialog, when the menu is open, or when
-      genesis is running.
+      The keyboard handler in src/hooks/useKeyboard.ts has a hold-down
+      binding for the f key. f is shared with Interact: on keydown, the
+      Interact handler runs first; if it performs an action (advance
+      dialog, talk to character, break wall, clear debris, unlock door)
+      it returns. Only when no interaction fires does the keydown fall
+      through to the scan handler. On keydown of f (with no interaction
+      in range), if state.scanInProgress is null and selectScanTarget(state)
+      returns a non-null target, set state.scanInProgress to
+      { target.position, target.species, startTime: performance.now() }.
+      On keyup of f while a scan is in progress, evaluate
+      elapsed = now - startTime. If elapsed >= SCAN_DURATION_MS (1500),
+      commit the scan via commitScan(state) and clear state.scanInProgress.
+      Otherwise just clear state.scanInProgress (early release aborts).
+      Any movement key press (wasd) or click-to-move while a scan is in
+      progress also aborts — the scan is cancelled and state.scanInProgress
+      is set to null. The scan key is blocked when a text input is focused,
+      during dialog, when the menu is open, or when genesis is running.
     inputs:
       - 'player presses or releases f while gameplay is active'
       - 'state.scanInProgress and selectScanTarget(state) state'
@@ -185,6 +188,24 @@ edge_cases:
       — no progress indicator appears.
     expected: >
       The keydown is a no-op. No state changes. No visual feedback. No error.
+
+  - id: interact-and-scan-share-f
+    description: >
+      Player presses f while adjacent to both an interactable (NPC, locked
+      door, breakable wall, ruin debris) AND a scannable flora tile. The
+      Interact handler fires first and returns; no scan begins.
+    expected: >
+      Interact action completes (dialog opens, door unlocks, wall breaks, etc.).
+      state.scanInProgress remains null. The same press cannot do both.
+
+  - id: scan-fallthrough-when-nothing-interactable
+    description: >
+      Player presses f next to a wildflower with no NPC, door, debris, or
+      breakable wall in range. The Interact handler runs all its checks,
+      finds nothing to act on, and falls through to the scan handler.
+    expected: >
+      A scan begins as usual. state.scanInProgress is set with the flora
+      tile as the target.
 
   - id: scan-while-running-second-keydown
     description: >

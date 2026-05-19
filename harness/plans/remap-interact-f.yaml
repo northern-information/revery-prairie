@@ -1,0 +1,129 @@
+plan:
+  id: remap-interact-f
+  title: 'Remap the interact key from E to F across all handlers, specs, and UI labels'
+  created: '2026-05-19'
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npm run test'
+
+tasks:
+  - id: update-keybindings-registry
+    title: "Update KEYBINDINGS entry: key 'e' -> 'f' in src/engine/input.ts"
+    spec_id: dialog-system
+    spec_sections:
+      - interact-with-character
+    context_files:
+      - src/engine/input.ts
+    output_files:
+      - src/engine/input.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - engine
+
+  - id: remap-useKeyboard-interact
+    title: "Remap interact handler from 'e'/'E' to 'f'/'F' in useKeyboard"
+    spec_id: dialog-system
+    spec_sections:
+      - interact-with-character
+      - advance-dialog
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - harness/specs/dialog-system.yaml
+      - harness/specs/cave-breakable-wall.yaml
+      - harness/specs/ruin-dormant-garden.yaml
+      - harness/specs/ruin-locked-door.yaml
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - update-keybindings-registry
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - ui
+
+  - id: remap-hexagram-confirm
+    title: "Remap hexagram panel confirm from 'e'/'E' to 'f'/'F' (Enter preserved)"
+    spec_id: hexagram-casting
+    spec_sections:
+      - hexagram-toss-sequence
+    context_files:
+      - src/components/HexagramPanel.tsx
+      - harness/specs/hexagram-casting.yaml
+    output_files:
+      - src/components/HexagramPanel.tsx
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - ui
+
+  - id: update-dialog-button-label
+    title: "Update DialogBox advance button labels from 'N[E]XT'/'CLOS[E]' to '[F] Next'/'[F] Close'"
+    spec_id: dialog-box-presentation
+    spec_sections:
+      - minimal-chrome
+      - props-simplified
+    context_files:
+      - src/components/DialogBox.tsx
+      - harness/specs/dialog-box-presentation.yaml
+    output_files:
+      - src/components/DialogBox.tsx
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags:
+      - ui
+
+  - id: update-tests-for-f-key
+    title: 'Update existing tests to fire F instead of E and assert new button labels'
+    spec_id: dialog-system
+    spec_sections:
+      - interact-with-character
+    context_files:
+      - src/hooks/__tests__/useKeyboard.test.ts
+      - src/harness/__tests__/input/keybindings.test.ts
+      - src/engine/__tests__/heldKeys.test.ts
+      - src/engine/__tests__/input.test.ts
+      - src/components/__tests__/DialogBox.test.tsx
+    output_files:
+      - src/hooks/__tests__/useKeyboard.test.ts
+      - src/harness/__tests__/input/keybindings.test.ts
+      - src/engine/__tests__/heldKeys.test.ts
+      - src/engine/__tests__/input.test.ts
+      - src/components/__tests__/DialogBox.test.tsx
+    depends_on:
+      - remap-useKeyboard-interact
+      - remap-hexagram-confirm
+      - update-dialog-button-label
+    verification:
+      - 'npm run test'
+    repair: retry
+    tags:
+      - tests
+
+  - id: regression-no-e-bindings-remain
+    title: 'Add a guard test asserting no production handler still binds the literal "e" interact key'
+    spec_id: dialog-system
+    spec_sections:
+      - interact-with-character
+    context_files:
+      - src/engine/input.ts
+      - src/hooks/useKeyboard.ts
+      - src/components/HexagramPanel.tsx
+    output_files:
+      - src/harness/__tests__/input/interact-key-remap.test.ts
+    depends_on:
+      - remap-useKeyboard-interact
+      - remap-hexagram-confirm
+    verification:
+      - 'npm run test'
+    repair: retry
+    tags:
+      - tests

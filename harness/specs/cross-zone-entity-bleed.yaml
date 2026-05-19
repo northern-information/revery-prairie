@@ -144,7 +144,7 @@ edge_cases:
     expected: 'After transition, coyote EntityZone matches state.currentZone and (if applicable) state.currentRuinIndex. Cursor indicator and follow/collect behavior apply only in the new zone.'
 
 failure_conditions:
-  - trigger: "Player in a ruin interior whose walkable tiles overlap Moab's cave npcSpot coordinates; player presses [e] while facing those coordinates"
+  - trigger: "Player in a ruin interior whose walkable tiles overlap Moab's cave npcSpot coordinates; player presses [f] while facing those coordinates"
     expected: 'No dialog opens. No fire revery is granted. The reported Moab bug does not reproduce.'
   - trigger: 'Player in ruin 1 drops an item at coordinate (x, y); ruin 0 also has a ground item at (x, y)'
     expected: 'The drop succeeds in ruin 1. The ruin-0 item is unaffected. Both items persist tagged to their respective ruinIndex values.'

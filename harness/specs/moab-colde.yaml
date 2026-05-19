@@ -56,12 +56,12 @@ behaviors:
 
   - id: moab-first-interaction-dialog
     description: >
-      First time the player talks to Moab (presses [e] while facing
+      First time the player talks to Moab (presses [f] while facing
       him), dialog shows '...' — single line using the standard dialog
       system. gift is not delivered on interaction open; it is delivered
       when the player completes the dialog (advances past the last line).
     inputs:
-      - "Player facing Moab, [e] pressed, giftsReceived does not contain 'moab'"
+      - "Player facing Moab, [f] pressed, giftsReceived does not contain 'moab'"
     outputs:
       - 'activeDialog shows 1 line'
     state_changes:
@@ -98,7 +98,7 @@ behaviors:
       After giftsReceived contains 'moab', talking to Moab shows his
       postGiftDialog. Dialog opens and closes with the post-gift lines.
     inputs:
-      - "Player facing Moab, [e] pressed, giftsReceived contains 'moab'"
+      - "Player facing Moab, [f] pressed, giftsReceived contains 'moab'"
     outputs:
       - "activeDialog with single '...' line"
     state_changes:

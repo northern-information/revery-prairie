@@ -57,8 +57,8 @@ describe('input contract: keybindings', () => {
       expect(keyToDirection('x')).toBeNull()
     })
 
-    it('e returns null', () => {
-      expect(keyToDirection('e')).toBeNull()
+    it('f returns null', () => {
+      expect(keyToDirection('f')).toBeNull()
     })
 
     it('Escape returns null', () => {

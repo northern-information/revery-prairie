@@ -42,7 +42,7 @@ behaviors:
   - id: breakable-wall-interaction
     description: >
       breakWall(state, time) in interaction.ts is triggered by pressing
-      [e] while facing a CaveBreakableWall tile. accepts a time
+      [f] while facing a CaveBreakableWall tile. accepts a time
       parameter (rAF timestamp) used for crumble effect startTime.
       preconditions: caveRevealed is false, currentZone is Cave,
       facing tile is CaveBreakableWall.
@@ -52,7 +52,7 @@ behaviors:
       EntityTag (crumble), EntityZone. records event:wall-break
       discovery. calls updateFacingEntity after.
     inputs:
-      - 'player facing CaveBreakableWall, [e] pressed, caveRevealed is false, time (rAF timestamp)'
+      - 'player facing CaveBreakableWall, [f] pressed, caveRevealed is false, time (rAF timestamp)'
     outputs:
       - 'boolean: true if wall was broken'
     state_changes:
@@ -97,7 +97,7 @@ behaviors:
 
 edge_cases:
   - id: already-revealed
-    description: 'player presses [e] facing wall position after caveRevealed is true'
+    description: 'player presses [f] facing wall position after caveRevealed is true'
     expected: 'breakWall returns false, tiles are already CaveFloor'
   - id: not-in-cave
     description: 'breakWall called while in overworld zone'

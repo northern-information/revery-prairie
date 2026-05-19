@@ -26,7 +26,7 @@ describe('keyToScreenAxis', () => {
   })
 
   it('returns null for non-movement keys', () => {
-    expect(keyToScreenAxis('e')).toBeNull()
+    expect(keyToScreenAxis('f')).toBeNull()
     expect(keyToScreenAxis(' ')).toBeNull()
     expect(keyToScreenAxis('Shift')).toBeNull()
   })

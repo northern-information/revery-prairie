@@ -84,7 +84,7 @@ describe('DialogBox', () => {
     expect(img.className).toMatch(/w-32/)
   })
 
-  it('shows n[e]xt button when typing is done and not last line', () => {
+  it('shows [F] Next button when typing is done and not last line', () => {
     const onAdvance = vi.fn()
     render(
       <DialogBox
@@ -98,10 +98,10 @@ describe('DialogBox', () => {
     )
 
     const button = screen.getByTestId('dialog-advance-button')
-    expect(button.textContent).toBe('N[E]XT')
+    expect(button.textContent).toBe('[F] Next')
   })
 
-  it('shows clos[e] button on last line', () => {
+  it('shows [F] Close button on last line', () => {
     const onAdvance = vi.fn()
     render(
       <DialogBox
@@ -115,7 +115,7 @@ describe('DialogBox', () => {
     )
 
     const button = screen.getByTestId('dialog-advance-button')
-    expect(button.textContent).toBe('CLOS[E]')
+    expect(button.textContent).toBe('[F] Close')
   })
 
   it('hides button while still typing', () => {
