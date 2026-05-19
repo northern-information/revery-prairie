@@ -7,7 +7,6 @@ import type { PermacomputerScreen } from '@/hooks/useKeyboard'
 type TabScreen = NonNullable<PermacomputerScreen>
 
 const SCREEN_TABS: { screen: TabScreen; label: string; isVisible: (state: GameState) => boolean }[] = [
-  { screen: 'pack', label: 'PACK', isVisible: () => true },
   { screen: 'manual', label: 'MANUAL', isVisible: () => true },
   { screen: 'divination', label: 'DIVINATION', isVisible: state => canCast(state) },
   { screen: 'cantos', label: 'CANTOS', isVisible: state => state.angelCantos.length > 0 },
@@ -34,25 +33,24 @@ export const PermacomputerShell = ({
   onSwitchScreen,
   children,
 }: PermacomputerShellProps) => {
-  const isPackScreen = activeScreen === 'pack'
   const visibleTabs = SCREEN_TABS.filter(tab => tab.isVisible(state))
 
   return (
     <>
-      {/* Backdrop — pointer-events-none when pack is active (canvas drops need to pass through).
-          bottom-52 mirrors the bottom bar's h-48 + bottom-2 in GameScreen so the minimap and event log
-          stay clickable while a tab is open. */}
+      {/* Backdrop — bottom-52 mirrors the bottom bar's h-48 + bottom-2 in
+          GameScreen so the minimap, event log, and backpack stay clickable
+          while a tab is open. */}
       <div
         data-testid="permacomputer-backdrop"
-        className={`fixed inset-x-0 top-0 bottom-52 z-10 ${isPackScreen ? 'pointer-events-none' : ''}`}
-        onClick={isPackScreen ? undefined : onClose}
+        className="fixed inset-x-0 top-0 bottom-52 z-10"
+        onClick={onClose}
       />
 
-      {/* Terminal frame — right-48 matches sidebar w-48 exactly (same rem unit).
+      {/* Terminal frame — flush against the right edge.
           bottom-52 mirrors the bottom bar's h-48 + bottom-2 in GameScreen. */}
       <div
         data-testid="permacomputer-shell"
-        className="pointer-events-auto fixed top-0 right-48 bottom-52 z-10 flex flex-col bg-black/70 font-mono"
+        className="pointer-events-auto fixed top-0 right-0 bottom-52 z-10 flex flex-col bg-black/70 font-mono"
         style={{ width: 500 }}
         onClick={e => {
           e.stopPropagation()

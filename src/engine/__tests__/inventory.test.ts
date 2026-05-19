@@ -10,7 +10,7 @@ import {
   removeItem,
   transferItem,
 } from '../inventory'
-import { createContainer } from '../items'
+import { BACKPACK_HEIGHT, BACKPACK_WIDTH, createBackpack, createContainer } from '../items'
 import { describe, expect, it } from 'vitest'
 
 describe('buildOccupancyGrid', () => {
@@ -348,5 +348,31 @@ describe('findItemByDefinition', () => {
   it('returns undefined when not found', () => {
     const container = createContainer('test', 'Test', 4, 4)
     expect(findItemByDefinition(container, 'bee')).toBeUndefined()
+  })
+})
+
+describe('backpack dimensions', () => {
+  it('is 10 columns wide and 5 rows tall', () => {
+    expect(BACKPACK_WIDTH).toBe(10)
+    expect(BACKPACK_HEIGHT).toBe(5)
+  })
+
+  it('creates a backpack with 50 total cells', () => {
+    const backpack = createBackpack()
+    expect(backpack.width).toBe(10)
+    expect(backpack.height).toBe(5)
+  })
+
+  it('rejects placement when all 50 cells are full', () => {
+    const backpack = createBackpack()
+    for (let y = 0; y < BACKPACK_HEIGHT; y++) {
+      for (let x = 0; x < BACKPACK_WIDTH; x++) {
+        const placed = placeItem(backpack, 'bee', x, y)
+        expect(placed).not.toBeNull()
+      }
+    }
+    expect(backpack.items).toHaveLength(50)
+    expect(findFitPosition(backpack, 'bee')).toBeNull()
+    expect(placeItem(backpack, 'bee', 0, 0)).toBeNull()
   })
 })

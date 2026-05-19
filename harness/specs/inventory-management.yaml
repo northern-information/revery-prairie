@@ -9,6 +9,27 @@ source_files:
 dependencies: []
 
 behaviors:
+  - id: backpack-dimensions
+    description: >
+      The player backpack is a 10-column by 5-row container — 50
+      total cells. BACKPACK_WIDTH and BACKPACK_HEIGHT in
+      src/engine/items.ts are 10 and 5 respectively, and the
+      'backpack' ItemDefinition's width/height fields match. The
+      backpack has no scroll affordance at any rendering surface —
+      consumers must render all 50 cells without overflow. All
+      insertion paths (findFitPosition, placeItem, coyote delivery,
+      recipe results, dialog gifts) already gate on canPlace, so a
+      full backpack rejects new items rather than growing.
+    inputs:
+      - 'BACKPACK_WIDTH, BACKPACK_HEIGHT constants'
+      - 'createBackpack() call site'
+    outputs:
+      - 'BACKPACK_WIDTH === 10, BACKPACK_HEIGHT === 5'
+      - 'state.backpack.width === 10, state.backpack.height === 5'
+      - 'state.backpack supports at most 50 items'
+    state_changes: []
+    determinism: deterministic
+
   - id: occupancy-grid
     description: >
       buildOccupancyGrid(container, excludeUid?) creates a 2D grid
@@ -146,6 +167,9 @@ edge_cases:
   - id: full-container
     description: 'all grid cells occupied, placeItem called'
     expected: 'canPlace returns false; placeItem returns null'
+  - id: backpack-at-50-items
+    description: 'backpack contains 50 items and a pickup, coyote delivery, recipe result, or gift fires'
+    expected: 'findFitPosition returns null; the insertion path leaves the source state intact (ground item remains on the ground, coyote keeps carrying, recipe result is not produced); no error'
   - id: auto-sort-rollback
     description: 'autoSort cannot fit all items after sorting'
     expected: 'original items array restored; returns false'
@@ -161,6 +185,8 @@ failure_conditions:
     expected: 'canPlace returns false; placeItem returns null'
   - trigger: 'unknown definitionId passed to getDefinition'
     expected: 'throws Error — callers must validate before calling'
+  - trigger: 'BACKPACK_WIDTH or BACKPACK_HEIGHT change to anything other than 10 and 5 respectively'
+    expected: 'engine constants are 10 × 5 by contract; spec violated otherwise'
 
 verification:
   test_file: src/engine/__tests__/inventory.test.ts

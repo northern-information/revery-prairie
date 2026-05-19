@@ -84,7 +84,7 @@ export const getDefinition = (id: string): ItemDefinition => {
 }
 
 export const BACKPACK_WIDTH = 10
-export const BACKPACK_HEIGHT = 100
+export const BACKPACK_HEIGHT = 5
 
 export const createBackpack = (): Container => ({
   id: 'backpack',

@@ -25,7 +25,6 @@ import { getTileVisibility, hasFogOfWar } from '@/engine/visibility'
 import { fToC, mphToKph } from '@/engine/weather'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { CharMetrics, GameState } from '@/engine/types'
-import type { PermacomputerScreen } from '@/hooks/useKeyboard'
 
 const countTiles = (state: GameState, type: TileType): number => {
   let count = 0
@@ -81,13 +80,12 @@ const SIDEBAR_SHELL_CLASSES =
 
 interface SidebarProps {
   state: GameState
-  activeScreen: PermacomputerScreen
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
   metricsRef: React.RefObject<CharMetrics | null>
   refreshUI: () => void
 }
 
-export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: SidebarProps) => {
+export const Sidebar = ({ state, itemInfoRef, metricsRef }: SidebarProps) => {
   const { metric } = state
   const cursorRef = useRef<{ x: number; y: number } | null>(null)
   const [, setCursorVersion] = useState(0)
@@ -466,7 +464,7 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
           </div>
         )}
 
-        {activeScreen === 'pack' && <ItemInfo ref={itemInfoRef} glintingCoins={state.glintingCoins} />}
+        <ItemInfo ref={itemInfoRef} glintingCoins={state.glintingCoins} />
       </div>
 
       <div className="flex flex-col gap-4">

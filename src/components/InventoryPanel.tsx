@@ -146,37 +146,41 @@ export const InventoryPanel = ({
     }
   }, [dragOverlayRef])
 
+  const clearCursorInfo = () => {
+    state.cursorScreenPos = null
+    state.cursorTile = null
+  }
+
   return (
-    <div className="flex flex-col gap-4 font-mono text-xs">
-      <div data-panel="inventory" className="text-text pointer-events-auto relative flex flex-col gap-3 px-4 py-4">
+    <div
+      data-panel="inventory"
+      className="text-text pointer-events-auto relative flex flex-col gap-2 overflow-hidden font-mono text-xs"
+      onMouseEnter={clearCursorInfo}
+      onMouseMove={clearCursorInfo}
+    >
+      <div className="flex items-center justify-between gap-2">
         <SectionHeader>Backpack</SectionHeader>
-
-        <div className="group">
-          <InventoryGrid
-            container={state.backpack}
-            containerId={state.backpack.id}
-            dragState={dragState}
-            onStartDrag={handleStartDrag}
-            onUpdatePreview={updatePreview}
-            onDrop={drop}
-            itemInfoRef={itemInfoRef}
-            glintingCoins={state.glintingCoins}
-          />
-
-          <div className="mt-2 flex flex-col gap-1">
-            <button
-              type="button"
-              className="text-dim hover:text-pink pointer-events-auto px-2 py-1 text-left"
-              onClick={() => {
-                autoSort(state.backpack)
-                refreshUI()
-              }}
-            >
-              sort
-            </button>
-          </div>
-        </div>
+        <button
+          type="button"
+          className="text-dim hover:text-pink px-1 text-left"
+          onClick={() => {
+            autoSort(state.backpack)
+            refreshUI()
+          }}
+        >
+          sort
+        </button>
       </div>
+      <InventoryGrid
+        container={state.backpack}
+        containerId={state.backpack.id}
+        dragState={dragState}
+        onStartDrag={handleStartDrag}
+        onUpdatePreview={updatePreview}
+        onDrop={drop}
+        itemInfoRef={itemInfoRef}
+        glintingCoins={state.glintingCoins}
+      />
     </div>
   )
 }

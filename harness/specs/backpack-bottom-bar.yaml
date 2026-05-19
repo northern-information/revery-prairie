@@ -1,0 +1,168 @@
+id: backpack-bottom-bar
+name: 'Backpack inlined into the bottom bar (10x5, no scrolling)'
+priority: high
+layer: component
+source_files:
+  - src/components/GameScreen.tsx
+  - src/components/InventoryPanel.tsx
+  - src/components/PermacomputerShell.tsx
+  - src/components/__tests__/InventoryPanel.test.tsx
+  - src/components/__tests__/PermacomputerShell.test.tsx
+dependencies:
+  - inventory-management
+  - event-log-overlay
+
+behaviors:
+  - id: backpack-renders-in-bottom-bar
+    description: >
+      The backpack grid renders inside the bottom-bar overlay
+      (data-panel="bottom-bar") as a third sibling alongside the
+      Minimap (left) and EventLog (center). It occupies the
+      right-hand slot — the slot that, prior to this change, was a
+      reserved 44-wide empty placeholder for a future tools/seeds
+      surface. The backpack widget owns its own pointer-events-auto
+      container so drag/drop and click work normally.
+    inputs:
+      - 'GameScreen renders outside genesis (state.genesis is null)'
+    outputs:
+      - 'a backpack grid component is mounted inside the bottom-bar overlay'
+      - 'the bottom-bar overlay continues to render Minimap on the left and EventLog in the middle'
+      - 'the prior empty 44-wide placeholder div is replaced by the backpack widget'
+    state_changes: []
+    determinism: deterministic
+
+  - id: backpack-grid-dimensions-10x5
+    description: >
+      The backpack container is sized at 10 columns wide by 5 rows
+      tall. BACKPACK_WIDTH and BACKPACK_HEIGHT in src/engine/items.ts
+      are 10 and 5 respectively. The grid renders all 50 cells with
+      no scroll affordance — the bottom-bar widget has a fixed
+      pixel footprint sized to fit the 10x5 grid plus its label and
+      sort affordance, and uses overflow-hidden (not auto/scroll)
+      so a runtime overflow does not introduce a scrollbar.
+    inputs:
+      - 'BACKPACK_WIDTH constant referenced'
+      - 'BACKPACK_HEIGHT constant referenced'
+      - 'state.backpack container dimensions'
+    outputs:
+      - 'BACKPACK_WIDTH === 10'
+      - 'BACKPACK_HEIGHT === 5'
+      - 'state.backpack.width === 10, state.backpack.height === 5'
+      - 'rendered grid shows exactly 50 cells, no scrollbar'
+    state_changes:
+      - field: state.backpack.width
+        effect: 'initialized to 10'
+      - field: state.backpack.height
+        effect: 'initialized to 5'
+    determinism: deterministic
+
+  - id: full-parity-drag-drop-combine
+    description: >
+      The bottom-bar backpack supports the full set of inventory
+      interactions: starting a drag on an item, dropping into another
+      cell within the backpack, dropping into the canvas (drop to
+      ground), dropping onto another item to trigger a recipe combine,
+      hovering to display ItemInfo, and the sort affordance. The
+      hooks (useInventoryDrag, useCanvasDrop) and the DragCursor
+      overlay continue to work as they do today — they are not
+      coupled to the panel's position, only to the InventoryGrid
+      instance and the shared refs (itemInfoRef, isDraggingRef,
+      dragOverlayRef, metricsRef). The DragCursor remains mounted
+      at the GameScreen level above all panels.
+    inputs:
+      - 'mousedown on a backpack item in the bottom-bar widget'
+      - 'mousemove during an active drag'
+      - 'mouseup on another grid cell, on another item, or on the canvas'
+    outputs:
+      - 'drag starts, preview updates, drop executes (move / drop-to-ground / combine) identically to the prior Tab-overlay backpack'
+      - 'ItemInfo renders on hover'
+      - 'sort button reorders items via autoSort'
+    state_changes:
+      - field: state.backpack.items
+        effect: 'rearranged, removed, or transformed via combine — same as before the relocation'
+    determinism: deterministic
+
+  - id: tab-key-no-longer-opens-pack-screen
+    description: >
+      The 'pack' permacomputer screen is removed. Tab cycles
+      through the remaining permacomputer screens (manual, divination,
+      cantos, coyote, system) but never opens 'pack'. The
+      PermacomputerShell no longer mounts an InventoryPanel for the
+      'pack' screen; the InventoryPanel component is mounted only
+      once, from the bottom-bar. Pressing `q` continues to open the
+      manual; pressing Tab opens whichever screen the existing
+      cycle resolves to with 'pack' excluded (concretely: Tab opens
+      the manual on first press). The keyboard hook's reference to
+      'pack' (if any) is removed.
+    inputs:
+      - 'player presses Tab'
+      - 'player presses q'
+    outputs:
+      - 'Tab opens a non-pack permacomputer screen (manual on first press)'
+      - 'q opens the manual'
+      - 'no PermacomputerShell screen named "pack" is ever rendered'
+    state_changes: []
+    determinism: deterministic
+
+  - id: backpack-hover-clears-cursor-info
+    description: >
+      Same hover-suppression contract as the EventLog overlay:
+      while the cursor is over the bottom-bar backpack widget,
+      state.cursorScreenPos and state.cursorTile are nulled so the
+      sidebar cursor-info panel does not light up world tiles
+      under the backpack. On mouseleave the next canvas mousemove
+      restores cursor info. This applies to the backpack widget's
+      pointer-events-auto container only — not the bottom-bar
+      overlay as a whole (which already has pointer-events-none
+      between widgets).
+    inputs:
+      - 'mouse enters bottom-bar backpack widget bounds'
+      - 'mouse leaves bottom-bar backpack widget bounds'
+    outputs:
+      - 'state.cursorScreenPos / cursorTile set to null while hovered'
+      - 'cursor info resumes on next canvas mousemove after leaving'
+    state_changes:
+      - field: cursorScreenPos
+        effect: 'nulled by backpack widget mouse handler while hovered'
+      - field: cursorTile
+        effect: 'nulled by backpack widget mouse handler while hovered'
+    determinism: deterministic
+
+edge_cases:
+  - id: full-backpack-pickup
+    description: 'player walks over a ground item with all 50 cells occupied'
+    expected: 'findFitPosition returns null; item stays on the ground; no error; no toast; player can walk away and return later'
+  - id: drag-from-bottom-bar-to-canvas
+    description: 'player drags an item out of the bottom-bar backpack and releases over the canvas'
+    expected: 'item is removed from backpack.items and added to state.groundItems at the drop tile (identical to current drop-to-ground)'
+  - id: drag-into-bottom-bar-from-canvas
+    description: 'reverse drag from canvas into the bottom-bar backpack is not a supported gesture today'
+    expected: 'no regression — ground items are picked up via walk-over auto-pickup, not by dragging into the widget'
+  - id: backpack-during-genesis
+    description: 'state.genesis is non-null (genesis is still playing)'
+    expected: 'GenesisBottomBar renders instead of the gameplay bottom-bar; backpack is not mounted'
+  - id: backpack-during-dialog-or-menu
+    description: 'dialog or system menu is open over the gameplay scene'
+    expected: 'bottom-bar continues to render underneath; backpack interactions remain enabled unless the overlay above intercepts pointer events'
+  - id: tab-press-after-removal
+    description: 'player presses Tab on a fresh load'
+    expected: 'permacomputer shell opens the manual screen; backpack screen is never reached'
+
+failure_conditions:
+  - trigger: 'PermacomputerShell still mounts an InventoryPanel for screen === "pack"'
+    expected: 'the pack screen and its mount must be removed; spec violated otherwise'
+  - trigger: 'BACKPACK_HEIGHT is anything other than 5'
+    expected: 'engine constant must be 5; spec violated otherwise'
+  - trigger: 'BACKPACK_WIDTH is anything other than 10'
+    expected: 'engine constant must be 10; spec violated otherwise'
+  - trigger: 'bottom-bar widget exposes overflow-y: auto or any scrollbar on the backpack grid'
+    expected: 'no scrolling — the widget must use overflow-hidden; spec violated otherwise'
+  - trigger: 'backpack drag-and-drop or recipe combine fails from the bottom-bar widget'
+    expected: 'full parity required; useInventoryDrag and useCanvasDrop must work identically to the prior Tab-overlay backpack'
+  - trigger: 'state.backpack.items contains more than 50 entries at any time outside a transient pre-resize migration'
+    expected: 'all insertion paths (placeItem, findFitPosition, coyote delivery, recipe results) already gate on canPlace; spec violated only if a new insertion path bypasses canPlace'
+
+verification:
+  test_file: src/components/__tests__/InventoryPanel.test.tsx
+  test_pattern: 'InventoryPanel'
+  command: 'npx vitest run src/components/__tests__/InventoryPanel.test.tsx src/components/__tests__/PermacomputerShell.test.tsx src/engine/__tests__/inventory.test.ts'

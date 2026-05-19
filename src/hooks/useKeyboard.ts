@@ -20,7 +20,7 @@ import { isInputGated } from '@/engine/zoneTransition'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
-export type PermacomputerScreen = 'pack' | 'system' | 'manual' | 'divination' | 'cantos' | 'coyote' | null
+export type PermacomputerScreen = 'system' | 'manual' | 'divination' | 'cantos' | 'coyote' | null
 
 interface UseKeyboardOptions {
   state: GameState
@@ -200,17 +200,14 @@ export const useKeyboard = ({
       // clover branch was deleted in precis #1 (harvest and cut mechanics
       // removed entirely; clover acquisition routes through ruin recovery).
       if (e.key === 'x' || e.key === 'X') {
-        if (activeScreen === 'pack') {
-          const hoveredId = itemInfoRef.current?.getCurrentId()
-          if (hoveredId) {
-            const success = dropItem(state, hoveredId)
-            if (success) {
-              itemInfoRef.current?.clear()
-              updateFacingEntity(state)
-              onDrop(hoveredId, state.player.x, state.player.y)
-              refreshUI()
-            }
-            return
+        const hoveredId = itemInfoRef.current?.getCurrentId()
+        if (hoveredId) {
+          const success = dropItem(state, hoveredId)
+          if (success) {
+            itemInfoRef.current?.clear()
+            updateFacingEntity(state)
+            onDrop(hoveredId, state.player.x, state.player.y)
+            refreshUI()
           }
         }
         return
@@ -219,12 +216,14 @@ export const useKeyboard = ({
       // Block permacomputer during deep time burning/simulating
       const deepTimeBlocking = state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering
 
-      // Toggle pack
+      // Tab — cycle the permacomputer; the legacy 'pack' screen was inlined
+      // into the bottom-bar (see backpack-bottom-bar spec) so Tab now toggles
+      // the manual.
       if (e.key === 'Tab') {
         e.preventDefault()
         if (activeScreen === 'system') return
         if (deepTimeBlocking) return
-        setActiveScreen(activeScreen === 'pack' ? null : 'pack')
+        setActiveScreen(activeScreen === 'manual' ? null : 'manual')
         return
       }
 

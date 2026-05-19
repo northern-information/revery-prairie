@@ -192,11 +192,11 @@ describe('useKeyboard', () => {
       expect(result.current.activeScreen).toBeNull()
     })
 
-    it('closes pack screen when no dialog', () => {
+    it('closes manual screen when no dialog', () => {
       const { result } = renderKeyboardHook()
 
       act(() => {
-        result.current.setActiveScreen('pack')
+        result.current.setActiveScreen('manual')
       })
       act(() => {
         fireKey('Escape')
@@ -416,14 +416,14 @@ describe('useKeyboard', () => {
   })
 
   describe('X key — drop item', () => {
-    it('drops hovered item when pack is open', () => {
+    // The backpack lives in the bottom bar now (see backpack-bottom-bar
+    // spec); the pack permacomputer screen no longer exists, so [x] drops
+    // whatever the inventory grid is currently hovering — no screen gate.
+    it('drops hovered item without any screen gate', () => {
       itemInfoRef = makeItemInfoRef(() => 'bee')
       vi.mocked(dropItem).mockReturnValue(true)
-      const { result } = renderKeyboardHook()
+      renderKeyboardHook()
 
-      act(() => {
-        result.current.setActiveScreen('pack')
-      })
       act(() => {
         fireKey('x')
       })
@@ -437,20 +437,6 @@ describe('useKeyboard', () => {
 
     it('does nothing when not hovering', () => {
       itemInfoRef = makeItemInfoRef(() => null)
-      const { result } = renderKeyboardHook()
-
-      act(() => {
-        result.current.setActiveScreen('pack')
-      })
-      act(() => {
-        fireKey('x')
-      })
-
-      expect(dropItem).not.toHaveBeenCalled()
-    })
-
-    it('does nothing when pack is closed', () => {
-      itemInfoRef = makeItemInfoRef(() => 'bee')
       renderKeyboardHook()
 
       act(() => {
@@ -477,11 +463,8 @@ describe('useKeyboard', () => {
       isDraggingRef = { current: true }
       itemInfoRef = makeItemInfoRef(() => 'bee')
       vi.mocked(dropItem).mockReturnValue(true)
-      const { result } = renderKeyboardHook()
+      renderKeyboardHook()
 
-      act(() => {
-        result.current.setActiveScreen('pack')
-      })
       // x should be blocked
       act(() => {
         fireKey('x')

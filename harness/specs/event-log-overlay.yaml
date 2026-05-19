@@ -140,25 +140,29 @@ behaviors:
         effect: 'set to GENESIS_EPOCHS.length after the flush completes'
     determinism: deterministic
 
-  - id: bottom-gap-reserved-for-future-surface
+  - id: bottom-bar-right-slot-houses-backpack
     description: >
-      The bottom center of the viewport — the horizontal gap between
-      the EventLog overlay (lower-left, `left-2 w-96` → right edge at
-      ~392px from the viewport's left) and the right Sidebar
-      (`right-0 w-48` → left edge at viewport-192px) — is intentionally
-      left empty after precis #0 (Reclaim Revery) deleted the action
-      bar. A future feature will reintroduce a surface there
-      (tools/seeds/practices). The EventLog and Sidebar layout
-      anchors do not change to fill the gap.
+      The right-hand slot of the gameplay bottom-bar — the slot
+      that, prior to the backpack-bottom-bar change, was a reserved
+      empty placeholder for a future tools/seeds surface — now
+      hosts the player backpack widget (see the
+      backpack-bottom-bar spec for sizing and interaction
+      contract). The EventLog's anchor and width are unchanged
+      and the Minimap occupies the left slot. The bottom-bar
+      layout doctrine — Minimap on the left, EventLog in the
+      middle, third widget on the right — survives the change;
+      only the right slot's content changed from "empty
+      placeholder" to "backpack".
     inputs:
-      - 'GameScreen renders without any bottom-center surface'
+      - 'GameScreen renders outside genesis'
     outputs:
-      - 'EventLog anchored at lower-left, Sidebar anchored at right; the bottom-center horizontal strip is empty'
+      - 'bottom-bar overlay contains Minimap (left), EventLog (center, flex-1), and backpack widget (right)'
+      - 'EventLog anchor and width unchanged'
     state_changes:
       - field: cursorScreenPos
-        effect: 'nulled by ActionBar / CommandPanel mouse handler while hovered'
+        effect: 'nulled by EventLog mouse handler while hovered (unchanged)'
       - field: cursorTile
-        effect: 'nulled by ActionBar / CommandPanel mouse handler while hovered'
+        effect: 'nulled by EventLog mouse handler while hovered (unchanged)'
     determinism: deterministic
 
   - id: log-newest-at-bottom
