@@ -89,10 +89,10 @@ features:
     summary: Hold-to-scan flora with the permacomputer. Scanned species unlock in the manual with their 8x8 hex grid rendered above the lore. Phenotype labels are deferred to #4.
     size: S
     depends_on: ['3']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-6-naturalists-manual.yaml
     plan: harness/plans/precis-6-naturalists-manual.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/332
     notes: 'Scope locked: hold-to-scan ([v] key, 1.5s hold) + first-specimen-cached hex grid + per-species discovery. Undiscovered entries hidden entirely. No phenotype labels — those ship in #4 (the Revery) per the doctrine split decided 2026-05-19. See docs/precis-thinktank-v3.md genetics block for the reasoning.'
 
   - id: '7'
