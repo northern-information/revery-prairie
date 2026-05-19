@@ -245,7 +245,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
         <DevPanel state={state} refreshUI={refreshUI} metricsRef={metricsRef} />
       )}
       <BootTitleCardOverlay state={state} />
-      <ScanProgressBar state={state} />
+      <ScanProgressBar state={state} activeScreen={activeScreen} />
       {state.genesis ? (
         <GenesisBottomBar state={state} />
       ) : (
