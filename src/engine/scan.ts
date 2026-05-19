@@ -77,8 +77,9 @@ export const selectScanTarget = (state: GameState): ScanTarget | null => {
 // Re-evaluates the target (the plant or player may have moved during the
 // hold), and if the target is still valid:
 //   - records flora:${species} discovery
-//   - writes scannedSpecimens.set(species, identity) ONLY if species not
-//     already in the map (first scan locks the canonical specimen)
+//   - appends a ScannedSpecimen to state.scannedSpecimens[species] unless
+//     a specimen with the same identity is already in the array
+//     (scanning the same plant twice is a no-op for the card stack)
 //   - spawns a pickup bloom at the scanned tile
 //   - sets state.manualHighlightEntryId so the manual scrolls to and
 //     highlights the entry on next render
@@ -97,8 +98,15 @@ export const commitScan = (state: GameState, time: number): boolean => {
 
   recordDiscovery(state, `flora:${target.species}`)
 
-  if (!state.scannedSpecimens.has(target.species)) {
-    state.scannedSpecimens.set(target.species, target.identity)
+  const existing = state.scannedSpecimens.get(target.species) ?? []
+  const alreadyScanned = existing.some(s => s.identity === target.identity)
+  if (!alreadyScanned) {
+    existing.push({
+      identity: target.identity,
+      scannedAt: time,
+      position: { x: target.position.x, y: target.position.y },
+    })
+    state.scannedSpecimens.set(target.species, existing)
   }
 
   spawnPickupBloom(state, target.position.x, target.position.y, time)

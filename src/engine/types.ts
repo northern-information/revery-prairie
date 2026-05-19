@@ -194,6 +194,17 @@ export interface ScanProgress {
   startTime: number
 }
 
+// One scanned specimen — what the naturalist's manual stores per scan.
+// Identity uniquely identifies the plant (the SHA256 from #3); time and
+// position are recorded for the manual's card display ("scanned 2 minutes
+// ago" / coordinates). Scans of the same identity (same plant) are
+// deduped at the commitScan call site.
+export interface ScannedSpecimen {
+  identity: string
+  scannedAt: number
+  position: Position
+}
+
 // ─── flora pollen ─────────────────────────────────────────────────────────────
 
 export interface PollenParticle {
@@ -380,11 +391,11 @@ export interface GameState {
   multiplayerSession: MultiplayerSession | null
   remotePlayers: Map<string, RemotePlayer>
   // Precis #6 — naturalist's manual scan-to-discover.
-  // scannedSpecimens maps each flora species to the SHA256 identity of the
-  // first plant of that species the player ever successfully scanned. Once
-  // written, an entry is never overwritten. The manual entry's hex grid
-  // derives from the cached identity via hashToHexGrid.
-  scannedSpecimens: Map<FloraSpecies, string>
+  // scannedSpecimens maps each flora species to an ordered list of
+  // specimens the player has scanned, oldest first. Duplicates (same
+  // identity) are deduped at commit time. The manual entry renders a
+  // card stack with paging, one card per specimen.
+  scannedSpecimens: Map<FloraSpecies, ScannedSpecimen[]>
   // Active scan state. Non-null while [f] is held and a valid target was
   // found at keydown. Cleared on commit, early release, movement, or any
   // other abort condition.

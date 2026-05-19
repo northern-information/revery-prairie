@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { HexGridView } from './HexGridView'
 import { SectionHeader, Tab, TextButton } from './PanelPrimitives'
+import { SpecimenStack } from './SpecimenStack'
 
 import {
   CATEGORY_ORDER,
@@ -12,7 +12,7 @@ import {
   ManualCategory,
 } from '@/engine/manual'
 import type { ManualEntry, ManualHint } from '@/engine/manual'
-import type { FloraSpecies, GameState, ManualState } from '@/engine/types'
+import type { FloraSpecies, GameState, ManualState, ScannedSpecimen } from '@/engine/types'
 
 const capitalize = (s: string): string => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1))
 
@@ -158,7 +158,7 @@ const EntryCard = ({
 }: {
   entry: ManualEntry
   discoveries: Set<string>
-  scannedSpecimens: Map<FloraSpecies, string>
+  scannedSpecimens: Map<FloraSpecies, ScannedSpecimen[]>
   manualState: ManualState
   showCategory: boolean
   onToggleHint: (key: string) => void
@@ -211,15 +211,16 @@ const EntryCard = ({
       {/* Separator */}
       <div className="text-dim text-xs">{'----'}</div>
 
-      {/* Hex grid — precis #6. Rendered above the lore for scanned flora
-          entries. The cached identity is the first-scanned specimen's
-          SHA256 string; hashToHexGrid maps it to an 8x8 nibble grid. */}
+      {/* Specimen stack — precis #6. Rendered above the lore for scanned
+          flora entries. One card per unique specimen identity; player pages
+          through. The stack opens to the latest card by default (the just-
+          scanned one when the manual is auto-opened after commit). */}
       {(() => {
         const species = speciesFromEntryId(entry.id)
         if (!species) return null
-        const identity = scannedSpecimens.get(species)
-        if (!identity) return null
-        return <HexGridView identity={identity} />
+        const specimens = scannedSpecimens.get(species)
+        if (!specimens || specimens.length === 0) return null
+        return <SpecimenStack specimens={specimens} initialIndex={specimens.length - 1} />
       })()}
 
       {/* Summary/lore — hidden for undiscovered recipes unless result spoiler is revealed.
@@ -252,9 +253,10 @@ const EntryCard = ({
   )
 }
 
-// Duration (ms) the highlight ring stays on a scanned entry after the manual
-// scrolls to it. After this, manualHighlightEntryId is cleared.
-const SCAN_HIGHLIGHT_MS = 2500
+// How long the entry flash animation stays applied before manualHighlightEntryId
+// is cleared. Matches the animate-event-log-flash duration (600ms) plus a small
+// buffer so the animation completes cleanly before unmount.
+const SCAN_HIGHLIGHT_MS = 700
 
 export const ManualPanel = ({ state }: ManualPanelProps) => {
   const { manualState, manualDiscoveries, scannedSpecimens } = state
@@ -381,7 +383,7 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
                     key={entry.id}
                     id={`manual-entry-${entry.id}`}
                     data-highlighted={isHighlighted ? 'true' : undefined}
-                    className={isHighlighted ? 'border-pink -mx-2 mb-2 rounded border-2 px-2 py-1' : ''}
+                    className={isHighlighted ? 'animate-event-log-flash -mx-2 mb-2 rounded px-2 py-1' : ''}
                   >
                     <EntryCard
                       entry={entry}

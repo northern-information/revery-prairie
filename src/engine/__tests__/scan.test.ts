@@ -97,17 +97,20 @@ describe('commitScan', () => {
     expect(state.floraLifecycle.get(posKey(state.player.x, state.player.y))?.identity).toBe(id)
   })
 
-  it('records the discovery and caches the specimen on first scan', () => {
+  it('records the discovery and appends a specimen on first scan', () => {
     const state = createTestState()
     clearAroundPlayer(state, 2)
     const id = placeFlora(state, state.player.x, state.player.y, FloraSpecies.Clover)
     state.scanInProgress = { target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
     commitScan(state, 1500)
     expect(state.manualDiscoveries.has('flora:clover')).toBe(true)
-    expect(state.scannedSpecimens.get(FloraSpecies.Clover)).toBe(id)
+    const specimens = state.scannedSpecimens.get(FloraSpecies.Clover) ?? []
+    expect(specimens).toHaveLength(1)
+    expect(specimens[0].identity).toBe(id)
+    expect(specimens[0].scannedAt).toBe(1500)
   })
 
-  it('preserves the cached identity when scanning a second plant of the same species', () => {
+  it('appends a new card when scanning a different plant of the same species', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
     const firstId = placeFlora(state, state.player.x, state.player.y, FloraSpecies.Wildflower)
@@ -117,10 +120,9 @@ describe('commitScan', () => {
       startTime: 0,
     }
     commitScan(state, 1500)
-    expect(state.scannedSpecimens.get(FloraSpecies.Wildflower)).toBe(firstId)
+    expect(state.scannedSpecimens.get(FloraSpecies.Wildflower)).toHaveLength(1)
 
-    // Move player to a new tile and place a different wildflower there.
-    // Different posKey → different identity.
+    // Move to a new tile, place a different wildflower (new identity).
     state.map[state.player.y][state.player.x] = { type: TileType.Dirt }
     state.floraLifecycle.delete(posKey(state.player.x, state.player.y))
     state.player = { x: state.player.x + 2, y: state.player.y }
@@ -132,8 +134,26 @@ describe('commitScan', () => {
       startTime: 0,
     }
     commitScan(state, 3000)
-    // Cached identity is still the first one.
-    expect(state.scannedSpecimens.get(FloraSpecies.Wildflower)).toBe(firstId)
+
+    const specimens = state.scannedSpecimens.get(FloraSpecies.Wildflower) ?? []
+    expect(specimens).toHaveLength(2)
+    expect(specimens[0].identity).toBe(firstId)
+    expect(specimens[1].identity).toBe(secondId)
+  })
+
+  it('dedupes when scanning the same plant twice (same identity)', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    placeFlora(state, state.player.x, state.player.y, FloraSpecies.Clover)
+    state.scanInProgress = { target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
+    commitScan(state, 1500)
+    expect(state.scannedSpecimens.get(FloraSpecies.Clover)).toHaveLength(1)
+
+    // Scan the same plant again — same posKey + species → same identity.
+    state.scanInProgress = { target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
+    commitScan(state, 3000)
+    // Still length 1 — duplicate identity is not appended.
+    expect(state.scannedSpecimens.get(FloraSpecies.Clover)).toHaveLength(1)
   })
 
   it('aborts the commit when the target species no longer matches', () => {

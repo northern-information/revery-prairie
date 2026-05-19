@@ -142,12 +142,15 @@ describe('ManualPanel', () => {
       expect(screen.queryByText('Big Bluestem (Andropogon gerardii)')).not.toBeInTheDocument()
     })
 
-    it('renders the hex grid for a scanned species', () => {
+    it('renders the specimen stack for a scanned species', () => {
       const state = createTestState()
       state.manualDiscoveries.add('flora:clover')
-      state.scannedSpecimens.set('clover', 'a'.repeat(64))
+      state.scannedSpecimens.set('clover', [
+        { identity: 'a'.repeat(64), scannedAt: performance.now(), position: { x: 0, y: 0 } },
+      ])
       render(<ManualPanel state={state} />)
-      // HexGridView has a stable data-testid.
+      // The stack and its hex grid both render.
+      expect(screen.getByTestId('specimen-stack')).toBeInTheDocument()
       expect(screen.getByTestId('hex-grid-view')).toBeInTheDocument()
     })
 
@@ -174,7 +177,9 @@ describe('ManualPanel', () => {
     it('applies a highlight container to the entry matching manualHighlightEntryId', () => {
       const state = createTestState()
       state.manualDiscoveries.add('flora:clover')
-      state.scannedSpecimens.set('clover', 'a'.repeat(64))
+      state.scannedSpecimens.set('clover', [
+        { identity: 'a'.repeat(64), scannedAt: performance.now(), position: { x: 0, y: 0 } },
+      ])
       state.manualHighlightEntryId = 'flora:clover'
       const { container } = render(<ManualPanel state={state} />)
       const highlighted = container.querySelector('[data-highlighted="true"]')
