@@ -8,6 +8,7 @@ import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { queueEvent } from './ruins'
+import { selectUnit } from './selection'
 import { invalidateMapCache } from './tileBgCache'
 import { CoyoteMode, MainQuestPhase, TileType, Zone } from './types'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
@@ -142,8 +143,16 @@ export const interactWithCharacter = (
   if (!character) return { opened: false, gift: null, coyoteToggled: false }
   recordDiscovery(state, `character:${character.definitionId}`)
 
-  // Coyote has no dialog — mode is controlled via the command panel
+  // Coyote has no dialog — interacting selects it so the command panel
+  // surfaces Follow/Collect controls.
   if (character.definitionId === 'coyote') {
+    for (const eid of spatialAtInCurrentZone(state, character.pos.x, character.pos.y)) {
+      const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+      if (identity?.definitionId === 'coyote') {
+        selectUnit(state, eid)
+        break
+      }
+    }
     return { opened: false, gift: null, coyoteToggled: false }
   }
 
