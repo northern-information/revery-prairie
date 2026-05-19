@@ -1,0 +1,51 @@
+id: trail-flora-glyph
+name: Player footprint trail uses the underlying flora species glyph
+priority: medium
+layer: engine
+source_files:
+  - src/engine/renderer.ts
+  - src/engine/flora/species.ts
+  - src/engine/constants.ts
+dependencies: []
+behaviors:
+  - id: trail-tile-glyph-matches-species
+    description: When the player footprint trail overlaps a flora tile, the rendered trail glyph matches that tile's species (% for clover, * for wildflower, " for tall grass), not the generic TileType.Flora glyph. The trail's grayscale brightness color is preserved — only the glyph changes.
+    inputs:
+      - state.trail contains a TrailPoint at (x, y)
+      - state.map[y][x].type === TileType.Flora
+      - state.floraLifecycle has an entry for posKey(x, y) with a species field
+    outputs:
+      - renderer draws the FLORA_SPECIES[species].glyph at that tile
+      - renderer color is the trail's brightness-based grayscale (rgb(b, b, b)), unchanged from the existing trail color logic
+    state_changes: []
+    determinism: deterministic
+  - id: trail-non-flora-unchanged
+    description: When the trail overlaps a non-flora tile (dirt, grass terrain, etc.), the renderer continues to draw TILE_CHARS[tile.type] as before. This behavior is preserved verbatim.
+    inputs:
+      - state.trail contains a TrailPoint at (x, y)
+      - state.map[y][x].type !== TileType.Flora
+    outputs:
+      - renderer draws TILE_CHARS[tile.type]
+      - renderer color is the trail's brightness-based grayscale
+    state_changes: []
+    determinism: deterministic
+edge_cases:
+  - id: trail-over-wildflower
+    description: Trail tile sits on a wildflower (Echinacea purpurea) lifecycle entry
+    expected: Rendered glyph is '*', not '%'
+  - id: trail-over-tall-grass
+    description: Trail tile sits on a tall grass (Andropogon gerardii) lifecycle entry
+    expected: Rendered glyph is '"', not '%'
+  - id: trail-over-clover
+    description: Trail tile sits on a clover lifecycle entry
+    expected: Rendered glyph is '%' (regression guard — clover must keep its existing glyph)
+  - id: trail-over-flora-without-lifecycle-entry
+    description: Trail tile sits on a TileType.Flora tile that has no floraLifecycle entry (defensive — should not occur in practice but the renderer must not crash)
+    expected: Renderer falls back to TILE_CHARS[TileType.Flora] ('%') without throwing
+failure_conditions:
+  - trigger: Player walks over a wildflower or tall-grass tile and the trail behind them renders as '%'
+    expected: Trail glyph matches the species — '*' for wildflower, '"' for tall grass
+verification:
+  test_file: src/engine/__tests__/trailFloraGlyph.test.ts
+  test_pattern: trail flora glyph
+  command: npx vitest run src/engine/__tests__/trailFloraGlyph.test.ts

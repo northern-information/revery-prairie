@@ -1417,7 +1417,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         }
       } else if (trailMap.has(tileKey)) {
         const tile = map[my][mx]
-        char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[tile.type]
+        // Trail tiles read the species-specific glyph from FLORA_SPECIES when
+        // the underlying tile is flora (mirrors the resolution at the regular
+        // tile-render branch below). Without this lookup all three species
+        // collapse to the generic TileType.Flora glyph (%).
+        const lifecycle = tile.type === TileType.Flora ? state.floraLifecycle.get(tileKey) : undefined
+        const speciesGlyph = lifecycle ? FLORA_SPECIES[lifecycle.species].glyph : TILE_CHARS[tile.type]
+        char = entranceGlyphMap.get(tileKey) ?? speciesGlyph
         const opacity = trailMap.get(tileKey) ?? 0
         const brightness = String(Math.round(opacity * 255))
         color = `rgb(${brightness}, ${brightness}, ${brightness})`
