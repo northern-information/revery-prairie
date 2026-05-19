@@ -235,6 +235,13 @@ export const KEYBOARD_MOVE_TICK_MS = 100
 export const SPRINT_MOVE_TICK_MS = 50
 export const WEATHER_TICK_MS = 5000
 
+// phenological seasons (precis #2): full year cycles every SEASONAL_PHASE_PERIOD_MS
+// of wall-clock overworld time. each of the four seasons gets a quarter of that
+// (~5 minutes per season at the default 20-minute year). state.seasonalPhase is a
+// fractional position in [0, 1) that advances only when the player is in the
+// overworld zone; cave/ruin time does not advance the prairie's calendar.
+export const SEASONAL_PHASE_PERIOD_MS = 20 * 60 * 1000
+
 // ghosts
 export const GHOST_CHAR = 'ö'
 export const GHOST_COLOR = '#FFFFFF'

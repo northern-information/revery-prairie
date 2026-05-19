@@ -65,13 +65,13 @@ export const tickWeather = (weather: Weather): void => {
   }
 }
 
-export const tickRainIntensity = (state: GameState, dt: number): void => {
+export const tickPrecipitationIntensity = (state: GameState, dt: number): void => {
   const target = state.weather.sky === Sky.Rain ? 1 : 0
   const step = dt / RAIN_FADE_DURATION_MS
-  if (target > state.rainIntensity) {
-    state.rainIntensity = Math.min(state.rainIntensity + step, 1)
-  } else if (target < state.rainIntensity) {
-    state.rainIntensity = Math.max(state.rainIntensity - step, 0)
+  if (target > state.precipitationIntensity) {
+    state.precipitationIntensity = Math.min(state.precipitationIntensity + step, 1)
+  } else if (target < state.precipitationIntensity) {
+    state.precipitationIntensity = Math.max(state.precipitationIntensity - step, 0)
   }
 }
 

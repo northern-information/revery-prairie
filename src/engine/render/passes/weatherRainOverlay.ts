@@ -10,10 +10,10 @@ import { getTierGrid, liftAt } from '../tierGrid'
 import type { CharMetrics, GameState } from '../../types'
 import type { RenderPass } from '../passes'
 
-const isActive = (state: GameState): boolean => state.rainIntensity > 0 && state.currentZone === Zone.Overworld
+const isActive = (state: GameState): boolean => state.precipitationIntensity > 0 && state.currentZone === Zone.Overworld
 
 // Animated rain follows the sweeping rain front (overworld only).
-// Uses rainIntensity for fade in/out and isInRainFront for blotchy edges.
+// Uses precipitationIntensity for fade in/out and isInRainFront for blotchy edges.
 const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   const { camera, viewportWidth, viewportHeight, player } = state
   const { charWidth, charHeight } = metrics
@@ -37,7 +37,7 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
       const phase = ((h >> 4) + Math.floor(time * RAIN_AURA_SPEED)) % RAIN_AURA_CHARS.length
       const colorPhase = ((h >> 8) + Math.floor(time * RAIN_AURA_SPEED * 0.7)) % RAIN_AURA_COLORS.length
 
-      ctx.globalAlpha = state.rainIntensity * front.edgeAlpha
+      ctx.globalAlpha = state.precipitationIntensity * front.edgeAlpha
 
       const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
       ctx.fillStyle = RAIN_AURA_COLORS[colorPhase]

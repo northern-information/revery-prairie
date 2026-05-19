@@ -55,6 +55,7 @@ const SKY_LABEL = {
   sun: 'Sunny',
   cloudy: 'Cloudy',
   rain: 'Rain',
+  snow: 'Snow',
 } as const
 
 // Arrows show on-screen blow direction derived from WIND_SCREEN_VECTORS.
