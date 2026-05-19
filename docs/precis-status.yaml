@@ -78,10 +78,10 @@ features:
     summary: Starter ruins bumped 3 → 5; new Wildflower and TallGrass roles deliver seed items via DormantGarden vault. Bee+Clover/Coyote main-quest ruins preserved.
     size: S
     depends_on: ['1']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-5-ruin-recovery-flora.yaml
     plan: harness/plans/precis-5-ruin-recovery-flora.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/318
     notes: 'Resurrects wildflowerSeeds and tallGrassSeeds items deleted in precis #1 — collectibles only, no planting (#11 wires planting).'
 
   - id: '6'
