@@ -306,7 +306,7 @@ edge_cases:
   - id: rescue-trigger-via-fire-revery-clearing
     description: >
       Player clears the collapseBarrier with fire revery instead of
-      [e], then walks adjacent to the coyote.
+      [f], then walks adjacent to the coyote.
     expected: >
       Rescue fires identically — the trigger is adjacency, not the
       clearing method.

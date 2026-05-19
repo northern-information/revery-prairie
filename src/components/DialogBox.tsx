@@ -68,7 +68,7 @@ export const DialogBox = ({
         data-testid="dialog-advance-button"
         className="self-center"
       >
-        {isLastLine ? 'CLOS[E]' : 'N[E]XT'}
+        {isLastLine ? '[F] Close' : '[F] Next'}
       </TextButton>
     )}
   </div>

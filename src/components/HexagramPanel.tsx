@@ -201,7 +201,7 @@ export const HexagramPanel = ({ state, onClose, refreshUI, onCastLog, initialVie
   useEffect(() => {
     if (view !== 'casting') return
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'e' || e.key === 'E' || e.key === 'Enter') {
+      if (e.key === 'f' || e.key === 'F' || e.key === 'Enter') {
         e.preventDefault()
         e.stopPropagation()
         if (phase === 'tossing') {

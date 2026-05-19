@@ -91,12 +91,12 @@ behaviors:
 
   - id: ghost-interaction
     description: >
-      Pressing [e] while facing a ghost initiates dialog using the
+      Pressing [f] while facing a ghost initiates dialog using the
       existing character dialog system. The ghost's character entry
       in state.world references its definition. Dialog advances
       and closes identically to other characters.
     inputs:
-      - 'Player facing a ghost tile, [e] pressed'
+      - 'Player facing a ghost tile, [f] pressed'
     outputs: []
     state_changes:
       - field: activeDialog

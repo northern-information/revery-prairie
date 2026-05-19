@@ -37,7 +37,7 @@ behaviors:
       character name renders above the dialog text in the existing
       lowercase style. advance button uses TextButton component from
       PanelPrimitives, centered at bottom of dialog box. shows
-      'n[e]xt' or 'clos[e]' text.
+      '[F] Next' or '[F] Close' text.
     inputs:
       - 'activeDialog is non-null'
     outputs:
@@ -65,7 +65,7 @@ behaviors:
       position props (top, left) were removed — the component is
       fixed-positioned via CSS. onAdvance callback drives the
       TextButton advance control. isLastLine toggles button text
-      between 'n[e]xt' and 'clos[e]'.
+      between '[F] Next' and '[F] Close'.
     inputs:
       - 'DialogBox rendered by GameScreen'
     outputs:

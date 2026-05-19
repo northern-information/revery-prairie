@@ -35,7 +35,7 @@ export interface KeyBinding {
 
 export const KEYBINDINGS: KeyBinding[] = [
   { key: 'wasd', action: 'Move', context: 'Single keys move diagonally; combine for cardinals' },
-  { key: 'e', action: 'Interact', context: 'Talk, pick up, open, break wall' },
+  { key: 'f', action: 'Interact', context: 'Talk, pick up, open, break wall' },
   { key: 'x', action: 'Drop Item', context: 'Pack open, hovering item' },
   { key: 'tab', action: 'Toggle Pack' },
   { key: 'q', action: 'Toggle Manual' },

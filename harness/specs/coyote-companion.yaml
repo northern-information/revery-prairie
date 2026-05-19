@@ -34,7 +34,7 @@ behaviors:
       EntityTag ('character'), and EntityZone (overworld). a
       CharacterDefinition is registered with id 'coyote', name 'Coyote',
       glyph 'C', glyphColor '#D4A054' (warm amber-tan). the coyote has
-      no dialog array — pressing [e] opens a mode-toggle menu instead
+      no dialog array — pressing [f] opens a mode-toggle menu instead
       of the standard dialog system.
     inputs:
       - 'createGameState call'
@@ -123,7 +123,7 @@ behaviors:
 
   - id: coyote-interaction
     description: >
-      pressing [e] while adjacent to the coyote toggles coyoteMode
+      pressing [f] while adjacent to the coyote toggles coyoteMode
       between 'follow' and 'collect'. unlike other characters, the
       coyote does not open the dialog system. instead, getAdjacentCharacter
       still detects the coyote, but interactWithCharacter checks for
@@ -132,7 +132,7 @@ behaviors:
       new mode. the coyote is detected by isInteractableAt at its
       position.
     inputs:
-      - 'player adjacent to coyote, [e] pressed'
+      - 'player adjacent to coyote, [f] pressed'
     outputs:
       - 'coyoteMode toggled'
       - 'addEvent called with new mode description'

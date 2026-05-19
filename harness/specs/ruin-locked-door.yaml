@@ -53,7 +53,7 @@ behaviors:
       carved as RuinFloor so the player can stand under any door
       tile and face up to interact. a 1-wide tunnel from the landing
       center connects down to the spine. the wider hitbox makes the
-      door easy to find with [e] OR click. door placement is skipped
+      door easy to find with [f] OR click. door placement is skipped
       entirely for ruins with role 'coyote' — the spine connects
       directly to the vault chamber with no gating wall, since the
       coyote ruin is gated by the collapseBarrier instead (see
@@ -75,7 +75,7 @@ behaviors:
 
   - id: unlock-interaction
     description: >
-      pressing [e] while facing any RuinDoorLocked tile and holding
+      pressing [f] while facing any RuinDoorLocked tile and holding
       at least one aqueductKey item in the backpack consumes one
       aqueductKey and converts ALL door tiles in the current ruin's
       doorPositions to RuinDoorOpen atomically. the door row remains
@@ -84,10 +84,10 @@ behaviors:
       discovery for event:ruin-door-unlocked. clicking any door tile
       pathfinds to the closest walkable adjacent tile and triggers
       the same unlock on arrival (see click-interaction edge case).
-      pressing [e] facing a locked door with NO aqueductKey instead
+      pressing [f] facing a locked door with NO aqueductKey instead
       opens the gate dialog (see locked-gate-dialog behavior).
     inputs:
-      - '[e] pressed while facing any RuinDoorLocked tile, aqueductKey in backpack'
+      - '[f] pressed while facing any RuinDoorLocked tile, aqueductKey in backpack'
     outputs:
       - 'every door tile in the row becomes RuinDoorOpen, one aqueductKey consumed'
     state_changes:
@@ -108,13 +108,13 @@ behaviors:
       entity in the world — it has no Position component, getAdjacentCharacter
       never returns it, and it never appears in entity ticks or rendering.
       it exists only as a target for state.activeDialog. when the player
-      presses [e] facing any RuinDoorLocked tile while holding NO
+      presses [f] facing any RuinDoorLocked tile while holding NO
       aqueductKey, openLockedGateDialog(state) is called: it sets
       state.activeDialog = { characterId: 'gate', lineIndex: 0,
       typingIndex: 0, typingDone: false, transitioning: false,
       transitionStartTime: 0 }. the existing DialogBox component renders
       the typing animation and modal exactly as it does for character
-      dialog. pressing [e] again (or clicking advance) calls advanceDialog
+      dialog. pressing [f] again (or clicking advance) calls advanceDialog
       which closes the modal, since 'The gate is locked.' is the single
       and last line. no gift fires (the gate has no gift). no
       manualDiscoveries entry is recorded — the gate is not a manual entry.
@@ -122,7 +122,7 @@ behaviors:
       character:gate entry). clicking a locked door with no key triggers
       the same dialog on arrival (see click-without-key edge case).
     inputs:
-      - '[e] pressed while facing any RuinDoorLocked tile, aqueductKey NOT in backpack'
+      - '[f] pressed while facing any RuinDoorLocked tile, aqueductKey NOT in backpack'
       - 'click on any RuinDoorLocked tile with no aqueductKey (after pathfind arrival)'
     outputs:
       - "DialogBox renders 'Gate' speaker with line 'The gate is locked.'"
@@ -139,7 +139,7 @@ behaviors:
       a Ruin zone. clicking pathfinds to the closest walkable
       adjacent tile (typically on the carved landing strip), walks
       there, faces the door, and runs unlockRuinDoor — same
-      semantics as pressing [e]. clicking with no aqueductKey in
+      semantics as pressing [f]. clicking with no aqueductKey in
       the backpack walks the player to the adjacent tile and opens
       the locked gate dialog on arrival (see locked-gate-dialog
       behavior).
@@ -186,15 +186,15 @@ behaviors:
 
 edge_cases:
   - id: face-door-without-key
-    description: 'player presses [e] facing RuinDoorLocked with no aqueductKey in backpack'
-    expected: "no unlock, no key consumed; the locked gate dialog opens with single line 'The gate is locked.' (see locked-gate-dialog behavior). pressing [e] again dismisses the modal."
+    description: 'player presses [f] facing RuinDoorLocked with no aqueductKey in backpack'
+    expected: "no unlock, no key consumed; the locked gate dialog opens with single line 'The gate is locked.' (see locked-gate-dialog behavior). pressing [f] again dismisses the modal."
 
   - id: multiple-keys-in-backpack
     description: 'player has more than one aqueductKey when unlocking'
     expected: 'exactly one aqueductKey is consumed; the rest remain'
 
   - id: re-press-on-open-door
-    description: 'player presses [e] facing a RuinDoorOpen tile'
+    description: 'player presses [f] facing a RuinDoorOpen tile'
     expected: 'no-op — open doors are not interactive, no key consumed'
 
   - id: key-on-action-bar-slot
@@ -235,7 +235,7 @@ failure_conditions:
   - trigger: 'unlocking opens only the facing tile, leaving sibling door tiles in the row locked'
     expected: 'spec is violated — unlockRuinDoor must convert every doorPositions entry atomically, mirroring breakWall on cave breakable walls'
 
-  - trigger: 'pressing [e] facing a locked door with no key produces no visible feedback'
+  - trigger: 'pressing [f] facing a locked door with no key produces no visible feedback'
     expected: 'spec is violated — locked-gate-dialog behavior must open the gate modal so the player understands the door is gated, not broken'
 
   - trigger: 'the gate speaker leaks into manual auto-derivation, gameplay tick systems, or getAdjacentCharacter results'

@@ -154,7 +154,7 @@ behaviors:
       when coyote is selected (single selection), the command panel shows
       Follow and Collect mode buttons. clicking a mode button switches
       coyote's mode. the active mode is visually highlighted. this
-      replaces the previous [e] key toggle for coyote mode switching.
+      replaces the previous [f] key toggle for coyote mode switching.
     inputs:
       - 'coyote is the sole selected unit'
       - 'click on Follow or Collect button in command panel'
@@ -170,7 +170,7 @@ behaviors:
     description: >
       gron becomes a controllable mobile unit. gron does not wander
       autonomously — he only moves when commanded via right-click.
-      gron still blocks movement and retains dialog interaction (via [e]
+      gron still blocks movement and retains dialog interaction (via [f]
       when adjacent, or left-click when not selected). gron pathfinds
       using the same A* system as the player.
     inputs:
@@ -187,10 +187,10 @@ behaviors:
       gron retains dialog interaction. when no units are selected,
       clicking gron triggers the existing click-to-interact behavior
       (pathfind to gron, open dialog). when gron is selected, clicking
-      gron selects him instead. pressing [e] when adjacent to gron
+      gron selects him instead. pressing [f] when adjacent to gron
       still opens dialog regardless of selection state.
     inputs:
-      - '[e] pressed while player is adjacent to gron'
+      - '[f] pressed while player is adjacent to gron'
     outputs:
       - 'dialog opens with gron'
     state_changes:
@@ -202,7 +202,7 @@ behaviors:
     description: >
       when selectedUnits is empty, all existing player controls work
       unchanged — left-click to move, WASD movement, shift+click
-      waypoints, [e] to interact, etc. the selection system is
+      waypoints, [f] to interact, etc. the selection system is
       transparent when nothing is selected.
     inputs:
       - 'selectedUnits is empty'

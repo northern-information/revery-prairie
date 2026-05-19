@@ -308,7 +308,7 @@ behaviors:
     description: >
       Angels block player movement. All 9x9 body tiles are impassable.
       Angel body tiles are added to getBlockedPositions. The player must
-      approach an angel and press [e] to interact. Click-to-move pathfinding
+      approach an angel and press [f] to interact. Click-to-move pathfinding
       routes around angel body tiles.
     inputs:
       - 'Player attempts to move onto angel-occupied tile'

@@ -231,7 +231,7 @@ describe('useKeyboard', () => {
       renderKeyboardHook()
 
       act(() => {
-        fireKey('e')
+        fireKey('f')
       })
 
       expect(advanceDialog).toHaveBeenCalledWith(state, expect.any(Number))
@@ -244,7 +244,7 @@ describe('useKeyboard', () => {
       renderKeyboardHook()
 
       act(() => {
-        fireKey('e')
+        fireKey('f')
       })
 
       expect(advanceDialog).toHaveBeenCalledWith(state, expect.any(Number))
@@ -260,7 +260,7 @@ describe('useKeyboard', () => {
       renderKeyboardHook()
 
       act(() => {
-        fireKey('e')
+        fireKey('f')
       })
 
       expect(breakWall).toHaveBeenCalledWith(state, expect.any(Number))
@@ -274,7 +274,7 @@ describe('useKeyboard', () => {
       renderKeyboardHook()
 
       act(() => {
-        fireKey('e')
+        fireKey('f')
       })
 
       expect(breakWall).not.toHaveBeenCalled()
@@ -289,7 +289,7 @@ describe('useKeyboard', () => {
       renderKeyboardHook()
 
       act(() => {
-        fireKey('e')
+        fireKey('f')
       })
 
       expect(interactWithCharacter).toHaveBeenCalledWith(state)
@@ -302,7 +302,7 @@ describe('useKeyboard', () => {
       renderKeyboardHook()
 
       act(() => {
-        fireKey('e')
+        fireKey('f')
       })
 
       expect(interactWithCharacter).not.toHaveBeenCalled()
@@ -318,7 +318,7 @@ describe('useKeyboard', () => {
         result.current.setActiveScreen('system')
       })
       act(() => {
-        fireKey('e')
+        fireKey('f')
       })
 
       expect(advanceDialog).not.toHaveBeenCalled()
@@ -479,9 +479,9 @@ describe('useKeyboard', () => {
       })
       expect(dropItem).not.toHaveBeenCalled()
 
-      // e should be blocked
+      // f should be blocked
       act(() => {
-        fireKey('e')
+        fireKey('f')
       })
       expect(interactWithCharacter).not.toHaveBeenCalled()
     })

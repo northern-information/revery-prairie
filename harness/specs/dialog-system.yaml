@@ -23,7 +23,7 @@ behaviors:
       happens on dialog completion via advanceDialog. always
       returns { opened: boolean, gift: null, coyoteToggled: false }.
       the coyoteToggled field is reserved for a legacy interaction
-      that toggled coyote mode via [e]; it is no longer used (coyote
+      that toggled coyote mode via [f]; it is no longer used (coyote
       mode is controlled via the permacomputer panel), but the
       field remains in the return type for backward compatibility.
       coyote and angel characters take alternate paths: coyote
@@ -31,7 +31,7 @@ behaviors:
       opening dialog; angels store their canto on first interaction
       before the dialog opens.
     inputs:
-      - 'player adjacent to a character entity, [e] pressed'
+      - 'player adjacent to a character entity, [f] pressed'
     outputs:
       - '{ opened: boolean, gift: null, coyoteToggled: false }'
     state_changes:
@@ -63,7 +63,7 @@ behaviors:
 
   - id: dialog-advance
     description: >
-      advanceDialog(state, time?) handles [e] press during dialog.
+      advanceDialog(state, time?) handles [f] press during dialog.
       returns { continuing: boolean; gift: ReveryDefinition | null }.
       if typing is not done, reveals the full line immediately and
       returns { continuing: true, gift: null }. if transitioning,
@@ -78,7 +78,7 @@ behaviors:
       per main-questline-foundation:gron-saving-bees-release before
       the gift flow runs.
     inputs:
-      - '[e] pressed during active dialog, optional time'
+      - '[f] pressed during active dialog, optional time'
     outputs:
       - '{ continuing: boolean, gift: ReveryDefinition | null }'
     state_changes:
@@ -191,10 +191,10 @@ behaviors:
       returned by getAdjacentCharacter, excluded from manual
       auto-derivation) and sets activeDialog to its single line
       "The gate is locked." used by the ruin-locked-door flow when the
-      player presses [e] on a locked door without an aqueductKey.
+      player presses [f] on a locked door without an aqueductKey.
       see ruin-locked-door:locked-gate-dialog for the full contract.
     inputs:
-      - 'player presses [e] facing a RuinDoorLocked tile with no aqueductKey'
+      - 'player presses [f] facing a RuinDoorLocked tile with no aqueductKey'
     outputs:
       - 'activeDialog set to the gate descriptor'
     state_changes:
@@ -217,19 +217,19 @@ behaviors:
 
 edge_cases:
   - id: no-adjacent-character
-    description: 'player presses [e] with no character in range'
+    description: 'player presses [f] with no character in range'
     expected: 'interactWithCharacter returns { opened: false, gift: null, coyoteToggled: false }'
   - id: gift-already-received
     description: 'player talks to a character whose gift was already given'
     expected: 'postGiftDialog is shown instead of original dialog; gift given on dialog completion not on interaction open'
   - id: advance-during-transition
-    description: 'player presses [e] while dialog line is transitioning'
+    description: 'player presses [f] while dialog line is transitioning'
     expected: 'press is ignored, returns { continuing: true, gift: null }'
   - id: coyote-adjacency-no-dialog
-    description: 'player presses [e] adjacent to the coyote'
-    expected: "interactWithCharacter returns { opened: false, gift: null, coyoteToggled: false } and records 'character:coyote' discovery, but does not open dialog (coyote dialog is auto-opened by the rescue sequence, not [e])"
+    description: 'player presses [f] adjacent to the coyote'
+    expected: "interactWithCharacter returns { opened: false, gift: null, coyoteToggled: false } and records 'character:coyote' discovery, but does not open dialog (coyote dialog is auto-opened by the rescue sequence, not [f])"
   - id: rapid-advance
-    description: 'player presses [e] rapidly before typing finishes'
+    description: 'player presses [f] rapidly before typing finishes'
     expected: 'first press reveals full line; second press starts transition or closes dialog'
   - id: post-gift-already-completed
     description: 'player completes postGiftDialog after postGift already given'

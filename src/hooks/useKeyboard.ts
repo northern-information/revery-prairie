@@ -121,9 +121,9 @@ export const useKeyboard = ({
         return
       }
 
-      // [e] — advance dialog / talk / break wall / toss coins
-      if (e.key === 'e' || e.key === 'E') {
-        // Divination panel owns [e] for tossing — don't interfere
+      // [f] — advance dialog / talk / break wall / toss coins
+      if (e.key === 'f' || e.key === 'F') {
+        // Divination panel owns [f] for tossing — don't interfere
         if (activeScreen === 'divination') return
         if (state.activeDialog) {
           const result = advanceDialog(state, performance.now())

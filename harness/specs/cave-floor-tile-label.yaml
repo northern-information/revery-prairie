@@ -60,7 +60,7 @@ edge_cases:
     expected: 'sidebar contents shows "cave entrance" for CaveEntrance in overworld'
   - id: breakable-wall-after-breaking
     description: >
-      When a CaveBreakableWall is broken via [e], it becomes a CaveFloor
+      When a CaveBreakableWall is broken via [f], it becomes a CaveFloor
       tile. The sidebar label should then show "dirt" instead of "stone".
     expected: 'sidebar contents shows "dirt" after breaking a wall'
   - id: water-on-cave-floor
