@@ -1,5 +1,16 @@
 @import 'tailwindcss';
 
+/* Voynich typeface for egregoric flora (precis #8a). The font file is
+   intentionally not committed — see public/fonts/README.md. When the
+   file is absent (or fails to load), the browser falls back to its
+   missing-glyph rendering (? / □), which is the doctrinally-correct
+   behavior per v3 cosmology. Do not patch. */
+@font-face {
+  font-family: 'Voynich';
+  src: url('/fonts/voynich.ttf') format('truetype');
+  font-display: swap;
+}
+
 @theme {
   --color-dirt: #8b7355;
   --color-clover: #50c878;

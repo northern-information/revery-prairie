@@ -4,7 +4,8 @@ import { SectionHeader, Tab, TextButton } from './PanelPrimitives'
 import {
   CATEGORY_ORDER,
   filterManualEntries,
-  getEntriesByCategory,
+  getEgregoreLatinPierceForEntry,
+  getEgregoreManualEntries,
   isDiscovered,
   MANUAL_ENTRIES,
   ManualCategory,
@@ -36,6 +37,11 @@ const CATEGORY_LABELS: Record<ManualCategory, string> = {
   [ManualCategory.Zone]: 'ZONES',
   [ManualCategory.Recipe]: 'RECIPES',
   [ManualCategory.Control]: 'CONTROLS',
+  // Egregoric category — no English label. Renders as four Voynich
+  // glyphs (the same allowlist subset used for tile glyphs). The tab
+  // label deliberately resists naming; per v3 doctrine the player-facing
+  // term for the egregores is none.
+  [ManualCategory.Egregore]: '\u{0AB10}\u{0AB11}\u{0AB12}\u{0AB13}',
 }
 
 const HintBlock = ({
@@ -107,6 +113,32 @@ const RecipeResultSpoiler = ({
   )
 }
 
+/**
+ * Renders an egregore manual entry's lore body. The body is mostly
+ * EVA tokens (rendered in the Voynich typeface) with at most one
+ * Latin pierce word from the cosmology allowlist (rendered in the
+ * default font). The pierce is identified by re-deriving it from the
+ * entry's position (encoded in entry.id) — same allowlist + same
+ * position hash that egregore.ts used to embed it in the body.
+ */
+const EgregoreLore = ({ entry }: { entry: ManualEntry }) => {
+  const pierce = getEgregoreLatinPierceForEntry(entry.id)
+  if (pierce === null || !entry.lore.includes(pierce)) {
+    // No pierce — render the whole body in Voynich.
+    return <span style={{ fontFamily: "'Voynich', monospace" }}>{entry.lore}</span>
+  }
+  const idx = entry.lore.indexOf(pierce)
+  const before = entry.lore.slice(0, idx)
+  const after = entry.lore.slice(idx + pierce.length)
+  return (
+    <>
+      <span style={{ fontFamily: "'Voynich', monospace" }}>{before}</span>
+      <span>{pierce}</span>
+      <span style={{ fontFamily: "'Voynich', monospace" }}>{after}</span>
+    </>
+  )
+}
+
 const EntryCard = ({
   entry,
   discoveries,
@@ -145,6 +177,13 @@ const EntryCard = ({
           </span>
         ) : entry.category === ManualCategory.Control ? (
           <ControlName name={entry.name} />
+        ) : entry.category === ManualCategory.Egregore ? (
+          <>
+            <span style={{ color: entry.glyphColor, fontFamily: "'Voynich', monospace" }}>{entry.glyph}</span>
+            <span className="text-text text-sm" style={{ fontFamily: "'Voynich', monospace" }}>
+              {entry.name}
+            </span>
+          </>
         ) : (
           <>
             <span style={{ color: entry.glyphColor }}>{entry.glyph}</span>
@@ -156,9 +195,14 @@ const EntryCard = ({
       {/* Separator */}
       <div className="text-dim text-xs">{'----'}</div>
 
-      {/* Summary/lore — hidden for undiscovered recipes unless result spoiler is revealed */}
+      {/* Summary/lore — hidden for undiscovered recipes unless result spoiler is revealed.
+          Egregore entries render their procedurally-generated EVA-token body in the
+          Voynich typeface; Latin pierces inside the body remain ASCII so they render
+          in the standard font as the spec requires. */}
       {(!isRecipe || discovered || manualState.revealedHints.has(recipeResultKey)) && (
-        <div className="text-dim mt-1 text-xs whitespace-pre-line">{entry.lore}</div>
+        <div className="text-dim mt-1 text-xs whitespace-pre-line">
+          {entry.category === ManualCategory.Egregore ? <EgregoreLore entry={entry} /> : entry.lore}
+        </div>
       )}
 
       {/* Properties */}
@@ -189,7 +233,7 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
   const [searchQuery, setSearchQueryLocal] = useState(manualState.searchQuery)
   const [, forceRender] = useState(0)
 
-  const allEntries = Object.values(MANUAL_ENTRIES)
+  const allEntries = [...Object.values(MANUAL_ENTRIES), ...getEgregoreManualEntries(state)]
   const filtered = searchQuery ? filterManualEntries(allEntries, searchQuery) : allEntries
 
   const toggleHint = useCallback(
@@ -246,9 +290,8 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
           ALL
         </Tab>
         {CATEGORY_ORDER.map(cat => {
-          const count = searchQuery
-            ? filterManualEntries(getEntriesByCategory(cat), searchQuery).length
-            : getEntriesByCategory(cat).length
+          const inCat = allEntries.filter(e => e.category === cat)
+          const count = searchQuery ? filterManualEntries(inCat, searchQuery).length : inCat.length
           return (
             <Tab
               key={cat}

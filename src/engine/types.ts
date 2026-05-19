@@ -24,6 +24,13 @@ export const TileType = {
   RuinDebris: 'ruinDebris',
   RuinDoorLocked: 'ruinDoorLocked',
   RuinDoorOpen: 'ruinDoorOpen',
+  // Egregoric flora tile — inert in precis #8a (no interaction, no
+  // lifecycle, walkable). The renderer draws it using a Voynich glyph
+  // from EGREGORE_GLYPHS keyed by tile position. Per cosmology doctrine
+  // egregores are "not-of-this-Earth" — no Latin binomial, no Flora
+  // species id. Manual entries are procedurally-generated EVA token
+  // pages with ~1-in-5 Latin pierces.
+  Egregore: 'egregore',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
@@ -294,6 +301,11 @@ export interface GameState {
   world: World
   floraGrowthPreviews: Set<string>
   floraLifecycle: Map<string, FloraLifecycleState>
+  // Egregoric flora tile positions (precis #8a). Genesis places ~3
+  // inert TileType.Egregore tiles biased near craters; this list lets
+  // the manual entry generator and the sidebar identify them without
+  // a full map scan. Stable across reloads for the same steward name.
+  egregorePositions: Position[]
   soilHealth: Map<string, number>
   elevation: Map<string, number>
   ponds: Set<string>

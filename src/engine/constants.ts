@@ -40,6 +40,11 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.RuinDebris]: '░',
   [TileType.RuinDoorLocked]: '#',
   [TileType.RuinDoorOpen]: '.',
+  // Egregore tiles render their per-position glyph at draw time via
+  // EGREGORE_GLYPHS in src/engine/egregore.ts. The fallback character
+  // here is shown if the renderer can't resolve a per-position glyph
+  // for any reason.
+  [TileType.Egregore]: '?',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -64,6 +69,10 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.RuinDebris]: '#8B7355',
   [TileType.RuinDoorLocked]: '#5FD3BC',
   [TileType.RuinDoorOpen]: '#7A7A6E',
+  // Egregore glyph color — a desaturated blue-grey that reads as
+  // "off" against the green Flora palette and the brown Dirt. Stable
+  // across all egregore tiles regardless of per-position glyph choice.
+  [TileType.Egregore]: '#7A88A0',
 }
 
 // Ruin visual palette — shared with genesis civilization rendering
@@ -287,6 +296,18 @@ export const GENESIS_TALL_GRASS_PATCH_COUNT_MIN = 6
 export const GENESIS_TALL_GRASS_PATCH_COUNT_MAX = 10
 export const GENESIS_FLORA_PATCH_TILES_MIN = 2
 export const GENESIS_FLORA_PATCH_TILES_MAX = 4
+
+// Egregore tile placement (precis #8a). The post-process places a small
+// fixed number of inert egregore tiles biased near crater positions. The
+// total target stays in the [MIN, MAX] range — placement failures (no
+// reachable dirt within bias radius) reduce the count but do not crash.
+export const GENESIS_EGREGORE_TILE_COUNT_MIN = 2
+export const GENESIS_EGREGORE_TILE_COUNT_MAX = 4
+// Bias radius around crater positions. The post-process picks
+// crater-adjacent dirt within this Chebyshev distance preferentially,
+// then falls back to any walkable dirt if no crater-adjacent candidates
+// remain.
+export const GENESIS_EGREGORE_BIAS_RADIUS = 5
 
 // soil health
 export const SOIL_HEALTH_DEFAULT = 50

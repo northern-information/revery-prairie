@@ -33,6 +33,10 @@ export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   [TileType.RuinDebris]: ['#3F3326', '#412F25', '#3D3025', '#403326', '#3E3125'],
   [TileType.RuinDoorLocked]: ['#1F4D45', '#1E4C44', '#205047'],
   [TileType.RuinDoorOpen]: ['#2D2D26', '#2F2F28', '#2C2C25'],
+  // Egregore bg — slightly cooler than dirt so the off-key glyph reads
+  // distinctly without dominating the prairie palette. Reads as
+  // "something here is wrong with the soil" rather than as a feature.
+  [TileType.Egregore]: ['#2C2D33', '#2D2E34', '#2A2B30', '#2E2F35', '#2B2C32'],
 }
 
 export const getTileBgColor = (tileType: TileType, x: number, y: number): string => {

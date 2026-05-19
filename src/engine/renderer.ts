@@ -115,6 +115,7 @@ import { PLAYER_COLORS } from '@revery-prairie/shared'
 
 import './flora'
 
+import { getEgregoreGlyph } from './egregore'
 import { FLORA_SPECIES, getFloraMovement, getFloraSwayOffset } from './flora'
 
 import type { VelocityKey } from './constants'
@@ -1413,6 +1414,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             // happen, but render the prior pre-multi-species mix as a
             // fallback to preserve visual variety.
             color = CLOVER_HEALTHY_COLORS[tileHash(mx, my) % CLOVER_HEALTHY_COLORS.length]
+          } else if (tile.type === TileType.Egregore) {
+            // Egregoric flora (precis #8a) — per-position Voynich glyph
+            // from EGREGORE_GLYPHS. Font swap to 'Voynich' happens at
+            // the draw call below; here we only resolve the glyph + the
+            // shared blue-grey color (TILE_COLORS).
+            char = getEgregoreGlyph(mx, my)
+            color = TILE_COLORS[TileType.Egregore]
           } else if (tile.type === TileType.Dirt) {
             if (state.craters.has(tileKey)) {
               const h = tileHash(mx, my)
@@ -1587,6 +1595,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // existing behavior of drawing whatever glyph resolved at the
         // tween position rather than the iteration position.
         ctx.fillText(char, playerScreen.px, playerScreen.py + playerLift)
+      } else if (tile.type === TileType.Egregore) {
+        // Egregore tile — draw with the Voynich typeface for one
+        // call, then restore the default font. Per v3 doctrine the
+        // font fallback (□ / ?) is intended behavior; we do not gate
+        // the draw on font-loaded state.
+        const prevFont = ctx.font
+        ctx.font = `${String(BASE_FONT_SIZE)}px 'Voynich', monospace`
+        ctx.fillText(char, px, pyLift)
+        ctx.font = prevFont
       } else {
         ctx.fillText(char, px, pyLift)
       }

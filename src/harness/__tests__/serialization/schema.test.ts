@@ -54,6 +54,7 @@ const EXPECTED_FIELDS = [
   'lightning',
   'floraGrowthPreviews',
   'floraLifecycle',
+  'egregorePositions',
   'soilHealth',
   'elevation',
   'ponds',
