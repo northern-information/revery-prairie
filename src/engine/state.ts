@@ -269,6 +269,7 @@ export const createGameState = (
     remotePlayers: new Map(),
     scannedSpecimens: new Map(),
     scanInProgress: null,
+    manualHighlightEntryId: null,
     onPlayerMoved: null,
     onGenesisEpochStart: null,
     onGenesisComplete: null,

@@ -385,10 +385,15 @@ export interface GameState {
   // written, an entry is never overwritten. The manual entry's hex grid
   // derives from the cached identity via hashToHexGrid.
   scannedSpecimens: Map<FloraSpecies, string>
-  // Active scan state. Non-null while [v] is held and a valid target was
+  // Active scan state. Non-null while [f] is held and a valid target was
   // found at keydown. Cleared on commit, early release, movement, or any
   // other abort condition.
   scanInProgress: ScanProgress | null
+  // The manual entry id (e.g. "flora:clover") that the manual should
+  // scroll to and highlight on its next render. Set by the scan keyup
+  // handler after a successful commit; cleared by ManualPanel once it has
+  // scrolled to the entry. Outside of scan flow, always null.
+  manualHighlightEntryId: string | null
   onPlayerMoved: (() => void) | null
   onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null
   onGenesisComplete: ((handoffTime: number) => void) | null

@@ -167,4 +167,33 @@ describe('commitScan', () => {
     commitScan(state, 1500)
     expect(countPickupBlooms(state)).toBe(bloomsBefore + 1)
   })
+
+  it('sets manualHighlightEntryId to flora:<species> on success and returns true', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    placeFlora(state, state.player.x, state.player.y, FloraSpecies.Wildflower)
+    state.scanInProgress = {
+      target: { x: state.player.x, y: state.player.y },
+      species: FloraSpecies.Wildflower,
+      startTime: 0,
+    }
+    const result = commitScan(state, 1500)
+    expect(result).toBe(true)
+    expect(state.manualHighlightEntryId).toBe('flora:wildflower')
+  })
+
+  it('leaves manualHighlightEntryId untouched on aborted commit and returns false', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    // No flora here — commit aborts
+    state.scanInProgress = {
+      target: { x: state.player.x, y: state.player.y },
+      species: FloraSpecies.Clover,
+      startTime: 0,
+    }
+    state.manualHighlightEntryId = null
+    const result = commitScan(state, 1500)
+    expect(result).toBe(false)
+    expect(state.manualHighlightEntryId).toBeNull()
+  })
 })

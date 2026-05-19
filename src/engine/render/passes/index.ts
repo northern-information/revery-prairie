@@ -24,7 +24,6 @@ export { glintingZoneSparklePass } from './glintingZoneSparkle'
 export { glintingBeamPass } from './glintingBeam'
 export { deepTimeBurningOverlayPass } from './deepTimeBurningOverlay'
 export { pollenOverlayPass } from './pollenOverlay'
-export { scanProgressPass } from './scanProgress'
 // screen-overlay
 export { lightningScreenFlashPass } from './lightningScreenFlash'
 export { angelSpawnDespawnFlashPass } from './angelSpawnDespawnFlash'

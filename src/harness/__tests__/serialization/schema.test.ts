@@ -123,6 +123,7 @@ const EXPECTED_FIELDS = [
   'remotePlayers',
   'scannedSpecimens',
   'scanInProgress',
+  'manualHighlightEntryId',
   'onPlayerMoved',
   'onGenesisEpochStart',
   'onGenesisComplete',

@@ -70,11 +70,11 @@ behaviors:
   - id: hold-to-scan-keybinding
     description: >
       The keyboard handler in src/hooks/useKeyboard.ts gains a hold-down
-      binding for the v key (chosen because it is unused per the current
+      binding for the f key (chosen because it is unused per the current
       keybinds documented in CLAUDE.md). On keydown of v, if
       state.scanInProgress is null and selectScanTarget(state) returns a
       non-null target, set state.scanInProgress to { target.position,
-      target.species, startTime: performance.now() }. On keyup of v while
+      target.species, startTime: performance.now() }. On keyup of f while
       a scan is in progress, evaluate elapsed = now - startTime. If
       elapsed >= SCAN_DURATION_MS (1500), commit the scan via commitScan(state)
       and clear state.scanInProgress. Otherwise just clear state.scanInProgress
@@ -84,7 +84,7 @@ behaviors:
       text input is focused, during dialog, when the menu is open, or when
       genesis is running.
     inputs:
-      - 'player presses or releases v while gameplay is active'
+      - 'player presses or releases f while gameplay is active'
       - 'state.scanInProgress and selectScanTarget(state) state'
     outputs:
       - 'state.scanInProgress transitions between null and { … }'
@@ -180,7 +180,7 @@ behaviors:
 edge_cases:
   - id: no-flora-in-range
     description: >
-      Player presses v while standing on dirt with no flora on cardinal
+      Player presses f while standing on dirt with no flora on cardinal
       neighbors. selectScanTarget returns null. scanInProgress remains null
       — no progress indicator appears.
     expected: >
@@ -188,7 +188,7 @@ edge_cases:
 
   - id: scan-while-running-second-keydown
     description: >
-      Player is holding v with a scan in progress. A second keydown of v
+      Player is holding f with a scan in progress. A second keydown of f
       fires (key repeat). The handler ignores the repeat — scanInProgress
       is not overwritten and startTime is not reset.
     expected: >
@@ -196,7 +196,7 @@ edge_cases:
 
   - id: scan-target-moves-mid-hold
     description: >
-      Player holds v on a flora tile. Before release, the plant dies
+      Player holds f on a flora tile. Before release, the plant dies
       through the lifecycle (Decomposing → Dirt) so the tile is no
       longer Flora. On keyup, commitScan re-evaluates via
       selectScanTarget. The target is null (or a different species).
@@ -230,10 +230,10 @@ edge_cases:
     description: >
       Player begins a scan (v down). Mid-hold, presses w (movement). The
       movement handler clears state.scanInProgress to null before processing
-      the move. The scan does not complete even if v is still held.
+      the move. The scan does not complete even if f is still held.
     expected: >
       scanInProgress is null. The player moves one step. The progress
-      indicator disappears. Releasing v afterward is a no-op (no active scan).
+      indicator disappears. Releasing f afterward is a no-op (no active scan).
 
 failure_conditions:
   - trigger: 'state.scannedSpecimens is mutated outside commitScan'

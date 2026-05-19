@@ -80,16 +80,20 @@ export const selectScanTarget = (state: GameState): ScanTarget | null => {
 //   - writes scannedSpecimens.set(species, identity) ONLY if species not
 //     already in the map (first scan locks the canonical specimen)
 //   - spawns a pickup bloom at the scanned tile
+//   - sets state.manualHighlightEntryId so the manual scrolls to and
+//     highlights the entry on next render
 //
-// If state.scanInProgress is null, or selectScanTarget returns a different
-// species (or null), the commit silently aborts.
-export const commitScan = (state: GameState, time: number): void => {
+// Returns true if the commit succeeded (caller may want to open the manual
+// screen), false otherwise. If state.scanInProgress is null, or
+// selectScanTarget returns a different species (or null), the commit
+// silently aborts.
+export const commitScan = (state: GameState, time: number): boolean => {
   const progress = state.scanInProgress
-  if (!progress) return
+  if (!progress) return false
 
   const target = selectScanTarget(state)
-  if (!target) return
-  if (target.species !== progress.species) return
+  if (!target) return false
+  if (target.species !== progress.species) return false
 
   recordDiscovery(state, `flora:${target.species}`)
 
@@ -98,4 +102,6 @@ export const commitScan = (state: GameState, time: number): void => {
   }
 
   spawnPickupBloom(state, target.position.x, target.position.y, time)
+  state.manualHighlightEntryId = `flora:${target.species}`
+  return true
 }

@@ -34,7 +34,7 @@ vi.mock('@/engine/movement', () => ({
 
 vi.mock('@/engine/scan', () => ({
   selectScanTarget: vi.fn(() => null),
-  commitScan: vi.fn(),
+  commitScan: vi.fn(() => true),
 }))
 
 vi.mock('@/engine/interaction', () => ({
@@ -517,7 +517,7 @@ describe('useKeyboard', () => {
     })
   })
 
-  describe('[v] hold-to-scan (precis #6)', () => {
+  describe('[f] hold-to-scan (precis #6)', () => {
     const stubTarget = {
       position: { x: 10, y: 10 },
       species: FloraSpecies.Clover,
@@ -528,7 +528,7 @@ describe('useKeyboard', () => {
       vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
       renderKeyboardHook()
       act(() => {
-        fireKey('v')
+        fireKey('f')
       })
       expect(state.scanInProgress).not.toBeNull()
       expect(state.scanInProgress?.species).toBe(FloraSpecies.Clover)
@@ -538,7 +538,7 @@ describe('useKeyboard', () => {
       vi.mocked(selectScanTarget).mockReturnValue(null)
       renderKeyboardHook()
       act(() => {
-        fireKey('v')
+        fireKey('f')
       })
       expect(state.scanInProgress).toBeNull()
     })
@@ -547,11 +547,11 @@ describe('useKeyboard', () => {
       vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
       renderKeyboardHook()
       act(() => {
-        fireKey('v')
+        fireKey('f')
       })
       const firstStart = state.scanInProgress?.startTime ?? 0
       act(() => {
-        fireKey('v', { repeat: true })
+        fireKey('f', { repeat: true })
       })
       expect(state.scanInProgress?.startTime).toBe(firstStart)
     })
@@ -560,12 +560,12 @@ describe('useKeyboard', () => {
       vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
       renderKeyboardHook()
       act(() => {
-        fireKey('v')
+        fireKey('f')
       })
       // Backdate startTime so the next performance.now() reading exceeds SCAN_DURATION_MS.
       if (state.scanInProgress) state.scanInProgress.startTime = performance.now() - 2000
       act(() => {
-        fireKeyUp('v')
+        fireKeyUp('f')
       })
       expect(commitScan).toHaveBeenCalledOnce()
       expect(state.scanInProgress).toBeNull()
@@ -575,12 +575,12 @@ describe('useKeyboard', () => {
       vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
       renderKeyboardHook()
       act(() => {
-        fireKey('v')
+        fireKey('f')
       })
       // Backdate by only 100ms — well under SCAN_DURATION_MS.
       if (state.scanInProgress) state.scanInProgress.startTime = performance.now() - 100
       act(() => {
-        fireKeyUp('v')
+        fireKeyUp('f')
       })
       expect(commitScan).not.toHaveBeenCalled()
       expect(state.scanInProgress).toBeNull()
@@ -590,7 +590,7 @@ describe('useKeyboard', () => {
       vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
       renderKeyboardHook()
       act(() => {
-        fireKey('v')
+        fireKey('f')
       })
       expect(state.scanInProgress).not.toBeNull()
       act(() => {
@@ -604,7 +604,7 @@ describe('useKeyboard', () => {
       state.activeDialog = { characterId: 'gron', lineIndex: 0 } as GameState['activeDialog']
       renderKeyboardHook()
       act(() => {
-        fireKey('v')
+        fireKey('f')
       })
       expect(state.scanInProgress).toBeNull()
     })

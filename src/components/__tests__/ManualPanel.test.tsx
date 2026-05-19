@@ -170,5 +170,24 @@ describe('ManualPanel', () => {
       // because the entry was filtered out before rendering.
       expect(screen.queryByText('Clover (Trifolium repens)')).not.toBeInTheDocument()
     })
+
+    it('applies a highlight container to the entry matching manualHighlightEntryId', () => {
+      const state = createTestState()
+      state.manualDiscoveries.add('flora:clover')
+      state.scannedSpecimens.set('clover', 'a'.repeat(64))
+      state.manualHighlightEntryId = 'flora:clover'
+      const { container } = render(<ManualPanel state={state} />)
+      const highlighted = container.querySelector('[data-highlighted="true"]')
+      expect(highlighted).not.toBeNull()
+      expect(highlighted?.id).toBe('manual-entry-flora:clover')
+    })
+
+    it('does not apply a highlight container when manualHighlightEntryId is null', () => {
+      const state = createTestState()
+      state.manualDiscoveries.add('flora:clover')
+      state.manualHighlightEntryId = null
+      const { container } = render(<ManualPanel state={state} />)
+      expect(container.querySelector('[data-highlighted="true"]')).toBeNull()
+    })
   })
 })

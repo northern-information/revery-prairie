@@ -257,11 +257,11 @@ export const useKeyboard = ({
         return
       }
 
-      // [v] — hold-to-scan flora with the permacomputer (precis #6).
+      // [f] — hold-to-scan flora with the permacomputer (precis #6).
       // Keydown begins a scan if there's a valid target nearby. Modal
-      // blocks (system menu, dialog) suppress. Key repeat on a held v
+      // blocks (system menu, dialog) suppress. Key repeat on a held f
       // is ignored — the original startTime stands.
-      if (e.key === 'v' || e.key === 'V') {
+      if (e.key === 'f' || e.key === 'F') {
         if (e.repeat) return
         if (state.activeDialog) return
         if (activeScreen === 'system') return
@@ -331,20 +331,26 @@ export const useKeyboard = ({
         state.heldDirection = resolveHeldDirection(state.heldKeys)
       }
 
-      // [v] release — commit or abort the scan (precis #6).
-      if (e.key === 'v' || e.key === 'V') {
+      // [f] release — commit or abort the scan (precis #6).
+      if (e.key === 'f' || e.key === 'F') {
         const progress = state.scanInProgress
         if (!progress) return
         const now = performance.now()
         const elapsed = now - progress.startTime
+        let committed = false
         if (elapsed >= SCAN_DURATION_MS) {
-          commitScan(state, now)
+          committed = commitScan(state, now)
         }
         state.scanInProgress = null
+        if (committed) {
+          // Open the manual to the scanned entry. The ManualPanel reads
+          // state.manualHighlightEntryId on render and scrolls + highlights.
+          setActiveScreen('manual')
+        }
         refreshUI()
       }
     },
-    [state, refreshUI]
+    [state, refreshUI, setActiveScreen]
   )
 
   useEffect(() => {

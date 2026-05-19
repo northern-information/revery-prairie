@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { HexGridView } from './HexGridView'
 import { SectionHeader, Tab, TextButton } from './PanelPrimitives'
 
@@ -252,13 +252,45 @@ const EntryCard = ({
   )
 }
 
+// Duration (ms) the highlight ring stays on a scanned entry after the manual
+// scrolls to it. After this, manualHighlightEntryId is cleared.
+const SCAN_HIGHLIGHT_MS = 2500
+
 export const ManualPanel = ({ state }: ManualPanelProps) => {
   const { manualState, manualDiscoveries, scannedSpecimens } = state
+  const highlightId = state.manualHighlightEntryId
 
   // Local React state synced with persistent manualState
   const [activeCategory, setActiveCategoryLocal] = useState(manualState.activeCategory)
   const [searchQuery, setSearchQueryLocal] = useState(manualState.searchQuery)
   const [, forceRender] = useState(0)
+
+  // When the manual opens with a highlight id set (just-scanned species),
+  // reset to ALL category, scroll the entry into view, and clear the
+  // highlight after a short beat.
+  useEffect(() => {
+    if (!highlightId) return
+    // Reset to ALL so the entry is definitely visible.
+    manualState.activeCategory = null
+    setActiveCategoryLocal(null)
+    manualState.searchQuery = ''
+    setSearchQueryLocal('')
+    // Scroll after the next render so the entry exists in the DOM.
+    const scrollTimer = window.setTimeout(() => {
+      const el = document.getElementById(`manual-entry-${highlightId}`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 0)
+    // Clear the highlight after the visual beat. The highlight ring is
+    // applied to the entry container while highlightId === entry.id.
+    const clearTimer = window.setTimeout(() => {
+      state.manualHighlightEntryId = null
+      forceRender(n => n + 1)
+    }, SCAN_HIGHLIGHT_MS)
+    return () => {
+      window.clearTimeout(scrollTimer)
+      window.clearTimeout(clearTimer)
+    }
+  }, [highlightId, manualState, state])
 
   const allEntries = [...Object.values(MANUAL_ENTRIES), ...getEgregoreManualEntries(state)]
   const filtered = searchQuery ? filterManualEntries(allEntries, searchQuery) : allEntries
@@ -342,18 +374,26 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
           return (
             <div key={cat}>
               <SectionHeader>{CATEGORY_LABELS[cat]}</SectionHeader>
-              {catEntries.map(entry => (
-                <div key={entry.id} id={`manual-entry-${entry.id}`}>
-                  <EntryCard
-                    entry={entry}
-                    discoveries={manualDiscoveries}
-                    scannedSpecimens={scannedSpecimens}
-                    manualState={manualState}
-                    showCategory={activeCategory === null}
-                    onToggleHint={toggleHint}
-                  />
-                </div>
-              ))}
+              {catEntries.map(entry => {
+                const isHighlighted = entry.id === highlightId
+                return (
+                  <div
+                    key={entry.id}
+                    id={`manual-entry-${entry.id}`}
+                    data-highlighted={isHighlighted ? 'true' : undefined}
+                    className={isHighlighted ? 'border-pink -mx-2 mb-2 rounded border-2 px-2 py-1' : ''}
+                  >
+                    <EntryCard
+                      entry={entry}
+                      discoveries={manualDiscoveries}
+                      scannedSpecimens={scannedSpecimens}
+                      manualState={manualState}
+                      showCategory={activeCategory === null}
+                      onToggleHint={toggleHint}
+                    />
+                  </div>
+                )
+              })}
             </div>
           )
         })}

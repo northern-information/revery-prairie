@@ -14,12 +14,12 @@ hand-authored lore goes in `MANUAL_LORE` table in `manual.ts`. run `/maintain-ma
 
 ## scan-to-discover flora (precis #6)
 
-flora species discovery is *not* automatic. the player must hold-scan a flora tile with `[v]` for ~1.5s while standing on or adjacent to it. on successful release `commitScan` (in `src/engine/scan.ts`) records the species discovery and writes the scanned plant's identity into `state.scannedSpecimens` — keyed by species, written once on first scan, never overwritten.
+flora species discovery is *not* automatic. the player must hold-scan a flora tile with `[f]` for ~1.5s while standing on or adjacent to it. on successful release `commitScan` (in `src/engine/scan.ts`) records the species discovery and writes the scanned plant's identity into `state.scannedSpecimens` — keyed by species, written once on first scan, never overwritten.
 
 the manual entry for a scanned species renders an 8×8 hex grid above the lore via `<HexGridView />`. the grid is derived from the cached first-specimen identity via `hashToHexGrid()` (in `src/engine/genetics/index.ts`). subsequent scans of the same species spawn a pickup bloom (player feedback) but do not change the cached identity or the rendered grid.
 
 undiscovered flora entries are completely hidden from the manual — they're filtered by `isDiscovered()` before render.
 
-`state.scanInProgress` tracks the active scan as `{ target, species, startTime }` or `null`. movement keys (`wasd`) clear it before processing the step — the scan aborts. early release of `[v]` aborts. key repeat on a held `[v]` is ignored. modal blocks (text input focus, dialog, menu, genesis) suppress the keydown.
+`state.scanInProgress` tracks the active scan as `{ target, species, startTime }` or `null`. movement keys (`wasd`) clear it before processing the step — the scan aborts. early release of `[f]` aborts. key repeat on a held `[f]` is ignored. modal blocks (text input focus, dialog, menu, genesis) suppress the keydown.
 
 **when adding new player-initiated discovery paths for other registries (fauna, biomes, etc.)**: follow this pattern — explicit player gesture, deterministic target selection, one cached specimen per category, no auto-discovery from walk-over.
