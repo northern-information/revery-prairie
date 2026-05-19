@@ -5,7 +5,7 @@ Terminal kanban for the 13-feature precis rollout. Doctrine: `docs/precis-thinkt
 ## Run
 
 ```
-npm run precis
+npm run backlog
 ```
 
 ## Keys

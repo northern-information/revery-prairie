@@ -1,0 +1,176 @@
+id: delete-event-log
+name: 'Delete the activity event log (UI, hook, and all call sites)'
+priority: high
+layer: component
+source_files:
+  - src/components/EventLog.tsx
+  - src/components/__tests__/EventLog.test.tsx
+  - src/hooks/useEventLog.ts
+  - src/components/GameScreen.tsx
+  - src/components/Sidebar.tsx
+  - src/components/InventoryPanel.tsx
+  - src/components/HexagramPanel.tsx
+  - src/components/GameCanvas.tsx
+  - src/components/DevPanel.tsx
+  - src/components/CreditsModal.tsx
+dependencies: []
+
+behaviors:
+  - id: event-log-component-deleted
+    description: >
+      The EventLog React component and its associated files are removed
+      from the codebase. After this change, no surface in the game
+      renders a running history of player actions. The world communicates
+      through its own state (pickup blooms, inventory updates, items
+      appearing on tiles, manual entries, etc.); it does not narrate
+      those state changes in text.
+    inputs:
+      - 'codebase after the change is applied'
+    outputs:
+      - 'src/components/EventLog.tsx does not exist'
+      - 'src/components/__tests__/EventLog.test.tsx does not exist'
+      - 'src/hooks/useEventLog.ts does not exist'
+      - 'no import of EventLog or useEventLog remains anywhere'
+      - '`npm run lint` and `npm run typecheck` pass'
+    state_changes: []
+    determinism: deterministic
+
+  - id: all-add-event-call-sites-removed
+    description: >
+      Every call site of the EventLog `addEvent` API in src/components
+      is removed. This includes the eight invocations in
+      src/components/GameScreen.tsx that fire pickup, drop, dialog,
+      combine, discovery, and narration events. The functions that
+      previously wrapped addEvent (onItemPickup, onItemDrop, onDialog,
+      onCombine, onDiscovery, etc.) are removed if their only purpose
+      was to emit log events; if they have other responsibilities, the
+      addEvent line is removed and the rest is preserved. Any prop
+      that existed solely to pass the addEvent callback down through
+      component layers (e.g. onPickup-style props on Sidebar,
+      InventoryPanel, HexagramPanel, GameCanvas, DevPanel) is removed.
+      Other matches of the substring "addEvent" — DOM event listeners
+      such as `window.addEventListener`, `ws.addEventListener`,
+      `canvas.addEventListener`, `el.addEventListener` — are unrelated
+      to the event log and must NOT be modified.
+    inputs:
+      - 'GameScreen.tsx after the change'
+      - 'all child components after the change'
+    outputs:
+      - 'grep for `addEvent\\(` (open-paren immediately after) returns zero matches in src/, except possibly in places unrelated to useEventLog'
+      - 'no call to useEventLog() remains in any component or hook'
+      - 'the production bundle no longer ships the EventLog component'
+    state_changes: []
+    determinism: deterministic
+
+  - id: world-effects-preserved
+    description: >
+      Every world-state effect that previously coincided with a log
+      entry continues to fire. Pickup blooms still spawn on item
+      acquisition (spawnPickupBloom). Items still appear on the ground
+      when dropped. Dialog still opens and closes. Recipes still
+      produce output items. Manual entries are still discovered. The
+      only thing this change removes is the running text panel that
+      narrated these effects back to the player — the effects
+      themselves are untouched.
+    inputs:
+      - 'player picks up an item'
+      - 'player drops an item'
+      - 'player talks to an NPC'
+      - 'a recipe fires via combine'
+      - 'a new species/recipe/entity is discovered'
+    outputs:
+      - 'pickup bloom spawns; item enters inventory; no text log entry appears'
+      - 'item appears on the tile; no text log entry appears'
+      - 'dialog opens and closes as today; no text log entry appears'
+      - 'recipe output appears in inventory or on the ground; no text log entry appears'
+      - 'manual entry-discovery flow fires as today; no text log entry appears'
+    state_changes: []
+    determinism: deterministic
+
+  - id: combine-feedback-acceptable-as-is
+    description: >
+      The previous EventLog `combine` entry is the one event whose
+      world-effect is the most subtle (recipe output materializes
+      silently). For this change, no new feedback surface is added to
+      replace it. The recipe still fires; the output appears; the
+      player infers the combine from the inventory/ground delta. A
+      future spec may add a one-frame tile flash or a chime, but it
+      is explicitly out of scope here. Scope for this spec is
+      deletion only — no compensating surfaces are introduced.
+    inputs:
+      - 'player triggers a recipe combine'
+    outputs:
+      - 'recipe fires; output appears; no visual or audio chime is added in this spec'
+    state_changes: []
+    determinism: deterministic
+
+  - id: bottom-bar-slot-vacated-cleanly
+    description: >
+      The EventLog previously rendered as the center widget of the
+      bottom-bar overlay (data-panel="bottom-bar"), as documented in
+      backpack-bottom-bar.yaml. After this change, the center slot is
+      empty. The Minimap (left) and the Backpack (right) remain in
+      place and retain their current dimensions. The empty center
+      gives the world canvas more breathing room visually — no layout
+      shift, no new placeholder, no replacement widget. The bottom-bar
+      overlay continues to use pointer-events-none between widgets
+      so the gap does not consume input.
+    inputs:
+      - 'GameScreen renders outside genesis'
+    outputs:
+      - 'data-panel="bottom-bar" mounts Minimap on the left and the Backpack on the right'
+      - 'the previous center slot that contained EventLog is gone (no element occupies it)'
+      - 'Minimap and Backpack visual dimensions are unchanged'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cursor-info-hover-suppression-removed-with-log
+    description: >
+      The EventLog previously suppressed sidebar cursor-info by nulling
+      state.cursorScreenPos and state.cursorTile on mouseenter
+      (EventLog.tsx:55-58, :83-84). With EventLog removed, this
+      suppression code is gone. The remaining suppression call sites
+      (the bottom-bar Backpack widget, per backpack-bottom-bar.yaml's
+      backpack-hover-clears-cursor-info contract) continue to work
+      unchanged.
+    inputs:
+      - 'mouse moves over the now-empty center slot of the bottom-bar'
+      - 'mouse moves over the Backpack widget'
+    outputs:
+      - 'cursor info on the world continues to update normally when the mouse is over the empty center slot'
+      - 'cursor info is suppressed when the mouse is over the Backpack widget (existing contract)'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: multiplayer-presence-not-affected
+    description: 'the multiplayer client (`src/network/client.ts`) uses `ws.addEventListener` — DOM-style, not the event log'
+    expected: 'no changes to network/client.ts; presence and chat unaffected'
+  - id: dev-panel-debug-readout
+    description: 'developer wants a runtime trace of in-game events while debugging'
+    expected: 'use console + browser devtools or extend DevPanel deliberately; the activity log is not coming back as a debug surface'
+  - id: tests-that-asserted-log-entries
+    description: 'existing tests that asserted log content (e.g. "expect log to contain Picked up Clover")'
+    expected: 'those assertions are removed entirely; do not rewrite them to assert against a replacement surface — there is no replacement'
+  - id: storybook-or-mocks-referencing-event-log
+    description: 'a stale story, mock, or fixture references EventLog or useEventLog'
+    expected: 'delete the reference; the component is gone'
+
+failure_conditions:
+  - trigger: 'EventLog.tsx or useEventLog.ts still exists after the change'
+    expected: 'both files must be deleted; spec violated otherwise'
+  - trigger: 'any production component imports a symbol from useEventLog or EventLog'
+    expected: 'no imports remain; spec violated otherwise'
+  - trigger: 'a new "feed", "log", "toast", "history", or "ticker" surface is introduced as a replacement'
+    expected: 'no replacement surface in this spec; if one is wanted, it ships under its own spec with its own ontological justification'
+  - trigger: 'pickup blooms or other diegetic world-effects stop firing as a side-effect of the deletion'
+    expected: 'world-effects are independent of the log; this change must not touch spawnPickupBloom, dialog flow, recipe execution, or manual discovery'
+  - trigger: 'the bottom-bar overlay layout breaks (Minimap moves, Backpack moves, or a stray element fills the center slot)'
+    expected: 'Minimap stays left, Backpack stays right, center is simply empty'
+  - trigger: 'a DOM-style `addEventListener` call is removed by mistake'
+    expected: 'DOM event listeners are unrelated to the activity log; the search pattern for removal is `addEvent\\(` (with open paren), not `addEvent` (as substring)'
+
+verification:
+  test_file: src/components/__tests__/InventoryPanel.test.tsx
+  test_pattern: 'InventoryPanel'
+  command: 'npx vitest run src/components/__tests__/InventoryPanel.test.tsx'

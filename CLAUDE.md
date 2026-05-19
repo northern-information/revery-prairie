@@ -73,7 +73,7 @@ npm run test:harness    # harness tests only
 npm run verify          # typecheck + lint + test (all three)
 npm run preview         # vite preview
 npm run deploy          # vite build + wrangler deploy from worker/ (needs wrangler login once)
-npm run precis          # terminal kanban for the precis sequencing
+npm run backlog         # terminal kanban for the backlog
 ```
 
 ## worktrees
