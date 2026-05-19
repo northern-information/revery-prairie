@@ -8,6 +8,7 @@ import { DragCursor } from './DragCursor'
 import { EventLog } from './EventLog'
 import { GameCanvas } from './GameCanvas'
 import { GenesisBottomBar } from './GenesisBottomBar'
+import { ScanProgressBar } from './ScanProgressBar'
 import { HexagramPanel } from './HexagramPanel'
 import { InventoryPanel } from './InventoryPanel'
 import { ItemInfo } from './ItemInfo'
@@ -244,6 +245,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
         <DevPanel state={state} refreshUI={refreshUI} metricsRef={metricsRef} />
       )}
       <BootTitleCardOverlay state={state} />
+      <ScanProgressBar state={state} activeScreen={activeScreen} />
       {state.genesis ? (
         <GenesisBottomBar state={state} />
       ) : (

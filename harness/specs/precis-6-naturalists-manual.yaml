@@ -1,0 +1,270 @@
+id: precis-6-naturalists-manual
+name: "Precis #6 — Naturalist's manual: scan-to-discover flora + hex grid"
+priority: medium
+layer: integration
+source_files:
+  - docs/precis-thinktank-v3.md
+  - docs/precis-status.yaml
+  - docs/claude/manual.md
+  - docs/claude/genetics.md
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/manual.ts
+  - src/engine/position.ts
+  - src/components/ManualPanel.tsx
+  - src/hooks/useKeyboard.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - precis-3-genetics-v1
+
+behaviors:
+  - id: scan-state-on-gamestate
+    description: >
+      GameState gains two new fields. state.scannedSpecimens is a
+      Map<FloraSpecies, string> mapping species to the SHA256 identity
+      of the first plant of that species the player ever successfully
+      scanned. Once written, the entry is never overwritten (subsequent
+      scans of the same species are visible no-ops). state.scanInProgress
+      is a nullable { target: Position; species: FloraSpecies; startTime: number }
+      record describing the currently-active scan, or null when no scan is
+      running. Both fields are added to EXPECTED_FIELDS in the schema
+      serialization test.
+    inputs:
+      - 'codebase after #6 lands'
+    outputs:
+      - 'state.scannedSpecimens: Map<FloraSpecies, string> exists on GameState'
+      - 'state.scanInProgress: ScanProgress | null exists on GameState'
+      - 'both fields are listed in EXPECTED_FIELDS in schema.test.ts'
+    state_changes:
+      - field: scannedSpecimens
+        effect: 'new Map<FloraSpecies, string>, populated by successful scans'
+      - field: scanInProgress
+        effect: 'null when idle; { target, species, startTime } when a scan is held'
+    determinism: deterministic
+
+  - id: scan-target-selection
+    description: >
+      A pure helper selectScanTarget(state) in src/engine/manual.ts (or a
+      new src/engine/scan.ts) returns the flora tile the player would scan
+      if they began holding the scan key now. The rule is:
+      (1) if the tile the player stands on is TileType.Flora, that is the
+          target.
+      (2) otherwise, of the four cardinal neighbors, prefer the one in
+          state.playerFacing direction if it is TileType.Flora.
+      (3) otherwise, scan the cardinal neighbors in fixed order (N, E, S, W)
+          and return the first that is TileType.Flora.
+      (4) if no flora tile is found in the player's tile or any cardinal
+          neighbor, return null.
+      The target includes the position, the species (read from
+      state.floraLifecycle.get(posKey)?.species), and the plant identity.
+      The function never reads state.scanInProgress — it only computes what
+      WOULD be scanned now.
+    inputs:
+      - 'state with a known player position and playerFacing'
+      - 'state.map populated; state.floraLifecycle populated'
+    outputs:
+      - '{ position: Position; species: FloraSpecies; identity: string } or null'
+    state_changes: []
+    determinism: deterministic
+
+  - id: hold-to-scan-keybinding
+    description: >
+      The keyboard handler in src/hooks/useKeyboard.ts gains a hold-down
+      binding for the f key (chosen because it is unused per the current
+      keybinds documented in CLAUDE.md). On keydown of v, if
+      state.scanInProgress is null and selectScanTarget(state) returns a
+      non-null target, set state.scanInProgress to { target.position,
+      target.species, startTime: performance.now() }. On keyup of f while
+      a scan is in progress, evaluate elapsed = now - startTime. If
+      elapsed >= SCAN_DURATION_MS (1500), commit the scan via commitScan(state)
+      and clear state.scanInProgress. Otherwise just clear state.scanInProgress
+      (early release aborts). Any movement key press (wasd) or click-to-move
+      while a scan is in progress also aborts — the scan is cancelled and
+      state.scanInProgress is set to null. The scan key is blocked when a
+      text input is focused, during dialog, when the menu is open, or when
+      genesis is running.
+    inputs:
+      - 'player presses or releases f while gameplay is active'
+      - 'state.scanInProgress and selectScanTarget(state) state'
+    outputs:
+      - 'state.scanInProgress transitions between null and { … }'
+      - 'on full-duration release, commitScan(state) fires'
+    state_changes:
+      - field: scanInProgress
+        effect: 'set on keydown if target exists; cleared on release, movement, or abort'
+    determinism: deterministic
+
+  - id: commit-scan-records-discovery
+    description: >
+      commitScan(state) in src/engine/scan.ts (new module) is called when
+      a hold completes. It reads state.scanInProgress (must be non-null).
+      It looks up the current target via selectScanTarget(state) — NOT
+      the cached target from scanInProgress — to handle the case where
+      the plant or player moved during the hold. If the current target
+      is null or the species differs from scanInProgress.species, the
+      commit silently aborts (no-op). Otherwise it: (1) calls
+      recordDiscovery(state, `flora:${species}`); (2) if
+      state.scannedSpecimens does NOT already contain the species, writes
+      state.scannedSpecimens.set(species, identity). If it already does,
+      the existing identity is preserved. (3) calls
+      spawnPickupBloom(state, x, y, time) at the target position — same
+      visual feedback as any other player-initiated acquisition.
+    inputs:
+      - 'commitScan(state) called after a successful hold-to-scan release'
+    outputs:
+      - 'manualDiscoveries gains "flora:${species}"'
+      - 'scannedSpecimens gains species → identity on first scan only'
+      - 'pickup bloom spawns at the scanned tile'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'flora:${species} added once'
+      - field: scannedSpecimens
+        effect: 'species → identity written on first successful scan'
+    determinism: deterministic
+
+  - id: manual-renders-hex-grid-for-scanned-species
+    description: >
+      The ManualPanel.tsx EntryCard for any flora entry (id starting
+      with "flora:") renders an 8x8 hex grid above the lore text when
+      the species has been scanned. The grid is derived from
+      hashToHexGrid(state.scannedSpecimens.get(species)) — the cached
+      identity of the first-scanned specimen. Each cell renders as a
+      monospace nibble character (0-9, a-f) in a faint color. Cells are
+      visually distinct (light border or background). The grid component
+      lives in a new src/components/HexGridView.tsx. Undiscovered
+      species do not appear in the manual at all (handled by the
+      existing isDiscovered() filter using the unlockKey).
+    inputs:
+      - 'player has scanned at least one plant of species X'
+      - 'player opens the manual and views the entry for species X'
+    outputs:
+      - 'the entry shows an 8x8 grid of hex nibble characters above the lore'
+      - 'undiscovered species are filtered from the manual entirely'
+    state_changes: []
+    determinism: deterministic
+
+  - id: scan-progress-visible-on-canvas
+    description: >
+      While state.scanInProgress is non-null, the renderer draws a small
+      progress indicator at the target tile position. The indicator is a
+      thin colored arc or ring that fills from 0% to 100% over
+      SCAN_DURATION_MS. The color is the species color from FLORA_SPECIES,
+      drawn at ~60% alpha. When the scan completes or aborts, the
+      indicator is removed. The indicator is rendered via a new pass in
+      src/engine/render/passes/scanProgress.ts and registered into the
+      "effect" slot (already documented as the post-tile overlay slot).
+    inputs:
+      - 'state.scanInProgress is non-null on a given frame'
+    outputs:
+      - 'a progress arc renders at the target tile, filling per elapsed time'
+    state_changes: []
+    determinism: deterministic
+
+  - id: doctrine-and-status-aligned
+    description: >
+      docs/precis-status.yaml is updated to mark feature 3 as shipped
+      (PR #328) and feature 6 as in-progress with spec/plan paths
+      populated. docs/claude/manual.md gains a "scan-to-discover" section
+      describing the new mechanic. docs/claude/genetics.md is updated to
+      note that #6 has shipped the hex grid surfacing per the documented
+      doctrine override.
+    inputs:
+      - 'codebase after #6 lands'
+    outputs:
+      - 'precis-status.yaml has feature 3 shipped, feature 6 in-progress'
+      - 'docs/claude/manual.md has a scan-to-discover section'
+      - 'docs/claude/genetics.md notes #6 has surfaced the grid'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: no-flora-in-range
+    description: >
+      Player presses f while standing on dirt with no flora on cardinal
+      neighbors. selectScanTarget returns null. scanInProgress remains null
+      — no progress indicator appears.
+    expected: >
+      The keydown is a no-op. No state changes. No visual feedback. No error.
+
+  - id: scan-while-running-second-keydown
+    description: >
+      Player is holding f with a scan in progress. A second keydown of f
+      fires (key repeat). The handler ignores the repeat — scanInProgress
+      is not overwritten and startTime is not reset.
+    expected: >
+      The active scan continues with its original startTime. No reset.
+
+  - id: scan-target-moves-mid-hold
+    description: >
+      Player holds f on a flora tile. Before release, the plant dies
+      through the lifecycle (Decomposing → Dirt) so the tile is no
+      longer Flora. On keyup, commitScan re-evaluates via
+      selectScanTarget. The target is null (or a different species).
+      The commit aborts.
+    expected: >
+      No discovery, no specimen cached, no bloom. scanInProgress cleared.
+
+  - id: scan-while-already-scanned
+    description: >
+      Player successfully scans a wildflower (entry unlocked, grid cached).
+      Later, the player scans a different wildflower with a different
+      identity. commitScan calls recordDiscovery (idempotent — already
+      discovered, no-op) and sees that scannedSpecimens already has the
+      species → checks "if not already in the map" and skips the write.
+      A pickup bloom still spawns as the player-feedback acknowledgment.
+    expected: >
+      No grid change in the manual. Discovery set unchanged. Bloom spawns.
+
+  - id: undiscovered-entries-hidden-from-search
+    description: >
+      ManualPanel's search bar filters entries. An undiscovered species
+      name "Echinacea purpurea" should not match any search query because
+      the entry is filtered out by isDiscovered before filterManualEntries
+      runs. Player typing the latin name in the search box sees no results
+      for that species until they have scanned one.
+    expected: >
+      Undiscovered flora entries are absent from the rendered manual
+      regardless of search input.
+
+  - id: movement-aborts-scan
+    description: >
+      Player begins a scan (v down). Mid-hold, presses w (movement). The
+      movement handler clears state.scanInProgress to null before processing
+      the move. The scan does not complete even if f is still held.
+    expected: >
+      scanInProgress is null. The player moves one step. The progress
+      indicator disappears. Releasing f afterward is a no-op (no active scan).
+
+failure_conditions:
+  - trigger: 'state.scannedSpecimens is mutated outside commitScan'
+    expected: >
+      No public API exposes the map for writing. Direct mutation in
+      tests is acceptable; production code must route through commitScan.
+      A code review check enforces this convention (no eslint rule —
+      the convention is documented in docs/claude/genetics.md).
+
+  - trigger: 'commitScan is called with state.scanInProgress === null'
+    expected: >
+      The function returns early without mutating state. The function is
+      defensive; the caller (the keyup handler) should have set it before
+      calling.
+
+  - trigger: 'hashToHexGrid is called with a non-64-char-hex string'
+    expected: >
+      Behavior is undefined per the function's existing contract from #3.
+      #6 must never pass a malformed identity. The
+      state.scannedSpecimens map values are SHA256 outputs from the
+      genetics module, guaranteed 64-char hex. Defensive assertion not
+      required.
+
+  - trigger: 'a flora entry is shown in the manual but the species has no scannedSpecimens entry'
+    expected: >
+      Impossible by construction — the entry is filtered out by
+      isDiscovered (unlockKey not in manualDiscoveries) before render.
+      If it somehow renders, the HexGridView component should gracefully
+      render nothing (no error, no placeholder grid).
+
+verification:
+  test_file: src/components/__tests__/ManualPanel.test.tsx
+  test_pattern: 'flora'
+  command: npx vitest run src/components/__tests__/ManualPanel.test.tsx

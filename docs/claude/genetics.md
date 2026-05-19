@@ -22,6 +22,8 @@ all `FloraLifecycleState` construction must route through `createFloraLifecycleE
 
 v3 doctrine (`docs/precis-thinktank-v3.md` lines 62-63) was overridden during #3 planning. the original "hex grid stays buried, only visible in late-game ritual" framing has been replaced. the 8×8 grid surfaces in #6 (naturalist's manual), player-facing. trait *numbers* are still never shown.
 
+**#6 has shipped this surface.** flora species discovered via hold-to-scan render their hex grid in the manual via `<HexGridView />`. the grid is keyed off `state.scannedSpecimens.get(species)` — the cached first-scanned identity. see `docs/claude/manual.md` for the scan flow.
+
 ## phenotype label split — #6 vs #4 (decided 2026-05-19)
 
 phenotype labels ("suspected: late blooming", "cold hardy", etc.) are *not* in #6. they ship in #4 (The Revery).

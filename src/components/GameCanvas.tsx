@@ -108,6 +108,9 @@ export const GameCanvas = ({
           setActiveScreenRef.current(null)
         }
       },
+      onOpenManual: () => {
+        setActiveScreenRef.current('manual')
+      },
       onFrame: time => {
         if (metricsRef.current) {
           updateCursorState(state, metricsRef.current)

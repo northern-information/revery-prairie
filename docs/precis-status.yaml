@@ -56,10 +56,10 @@ features:
     summary: SHA256 identity layer + trait-bag inheritance (option C). Not a breed-spike port. 8x8 hex grid derivation included (renderer ships in #6).
     size: M
     depends_on: ['1', '2']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-3-genetics-v1.yaml
     plan: harness/plans/precis-3-genetics-v1.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/328
     notes: 'Hex grid timing override — v3 doctrine line 62-63 said "stays buried, only in late-game ritual." Overridden: the grid surfaces in #6 as part of the naturalist''s manual, player-facing. Scope locked: identity + trait bag + pure crossing math + grid derivation. No callers in #3 — #6 renders the grid, #12 calls crossing.'
 
   - id: '4'
@@ -86,14 +86,14 @@ features:
 
   - id: '6'
     name: Naturalist's manual
-    summary: Traits surface as discovered phenotypes. No numbers. No genome viewer.
+    summary: Hold-to-scan flora with the permacomputer. Scanned species unlock in the manual with their 8x8 hex grid rendered above the lore. Phenotype labels are deferred to #4.
     size: S
     depends_on: ['3']
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/precis-6-naturalists-manual.yaml
+    plan: harness/plans/precis-6-naturalists-manual.yaml
     pr: null
-    notes: ''
+    notes: 'Scope locked: hold-to-scan ([v] key, 1.5s hold) + first-specimen-cached hex grid + per-species discovery. Undiscovered entries hidden entirely. No phenotype labels — those ship in #4 (the Revery) per the doctrine split decided 2026-05-19. See docs/precis-thinktank-v3.md genetics block for the reasoning.'
 
   - id: '7'
     name: Pollinator routes & preference

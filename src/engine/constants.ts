@@ -474,6 +474,10 @@ export const MONARCH_SETTLE_RADIUS = 3 // wander radius when settled
 
 export const INVENTORY_CELL_SIZE = 28
 
+// Precis #6 — hold-to-scan duration (ms). Releasing [v] before this elapses
+// aborts the scan; releasing at or after commits.
+export const SCAN_DURATION_MS = 1500
+
 export const RUIN_ENTRY_EVENTS: Record<RuinArchetype, string> = {
   [RuinArchetype.DormantGarden]: 'A dormant garden stirs beneath the dust.',
 }

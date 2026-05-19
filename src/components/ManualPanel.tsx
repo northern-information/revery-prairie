@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { SectionHeader, Tab, TextButton } from './PanelPrimitives'
+import { SpecimenStack } from './SpecimenStack'
 
 import {
   CATEGORY_ORDER,
@@ -11,7 +12,7 @@ import {
   ManualCategory,
 } from '@/engine/manual'
 import type { ManualEntry, ManualHint } from '@/engine/manual'
-import type { GameState, ManualState } from '@/engine/types'
+import type { FloraSpecies, GameState, ManualState, ScannedSpecimen } from '@/engine/types'
 
 const capitalize = (s: string): string => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1))
 
@@ -139,15 +140,25 @@ const EgregoreLore = ({ entry }: { entry: ManualEntry }) => {
   )
 }
 
+// Map a 'flora:<species>' entry id to the FloraSpecies key. Returns null
+// for non-flora entries. The species id segment matches the FloraSpecies
+// const values ('clover', 'wildflower', 'tallGrass').
+const speciesFromEntryId = (id: string): FloraSpecies | null => {
+  if (!id.startsWith('flora:')) return null
+  return id.slice('flora:'.length) as FloraSpecies
+}
+
 const EntryCard = ({
   entry,
   discoveries,
+  scannedSpecimens,
   manualState,
   showCategory,
   onToggleHint,
 }: {
   entry: ManualEntry
   discoveries: Set<string>
+  scannedSpecimens: Map<FloraSpecies, ScannedSpecimen[]>
   manualState: ManualState
   showCategory: boolean
   onToggleHint: (key: string) => void
@@ -155,6 +166,11 @@ const EntryCard = ({
   const discovered = isDiscovered(discoveries, entry)
   const isRecipe = entry.sourceKind === 'recipe'
   const recipeResultKey = `${entry.id}:result`
+
+  // Precis #6 — flora entries are completely hidden until the species is
+  // scanned via the permacomputer. Other entry types remain visible with
+  // hidden content (see lore gating for undiscovered recipes below).
+  if (entry.id.startsWith('flora:') && !discovered) return null
 
   return (
     <div className="mb-4">
@@ -195,6 +211,18 @@ const EntryCard = ({
       {/* Separator */}
       <div className="text-dim text-xs">{'----'}</div>
 
+      {/* Specimen stack — precis #6. Rendered above the lore for scanned
+          flora entries. One card per unique specimen identity; player pages
+          through. The stack opens to the latest card by default (the just-
+          scanned one when the manual is auto-opened after commit). */}
+      {(() => {
+        const species = speciesFromEntryId(entry.id)
+        if (!species) return null
+        const specimens = scannedSpecimens.get(species)
+        if (!specimens || specimens.length === 0) return null
+        return <SpecimenStack specimens={specimens} initialIndex={specimens.length - 1} />
+      })()}
+
       {/* Summary/lore — hidden for undiscovered recipes unless result spoiler is revealed.
           Egregore entries render their procedurally-generated EVA-token body in the
           Voynich typeface; Latin pierces inside the body remain ASCII so they render
@@ -225,13 +253,46 @@ const EntryCard = ({
   )
 }
 
+// How long the entry flash animation stays applied before manualHighlightEntryId
+// is cleared. Matches the animate-event-log-flash duration (600ms) plus a small
+// buffer so the animation completes cleanly before unmount.
+const SCAN_HIGHLIGHT_MS = 700
+
 export const ManualPanel = ({ state }: ManualPanelProps) => {
-  const { manualState, manualDiscoveries } = state
+  const { manualState, manualDiscoveries, scannedSpecimens } = state
+  const highlightId = state.manualHighlightEntryId
 
   // Local React state synced with persistent manualState
   const [activeCategory, setActiveCategoryLocal] = useState(manualState.activeCategory)
   const [searchQuery, setSearchQueryLocal] = useState(manualState.searchQuery)
   const [, forceRender] = useState(0)
+
+  // When the manual opens with a highlight id set (just-scanned species),
+  // reset to ALL category, scroll the entry into view, and clear the
+  // highlight after a short beat.
+  useEffect(() => {
+    if (!highlightId) return
+    // Reset to ALL so the entry is definitely visible.
+    manualState.activeCategory = null
+    setActiveCategoryLocal(null)
+    manualState.searchQuery = ''
+    setSearchQueryLocal('')
+    // Scroll after the next render so the entry exists in the DOM.
+    const scrollTimer = window.setTimeout(() => {
+      const el = document.getElementById(`manual-entry-${highlightId}`)
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 0)
+    // Clear the highlight after the visual beat. The highlight ring is
+    // applied to the entry container while highlightId === entry.id.
+    const clearTimer = window.setTimeout(() => {
+      state.manualHighlightEntryId = null
+      forceRender(n => n + 1)
+    }, SCAN_HIGHLIGHT_MS)
+    return () => {
+      window.clearTimeout(scrollTimer)
+      window.clearTimeout(clearTimer)
+    }
+  }, [highlightId, manualState, state])
 
   const allEntries = [...Object.values(MANUAL_ENTRIES), ...getEgregoreManualEntries(state)]
   const filtered = searchQuery ? filterManualEntries(allEntries, searchQuery) : allEntries
@@ -315,17 +376,26 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
           return (
             <div key={cat}>
               <SectionHeader>{CATEGORY_LABELS[cat]}</SectionHeader>
-              {catEntries.map(entry => (
-                <div key={entry.id} id={`manual-entry-${entry.id}`}>
-                  <EntryCard
-                    entry={entry}
-                    discoveries={manualDiscoveries}
-                    manualState={manualState}
-                    showCategory={activeCategory === null}
-                    onToggleHint={toggleHint}
-                  />
-                </div>
-              ))}
+              {catEntries.map(entry => {
+                const isHighlighted = entry.id === highlightId
+                return (
+                  <div
+                    key={entry.id}
+                    id={`manual-entry-${entry.id}`}
+                    data-highlighted={isHighlighted ? 'true' : undefined}
+                    className={isHighlighted ? 'animate-event-log-flash -mx-2 mb-2 rounded px-2 py-1' : ''}
+                  >
+                    <EntryCard
+                      entry={entry}
+                      discoveries={manualDiscoveries}
+                      scannedSpecimens={scannedSpecimens}
+                      manualState={manualState}
+                      showCategory={activeCategory === null}
+                      onToggleHint={toggleHint}
+                    />
+                  </div>
+                )
+              })}
             </div>
           )
         })}

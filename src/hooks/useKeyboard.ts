@@ -4,6 +4,7 @@ import { getCharacterDefinition } from '@/engine/characters'
 import { dropItem } from '@/engine/entities'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import { keyToScreenAxis, resolveHeldDirection } from '@/engine/heldKeys'
+import { selectScanTarget } from '@/engine/scan'
 import {
   advanceDialog,
   breakWall,
@@ -255,6 +256,26 @@ export const useKeyboard = ({
         return
       }
 
+      // [f] — hold-to-scan flora with the permacomputer (precis #6).
+      // Keydown begins a scan if there's a valid target nearby. Modal
+      // blocks (system menu, dialog) suppress. Key repeat on a held f
+      // is ignored — the original startTime stands.
+      if (e.key === 'f' || e.key === 'F') {
+        if (e.repeat) return
+        if (state.activeDialog) return
+        if (activeScreen === 'system') return
+        if (state.scanInProgress) return
+        const target = selectScanTarget(state)
+        if (!target) return
+        state.scanInProgress = {
+          target: target.position,
+          species: target.species,
+          startTime: performance.now(),
+        }
+        refreshUI()
+        return
+      }
+
       // Movement (allowed with pack open; WASD closes system)
       const axis = keyToScreenAxis(e.key)
       if (axis && activeScreen === 'system') {
@@ -272,6 +293,10 @@ export const useKeyboard = ({
       }
       if (axis) {
         e.preventDefault()
+        // Movement aborts an active scan — precis #6.
+        if (state.scanInProgress) {
+          state.scanInProgress = null
+        }
         state.heldKeys.add(axis)
         state.heldDirection = resolveHeldDirection(state.heldKeys)
         if (!e.repeat) {
@@ -304,8 +329,18 @@ export const useKeyboard = ({
         state.heldKeys.delete(axis)
         state.heldDirection = resolveHeldDirection(state.heldKeys)
       }
+
+      // [f] release — abort the scan (precis #6). Commit is auto-fired
+      // by the game loop once elapsed >= SCAN_DURATION_MS; releasing
+      // early just clears the in-progress state and shows nothing.
+      if (e.key === 'f' || e.key === 'F') {
+        if (state.scanInProgress) {
+          state.scanInProgress = null
+          refreshUI()
+        }
+      }
     },
-    [state]
+    [state, refreshUI]
   )
 
   useEffect(() => {

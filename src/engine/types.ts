@@ -186,6 +186,25 @@ export interface RemotePlayer {
   lastUpdateMs: number
 }
 
+// ─── precis #6 — naturalist's manual scan ────────────────────────────────────
+
+export interface ScanProgress {
+  target: Position
+  species: FloraSpecies
+  startTime: number
+}
+
+// One scanned specimen — what the naturalist's manual stores per scan.
+// Identity uniquely identifies the plant (the SHA256 from #3); time and
+// position are recorded for the manual's card display ("scanned 2 minutes
+// ago" / coordinates). Scans of the same identity (same plant) are
+// deduped at the commitScan call site.
+export interface ScannedSpecimen {
+  identity: string
+  scannedAt: number
+  position: Position
+}
+
 // ─── flora pollen ─────────────────────────────────────────────────────────────
 
 export interface PollenParticle {
@@ -371,6 +390,21 @@ export interface GameState {
   devEntityPreview: { x: number; y: number; char: string; color: string } | null
   multiplayerSession: MultiplayerSession | null
   remotePlayers: Map<string, RemotePlayer>
+  // Precis #6 — naturalist's manual scan-to-discover.
+  // scannedSpecimens maps each flora species to an ordered list of
+  // specimens the player has scanned, oldest first. Duplicates (same
+  // identity) are deduped at commit time. The manual entry renders a
+  // card stack with paging, one card per specimen.
+  scannedSpecimens: Map<FloraSpecies, ScannedSpecimen[]>
+  // Active scan state. Non-null while [f] is held and a valid target was
+  // found at keydown. Cleared on commit, early release, movement, or any
+  // other abort condition.
+  scanInProgress: ScanProgress | null
+  // The manual entry id (e.g. "flora:clover") that the manual should
+  // scroll to and highlight on its next render. Set by the scan keyup
+  // handler after a successful commit; cleared by ManualPanel once it has
+  // scrolled to the entry. Outside of scan flow, always null.
+  manualHighlightEntryId: string | null
   onPlayerMoved: (() => void) | null
   onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null
   onGenesisComplete: ((handoffTime: number) => void) | null
