@@ -152,13 +152,16 @@ edge_cases:
       a fit are still picked up.
     expected: 'unfitted entities not destroyed; fitted entities destroyed'
 
-  - id: zone-filter-not-changed
+  - id: zone-filter-applied
     description: >
-      The 3x3 scan still uses state.world.spatial.at (not the zone-filtered
-      helper). This matches the existing ground-item implementation. Cross-
-      zone entity bleed prevention remains the responsibility of upstream
-      systems and the cross-zone-entity-bleed spec.
-    expected: 'no change to zone filtering — same behavior as before'
+      The 3x3 scan filters by zone. scanTagged3x3 only returns entities for
+      which isEntityInCurrentZone(state, eid) is true, so the groundItem
+      branch and the meteorite branch both ignore entities tagged to a
+      different zone (or to a different ruinIndex within Zone.Ruin). The
+      detailed contract lives in the pickup-zone-filter spec; this edge
+      case exists to mark that pickup-hitbox 3x3 semantics apply only to
+      entities in the current zone.
+    expected: 'pickUpGroundItems only collects entities in the current zone'
 
   - id: chain-roll-independence
     description: >

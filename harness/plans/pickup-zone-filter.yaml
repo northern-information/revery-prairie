@@ -1,0 +1,103 @@
+plan:
+  id: pickup-zone-filter
+  title: Stop pickUpGroundItems from collecting entities in other zones
+  created: '2026-05-19'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: write-regression-tests
+    title: Write regression tests for cross-zone pickup isolation
+    spec_id: pickup-zone-filter
+    spec_sections:
+      - ground-item-pickup-current-zone-only
+      - meteorite-pickup-current-zone-only
+      - ruin-key-not-pickupable-from-overworld
+      - overworld-meteorite-not-pickupable-from-ruin
+      - same-zone-pickup-unaffected
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/zone.ts
+      - src/engine/ruins.ts
+      - src/engine/__tests__/entities.test.ts
+      - src/engine/__tests__/ruin-locked-door.test.ts
+      - src/engine/__tests__/zoneIsolation.test.ts
+    output_files:
+      - src/engine/__tests__/pickupZoneFilter.test.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/pickupZoneFilter.test.ts
+    repair: retry
+    tags:
+      - test
+    notes: >
+      Replace the it.todo stubs with concrete cases. Build the GameState
+      via the existing test helpers (createGameState-style) used in
+      entities.test.ts and zoneIsolation.test.ts. Three cases:
+
+      1. Player in Zone.Overworld at (x, y). Create a groundItem entity
+         at (x, y) with ItemDrop { definitionId: 'aqueductKey' },
+         EntityTag 'groundItem', EntityZone { zone: Zone.Ruin,
+         ruinIndex: 0 }. Call pickUpGroundItems(state, 5000). Assert
+         backpack has no aqueductKey, and the entity still has a
+         Position component (still alive in the ECS).
+
+      2. Player in Zone.Ruin (ruinIndex 0) at (x, y) — set
+         state.currentZone = Zone.Ruin and state.currentRuinIndex = 0.
+         Create a meteorite entity at (x, y) tagged Zone.Overworld.
+         Call pickUpGroundItems(state, 5000). Assert pickedUp does not
+         contain 'meteorite', chainExplosions is 0, and the meteorite
+         entity is still alive.
+
+      3. Sanity-check same-zone pickup still works: place a coin
+         tagged Zone.Overworld at the player's tile in Zone.Overworld
+         and assert it is picked up. This guards against an
+         over-correction that breaks normal pickup.
+
+      Follow CLAUDE.md testing rules: clearAroundPlayer() to ensure the
+      tile is walkable, vi.spyOn(Math, 'random') with
+      vi.restoreAllMocks() in a finally block where any random rolls
+      matter.
+
+      Run the test before applying the fix to confirm the first two
+      cases fail on main, then run after to confirm they pass.
+
+  - id: filter-scanTagged3x3-by-zone
+    title: Make scanTagged3x3 filter results through isEntityInCurrentZone
+    spec_id: pickup-zone-filter
+    spec_sections:
+      - scan-tagged-3x3-zone-filtered
+      - ground-item-pickup-current-zone-only
+      - meteorite-pickup-current-zone-only
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/zone.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on:
+      - write-regression-tests
+    verification:
+      - npx vitest run src/engine/__tests__/pickupZoneFilter.test.ts
+      - npx vitest run src/engine/__tests__/entities.test.ts
+      - npx vitest run src/engine/__tests__/meteoriteChainExplosion.test.ts
+      - npx vitest run src/engine/__tests__/zoneIsolation.test.ts
+      - npm run test:engine
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags:
+      - engine
+      - fix
+    notes: >
+      Inside src/engine/entities.ts, scanTagged3x3 currently pushes any
+      entity at the scanned tile whose EntityTag matches `tag`. Add an
+      isEntityInCurrentZone(state, eid) guard so cross-zone entities
+      are skipped. isEntityInCurrentZone is already imported from
+      './zone'. Do not change scanTagged3x3's signature. Do not touch
+      callers in entities.ts other than fixing import lines if needed.
+
+      Update the comment block above scanTagged3x3 to note the
+      zone-filtered behavior and point at the pickup-zone-filter spec.
+

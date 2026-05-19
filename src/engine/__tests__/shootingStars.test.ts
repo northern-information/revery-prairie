@@ -81,6 +81,7 @@ const createMeteoriteEntity = (state: GameState, x: number, y: number): Entity =
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.Pickupable, { definitionId: 'meteorite' })
   state.world.addComponent(e, ComponentType.EntityTag, 'meteorite')
+  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   return e
 }
 

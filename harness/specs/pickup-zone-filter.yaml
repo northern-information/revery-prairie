@@ -1,0 +1,143 @@
+id: pickup-zone-filter
+name: Player Pickup Honors Zone Boundaries
+priority: high
+layer: engine
+source_files:
+  - src/engine/entities.ts
+  - src/engine/zone.ts
+dependencies:
+  - cross-zone-entity-bleed
+  - pickup-hitbox
+  - persistent-dual-zone
+
+behaviors:
+  - id: ground-item-pickup-current-zone-only
+    description: >
+      pickUpGroundItems collects groundItem-tagged entities within the
+      player's 3x3 Chebyshev footprint only when those entities belong to
+      the player's current zone. Belonging is determined by
+      isEntityInCurrentZone(state, eid): the entity has an EntityZone
+      component, its zone matches state.currentZone, and (when the current
+      zone is Zone.Ruin) its ruinIndex matches state.currentRuinIndex.
+      Entities tagged to a different zone — even when sharing the same
+      (x, y) coordinates as the player — are not picked up and remain
+      alive in the world.
+    inputs:
+      - 'groundItem entities exist within 3x3 of player'
+      - 'pickUpGroundItems(state, time?) is called'
+    outputs:
+      - 'only same-zone groundItem entities are placed and destroyed'
+      - 'cross-zone groundItem entities are untouched (entity alive, backpack unchanged)'
+    state_changes:
+      - field: backpack
+        effect: 'only same-zone items added'
+      - field: world
+        effect: 'only same-zone placed entities destroyed'
+    determinism: deterministic
+
+  - id: meteorite-pickup-current-zone-only
+    description: >
+      The meteorite branch of pickUpGroundItems (capture and chain
+      explosion roll) considers only meteorite-tagged entities that
+      belong to the player's current zone. Meteorites tagged
+      Zone.Overworld do not interact with a player standing at
+      overlapping coordinates inside Zone.Ruin or Zone.Cave, and vice
+      versa.
+    inputs:
+      - 'meteorite-tagged entities exist within 3x3 of player'
+      - 'pickUpGroundItems(state, time?) is called'
+    outputs:
+      - 'only same-zone meteorites can be captured or trigger a chain roll'
+      - 'cross-zone meteorites are untouched'
+    state_changes:
+      - field: world
+        effect: 'only same-zone meteorites destroyed; chain spawns occur only when a same-zone meteorite rolls into explosion'
+    determinism: deterministic
+
+  - id: scan-tagged-3x3-zone-filtered
+    description: >
+      The internal scanTagged3x3 helper in src/engine/entities.ts filters
+      its results through isEntityInCurrentZone before returning. This
+      keeps every pickUpGroundItems consumer (groundItem branch and
+      meteorite branch) zone-correct from a single point. The helper is
+      a private implementation detail of the pickup pipeline; other
+      gameplay consumers continue to use spatialAtInCurrentZone directly.
+    inputs:
+      - 'scanTagged3x3(state, cx, cy, tag) called for any tag'
+    outputs:
+      - 'returned entity list contains only entities for which isEntityInCurrentZone(state, eid) === true'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: ruin-key-not-pickupable-from-overworld
+    description: >
+      An aqueduct key spawned inside a ruin (tagged { zone: Zone.Ruin,
+      ruinIndex: N }) at coordinates (x, y) does not enter the player's
+      backpack when the player walks to (x, y) in the overworld. The
+      entity remains in the world tagged to ruin N.
+    expected: >
+      backpack does not contain aqueductKey; the original entity is
+      still alive in the ECS with its EntityZone unchanged.
+
+  - id: overworld-meteorite-not-pickupable-from-ruin
+    description: >
+      A meteorite spawned in the overworld (tagged Zone.Overworld) at
+      coordinates (x, y) is not captured or rolled for chain explosion
+      when the player stands at (x, y) inside a ruin.
+    expected: >
+      backpack does not contain meteorite; chainExplosions is 0; the
+      meteorite entity is still alive in the ECS.
+
+  - id: ruin-to-ruin-isolation
+    description: >
+      Player is in ruin M. A groundItem tagged { zone: Zone.Ruin,
+      ruinIndex: N } (N !== M) exists at the player's coordinates.
+    expected: >
+      the cross-ruin item is not picked up; it remains tagged to ruin N.
+
+  - id: same-zone-pickup-unaffected
+    description: >
+      Player is in the overworld and walks adjacent to a coin tagged
+      Zone.Overworld; player is in ruin M and walks adjacent to an
+      aqueduct key tagged { zone: Zone.Ruin, ruinIndex: M }.
+    expected: >
+      both items are picked up exactly as before — pickup-hitbox 3x3
+      semantics are preserved for same-zone entities.
+
+  - id: entity-missing-zone-component
+    description: >
+      A legacy or test-fixture groundItem exists without an EntityZone
+      component.
+    expected: >
+      isEntityInCurrentZone returns false for the entity (strict mode
+      per cross-zone-entity-bleed). The item is not picked up. Existing
+      tests that create groundItems must add an EntityZone component to
+      keep their assertions valid.
+
+failure_conditions:
+  - trigger: >
+      Player in Zone.Overworld at (x, y); a groundItem tagged
+      { zone: Zone.Ruin, ruinIndex: 0 } exists at (x, y); pickUpGroundItems
+      is called.
+    expected: >
+      no item is added to the backpack; the ruin-tagged entity is still
+      alive. The reported aqueduct key bug does not reproduce.
+  - trigger: >
+      Player in Zone.Ruin (ruinIndex 0) at (x, y); a meteorite tagged
+      Zone.Overworld exists at (x, y); pickUpGroundItems(state, time) is
+      called.
+    expected: >
+      no meteorite is captured; chainExplosions is 0; the meteorite is
+      still alive in the world.
+  - trigger: >
+      A future contributor reintroduces a raw state.world.spatial.at
+      call in the pickup pipeline without a zone filter.
+    expected: >
+      contract violation flagged by code review. scanTagged3x3 must
+      remain the single zone-filtered entry point for pickup scans.
+
+verification:
+  test_file: src/engine/__tests__/pickupZoneFilter.test.ts
+  test_pattern: pickup zone filter
+  command: npx vitest run src/engine/__tests__/pickupZoneFilter.test.ts

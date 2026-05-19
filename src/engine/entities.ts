@@ -45,18 +45,21 @@ export interface PickUpResult {
 }
 
 // Scan the 3x3 Chebyshev footprint centered on (cx, cy) and return all
-// entities at those tiles whose EntityTag matches `tag`. Used for player
-// pickup checks (ground items, meteorites) so the hitbox is uniform.
-// Live bees are intentionally not captured by walk-over — see the bee
-// branch removal note inside pickUpGroundItems.
+// entities at those tiles whose EntityTag matches `tag` AND that belong to
+// the player's current zone. Used for player pickup checks (ground items,
+// meteorites) so the hitbox is uniform and cross-zone entities (e.g. a
+// ruin-tagged aqueduct key sitting at the same coordinates as the player
+// in the overworld) are not picked up. See harness/specs/pickup-zone-
+// filter.yaml for the contract. Live bees are intentionally not captured
+// by walk-over — see the bee branch removal note inside pickUpGroundItems.
 const scanTagged3x3 = (state: GameState, cx: number, cy: number, tag: string): Entity[] => {
   const result: Entity[] = []
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       for (const eid of state.world.spatial.at(cx + dx, cy + dy)) {
-        if (state.world.getComponent(eid, ComponentType.EntityTag) === tag) {
-          result.push(eid)
-        }
+        if (state.world.getComponent(eid, ComponentType.EntityTag) !== tag) continue
+        if (!isEntityInCurrentZone(state, eid)) continue
+        result.push(eid)
       }
     }
   }
