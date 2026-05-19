@@ -1,0 +1,217 @@
+id: seasonal-palette-wash
+name: 'Seasonal palette wash — continuous four-season tint with stable trailing edge'
+priority: medium
+layer: integration
+source_files:
+  - src/engine/renderer.ts
+  - src/engine/tileBg.ts
+  - src/engine/weather/index.ts
+  - src/engine/types.ts
+  - src/engine/__tests__/weather.test.ts
+dependencies:
+  - precis-2-phenological-seasons
+
+behaviors:
+  - id: per-season-wash-table
+    description: >
+      The renderer no longer hard-codes a single winter wash. Instead, a
+      table in src/engine/tileBg.ts defines a {target hex, intensity}
+      pair anchored at each of the four cardinal seasonalPhase values:
+      phase 0.00 (deep winter) = #B8BCC0 @ 0.40, phase 0.25 (spring
+      peak) = #A8C890 @ 0.10, phase 0.50 (deep summer) = #F4D58A @ 0.05,
+      phase 0.75 (autumn peak) = #C8865A @ 0.18. The previous
+      WINTER_WASH_TARGET and WINTER_WASH_INTENSITY constants are
+      either deleted or reused as the winter anchor — no code path
+      should still depend on a single global wash. Egregore tiles
+      remain exempt from the wash year-round (the per-glyph short-circuit
+      that already exists for winter applies to every season).
+    inputs:
+      - 'codebase after this PR lands'
+    outputs:
+      - 'a SEASON_WASH_ANCHORS table exists in src/engine/tileBg.ts keyed by the four cardinal phases'
+      - 'each anchor specifies target hex and blend intensity'
+    state_changes: []
+    determinism: deterministic
+
+  - id: continuous-wash-interpolation
+    description: >
+      A pure function seasonalWash(seasonalPhase: number): { target:
+      string; intensity: number } returns the current wash by linearly
+      interpolating between the two adjacent anchors in
+      SEASON_WASH_ANCHORS. The phase is normalized into [0, 1), the
+      pair of anchors bracketing the phase is selected, and target hex
+      + intensity are each lerped by the fractional position between
+      them. Wrap-around is handled at the 0.75 → 0.00 boundary (autumn
+      back to winter is a valid bracket). The function is pure, side
+      effect free, and memoizable on a coarse phase quantization if
+      profiling shows a hot path. No caller branches on weather.season
+      anymore for visual decisions — they all read seasonalPhase
+      directly via this function.
+    inputs:
+      - 'seasonalPhase ∈ [0, 1)'
+    outputs:
+      - 'seasonalWash(0.0) returns { #B8BCC0, 0.40 }'
+      - 'seasonalWash(0.25) returns { #A8C890, 0.10 }'
+      - 'seasonalWash(0.5) returns { #F4D58A, 0.05 }'
+      - 'seasonalWash(0.75) returns { #C8865A, 0.18 }'
+      - 'seasonalWash(0.125) returns the midpoint between winter and spring anchors'
+      - 'seasonalWash(0.875) returns the midpoint between autumn and winter anchors (wrap-around)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: applywash-generalized
+    description: >
+      applyWinterWash is renamed to applySeasonalWash(hex, target,
+      intensity) and accepts both the target hex and intensity as
+      arguments. The hex-to-RGB-lerp math is unchanged. The memoization
+      cache key is widened to include the target hex (previously
+      single-target so the target was implicit). Callers pass the
+      current { target, intensity } from seasonalWash(state.seasonalPhase).
+      No call site retains the WINTER_WASH_* constants — they either
+      become the winter row of SEASON_WASH_ANCHORS or are deleted.
+    inputs:
+      - 'codebase after this PR lands'
+    outputs:
+      - 'applyWinterWash no longer exists; applySeasonalWash takes (hex, target, intensity)'
+      - 'all call sites updated'
+    state_changes: []
+    determinism: deterministic
+
+  - id: per-glyph-wash-all-seasons
+    description: >
+      The central tile loop in src/engine/renderer.ts replaces the
+      'if (winterWash && ...)' gate at the per-glyph wash application
+      site with an always-on path while currentZone === Overworld and
+      currentZone !== Cave/Ruin. Each native tile glyph color is
+      blended toward the current seasonal target by the current
+      intensity. Egregore tiles short-circuit the wash exactly as
+      they do today (TileType.Egregore exemption). Cave and ruin zones
+      remain unwashed (no overworld weather underground).
+    inputs:
+      - 'a render frame while state.currentZone === Zone.Overworld'
+    outputs:
+      - 'every non-egregore overworld tile glyph color is blended toward seasonalWash(state.seasonalPhase).target'
+    state_changes: []
+    determinism: deterministic
+
+  - id: bg-cache-wash-viewport-anchored
+    description: >
+      The bg-cache wash rect at src/engine/renderer.ts:1077-1083 is
+      redrawn inside an isolated transform — ctx.save(),
+      ctx.setTransform(1, 0, 0, 1, 0, 0), the seasonal-tint fillRect
+      over the full canvas (0, 0, canvas.width, canvas.height),
+      ctx.restore(). This anchors the wash to viewport pixels rather
+      than world-translated pixels, so during a player MovementTween
+      (sub-tile drift translate at line 403) the wash stays put while
+      the cached tile bg image slides underneath. The wash color and
+      alpha are derived from seasonalWash(state.seasonalPhase) (target,
+      intensity) so the bg-cache wash matches the per-glyph wash for
+      every season. The rect is gated on currentZone === Overworld;
+      cave and ruin zones draw no wash rect.
+    inputs:
+      - 'a render frame while state.currentZone === Zone.Overworld'
+      - 'a MovementTween is active mid-step (driftPx or driftPy != 0)'
+    outputs:
+      - 'wash rect anchors to (0, 0)–(canvas.width, canvas.height) in canvas coordinates'
+      - 'trailing-edge bg-cache pixels remain washed throughout the tween'
+    state_changes: []
+    determinism: deterministic
+
+  - id: continuous-fade-at-season-boundaries
+    description: >
+      Because the wash is computed from continuous seasonalPhase (not
+      the discrete Season enum), transitions between seasons fade
+      smoothly over the seasonal-phase interpolation distance — there
+      is no instantaneous pop at the moment weather.season flips. A
+      brief temperature spike that flips weather.season mid-cycle no
+      longer flickers the wash; only seasonalPhase drives the visual.
+      Note: weather.season is still read for non-visual gates (flora
+      dormancy, snow sky pick) — those keep their existing instant
+      semantics per precis #2 doctrine.
+    inputs:
+      - 'two render frames at seasonalPhase = 0.249 and seasonalPhase = 0.251'
+    outputs:
+      - 'the wash target and intensity differ by no more than a small lerp step between the frames'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-exemption-all-seasons
+    description: >
+      The per-glyph wash continues to short-circuit when the tile
+      type is TileType.Egregore. The egregore tiles render at full
+      saturation through all four seasons, not just winter. The bg-cache
+      wash rect (drawn as a translucent overlay across the whole canvas)
+      affects the cached tile-bg layer beneath the egregore glyph but
+      the egregore glyph itself is drawn unwashed and remains visually
+      distinct.
+    inputs:
+      - 'a TileType.Egregore tile is rendered during any season'
+    outputs:
+      - 'the egregore glyph color is not passed through applySeasonalWash'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: phase-zero-boundary
+    description: >
+      seasonalWash is called with exactly seasonalPhase = 0.0 and with
+      seasonalPhase = 0.999.
+    expected: >
+      Both return finite, valid color/intensity values. The 0.0 case
+      returns the winter anchor exactly. The 0.999 case returns a value
+      very close to the winter anchor (interpolating from the autumn
+      anchor across the wrap).
+
+  - id: cave-zone-no-wash
+    description: >
+      The player descends into the cave during deep winter
+      (seasonalPhase = 0.0).
+    expected: >
+      Neither the bg-cache wash rect nor the per-glyph wash applies
+      while currentZone === Cave. The cave palette is unaffected by
+      season. Exiting the cave restores the wash immediately.
+
+  - id: movement-tween-active
+    description: >
+      The player triggers a movement tween mid-step at any seasonalPhase.
+    expected: >
+      The bg-cache image slides by the drift offset (the existing smooth
+      movement). The wash rect stays anchored to canvas (0, 0)–(W, H).
+      No trailing edge of the bg cache renders unwashed. The per-glyph
+      wash is unchanged (color modulation, not a translated overlay).
+
+  - id: summer-wash-near-invisible
+    description: >
+      The player observes the overworld at seasonalPhase ≈ 0.5 (deep
+      summer).
+    expected: >
+      The summer wash is target #F4D58A @ intensity 0.05 — a 5% blend
+      toward warm gold. Tile colors are only barely shifted. The world
+      should look essentially un-tinted, by design.
+
+  - id: existing-rain-front-tests
+    description: >
+      Tests in src/engine/__tests__/weather.test.ts that set
+      state.rainIntensity = 1 and assert tile rendering.
+    expected: >
+      Unaffected — the seasonal wash is independent of precipitation.
+      No existing rain-related test asserts on raw bg pixel colors.
+
+failure_conditions:
+  - trigger: 'after this PR lands, src/engine/renderer.ts still calls applyWinterWash by that exact name'
+    expected: 'CI fails — the rename to applySeasonalWash was not completed'
+  - trigger: 'the bg-cache wash fillRect is still drawn inside the world-translated transform (no save/setTransform/restore around it)'
+    expected: 'CI fails — trailing-edge stutter regression'
+  - trigger: 'a render frame at seasonalPhase = 0.25 (spring peak) applies the winter target color #B8BCC0 to the wash'
+    expected: 'CI fails — the seasonal interpolation is not wired to the bg-cache wash'
+  - trigger: 'seasonalWash(0.0) and seasonalWash(0.5) return identical target hex values'
+    expected: 'CI fails — the anchor table is misconfigured'
+  - trigger: 'an egregore tile glyph color is passed through the wash blend during any season'
+    expected: 'CI fails — egregore exemption was lost during generalization'
+  - trigger: 'a Cave or Ruin zone frame draws the bg-cache wash rect'
+    expected: 'CI fails — zone gate was lost during generalization'
+
+verification:
+  test_file: src/engine/__tests__/weather.test.ts
+  test_pattern: 'seasonal wash'
+  command: 'npx vitest run src/engine/__tests__/weather.test.ts -t "seasonal wash"'

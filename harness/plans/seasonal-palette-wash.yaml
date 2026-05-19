@@ -1,0 +1,72 @@
+plan:
+  id: seasonal-palette-wash
+  title: 'Continuous four-season palette wash + viewport-anchored bg-cache rect'
+  created: '2026-05-19'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/weather.test.ts
+
+tasks:
+  - id: seasonal-wash-anchors-and-function
+    title: 'Add SEASON_WASH_ANCHORS table and seasonalWash(phase) interpolator; generalize applyWinterWash → applySeasonalWash(hex, target, intensity)'
+    spec_id: seasonal-palette-wash
+    spec_sections:
+      - per-season-wash-table
+      - continuous-wash-interpolation
+      - applywash-generalized
+    context_files:
+      - src/engine/tileBg.ts
+      - src/engine/weather/index.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/tileBg.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, palette]
+
+  - id: renderer-wash-callers
+    title: 'Update renderer call sites: per-glyph wash uses applySeasonalWash with current { target, intensity } from seasonalWash(state.seasonalPhase); bg-cache wash uses canvas-anchored save/setTransform/restore around the fillRect with seasonal color and alpha; gate on currentZone === Overworld'
+    spec_id: seasonal-palette-wash
+    spec_sections:
+      - per-glyph-wash-all-seasons
+      - bg-cache-wash-viewport-anchored
+      - egregore-exemption-all-seasons
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - seasonal-wash-anchors-and-function
+    verification:
+      - npx tsc -b --noEmit
+      - npm run lint
+    repair: retry
+    tags: [engine, renderer]
+
+  - id: regression-tests
+    title: 'Add regression tests: seasonalWash anchor values; midpoint interpolation between adjacent anchors; wrap-around at 0.75 → 0.0; cave zone produces no wash; movement-tween bg-cache wash trailing-edge coverage assertion'
+    spec_id: seasonal-palette-wash
+    spec_sections:
+      - per-season-wash-table
+      - continuous-wash-interpolation
+      - bg-cache-wash-viewport-anchored
+      - continuous-fade-at-season-boundaries
+    context_files:
+      - src/engine/__tests__/weather.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/tileBg.ts
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/__tests__/weather.test.ts
+    depends_on:
+      - seasonal-wash-anchors-and-function
+      - renderer-wash-callers
+    verification:
+      - npx vitest run src/engine/__tests__/weather.test.ts -t "seasonal wash"
+    repair: retry
+    tags: [engine, test]
