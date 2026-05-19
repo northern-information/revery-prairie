@@ -526,6 +526,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const suppressedEntities = new Set<number>()
   for (const eid of state.world.query(ComponentType.MovementTween, ComponentType.Position)) {
     if (!inZone(eid)) continue
+    // Angels render as a 9x9 body via angelMap with a shared per-group
+    // tween offset applied at deferred-entity flush time. They must not
+    // also appear as a single tweening glyph here, or the dialog portrait
+    // 'O' would drift across the body during a drift.
+    if (state.world.getComponent(eid, ComponentType.AngelData) !== undefined) continue
     const tween = state.world.getComponent(eid, ComponentType.MovementTween)
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!tween || !pos) continue
@@ -752,7 +757,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Populate angel body pixels (from ECS).
   // Track angel body tile groups so hovering/facing any tile highlights all.
+  // If the angel has a MovementTween (drift in flight), record a shared
+  // fractional pixel offset for the entire 9x9 body. Every body tile in the
+  // group renders at integer destination positions for hit-test / blocking /
+  // group highlight purposes, but the deferred-entity flush adds the offset
+  // to the glyph and highlight draw coords so all 81 pixels glide together.
   const angelBodyGroups: Set<string>[] = []
+  const angelTweenOffset = new Map<string, { dxPx: number; dyPx: number }>()
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
     if (!inZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -769,6 +780,22 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     angelBodyGroups.push(group)
     for (const key of group) {
       angelTileToGroup.set(key, group)
+    }
+
+    const tween = state.world.getComponent(eid, ComponentType.MovementTween)
+    if (tween) {
+      const lerp = getTweenLerp(tween, time, pos.x, pos.y)
+      if (lerp.t >= 1) {
+        state.world.removeComponent(eid, ComponentType.MovementTween)
+      } else {
+        const delta = worldDeltaToIsoPx(lerp.x - pos.x, lerp.y - pos.y, charWidth, charHeight)
+        if (delta.px !== 0 || delta.py !== 0) {
+          const offset = { dxPx: delta.px, dyPx: delta.py }
+          for (const key of group) {
+            angelTweenOffset.set(key, offset)
+          }
+        }
+      }
     }
   }
 
@@ -1491,16 +1518,19 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const isPlayerOwnTile = mx === player.x && my === player.y && state.playerSpawn.visible
       if (isEntity || isPlayerOwnTile) {
         const angelLift = isAngelPixel ? -ANGEL_FLOAT_LIFT_PX : 0
+        const tweenOffset = isAngelPixel ? angelTweenOffset.get(tileKey) : undefined
+        const tweenDx = tweenOffset?.dxPx ?? 0
+        const tweenDy = tweenOffset?.dyPx ?? 0
         const glyphPx = isPlayerOwnTile ? playerScreen.px : px
         const glyphPyBase = isPlayerOwnTile ? playerScreen.py + playerLift : pyLift
         deferredEntities.push({
           char,
           color: highlight ? BG_COLOR : color,
-          glyphPx,
-          glyphPy: glyphPyBase + angelLift,
+          glyphPx: glyphPx + tweenDx,
+          glyphPy: glyphPyBase + angelLift + tweenDy,
           highlight,
-          highlightPx: px,
-          highlightPy: pyLift + angelLift,
+          highlightPx: px + tweenDx,
+          highlightPy: pyLift + angelLift + tweenDy,
           alpha: 1,
         })
         continue
@@ -1609,17 +1639,18 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       }
     }
   }
-  // Smooth-movement post-pass — draw tweening ECS entities at fractional pixel positions.
-  // Apply the angel float lift for any tweened entity tagged as angel
-  // body, so a tweening angel would still float above terrain. No
-  // current entity hits this branch (angels move tile-discrete) but
-  // the lift is captured here for forward compatibility.
+  // Smooth-movement post-pass — draw tweening single-glyph ECS entities
+  // (bees, monarchs, named characters) at fractional pixel positions.
+  // Multi-tile entities like angels are explicitly filtered out of the
+  // tweenedEntities collection above and are NOT drawn here: their
+  // 81-pixel body is populated into angelMap at integer destination
+  // positions and flushed via deferredEntities, with a shared per-group
+  // pixel offset (angelTweenOffset) applied at flush time so the whole
+  // body glides together.
   for (const t of tweenedEntities) {
     const { px, py } = worldToScreen(t.lerpX, t.lerpY, camera, charWidth, charHeight, viewportWidth, viewportHeight)
-    const isAngel = state.world.getComponent(t.eid, ComponentType.AngelData) !== undefined
-    const angelLift = isAngel ? -ANGEL_FLOAT_LIFT_PX : 0
     ctx.fillStyle = t.color
-    ctx.fillText(t.char, px, py + liftAt(Math.floor(t.lerpX), Math.floor(t.lerpY)) + angelLift)
+    ctx.fillText(t.char, px, py + liftAt(Math.floor(t.lerpX), Math.floor(t.lerpY)))
   }
 
   // Flush deferred flora glyphs — drawn after all terrain backgrounds so no

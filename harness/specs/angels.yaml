@@ -9,6 +9,7 @@ source_files:
   - src/engine/ecs/types.ts
   - src/engine/constants.ts
   - src/engine/renderer.ts
+  - src/engine/movementTween.ts
   - src/engine/gameLoop.ts
   - src/engine/entities.ts
   - src/engine/effects.ts
@@ -55,10 +56,13 @@ behaviors:
 
   - id: angel-drifting
     description: >
-      Angels drift across the overworld with a 20% chance per tick
-      (ANGEL_DRIFT_CHANCE = 0.2). Movement updates all tiles in the angel's
+      Angels drift across the overworld every tick
+      (ANGEL_DRIFT_CHANCE = 1.0). Movement updates all tiles in the angel's
       9x9 body. Angels avoid space, sand, cave entrance, water, and
       other blocked positions. Drift is frozen during active dialog.
+      Logical position updates discretely (one tile per drift step); the
+      visual tween between source and destination is handled by
+      angel-drift-tween and is purely cosmetic.
     inputs:
       - 'Angel entity exists'
       - 'Drift tick fires'
@@ -69,7 +73,38 @@ behaviors:
         effect: 'angel center position moves by 1 tile'
       - field: world.MultiPosition
         effect: 'all 9x9 body positions recalculated from new anchor'
+      - field: world.MovementTween
+        effect: 'tween component set on angel entity by world.moveEntity with durationMs=ANGEL_DRIFT_TICK_MS'
     determinism: probabilistic
+
+  - id: angel-drift-tween
+    description: >
+      The 9x9 angel body interpolates smoothly between drift source and
+      destination over the duration of the drift step. The renderer reads
+      the MovementTween component on the angel entity and applies a shared
+      fractional pixel offset of (lerpX - destX, lerpY - destY) * tileSize
+      to every body pixel for the duration of the tween. All 81 body
+      pixels move together — no per-tile stagger. Animation frames (eye
+      cluster, wings) continue to advance on their own ~200ms cadence
+      independent of the tween, so the body appears to glide while still
+      flickering. The tween duration matches the moveEntity durationMs
+      passed in tickAngelDrift (ANGEL_DRIFT_TICK_MS = 2000ms, configurable).
+      Once the tween completes (t >= 1), the renderer removes the
+      MovementTween component and the body renders at integer destination
+      tile positions for subsequent frames until the next drift. The gold
+      aura, rain overlay, bee/clover aura ticks, dialog trigger, movement
+      blocking, click-to-interact, and sidebar info all key off the
+      integer Position/MultiPosition and do NOT tween — the body slides
+      into its tile-snapped aura.
+    inputs:
+      - 'Angel entity has MovementTween component'
+      - 'Current render time'
+    outputs:
+      - 'Angel 9x9 body drawn at fractional pixel positions interpolated between fromX/fromY and Position.x/Position.y'
+    state_changes:
+      - field: world.MovementTween
+        effect: 'component removed when tween elapsed time >= durationMs'
+    determinism: time-based
 
   - id: angel-animation
     description: >
@@ -323,6 +358,22 @@ edge_cases:
   - id: angel-drift-into-water
     description: 'Angel drifts toward a pond or river tile'
     expected: 'Drift validation rejects the move; angel stays in place'
+
+  - id: angel-tween-during-zone-transition
+    description: 'Player enters cave while angel body is mid-tween'
+    expected: 'clearMovementTweens removes the angel tween component along with the player tween; on overworld return, body renders at integer Position with no carry-over interpolation'
+
+  - id: angel-dialog-during-tween
+    description: 'Player walks under tweening angel and opens dialog mid-tween'
+    expected: 'Tween completes normally over its remaining duration; subsequent drift ticks are frozen by the active-dialog check until dialog closes'
+
+  - id: angel-despawn-during-tween
+    description: 'ANGEL_LIFESPAN_MS elapses while body is mid-tween'
+    expected: 'Entity is destroyed; MovementTween component is removed with the entity; despawn flash fires as normal'
+
+  - id: angel-drift-tick-before-tween-complete
+    description: 'Drift tick fires again while previous tween is still in flight'
+    expected: 'moveEntity overwrites the MovementTween component with a new fromX/fromY snapshot of the previous destination; body resumes tweening from current logical position toward new destination'
 
   - id: angel-zone-transition
     description: 'Player enters cave while angel exists on overworld'
