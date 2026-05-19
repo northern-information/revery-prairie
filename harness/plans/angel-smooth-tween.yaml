@@ -1,0 +1,68 @@
+plan:
+  id: angel-smooth-tween
+  title: 'Angel 9x9 body interpolates smoothly between drift tiles via MovementTween'
+  created: '2026-05-18'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/angels.test.ts
+
+tasks:
+  - id: renderer-angel-tween-offset
+    title: 'Read MovementTween component on angel entity and offset the 9x9 body by a shared fractional pixel delta'
+    spec_id: angels
+    spec_sections:
+      - angel-drift-tween
+      - angel-drifting
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/angels.ts
+      - src/engine/angelAnimation.ts
+      - src/engine/movementTween.ts
+      - src/engine/ecs/types.ts
+      - src/engine/ecs/world.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, renderer]
+
+  - id: renderer-comment-cleanup
+    title: 'Update the smooth-movement post-pass comment that claims no current entity tweens at fractional pixel positions for the angel body — angels now do'
+    spec_id: angels
+    spec_sections:
+      - angel-drift-tween
+    context_files:
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - renderer-angel-tween-offset
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, renderer]
+
+  - id: regression-tests
+    title: 'Add regression tests: angels.ts moveEntity call sets MovementTween with ANGEL_DRIFT_TICK_MS; tween clears on cave entry via clearMovementTweens; drift tick during in-flight tween overwrites fromX/fromY'
+    spec_id: angels
+    spec_sections:
+      - angel-drift-tween
+      - angel-drifting
+    context_files:
+      - src/engine/__tests__/angels.test.ts
+      - src/engine/angels.ts
+      - src/engine/movementTween.ts
+      - src/engine/cave.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/__tests__/angels.test.ts
+    depends_on:
+      - renderer-angel-tween-offset
+    verification:
+      - npx vitest run src/engine/__tests__/angels.test.ts
+    repair: retry
+    tags: [engine, test]
