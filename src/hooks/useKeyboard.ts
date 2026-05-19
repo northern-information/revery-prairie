@@ -102,6 +102,13 @@ export const useKeyboard = ({
         if (!allowed) return
       }
 
+      // Precis #4 — Revery hard input lock. During Observing, every keypress
+      // is swallowed. During Summary, any keypress dismisses the overlay and
+      // advances to Closing (handled by the GameScreen-level dismiss listener
+      // wired in Tier 8c — useKeyboard just returns early so gameplay keys
+      // don't double-fire).
+      if (state.revery?.active) return
+
       // Escape: close dialog, then screen, then open system
       if (e.key === 'Escape') {
         if (state.activeDialog) {

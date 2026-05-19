@@ -45,6 +45,8 @@ import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { getDefinition } from './items'
 import { spawnLightningStrike, tickLightning } from './lightning'
 import { recordDiscovery } from './manual'
+import { detectOmen } from './omen'
+import { initiateRevery, tickRevery } from './revery'
 import { tickMonarchs } from './monarch'
 import { movePlayer, tickPath } from './movement'
 import { tickDormantGardenDecay } from './ruins'
@@ -804,6 +806,18 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
         callbacks.onRefreshUI?.()
       }
     }
+
+    // Precis #4 — omen detection + Revery state machine. Runs after the
+    // standard tick block so detectOmen sees the latest world state, and
+    // BEFORE the next frame's input handlers fire so the Omen → Observing
+    // transition is reflected by the time movePlayer / keyboard checks.
+    // detectOmen also reads state.lastSky vs state.weather.sky; we update
+    // state.lastSky at the very end so the NEXT frame's check sees the
+    // current frame's sky as "previous."
+    const omen = detectOmen(state, time)
+    if (omen) initiateRevery(state, time, omen)
+    tickRevery(state, 0, time)
+    state.lastSky = state.weather.sky
   }
 
   const loop = (rawTime: number): void => {

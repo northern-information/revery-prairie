@@ -420,6 +420,32 @@ export const DEEP_TIME_LIGHTNING_COUNT = 13
 export const DEEP_TIME_SHAKE_AMPLITUDE = 3 // pixels
 export const DEEP_TIME_SHAKE_DURATION_MS = 200 // per-strike shake
 
+// precis #4 — the Revery. Compressed-time observation phase. See
+// docs/claude/revery.md for the full phase machine and rationale.
+// Smaller than DEEP_TIME_YEARS_PER_FRAME (1) — the Revery passes through
+// a single winter, not a millennium. ~60 frames/sec * ~0.005 years/frame
+// at this rate yields ~3.3 seconds of wall-clock for one full year.
+export const REVERY_YEARS_PER_FRAME = 0.005
+// Cooldown between Reveries. SEASONAL_PHASE_PERIOD_MS = one full year of
+// overworld time; subsequent Reveries can't fire more than once per year.
+export const REVERY_COOLDOWN_MS = SEASONAL_PHASE_PERIOD_MS
+// How often the camera shifts during Observing. Stable cadence keeps the
+// drift feeling ceremonial rather than chaotic.
+export const REVERY_CAMERA_DRIFT_INTERVAL_MS = 800
+// How long the player must stand still before the cloud-passing-sun omen
+// is eligible to fire.
+export const REVERY_OMEN_STATIONARY_MS = 2_000
+// First-Revery hardcoded egregoric advance per v3 doctrine 8a section.
+export const FIRST_REVERY_EGREGORE_COUNT = 3
+// Ordered axes the phenotype label rotates through, by reveryCount %
+// PHENOTYPE_AXES.length. Order is the trait-bag insertion order in #3.
+export const PHENOTYPE_AXES = [
+  'bloomTiming',
+  'coldTolerance',
+  'droughtResponse',
+  'pollinatorPreference',
+] as const
+
 // coyote companion
 export const COYOTE_CHAR = 'C'
 export const COYOTE_COLOR = '#D4A054'

@@ -8,6 +8,7 @@ import { recordDiscovery } from './manual'
 import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { isDiagonalDirection, TileType, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
+import { isReveryLocked } from './revery'
 import { isInputGated } from './zoneTransition'
 
 import type { Direction, GameState, Position } from './types'
@@ -77,6 +78,10 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   // map swap fires at midpoint inside tickZoneTransition.
   if (isInputGated(state)) return false
 
+  // Precis #4 — hard input lock during the Revery. Movement is suppressed
+  // through Observing and Summary phases; releases on Closing → null.
+  if (isReveryLocked(state)) return false
+
   const d = DIRECTIONS[dir]
   const nx = state.player.x + d.x
   const ny = state.player.y + d.y
@@ -135,6 +140,10 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   }
   state.player.x = nx
   state.player.y = ny
+  // Precis #4 — reset the stationary-since clock on every successful step.
+  // The cloud-passing-sun omen requires the player to stand still for
+  // REVERY_OMEN_STATIONARY_MS before the sky transition fires.
+  state.playerStationarySince = performance.now()
 
   // Pollen trail: emit a footstep puff on every step off a clover tile,
   // count consecutive clover steps, and fire a burst when fully leaving.
@@ -186,6 +195,9 @@ export const tickPath = (state: GameState): boolean => {
   // Freeze any active path while a zone transition is in flight; do
   // not clear it. When the transition completes the path resumes.
   if (isInputGated(state)) return false
+  // Precis #4 — Revery clears state.path in initiateRevery, so this is
+  // defense in depth.
+  if (isReveryLocked(state)) return false
 
   if (!state.path || state.path.length === 0) {
     state.path = null
