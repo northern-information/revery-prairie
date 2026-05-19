@@ -9,9 +9,10 @@ const REPO_ROOT = join(__dirname, '..', '..', '..', '..')
 const readSrc = (relPath: string) => readFileSync(join(REPO_ROOT, relPath), 'utf-8')
 
 describe('interact key remap (E -> F)', () => {
-  it('KEYBINDINGS registry binds interact to f, not e', () => {
-    const interact = KEYBINDINGS.find(kb => kb.action === 'Interact')
-    expect(interact?.key).toBe('f')
+  it('KEYBINDINGS registry binds f to a combined Interact/Scan action', () => {
+    const binding = KEYBINDINGS.find(kb => kb.key === 'f')
+    expect(binding).toBeDefined()
+    expect(binding?.action).toBe('Interact / Scan')
   })
 
   it('useKeyboard does not match the literal e/E interact key', () => {

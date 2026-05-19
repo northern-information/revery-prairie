@@ -609,4 +609,41 @@ describe('useKeyboard', () => {
       expect(state.scanInProgress).toBeNull()
     })
   })
+
+  describe('[f] shares with interact (precis #6 + remap)', () => {
+    const stubTarget = {
+      position: { x: 10, y: 10 },
+      species: FloraSpecies.Clover,
+      identity: 'b'.repeat(64),
+    }
+
+    it('interact wins when both an adjacent character and a scan target are in range', () => {
+      const character = { definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }
+      vi.mocked(getAdjacentCharacter).mockReturnValue(character)
+      vi.mocked(interactWithCharacter).mockReturnValue({ opened: true, gift: null, coyoteToggled: false })
+      vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
+      renderKeyboardHook()
+
+      act(() => {
+        fireKey('f')
+      })
+
+      expect(interactWithCharacter).toHaveBeenCalledWith(state)
+      expect(state.scanInProgress).toBeNull()
+    })
+
+    it('falls through to scan when no interactable is in range', () => {
+      vi.mocked(getAdjacentCharacter).mockReturnValue(null)
+      vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
+      renderKeyboardHook()
+
+      act(() => {
+        fireKey('f')
+      })
+
+      expect(interactWithCharacter).not.toHaveBeenCalled()
+      expect(state.scanInProgress).not.toBeNull()
+      expect(state.scanInProgress?.species).toBe(FloraSpecies.Clover)
+    })
+  })
 })
