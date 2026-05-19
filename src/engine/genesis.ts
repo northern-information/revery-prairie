@@ -2,6 +2,9 @@ import { generateBoltPath } from './boltPath'
 import {
   BURN_SCAR_COLORS as GAME_BURN_SCAR_COLORS,
   DIRT_COLORS as GAME_DIRT_COLORS,
+  GENESIS_EGREGORE_BIAS_RADIUS,
+  GENESIS_EGREGORE_TILE_COUNT_MAX,
+  GENESIS_EGREGORE_TILE_COUNT_MIN,
   GENESIS_FLORA_PATCH_TILES_MAX,
   GENESIS_FLORA_PATCH_TILES_MIN,
   GENESIS_TALL_GRASS_PATCH_COUNT_MAX,
@@ -3472,6 +3475,94 @@ export const postProcessMultiSpeciesFlora = (sim: GenesisSimState): Map<string, 
   for (let i = 0; i < tallGrassPatches; i++) placePatch(FloraSpecies.TallGrass)
 
   return lifecycle
+}
+
+/**
+ * Genesis post-process for precis #8a — egregoric flora (thematic).
+ *
+ * Places a small number (GENESIS_EGREGORE_TILE_COUNT_MIN/MAX) of inert
+ * TileType.Egregore tiles on walkable dirt, biased toward positions near
+ * sim.craters (meteorite impact sites). Per v3 doctrine: "~3 tiles
+ * placed by genesis, biased near meteorite spawns."
+ *
+ * Determinism: same nameToSeed → same egregore positions. The sampling
+ * uses sim.rng directly (after the multi-species flora pass has run, so
+ * the PRNG state is shared but deterministic across the chain).
+ *
+ * Returns the placed positions so callers can use them to seed manual
+ * entries / discovery records.
+ */
+export const postProcessEgregoreTiles = (sim: GenesisSimState): { x: number; y: number }[] => {
+  const placed: { x: number; y: number }[] = []
+
+  // Two-phase candidate list:
+  //   1. Crater-adjacent dirt within GENESIS_EGREGORE_BIAS_RADIUS
+  //   2. Any walkable dirt (fallback if no craters or no crater-adjacent dirt)
+  const used = new Set<string>()
+  const isPlaceable = (x: number, y: number, key: string): boolean => {
+    if (used.has(key)) return false
+    if (x < 0 || x >= sim.width || y < 0 || y >= sim.height) return false
+    if (!sim.landMask.has(key)) return false
+    if (sim.ponds.has(key)) return false
+    if (sim.riverPaths.has(key)) return false
+    return sim.grid[y][x].type === TileType.Dirt
+  }
+
+  // Phase 1: collect crater-adjacent candidates.
+  const craterAdjacent: string[] = []
+  for (const craterKey of sim.craters) {
+    const [cxStr, cyStr] = craterKey.split(',')
+    const cx = Number(cxStr)
+    const cy = Number(cyStr)
+    for (let dy = -GENESIS_EGREGORE_BIAS_RADIUS; dy <= GENESIS_EGREGORE_BIAS_RADIUS; dy++) {
+      for (let dx = -GENESIS_EGREGORE_BIAS_RADIUS; dx <= GENESIS_EGREGORE_BIAS_RADIUS; dx++) {
+        const nx = cx + dx
+        const ny = cy + dy
+        const nKey = posKey(nx, ny)
+        if (isPlaceable(nx, ny, nKey)) craterAdjacent.push(nKey)
+      }
+    }
+  }
+  // Dedupe + sort for determinism. Sets keep insertion order in JS but
+  // we want byte-stable ordering across engines.
+  const uniqueAdjacent = Array.from(new Set(craterAdjacent)).sort()
+
+  // Phase 2: full dirt fallback.
+  const allDirt: string[] = []
+  for (const key of sim.landMask) {
+    const [xStr, yStr] = key.split(',')
+    const x = Number(xStr)
+    const y = Number(yStr)
+    if (isPlaceable(x, y, key)) allDirt.push(key)
+  }
+  allDirt.sort()
+
+  const target =
+    GENESIS_EGREGORE_TILE_COUNT_MIN +
+    Math.floor(sim.rng() * (GENESIS_EGREGORE_TILE_COUNT_MAX - GENESIS_EGREGORE_TILE_COUNT_MIN + 1))
+
+  const pickFrom = (pool: string[]): string | null => {
+    if (pool.length === 0) return null
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const idx = Math.floor(sim.rng() * pool.length)
+      const key = pool[idx]
+      if (!used.has(key)) return key
+    }
+    return null
+  }
+
+  for (let i = 0; i < target; i++) {
+    const pick = pickFrom(uniqueAdjacent) ?? pickFrom(allDirt)
+    if (!pick) break
+    used.add(pick)
+    const [xStr, yStr] = pick.split(',')
+    const x = Number(xStr)
+    const y = Number(yStr)
+    sim.grid[y][x] = { type: TileType.Egregore }
+    placed.push({ x, y })
+  }
+
+  return placed
 }
 
 export interface CompleteGenesisOptions {

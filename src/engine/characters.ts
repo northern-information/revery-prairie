@@ -32,7 +32,11 @@ const CHARACTERS = {
     name: 'Moab Coldë',
     glyph: 'M',
     glyphColor: '#FFFFFF',
-    dialog: ['...'],
+    // Last line is Moab's egregore refusal (precis #8a). Folk register;
+    // never names the egregores directly. Folk name: "the other clover".
+    // Different from the ghost's folk name on purpose — no two NPCs
+    // agree on a name per v3 doctrine.
+    dialog: ['...', 'The other clover. We do not grow that.'],
   },
   coyote: {
     name: 'Coyote',
@@ -61,12 +65,22 @@ export const getCharacterDefinition = (id: string): CharacterDefinition => {
   return def
 }
 
+// Ghost #0 carries the egregore refusal line (precis #8a). Folk name:
+// "the Far Garden" — distinct from Moab's "the other clover" so the
+// folk-name divergence rule from v3 doctrine is observable on a
+// single playthrough.
+const GHOST_DIALOGS_BY_INDEX: Record<number, string[]> = {
+  0: ['...', 'Oh... a steward...', 'The Far Garden. We do not go there.'],
+}
+
+const DEFAULT_GHOST_DIALOG = ['...', 'Oh... a steward...', '... I sure would love some clover tea.']
+
 export const createGhostDefinition = (n: number): CharacterDefinition => ({
   id: `ghost-${String(n)}`,
   name: `Ghost #${String(n)}`,
   glyph: 'ö',
   glyphColor: '#FFFFFF',
-  dialog: ['...', 'Oh... a steward...', '... I sure would love some clover tea.'],
+  dialog: GHOST_DIALOGS_BY_INDEX[n] ?? DEFAULT_GHOST_DIALOG,
 })
 
 export const registerGhostDefinitions = (numbers: number[]): void => {

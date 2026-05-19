@@ -343,6 +343,13 @@ export const Sidebar = ({ state, activeScreen, itemInfoRef, metricsRef }: Sideba
                           state.floraLifecycle.get(posKey(cx, cy))?.species ?? FloraSpecies.Clover
                         return `burnt ${FLORA_SPECIES[species].displayName.toLowerCase()}`
                       }
+                      // Egregore tiles intentionally have no English
+                      // label here — per v3 doctrine the player-facing
+                      // term for the egregores is none. The sidebar
+                      // shows three Voynich glyphs (same allowlist as
+                      // the egregore tile glyphs). The lack of name is
+                      // the point.
+                      if (tileType === TileType.Egregore) return '\u{0AB10}\u{0AB12}\u{0AB15}'
                       if (tileType === TileType.RuinFloor) return 'ruin floor'
                       if (tileType === TileType.RuinWall) return 'ruin wall'
                       if (tileType === TileType.RuinEntrance) return 'ruin entrance'

@@ -28,10 +28,15 @@ describe('moab character definition', () => {
     expect(def.glyphColor).toBe('#FFFFFF')
   })
 
-  it('has single-line dialog', () => {
+  it('has two dialog lines (precis #8a added an egregore refusal line)', () => {
     const def = getCharacterDefinition('moab')
-    expect(def.dialog).toHaveLength(1)
+    expect(def.dialog).toHaveLength(2)
     expect(def.dialog[0]).toBe('...')
+    // The second line is Moab's egregore refusal. Folk register —
+    // never names the egregores. Specific text is human-authored and
+    // may change without breaking this assertion.
+    expect(def.dialog[1].toLowerCase()).not.toContain('invasive')
+    expect(def.dialog[1].toLowerCase()).not.toContain('egregore')
   })
 
   it('has no gift configured (re-anchored in precis #9)', () => {
@@ -103,7 +108,7 @@ describe('moab first interaction dialog', () => {
     expect(state.activeDialog?.typingDone).toBe(false)
   })
 
-  it('single line dialog opens and closes in one advance', () => {
+  it('two-line dialog advances through both lines before closing', () => {
     const state = makeCaveState()
     state.player = { x: state.caveNpcSpot.x - 1, y: state.caveNpcSpot.y }
     state.playerFacing = 'right'
@@ -111,8 +116,15 @@ describe('moab first interaction dialog', () => {
     interactWithCharacter(state)
     expect(state.activeDialog?.lineIndex).toBe(0)
 
-    // Mark typing done, only line -> close
+    // First advance: typing done on line 0 -> transition to line 1
     if (!state.activeDialog) throw new Error('no active dialog')
+    state.activeDialog.typingDone = true
+    expect(advanceDialog(state).continuing).toBe(true)
+
+    // Skip the transition fade and finish typing on line 1, then close.
+    if (!state.activeDialog) throw new Error('no active dialog')
+    state.activeDialog.transitioning = false
+    state.activeDialog.lineIndex = 1
     state.activeDialog.typingDone = true
     expect(advanceDialog(state).continuing).toBe(false)
     expect(state.activeDialog).toBeNull()

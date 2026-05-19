@@ -33,6 +33,12 @@ export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   [TileType.RuinDebris]: ['#3F3326', '#412F25', '#3D3025', '#403326', '#3E3125'],
   [TileType.RuinDoorLocked]: ['#1F4D45', '#1E4C44', '#205047'],
   [TileType.RuinDoorOpen]: ['#2D2D26', '#2F2F28', '#2C2C25'],
+  // Egregore bg — deep warm-violet shadows. Pairs with the iridescent
+  // violet glyph color so the tile reads as "alien growth" rather than
+  // dropped-out machinery. Darker than the surrounding dirt palette
+  // but not as dark as cave walls — the off-key tile is foliage, just
+  // not native foliage.
+  [TileType.Egregore]: ['#26212E', '#28232F', '#241F2C', '#272131', '#251F2D'],
 }
 
 export const getTileBgColor = (tileType: TileType, x: number, y: number): string => {

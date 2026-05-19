@@ -31,14 +31,14 @@ features:
 
   - id: '8a'
     name: Egregoric flora — thematic
-    summary: One inert tile type, Voynich manual entries, NPC refusal lines, folk-name divergence. Foreshadowing pass.
+    summary: One inert TileType.Egregore, Voynich manual entries with Latin pierces, NPC refusal lines, invasive-lint guard. Foreshadowing pass.
     size: XS
     depends_on: ['0']
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/precis-8a-egregoric-thematic.yaml
+    plan: harness/plans/precis-8a-egregoric-thematic.yaml
     pr: null
-    notes: ''
+    notes: 'Voynich font installed via kreativekorp/voynich-unicode (or local .ttf fallback). 16-word Latin pierce allowlist locked from v3 doctrine. cosmologicalDrift / passive-transmission tracking deferred to #4.'
 
   - id: '2'
     name: Phenological seasons

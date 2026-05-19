@@ -5,7 +5,14 @@ import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
 import { createCharacterEntity } from './entities'
-import { createGenesisState, GENESIS_EPOCHS, nameToSeed, postProcessMultiSpeciesFlora, precomputeGenesis } from './genesis'
+import {
+  createGenesisState,
+  GENESIS_EPOCHS,
+  nameToSeed,
+  postProcessEgregoreTiles,
+  postProcessMultiSpeciesFlora,
+  precomputeGenesis,
+} from './genesis'
 import { RuinGenerationMode } from './genesisTypes'
 import { autoSort } from './inventory'
 import { createBackpack } from './items'
@@ -39,6 +46,11 @@ export const createGameState = (
   // with its species. Determinism preserved — same steward name, same
   // patch layout.
   const initialFloraLifecycle = postProcessMultiSpeciesFlora(sim)
+
+  // Egregoric flora post-process (precis #8a): place inert egregore
+  // tiles biased near crater positions. Determinism preserved — same
+  // steward name, same egregore positions.
+  const initialEgregorePositions = postProcessEgregoreTiles(sim)
 
   // Track which species the post-process actually placed so the manual
   // entries unlock on first sight. The genesis post-process is
@@ -195,6 +207,7 @@ export const createGameState = (
     screenShakeUntil: 0,
     floraGrowthPreviews: new Set<string>(),
     floraLifecycle: initialFloraLifecycle,
+    egregorePositions: initialEgregorePositions,
     tileWater: new Map<string, number>(),
     soilHealth: genesisData.soilHealth,
     elevation: genesisData.elevation,
@@ -267,6 +280,14 @@ export const createGameState = (
   // present read as "discovered" immediately.
   for (const species of seededSpecies) {
     state.manualDiscoveries.add(`flora:${species}`)
+  }
+
+  // Unlock manual entries for each placed egregore tile. Vision-gated
+  // discovery is deferred to #4 — for this PR every egregore entry is
+  // discoverable from spawn (the player still has to navigate to find
+  // them on the map).
+  for (const pos of initialEgregorePositions) {
+    state.manualDiscoveries.add(`egregore:${String(pos.x)},${String(pos.y)}`)
   }
 
   // Place ruin entrances on the overworld

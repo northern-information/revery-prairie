@@ -1,5 +1,6 @@
 import { CHARACTER_DEFINITIONS } from './characters'
 import { COIN_GLINTING_COLOR, TILE_CHARS, TILE_COLORS } from './constants'
+import { getEgregoreBinomial, getEgregoreGlyph, getEgregoreLatinPierce, getEgregoreManualBody } from './egregore'
 import { GENESIS_EPOCHS } from './genesis'
 import { KEYBINDINGS } from './input'
 import { ITEM_DEFINITIONS } from './items'
@@ -19,6 +20,11 @@ export const ManualCategory = {
   Zone: 'zone',
   Recipe: 'recipe',
   Control: 'control',
+  // Egregoric flora — manual entries render in the Voynich typeface
+  // and have no English name. Distinct category so the UI can lay them
+  // out under their own header (label TBD by ManualPanel — likely
+  // rendered in Voynich script).
+  Egregore: 'egregore',
 } as const
 
 export type ManualCategory = (typeof ManualCategory)[keyof typeof ManualCategory]
@@ -621,6 +627,62 @@ export const MANUAL_ENTRIES: Record<string, ManualEntry> = Object.fromEntries(
   ].map(entry => [entry.id, entry])
 )
 
+// --- Egregore manual entries (precis #8a) ---
+//
+// Egregore entries are per-tile and dynamic — they depend on
+// state.egregorePositions which is set during genesis. They cannot
+// live in the module-level MANUAL_ENTRIES constant. Callers (e.g.
+// ManualPanel) merge these with the static entries at render time.
+//
+// Each egregore tile produces one entry whose name, lore body, and
+// optional Latin pierce are sampled deterministically per position
+// from the egregore.ts allowlists. The entry's manual category is
+// ManualCategory.Egregore. The unlockKey is `egregore:{x},{y}` so
+// recordDiscovery can target a specific tile when the player first
+// sees it.
+
+export const egregoreUnlockKey = (x: number, y: number): string => `egregore:${String(x)},${String(y)}`
+
+/**
+ * Parse the id of an egregore manual entry back into its tile position
+ * and return the Latin pierce word (if any) that should render in ASCII
+ * font, leaving the surrounding EVA tokens to render in Voynich. Null
+ * means the entry has no pierce — the whole lore renders in Voynich.
+ */
+export const getEgregoreLatinPierceForEntry = (entryId: string): string | null => {
+  const match = /^egregore:(-?\d+),(-?\d+)$/.exec(entryId)
+  if (!match) return null
+  const x = Number(match[1])
+  const y = Number(match[2])
+  // Re-import in this scope would create a cycle; instead require the
+  // caller to already know the pierce by re-deriving it from egregore.ts.
+  // For ergonomics, expose via egregore.ts directly:
+  return getEgregoreLatinPierce(x, y)
+}
+
+export const getEgregoreManualEntries = (state: GameState): ManualEntry[] => {
+  if (state.egregorePositions.length === 0) return []
+  const entries: ManualEntry[] = []
+  for (const pos of state.egregorePositions) {
+    const id = `egregore:${String(pos.x)},${String(pos.y)}`
+    const binomial = getEgregoreBinomial(pos.x, pos.y)
+    const body = getEgregoreManualBody(pos.x, pos.y)
+    const glyph = getEgregoreGlyph(pos.x, pos.y)
+    entries.push({
+      id,
+      name: binomial,
+      category: ManualCategory.Egregore,
+      glyph,
+      glyphColor: '#B080D0',
+      lore: body,
+      hints: [],
+      unlockKey: id,
+      sourceKind: 'manual-only',
+    })
+  }
+  return entries
+}
+
 // --- Discovery helpers ---
 
 export const recordDiscovery = (state: GameState, key: string): boolean => {
@@ -665,4 +727,6 @@ export const CATEGORY_ORDER: ManualCategory[] = [
   ManualCategory.Zone,
   ManualCategory.Recipe,
   ManualCategory.Control,
+  // Egregoric entries last — discovered late in play, resist naming.
+  ManualCategory.Egregore,
 ]
