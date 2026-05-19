@@ -69,10 +69,13 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.RuinDebris]: '#8B7355',
   [TileType.RuinDoorLocked]: '#5FD3BC',
   [TileType.RuinDoorOpen]: '#7A7A6E',
-  // Egregore glyph color — a desaturated blue-grey that reads as
-  // "off" against the green Flora palette and the brown Dirt. Stable
-  // across all egregore tiles regardless of per-position glyph choice.
-  [TileType.Egregore]: '#7A88A0',
+  // Egregore glyph color — iridescent violet. Off-spectrum from the
+  // Earth-native palette (clover green #50C878, dirt browns, flora
+  // hues): the doctrine calls the egregores "not-of-this-Earth" and
+  // the color should read as alien but vital, not as ruined machinery.
+  // Sits between the magenta wildflower (#D85FB7) and the cooler
+  // ruin-aqueduct (#6688AA) without colliding with either.
+  [TileType.Egregore]: '#B080D0',
 }
 
 // Ruin visual palette — shared with genesis civilization rendering

@@ -673,7 +673,7 @@ export const getEgregoreManualEntries = (state: GameState): ManualEntry[] => {
       name: binomial,
       category: ManualCategory.Egregore,
       glyph,
-      glyphColor: '#7A88A0',
+      glyphColor: '#B080D0',
       lore: body,
       hints: [],
       unlockKey: id,
