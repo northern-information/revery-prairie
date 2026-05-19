@@ -56,8 +56,8 @@ behaviors:
 
   - id: angel-drifting
     description: >
-      Angels drift across the overworld with a 20% chance per tick
-      (ANGEL_DRIFT_CHANCE = 0.2). Movement updates all tiles in the angel's
+      Angels drift across the overworld every tick
+      (ANGEL_DRIFT_CHANCE = 1.0). Movement updates all tiles in the angel's
       9x9 body. Angels avoid space, sand, cave entrance, water, and
       other blocked positions. Drift is frozen during active dialog.
       Logical position updates discretely (one tile per drift step); the

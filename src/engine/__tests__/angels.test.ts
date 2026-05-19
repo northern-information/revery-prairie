@@ -161,9 +161,9 @@ describe('angel drifting', () => {
     const eid = getAngelEntities(state)[0]
 
     // Force drift to succeed by returning values that select a specific direction
-    // and ensure moveChance passes (drift chance is 0.2)
+    // and ensure moveChance passes (drift chance is 1.0 — always passes)
     vi.spyOn(Math, 'random')
-      .mockReturnValueOnce(0) // drift chance passes (< 0.2)
+      .mockReturnValueOnce(0) // drift chance passes
       .mockReturnValueOnce(0) // picks first cardinal direction (up)
 
     tickAngelDrift(state)
