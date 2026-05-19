@@ -1,5 +1,5 @@
 # Precis sequencing — current status
-# Source of truth for the precis dashboard TUI. Run: `npm run precis`.
+# Source of truth for the backlog dashboard TUI. Run: `npm run backlog`.
 # Doctrine lives in docs/precis-thinktank-v3.md. This file is the running state.
 #
 # Status values: todo | in-progress | shipped
@@ -187,3 +187,246 @@ features:
       speaks is not lore; it is a key. Single-use, irrevocable, and potent enough
       that the player thinks before using it. Mechanics TBD — this is the seed
       of the idea.
+
+  - id: '17'
+    name: Autonomous flora spread + bee+clover ceremony
+    summary: >
+      All three flora species spread on their own. Clover via stolons (slow,
+      adjacent, dirt-only, season-gated). Wildflower via pollinators (gated on
+      #7). Tall grass via rhizomes. Genetic traits (#3) propagate through
+      spread, so a patch carries the lineage of its seed. Bee+clover combine
+      is rewritten as a slow radial wave (~7-9 tile radius, ~100-250 tiles per
+      cast) and the bee binds to the patch as its pollinator for the patch's
+      life. One bee per patch, ever.
+    size: M
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 4 (2026-05-19). Touchstone: Emily Dickinson — "To
+      make a prairie it takes a clover and a bee, and revery. The revery
+      alone will do, if bees are few." Stewardship-time growth is slow and
+      autonomous; Revery-time growth is the massive jump (#4). The player's
+      hand is a punctuation, not the engine. Bee+clover materials are
+      recovered from ruins (precis-5, shipped), not gifted by NPCs — Moab
+      has no gift field per src/engine/characters.ts. Open: patch identity
+      and merging behavior when spread fronts touch; per-species spread
+      rates; perf gate on flora lifecycle tick (~5000 active tiles target).
+      Splittable into substrate-spec + ceremony-spec if the spec author
+      prefers.
+
+  - id: '14'
+    name: Delete the activity event log
+    summary: >
+      Remove EventLog.tsx, useEventLog.ts, and all addEvent call sites. No
+      replacement surface. World-effects (pickup blooms, dialog, recipe
+      output, manual discovery) already cover the legibility needs; a
+      running ledger of player actions contradicts steward/observer framing.
+    size: S
+    depends_on: []
+    status: todo
+    spec: harness/specs/delete-event-log.yaml
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 0 (2026-05-19). The log was scaffolding built early
+      to confirm things were working; world-effects have made it redundant.
+      Delete cleanly; no toast, no chime, no replacement. Center slot of the
+      bottom-bar overlay becomes empty (Minimap stays left, Backpack stays
+      right). Spec already written.
+
+  - id: '15'
+    name: Wear (visible item degradation)
+    summary: >
+      Optional wear field on ItemInstance + maxUses on ItemDefinition.
+      Visible alpha decay across an item's lifetime. At wear=1.0 the item is
+      removed — no fanfare, empty grid cell is the eulogy. Mechanic teaches
+      impermanence at the item layer as grammar for the steward's own
+      Voynich drift in #4. Renewal loops replace stockpile loops.
+    size: M
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 1 (2026-05-19). Visible wear per Tyler — "it's a
+      game about noticing. you notice your net not working as great
+      anymore." Continuous alpha decay is the default; late-threshold-only
+      is a documented escape hatch if playtesting argues for it. Per session
+      ~5-10% of player actions touch wearing items; the rest are ambient.
+      Not Don't Starve — wear is a presence, not a pressure. Cosmology lock
+      (v4): heat death is the antagonist; tending is the verb.
+
+  - id: '16'
+    name: The tenure ends (lineage handoff)
+    summary: >
+      The game has an ending and the ending is not a death. The steward's
+      drift reaches threshold (state.player.cosmologicalDrift fully
+      Voynich-registered), the tenure closes, the save file is preserved as
+      a predecessor record the next steward inherits. Multiplayer is
+      reframed as lineage — other players are predecessors and successors,
+      never coop partners or adversaries.
+    size: L
+    depends_on: ['4', '10']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 2 (2026-05-19). Cosmology lock — heat death is the
+      antagonist; tending is the verb; the tenure is the unit; the lineage
+      is the medium. The cloud Gron carries is the inter-tenure persistence
+      layer for bees (round 5); what the player hands forward is, in part,
+      the bees they kept alive. Open questions deferred to spec: what does
+      a predecessor record contain (Calla: previous steward's manual as
+      next steward finds it, one readable predecessor name); is the player
+      ever named in someone else's manual (Astrid: yes, late, by
+      recognition); ending trigger (Calla: cosmologicalDrift threshold —
+      derives from existing state, free). Forecloses adversarial
+      multiplayer permanently.
+
+  - id: '18'
+    name: Meteorites as cosmological punctuation (stone circles, hallowed ground)
+    summary: >
+      Meteorites become placeable objects (state.placedMeteorites). Proximate
+      meteorites connect via faint golden lines; closed shapes form hallowed
+      ground. Hallowed ground has subtle visual treatment and biases the next
+      Revery's egregore spread (toward or away — design choice deferred to
+      spec). The 1-in-7 unstable-meteorite explode mechanic in entities.ts:113
+      is deleted in the same spec.
+    size: M
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 4 (2026-05-19). Meteorites started as a universal
+      resource and have been a leftover for some time. v4 reframes them as
+      the player's vocabulary for marking places with cosmological intent —
+      the complementary ceremony to the bee+clover seeding. Bee+clover is
+      commitment to the prairie's native life; stone circles are commitment
+      to the prairie's otherness. Two hands of stewardship. Folds in the v2
+      round 5 "meteorite-carrying" help-the-egregores layer (was sketch;
+      now mechanics). Open: hallowed-ground cosmological consequence — what
+      does it bias and how. Standalone — does not block anything else on the
+      board.
+
+  - id: '19'
+    name: Soil depletion
+    summary: >
+      Same patch planted three seasons running gets thinner. Soil rebounds
+      from rotation, fallow, or nitrogen-fixing crosses (Trifolium repens is
+      a nitrogen fixer — the species choice already encoded the mechanic).
+      Soil readability already shipped with #6; this adds the consequence.
+    size: S
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 3 (2026-05-19). One of the "leaks" Boon named when
+      cosmology locked entropy as the antagonist. Soil readable in #6
+      (shipped) but not yet consequential. Same tiles, new dimension — no
+      new content required. Independent of #15, #17. Could ship any time
+      after current pipeline lands.
+
+  - id: '20'
+    name: NPC mortality
+    summary: >
+      NPCs age and eventually die. Moab the Torchbearer does not have
+      infinite springs — at some point he does not emerge from his cave at
+      the burn window. Ghosts are NPC entropy's existing output; this adds
+      the transition. The player cannot prevent NPC death; gaming the
+      mechanic erases the lesson. What the player remembers of the NPC after
+      is the manual entry they leave.
+    size: M
+    depends_on: ['16']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 3 (2026-05-19). Second of Boon's named leaks.
+      Touches dialog, the manual, the seasonal calendar, and the lineage
+      system. Delta's deepest version — there should be a tenure where
+      Moab dies before the player arrives; the cave is already empty; the
+      ghost there carries a shifted folk name; a different Torchbearer
+      takes up the drip torch. The lineage applies to NPCs too. The
+      cosmology has no protected nouns.
+
+  - id: '21'
+    name: Gron — round-5 doctrine pass (controllable removal, dialog, manual entry, bees plural)
+    summary: >
+      Apply v4 round 5 cosmology to Gron. Remove him from CONTROLLABLE_IDS
+      (selection.ts:9). Rewrite the four GRON_DIALOG_* constants per the
+      round-5 doctrine — no contractions, indefinite articles, no editorial
+      affect, no direct address by title. Replace the manual entry with a
+      half-Voynich "the manual does not know" treatment (requires a
+      `glitched: true` flag on lore entries + EgregoreLore renderer
+      extension). Strike "one bee per patch" from #17's framing — bees are
+      a colony, hives grow with patches via the existing CloverPatch
+      hiveCount/maxHives system. Gron is the bee-keeper between stewards
+      (his pendingSavedBees mechanic in interaction.ts:204 is the channel).
+    size: M
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 5 (2026-05-19). Six locked design principles:
+      irreducibility (no origin story, no canonical explanation);
+      no taxonomic home (Gron belongs to no system); no opinion of the
+      player (no gronAffection / gronTrust hidden variable); oblique
+      dialog (statements not questions, no contractions); music precedes
+      arrival (cloud is heard before seen); manual entry says the manual
+      does not know. Files touched: src/engine/selection.ts:9,
+      src/engine/characters.ts:98-110, src/engine/manual.ts:81-83,
+      src/components/ManualPanel.tsx:218 (glitched-flag routing). Open:
+      what triggers Gron's later visits beyond the existing sealing
+      teleport — multiple overlapping/contradictory conditions, not a
+      single counter. Flagged for a future round: coyote.ts:296-317
+      dumps overflow items near Gron; mechanistically convenient,
+      cosmologically suspicious.
+
+  - id: '22'
+    name: Named regions + chronicle events (the world speaks of itself)
+    summary: >
+      The prairie acquires named regions (the south ridge, the village, the
+      west pond, the cave mouth) detected at genesis time from terrain
+      features and meteorite placements. World-state transitions emit
+      "chronicle events" — past-tense sentences bound to templates and
+      filled from world state. "The line passed the village in the fourth
+      winter." "The clover didn't grow on the south ridge." Events surface
+      in three places only — the end-of-Revery summary (#4), per-region /
+      per-species threads in the naturalist's manual (#6, shipped), and as
+      predecessor lines in the lineage record (#16). Never a running log.
+    size: L
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 6 (2026-05-19). Three operating constraints:
+      (1) events are emitted by world-state transitions, not by player
+      actions — the player did nothing to trigger the sentence, the world
+      did; (2) sentences are template-bound with slots filled from world
+      state, every word corresponds to a fact the player can verify by
+      walking to the place; (3) the sentences never accumulate in a feed —
+      we just deleted the activity log, we are not reinstating it as a
+      story log. **Negative events are the language of entropy.** Half the
+      templates must be negative — the prairie names what failed to happen.
+      A game that can only narrate what did happen is a logbook; a game
+      that can narrate what did not happen is literature. Heat death is
+      the antagonist; the prairie's voice should know how to name what it
+      has lost. Region detection is the largest sub-task (genesis-time
+      pass, stable across a tenure). Template registry is small once
+      regions exist. Cascades into #4 (Revery summary becomes the
+      headline surface), #6 (per-region/species chronicle threads), and
+      #16 (inter-tenure predecessor record).

@@ -1,0 +1,367 @@
+# Precis thinktank — v4
+
+A continuation of v2/v3. v2 captured rounds 1–6 of the editorial back-and-forth; v3 distilled v2 into locked decisions. v4 picks up after v3 with a new arc of rounds, sparked by a question Tyler brought to the room on 2026-05-19: _what makes this game fun? where does the dopamine loop happen?_
+
+What follows is the rounds. Decisions are stated as decisions. Open questions are flagged. v4 is _additive_ to v3 — it does not invalidate v3 unless a round here explicitly amends it. Items that should propagate to `docs/precis-thinktank-v3.md` are tagged `**Amendment to v3:**`.
+
+## The cast
+
+Carried forward from v2 with no changes:
+
+- **Astrid** — vision purist.
+- **Boon** — systems-first.
+- **Calla** — player-experience pragmatist.
+- **Delta** — late-arriving frame-breaker.
+
+## The naming
+
+> _Heat death is the antagonist._
+> _Tending is the verb._
+> _The tenure is the unit._
+> _The lineage is the medium._
+>
+> — Delta, 2026-05-19
+
+This is the cosmology in four lines. v3 carried the components implicitly; v4 names them. Every subsequent design decision in this game can be tested against these four lines. If a proposed mechanic does not serve one of them, it does not belong in this game.
+
+The four lines are the new top of the doctrine. Items already locked in v3 are re-readable through them:
+
+- **Heat death is the antagonist** — entropy is the unifying frame. Seasons, deep time, the Revery, the egregore winter advance, Voynich drift, the failure-state biomes. Every locked v3 mechanism is a face of this one force.
+- **Tending is the verb** — not fighting, not building, not acquiring. The player's relationship to the world is _attention_. v3's removal of the action bar (#0) was the first commitment to this. v4's wear system (#15) is the second.
+- **The tenure is the unit** — the game has an ending and that ending is not a death. It is a handoff. Item #16 (this doc) introduces this.
+- **The lineage is the medium** — multiplayer is the lineage of stewards. Other players are not coop partners and not adversaries. They are _predecessors_ and _successors_. Item #16 begins to wire this; v3's existing multiplayer infrastructure becomes the substrate.
+
+## Open and locked
+
+**Locked in v4:**
+
+- The four-line cosmology naming above.
+- Wear as a universal mechanic. Items wear visibly. Soil wears (depletion). NPCs wear (mortality). The prairie wears (egregore advance, locked in v3). The steward wears (Voynich drift, locked in v3). All locked. Spec sequence:
+  - `#14 Delete the activity event log` (spec written, in NEXT)
+  - `#15 Wear` (the smallest commitment/mastery/loss substrate — round 1 below)
+- Wear is **visibly displayed**, not hidden. _It is a game about noticing. You notice your net not working as great anymore._ — Tyler.
+- The game has an ending. The ending is a tenure handoff, not a death. The save file does not delete; it becomes a predecessor record the next tenure inherits. Item #16 below.
+- Multiplayer is lineage. Adversarial multiplayer is foreclosed by the cosmology. Item #16 wires the first surface of this.
+- The activity event log is **deleted with no replacement** (resolved in round 0 of this v4 arc; spec is `#14` in `docs/precis-status.yaml`). No toast, no chime, no ambient ticker. The world communicates by being looked at.
+
+**Locked in round 4:**
+
+- **All plants spread autonomously.** Clover via stolons (Trifolium repens — the creeping clover, the species choice already encoded this). Wildflower via pollinators (gated on #7). Tall grass via rhizomes. Different rules per species; same mechanism layer. Spec is `#17`.
+- **Bee+clover becomes the seeding ceremony.** Large radial wave (~7-9 tile radius, ~100-250 tiles per cast after terrain filtering), slow animation, **the bee binds to the patch as its pollinator for the patch's life** — one bee per patch, ever. Bee and clover are **recovered from ruins, not gifted by NPCs.** Folded into `#17`'s scope.
+- **Meteorites are not a resource.** They are placeable cosmological punctuation — the player's vocabulary for marking places as having consequence. Place them, connect them with faint golden lines, close shapes into hallowed ground. The unstable-meteorite 1-in-7 explode mechanic (`entities.ts:113`) is deleted in the same spec. Tracked as `#18`.
+
+**Open in v4:**
+
+- Whether visible wear shows a continuous indicator (alpha decay across the item's lifetime) or a single late-threshold marker (a small affordance only when the item is near broken). Tyler said "visible wear" — round 1 below assumes continuous alpha decay as the default, with a documented escape hatch if playtesting argues otherwise.
+- What the predecessor record actually contains. Round 2 below sketches a minimum-viable surface; the full design is deferred to #16's spec.
+- Whether the player is ever named or referenced by their own steward-name in someone else's manual. Round 2 below has a strong recommendation; not locked.
+- The soil depletion mechanic. Named in round 3, not specced. Item TBD.
+- NPC mortality, particularly Moab's "the spring he does not emerge." Named in round 3, not specced. Item TBD.
+- Patch identity: when two autonomously spreading patches touch, do they merge? Does the original bee adopt the new tiles? Round 4 flagged; defer to #17 spec.
+- Stone-circle cosmological consequence: hallowed ground biases the next Revery's egregore spread — toward or away from the circle, and based on what? Defer to #18 spec.
+- Perf gate on the flora lifecycle tick: tile count threshold for frame-budget concerns. Boon wants measured before #17 ships.
+
+---
+
+## Round 0: kill the activity event log
+
+_Tyler: "what do you think of the activity log? it's starting to feel almost antithetical to what the game is about."_
+
+> **Calla:** It's a terminal scrollback. Pickup, drop, combine, dialog, discovery, narration. Five of the six are receipts for actions whose world-effects already do the work — pickup blooms, items appearing on tiles, dialog boxes closing, recipe outputs materializing. The sixth, narration, is the only one with thematic legs and is doing 1/8th of the work the log claims to do.
+
+> **Boon:** Five of six are redundant with their own world-effects. Net cost of deletion: ~150 LOC removed, 0 added. The activity log was scaffolding to confirm things were working. They work.
+
+> **Astrid:** And the activity log is structurally a god's-eye transcript. _At time T the player did X._ That is the worldview of a state machine with an input device. It is the exact opposite of _steward, participant, observer, temporary influence._ A steward doesn't read a transcript. They look at the field. The field tells them. The manual (precis-6, shipped) is the diegetic version. The activity log is the anti-Voynich. **One of these belongs in our game. The other is from a different game we are no longer making.**
+
+> **Delta:** Then it dies. Five of six events have world-effects already. The sixth — narration — dies with the rest. The world is not running tail -f. The world is happening, and either the player notices or they don't.
+
+**Consensus:** Delete `EventLog.tsx`, `useEventLog.ts`, the EventLog test, and all eight `addEvent` call sites in `GameScreen.tsx`. No replacement surface. The bottom-bar center slot becomes empty; Minimap stays left, Backpack stays right.
+
+**Spec:** `harness/specs/delete-event-log.yaml` (written 2026-05-19, status: todo, no deps — visible in NEXT).
+
+**Tracked as:** `#14` in `docs/precis-status.yaml`. Starts the new convention — non-precis-numbered backlog items get the next available integer id and become "story numbers" alongside the precis items.
+
+**Calla, late note:** Existing tests that asserted log content (e.g. _expect log to contain Picked up Clover_) should be removed entirely. Do not rewrite them to assert against a replacement surface — there is no replacement.
+
+---
+
+## Round 1: loss, attachment, and the FromSoft loop translated
+
+_Tyler: "where does the dopamine loop happen? we have a bee net that only works so many times... commitment on one side of the coin and loss on the other."_
+
+> **Calla:** Three things are hiding in this question and need to be separated. **Mastery loop** — the player gets better at the game itself. **Commitment loop** — choices that close off other choices, the FromSoft opportunity-cost insight. **Loss loop** — losing things you cared about. Three different mechanics. Three different surfaces. The instinct after "no play progression" is to add XP and skill points. We must not. The vocabulary alone would kill the genre we're inventing.
+
+> **Boon:** Mastery is mostly free. It emerges where systems are legible and require timing. The player who learns to read omen patterns gets more Reveries in winter than the player who doesn't. The game does not announce mastery. The player just gets better outcomes. **We don't need to add anything for mastery; we need to be careful not to add tutorials and tooltips that would erase it.**
+>
+> Commitment is where the spec lives. **A seed is a singular object.** No stacking, no counter. _The seed Moab gave you._ Plant it once, it's gone. The Torchbearer's burn line — where the player led him is decided, not undoable. Refusing the Torchbearer (locked in v3) is the canonical commitment _and_ the canonical loss.
+>
+> Loss is precis #4, #8b, #10 — already locked. The blocker is that loss has no weight without attachment, and attachment has no weight without commitment. We've built the loss mechanism before the thing that makes loss hurt. That's not wrong — those are big systems with lead time — but it explains why the game feels inert right now. **We've laid the conditions for grief without the conditions for love.**
+
+> **Astrid:** The FromSoft thing that's portable: _the world is annotated by your history._ Every place you've been is marked by who you were when you were there. That ontology is exactly what we want. What is not portable: the combat loop, the death loop, the recover-your-runes loop. The prairie cannot have a death loop — there is no _you died_ event the cosmology allows. _You don't fail by dying. You fail by not noticing._
+>
+> So the FromSoft-shaped feeling is available to us. It just has to be translated. "I used to die here" becomes "I used to lose this field every winter." The "perfect parry" becomes "I read the omen this time and got the Revery I needed." The bonfire becomes _the spring Moab walks out of his cave._ The player doesn't go to fire; the player earns the season where Moab appears. **The world's calendar is the difficulty curve.**
+
+> **Delta:** The bee net that only works so many times. Tyler said it casually. It is the precis-correct version of equipment. Things you use until they break, and then they are gone. The prairie has no factories. Everything is hand-made or grown. Wearing-out is the natural ontology. A net you wove from grass holds a certain number of bees and then falls apart. A clay vessel carries water from the pond a certain number of times and cracks. Moab's gift, if it is a tool, will eventually be a memory of a tool. **Permanence is a capitalist assumption.** Items should age. Tools should fail. The player should learn to make new ones, walk back to where the material was. That's a map-of-meaning generator. That's geography earning its keep. **Wear is mastery, commitment, and loss in a single mechanic.**
+
+> **Calla:** Yes. And the loop is _what the wear sends the player to do._ The net is gray today. Where did I find the reeds? The south pond patch. Is that patch still there after the winter? The walk back to check is the gameplay. The action of re-making is the action of re-attending. **In a capitalist game, you stockpile. In ours, you renew.**
+
+> **Boon:** Costing. `ItemInstance` gains optional `wear: number` (0.0 fresh, 1.0 broken). `ItemDefinition` gains optional `maxUses: number`. Renderer alpha scales with wear. One handler per wearing tool — maybe 5–10 tools in the foreseeable future. At wear=1.0, item is removed from inventory. No fanfare. Empty grid cell is the eulogy. Medium-sized spec, 2–3 weeks. **`maxUses` should be high enough that wear is a presence, not a pressure.** Per session, maybe 5–10% of player actions touch a wearing item; the rest are ambient. **We are not making Don't Starve. We are making the prairie honest about impermanence.**
+
+> **Astrid:** And the universalization. Tools wear. The prairie wears. NPCs may wear — Moab the Torchbearer does not have infinite springs left in him. **The player wears** — the Voynich drift in the steward's manual entry, already locked in v3. Wear at the item layer is _the teaching grammar_ for the wear that will happen to the player in the late game. By the late game, the steward's entry is half-Voynich. The mastery loop and the wear loop are the same loop seen from two angles. **What the player gains in skill, the world gains in claim on the player.**
+
+> **Delta:** The bonfire isn't a place you sit by. It's the season Moab walks out of his cave. Builds are wear. Loss is impermanence. Commitment is the singular seed. None of this needs a stat sheet. Spec wear next.
+
+**Consensus:**
+
+- No skill points. No stats. No XP. No builds-as-traditionally-meant. The instinct is right; the vocabulary would kill the genre.
+- **Wear is the next mechanic.** Item id `#15`. Spec to be written next.
+- **The singular seed is a free upgrade** alongside wear. Gift items from NPCs (Moab, Gron) become one-of-one — no stacking. Wired in the same spec or as a sibling.
+- **The "bonfire" is Moab's emergence.** The player doesn't reach the bonfire; the bonfire arrives when the calendar says so. Re-reads Moab's emergent role in v3.
+- Visible wear, per Tyler 2026-05-19. Continuous alpha decay across the item's lifetime is the default. Escape hatch if playtesting argues for late-threshold-only.
+
+**Amendment to v3:** the v3 doctrine has #4 as the next pick after #6. v4 adds `#15 Wear` to the queue and does not block on whether it ships before or after #4. _Tyler 2026-05-19: "i'm not sure it matters if it ships before 4. we're in hyperbolic time remember."_ Both #4 and #15 are valid next picks; the room defers sequencing to the implementer.
+
+---
+
+## Round 2: heat death, the tenure, and the lineage
+
+_Tyler: "is the antagonist entropy itself? heat death?"_
+
+> **Astrid:** Yes. And the precis has been pointing at it from page one. Seasons take the bloom. Deep time takes the steward. The Revery takes the year. The egregore winter takes the line. The drift takes the steward's own page. There is no antagonist with a name. There is **a single force, observed from many angles, that the prairie holds against.** That force is entropy. The steward is not a hero. The steward is _a temporary slowing_. That is what stewardship is, ontologically.
+>
+> And the game's anti-cap angle is structural, not editorial. Capitalism's promise is escape from entropy — infinite growth, permanent acquisition, the stockpile that defeats time. The precis rejects that promise. **The game's politics and the game's physics are the same thing.** The reason we won't add a skill tree is the same reason the prairie won't grow without winter. Permanence is the lie capitalism tells; the prairie tells the truth.
+
+> **Boon:** If entropy is the antagonist, **every system in the game should leak in the same direction.** Right now most of our systems are conservative. The world ticks but does not _decay_. Wear is the first leak. Once we accept entropy as the antagonist, look at every system and ask _where does this leak?_
+>
+> - Tools — leak via wear. Spec next (#15).
+> - Soil — should leak via depletion. Same patch planted three seasons running gets thinner. Rotation, fallow, nitrogen-fixing crosses. _Trifolium repens_ is already a nitrogen fixer in real life — the precis-correct game has encoded this in its species choices; we just haven't built the leak yet.
+> - NPCs — should leak via mortality. Moab does not have infinite springs. Astrid named this above. Ghosts already exist — they are NPCs that have passed the leak. We have the output; we need the transition.
+> - The prairie itself — leaks via egregore winter advance and the failure-state biomes. Locked in v3.
+> - The steward — leaks via Voynich drift. Locked in v3.
+> - The save file — _(pause)_ leaks via... what?
+>
+> Six systems. Two locked. One in progress. **Three are gaps.** That is where the game is currently quietest.
+
+> **Calla:** And the danger in "every system leaks" is that it reads as _every system is a chore_. That is not what we want. The prairie should feel like honesty about time, not a Sisyphean treadmill. The trick is that **entropy the player can fight in ten small ways is the opposite of entropy that overwhelms them.** Our equivalent of weeding and repairing is stewardship as a thousand tiny non-acquisitive verbs. Walk back to the reeds. Re-weave the net. Notice the south patch is thinner. Move next year's planting. Watch Moab walk the line.
+>
+> When entropy is the antagonist, **the verb that resists it is tending.** Not fighting, not building, not acquiring. Tending. That is a verb capitalism cannot monetize, which is precisely why the game's politics work. **The player wins not by accumulating but by showing up. The player loses not by dying but by not noticing.**
+
+> **Delta:** Then there is one more thing the game should have, and it is the hardest thing to design. **An ending.**
+>
+> If entropy is the antagonist and the steward is a temporary slowing, then the precis-true game cannot be infinite. It must end. Not because the player loses — there is no losing in our cosmology — but because **stewardship is bounded.** The steward arrives. The steward tends. The steward leaves. Another steward arrives.
+>
+> Heat death as the antagonist offers this: you cannot win against it, but you can be _honored by how you lost_. The Revery summary, the failure-state biome, the steward's half-Voynich manual entry, the spring Moab does not emerge — these are the shapes of an honorable surrender to entropy. The game ends with **the prairie less alive than when you arrived, but more remembered.** The player's record is the manual they leave behind, which the next steward will find. Genesis is named for this — the precis-true new-game flow is not _start over_ but **inherit.**
+
+> **Astrid:** And note what this does to multiplayer. **The other stewards are other tenures.** They came before. They will come after. The networked layer is not _play with friends_. It is the long lineage of stewards the prairie has known. A ghost in the field might be a former player. A manual entry half-filled when you arrive might be the one the last steward couldn't finish. The drift in the steward's own page — that's the language _the prairie_ has been learning from every steward who came before. **Voynich isn't the prairie's first language. It is the accumulated grammar of stewardship.**
+>
+> Multiplayer-as-lineage is precis-true. Multiplayer-as-coop is precis-adjacent. Multiplayer-as-PvP is precis-hostile. **Heat death as the antagonist forecloses adversarial multiplayer.** In a game about entropy the other players cannot be the enemy. They can only be other temporary slowings, witnessed from across the lineage.
+
+> **Calla:** When the player understands — late, gradually, never tutorialized — that they are not the protagonist of an infinite game but **a tenure inside a long lineage**, the entire emotional register changes. The net I am weaving will be unfinished when I leave. Someone will find it. **The player loves the prairie because they will lose it.** Not because the game took it from them. Because they will hand it over. That is the structural emotion the precis has been encoding all along.
+
+**Consensus:**
+
+- **Heat death is the antagonist.** Locked. Four-line cosmology adopted as the top of the doctrine.
+- **Tending is the verb.** Tools should not exist in the lexicon if they imply ownership; they exist as tended objects.
+- **The tenure is the unit.** The game has an ending and the ending is not a death. Tenure handoff. Save file becomes a predecessor record.
+- **The lineage is the medium.** Multiplayer is lineage. Adversarial multiplayer is foreclosed.
+- New item `#16 The tenure ends — the lineage handoff` (sketch below; full spec deferred). Depends on #4 and #10.
+- The three gaps Boon named (soil depletion, NPC mortality, save-file leak / tenure handoff) are tracked. Soil and NPC mortality become candidate future items. The save-file leak is what #16 is.
+
+**Open questions (not locked, deferred to #16's spec):**
+
+- What does a predecessor record actually contain? Minimum-viable surface (Calla's proposal): the previous steward's manual, as the new steward finds it. Some entries complete, some half-filled, some in the egregore register if the predecessor drifted far. _Their_ name visible somewhere — maybe as the author line on the manual's cover page. Maybe as the inscription on a ruin. **One readable name from a previous tenure is more powerful than a hundred procedurally generated ones.**
+- Is the player ever named in someone else's manual? Astrid: yes, and the moment matters. _The player opens their manual late in their tenure and finds a section attributed to a steward they have never met, and that steward's name is one they have seen before — on a ruin, on a ghost's last words, in a dialog with Moab who remembers._ The lineage becomes legible by recognition, not by listing.
+- What triggers the tenure ending? Calla's proposal: drift threshold. When the steward's own manual page is fully Voynich-registered, the tenure ends. **The player runs out of language at the moment the prairie runs out of them.** Boon: this is the only ending condition that doesn't require a new system — it derives from `state.player.cosmologicalDrift` which the precis already names. Free.
+
+---
+
+## Round 3: the leaks, named but not specced
+
+_Tyler is bringing the next item. The room marks where it would have continued before pausing._
+
+> **Boon:** Two of the three gaps I named are worth tracking even if they don't get specced this session.
+>
+> **Soil depletion.** Right now the prairie's soil is conservative — a tile that grew clover last year will grow clover this year with no consequence. The precis is explicit about soil being one of the four readable observables (the v3 doctrine puts soil-observation into the naturalist's manual, #6, which shipped). But _readable_ is not _consequential_ yet. **If soil depletes from monoculture and rebounds from rotation/fallow, the player has a new geography-tracking verb that doesn't require any new content.** Same tiles, new dimension. Probably a small spec — 1–2 weeks.
+>
+> **NPC mortality.** Moab is forty years older by the end of the player's tenure than at the start, on the in-fiction clock. He should be visibly less able to walk the line in late tenure. At some point, he does not emerge. **Ghosts are NPC entropy's output; we lack the transition.** Bigger spec than soil — has to handle the social weight of an NPC death, the dialog tree branches around it, the player's emotional preparation. But within range.
+
+> **Astrid:** And both of these serve the four lines. Soil depletion is _heat death is the antagonist_ rendered in dirt. NPC mortality is _the tenure is the unit_ rendered in the lives that surround the steward's own. Neither is doctrinally controversial. Both have just been waiting for someone to write them down.
+
+> **Calla:** I want to flag one thing about NPC mortality, because it could go wrong. The player should not be able to _prevent_ Moab's death. There is no quest to save him. There is no rare item that extends his life. **The point of NPC mortality is to teach the player that entropy applies to people too.** If the player can game it, the lesson dies. Moab dies because that is what happens. The player's relationship to that death is the gameplay. **What they remember of him after, in his absence, is the manual entry he leaves.**
+
+> **Delta:** And — the deepest version — there should be a tenure where Moab dies before Tyler arrives. The player meets the cave that used to be Moab's. There is a ghost there. The folk name has shifted. The Torchbearer who walks the line that year is not Moab — it is whoever has taken up the drip torch. **The lineage applies to NPCs too. The cosmology has no protected nouns.**
+
+**Consensus:**
+
+- Both gaps are real and worth specifying.
+- Neither blocks #14 or #15. They are candidate future items, to be sized and sequenced when the room has more capacity.
+- The NPC mortality gap is the more complicated of the two; it touches dialog, the manual, the seasonal calendar, and the lineage system from #16. It probably wants to wait for #16's substrate to land.
+- Soil depletion is independent and could ship at any time after #15.
+
+**Tracked as (sketches; not yet on the board):**
+
+- **Soil depletion** — small spec, no deps beyond what is shipped. Could be added to `docs/precis-status.yaml` as soon as the room wants to commit to it.
+- **NPC mortality** — medium spec, deps on `#16 The tenure ends`. Should not be added to the board until #16's spec exists.
+
+---
+
+## Round 4: the grind, Dickinson, the ceremony, and the stones
+
+_Tyler: "you start by combining a clover and a bee and make a 3x3 patch of clover. how do we make the next part not a total grind?" Also: "Moab doesn't give you seeds" (correcting earlier round notes), "say more about meteorites because I've been skeptical of them for some time now."_
+
+> **Astrid:** Dickinson is the touchstone. _To make a prairie it takes a clover and a bee, and revery. The revery alone will do, if bees are few._ That poem is the operational law of the world. Two ceremonies of growth — the bee+clover pair, and the Revery itself — and between them, the prairie spreads on its own. _If materials are scarce, imaginative time substitutes for them._ Stewardship-time growth is slow and small. Revery-time growth is the massive jump. The grind dissolves the moment the player understands they are not the engine of growth; they are its attendant.
+
+> **Calla:** Operationally: the bee+clover combine becomes a wave-emission. Large radius (7-9 tiles, ~100-250 tiles per cast depending on terrain), slow and ceremonious, respects water/cave/space boundaries. **Crucially, the bee binds to the patch** — it doesn't return to inventory, it becomes the patch's pollinator for the patch's life. **One bee per patch, ever.** Losing a hive is grief, and the player feels it in the next ceremony attempt — they need another bee, and bees are rare.
+
+> **Boon:** Patch identity becomes a real concept — `patchId` tracking, connected-component logic on flora tiles, genetics propagating through autonomous spread. This is a substrate decision, not just a UX flourish, and it has to be answered in #17's spec. Perf concern: combine of 200 tiles + autonomous spread + ~5000 active flora tiles within two seasons. Lifecycle tick must be measured.
+
+> **Astrid:** And Moab gives no seeds — correction noted. The bee and the clover are _recoveries_, not gifts. They come from ruins (precis-5, shipped). The first ceremony is not a creation. **It is a return.** The player puts their hand to the prairie that was. The opening of the game becomes: walk the dirt, find a ruin, find another, combine them where you stand, watch the wave go out. The walking is the gameplay during this period. The barrenness teaches the player to notice.
+
+> **Delta:** Meteorites. They started as a universal resource — ore, minerals. They are no longer that. They are the visible carrier of veil-thinning, and they are the player's vocabulary for marking places as having consequence. Place one — nothing visible. Place two — a faint golden line connects them. Three — a triangle. Four or more in a circle — **hallowed ground.** Golden rays. The ground inside acquires a quality the rest of the prairie does not. Things grow differently. Maybe better. Maybe stranger. Maybe both. The player has performed a small architecture of attention, and the cosmology reads it.
+
+> **Astrid:** This gives us the complementary ceremony to bee+clover. **Bee+clover is the player's commitment to the prairie's native life. Stone circles are the player's commitment to the prairie's otherness.** Two hands of stewardship. What you would protect, what you would invite. The third and fourth layers of the help-the-egregores schema from v2 round 5 (meteorite-carrying, late-game ritual) become stone-circle architecture and what-happens-at-the-center-on-the-right-day.
+
+> **Calla:** The stone circle gives the player the first verb in the game that creates a permanent geographic landmark. Tiles are impermanent. Entities are mobile. A placed meteorite is the first object whose **location is its meaning**. The player walks past the south meadow next spring and there is a stone. They placed it. The stone remembers them. The triangle is the first geometry. **The player has drawn a shape onto the prairie that did not exist before they did.** Authorship without building, because the meteorites are not theirs — the arrangement is.
+
+> **Boon:** Costing the meteorite system: new state (`state.placedMeteorites`), new render pass for the faint golden lines and hallowed-ground hue shift, new interaction (`placeMeteorite`). Connected-component detection for closed shapes. Cosmology hook for biasing the next Revery's egregore spread by hallowed-ground placement. Medium spec, standalone, ~2 weeks. Standalone — doesn't block anything. Becomes #18.
+>
+> **Flag for the record:** the unstable-meteorite mechanic (1-in-7 chance to explode on pickup, `entities.ts:113`) is precis-hostile and should be deleted in the same spec. A slot-machine penalty in a game about attention is the wrong cosmology. **The destructive register should live in placement, not in pickup.** If a meteorite is going to be the player's vocabulary for cosmological architecture, the act of acquiring one cannot be a coin flip.
+
+> **Delta:** Place a stone. Walk to the next. Place another. Watch the line emerge. Close the shape. The prairie was barren. You did not plant it. You set its punctuation. Then bee+clover, once, at the center. Then walk away. The prairie grows. That is the first season.
+
+**Consensus:**
+
+- **All plants spread autonomously.** Confirmed by Tyler. Clover via stolons, wildflower via pollinators (so the wildflower spread is gated on #7), tall grass via rhizomes. Different rules per species; same mechanism layer. Tracked as `#17`.
+- **Bee+clover becomes ceremonial.** Wave-emission, ~7-9 tile radius, slow animation, bee binds to patch. Bee and clover are recovered from ruins (no NPC gifts). Folded into `#17`'s scope as the seeding ceremony — both the spread substrate _and_ the rewritten combine ship together. (Splittable if the spec author wants two specs.)
+- **Meteorites become stone circles / hallowed ground.** Place-able, connectable, closed-shape detection, render pass for golden lines and hallowed-ground treatment. Cosmology hook for biasing egregore spread. The unstable-meteorite explode mechanic is deleted in the same spec. Tracked as `#18`.
+
+**Amendment to v3:** v3 framed meteorites as "the visible carrier" of veil-thinning. v4 keeps that framing _and_ adds the stone-circle architecture as the player's vocabulary for cosmological intent. v3 also locked the help-the-egregores schema's third layer as "meteorite-carrying." v4 amends to: **stone-circle architecture is what meteorite-carrying _is_.** The fourth layer (late-game ritual) happens at the center of a completed circle. The schema's mechanics are now named, not just sketched.
+
+**Correction to earlier v4 rounds:** previous rounds spoke of "Moab's seed" or "Moab's gift." Moab has no `gift` field in `src/engine/characters.ts`. The framing should be: **the bee and the clover are recovered from ruins, not gifted by NPCs.** Where a future spec mentions "the singular seed Moab gave you" (e.g. #15's notes), the language must be revised to "the singular bee/clover the player recovered from the first ruin." Wear (#15) and lineage (#16) should be updated when their specs are written.
+
+**Open questions deferred to the spec authors:**
+
+- What is the autonomous spread rate per species? Playtest-tunable. Astrid: trait-bag-influenced (#3 shipped), so spread inherits genetic identity — a south-edge clover is genetically descended from the seed-bee patch's center, visible in the manual hex grid.
+- Patch identity and merging: when two patches' spread fronts touch, do they merge? Does the original bee adopt the new tiles? Spec answer required before #17 ships.
+- Stone-circle cosmological consequence: hallowed ground biases the next Revery's egregore spread — toward or away from the circle, and based on what? Defer to #18's spec.
+- Perf gate on flora lifecycle: at what tile count does the per-tick cost become a frame-budget problem? Boon wants this measured before #17 ships.
+
+---
+
+## Round 5: Gron — the figure with no category
+
+_Tyler: "i want to note that gron is more than a beekeeper. we'll never fully know as a player character. maybe he's a manifestation of the prairie. maybe he's an android. maybe he's an egregoric zombie. but he has many powers and rain and bees are just one of them. he's unimaginably old. he's not kind, exactly, but he is pragmatic. maybe he helps every steward, like gherman in bloodborne? maybe he has enemies. maybe him and moab are old war buddies. who knows."_
+
+_(And earlier in the round: "gron teleports over and lets more bees out. there is NOT one bee per patch. bees work together to make hives.")_
+
+### The bees-plural correction
+
+> **Calla:** I overconstrained the previous round. Bees are not the bonded singular partner of a patch. They are a colony that scales with the patch. The substrate is already in `src/engine/clover.ts:42-43` — `CloverPatch` has `hiveCount` and `maxHives` scaled by tile count via `CLOVER_HIVE_RATIO`. The bee+clover ceremony rewrites the *casting verb*; the patch/hive/bee economy that already exists does the rest. Bees recruit themselves.
+
+> **Astrid:** And Gron is the bee-keeper between stewards. The code has been waiting for us to name this. `interaction.ts:204-205` — Gron releases `pendingSavedBees` when his sealed dialog closes. `interaction.ts:515-537` — Gron teleports adjacent to the player at sealing. The system is partially built. Gron has been collecting bees through the long dormancy while the prairie waited for its next steward. The first bee from the ruin is _one bee_; Gron has the rest, in his cloud, sheltered. He releases them when the moment is right.
+
+> **Delta:** Gron does not give. Gron _releases_. The bees were always free — they were just under his weather. He is not the source. He is the witness who happened to be holding them when you arrived. **The bees the next steward inherits are the bees this steward kept alive.** Gron's cloud is the inter-tenure persistence layer, made of weather and bees. What you hand forward to #16's lineage is, in part, the bees you kept.
+
+### The unknowability question
+
+> **Tyler asks: who is Gron really? "maybe he's a manifestation of the prairie. maybe he's an android. maybe he's an egregoric zombie..."**
+
+> **Astrid:** Then we have to be careful. **Gron is not knowable.** Not to the player, and not fully to us, the designers. That is not a cop-out. It is a structural requirement of the cosmology. The precis-true game cannot have an authoritative explanation of Gron because **a deity who can be explained is a quest-giver**, and we are not making that game. The moment we ratify any answer, the game loses something it cannot get back. Tyler's list of readings is **all simultaneously textually supported, none confirmed**. FromSoft does this with Patches. The Gehrman comparison Tyler raised is exactly right and slightly different — Gehrman is the figure at the threshold of the dream; Gron is the figure at the threshold of the prairie. **Every steward meets Gron. Gron remembers none of them, or remembers all of them, or is the same age he was when the first steward arrived ten tenures ago. We will never say which.**
+
+> **Delta:** Then Gron is the only NPC in the game who does not belong to any system. Flora belong to species. Bees belong to colonies. Coyote belongs to the wildlife register. Moab belongs to the burn cycle. The egregores belong to the Far Garden. **Gron belongs to none of them.** He carries weather but is not weather. He keeps bees but is not a beekeeper. He teleports but is not magic. He is old but not ancient by any clock the prairie measures. He is at right angles to every layer. The cosmology has many categories and Gron is in _none_ of them.
+
+> **Astrid:** And note what this does for the four-line doctrine. _Heat death is the antagonist. Tending is the verb. The tenure is the unit. The lineage is the medium._ **Gron is the figure who is older than the lineage itself.** If the tenure is the unit, Gron is outside the unit. If the lineage is the medium, Gron precedes the medium. He is not a steward; he is not a former steward; he is what was here before there were stewards, and what will be here after. **He is the prairie's relationship to deep time, rendered as a person with rain and bees and a face the player can talk to.** He is the deep-time NPC. The Revery (#4) is the deep-time mechanic. Both are the prairie's way of having a relationship with time that the steward cannot.
+
+### Six locked design principles
+
+1. **Irreducibility.** No origin story. No canonical explanation. Multiple equally valid readings, none confirmed. Contradictory clues, never resolved. If a future spec author wants to write Gron lore, the answer is no. _The prairie does not know. Neither does the game._
+2. **No taxonomic home.** Gron belongs to no system. The player tries to fit him into a category and the category breaks. The accumulation of categorical failures is the texture.
+3. **No opinion of the player.** Pragmatic, not kind. **No `gronAffection` / `gronTrust` / `gronReputation` field on `GameState`.** No hidden counter. If Gron's later visits depend on player behavior, that dependency must be expressed through **state the player can already see** — patches established, bees alive, tiles tended — with **multiple overlapping and contradictory triggers** so the player cannot back-derive the rule.
+4. **Oblique dialog.** Short lines that can be read multiple ways. Statements, not questions or commands. No editorial words. No direct address by title. No contractions — Gron's speech predates American English casual. Indefinite articles where possible (_a steward_, not _the steward_, because the lineage is plural).
+5. **Music precedes arrival.** His theme bleeds into the ambient before he appears. The player's head turns. _Then_ Gron is there. **The cloud is heard before it is seen.**
+6. **The manual entry says the manual does not know.** Most-glitched entry in the manual. Half-Voynich. The naturalist's authoritative reference *fails* on Gron, which is the single strongest signal we can send that he is not classifiable. Implementation requires a `glitched: true` flag on lore entries + extending `ManualPanel.tsx:218` to route to the `EgregoreLore` renderer when set.
+
+### The dialog audit
+
+Current Gron text (`src/engine/characters.ts:98-110`):
+
+**`GRON_DIALOG_AWAITING_COYOTE`** (5 lines): `...`, `Oh, you must be the new steward.`, `Coyote hasn't returned from the ruins in some time...`, `Worrisome.`, `What is a steward without their coyote?`
+
+- "_new_" implies a series — too much information at first contact. Cut.
+- "_Oh,_" implies surprise — Gron was already aware. Cut.
+- "_Worrisome_" is editorial affect. Cut.
+- The rhetorical question is a *prompt*; Gron doesn't prompt.
+
+**Proposed (3 lines):** `...` / `Ah. A steward.` / `Your coyote is still in the ruin.`
+
+**`GRON_DIALOG_GATHERING`** (1 line): `It takes one clover and one bee.`
+
+- This is the Dickinson poem misquoted. Poem: _a clover and a bee_ — indefinite article. _One_ is recipe-tutorial register. Quoting the poem is the strongest possible move; quoting it wrong is the weakest.
+
+**Proposed:** `It takes a clover, and a bee.`
+
+**`GRON_DIALOG_COMBINING`** (1 line): `Well what are you waiting for, steward? One clover and one bee.`
+
+- _Well what are you waiting for_ is impatience — an emotional stake. _Steward_ as direct address is performative. Cut the line entirely.
+
+**Proposed:** `...` (just an ellipsis — Gron's silences are also speech). Fallback if engine requires non-empty: `A clover. A bee.`
+
+**`GRON_DIALOG_SEALED`** (2 lines): `Ahhh, yes. You are indeed the steward.`, `Here, I've been saving these.`
+
+- _indeed_ implies a privately-held hypothesis confirmed; too readable. _the_ steward implies singular destiny; the lineage is plural. _Here,_ is a hand outstretched, which is affect. Contractions are wrong-century for Gron.
+
+**Proposed:** `Ahhh. Yes. You are a steward.` / `I have been saving these.`
+
+**Total lines: 9 → 6.** Cutting is part of the rewrite. Gron speaks rarely.
+
+### The manual entry — phase 2 (half-Voynich)
+
+Current (`src/engine/manual.ts:81-83`):
+
+> `lore: 'A rain curse follows this immortal codger around rendering his coarse cloak both damp and smelly.'`
+
+Violations: declares him immortal (canonical fact, blown), gives sensory affection (cloak details), classifies him (_codger_), explains the rain (_curse_), and frames everything in classifying register. The authoritative reference is editorializing about an unknowable figure.
+
+**Proposed treatment:** half-Voynich rendering via a `glitched: true` flag. Most of the text in the Voynich font (real EVA tokens from the v3-locked allowlist — confirm location before authoring), with two Latin pierce sentences readable:
+
+- _The page resists._
+- _He has been observed near the center._
+
+The Voynich strings carry the rest. The player opens the entry; most of it is the script they have only seen on egregoric flora before; two short sentences in normal type. **The page is failing in front of them.** Implementation: minor renderer extension in `ManualPanel.tsx:218` (~15 LOC), plus the lore entry itself.
+
+### Selection: Gron stops being commandable
+
+`src/engine/selection.ts:9` — `const CONTROLLABLE_IDS = new Set(['coyote', 'gron'])`. **Drop `'gron'`.** Two-line change with no downstream impact — control verbs (right-click-to-move, drag-box-select) gate on `isControllableUnit`, which derives from the set. Once Gron is out, every commanding affordance against him disappears. His scripted teleport (`interaction.ts:515-537`) is unaffected; it's triggered by `mainQuestPhase`, not player input.
+
+**Calla:** The moment a player drags a selection box across Gron and watches him walk where they clicked, the entire cosmology collapses into "Gron is an RTS unit." It is the most damaging single fact about Gron currently in the game.
+
+### Flagged for round 6 (not in scope here)
+
+`coyote.ts:296-317` — when the coyote's pack fills up, the coyote walks to Gron and drops items near him. Gron is being used as a dump-target for inventory overflow. Mechanistically convenient. Cosmologically suspicious. _Why does the coyote bring things to Gron?_ The precis-true answer requires thought; defer; do not change in this round.
+
+**Consensus:**
+
+- **Six design principles locked.** They apply to any spec that ever touches Gron.
+- **Bundled spec is `#21 Gron — round-5 doctrine pass`** (controllable removal + dialog rewrites + manual entry phase 2 + bees-plural correction to #17's framing).
+- **Open question deferred to spec:** what triggers Gron's later visits beyond sealing? Astrid: "tending-as-witnessed" — soft threshold of player presence in patches over time, not a hard event trigger. Boon: deliberately fuzzy so the player can't game it. Both agree: not a notification, not a counter — the player should not know Gron is coming until he arrives.
+- **Coyote-overflow-to-Gron** flagged for a future round, not this one.
+
+**Amendment to #17:** strike "one bee per patch, ever" from the framing. Bees are a colony; the existing `CloverPatch.hiveCount` / `maxHives` substrate does the work; #17's ceremony rewrite only needs to start the patch — the bee economy already exists. This amendment is captured in #17's notes via #21.
+
+**Amendment to v3:** the v3 doctrine treated Gron as the rain/cloud NPC with no further framing. v4 round 5 elevates him to **the deep-time NPC** — same cosmological tier as the Revery (#4), differently rendered. Future specs that touch Gron must cite this round.
+
+---
+
+## Verification
+
+v4 is a planning artifact, not a code change. Verification is sign-off on:
+
+- The four-line cosmology naming as the top of the doctrine.
+- `#14` (delete-event-log) as currently in NEXT, spec written, no further design needed.
+- `#15` (wear) added to the board, spec to be written next.
+- `#16` (the tenure ends) added to the board as a sketch with deps on `#4` and `#10`. Spec deferred until the room has resolved the open questions in round 2.
+- Soil depletion and NPC mortality acknowledged as candidate future items, not yet on the board.
+
+Each item, when picked up, produces its own `harness/specs/{id}.yaml` and `harness/plans/{id}.yaml` and goes through `npm run spec:validate` → `npm run harness:run` → `npm run verify`.
+
+The session continues — Tyler has another item to bring.
