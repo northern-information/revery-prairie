@@ -267,6 +267,8 @@ export const createGameState = (
     devEntityPreview: null,
     multiplayerSession: null,
     remotePlayers: new Map(),
+    scannedSpecimens: new Map(),
+    scanInProgress: null,
     onPlayerMoved: null,
     onGenesisEpochStart: null,
     onGenesisComplete: null,

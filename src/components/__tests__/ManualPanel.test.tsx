@@ -29,7 +29,11 @@ describe('ManualPanel', () => {
   })
 
   it('renders entry names from the registry', () => {
-    renderManual()
+    // Discover clover so the flora entry appears (precis #6 — undiscovered
+    // flora are hidden until scanned).
+    const state = createTestState()
+    state.manualDiscoveries.add('flora:clover')
+    render(<ManualPanel state={state} />)
     // Bee item and Clover flora-species entries should appear (may appear
     // multiple times as cross-refs).
     expect(screen.getAllByText('Bee').length).toBeGreaterThan(0)
@@ -116,5 +120,55 @@ describe('ManualPanel', () => {
     // Overworld and Shooting Star have unlockKey 'always' (may appear as cross-refs too)
     expect(screen.getAllByText(/The Prairie/).length).toBeGreaterThan(0)
     expect(screen.getAllByText('Shooting Star').length).toBeGreaterThan(0)
+  })
+
+  describe('flora entries — scan-to-discover (precis #6)', () => {
+    it('hides undiscovered flora species entirely', () => {
+      renderManual()
+      // No flora:* species has been scanned, so none of their entries
+      // render. The names come from MANUAL_ONLY_SKELETONS in manual.ts.
+      expect(screen.queryByText('Clover (Trifolium repens)')).not.toBeInTheDocument()
+      expect(screen.queryByText('Purple Coneflower (Echinacea purpurea)')).not.toBeInTheDocument()
+      expect(screen.queryByText('Big Bluestem (Andropogon gerardii)')).not.toBeInTheDocument()
+    })
+
+    it('shows a flora entry once its species is discovered', () => {
+      const state = createTestState()
+      state.manualDiscoveries.add('flora:wildflower')
+      render(<ManualPanel state={state} />)
+      expect(screen.getByText('Purple Coneflower (Echinacea purpurea)')).toBeInTheDocument()
+      // Clover and tall grass remain hidden.
+      expect(screen.queryByText('Clover (Trifolium repens)')).not.toBeInTheDocument()
+      expect(screen.queryByText('Big Bluestem (Andropogon gerardii)')).not.toBeInTheDocument()
+    })
+
+    it('renders the hex grid for a scanned species', () => {
+      const state = createTestState()
+      state.manualDiscoveries.add('flora:clover')
+      state.scannedSpecimens.set('clover', 'a'.repeat(64))
+      render(<ManualPanel state={state} />)
+      // HexGridView has a stable data-testid.
+      expect(screen.getByTestId('hex-grid-view')).toBeInTheDocument()
+    })
+
+    it('does not render the hex grid for a discovered species without a cached specimen', () => {
+      // Discovery alone (without scannedSpecimens entry) shouldn't crash —
+      // the grid quietly skips. The entry still appears (per discovery).
+      const state = createTestState()
+      state.manualDiscoveries.add('flora:clover')
+      render(<ManualPanel state={state} />)
+      expect(screen.getByText('Clover (Trifolium repens)')).toBeInTheDocument()
+      expect(screen.queryByTestId('hex-grid-view')).not.toBeInTheDocument()
+    })
+
+    it('search does not surface undiscovered flora entries', async () => {
+      const user = userEvent.setup()
+      renderManual()
+      const input = screen.getByPlaceholderText('Search...')
+      await user.type(input, 'Trifolium')
+      // Even searching for the latin binomial returns no clover entry
+      // because the entry was filtered out before rendering.
+      expect(screen.queryByText('Clover (Trifolium repens)')).not.toBeInTheDocument()
+    })
   })
 })

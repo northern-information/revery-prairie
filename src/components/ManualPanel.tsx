@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { HexGridView } from './HexGridView'
 import { SectionHeader, Tab, TextButton } from './PanelPrimitives'
 
 import {
@@ -11,7 +12,7 @@ import {
   ManualCategory,
 } from '@/engine/manual'
 import type { ManualEntry, ManualHint } from '@/engine/manual'
-import type { GameState, ManualState } from '@/engine/types'
+import type { FloraSpecies, GameState, ManualState } from '@/engine/types'
 
 const capitalize = (s: string): string => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1))
 
@@ -139,15 +140,25 @@ const EgregoreLore = ({ entry }: { entry: ManualEntry }) => {
   )
 }
 
+// Map a 'flora:<species>' entry id to the FloraSpecies key. Returns null
+// for non-flora entries. The species id segment matches the FloraSpecies
+// const values ('clover', 'wildflower', 'tallGrass').
+const speciesFromEntryId = (id: string): FloraSpecies | null => {
+  if (!id.startsWith('flora:')) return null
+  return id.slice('flora:'.length) as FloraSpecies
+}
+
 const EntryCard = ({
   entry,
   discoveries,
+  scannedSpecimens,
   manualState,
   showCategory,
   onToggleHint,
 }: {
   entry: ManualEntry
   discoveries: Set<string>
+  scannedSpecimens: Map<FloraSpecies, string>
   manualState: ManualState
   showCategory: boolean
   onToggleHint: (key: string) => void
@@ -155,6 +166,11 @@ const EntryCard = ({
   const discovered = isDiscovered(discoveries, entry)
   const isRecipe = entry.sourceKind === 'recipe'
   const recipeResultKey = `${entry.id}:result`
+
+  // Precis #6 — flora entries are completely hidden until the species is
+  // scanned via the permacomputer. Other entry types remain visible with
+  // hidden content (see lore gating for undiscovered recipes below).
+  if (entry.id.startsWith('flora:') && !discovered) return null
 
   return (
     <div className="mb-4">
@@ -195,6 +211,17 @@ const EntryCard = ({
       {/* Separator */}
       <div className="text-dim text-xs">{'----'}</div>
 
+      {/* Hex grid — precis #6. Rendered above the lore for scanned flora
+          entries. The cached identity is the first-scanned specimen's
+          SHA256 string; hashToHexGrid maps it to an 8x8 nibble grid. */}
+      {(() => {
+        const species = speciesFromEntryId(entry.id)
+        if (!species) return null
+        const identity = scannedSpecimens.get(species)
+        if (!identity) return null
+        return <HexGridView identity={identity} />
+      })()}
+
       {/* Summary/lore — hidden for undiscovered recipes unless result spoiler is revealed.
           Egregore entries render their procedurally-generated EVA-token body in the
           Voynich typeface; Latin pierces inside the body remain ASCII so they render
@@ -226,7 +253,7 @@ const EntryCard = ({
 }
 
 export const ManualPanel = ({ state }: ManualPanelProps) => {
-  const { manualState, manualDiscoveries } = state
+  const { manualState, manualDiscoveries, scannedSpecimens } = state
 
   // Local React state synced with persistent manualState
   const [activeCategory, setActiveCategoryLocal] = useState(manualState.activeCategory)
@@ -320,6 +347,7 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
                   <EntryCard
                     entry={entry}
                     discoveries={manualDiscoveries}
+                    scannedSpecimens={scannedSpecimens}
                     manualState={manualState}
                     showCategory={activeCategory === null}
                     onToggleHint={toggleHint}

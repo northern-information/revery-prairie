@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createTestState } from '@/engine/__tests__/helpers'
 import { dropItem } from '@/engine/entities'
+import { commitScan, selectScanTarget } from '@/engine/scan'
+import { FloraSpecies } from '@/engine/types'
 import {
   advanceDialog,
   breakWall,
@@ -28,6 +30,11 @@ vi.mock('@/engine/entities', async importOriginal => {
 
 vi.mock('@/engine/movement', () => ({
   movePlayer: vi.fn(() => true),
+}))
+
+vi.mock('@/engine/scan', () => ({
+  selectScanTarget: vi.fn(() => null),
+  commitScan: vi.fn(),
 }))
 
 vi.mock('@/engine/interaction', () => ({
@@ -153,6 +160,7 @@ beforeEach(() => {
   // Reset all mock return values (clearAllMocks only clears call history)
   vi.mocked(movePlayer).mockReturnValue(true)
   vi.mocked(advanceDialog).mockReturnValue({ continuing: false, gift: null })
+  vi.mocked(selectScanTarget).mockReturnValue(null)
   vi.mocked(breakWall).mockReturnValue(false)
   vi.mocked(getAdjacentCharacter).mockReturnValue(null)
   vi.mocked(interactWithCharacter).mockReturnValue({ opened: false, gift: null, coyoteToggled: false })
@@ -506,6 +514,99 @@ describe('useKeyboard', () => {
         fireKeyUp('a')
       })
       expect(state.heldDirection).toBe('upLeft')
+    })
+  })
+
+  describe('[v] hold-to-scan (precis #6)', () => {
+    const stubTarget = {
+      position: { x: 10, y: 10 },
+      species: FloraSpecies.Clover,
+      identity: 'a'.repeat(64),
+    }
+
+    it('begins a scan on keydown when a target is available', () => {
+      vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
+      renderKeyboardHook()
+      act(() => {
+        fireKey('v')
+      })
+      expect(state.scanInProgress).not.toBeNull()
+      expect(state.scanInProgress?.species).toBe(FloraSpecies.Clover)
+    })
+
+    it('does not begin a scan when there is no target', () => {
+      vi.mocked(selectScanTarget).mockReturnValue(null)
+      renderKeyboardHook()
+      act(() => {
+        fireKey('v')
+      })
+      expect(state.scanInProgress).toBeNull()
+    })
+
+    it('ignores key repeat — does not reset startTime', () => {
+      vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
+      renderKeyboardHook()
+      act(() => {
+        fireKey('v')
+      })
+      const firstStart = state.scanInProgress?.startTime ?? 0
+      act(() => {
+        fireKey('v', { repeat: true })
+      })
+      expect(state.scanInProgress?.startTime).toBe(firstStart)
+    })
+
+    it('commits the scan on keyup after the full hold duration', () => {
+      vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
+      renderKeyboardHook()
+      act(() => {
+        fireKey('v')
+      })
+      // Backdate startTime so the next performance.now() reading exceeds SCAN_DURATION_MS.
+      if (state.scanInProgress) state.scanInProgress.startTime = performance.now() - 2000
+      act(() => {
+        fireKeyUp('v')
+      })
+      expect(commitScan).toHaveBeenCalledOnce()
+      expect(state.scanInProgress).toBeNull()
+    })
+
+    it('aborts the scan on early release (elapsed < SCAN_DURATION_MS)', () => {
+      vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
+      renderKeyboardHook()
+      act(() => {
+        fireKey('v')
+      })
+      // Backdate by only 100ms — well under SCAN_DURATION_MS.
+      if (state.scanInProgress) state.scanInProgress.startTime = performance.now() - 100
+      act(() => {
+        fireKeyUp('v')
+      })
+      expect(commitScan).not.toHaveBeenCalled()
+      expect(state.scanInProgress).toBeNull()
+    })
+
+    it('aborts the scan when the player presses a movement key', () => {
+      vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
+      renderKeyboardHook()
+      act(() => {
+        fireKey('v')
+      })
+      expect(state.scanInProgress).not.toBeNull()
+      act(() => {
+        fireKey('w') // movement
+      })
+      expect(state.scanInProgress).toBeNull()
+    })
+
+    it('suppresses the keydown while a dialog is open', () => {
+      vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
+      state.activeDialog = { characterId: 'gron', lineIndex: 0 } as GameState['activeDialog']
+      renderKeyboardHook()
+      act(() => {
+        fireKey('v')
+      })
+      expect(state.scanInProgress).toBeNull()
     })
   })
 })

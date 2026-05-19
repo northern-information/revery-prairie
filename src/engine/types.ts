@@ -186,6 +186,14 @@ export interface RemotePlayer {
   lastUpdateMs: number
 }
 
+// ─── precis #6 — naturalist's manual scan ────────────────────────────────────
+
+export interface ScanProgress {
+  target: Position
+  species: FloraSpecies
+  startTime: number
+}
+
 // ─── flora pollen ─────────────────────────────────────────────────────────────
 
 export interface PollenParticle {
@@ -371,6 +379,16 @@ export interface GameState {
   devEntityPreview: { x: number; y: number; char: string; color: string } | null
   multiplayerSession: MultiplayerSession | null
   remotePlayers: Map<string, RemotePlayer>
+  // Precis #6 — naturalist's manual scan-to-discover.
+  // scannedSpecimens maps each flora species to the SHA256 identity of the
+  // first plant of that species the player ever successfully scanned. Once
+  // written, an entry is never overwritten. The manual entry's hex grid
+  // derives from the cached identity via hashToHexGrid.
+  scannedSpecimens: Map<FloraSpecies, string>
+  // Active scan state. Non-null while [v] is held and a valid target was
+  // found at keydown. Cleared on commit, early release, movement, or any
+  // other abort condition.
+  scanInProgress: ScanProgress | null
   onPlayerMoved: (() => void) | null
   onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null
   onGenesisComplete: ((handoffTime: number) => void) | null

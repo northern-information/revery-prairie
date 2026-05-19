@@ -121,6 +121,8 @@ const EXPECTED_FIELDS = [
   'devEntityPreview',
   'multiplayerSession',
   'remotePlayers',
+  'scannedSpecimens',
+  'scanInProgress',
   'onPlayerMoved',
   'onGenesisEpochStart',
   'onGenesisComplete',

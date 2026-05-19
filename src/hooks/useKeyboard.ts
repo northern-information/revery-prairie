@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { getCharacterDefinition } from '@/engine/characters'
+import { SCAN_DURATION_MS } from '@/engine/constants'
 import { dropItem } from '@/engine/entities'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import { keyToScreenAxis, resolveHeldDirection } from '@/engine/heldKeys'
+import { commitScan, selectScanTarget } from '@/engine/scan'
 import {
   advanceDialog,
   breakWall,
@@ -255,6 +257,26 @@ export const useKeyboard = ({
         return
       }
 
+      // [v] — hold-to-scan flora with the permacomputer (precis #6).
+      // Keydown begins a scan if there's a valid target nearby. Modal
+      // blocks (system menu, dialog) suppress. Key repeat on a held v
+      // is ignored — the original startTime stands.
+      if (e.key === 'v' || e.key === 'V') {
+        if (e.repeat) return
+        if (state.activeDialog) return
+        if (activeScreen === 'system') return
+        if (state.scanInProgress) return
+        const target = selectScanTarget(state)
+        if (!target) return
+        state.scanInProgress = {
+          target: target.position,
+          species: target.species,
+          startTime: performance.now(),
+        }
+        refreshUI()
+        return
+      }
+
       // Movement (allowed with pack open; WASD closes system)
       const axis = keyToScreenAxis(e.key)
       if (axis && activeScreen === 'system') {
@@ -272,6 +294,10 @@ export const useKeyboard = ({
       }
       if (axis) {
         e.preventDefault()
+        // Movement aborts an active scan — precis #6.
+        if (state.scanInProgress) {
+          state.scanInProgress = null
+        }
         state.heldKeys.add(axis)
         state.heldDirection = resolveHeldDirection(state.heldKeys)
         if (!e.repeat) {
@@ -304,8 +330,21 @@ export const useKeyboard = ({
         state.heldKeys.delete(axis)
         state.heldDirection = resolveHeldDirection(state.heldKeys)
       }
+
+      // [v] release — commit or abort the scan (precis #6).
+      if (e.key === 'v' || e.key === 'V') {
+        const progress = state.scanInProgress
+        if (!progress) return
+        const now = performance.now()
+        const elapsed = now - progress.startTime
+        if (elapsed >= SCAN_DURATION_MS) {
+          commitScan(state, now)
+        }
+        state.scanInProgress = null
+        refreshUI()
+      }
     },
-    [state]
+    [state, refreshUI]
   )
 
   useEffect(() => {
