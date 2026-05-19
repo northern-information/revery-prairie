@@ -13,7 +13,7 @@ import {
   ManualCategory,
 } from '@/engine/manual'
 import type { ManualEntry, ManualHint } from '@/engine/manual'
-import type { FloraSpecies, GameState, ManualState, ScannedSpecimen } from '@/engine/types'
+import type { FloraSpecies, GameState, ManualState, RevealedPhenotype, ScannedSpecimen } from '@/engine/types'
 
 const capitalize = (s: string): string => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1))
 
@@ -138,6 +138,7 @@ const EntryCard = ({
   entry,
   discoveries,
   scannedSpecimens,
+  revealedPhenotypes,
   manualState,
   showCategory,
   onToggleHint,
@@ -145,6 +146,7 @@ const EntryCard = ({
   entry: ManualEntry
   discoveries: Set<string>
   scannedSpecimens: Map<FloraSpecies, ScannedSpecimen[]>
+  revealedPhenotypes: Map<FloraSpecies, RevealedPhenotype[]>
   manualState: ManualState
   showCategory: boolean
   onToggleHint: (key: string) => void
@@ -219,6 +221,27 @@ const EntryCard = ({
         </div>
       )}
 
+      {/* Precis #4 — revealed phenotypes. Rendered below the lore for
+          discovered flora entries when one or more (species, axis) pairs
+          have been resolved by past Reveries. Section omitted entirely if
+          the species has no revealed phenotypes. */}
+      {(() => {
+        const species = speciesFromEntryId(entry.id)
+        if (!species) return null
+        const phenotypes = revealedPhenotypes.get(species)
+        if (!phenotypes || phenotypes.length === 0) return null
+        return (
+          <div className="mt-2" data-testid={`phenotype-list-${species}`}>
+            <div className="text-dim text-xs italic">Observations</div>
+            <ul className="text-dim text-xs italic">
+              {phenotypes.map(p => (
+                <li key={p.axis}>Suspected: {p.verdict}</li>
+              ))}
+            </ul>
+          </div>
+        )
+      })()}
+
       {/* Properties */}
       {showCategory && <div className="text-dim mt-1 text-xs">Category: {capitalize(entry.category)}</div>}
 
@@ -245,7 +268,7 @@ const EntryCard = ({
 const SCAN_HIGHLIGHT_MS = 700
 
 export const ManualPanel = ({ state }: ManualPanelProps) => {
-  const { manualState, manualDiscoveries, scannedSpecimens } = state
+  const { manualState, manualDiscoveries, scannedSpecimens, revealedPhenotypes } = state
   const highlightId = state.manualHighlightEntryId
 
   // Local React state synced with persistent manualState
@@ -375,6 +398,7 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
                       entry={entry}
                       discoveries={manualDiscoveries}
                       scannedSpecimens={scannedSpecimens}
+                      revealedPhenotypes={revealedPhenotypes}
                       manualState={manualState}
                       showCategory={activeCategory === null}
                       onToggleHint={toggleHint}

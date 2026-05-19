@@ -17,12 +17,15 @@ import { ManualPanel } from './ManualPanel'
 import { Menu } from './Menu'
 import { Minimap } from './Minimap'
 import { PermacomputerShell } from './PermacomputerShell'
+import { ReverySummary } from './ReverySummary'
 
 import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
 import { COIN_GLINTING_COLOR } from '@/engine/constants'
 import { canCast } from '@/engine/hexagram'
 import { advanceDialog } from '@/engine/interaction'
+import { advanceReveryToClosing } from '@/engine/revery'
+import { ReveryPhase } from '@/engine/types'
 import { getDefinition } from '@/engine/items'
 import { useEventLog } from '@/hooks/useEventLog'
 import { useGameEngine } from '@/hooks/useGameEngine'
@@ -54,6 +57,23 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
       document.documentElement.style.fontSize = ''
     }
   }, [fontScale])
+
+  // Precis #4 — dismiss the Revery summary on any keypress. The Revery's
+  // input lock means useKeyboard early-returns during Observing+Summary, so
+  // we attach a separate listener that only fires on Summary phase. After
+  // the keypress the Revery transitions to Closing → null on the next tick.
+  useEffect(() => {
+    const handleKeydown = (): void => {
+      if (state.revery?.phase === ReveryPhase.Summary && state.revery.summaryReady) {
+        advanceReveryToClosing(state)
+        refreshUI()
+      }
+    }
+    window.addEventListener('keydown', handleKeydown)
+    return () => {
+      window.removeEventListener('keydown', handleKeydown)
+    }
+  }, [state, refreshUI])
 
   const itemInfoRef = useRef<ItemInfoHandle>(null)
   const metricsRef = useRef<CharMetrics | null>(null)
@@ -137,6 +157,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
         onGift={onGift}
         metricsRef={metricsRef}
       />
+      <ReverySummary revery={state.revery} />
       {activeScreen && (
         <PermacomputerShell
           state={state}

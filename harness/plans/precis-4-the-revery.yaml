@@ -1,0 +1,558 @@
+plan:
+  id: precis-4-the-revery
+  title: 'The Revery — long-form phase: omen entry, observation UX, bilingual summary, phenotype labels, first-Revery egregoric advance'
+  created: 2026-05-19
+  # Large engine + UI feature touching GameState shape, gameLoop, input,
+  # genesis (for egregore placement reuse), and the React layer. Cross-cutting
+  # gate is the full suite — GameState shape changes ripple broadly.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine + docs status ---
+
+  - id: doctrine-status-update
+    title: 'Flip precis #4 from todo to in-progress in docs/precis-status.yaml. Set spec/plan paths. Update notes with the locked decisions from spec drafting (hard input lock, "pass through the winter" duration, first-Revery egregore bump, most-discovered species for phenotype label, three omen variants). Add a docs/claude/revery.md doc that mirrors the style of docs/claude/manual.md, with sections: state fields, phase machine, omen detection, summary computation, phenotype label resolution. Update docs/claude/state.md if it needs a pointer.'
+    spec_id: precis-4-the-revery
+    spec_sections: []
+    context_files:
+      - docs/precis-status.yaml
+      - docs/claude/state.md
+      - docs/claude/manual.md
+    output_files:
+      - docs/precis-status.yaml
+      - docs/claude/state.md
+      - docs/claude/revery.md
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: State shape + constants ---
+
+  - id: add-revery-types-and-state-fields
+    title: 'Add ReveryPhase const + type, ReveryState interface, RevealedPhenotype interface, PhenotypeAxis type to src/engine/types.ts. Add `revery: ReveryState | null`, `reveryCount: number`, `cosmologicalDrift: number`, `revealedPhenotypes: Map<FloraSpecies, RevealedPhenotype[]>`, `lastReveryEndTime: number` to GameState. Update createGameState in src/engine/state.ts to initialize all five fields. Add to EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-state-on-gamestate
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-revery-constants
+    title: 'Add REVERY_YEARS_PER_FRAME (mirror DEEP_TIME_YEARS_PER_FRAME), REVERY_COOLDOWN_MS (= SEASONAL_PHASE_PERIOD_MS), REVERY_CAMERA_DRIFT_INTERVAL_MS, REVERY_OMEN_STATIONARY_MS (= 2000 for cloud-passing omen), FIRST_REVERY_EGREGORE_COUNT (= 3), PHENOTYPE_AXES tuple to src/engine/constants.ts. Document each with one comment line referencing the spec behavior.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-enter-and-observe
+      - omen-detection
+      - revery-first-egregore-advance
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on:
+      - add-revery-types-and-state-fields
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 2: Pure helpers ---
+
+  - id: create-revery-module-skeleton
+    title: 'Replace src/engine/revery.ts stub with real implementation. Export: isReveryLocked(state), initiateRevery(state, time, omenKind), tickRevery(state, dt, time). isReveryLocked returns true when state.revery?.active is true AND phase is Observing or Summary (NOT Closing — closing is a one-frame transition). initiateRevery captures the pre-Revery snapshot, sets phase to Omen, records the omen kind. tickRevery is the per-frame state machine — phase transitions Omen → Observing → Summary → Closing → null. The Observing branch advances elapsedYears by REVERY_YEARS_PER_FRAME and ticks seasonalPhase at the accelerated rate.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-state-on-gamestate
+      - revery-enter-and-observe
+      - revery-input-lock
+      - revery-closing-and-reset
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/deepTime.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/revery.ts
+    depends_on:
+      - add-revery-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: create-revery-snapshot-and-diff
+    title: 'Add takeReverySnapshot(state) → ReverySnapshot and computeReveryDiff(state, snapshot) → ReveryChange[] to src/engine/revery.ts. Snapshot captures: per-species flora counts (clover, wildflower, tallGrass), egregore tile count, current season, current reveryCount. Diff computes deltas at Observing → Summary transition.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-summary-phase
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/types.ts
+      - src/engine/floraLifecycle.ts
+    output_files:
+      - src/engine/revery.ts
+    depends_on:
+      - create-revery-module-skeleton
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 3: Omen detection ---
+
+  - id: create-omen-detection
+    title: 'Add detectOmen(state, time) → OmenKind | null to src/engine/revery.ts. Returns null when not in Overworld, not in Fall season, deepTime active, revery active, or cooldown not expired. Checks three omen variants: (a) bee-on-shoulder — any bee entity Position equals player position; (b) distant-meteorite — any shooting star projected landing within Chebyshev distance 3 of player; (c) cloud-passing — state.weather.sky just transitioned from Rain/Cloudy to Sun AND player has been stationary (no movement) for REVERY_OMEN_STATIONARY_MS. Track stationary time via state.playerStationarySince (NEW field — also add to state shape in tier 1, then implement check here).'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - omen-detection
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/types.ts
+      - src/engine/entities.ts
+      - src/engine/celestial.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/revery.ts
+    depends_on:
+      - create-revery-snapshot-and-diff
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: wire-stationary-tracking-and-skyTransition
+    title: 'Add state.playerStationarySince: number and state.lastSky: Sky (for transition detection) to types.ts and state.ts. Update movement.ts to reset playerStationarySince = time on every successful movePlayer. Update tickWeather or gameLoop to update lastSky each frame. Add fields to EXPECTED_FIELDS.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - omen-detection
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/movement.ts
+      - src/engine/gameLoop.ts
+      - src/engine/weather/index.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/movement.ts
+      - src/engine/gameLoop.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - create-omen-detection
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: wire-omen-to-gameloop
+    title: 'In src/engine/gameLoop.ts, after the standard tick block, call detectOmen(state, time) and if it returns non-null, call initiateRevery(state, time, omenKind). This sets state.revery to phase Omen. Then call tickRevery(state, dt, time) to handle the phase machine. tickRevery must run BEFORE input handlers so the Omen → Observing transition is reflected by the time movePlayer is called.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - omen-detection
+      - revery-enter-and-observe
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/revery.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - wire-stationary-tracking-and-skyTransition
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 4: Input lock ---
+
+  - id: wire-input-lock-to-movement-and-keyboard
+    title: 'Update src/engine/movement.ts movePlayer to early-return false when isReveryLocked(state). Update src/engine/input.ts (or src/hooks/useKeyboard.ts wherever the path/keyboard ticks live) to early-return when isReveryLocked. Clear state.path, state.pathWaypoints, state.pendingAction when entering Observing phase (do this inside tickRevery in revery.ts when transitioning Omen → Observing).'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-input-lock
+    context_files:
+      - src/engine/movement.ts
+      - src/engine/input.ts
+      - src/engine/revery.ts
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/engine/movement.ts
+      - src/engine/input.ts
+      - src/engine/revery.ts
+    depends_on:
+      - wire-omen-to-gameloop
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 5: Phenotype label resolution ---
+
+  - id: create-phenotype-label-resolver
+    title: 'Add resolvePhenotypeLabel(state, reveryCount) → { species: FloraSpecies; axis: PhenotypeAxis; verdict: string } | null to a new src/engine/phenotype.ts. Selection: highest count of flora:<species> entries in state.manualDiscoveries (ties broken by FloraSpecies enum order). Axis: PHENOTYPE_AXES[reveryCount % PHENOTYPE_AXES.length]. Verdict draws from per-axis verdict bank based on mean trait value across living flora of that species. Verdict templates: "suspected: late-blooming" / "suspected: early-blooming" / "suspected: mid-season" for bloomTiming; analogous tri-buckets for the other three axes. If no flora is discovered, returns null. If species has no living tiles, defaults trait mean to 0.5 (mid bucket).'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-resolves-phenotype-label
+    context_files:
+      - src/engine/types.ts
+      - src/engine/flora/species.ts
+      - src/engine/floraLifecycle.ts
+      - src/engine/genetics/index.ts
+      - src/engine/manual.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/phenotype.ts
+    depends_on:
+      - add-revery-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: phenotype-resolver-tests
+    title: 'Create src/engine/__tests__/phenotype.test.ts. Cover: most-discovered species selection with explicit ties, axis cycling over reveryCount, verdict bucket selection for each axis, no-discovered-flora returns null, no-living-tiles defaults to mid bucket, deterministic given identical state. Use placeFloraAt helper pattern from tileBeePreference.test.ts.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-resolves-phenotype-label
+      - revery-with-no-discovered-flora
+      - phenotype-label-axes-cycle
+    context_files:
+      - src/engine/phenotype.ts
+      - src/engine/state.ts
+      - src/engine/floraLifecycle.ts
+      - src/engine/flora/species.ts
+      - src/engine/manual.ts
+      - docs/claude/testing.md
+    output_files:
+      - src/engine/__tests__/phenotype.test.ts
+    depends_on:
+      - create-phenotype-label-resolver
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/phenotype.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
+
+  - id: wire-phenotype-into-revery
+    title: 'In src/engine/revery.ts, during Observing → Summary transition, call resolvePhenotypeLabel(state, state.reveryCount). If it returns non-null, append the RevealedPhenotype to state.revealedPhenotypes for that species. Re-resolving the same (species, axis) pair OVERWRITES the prior verdict (per spec edge case). Add the change to revery.scheduledChanges as { kind: "phenotype-revealed", payload: { species, axis, verdict } }.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-resolves-phenotype-label
+      - phenotype-label-axes-cycle
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/phenotype.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/revery.ts
+    depends_on:
+      - phenotype-resolver-tests
+      - wire-omen-to-gameloop
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 6: Egregoric advance (first Revery only) ---
+
+  - id: create-egregore-advance
+    title: 'Add advanceEgregoreFirstRevery(state) → Position[] to src/engine/revery.ts (or a new src/engine/egregore.ts module). Gated by state.reveryCount === 0 (caller responsibility — function asserts the gate). Finds all existing TileType.Egregore positions; for each, considers ordinal neighbors that are TileType.Dirt; deterministically picks FIRST_REVERY_EGREGORE_COUNT positions biased toward player trail centroid (Manhattan distance) using a stable sort. Returns the new positions and mutates state.map[y][x] to { type: TileType.Egregore } for each. Logs to manualDiscoveries as event:egregore-advance.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-first-egregore-advance
+      - revery-with-no-existing-egregore-tiles
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+      - src/engine/genesis.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/revery.ts
+    depends_on:
+      - wire-phenotype-into-revery
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: wire-egregore-advance-into-revery
+    title: 'In tickRevery''s Observing → Summary transition, call advanceEgregoreFirstRevery(state) only when state.reveryCount === 0. Append the returned positions to revery.scheduledChanges as { kind: "egregore-grew", payload: { positions } }. If positions is empty (no existing egregore tiles or no dirt neighbors), skip the entry — the summary will omit the line.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-first-egregore-advance
+      - revery-with-no-existing-egregore-tiles
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/revery.ts
+    depends_on:
+      - create-egregore-advance
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 7: Revery engine tests ---
+
+  - id: revery-engine-tests
+    title: 'Create src/engine/__tests__/revery.test.ts. Cover: initiateRevery transitions null → Omen with snapshot; tickRevery transitions Omen → Observing on next frame and clears state.path; tickRevery advances elapsedYears at the accelerated rate; Observing → Summary fires at year completion; isReveryLocked returns true during Observing+Summary, false during Closing+null; closing increments reveryCount and clears state.revery; cooldown gating prevents back-to-back Reveries; deep-time active blocks omen detection; non-Overworld zone blocks omen detection. Use vi.spyOn(Math, "random") for deterministic camera drift sampling. clearAroundPlayer + explicit floraLifecycle entries per testing.md.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-enter-and-observe
+      - revery-input-lock
+      - revery-closing-and-reset
+      - revery-during-deep-time
+      - revery-during-cave-or-ruin
+      - revery-cooldown-respected
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/movement.ts
+      - docs/claude/testing.md
+    output_files:
+      - src/engine/__tests__/revery.test.ts
+    depends_on:
+      - wire-input-lock-to-movement-and-keyboard
+      - wire-egregore-advance-into-revery
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/revery.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
+
+  - id: omen-detection-tests
+    title: 'Create src/engine/__tests__/omen-detection.test.ts. Cover each omen variant: (a) bee on player tile schedules Omen; (b) shooting star within Chebyshev 3 schedules Omen; (c) sky transition with stationary player schedules Omen. Cover blockers: cave zone, deep time active, Spring season, cooldown not expired. Use direct state mutation to simulate world conditions.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - omen-detection
+      - revery-during-deep-time
+      - revery-during-cave-or-ruin
+      - omen-fires-mid-season-transition
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/state.ts
+      - src/engine/entities.ts
+      - src/engine/types.ts
+      - docs/claude/testing.md
+    output_files:
+      - src/engine/__tests__/omen-detection.test.ts
+    depends_on:
+      - revery-engine-tests
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/omen-detection.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
+
+  - id: egregore-advance-tests
+    title: 'Create src/engine/__tests__/egregore-advance.test.ts. Cover: 3 new egregore tiles placed adjacent to existing ones on first Revery; no placement on second Revery (reveryCount >= 1); no placement when no existing egregore tiles (returns empty array, no crash); deterministic position selection given identical map state; positions bias toward player trail centroid when trail is non-empty.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-first-egregore-advance
+      - revery-with-no-existing-egregore-tiles
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - docs/claude/testing.md
+    output_files:
+      - src/engine/__tests__/egregore-advance.test.ts
+    depends_on:
+      - revery-engine-tests
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/egregore-advance.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
+
+  # --- Tier 8: React components ---
+
+  - id: create-revery-summary-component
+    title: 'Replace src/components/ReverySummary.tsx stub with the real component. Props derive from state via a selector function (props: { revery: ReveryState | null }). Early-return null when !revery || !revery.summaryReady || revery.phase !== "summary". Render: full-screen translucent overlay matching the visual register of DialogBox / ManualPanel. Title "The Revery". For each change in revery.scheduledChanges, render a line: native deltas in ASCII, egregore-grew in Voynich glyphs (sampled from EGREGORE_GLYPHS, seeded by reveryCount via mulberry32 or similar), phenotype-revealed as "Suspected: <verdict>". Bottom: "Press any key to continue". Tailwind for styling; match the dark-overlay + monospace pattern already in the codebase.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-summary-phase
+      - revery-summary-component
+    context_files:
+      - src/components/ReverySummary.tsx
+      - src/components/DialogBox.tsx
+      - src/components/ManualPanel.tsx
+      - src/engine/types.ts
+      - src/engine/egregore.ts
+    output_files:
+      - src/components/ReverySummary.tsx
+    depends_on:
+      - revery-engine-tests
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  - id: revery-summary-component-tests
+    title: 'Create src/components/__tests__/ReverySummary.test.tsx. Cover: renders null when no revery / summaryReady false / phase wrong; renders title + flora delta lines for ASCII change records; renders Voynich line when egregore-grew change exists; renders Suspected line when phenotype-revealed exists; "Press any key" footer appears.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-summary-component
+      - revery-summary-phase
+    context_files:
+      - src/components/ReverySummary.tsx
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/__tests__/ReverySummary.test.tsx
+    depends_on:
+      - create-revery-summary-component
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/ReverySummary.test.tsx
+    repair: retry
+    tags:
+      - component
+      - test
+
+  - id: wire-revery-summary-to-gamescreen
+    title: 'In src/components/GameScreen.tsx, add ReverySummary to the overlay stack (alongside DialogBox, ManualPanel). It receives the revery state from useGameEngine. Wire a global keydown listener that, when state.revery?.phase === "summary", calls a new advanceReveryToClosing(state, time) helper from revery.ts on any key. The keydown listener no-ops in other phases.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-summary-phase
+      - revery-closing-and-reset
+      - summary-dismiss-during-rapid-keypresses
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/components/ReverySummary.tsx
+      - src/engine/revery.ts
+      - src/hooks/useGameEngine.ts
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/components/GameScreen.tsx
+      - src/engine/revery.ts
+    depends_on:
+      - revery-summary-component-tests
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  - id: render-revealed-phenotypes-in-manual
+    title: 'Update src/components/ManualPanel.tsx to render revealedPhenotypes entries below the lore body for flora:<species> entries. List format: small "Observations" header, then each "Suspected: <verdict>" line. Omit the section entirely when revealedPhenotypes has no entries for that species. The hex grid (from #6) stays above the lore; phenotype list goes below.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - manual-renders-revealed-phenotypes
+    context_files:
+      - src/components/ManualPanel.tsx
+      - src/components/ManualPanel.constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/ManualPanel.tsx
+    depends_on:
+      - wire-phenotype-into-revery
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  - id: manual-panel-phenotype-tests
+    title: 'Update src/components/__tests__/ManualPanel.test.tsx — discovered flora entries with no revealed phenotypes show only lore + hex grid; entries with one revealed phenotype show the Observations section with the verdict; multiple verdicts on one species render as a list.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - manual-renders-revealed-phenotypes
+    context_files:
+      - src/components/ManualPanel.tsx
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/components/__tests__/ManualPanel.test.tsx
+    output_files:
+      - src/components/__tests__/ManualPanel.test.tsx
+    depends_on:
+      - render-revealed-phenotypes-in-manual
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/ManualPanel.test.tsx
+    repair: retry
+    tags:
+      - component
+      - test
+
+  # --- Tier 9: Spec acceptance stub ---
+
+  - id: fill-in-spec-test-stub
+    title: 'Replace the it.todo placeholders in src/engine/__tests__/precis-4-the-revery.test.ts with thin acceptance assertions for each behavior. Detailed unit tests live in revery.test.ts, omen-detection.test.ts, egregore-advance.test.ts, phenotype.test.ts, ReverySummary.test.tsx, ManualPanel.test.tsx. This file proves the surface-level shape: state fields exist on createGameState, isReveryLocked toggles correctly, initiateRevery + tickRevery drive a full cycle, the summary component renders, the manual shows phenotype labels.'
+    spec_id: precis-4-the-revery
+    spec_sections:
+      - revery-state-on-gamestate
+      - omen-detection
+      - revery-enter-and-observe
+      - revery-input-lock
+      - revery-resolves-phenotype-label
+      - revery-first-egregore-advance
+      - revery-summary-phase
+      - revery-closing-and-reset
+      - manual-renders-revealed-phenotypes
+    context_files:
+      - src/engine/__tests__/precis-4-the-revery.test.ts
+      - src/engine/revery.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - docs/claude/testing.md
+    output_files:
+      - src/engine/__tests__/precis-4-the-revery.test.ts
+    depends_on:
+      - omen-detection-tests
+      - egregore-advance-tests
+      - manual-panel-phenotype-tests
+      - wire-revery-summary-to-gamescreen
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/precis-4-the-revery.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
+
+  # global_verification runs the full typecheck + test + lint suite after the
+  # final task. No dedicated full-verify task — plan validator rejects empty
+  # output_files and the global gate covers it.

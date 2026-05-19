@@ -212,4 +212,36 @@ describe('ManualPanel', () => {
       expect(container.querySelector('[data-highlighted="true"]')).toBeNull()
     })
   })
+
+  describe('phenotype labels (precis #4)', () => {
+    it('omits the Observations section when no phenotypes are revealed for the species', () => {
+      const state = createTestState()
+      state.manualDiscoveries.add('flora:clover')
+      render(<ManualPanel state={state} />)
+      expect(screen.queryByTestId('phenotype-list-clover')).not.toBeInTheDocument()
+    })
+
+    it('renders a single Suspected line when one phenotype is revealed', () => {
+      const state = createTestState()
+      state.manualDiscoveries.add('flora:clover')
+      state.revealedPhenotypes.set('clover', [
+        { axis: 'bloomTiming', verdict: 'late-blooming', reveryNumber: 0 },
+      ])
+      render(<ManualPanel state={state} />)
+      expect(screen.getByTestId('phenotype-list-clover')).toBeInTheDocument()
+      expect(screen.getByText('Suspected: late-blooming')).toBeInTheDocument()
+    })
+
+    it('renders multiple Suspected lines when several phenotypes are revealed', () => {
+      const state = createTestState()
+      state.manualDiscoveries.add('flora:wildflower')
+      state.revealedPhenotypes.set('wildflower', [
+        { axis: 'bloomTiming', verdict: 'mid-season', reveryNumber: 0 },
+        { axis: 'coldTolerance', verdict: 'cold-tolerant', reveryNumber: 1 },
+      ])
+      render(<ManualPanel state={state} />)
+      expect(screen.getByText('Suspected: mid-season')).toBeInTheDocument()
+      expect(screen.getByText('Suspected: cold-tolerant')).toBeInTheDocument()
+    })
+  })
 })

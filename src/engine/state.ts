@@ -19,7 +19,7 @@ import { createBackpack } from './items'
 import { isWalkableTile, posKey } from './position'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
 import { buildWaterProximity } from './tileWater'
-import { CoyoteMode, MainQuestPhase, TileType, Zone } from './types'
+import { CoyoteMode, MainQuestPhase, Sky, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
 
@@ -235,6 +235,13 @@ export const createGameState = (
     pendingSavedBees: false,
     deepTime: null,
     deepTimeTransition: null,
+    revery: null,
+    reveryCount: 0,
+    lastReveryEndTime: 0,
+    cosmologicalDrift: 0,
+    revealedPhenotypes: new Map(),
+    playerStationarySince: 0,
+    lastSky: Sky.Sun,
     postGiftActionsCompleted: new Set<string>(),
     rainFrontOffset: 0,
     precipitationIntensity: 0,

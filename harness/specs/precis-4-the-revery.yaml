@@ -1,0 +1,347 @@
+id: precis-4-the-revery
+name: 'The Revery — long-form phase (precis #4)'
+priority: high
+layer: engine
+source_files:
+  - src/engine/revery.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/gameLoop.ts
+  - src/engine/movement.ts
+  - src/engine/input.ts
+  - src/engine/genesis.ts
+  - src/engine/manual.ts
+  - src/components/ReverySummary.tsx
+  - src/components/GameScreen.tsx
+  - src/components/ManualPanel.tsx
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - precis-1-multi-species-flora
+  - precis-2-phenological-seasons
+  - precis-3-genetics-v1
+  - precis-8a-egregoric-thematic
+
+# Doctrine reference: docs/precis-thinktank-v3.md section "The Revery" and the
+# tail of "The egregores in detail" (8a first-Revery growth). v4 frames it
+# explicitly as the year-scale leak — heat death is the antagonist; tending is
+# the verb; this PR is the headline ceremony.
+#
+# Intent gathered 2026-05-19:
+#   - Full L scope in one PR (omen + observation + summary + phenotype labels +
+#     cosmologicalDrift + bilingual rendering + first-Revery egregoric bump).
+#   - Hard input lock during the Revery — same shape as DeepTimePhase.Burning.
+#   - "Pass through the winter" — the Revery's duration IS the winter quarter,
+#     condensed into seconds via a years-per-frame accelerator (mirrors
+#     deepTime.ts pattern). Enter at fall→winter transition, exit at
+#     winter→spring transition (in compressed time, not wall-clock).
+#   - Egregores advance — the first-Revery 3 → 6 bump (v3 doctrine) is in scope.
+#     Subsequent per-Revery winter-phased spread is NOT (deferred to #8b).
+#   - Phenotype species pick: deferred to spec phase. Decided here: most-
+#     discovered species (highest discovery hit count among players' scanned).
+#     Deterministic, no grind incentive (each species discovery is one-shot
+#     per #6's hold-to-scan).
+#   - Omen mechanic: deferred to spec phase. Decided here: pre-existing world
+#     events as omens. Three variants, no new state. See `omen-detection` below.
+#
+# What this feature does NOT do:
+#   - No per-Revery egregoric winter spread (only the one-time first-Revery
+#     bump). #8b handles ongoing spread.
+#   - No new pollinator entities, no new flora, no new tile types.
+#   - No "skip the Revery" affordance. The omen is necessary; if the omen
+#     fires, the Revery runs. Doctrine deferrals (omen-presents-but-prairie-
+#     waits) are deferred — first ship the always-on path.
+#   - No save-game changes (cosmologicalDrift is a fresh field; older saves
+#     get a 0 default via createGameState).
+
+behaviors:
+  - id: revery-state-on-gamestate
+    description: >
+      GameState gains a `revery: ReveryState | null` field. ReveryState shape:
+      `{ active: boolean, startTime: number, phase: ReveryPhase, elapsedYears: number,
+      reveryCount: number, snapshotBeforeRevery: ReverySnapshot, scheduledChanges: ReveryChange[],
+      summaryReady: boolean }`. ReveryPhase is `'omen' | 'observing' | 'summary' | 'closing'`.
+      ReverySnapshot is the small set of pre-Revery counts used to compute the
+      summary (egregore tile count, flora species counts, season). ReveryChange
+      is a structured record `{ kind: 'egregore-grew' | 'phenotype-revealed' | 'flora-died' | ...; payload: ... }`.
+      GameState also gains `reveryCount: number` (lifetime count, starts 0, increments
+      on each Revery completion) and `cosmologicalDrift: number` (0.0 baseline,
+      monotonically increasing, used by future features per v3 doctrine — this
+      PR only adds the field with a 0 default; no incrementers yet).
+      All new fields appear in EXPECTED_FIELDS in schema.test.ts.
+    inputs:
+      - 'createGameState invocation'
+    outputs:
+      - 'GameState shape includes revery, reveryCount, cosmologicalDrift'
+    state_changes:
+      - field: revery
+        effect: 'initialized to null'
+      - field: reveryCount
+        effect: 'initialized to 0'
+      - field: cosmologicalDrift
+        effect: 'initialized to 0'
+    determinism: deterministic
+
+  - id: omen-detection
+    description: >
+      A per-frame omen check runs in gameLoop AFTER the standard tick when
+      state.revery is null AND state.deepTime is null AND state.currentZone is
+      Overworld AND state.weather.season is Fall (so the Revery enters winter).
+      Three omen variants — any one triggering schedules the Revery to start
+      next frame: (a) a bee entity steps onto the player's tile (omen: bee on
+      shoulder); (b) a shooting star's projected landing intersects a tile
+      within Chebyshev distance 3 of the player (omen: distant meteorite); (c)
+      state.weather.sky transitions from Rain or Cloudy to Sun while the player
+      is stationary for at least 2 seconds (omen: cloud passing the sun). On
+      trigger, schedule the Revery by setting state.revery to an Omen-phase
+      record and capturing the pre-Revery snapshot. The omen check is gated by
+      `reveryCount === 0` for the first-Revery hardcoded path AND by a
+      cooldown: `time - lastReveryEndTime >= REVERY_COOLDOWN_MS` (default
+      SEASONAL_PHASE_PERIOD_MS = one year; subsequent Reveries can't fire more
+      than once per year).
+    inputs:
+      - 'GameState with no active Revery / deep time, player in Overworld, season is Fall'
+    outputs:
+      - 'state.revery is set to { phase: omen, ... } and the omen kind is recorded'
+    state_changes:
+      - field: revery
+        effect: 'transitions from null to a fresh ReveryState in phase Omen with the triggering omen kind recorded'
+    determinism: probabilistic
+
+  - id: revery-enter-and-observe
+    description: >
+      On the frame AFTER omen schedule, the Revery transitions to Observing
+      phase. Input is hard-locked — movePlayer returns false, all keyboard
+      handlers no-op, the click-to-move path is cleared. The seasonal phase
+      clock advances at REVERY_YEARS_PER_FRAME (matching DEEP_TIME_YEARS_PER_FRAME
+      pattern) until elapsedYears >= 1.0 OR seasonalPhase has crossed from Fall
+      (≥0.5 quarter) through Winter (full traversal) to Spring (0.0 quarter).
+      Camera drifts via a deterministic ceremonial path (random walk seeded by
+      stewardName + reveryCount, one step per N frames, clamped to map). During
+      Observing the standard ticks still run (tickWeather, tickFloraLifecycle,
+      tickBees, etc.) so the world genuinely passes through the winter —
+      flora go dormant, bees may starve, snow renders. tickPollenEmit's winter
+      early-return continues to suppress emission. Egregore tiles are exempt
+      from any visual changes (already in #2's winter wash exemption).
+    inputs:
+      - 'state.revery.phase === Omen on previous frame'
+    outputs:
+      - 'state.revery.phase transitions to Observing; camera drift active; year accumulator ticking'
+    state_changes:
+      - field: revery.phase
+        effect: 'transitions Omen → Observing'
+      - field: revery.elapsedYears
+        effect: 'increments by REVERY_YEARS_PER_FRAME each frame'
+      - field: camera.x, camera.y
+        effect: 'updated via revery-drift function each N frames (seeded deterministic random walk)'
+      - field: seasonalPhase
+        effect: 'advances at the accelerated rate during Observing'
+    determinism: deterministic
+
+  - id: revery-input-lock
+    description: >
+      During Observing phase, all player-facing inputs are blocked. movePlayer
+      returns false without state mutation; useKeyboard's tick handlers return
+      early when isReveryLocked(state) is true; click-to-move path is cleared
+      when the Revery begins and pendingAction is set to null. The pattern
+      mirrors isDeepTimeLocked exactly. Helper function isReveryLocked exported
+      from revery.ts.
+    inputs:
+      - 'state.revery.phase === Observing'
+    outputs:
+      - 'isReveryLocked returns true; all input handlers no-op'
+    state_changes: []
+    determinism: deterministic
+
+  - id: revery-resolves-phenotype-label
+    description: >
+      During Observing (specifically on the transition Observing → Summary), a
+      phenotype label is resolved for exactly one species. Selection rule: the
+      species with the highest count of `flora:<species>` discoveries in
+      state.manualDiscoveries. Ties broken alphabetically (clover < tallGrass <
+      wildflower by FloraSpecies enum order). If no flora species is discovered,
+      no label is resolved this Revery. The resolved label commits to a new
+      GameState field `revealedPhenotypes: Map<FloraSpecies, RevealedPhenotype[]>`
+      where RevealedPhenotype is `{ axis: PhenotypeAxis; verdict: string; reveryNumber: number }`.
+      PhenotypeAxis is one of `'bloomTiming' | 'coldTolerance' | 'droughtResponse' | 'pollinatorPreference'`.
+      The verdict string is hedged: "suspected: late blooming", "suspected: cold-tolerant",
+      "suspected: drought-resistant", "suspected: bee-favored", etc. Axis order
+      per species is rotated by reveryCount (axis index = reveryCount %
+      AXES_LENGTH for that species) so successive Reveries reveal different
+      axes. The axis's verdict template draws from the per-axis verdict bank
+      based on the species mean trait value across all currently-living plants.
+    inputs:
+      - 'state.manualDiscoveries with one or more flora:* entries'
+      - 'state.floraLifecycle (to compute species mean trait values)'
+    outputs:
+      - 'state.revealedPhenotypes gains one new RevealedPhenotype entry'
+    state_changes:
+      - field: revealedPhenotypes
+        effect: 'one new entry appended to the most-discovered species, axis = reveryCount % AXES_LENGTH'
+    determinism: deterministic
+
+  - id: revery-first-egregore-advance
+    description: >
+      On the FIRST Revery only (state.reveryCount === 0 entering Observing), an
+      egregoric advance fires: 3 additional TileType.Egregore tiles are placed
+      at deterministic positions adjacent to existing egregore tiles, biased
+      toward player-known map regions (Chebyshev distance ≤ map-diagonal/2
+      from the player's path-trail centroid, or center-of-map fallback if
+      trail is empty). The advance commits during the Observing → Summary
+      transition (after year accumulator completes). Source positions are
+      logged into revery.scheduledChanges as `{ kind: 'egregore-grew', payload: { positions: Position[] } }`
+      so the summary can render "the line moved" with the count. Subsequent
+      Reveries (reveryCount >= 1) do NOT trigger egregoric advance in this PR —
+      #8b owns recurring spread.
+    inputs:
+      - 'state.reveryCount === 0 entering Observing → Summary transition'
+      - 'existing TileType.Egregore tiles on the map'
+    outputs:
+      - '3 new TileType.Egregore tiles placed adjacent to existing ones'
+    state_changes:
+      - field: 'map (TileType.Egregore tiles added)'
+        effect: '3 dirt tiles adjacent to existing egregore tiles are converted to TileType.Egregore at deterministic positions'
+      - field: revery.scheduledChanges
+        effect: 'appended with egregore-grew change record'
+    determinism: deterministic
+
+  - id: revery-summary-phase
+    description: >
+      On year completion, state.revery.phase transitions to Summary. The Revery
+      kernel computes the diff between the pre-snapshot and current state and
+      stores it in revery.scheduledChanges. The diff includes: net flora count
+      change per species (bloomed and died are aggregated as a single delta),
+      egregore advance count (only on first Revery), the resolved phenotype
+      label, and the season-passed marker. state.revery.summaryReady becomes
+      true. Input remains locked. The React layer (ReverySummary.tsx)
+      observes summaryReady and renders the bilingual summary overlay. ASCII
+      lines describe native changes; the egregore advance line uses Voynich
+      glyphs (sampled from EGREGORE_GLYPHS per #8a, seeded by reveryCount).
+      Player presses any key (or clicks the dismiss button) to advance to
+      Closing.
+    inputs:
+      - 'state.revery.elapsedYears >= 1.0 OR seasonal-phase traversal complete'
+    outputs:
+      - 'state.revery.phase === Summary; scheduledChanges populated; summaryReady true'
+    state_changes:
+      - field: revery.phase
+        effect: 'transitions Observing → Summary'
+      - field: revery.scheduledChanges
+        effect: 'populated with the structured diff records'
+      - field: revery.summaryReady
+        effect: 'set to true; React renders the overlay'
+    determinism: deterministic
+
+  - id: revery-closing-and-reset
+    description: >
+      Player input on the summary advances to Closing phase. In Closing,
+      reveryCount increments by 1, state.revery is set to null on the next
+      frame, lastReveryEndTime is set to current time, input lock releases.
+      seasonalPhase is left wherever it ended up — the next season transition
+      proceeds normally per #2's logic. Camera target snaps back to the
+      player. The summary overlay unmounts.
+    inputs:
+      - 'state.revery.phase === Summary; player keypress or click'
+    outputs:
+      - 'state.revery becomes null; reveryCount incremented; input restored'
+    state_changes:
+      - field: reveryCount
+        effect: 'incremented by 1'
+      - field: revery
+        effect: 'set to null'
+      - field: lastReveryEndTime
+        effect: 'set to current time'
+    determinism: deterministic
+
+  - id: revery-summary-component
+    description: >
+      ReverySummary.tsx is a presentational React component rendered when
+      state.revery?.summaryReady is true. Layout: full-screen translucent
+      overlay (matching the visual register of existing modal overlays —
+      DialogBox, ManualPanel). Title line ("The Revery"). Body: bilingual.
+      Native lines first ("Clover: +12, -3 tiles", "Wildflower bloomed for
+      the first time"), then a horizontal rule, then the egregore line in
+      Voynich glyphs ("⟨voynich⟩"). Phenotype line if a label resolved
+      ("Suspected: late blooming clover"). Dismiss control at the bottom
+      ("Press any key to continue"). No animations beyond a single fade-in.
+      Component is in src/components/, props derive entirely from state via
+      a small selector — no internal state, no useEffect side effects, no
+      ref tracking.
+    inputs:
+      - 'GameState with state.revery.summaryReady === true'
+    outputs:
+      - 'React renders the summary overlay with ASCII + Voynich lines'
+    state_changes: []
+    determinism: deterministic
+
+  - id: manual-renders-revealed-phenotypes
+    description: >
+      ManualPanel.tsx is updated to render revealedPhenotypes entries below
+      the species lore (and below the hex grid that #6 already renders).
+      Entries appear as a small list, each line "Suspected: <verdict>"
+      separated by a horizontal rule. Undiscovered phenotypes are hidden —
+      only the ones in revealedPhenotypes for that species render. If the
+      list is empty, the section is omitted (no empty header).
+    inputs:
+      - 'ManualPanel renders an entry with species ID, state.revealedPhenotypes has entries for that species'
+    outputs:
+      - 'Manual entry includes revealed-phenotype list below lore'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: revery-during-deep-time
+    description: 'Deep time is already running when an omen would otherwise fire'
+    expected: 'Omen detection is gated by state.deepTime === null; no Revery scheduled. The omen is suppressed silently — it will retrigger next time conditions align.'
+
+  - id: revery-during-cave-or-ruin
+    description: 'Player is in cave or ruin zone when an omen would otherwise fire'
+    expected: 'Omen detection is gated by state.currentZone === Zone.Overworld; no Revery scheduled.'
+
+  - id: revery-with-no-discovered-flora
+    description: 'Revery enters Summary phase but state.manualDiscoveries contains no flora:* entries (player has not scanned anything)'
+    expected: 'No phenotype label is resolved. revealedPhenotypes is untouched. Summary still renders; the phenotype line is omitted.'
+
+  - id: revery-with-no-existing-egregore-tiles
+    description: 'First Revery fires but no egregore tiles exist (8a genesis edge case)'
+    expected: 'Egregoric advance no-ops gracefully — no tiles placed. The Voynich line in the summary either renders an empty string or is omitted entirely. (Decision: omit when zero new tiles placed.)'
+
+  - id: revery-cooldown-respected
+    description: 'A previous Revery ended within the cooldown window (lastReveryEndTime < time - REVERY_COOLDOWN_MS)'
+    expected: 'Omen detection returns early; no new Revery scheduled until cooldown expires.'
+
+  - id: omen-fires-mid-season-transition
+    description: 'Omen condition fires exactly as seasonalPhase crosses into Winter (before the Fall gate would fail)'
+    expected: 'Race condition. Resolution: the gate is checked using state at the moment of detection. If season is already Winter, the omen does not fire. The next Fall has another chance.'
+
+  - id: phenotype-label-axes-cycle
+    description: 'Player has had 5 Reveries; clover is the most-discovered species each time'
+    expected: 'Axis index = reveryCount % AXES_LENGTH. With 4 axes, the 5th Revery resolves the same axis as the 1st. Verdict string MAY differ if trait values have drifted (no flora persistence assumed). Decision: re-resolving the same axis OVERWRITES the prior verdict for that species + axis pair. No duplicate entries.'
+
+  - id: input-during-summary-phase
+    description: 'Player attempts to move during the Summary overlay'
+    expected: 'movePlayer returns false (isReveryLocked still true during Summary). The keypress is only consumed by the summary advance handler.'
+
+  - id: summary-dismiss-during-rapid-keypresses
+    description: 'Player mashes keys during the summary'
+    expected: 'First keypress transitions to Closing. Subsequent keypresses during Closing are absorbed (state.revery is in transition, not yet null). No double-trigger.'
+
+failure_conditions:
+  - trigger: 'createGameState produces a state where revery, reveryCount, or cosmologicalDrift are undefined'
+    expected: 'schema.test.ts EXPECTED_FIELDS check fails. Add all three fields to the allowlist as part of this spec.'
+
+  - trigger: 'tickGameLoop calls movePlayer or processes pendingAction while state.revery is in Observing or Summary phase'
+    expected: 'Movement / interaction is suppressed by isReveryLocked check at the top of each handler. No state mutation. No exceptions.'
+
+  - trigger: 'Egregoric advance fires on the second Revery (reveryCount >= 1)'
+    expected: 'No tiles are placed. The advance is gated by `state.reveryCount === 0` at the moment of the Observing → Summary transition.'
+
+  - trigger: 'Phenotype label resolution attempts to look up an axis on a species with no living tiles (all dormant or dead)'
+    expected: 'The trait mean defaults to 0.5 (mid-range). The verdict draws from the "uncertain" bank or omits the qualifier ("Suspected: blooming"). No NaN, no crash.'
+
+  - trigger: 'ReverySummary.tsx renders before scheduledChanges is populated (race during phase transition)'
+    expected: 'Component renders nothing (early-return on scheduledChanges.length === 0 OR summaryReady === false). Single render path, no flash.'
+
+verification:
+  test_file: src/engine/__tests__/precis-4-the-revery.test.ts
+  test_pattern: 'the revery'
+  command: 'npx vitest run src/engine/__tests__/precis-4-the-revery.test.ts'

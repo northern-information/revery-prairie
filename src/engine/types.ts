@@ -353,6 +353,29 @@ export interface GameState {
   pendingSavedBees: boolean
   deepTime: DeepTimeState | null
   deepTimeTransition: TransitionFade | null
+  // Precis #4 — the Revery (long-form ceremonial phase).
+  revery: ReveryState | null
+  // Lifetime count of completed Reveries. Increments on Closing → null.
+  reveryCount: number
+  // Wall-clock time of the last Revery's Closing. Used by REVERY_COOLDOWN_MS
+  // gating in detectOmen so back-to-back Reveries can't fire within one year.
+  lastReveryEndTime: number
+  // Monotonic accumulator of cosmological drift (v3 doctrine). 0 baseline in
+  // this PR; future features wire passive transmission (v3 layer (a)) and
+  // meteorite-placement (v3 layer (c)) increments.
+  cosmologicalDrift: number
+  // Per-species list of revealed phenotype labels. Each Revery resolves one
+  // (species, axis) pair via resolvePhenotypeLabel. Re-resolving the same
+  // pair OVERWRITES — no duplicates per (species, axis).
+  revealedPhenotypes: Map<FloraSpecies, RevealedPhenotype[]>
+  // Wall-clock time of the player's last successful movePlayer. Used by the
+  // cloud-passing omen to detect "player stationary for N ms" without
+  // changing movement logic. Updated by movement.ts.
+  playerStationarySince: number
+  // Previous frame's state.weather.sky value. Used by the cloud-passing omen
+  // to detect Rain/Cloudy → Sun transitions. Updated by gameLoop after
+  // tickWeather.
+  lastSky: Sky
   postGiftActionsCompleted: Set<string>
   rainFrontOffset: number
   precipitationIntensity: number
@@ -593,6 +616,73 @@ export interface DeepTimeState {
   scheduledStrikeYears: number[]
   strikesCompleted: number
   shakeUntil: number
+}
+
+// Precis #4 — the Revery. See docs/claude/revery.md for the phase machine and
+// summary semantics. Reuses the deepTime pattern: one-frame staging, bulk
+// observation with time-compressed world ticks, summary phase, closing.
+export const ReveryPhase = {
+  Omen: 'omen',
+  Observing: 'observing',
+  Summary: 'summary',
+  Closing: 'closing',
+} as const
+
+export type ReveryPhase = (typeof ReveryPhase)[keyof typeof ReveryPhase]
+
+export const OmenKind = {
+  BeeOnShoulder: 'bee-on-shoulder',
+  DistantMeteorite: 'distant-meteorite',
+  CloudPassingSun: 'cloud-passing-sun',
+} as const
+
+export type OmenKind = (typeof OmenKind)[keyof typeof OmenKind]
+
+// Pre-Revery snapshot used to compute the bilingual diff at Summary entry.
+export interface ReverySnapshot {
+  floraCounts: Record<FloraSpecies, number>
+  egregoreCount: number
+  season: Season
+  reveryCount: number
+}
+
+export const PhenotypeAxis = {
+  BloomTiming: 'bloomTiming',
+  ColdTolerance: 'coldTolerance',
+  DroughtResponse: 'droughtResponse',
+  PollinatorPreference: 'pollinatorPreference',
+} as const
+
+export type PhenotypeAxis = (typeof PhenotypeAxis)[keyof typeof PhenotypeAxis]
+
+export interface RevealedPhenotype {
+  axis: PhenotypeAxis
+  verdict: string
+  reveryNumber: number
+}
+
+// Structured change record from the Revery diff. Each entry produces a
+// summary line. ASCII lines render flora-delta; Voynich lines render
+// egregore-grew; phenotype lines render phenotype-revealed.
+export type ReveryChange =
+  | { kind: 'flora-delta'; payload: { species: FloraSpecies; before: number; after: number } }
+  | { kind: 'egregore-grew'; payload: { positions: Position[] } }
+  | { kind: 'phenotype-revealed'; payload: { species: FloraSpecies; axis: PhenotypeAxis; verdict: string } }
+
+export interface ReveryState {
+  active: boolean
+  startTime: number
+  phase: ReveryPhase
+  elapsedYears: number
+  // Snapshot captured at Omen → Observing. Drives the diff at Observing → Summary.
+  snapshotBeforeRevery: ReverySnapshot
+  // Populated at Observing → Summary by computeReveryDiff + the phenotype +
+  // egregore advance functions. Rendered by ReverySummary.tsx.
+  scheduledChanges: ReveryChange[]
+  // True when the diff has been computed and the React overlay should show.
+  summaryReady: boolean
+  // Which omen triggered this Revery. Used by the summary header.
+  omenKind: OmenKind
 }
 
 export interface MeteorShowerState {

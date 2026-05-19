@@ -67,11 +67,11 @@ features:
     summary: Omen-triggered entry, observation UX, end-of-Revery summary (bilingual ASCII + Voynich).
     size: L
     depends_on: ['1', '2', '3', '8a']
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/precis-4-the-revery.yaml
+    plan: harness/plans/precis-4-the-revery.yaml
     pr: null
-    notes: ''
+    notes: 'Scope locked 2026-05-19: hard input lock, "pass through the winter" duration via year accelerator (mirrors deepTime.ts), bilingual ASCII + Voynich summary, one hedged phenotype label per Revery on most-discovered species (axis cycles by reveryCount), first-Revery 3 → 6 egregoric bump per v3 8a doctrine. Three omen variants: bee on shoulder, distant meteorite, cloud passing the sun. cosmologicalDrift field lands here (0 baseline, no incrementers in this PR). Ongoing per-Revery egregore spread defers to #8b.'
 
   - id: '5'
     name: Ruin → first non-clover species

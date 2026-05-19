@@ -125,6 +125,7 @@ deeper docs live in `docs/claude/`. read on demand for the system you're touchin
 | `weather.md` | seasons, snow, dormancy, winter palette wash |
 | `flora.md` | clover / wildflower / tall grass species, six-stage lifecycle |
 | `genetics.md` | precis #3 — SHA256 identity, trait bag, crossing math, hex grid derivation |
+| `revery.md` | precis #4 — phase machine, omen detection, summary, phenotype labels, first-Revery egregoric advance |
 | `genesis.md` | 14 epochs, steward-name seeding, soil health |
 | `audio.md` | ambient + dialog music layers |
 | `testing.md` | terrain prep, random mocking, schema allowlist, rain test setup |
