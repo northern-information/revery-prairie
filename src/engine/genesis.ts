@@ -32,11 +32,14 @@ import {
   WATER_SAND_BORDER_MAX,
   WATER_SAND_PASS_CHANCES,
 } from './constants'
+import { FLORA_SPECIES } from './flora/species'
+import { createFloraLifecycleEntry } from './floraLifecycleEntry'
+import { generateGenesisIdentity, generateTraitBag } from './genetics'
 import { GenesisEpochId, RuinGenerationMode, RuinRole } from './genesisTypes'
 import { rebuildGlintZones, seedGlintPatches } from './glintZones'
 import { posKey, tileHash as rendererTileHash } from './position'
 import { smoothNoiseSeeded } from './terrain'
-import { FloraSpecies, FloraStage, TileType } from './types'
+import { FloraSpecies, TileType } from './types'
 
 import type { FloraLifecycleState } from './types'
 
@@ -3372,19 +3375,30 @@ export const extractGenesisResult = (sim: GenesisSimState): GenesisResult => ({
  *     not self-propagate in this PR
  *   - same steward name → same patch layout
  */
-export const postProcessMultiSpeciesFlora = (sim: GenesisSimState): Map<string, FloraLifecycleState> => {
+export const postProcessMultiSpeciesFlora = (
+  sim: GenesisSimState,
+  genesisSeed: number,
+): Map<string, FloraLifecycleState> => {
   const lifecycle = new Map<string, FloraLifecycleState>()
 
   // Record every existing Flora tile from the epoch chain as clover.
   for (let y = 0; y < sim.height; y++) {
     for (let x = 0; x < sim.width; x++) {
       if (sim.grid[y][x].type !== TileType.Flora) continue
-      lifecycle.set(posKey(x, y), {
-        stage: FloraStage.Healthy,
-        stageStartTime: 0,
-        hasLight: true,
-        species: FloraSpecies.Clover,
-      })
+      const key = posKey(x, y)
+      const species = FloraSpecies.Clover
+      const binomial = FLORA_SPECIES[species].latinBinomial
+      const identity = generateGenesisIdentity(binomial, genesisSeed, key)
+      lifecycle.set(
+        key,
+        createFloraLifecycleEntry({
+          time: 0,
+          hasLight: true,
+          species,
+          identity,
+          traits: generateTraitBag(identity),
+        }),
+      )
     }
   }
 
@@ -3457,14 +3471,20 @@ export const postProcessMultiSpeciesFlora = (sim: GenesisSimState): Map<string, 
       }
     }
 
+    const binomial = FLORA_SPECIES[species].latinBinomial
     for (const cell of placed) {
       sim.grid[cell.y][cell.x] = { type: TileType.Flora }
-      lifecycle.set(cell.key, {
-        stage: FloraStage.Healthy,
-        stageStartTime: 0,
-        hasLight: true,
-        species,
-      })
+      const identity = generateGenesisIdentity(binomial, genesisSeed, cell.key)
+      lifecycle.set(
+        cell.key,
+        createFloraLifecycleEntry({
+          time: 0,
+          hasLight: true,
+          species,
+          identity,
+          traits: generateTraitBag(identity),
+        }),
+      )
     }
   }
 

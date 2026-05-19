@@ -9,7 +9,9 @@ import {
 } from '../clover'
 import { ComponentType } from '../ecs/types'
 import { posKey } from '../position'
-import { FloraSpecies, FloraStage, TileType } from '../types'
+import { FloraSpecies, TileType } from '../types'
+
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import {
   clearArea,
   createBeeEntity,
@@ -34,12 +36,8 @@ const findPatchAt = (patches: CloverPatch[], x: number, y: number): CloverPatch 
 // the patch detector filters by species).
 const placeCloverTile = (state: ReturnType<typeof createTestState>, x: number, y: number): void => {
   state.map[y][x] = { type: TileType.Flora }
-  state.floraLifecycle.set(posKey(x, y), {
-    stage: FloraStage.Healthy,
-    stageStartTime: 0,
-    hasLight: true,
-    species: FloraSpecies.Clover,
-  })
+  const key = posKey(x, y)
+  state.floraLifecycle.set(key, createTestFloraEntry({ posKey: key, species: FloraSpecies.Clover }))
 }
 
 const placeCloverRect = (

@@ -10,11 +10,13 @@ import {
   SOIL_HEALTH_MAX,
   WATER_MAX,
 } from './constants'
+import { createFloraLifecycleEntry } from './floraLifecycleEntry'
+import { generateRuntimeIdentity, generateTraitBag } from './genetics'
 import { recordDiscovery } from './manual'
 import { posKey } from './position'
 import { FloraSpecies, FloraStage, Season, TileType, Zone } from './types'
 
-import type { FloraLifecycleState, GameState, Zone as ZoneType } from './types'
+import type { GameState, Zone as ZoneType } from './types'
 
 // --- Helpers ---
 
@@ -25,16 +27,6 @@ export const addSoilHealth = (state: GameState, key: string, bonus: number): voi
   state.soilHealth.set(key, Math.min(current + bonus, SOIL_HEALTH_MAX))
 }
 
-const createHealthyEntry = (
-  time: number,
-  hasLight: boolean,
-  species: FloraSpecies = FloraSpecies.Clover,
-): FloraLifecycleState => ({
-  stage: FloraStage.Healthy,
-  stageStartTime: time,
-  hasLight,
-  species,
-})
 
 const stageDuration = (stage: FloraStage): number => {
   switch (stage) {
@@ -89,12 +81,16 @@ export const tickFloraLifecycle = (state: GameState, zone: ZoneType, time: numbe
         // wildfire ignition is responsible for preserving the original species
         // on the entry before the tile becomes BurntFlora.
         if (!entry) {
-          entry = {
-            stage: FloraStage.BurntRecovering,
-            stageStartTime: time,
+          const fallbackSpecies = FloraSpecies.Clover
+          const identity = generateRuntimeIdentity(`${fallbackSpecies}:burnt-fallback`, key, time)
+          entry = createFloraLifecycleEntry({
+            time,
             hasLight: true,
-            species: FloraSpecies.Clover,
-          }
+            species: fallbackSpecies,
+            identity,
+            traits: generateTraitBag(identity),
+            stage: FloraStage.BurntRecovering,
+          })
           state.floraLifecycle.set(key, entry)
         }
 
@@ -116,9 +112,21 @@ export const tickFloraLifecycle = (state: GameState, zone: ZoneType, time: numbe
       const key = posKey(x, y)
       let entry = state.floraLifecycle.get(key)
 
-      // First encounter: create entry
+      // First encounter: create entry. This is a defensive branch — every
+      // Flora-tile construction site routes through createFloraLifecycleEntry
+      // and populates an identity, so reaching here would mean a Flora tile
+      // was placed without a lifecycle entry. Generate a runtime-tagged
+      // identity so the entry is well-formed.
       if (!entry) {
-        entry = createHealthyEntry(time, hasLight)
+        const fallbackSpecies = FloraSpecies.Clover
+        const identity = generateRuntimeIdentity(`${fallbackSpecies}:fallback`, key, time)
+        entry = createFloraLifecycleEntry({
+          time,
+          hasLight,
+          species: fallbackSpecies,
+          identity,
+          traits: generateTraitBag(identity),
+        })
         state.floraLifecycle.set(key, entry)
       }
 

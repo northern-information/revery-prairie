@@ -53,14 +53,14 @@ features:
 
   - id: '3'
     name: Genetics v1
-    summary: SHA256 identity layer + trait-bag inheritance (option C). Not a breed-spike port. Hex grid stays buried.
+    summary: SHA256 identity layer + trait-bag inheritance (option C). Not a breed-spike port. 8x8 hex grid derivation included (renderer ships in #6).
     size: M
     depends_on: ['1', '2']
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/precis-3-genetics-v1.yaml
+    plan: harness/plans/precis-3-genetics-v1.yaml
     pr: null
-    notes: ''
+    notes: 'Hex grid timing override — v3 doctrine line 62-63 said "stays buried, only in late-game ritual." Overridden: the grid surfaces in #6 as part of the naturalist''s manual, player-facing. Scope locked: identity + trait bag + pure crossing math + grid derivation. No callers in #3 — #6 renders the grid, #12 calls crossing.'
 
   - id: '4'
     name: The Revery (long-form phase)

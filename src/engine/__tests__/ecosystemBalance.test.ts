@@ -4,6 +4,7 @@ import { BURNT_CLOVER_RAIN_MULTIPLIER, BURNT_CLOVER_RECOVERY_MS, WATER_MAX } fro
 import { spreadWildfire } from '../lightning'
 import { posKey } from '../position'
 import { FloraSpecies, FloraStage, Sky, TileType, Zone } from '../types'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearAroundPlayer, createBeeEntity, createBeehiveEntity, createTestState, getBeehiveEntities } from './helpers'
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -22,13 +23,16 @@ beforeEach(() => {
 
 const placeBurntClover = (x: number, y: number, stageStartTime: number) => {
   state.map[y][x] = { type: TileType.BurntFlora }
-  state.floraLifecycle.set(posKey(x, y), {
-    stage: FloraStage.BurntRecovering,
-    stageStartTime,
-    hasLight: true,
-
-    species: FloraSpecies.Clover,
-  })
+  const key = posKey(x, y)
+  state.floraLifecycle.set(
+    key,
+    createTestFloraEntry({
+      posKey: key,
+      species: FloraSpecies.Clover,
+      stage: FloraStage.BurntRecovering,
+      time: stageStartTime,
+    }),
+  )
   if (!state.tileWater.has(posKey(x, y))) {
     state.tileWater.set(posKey(x, y), 0)
   }

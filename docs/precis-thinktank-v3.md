@@ -59,9 +59,9 @@ A sequencing plan for 13 features (#0–#12, with #8 split). Not a code change. 
 - **Don't port breed-spike's Mendelian hex-grid math.** It rewards engineering. The precis wants folk ecology, not optimization.
 - **SHA256 stays** as the plant's stable fingerprint — deterministic procedural identity. Same plant name always hashes the same. Free procedural variety. This is what the 8×8 grid is actually useful for.
 - **Inheritance is a simple trait bag:** 4–6 fuzzy values (bloom timing, cold tolerance, fire response, drought response, pollinator preference, seed count), plus 0–2 recessive carriers, plus a small mutation table. Cross two plants → child draws from parents with weighted noise + a low-probability "new trait" roll.
-- **The hex grid stays *buried*.** Not surface mechanic. Only ever visible in the late-game ritual / microscope as the underlying architecture the player suspects but never reads.
-- **Player surface is the naturalist's manual (#6) only.** Traits as discovered phenotypes — "suspected: late blooming." Numbers never shown. No genome viewer in baseline play.
-- **Why:** the precis wants players who become naturalists, not engineers. Folk ecology is built on intuition and surprise across generations, not on legible Mendelian crosses. We also keep the precis's "underlying architecture humans can't quite comprehend" intact — the architecture is *real* (SHA256 + hex grid exists in code) but never legible.
+- **The 8×8 hex grid surfaces in #6.** Revised from v3's original "stays buried" framing. The grid is player-facing, rendered in the naturalist's manual alongside the discovered-phenotype labels. Each cell is one hex nibble of the plant's SHA256 identity (cell [row][col] = nibble at position row × 8 + col). The mapping is locked in #3 so every plant's visible grid is stable for the life of the game.
+- **Trait numbers are never shown.** The grid is visible; the underlying trait bag values are not. The manual surfaces traits as fuzzy phenotype labels — "suspected: late blooming" — never as raw numbers. No genome viewer of the trait bag.
+- **Why:** the precis wants players who become naturalists, not engineers. Folk ecology is built on intuition and surprise across generations, not on legible Mendelian crosses. The hex grid is the architecture made visible — the SHA256 fingerprint that the angels also speak — but not the engineering-legible Mendelian model.
 
 ### Angels as the bridge
 

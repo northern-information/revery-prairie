@@ -8,10 +8,13 @@ import {
   CLOVER_MAX_GROWTH_PER_TICK,
 } from './constants'
 import { ComponentType } from './ecs/types'
+import { FLORA_SPECIES } from './flora/species'
+import { createFloraLifecycleEntry } from './floraLifecycleEntry'
+import { generateRuntimeIdentity, generateTraitBag } from './genetics'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { CARDINAL, isInBounds, posKey, tileHash } from './position'
-import { FloraSpecies, FloraStage, Season, TileType, Zone } from './types'
+import { FloraSpecies, Season, TileType, Zone } from './types'
 import { spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
@@ -248,12 +251,19 @@ export const tickCloverGrowth = (state: GameState): void => {
     const y = Number(yStr)
     if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Dirt) {
       setMapTile(state, x, y, { type: TileType.Flora })
-      state.floraLifecycle.set(key, {
-        stage: FloraStage.Healthy,
-        stageStartTime: 0,
-        hasLight: true,
-        species: FloraSpecies.Clover,
-      })
+      const species = FloraSpecies.Clover
+      const binomial = FLORA_SPECIES[species].latinBinomial
+      const identity = generateRuntimeIdentity(binomial, key, Date.now())
+      state.floraLifecycle.set(
+        key,
+        createFloraLifecycleEntry({
+          time: 0,
+          hasLight: true,
+          species,
+          identity,
+          traits: generateTraitBag(identity),
+        }),
+      )
     }
   }
 

@@ -1,8 +1,11 @@
 import { ACTION_COLOR } from './constants'
+import { FLORA_SPECIES } from './flora/species'
+import { createFloraLifecycleEntry } from './floraLifecycleEntry'
+import { generateRuntimeIdentity, generateTraitBag } from './genetics'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { isInBounds, posKey } from './position'
-import { FloraSpecies, FloraStage, TileType } from './types'
+import { FloraSpecies, TileType } from './types'
 
 import type { GameState, Position } from './types'
 
@@ -73,12 +76,19 @@ export const RECIPES: Recipe[] = [
             if (!isWater && (t === TileType.Dirt || t === TileType.Flora || t === TileType.CaveFloor)) {
               // Bee + clover seeds Flora tiles as clover specifically.
               setMapTile(state, tx, ty, { type: TileType.Flora })
-              state.floraLifecycle.set(k, {
-                stage: FloraStage.Healthy,
-                stageStartTime: 0,
-                hasLight: true,
-                species: FloraSpecies.Clover,
-              })
+              const species = FloraSpecies.Clover
+              const binomial = FLORA_SPECIES[species].latinBinomial
+              const identity = generateRuntimeIdentity(binomial, k, Date.now())
+              state.floraLifecycle.set(
+                k,
+                createFloraLifecycleEntry({
+                  time: 0,
+                  hasLight: true,
+                  species,
+                  identity,
+                  traits: generateTraitBag(identity),
+                }),
+              )
             }
           }
         }

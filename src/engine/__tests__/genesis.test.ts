@@ -1607,3 +1607,43 @@ describe('starter ruin role allocation (precis #5)', () => {
     }
   })
 })
+
+describe('genetics — same steward name produces identical flora identities', () => {
+  it('every flora tile has matching identity + traits across two genesis runs with the same name', () => {
+    const a = createGameState('GeneticsRun', 20, 20)
+    const b = createGameState('GeneticsRun', 20, 20)
+
+    // Same number of flora tiles
+    expect(a.floraLifecycle.size).toBe(b.floraLifecycle.size)
+    expect(a.floraLifecycle.size).toBeGreaterThan(0)
+
+    // Every tile matches identity + traits
+    for (const [key, entryA] of a.floraLifecycle) {
+      const entryB = b.floraLifecycle.get(key)
+      expect(entryB).toBeDefined()
+      if (!entryB) continue
+      expect(entryA.identity).toBe(entryB.identity)
+      expect(entryA.identity).toMatch(/^[0-9a-f]{64}$/)
+      expect(entryA.traits).toEqual(entryB.traits)
+    }
+  })
+
+  it('different steward names produce different identities', () => {
+    const a = createGameState('NameOne', 20, 20)
+    const b = createGameState('NameTwo', 20, 20)
+
+    // At least one shared tile position should have different identities
+    let sharedTiles = 0
+    let differentIdentities = 0
+    for (const [key, entryA] of a.floraLifecycle) {
+      const entryB = b.floraLifecycle.get(key)
+      if (!entryB) continue
+      sharedTiles++
+      if (entryA.identity !== entryB.identity) differentIdentities++
+    }
+    // If there are shared tile positions, their identities should differ.
+    if (sharedTiles > 0) {
+      expect(differentIdentities).toBe(sharedTiles)
+    }
+  })
+})

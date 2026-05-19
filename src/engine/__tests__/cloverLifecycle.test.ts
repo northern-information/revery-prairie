@@ -10,6 +10,7 @@ import {
 } from '../constants'
 import { posKey } from '../position'
 import { FloraSpecies, FloraStage, Season, Sky, TileType, Zone } from '../types'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -205,12 +206,7 @@ describe('seasonal dormancy', () => {
     const key = posKey(px(), py() + 1)
     // Seed the entry as healthy with tile water so it doesn't get marked
     // stressed before the dormancy check runs.
-    state.floraLifecycle.set(key, {
-      stage: FloraStage.Healthy,
-      stageStartTime: 0,
-      hasLight: true,
-      species: FloraSpecies.Clover,
-    })
+    state.floraLifecycle.set(key, createTestFloraEntry({ posKey: key, species: FloraSpecies.Clover }))
     tickFloraLifecycle(state, Zone.Overworld, 1000)
     expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Dormant)
   })
@@ -246,12 +242,10 @@ describe('seasonal dormancy', () => {
     state.weather.season = Season.Spring
     placeClover(px(), py() + 1)
     const key = posKey(px(), py() + 1)
-    state.floraLifecycle.set(key, {
-      stage: FloraStage.Healthy,
-      stageStartTime: 500,
-      hasLight: true,
-      species: FloraSpecies.Clover,
-    })
+    state.floraLifecycle.set(
+      key,
+      createTestFloraEntry({ posKey: key, species: FloraSpecies.Clover, time: 500 }),
+    )
     tickFloraLifecycle(state, Zone.Overworld, 1000)
     expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Healthy)
   })
