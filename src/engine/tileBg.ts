@@ -108,41 +108,94 @@ export const darkenColor = (hex: string, factor: number): string => {
   return result
 }
 
-// Winter palette wash (precis #2). Blends a tile glyph or bg color toward
-// the winter target grey when state.weather.season === Winter. The blend
-// is fixed-intensity — there's no gradient between seasons, just a binary
-// on/off keyed to the derived season. Per v3 doctrine egregore tiles are
-// exempt so the violet script pops against the grey; the renderer must
-// short-circuit before calling this for those tiles.
+// Seasonal palette wash. Blends a tile glyph or bg color toward a
+// season-specific target hue. The target hex and intensity vary
+// continuously across the year — anchored at the four cardinal
+// seasonalPhase values (winter / spring / summer / autumn) and lerped
+// between adjacent anchors per frame. Egregore tiles are exempt
+// year-round per v3 doctrine; the renderer must short-circuit before
+// calling applySeasonalWash for those tiles.
 //
-// Memoized via the same two-level cache pattern as darkenColor — the
-// input space is small (~80 base colors × 1 wash intensity).
-export const WINTER_WASH_TARGET = '#B8BCC0'
-export const WINTER_WASH_INTENSITY = 0.4 // 40% blend toward grey
+// Memoized via a two-level cache (source hex → key(target, intensity)
+// → result). The input space stays small in practice — coarse phase
+// quantization is not currently applied; if profiling shows pressure,
+// quantize at the call site.
+export interface SeasonalWash {
+  target: string
+  intensity: number
+}
 
-const _winterCache = new Map<string, Map<number, string>>()
+// Cardinal-phase anchors. Phase 0 is deep winter (cosine peak in
+// weather/index.ts seasonalLerp), 0.25 is spring peak, 0.5 is deep
+// summer, 0.75 is autumn peak. Winter stays the heaviest wash so the
+// world still reads as "dead." Summer is barely-there. Spring and
+// autumn carry their own subtle tints.
+export const SEASON_WASH_ANCHORS: readonly { phase: number; target: string; intensity: number }[] = [
+  { phase: 0.0, target: '#B8BCC0', intensity: 0.4 },
+  { phase: 0.25, target: '#A8C890', intensity: 0.1 },
+  { phase: 0.5, target: '#F4D58A', intensity: 0.05 },
+  { phase: 0.75, target: '#C8865A', intensity: 0.18 },
+]
 
-export const applyWinterWash = (hex: string, intensity: number = WINTER_WASH_INTENSITY): string => {
-  let intensityMap = _winterCache.get(hex)
-  if (intensityMap !== undefined) {
-    const cached = intensityMap.get(intensity)
+const hexToRgb = (hex: string): [number, number, number] => [
+  parseInt(hex.slice(1, 3), 16),
+  parseInt(hex.slice(3, 5), 16),
+  parseInt(hex.slice(5, 7), 16),
+]
+
+const toHexByte = (n: number): string => n.toString(16).padStart(2, '0')
+
+const rgbToHex = (r: number, g: number, b: number): string => `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`
+
+// Pure: returns the wash at the given seasonalPhase by lerping between
+// adjacent SEASON_WASH_ANCHORS. The phase is normalized into [0, 1).
+// The 0.75 → 0.00 boundary is treated as a valid bracket (autumn back
+// to winter via wrap), so phases like 0.875 return a mid-autumn-winter
+// value.
+export const seasonalWash = (seasonalPhase: number): SeasonalWash => {
+  const phase = ((seasonalPhase % 1) + 1) % 1
+  // Find the two anchors bracketing this phase. Anchors are sorted by
+  // phase. The bracket is (anchors[i], anchors[i+1]); the final anchor
+  // brackets back to anchors[0] via wrap (target phase = 1.0).
+  const anchors = SEASON_WASH_ANCHORS
+  for (let i = 0; i < anchors.length; i++) {
+    const lo = anchors[i]
+    const hiAnchor = i + 1 < anchors.length ? anchors[i + 1] : { ...anchors[0], phase: 1.0 }
+    if (phase >= lo.phase && phase < hiAnchor.phase) {
+      const t = (phase - lo.phase) / (hiAnchor.phase - lo.phase)
+      const [lr, lg, lb] = hexToRgb(lo.target)
+      const [hr, hg, hb] = hexToRgb(hiAnchor.target)
+      const r = Math.round(lr + (hr - lr) * t)
+      const g = Math.round(lg + (hg - lg) * t)
+      const b = Math.round(lb + (hb - lb) * t)
+      const intensity = lo.intensity + (hiAnchor.intensity - lo.intensity) * t
+      return { target: rgbToHex(r, g, b), intensity }
+    }
+  }
+  // Phase exactly at the final anchor's start with wrap-around degeneracy
+  // would land here; return the first anchor as a safe fallback.
+  return { target: anchors[0].target, intensity: anchors[0].intensity }
+}
+
+const _washCache = new Map<string, Map<string, string>>()
+
+export const applySeasonalWash = (hex: string, target: string, intensity: number): string => {
+  const cacheKey = `${target}@${intensity.toFixed(4)}`
+  let byTarget = _washCache.get(hex)
+  if (byTarget !== undefined) {
+    const cached = byTarget.get(cacheKey)
     if (cached !== undefined) return cached
   } else {
-    intensityMap = new Map()
-    _winterCache.set(hex, intensityMap)
+    byTarget = new Map()
+    _washCache.set(hex, byTarget)
   }
-  const sr = parseInt(hex.slice(1, 3), 16)
-  const sg = parseInt(hex.slice(3, 5), 16)
-  const sb = parseInt(hex.slice(5, 7), 16)
-  const tr = parseInt(WINTER_WASH_TARGET.slice(1, 3), 16)
-  const tg = parseInt(WINTER_WASH_TARGET.slice(3, 5), 16)
-  const tb = parseInt(WINTER_WASH_TARGET.slice(5, 7), 16)
+  const [sr, sg, sb] = hexToRgb(hex)
+  const [tr, tg, tb] = hexToRgb(target)
   const r = Math.round(sr + (tr - sr) * intensity)
   const g = Math.round(sg + (tg - sg) * intensity)
   const b = Math.round(sb + (tb - sb) * intensity)
-  const toHex = (n: number): string => n.toString(16).padStart(2, '0')
-  const result = `#${toHex(r)}${toHex(g)}${toHex(b)}`
-  intensityMap.set(intensity, result)
+  const result = rgbToHex(r, g, b)
+  byTarget.set(cacheKey, result)
   return result
 }
 

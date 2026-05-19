@@ -1,4 +1,5 @@
 import { RAIN_FADE_DURATION_MS, SEASONAL_PHASE_PERIOD_MS } from '../constants'
+import { applySeasonalWash, SEASON_WASH_ANCHORS, seasonalWash } from '../tileBg'
 import { Season, Sky, Zone } from '../types'
 import { deriveSeason, fToC, generateWeather, mphToKph, tickPrecipitationIntensity, tickWeather } from '../weather'
 import { createTestState } from './helpers'
@@ -297,5 +298,87 @@ describe('seasonal sky picking', () => {
       state.weather.humidity = 90
     }
     expect(sawSnow).toBe(true)
+  })
+})
+
+describe('seasonal wash', () => {
+  it('returns the winter anchor at phase 0.0', () => {
+    const wash = seasonalWash(0)
+    expect(wash.target).toBe('#b8bcc0')
+    expect(wash.intensity).toBeCloseTo(0.4, 5)
+  })
+
+  it('returns the spring anchor at phase 0.25', () => {
+    const wash = seasonalWash(0.25)
+    expect(wash.target).toBe('#a8c890')
+    expect(wash.intensity).toBeCloseTo(0.1, 5)
+  })
+
+  it('returns the summer anchor at phase 0.5', () => {
+    const wash = seasonalWash(0.5)
+    expect(wash.target).toBe('#f4d58a')
+    expect(wash.intensity).toBeCloseTo(0.05, 5)
+  })
+
+  it('returns the autumn anchor at phase 0.75', () => {
+    const wash = seasonalWash(0.75)
+    expect(wash.target).toBe('#c8865a')
+    expect(wash.intensity).toBeCloseTo(0.18, 5)
+  })
+
+  it('interpolates intensity at the midpoint between winter and spring', () => {
+    const wash = seasonalWash(0.125)
+    // Midpoint between winter 0.4 and spring 0.1 is 0.25.
+    expect(wash.intensity).toBeCloseTo(0.25, 5)
+  })
+
+  it('interpolates intensity at the midpoint between autumn and winter (wrap-around)', () => {
+    const wash = seasonalWash(0.875)
+    // Midpoint between autumn 0.18 and winter 0.4 (via wrap) is 0.29.
+    expect(wash.intensity).toBeCloseTo(0.29, 5)
+  })
+
+  it('normalizes negative phases into [0, 1)', () => {
+    const winterAtZero = seasonalWash(0)
+    const winterAtNegOne = seasonalWash(-1)
+    expect(winterAtNegOne.target).toBe(winterAtZero.target)
+    expect(winterAtNegOne.intensity).toBeCloseTo(winterAtZero.intensity, 5)
+  })
+
+  it('produces continuous wash across an arbitrary phase step (no pop)', () => {
+    const a = seasonalWash(0.249)
+    const b = seasonalWash(0.251)
+    // Adjacent samples should differ by less than the full anchor distance.
+    expect(Math.abs(a.intensity - b.intensity)).toBeLessThan(0.02)
+  })
+
+  it('SEASON_WASH_ANCHORS holds exactly four entries at distinct cardinal phases', () => {
+    expect(SEASON_WASH_ANCHORS).toHaveLength(4)
+    const phases = SEASON_WASH_ANCHORS.map((a) => a.phase)
+    expect(phases).toEqual([0.0, 0.25, 0.5, 0.75])
+    const targets = new Set(SEASON_WASH_ANCHORS.map((a) => a.target))
+    expect(targets.size).toBe(4)
+  })
+
+  it('applySeasonalWash blends source toward target by intensity', () => {
+    // Black source toward white target at intensity 0.5 → mid-grey #808080.
+    expect(applySeasonalWash('#000000', '#ffffff', 0.5)).toBe('#808080')
+  })
+
+  it('applySeasonalWash returns source unchanged at intensity 0', () => {
+    expect(applySeasonalWash('#445566', '#ffffff', 0)).toBe('#445566')
+  })
+
+  it('applySeasonalWash returns target at intensity 1', () => {
+    expect(applySeasonalWash('#445566', '#aabbcc', 1)).toBe('#aabbcc')
+  })
+
+  it('applySeasonalWash memoizes per (source, target, intensity)', () => {
+    // Same inputs return strictly-equal output; the memoization cache is
+    // an implementation detail but the contract (deterministic pure
+    // output) holds either way.
+    const a = applySeasonalWash('#224F30', '#b8bcc0', 0.4)
+    const b = applySeasonalWash('#224F30', '#b8bcc0', 0.4)
+    expect(a).toBe(b)
   })
 })

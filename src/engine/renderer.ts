@@ -96,11 +96,12 @@ import { getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import { getSelectedUnitPositions } from './selection'
 import {
   ANGEL_FLOAT_LIFT_PX,
-  applyWinterWash,
+  applySeasonalWash,
   darkenColor,
   getStructurePlatformLift,
   getTierLift,
   getTileBgColor,
+  seasonalWash,
   WALL_LEFT_SHADE,
   WALL_RIGHT_SHADE,
   WATER_SINK_PX,
@@ -109,7 +110,7 @@ import {
 import './render/passes/index'
 
 import { getTierGrid as getTierGridShared, liftAt as liftAtShared } from './render/tierGrid'
-import { FloraStage, DeepTimePhase, Season, TileType, Zone } from './types'
+import { FloraStage, DeepTimePhase, TileType, Zone } from './types'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar } from './visibility'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
@@ -1069,17 +1070,37 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // bg-cache slot: tile bg + cube edges composite.
   runPassesInSlot('bg-cache', ctx, state, metrics, time)
 
-  // Winter palette wash on the bg cache (precis #2). A translucent grey
-  // rect drawn over the freshly-composited bg layer drains warmth from
-  // the cached tile palettes without touching the cache itself. World-
-  // overlay passes and per-tile glyphs (washed individually in the
-  // central tile loop) draw on top.
-  if (state.weather.season === Season.Winter && state.currentZone === Zone.Overworld) {
-    const savedAlpha = ctx.globalAlpha
-    ctx.globalAlpha = 0.35
-    ctx.fillStyle = '#B8BCC0'
-    ctx.fillRect(0, 0, viewportWidth * charWidth, viewportHeight * charHeight)
-    ctx.globalAlpha = savedAlpha
+  // Seasonal palette wash on the bg cache. A translucent tinted rect
+  // drawn over the freshly-composited bg layer shifts the cached tile
+  // palettes toward the current season's target without touching the
+  // cache itself. World-overlay passes and per-tile glyphs (washed
+  // individually in the central tile loop) draw on top.
+  //
+  // The rect is drawn in canvas coordinates (not world-translated),
+  // so during a player MovementTween — where the world translate at
+  // line 403 slides the bg-cache drawImage by sub-tile pixels — the
+  // wash stays anchored to the viewport instead of sliding off-edge
+  // and exposing un-washed trailing pixels.
+  //
+  // Wash intensity scales with the season anchor (winter heaviest,
+  // summer barely visible); a per-canvas fillRect at zero intensity
+  // would be a no-op, but we short-circuit anyway to skip the
+  // setTransform churn during the long summer stretch.
+  if (state.currentZone === Zone.Overworld) {
+    const wash = seasonalWash(state.seasonalPhase)
+    if (wash.intensity > 0) {
+      ctx.save()
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      const savedAlpha = ctx.globalAlpha
+      // Existing winter behavior used alpha 0.35 to land at a ~40% blend
+      // visually; keep the same alpha-to-intensity ratio (0.35 / 0.4) so
+      // every season's bg-cache wash matches the per-glyph blend strength.
+      ctx.globalAlpha = wash.intensity * (0.35 / 0.4)
+      ctx.fillStyle = wash.target
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+      ctx.globalAlpha = savedAlpha
+      ctx.restore()
+    }
   }
 
   // Fog of war: compute visibility before world-overlay so the fog mask
@@ -1102,11 +1123,15 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const tileLoopEndX = viewportWidth + viewportHeight
   const tileLoopEndY = viewportHeight + viewportWidth
 
-  // Precompute the per-frame winter-wash gate. The wash blends every
-  // native tile glyph toward winter grey when the overworld season is
-  // Winter; egregore tiles (precis #8a) are exempt and short-circuit
-  // the wash so their violet Voynich script pops against the grey.
-  const winterWash = state.weather.season === Season.Winter && state.currentZone === Zone.Overworld
+  // Precompute the per-frame seasonal-wash target. The wash blends every
+  // native tile glyph toward the current season's anchor color, lerped
+  // continuously across the four cardinal phases (winter / spring /
+  // summer / autumn). Egregore tiles (precis #8a) are exempt year-round
+  // and short-circuit the wash so their violet Voynich script pops in
+  // every season. Cave and ruin zones are unwashed (no overworld weather
+  // underground).
+  const washActive = state.currentZone === Zone.Overworld
+  const washForFrame = washActive ? seasonalWash(state.seasonalPhase) : null
   for (let vy = tileLoopStart; vy < tileLoopEndY; vy++) {
     for (let vx = tileLoopStart; vx < tileLoopEndX; vx++) {
       const mx = camera.x + vx
@@ -1595,13 +1620,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         }
       }
 
-      // Winter palette wash (precis #2): when the overworld season is
-      // Winter, blend every native tile glyph toward the winter grey.
-      // Egregore tiles are exempt so the violet Voynich script pops
-      // against the wash, per v3 doctrine.
+      // Seasonal palette wash: blend every native tile glyph toward
+      // the current season's anchor color. Egregore tiles are exempt
+      // year-round so the violet Voynich script pops in every season,
+      // per v3 doctrine. ACTION_COLOR (hot pink, reserved for user-
+      // action affordances per CLAUDE.md) is also exempt so path dots,
+      // cursor highlights, and combine previews keep their identity
+      // through every season.
       const tileForWash = map[my]?.[mx]
-      if (winterWash && tileForWash?.type !== TileType.Egregore) {
-        color = applyWinterWash(color)
+      if (washForFrame && tileForWash?.type !== TileType.Egregore && color !== ACTION_COLOR) {
+        color = applySeasonalWash(color, washForFrame.target, washForFrame.intensity)
       }
 
       // Non-deferred path: terrain glyphs and overlay tiles. Apply the
