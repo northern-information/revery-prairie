@@ -17,7 +17,7 @@ const renderShell = (
 ) => {
   const props = {
     state,
-    activeScreen: 'pack' as const,
+    activeScreen: 'manual' as const,
     onClose: vi.fn(),
     onSwitchScreen: vi.fn(),
     children: <div>content</div>,
@@ -52,13 +52,17 @@ describe('PermacomputerShell', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('does not close on backdrop click when pack screen is active', async () => {
+  it('closes on backdrop click for every screen (pack screen removed)', async () => {
     const onClose = vi.fn()
-    renderShell({ activeScreen: 'pack', onClose })
+    renderShell({ activeScreen: 'manual', onClose })
 
-    // Backdrop has pointer-events-none on pack screen, so click goes through
     await userEvent.click(screen.getByTestId('permacomputer-backdrop'))
-    expect(onClose).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('does not render a tab for the legacy pack screen', () => {
+    renderShell()
+    expect(screen.queryByTestId('tab-pack')).not.toBeInTheDocument()
   })
 
   it('renders the permacomputer shell', () => {
@@ -76,10 +80,9 @@ describe('PermacomputerShell', () => {
   })
 
   describe('tab visibility', () => {
-    it('always renders PACK, MANUAL, and SYS tabs', () => {
+    it('always renders MANUAL and SYS tabs', () => {
       renderShell()
 
-      expect(screen.getByTestId('tab-pack')).toBeInTheDocument()
       expect(screen.getByTestId('tab-manual')).toBeInTheDocument()
       expect(screen.getByTestId('tab-system')).toBeInTheDocument()
     })
@@ -133,10 +136,10 @@ describe('PermacomputerShell', () => {
       expect(screen.getByTestId('tab-divination')).toBeInTheDocument()
     })
 
-    it('shows only PACK, MANUAL, SYS on a fresh game with no unlocks', () => {
+    it('shows only MANUAL and SYS on a fresh game with no unlocks', () => {
       renderShell()
 
-      expect(screen.getByTestId('tab-pack')).toBeInTheDocument()
+      expect(screen.queryByTestId('tab-pack')).not.toBeInTheDocument()
       expect(screen.getByTestId('tab-manual')).toBeInTheDocument()
       expect(screen.getByTestId('tab-system')).toBeInTheDocument()
 
@@ -159,7 +162,6 @@ describe('PermacomputerShell', () => {
       renderShell({}, state)
 
       const order = [
-        screen.getByTestId('tab-pack'),
         screen.getByTestId('tab-manual'),
         screen.getByTestId('tab-divination'),
         screen.getByTestId('tab-cantos'),

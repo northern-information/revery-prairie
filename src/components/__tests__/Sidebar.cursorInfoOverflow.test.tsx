@@ -47,7 +47,6 @@ describe('cursor info overflow', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={{ current: metrics }}
         refreshUI={noop}
@@ -72,7 +71,6 @@ describe('cursor info overflow', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={{ current: metrics }}
         refreshUI={noop}
@@ -97,7 +95,6 @@ describe('cursor info overflow', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={{ current: metrics }}
         refreshUI={noop}
@@ -123,7 +120,6 @@ describe('cursor info overflow', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={{ current: metrics }}
         refreshUI={noop}
@@ -148,7 +144,6 @@ describe('cursor info overflow', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={{ current: metrics }}
         refreshUI={noop}
@@ -172,7 +167,6 @@ describe('cursor info overflow', () => {
     const { container } = render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={{ current: metrics }}
         refreshUI={noop}

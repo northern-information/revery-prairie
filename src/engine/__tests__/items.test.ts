@@ -58,7 +58,7 @@ describe('createBackpack', () => {
   it('returns correct dimensions', () => {
     const backpack = createBackpack()
     expect(backpack.width).toBe(10)
-    expect(backpack.height).toBe(100)
+    expect(backpack.height).toBe(5)
   })
 
   it('starts with empty items', () => {

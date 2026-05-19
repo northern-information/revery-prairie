@@ -1,0 +1,129 @@
+plan:
+  id: backpack-bottom-bar
+  title: 'Inline the backpack into the bottom bar (10x5, no scrolling)'
+  created: 2026-05-18
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: resize-backpack-constants
+    title: 'Set BACKPACK_WIDTH=10, BACKPACK_HEIGHT=5'
+    spec_id: inventory-management
+    spec_sections:
+      - backpack-dimensions
+    context_files:
+      - src/engine/items.ts
+      - harness/specs/inventory-management.yaml
+    output_files:
+      - src/engine/items.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/engine/__tests__/inventory.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: inventory-engine-tests-50-cells
+    title: 'Update inventory tests for the 10x5 grid contract'
+    spec_id: inventory-management
+    spec_sections:
+      - backpack-dimensions
+      - find-fit-position
+      - auto-sort
+    context_files:
+      - src/engine/__tests__/inventory.test.ts
+      - src/engine/items.ts
+      - src/engine/inventory.ts
+    output_files:
+      - src/engine/__tests__/inventory.test.ts
+    depends_on:
+      - resize-backpack-constants
+    verification:
+      - 'npx vitest run src/engine/__tests__/inventory.test.ts'
+    repair: retry
+    tags: [engine, test]
+
+  - id: drop-pack-permacomputer-screen
+    title: 'Remove the pack screen from PermacomputerShell'
+    spec_id: backpack-bottom-bar
+    spec_sections:
+      - tab-key-no-longer-opens-pack-screen
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/components/PermacomputerShell.tsx
+      - src/hooks/useKeyboard.ts
+      - src/components/__tests__/PermacomputerShell.test.tsx
+    output_files:
+      - src/components/GameScreen.tsx
+      - src/components/PermacomputerShell.tsx
+      - src/hooks/useKeyboard.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/components/__tests__/PermacomputerShell.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: mount-backpack-in-bottom-bar
+    title: 'Mount InventoryPanel inside the bottom-bar right slot'
+    spec_id: backpack-bottom-bar
+    spec_sections:
+      - backpack-renders-in-bottom-bar
+      - backpack-grid-dimensions-10x5
+      - full-parity-drag-drop-combine
+      - backpack-hover-clears-cursor-info
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/components/InventoryPanel.tsx
+      - src/components/InventoryGrid.tsx
+      - src/components/EventLog.tsx
+      - harness/specs/backpack-bottom-bar.yaml
+    output_files:
+      - src/components/GameScreen.tsx
+      - src/components/InventoryPanel.tsx
+    depends_on:
+      - drop-pack-permacomputer-screen
+      - resize-backpack-constants
+    verification:
+      - 'npx vitest run src/components/__tests__/InventoryPanel.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: inventory-panel-tests-bottom-bar
+    title: 'Update InventoryPanel tests for the bottom-bar mount'
+    spec_id: backpack-bottom-bar
+    spec_sections:
+      - backpack-renders-in-bottom-bar
+      - backpack-grid-dimensions-10x5
+      - tab-key-no-longer-opens-pack-screen
+      - backpack-hover-clears-cursor-info
+    context_files:
+      - src/components/__tests__/InventoryPanel.test.tsx
+      - src/components/__tests__/PermacomputerShell.test.tsx
+      - src/components/InventoryPanel.tsx
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/components/__tests__/InventoryPanel.test.tsx
+      - src/components/__tests__/PermacomputerShell.test.tsx
+    depends_on:
+      - mount-backpack-in-bottom-bar
+      - drop-pack-permacomputer-screen
+    verification:
+      - 'npx vitest run src/components/__tests__/InventoryPanel.test.tsx src/components/__tests__/PermacomputerShell.test.tsx'
+    repair: retry
+    tags: [component, test]
+
+  - id: regression-sweep
+    title: 'Run dependent suites that touch backpack state'
+    spec_id: backpack-bottom-bar
+    spec_sections:
+      - full-parity-drag-drop-combine
+    context_files: []
+    output_files: []
+    depends_on:
+      - inventory-engine-tests-50-cells
+      - inventory-panel-tests-bottom-bar
+    verification:
+      - 'npx vitest run src/engine/__tests__/inventory.test.ts src/components/__tests__/InventoryPanel.test.tsx src/components/__tests__/PermacomputerShell.test.tsx src/engine/__tests__/coyote.test.ts src/engine/__tests__/movement.test.ts src/engine/__tests__/items.test.ts'
+    repair: retry
+    tags: [test]

@@ -27,7 +27,6 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={createRef()}
         refreshUI={noop}
@@ -43,7 +42,6 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={createRef()}
         refreshUI={noop}
@@ -59,7 +57,6 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={createRef()}
         refreshUI={noop}
@@ -86,7 +83,6 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={createRef()}
         refreshUI={noop}
@@ -110,7 +106,6 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={createRef()}
         refreshUI={noop}
@@ -136,7 +131,6 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={createRef()}
         refreshUI={noop}
@@ -153,7 +147,6 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={createRef()}
         refreshUI={noop}
@@ -173,7 +166,6 @@ describe('Sidebar', () => {
     render(
       <Sidebar
         state={state}
-        activeScreen={null}
         itemInfoRef={defaultInfoRef}
         metricsRef={createRef()}
         refreshUI={noop}
@@ -232,7 +224,6 @@ describe('Sidebar', () => {
       render(
         <Sidebar
           state={state}
-          activeScreen={null}
           itemInfoRef={defaultInfoRef}
           metricsRef={metricsRef}
           refreshUI={noop}
@@ -251,7 +242,6 @@ describe('Sidebar', () => {
       const { container } = render(
         <Sidebar
           state={state}
-          activeScreen={null}
           itemInfoRef={defaultInfoRef}
           metricsRef={metricsRef}
           refreshUI={noop}
@@ -287,7 +277,6 @@ describe('Sidebar', () => {
       render(
         <Sidebar
           state={state}
-          activeScreen={null}
           itemInfoRef={defaultInfoRef}
           metricsRef={metricsRef}
           refreshUI={noop}
@@ -323,7 +312,6 @@ describe('Sidebar', () => {
       render(
         <Sidebar
           state={state}
-          activeScreen={null}
           itemInfoRef={defaultInfoRef}
           metricsRef={metricsRef}
           refreshUI={noop}
@@ -341,7 +329,6 @@ describe('Sidebar', () => {
       const { container } = render(
         <Sidebar
           state={state}
-          activeScreen={null}
           itemInfoRef={defaultInfoRef}
           metricsRef={createRef()}
           refreshUI={noop}
@@ -357,7 +344,6 @@ describe('Sidebar', () => {
       const { container } = render(
         <Sidebar
           state={state}
-          activeScreen={null}
           itemInfoRef={defaultInfoRef}
           metricsRef={createRef()}
           refreshUI={noop}
@@ -381,7 +367,6 @@ describe('Sidebar', () => {
       const { container } = render(
         <Sidebar
           state={state}
-          activeScreen={null}
           itemInfoRef={defaultInfoRef}
           metricsRef={createRef()}
           refreshUI={noop}
@@ -404,7 +389,6 @@ describe('Sidebar', () => {
       const { container } = render(
         <Sidebar
           state={state}
-          activeScreen={null}
           itemInfoRef={defaultInfoRef}
           metricsRef={createRef()}
           refreshUI={noop}

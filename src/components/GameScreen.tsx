@@ -143,18 +143,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           }}
           onSwitchScreen={setActiveScreen}
         >
-          {activeScreen === 'pack' && (
-            <InventoryPanel
-              state={state}
-              refreshUI={refreshUI}
-              itemInfoRef={itemInfoRef}
-              onCombineLog={onCombineLog}
-              onDropLog={onDrop}
-              metricsRef={metricsRef}
-              isDraggingRef={isDraggingRef}
-              dragOverlayRef={dragOverlayRef}
-            />
-          )}
           {activeScreen === 'manual' && <ManualPanel state={state} />}
           {activeScreen === 'divination' && (
             <HexagramPanel
@@ -268,7 +256,18 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           <div className="pointer-events-auto flex-1">
             <EventLog state={state} eventLog={log} />
           </div>
-          <div className="pointer-events-auto w-44" />
+          <div className="pointer-events-auto">
+            <InventoryPanel
+              state={state}
+              refreshUI={refreshUI}
+              itemInfoRef={itemInfoRef}
+              onCombineLog={onCombineLog}
+              onDropLog={onDrop}
+              metricsRef={metricsRef}
+              isDraggingRef={isDraggingRef}
+              dragOverlayRef={dragOverlayRef}
+            />
+          </div>
         </div>
       )}
     </>
