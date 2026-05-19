@@ -536,6 +536,14 @@ describe('angel hash generation', () => {
     const h2 = generateAngelHash('test', 10, 20, 0)
     expect(h1).toBe(h2)
   })
+
+  // Snapshot pin to detect drift after the sha256Sync lift to src/engine/crypto.ts.
+  // Angel cantos in saved games depend on byte-identical output — any change here
+  // breaks save compatibility.
+  it('matches pinned snapshot for (Sage, 50, 50, 0)', () => {
+    const hash = generateAngelHash('Sage', 50, 50, 0)
+    expect(hash).toBe('78DBCE487B7E8D20B11AFBC0A6F0F738B5133E4CB8E7384CC56D26946E3BADE2')
+  })
 })
 
 describe('angel movement blocking', () => {

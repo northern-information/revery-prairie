@@ -15,7 +15,8 @@ import {
   tickMonarchs,
 } from '../monarch'
 import { posKey } from '../position'
-import { FloraSpecies, FloraStage, Sky, TileType, Zone } from '../types'
+import { FloraSpecies, Sky, TileType, Zone } from '../types'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -36,12 +37,8 @@ const getMonarchEntities = (state: ReturnType<typeof createTestState>): Entity[]
 // species post precis #1, so a bare TileType.Flora write isn't enough.
 const placeCloverTile = (state: ReturnType<typeof createTestState>, x: number, y: number): void => {
   state.map[y][x] = { type: TileType.Flora }
-  state.floraLifecycle.set(posKey(x, y), {
-    stage: FloraStage.Healthy,
-    stageStartTime: 0,
-    hasLight: true,
-    species: FloraSpecies.Clover,
-  })
+  const key = posKey(x, y)
+  state.floraLifecycle.set(key, createTestFloraEntry({ posKey: key, species: FloraSpecies.Clover }))
 }
 
 describe('monarch butterfly', () => {

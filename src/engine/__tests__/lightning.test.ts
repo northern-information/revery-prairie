@@ -10,6 +10,7 @@ import { ComponentType } from '../ecs/types'
 import { selectStrikeTarget, spawnLightningStrike, spreadWildfire, tickLightning } from '../lightning'
 import { posKey } from '../position'
 import { FloraSpecies, FloraStage, Sky, TileType, Zone } from '../types'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearAroundPlayer, createMeteoriteEntity, createTestState } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -210,13 +211,10 @@ describe('lightning', () => {
       const x = state.player.x + 4
       const y = state.player.y + 4
       state.map[y][x] = { type: TileType.Flora }
-      state.floraLifecycle.set(posKey(x, y), {
-        stage: FloraStage.Healthy,
-        stageStartTime: 0,
-        hasLight: true,
-
-        species: FloraSpecies.Clover,
-      })
+      state.floraLifecycle.set(
+        posKey(x, y),
+        createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+      )
       state.tileWater.set(posKey(x, y), WATER_MAX)
       const burned = spreadWildfire(state, 0, x, y)
       // Origin always burns — water is forced to 0
@@ -238,13 +236,10 @@ describe('lightning', () => {
           const x = cx + dx
           const y = cy + dy
           state.map[y][x] = { type: TileType.Flora }
-          state.floraLifecycle.set(posKey(x, y), {
-            stage: FloraStage.Healthy,
-            stageStartTime: 0,
-            hasLight: true,
-
-            species: FloraSpecies.Clover,
-          })
+          state.floraLifecycle.set(
+            posKey(x, y),
+            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+          )
           state.tileWater.set(posKey(x, y), 0)
         }
       }
@@ -263,13 +258,10 @@ describe('lightning', () => {
           const x = cx + dx
           const y = cy + dy
           state.map[y][x] = { type: TileType.Flora }
-          state.floraLifecycle.set(posKey(x, y), {
-            stage: FloraStage.Healthy,
-            stageStartTime: 0,
-            hasLight: true,
-
-            species: FloraSpecies.Clover,
-          })
+          state.floraLifecycle.set(
+            posKey(x, y),
+            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+          )
           state.tileWater.set(posKey(x, y), 0)
         }
       }
@@ -287,13 +279,10 @@ describe('lightning', () => {
       const cx = state.player.x + 5
       const cy = state.player.y + 5
       state.map[cy][cx] = { type: TileType.Flora }
-      state.floraLifecycle.set(posKey(cx, cy), {
-        stage: FloraStage.Healthy,
-        stageStartTime: 0,
-        hasLight: true,
-
-        species: FloraSpecies.Clover,
-      })
+      state.floraLifecycle.set(
+        posKey(cx, cy),
+        createTestFloraEntry({ posKey: posKey(cx, cy), species: FloraSpecies.Clover }),
+      )
       state.tileWater.set(posKey(cx, cy), 0)
 
       state.soilHealth.set(posKey(cx, cy), 10)
@@ -308,13 +297,10 @@ describe('lightning', () => {
       const cx = state.player.x + 5
       const cy = state.player.y + 5
       state.map[cy][cx] = { type: TileType.Flora }
-      state.floraLifecycle.set(posKey(cx, cy), {
-        stage: FloraStage.Healthy,
-        stageStartTime: 0,
-        hasLight: true,
-
-        species: FloraSpecies.Clover,
-      })
+      state.floraLifecycle.set(
+        posKey(cx, cy),
+        createTestFloraEntry({ posKey: posKey(cx, cy), species: FloraSpecies.Clover }),
+      )
       state.tileWater.set(posKey(cx, cy), 0)
 
       spreadWildfire(state, 0, cx, cy)
@@ -329,13 +315,10 @@ describe('lightning', () => {
       for (let y = 0; y < state.mapHeight; y++) {
         for (let x = 0; x < state.mapWidth; x++) {
           state.map[y][x] = { type: TileType.Flora }
-          state.floraLifecycle.set(posKey(x, y), {
-            stage: FloraStage.Healthy,
-            stageStartTime: 0,
-            hasLight: true,
-
-            species: FloraSpecies.Clover,
-          })
+          state.floraLifecycle.set(
+            posKey(x, y),
+            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+          )
           state.tileWater.set(posKey(x, y), 0)
         }
       }
@@ -354,13 +337,10 @@ describe('lightning', () => {
       for (let dx = -3; dx <= 3; dx++) {
         if (dx === 0) continue // river in the middle
         state.map[cy][cx + dx] = { type: TileType.Flora }
-        state.floraLifecycle.set(posKey(cx + dx, cy), {
-          stage: FloraStage.Healthy,
-          stageStartTime: 0,
-          hasLight: true,
-
-          species: FloraSpecies.Clover,
-        })
+        state.floraLifecycle.set(
+          posKey(cx + dx, cy),
+          createTestFloraEntry({ posKey: posKey(cx + dx, cy), species: FloraSpecies.Clover }),
+        )
         state.tileWater.set(posKey(cx + dx, cy), 0)
       }
       state.rivers.add(posKey(cx, cy))

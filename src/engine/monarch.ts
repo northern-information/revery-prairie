@@ -14,11 +14,14 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
+import { FLORA_SPECIES } from './flora/species'
+import { createFloraLifecycleEntry } from './floraLifecycleEntry'
+import { generateRuntimeIdentity, generateTraitBag } from './genetics'
 import { tickCreatureHunger } from './hunger'
 import { setMapTile } from './map'
 import { findPath } from './pathfinding'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
-import { FloraSpecies, FloraStage, Sky, TileType, Zone } from './types'
+import { FloraSpecies, Sky, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
@@ -350,12 +353,20 @@ export const pollinate = (state: GameState, center: Position): boolean => {
   // self-propagate in this PR. Pollinator routes are precis #7.
   const tile = candidates[Math.floor(Math.random() * candidates.length)]
   setMapTile(state, tile.x, tile.y, { type: TileType.Flora })
-  state.floraLifecycle.set(posKey(tile.x, tile.y), {
-    stage: FloraStage.Healthy,
-    stageStartTime: Date.now(),
-    hasLight: state.currentZone === Zone.Overworld,
-    species: FloraSpecies.Clover,
-  })
+  const tileKey = posKey(tile.x, tile.y)
+  const species = FloraSpecies.Clover
+  const binomial = FLORA_SPECIES[species].latinBinomial
+  const identity = generateRuntimeIdentity(binomial, tileKey, Date.now())
+  state.floraLifecycle.set(
+    tileKey,
+    createFloraLifecycleEntry({
+      time: Date.now(),
+      hasLight: state.currentZone === Zone.Overworld,
+      species,
+      identity,
+      traits: generateTraitBag(identity),
+    }),
+  )
   return true
 }
 

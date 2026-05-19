@@ -1,4 +1,8 @@
 import { CHARACTER_DEFINITIONS, removeCharacterDefinition } from './characters'
+import { sha256Async, sha256Sync } from './crypto'
+import { FLORA_SPECIES } from './flora/species'
+import { createFloraLifecycleEntry } from './floraLifecycleEntry'
+import { generateRuntimeIdentity, generateTraitBag } from './genetics'
 import {
   ANGEL_AURA_KINDS,
   ANGEL_AURA_RADIUS,
@@ -19,7 +23,7 @@ import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
-import { FloraSpecies, FloraStage, TileType, Zone } from './types'
+import { FloraSpecies, TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'
 
@@ -31,41 +35,7 @@ const ANGEL_NAMES: Record<string, string> = {
   clover: 'Angel of Clover',
 }
 
-// --- sha256 hash generation ---
-
-const sha256 = async (message: string): Promise<string> => {
-  const data = new TextEncoder().encode(message)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-// Synchronous fallback using simple hash mixing for deterministic generation
-const sha256Sync = (message: string): string => {
-  let h0 = 0x6a09e667
-  let h1 = 0xbb67ae85
-  let h2 = 0x3c6ef372
-  let h3 = 0xa54ff53a
-  let h4 = 0x510e527f
-  let h5 = 0x9b05688c
-  let h6 = 0x1f83d9ab
-  let h7 = 0x5be0cd19
-
-  for (let i = 0; i < message.length; i++) {
-    const c = message.charCodeAt(i)
-    h0 = (h0 ^ c) * 0x01000193
-    h1 = (h1 ^ (c << 8)) * 0x01000193
-    h2 = (h2 ^ (c << 16)) * 0x01000193
-    h3 = (h3 ^ c) * 0x100003b
-    h4 = (h4 ^ (c << 4)) * 0x100003b
-    h5 = (h5 ^ (c << 12)) * 0x100003b
-    h6 = (h6 ^ (c << 20)) * 0x100003b
-    h7 = (h7 ^ c) * 0x1000037
-  }
-
-  const hex = (n: number): string => (n >>> 0).toString(16).padStart(8, '0')
-  return hex(h0) + hex(h1) + hex(h2) + hex(h3) + hex(h4) + hex(h5) + hex(h6) + hex(h7)
-}
+// --- Angel hash generation (uses shared crypto module) ---
 
 export const generateAngelHash = (
   stewardName: string,
@@ -74,7 +44,6 @@ export const generateAngelHash = (
   encounterCount: number
 ): string => sha256Sync(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`).toUpperCase()
 
-// Async version for when crypto.subtle is available
 export const generateAngelHashAsync = async (
   stewardName: string,
   spawnX: number,
@@ -82,7 +51,7 @@ export const generateAngelHashAsync = async (
   encounterCount: number
 ): Promise<string> => {
   try {
-    return (await sha256(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`)).toUpperCase()
+    return (await sha256Async(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`)).toUpperCase()
   } catch {
     return generateAngelHash(stewardName, spawnX, spawnY, encounterCount)
   }
@@ -323,12 +292,20 @@ export const tickAngelCloverAura = (state: GameState, time: number): void => {
       // Angels grow clover specifically — wildflower and tall grass do not
       // self-propagate in this PR. Pollinator routes are precis #7.
       setMapTile(state, ox, oy, { type: TileType.Flora })
-      state.floraLifecycle.set(posKey(ox, oy), {
-        stage: FloraStage.Healthy,
-        stageStartTime: time,
-        hasLight: true,
-        species: FloraSpecies.Clover,
-      })
+      const tileKey = posKey(ox, oy)
+      const species = FloraSpecies.Clover
+      const binomial = FLORA_SPECIES[species].latinBinomial
+      const identity = generateRuntimeIdentity(binomial, tileKey, time)
+      state.floraLifecycle.set(
+        tileKey,
+        createFloraLifecycleEntry({
+          time,
+          hasLight: true,
+          species,
+          identity,
+          traits: generateTraitBag(identity),
+        }),
+      )
       data.lastCloverGrowTime = time
       break
     }

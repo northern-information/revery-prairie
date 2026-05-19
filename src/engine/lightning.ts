@@ -1,5 +1,8 @@
 import { generateBoltPath } from './boltPath'
+import { FLORA_SPECIES } from './flora/species'
 import { addSoilHealth } from './floraLifecycle'
+import { createFloraLifecycleEntry } from './floraLifecycleEntry'
+import { generateRuntimeIdentity, generateTraitBag } from './genetics'
 import {
   LIGHTNING_BASE_CHANCE,
   LIGHTNING_BOLT_MAX_LENGTH,
@@ -197,17 +200,27 @@ export const spreadWildfire = (
       if (Math.random() < 1 - spreadChance) continue
     }
 
-    // Burn this tile — preserve the original species through the recovery
-    // path so burnt wildflower recovers as wildflower, etc.
+    // Burn this tile — preserve the original species AND identity through
+    // the recovery path so burnt wildflower recovers as wildflower with the
+    // same plant identity (precis #3: burnt flora keeps identity).
     burned.add(key)
-    const priorSpecies = state.floraLifecycle.get(key)?.species ?? FloraSpecies.Clover
+    const priorEntry = state.floraLifecycle.get(key)
+    const priorSpecies = priorEntry?.species ?? FloraSpecies.Clover
+    const priorBinomial = FLORA_SPECIES[priorSpecies].latinBinomial
+    const identity = priorEntry?.identity ?? generateRuntimeIdentity(priorBinomial, key, time)
+    const traits = priorEntry?.traits ?? generateTraitBag(identity)
     setMapTile(state, pos.x, pos.y, { type: TileType.BurntFlora })
-    state.floraLifecycle.set(key, {
-      stage: FloraStage.BurntRecovering,
-      stageStartTime: time,
-      hasLight: true,
-      species: priorSpecies,
-    })
+    state.floraLifecycle.set(
+      key,
+      createFloraLifecycleEntry({
+        time,
+        hasLight: true,
+        species: priorSpecies,
+        identity,
+        traits,
+        stage: FloraStage.BurntRecovering,
+      }),
+    )
     state.floraGrowthPreviews.delete(key)
     addSoilHealth(state, key, SOIL_HEALTH_BURN_BONUS)
 

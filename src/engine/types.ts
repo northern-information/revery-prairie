@@ -1,4 +1,5 @@
 import type { World } from './ecs/world'
+import type { TraitBag } from './genetics'
 import type { CivilizationRuin, GenesisSimState, RuinGenerationMode } from './genesisTypes'
 import type { ColorId } from '@revery-prairie/shared'
 
@@ -403,6 +404,12 @@ export interface FloraLifecycleState {
   stageStartTime: number
   hasLight: boolean
   species: FloraSpecies
+  // Precis #3 — SHA256 identity + trait bag. Stable per plant across
+  // its lifecycle (preserved through BurntRecovering, lost when the entry
+  // is deleted after the dying chain). All construction sites route
+  // through createFloraLifecycleEntry in floraLifecycle.ts.
+  identity: string
+  traits: TraitBag
 }
 
 export interface ManualState {

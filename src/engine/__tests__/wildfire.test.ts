@@ -3,7 +3,8 @@ import { WATER_MAX, WILDFIRE_MAX_SPREAD } from '../constants'
 const SMALL_MAX_SPREAD = 7
 import { spreadWildfire } from '../lightning'
 import { posKey } from '../position'
-import { FloraSpecies, FloraStage, TileType } from '../types'
+import { FloraSpecies, TileType } from '../types'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -15,13 +16,10 @@ describe('wildfire spread', () => {
       const x = state.player.x + 5
       const y = state.player.y + 5
       state.map[y][x] = { type: TileType.Flora }
-      state.floraLifecycle.set(posKey(x, y), {
-        stage: FloraStage.Healthy,
-        stageStartTime: 0,
-        hasLight: true,
-
-        species: FloraSpecies.Clover,
-      })
+      state.floraLifecycle.set(
+        posKey(x, y),
+        createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+      )
       state.tileWater.set(posKey(x, y), WATER_MAX)
 
       const burned = spreadWildfire(state, 0, x, y)
@@ -40,13 +38,10 @@ describe('wildfire spread', () => {
       for (let y = 0; y < state.mapHeight; y++) {
         for (let x = 0; x < state.mapWidth; x++) {
           state.map[y][x] = { type: TileType.Flora }
-          state.floraLifecycle.set(posKey(x, y), {
-            stage: FloraStage.Healthy,
-            stageStartTime: 0,
-            hasLight: true,
-
-            species: FloraSpecies.Clover,
-          })
+          state.floraLifecycle.set(
+            posKey(x, y),
+            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+          )
           state.tileWater.set(posKey(x, y), 0)
         }
       }
@@ -69,13 +64,10 @@ describe('wildfire spread', () => {
         for (let y = 0; y < state.mapHeight; y++) {
           for (let x = 0; x < state.mapWidth; x++) {
             state.map[y][x] = { type: TileType.Flora }
-            state.floraLifecycle.set(posKey(x, y), {
-              stage: FloraStage.Healthy,
-              stageStartTime: 0,
-              hasLight: true,
-
-              species: FloraSpecies.Clover,
-            })
+            state.floraLifecycle.set(
+              posKey(x, y),
+              createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+            )
             state.tileWater.set(posKey(x, y), 0)
           }
         }
@@ -104,13 +96,10 @@ describe('wildfire spread', () => {
           const x = cx + dx
           const y = cy + dy
           state.map[y][x] = { type: TileType.Flora }
-          state.floraLifecycle.set(posKey(x, y), {
-            stage: FloraStage.Healthy,
-            stageStartTime: 0,
-            hasLight: true,
-
-            species: FloraSpecies.Clover,
-          })
+          state.floraLifecycle.set(
+            posKey(x, y),
+            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+          )
           state.tileWater.set(posKey(x, y), 0)
         }
         // Pond column
@@ -127,5 +116,29 @@ describe('wildfire spread', () => {
         expect(Number(xStr)).toBeLessThan(cx)
       }
     })
+  })
+})
+
+describe('burnt flora preserves identity through recovery (precis #3)', () => {
+  it('a flora tile that burns keeps its identity in the BurntRecovering entry', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 10)
+    const x = state.player.x + 5
+    const y = state.player.y + 5
+    state.map[y][x] = { type: TileType.Flora }
+    const key = posKey(x, y)
+    const originalEntry = createTestFloraEntry({ posKey: key, species: FloraSpecies.Clover })
+    state.floraLifecycle.set(key, originalEntry)
+    const originalIdentity = originalEntry.identity
+    const originalTraits = originalEntry.traits
+
+    // Burn the tile
+    spreadWildfire(state, 1000, x, y)
+
+    const burntEntry = state.floraLifecycle.get(key)
+    expect(burntEntry).toBeDefined()
+    expect(burntEntry?.identity).toBe(originalIdentity)
+    expect(burntEntry?.traits).toEqual(originalTraits)
+    expect(burntEntry?.species).toBe(FloraSpecies.Clover)
   })
 })

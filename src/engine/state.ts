@@ -33,19 +33,20 @@ export const createGameState = (
   genesisResult?: GenesisSimState
 ): GameState => {
   // Create genesis state, precompute all epochs, extract terrain
+  const genesisSeed = nameToSeed(stewardName)
   const sim =
     genesisResult ??
     (() => {
-      const seed = nameToSeed(stewardName)
-      const s = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
+      const s = createGenesisState(MAP_WIDTH, MAP_HEIGHT, genesisSeed)
       precomputeGenesis(s, GENESIS_EPOCHS)
       return s
     })()
   // Multi-species flora post-process (precis #1): scatter wildflower
   // and tall grass patches across walkable dirt and tag every Flora tile
   // with its species. Determinism preserved — same steward name, same
-  // patch layout.
-  const initialFloraLifecycle = postProcessMultiSpeciesFlora(sim)
+  // patch layout. The genesis seed is threaded through so precis #3
+  // genetics can attach a deterministic identity + trait bag to each tile.
+  const initialFloraLifecycle = postProcessMultiSpeciesFlora(sim, genesisSeed)
 
   // Egregoric flora post-process (precis #8a): place inert egregore
   // tiles biased near crater positions. Determinism preserved — same
