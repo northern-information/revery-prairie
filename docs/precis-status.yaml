@@ -34,11 +34,11 @@ features:
     summary: One inert TileType.Egregore, Voynich manual entries with Latin pierces, NPC refusal lines, invasive-lint guard. Foreshadowing pass.
     size: XS
     depends_on: ['0']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-8a-egregoric-thematic.yaml
     plan: harness/plans/precis-8a-egregoric-thematic.yaml
-    pr: null
-    notes: 'Voynich font installed via kreativekorp/voynich-unicode (or local .ttf fallback). 16-word Latin pierce allowlist locked from v3 doctrine. cosmologicalDrift / passive-transmission tracking deferred to #4.'
+    pr: https://github.com/northern-information/revery-prairie/pull/320
+    notes: 'Voynich font self-hosted via public/fonts/voynich.ttf (manual install — fallback to ? / □ is doctrinally correct). 16-word Latin pierce allowlist locked from v3 doctrine. Egregore glyphs render in iridescent violet (#B080D0). cosmologicalDrift / passive-transmission tracking deferred to #4.'
 
   - id: '2'
     name: Phenological seasons
