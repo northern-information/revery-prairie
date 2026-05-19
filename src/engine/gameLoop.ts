@@ -23,6 +23,7 @@ import {
   SATELLITE_SHAKE_DURATION_MS,
   SATELLITE_SPAWN_TICK_MS,
   SATELLITE_TICK_MS,
+  SCAN_DURATION_MS,
   SHOOTING_STAR_SPAWN_TICK_MS,
   SHOOTING_STAR_TICK_MS,
   SPRINT_MOVE_TICK_MS,
@@ -37,6 +38,7 @@ import { tickDeepTime } from './deepTime'
 import { ComponentType } from './ecs/types'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
 import { tickPollenDrift, tickPollenEmit } from './flora'
+import { commitScan } from './scan'
 import { completeGenesis, finalizeGenesisHandoff, GENESIS_EPOCHS, tickGenesis } from './genesis'
 import { tickGlintZones } from './glintZones'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
@@ -74,6 +76,10 @@ export interface GameLoopCallbacks {
   onDiscovery?: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
   onBeeDeath?: (worldX: number, worldY: number) => void
   onAutoHidePanel?: () => void
+  // Precis #6 — fires from tick when a held [f] scan reaches 100% and
+  // commits successfully. The keyboard hook switches activeScreen to
+  // 'manual' so the player sees the just-collected specimen.
+  onOpenManual?: () => void
   onFrame?: (time: number) => void
 }
 
@@ -784,6 +790,18 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
         }
 
         entry.lastTick = time
+      }
+    }
+
+    // Precis #6 — auto-commit a held [f] scan once it reaches full duration.
+    // Player doesn't have to time the release; releasing early aborts, but
+    // holding past 100% commits immediately.
+    if (state.scanInProgress && time - state.scanInProgress.startTime >= SCAN_DURATION_MS) {
+      const committed = commitScan(state, time)
+      state.scanInProgress = null
+      if (committed) {
+        callbacks.onOpenManual?.()
+        callbacks.onRefreshUI?.()
       }
     }
   }

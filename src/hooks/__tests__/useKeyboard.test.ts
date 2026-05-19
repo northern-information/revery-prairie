@@ -556,28 +556,28 @@ describe('useKeyboard', () => {
       expect(state.scanInProgress?.startTime).toBe(firstStart)
     })
 
-    it('commits the scan on keyup after the full hold duration', () => {
+    it('keyup never commits — it only aborts (auto-commit runs in the game loop)', () => {
       vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
       renderKeyboardHook()
       act(() => {
         fireKey('f')
       })
-      // Backdate startTime so the next performance.now() reading exceeds SCAN_DURATION_MS.
-      if (state.scanInProgress) state.scanInProgress.startTime = performance.now() - 2000
+      // Even if the player held past SCAN_DURATION_MS, the keyup itself
+      // does not call commitScan — the game loop is responsible for that.
+      if (state.scanInProgress) state.scanInProgress.startTime = performance.now() - 5000
       act(() => {
         fireKeyUp('f')
       })
-      expect(commitScan).toHaveBeenCalledOnce()
+      expect(commitScan).not.toHaveBeenCalled()
       expect(state.scanInProgress).toBeNull()
     })
 
-    it('aborts the scan on early release (elapsed < SCAN_DURATION_MS)', () => {
+    it('keyup aborts the scan when the hold was incomplete', () => {
       vi.mocked(selectScanTarget).mockReturnValue(stubTarget)
       renderKeyboardHook()
       act(() => {
         fireKey('f')
       })
-      // Backdate by only 100ms — well under SCAN_DURATION_MS.
       if (state.scanInProgress) state.scanInProgress.startTime = performance.now() - 100
       act(() => {
         fireKeyUp('f')

@@ -1,6 +1,9 @@
+import { SCAN_DURATION_MS } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { createGameLoop } from '../gameLoop'
-import { Zone } from '../types'
+import { posKey } from '../position'
+import { FloraSpecies, TileType, Zone } from '../types'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import {
   clearAroundPlayer,
   createBeeEntity,
@@ -907,5 +910,63 @@ describe('background tab return', () => {
       gameLoop.tick(i * 16)
     }
     expect(count).toBe(10)
+  })
+})
+
+describe('scan auto-commit (precis #6)', () => {
+  const placeFlora = (state: ReturnType<typeof createTestState>, x: number, y: number, species: FloraSpecies): void => {
+    state.map[y][x] = { type: TileType.Flora }
+    const key = posKey(x, y)
+    state.floraLifecycle.set(key, createTestFloraEntry({ posKey: key, species }))
+  }
+
+  it('commits the scan and calls onOpenManual once elapsed >= SCAN_DURATION_MS', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    placeFlora(state, state.player.x, state.player.y, FloraSpecies.Clover)
+    const onOpenManual = vi.fn()
+    const gameLoop = createGameLoop(state, { onOpenManual })
+    state.scanInProgress = {
+      target: { x: state.player.x, y: state.player.y },
+      species: FloraSpecies.Clover,
+      startTime: 0,
+    }
+    gameLoop.tick(SCAN_DURATION_MS + 100)
+    expect(state.scanInProgress).toBeNull()
+    expect(onOpenManual).toHaveBeenCalledOnce()
+    expect(state.scannedSpecimens.get(FloraSpecies.Clover)).toHaveLength(1)
+  })
+
+  it('does not commit while elapsed < SCAN_DURATION_MS', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    placeFlora(state, state.player.x, state.player.y, FloraSpecies.Clover)
+    const onOpenManual = vi.fn()
+    const gameLoop = createGameLoop(state, { onOpenManual })
+    state.scanInProgress = {
+      target: { x: state.player.x, y: state.player.y },
+      species: FloraSpecies.Clover,
+      startTime: 0,
+    }
+    gameLoop.tick(SCAN_DURATION_MS - 100)
+    expect(state.scanInProgress).not.toBeNull()
+    expect(onOpenManual).not.toHaveBeenCalled()
+    expect(state.scannedSpecimens.size).toBe(0)
+  })
+
+  it('clears scanInProgress even if the commit aborts (target no longer flora)', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    // No flora placed — commit will abort
+    const onOpenManual = vi.fn()
+    const gameLoop = createGameLoop(state, { onOpenManual })
+    state.scanInProgress = {
+      target: { x: state.player.x, y: state.player.y },
+      species: FloraSpecies.Clover,
+      startTime: 0,
+    }
+    gameLoop.tick(SCAN_DURATION_MS + 100)
+    expect(state.scanInProgress).toBeNull()
+    expect(onOpenManual).not.toHaveBeenCalled()
   })
 })

@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { getCharacterDefinition } from '@/engine/characters'
-import { SCAN_DURATION_MS } from '@/engine/constants'
 import { dropItem } from '@/engine/entities'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import { keyToScreenAxis, resolveHeldDirection } from '@/engine/heldKeys'
-import { commitScan, selectScanTarget } from '@/engine/scan'
+import { selectScanTarget } from '@/engine/scan'
 import {
   advanceDialog,
   breakWall,
@@ -331,26 +330,17 @@ export const useKeyboard = ({
         state.heldDirection = resolveHeldDirection(state.heldKeys)
       }
 
-      // [f] release — commit or abort the scan (precis #6).
+      // [f] release — abort the scan (precis #6). Commit is auto-fired
+      // by the game loop once elapsed >= SCAN_DURATION_MS; releasing
+      // early just clears the in-progress state and shows nothing.
       if (e.key === 'f' || e.key === 'F') {
-        const progress = state.scanInProgress
-        if (!progress) return
-        const now = performance.now()
-        const elapsed = now - progress.startTime
-        let committed = false
-        if (elapsed >= SCAN_DURATION_MS) {
-          committed = commitScan(state, now)
+        if (state.scanInProgress) {
+          state.scanInProgress = null
+          refreshUI()
         }
-        state.scanInProgress = null
-        if (committed) {
-          // Open the manual to the scanned entry. The ManualPanel reads
-          // state.manualHighlightEntryId on render and scrolls + highlights.
-          setActiveScreen('manual')
-        }
-        refreshUI()
       }
     },
-    [state, refreshUI, setActiveScreen]
+    [state, refreshUI]
   )
 
   useEffect(() => {
