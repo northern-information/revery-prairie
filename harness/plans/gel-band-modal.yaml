@@ -1,0 +1,167 @@
+plan:
+  id: gel-band-modal
+  title: 'Replace hex grid with gel-electrophoresis band view + ceremonial scan-result modal'
+  created: '2026-05-20'
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npm run test'
+
+tasks:
+  - id: create-gel-band-view
+    title: 'Build GelBandView component, delete HexGridView'
+    spec_id: precis-6-naturalists-manual
+    spec_sections:
+      - manual-renders-gel-band-view-for-scanned-species
+    context_files:
+      - src/components/HexGridView.tsx
+      - src/components/__tests__/HexGridView.test.tsx
+      - src/engine/genetics/index.ts
+    output_files:
+      - src/components/GelBandView.tsx
+      - src/components/HexGridView.tsx
+      - src/components/__tests__/HexGridView.test.tsx
+      - src/components/__tests__/GelBandView.test.tsx
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/components/__tests__/GelBandView.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: swap-gel-into-specimen-stack
+    title: 'Replace HexGridView usage in SpecimenStack with GelBandView'
+    spec_id: precis-6-naturalists-manual
+    spec_sections:
+      - manual-renders-gel-band-view-for-scanned-species
+    context_files:
+      - src/components/SpecimenStack.tsx
+      - src/components/__tests__/ManualPanel.test.tsx
+    output_files:
+      - src/components/SpecimenStack.tsx
+      - src/components/__tests__/ManualPanel.test.tsx
+    depends_on:
+      - create-gel-band-view
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/components/__tests__/ManualPanel.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: add-scan-result-screen-state
+    title: "Add 'scan-result' value to PermacomputerScreen union; expose setter"
+    spec_id: precis-6-naturalists-manual
+    spec_sections:
+      - scan-completion-opens-gel-modal
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/hooks/useKeyboard.ts
+      - src/components/GameScreen.tsx
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: build-scan-result-modal
+    title: 'Build ScanResultModal with binomial heading + row-by-row reveal'
+    spec_id: precis-6-naturalists-manual
+    spec_sections:
+      - scan-completion-opens-gel-modal
+      - scan-modal-beat-reveal
+    context_files:
+      - src/components/GelBandView.tsx
+      - src/engine/flora/species.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/ScanResultModal.tsx
+      - src/components/__tests__/ScanResultModal.test.tsx
+    depends_on:
+      - create-gel-band-view
+      - add-scan-result-screen-state
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/components/__tests__/ScanResultModal.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: rewire-scan-completion-callback
+    title: 'Replace onOpenManual with onScanComplete(species, identity) at scan commit site'
+    spec_id: precis-6-naturalists-manual
+    spec_sections:
+      - commit-scan-records-discovery
+      - scan-completion-opens-gel-modal
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/scan.ts
+      - src/engine/types.ts
+      - src/hooks/useGameEngine.ts
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+      - src/hooks/useGameEngine.ts
+      - src/components/GameScreen.tsx
+    depends_on:
+      - build-scan-result-modal
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, component]
+
+  - id: gate-scan-modal-input
+    title: 'Block hold-to-scan + movement while scan-result modal is open'
+    spec_id: precis-6-naturalists-manual
+    spec_sections:
+      - scan-completion-opens-gel-modal
+      - scan-modal-beat-reveal
+    context_files:
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - add-scan-result-screen-state
+      - rewire-scan-completion-callback
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: integration-test-scan-flow
+    title: 'Integration test: scan commit opens modal; manual highlight survives dismiss'
+    spec_id: precis-6-naturalists-manual
+    spec_sections:
+      - scan-completion-opens-gel-modal
+      - scan-modal-beat-reveal
+    context_files:
+      - src/components/__tests__/ScanResultModal.test.tsx
+      - src/components/__tests__/ManualPanel.test.tsx
+      - src/engine/__tests__/scan.test.ts
+    output_files:
+      - src/components/__tests__/ScanResultModal.test.tsx
+    depends_on:
+      - rewire-scan-completion-callback
+      - gate-scan-modal-input
+    verification:
+      - 'npx vitest run src/components/__tests__/ScanResultModal.test.tsx'
+    repair: retry
+    tags: [test]
+
+  - id: update-claude-docs
+    title: 'Update docs/claude/manual.md and docs/claude/genetics.md for modal + gel-band flow'
+    spec_id: precis-6-naturalists-manual
+    spec_sections:
+      - doctrine-and-status-aligned
+    context_files:
+      - docs/claude/manual.md
+      - docs/claude/genetics.md
+    output_files:
+      - docs/claude/manual.md
+      - docs/claude/genetics.md
+    depends_on:
+      - rewire-scan-completion-callback
+    verification: []
+    repair: retry
+    tags: [docs]
