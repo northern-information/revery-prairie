@@ -72,6 +72,21 @@ const WIND_DIRECTION_ARROW: Record<string, string> = {
 
 const capitalize = (s: string): string => (s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1))
 
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const
+
 // Persistent outer shell for the sidebar. The black backdrop must never drop
 // opacity across branch swaps (genesis → gameplay, gameplay → deep time),
 // so all three render modes share this element. Content-level fades apply
@@ -582,6 +597,12 @@ export const Sidebar = ({ state, itemInfoRef, metricsRef }: SidebarProps) => {
               <tr>
                 <td className="text-muted py-0.5">Season</td>
                 <td className="py-0.5 text-right">{capitalize(weather.season)}</td>
+              </tr>
+              <tr>
+                <td className="text-muted py-0.5">Date</td>
+                <td className="py-0.5 text-right">
+                  {MONTH_NAMES[state.currentDate.month - 1]} {state.currentDate.day}
+                </td>
               </tr>
               <tr>
                 <td className="text-muted py-0.5">Sky</td>

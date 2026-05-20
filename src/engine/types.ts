@@ -404,9 +404,13 @@ export interface GameState {
   rainFrontOffset: number
   precipitationIntensity: number
   // Fractional position in the annual cycle, [0, 1). Advances only in the
-  // overworld; 0.0/1.0 = deep winter, 0.25 = mid-spring, 0.5 = summer peak,
-  // 0.75 = mid-autumn. Drives seasonal temperature bias and dormancy.
+  // overworld; phase 0 = spring equinox (March 20, game start),
+  // 0.25 = summer solstice, 0.5 = autumn equinox, 0.75 = winter solstice.
+  // Drives seasonal temperature bias and dormancy.
   seasonalPhase: number
+  // Gregorian month/day projection of seasonalPhase, anchored at the spring
+  // equinox (day-of-year 79). Recomputed in tickWeather; single writer.
+  currentDate: { month: number; day: number }
   wind: WindState
   pollen: PollenParticle[]
   pollenTrailDepth: number

@@ -111,8 +111,8 @@ export const darkenColor = (hex: string, factor: number): string => {
 // Seasonal palette wash. Blends a tile glyph or bg color toward a
 // season-specific target hue. The target hex and intensity vary
 // continuously across the year — anchored at the four cardinal
-// seasonalPhase values (winter / spring / summer / autumn) and lerped
-// between adjacent anchors per frame. Egregore tiles are exempt
+// seasonalPhase values (spring equinox / summer solstice / autumn equinox /
+// winter solstice) and lerped between adjacent anchors per frame. Egregore tiles are exempt
 // year-round per v3 doctrine; the renderer must short-circuit before
 // calling applySeasonalWash for those tiles.
 //
@@ -125,16 +125,18 @@ export interface SeasonalWash {
   intensity: number
 }
 
-// Cardinal-phase anchors. Phase 0 is deep winter (cosine peak in
-// weather/index.ts seasonalLerp), 0.25 is spring peak, 0.5 is deep
-// summer, 0.75 is autumn peak. Winter stays the heaviest wash so the
-// world still reads as "dead." Summer is barely-there. Spring and
-// autumn carry their own subtle tints.
+// Cardinal-phase anchors. Phase 0 is the spring equinox (game start) and
+// applies no wash — the prairie reads in its natural underlying palette at
+// the start of the year. The wash fades in toward summer's gold, deepens
+// into autumn's orange, peaks at winter's heavy grey, then fades back to
+// nothing as the year wraps. Spring and summer share the same gold target
+// so the 0 → 0.25 leg is intensity-only (no hue shift through early
+// spring).
 export const SEASON_WASH_ANCHORS: readonly { phase: number; target: string; intensity: number }[] = [
-  { phase: 0.0, target: '#B8BCC0', intensity: 0.4 },
-  { phase: 0.25, target: '#A8C890', intensity: 0.1 },
-  { phase: 0.5, target: '#F4D58A', intensity: 0.05 },
-  { phase: 0.75, target: '#C8865A', intensity: 0.18 },
+  { phase: 0.0, target: '#F4D58A', intensity: 0.0 },
+  { phase: 0.25, target: '#F4D58A', intensity: 0.05 },
+  { phase: 0.5, target: '#C8865A', intensity: 0.18 },
+  { phase: 0.75, target: '#B8BCC0', intensity: 0.4 },
 ]
 
 const hexToRgb = (hex: string): [number, number, number] => [

@@ -251,6 +251,7 @@ export const createGameState = (
     rainFrontOffset: 0,
     precipitationIntensity: 0,
     seasonalPhase: 0,
+    currentDate: { month: 3, day: 20 },
     wind: initWindState(),
     pollen: [],
     pollenTrailDepth: 0,
