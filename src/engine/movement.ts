@@ -44,6 +44,15 @@ export const getBlockedPositions = (state: GameState, zone?: Zone, opts?: { igno
       set.add(posKey(p.x, p.y))
     }
   }
+  // Oak body tiles block movement
+  for (const eid of state.world.query(ComponentType.OakData, ComponentType.MultiPosition)) {
+    if (!inZoneForBlocking(state, eid, z)) continue
+    const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
+    if (!multi) continue
+    for (const p of multi.positions) {
+      set.add(posKey(p.x, p.y))
+    }
+  }
   return set
 }
 

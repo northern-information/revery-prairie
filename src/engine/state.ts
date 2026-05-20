@@ -278,6 +278,7 @@ export const createGameState = (
     multiplayerSession: null,
     remotePlayers: new Map(),
     scannedSpecimens: new Map(),
+    oakSpecimens: [],
     scanInProgress: null,
     manualHighlightEntryId: null,
     onPlayerMoved: null,

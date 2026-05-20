@@ -138,6 +138,7 @@ const EntryCard = ({
   entry,
   discoveries,
   scannedSpecimens,
+  oakSpecimens,
   revealedPhenotypes,
   manualState,
   showCategory,
@@ -146,6 +147,7 @@ const EntryCard = ({
   entry: ManualEntry
   discoveries: Set<string>
   scannedSpecimens: Map<FloraSpecies, ScannedSpecimen[]>
+  oakSpecimens: ScannedSpecimen[]
   revealedPhenotypes: Map<FloraSpecies, RevealedPhenotype[]>
   manualState: ManualState
   showCategory: boolean
@@ -156,9 +158,10 @@ const EntryCard = ({
   const recipeResultKey = `${entry.id}:result`
 
   // Precis #6 — flora entries are completely hidden until the species is
-  // scanned via the permacomputer. Other entry types remain visible with
-  // hidden content (see lore gating for undiscovered recipes below).
+  // scanned via the permacomputer. Oak entries follow the same gate via
+  // entity:oak discovery (recorded by commitScan).
   if (entry.id.startsWith('flora:') && !discovered) return null
+  if (entry.id === 'entity:oak' && !discovered) return null
 
   return (
     <div className="mb-4">
@@ -210,6 +213,11 @@ const EntryCard = ({
         if (!specimens || specimens.length === 0) return null
         return <SpecimenStack specimens={specimens} initialIndex={specimens.length - 1} />
       })()}
+
+      {/* Oak specimen stack — same UI as flora but read from oakSpecimens. */}
+      {entry.id === 'entity:oak' && oakSpecimens.length > 0 && (
+        <SpecimenStack specimens={oakSpecimens} initialIndex={oakSpecimens.length - 1} />
+      )}
 
       {/* Summary/lore — hidden for undiscovered recipes unless result spoiler is revealed.
           Egregore entries render their procedurally-generated EVA-token body in the
@@ -268,7 +276,7 @@ const EntryCard = ({
 const SCAN_HIGHLIGHT_MS = 700
 
 export const ManualPanel = ({ state }: ManualPanelProps) => {
-  const { manualState, manualDiscoveries, scannedSpecimens, revealedPhenotypes } = state
+  const { manualState, manualDiscoveries, scannedSpecimens, oakSpecimens, revealedPhenotypes } = state
   const highlightId = state.manualHighlightEntryId
 
   // Local React state synced with persistent manualState
@@ -398,6 +406,7 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
                       entry={entry}
                       discoveries={manualDiscoveries}
                       scannedSpecimens={scannedSpecimens}
+                      oakSpecimens={oakSpecimens}
                       revealedPhenotypes={revealedPhenotypes}
                       manualState={manualState}
                       showCategory={activeCategory === null}

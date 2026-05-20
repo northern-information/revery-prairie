@@ -268,11 +268,19 @@ export const useKeyboard = ({
         if (state.scanInProgress) return
         const target = selectScanTarget(state)
         if (!target) return
-        state.scanInProgress = {
-          target: target.position,
-          species: target.species,
-          startTime: performance.now(),
-        }
+        state.scanInProgress =
+          target.kind === 'flora'
+            ? {
+                kind: 'flora',
+                target: target.position,
+                species: target.species,
+                startTime: performance.now(),
+              }
+            : {
+                kind: 'oak',
+                target: target.position,
+                startTime: performance.now(),
+              }
         refreshUI()
         return
       }

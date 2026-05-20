@@ -18,7 +18,7 @@ describe('ScanProgressBar', () => {
     it('renders the "Sequencing..." label when scanInProgress is non-null', () => {
       const state = createTestState()
       clearAroundPlayer(state, 2)
-      state.scanInProgress = { target: { x: 0, y: 0 }, species: FloraSpecies.Clover, startTime: performance.now() }
+      state.scanInProgress = { kind: 'flora', target: { x: 0, y: 0 }, species: FloraSpecies.Clover, startTime: performance.now() }
       render(<ScanProgressBar state={state} activeScreen={null} />)
       expect(screen.getByTestId('scan-progress-bar')).toBeInTheDocument()
       expect(screen.getByText('Sequencing...')).toBeInTheDocument()
@@ -29,7 +29,7 @@ describe('ScanProgressBar', () => {
       clearAroundPlayer(state, 2)
       const now = 1_000_000
       vi.spyOn(performance, 'now').mockReturnValue(now + 750) // 50% of 1500ms
-      state.scanInProgress = { target: { x: 0, y: 0 }, species: FloraSpecies.Clover, startTime: now }
+      state.scanInProgress = { kind: 'flora', target: { x: 0, y: 0 }, species: FloraSpecies.Clover, startTime: now }
       render(<ScanProgressBar state={state} activeScreen={null} />)
       const fill = screen.getByTestId('scan-progress-fill')
       expect(fill.style.width).toBe('50%')
@@ -41,7 +41,7 @@ describe('ScanProgressBar', () => {
       clearAroundPlayer(state, 2)
       const now = 1_000_000
       vi.spyOn(performance, 'now').mockReturnValue(now + 5000)
-      state.scanInProgress = { target: { x: 0, y: 0 }, species: FloraSpecies.Clover, startTime: now }
+      state.scanInProgress = { kind: 'flora', target: { x: 0, y: 0 }, species: FloraSpecies.Clover, startTime: now }
       render(<ScanProgressBar state={state} activeScreen={null} />)
       const fill = screen.getByTestId('scan-progress-fill')
       expect(fill.style.width).toBe('100%')

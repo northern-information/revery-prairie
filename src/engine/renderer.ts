@@ -119,6 +119,8 @@ import './flora'
 
 import { getEgregoreGlyph } from './egregore'
 import { FLORA_SPECIES, getFloraMovement, getFloraSwayOffset } from './flora'
+import { getOakRenderTile, getOakTileLayers, isOakDormant, OAK_BODY_SIZE } from './oaks'
+import type { OakTileLayer } from './oaks'
 
 import type { VelocityKey } from './constants'
 import type { CharMetrics, GameState } from './types'
@@ -219,6 +221,9 @@ const _characterMap = new Map<string, { glyph: string; color: string; id: string
 const _remotePlayerMap = new Map<string, { color: string; sessionId: string }>()
 const _angelMap = new Map<string, { char: string; color: string }>()
 const _angelTileToGroup = new Map<string, Set<string>>()
+const _oakMap = new Map<string, { char: string; color: string }>()
+const _oakLayerMap = new Map<string, OakTileLayer[]>()
+const _oakTileToGroup = new Map<string, Set<string>>()
 const _trailMap = new Map<string, number>()
 const _explosionMap = new Map<string, { char: string; color: string }>()
 const _lightningMap = new Map<string, { char: string; color: string }>()
@@ -448,6 +453,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   _remotePlayerMap.clear()
   _angelMap.clear()
   _angelTileToGroup.clear()
+  _oakMap.clear()
+  _oakLayerMap.clear()
+  _oakTileToGroup.clear()
   _trailMap.clear()
   _explosionMap.clear()
   _lightningMap.clear()
@@ -473,6 +481,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const remotePlayerMap = _remotePlayerMap
   const angelMap = _angelMap
   const angelTileToGroup = _angelTileToGroup
+  const oakMap = _oakMap
+  const oakLayerMap = _oakLayerMap
+  const oakTileToGroup = _oakTileToGroup
   const trailMap = _trailMap
   const explosionMap = _explosionMap
   const lightningMap = _lightningMap
@@ -499,6 +510,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     highlightPx: number
     highlightPy: number
     alpha: number
+    // Optional multilayer overlays painted on top of the base glyph (and
+    // suppressed entirely when the entity is highlighted, so the pink-BG
+    // inversion stays a single readable char). Oak tiles populate this so
+    // the canopy reads as a clump of overlapping branches.
+    oakLayers?: OakTileLayer[]
   }
   const deferredEntities: DeferredEntity[] = []
   const deferredFloraGlyphs: { char: string; color: string; px: number; py: number }[] = []
@@ -797,6 +813,36 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             angelTweenOffset.set(key, offset)
           }
         }
+      }
+    }
+  }
+
+  // Populate oak body tiles (from ECS). Each oak is OAK_BODY_SIZE x
+  // OAK_BODY_SIZE anchored at its Position. The iso projection shears the
+  // logical square into a tall diamond on screen; getOakRenderTile assigns
+  // canopy/trunk roles per tile based on (dx + dy). Winter dormancy switches
+  // the canopy to bare-branch glyphs. oakTileToGroup maps each body tile to
+  // the full footprint set so the highlight path can invert every tile when
+  // the cursor or facing entity touches any single tile of the oak — same
+  // pattern as angels.
+  {
+    const dormant = isOakDormant(state)
+    const half = Math.floor(OAK_BODY_SIZE / 2)
+    for (const eid of state.world.query(ComponentType.OakData, ComponentType.Position)) {
+      if (!inZone(eid)) continue
+      const pos = state.world.getComponent(eid, ComponentType.Position)
+      if (!pos) continue
+      const group = new Set<string>()
+      for (let dy = -half; dy <= half; dy++) {
+        for (let dx = -half; dx <= half; dx++) {
+          const key = posKey(pos.x + dx, pos.y + dy)
+          oakMap.set(key, getOakRenderTile(dx, dy, dormant))
+          oakLayerMap.set(key, getOakTileLayers(pos.x, pos.y, dx, dy, dormant))
+          group.add(key)
+        }
+      }
+      for (const key of group) {
+        oakTileToGroup.set(key, group)
       }
     }
   }
@@ -1337,6 +1383,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         char = ap?.char ?? 'O'
         color = ap?.color ?? '#FFFFFF'
         isEntity = true
+      } else if (oakMap.has(tileKey)) {
+        const op = oakMap.get(tileKey)
+        char = op?.char ?? 'O'
+        color = op?.color ?? '#6B4423'
+        isEntity = true
       } else if (shootingStarOnLand) {
         char = shootingStarOnLand.char
         color = shootingStarOnLand.color
@@ -1556,6 +1607,19 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             angelGroup.has(posKey(state.pendingInteractionTarget.x, state.pendingInteractionTarget.y))
           ))
 
+      // Oak group highlight: same pattern as angels — any tile in the 3x3
+      // body counts as a hit, and every body tile inverts pink as a group.
+      const oakGroup = oakTileToGroup.get(tileKey)
+      const isOakGroupHighlighted =
+        oakGroup !== undefined &&
+        !state.devPanelOpen &&
+        (Boolean(state.cursorTile && oakGroup.has(posKey(state.cursorTile.x, state.cursorTile.y))) ||
+          Boolean(state.facingEntityPos && oakGroup.has(posKey(state.facingEntityPos.x, state.facingEntityPos.y))) ||
+          Boolean(
+            state.pendingInteractionTarget &&
+              oakGroup.has(posKey(state.pendingInteractionTarget.x, state.pendingInteractionTarget.y))
+          ))
+
       // Resolve highlight state without ctx side effects so the deferred
       // path can capture it and the inline path can apply it.
       // Invalid preview tiles (e.g. red X for lightning targeting) and the
@@ -1563,7 +1627,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const highlightSuppressed = (previewTile !== undefined && !previewTile.isValid) || state.devPanelOpen
       const highlight =
         !highlightSuppressed &&
-        (selectedPositions.has(tileKey) || isAngelGroupHighlighted || isFacingEntity || isPendingTarget)
+        (selectedPositions.has(tileKey) ||
+          isAngelGroupHighlighted ||
+          isOakGroupHighlighted ||
+          isFacingEntity ||
+          isPendingTarget)
 
       // Defer entity glyphs (and the local player on its own tile) to a
       // post-tile-loop flush so neighboring high-elevation tiles drawn
@@ -1571,6 +1639,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // pixels additionally lift by ANGEL_FLOAT_LIFT_PX so the multi-glyph
       // body floats above the tallest possible cube.
       const isAngelPixel = angelMap.has(tileKey)
+      const isOakPixel = oakMap.has(tileKey)
       const isPlayerOwnTile = mx === player.x && my === player.y && state.playerSpawn.visible
       if (isEntity || isPlayerOwnTile) {
         const angelLift = isAngelPixel ? -ANGEL_FLOAT_LIFT_PX : 0
@@ -1579,6 +1648,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const tweenDy = tweenOffset?.dyPx ?? 0
         const glyphPx = isPlayerOwnTile ? playerScreen.px : px
         const glyphPyBase = isPlayerOwnTile ? playerScreen.py + playerLift : pyLift
+        // Oak tiles attach their multilayer overlays so the deferred-flush can
+        // stack glyphs after the base char. Suppressed on highlight so the
+        // single inverted glyph reads cleanly against the pink BG.
+        const oakLayers = isOakPixel && !highlight ? oakLayerMap.get(tileKey) : undefined
         deferredEntities.push({
           char,
           color: highlight ? BG_COLOR : color,
@@ -1588,6 +1661,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           highlightPx: px + tweenDx,
           highlightPy: pyLift + angelLift + tweenDy,
           alpha: 1,
+          oakLayers,
         })
         continue
       }
@@ -1661,7 +1735,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         isPlayer: mx === player.x && my === player.y && state.playerSpawn.visible,
         isEntity,
         hasPreview: previewTile !== undefined,
-        isHighlighted: isAngelGroupHighlighted || isFacingEntity || isPendingTarget,
+        isHighlighted: isAngelGroupHighlighted || isOakGroupHighlighted || isFacingEntity || isPendingTarget,
         hasOverlay: pathPositions.has(tileKey) || trailMap.has(tileKey),
       }
       const isRuinMultilayer = shouldRenderRuinMultilayer({
@@ -1741,6 +1815,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     }
     ctx.fillStyle = e.color
     ctx.fillText(e.char, e.glyphPx, e.glyphPy)
+    // Oak multilayer overlay — stacks branchy glyphs on top of the base
+    // char at sub-pixel offsets, same offsetScale as ruin walls. The base
+    // char acts as the "trunk silhouette"; the overlays layer canopy depth.
+    if (e.oakLayers) {
+      const offsetScale = charWidth * 0.25
+      for (const layer of e.oakLayers) {
+        ctx.fillStyle = layer.color
+        ctx.fillText(layer.char, e.glyphPx + layer.dx * offsetScale, e.glyphPy + layer.dy * offsetScale)
+      }
+    }
     if (e.alpha !== 1) ctx.globalAlpha = 1
   }
 

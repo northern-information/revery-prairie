@@ -35,6 +35,11 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
     const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
     if (multi?.positions.some(p => posKey(p.x, p.y) === key)) return true
   }
+  // Oak body tiles — same pattern as angels (3x3 MultiPosition, not in spatial)
+  for (const eid of state.world.query(ComponentType.OakData, ComponentType.MultiPosition)) {
+    const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
+    if (multi?.positions.some(p => posKey(p.x, p.y) === key)) return true
+  }
   if (
     state.currentZone === Zone.Cave &&
     !state.caveRevealed &&
@@ -592,3 +597,4 @@ export const breakWall = (state: GameState, time: number): boolean => {
   updateFacingEntity(state)
   return true
 }
+

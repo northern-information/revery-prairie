@@ -83,6 +83,7 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   // World entities
   'entity:beehive': { lore: 'Awareness is to watch as the millions of drones you captured just walk away.' },
   'entity:monarch': { lore: 'Danaus plexippus. Milkweed is vital to its lifecycle.' },
+  'entity:oak': { lore: 'TODO' },
   // Characters
   'character:gron': {
     lore: 'A rain curse follows this immortal codger around rendering his coarse cloak both damp and smelly.',

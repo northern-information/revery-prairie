@@ -23,6 +23,7 @@ export const ComponentType = {
   EntityZone: 'entityZone',
   HungerTimer: 'hungerTimer',
   AngelData: 'angelData',
+  OakData: 'oakData',
   SatelliteData: 'satelliteData',
   MonarchState: 'monarchState',
   PickupExemption: 'pickupExemption',
@@ -70,6 +71,10 @@ export interface ComponentDataMap {
     seed: number
     lastBeeSpawnTime: number
     lastCloverGrowTime: number
+  }
+  [ComponentType.OakData]: {
+    plantedTime: number
+    identity: string
   }
   [ComponentType.SatelliteData]: {
     length: number
