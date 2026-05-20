@@ -188,7 +188,7 @@ describe('commitScan', () => {
     expect(countPickupBlooms(state)).toBe(bloomsBefore + 1)
   })
 
-  it('sets manualHighlightEntryId to flora:<species> on success and returns true', () => {
+  it('sets manualHighlightEntryId to flora:<species> on success and returns the committed { species, identity }', () => {
     const state = createTestState()
     clearAroundPlayer(state, 2)
     placeFlora(state, state.player.x, state.player.y, FloraSpecies.Wildflower)
@@ -198,11 +198,13 @@ describe('commitScan', () => {
       startTime: 0,
     }
     const result = commitScan(state, 1500)
-    expect(result).toBe(true)
+    expect(result).not.toBeNull()
+    expect(result?.species).toBe(FloraSpecies.Wildflower)
+    expect(result?.identity).toHaveLength(64)
     expect(state.manualHighlightEntryId).toBe('flora:wildflower')
   })
 
-  it('leaves manualHighlightEntryId untouched on aborted commit and returns false', () => {
+  it('leaves manualHighlightEntryId untouched on aborted commit and returns null', () => {
     const state = createTestState()
     clearAroundPlayer(state, 2)
     // No flora here — commit aborts
@@ -213,7 +215,7 @@ describe('commitScan', () => {
     }
     state.manualHighlightEntryId = null
     const result = commitScan(state, 1500)
-    expect(result).toBe(false)
+    expect(result).toBeNull()
     expect(state.manualHighlightEntryId).toBeNull()
   })
 })

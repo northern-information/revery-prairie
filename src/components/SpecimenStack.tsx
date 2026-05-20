@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { HexGridView } from './HexGridView'
+import { GelBandView } from './GelBandView'
 
 import type { ScannedSpecimen } from '@/engine/types'
 
@@ -89,7 +89,7 @@ export const SpecimenStack = ({ specimens, initialIndex }: SpecimenStackProps) =
           {'>'}
         </button>
       </div>
-      <HexGridView identity={current.identity} />
+      <GelBandView identity={current.identity} />
       <div className="text-dim text-[10px]" data-testid="specimen-scan-time">
         Scanned {formatRelativeTime(current.scannedAt, now)}
       </div>

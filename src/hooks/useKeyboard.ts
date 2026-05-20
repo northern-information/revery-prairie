@@ -20,7 +20,14 @@ import { isInputGated } from '@/engine/zoneTransition'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
 
-export type PermacomputerScreen = 'system' | 'manual' | 'divination' | 'cantos' | 'coyote' | null
+export type PermacomputerScreen =
+  | 'system'
+  | 'manual'
+  | 'divination'
+  | 'cantos'
+  | 'coyote'
+  | 'scan-result'
+  | null
 
 interface UseKeyboardOptions {
   state: GameState
@@ -99,6 +106,12 @@ export const useKeyboard = ({
       // wired in Tier 8c — useKeyboard just returns early so gameplay keys
       // don't double-fire).
       if (state.revery?.active) return
+
+      // Precis #6 — scan-result modal hard input lock. The modal owns its
+      // own keydown handler (dismiss after fully revealed); useKeyboard
+      // returns early so gameplay keys, screen toggles, and Escape don't
+      // race the modal's dismiss logic.
+      if (activeScreen === 'scan-result') return
 
       // Escape: close dialog, then screen, then open system
       if (e.key === 'Escape') {
@@ -301,6 +314,10 @@ export const useKeyboard = ({
 
   const handleKeyUp = useCallback(
     (e: KeyboardEvent) => {
+      // Precis #6 — scan-result modal owns input; gameplay keyup logic
+      // is suppressed while the modal is open.
+      if (activeScreen === 'scan-result') return
+
       const axis = keyToScreenAxis(e.key)
       if (axis) {
         state.heldKeys.delete(axis)
@@ -317,7 +334,7 @@ export const useKeyboard = ({
         }
       }
     },
-    [state, refreshUI]
+    [state, refreshUI, activeScreen]
   )
 
   useEffect(() => {

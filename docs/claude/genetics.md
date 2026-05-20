@@ -22,13 +22,13 @@ all `FloraLifecycleState` construction must route through `createFloraLifecycleE
 
 v3 doctrine (`docs/precis-thinktank-v3.md` lines 62-63) was overridden during #3 planning. the original "hex grid stays buried, only visible in late-game ritual" framing has been replaced. the 8×8 grid surfaces in #6 (naturalist's manual), player-facing. trait *numbers* are still never shown.
 
-**#6 has shipped this surface.** flora species discovered via hold-to-scan render their hex grid in the manual via `<HexGridView />`. the grid is keyed off `state.scannedSpecimens.get(species)` — the cached first-scanned identity. see `docs/claude/manual.md` for the scan flow.
+**#6 has shipped this surface, now in the gel-band idiom.** flora species discovered via hold-to-scan first render the sequence in a center-screen `<ScanResultModal />` (latin binomial + ceremonial row-by-row reveal), and the manual archive renders the same sequence as a `<GelBandView />` per-specimen. the underlying `hashToHexGrid()` mapping is **unchanged and still locked** — only the visual presentation has changed: each nibble draws as a horizontal band whose opacity is `nibble / 15`, with vertical CSS blur so the rows read as a gel-electrophoresis printout. specimens are keyed off `state.scannedSpecimens.get(species)`. see `docs/claude/manual.md` for the scan flow.
 
 ## phenotype label split — #6 vs #4 (decided 2026-05-19)
 
 phenotype labels ("suspected: late blooming", "cold hardy", etc.) are *not* in #6. they ship in #4 (The Revery).
 
-#6 ships the hex grid + per-species manual discovery only. it does not surface any phenotype labels derived from the trait bag.
+#6 ships the gel-band sequence + per-species manual discovery only. it does not surface any phenotype labels derived from the trait bag.
 
 reasoning: every walk-over-based reveal mechanism collapses into a grind. walking past a clover to "observe" it incentivizes the player to optimize tile coverage. a running-average observation log has the same problem in slow motion. doctrine asks for friction and mystery; cheap reveal mechanisms produce neither.
 
