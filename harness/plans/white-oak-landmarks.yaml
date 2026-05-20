@@ -1,0 +1,307 @@
+plan:
+  id: white-oak-landmarks
+  title: White oak landmarks — multi-tile ECS trees with sequencing
+  created: '2026-05-20'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/oaks.test.ts
+
+tasks:
+  - id: oak-component
+    title: Add OakData ECS component
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-component
+    context_files:
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/ecs/types.ts
+    depends_on: []
+    verification:
+      - command: npm run typecheck
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: oak-module
+    title: Create src/engine/oaks.ts with footprint, validity, spawn, rendering helpers, and seedOaks
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-footprint
+      - oak-genesis-seeding
+      - oak-rendering
+      - oak-seasonal-dormancy
+      - oak-species-metadata
+    context_files:
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+      - src/engine/constants.ts
+      - src/engine/angels.ts
+    output_files:
+      - src/engine/oaks.ts
+    depends_on:
+      - oak-component
+    verification:
+      - command: npm run typecheck
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: oak-blocking
+    title: Add oak body tile blocking to getBlockedPositions
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-blocking
+    context_files:
+      - src/engine/movement.ts
+    output_files:
+      - src/engine/movement.ts
+    depends_on:
+      - oak-module
+    verification:
+      - command: npx vitest run src/engine/__tests__/oaks.test.ts
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: oak-interactable
+    title: Mark oak body tiles as interactable so facingEntityPos lands on the canopy
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-group-highlight
+    context_files:
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - oak-module
+    verification:
+      - command: npm run typecheck
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: oak-renderer
+    title: Wire oak rendering and group highlight into the renderer
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-rendering
+      - oak-group-highlight
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/oaks.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - oak-module
+      - oak-interactable
+    verification:
+      - command: npm run lint
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - rendering
+    skip: false
+
+  - id: oak-sidebar
+    title: Read 'white oak' in the Sidebar contents row on cursor hover
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-sidebar-label
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/oaks.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - oak-module
+    verification:
+      - command: npm run lint
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - ui
+    skip: false
+
+  - id: oak-scan-target
+    title: Extend ScanTarget to a flora|oak union; oakAt detects oak bodies
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-sequencing-scan-target
+    context_files:
+      - src/engine/scan.ts
+      - src/engine/types.ts
+      - src/engine/oaks.ts
+    output_files:
+      - src/engine/scan.ts
+    depends_on:
+      - oak-module
+    verification:
+      - command: npx vitest run src/engine/__tests__/scan.test.ts
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: oak-scan-progress
+    title: Widen ScanProgress to a discriminated union; useKeyboard constructs the right variant
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-sequencing-progress-state
+    context_files:
+      - src/engine/types.ts
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/engine/types.ts
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - oak-scan-target
+    verification:
+      - command: npx vitest run src/hooks/__tests__/useKeyboard.test.ts
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+      - ui
+    skip: false
+
+  - id: oak-scan-commit
+    title: commitScan handles oak targets and writes oakSpecimens
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-sequencing-commit
+      - oak-state-field-oakspecimens
+    context_files:
+      - src/engine/scan.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/scan.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - oak-scan-progress
+    verification:
+      - command: npx vitest run src/engine/__tests__/oaks.test.ts src/engine/__tests__/scan.test.ts
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: oak-genesis-handoff
+    title: Call seedOaks from finalizeGenesisHandoff
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-genesis-seeding
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/oaks.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - oak-module
+    verification:
+      - command: npm run typecheck
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: oak-manual-entry
+    title: Add White Oak world-entity and entity:oak lore TODO
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-manual-entry
+    context_files:
+      - src/engine/worldEntities.ts
+      - src/engine/manual.ts
+      - src/components/ManualPanel.tsx
+      - src/engine/state.ts
+    output_files:
+      - src/engine/worldEntities.ts
+      - src/engine/manual.ts
+      - src/components/ManualPanel.tsx
+    depends_on:
+      - oak-scan-commit
+    verification:
+      - command: npm run typecheck
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - ui
+    skip: false
+
+  - id: oak-devpanel
+    title: Register OakData and the 'oak' EntityTag in dev panel metadata
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-component
+    context_files:
+      - src/engine/devPanel.ts
+    output_files:
+      - src/engine/devPanel.ts
+    depends_on:
+      - oak-component
+    verification:
+      - command: npx vitest run src/engine/__tests__/devPanel.test.ts
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: oak-tests
+    title: Add src/engine/__tests__/oaks.test.ts covering footprint, blocking, dormancy, seeding, scanning
+    spec_id: white-oak-landmarks
+    spec_sections:
+      - oak-footprint
+      - oak-blocking
+      - oak-genesis-seeding
+      - oak-seasonal-dormancy
+      - oak-sequencing-scan-target
+      - oak-sequencing-commit
+    context_files:
+      - src/engine/oaks.ts
+      - src/engine/scan.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/oaks.test.ts
+      - src/engine/__tests__/helpers.ts
+    depends_on:
+      - oak-scan-commit
+      - oak-genesis-handoff
+    verification:
+      - command: npx vitest run src/engine/__tests__/oaks.test.ts
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - test
+    skip: false

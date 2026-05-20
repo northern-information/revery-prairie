@@ -1,0 +1,350 @@
+id: white-oak-landmarks
+name: 'White oak landmarks'
+priority: medium
+layer: integration
+source_files:
+  - src/engine/oaks.ts
+  - src/engine/ecs/types.ts
+  - src/engine/movement.ts
+  - src/engine/renderer.ts
+  - src/engine/scan.ts
+  - src/engine/genesis.ts
+  - src/engine/state.ts
+  - src/engine/types.ts
+  - src/engine/manual.ts
+  - src/engine/worldEntities.ts
+  - src/engine/interaction.ts
+  - src/engine/devPanel.ts
+  - src/components/Sidebar.tsx
+  - src/components/ManualPanel.tsx
+  - src/hooks/useKeyboard.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+  - src/engine/__tests__/oaks.test.ts
+dependencies:
+  - precis-6-naturalists-manual
+  - angels
+
+behaviors:
+  - id: oak-component
+    description: >
+      A new ECS component OakData is registered with two fields:
+      plantedTime (ms timestamp of creation) and identity (a 64-character
+      SHA256 hex string derived from steward name + anchor position).
+      Oak entities are tagged 'oak' (EntityTag), zoned to overworld
+      (EntityZone), and carry both a Position (the trunk anchor at the
+      logical centre of the footprint) and a MultiPosition listing every
+      tile in the OAK_BODY_SIZE * OAK_BODY_SIZE footprint. The identity
+      is deterministic per steward + anchor so the same prairie always
+      produces the same oaks with the same SHA256 hashes.
+    inputs:
+      - 'spawnOak called with state, anchor x/y, time'
+    outputs:
+      - 'new ECS entity with OakData, Position, MultiPosition, EntityTag, EntityZone components'
+    state_changes:
+      - field: world
+        effect: 'new oak entity created with OakData(plantedTime, identity), Position(anchor), MultiPosition(OAK_BODY_SIZE^2 tiles), EntityTag("oak"), EntityZone(overworld)'
+    determinism: deterministic
+
+  - id: oak-footprint
+    description: >
+      Oaks occupy a square footprint of OAK_BODY_SIZE x OAK_BODY_SIZE
+      tiles centred on the anchor (currently 5x5 = 25 tiles). getOakBodyPositions
+      returns every position in the footprint; isValidOakPosition validates
+      that every tile is in-bounds, walkable, not sand, not cave entrance,
+      not water (pond or river), and not occupied by another oak.
+    inputs:
+      - 'isValidOakPosition(state, anchorX, anchorY)'
+    outputs:
+      - 'true when all OAK_BODY_SIZE^2 footprint tiles satisfy placement rules; false otherwise'
+    state_changes: []
+    determinism: deterministic
+
+  - id: oak-blocking
+    description: >
+      Every tile in an oak's MultiPosition is added to getBlockedPositions,
+      blocking player movement through the entire canopy. The blocking is
+      registered explicitly in src/engine/movement.ts (no Blocking
+      component on the entity) to mirror the angel pattern. Click-to-move
+      pathfinding routes around the canopy.
+    inputs:
+      - 'getBlockedPositions called for the overworld zone with oaks present'
+    outputs:
+      - 'returned set contains every oak body tile'
+    state_changes: []
+    determinism: deterministic
+
+  - id: oak-genesis-seeding
+    description: >
+      seedOaks runs inside finalizeGenesisHandoff and scatters OAK_GENESIS_COUNT
+      oaks at random walkable positions across the overworld. Placements
+      that fail any rule are retried up to OAK_GENESIS_ATTEMPTS_MAX times.
+      Two clearance rules gate placement: minimum chebyshev distance
+      OAK_MIN_SPACING between any two trunk anchors, and minimum chebyshev
+      distance OAK_PLAYER_CLEARANCE from both the player spawn tile and
+      Gron's central tile so the player can never spawn or wake up inside
+      a canopy. Random selection uses Math.random — same seed produces the
+      same oaks per genesis run.
+    inputs:
+      - 'finalizeGenesisHandoff fires at genesis-to-gameplay transition'
+    outputs:
+      - 'up to OAK_GENESIS_COUNT oak entities created at deterministic-random positions'
+    state_changes:
+      - field: world
+        effect: 'OAK_GENESIS_COUNT new oak entities created'
+    determinism: probabilistic
+
+  - id: oak-rendering
+    description: >
+      The renderer populates an oakMap (single glyph + colour per tile)
+      and an oakTileToGroup map (each tile points to its full footprint
+      set, used for group highlight). getOakRenderTile assigns one bold
+      ASCII glyph per tile using isometric-projection-aware role
+      assignment driven by dx + dy (the iso screen-vertical axis):
+      isoRow >= 3 renders as trunk base ('|'), isoRow == 2 renders as
+      trunk taper ('/', '|', '\\'), isoRow == -4 renders the crown apex,
+      and the remaining canopy tiles render with denser chars near the
+      central column ('@'), softer chars on the diamond's outer edge
+      ('&'), and a default canopy char ('#') in between. Single layer
+      per tile — no sub-pixel overlay glyphs. The base char drives the
+      pink-BG inversion when the oak is highlighted, so highlight reads
+      cleanly without overlay clutter. Oak tiles paint via the deferred
+      entity flush pass after all terrain glyphs and cube walls so
+      neighbouring high-elevation tiles cannot overpaint them.
+    inputs:
+      - 'render frame with at least one oak entity in the overworld zone'
+    outputs:
+      - 'each oak body tile painted with its iso-role glyph and colour'
+    state_changes: []
+    determinism: deterministic
+
+  - id: oak-seasonal-dormancy
+    description: >
+      isOakDormant returns true when state.weather.season === Season.Winter.
+      getOakRenderTile branches on isDormant for every canopy tile: summer
+      uses leafy glyphs in green tones (CANOPY_MID #5A7A3A, CANOPY_DARK
+      #3F5A28); winter uses sparse bare-branch glyphs ('Y', '+', "'", '`')
+      in muted browns (DORMANT_MID #7A5A3A, DORMANT_DARK #5A4530). Trunk
+      tiles do not change with the season — wood is a year-round feature.
+    inputs:
+      - 'render frame; current state.weather.season'
+    outputs:
+      - 'canopy glyph + colour matches the active season; trunk identical across seasons'
+    state_changes: []
+    determinism: deterministic
+
+  - id: oak-group-highlight
+    description: >
+      Oaks copy the angel group-highlight pattern. When the player's
+      cursor tile, facingEntityPos, or pendingInteractionTarget hits any
+      tile in an oak's footprint, every tile in that footprint inverts to
+      the action colour background (pink) — matching how angels and
+      individual interactable tiles highlight. The renderer maps each
+      body tile to its group set (oakTileToGroup) and consults
+      state.cursorTile, state.facingEntityPos, and
+      state.pendingInteractionTarget to decide whether the group is
+      highlighted on this frame. The dev panel suppresses the highlight.
+      isInteractableAt in interaction.ts also reports oak body tiles as
+      interactable so updateFacingEntity sets facingEntityPos when the
+      player is adjacent, driving the pink highlight on approach.
+    inputs:
+      - 'cursor or facingEntityPos or pendingInteractionTarget on any oak tile'
+    outputs:
+      - 'all OAK_BODY_SIZE^2 body tiles render with pink action-colour background and BG_COLOR glyphs'
+    state_changes: []
+    determinism: deterministic
+
+  - id: oak-sidebar-label
+    description: >
+      The Sidebar contents row reads "white oak" whenever the cursor
+      hovers any tile in an oak's MultiPosition. Lookup iterates all
+      OakData entities and checks each MultiPosition because the spatial
+      index only tracks the anchor tile. Returns before the falls-through
+      ground-item lookup.
+    inputs:
+      - 'cursorTile hovers any oak body tile'
+    outputs:
+      - "sidebar Contents cell shows 'white oak'"
+    state_changes: []
+    determinism: deterministic
+
+  - id: oak-sequencing-scan-target
+    description: >
+      selectScanTarget extends to oaks via a polymorphic ScanTarget union
+      with two variants: { kind: 'flora', species, identity, position }
+      and { kind: 'oak', identity, position }. oakAt iterates all OakData
+      entities and returns an oak target when (x, y) lies inside any
+      footprint; the target's position is the trunk anchor and the
+      identity comes from OakData. Selection priority order matches the
+      flora flow: on-tile flora wins first, then the facing-direction
+      neighbour, then the first cardinal neighbour, then null. Flora wins
+      over oak when both exist at the same tile (they cannot coexist —
+      oaks block movement; flora is its own tile type).
+    inputs:
+      - 'selectScanTarget(state) called with the player adjacent to an oak'
+    outputs:
+      - "ScanTarget with kind 'oak', identity from OakData, position at trunk anchor"
+    state_changes: []
+    determinism: deterministic
+
+  - id: oak-sequencing-progress-state
+    description: >
+      ScanProgress widens to a discriminated union: { kind: 'flora',
+      target, species, startTime } and { kind: 'oak', target, startTime }.
+      useKeyboard's [f] handler constructs the matching variant based on
+      the active ScanTarget kind. commitScan branches on
+      progress.kind === target.kind; if the kinds disagree (player drifted
+      between trees / species mid-hold) the commit aborts silently.
+    inputs:
+      - "[f] keydown with selectScanTarget returning { kind: 'oak', ... }"
+    outputs:
+      - "state.scanInProgress set to { kind: 'oak', target, startTime }"
+    state_changes:
+      - field: scanInProgress
+        effect: "set to { kind: 'oak', target, startTime } on keydown with an oak target"
+    determinism: deterministic
+
+  - id: oak-sequencing-commit
+    description: >
+      When [f] is held past SCAN_DURATION_MS and commitScan re-resolves
+      to the same kind ('oak'), the commit records 'entity:oak'
+      discovery, appends a ScannedSpecimen (identity, scannedAt,
+      position) to state.oakSpecimens, spawns a pickup bloom at the trunk
+      anchor, and sets manualHighlightEntryId to 'entity:oak' so the
+      manual auto-opens at the White Oak entry. Repeated commits with
+      the same identity are deduped — scanning the same tree twice
+      does not add a duplicate specimen card.
+    inputs:
+      - 'commitScan called with progress.kind === "oak" and a matching oak target'
+    outputs:
+      - "oakSpecimens gains an entry; entity:oak recorded as discovered; manualHighlightEntryId = 'entity:oak'; pickup bloom at anchor"
+    state_changes:
+      - field: oakSpecimens
+        effect: 'new ScannedSpecimen appended unless an entry with the same identity already exists'
+      - field: manualDiscoveries
+        effect: 'entity:oak recorded'
+      - field: manualHighlightEntryId
+        effect: "set to 'entity:oak'"
+      - field: world
+        effect: 'pickupBloom entity created at the trunk anchor'
+    determinism: deterministic
+
+  - id: oak-state-field-oakspecimens
+    description: >
+      GameState gains a top-level field oakSpecimens of type
+      ScannedSpecimen[]. Initialized to [] in createGameState. Listed in
+      EXPECTED_FIELDS in the serialization schema test so the round-trip
+      schema lock catches accidental removals. The flora-side
+      scannedSpecimens map is unchanged.
+    inputs:
+      - 'createGameState'
+    outputs:
+      - 'state.oakSpecimens initialized to empty array'
+    state_changes:
+      - field: oakSpecimens
+        effect: 'initialized to []'
+    determinism: deterministic
+
+  - id: oak-manual-entry
+    description: >
+      The manual has a 'White Oak' entry registered via WORLD_ENTITIES
+      with category 'life', glyph 'O', glyphColor TRUNK_MID. Lore is
+      a 'TODO' placeholder in MANUAL_LORE keyed by 'entity:oak' per
+      repo policy (lore is human-authored only). The entry is gated on
+      'entity:oak' discovery — undiscovered, it does not render. After
+      a sequence the manual auto-opens and highlights this entry; the
+      oak SpecimenStack renders all unique scanned oak identities as
+      hex-grid cards (one per tree, deduped on identity).
+    inputs:
+      - 'manualDiscoveries contains entity:oak'
+    outputs:
+      - "ManualPanel renders the White Oak entry with a SpecimenStack pulled from state.oakSpecimens"
+    state_changes: []
+    determinism: deterministic
+
+  - id: oak-species-metadata
+    description: >
+      OAK_SPECIES exports displayName 'White Oak' and latinBinomial
+      'Quercus alba' as a const object. Mirrors the FLORA_SPECIES
+      pattern so future oak species or specimen-card detail panels can
+      read species metadata from a single registry.
+    inputs:
+      - 'import OAK_SPECIES from src/engine/oaks.ts'
+    outputs:
+      - "{ displayName: 'White Oak', latinBinomial: 'Quercus alba' }"
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: oak-spawn-no-valid-tile
+    description: 'All candidate genesis positions fail isValidOakPosition or clearance gates'
+    expected: 'seedOaks exits after OAK_GENESIS_ATTEMPTS_MAX attempts; placed < OAK_GENESIS_COUNT; no crash'
+
+  - id: oak-spawn-near-player
+    description: 'A random anchor lands within OAK_PLAYER_CLEARANCE chebyshev distance of state.player'
+    expected: 'tooCloseToSpawnOrGron returns true; placement rejected; another attempt fires'
+
+  - id: oak-spawn-near-gron
+    description: "A random anchor lands within OAK_PLAYER_CLEARANCE of Gron's central tile"
+    expected: 'tooCloseToSpawnOrGron returns true; placement rejected'
+
+  - id: oak-spawn-on-water
+    description: 'A footprint tile lands on a pond or river tile'
+    expected: 'isValidOakPosition returns false; placement rejected'
+
+  - id: oak-spawn-overlap
+    description: 'A candidate footprint overlaps an existing oak'
+    expected: 'isValidOakPosition returns false; tooCloseToExistingOak also rejects via OAK_MIN_SPACING'
+
+  - id: oak-scan-during-deep-time
+    description: 'Player attempts to sequence an oak while deepTime is active'
+    expected: 'Scan flow gated by isInputGated and the deepTime suppression in the [f] handler; no scan starts'
+
+  - id: oak-scan-drift-to-flora
+    description: "Player begins an oak scan, walks one tile away so selectScanTarget now points at a flora tile, holds past SCAN_DURATION_MS"
+    expected: "commitScan sees progress.kind === 'oak' but target.kind === 'flora'; commit aborts; nothing recorded"
+
+  - id: oak-scan-repeat-same-tree
+    description: 'Player sequences the same oak twice'
+    expected: 'oakSpecimens length is 1 after both commits (identity-deduped); entity:oak remains discovered'
+
+  - id: oak-scan-multiple-trees
+    description: 'Player sequences two distinct oaks (different identities)'
+    expected: 'oakSpecimens length is 2; manual SpecimenStack shows both cards'
+
+  - id: oak-dormancy-flip
+    description: 'Season transitions Summer -> Autumn -> Winter while oaks are on screen'
+    expected: 'Canopy glyphs flip from leafy summer set to bare-branch winter set on the frame state.weather.season becomes Winter; trunk unchanged'
+
+  - id: oak-zone-transition
+    description: 'Player enters cave while oaks exist on overworld'
+    expected: 'Oaks render only in the overworld zone (EntityZone filter); not visible in cave; persist across the round trip'
+
+  - id: oak-cursor-hover-non-anchor-tile
+    description: 'Cursor hovers a non-anchor body tile (e.g. canopy corner)'
+    expected: "Sidebar reads 'white oak'; full footprint highlights pink as a group"
+
+  - id: oak-blocked-pathfinding
+    description: 'Click-to-move requests a path through an oak canopy'
+    expected: 'getPathfindingBlockers returns the full footprint; path routes around the oak'
+
+  - id: oak-state-roundtrip
+    description: 'Save and load a game with oaks and scanned specimens'
+    expected: 'oakSpecimens, OakData identity, MultiPosition tiles, and EntityZone all survive the round trip; serialization schema test passes'
+
+failure_conditions:
+  - trigger: 'Oak footprint extends out of map bounds'
+    expected: 'isValidOakPosition returns false; seedOaks clips random range to anchor in [SPACE_BORDER + OAK_HALF, mapDim - SPACE_BORDER - OAK_HALF - 1]'
+
+  - trigger: 'OakData.identity hash collision between two trees in the same world'
+    expected: 'Astronomically unlikely (2^256 space); oakSpecimens dedupes by identity so the second tree would render as the first specimen card. Acceptable.'
+
+  - trigger: 'Multiple oaks overlap on the same tile (would corrupt MultiPosition lookup)'
+    expected: 'tooCloseToExistingOak and isValidOakPosition both reject; cannot occur via seedOaks'
+
+  - trigger: '[f] keypress on an oak tile when player has no acorn / no item context'
+    expected: '[f] resolves to a hold-to-scan; no planting flow exists in this PR'
+
+verification:
+  test_file: src/engine/__tests__/oaks.test.ts
+  test_pattern: 'oak'
+  command: npx vitest run src/engine/__tests__/oaks.test.ts
