@@ -1,10 +1,11 @@
 import { containerHasItem } from './inventory'
-import { MainQuestPhase } from './types'
+import { MainQuestPhase, Season } from './types'
 
 import type { CharacterDefinition, GameState } from './types'
 
 interface CharacterEntry {
   name: string
+  title?: string
   glyph: string
   glyphColor: string
   portrait?: string
@@ -30,13 +31,21 @@ const CHARACTERS = {
   },
   moab: {
     name: 'Moab Coldë',
+    // Folk register, lowercase, no leading article. The drip torch is
+    // the wildland-fire tool he carries when he walks the burn line.
+    title: 'drip torchbearer',
     glyph: 'M',
     glyphColor: '#FFFFFF',
-    // Last line is Moab's egregore refusal (precis #8a). Folk register;
-    // never names the egregores directly. Folk name: "the other clover".
-    // Different from the ghost's folk name on purpose — no two NPCs
-    // agree on a name per v3 doctrine.
+    // The runtime dispatcher in getCharacterDialog overrides this field
+    // for Moab based on state.weather.season. The static fallback below
+    // is the default (Summer/Autumn) register — preserved for callers
+    // that don't route through getCharacterDialog (legacy tests,
+    // snapshot fixtures). Last line is Moab's egregore refusal
+    // (precis #8a). Folk register; never names the egregores directly.
+    // Folk name: "the other clover". Different from the ghost's folk
+    // name on purpose — no two NPCs agree on a name per v3 doctrine.
     dialog: ['...', 'The other clover. We do not grow that.'],
+    music: '/music/moab.mp3',
   },
   coyote: {
     name: 'Coyote',
@@ -125,9 +134,44 @@ const getGronDialog = (state: GameState): string[] => {
   }
 }
 
+// Moab the drip torchbearer speaks in three seasonal registers (precis #9a).
+// Folk-Coldë voice rules: no contractions, statements not questions, no
+// direct address by title, no editorial affect. Every register's last
+// line is the precis #8a egregore refusal, preserved verbatim.
+const MOAB_DIALOG_WINTER: string[] = [
+  '...',
+  'The line waits.',
+  'The other clover. We do not grow that.',
+]
+
+const MOAB_DIALOG_SPRING: string[] = [
+  'The thaw.',
+  'The line is where the winter put it.',
+  'The other clover. We do not grow that.',
+]
+
+const MOAB_DIALOG_DEFAULT: string[] = ['...', 'The other clover. We do not grow that.']
+
+const getMoabDialog = (state: GameState): string[] => {
+  switch (state.weather.season) {
+    case Season.Winter:
+      return MOAB_DIALOG_WINTER
+    case Season.Spring:
+      return MOAB_DIALOG_SPRING
+    case Season.Summer:
+    case Season.Autumn:
+      return MOAB_DIALOG_DEFAULT
+    default:
+      return MOAB_DIALOG_DEFAULT
+  }
+}
+
 export const getCharacterDialog = (state: GameState, characterId: string): string[] => {
   if (characterId === 'gron') {
     return getGronDialog(state)
+  }
+  if (characterId === 'moab') {
+    return getMoabDialog(state)
   }
   const def = getCharacterDefinition(characterId)
   if (def.postGiftDialog && state.giftsReceived.has(characterId)) {

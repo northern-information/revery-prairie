@@ -5,6 +5,7 @@ import {
   COMPONENT_META,
   DEV_PRESETS,
   ENTITY_TAG_SUGGESTIONS,
+  forceSeason,
   getComponentDefaults,
   getEntityPreviewGlyph,
   getRuinPreviewGlyph,
@@ -20,7 +21,7 @@ import {
 } from '@/engine/devPanel'
 import { ComponentType } from '@/engine/ecs/types'
 import { screenToTile } from '@/engine/projection'
-import { RuinArchetype } from '@/engine/types'
+import { RuinArchetype, Season } from '@/engine/types'
 import type { ComponentMeta, FieldMeta } from '@/engine/devPanel'
 import type { CharMetrics, GameState, Position } from '@/engine/types'
 
@@ -638,6 +639,24 @@ export const DevPanel = (props: DevPanelProps) => {
           <PanelTitle>Dev Panel</PanelTitle>
           <span className="text-dim shrink-0 text-xs">` to toggle</span>
         </div>
+
+        <label className="flex shrink-0 items-center justify-between gap-2">
+          <span className="text-muted">Force Season</span>
+          <select
+            value={props.state.weather.season}
+            onChange={e => {
+              forceSeason(props.state, e.target.value as Season)
+              props.refreshUI()
+            }}
+            className="bg-bg border-border-dim min-w-0 flex-1 rounded border px-1 py-0.5 text-right text-xs"
+          >
+            {Object.values(Season).map(s => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <div className="border-border-dim flex shrink-0 border-b">
           <Tab

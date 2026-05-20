@@ -4,15 +4,19 @@ import {
   COMPONENT_META,
   DEV_PRESETS,
   ENTITY_TAG_SUGGESTIONS,
+  forceSeason,
   getComponentDefaults,
   paintRect,
   paintTile,
+  SEASON_OVERRIDE_VALUES,
   spawnDevEntity,
   TILE_TYPE_LIST,
 } from '../devPanel'
 import { ComponentType } from '../ecs/types'
 import { createWorld } from '../ecs/world'
-import { TileType, Zone } from '../types'
+import { createGameState } from '../state'
+import { Season, TileType, Zone } from '../types'
+import { deriveSeason } from '../weather'
 import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
@@ -293,6 +297,35 @@ describe('dev panel', () => {
       const knownTags = new Set<string>(ENTITY_TAG_SUGGESTIONS)
       const missing = [...foundTags].filter(tag => !knownTags.has(tag))
       expect(missing, `EntityTag strings missing from ENTITY_TAG_SUGGESTIONS: ${missing.join(', ')}`).toEqual([])
+    })
+  })
+
+  describe('forceSeason', () => {
+    const seasons: Season[] = [Season.Winter, Season.Spring, Season.Summer, Season.Autumn]
+
+    it('sets state.weather.season to the requested season', () => {
+      for (const season of seasons) {
+        const state = createGameState('test', 40, 30)
+        forceSeason(state, season)
+        expect(state.weather.season).toBe(season)
+      }
+    })
+
+    it('sets temperatureF and seasonalPhase to a coherent pair that classifies as the same season', () => {
+      for (const season of seasons) {
+        const state = createGameState('test', 40, 30)
+        forceSeason(state, season)
+        const classified = deriveSeason(state.weather.temperatureF, state.seasonalPhase)
+        expect(classified).toBe(season)
+      }
+    })
+
+    it('uses temperature below the winter threshold for Winter', () => {
+      expect(SEASON_OVERRIDE_VALUES[Season.Winter].temperatureF).toBeLessThan(38)
+    })
+
+    it('uses temperature above the summer threshold for Summer', () => {
+      expect(SEASON_OVERRIDE_VALUES[Season.Summer].temperatureF).toBeGreaterThan(78)
     })
   })
 })

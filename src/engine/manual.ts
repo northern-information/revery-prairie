@@ -88,9 +88,7 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'character:gron': {
     lore: 'A rain curse follows this immortal codger around rendering his coarse cloak both damp and smelly.',
   },
-  'character:moab': {
-    lore: 'Not much to see but an emaciated skeleton draped in a tattered red and gold imperial mantle.',
-  },
+  'character:moab': { lore: 'TODO' },
   'character:coyote': {
     lore: 'What is a steward without their coyote? And what is a coyote without their inherent bestness?',
   },

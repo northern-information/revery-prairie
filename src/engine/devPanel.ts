@@ -24,7 +24,7 @@ import { getDefinition } from './items'
 import { setMapTile } from './map'
 import { posKey } from './position'
 import { generateRuinInterior } from './ruins'
-import { RuinArchetype, TileType, Zone } from './types'
+import { RuinArchetype, Season, TileType, Zone } from './types'
 import { getCurrentEntityZone } from './zone'
 
 import type { ComponentDataMap } from './ecs/types'
@@ -454,6 +454,29 @@ export const paintRect = (state: GameState, x1: number, y1: number, x2: number, 
       setMapTile(state, x, y, { type: tt })
     }
   }
+}
+
+// --- Season override (dev affordance) ---
+//
+// Sets both temperatureF and seasonalPhase to a coherent pair so the
+// override survives weather ticks. deriveSeason classifies <38°F as
+// Winter regardless of phase and >78°F as Summer; mid-range temperatures
+// resolve to Spring (phase < 0.5) or Autumn (phase >= 0.5). The seasonal
+// drift in tickWeather pulls temperatureF toward the mean for the
+// current phase — setting both keeps the classification stable.
+
+export const SEASON_OVERRIDE_VALUES: Record<Season, { temperatureF: number; seasonalPhase: number }> = {
+  [Season.Winter]: { temperatureF: 30, seasonalPhase: 0 },
+  [Season.Spring]: { temperatureF: 55, seasonalPhase: 0.25 },
+  [Season.Summer]: { temperatureF: 85, seasonalPhase: 0.5 },
+  [Season.Autumn]: { temperatureF: 55, seasonalPhase: 0.75 },
+}
+
+export const forceSeason = (state: GameState, season: Season): void => {
+  const target = SEASON_OVERRIDE_VALUES[season]
+  state.weather.season = season
+  state.weather.temperatureF = target.temperatureF
+  state.seasonalPhase = target.seasonalPhase
 }
 
 // --- Entity preview glyph lookup ---
