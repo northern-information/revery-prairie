@@ -26,37 +26,48 @@ describe('scan-result modal', () => {
     vi.unstubAllGlobals()
   })
 
-  it('renders the latin binomial heading', () => {
+  it('renders the common name above the latin binomial', () => {
     render(<ScanResultModal species={FloraSpecies.Clover} identity={identity} onDismiss={() => undefined} />)
+    expect(screen.getByTestId('scan-result-common-name').textContent).toBe('Clover')
     expect(screen.getByTestId('scan-result-binomial').textContent).toBe('Trifolium repens')
   })
 
-  it('starts with no rows revealed and binomial hidden', () => {
+  it('starts with no cells revealed and binomial hidden', () => {
     render(<ScanResultModal species={FloraSpecies.Clover} identity={identity} onDismiss={() => undefined} />)
     const gel = screen.getByTestId('scan-result-gel')
-    expect(gel.getAttribute('data-revealed-rows')).toBe('0')
+    expect(gel.getAttribute('data-revealed-cells')).toBe('0')
     expect(gel.getAttribute('data-fully-revealed')).toBe('false')
   })
 
-  it('reveals rows top-to-bottom over time, then marks fully revealed', () => {
+  it('reveals cells one at a time in column-major order, then marks fully revealed', () => {
     render(<ScanResultModal species={FloraSpecies.Clover} identity={identity} onDismiss={() => undefined} />)
 
+    // Advance to just past the binomial fade (400ms) so the cell-reveal
+    // scheduler has fired but no cell ticks have yet.
     act(() => {
-      vi.advanceTimersByTime(50)
+      vi.advanceTimersByTime(400)
     })
-    expect(screen.getByTestId('scan-result-binomial').getAttribute('data-revealed')).toBe('true')
+    expect(screen.getByTestId('scan-result-heading').getAttribute('data-revealed')).toBe('true')
+    expect(screen.getByTestId('scan-result-gel').getAttribute('data-revealed-cells')).toBe('0')
 
-    // After binomial fade (400ms) + 4 row-reveal ticks (4 * 80ms), 4 rows revealed.
+    // Advance 10 cell-reveal ticks (10 * 40ms). 10 cells revealed.
     act(() => {
-      vi.advanceTimersByTime(400 + 80 * 4)
+      vi.advanceTimersByTime(40 * 10)
     })
-    expect(screen.getByTestId('scan-result-gel').getAttribute('data-revealed-rows')).toBe('4')
+    expect(screen.getByTestId('scan-result-gel').getAttribute('data-revealed-cells')).toBe('10')
+    // Column-major order: column 0 (cells 0-7) → column 1 (cells 8-15).
+    // After 10 cells, col 0 fully revealed and col 1 has 2 cells revealed.
+    expect(screen.getByTestId('gel-band-cell-0-0').getAttribute('data-revealed')).toBe('true')
+    expect(screen.getByTestId('gel-band-cell-7-0').getAttribute('data-revealed')).toBe('true')
+    expect(screen.getByTestId('gel-band-cell-1-1').getAttribute('data-revealed')).toBe('true')
+    // Cells later in column-major order are still hidden.
+    expect(screen.getByTestId('gel-band-cell-0-2').getAttribute('data-revealed')).toBe('false')
 
-    // Advance through the rest of the reveal.
+    // Advance through the rest of the reveal (54 more cells).
     act(() => {
-      vi.advanceTimersByTime(80 * 4)
+      vi.advanceTimersByTime(40 * 54)
     })
-    expect(screen.getByTestId('scan-result-gel').getAttribute('data-revealed-rows')).toBe('8')
+    expect(screen.getByTestId('scan-result-gel').getAttribute('data-revealed-cells')).toBe('64')
     expect(screen.getByTestId('scan-result-gel').getAttribute('data-fully-revealed')).toBe('true')
   })
 
@@ -73,7 +84,7 @@ describe('scan-result modal', () => {
     const onDismiss = vi.fn()
     render(<ScanResultModal species={FloraSpecies.Clover} identity={identity} onDismiss={onDismiss} />)
     act(() => {
-      vi.advanceTimersByTime(50 + 400 + 80 * 8)
+      vi.advanceTimersByTime(50 + 400 + 40 * 64)
     })
     expect(screen.getByTestId('scan-result-gel').getAttribute('data-fully-revealed')).toBe('true')
     act(() => {
@@ -100,7 +111,7 @@ describe('scan-result modal', () => {
     }))
     const onDismiss = vi.fn()
     render(<ScanResultModal species={FloraSpecies.Clover} identity={identity} onDismiss={onDismiss} />)
-    expect(screen.getByTestId('scan-result-binomial').getAttribute('data-revealed')).toBe('true')
+    expect(screen.getByTestId('scan-result-heading').getAttribute('data-revealed')).toBe('true')
     expect(screen.getByTestId('scan-result-gel').getAttribute('data-fully-revealed')).toBe('true')
     act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))

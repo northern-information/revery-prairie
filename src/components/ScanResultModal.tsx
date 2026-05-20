@@ -14,8 +14,9 @@ interface ScanResultModalProps {
 }
 
 const BINOMIAL_FADE_MS = 400
-const ROW_REVEAL_MS = 80
-const TOTAL_ROW_REVEAL_MS = ROW_REVEAL_MS * HEX_GRID_SIZE
+const CELL_REVEAL_MS = 40
+const TOTAL_CELLS = HEX_GRID_SIZE * HEX_GRID_SIZE
+const TOTAL_CELL_REVEAL_MS = CELL_REVEAL_MS * TOTAL_CELLS
 
 const prefersReducedMotion = (): boolean => {
   if (typeof window === 'undefined' || !window.matchMedia) return false
@@ -26,7 +27,8 @@ const prefersReducedMotion = (): boolean => {
 //
 // Reveal sequence:
 //   1. binomial fades in (BINOMIAL_FADE_MS)
-//   2. gel bands fade in row-by-row, top to bottom (ROW_REVEAL_MS per row)
+//   2. gel cells fade in one at a time, column-major (top-to-bottom within a
+//      column, then left-to-right column-by-column). 64 cells × CELL_REVEAL_MS.
 //   3. fullyRevealed flag flips; dismissal becomes active
 //
 // prefers-reduced-motion collapses the reveal to an instant render.
@@ -35,7 +37,7 @@ export const ScanResultModal = ({ species, identity, onDismiss }: ScanResultModa
   const def = FLORA_SPECIES[species]
 
   const [binomialVisible, setBinomialVisible] = useState(reducedMotion)
-  const [revealedRows, setRevealedRows] = useState(reducedMotion ? HEX_GRID_SIZE : 0)
+  const [revealedCells, setRevealedCells] = useState(reducedMotion ? TOTAL_CELLS : 0)
   const [fullyRevealed, setFullyRevealed] = useState(reducedMotion)
 
   useEffect(() => {
@@ -51,11 +53,11 @@ export const ScanResultModal = ({ species, identity, onDismiss }: ScanResultModa
 
     timers.push(
       setTimeout(() => {
-        for (let r = 1; r <= HEX_GRID_SIZE; r++) {
+        for (let i = 1; i <= TOTAL_CELLS; i++) {
           timers.push(
             setTimeout(() => {
-              setRevealedRows(r)
-            }, ROW_REVEAL_MS * r),
+              setRevealedCells(i)
+            }, CELL_REVEAL_MS * i),
           )
         }
       }, BINOMIAL_FADE_MS),
@@ -64,7 +66,7 @@ export const ScanResultModal = ({ species, identity, onDismiss }: ScanResultModa
     timers.push(
       setTimeout(() => {
         setFullyRevealed(true)
-      }, BINOMIAL_FADE_MS + TOTAL_ROW_REVEAL_MS),
+      }, BINOMIAL_FADE_MS + TOTAL_CELL_REVEAL_MS),
     )
 
     return () => {
@@ -93,31 +95,35 @@ export const ScanResultModal = ({ species, identity, onDismiss }: ScanResultModa
   return (
     <div
       data-testid="scan-result-modal"
-      className="fixed inset-0 z-30 flex items-center justify-center bg-black/85"
+      className="pointer-events-auto fixed inset-0 z-30 flex items-center justify-center"
       onClick={handleBackdropClick}
     >
       <div
         data-testid="scan-result-content"
-        className="flex flex-col items-center gap-4 p-8 font-mono"
+        className="border-border flex flex-col items-center gap-4 border bg-black p-8 font-mono"
         onClick={e => {
           e.stopPropagation()
         }}
       >
-        <h2
-          data-testid="scan-result-binomial"
+        <div
+          data-testid="scan-result-heading"
           data-revealed={binomialVisible}
-          className="text-text text-2xl italic transition-opacity duration-[400ms]"
+          className="flex flex-col items-center gap-1 transition-opacity duration-[400ms]"
           style={{ opacity: binomialVisible ? 1 : 0 }}
         >
-          {def.latinBinomial}
-        </h2>
+          <h2 data-testid="scan-result-common-name" className="text-text text-2xl">
+            {def.displayName}
+          </h2>
+          <p data-testid="scan-result-binomial" className="text-dim text-xs italic">
+            {def.latinBinomial}
+          </p>
+        </div>
         <div
           data-testid="scan-result-gel"
-          data-revealed-rows={revealedRows}
+          data-revealed-cells={revealedCells}
           data-fully-revealed={fullyRevealed}
-          style={{ ['--revealed-rows' as string]: String(revealedRows) }}
         >
-          <GelBandRevealWrapper revealedRows={revealedRows} identity={identity} />
+          <GelBandView identity={identity} revealedCells={revealedCells} />
         </div>
         <p
           data-testid="scan-result-hint"
@@ -131,26 +137,3 @@ export const ScanResultModal = ({ species, identity, onDismiss }: ScanResultModa
   )
 }
 
-interface GelBandRevealWrapperProps {
-  identity: string
-  revealedRows: number
-}
-
-// Wraps GelBandView with a row-reveal mask. The wrapper clips the gel
-// vertically: rows beyond revealedRows render at opacity 0. We achieve
-// this by stacking a same-size overlay that hides un-revealed rows.
-const GelBandRevealWrapper = ({ identity, revealedRows }: GelBandRevealWrapperProps) => {
-  const hiddenFraction = (HEX_GRID_SIZE - revealedRows) / HEX_GRID_SIZE
-  return (
-    <div className="relative inline-block">
-      <GelBandView identity={identity} />
-      {hiddenFraction > 0 && (
-        <div
-          data-testid="scan-result-reveal-mask"
-          className="pointer-events-none absolute inset-x-0 bottom-0 bg-black"
-          style={{ height: `${String(hiddenFraction * 100)}%` }}
-        />
-      )}
-    </div>
-  )
-}
