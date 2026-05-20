@@ -2,7 +2,7 @@ import { GelBandView } from '../GelBandView'
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { HEX_GRID_SIZE, hashToHexGrid } from '@/engine/genetics'
+import { hashToHexGrid, HEX_GRID_SIZE } from '@/engine/genetics'
 
 describe('GelBandView', () => {
   const identity = '0e7d7b052690f720498415c0d9c0d36861af3edc5e6d872c2490f2b4a5b8d725'
@@ -43,15 +43,27 @@ describe('GelBandView', () => {
     expect(b.container.innerHTML).not.toBe(aHTML)
   })
 
-  it('renders film-rebate decorations around the gel', () => {
+  it('renders an asymmetric vertical rebate — label on the left, edge code on the right', () => {
     render(<GelBandView identity={identity} />)
-    expect(screen.getByTestId('gel-bracket-left')).toBeTruthy()
-    expect(screen.getByTestId('gel-bracket-right')).toBeTruthy()
-    expect(screen.getByTestId('gel-side-label').textContent).toContain('NORTHERN-INFORMATION')
-    expect(screen.getByTestId('gel-sprocket-top')).toBeTruthy()
-    expect(screen.getByTestId('gel-sprocket-bottom')).toBeTruthy()
-    const edgeCode = screen.getByTestId('gel-edge-code')
-    // First 8 hex chars of identity should appear in the edge code strip.
-    expect(edgeCode.textContent).toContain(identity.slice(0, 8))
+    const left = screen.getByTestId('gel-side-label-left')
+    const right = screen.getByTestId('gel-edge-code')
+    expect(left.textContent).toContain('NORTHERN-INFORMATION')
+    expect(left.textContent).toContain(identity.slice(0, 8))
+    expect(right.textContent).toContain(identity.slice(0, 8))
+    // Right side carries the arrow-flanked identity code (two pointer glyphs).
+    expect((right.textContent?.match(/[→»▸▶◀◂]/g) ?? []).length).toBeGreaterThanOrEqual(2)
+    // Rebate strips rendered in dim gray — only the gel bands themselves are gold.
+    expect(left.className).toContain('text-dim')
+    expect(right.className).toContain('text-dim')
+    // No mirrored right-side label or horizontal arrow strip — they're replaced by the vertical edge code.
+    expect(screen.queryByTestId('gel-side-label-right')).toBeNull()
+  })
+
+  it('renders four corner crop marks framing the gel', () => {
+    render(<GelBandView identity={identity} />)
+    expect(screen.getByTestId('gel-crop-tl')).toBeTruthy()
+    expect(screen.getByTestId('gel-crop-tr')).toBeTruthy()
+    expect(screen.getByTestId('gel-crop-bl')).toBeTruthy()
+    expect(screen.getByTestId('gel-crop-br')).toBeTruthy()
   })
 })
