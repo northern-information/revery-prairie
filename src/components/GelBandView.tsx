@@ -38,51 +38,101 @@ const cellNoise = (identity: string, r: number, c: number, salt: number): number
 // Visual-only jitter (horizontal scale + offset) per cell, deterministic
 // per identity, breaks the perfectly-rectangular grid feel so bands read
 // as a real wet-lab gel.
+// Sprocket strip — decorative perforations along the long edges of a 35mm
+// rebate. `aria-hidden` because the dots carry no semantic content for
+// screen readers.
+const Sprockets = ({ testId }: { testId: string }) => (
+  <div
+    aria-hidden="true"
+    data-testid={testId}
+    className="text-dim flex justify-between px-1 font-mono text-[10px] leading-none tracking-widest"
+  >
+    {Array.from({ length: 12 }).map((_, i) => (
+      <span key={i}>▪</span>
+    ))}
+  </div>
+)
+
 export const GelBandView = ({ identity, revealedCells = TOTAL_CELLS }: GelBandViewProps) => {
   const grid = hashToHexGrid(identity)
+  const edgeCode = identity.slice(0, 8)
   return (
     <div
-      className="inline-block"
+      className="inline-flex items-stretch gap-1"
       data-testid="gel-band-view"
-      style={{ width: TOTAL_SIZE, height: TOTAL_SIZE }}
     >
       <div
-        className="grid"
-        style={{
-          gridTemplateColumns: `repeat(${String(HEX_GRID_SIZE)}, ${String(CELL_WIDTH)}px)`,
-          rowGap: `${String(ROW_GAP)}px`,
-        }}
+        aria-hidden="true"
+        data-testid="gel-side-label"
+        className="text-dim font-mono text-[9px] leading-none tracking-[0.3em] [writing-mode:vertical-rl] [transform:rotate(180deg)]"
       >
-        {grid.flatMap((row, rIdx) =>
-          row.map((nibble, cIdx) => {
-            // Width jitter: 80–100% of CELL_WIDTH.
-            const widthScale = 0.8 + cellNoise(identity, rIdx, cIdx, 0) * 0.2
-            // Horizontal offset: ±3px.
-            const offsetX = (cellNoise(identity, rIdx, cIdx, 1) - 0.5) * 6
-            // Vertical offset: ±1.5px so band centers don't perfectly align row-to-row.
-            const offsetY = (cellNoise(identity, rIdx, cIdx, 2) - 0.5) * 3
-            // Column-major reveal index: column 0 fills top-to-bottom first,
-            // then column 1, etc. Cell is hidden until its index < revealedCells.
-            const revealIndex = cIdx * HEX_GRID_SIZE + rIdx
-            const isRevealed = revealIndex < revealedCells
-            return (
-              <span
-                key={`${String(rIdx)}-${String(cIdx)}`}
-                data-testid={`gel-band-cell-${String(rIdx)}-${String(cIdx)}`}
-                data-revealed={isRevealed}
-                className="bg-bee block"
-                style={{
-                  width: CELL_WIDTH * widthScale,
-                  height: CELL_HEIGHT,
-                  marginLeft: (CELL_WIDTH - CELL_WIDTH * widthScale) / 2 + offsetX,
-                  transform: `translateY(${String(offsetY)}px)`,
-                  opacity: isRevealed ? nibble / 15 : 0,
-                  filter: 'blur(2.5px)',
-                }}
-              />
-            )
-          }),
-        )}
+        NORTHERN-INFORMATION · {edgeCode}
+      </div>
+      <div className="flex flex-col">
+        <Sprockets testId="gel-sprocket-top" />
+        <div className="flex items-center gap-1">
+          <span
+            aria-hidden="true"
+            data-testid="gel-bracket-left"
+            className="text-dim font-mono text-2xl leading-none"
+          >
+            [
+          </span>
+          <div style={{ width: TOTAL_SIZE, height: TOTAL_SIZE }}>
+            <div
+              className="grid"
+              style={{
+                gridTemplateColumns: `repeat(${String(HEX_GRID_SIZE)}, ${String(CELL_WIDTH)}px)`,
+                rowGap: `${String(ROW_GAP)}px`,
+              }}
+            >
+              {grid.flatMap((row, rIdx) =>
+                row.map((nibble, cIdx) => {
+                  // Width jitter: 80–100% of CELL_WIDTH.
+                  const widthScale = 0.8 + cellNoise(identity, rIdx, cIdx, 0) * 0.2
+                  // Horizontal offset: ±3px.
+                  const offsetX = (cellNoise(identity, rIdx, cIdx, 1) - 0.5) * 6
+                  // Vertical offset: ±1.5px so band centers don't perfectly align row-to-row.
+                  const offsetY = (cellNoise(identity, rIdx, cIdx, 2) - 0.5) * 3
+                  // Column-major reveal index: column 0 fills top-to-bottom first,
+                  // then column 1, etc. Cell is hidden until its index < revealedCells.
+                  const revealIndex = cIdx * HEX_GRID_SIZE + rIdx
+                  const isRevealed = revealIndex < revealedCells
+                  return (
+                    <span
+                      key={`${String(rIdx)}-${String(cIdx)}`}
+                      data-testid={`gel-band-cell-${String(rIdx)}-${String(cIdx)}`}
+                      data-revealed={isRevealed}
+                      className="bg-bee block"
+                      style={{
+                        width: CELL_WIDTH * widthScale,
+                        height: CELL_HEIGHT,
+                        marginLeft: (CELL_WIDTH - CELL_WIDTH * widthScale) / 2 + offsetX,
+                        transform: `translateY(${String(offsetY)}px)`,
+                        opacity: isRevealed ? nibble / 15 : 0,
+                        filter: 'blur(2.5px)',
+                      }}
+                    />
+                  )
+                }),
+              )}
+            </div>
+          </div>
+          <span
+            aria-hidden="true"
+            data-testid="gel-bracket-right"
+            className="text-dim font-mono text-2xl leading-none"
+          >
+            ]
+          </span>
+        </div>
+        <Sprockets testId="gel-sprocket-bottom" />
+        <div
+          data-testid="gel-edge-code"
+          className="text-dim mt-0.5 px-1 font-mono text-[9px] leading-none tracking-widest"
+        >
+          → {edgeCode} → N-INFO 400
+        </div>
       </div>
     </div>
   )

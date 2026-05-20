@@ -42,4 +42,16 @@ describe('GelBandView', () => {
     const b = render(<GelBandView identity={'b'.repeat(64)} />)
     expect(b.container.innerHTML).not.toBe(aHTML)
   })
+
+  it('renders film-rebate decorations around the gel', () => {
+    render(<GelBandView identity={identity} />)
+    expect(screen.getByTestId('gel-bracket-left')).toBeTruthy()
+    expect(screen.getByTestId('gel-bracket-right')).toBeTruthy()
+    expect(screen.getByTestId('gel-side-label').textContent).toContain('NORTHERN-INFORMATION')
+    expect(screen.getByTestId('gel-sprocket-top')).toBeTruthy()
+    expect(screen.getByTestId('gel-sprocket-bottom')).toBeTruthy()
+    const edgeCode = screen.getByTestId('gel-edge-code')
+    // First 8 hex chars of identity should appear in the edge code strip.
+    expect(edgeCode.textContent).toContain(identity.slice(0, 8))
+  })
 })
