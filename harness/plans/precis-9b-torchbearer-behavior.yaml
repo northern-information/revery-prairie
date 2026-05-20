@@ -1,0 +1,245 @@
+plan:
+  id: precis-9b-torchbearer-behavior
+  title: 'Precis #9b — Torchbearer behavior pass (controlled burn)'
+  created: 2026-05-20
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: state-and-types
+    title: Add Torchbearer / burn-line fields to GameState and types
+    spec_id: precis-9b-torchbearer-behavior
+    spec_sections:
+      - burn-line-draft-state
+      - burn-draw-mode-toggle
+      - winter-spring-transition-lock
+      - moab-emerges-on-spring
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - type
+      - state
+
+  - id: torchbearer-module
+    title: Implement torchbearer module (state machine, refusal, burn rules, pacing)
+    spec_id: precis-9b-torchbearer-behavior
+    spec_sections:
+      - winter-spring-transition-lock
+      - moab-emerges-on-spring
+      - moab-paces-locked-line
+      - tile-burn-rules
+      - refusal-catastrophic-edge
+      - spring-summer-cleanup
+    context_files:
+      - src/engine/torchbearer.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/cave.ts
+      - src/engine/map.ts
+      - src/engine/movement.ts
+      - src/engine/pathfinding.ts
+      - src/engine/ecs/types.ts
+      - src/engine/ecs/world.ts
+    output_files:
+      - src/engine/torchbearer.ts
+    depends_on:
+      - state-and-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: moab-dialog-walking-refusing-registers
+    title: Extend getMoabDialog with walking and refusing registers
+    spec_id: precis-9b-torchbearer-behavior
+    spec_sections:
+      - moab-dialog-walking-register
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on:
+      - state-and-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: game-loop-wiring
+    title: Register tickTorchbearer in gameLoop overworld zone
+    spec_id: precis-9b-torchbearer-behavior
+    spec_sections:
+      - moab-paces-locked-line
+      - winter-spring-transition-lock
+      - spring-summer-cleanup
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/torchbearer.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - torchbearer-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: input-mouse-keyboard
+    title: Wire burnDrawMode keybind and click chain in mouse/keyboard hooks
+    spec_id: precis-9b-torchbearer-behavior
+    spec_sections:
+      - burn-draw-mode-toggle
+      - burn-line-click-chain
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/hooks/useMouse.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+      - src/hooks/useMouse.ts
+    depends_on:
+      - state-and-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+      - input
+
+  - id: interaction-dismiss-flow
+    title: Hook dismiss-at-line into interactWithCharacter / advanceDialog
+    spec_id: precis-9b-torchbearer-behavior
+    spec_sections:
+      - player-dismiss-at-line
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/torchbearer.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - torchbearer-module
+      - moab-dialog-walking-refusing-registers
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: render-pass-burn-line
+    title: Add render pass for draft and locked burn line overlay
+    spec_id: precis-9b-torchbearer-behavior
+    spec_sections:
+      - renderer-draws-burn-line
+    context_files:
+      - src/engine/render/passes/index.ts
+      - src/engine/render/passes.ts
+      - src/engine/types.ts
+      - src/engine/render/passes/pollenOverlay.ts
+    output_files:
+      - src/engine/render/passes/burnLine.ts
+      - src/engine/render/passes/index.ts
+    depends_on:
+      - state-and-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - render
+
+  - id: manual-event-entries
+    title: Add torchbearer-walk and torchbearer-refused manual entries
+    spec_id: precis-9b-torchbearer-behavior
+    spec_sections:
+      - manual-event-entries
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/torchbearer.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - torchbearer-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: sidebar-burn-line-cursor-info
+    title: Sidebar cursor info row for tiles on burnLineDraft / lockedBurnLine
+    spec_id: precis-9b-torchbearer-behavior
+    spec_sections:
+      - renderer-draws-burn-line
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/effects.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - state-and-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  - id: torchbearer-tests
+    title: Replace stub torchbearer.test.ts with full test suite
+    spec_id: precis-9b-torchbearer-behavior
+    spec_sections:
+      - burn-line-draft-state
+      - burn-draw-mode-toggle
+      - burn-line-click-chain
+      - winter-spring-transition-lock
+      - moab-emerges-on-spring
+      - moab-paces-locked-line
+      - tile-burn-rules
+      - refusal-catastrophic-edge
+      - player-dismiss-at-line
+      - spring-summer-cleanup
+      - moab-dialog-walking-register
+      - manual-event-entries
+    context_files:
+      - src/engine/__tests__/torchbearer.test.ts
+      - src/engine/torchbearer.ts
+      - src/engine/characters.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/moab-colde.test.ts
+    output_files:
+      - src/engine/__tests__/torchbearer.test.ts
+    depends_on:
+      - state-and-types
+      - torchbearer-module
+      - moab-dialog-walking-refusing-registers
+      - game-loop-wiring
+      - interaction-dismiss-flow
+      - manual-event-entries
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/torchbearer.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test

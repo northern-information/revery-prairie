@@ -145,6 +145,10 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'event:wildfire': {
     lore: 'When lightning strikes dry flora, fire spreads to neighboring patches. The drier the plants, the farther it burns. Wet flora resists ignition. The fire enriches the soil as it passes.',
   },
+  // Events — Torchbearer (precis #9b). Lore is human-authored; both
+  // entries land with TODO placeholders pending prose.
+  'event:torchbearer-walk': { lore: 'TODO' },
+  'event:torchbearer-refused': { lore: 'TODO' },
   'event:lightning-attraction': {
     lore: 'High ground draws lightning down from the clouds. Water-soaked earth conducts the charge — tiles near ponds and rivers are struck more often. Metal objects left on the ground act as conductors — meteorites attract bolts. A lone beehive standing in open dirt is a target — isolated tall features on flat terrain invite strikes. Flora fields conduct slightly better than bare dirt.',
     hints: [
@@ -608,6 +612,27 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     unlockKey: 'event:steward-sealed',
     sourceKind: 'event',
     crossRefs: ['character:gron', 'recipe:bee+clover'],
+  },
+  // Precis #9b — Torchbearer controlled-burn events
+  {
+    id: 'event:torchbearer-walk',
+    name: 'The Line Was Walked',
+    category: ManualCategory.Life,
+    glyph: 'M',
+    glyphColor: '#E58A1E',
+    unlockKey: 'event:torchbearer-walk',
+    sourceKind: 'event',
+    crossRefs: ['character:moab'],
+  },
+  {
+    id: 'event:torchbearer-refused',
+    name: 'The Line Was Refused',
+    category: ManualCategory.Life,
+    glyph: 'M',
+    glyphColor: '#3D2B1F',
+    unlockKey: 'event:torchbearer-refused',
+    sourceKind: 'event',
+    crossRefs: ['character:moab'],
   },
 ]
 
