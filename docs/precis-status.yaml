@@ -117,37 +117,48 @@ features:
     pr: https://github.com/northern-information/revery-prairie/pull/344
     notes: 'Scope locked 2026-05-20: parallel species set under TileType.Egregore (no FloraSpecies entry); two species (allelopath, spreader) selected deterministically per position; invisible pollinator (zero PollenParticles); inverse-phased lifecycle (Active in Winter, Dormant otherwise); spread cadence asymmetric — stewardship-winter slow drift (1–2 tiles/year, throttled via lastEgregoreSpreadYear) vs Revery-winter large push (refactor advanceEgregoreFirstRevery → advanceEgregoreInRevery, first Revery places 3 to preserve precis-4 contract, subsequent place 6–9); canCross(a,b)===false for native×egregore pairs; manual footnote (Voynich EVA tokens translating to "no compatible regions") appears once player has any flora:* discovery. Parallel EgregoreGenome interface (allelopathy, spreadVelocity, identity SHA256) separate from TraitBag.'
 
-  - id: '9'
-    name: Controlled burn
-    summary: Torchbearer NPC, player walks the line, voice pass before behavior pass.
+  - id: '9a'
+    name: Torchbearer voice pass
+    summary: Moab gains a `drip torchbearer` title and a season-routed dialog dispatcher (Winter / Spring / Summer-or-Autumn). Folk-Coldë rules enforced programmatically; refusal lines locked to the precis-8a egregore allowlist. Voice only — behavior defers to 9b.
+    size: S
+    depends_on: ['2']
+    status: shipped
+    spec: harness/specs/precis-9a-torchbearer-voice.yaml
+    plan: harness/plans/precis-9a-torchbearer-voice.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/350
+    notes: 'Split from original precis-9 on 2026-05-20. Voice pass only — registers dispatched by state.weather.season, no contractions across any register, refusal lines drawn from the locked 8a allowlist. Resets MANUAL_LORE[character:moab] to TODO pending human-authored prose. Dev panel: Force Season dropdown for register testing (sets temperatureF + seasonalPhase to a coherent pair). Walking-the-line, burn ignition, refusals, and ash-prairie outcome defer to precis-9b.'
+
+  - id: '9b'
+    name: Controlled burn — walk the line
+    summary: Click to draw a line, then walk it together with Moab. Burn ignition along the path, player refusal, Moab refusal, ash-prairie outcome. Behavior pass following 9a's voice pass.
     size: M
-    depends_on: ['1', '2', '3']
-    status: in-progress
+    depends_on: ['9a']
+    status: todo
     spec: null
     plan: null
     pr: null
-    notes: 'In progress 2026-05-20. Spec pending.'
+    notes: 'Split from original precis-9 on 2026-05-20 after 9a shipped (#350). Design intent recorded in 9a spec: walking is "click to draw a line, then walk it together" — path drawn before Moab arrives, both traverse on confirm. Burn semantics + ash-prairie outcome land here; the ash biome itself is precis-10.'
 
   - id: '10'
     name: Failure-state biomes
     summary: Ash, fungal, Far Garden conversion as Revery outcomes.
     size: M
-    depends_on: ['4', '8b', '9']
+    depends_on: ['4', '8b', '9b']
     status: todo
     spec: null
     plan: null
     pr: null
-    notes: ''
+    notes: 'Depends on 9b (controlled burn behavior + ash-prairie outcome) rather than the original combined precis-9. The ash biome itself is the conversion target; 9b produces the ash, 10 makes it a persistent failure state.'
 
   - id: '11'
     name: Seed taxonomy + drop-to-plant
     summary: Genetics-bearing seeds (FloraGenome via state.seedGenomes side-table) and drop-on-dirt planting. Vault-spawn genomes deterministic from (steward, ruin, slot).
     size: M
     depends_on: ['3', '5']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-11-seed-taxonomy.yaml
     plan: harness/plans/precis-11-seed-taxonomy.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/348
     notes: 'Scope locked 2026-05-20: genetics-bearing seeds; genome carried on ItemDrop component in-world, transferred to state.seedGenomes (uid-keyed, mirrors glintingCoins) on pickup; drop-on-dirt = plant (seeds cannot be set down as ground items); vault-spawn derives genome deterministically from (stewardName, ruinIndex, vaultSlot) via generateGenesisIdentity + generateTraitBag; wildflowerSeeds + tallGrassSeeds recategorized Flora → Seed. Resized S → M after taxonomy + planting + genome-threading scope. Out of scope: milkweedSeeds, cloverSeeds, genetic-fragment item class, seed scan UX, autonomous spread (precis-17).'
 
   - id: '12'
@@ -430,3 +441,93 @@ features:
       regions exist. Cascades into #4 (Revery summary becomes the
       headline surface), #6 (per-region/species chronicle threads), and
       #16 (inter-tenure predecessor record).
+
+  - id: '23'
+    name: Time-lapse camera (analog 35mm field instrument)
+    summary: >
+      A recovered analog field camera. Player places it on a tile, chooses
+      a span (season, year, Revery), walks away. The camera sparsely
+      records the tile and its 8-neighborhood whenever something changes —
+      stage advances, entity arrival, terrain mutation. Returning to the
+      camera and interacting opens a modal ASCII playback overlay that
+      re-renders the recorded frames through the engine's existing tile
+      pass. Film is a separate inventory item found in ruins (N-INFO 400
+      tubes); loading film into the camera is a recipe. Film cannot be
+      overwritten — exposed frames are exposed. When film is exhausted the
+      camera is decoration. Wears like other tools (#15).
+    size: M
+    depends_on: ['15']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 7 (2026-05-20). Tyler's breakthrough — FromSoft
+      games are materialist (spells are scrolls, abilities are talismans,
+      the inventory IS the character sheet). Doctrine v4 amended to five
+      lines; the fifth line is "the inventory is the character sheet."
+      The camera answers the ASCII-observation tension: a clover growing
+      in real time over forty minutes is not pleasurable to watch in any
+      rendering, especially not ASCII. The camera is the steward's
+      delegate of attention across time the steward cannot personally
+      attend. Visual language inherits entirely from the gel-band scan
+      result (src/components/GelBandView.tsx) — edge printing
+      (NORTHERN-INFORMATION · 8-char identity · N-INFO 400), reticle crop
+      corners, dim-yellow palette pulled from bg-bee, monospace font.
+      Playback overlay reads as a developed contact sheet from the same
+      lab. Film grain in playback is a new render pass with dim
+      per-frame jitter using the same cellNoise primitive the gel uses
+      (worth extracting to src/engine/render/jitter.ts as a follow-up
+      refactor — the same hash will drive gel jitter, Voynich offsets,
+      and film grain; one function carries the game's visual signature).
+      Sparse frame storage keeps memory bounded by interestingness — a
+      boring patch produces light files. Open questions deferred to
+      spec: how many cameras per tenure (lean: rare — one or two per
+      run); span options (lean: season + Revery as the two MVP choices);
+      where the camera lives in the inventory grid (lean: 2x2, weight
+      matches cosmological weight). Sequencing argument: ships after #15
+      (wear substrate in place) and benefits massively from being before
+      or alongside #17 (camera is the primary reading instrument for
+      autonomous spread). The camera also makes #19 (soil depletion)
+      legible. Lineage handoff in #16 inherits cameras + footage as
+      first-class predecessor evidence.
+
+  - id: '24'
+    name: Seeded predecessor stewards
+    summary: >
+      Procedural predecessor cameras placed at genesis time, with
+      procedural footage from procedural prior tenures already inside.
+      Player encounters predecessor cameras in the world before they
+      ever find their own. Some predecessor cameras have film remaining
+      (gifts); some are exhausted (memorials). Footage may show species
+      no longer present, geographies that have shifted, names the player
+      sees nowhere else. Reuses the camera substrate from #23 — same
+      Recording[] shape, same playback overlay, same renderer — plus a
+      predecessor field on TimeLapseCamera ({ stewardName, tenure } |
+      null). When real-player predecessor data eventually flows in from
+      multiplayer (#16), seeded predecessors remain as the prairie's
+      oldest layer. The player will never know which were people and
+      which were procedural; the cosmology says that is exactly right.
+    size: M
+    depends_on: ['23']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 7 (2026-05-20). Procedural predecessors are not
+      a placeholder for multiplayer — they are the substrate multiplayer
+      rides on. Without a procedural floor, multiplayer lineage feels
+      thin (only as deep as the live player population). With it, the
+      lineage is bottomless. Genesis-coincident placement locked: the
+      first time the player ever looks at the prairie, there is a
+      camera by the south pond they did not place. Predecessor footage
+      degrades visibly more than current footage (film grain pass turns
+      up with procedural tenure depth) — heat death applies to memory.
+      Steward names come from a name generator using the same SHA256
+      substrate as flora identity. The seeded stewards are flora, in
+      the cosmology's view — temporary slowings that left an artifact.
+      Spec sizing is sibling to #23, not a sub-feature — separate item
+      so it can be sequenced independently and so its scope (procedural
+      footage generation, name generator, predecessor render pass) does
+      not overrun the camera's own MVP.

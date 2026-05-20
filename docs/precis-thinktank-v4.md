@@ -19,17 +19,19 @@ Carried forward from v2 with no changes:
 > _Tending is the verb._
 > _The tenure is the unit._
 > _The lineage is the medium._
+> _The inventory is the character sheet._
 >
-> — Delta, 2026-05-19
+> — Delta, 2026-05-19 (lines 1–4); round 7, 2026-05-20 (line 5)
 
-This is the cosmology in four lines. v3 carried the components implicitly; v4 names them. Every subsequent design decision in this game can be tested against these four lines. If a proposed mechanic does not serve one of them, it does not belong in this game.
+This is the cosmology in five lines. v3 carried the components implicitly; v4 names them. Every subsequent design decision in this game can be tested against these five lines. If a proposed mechanic does not serve one of them, it does not belong in this game.
 
-The four lines are the new top of the doctrine. Items already locked in v3 are re-readable through them:
+The five lines are the new top of the doctrine. Items already locked in v3 are re-readable through them:
 
 - **Heat death is the antagonist** — entropy is the unifying frame. Seasons, deep time, the Revery, the egregore winter advance, Voynich drift, the failure-state biomes. Every locked v3 mechanism is a face of this one force.
 - **Tending is the verb** — not fighting, not building, not acquiring. The player's relationship to the world is _attention_. v3's removal of the action bar (#0) was the first commitment to this. v4's wear system (#15) is the second.
 - **The tenure is the unit** — the game has an ending and that ending is not a death. It is a handoff. Item #16 (this doc) introduces this.
 - **The lineage is the medium** — multiplayer is the lineage of stewards. Other players are not coop partners and not adversaries. They are _predecessors_ and _successors_. Item #16 begins to wire this; v3's existing multiplayer infrastructure becomes the substrate.
+- **The inventory is the character sheet** — all player agency is item-shaped. FromSoft is the touchstone: spells are scrolls, abilities are talismans, the character sheet _is_ the inventory. Revery Prairie was already moving this direction by instinct (no action bar in #0, no event log in #14, wear as the next mechanic in #15); round 7 names the principle. No abilities UI ever. No stats. No skill tree. If a proposed mechanic doesn't have an item, we either find the item or we don't ship the mechanic. Items #23 (time-lapse camera) and #24 (seeded predecessor stewards) are the first specs written under this line.
 
 ## Open and locked
 
@@ -352,16 +354,92 @@ The Voynich strings carry the rest. The player opens the entry; most of it is th
 
 ---
 
+## Round 7: the FromSoft materialism unlock, the camera, the predecessor floor
+
+_Tyler: "the unlock of having Moab burn reminded me of how FromSoft games are ultimately materialistic. there is an item for everything: even spells. you don't learn a spell or equip it. a learned scholar examines a spell that you found and teaches it to you. all the 'build' choices map back to items. so, porting this elegance over to Revery Prairie, i was thinking about the problem of observing. this is not some beautiful HD game where it would actually be pleasurable to watch a high-def clover. it is ASCII. this is a tension. how to solve? well. what if we introduce 'time lapse cameras' that the player places? and then we can have time-lapse sequences of a plant growing rendered in ASCII?"_
+
+_(And, after the room's first pass: "this also opens up finding film in ruins, or seeding the prairie with previous NPC stewards (until we get MMO baked). film should not be able to be overwritten. it is literally film. it is analog. not digital." The visual register was already shipped — the gel-band scan result (`src/components/GelBandView.tsx`) frames the 8x8 hex grid as a 35mm contact sheet with edge printing `NORTHERN-INFORMATION · 74589084 · N-INFO 400` and reticle crop corners. The genre revealed itself in the artifact before the doctrine named it.)_
+
+### The fifth line
+
+> **Boon:** Revery Prairie has been moving toward FromSoft's materialism by instinct. Deleting the action bar in #0. Deleting the event log in #14. Locking wear as the next mechanic in #15. We never had the principle written down. **The fifth line: the inventory is the character sheet.** All player agency is item-shaped. The implication is structural — no abstract progression layer, no abilities UI ever, no stats screen. The inventory grid plus the manual plus (after #23) the camera archive _are_ the player's interface to who they have become. _If a proposed mechanic doesn't have an item, we either find the item or we don't ship the mechanic._
+
+### The observation tension
+
+> **Calla:** This is an ASCII game about noticing, and ASCII can't deliver the noticing payoff an HD plant can. We've been writing doctrine about attention as if attention itself is the reward. It isn't always. **Attention has to be paid back.** The cosmology says _notice or lose._ The medium says _there is not always something to notice in the instant._ Those are not the same statement.
+
+> **Delta:** The problem isn't observation — the player has a manual, a sidebar, hold-to-scan. The problem is _temporal._ The player cannot observe the prairie at a rate slower than their own attention span. Forty minutes is too long to watch one patch. Forty seconds of compressed footage is not. **The camera is a compression of time, rendered as ASCII.** It is the steward's relationship to time made into an item. The Revery is the prairie's compression of time imposed on the steward. The camera is the steward's compression of time imposed on a tile. **Mirror objects.**
+
+### The camera
+
+> **Calla:** Concrete shape: recovered from a ruin, never gifted. Singular per find. Wears via #15. Records a tile + 8-neighborhood across a chosen span (season, year, Revery). Sparse frame storage — frames only on tile mutation (stage advances, entity arrivals, terrain mutations). Playback is a modal ASCII overlay that reuses the engine's tile pass. **No event annotations.** The footage shows tiles and stages. The player reads it. If a bee landed in frame 47, the bee is in frame 47. There is no caption. The manual taught the player what a bee is. _The camera shows; the manual explains._ Two surfaces, two registers.
+
+> **Boon:** State model: `TimeLapseCamera { id, tile, recording, archive, filmRemaining, wear, predecessor }`. Frames are sparse, event-driven — recording subscribes to the same tile-mutation events the renderer cache already uses. No per-tick overhead. Storage: ~50 frames × 8 neighbors × small state = <5KB per recording in JSON. A dozen full archives is <60KB. Negligible.
+
+### The film
+
+> **Calla:** Per Tyler's lock — **film cannot be overwritten. Exposed is exposed.** That means film is a separate inventory item from the camera. Found in ruins. Loaded into the camera via the existing recipe system. _N-INFO 400_ on the tube label. The camera is 2x2; the film tube is 1x1 or 2x1. **You can find a working camera with no film. You can find rolls of film in ruins long before you find a camera.** The player walks the prairie with a sealed roll in their inventory for three seasons, looking for the second ruin. The film count is the wear surface. When film is exhausted, the camera is decoration — an empty body on a tile, a memory of a tool. **The eulogy is the empty cell.**
+
+### The visual genre
+
+> **Astrid:** The visual language was already shipped before the doctrine named it. The gel-band scan result (`src/components/GelBandView.tsx`, lines 52–117) — 8x8 hex grid rendered as wet-lab gel-electrophoresis with edge printing _NORTHERN-INFORMATION · 74589084 · N-INFO 400_, reticle crop corners, dim-yellow palette pulled from `bg-bee`, monospace font, jittered band widths via `cellNoise()` so the printout reads as analog and not digital. **The camera inherits this entirely.** Playback overlay reads as a developed contact sheet from the same lab. Zero new visual vocabulary. The genre, when named, is **retro-futuristic materialist** — wet-lab artifacts, Voynich manuscripts, 35mm film, contact sheets, gel printouts, edge codes, reticle marks. The game's surface is the surface of a 1970s field-research lab that has been kept running by a steward who is also, somehow, the only one left who knows how. _The genre is downstream of the doctrine_, not chosen.
+
+> **Astrid (cont.):** Footage should not render perfectly clean. A new render pass under `src/engine/render/passes/` adds dim per-frame jitter — the film grain. Same hash function (`cellNoise()`) lifted from `GelBandView.tsx` and generalized. **Old predecessor footage degrades more than fresh footage.** Heat death applies to memory. The materialism is consistent.
+
+> **Boon:** Flag for after #23 ships: extract `cellNoise()` to `src/engine/render/jitter.ts`. The same primitive will drive gel-band jitter, Voynich character offsets, film grain, and anything else the cosmology asks to be analog-imperfect. **One function carries the visual signature of the entire game.** Don't bundle into #23 — it's a follow-up refactor that will be obvious once the camera is on the board.
+
+### The predecessor floor
+
+> **Delta:** The game cannot wait for multiplayer infrastructure to deliver the lineage payoff. **The lineage is the medium** is locked doctrine, but we haven't shipped #16 yet and won't ship MMO for some time. Tyler's seeding instinct is the answer: **the prairie ships with seeded predecessor stewards.** Procedural names, procedurally generated cameras already placed at procedurally chosen tiles, with procedurally generated footage of plants that grew there before. Some cameras have film remaining (gifts). Some don't (memorials). Some footage shows species long gone, geographies that have shifted. _The lineage was always here. The player is not the first._
+
+> **Delta (cont.):** When real predecessor data starts flowing from real previous players (MMO baked), the seeded ones don't disappear. **The seeded stewards become the prairie's oldest layer; the real ones become its recent layer.** The player will never know which were people and which were procedural — and the cosmology says _that is exactly right._ A lineage doesn't distinguish; it accumulates. **Procedural predecessors are not a placeholder for multiplayer. They are the substrate multiplayer rides on.** Without the procedural floor, the lineage feels thin — only as deep as the live player population. With it, the lineage is bottomless.
+
+> **Calla:** And the first-encounter timing matters. Three options were on the table — predecessor cameras placed at genesis, predecessor cameras appearing only in late-tenure ruins, or a hybrid. Lock: **genesis-coincident.** The first time the player ever looks at the prairie, there is a camera by the south pond they did not place. Hours later they find their own camera in a ruin. They load film into it. They start to record. _Then they remember the camera by the south pond._ They walk back. They view its footage. **A clover patch in summer that no longer exists where it stood.** The lineage was always here; they just had to learn how to read it.
+
+### Cascades
+
+- **#16 (the tenure ends).** Round 2's open question — _what does a predecessor record contain?_ — gains a second answer alongside Calla's "previous steward's manual." Add: **the previous steward's cameras, with their footage intact.** Lineage handoff inherits cameras as first-class predecessor evidence.
+- **#17 (autonomous spread).** The camera is the primary reading instrument for autonomous spread. _Place a camera at the southern edge of a clover patch. Record a season. Come back. Watch the stolons creep across three new tiles, the hive count rise, the genetic identity propagate._ The camera makes #17's payoff legible. Strong argument to spec #15 → #17 → #23 as a triplet.
+- **#19 (soil depletion).** Same shape. Camera a patch you've planted three seasons running. Watch the tile's color drift. The footage shows the leak.
+- **#20 (NPC mortality).** A camera left on Moab's cave by a previous steward, with footage of him walking the line in a tenure long past. Defer to #20's spec whether to use this; flag it as available.
+
+### Consensus
+
+- **Doctrine v4 amended to five lines.** Fifth line: _the inventory is the character sheet._
+- **`#23 Time-lapse camera (analog 35mm field instrument)`** — size M, depends on `#15`. Film is a separate inventory item, cannot be overwritten. Visual inherits from the gel-band. Film grain in playback.
+- **`#24 Seeded predecessor stewards`** — size M, depends on `#23`. Genesis-coincident. Procedural cameras and footage. Substrate for future multiplayer layering.
+- **Genre named (descriptively, not prescriptively):** retro-futuristic materialist. Future visual decisions can check themselves against the existing artifacts — the gel, the Voynich pages, the genesis sequence, the manual.
+
+### Open questions deferred to #23 spec
+
+- How many cameras exist per tenure? (Lean: rare — one or two per run. Spec decides.)
+- Span options. (Lean: season + Revery as the two MVP choices. Year is a stretch.)
+- Inventory grid size. (Lean: 2x2 camera, 1x1 or 2x1 film tube.)
+- Whether the player can deliberately gift a camera to a successor versus dropping it accidentally. (Astrid: the state at handoff tells the story — _camera with film remaining is a gift; camera with no film is a memorial._ Don't add UI for the distinction; let state do the storytelling.)
+
+### Open question deferred to #24 spec
+
+- Procedural footage generation strategy: do we simulate compressed lifecycles forward and record the result, or author short authored "scenes" with procedural slot-fills? Lean: the former, because the cosmology's substrate is procedural identity and trait propagation — the seeded predecessors should _have actually grown those plants_ in a compressed simulation, not have their footage authored.
+
+### Amendment to #15 (wear)
+
+The camera is a wearing tool. But the camera's wear is _film count remaining_, not a separate `wear: 0..1` field — film is consumed per recording, not per tick of use. **The wear substrate from #15 may need an `Item-defines-wear-semantics` extension point** rather than a uniform alpha-decay-per-use rule. Flag for #15's spec: not every wearing tool wears the same way. The camera is the first counter-example. There will be others.
+
+---
+
 ## Verification
 
 v4 is a planning artifact, not a code change. Verification is sign-off on:
 
-- The four-line cosmology naming as the top of the doctrine.
-- `#14` (delete-event-log) as currently in NEXT, spec written, no further design needed.
-- `#15` (wear) added to the board, spec to be written next.
-- `#16` (the tenure ends) added to the board as a sketch with deps on `#4` and `#10`. Spec deferred until the room has resolved the open questions in round 2.
-- Soil depletion and NPC mortality acknowledged as candidate future items, not yet on the board.
+- The five-line cosmology naming as the top of the doctrine.
+- `#14` (delete-event-log) shipped (PR #342).
+- `#15` (wear) on the board, spec to be written; round-7 amendment notes the camera as a non-uniform wear case.
+- `#16` (the tenure ends) on the board as a sketch with deps on `#4` and `#10`. Round-7 amendment adds inherited cameras + footage to the predecessor record.
+- `#23` (time-lapse camera) added to the board, depends on `#15`.
+- `#24` (seeded predecessor stewards) added to the board, depends on `#23`.
+- Soil depletion (`#19`) and NPC mortality (`#20`) on the board as todo, not yet specced.
+- The visual genre named descriptively as _retro-futuristic materialist_ — gel-band (`src/components/GelBandView.tsx`, shipped) is the reference artifact future visual decisions can check against.
 
 Each item, when picked up, produces its own `harness/specs/{id}.yaml` and `harness/plans/{id}.yaml` and goes through `npm run spec:validate` → `npm run harness:run` → `npm run verify`.
 
-The session continues — Tyler has another item to bring.
+The session continues — Tyler will bring the next item.
