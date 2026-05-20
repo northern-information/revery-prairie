@@ -12,18 +12,23 @@ dependencies: []
 behaviors:
   - id: weather-generation
     description: >
-      generateWeather creates a Weather object with random spring
-      conditions: temperatureF in [35, 72], windSpeed in [3, 25],
-      humidity in [45, 85], random windDirection from 8 directions,
-      sky determined by humidity via pickSky, season hardcoded to
-      spring. called once during createGameState.
+      generateWeather creates a Weather object seeded at the spring-
+      equinox anchor (state.seasonalPhase = 0). Temperature is
+      Math.round(seasonalMeanTemperature(0) + randBetween(-5, 5)),
+      which lands near the 47.5°F midpoint of the winter/summer
+      means; humidity in [30, 95]; windSpeed in [1, 30]; random
+      windDirection from 8 directions; sky determined by humidity +
+      season via pickSky; season is derived via
+      deriveSeason(temperatureF, 0) and therefore reads as Spring on
+      a fresh game (mid-range temp + phase-quadrant [0, 0.25)).
+      Called once during createGameState.
     inputs:
       - 'createGameState call'
     outputs:
-      - 'Weather object with all fields initialized'
+      - 'Weather object with all fields initialized; season = Spring on a fresh game'
     state_changes:
       - field: weather
-        effect: 'initialized with random spring conditions'
+        effect: 'initialized with random spring-equinox conditions; season derived to Spring'
     determinism: probabilistic
 
   - id: weather-tick-drift

@@ -16,15 +16,21 @@ behaviors:
     description: >
       The renderer no longer hard-codes a single winter wash. Instead, a
       table in src/engine/tileBg.ts defines a {target hex, intensity}
-      pair anchored at each of the four cardinal seasonalPhase values:
-      phase 0.00 (deep winter) = #B8BCC0 @ 0.40, phase 0.25 (spring
-      peak) = #A8C890 @ 0.10, phase 0.50 (deep summer) = #F4D58A @ 0.05,
-      phase 0.75 (autumn peak) = #C8865A @ 0.18. The previous
-      WINTER_WASH_TARGET and WINTER_WASH_INTENSITY constants are
-      either deleted or reused as the winter anchor — no code path
-      should still depend on a single global wash. Egregore tiles
-      remain exempt from the wash year-round (the per-glyph short-circuit
-      that already exists for winter applies to every season).
+      pair anchored at each of the four cardinal seasonalPhase values.
+      With phase 0 anchored to the spring equinox, the anchors are:
+      phase 0.00 (spring equinox, game start) = #F4D58A @ 0.00,
+      phase 0.25 (summer solstice) = #F4D58A @ 0.05, phase 0.50
+      (autumn equinox) = #C8865A @ 0.18, phase 0.75 (winter solstice)
+      = #B8BCC0 @ 0.40. The spring-equinox anchor is intentionally
+      **zero-intensity** so the prairie reads in its natural
+      underlying palette at game start — no visible seasonal tint
+      until the year advances. The phase 0 → 0.25 leg fades the wash
+      in from invisible to a barely-there warm tint (both anchors
+      share the gold target, so only intensity changes). The 0.75 →
+      0.00 wrap fades the winter grey back to nothing as spring
+      arrives. Winter remains the heaviest wash. Egregore tiles
+      remain exempt from the wash year-round (the per-glyph
+      short-circuit applies to every season).
     inputs:
       - 'codebase after this PR lands'
     outputs:
@@ -50,12 +56,12 @@ behaviors:
     inputs:
       - 'seasonalPhase ∈ [0, 1)'
     outputs:
-      - 'seasonalWash(0.0) returns { #B8BCC0, 0.40 }'
-      - 'seasonalWash(0.25) returns { #A8C890, 0.10 }'
-      - 'seasonalWash(0.5) returns { #F4D58A, 0.05 }'
-      - 'seasonalWash(0.75) returns { #C8865A, 0.18 }'
-      - 'seasonalWash(0.125) returns the midpoint between winter and spring anchors'
-      - 'seasonalWash(0.875) returns the midpoint between autumn and winter anchors (wrap-around)'
+      - 'seasonalWash(0.0) returns { #F4D58A, 0.00 } (spring equinox — zero-intensity, natural prairie palette)'
+      - 'seasonalWash(0.25) returns { #F4D58A, 0.05 } (summer solstice)'
+      - 'seasonalWash(0.5) returns { #C8865A, 0.18 } (autumn equinox)'
+      - 'seasonalWash(0.75) returns { #B8BCC0, 0.40 } (winter solstice)'
+      - 'seasonalWash(0.125) returns { #F4D58A, 0.025 } (mid-spring — same gold target, half the summer intensity)'
+      - 'seasonalWash(0.875) returns the midpoint between the winter and spring-equinox anchors (greying fades to invisible as the year wraps)'
     state_changes: []
     determinism: deterministic
 
@@ -158,14 +164,17 @@ edge_cases:
       seasonalPhase = 0.999.
     expected: >
       Both return finite, valid color/intensity values. The 0.0 case
-      returns the winter anchor exactly. The 0.999 case returns a value
-      very close to the winter anchor (interpolating from the autumn
-      anchor across the wrap).
+      returns the spring-equinox anchor exactly (target #F4D58A,
+      intensity 0.00 — no wash applied; the renderer must skip the
+      blend math or apply a no-op blend). The 0.999 case returns a
+      value very close to that anchor: target close to #F4D58A,
+      intensity very close to 0 (interpolating from the winter anchor
+      #B8BCC0 @ 0.40 across the wrap).
 
   - id: cave-zone-no-wash
     description: >
       The player descends into the cave during deep winter
-      (seasonalPhase = 0.0).
+      (seasonalPhase ≈ 0.75).
     expected: >
       Neither the bg-cache wash rect nor the per-glyph wash applies
       while currentZone === Cave. The cave palette is unaffected by
@@ -182,8 +191,8 @@ edge_cases:
 
   - id: summer-wash-near-invisible
     description: >
-      The player observes the overworld at seasonalPhase ≈ 0.5 (deep
-      summer).
+      The player observes the overworld at seasonalPhase ≈ 0.25
+      (summer solstice).
     expected: >
       The summer wash is target #F4D58A @ intensity 0.05 — a 5% blend
       toward warm gold. Tile colors are only barely shifted. The world
@@ -202,9 +211,11 @@ failure_conditions:
     expected: 'CI fails — the rename to applySeasonalWash was not completed'
   - trigger: 'the bg-cache wash fillRect is still drawn inside the world-translated transform (no save/setTransform/restore around it)'
     expected: 'CI fails — trailing-edge stutter regression'
-  - trigger: 'a render frame at seasonalPhase = 0.25 (spring peak) applies the winter target color #B8BCC0 to the wash'
-    expected: 'CI fails — the seasonal interpolation is not wired to the bg-cache wash'
-  - trigger: 'seasonalWash(0.0) and seasonalWash(0.5) return identical target hex values'
+  - trigger: 'a render frame at seasonalPhase = 0.0 (spring equinox, game start) applies any visible wash to tile colors'
+    expected: 'CI fails — phase 0 must be zero-intensity; the prairie reads in its natural underlying palette at game start'
+  - trigger: 'seasonalWash(0.0).intensity is not 0'
+    expected: 'CI fails — the spring-equinox anchor must be zero-intensity'
+  - trigger: 'seasonalWash(0.0) and seasonalWash(0.5) return identical target+intensity pairs'
     expected: 'CI fails — the anchor table is misconfigured'
   - trigger: 'an egregore tile glyph color is passed through the wash blend during any season'
     expected: 'CI fails — egregore exemption was lost during generalization'

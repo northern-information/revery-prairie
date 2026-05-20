@@ -101,6 +101,7 @@ const EXPECTED_FIELDS = [
   'rainFrontOffset',
   'precipitationIntensity',
   'seasonalPhase',
+  'currentDate',
   'wind',
   'pollen',
   'pollenTrailDepth',

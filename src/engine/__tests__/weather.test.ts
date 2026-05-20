@@ -1,7 +1,15 @@
 import { RAIN_FADE_DURATION_MS, SEASONAL_PHASE_PERIOD_MS } from '../constants'
 import { applySeasonalWash, SEASON_WASH_ANCHORS, seasonalWash } from '../tileBg'
 import { Season, Sky, Zone } from '../types'
-import { deriveSeason, fToC, generateWeather, mphToKph, tickPrecipitationIntensity, tickWeather } from '../weather'
+import {
+  deriveSeason,
+  fToC,
+  generateWeather,
+  mphToKph,
+  phaseToDate,
+  tickPrecipitationIntensity,
+  tickWeather,
+} from '../weather'
 import { createTestState } from './helpers'
 
 import type { GameState } from '../types'
@@ -207,18 +215,32 @@ describe('deriveSeason', () => {
     expect(deriveSeason(95, 0)).toBe(Season.Summer)
   })
 
-  it('returns Spring at mid-range temperatures when phase is rising', () => {
-    // phases in [0, 0.5) are the rising half — heading toward summer peak
+  it('returns Spring at mid-range temperatures during the spring phase quadrant', () => {
+    // [0.00, 0.25) — post-equinox, warming toward summer
+    expect(deriveSeason(55, 0)).toBe(Season.Spring)
     expect(deriveSeason(55, 0.1)).toBe(Season.Spring)
-    expect(deriveSeason(55, 0.25)).toBe(Season.Spring)
-    expect(deriveSeason(45, 0.4)).toBe(Season.Spring)
+    expect(deriveSeason(45, 0.2)).toBe(Season.Spring)
   })
 
-  it('returns Autumn at mid-range temperatures when phase is falling', () => {
-    // phases in [0.5, 1) are the falling half — heading toward deep winter
+  it('returns Summer at mid-range temperatures during the summer phase quadrant', () => {
+    // [0.25, 0.50) — post-solstice, cooling toward autumn
+    expect(deriveSeason(55, 0.25)).toBe(Season.Summer)
+    expect(deriveSeason(60, 0.35)).toBe(Season.Summer)
+    expect(deriveSeason(50, 0.49)).toBe(Season.Summer)
+  })
+
+  it('returns Autumn at mid-range temperatures during the autumn phase quadrant', () => {
+    // [0.50, 0.75) — post-equinox, cooling toward winter
+    expect(deriveSeason(55, 0.5)).toBe(Season.Autumn)
     expect(deriveSeason(55, 0.6)).toBe(Season.Autumn)
-    expect(deriveSeason(55, 0.75)).toBe(Season.Autumn)
-    expect(deriveSeason(45, 0.9)).toBe(Season.Autumn)
+    expect(deriveSeason(45, 0.7)).toBe(Season.Autumn)
+  })
+
+  it('returns Winter at mid-range temperatures during the winter phase quadrant', () => {
+    // [0.75, 1.00) — post-solstice, warming toward spring
+    expect(deriveSeason(55, 0.75)).toBe(Season.Winter)
+    expect(deriveSeason(55, 0.85)).toBe(Season.Winter)
+    expect(deriveSeason(45, 0.95)).toBe(Season.Winter)
   })
 })
 
@@ -277,7 +299,7 @@ describe('seasonal sky picking', () => {
   it('Sky.Snow is reachable during humid winter conditions', () => {
     const state = createTestState()
     state.currentZone = Zone.Overworld
-    state.seasonalPhase = 0 // deep winter
+    state.seasonalPhase = 0.75 // winter solstice
     state.weather.season = Season.Winter
     state.weather.temperatureF = 20
     state.weather.humidity = 90
@@ -302,47 +324,56 @@ describe('seasonal sky picking', () => {
 })
 
 describe('seasonal wash', () => {
-  it('returns the winter anchor at phase 0.0', () => {
+  it('returns the spring-equinox anchor at phase 0.0 (zero intensity — no wash at game start)', () => {
     const wash = seasonalWash(0)
-    expect(wash.target).toBe('#b8bcc0')
-    expect(wash.intensity).toBeCloseTo(0.4, 5)
+    expect(wash.intensity).toBe(0)
   })
 
-  it('returns the spring anchor at phase 0.25', () => {
+  it('returns the summer-solstice anchor at phase 0.25', () => {
     const wash = seasonalWash(0.25)
-    expect(wash.target).toBe('#a8c890')
-    expect(wash.intensity).toBeCloseTo(0.1, 5)
-  })
-
-  it('returns the summer anchor at phase 0.5', () => {
-    const wash = seasonalWash(0.5)
     expect(wash.target).toBe('#f4d58a')
     expect(wash.intensity).toBeCloseTo(0.05, 5)
   })
 
-  it('returns the autumn anchor at phase 0.75', () => {
-    const wash = seasonalWash(0.75)
+  it('returns the autumn-equinox anchor at phase 0.5', () => {
+    const wash = seasonalWash(0.5)
     expect(wash.target).toBe('#c8865a')
     expect(wash.intensity).toBeCloseTo(0.18, 5)
   })
 
-  it('interpolates intensity at the midpoint between winter and spring', () => {
-    const wash = seasonalWash(0.125)
-    // Midpoint between winter 0.4 and spring 0.1 is 0.25.
-    expect(wash.intensity).toBeCloseTo(0.25, 5)
+  it('returns the winter-solstice anchor at phase 0.75', () => {
+    const wash = seasonalWash(0.75)
+    expect(wash.target).toBe('#b8bcc0')
+    expect(wash.intensity).toBeCloseTo(0.4, 5)
   })
 
-  it('interpolates intensity at the midpoint between autumn and winter (wrap-around)', () => {
+  it('phase 0 does not apply the winter target', () => {
+    // user-visible contract: game start must not look like winter
+    expect(seasonalWash(0).intensity).toBe(0)
+    expect(seasonalWash(0).target).not.toBe('#b8bcc0')
+  })
+
+  it('shares the gold target between phase 0 and phase 0.25 so the spring leg is intensity-only', () => {
+    expect(seasonalWash(0).target).toBe(seasonalWash(0.25).target)
+  })
+
+  it('interpolates intensity at the midpoint between spring and summer', () => {
+    const wash = seasonalWash(0.125)
+    // Midpoint between spring 0.0 and summer 0.05 is 0.025.
+    expect(wash.intensity).toBeCloseTo(0.025, 5)
+  })
+
+  it('interpolates intensity at the midpoint between winter and spring (wrap-around)', () => {
     const wash = seasonalWash(0.875)
-    // Midpoint between autumn 0.18 and winter 0.4 (via wrap) is 0.29.
-    expect(wash.intensity).toBeCloseTo(0.29, 5)
+    // Midpoint between winter 0.4 and spring-equinox 0.0 (via wrap) is 0.2.
+    expect(wash.intensity).toBeCloseTo(0.2, 5)
   })
 
   it('normalizes negative phases into [0, 1)', () => {
-    const winterAtZero = seasonalWash(0)
-    const winterAtNegOne = seasonalWash(-1)
-    expect(winterAtNegOne.target).toBe(winterAtZero.target)
-    expect(winterAtNegOne.intensity).toBeCloseTo(winterAtZero.intensity, 5)
+    const atZero = seasonalWash(0)
+    const atNegOne = seasonalWash(-1)
+    expect(atNegOne.target).toBe(atZero.target)
+    expect(atNegOne.intensity).toBeCloseTo(atZero.intensity, 5)
   })
 
   it('produces continuous wash across an arbitrary phase step (no pop)', () => {
@@ -356,8 +387,6 @@ describe('seasonal wash', () => {
     expect(SEASON_WASH_ANCHORS).toHaveLength(4)
     const phases = SEASON_WASH_ANCHORS.map((a) => a.phase)
     expect(phases).toEqual([0.0, 0.25, 0.5, 0.75])
-    const targets = new Set(SEASON_WASH_ANCHORS.map((a) => a.target))
-    expect(targets.size).toBe(4)
   })
 
   it('applySeasonalWash blends source toward target by intensity', () => {
@@ -380,5 +409,85 @@ describe('seasonal wash', () => {
     const a = applySeasonalWash('#224F30', '#b8bcc0', 0.4)
     const b = applySeasonalWash('#224F30', '#b8bcc0', 0.4)
     expect(a).toBe(b)
+  })
+})
+
+describe('phaseToDate', () => {
+  it('phase 0 returns the spring equinox (March 20)', () => {
+    expect(phaseToDate(0)).toEqual({ month: 3, day: 20 })
+  })
+
+  it('phase 0.25 returns a date in June (summer solstice region)', () => {
+    // A fixed-quarter 365-day calendar puts phase 0.25 around June 18-21
+    // depending on integer rounding. Real-world June 21 is day-of-year 172
+    // but our 365/4 anchor lands at day 170. "Things may have drifted."
+    const { month, day } = phaseToDate(0.25)
+    expect(month).toBe(6)
+    expect(day).toBeGreaterThanOrEqual(17)
+    expect(day).toBeLessThanOrEqual(22)
+  })
+
+  it('phase 0.5 returns a date in September (autumn equinox region)', () => {
+    const { month, day } = phaseToDate(0.5)
+    expect(month).toBe(9)
+    expect(day).toBeGreaterThanOrEqual(16)
+    expect(day).toBeLessThanOrEqual(23)
+  })
+
+  it('phase 0.75 returns a date in December (winter solstice region)', () => {
+    const { month, day } = phaseToDate(0.75)
+    expect(month).toBe(12)
+    expect(day).toBeGreaterThanOrEqual(16)
+    expect(day).toBeLessThanOrEqual(22)
+  })
+
+  it('wraps phases >= 1 back to the spring equinox', () => {
+    expect(phaseToDate(1)).toEqual({ month: 3, day: 20 })
+    expect(phaseToDate(2.0)).toEqual({ month: 3, day: 20 })
+  })
+
+  it('handles negative phases via modulo wrap', () => {
+    expect(phaseToDate(-1)).toEqual({ month: 3, day: 20 })
+  })
+
+  it('is pure: same phase returns same date', () => {
+    const a = phaseToDate(0.42)
+    const b = phaseToDate(0.42)
+    expect(a).toEqual(b)
+  })
+
+  it('phase 0.999 returns a date close to March 20 (year-end wrap)', () => {
+    const { month, day } = phaseToDate(0.999)
+    expect(month).toBe(3)
+    expect(day).toBeGreaterThanOrEqual(19)
+    expect(day).toBeLessThanOrEqual(20)
+  })
+})
+
+describe('current-date sync with seasonalPhase', () => {
+  it('initial state.currentDate matches the spring equinox', () => {
+    const state = createTestState()
+    // createTestState helper currently pins phase to 0.125 (mid-spring),
+    // so prove the wiring by resetting and reading after a tickWeather.
+    state.seasonalPhase = 0
+    state.currentZone = Zone.Cave // keep phase from advancing
+    tickWeather(state, 0)
+    expect(state.currentDate).toEqual({ month: 3, day: 20 })
+  })
+
+  it('tickWeather updates state.currentDate from state.seasonalPhase', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Cave
+    state.seasonalPhase = 0.5 // autumn equinox
+    tickWeather(state, 0)
+    expect(state.currentDate.month).toBe(9)
+  })
+
+  it('returning to phase 0 (year wrap) restores the equinox date', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Cave
+    state.seasonalPhase = 0
+    tickWeather(state, 0)
+    expect(state.currentDate).toEqual({ month: 3, day: 20 })
   })
 })
