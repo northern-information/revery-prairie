@@ -7,8 +7,6 @@ import {
   METEOR_SHOWER_SPAWN_WINDOW_MS,
   METEOR_SHOWER_STAR_COUNT_MAX,
   METEOR_SHOWER_STAR_COUNT_MIN,
-  METEORITE_CHAR,
-  METEORITE_COLOR,
   METEORITE_GROUND_MAX,
   PICKUP_EFFECT_DURATION_MS,
   PLAYER_SPAWN_DESCENT_TARGET_MS,
@@ -238,13 +236,6 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           if (data.forPlayerSpawn && state.playerSpawn.meteorEntityId === eid) {
             state.playerSpawn.visible = true
             state.playerSpawn.meteorEntityId = null
-            state.queuedEvents.push({
-              text: `Steward ${state.stewardName} falls to the prairie.`,
-              icon: METEORITE_CHAR,
-              iconColor: METEORITE_COLOR,
-              worldX: x,
-              worldY: y,
-            })
           }
           state.world.destroyEntity(eid)
           continue

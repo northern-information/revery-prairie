@@ -18,7 +18,6 @@ interface UseCanvasDropOptions {
   metricsRef: React.RefObject<CharMetrics | null>
   cancelDrag: () => void
   refreshUI: () => void
-  onDropLog: (definitionId: string, worldX: number, worldY: number) => void
   itemInfoRef: React.RefObject<{ setDragging: (v: boolean) => void } | null>
 }
 
@@ -29,7 +28,6 @@ export const useCanvasDrop = ({
   metricsRef,
   cancelDrag,
   refreshUI,
-  onDropLog,
   itemInfoRef,
 }: UseCanvasDropOptions) => {
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null)
@@ -104,7 +102,6 @@ export const useCanvasDrop = ({
           state.world.addComponent(ge, ComponentType.EntityZone, getCurrentEntityZone(state))
           state.world.addComponent(ge, ComponentType.PickupExemption, {})
         }
-        onDropLog(defId, mx, my)
         refreshUI()
       }
 
@@ -160,7 +157,7 @@ export const useCanvasDrop = ({
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleGlobalMouseUp)
     }
-  }, [isDragging, metricsRef, state, containers, cancelDrag, refreshUI, itemInfoRef, onDropLog])
+  }, [isDragging, metricsRef, state, containers, cancelDrag, refreshUI, itemInfoRef])
 
   return {
     cursorPos,

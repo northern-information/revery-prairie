@@ -353,8 +353,7 @@ describe('Sidebar', () => {
         />
       )
 
-      // The first epoch's commentary string must not appear in the sidebar —
-      // narration moved to the EventLog overlay (see event-log-overlay spec).
+      // The first epoch's commentary string must not appear in the sidebar.
       expect(container.textContent).not.toContain('Simulating birth of cosmos')
     })
   })

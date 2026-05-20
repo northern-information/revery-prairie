@@ -4,7 +4,6 @@ priority: medium
 layer: component
 source_files:
   - src/components/Minimap.tsx
-  - src/components/EventLog.tsx
   - src/components/GameScreen.tsx
   - src/components/Sidebar.tsx
   - src/components/CommandPanel.tsx

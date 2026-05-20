@@ -52,8 +52,6 @@ const defaultPlacement: PlacementPreview = {
 
 let state: GameState
 let onDrop: ReturnType<typeof vi.fn>
-let onCombine: ReturnType<typeof vi.fn>
-let onCombineFail: ReturnType<typeof vi.fn>
 
 const backpackContainers = () => [{ id: state.backpack.id, container: state.backpack }]
 
@@ -68,8 +66,6 @@ const renderDragHook = (containers?: { id: string; container: Container }[]) =>
       containers: containers ?? backpackContainers(),
       state,
       onDrop,
-      onCombine,
-      onCombineFail,
     })
   )
 
@@ -77,8 +73,6 @@ beforeEach(() => {
   vi.clearAllMocks()
   state = createTestState()
   onDrop = vi.fn()
-  onCombine = vi.fn()
-  onCombineFail = vi.fn()
   vi.mocked(computePlacementPreview).mockReturnValue(defaultPlacement)
 })
 
@@ -187,7 +181,7 @@ describe('useInventoryDrag', () => {
   })
 
   describe('drop — combine target', () => {
-    it('calls executeCombine and onCombine on success', () => {
+    it('calls executeCombine and onDrop on success', () => {
       const item = makeItem()
       const combineResult: CombineResult = { outcome: 'success' }
       vi.mocked(executeCombine).mockReturnValue(combineResult)
@@ -220,12 +214,11 @@ describe('useInventoryDrag', () => {
         },
         expect.any(Number)
       )
-      expect(onCombine).toHaveBeenCalledWith(fakeRecipe)
       expect(onDrop).toHaveBeenCalledOnce()
       expect(result.current.dragState).toBeNull()
     })
 
-    it('calls onCombineFail on failure', () => {
+    it('clears drag state and skips onDrop on failure', () => {
       const item = makeItem()
       vi.mocked(executeCombine).mockReturnValue({ outcome: 'failed' })
       vi.mocked(computePlacementPreview).mockReturnValue({
@@ -245,8 +238,7 @@ describe('useInventoryDrag', () => {
         result.current.drop(state.backpack.id)
       })
 
-      expect(onCombineFail).toHaveBeenCalledOnce()
-      expect(onCombine).not.toHaveBeenCalled()
+      expect(onDrop).not.toHaveBeenCalled()
       expect(result.current.dragState).toBeNull()
     })
   })

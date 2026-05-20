@@ -262,7 +262,6 @@ export const createGameState = (
     coyotePath: null,
     ruinInteriors: generateAllRuinInteriors(genesisData.ruins),
     currentRuinIndex: null,
-    queuedEvents: [],
     caveFogExplored: new Set<string>(),
     caveFogDiscovered: new Set<string>(),
     selectedUnits: new Set<number>(),

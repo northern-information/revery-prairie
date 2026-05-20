@@ -10,7 +10,6 @@ source_files:
   - src/components/__tests__/PermacomputerShell.test.tsx
 dependencies:
   - inventory-management
-  - event-log-overlay
 
 behaviors:
   - id: backpack-renders-in-bottom-bar

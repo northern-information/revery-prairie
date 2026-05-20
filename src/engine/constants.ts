@@ -1,4 +1,4 @@
-import { RuinArchetype, TileType } from './types'
+import { TileType } from './types'
 
 export const MAP_WIDTH = 147
 export const MAP_HEIGHT = 147
@@ -504,6 +504,3 @@ export const INVENTORY_CELL_SIZE = 28
 // aborts the scan; releasing at or after commits.
 export const SCAN_DURATION_MS = 1500
 
-export const RUIN_ENTRY_EVENTS: Record<RuinArchetype, string> = {
-  [RuinArchetype.DormantGarden]: 'A dormant garden stirs beneath the dust.',
-}

@@ -115,10 +115,6 @@ const fireKeyUp = (key: string) => {
 
 let state: GameState
 let refreshUI: ReturnType<typeof vi.fn>
-let onDrop: ReturnType<typeof vi.fn>
-let onDialog: ReturnType<typeof vi.fn>
-let onDiscovery: ReturnType<typeof vi.fn>
-let onGift: ReturnType<typeof vi.fn>
 let itemInfoRef: React.RefObject<ItemInfoHandle | null>
 let isDraggingRef: React.RefObject<boolean>
 
@@ -138,10 +134,6 @@ const renderKeyboardHook = () =>
       state,
       refreshUI,
       itemInfoRef,
-      onDrop,
-      onDialog,
-      onDiscovery,
-      onGift,
       isDraggingRef,
     })
   )
@@ -150,10 +142,6 @@ beforeEach(() => {
   vi.clearAllMocks()
   state = createTestState()
   refreshUI = vi.fn()
-  onDrop = vi.fn()
-  onDialog = vi.fn()
-  onDiscovery = vi.fn()
-  onGift = vi.fn()
   itemInfoRef = makeItemInfoRef()
   isDraggingRef = { current: false }
 
@@ -264,7 +252,6 @@ describe('useKeyboard', () => {
       })
 
       expect(breakWall).toHaveBeenCalledWith(state, expect.any(Number))
-      expect(onDiscovery).toHaveBeenCalledWith('Discovered hidden room.', state.player.x, state.player.y)
       expect(refreshUI).toHaveBeenCalled()
     })
 
@@ -282,7 +269,7 @@ describe('useKeyboard', () => {
   })
 
   describe('E key — character interaction', () => {
-    it('calls interactWithCharacter and fires onDialog', () => {
+    it('calls interactWithCharacter when adjacent', () => {
       const character = { definitionId: 'gron', pos: { x: state.player.x + 1, y: state.player.y } }
       vi.mocked(getAdjacentCharacter).mockReturnValue(character)
       vi.mocked(interactWithCharacter).mockReturnValue({ opened: true, gift: null, coyoteToggled: false })
@@ -293,7 +280,6 @@ describe('useKeyboard', () => {
       })
 
       expect(interactWithCharacter).toHaveBeenCalledWith(state)
-      expect(onDialog).toHaveBeenCalledWith('Test Ghost', 'ö', '#fff', state.player.x, state.player.y)
       expect(refreshUI).toHaveBeenCalled()
     })
 
@@ -306,7 +292,6 @@ describe('useKeyboard', () => {
       })
 
       expect(interactWithCharacter).not.toHaveBeenCalled()
-      expect(onDialog).not.toHaveBeenCalled()
     })
   })
 
@@ -439,7 +424,6 @@ describe('useKeyboard', () => {
       expect(dropItem).toHaveBeenCalledWith(state, 'bee')
       expect((itemInfoRef.current as unknown as { clear: ReturnType<typeof vi.fn> }).clear).toHaveBeenCalled()
       expect(updateFacingEntity).toHaveBeenCalledWith(state)
-      expect(onDrop).toHaveBeenCalledWith('bee', state.player.x, state.player.y)
       expect(refreshUI).toHaveBeenCalled()
     })
 

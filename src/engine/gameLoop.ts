@@ -42,7 +42,6 @@ import { commitScan } from './scan'
 import { completeGenesis, finalizeGenesisHandoff, GENESIS_EPOCHS, tickGenesis } from './genesis'
 import { tickGlintZones } from './glintZones'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
-import { getDefinition } from './items'
 import { spawnLightningStrike, tickLightning } from './lightning'
 import { recordDiscovery } from './manual'
 import { detectOmen } from './omen'
@@ -74,8 +73,6 @@ export interface TickSystem {
 
 export interface GameLoopCallbacks {
   onRefreshUI?: () => void
-  onPickup?: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
-  onDiscovery?: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
   onBeeDeath?: (worldX: number, worldY: number) => void
   onAutoHidePanel?: () => void
   // Precis #6 — fires from tick when a held [f] scan reaches 100% and
@@ -203,20 +200,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
-      id: 'drainQueuedEvents',
-      intervalMs: 0,
-      zone: 'always' as const,
-      phase: 'gameplay' as const,
-      priority: -18,
-      fn: (state: GameState) => {
-        if (state.queuedEvents.length === 0) return
-        for (const t of state.queuedEvents) {
-          callbacks.onDiscovery?.(t.text, t.worldX, t.worldY, t.icon, t.iconColor)
-        }
-        state.queuedEvents = []
-      },
-    },
-    {
       // Sprint runs at SPRINT_MOVE_TICK_MS with one move per tick instead of
       // two moves per PATH_TICK_MS — keeps the 2x speed but makes every tile
       // a discrete stop point so keyup never overshoots an item.
@@ -234,32 +217,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           if (!tickPath(state)) return
           lastMoveTime = time
           checkAutoHide(state, callbacks)
-          const result = pickUpGroundItems(state, time)
-          for (const defId of result.pickedUp) {
-            const def = getDefinition(defId)
-            callbacks.onPickup?.(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
-          }
-          if (result.chainExplosions > 0 || result.disintegrations > 0) {
-            const meteoriteDef = getDefinition('meteorite')
-            if (result.chainExplosions > 0) {
-              callbacks.onDiscovery?.(
-                'Unstable meteorite discovered!',
-                state.player.x,
-                state.player.y,
-                meteoriteDef.glyph,
-                meteoriteDef.glyphColor
-              )
-            }
-            if (result.disintegrations > 0) {
-              callbacks.onDiscovery?.(
-                'Meteorite disintegrated...',
-                state.player.x,
-                state.player.y,
-                meteoriteDef.glyph,
-                meteoriteDef.glyphColor
-              )
-            }
-          }
+          pickUpGroundItems(state, time)
           callbacks.onRefreshUI?.()
         }
       })(),
@@ -284,32 +242,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           // click-to-move pull the camera back to the player; WASD lets
           // the user walk while leaving the camera wherever they panned it.
           checkAutoHide(state, callbacks)
-          const result = pickUpGroundItems(state, time)
-          for (const defId of result.pickedUp) {
-            const def = getDefinition(defId)
-            callbacks.onPickup?.(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
-          }
-          if (result.chainExplosions > 0 || result.disintegrations > 0) {
-            const meteoriteDef = getDefinition('meteorite')
-            if (result.chainExplosions > 0) {
-              callbacks.onDiscovery?.(
-                'Unstable meteorite discovered!',
-                state.player.x,
-                state.player.y,
-                meteoriteDef.glyph,
-                meteoriteDef.glyphColor
-              )
-            }
-            if (result.disintegrations > 0) {
-              callbacks.onDiscovery?.(
-                'Meteorite disintegrated...',
-                state.player.x,
-                state.player.y,
-                meteoriteDef.glyph,
-                meteoriteDef.glyphColor
-              )
-            }
-          }
+          pickUpGroundItems(state, time)
           callbacks.onRefreshUI?.()
         }
       })(),
@@ -358,26 +291,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'always',
       fn: (state, time) => {
         const result = tickCoyote(state, time)
-        if (result.pickedUp) {
-          const def = getDefinition(result.pickedUp.definitionId)
-          callbacks.onDiscovery?.(
-            `Coyote found ${def.name}.`,
-            result.pickedUp.x,
-            result.pickedUp.y,
-            def.glyph,
-            def.glyphColor
-          )
-        }
         if (result.delivered) {
-          const def = getDefinition(result.delivered.definitionId)
-          const dest = result.delivered.toGron ? 'near gron' : 'to backpack'
-          callbacks.onDiscovery?.(
-            `Coyote delivered ${def.name} ${dest}.`,
-            result.delivered.x,
-            result.delivered.y,
-            def.glyph,
-            def.glyphColor
-          )
           callbacks.onRefreshUI?.()
         }
       },
@@ -431,11 +345,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: METEOR_SHOWER_TICK_MS,
       zone: 'overworld',
       fn: (state, time) => {
-        const wasActive = state.meteorShower.active
         tickMeteorShower(state, time)
-        if (!wasActive && state.meteorShower.active && state.currentZone === Zone.Overworld) {
-          callbacks.onDiscovery?.('Meteor shower!', state.player.x, state.player.y, '*', '#FFD700')
-        }
       },
     },
     {
@@ -458,7 +368,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           const inViewport = isTileInVisibleViewport(vx, vy, state.viewportWidth, state.viewportHeight)
           if (inViewport) {
             state.screenShakeUntil = time + SATELLITE_SHAKE_DURATION_MS
-            callbacks.onDiscovery?.('Satellite impact!', impact.x, impact.y, '░', '#FF4444')
           }
         }
       },
@@ -469,21 +378,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'overworld',
       priority: 60,
       fn: (state, time) => {
-        const struck = spawnLightningStrike(state, time)
-        if (struck) {
-          if (state.currentZone === Zone.Overworld) {
-            callbacks.onDiscovery?.('Lightning strikes!', struck.x, struck.y, '|', '#FFFFFF')
-            // Check if wildfire spread happened (wildfire entity just created)
-            for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-              const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-              const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
-              if (tag === 'wildfire' && effect?.startTime === time) {
-                callbacks.onDiscovery?.('Wildfire!', struck.x, struck.y, '^', '#FF4500')
-                break
-              }
-            }
-          }
-        }
+        spawnLightningStrike(state, time)
       },
     },
     {
@@ -651,7 +546,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       zone: 'overworld',
       fn: (state, time) => {
         if (spawnAngel(state, time)) {
-          callbacks.onDiscovery?.('Be not afraid.', state.player.x, state.player.y, 'O', '#FFFFFF')
           callbacks.onRefreshUI?.()
         }
       },

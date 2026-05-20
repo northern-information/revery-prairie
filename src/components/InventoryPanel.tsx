@@ -3,13 +3,11 @@ import { InventoryGrid } from './InventoryGrid'
 import { SectionHeader } from './PanelPrimitives'
 
 import { autoSort } from '@/engine/inventory'
-import { getDefinition } from '@/engine/items'
 import { RecipeKind } from '@/engine/recipes'
 import { useCanvasDrop } from '@/hooks/useCanvasDrop'
 import { useInventoryDrag } from '@/hooks/useInventoryDrag'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { DragState } from '@/engine/drag'
-import type { Recipe } from '@/engine/recipes'
 import type { CharMetrics, GameState } from '@/engine/types'
 
 export interface DragOverlayData {
@@ -23,8 +21,6 @@ interface InventoryPanelProps {
   state: GameState
   refreshUI: () => void
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
-  onCombineLog: (text: string, worldX: number, worldY: number) => void
-  onDropLog: (definitionId: string, worldX: number, worldY: number) => void
   metricsRef: React.RefObject<CharMetrics | null>
   isDraggingRef: React.RefObject<boolean>
   dragOverlayRef: React.RefObject<DragOverlayData | null>
@@ -34,8 +30,6 @@ export const InventoryPanel = ({
   state,
   refreshUI,
   itemInfoRef,
-  onCombineLog,
-  onDropLog,
   metricsRef,
   isDraggingRef,
   dragOverlayRef,
@@ -53,23 +47,10 @@ export const InventoryPanel = ({
     itemInfoRef.current?.setDragging(false)
   }, [refreshUI, itemInfoRef])
 
-  const onCombine = useCallback(
-    (recipe: Recipe) => {
-      const [a, b] = recipe.ingredients
-      const nameA = getDefinition(a).name.toLowerCase()
-      const nameB = getDefinition(b).name.toLowerCase()
-      const capitalized = nameA.charAt(0).toUpperCase() + nameA.slice(1)
-      const header = `${capitalized} + ${nameB} = ${recipe.resultName}.`
-      onCombineLog(header, state.player.x, state.player.y)
-    },
-    [onCombineLog, state]
-  )
-
   const { dragState, startDrag, updatePreview, drop, cancelDrag } = useInventoryDrag({
     containers,
     state,
     onDrop,
-    onCombine,
   })
 
   isDraggingRef.current = dragState !== null
@@ -132,7 +113,6 @@ export const InventoryPanel = ({
     metricsRef,
     cancelDrag,
     refreshUI,
-    onDropLog,
     itemInfoRef,
   })
 
