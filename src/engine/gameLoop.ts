@@ -57,6 +57,7 @@ import { tickTileWater } from './tileWater'
 import { DeepTimePhase, Zone } from './types'
 import { cleanupMoveOrderMarkers, tickUnitCommands } from './unitCommands'
 import { isTileInVisibleViewport } from './viewportBounds'
+import { MOAB_PACE_MS, tickTorchbearer } from './torchbearer'
 import { tickPrecipitationIntensity, tickWeather } from './weather'
 import { tickWind } from './weather/wind'
 import { tickZoneTransition } from './zoneTransition'
@@ -396,6 +397,18 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           tickWeather(state, dt)
         }
       })(),
+    },
+    {
+      // Precis #9b — torchbearer state machine. Runs at MOAB_PACE_MS in
+      // the overworld zone only; pacing pauses while the player is in
+      // the cave (matches bee/ghost suppression). Season transitions
+      // are detected on every call via state.lastSeenSeason.
+      id: 'torchbearer',
+      intervalMs: MOAB_PACE_MS,
+      zone: 'overworld',
+      fn: (state: GameState) => {
+        tickTorchbearer(state)
+      },
     },
     {
       id: 'wind',

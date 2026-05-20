@@ -21,7 +21,7 @@ import { generateEgregoreGenome } from './genetics/egregore'
 import { isWalkableTile, posKey } from './position'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
 import { buildWaterProximity } from './tileWater'
-import { CoyoteMode, EgregoreActivityStage, MainQuestPhase, Season, Sky, TileType, Zone } from './types'
+import { CoyoteMode, EgregoreActivityStage, MainQuestPhase, MoabState, Season, Sky, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
 
@@ -252,6 +252,12 @@ export const createGameState = (
     precipitationIntensity: 0,
     seasonalPhase: 0,
     currentDate: { month: 3, day: 20 },
+    burnLineDraft: null,
+    lockedBurnLine: null,
+    burnLineIndex: null,
+    burnDrawMode: false,
+    lastSeenSeason: Season.Winter,
+    moabState: MoabState.Idle,
     wind: initWindState(),
     pollen: [],
     pollenTrailDepth: 0,
