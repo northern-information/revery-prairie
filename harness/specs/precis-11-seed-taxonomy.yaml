@@ -17,7 +17,7 @@ source_files:
   - src/engine/genetics/index.ts
   - src/engine/floraLifecycle.ts
   - src/engine/floraLifecycleEntry.ts
-  - src/engine/components.ts
+  - src/engine/ecs/types.ts
   - src/engine/manual.ts
   - src/engine/__tests__/items.test.ts
   - src/harness/__tests__/serialization/schema.test.ts

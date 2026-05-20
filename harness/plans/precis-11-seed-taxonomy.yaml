@@ -33,10 +33,10 @@ tasks:
     spec_sections:
       - item-drop-component-carries-genome
     context_files:
-      - src/engine/components.ts
+      - src/engine/ecs/types.ts
       - src/engine/genetics/index.ts
     output_files:
-      - src/engine/components.ts
+      - src/engine/ecs/types.ts
     depends_on:
       - doctrine-status-update
     verification:
@@ -102,7 +102,7 @@ tasks:
     context_files:
       - src/engine/ruins.ts
       - src/engine/genetics/index.ts
-      - src/engine/components.ts
+      - src/engine/ecs/types.ts
       - src/engine/types.ts
     output_files:
       - src/engine/ruins.ts
@@ -127,7 +127,7 @@ tasks:
     context_files:
       - src/engine/entities.ts
       - src/engine/inventory.ts
-      - src/engine/components.ts
+      - src/engine/ecs/types.ts
     output_files:
       - src/engine/entities.ts
     depends_on:
