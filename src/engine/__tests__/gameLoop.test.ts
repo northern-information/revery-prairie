@@ -837,12 +837,12 @@ describe('scan auto-commit (precis #6)', () => {
     state.floraLifecycle.set(key, createTestFloraEntry({ posKey: key, species }))
   }
 
-  it('commits the scan and calls onOpenManual once elapsed >= SCAN_DURATION_MS', () => {
+  it('commits the scan and calls onScanComplete with species + identity once elapsed >= SCAN_DURATION_MS', () => {
     const state = createTestState()
     clearAroundPlayer(state, 2)
     placeFlora(state, state.player.x, state.player.y, FloraSpecies.Clover)
-    const onOpenManual = vi.fn()
-    const gameLoop = createGameLoop(state, { onOpenManual })
+    const onScanComplete = vi.fn()
+    const gameLoop = createGameLoop(state, { onScanComplete })
     state.scanInProgress = {
       target: { x: state.player.x, y: state.player.y },
       species: FloraSpecies.Clover,
@@ -850,7 +850,11 @@ describe('scan auto-commit (precis #6)', () => {
     }
     gameLoop.tick(SCAN_DURATION_MS + 100)
     expect(state.scanInProgress).toBeNull()
-    expect(onOpenManual).toHaveBeenCalledOnce()
+    expect(onScanComplete).toHaveBeenCalledOnce()
+    expect(onScanComplete).toHaveBeenCalledWith(FloraSpecies.Clover, expect.any(String))
+    const identityArg: unknown = onScanComplete.mock.calls[0][1]
+    expect(typeof identityArg).toBe('string')
+    expect(identityArg as string).toHaveLength(64)
     expect(state.scannedSpecimens.get(FloraSpecies.Clover)).toHaveLength(1)
   })
 
@@ -858,8 +862,8 @@ describe('scan auto-commit (precis #6)', () => {
     const state = createTestState()
     clearAroundPlayer(state, 2)
     placeFlora(state, state.player.x, state.player.y, FloraSpecies.Clover)
-    const onOpenManual = vi.fn()
-    const gameLoop = createGameLoop(state, { onOpenManual })
+    const onScanComplete = vi.fn()
+    const gameLoop = createGameLoop(state, { onScanComplete })
     state.scanInProgress = {
       target: { x: state.player.x, y: state.player.y },
       species: FloraSpecies.Clover,
@@ -867,7 +871,7 @@ describe('scan auto-commit (precis #6)', () => {
     }
     gameLoop.tick(SCAN_DURATION_MS - 100)
     expect(state.scanInProgress).not.toBeNull()
-    expect(onOpenManual).not.toHaveBeenCalled()
+    expect(onScanComplete).not.toHaveBeenCalled()
     expect(state.scannedSpecimens.size).toBe(0)
   })
 
@@ -875,8 +879,8 @@ describe('scan auto-commit (precis #6)', () => {
     const state = createTestState()
     clearAroundPlayer(state, 2)
     // No flora placed — commit will abort
-    const onOpenManual = vi.fn()
-    const gameLoop = createGameLoop(state, { onOpenManual })
+    const onScanComplete = vi.fn()
+    const gameLoop = createGameLoop(state, { onScanComplete })
     state.scanInProgress = {
       target: { x: state.player.x, y: state.player.y },
       species: FloraSpecies.Clover,
@@ -884,6 +888,6 @@ describe('scan auto-commit (precis #6)', () => {
     }
     gameLoop.tick(SCAN_DURATION_MS + 100)
     expect(state.scanInProgress).toBeNull()
-    expect(onOpenManual).not.toHaveBeenCalled()
+    expect(onScanComplete).not.toHaveBeenCalled()
   })
 })

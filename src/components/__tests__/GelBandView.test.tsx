@@ -1,0 +1,45 @@
+import { GelBandView } from '../GelBandView'
+import { render, screen, within } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+
+import { HEX_GRID_SIZE, hashToHexGrid } from '@/engine/genetics'
+
+describe('GelBandView', () => {
+  const identity = '0e7d7b052690f720498415c0d9c0d36861af3edc5e6d872c2490f2b4a5b8d725'
+
+  it('renders 64 band cells for an 8x8 grid', () => {
+    render(<GelBandView identity={identity} />)
+    const container = screen.getByTestId('gel-band-view')
+    const cells = within(container).getAllByTestId(/^gel-band-cell-/)
+    expect(cells).toHaveLength(HEX_GRID_SIZE * HEX_GRID_SIZE)
+  })
+
+  it('cell opacity matches nibble / 15', () => {
+    const grid = hashToHexGrid(identity)
+    render(<GelBandView identity={identity} />)
+    for (let r = 0; r < HEX_GRID_SIZE; r++) {
+      for (let c = 0; c < HEX_GRID_SIZE; c++) {
+        const cell = screen.getByTestId(`gel-band-cell-${String(r)}-${String(c)}`)
+        const expected = grid[r][c] / 15
+        const actual = parseFloat(cell.style.opacity)
+        expect(actual).toBeCloseTo(expected, 5)
+      }
+    }
+  })
+
+  it('renders deterministically for the same identity', () => {
+    const first = render(<GelBandView identity={identity} />)
+    const firstHTML = first.container.innerHTML
+    first.unmount()
+    const second = render(<GelBandView identity={identity} />)
+    expect(second.container.innerHTML).toBe(firstHTML)
+  })
+
+  it('renders different content for different identities', () => {
+    const a = render(<GelBandView identity={'a'.repeat(64)} />)
+    const aHTML = a.container.innerHTML
+    a.unmount()
+    const b = render(<GelBandView identity={'b'.repeat(64)} />)
+    expect(b.container.innerHTML).not.toBe(aHTML)
+  })
+})

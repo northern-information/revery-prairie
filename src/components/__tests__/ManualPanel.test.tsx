@@ -166,19 +166,19 @@ describe('ManualPanel', () => {
         { identity: 'a'.repeat(64), scannedAt: performance.now(), position: { x: 0, y: 0 } },
       ])
       render(<ManualPanel state={state} />)
-      // The stack and its hex grid both render.
+      // The stack and its gel-band view both render.
       expect(screen.getByTestId('specimen-stack')).toBeInTheDocument()
-      expect(screen.getByTestId('hex-grid-view')).toBeInTheDocument()
+      expect(screen.getByTestId('gel-band-view')).toBeInTheDocument()
     })
 
-    it('does not render the hex grid for a discovered species without a cached specimen', () => {
+    it('does not render the gel-band view for a discovered species without a cached specimen', () => {
       // Discovery alone (without scannedSpecimens entry) shouldn't crash —
-      // the grid quietly skips. The entry still appears (per discovery).
+      // the band view quietly skips. The entry still appears (per discovery).
       const state = createTestState()
       state.manualDiscoveries.add('flora:clover')
       render(<ManualPanel state={state} />)
       expect(screen.getByText('Clover (Trifolium repens)')).toBeInTheDocument()
-      expect(screen.queryByTestId('hex-grid-view')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('gel-band-view')).not.toBeInTheDocument()
     })
 
     it('search does not surface undiscovered flora entries', async () => {

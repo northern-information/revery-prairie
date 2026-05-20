@@ -84,17 +84,20 @@ export const selectScanTarget = (state: GameState): ScanTarget | null => {
 //   - sets state.manualHighlightEntryId so the manual scrolls to and
 //     highlights the entry on next render
 //
-// Returns true if the commit succeeded (caller may want to open the manual
-// screen), false otherwise. If state.scanInProgress is null, or
-// selectScanTarget returns a different species (or null), the commit
-// silently aborts.
-export const commitScan = (state: GameState, time: number): boolean => {
+// Returns the committed { species, identity } on success so the caller
+// can drive the scan-result modal. Returns null on abort (no
+// scanInProgress, or selectScanTarget returns null / different species).
+// The function itself does not open any UI surface.
+export const commitScan = (
+  state: GameState,
+  time: number,
+): { species: FloraSpecies; identity: string } | null => {
   const progress = state.scanInProgress
-  if (!progress) return false
+  if (!progress) return null
 
   const target = selectScanTarget(state)
-  if (!target) return false
-  if (target.species !== progress.species) return false
+  if (!target) return null
+  if (target.species !== progress.species) return null
 
   recordDiscovery(state, `flora:${target.species}`)
 
@@ -111,5 +114,5 @@ export const commitScan = (state: GameState, time: number): boolean => {
 
   spawnPickupBloom(state, target.position.x, target.position.y, time)
   state.manualHighlightEntryId = `flora:${target.species}`
-  return true
+  return { species: target.species, identity: target.identity }
 }

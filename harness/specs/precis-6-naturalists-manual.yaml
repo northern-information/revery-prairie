@@ -1,5 +1,5 @@
 id: precis-6-naturalists-manual
-name: "Precis #6 — Naturalist's manual: scan-to-discover flora + hex grid"
+name: "Precis #6 — Naturalist's manual: scan-to-discover flora + gel-band sequence"
 priority: medium
 layer: integration
 source_files:
@@ -11,7 +11,13 @@ source_files:
   - src/engine/state.ts
   - src/engine/manual.ts
   - src/engine/position.ts
+  - src/engine/scan.ts
+  - src/engine/flora/species.ts
+  - src/components/GameScreen.tsx
   - src/components/ManualPanel.tsx
+  - src/components/SpecimenStack.tsx
+  - src/components/GelBandView.tsx
+  - src/components/ScanResultModal.tsx
   - src/hooks/useKeyboard.ts
   - src/harness/__tests__/serialization/schema.test.ts
 dependencies:
@@ -20,26 +26,33 @@ dependencies:
 behaviors:
   - id: scan-state-on-gamestate
     description: >
-      GameState gains two new fields. state.scannedSpecimens is a
-      Map<FloraSpecies, string> mapping species to the SHA256 identity
-      of the first plant of that species the player ever successfully
-      scanned. Once written, the entry is never overwritten (subsequent
-      scans of the same species are visible no-ops). state.scanInProgress
-      is a nullable { target: Position; species: FloraSpecies; startTime: number }
+      GameState carries scan-related fields. state.scannedSpecimens is a
+      Map<FloraSpecies, ScannedSpecimen[]> — each species maps to an ordered
+      list of every uniquely-identified specimen the player has scanned
+      (deduped by identity, so re-scanning the same plant is a no-op).
+      A ScannedSpecimen is { identity: string; scannedAt: number;
+      position: Position }. state.scanInProgress is a nullable
+      { target: Position; species: FloraSpecies; startTime: number }
       record describing the currently-active scan, or null when no scan is
-      running. Both fields are added to EXPECTED_FIELDS in the schema
+      running. state.manualHighlightEntryId is a nullable string holding
+      the entry id to flash/scroll-to on the next manual open (used to
+      surface the just-scanned species when the player later opens the
+      manual). All three fields appear in EXPECTED_FIELDS in the schema
       serialization test.
     inputs:
       - 'codebase after #6 lands'
     outputs:
-      - 'state.scannedSpecimens: Map<FloraSpecies, string> exists on GameState'
+      - 'state.scannedSpecimens: Map<FloraSpecies, ScannedSpecimen[]> exists on GameState'
       - 'state.scanInProgress: ScanProgress | null exists on GameState'
-      - 'both fields are listed in EXPECTED_FIELDS in schema.test.ts'
+      - 'state.manualHighlightEntryId: string | null exists on GameState'
+      - 'all three fields are listed in EXPECTED_FIELDS in schema.test.ts'
     state_changes:
       - field: scannedSpecimens
-        effect: 'new Map<FloraSpecies, string>, populated by successful scans'
+        effect: 'Map<FloraSpecies, ScannedSpecimen[]>; appended to by successful scans, deduped by identity'
       - field: scanInProgress
         effect: 'null when idle; { target, species, startTime } when a scan is held'
+      - field: manualHighlightEntryId
+        effect: 'set on successful scan to flora:${species}; cleared after the manual consumes it'
     determinism: deterministic
 
   - id: scan-target-selection
@@ -99,50 +112,136 @@ behaviors:
 
   - id: commit-scan-records-discovery
     description: >
-      commitScan(state) in src/engine/scan.ts (new module) is called when
-      a hold completes. It reads state.scanInProgress (must be non-null).
-      It looks up the current target via selectScanTarget(state) — NOT
-      the cached target from scanInProgress — to handle the case where
-      the plant or player moved during the hold. If the current target
-      is null or the species differs from scanInProgress.species, the
-      commit silently aborts (no-op). Otherwise it: (1) calls
-      recordDiscovery(state, `flora:${species}`); (2) if
-      state.scannedSpecimens does NOT already contain the species, writes
-      state.scannedSpecimens.set(species, identity). If it already does,
-      the existing identity is preserved. (3) calls
-      spawnPickupBloom(state, x, y, time) at the target position — same
-      visual feedback as any other player-initiated acquisition.
+      commitScan(state, time) in src/engine/scan.ts is called when a hold
+      completes. It reads state.scanInProgress (must be non-null). It
+      looks up the current target via selectScanTarget(state) — NOT the
+      cached target from scanInProgress — to handle the case where the
+      plant or player moved during the hold. If the current target is
+      null or the species differs from scanInProgress.species, the commit
+      silently aborts and returns false. Otherwise it: (1) calls
+      recordDiscovery(state, `flora:${species}`); (2) appends a
+      ScannedSpecimen { identity, scannedAt: time, position } to
+      state.scannedSpecimens.get(species) ?? [] unless an entry with the
+      same identity is already present (re-scanning the same plant is a
+      no-op for the specimen list); (3) calls spawnPickupBloom(state, x,
+      y, time) at the target position — same visual feedback as any
+      other player-initiated acquisition; (4) sets
+      state.manualHighlightEntryId to `flora:${species}` so a later
+      manual open scrolls to and flashes that entry. Returns true on
+      successful commit. commitScan does NOT open the manual or the scan
+      result modal; the caller (game loop) decides what surface to open.
     inputs:
-      - 'commitScan(state) called after a successful hold-to-scan release'
+      - 'commitScan(state, time) called after a successful hold-to-scan release'
     outputs:
       - 'manualDiscoveries gains "flora:${species}"'
-      - 'scannedSpecimens gains species → identity on first scan only'
+      - 'scannedSpecimens[species] gains a new ScannedSpecimen unless identity already present'
       - 'pickup bloom spawns at the scanned tile'
+      - 'manualHighlightEntryId set to "flora:${species}"'
+      - 'returns true on successful commit, false on abort'
     state_changes:
       - field: manualDiscoveries
-        effect: 'flora:${species} added once'
+        effect: 'flora:${species} added once (idempotent)'
       - field: scannedSpecimens
-        effect: 'species → identity written on first successful scan'
+        effect: 'ScannedSpecimen appended per unique identity'
+      - field: manualHighlightEntryId
+        effect: 'set to flora:${species}'
     determinism: deterministic
 
-  - id: manual-renders-hex-grid-for-scanned-species
+  - id: manual-renders-gel-band-view-for-scanned-species
     description: >
       The ManualPanel.tsx EntryCard for any flora entry (id starting
-      with "flora:") renders an 8x8 hex grid above the lore text when
-      the species has been scanned. The grid is derived from
-      hashToHexGrid(state.scannedSpecimens.get(species)) — the cached
-      identity of the first-scanned specimen. Each cell renders as a
-      monospace nibble character (0-9, a-f) in a faint color. Cells are
-      visually distinct (light border or background). The grid component
-      lives in a new src/components/HexGridView.tsx. Undiscovered
+      with "flora:") renders a gel-electrophoresis-style band view above
+      the lore text when the species has been scanned. The view is an
+      8x8 grid (HEX_GRID_SIZE) derived from hashToHexGrid(identity) for
+      the currently-selected specimen in the SpecimenStack. Each cell
+      renders as a horizontal band: a rectangular fill in the existing
+      text-color token (off-white on dark background) whose opacity is
+      nibble / 15 (0 → fully transparent, 15 → fully opaque). Vertical
+      blur is applied via CSS filter: blur on each row (or row group)
+      so bands bleed into each other vertically and read as a gel
+      printout. The component lives in src/components/GelBandView.tsx
+      and replaces the previous HexGridView component. SpecimenStack
+      paging (prev/next, "Specimen N of M", relative scan time) is
+      preserved unchanged — the gel view replaces only the visual
+      inside each card. The data-testid is "gel-band-view". Undiscovered
       species do not appear in the manual at all (handled by the
-      existing isDiscovered() filter using the unlockKey).
+      existing isDiscovered() filter using the unlockKey). The component
+      file src/components/HexGridView.tsx is removed, along with its
+      test file src/components/__tests__/HexGridView.test.tsx.
     inputs:
       - 'player has scanned at least one plant of species X'
       - 'player opens the manual and views the entry for species X'
     outputs:
-      - 'the entry shows an 8x8 grid of hex nibble characters above the lore'
+      - 'the entry shows an 8x8 gel-band view above the lore'
+      - 'each cell opacity = nibble / 15; bands are vertically blurred'
+      - 'SpecimenStack paging behavior unchanged'
+      - 'HexGridView component and its test are deleted'
       - 'undiscovered species are filtered from the manual entirely'
+    state_changes: []
+    determinism: deterministic
+
+  - id: scan-completion-opens-gel-modal
+    description: >
+      On successful scan commit (commitScan returns true), the game opens
+      a center-screen modal — the ScanResultModal — instead of the
+      manual. The modal is driven via a new callback
+      callbacks.onScanComplete?.(species, identity) emitted from the
+      game loop in src/engine/gameLoop.ts at the same site that
+      previously called callbacks.onOpenManual. The previous
+      onOpenManual callback is removed from the scan completion path
+      (it is not used anywhere else for scans). React wires this
+      callback in src/components/GameScreen.tsx by setting
+      activeScreen to a new PermacomputerScreen value 'scan-result' and
+      passing the species + identity down to the modal. The modal
+      reuses the existing screen overlay backdrop (same as 'manual',
+      'system', etc.) so input is blocked during the modal: movement,
+      hold-to-scan, click-to-move, and other gameplay keys are
+      suppressed exactly as they are for the manual screen. The modal
+      renders the Latin binomial (FLORA_SPECIES[species].latinBinomial)
+      in a serif-styled heading element, then the GelBandView for the
+      provided identity beneath it. Dismissal: any key or click that
+      would close another screen (Escape, the dedicated manual/system
+      toggle key, or clicking outside the modal content area) closes
+      the modal by clearing activeScreen back to null. The modal does
+      NOT clear state.manualHighlightEntryId — if the player later
+      opens the manual, the just-scanned entry still flashes/scrolls
+      into view as before. Modal animation state (reveal progress) is
+      held in React local state inside ScanResultModal, NOT on
+      GameState.
+    inputs:
+      - 'commitScan(state, time) returns true'
+    outputs:
+      - 'callbacks.onScanComplete fires with (species, identity)'
+      - "GameScreen sets activeScreen to 'scan-result'"
+      - 'ScanResultModal renders with latin binomial + GelBandView'
+      - 'input is blocked behind the modal (same as other screens)'
+      - 'previous callbacks.onOpenManual call at the scan site is removed'
+    state_changes: []
+    determinism: deterministic
+
+  - id: scan-modal-beat-reveal
+    description: >
+      The ScanResultModal sequences its reveal animation to create a
+      ceremonial beat. (1) On mount, the modal renders with both
+      elements hidden. (2) The Latin binomial fades in over BINOMIAL_FADE_MS
+      (~400ms). (3) After the binomial finishes fading, the gel bands
+      fade in row by row, top to bottom, at ROW_REVEAL_MS (~80ms) per
+      row — total ~640ms across all 8 rows. (4) The modal is only
+      dismissable AFTER the bands finish revealing (a "fully-revealed"
+      flag flips). Dismissal attempts before that flag flips are
+      ignored. Reveal state is local React state (useState +
+      setTimeout / requestAnimationFrame); it does NOT live on
+      GameState and does NOT serialize. The animation respects
+      prefers-reduced-motion: when the media query matches, both fades
+      collapse to a single instant render and the modal is
+      immediately dismissable.
+    inputs:
+      - 'ScanResultModal mounts with species + identity props'
+    outputs:
+      - 'binomial fades in (~400ms)'
+      - 'gel bands fade in row by row (~80ms per row)'
+      - 'modal dismissable only after full reveal'
+      - 'prefers-reduced-motion collapses to instant render + immediate dismissable'
     state_changes: []
     determinism: deterministic
 
@@ -165,18 +264,22 @@ behaviors:
 
   - id: doctrine-and-status-aligned
     description: >
-      docs/precis-status.yaml is updated to mark feature 3 as shipped
-      (PR #328) and feature 6 as in-progress with spec/plan paths
-      populated. docs/claude/manual.md gains a "scan-to-discover" section
-      describing the new mechanic. docs/claude/genetics.md is updated to
-      note that #6 has shipped the hex grid surfacing per the documented
-      doctrine override.
+      docs/claude/manual.md is updated so the "scan-to-discover" section
+      describes the modal-first flow: a successful scan opens the
+      ScanResultModal (latin binomial + gel-band view, row-by-row
+      reveal), and the manual archive surface is now the gel-band view
+      (not the hex grid) inside SpecimenStack cards. docs/claude/genetics.md
+      is updated so the hex-grid section reflects that the manual
+      surface is rendered as a gel-band visual idiom — the underlying
+      hashToHexGrid mapping remains locked and unchanged; only the
+      visual presentation has changed. Any references to HexGridView
+      in claude docs are replaced with GelBandView.
     inputs:
-      - 'codebase after #6 lands'
+      - 'codebase after this change-request lands'
     outputs:
-      - 'precis-status.yaml has feature 3 shipped, feature 6 in-progress'
-      - 'docs/claude/manual.md has a scan-to-discover section'
-      - 'docs/claude/genetics.md notes #6 has surfaced the grid'
+      - 'docs/claude/manual.md describes the modal + gel-band flow'
+      - 'docs/claude/genetics.md notes the gel-band visual presentation; underlying mapping unchanged'
+      - 'all claude doc references to HexGridView are replaced with GelBandView'
     state_changes: []
     determinism: deterministic
 
@@ -256,6 +359,44 @@ edge_cases:
       scanInProgress is null. The player moves one step. The progress
       indicator disappears. Releasing f afterward is a no-op (no active scan).
 
+  - id: dismiss-before-full-reveal-ignored
+    description: >
+      Player triggers a successful scan, the ScanResultModal opens, and
+      they press Escape before the row-by-row reveal completes. The
+      modal does not close — the dismiss is ignored until the
+      fully-revealed flag flips.
+    expected: >
+      Modal stays open. activeScreen remains 'scan-result'. Reveal
+      continues. Once fully revealed, the same dismissal would close it.
+
+  - id: reduced-motion-collapses-reveal
+    description: >
+      A user with prefers-reduced-motion enabled triggers a scan. The
+      modal renders the binomial + full gel-band view immediately with
+      no fade transitions, and is dismissable from the first frame.
+    expected: >
+      No staged animation. Modal contents fully visible on mount.
+      Dismiss succeeds immediately.
+
+  - id: scan-while-modal-open-blocked
+    description: >
+      The ScanResultModal is open. Player attempts to hold f to start
+      another scan. activeScreen is 'scan-result', so the scan keybinding
+      is blocked exactly as it is for 'manual' or 'system' screens.
+    expected: >
+      No new scan begins. state.scanInProgress remains null. The modal
+      is unaffected.
+
+  - id: manual-highlight-survives-modal-dismiss
+    description: >
+      Player scans a flora tile, the modal opens, they dismiss it, and
+      later open the manual. The manual scrolls to and flashes the
+      flora:${species} entry that was just scanned, because the modal
+      flow never cleared state.manualHighlightEntryId.
+    expected: >
+      Manual opens with the scanned species' entry highlighted.
+      ManualHighlight behavior matches the pre-change pattern.
+
 failure_conditions:
   - trigger: 'state.scannedSpecimens is mutated outside commitScan'
     expected: >
@@ -282,10 +423,16 @@ failure_conditions:
     expected: >
       Impossible by construction — the entry is filtered out by
       isDiscovered (unlockKey not in manualDiscoveries) before render.
-      If it somehow renders, the HexGridView component should gracefully
-      render nothing (no error, no placeholder grid).
+      If it somehow renders, the GelBandView component should gracefully
+      render nothing (no error, no placeholder bands).
+
+  - trigger: 'onScanComplete fires but GameScreen has no handler wired'
+    expected: >
+      No-op. activeScreen stays null and the player sees no modal. This
+      indicates a wiring bug in GameScreen — caught by component tests
+      that assert the modal opens on a simulated scan completion.
 
 verification:
-  test_file: src/components/__tests__/ManualPanel.test.tsx
-  test_pattern: 'flora'
-  command: npx vitest run src/components/__tests__/ManualPanel.test.tsx
+  test_file: src/components/__tests__/ScanResultModal.test.tsx
+  test_pattern: 'scan-result'
+  command: npx vitest run src/components/__tests__/ScanResultModal.test.tsx src/components/__tests__/GelBandView.test.tsx src/components/__tests__/ManualPanel.test.tsx

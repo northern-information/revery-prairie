@@ -61,7 +61,7 @@ import { tickPrecipitationIntensity, tickWeather } from './weather'
 import { tickWind } from './weather/wind'
 import { tickZoneTransition } from './zoneTransition'
 
-import type { GameState } from './types'
+import type { FloraSpecies, GameState } from './types'
 
 export interface TickSystem {
   id: string
@@ -78,9 +78,10 @@ export interface GameLoopCallbacks {
   onBeeDeath?: (worldX: number, worldY: number) => void
   onAutoHidePanel?: () => void
   // Precis #6 — fires from tick when a held [f] scan reaches 100% and
-  // commits successfully. The keyboard hook switches activeScreen to
-  // 'manual' so the player sees the just-collected specimen.
-  onOpenManual?: () => void
+  // commits successfully. The React layer opens the ScanResultModal with
+  // the just-scanned species + identity (the modal renders the latin
+  // binomial + gel-band sequence with a ceremonial row-by-row reveal).
+  onScanComplete?: (species: FloraSpecies, identity: string) => void
   onFrame?: (time: number) => void
 }
 
@@ -718,7 +719,7 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
       const committed = commitScan(state, time)
       state.scanInProgress = null
       if (committed) {
-        callbacks.onOpenManual?.()
+        callbacks.onScanComplete?.(committed.species, committed.identity)
         callbacks.onRefreshUI?.()
       }
     }

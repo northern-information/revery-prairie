@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { BootTitleCardOverlay } from './BootTitleCardOverlay'
 import { CantosScreen } from './CantosScreen'
 import { CommandPanel } from './CommandPanel'
@@ -17,6 +17,7 @@ import { Menu } from './Menu'
 import { Minimap } from './Minimap'
 import { PermacomputerShell } from './PermacomputerShell'
 import { ReverySummary } from './ReverySummary'
+import { ScanResultModal } from './ScanResultModal'
 
 import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
@@ -24,6 +25,7 @@ import { canCast } from '@/engine/hexagram'
 import { advanceDialog } from '@/engine/interaction'
 import { advanceReveryToClosing } from '@/engine/revery'
 import { ReveryPhase } from '@/engine/types'
+import type { FloraSpecies } from '@/engine/types'
 import { useGameEngine } from '@/hooks/useGameEngine'
 import { useKeyboard } from '@/hooks/useKeyboard'
 import { useMusic } from '@/hooks/useMusic'
@@ -85,6 +87,17 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
     isDraggingRef,
   })
 
+  // Precis #6 — scan-result modal. Populated when the game loop fires
+  // onScanComplete; cleared when the player dismisses the modal.
+  const [scanResult, setScanResult] = useState<{ species: FloraSpecies; identity: string } | null>(null)
+  const onScanComplete = useCallback(
+    (species: FloraSpecies, identity: string) => {
+      setScanResult({ species, identity })
+      setActiveScreen('scan-result')
+    },
+    [setActiveScreen],
+  )
+
   return (
     <>
       <GameCanvas
@@ -92,10 +105,21 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
         refreshUI={refreshUI}
         activeScreen={activeScreen}
         setActiveScreen={setActiveScreen}
+        onScanComplete={onScanComplete}
         metricsRef={metricsRef}
       />
+      {activeScreen === 'scan-result' && scanResult && (
+        <ScanResultModal
+          species={scanResult.species}
+          identity={scanResult.identity}
+          onDismiss={() => {
+            setActiveScreen(null)
+            setScanResult(null)
+          }}
+        />
+      )}
       <ReverySummary revery={state.revery} />
-      {activeScreen && (
+      {activeScreen && activeScreen !== 'scan-result' && (
         <PermacomputerShell
           state={state}
           activeScreen={activeScreen}
