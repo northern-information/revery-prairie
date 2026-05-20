@@ -9,15 +9,14 @@
 // See harness/specs/precis-4-the-revery.yaml for the locked behaviors and
 // docs/claude/revery.md for the full doctrine summary.
 
-import { FIRST_REVERY_EGREGORE_COUNT, REVERY_YEARS_PER_FRAME } from './constants'
+import { REVERY_YEARS_PER_FRAME } from './constants'
+import { advanceEgregoreInRevery } from './egregore/spread'
 import { resolvePhenotypeLabel } from './phenotype'
-import { isInBounds, ORDINAL, posKey } from './position'
-import { FloraSpecies, OmenKind, ReveryPhase, TileType } from './types'
+import { FloraSpecies, OmenKind, ReveryPhase } from './types'
 
 import type {
   GameState,
   OmenKind as OmenKindT,
-  Position,
   RevealedPhenotype,
   ReveryChange,
   ReverySnapshot,
@@ -132,14 +131,14 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
       // pair for the most-discovered species. Re-resolving the same pair
       // OVERWRITES the prior verdict — no duplicates per pair.
       resolveAndCommitPhenotype(state, r)
-      // First-Revery egregoric advance. Gated by reveryCount === 0 here
-      // (state.reveryCount is incremented in Closing, so during this first
-      // Revery's Summary, the count is still 0). Subsequent Reveries no-op.
-      if (state.reveryCount === 0) {
-        const placed = advanceEgregoreFirstRevery(state)
-        if (placed.length > 0) {
-          r.scheduledChanges.push({ kind: 'egregore-grew', payload: { positions: placed } })
-        }
+      // Egregoric advance. Precis #8b refactored this — the function
+      // is always called, and the count varies by state.reveryCount:
+      // first Revery places 3 (preserves precis-4 contract); subsequent
+      // Reveries place 6–9. state.reveryCount increments in Closing, so
+      // it reflects the *current* Revery here.
+      const placed = advanceEgregoreInRevery(state, time)
+      if (placed.length > 0) {
+        r.scheduledChanges.push({ kind: 'egregore-grew', payload: { positions: placed } })
       }
       r.summaryReady = true
     }
@@ -156,76 +155,8 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
   // keydown handler — tickRevery does not auto-advance Summary → Closing.
 }
 
-// --- First-Revery egregoric advance ---
-//
-// v3 doctrine 8a section: "During the first Revery, hardcoded growth from
-// 3 → ~6 tiles. Summary phrases this as the line moved." We place
-// FIRST_REVERY_EGREGORE_COUNT new TileType.Egregore tiles adjacent to
-// existing egregore tiles, biased toward the player's trail centroid (so
-// the advance lands somewhere the player will plausibly notice).
-//
-// Subsequent Reveries (reveryCount >= 1) do NOT trigger this advance — the
-// recurring per-Revery winter-phased spread is deferred to #8b.
-
-const trailCentroid = (state: GameState): Position => {
-  if (state.trail.length === 0) {
-    return { x: Math.floor(state.mapWidth / 2), y: Math.floor(state.mapHeight / 2) }
-  }
-  let sx = 0
-  let sy = 0
-  for (const p of state.trail) {
-    sx += p.x
-    sy += p.y
-  }
-  return { x: Math.round(sx / state.trail.length), y: Math.round(sy / state.trail.length) }
-}
-
-const manhattan = (a: Position, b: Position): number => Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
-
-// Returns positions of dirt tiles adjacent (ordinal) to existing egregore
-// tiles, deduped. Candidate set for the advance.
-const candidateDirtNeighbors = (state: GameState): Position[] => {
-  const seen = new Set<string>()
-  const candidates: Position[] = []
-  for (const pos of state.egregorePositions) {
-    for (const d of ORDINAL) {
-      const nx = pos.x + d.x
-      const ny = pos.y + d.y
-      if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
-      if (state.map[ny][nx].type !== TileType.Dirt) continue
-      const key = posKey(nx, ny)
-      if (seen.has(key)) continue
-      seen.add(key)
-      candidates.push({ x: nx, y: ny })
-    }
-  }
-  return candidates
-}
-
-export const advanceEgregoreFirstRevery = (state: GameState): Position[] => {
-  // Caller guards against reveryCount > 0, but this function is also safe to
-  // call defensively — it just relies on the candidate-list shape.
-  if (state.egregorePositions.length === 0) return []
-  const candidates = candidateDirtNeighbors(state)
-  if (candidates.length === 0) return []
-
-  const center = trailCentroid(state)
-  // Stable sort by Manhattan distance from trail centroid, then by posKey
-  // (deterministic tiebreaker). Picks the closest N positions to the
-  // player's recent movement.
-  const sorted = [...candidates].sort((a, b) => {
-    const da = manhattan(a, center)
-    const db = manhattan(b, center)
-    if (da !== db) return da - db
-    return posKey(a.x, a.y).localeCompare(posKey(b.x, b.y))
-  })
-  const placed = sorted.slice(0, FIRST_REVERY_EGREGORE_COUNT)
-  for (const pos of placed) {
-    state.map[pos.y][pos.x] = { type: TileType.Egregore }
-    state.egregorePositions.push(pos)
-  }
-  return placed
-}
+// The egregoric advance logic moved to src/engine/egregore/spread.ts so
+// the stewardship-time and Revery-time paths share helpers (precis #8b).
 
 // Resolve the per-Revery phenotype label and commit it to state.revealedPhenotypes.
 // Mutates revery.scheduledChanges to add the phenotype-revealed change record.

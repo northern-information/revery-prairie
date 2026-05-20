@@ -181,6 +181,39 @@ export const getEgregoreBinomial = (x: number, y: number): string => {
   return `${a} ${b}`
 }
 
+// --- Incompatibility footnote (precis #8b) ---------------------------------
+//
+// Appended to every egregore manual entry once the player has discovered
+// any native flora species (precis #8b doctrine: "the cosmology refuses
+// the question once the player has started asking it"). The tokens are
+// drawn from the same EVA_TOKENS allowlist as the body, with a separate
+// hash channel so the footnote is uncorrelated with the body.
+//
+// **Engineering-only translation, never rendered:** the curated EVA-token
+// sequence is meant to read as "no compatible regions" in the doctrinal
+// register. The English string is intentionally not surfaced anywhere
+// (no constant, no helper, no comment line that the renderer can read).
+// Players see only the Voynich glyphs; precis-12 will surface the
+// player-readable "no compatible regions" line in the crossbreed UX.
+
+const FOOTNOTE_LENGTH_BUCKET = 3 // 3..5 tokens
+
+/**
+ * Returns the EVA tokens for an egregore manual entry's "no compatible
+ * regions" footnote line. Stable per-position. Length varies in [3, 5].
+ * Different positions produce different sequences.
+ */
+export const getEgregoreIncompatibilityFootnote = (x: number, y: number): string[] => {
+  const h = tileHash(x, y)
+  const length = 3 + (reseed(h, 0x300) % FOOTNOTE_LENGTH_BUCKET)
+  const tokens: string[] = []
+  for (let i = 0; i < length; i++) {
+    const pick = reseed(h, 0x310 + i) % EVA_TOKENS.length
+    tokens.push(EVA_TOKENS[pick])
+  }
+  return tokens
+}
+
 // --- Exports for testing ---------------------------------------------------
 
 export const EVA_TOKEN_COUNT = EVA_TOKENS.length

@@ -1,5 +1,5 @@
 import type { World } from './ecs/world'
-import type { TraitBag } from './genetics'
+import type { EgregoreGenome, TraitBag } from './genetics'
 import type { CivilizationRuin, GenesisSimState, RuinGenerationMode } from './genesisTypes'
 import type { ColorId } from '@revery-prairie/shared'
 
@@ -326,6 +326,18 @@ export interface GameState {
   // the manual entry generator and the sidebar identify them without
   // a full map scan. Stable across reloads for the same steward name.
   egregorePositions: Position[]
+  // Per-tile activity state for the egregoric biome (precis #8b). Keyed
+  // by posKey(x, y); one entry per position in egregorePositions. Stage
+  // is inverse-phased to native flora — Active in Winter, Dormant
+  // otherwise. Species and genome are deterministic per (steward,
+  // position); see src/engine/egregore/species.ts and
+  // src/engine/genetics/egregore.ts.
+  egregoreLifecycle: Map<string, EgregoreActivityState>
+  // Tracks the most recent in-game year that tickEgregoreSpread placed
+  // tiles, throttling stewardship-winter drift to ~1–2 tiles per year.
+  // Initialized to -1 so the first eligible tick can fire. Independent
+  // of Revery-time advances, which are not throttled by this field.
+  lastEgregoreSpreadYear: number
   soilHealth: Map<string, number>
   elevation: Map<string, number>
   ponds: Set<string>
@@ -466,6 +478,35 @@ export interface FloraLifecycleState {
   // through createFloraLifecycleEntry in floraLifecycle.ts.
   identity: string
   traits: TraitBag
+}
+
+// --- Precis #8b — Egregoric flora (mechanical biome) ---
+
+// Parallel species set under TileType.Egregore. Distinct from
+// FloraSpecies (which is for native flora under TileType.Flora) — the
+// cosmological boundary is rendered as a separate type, not a new enum
+// branch. Two species share the tile type with distinct trait biases.
+export const EgregoreSpecies = {
+  Allelopath: 'allelopath',
+  Spreader: 'spreader',
+} as const
+
+export type EgregoreSpecies = (typeof EgregoreSpecies)[keyof typeof EgregoreSpecies]
+
+// Inverse-phased to native FloraStage.Dormant — egregores Activate in
+// Winter and lie Dormant in other seasons.
+export const EgregoreActivityStage = {
+  Active: 'active',
+  Dormant: 'dormant',
+} as const
+
+export type EgregoreActivityStage = (typeof EgregoreActivityStage)[keyof typeof EgregoreActivityStage]
+
+export interface EgregoreActivityState {
+  stage: EgregoreActivityStage
+  stageStartTime: number
+  species: EgregoreSpecies
+  genome: EgregoreGenome
 }
 
 export interface ManualState {

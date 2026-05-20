@@ -1,6 +1,8 @@
 import { spawnAngel, tickAngelBeeAura, tickAngelCloverAura, tickAngelDrift, tickAngelLifespan } from './angels'
 import { spawnShootingStar, tickMeteorShower, tickShootingStars, triggerPlayerSpawnShower } from './celestial'
 import { tickCloverGrowth, tickCloverHives } from './clover'
+import { tickEgregoreLifecycle } from './egregore/lifecycle'
+import { tickEgregoreSpread } from './egregore/spread'
 import { tickFloraLifecycle } from './floraLifecycle'
 import {
   ANGEL_BEE_SPAWN_INTERVAL_MS,
@@ -487,6 +489,26 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       priority: 52,
       fn: (state, time) => {
         tickFloraLifecycle(state, Zone.Cave, time)
+      },
+    },
+    {
+      id: 'egregore-lifecycle',
+      intervalMs: CLOVER_LIFECYCLE_TICK_MS,
+      zone: 'overworld',
+      priority: 52,
+      fn: (state, time) => {
+        tickEgregoreLifecycle(state, time)
+      },
+    },
+    {
+      id: 'egregore-spread',
+      // ~30 s wall-clock cadence; the in-game-year throttle inside
+      // tickEgregoreSpread is the real gate (1–2 tiles per year).
+      intervalMs: 30_000,
+      zone: 'overworld',
+      priority: 53,
+      fn: (state, time) => {
+        tickEgregoreSpread(state, time)
       },
     },
     {

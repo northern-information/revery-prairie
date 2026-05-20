@@ -19,10 +19,20 @@ mechanical layout in this PR:
 - `state.egregorePositions: Position[]` — tile positions set during genesis post-process (`postProcessEgregoreTiles` in `genesis.ts`), biased near `sim.craters`. ~3 tiles per game. deterministic per steward name.
 - Manual entries are dynamic per-tile via `getEgregoreManualEntries(state)` in `manual.ts`. `ManualPanel` merges them with the static `MANUAL_ENTRIES` at render time. Each entry's body is procedurally sampled EVA tokens; ~1 tile in 5 carries a single ASCII pierce word from `LATIN_PIERCE_WORDS`. Pierces render in the default font; surrounding EVA renders in Voynich.
 
-what's deferred:
+what 8b adds (precis #8b — egregoric flora, mechanical biome):
 
-- the first-Revery 3→6 growth event lands in precis #4 (the Revery itself doesn't exist yet).
-- `cosmologicalDrift` / passive-transmission tracking from walking over egregore tiles lands in #4.
-- the parallel egregoric species set + invisible pollinator + winter-phased spread is #8b.
+- `src/engine/egregore/species.ts` — `EGREGORE_SPECIES` registry with two species (`allelopath`, `spreader`). Trait-bag asymmetry per v3 doctrine: allelopath weights `allelopathy` high, spreader weights `spreadVelocity` high. Species selection per tile is deterministic via `getEgregoreSpeciesAtPosition(x, y)` using the existing 8a `tileHash` helper.
+- `src/engine/egregore/lifecycle.ts` — `tickEgregoreLifecycle` flips entries between `active` (Winter) and `dormant` (other seasons). Inverse-phased to native flora's `FloraStage.Dormant`.
+- `src/engine/egregore/spread.ts` — two entry points. `tickEgregoreSpread` performs stewardship-winter drift (1–2 tiles per in-game year, throttled by `state.lastEgregoreSpreadYear`, gated on `season === Winter && currentZone === Overworld && deepTime === null && revery === null`). `advanceEgregoreInRevery` replaces precis-4's `advanceEgregoreFirstRevery` and is always called during the Revery's Observing → Summary transition (count: 3 on first Revery, 6–9 on subsequent).
+- `src/engine/egregore/positions.ts` — shared `candidateDirtNeighbors(state)` helper extracted from `revery.ts`. Used by both spread paths.
+- `src/engine/genetics/egregore.ts` — `EgregoreGenome` interface (`{ __kind: 'egregore'; identity; allelopathy; spreadVelocity }`) separate from `TraitBag`. `canCross(a, b)` predicate in `src/engine/genetics/index.ts` returns false for any (native, egregore) pair via the `__kind` discriminator.
+- Manual footnote on every egregore entry once the player has any `flora:*` discovery — `getEgregoreIncompatibilityFootnote(x, y)` returns deterministic EVA tokens whose engineering-only translation is "no compatible regions" (never rendered as English).
+- **invisible pollinator:** `tickEgregoreSpread` never spawns `PollenParticle`. The carrier "refuses to be named" is enforced by simply having no carrier — spread is a direct tile-conversion event.
+
+still deferred:
+
+- `cosmologicalDrift` incrementers (still 0 baseline; future features wire passive transmission and meteorite-placement layers).
+- Crossbreed UX surface (#12) — 8b ships only the `canCross` predicate + manual footnote; the UI that says "no compatible regions" in the player's own language lands in #12.
+- Failure-state biome conversion (#10) — ash, fungal, Far Garden conversion reads from 8b's spread substrate but is its own feature.
 
 never write egregore lore. the EVA tokens and pierce words are procedurally sampled from curated allowlists in `egregore.ts`; the result is *Voynich script with occasional Latin*, not prose. expand the allowlists if more variety is needed; do not author sentences.

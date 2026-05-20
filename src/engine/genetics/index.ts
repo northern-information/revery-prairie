@@ -145,6 +145,29 @@ export const crossTraitBags = (parentA: TraitBag, parentB: TraitBag, rng: () => 
   }
 }
 
+// --- Cross-genome compatibility (precis #8b) ---
+//
+// The v3 doctrine: native × egregore crossbreeding is impossible — the
+// trait bags do not align (egregores have axes natives lack). Modeled as
+// a `__kind` discriminator on `EgregoreGenome`: if either operand is
+// flagged egregoric, the cross is refused. Native `TraitBag` carries no
+// `__kind` field, so the discriminator is the type-shape boundary.
+//
+// canCross is exported here (not from egregore.ts) so callers anywhere
+// in the codebase can refuse a cross without importing the egregore
+// module directly.
+
+import { isEgregoreGenome } from './egregore'
+
+import type { EgregoreGenome } from './egregore'
+export type { EgregoreGenome } from './egregore'
+export { generateEgregoreGenome, isEgregoreGenome } from './egregore'
+
+export const canCross = (a: TraitBag | EgregoreGenome, b: TraitBag | EgregoreGenome): boolean => {
+  if (isEgregoreGenome(a) !== isEgregoreGenome(b)) return false
+  return true
+}
+
 // --- Hex grid derivation ---
 
 // LOCKED MAPPING: cell[row][col] = parseInt(identity[row * 8 + col], 16).

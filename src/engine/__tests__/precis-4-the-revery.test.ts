@@ -88,18 +88,25 @@ describe('the revery (precis #4) — acceptance', () => {
     expect(list?.[0].axis).toBe('bloomTiming')
   })
 
-  it('revery-first-egregore-advance: only the first Revery places new egregore tiles', () => {
+  it('revery-egregore-advance: every Revery places new egregore tiles (precis #8b)', () => {
+    // First Revery: places FIRST_REVERY_EGREGORE_COUNT (3) per the
+    // precis-4 contract. Subsequent Reveries: precis-8b refactor places
+    // 6 + (reveryCount % 4) tiles. Both paths route through
+    // advanceEgregoreInRevery.
     const state = createTestState()
     state.egregorePositions = []
-    clearAroundPlayer(state, 6)
-    state.map[state.player.y + 4][state.player.x + 4] = { type: TileType.Egregore }
-    state.egregorePositions.push({ x: state.player.x + 4, y: state.player.y + 4 })
+    clearAroundPlayer(state, 8)
+    // Two seed egregores so the candidate set is comfortably > 9 for
+    // the second Revery (reveryCount=1 places 7).
+    state.map[state.player.y + 3][state.player.x + 3] = { type: TileType.Egregore }
+    state.egregorePositions.push({ x: state.player.x + 3, y: state.player.y + 3 })
+    state.map[state.player.y + 6][state.player.x + 6] = { type: TileType.Egregore }
+    state.egregorePositions.push({ x: state.player.x + 6, y: state.player.y + 6 })
     const before = state.egregorePositions.length
     initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
     tickRevery(state, 0, 1100)
     for (let i = 0; i < 250; i++) tickRevery(state, 0, 2000 + i)
     expect(state.egregorePositions.length).toBeGreaterThan(before)
-    // Mark Summary → Closing → null, then run a second Revery
     if (state.revery) state.revery.phase = ReveryPhase.Closing
     tickRevery(state, 0, 10_000)
     expect(state.reveryCount).toBe(1)
@@ -108,7 +115,8 @@ describe('the revery (precis #4) — acceptance', () => {
     initiateRevery(state, 200_000, OmenKind.BeeOnShoulder)
     tickRevery(state, 0, 200_100)
     for (let i = 0; i < 250; i++) tickRevery(state, 0, 201_000 + i)
-    expect(state.egregorePositions.length).toBe(afterFirst)
+    // Second Revery (reveryCount=1 entering Summary) places 6 + 1 % 4 = 7 more.
+    expect(state.egregorePositions.length).toBeGreaterThan(afterFirst)
   })
 
   it('revery-summary-phase: summaryReady is true at Summary and scheduledChanges is populated', () => {

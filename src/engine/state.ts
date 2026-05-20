@@ -16,10 +16,12 @@ import {
 import { RuinGenerationMode } from './genesisTypes'
 import { autoSort } from './inventory'
 import { createBackpack } from './items'
+import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition } from './egregore/species'
+import { generateEgregoreGenome } from './genetics/egregore'
 import { isWalkableTile, posKey } from './position'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
 import { buildWaterProximity } from './tileWater'
-import { CoyoteMode, MainQuestPhase, Sky, TileType, Zone } from './types'
+import { CoyoteMode, EgregoreActivityStage, MainQuestPhase, Season, Sky, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
 
@@ -209,6 +211,8 @@ export const createGameState = (
     floraGrowthPreviews: new Set<string>(),
     floraLifecycle: initialFloraLifecycle,
     egregorePositions: initialEgregorePositions,
+    egregoreLifecycle: new Map(),
+    lastEgregoreSpreadYear: -1,
     tileWater: new Map<string, number>(),
     soilHealth: genesisData.soilHealth,
     elevation: genesisData.elevation,
@@ -299,6 +303,23 @@ export const createGameState = (
   // them on the map).
   for (const pos of initialEgregorePositions) {
     state.manualDiscoveries.add(`egregore:${String(pos.x)},${String(pos.y)}`)
+  }
+
+  // Precis #8b — seed activity-state entries for every egregore tile.
+  // Species + genome are deterministic per (steward, position) so the
+  // lifecycle starts identical across reloads. Initial stage is Active
+  // when the game starts in Winter (rare at genesis); otherwise Dormant.
+  // The lifecycle ticker will flip them as soon as the season changes.
+  const initialEgregoreStage = state.weather.season === Season.Winter ? EgregoreActivityStage.Active : EgregoreActivityStage.Dormant
+  for (const pos of initialEgregorePositions) {
+    const species = getEgregoreSpeciesAtPosition(pos.x, pos.y)
+    const genome = generateEgregoreGenome(pos.x, pos.y, stewardName, EGREGORE_SPECIES[species].traitBias)
+    state.egregoreLifecycle.set(posKey(pos.x, pos.y), {
+      stage: initialEgregoreStage,
+      stageStartTime: 0,
+      species,
+      genome,
+    })
   }
 
   // Place ruin entrances on the overworld

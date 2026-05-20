@@ -1,6 +1,12 @@
 import { CHARACTER_DEFINITIONS } from './characters'
 import { COIN_GLINTING_COLOR, TILE_CHARS, TILE_COLORS } from './constants'
-import { getEgregoreBinomial, getEgregoreGlyph, getEgregoreLatinPierce, getEgregoreManualBody } from './egregore'
+import {
+  getEgregoreBinomial,
+  getEgregoreGlyph,
+  getEgregoreIncompatibilityFootnote,
+  getEgregoreLatinPierce,
+  getEgregoreManualBody,
+} from './egregore'
 import { GENESIS_EPOCHS } from './genesis'
 import { KEYBINDINGS } from './input'
 import { ITEM_DEFINITIONS } from './items'
@@ -660,21 +666,38 @@ export const getEgregoreLatinPierceForEntry = (entryId: string): string | null =
   return getEgregoreLatinPierce(x, y)
 }
 
+// Precis #8b — once the player has discovered any native flora species
+// (via the permacomputer scan, etc.), every egregore manual entry gains
+// a Voynich footnote line. The cosmology refuses the question the
+// player has started asking; the doctrine reads it as "no compatible
+// regions" but the rendered tokens are pure EVA — players see Voynich,
+// not English.
+export const hasAnyNativeFloraDiscovery = (state: GameState): boolean => {
+  for (const id of state.manualDiscoveries) {
+    if (id.startsWith('flora:')) return true
+  }
+  return false
+}
+
 export const getEgregoreManualEntries = (state: GameState): ManualEntry[] => {
   if (state.egregorePositions.length === 0) return []
+  const showFootnote = hasAnyNativeFloraDiscovery(state)
   const entries: ManualEntry[] = []
   for (const pos of state.egregorePositions) {
     const id = `egregore:${String(pos.x)},${String(pos.y)}`
     const binomial = getEgregoreBinomial(pos.x, pos.y)
     const body = getEgregoreManualBody(pos.x, pos.y)
     const glyph = getEgregoreGlyph(pos.x, pos.y)
+    const lore = showFootnote
+      ? `${body}\n${getEgregoreIncompatibilityFootnote(pos.x, pos.y).join(' ')}`
+      : body
     entries.push({
       id,
       name: binomial,
       category: ManualCategory.Egregore,
       glyph,
       glyphColor: '#B080D0',
-      lore: body,
+      lore,
       hints: [],
       unlockKey: id,
       sourceKind: 'manual-only',
