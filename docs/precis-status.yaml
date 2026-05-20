@@ -229,7 +229,7 @@ features:
     status: shipped
     spec: harness/specs/delete-event-log.yaml
     plan: harness/plans/delete-event-log.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/342
     notes: >
       v4 thinktank round 0 (2026-05-19). The log was scaffolding built early
       to confirm things were working; world-effects have made it redundant.
