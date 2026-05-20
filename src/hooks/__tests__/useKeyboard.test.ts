@@ -421,7 +421,7 @@ describe('useKeyboard', () => {
         fireKey('x')
       })
 
-      expect(dropItem).toHaveBeenCalledWith(state, 'bee')
+      expect(dropItem).toHaveBeenCalledWith(state, 'bee', expect.any(Number))
       expect((itemInfoRef.current as unknown as { clear: ReturnType<typeof vi.fn> }).clear).toHaveBeenCalled()
       expect(updateFacingEntity).toHaveBeenCalledWith(state)
       expect(refreshUI).toHaveBeenCalled()

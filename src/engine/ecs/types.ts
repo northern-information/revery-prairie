@@ -1,3 +1,4 @@
+import type { FloraGenome } from '../genetics'
 import type { CharacterBehavior, MovementTween, Position, Zone } from '../types'
 
 export type Entity = number
@@ -53,7 +54,7 @@ export interface ComponentDataMap {
   [ComponentType.MultiPosition]: { positions: Position[] }
 
   [ComponentType.CharacterIdentity]: { definitionId: string }
-  [ComponentType.ItemDrop]: { definitionId: string; glinting?: boolean }
+  [ComponentType.ItemDrop]: { definitionId: string; glinting?: boolean; genome?: FloraGenome }
   [ComponentType.ChainSource]: { fromChain: boolean }
   [ComponentType.LightningData]: {
     path: { x: number; y: number }[]

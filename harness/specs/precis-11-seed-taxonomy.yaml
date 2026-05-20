@@ -1,0 +1,376 @@
+id: precis-11-seed-taxonomy
+name: 'Precis #11 — Seed taxonomy + drop-to-plant'
+priority: high
+layer: integration
+source_files:
+  - docs/precis-thinktank-v3.md
+  - docs/precis-status.yaml
+  - docs/claude/inventory.md
+  - docs/claude/entities.md
+  - docs/claude/state.md
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/items.ts
+  - src/engine/inventory.ts
+  - src/engine/entities.ts
+  - src/engine/ruins.ts
+  - src/engine/genetics/index.ts
+  - src/engine/floraLifecycle.ts
+  - src/engine/floraLifecycleEntry.ts
+  - src/engine/components.ts
+  - src/engine/manual.ts
+  - src/engine/__tests__/items.test.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - precis-3-genetics-v1
+  - precis-5-ruin-recovery-flora
+
+# Decisions locked 2026-05-20:
+#
+#   - Seeds become **genetics-bearing**. Each wildflowerSeeds /
+#     tallGrassSeeds item carries a real FloraGenome (identity + TraitBag).
+#     Picking up a vault seed and later planting it produces a flora plant
+#     with that exact identity — lineage is preserved across the ruin →
+#     pack → soil path.
+#
+#   - Genome storage uses a **side-table on GameState** keyed by item uid:
+#     `state.seedGenomes: Map<string, FloraGenome>`. Mirrors the precedent
+#     set by `state.glintingCoins` (uid-keyed item state, ItemInstance stays
+#     flat). The CLAUDE.md uid-preservation rule explicitly cites
+#     glintingCoins as the canonical pattern for this — seeds adopt the same
+#     pattern so autoSort / merge / stack / split don't need to learn about
+#     genomes.
+#
+#   - `ItemDrop` ECS component grows one optional field, `genome?: FloraGenome`,
+#     for the in-world (ground-item) phase only. On pickup the genome is
+#     transferred from the component to `state.seedGenomes[newUid]` and the
+#     entity is destroyed as today.
+#
+#   - **Drop-on-dirt = plant.** Dropping a wildflowerSeeds or tallGrassSeeds
+#     item from the backpack onto a walkable Dirt tile creates a stage-0
+#     (Healthy) flora plant at that tile, with the seed's genome supplied
+#     verbatim to createFloraLifecycleEntry. Seeds cannot be set down as
+#     ground items — every drop plants or fails. Aligns with v4 "renewal
+#     not stockpile" cosmology; no separate keybind required.
+#
+#   - **Vault-spawn time genome generation.** When a ruin's
+#     DormantGarden vault spawns a seed, the genome is derived
+#     deterministically from `(stewardName, ruinIndex, vaultSlot)` via
+#     generateGenesisIdentity + generateTraitBag, mirroring precis-3's
+#     genesis flora generation. Replayable, scannable, and the player can
+#     scan a packed seed via precis-6 if/when scan UI is extended (out of
+#     scope here).
+#
+#   - **Category move.** wildflowerSeeds and tallGrassSeeds change category
+#     from ItemCategory.Flora → ItemCategory.Seed. The Seed enum value
+#     already exists; manual.ts:191-192 already groups Flora and Seed in
+#     the same lore case. Zero behavioral impact downstream of manual
+#     grouping.
+#
+#   - **Stacking unchanged.** Spatial inventory is per-cell with no
+#     quantity field — each seed already occupies one cell. Genetics-
+#     bearing does not break stacking because there is nothing to stack.
+#     Two seeds in the pack mean two distinct uids and two distinct
+#     entries in state.seedGenomes.
+#
+#   - **No milkweed.** Milkweed seeds remain absent. They were deleted in
+#     precis #1 and have no FloraSpecies entry to plant into.
+#
+# What this feature does NOT do:
+#   - No new flora species. Plants produced are still Wildflower or
+#     TallGrass per the seed's definitionId.
+#   - No crossbreeding UX. The genome a seed carries was set at vault
+#     spawn; precis-12 covers crossbreed-derived seeds later.
+#   - No genetic-fragment item class. The backlog summary mentions
+#     "fragments" — that vocabulary lands in a later precis (or merges
+#     into precis-13 emergent angels). Scope here is seed items only.
+#   - No new scan UX for packed seeds. Scanning a seed item is deferred —
+#     the genome is queryable from state.seedGenomes by callers that need
+#     it.
+#   - No replanting of clover. The Clover item is a harvested resource,
+#     not a seed; #11 does not introduce cloverSeeds.
+#   - No autonomous spread. Plants grown from seeds follow the normal
+#     floraLifecycle path; precis-17 covers stolons / rhizomes / autonomous
+#     spread.
+
+behaviors:
+  - id: seed-genome-side-table-added
+    description: >
+      GameState gains a `seedGenomes: Map<string, FloraGenome>` field,
+      single-owner write pattern. Mutating writers: pickup path
+      (entities.ts), planting path (entities.ts), and ruin vault
+      spawn (ruins.ts). No other module writes. The field is added to
+      EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts adjacent to
+      `glintingCoins` so the schema allowlist test continues to pass.
+    inputs:
+      - 'codebase after #11 lands'
+    outputs:
+      - 'state.seedGenomes is a Map<string, FloraGenome>'
+      - 'EXPECTED_FIELDS includes "seedGenomes"'
+      - 'createGameState initializes state.seedGenomes to new Map()'
+    state_changes:
+      - field: seedGenomes
+        effect: 'Map<itemUid, FloraGenome>; written only by pickup, planting, and vault-spawn paths'
+    determinism: deterministic
+
+  - id: item-drop-component-carries-genome
+    description: >
+      The ItemDrop ECS component gains an optional `genome?: FloraGenome`
+      field. The field is populated only when the dropped definitionId is
+      'wildflowerSeeds' or 'tallGrassSeeds'. For every other definitionId
+      the field is omitted (NOT present, not undefined-explicit) to keep
+      the existing snapshot tests stable.
+    inputs:
+      - 'a ground item is created for a seed (vault spawn or coyote drop)'
+    outputs:
+      - 'state.world.getComponent(eid, ComponentType.ItemDrop).genome is a FloraGenome'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ruin-vault-seeds-get-deterministic-genomes
+    description: >
+      spawnRuinGroundItem in ruins.ts gains an optional genome arg. The
+      DormantGarden Wildflower / TallGrass branches call
+      generateGenesisIdentity(`<species-binomial>`, state.genesisSeed,
+      `ruin:${ruinIndex}:vault:0`) and generateTraitBag(identity) at
+      vault-spawn time and attach the result to the ItemDrop component.
+      Existing non-seed roles (Clover, Bee, Coyote, aqueductKey,
+      stoneTablet) are unchanged — they call spawnRuinGroundItem without
+      the optional arg.
+    inputs:
+      - 'player enters a Wildflower- or TallGrass-role ruin for the first time'
+    outputs:
+      - 'the vault ground item has ItemDrop.genome populated'
+      - 'two playthroughs with the same steward name produce byte-identical genome.identity for the same ruin/vault slot'
+    state_changes: []
+    determinism: deterministic
+
+  - id: pickup-transfers-genome-to-side-table
+    description: >
+      In pickUpGroundItems (entities.ts), after placeItem returns a new
+      ItemInstance, if the ItemDrop component had a `genome` field set,
+      copy it into state.seedGenomes keyed by the newly-placed item's
+      uid. Then destroy the ground entity as today. Picking up a non-seed
+      ground item is unchanged (no side-table write).
+    inputs:
+      - 'player walks over a seed ground item'
+    outputs:
+      - 'item appears in backpack at the new uid'
+      - 'state.seedGenomes.get(newUid) === the genome the ground item carried'
+      - 'ground entity is destroyed'
+      - 'recordDiscovery and pickupBloom fire as today'
+    state_changes:
+      - field: seedGenomes
+        effect: 'gains one entry keyed by the new item uid'
+    determinism: deterministic
+
+  - id: drop-on-dirt-plants-seed
+    description: >
+      dropItem (entities.ts) gains a seed-planting branch. When the
+      definitionId is 'wildflowerSeeds' or 'tallGrassSeeds' AND the
+      first valid drop tile (per the existing DROP_DELTAS sweep) is
+      TileType.Dirt, the drop is treated as a planting action: the tile
+      is converted to TileType.Flora; a FloraLifecycleState is created
+      via createFloraLifecycleEntry with species = Wildflower or
+      TallGrass (mapped from definitionId), identity + traits = the
+      seed's genome from state.seedGenomes; the seed is removed from
+      the backpack; state.seedGenomes deletes the consumed uid; and
+      a pickup bloom fires at the planting tile. The function returns
+      true.
+    inputs:
+      - "player drops wildflowerSeeds or tallGrassSeeds from the backpack while standing adjacent to a Dirt tile"
+    outputs:
+      - 'the Dirt tile becomes TileType.Flora'
+      - "state.floraLifecycle.get(posKey(x,y)).identity === the seed's genome.identity"
+      - "state.floraLifecycle.get(posKey(x,y)).traits deep-equals the seed's genome.traits"
+      - 'the seed is removed from the backpack'
+      - 'state.seedGenomes no longer contains the seed uid'
+      - 'a pickup bloom is spawned at the planted tile (announces the acquisition-style world effect)'
+      - 'dropItem returns true'
+    state_changes:
+      - field: map
+        effect: 'tile at (x,y) is TileType.Flora'
+      - field: floraLifecycle
+        effect: 'a new entry is added at posKey(x,y)'
+      - field: backpack
+        effect: 'the seed instance is removed'
+      - field: seedGenomes
+        effect: 'the seed uid entry is removed'
+    determinism: deterministic
+
+  - id: drop-on-non-dirt-fails
+    description: >
+      If the first valid drop tile (per DROP_DELTAS) is not Dirt — Flora,
+      Stone, Water, etc. — and the item is a seed, dropItem returns false
+      and the inventory is unchanged. Seeds cannot be set down as a
+      bare ground item. The behavior is symmetric with the existing
+      no-valid-drop-tile case.
+    inputs:
+      - 'player tries to drop a seed with no adjacent Dirt tile (only Flora / Stone / etc.)'
+    outputs:
+      - 'dropItem returns false'
+      - 'the seed remains in the backpack at its original cell'
+      - 'no flora is planted'
+      - 'no pickup bloom is spawned'
+    state_changes: []
+    determinism: deterministic
+
+  - id: seed-categories-updated
+    description: >
+      ITEM_DEFINITIONS['wildflowerSeeds'].category changes from
+      ItemCategory.Flora to ItemCategory.Seed. Same for
+      ITEM_DEFINITIONS['tallGrassSeeds']. The existing items.test.ts
+      'clover' assertion stays Flora (that is the harvested clover
+      item, not seeds). New tests assert the seed category for both.
+    inputs:
+      - 'ITEM_DEFINITIONS registry'
+    outputs:
+      - "getDefinition('wildflowerSeeds').category === ItemCategory.Seed"
+      - "getDefinition('tallGrassSeeds').category === ItemCategory.Seed"
+    state_changes: []
+    determinism: deterministic
+
+  - id: manual-entries-unchanged
+    description: >
+      Manual entries for the seed items continue to render via the
+      existing buildItemEntries path. Because manual.ts:191-192
+      groups ItemCategory.Flora and ItemCategory.Seed under the same
+      lore case, the recategorization does not change the manual UI.
+      Lore stays { lore: 'TODO' } per repo policy.
+    inputs:
+      - 'manual UI opens after #11 lands'
+    outputs:
+      - "manual entry 'item:wildflowerSeeds' renders identically to before"
+      - "manual entry 'item:tallGrassSeeds' renders identically to before"
+    state_changes: []
+    determinism: deterministic
+
+  - id: existing-non-seed-drop-paths-unchanged
+    description: >
+      dropItem for any non-seed definitionId (clover, bee, coin,
+      meteorite, honey, stoneTablet, aqueductKey) behaves exactly as
+      today. The bee-release branch and the coin glinting transfer
+      both remain. The seed branch is gated strictly by definitionId
+      so existing tests pass without modification.
+    inputs:
+      - 'player drops a non-seed item'
+    outputs:
+      - 'identical to pre-#11 behavior'
+    state_changes: []
+    determinism: deterministic
+
+  - id: coyote-and-other-drop-paths
+    description: >
+      Other code paths that emit ground items via the ItemDrop
+      component (coyote dropping cargo near Gron via dropGroundItemNear
+      in coyote.ts, recipe outputs, etc.) do not need to populate
+      the new genome field — the field is optional and absent by
+      default. The pickup path handles the missing-genome case as
+      a no-op against state.seedGenomes.
+    inputs:
+      - 'coyote drops a seed near Gron (edge case if coyoteCargo is ever a seed)'
+    outputs:
+      - 'ground item carries no genome; pickup writes nothing to seedGenomes'
+      - 'no crash, no console error'
+    state_changes: []
+    determinism: deterministic
+
+  - id: doctrine-and-status-aligned
+    description: >
+      docs/precis-status.yaml flips feature 11 to in-progress with
+      spec and plan links (during PR) and to shipped after merge.
+      The notes field is updated with the locked decisions above
+      and the size is bumped S → M (matching precis-2 precedent for
+      in-flight resizing). The summary line is updated from
+      "Item taxonomy for seeds and genetic fragments" to
+      "Genetics-bearing seeds + drop-on-dirt planting." docs/claude/
+      inventory.md, docs/claude/entities.md, and docs/claude/state.md
+      get short additions describing seedGenomes and the planting
+      behavior. CLAUDE.md gains a one-line bullet in the "rules that
+      fire when adding content" section: "new flora-creation path —
+      route through createFloraLifecycleEntry and supply identity +
+      traits (either freshly generated or pulled from
+      state.seedGenomes)."
+    inputs:
+      - 'codebase after #11 lands'
+    outputs:
+      - 'precis-status.yaml feature 11 has spec, plan, and pr fields populated; size = M'
+      - 'docs/claude/inventory.md mentions seedGenomes and the planting drop rule'
+      - 'docs/claude/entities.md mentions planting as an acquisition-side world effect'
+      - 'docs/claude/state.md does not need a new section — seedGenomes is a single-owner field; the new field rule already covers it'
+      - 'CLAUDE.md "rules that fire" section has a new bullet'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: dropping-seed-with-no-genome
+    description: >
+      Defensive: if a seed item is in the backpack but state.seedGenomes
+      does not contain its uid (impossible by construction, but cheap to
+      check) the drop fails as if no valid Dirt tile existed.
+    expected: >
+      dropItem returns false, the seed stays in the backpack, no
+      tile is mutated, no console error. A test seeds this case via
+      a synthetic ItemInstance without a side-table entry.
+
+  - id: drop-direction-priority
+    description: >
+      DROP_DELTAS lists 9 deltas including (0,0). If the player is
+      already standing on a Dirt tile and adjacent tiles are all
+      non-Dirt, the seed plants under the player. The player remains
+      on the tile (now Flora), which is walkable, so this is fine.
+    expected: >
+      The tile under the player becomes Flora at stage Healthy; the
+      player keeps their position; movement continues to work.
+
+  - id: same-steward-deterministic-genomes
+    description: >
+      Two fresh games with the same steward name produce identical
+      genomes for the wildflower-ruin vault seed and the tall-grass-ruin
+      vault seed — same identity, same trait values.
+    expected: >
+      Byte-identical comparison of genome.identity and the serialized
+      TraitBag passes for both seeds across both runs.
+
+  - id: planting-during-winter
+    description: >
+      Player plants a seed while state.weather.season === Winter.
+      Precis #2 doctrine: plants follow weather literally — newly
+      created flora in Winter receive stage Healthy from
+      createFloraLifecycleEntry but the next floraLifecycle tick
+      will move them to Dormant.
+    expected: >
+      The plant lands at stage Healthy; on the next lifecycle tick
+      the season gate sets stage to Dormant; the genome is preserved
+      verbatim across the transition (identity + traits both stable).
+
+  - id: ground-item-genome-survives-zone-transition
+    description: >
+      A seed ground item left in a ruin while the player exits to
+      the overworld and re-enters retains its ItemDrop.genome.
+    expected: >
+      The ItemDrop component is part of the ECS world which persists
+      across zone switches; no special handling needed. Re-entering
+      the ruin and picking up the seed produces the same uid-keyed
+      genome entry as if the player had picked it up on first
+      entry.
+
+failure_conditions:
+  - trigger: 'state.seedGenomes is missing from EXPECTED_FIELDS in schema.test.ts'
+    expected: 'schema allowlist test fails — CI fails'
+  - trigger: 'A new game produces a wildflower-ruin vault seed whose pickup does NOT add an entry to state.seedGenomes'
+    expected: 'integration test fails — the pickup transfer path is broken'
+  - trigger: 'Dropping wildflowerSeeds onto an adjacent Dirt tile leaves the tile as Dirt'
+    expected: 'integration test fails — drop-to-plant is wired incorrectly'
+  - trigger: "Two playthroughs with the same steward name produce a different genome.identity for the same ruin/vault slot"
+    expected: 'determinism test fails — vault-spawn genome is not stable across runs'
+  - trigger: "ITEM_DEFINITIONS['wildflowerSeeds'].category is still ItemCategory.Flora"
+    expected: 'category test fails — recategorization was missed'
+  - trigger: 'A non-seed item dropped on Dirt converts the tile to Flora'
+    expected: 'planting test fails — the seed branch leaked into non-seed drops'
+
+verification:
+  test_file: src/engine/__tests__/seed-genome.test.ts
+  test_pattern: 'plant'
+  command: 'npx vitest run src/engine/__tests__/seed-genome.test.ts -t plant'

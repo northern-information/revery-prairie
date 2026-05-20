@@ -205,7 +205,7 @@ export const useKeyboard = ({
       if (e.key === 'x' || e.key === 'X') {
         const hoveredId = itemInfoRef.current?.getCurrentId()
         if (hoveredId) {
-          const success = dropItem(state, hoveredId)
+          const success = dropItem(state, hoveredId, performance.now())
           if (success) {
             itemInfoRef.current?.clear()
             updateFacingEntity(state)

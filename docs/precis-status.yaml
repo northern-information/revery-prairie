@@ -122,11 +122,11 @@ features:
     summary: Torchbearer NPC, player walks the line, voice pass before behavior pass.
     size: M
     depends_on: ['1', '2', '3']
-    status: todo
+    status: in-progress
     spec: null
     plan: null
     pr: null
-    notes: ''
+    notes: 'In progress 2026-05-20. Spec pending.'
 
   - id: '10'
     name: Failure-state biomes
@@ -140,15 +140,15 @@ features:
     notes: ''
 
   - id: '11'
-    name: Seed / genetic-fragment taxonomy
-    summary: Item taxonomy for seeds and genetic fragments.
-    size: S
+    name: Seed taxonomy + drop-to-plant
+    summary: Genetics-bearing seeds (FloraGenome via state.seedGenomes side-table) and drop-on-dirt planting. Vault-spawn genomes deterministic from (steward, ruin, slot).
+    size: M
     depends_on: ['3', '5']
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/precis-11-seed-taxonomy.yaml
+    plan: harness/plans/precis-11-seed-taxonomy.yaml
     pr: null
-    notes: ''
+    notes: 'Scope locked 2026-05-20: genetics-bearing seeds; genome carried on ItemDrop component in-world, transferred to state.seedGenomes (uid-keyed, mirrors glintingCoins) on pickup; drop-on-dirt = plant (seeds cannot be set down as ground items); vault-spawn derives genome deterministically from (stewardName, ruinIndex, vaultSlot) via generateGenesisIdentity + generateTraitBag; wildflowerSeeds + tallGrassSeeds recategorized Flora → Seed. Resized S → M after taxonomy + planting + genome-threading scope. Out of scope: milkweedSeeds, cloverSeeds, genetic-fragment item class, seed scan UX, autonomous spread (precis-17).'
 
   - id: '12'
     name: Crossbreeding UX

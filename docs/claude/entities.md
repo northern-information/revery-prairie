@@ -17,6 +17,8 @@ every item acquisition must spawn a `pickupBloom` effect at the player position 
 
 when adding new acquisition paths — any code that adds items to the backpack or otherwise gives the player something — call `spawnPickupBloom` at the same time.
 
+planting a seed (precis #11 — drop `wildflowerSeeds`/`tallGrassSeeds` onto adjacent Dirt) counts as an acquisition-style world effect and spawns a pickup bloom at the planted tile. it does not produce a ground item; it converts Dirt → Flora and creates a `FloraLifecycleState` carrying the seed's genome (pulled from `state.seedGenomes` by item uid).
+
 ## character gifts
 
 characters have optional `gift` and `postGift` fields on `CharacterDefinition`, plus `postGiftDialog` for dialog branching. gifts are one-time per character, tracked in `state.giftsReceived: Set<string>`. as of precis #0, both `giveCharacterGift` and `givePostGift` in `interaction.ts` return `null` for every character — no character grants anything until precis #5 (ruin recovery) wires up item gifts. the fields and flow are retained on the type for that purpose.
