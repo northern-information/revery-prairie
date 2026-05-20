@@ -55,6 +55,8 @@ const EXPECTED_FIELDS = [
   'floraGrowthPreviews',
   'floraLifecycle',
   'egregorePositions',
+  'egregoreLifecycle',
+  'lastEgregoreSpreadYear',
   'soilHealth',
   'elevation',
   'ponds',
