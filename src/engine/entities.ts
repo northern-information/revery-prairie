@@ -2,14 +2,16 @@ import { CHAIN_EXPLOSION_CHANCE, spawnChainMeteorites } from './celestial'
 import { BEE_STARVATION_MS, BEE_TICK_MS, GHOST_TICK_MS } from './constants'
 import { ComponentType } from './ecs/types'
 import { AURA_RADIUS, spawnPickupBloom } from './effects'
+import { FLORA_SPECIES, getTileBeePreference } from './flora/species'
+import { createFloraLifecycleEntry } from './floraLifecycleEntry'
 import { tickCreatureHunger } from './hunger'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
+import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
-import { FLORA_SPECIES, getTileBeePreference } from './flora/species'
 import { spawnBeeOrMonarch } from './monarch'
 import { getBlockedPositions } from './movement'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
-import { TileType, Zone } from './types'
+import { FloraSpecies, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
@@ -97,6 +99,12 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
       const placed = placeItem(state.backpack, itemDrop.definitionId, fit.gridX, fit.gridY)
       if (placed && itemDrop.definitionId === 'coin' && itemDrop.glinting !== false) {
         state.glintingCoins.add(placed.uid)
+      }
+      // Precis #11 — genetics-bearing seeds carry a FloraGenome on the
+      // ItemDrop component. Transfer it to the uid-keyed side-table at
+      // pickup so the inventory layer stays flat (mirrors glintingCoins).
+      if (placed && itemDrop.genome) {
+        state.seedGenomes.set(placed.uid, itemDrop.genome)
       }
       recordDiscovery(state, `item:${itemDrop.definitionId}`)
       pickedUp.push(itemDrop.definitionId)
@@ -319,7 +327,28 @@ const canDropAt = (state: GameState, x: number, y: number): boolean => {
   return true
 }
 
-export const dropItem = (state: GameState, definitionId: string): boolean => {
+// Precis #11 — seed items plant into Dirt rather than dropping as ground
+// items. The mapping is definitionId → FloraSpecies. milkweedSeeds remains
+// absent (no FloraSpecies entry) so it is not listed here.
+const SEED_TO_SPECIES: Record<string, FloraSpecies> = {
+  wildflowerSeeds: FloraSpecies.Wildflower,
+  tallGrassSeeds: FloraSpecies.TallGrass,
+}
+
+const canPlantSeedAt = (state: GameState, x: number, y: number): boolean => {
+  if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
+  if (state.map[y][x].type !== TileType.Dirt) return false
+  if (
+    spatialAtInCurrentZone(state, x, y).some(eid => {
+      const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+      return tag === 'groundItem'
+    })
+  )
+    return false
+  return true
+}
+
+export const dropItem = (state: GameState, definitionId: string, time?: number): boolean => {
   // Find the item in the backpack or open container
   const containers = getActiveContainers(state)
 
@@ -335,6 +364,42 @@ export const dropItem = (state: GameState, definitionId: string): boolean => {
   }
 
   if (!sourceContainer || !sourceItem) return false
+
+  // Precis #11 — seed items plant onto adjacent Dirt rather than dropping
+  // as ground items. Cannot be set down as bare ground items. Aligns with
+  // v4 "renewal not stockpile" cosmology — every drop either plants or
+  // fails. Genome travels from state.seedGenomes (uid-keyed) to the
+  // planted plant's FloraLifecycleState; the side-table entry is removed.
+  const plantingSpecies = SEED_TO_SPECIES[definitionId]
+  if (plantingSpecies !== undefined) {
+    for (const d of DROP_DELTAS) {
+      const tx = state.player.x + d.x
+      const ty = state.player.y + d.y
+      if (canPlantSeedAt(state, tx, ty)) {
+        const seedUid = sourceItem.uid
+        const genome = state.seedGenomes.get(seedUid)
+        if (!genome) return false
+        removeItem(sourceContainer, seedUid)
+        state.seedGenomes.delete(seedUid)
+        setMapTile(state, tx, ty, { type: TileType.Flora })
+        state.floraLifecycle.set(
+          posKey(tx, ty),
+          createFloraLifecycleEntry({
+            time: time ?? 0,
+            hasLight: true,
+            species: plantingSpecies,
+            identity: genome.identity,
+            traits: genome.traits,
+          }),
+        )
+        if (time !== undefined) {
+          spawnPickupBloom(state, tx, ty, time)
+        }
+        return true
+      }
+    }
+    return false
+  }
 
   // Find the first valid drop position
   for (const d of DROP_DELTAS) {

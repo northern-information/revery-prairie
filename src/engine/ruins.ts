@@ -2,6 +2,9 @@ import { BUILDING_CHARS, CIV_COLORS, PATINA_CHARS, TILE_CHARS, TILE_COLORS, VERD
 import { transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { createCharacterEntity } from './entities'
+import { FLORA_SPECIES } from './flora/species'
+import { generateGenesisIdentity, generateTraitBag } from './genetics'
+import { nameToSeed } from './genesis'
 import { RuinRole } from './genesisTypes'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
@@ -9,10 +12,11 @@ import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition, isWalkableTile, posKey, tileHash } from './position'
 import { deselectAll } from './selection'
 import { STRUCTURE_REGISTRY } from './structures'
-import { RuinArchetype, TileType, Zone } from './types'
+import { FloraSpecies, RuinArchetype, TileType, Zone } from './types'
 import { clearAllUnitCommands } from './unitCommands'
 import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
+import type { FloraGenome } from './genetics'
 import type { CivilizationRuin } from './genesisTypes'
 import type { DormantGardenData, GameState, Position, RuinInterior, Tile } from './types'
 
@@ -1075,15 +1079,21 @@ export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): vo
 
   // Flora-species ruins (precis #5): vault spawns a single seed item
   // matching the role. No collapseBarrier, no trapped entity — the vault
-  // is the destination.
+  // is the destination. Precis #11: each seed carries a deterministic
+  // FloraGenome derived from (stewardName, ruinIndex, vault slot index 0).
   if (role === RuinRole.Wildflower || role === RuinRole.TallGrass) {
     const slot = vaultSlots[0]
     if (!slot) return
     const parts = slot.split(',')
     const x = Number(parts[0])
     const y = Number(parts[1])
+    const species = role === RuinRole.Wildflower ? FloraSpecies.Wildflower : FloraSpecies.TallGrass
     const itemId = role === RuinRole.Wildflower ? 'wildflowerSeeds' : 'tallGrassSeeds'
-    spawnRuinGroundItem(state, ruinIndex, { x, y }, itemId)
+    const binomial = FLORA_SPECIES[species].latinBinomial
+    const genesisSeed = nameToSeed(state.stewardName)
+    const identity = generateGenesisIdentity(binomial, genesisSeed, `ruin:${String(ruinIndex)}:vault:0`)
+    const genome = { identity, traits: generateTraitBag(identity) }
+    spawnRuinGroundItem(state, ruinIndex, { x, y }, itemId, genome)
     interior.dormantGarden.seedDecayTimers.clear()
     return
   }
@@ -1134,10 +1144,18 @@ export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): vo
   // so #11 can repopulate them without re-deriving the layout.
 }
 
-const spawnRuinGroundItem = (state: GameState, ruinIndex: number, pos: Position, definitionId: string): void => {
+const spawnRuinGroundItem = (
+  state: GameState,
+  ruinIndex: number,
+  pos: Position,
+  definitionId: string,
+  genome?: FloraGenome,
+): void => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
-  state.world.addComponent(e, ComponentType.ItemDrop, { definitionId })
+  const dropData: { definitionId: string; genome?: FloraGenome } = { definitionId }
+  if (genome) dropData.genome = genome
+  state.world.addComponent(e, ComponentType.ItemDrop, dropData)
   state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
   state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
 }

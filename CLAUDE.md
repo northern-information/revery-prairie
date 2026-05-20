@@ -48,6 +48,7 @@ these are the always-on rules. fuller discussion lives in the doc cited at the e
 
 - **new entity, effect, or tile type** — wire up the sidebar cursor info panel (contents row + effects row + human-readable tile label) at the same time. → `docs/claude/sidebar.md`
 - **new item acquisition path** — call `spawnPickupBloom(state, x, y, time)` from `effects.ts` at the same site. one bloom per acquisition event. → `docs/claude/entities.md`
+- **new flora-creation path** — route through `createFloraLifecycleEntry` and supply `identity` + `traits` (either freshly generated via `generateRuntimeIdentity` + `generateTraitBag`, or pulled from `state.seedGenomes` for seed-planted flora). → `docs/claude/inventory.md`
 - **new `GameState` field** — add it to `EXPECTED_FIELDS` in `src/harness/__tests__/serialization/schema.test.ts`. prefer single-owner write patterns. → `docs/claude/state.md`
 - **new manual entry needing lore** — use `{ lore: 'TODO' }` placeholder in `MANUAL_LORE`. lore is written by humans only — never author lore text. → `docs/claude/manual.md`
 - **egregore content** — never author EVA tokens or pierce words as prose. expand the allowlists in `egregore.ts` instead. the word "invasive" is banned player-facing (CI guard). → `docs/claude/egregores.md`

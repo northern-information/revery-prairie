@@ -26,6 +26,16 @@ describe('getDefinition', () => {
     expect(def.category).toBe(ItemCategory.Zoogenic)
   })
 
+  it('classifies wildflowerSeeds as Seed', () => {
+    const def = getDefinition('wildflowerSeeds')
+    expect(def.category).toBe(ItemCategory.Seed)
+  })
+
+  it('classifies tallGrassSeeds as Seed', () => {
+    const def = getDefinition('tallGrassSeeds')
+    expect(def.category).toBe(ItemCategory.Seed)
+  })
+
   it('throws for unknown id', () => {
     expect(() => getDefinition('nonexistent')).toThrow('unknown item definition: nonexistent')
   })

@@ -42,20 +42,23 @@ const ITEMS = {
     category: ItemCategory.Tool,
   },
   // Seed items reintroduced in precis #5 as DormantGarden vault
-  // payloads — collectibles only, no planting interaction. Precis #11
-  // will wire planting and add the broader seed taxonomy (genetic
-  // fragments, etc.). milkweedSeeds remains absent for now.
+  // payloads. Recategorized to ItemCategory.Seed and made
+  // genetics-bearing in precis #11 — each seed carries a FloraGenome
+  // via state.seedGenomes (uid-keyed side-table, mirrors
+  // glintingCoins). Dropping a seed onto an adjacent Dirt tile
+  // plants a stage-Healthy flora plant with the seed's genome.
+  // milkweedSeeds remains absent (no FloraSpecies entry).
   wildflowerSeeds: {
     name: 'Wildflower Seeds',
     glyph: '*',
     glyphColor: '#D85FB7',
-    category: ItemCategory.Flora,
+    category: ItemCategory.Seed,
   },
   tallGrassSeeds: {
     name: 'Tall Grass Seeds',
     glyph: '"',
     glyphColor: '#A89968',
-    category: ItemCategory.Flora,
+    category: ItemCategory.Seed,
   },
   stoneTablet: {
     name: 'Stone Tablet',

@@ -1,5 +1,5 @@
 import type { World } from './ecs/world'
-import type { EgregoreGenome, TraitBag } from './genetics'
+import type { EgregoreGenome, FloraGenome, TraitBag } from './genetics'
 import type { CivilizationRuin, GenesisSimState, RuinGenerationMode } from './genesisTypes'
 import type { ColorId } from '@revery-prairie/shared'
 
@@ -365,6 +365,7 @@ export interface GameState {
   manualState: ManualState
   lastDialogTypingTick: number
   glintingCoins: Set<string>
+  seedGenomes: Map<string, FloraGenome>
   divinedHexagrams: Set<number>
   glintZones: Set<string>
   glintPatches: GlintPatch[]
