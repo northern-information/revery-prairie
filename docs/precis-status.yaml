@@ -115,7 +115,7 @@ features:
     spec: harness/specs/precis-8b-egregoric-mechanical.yaml
     plan: harness/plans/precis-8b-egregoric-mechanical.yaml
     pr: https://github.com/northern-information/revery-prairie/pull/344
-    notes: 'Scope locked 2026-05-20: parallel species set under TileType.Egregore (no FloraSpecies entry); two species (allelopath, spreader) selected deterministically per position; invisible pollinator (zero PollenParticles); inverse-phased lifecycle (Active in Winter, Dormant otherwise); spread cadence asymmetric — stewardship-winter slow drift (1–2 tiles/year, throttled via lastEgregoreSpreadYear) vs Revery-winter large push (refactor advanceEgregoreFirstRevery → advanceEgregoreInRevery, first Revery places 3 to preserve precis-4 contract, subsequent place 6–9); canCross(a,b)===false for native×egregore pairs; manual footnote (Voynich EVA tokens translating to "no compatible regions") appears once player has any flora:* discovery. Parallel EgregoreGenome interface (allelopathy, spreadVelocity, identity SHA256) separate from TraitBag.'
+    notes: 'Scope locked 2026-05-20: parallel species set under TileType.Egregore (no FloraSpecies entry); two species (allelopath, spreader) selected deterministically per position; invisible pollinator (zero PollenParticles); inverse-phased lifecycle (Active in Winter, Dormant otherwise); spread cadence asymmetric — stewardship-winter slow drift (1–2 tiles/year, throttled via lastEgregoreSpreadYear) vs Revery-winter large push (refactor advanceEgregoreFirstRevery → advanceEgregoreInRevery, first Revery places 3 to preserve precis-4 contract, subsequent place 6–9); canCross(a,b)===false for native×egregore pairs; manual footnote (Voynich EVA tokens translating to "no compatible regions") appears once player has any flora:* discovery. Parallel EgregoreGenome interface (allelopathy, spreadVelocity, identity SHA256) separate from TraitBag. Follow-up work tracked separately — see #26 (egregoric metabolism) for the native-flora consumption rule named in v4 round 8.'
 
   - id: '9a'
     name: Torchbearer voice pass
@@ -490,7 +490,10 @@ features:
       or alongside #17 (camera is the primary reading instrument for
       autonomous spread). The camera also makes #19 (soil depletion)
       legible. Lineage handoff in #16 inherits cameras + footage as
-      first-class predecessor evidence.
+      first-class predecessor evidence. Round 8 cascade — the camera is
+      also the genre's required object for the cosmic-horror register;
+      found footage is how horror is expressed in a materialist
+      universe; without #23, the egregore has no observational surface.
 
   - id: '24'
     name: Seeded predecessor stewards
@@ -515,19 +518,106 @@ features:
     plan: null
     pr: null
     notes: >
-      v4 thinktank round 7 (2026-05-20). Procedural predecessors are not
-      a placeholder for multiplayer — they are the substrate multiplayer
-      rides on. Without a procedural floor, multiplayer lineage feels
-      thin (only as deep as the live player population). With it, the
-      lineage is bottomless. Genesis-coincident placement locked: the
-      first time the player ever looks at the prairie, there is a
-      camera by the south pond they did not place. Predecessor footage
-      degrades visibly more than current footage (film grain pass turns
-      up with procedural tenure depth) — heat death applies to memory.
-      Steward names come from a name generator using the same SHA256
-      substrate as flora identity. The seeded stewards are flora, in
-      the cosmology's view — temporary slowings that left an artifact.
+      v4 thinktank rounds 7 and 8 (2026-05-20). Procedural predecessors
+      are not a placeholder for multiplayer — they are the substrate
+      multiplayer rides on. Without a procedural floor, multiplayer
+      lineage feels thin (only as deep as the live player population).
+      With it, the lineage is bottomless. Genesis-coincident placement
+      locked: the first time the player ever looks at the prairie,
+      there is a camera by the south pond they did not place.
+      Predecessor footage degrades visibly more than current footage
+      (film grain pass turns up with procedural tenure depth) — heat
+      death applies to memory. Steward names come from a name generator
+      using the same SHA256 substrate as flora identity. The seeded
+      stewards are flora, in the cosmology's view — temporary slowings
+      that left an artifact. Round 8 amendment — content-biased toward
+      the seam: roughly 30% of seeded predecessor footage contains at
+      least one egregoric frame, ~10% is predominantly egregoric. Some
+      predecessors were eaten; their cameras kept rolling. Found-footage
+      touchstones for the procedural generator: Blair Witch
+      (last-frame-of-the-last-camera moments emerge procedurally with
+      template hints, not explicit authoring); House of Leaves
+      (footage that contradicts the player's own map — a clover patch
+      where the map shows ash); backrooms (a camera recorded inside a
+      cave whose connectivity has shifted, footage exists but the space
+      doesn't anymore); Stalker (the act of finding a predecessor camera
+      adjacent to an egregoric tile is itself the investigative loop).
       Spec sizing is sibling to #23, not a sub-feature — separate item
       so it can be sequenced independently and so its scope (procedural
       footage generation, name generator, predecessor render pass) does
       not overrun the camera's own MVP.
+
+  - id: '25'
+    name: Egregoric fauna (the parallel fauna register)
+    summary: >
+      A parallel fauna register the way #8b is a parallel flora register.
+      Creatures whose lifecycle, routing, or origin is egregoric rather
+      than terran. Includes at least one analog to a native creature
+      (e.g. a "wrong bee" whose routing violates pollinator preference
+      rules) and at least one with no native analog. Seeded predecessor
+      footage (#24) may contain creatures the current player has never
+      seen — rare emergences, or ones that have not yet emerged in this
+      tenure, or ones the previous steward saw and the current steward
+      never will. The egregore's fourth register (after glyphic,
+      mechanical, visual) is the unspoken seen — what the camera shows
+      when it shows egregoric activity. Egregoric fauna is that register
+      walking around.
+    size: M/L
+    depends_on: ['8b']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 8 (2026-05-20). The cosmology has bees, ghosts,
+      angels, coyote, shooting stars — none egregoric. Tyler's "egregoric
+      flora/fauna devouring terran" implies a category we don't have.
+      Benefits from #23 (camera) because found footage is how the player
+      learns the horror — but does not strictly depend on it; egregoric
+      fauna can exist in the world before the camera ships. Open for
+      the spec: which fauna types ship in the first cut (lean: at least
+      one analog — wrong bee — and at least one with no analog, spec
+      author chooses). Touchstones for behavior authorship: Stalker
+      anomalies (mundane creatures with cosmologically wrong behavior),
+      Annihilation (the shimmer's mutated wildlife), the SCP register
+      (containment is impossible; observation is everything). The horror
+      register is opt-in by placement (per round 8 doctrine) — a player
+      who does not seek the seam may never encounter egregoric fauna in
+      a calm tenure. Frequency tuning deferred to spec.
+
+  - id: '26'
+    name: Egregoric metabolism (native flora consumption)
+    summary: >
+      Behavior change to egregore.ts spread logic (already shipped in
+      #8b). When egregoric spread is allowed by existing throttle rules
+      and the candidate tile is occupied by native flora, the native
+      flora is consumed rather than displaced; the tile becomes
+      egregoric at its destination stage. Replaces the implicit
+      "spread into empty tiles only" model. The prairie's substance is
+      metabolized by the egregore, not merely overtaken.
+    size: XS
+    depends_on: ['23']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 8 (2026-05-20). Names the rule —
+      "the egregore is the prairie's heat death rendered as appetite."
+      Depends on #23 (camera) rather than purely on #8b (shipped)
+      because the cosmic-horror payoff of metabolism requires found
+      footage to land — the camera is how the player learns the
+      consumption happened. Calla's lock: metabolic consumption should
+      be visible only via camera footage, never via toast or notification
+      (the camera is how horror is learned; otherwise the player learns
+      by happenstance, which violates the noticing-is-the-game
+      principle). The change to egregore.ts spread logic is small —
+      one branch in the candidate-tile check. Until #23 ships and #26
+      follows it, egregoric spread continues to behave as it does in
+      #8b's shipped form (empty-tile spread). Once #26 lands, players
+      who do not place cameras will still experience metabolism
+      silently — they notice only by walking past the tile that used
+      to be native; players who place cameras will see the act on film.
+      Lint guard reminder: the word "invasive" is banned player-facing
+      (CI guard); "metabolic" is the room's word internally, the
+      player-facing register continues to favor showing-not-naming.
