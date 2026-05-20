@@ -111,10 +111,10 @@ features:
     summary: Parallel species set, invisible pollinator, winter-phased spread, "no compatible regions" crossbreeding.
     size: M/L
     depends_on: ['1', '2', '3', '4', '7']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-8b-egregoric-mechanical.yaml
     plan: harness/plans/precis-8b-egregoric-mechanical.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/344
     notes: 'Scope locked 2026-05-20: parallel species set under TileType.Egregore (no FloraSpecies entry); two species (allelopath, spreader) selected deterministically per position; invisible pollinator (zero PollenParticles); inverse-phased lifecycle (Active in Winter, Dormant otherwise); spread cadence asymmetric — stewardship-winter slow drift (1–2 tiles/year, throttled via lastEgregoreSpreadYear) vs Revery-winter large push (refactor advanceEgregoreFirstRevery → advanceEgregoreInRevery, first Revery places 3 to preserve precis-4 contract, subsequent place 6–9); canCross(a,b)===false for native×egregore pairs; manual footnote (Voynich EVA tokens translating to "no compatible regions") appears once player has any flora:* discovery. Parallel EgregoreGenome interface (allelopathy, spreadVelocity, identity SHA256) separate from TraitBag.'
 
   - id: '9'
