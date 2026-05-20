@@ -35,7 +35,7 @@ describe('selectScanTarget', () => {
     const target = selectScanTarget(state)
     expect(target).not.toBeNull()
     expect(target?.position).toEqual({ x: state.player.x, y: state.player.y })
-    expect(target?.species).toBe(FloraSpecies.Clover)
+    expect(target?.kind === 'flora' && target.species).toBe(FloraSpecies.Clover)
     expect(target?.identity).toBe(id)
   })
 
@@ -49,7 +49,7 @@ describe('selectScanTarget', () => {
     placeFlora(state, state.player.x, state.player.y + 1, FloraSpecies.TallGrass)
     const target = selectScanTarget(state)
     expect(target?.identity).toBe(facingId)
-    expect(target?.species).toBe(FloraSpecies.Clover)
+    expect(target?.kind === 'flora' && target.species).toBe(FloraSpecies.Clover)
   })
 
   it('falls back to CARDINAL order when no flora is in the facing direction', () => {
@@ -101,7 +101,7 @@ describe('commitScan', () => {
     const state = createTestState()
     clearAroundPlayer(state, 2)
     const id = placeFlora(state, state.player.x, state.player.y, FloraSpecies.Clover)
-    state.scanInProgress = { target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
+    state.scanInProgress = { kind: 'flora', target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
     commitScan(state, 1500)
     expect(state.manualDiscoveries.has('flora:clover')).toBe(true)
     const specimens = state.scannedSpecimens.get(FloraSpecies.Clover) ?? []
@@ -115,6 +115,7 @@ describe('commitScan', () => {
     clearAroundPlayer(state, 5)
     const firstId = placeFlora(state, state.player.x, state.player.y, FloraSpecies.Wildflower)
     state.scanInProgress = {
+      kind: 'flora',
       target: { x: state.player.x, y: state.player.y },
       species: FloraSpecies.Wildflower,
       startTime: 0,
@@ -129,6 +130,7 @@ describe('commitScan', () => {
     const secondId = placeFlora(state, state.player.x, state.player.y, FloraSpecies.Wildflower)
     expect(secondId).not.toBe(firstId)
     state.scanInProgress = {
+      kind: 'flora',
       target: { x: state.player.x, y: state.player.y },
       species: FloraSpecies.Wildflower,
       startTime: 0,
@@ -145,12 +147,12 @@ describe('commitScan', () => {
     const state = createTestState()
     clearAroundPlayer(state, 2)
     placeFlora(state, state.player.x, state.player.y, FloraSpecies.Clover)
-    state.scanInProgress = { target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
+    state.scanInProgress = { kind: 'flora', target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
     commitScan(state, 1500)
     expect(state.scannedSpecimens.get(FloraSpecies.Clover)).toHaveLength(1)
 
     // Scan the same plant again — same posKey + species → same identity.
-    state.scanInProgress = { target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
+    state.scanInProgress = { kind: 'flora', target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
     commitScan(state, 3000)
     // Still length 1 — duplicate identity is not appended.
     expect(state.scannedSpecimens.get(FloraSpecies.Clover)).toHaveLength(1)
@@ -161,7 +163,7 @@ describe('commitScan', () => {
     clearAroundPlayer(state, 2)
     placeFlora(state, state.player.x, state.player.y, FloraSpecies.Clover)
     // Player started scanning a wildflower, but only clover is here on commit
-    state.scanInProgress = { target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Wildflower, startTime: 0 }
+    state.scanInProgress = { kind: 'flora', target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Wildflower, startTime: 0 }
     commitScan(state, 1500)
     expect(state.manualDiscoveries.has('flora:wildflower')).toBe(false)
     expect(state.manualDiscoveries.has('flora:clover')).toBe(false)
@@ -172,7 +174,7 @@ describe('commitScan', () => {
     const state = createTestState()
     clearAroundPlayer(state, 2)
     // No flora placed — selectScanTarget returns null
-    state.scanInProgress = { target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
+    state.scanInProgress = { kind: 'flora', target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
     commitScan(state, 1500)
     expect(state.manualDiscoveries.has('flora:clover')).toBe(false)
     expect(state.scannedSpecimens.size).toBe(0)
@@ -183,7 +185,7 @@ describe('commitScan', () => {
     clearAroundPlayer(state, 2)
     placeFlora(state, state.player.x, state.player.y, FloraSpecies.Clover)
     const bloomsBefore = countPickupBlooms(state)
-    state.scanInProgress = { target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
+    state.scanInProgress = { kind: 'flora', target: { x: state.player.x, y: state.player.y }, species: FloraSpecies.Clover, startTime: 0 }
     commitScan(state, 1500)
     expect(countPickupBlooms(state)).toBe(bloomsBefore + 1)
   })
@@ -193,6 +195,7 @@ describe('commitScan', () => {
     clearAroundPlayer(state, 2)
     placeFlora(state, state.player.x, state.player.y, FloraSpecies.Wildflower)
     state.scanInProgress = {
+      kind: 'flora',
       target: { x: state.player.x, y: state.player.y },
       species: FloraSpecies.Wildflower,
       startTime: 0,
@@ -209,6 +212,7 @@ describe('commitScan', () => {
     clearAroundPlayer(state, 2)
     // No flora here — commit aborts
     state.scanInProgress = {
+      kind: 'flora',
       target: { x: state.player.x, y: state.player.y },
       species: FloraSpecies.Clover,
       startTime: 0,

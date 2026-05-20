@@ -844,6 +844,7 @@ describe('scan auto-commit (precis #6)', () => {
     const onScanComplete = vi.fn()
     const gameLoop = createGameLoop(state, { onScanComplete })
     state.scanInProgress = {
+      kind: 'flora',
       target: { x: state.player.x, y: state.player.y },
       species: FloraSpecies.Clover,
       startTime: 0,
@@ -865,6 +866,7 @@ describe('scan auto-commit (precis #6)', () => {
     const onScanComplete = vi.fn()
     const gameLoop = createGameLoop(state, { onScanComplete })
     state.scanInProgress = {
+      kind: 'flora',
       target: { x: state.player.x, y: state.player.y },
       species: FloraSpecies.Clover,
       startTime: 0,
@@ -882,6 +884,7 @@ describe('scan auto-commit (precis #6)', () => {
     const onScanComplete = vi.fn()
     const gameLoop = createGameLoop(state, { onScanComplete })
     state.scanInProgress = {
+      kind: 'flora',
       target: { x: state.player.x, y: state.player.y },
       species: FloraSpecies.Clover,
       startTime: 0,

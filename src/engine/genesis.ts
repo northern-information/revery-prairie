@@ -37,6 +37,7 @@ import { createFloraLifecycleEntry } from './floraLifecycleEntry'
 import { generateGenesisIdentity, generateTraitBag } from './genetics'
 import { GenesisEpochId, RuinGenerationMode, RuinRole } from './genesisTypes'
 import { rebuildGlintZones, seedGlintPatches } from './glintZones'
+import { seedOaks } from './oaks'
 import { posKey, tileHash as rendererTileHash } from './position'
 import { smoothNoiseSeeded } from './terrain'
 import { FloraSpecies, TileType } from './types'
@@ -3642,6 +3643,9 @@ export const finalizeGenesisHandoff = (state: GameState, handoffTime: number): v
   // full opacity once the gameplay renderer takes over.
   seedGlintPatches(state, handoffTime)
   rebuildGlintZones(state, handoffTime)
+
+  // Scatter oaks across the prairie at deterministic positions.
+  seedOaks(state, handoffTime)
 
   // Hand off to the gameplay layer to trigger the player spawn ceremony
   // synchronously. Without this, the gameloop's player-spawn-trigger

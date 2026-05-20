@@ -317,6 +317,15 @@ export const Sidebar = ({ state, itemInfoRef, metricsRef }: SidebarProps) => {
                         .at(cx, cy)
                         .some(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'satellite')
                       if (hasSatelliteEcs) return 'satellite'
+                      // Oaks anchor at the trunk centre (Position component) but
+                      // occupy a 3x3 footprint via MultiPosition. The spatial
+                      // index only tracks the anchor, so scan oak entities to
+                      // detect cursor hover over any of the 9 body tiles.
+                      for (const eid of state.world.query(ComponentType.OakData, ComponentType.MultiPosition)) {
+                        const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
+                        if (!multi) continue
+                        if (multi.positions.some(p => p.x === cx && p.y === cy)) return 'white oak'
+                      }
                       const groundItemEid = state.world.spatial
                         .at(cx, cy)
                         .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')

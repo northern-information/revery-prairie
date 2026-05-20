@@ -21,6 +21,13 @@ const WORLD_ENTITIES = {
     category: 'fauna',
     unlockKey: 'entity:monarch',
   },
+  oak: {
+    name: 'White Oak',
+    glyph: 'O',
+    glyphColor: '#6B4423',
+    category: 'life',
+    unlockKey: 'entity:oak',
+  },
 } as const satisfies Record<string, WorldEntityEntry>
 
 export interface WorldEntityDefinition extends WorldEntityEntry {

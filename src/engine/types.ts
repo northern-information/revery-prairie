@@ -188,11 +188,22 @@ export interface RemotePlayer {
 
 // ─── precis #6 — naturalist's manual scan ────────────────────────────────────
 
-export interface ScanProgress {
-  target: Position
-  species: FloraSpecies
-  startTime: number
-}
+// Discriminated by `kind`. Flora and oak scans share the same hold-to-scan
+// flow but resolve different identities on commit:
+//   - flora: identity comes from the floraLifecycle entry for the targeted tile
+//   - oak: identity comes from the OakData component on the targeted oak entity
+export type ScanProgress =
+  | {
+      kind: 'flora'
+      target: Position
+      species: FloraSpecies
+      startTime: number
+    }
+  | {
+      kind: 'oak'
+      target: Position
+      startTime: number
+    }
 
 // One scanned specimen — what the naturalist's manual stores per scan.
 // Identity uniquely identifies the plant (the SHA256 from #3); time and
@@ -430,6 +441,9 @@ export interface GameState {
   // identity) are deduped at commit time. The manual entry renders a
   // card stack with paging, one card per specimen.
   scannedSpecimens: Map<FloraSpecies, ScannedSpecimen[]>
+  // Oak scans live in their own array (oaks aren't flora so they don't have
+  // a FloraSpecies key). Same dedupe-by-identity rule applies.
+  oakSpecimens: ScannedSpecimen[]
   // Active scan state. Non-null while [f] is held and a valid target was
   // found at keydown. Cleared on commit, early release, movement, or any
   // other abort condition.

@@ -44,6 +44,7 @@ export const ENTITY_TAG_SUGGESTIONS = [
   'lightning',
   'meteorite',
   'monarch',
+  'oak',
   'pickupBloom',
   'satellite',
   'satelliteImpact',
@@ -137,6 +138,11 @@ export const COMPONENT_META: ComponentMeta[] = [
     ],
   },
   {
+    type: ComponentType.OakData,
+    label: 'OakData',
+    fields: [pos('plantedTime'), str('identity')],
+  },
+  {
     type: ComponentType.SatelliteData,
     label: 'SatelliteData',
     fields: [pos('length'), pos('age'), select('payloadType', ['destructive', 'seeds'])],
@@ -206,6 +212,8 @@ const componentDefaults = (type: ComponentType, now: number, zone: Zone): Record
       }
     case ComponentType.MonarchState:
       return { phase: 'wandering', target: null, waypoint: null, lastPollinateTime: 0 }
+    case ComponentType.OakData:
+      return { plantedTime: now, identity: '' }
     case ComponentType.PickupExemption:
       return {}
     default:

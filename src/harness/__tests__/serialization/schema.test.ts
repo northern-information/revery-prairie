@@ -130,6 +130,7 @@ const EXPECTED_FIELDS = [
   'multiplayerSession',
   'remotePlayers',
   'scannedSpecimens',
+  'oakSpecimens',
   'scanInProgress',
   'manualHighlightEntryId',
   'onPlayerMoved',

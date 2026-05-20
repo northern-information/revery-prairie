@@ -53,11 +53,17 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
     state.world.destroyEntity(eid)
   }
-  // Destroy all ground item ECS entities (coins, etc.)
+  // Destroy all ground item ECS entities (coins, acorns, etc.)
   for (const eid of state.world.query(ComponentType.EntityTag)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem') {
       state.world.destroyEntity(eid)
     }
+  }
+  // Destroy all oak entities seeded at genesis handoff so tests start with
+  // a clear overworld. Tests that need oaks call spawnOak / seedOaks
+  // explicitly.
+  for (const eid of state.world.query(ComponentType.OakData)) {
+    state.world.destroyEntity(eid)
   }
   state.glintingCoins = new Set()
   state.divinedHexagrams = new Set()

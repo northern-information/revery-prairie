@@ -5,6 +5,7 @@
 // this module just describes "what would be scanned" and "what
 // happens when a scan completes."
 
+import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { recordDiscovery } from './manual'
 import { CARDINAL, isInBounds, posKey } from './position'
@@ -12,11 +13,9 @@ import { TileType } from './types'
 
 import type { Direction, FloraSpecies, GameState, Position } from './types'
 
-export interface ScanTarget {
-  position: Position
-  species: FloraSpecies
-  identity: string
-}
+export type ScanTarget =
+  | { kind: 'flora'; position: Position; species: FloraSpecies; identity: string }
+  | { kind: 'oak'; position: Position; identity: string }
 
 // Map a cardinal Direction value to the (dx, dy) delta the player is facing.
 // Returns null for diagonal facings (the on-tile case still wins, but the
@@ -41,15 +40,37 @@ const floraTileAt = (state: GameState, x: number, y: number): ScanTarget | null 
   if (state.map[y][x].type !== TileType.Flora) return null
   const entry = state.floraLifecycle.get(posKey(x, y))
   if (!entry) return null
-  return { position: { x, y }, species: entry.species, identity: entry.identity }
+  return { kind: 'flora', position: { x, y }, species: entry.species, identity: entry.identity }
 }
 
-// Selects the flora tile the player would scan if they began holding the
-// scan key right now. Priority order:
-//   1. on-tile flora (player standing on a flora tile)
+// Returns an oak ScanTarget if (x, y) lies within any oak's 3x3 body. The
+// returned position is the trunk anchor (oak center), not the cursor tile —
+// the scan represents the whole tree, not a single tile of its canopy.
+const oakAt = (state: GameState, x: number, y: number): ScanTarget | null => {
+  for (const eid of state.world.query(ComponentType.OakData, ComponentType.Position, ComponentType.MultiPosition)) {
+    const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    const data = state.world.getComponent(eid, ComponentType.OakData)
+    if (!multi || !pos || !data) continue
+    if (multi.positions.some(p => p.x === x && p.y === y)) {
+      return { kind: 'oak', position: { x: pos.x, y: pos.y }, identity: data.identity }
+    }
+  }
+  return null
+}
+
+// Selects what the player would scan if they began holding the scan key right
+// now. Flora and oaks share the same priority order:
+//   1. on-tile flora (player standing on a flora tile) — oaks block movement
+//      so they can never be on-tile
 //   2. cardinal neighbor in playerFacing direction
 //   3. first cardinal neighbor in CARDINAL order (N, S, W, E)
 //   4. null
+// At each step, flora wins over oak when both exist at the same tile (oaks
+// occupy dirt; flora is its own tile type — they cannot coexist).
+const scanTargetAt = (state: GameState, x: number, y: number): ScanTarget | null =>
+  floraTileAt(state, x, y) ?? oakAt(state, x, y)
+
 export const selectScanTarget = (state: GameState): ScanTarget | null => {
   const { x: px, y: py } = state.player
 
@@ -60,13 +81,13 @@ export const selectScanTarget = (state: GameState): ScanTarget | null => {
   // (2) cardinal neighbor in playerFacing direction
   const facing = facingDelta(state.playerFacing)
   if (facing) {
-    const facingTarget = floraTileAt(state, px + facing.x, py + facing.y)
+    const facingTarget = scanTargetAt(state, px + facing.x, py + facing.y)
     if (facingTarget) return facingTarget
   }
 
   // (3) first cardinal neighbor in CARDINAL order
   for (const delta of CARDINAL) {
-    const target = floraTileAt(state, px + delta.x, py + delta.y)
+    const target = scanTargetAt(state, px + delta.x, py + delta.y)
     if (target) return target
   }
 
@@ -84,9 +105,12 @@ export const selectScanTarget = (state: GameState): ScanTarget | null => {
 //   - sets state.manualHighlightEntryId so the manual scrolls to and
 //     highlights the entry on next render
 //
-// Returns the committed { species, identity } on success so the caller
-// can drive the scan-result modal. Returns null on abort (no
-// scanInProgress, or selectScanTarget returns null / different species).
+// Returns the committed { species, identity } on success for a FLORA scan so
+// the caller can drive the gel-electrophoresis scan-result modal. Returns
+// null on abort (no scanInProgress, or selectScanTarget returns null / the
+// target kind drifted / the flora species changed) OR on a successful OAK
+// commit — oaks route through the manual entry via manualHighlightEntryId
+// instead of the flora modal, so the caller has nothing to display.
 // The function itself does not open any UI surface.
 export const commitScan = (
   state: GameState,
@@ -97,22 +121,46 @@ export const commitScan = (
 
   const target = selectScanTarget(state)
   if (!target) return null
-  if (target.species !== progress.species) return null
+  // The progress kind must match the current target kind. If the player
+  // started a flora scan and the target drifted to an oak (or vice versa),
+  // abort — the in-progress hold is no longer valid.
+  if (target.kind !== progress.kind) return null
 
-  recordDiscovery(state, `flora:${target.species}`)
+  if (target.kind === 'flora' && progress.kind === 'flora') {
+    if (target.species !== progress.species) return null
 
-  const existing = state.scannedSpecimens.get(target.species) ?? []
-  const alreadyScanned = existing.some(s => s.identity === target.identity)
+    recordDiscovery(state, `flora:${target.species}`)
+
+    const existing = state.scannedSpecimens.get(target.species) ?? []
+    const alreadyScanned = existing.some(s => s.identity === target.identity)
+    if (!alreadyScanned) {
+      existing.push({
+        identity: target.identity,
+        scannedAt: time,
+        position: { x: target.position.x, y: target.position.y },
+      })
+      state.scannedSpecimens.set(target.species, existing)
+    }
+
+    spawnPickupBloom(state, target.position.x, target.position.y, time)
+    state.manualHighlightEntryId = `flora:${target.species}`
+    return { species: target.species, identity: target.identity }
+  }
+
+  // Oak commit. Records entity:oak discovery and appends to oakSpecimens
+  // (deduped on per-tree identity), just like flora. Returns null so the
+  // game loop does not trigger the flora-specific scan-result modal —
+  // oaks open the manual directly via manualHighlightEntryId.
+  recordDiscovery(state, 'entity:oak')
+  const alreadyScanned = state.oakSpecimens.some(s => s.identity === target.identity)
   if (!alreadyScanned) {
-    existing.push({
+    state.oakSpecimens.push({
       identity: target.identity,
       scannedAt: time,
       position: { x: target.position.x, y: target.position.y },
     })
-    state.scannedSpecimens.set(target.species, existing)
   }
-
   spawnPickupBloom(state, target.position.x, target.position.y, time)
-  state.manualHighlightEntryId = `flora:${target.species}`
-  return { species: target.species, identity: target.identity }
+  state.manualHighlightEntryId = 'entity:oak'
+  return null
 }

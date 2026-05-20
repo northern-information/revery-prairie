@@ -40,6 +40,7 @@ vi.mock('@/engine/scan', () => ({
 vi.mock('@/engine/interaction', () => ({
   advanceDialog: vi.fn(() => ({ continuing: false, gift: null })),
   breakWall: vi.fn(() => false),
+  clearRuinDebris: vi.fn(() => false),
   getAdjacentCharacter: vi.fn(() => null),
   giveCharacterGift: vi.fn(() => null),
   interactWithCharacter: vi.fn(() => ({ opened: false, gift: null })),
@@ -503,6 +504,7 @@ describe('useKeyboard', () => {
 
   describe('[f] hold-to-scan (precis #6)', () => {
     const stubTarget = {
+      kind: 'flora' as const,
       position: { x: 10, y: 10 },
       species: FloraSpecies.Clover,
       identity: 'a'.repeat(64),
@@ -515,7 +517,7 @@ describe('useKeyboard', () => {
         fireKey('f')
       })
       expect(state.scanInProgress).not.toBeNull()
-      expect(state.scanInProgress?.species).toBe(FloraSpecies.Clover)
+      expect(state.scanInProgress?.kind === 'flora' && state.scanInProgress.species).toBe(FloraSpecies.Clover)
     })
 
     it('does not begin a scan when there is no target', () => {
@@ -596,6 +598,7 @@ describe('useKeyboard', () => {
 
   describe('[f] shares with interact (precis #6 + remap)', () => {
     const stubTarget = {
+      kind: 'flora' as const,
       position: { x: 10, y: 10 },
       species: FloraSpecies.Clover,
       identity: 'b'.repeat(64),
@@ -627,7 +630,7 @@ describe('useKeyboard', () => {
 
       expect(interactWithCharacter).not.toHaveBeenCalled()
       expect(state.scanInProgress).not.toBeNull()
-      expect(state.scanInProgress?.species).toBe(FloraSpecies.Clover)
+      expect(state.scanInProgress?.kind === 'flora' && state.scanInProgress.species).toBe(FloraSpecies.Clover)
     })
   })
 })
