@@ -124,6 +124,7 @@ export type MainQuestPhase = (typeof MainQuestPhase)[keyof typeof MainQuestPhase
 export interface CharacterDefinition {
   id: string
   name: string
+  title?: string
   glyph: string
   glyphColor: string
   portrait?: string

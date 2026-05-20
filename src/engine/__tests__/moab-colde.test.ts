@@ -1,10 +1,11 @@
 import { enterCave, exitCave } from '../cave'
-import { getCharacterDefinition } from '../characters'
+import { getCharacterDefinition, getCharacterDialog } from '../characters'
 import { advanceDialog, giveCharacterGift, interactWithCharacter } from '../interaction'
+import { getLore } from '../manual'
 import { getBlockedPositions, movePlayer } from '../movement'
 import { posKey } from '../position'
 import { createGameState } from '../state'
-import { Zone } from '../types'
+import { Season, Zone } from '../types'
 import { getCharacterEntities } from './helpers'
 
 import type { GameState } from '../types'
@@ -110,6 +111,10 @@ describe('moab first interaction dialog', () => {
 
   it('two-line dialog advances through both lines before closing', () => {
     const state = makeCaveState()
+    // Pin to Summer so getCharacterDialog returns the 2-line default
+    // register — precis #9a routes Moab through a season-dispatched
+    // dialog and Winter/Spring would otherwise add a third line.
+    state.weather.season = Season.Summer
     state.player = { x: state.caveNpcSpot.x - 1, y: state.caveNpcSpot.y }
     state.playerFacing = 'right'
 
@@ -143,5 +148,101 @@ describe('moab gift delivery', () => {
     const state = makeCaveState()
     const result = giveCharacterGift(state, 'ghost-1')
     expect(result).toBeNull()
+  })
+})
+
+describe('moab torchbearer voice (precis #9a)', () => {
+  describe('title field', () => {
+    it('moab has title "drip torchbearer"', () => {
+      const def = getCharacterDefinition('moab')
+      expect(def.title).toBe('drip torchbearer')
+    })
+
+    it('characters without a title return title === undefined', () => {
+      expect(getCharacterDefinition('gron').title).toBeUndefined()
+      expect(getCharacterDefinition('coyote').title).toBeUndefined()
+      expect(getCharacterDefinition('gate').title).toBeUndefined()
+    })
+  })
+
+  describe('music field stub', () => {
+    it('moab has music set to /music/moab.mp3', () => {
+      const def = getCharacterDefinition('moab')
+      expect(def.music).toBe('/music/moab.mp3')
+    })
+  })
+
+  describe('seasonal dialog registers', () => {
+    const dialogForSeason = (season: Season): string[] => {
+      const state = makeState()
+      state.weather.season = season
+      return getCharacterDialog(state, 'moab')
+    }
+
+    it('returns the Winter register in Winter', () => {
+      const lines = dialogForSeason(Season.Winter)
+      expect(lines.length).toBeGreaterThanOrEqual(2)
+      expect(lines).toContain('The line waits.')
+    })
+
+    it('returns the Spring register in Spring', () => {
+      const lines = dialogForSeason(Season.Spring)
+      expect(lines.length).toBeGreaterThanOrEqual(2)
+      expect(lines).toContain('The thaw.')
+    })
+
+    it('returns the same default register for Summer and Autumn', () => {
+      const summer = dialogForSeason(Season.Summer)
+      const autumn = dialogForSeason(Season.Autumn)
+      expect(summer).toBe(autumn)
+    })
+
+    it("every register's last line is the precis #8a egregore refusal", () => {
+      const seasons: Season[] = [Season.Winter, Season.Spring, Season.Summer, Season.Autumn]
+      for (const season of seasons) {
+        const lines = dialogForSeason(season)
+        expect(lines[lines.length - 1]).toBe('The other clover. We do not grow that.')
+      }
+    })
+
+    it('Winter and Spring registers differ from the default register', () => {
+      const winter = dialogForSeason(Season.Winter)
+      const spring = dialogForSeason(Season.Spring)
+      const summer = dialogForSeason(Season.Summer)
+      expect(winter).not.toBe(summer)
+      expect(spring).not.toBe(summer)
+      expect(winter).not.toBe(spring)
+    })
+  })
+
+  describe('folk-Coldë voice rules', () => {
+    const contractionPattern = /\b\w+'(t|s|re|ll|ve|d|m)\b/i
+
+    it('no register contains contractions', () => {
+      const state = makeState()
+      const seasons: Season[] = [Season.Winter, Season.Spring, Season.Summer, Season.Autumn]
+      for (const season of seasons) {
+        state.weather.season = season
+        const lines = getCharacterDialog(state, 'moab')
+        for (const line of lines) {
+          expect(line).not.toMatch(contractionPattern)
+        }
+      }
+    })
+  })
+
+  describe('static dialog fallback', () => {
+    it('CHARACTERS["moab"].dialog is preserved as the 2-line default fallback', () => {
+      const def = getCharacterDefinition('moab')
+      expect(def.dialog).toHaveLength(2)
+      expect(def.dialog[0]).toBe('...')
+      expect(def.dialog[1]).toBe('The other clover. We do not grow that.')
+    })
+  })
+
+  describe('manual lore placeholder', () => {
+    it('character:moab lore is reset to TODO pending human authoring', () => {
+      expect(getLore('character:moab')).toBe('TODO')
+    })
   })
 })

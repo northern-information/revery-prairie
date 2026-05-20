@@ -1,0 +1,110 @@
+plan:
+  id: precis-9a-torchbearer-voice
+  title: 'Precis #9a — Torchbearer voice pass'
+  created: 2026-05-20
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-title-to-character-types
+    title: Add optional title field to CharacterEntry and CharacterDefinition
+    spec_id: precis-9a-torchbearer-voice
+    spec_sections:
+      - title-field-on-character-entry
+    context_files:
+      - src/engine/types.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/characters.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - type
+
+  - id: update-moab-entry
+    title: Set Moab title, music, and add getMoabDialog dispatcher
+    spec_id: precis-9a-torchbearer-voice
+    spec_sections:
+      - title-field-on-character-entry
+      - moab-dialog-multi-register
+      - moab-dialog-folk-register-rules
+      - moab-music-field-stub
+      - moab-static-dialog-fallback-preserved
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on:
+      - add-title-to-character-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: reset-moab-manual-lore
+    title: "Reset MANUAL_LORE entry for Moab to { lore: 'TODO' }"
+    spec_id: precis-9a-torchbearer-voice
+    spec_sections:
+      - moab-manual-lore-todo
+    context_files:
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: update-music-manifest
+    title: Add moab.mp3 to public/music/MANIFEST.md
+    spec_id: precis-9a-torchbearer-voice
+    spec_sections:
+      - moab-music-field-stub
+    context_files:
+      - public/music/MANIFEST.md
+    output_files:
+      - public/music/MANIFEST.md
+    depends_on: []
+    verification: []
+    repair: retry
+    tags:
+      - assets
+
+  - id: write-moab-voice-tests
+    title: Extend moab-colde.test.ts with Torchbearer voice tests
+    spec_id: precis-9a-torchbearer-voice
+    spec_sections:
+      - title-field-on-character-entry
+      - moab-dialog-multi-register
+      - moab-dialog-folk-register-rules
+      - moab-music-field-stub
+      - moab-manual-lore-todo
+      - moab-static-dialog-fallback-preserved
+    context_files:
+      - src/engine/__tests__/moab-colde.test.ts
+      - src/engine/characters.ts
+      - src/engine/manual.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/moab-colde.test.ts
+    depends_on:
+      - add-title-to-character-types
+      - update-moab-entry
+      - reset-moab-manual-lore
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/moab-colde.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
