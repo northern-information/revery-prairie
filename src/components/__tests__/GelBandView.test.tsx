@@ -52,9 +52,9 @@ describe('GelBandView', () => {
     expect(right.textContent).toContain(identity.slice(0, 8))
     // Right side carries the arrow-flanked identity code (two pointer glyphs).
     expect((right.textContent?.match(/[→»▸▶◀◂]/g) ?? []).length).toBeGreaterThanOrEqual(2)
-    // Rebate strips rendered in dim gray — only the gel bands themselves are gold.
-    expect(left.className).toContain('text-dim')
-    expect(right.className).toContain('text-dim')
+    // Rebate strips rendered in gold to match the gel bands.
+    expect(left.className).toContain('text-bee')
+    expect(right.className).toContain('text-bee')
     // No mirrored right-side label or horizontal arrow strip — they're replaced by the vertical edge code.
     expect(screen.queryByTestId('gel-side-label-right')).toBeNull()
   })

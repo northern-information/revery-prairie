@@ -38,10 +38,10 @@ const cellNoise = (identity: string, r: number, c: number, salt: number): number
 // Visual-only jitter (horizontal scale + offset) per cell, deterministic
 // per identity, breaks the perfectly-rectangular grid feel so bands read
 // as a real wet-lab gel.
-// Reticle corner marks — two thin gray lines meeting at a corner, evoking
+// Reticle corner marks — two thin gold lines meeting at a corner, evoking
 // a viewfinder or crop guide. `aria-hidden` because the marks carry no
 // semantic content for screen readers.
-const cropBase = 'border-dim absolute h-4 w-4'
+const cropBase = 'border-bee absolute h-4 w-4'
 const cropClasses = {
   tl: `${cropBase} -top-4 -left-4 border-t-2 border-l-2`,
   tr: `${cropBase} -top-4 -right-4 border-t-2 border-r-2`,
@@ -58,7 +58,7 @@ export const GelBandView = ({ identity, revealedCells = TOTAL_CELLS }: GelBandVi
       <div
         data-testid="gel-side-label-left"
         style={{ height: TOTAL_SIZE }}
-        className="text-dim flex [transform:rotate(180deg)] items-center justify-center font-mono text-[9px] leading-none tracking-[0.3em] [writing-mode:vertical-rl]"
+        className="text-bee flex [transform:rotate(180deg)] items-center justify-center font-mono text-[9px] leading-none tracking-[0.3em] [writing-mode:vertical-rl]"
       >
         {sideLabel}
       </div>
@@ -109,7 +109,7 @@ export const GelBandView = ({ identity, revealedCells = TOTAL_CELLS }: GelBandVi
       <div
         data-testid="gel-edge-code"
         style={{ height: TOTAL_SIZE }}
-        className="text-dim flex items-center justify-center font-mono text-[9px] leading-none tracking-widest [writing-mode:vertical-rl]"
+        className="text-bee flex items-center justify-center font-mono text-[9px] leading-none tracking-widest [writing-mode:vertical-rl]"
       >
         ▶ {edgeCode} ◀ · N-INFO 400
       </div>
