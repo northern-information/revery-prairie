@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { getCharacterDefinition } from '@/engine/characters'
 import { dropItem } from '@/engine/entities'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import { keyToScreenAxis, resolveHeldDirection } from '@/engine/heldKeys'
@@ -27,10 +26,6 @@ interface UseKeyboardOptions {
   state: GameState
   refreshUI: () => void
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
-  onDrop: (definitionId: string, worldX: number, worldY: number) => void
-  onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
-  onDiscovery: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
-  onGift: (text: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   isDraggingRef: React.RefObject<boolean>
 }
 
@@ -38,10 +33,6 @@ export const useKeyboard = ({
   state,
   refreshUI,
   itemInfoRef,
-  onDrop,
-  onDialog,
-  onDiscovery,
-  onGift,
   isDraggingRef,
 }: UseKeyboardOptions) => {
   const [activeScreen, setActiveScreenRaw] = useState<PermacomputerScreen>(null)
@@ -137,16 +128,7 @@ export const useKeyboard = ({
         // Divination panel owns [f] for tossing — don't interfere
         if (activeScreen === 'divination') return
         if (state.activeDialog) {
-          const result = advanceDialog(state, performance.now())
-          if (result.gift) {
-            onGift(
-              `Received ${result.gift.name}.`,
-              result.gift.glyphs[0],
-              result.gift.glyphColor,
-              state.player.x,
-              state.player.y
-            )
-          }
+          advanceDialog(state, performance.now())
           refreshUI()
           return
         }
@@ -161,9 +143,7 @@ export const useKeyboard = ({
           // Facing a locked ruin door — unlock if we have a key, otherwise
           // open the locked gate dialog so the player gets a visible reason.
           if (isFacingLockedDoor(state)) {
-            if (unlockRuinDoor(state)) {
-              onDiscovery('the lock turns', state.player.x, state.player.y)
-            } else {
+            if (!unlockRuinDoor(state)) {
               openLockedGateDialog(state)
             }
             refreshUI()
@@ -172,7 +152,6 @@ export const useKeyboard = ({
           // Break facing breakable wall
           if (state.currentZone === Zone.Cave && !state.caveRevealed) {
             if (breakWall(state, performance.now())) {
-              onDiscovery('Discovered hidden room.', state.player.x, state.player.y)
               refreshUI()
               return
             }
@@ -182,8 +161,6 @@ export const useKeyboard = ({
           if (adjacent) {
             const result = interactWithCharacter(state)
             if (result.opened) {
-              const def = getCharacterDefinition(adjacent.definitionId)
-              onDialog(def.name, def.glyph, def.glyphColor, state.player.x, state.player.y)
               refreshUI()
             }
             return
@@ -219,7 +196,6 @@ export const useKeyboard = ({
           if (success) {
             itemInfoRef.current?.clear()
             updateFacingEntity(state)
-            onDrop(hoveredId, state.player.x, state.player.y)
             refreshUI()
           }
         }
@@ -320,18 +296,7 @@ export const useKeyboard = ({
         }
       }
     },
-    [
-      state,
-      refreshUI,
-      activeScreen,
-      setActiveScreen,
-      itemInfoRef,
-      onDrop,
-      onDialog,
-      onDiscovery,
-      onGift,
-      isDraggingRef,
-    ]
+    [state, refreshUI, activeScreen, setActiveScreen, itemInfoRef, isDraggingRef]
   )
 
   const handleKeyUp = useCallback(

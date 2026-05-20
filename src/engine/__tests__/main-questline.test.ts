@@ -168,7 +168,7 @@ describe('main questline > coyote rescue on approach', () => {
     )
   }
 
-  it('switches coyote to Follow, advances quest phase, queues toast, records discovery', () => {
+  it('switches coyote to Follow, advances quest phase, records discovery', () => {
     const state = createTestState()
     installCoyoteRuin(state)
     setupApproach(state)
@@ -179,8 +179,6 @@ describe('main questline > coyote rescue on approach', () => {
     expect(state.coyoteMode).toBe(CoyoteMode.Follow)
     expect(state.manualDiscoveries.has('character:coyote')).toBe(true)
     expect(state.manualDiscoveries.has('event:rescue-coyote')).toBe(true)
-    const rescueToast = state.queuedEvents.find(e => e.text === 'Rescued Coyote!')
-    expect(rescueToast).toBeTruthy()
   })
 
   it('does not re-fire the rescue if the phase has already advanced', () => {
@@ -189,11 +187,10 @@ describe('main questline > coyote rescue on approach', () => {
     setupApproach(state)
     state.mainQuestPhase = MainQuestPhase.Gathering
 
-    const before = state.queuedEvents.length
     expect(movePlayer(state, 'right')).toBe(true)
 
-    expect(state.queuedEvents.find(e => e.text === 'Rescued Coyote!')).toBeUndefined()
-    expect(state.queuedEvents.length).toBe(before)
+    // Phase stays where caller set it; rescue path no-ops once Gathering is in.
+    expect(state.mainQuestPhase).toBe(MainQuestPhase.Gathering)
   })
 
   it('does not fire the rescue in a non-coyote-role ruin', () => {
@@ -204,7 +201,6 @@ describe('main questline > coyote rescue on approach', () => {
 
     expect(movePlayer(state, 'right')).toBe(true)
     expect(state.mainQuestPhase).toBe(MainQuestPhase.AwaitingCoyote)
-    expect(state.queuedEvents.find(e => e.text === 'Rescued Coyote!')).toBeUndefined()
   })
 
   it('does not fire on door unlock — rescue is decoupled from the door', () => {
@@ -220,7 +216,6 @@ describe('main questline > coyote rescue on approach', () => {
 
     expect(unlockRuinDoor(state)).toBe(true)
     expect(state.mainQuestPhase).toBe(MainQuestPhase.AwaitingCoyote)
-    expect(state.queuedEvents.find(e => e.text === 'Rescued Coyote!')).toBeUndefined()
   })
 })
 

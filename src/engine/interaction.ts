@@ -7,7 +7,6 @@ import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
-import { queueEvent } from './ruins'
 import { selectUnit } from './selection'
 import { invalidateMapCache } from './tileBgCache'
 import { CoyoteMode, MainQuestPhase, TileType, Zone } from './types'
@@ -451,7 +450,6 @@ const rescueCoyote = (state: GameState): void => {
   state.coyoteCargo = null
   state.coyotePath = null
 
-  queueEvent(state, 'Rescued Coyote!', 'C', '#D4A054')
   spawnPickupBloom(state, state.player.x, state.player.y, performance.now())
   recordDiscovery(state, 'character:coyote')
   recordDiscovery(state, 'event:rescue-coyote')

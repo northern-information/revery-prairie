@@ -18,7 +18,6 @@ interface HexagramPanelProps {
   state: GameState
   onClose: () => void
   refreshUI: () => void
-  onCastLog: (text: string, worldX: number, worldY: number) => void
   initialView?: View
 }
 
@@ -167,7 +166,7 @@ const HexagramCompendium = ({ state, onBack }: { state: GameState; onBack: () =>
 type Phase = 'tossing' | 'result'
 type View = 'casting' | 'compendium'
 
-export const HexagramPanel = ({ state, onClose, refreshUI, onCastLog, initialView }: HexagramPanelProps) => {
+export const HexagramPanel = ({ state, onClose, refreshUI, initialView }: HexagramPanelProps) => {
   const [view, setView] = useState<View>(initialView ?? 'casting')
   const [phase, setPhase] = useState<Phase>('tossing')
   const [tossedLines, setTossedLines] = useState<LineType[]>([])
@@ -190,13 +189,9 @@ export const HexagramPanel = ({ state, onClose, refreshUI, onCastLog, initialVie
       recordDiscovery(state, 'event:hexagram-cast')
       setResult(castResult)
       setPhase('result')
-      const logText = castResult.transformed
-        ? `cast ${castResult.primary.name} \u2192 ${castResult.transformed.name}`
-        : `cast ${castResult.primary.name}`
-      onCastLog(logText, state.player.x, state.player.y)
       refreshUI()
     }
-  }, [canToss, tossedLines, state, refreshUI, onCastLog])
+  }, [canToss, tossedLines, state, refreshUI])
 
   useEffect(() => {
     if (view !== 'casting') return

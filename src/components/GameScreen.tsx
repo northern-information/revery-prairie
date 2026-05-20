@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { BootTitleCardOverlay } from './BootTitleCardOverlay'
 import { CantosScreen } from './CantosScreen'
 import { CommandPanel } from './CommandPanel'
@@ -6,7 +6,6 @@ import { CoyoteScreen } from './CoyoteScreen'
 import { DevPanel } from './DevPanel'
 import { DialogBox } from './DialogBox'
 import { DragCursor } from './DragCursor'
-import { EventLog } from './EventLog'
 import { GameCanvas } from './GameCanvas'
 import { GenesisBottomBar } from './GenesisBottomBar'
 import { ScanProgressBar } from './ScanProgressBar'
@@ -21,13 +20,10 @@ import { ReverySummary } from './ReverySummary'
 
 import { setMusicEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
-import { COIN_GLINTING_COLOR } from '@/engine/constants'
 import { canCast } from '@/engine/hexagram'
 import { advanceDialog } from '@/engine/interaction'
 import { advanceReveryToClosing } from '@/engine/revery'
 import { ReveryPhase } from '@/engine/types'
-import { getDefinition } from '@/engine/items'
-import { useEventLog } from '@/hooks/useEventLog'
 import { useGameEngine } from '@/hooks/useGameEngine'
 import { useKeyboard } from '@/hooks/useKeyboard'
 import { useMusic } from '@/hooks/useMusic'
@@ -79,57 +75,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
   const metricsRef = useRef<CharMetrics | null>(null)
   const isDraggingRef = useRef(false)
   const dragOverlayRef = useRef<DragOverlayData | null>(null)
-  const { log, addEvent } = useEventLog()
-
-  const onPickup = useCallback(
-    (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => {
-      addEvent('pickup', `Picked up ${name}.`, icon, iconColor, worldX, worldY)
-    },
-    [addEvent]
-  )
-
-  const onDrop = useCallback(
-    (definitionId: string, worldX: number, worldY: number) => {
-      const def = getDefinition(definitionId)
-      addEvent('drop', `Dropped ${def.name}.`, def.glyph, def.glyphColor, worldX, worldY)
-    },
-    [addEvent]
-  )
-
-  const onDialog = useCallback(
-    (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => {
-      addEvent('dialog', `Talked to ${characterName}.`, glyph, glyphColor, worldX, worldY)
-    },
-    [addEvent]
-  )
-
-  const onCombineLog = useCallback(
-    (text: string, worldX: number, worldY: number) => {
-      addEvent('combine', text, '!', '#ff69b4', worldX, worldY)
-    },
-    [addEvent]
-  )
-
-  const onDiscovery = useCallback(
-    (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => {
-      addEvent('discovery', text, icon ?? '!', iconColor ?? '#ff69b4', worldX, worldY)
-    },
-    [addEvent]
-  )
-
-  const onGift = useCallback(
-    (text: string, icon: string, iconColor: string, worldX: number, worldY: number) => {
-      addEvent('pickup', text, icon, iconColor, worldX, worldY)
-    },
-    [addEvent]
-  )
-
-  // Wire genesis narration into the event log. Assigned during render so
-  // it lands on state before useGameEngine's layout effect (which may
-  // synchronously call completeGenesis on URL-skip) fires.
-  state.onGenesisEpochStart = (commentary: string) => {
-    addEvent('narration', commentary, '·', '#8b8b8b', state.player.x, state.player.y)
-  }
 
   useMusic(state)
 
@@ -137,10 +82,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
     state,
     refreshUI,
     itemInfoRef,
-    onDrop,
-    onDialog,
-    onDiscovery,
-    onGift,
     isDraggingRef,
   })
 
@@ -151,10 +92,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
         refreshUI={refreshUI}
         activeScreen={activeScreen}
         setActiveScreen={setActiveScreen}
-        onPickup={onPickup}
-        onDialog={onDialog}
-        onDiscovery={onDiscovery}
-        onGift={onGift}
         metricsRef={metricsRef}
       />
       <ReverySummary revery={state.revery} />
@@ -175,9 +112,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
                 setActiveScreen(null)
               }}
               refreshUI={refreshUI}
-              onCastLog={(text, worldX, worldY) => {
-                addEvent('discovery', text, '¤', COIN_GLINTING_COLOR, worldX, worldY)
-              }}
               initialView={canCast(state) ? 'casting' : 'compendium'}
             />
           )}
@@ -237,16 +171,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
               isAngel={state.activeDialog.characterId.startsWith('angel-')}
               isLastLine={isLastLine}
               onAdvance={() => {
-                const result = advanceDialog(state, performance.now())
-                if (result.gift) {
-                  onGift(
-                    `Received ${result.gift.name}.`,
-                    result.gift.glyphs[0],
-                    result.gift.glyphColor,
-                    state.player.x,
-                    state.player.y
-                  )
-                }
+                advanceDialog(state, performance.now())
                 refreshUI()
               }}
             />
@@ -279,9 +204,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           <div className="pointer-events-auto">
             <Minimap state={state} />
           </div>
-          <div className="pointer-events-auto flex-1">
-            <EventLog state={state} eventLog={log} />
-          </div>
+          <div className="pointer-events-auto flex-1" />
           <div
             data-panel="item-info"
             className="pointer-events-auto h-full w-48 self-stretch overflow-hidden font-mono text-xs"
@@ -293,8 +216,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
               state={state}
               refreshUI={refreshUI}
               itemInfoRef={itemInfoRef}
-              onCombineLog={onCombineLog}
-              onDropLog={onDrop}
               metricsRef={metricsRef}
               isDraggingRef={isDraggingRef}
               dragOverlayRef={dragOverlayRef}

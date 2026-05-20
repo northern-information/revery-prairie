@@ -1,12 +1,4 @@
-import {
-  BUILDING_CHARS,
-  CIV_COLORS,
-  PATINA_CHARS,
-  RUIN_ENTRY_EVENTS,
-  TILE_CHARS,
-  TILE_COLORS,
-  VERDIGRIS_COLORS,
-} from './constants'
+import { BUILDING_CHARS, CIV_COLORS, PATINA_CHARS, TILE_CHARS, TILE_COLORS, VERDIGRIS_COLORS } from './constants'
 import { transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { createCharacterEntity } from './entities'
@@ -23,16 +15,6 @@ import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransitio
 
 import type { CivilizationRuin } from './genesisTypes'
 import type { DormantGardenData, GameState, Position, RuinInterior, Tile } from './types'
-
-export const queueEvent = (state: GameState, text: string, icon: string, iconColor: string): void => {
-  state.queuedEvents.push({
-    text,
-    icon,
-    iconColor,
-    worldX: state.player.x,
-    worldY: state.player.y,
-  })
-}
 
 // ---------------------------------------------------------------------------
 // PRNG (same mulberry32 used in genesis.ts)
@@ -867,10 +849,6 @@ export const enterRuin = (state: GameState, ruinIndex: number): void => {
     recordDiscovery(state, discoveryKey)
   }
 
-  const entryEvent = RUIN_ENTRY_EVENTS[interior.archetype]
-  if (entryEvent) {
-    queueEvent(state, entryEvent, '☒', '#d8a860')
-  }
 }
 
 export const exitRuin = (state: GameState): void => {

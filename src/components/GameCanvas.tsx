@@ -24,10 +24,6 @@ interface GameCanvasProps {
   refreshUI: () => void
   activeScreen: PermacomputerScreen
   setActiveScreen: (screen: PermacomputerScreen) => void
-  onPickup: (name: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
-  onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
-  onDiscovery: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
-  onGift: (text: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
   metricsRef: React.RefObject<CharMetrics | null>
 }
 
@@ -36,25 +32,17 @@ export const GameCanvas = ({
   refreshUI,
   activeScreen,
   setActiveScreen,
-  onPickup,
-  onDialog,
-  onDiscovery,
-  onGift,
   metricsRef,
 }: GameCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const refreshUIRef = useRef(refreshUI)
   refreshUIRef.current = refreshUI
-  const onPickupRef = useRef(onPickup)
-  onPickupRef.current = onPickup
-  const onDiscoveryRef = useRef(onDiscovery)
-  onDiscoveryRef.current = onDiscovery
   const setActiveScreenRef = useRef(setActiveScreen)
   setActiveScreenRef.current = setActiveScreen
   const activeScreenRef = useRef(activeScreen)
   activeScreenRef.current = activeScreen
 
-  useMouse({ canvasRef, state, metricsRef, activeScreen, setActiveScreen, refreshUI, onDialog, onDiscovery, onGift })
+  useMouse({ canvasRef, state, metricsRef, activeScreen, setActiveScreen, refreshUI })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -96,12 +84,6 @@ export const GameCanvas = ({
     const gameLoop = createGameLoop(state, {
       onRefreshUI: () => {
         refreshUIRef.current()
-      },
-      onPickup: (name, icon, color, wx, wy) => {
-        onPickupRef.current(name, icon, color, wx, wy)
-      },
-      onDiscovery: (text, wx, wy, icon, iconColor) => {
-        onDiscoveryRef.current(text, wx, wy, icon, iconColor)
       },
       onAutoHidePanel: () => {
         if (activeScreenRef.current && activeScreenRef.current !== 'system') {

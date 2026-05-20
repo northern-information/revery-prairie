@@ -399,7 +399,6 @@ export interface GameState {
   coyotePath: Position[] | null
   ruinInteriors: RuinInterior[]
   currentRuinIndex: number | null
-  queuedEvents: QueuedEvent[]
   caveFogExplored: Set<string>
   caveFogDiscovered: Set<string>
   selectedUnits: Set<number>
@@ -571,14 +570,6 @@ export interface DormantGardenData {
   tabletPosition: Position | null
   doorPositions: Position[]
   collapseBarrier: Position[] | null
-}
-
-export interface QueuedEvent {
-  text: string
-  icon: string
-  iconColor: string
-  worldX: number
-  worldY: number
 }
 
 export interface RuinInterior {

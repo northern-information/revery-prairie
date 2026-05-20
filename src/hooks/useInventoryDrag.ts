@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { computePlacementPreview, executeCombine } from '@/engine/drag'
 import { moveItem, transferItem } from '@/engine/inventory'
 import type { DragState } from '@/engine/drag'
-import type { Recipe } from '@/engine/recipes'
 import type { Container, GameState, ItemInstance } from '@/engine/types'
 
 export type { DragState } from '@/engine/drag'
@@ -12,11 +11,9 @@ interface UseInventoryDragOptions {
   containers: { id: string; container: Container }[]
   state: GameState
   onDrop: () => void
-  onCombine: (recipe: Recipe) => void
-  onCombineFail?: () => void
 }
 
-export const useInventoryDrag = ({ containers, state, onDrop, onCombine, onCombineFail }: UseInventoryDragOptions) => {
+export const useInventoryDrag = ({ containers, state, onDrop }: UseInventoryDragOptions) => {
   const [dragState, setDragState] = useState<DragState | null>(null)
 
   const getContainer = useCallback((id: string) => containers.find(c => c.id === id)?.container ?? null, [containers])
@@ -81,12 +78,10 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine, onCombi
             performance.now()
           )
           if (result.outcome === 'success') {
-            onCombine(dragState.combineTarget.recipe)
             setDragState(null)
             onDrop()
             return
           }
-          onCombineFail?.()
         }
         setDragState(null)
         return
@@ -108,7 +103,7 @@ export const useInventoryDrag = ({ containers, state, onDrop, onCombine, onCombi
       setDragState(null)
       onDrop()
     },
-    [dragState, getContainer, onDrop, onCombine, onCombineFail, state]
+    [dragState, getContainer, onDrop, state]
   )
 
   const cancelDrag = useCallback(() => {

@@ -123,31 +123,6 @@ describe('player spawn ceremony', () => {
       expect(explosions.length).toBeGreaterThan(0)
     })
 
-    it('queues a "falls to the prairie" log entry on impact, with the steward name', () => {
-      const state = createGameState('Bramble', 40, 30)
-      destroyAllStars(state)
-      state.queuedEvents = []
-      clearAroundTile(state, state.player)
-      const eid = spawnShootingStarAtTarget(
-        state,
-        state.player,
-        { dx: 1, dy: 0 },
-        {
-          forPlayerSpawn: true,
-          backtrackTiles: 1,
-        }
-      )
-      state.playerSpawn.meteorEntityId = eid
-      state.playerSpawn.spawnPos = { ...state.player }
-      state.playerSpawn.triggeredAt = 100
-      state.playerSpawn.visible = false
-
-      tickShootingStars(state, 200)
-
-      const fallEvent = state.queuedEvents.find(t => t.text.includes('falls to the prairie'))
-      expect(fallEvent).toBeDefined()
-      expect(fallEvent?.text).toBe('Steward Bramble falls to the prairie.')
-    })
   })
 
   describe('shower direction matches player meteor', () => {

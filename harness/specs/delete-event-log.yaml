@@ -3,9 +3,6 @@ name: 'Delete the activity event log (UI, hook, and all call sites)'
 priority: high
 layer: component
 source_files:
-  - src/components/EventLog.tsx
-  - src/components/__tests__/EventLog.test.tsx
-  - src/hooks/useEventLog.ts
   - src/components/GameScreen.tsx
   - src/components/Sidebar.tsx
   - src/components/InventoryPanel.tsx

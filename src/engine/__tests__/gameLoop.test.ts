@@ -354,7 +354,7 @@ describe('default systems', () => {
     expect(state.player.x).toBe(startX + 1)
   })
 
-  it('fires onPickup when path tick picks up ground items', () => {
+  it('picks up ground items during path tick', () => {
     const state = createTestState()
     clearAroundPlayer(state)
 
@@ -363,16 +363,11 @@ describe('default systems', () => {
     state.path = [{ x: targetX, y: targetY }]
     createGroundItemEntity(state, 'bee', targetX, targetY)
 
-    const pickups: string[] = []
-    const gameLoop = createGameLoop(state, {
-      onPickup: name => {
-        pickups.push(name)
-      },
-    })
+    const gameLoop = createGameLoop(state, {})
 
     // Path tick fires at t=100 (100-0 >= 100)
     gameLoop.tick(100)
-    expect(pickups).toContain('Bee')
+    expect(state.backpack.items.some(i => i.definitionId === 'bee')).toBe(true)
   })
 
   it('crumble effects are cleaned up after duration', () => {
@@ -650,91 +645,13 @@ describe('held key movement', () => {
     const targetX = state.player.x + 1
     createGroundItemEntity(state, 'bee', targetX, state.player.y)
 
-    const pickups: string[] = []
-    const gameLoop = createGameLoop(state, {
-      onPickup: name => {
-        pickups.push(name)
-      },
-    })
+    const gameLoop = createGameLoop(state, {})
 
     state.heldDirection = 'right'
     gameLoop.tick(0)
     gameLoop.tick(100)
 
-    expect(pickups).toContain('Bee')
-  })
-})
-
-describe('overworld event suppression in cave', () => {
-  it('meteor shower log entry suppressed in cave', () => {
-    const state = createTestState()
-    state.currentZone = Zone.Cave
-    state.map = state.caveMap
-    state.mapWidth = state.caveMapWidth
-    state.mapHeight = state.caveMapHeight
-    // Schedule shower to activate on next tick
-    state.meteorShower.nextShowerTime = 1
-    state.meteorShower.active = false
-
-    const onDiscovery = vi.fn()
-    const gameLoop = createGameLoop(state, { onDiscovery })
-
-    // Tick past the nextShowerTime so tickMeteorShower activates the shower
-    gameLoop.tick(1000)
-
-    // Shower should have activated (the tick function still runs via map-swap)
-    expect(state.meteorShower.active).toBe(true)
-    // But the onDiscovery callback should NOT fire because we're in the cave
-    expect(onDiscovery).not.toHaveBeenCalledWith(
-      'Meteor shower!',
-      expect.any(Number),
-      expect.any(Number),
-      expect.any(String),
-      expect.any(String)
-    )
-  })
-
-  it('meteor shower log entry fires in overworld', () => {
-    const state = createTestState()
-    state.currentZone = Zone.Overworld
-    // Schedule shower to activate on next tick
-    state.meteorShower.nextShowerTime = 1
-    state.meteorShower.active = false
-
-    const onDiscovery = vi.fn()
-    const gameLoop = createGameLoop(state, { onDiscovery })
-
-    // Tick past the nextShowerTime so tickMeteorShower activates the shower
-    gameLoop.tick(1000)
-
-    // Shower should have activated
-    expect(state.meteorShower.active).toBe(true)
-    // onDiscovery should fire in overworld
-    expect(onDiscovery).toHaveBeenCalledWith('Meteor shower!', expect.any(Number), expect.any(Number), '*', '#FFD700')
-  })
-
-  it('lightning log entry suppressed in cave', () => {
-    const state = createTestState()
-    state.currentZone = Zone.Cave
-    state.map = state.caveMap
-    state.mapWidth = state.caveMapWidth
-    state.mapHeight = state.caveMapHeight
-
-    const onDiscovery = vi.fn()
-    const gameLoop = createGameLoop(state, { onDiscovery })
-
-    // Tick many times at lightning intervals to give lightning a chance to fire
-    for (let t = 0; t <= 200_000; t += 10_000) {
-      gameLoop.tick(t)
-    }
-
-    // Even if lightning struck during overworld map-swap ticks, onDiscovery must not fire in cave
-    const lightningCalls = onDiscovery.mock.calls.filter((args: unknown[]) => args[0] === 'lightning strikes!')
-    expect(lightningCalls).toHaveLength(0)
-
-    // Also verify no wildfire events leaked
-    const wildfireCalls = onDiscovery.mock.calls.filter((args: unknown[]) => args[0] === 'wildfire!')
-    expect(wildfireCalls).toHaveLength(0)
+    expect(state.backpack.items.some(i => i.definitionId === 'bee')).toBe(true)
   })
 })
 

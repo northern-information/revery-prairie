@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 
 import { updateCamera } from '@/engine/camera'
-import { getCharacterDefinition } from '@/engine/characters'
 import { expandClickTile } from '@/engine/clickResolution'
 import { SELECTION_DRAG_THRESHOLD } from '@/engine/constants'
 import { screenToTile } from '@/engine/coordinates'
@@ -42,9 +41,6 @@ interface UseMouseOptions {
   activeScreen: PermacomputerScreen
   setActiveScreen: (screen: PermacomputerScreen) => void
   refreshUI: () => void
-  onDialog: (characterName: string, glyph: string, glyphColor: string, worldX: number, worldY: number) => void
-  onDiscovery: (text: string, worldX: number, worldY: number, icon?: string, iconColor?: string) => void
-  onGift: (text: string, icon: string, iconColor: string, worldX: number, worldY: number) => void
 }
 
 /**
@@ -57,8 +53,6 @@ const resolveClickTarget = (
   state: GameState,
   tile: Position,
   blocked: Set<string>,
-  onDialog: UseMouseOptions['onDialog'],
-  onDiscovery: UseMouseOptions['onDiscovery'],
   refreshUI: () => void
 ): { walkTarget: Position; action: (() => void) | null; interactableTile: Position | null } | null => {
   const adjacentDeltas = [
@@ -118,13 +112,9 @@ const resolveClickTarget = (
 
     let action: (() => void) | null = null
     if (clickedCharacterIdentity) {
-      const charDef = getCharacterDefinition(clickedCharacterIdentity.definitionId)
       action = () => {
         state.pendingInteractionTarget = null
-        const result = interactWithCharacter(state)
-        if (result.opened) {
-          onDialog(charDef.name, charDef.glyph, charDef.glyphColor, state.player.x, state.player.y)
-        }
+        interactWithCharacter(state)
         refreshUI()
       }
     } else if (clickedInteractableTile) {
@@ -140,13 +130,9 @@ const resolveClickTarget = (
         else if (dy === 1) state.playerFacing = 'down'
         updateFacingEntity(state)
         if (state.map[targetY]?.[targetX]?.type === TileType.CaveBreakableWall) {
-          if (breakWall(state, performance.now())) {
-            onDiscovery('Discovered hidden room.', state.player.x, state.player.y)
-          }
+          breakWall(state, performance.now())
         } else if (state.map[targetY]?.[targetX]?.type === TileType.RuinDoorLocked) {
-          if (unlockRuinDoor(state)) {
-            onDiscovery('the lock turns', state.player.x, state.player.y)
-          } else {
+          if (!unlockRuinDoor(state)) {
             openLockedGateDialog(state)
           }
         } else if (state.map[targetY]?.[targetX]?.type === TileType.RuinDebris) {
@@ -168,9 +154,6 @@ export const useMouse = ({
   activeScreen,
   setActiveScreen,
   refreshUI,
-  onDialog,
-  onDiscovery,
-  onGift,
 }: UseMouseOptions) => {
   const activeScreenRef = useRef(activeScreen)
   activeScreenRef.current = activeScreen
@@ -268,16 +251,7 @@ export const useMouse = ({
       if (isInputGated(state)) return
 
       if (state.activeDialog) {
-        const result = advanceDialog(state, performance.now())
-        if (result.gift) {
-          onGift(
-            `Received ${result.gift.name}.`,
-            result.gift.glyphs[0],
-            result.gift.glyphColor,
-            state.player.x,
-            state.player.y
-          )
-        }
+        advanceDialog(state, performance.now())
         refreshUI()
         return
       }
@@ -322,7 +296,7 @@ export const useMouse = ({
 
       // Left-click on interactable — pathfind + interact (preserved behavior)
       const blocked = getPathfindingBlockers(state, tile)
-      const resolved = resolveClickTarget(state, tile, blocked, onDialog, onDiscovery, refreshUI)
+      const resolved = resolveClickTarget(state, tile, blocked, refreshUI)
       if (resolved && resolved.action !== null) {
         deselectAll(state)
         state.pendingInteractionTarget = resolved.interactableTile
@@ -392,5 +366,5 @@ export const useMouse = ({
       canvas.removeEventListener('click', handleClick)
       canvas.removeEventListener('contextmenu', handleContextMenu)
     }
-  }, [canvasRef, state, metricsRef, setActiveScreen, refreshUI, onDialog, onDiscovery, onGift])
+  }, [canvasRef, state, metricsRef, setActiveScreen, refreshUI])
 }

@@ -226,9 +226,9 @@ features:
       running ledger of player actions contradicts steward/observer framing.
     size: S
     depends_on: []
-    status: todo
+    status: shipped
     spec: harness/specs/delete-event-log.yaml
-    plan: null
+    plan: harness/plans/delete-event-log.yaml
     pr: null
     notes: >
       v4 thinktank round 0 (2026-05-19). The log was scaffolding built early

@@ -1,0 +1,414 @@
+plan:
+  id: delete-event-log
+  title: 'Delete the activity event log — component, hook, tests, and all call sites'
+  created: 2026-05-20
+  # Pure deletion, no replacement surface. The hardest part is the prop-drilling
+  # chain (GameScreen → GameCanvas → useMouse + useKeyboard → handlers, and
+  # GameScreen → InventoryPanel → useInventoryDrag, plus HexagramPanel → onCastLog).
+  # Strategy: delete the component + hook + test files first, then chase the
+  # typecheck errors backwards through the prop chain. Typecheck is the
+  # navigator — each removed callback fails compilation at the next site up.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine + dashboard status ---
+
+  - id: doctrine-status-update
+    title: 'Flip precis #14 from todo to in-progress in docs/precis-status.yaml. Set plan path to harness/plans/delete-event-log.yaml.'
+    spec_id: delete-event-log
+    spec_sections: []
+    context_files:
+      - docs/precis-status.yaml
+    output_files:
+      - docs/precis-status.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Delete the component, hook, and their tests ---
+  # Deleting these first makes every dependent site fail typecheck, which is
+  # the cheapest map of what to clean up next.
+
+  - id: delete-event-log-files
+    title: 'Delete src/components/EventLog.tsx, src/components/__tests__/EventLog.test.tsx, src/hooks/useEventLog.ts, src/hooks/__tests__/useEventLog.test.ts. Use git rm. No file should remain in these four paths — checksum will compare to null post-task.'
+    spec_id: delete-event-log
+    spec_sections:
+      - event-log-component-deleted
+    context_files:
+      - src/components/EventLog.tsx
+      - src/components/__tests__/EventLog.test.tsx
+      - src/hooks/useEventLog.ts
+      - src/hooks/__tests__/useEventLog.test.ts
+    output_files:
+      - src/components/EventLog.tsx
+      - src/components/__tests__/EventLog.test.tsx
+      - src/hooks/useEventLog.ts
+      - src/hooks/__tests__/useEventLog.test.ts
+    depends_on:
+      - doctrine-status-update
+    verification: []
+    repair: retry
+    tags:
+      - delete
+
+  # --- Tier 2: Top-level GameScreen — remove the hook usage and all log wrappers ---
+  # GameScreen.tsx is the root of the prop-drilling tree. Removing the
+  # useEventLog() call and all eight addEvent wrappers (onPickup, onDrop,
+  # onDialog, onCombineLog, onDiscovery, onGift, the genesis narration
+  # assignment, and the onCastLog inline arrow) cascades into every child
+  # that received those props.
+
+  - id: gamescreen-remove-event-log
+    title: >
+      In src/components/GameScreen.tsx: drop the EventLog/useEventLog
+      imports; remove the `useEventLog()` call; delete the six addEvent
+      wrapper useCallbacks (onPickup/onDrop/onDialog/onCombineLog/
+      onDiscovery/onGift); delete the `state.onGenesisEpochStart = …`
+      assignment that emitted 'narration' (the field on GameState stays —
+      gameLoop.ts:128 reads it and genesis.test.ts exercises it; only the
+      log-emitting assignment goes); delete the `<EventLog>` render in the
+      bottom-bar; delete the inline `onCastLog={...}` passed to
+      HexagramPanel. Child component interfaces shrink in tier 3 tasks.
+    spec_id: delete-event-log
+    spec_sections:
+      - all-add-event-call-sites-removed
+      - bottom-bar-slot-vacated-cleanly
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/genesis.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/components/GameScreen.tsx
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - delete-event-log-files
+    verification:
+      - 'grep -n "addEvent\\|useEventLog\\|EventLog" src/components/GameScreen.tsx && exit 1 || exit 0'
+    repair: retry
+    tags:
+      - components
+
+  # --- Tier 3: Shrink child interfaces in step with GameScreen's deletions ---
+  # Each of these mirrors a callback that was previously fed from GameScreen.
+  # The order doesn't strictly matter since the harness can fan these out
+  # in parallel — but each is independent of the others, so list them flat.
+
+  - id: gamecanvas-remove-pickup-dialog-discovery-gift
+    title: >
+      In src/components/GameCanvas.tsx: remove the props `onPickup`,
+      `onDialog`, `onDiscovery`, `onGift` from the GameCanvasProps interface
+      (~27-30) and from the destructured signature (~39-42). Remove
+      `onPickupRef` and `onDiscoveryRef` (~48-51). Update the `useMouse(...)`
+      call (~57) to drop onDialog/onDiscovery/onGift. Update the world-effect
+      callback registration block (~100-105) to drop the
+      onPickup/onDiscovery wiring on state — keep only the world-effect
+      mutations that are NOT log emissions. If a callback was a no-op
+      wrapper around the addEvent ref, delete it. Leave
+      `window.addEventListener('resize', onResize)` and any other DOM-style
+      addEventListener calls untouched (failure-condition guard).
+    spec_id: delete-event-log
+    spec_sections:
+      - all-add-event-call-sites-removed
+    context_files:
+      - src/components/GameCanvas.tsx
+      - src/hooks/useMouse.ts
+    output_files:
+      - src/components/GameCanvas.tsx
+    depends_on:
+      - gamescreen-remove-event-log
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - components
+
+  - id: usemouse-remove-log-callbacks
+    title: >
+      In src/hooks/useMouse.ts: remove onDialog, onDiscovery, onGift from
+      the hook's props interface and signature. Remove call sites that
+      invoked them. If onDialog was used to open the dialog AND log — keep
+      the dialog-opening behavior, remove only the log invocation. If a
+      callback was used only to log, remove it entirely and the upstream
+      caller in GameCanvas stops passing it.
+    spec_id: delete-event-log
+    spec_sections:
+      - all-add-event-call-sites-removed
+      - world-effects-preserved
+    context_files:
+      - src/hooks/useMouse.ts
+    output_files:
+      - src/hooks/useMouse.ts
+    depends_on:
+      - gamecanvas-remove-pickup-dialog-discovery-gift
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - hooks
+
+  - id: usekeyboard-remove-log-callbacks
+    title: >
+      In src/hooks/useKeyboard.ts: remove onDrop, onDialog, onDiscovery,
+      onGift from the hook's props interface (~30-33) and signature (~41-44).
+      For each call site (~142, 165, 175, 186, 222): if the callback was
+      only a logging side-effect, remove it; if it had other behavior (e.g.
+      onDialog opens the dialog), keep that other behavior and remove only
+      the addEvent path. Update the useCallback dependency arrays
+      (~329-332). The diegetic world-effects must remain — interact, drop,
+      gift acquisition — only the log calls disappear.
+    spec_id: delete-event-log
+    spec_sections:
+      - all-add-event-call-sites-removed
+      - world-effects-preserved
+    context_files:
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - gamescreen-remove-event-log
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - hooks
+
+  - id: inventory-panel-remove-log-callbacks
+    title: >
+      In src/components/InventoryPanel.tsx: remove `onCombineLog` and
+      `onDropLog` from the props interface (~26-27) and signature (~37-38).
+      Update the `onCombine` useCallback (~56-65) to drop the
+      `onCombineLog(header, ...)` call — preserve the executeCombine call
+      and any other body. Remove `onDropLog` from the useInventoryDrag
+      arguments (~135). The drag/drop world effects (item moves between
+      cells, item appears on ground) must continue to fire.
+    spec_id: delete-event-log
+    spec_sections:
+      - all-add-event-call-sites-removed
+      - world-effects-preserved
+    context_files:
+      - src/components/InventoryPanel.tsx
+      - src/hooks/useInventoryDrag.ts
+    output_files:
+      - src/components/InventoryPanel.tsx
+    depends_on:
+      - gamescreen-remove-event-log
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - components
+
+  - id: useinventorydrag-and-canvasdrop-remove-log-callbacks
+    title: >
+      In src/hooks/useInventoryDrag.ts: remove the `onCombine` (log
+      success) and `onCombineFail` and `onDrop` (log) props if their sole
+      purpose was the activity log; preserve the drop-to-ground world
+      effect that places the item on a tile. In src/hooks/useCanvasDrop.ts:
+      remove the `onDropLog` prop (~21, ~32) and its call site (~107) and
+      its dependency-array entry (~163). The actual drop side-effects
+      (item appearing on the world) stay untouched. Update the test file
+      src/hooks/__tests__/useInventoryDrag.test.ts to remove assertions
+      against onCombine/onCombineFail/onDrop as activity-log signals — but
+      keep any assertion that verifies the drop world-effect itself.
+    spec_id: delete-event-log
+    spec_sections:
+      - all-add-event-call-sites-removed
+      - world-effects-preserved
+    context_files:
+      - src/hooks/useInventoryDrag.ts
+      - src/hooks/useCanvasDrop.ts
+      - src/hooks/__tests__/useInventoryDrag.test.ts
+    output_files:
+      - src/hooks/useInventoryDrag.ts
+      - src/hooks/useCanvasDrop.ts
+      - src/hooks/__tests__/useInventoryDrag.test.ts
+    depends_on:
+      - inventory-panel-remove-log-callbacks
+    verification:
+      - npx vitest run src/hooks/__tests__/useInventoryDrag.test.ts
+    repair: retry
+    tags:
+      - hooks
+
+  - id: hexagram-panel-remove-cast-log
+    title: >
+      In src/components/HexagramPanel.tsx: remove `onCastLog` from the
+      props interface (~21) and the destructured signature (~170). Delete
+      the `onCastLog(logText, ...)` call (~196) and remove onCastLog from
+      the surrounding useCallback dependency array (~199). The hexagram
+      casting world-effects (state mutation, manual entry, glint, sound)
+      stay — only the log emission disappears. Verify
+      src/components/HexagramPanel.tsx no longer references onCastLog.
+    spec_id: delete-event-log
+    spec_sections:
+      - all-add-event-call-sites-removed
+      - world-effects-preserved
+    context_files:
+      - src/components/HexagramPanel.tsx
+    output_files:
+      - src/components/HexagramPanel.tsx
+    depends_on:
+      - gamescreen-remove-event-log
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - components
+
+  - id: engine-remove-log-callbacks-and-queued-events
+    title: >
+      Engine-layer purge — the log's engine-side scaffolding goes with the
+      component. (1) src/engine/gameLoop.ts: drop `onPickup` and
+      `onDiscovery` from GameLoopCallbacks; remove every
+      `callbacks.onPickup?.(...)` / `callbacks.onDiscovery?.(...)` call
+      site; delete the `drainQueuedEvents` tick definition. (2)
+      src/engine/types.ts, src/engine/state.ts: drop `queuedEvents` field
+      and `QueuedEvent` type if unused elsewhere. (3)
+      src/harness/__tests__/serialization/schema.test.ts: drop
+      'queuedEvents' from EXPECTED_FIELDS. (4) src/engine/celestial.ts:241
+      and src/engine/ruins.ts:27 (queueEvent helper, ruins.ts:872,
+      interaction.ts:454 callers): delete the queue pushes — verified to
+      be log-only with no co-located world effect.
+    spec_id: delete-event-log
+    spec_sections:
+      - all-add-event-call-sites-removed
+      - world-effects-preserved
+    edge_cases:
+      - tests-that-asserted-log-entries
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/celestial.ts
+      - src/engine/ruins.ts
+      - src/engine/interaction.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/celestial.ts
+      - src/engine/ruins.ts
+      - src/engine/interaction.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - gamescreen-remove-event-log
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: engine-tests-remove-queued-events-assertions
+    title: >
+      Remove `state.queuedEvents.find(...)` / similar assertions from
+      src/engine/__tests__/main-questline.test.ts (rescued-coyote
+      assertions) and src/engine/__tests__/playerSpawn.test.ts (steward
+      falls assertion). Per the spec's `tests-that-asserted-log-entries`
+      edge case — remove the assertion entirely, do not rewrite it
+      against a replacement surface. If a test's only purpose was the
+      queuedEvents assertion, delete the test.
+    spec_id: delete-event-log
+    spec_sections:
+      - all-add-event-call-sites-removed
+    edge_cases:
+      - tests-that-asserted-log-entries
+    context_files:
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/__tests__/playerSpawn.test.ts
+    output_files:
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/__tests__/playerSpawn.test.ts
+    depends_on:
+      - engine-remove-log-callbacks-and-queued-events
+    verification:
+      - npx vitest run src/engine/__tests__/main-questline.test.ts src/engine/__tests__/playerSpawn.test.ts
+    repair: retry
+    tags:
+      - tests
+      - engine
+
+  - id: sidebar-test-narration-comment-cleanup
+    title: >
+      In src/components/__tests__/Sidebar.test.tsx (~357): the comment
+      "narration moved to the EventLog overlay" refers to a now-deleted
+      surface. Delete the stale comment. If any assertion in that file
+      asserts against EventLog content, remove the assertion entirely (do
+      not rewrite to assert against a replacement surface — there is no
+      replacement). Preserve any sidebar assertion unrelated to the log.
+    spec_id: delete-event-log
+    spec_sections:
+      - all-add-event-call-sites-removed
+    edge_cases:
+      - tests-that-asserted-log-entries
+    context_files:
+      - src/components/__tests__/Sidebar.test.tsx
+    output_files:
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on:
+      - gamescreen-remove-event-log
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags:
+      - tests
+
+  # --- Tier 4: Hunt for stragglers ---
+  # Catch-all sweep across src/ to ensure no addEvent( call survives and no
+  # import of useEventLog/EventLog remains. The grep here is the literal
+  # `addEvent\(` pattern from the spec, NOT the substring `addEvent` (which
+  # would match DOM addEventListener calls). The failure_condition guard
+  # against accidentally removing DOM listeners is enforced by being explicit.
+
+  - id: straggler-sweep
+    title: >
+      Catch-all sweep. Run `grep -rn "addEvent(" src/` and `grep -rn
+      "useEventLog\\|from .*EventLog" src/` — both must return zero matches
+      after this task. If matches remain, repair each in place — preserving
+      the world-effect, deleting only the log emission. The DOM patterns
+      `window.addEventListener`, `ws.addEventListener`,
+      `canvas.addEventListener`, `el.addEventListener` must remain
+      untouched. Visually verify each surviving addEventListener belongs
+      to the DOM, not the deleted log. This task is permitted to edit any
+      file under src/ that still references the deleted symbols; the
+      output_files list names GameScreen as the canonical sweep anchor —
+      most stragglers, if any, will be there.
+    spec_id: delete-event-log
+    spec_sections:
+      - all-add-event-call-sites-removed
+    failure_conditions:
+      - 'a DOM-style `addEventListener` call is removed by mistake'
+    context_files:
+      - src
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on:
+      - gamecanvas-remove-pickup-dialog-discovery-gift
+      - usemouse-remove-log-callbacks
+      - usekeyboard-remove-log-callbacks
+      - inventory-panel-remove-log-callbacks
+      - useinventorydrag-and-canvasdrop-remove-log-callbacks
+      - hexagram-panel-remove-cast-log
+      - sidebar-test-narration-comment-cleanup
+      - engine-remove-log-callbacks-and-queued-events
+      - engine-tests-remove-queued-events-assertions
+    verification:
+      - 'grep -rn "addEvent(" src/ && exit 1 || exit 0'
+      - 'grep -rn "useEventLog\\|from .*EventLog" src/ && exit 1 || exit 0'
+      - 'grep -rn "queuedEvents\\|queueEvent" src/ && exit 1 || exit 0'
+    repair: retry
+    tags:
+      - sweep
+
+  # Final typecheck + lint + test handled by global_verification after the
+  # last task — no dedicated full-verify task is needed (matches precis-7's
+  # pattern and keeps plan validation clean).
