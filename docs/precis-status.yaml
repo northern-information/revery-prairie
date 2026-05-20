@@ -67,11 +67,11 @@ features:
     summary: Omen-triggered entry, observation UX, end-of-Revery summary (bilingual ASCII + Voynich).
     size: L
     depends_on: ['1', '2', '3', '8a']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-4-the-revery.yaml
     plan: harness/plans/precis-4-the-revery.yaml
-    pr: null
-    notes: 'Scope locked 2026-05-19: hard input lock, "pass through the winter" duration via year accelerator (mirrors deepTime.ts), bilingual ASCII + Voynich summary, one hedged phenotype label per Revery on most-discovered species (axis cycles by reveryCount), first-Revery 3 → 6 egregoric bump per v3 8a doctrine. Three omen variants: bee on shoulder, distant meteorite, cloud passing the sun. cosmologicalDrift field lands here (0 baseline, no incrementers in this PR). Ongoing per-Revery egregore spread defers to #8b.'
+    pr: https://github.com/northern-information/revery-prairie/pull/341
+    notes: 'Scope locked 2026-05-19: hard input lock, "pass through the winter" duration via year accelerator (mirrors deepTime.ts), bilingual ASCII + Voynich summary, one hedged phenotype label per Revery on most-discovered species (axis cycles by reveryCount), first-Revery 3 → 6 egregoric bump per v3 8a doctrine. Three omen variants: bee on shoulder, distant meteorite, cloud passing the sun. cosmologicalDrift field lands here (0 baseline, no incrementers in this PR). Ongoing per-Revery egregore spread defers to precis-8b.'
 
   - id: '5'
     name: Ruin → first non-clover species
@@ -100,11 +100,11 @@ features:
     summary: Pollinators favor certain species and route through the prairie.
     size: S
     depends_on: ['1', '3']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-7-pollinator-routes.yaml
     plan: harness/plans/precis-7-pollinator-routes.yaml
-    pr: null
-    notes: 'Scope locked 2026-05-19: two-layer preference (species baseline on FloraSpeciesDef + per-plant `pollinatorPreference` trait from #3). Bees use weighted neighbor pick over preference; pollen emission gets a per-plant trait multiplier. Subtle — no UI, no manual entry, no event log. Bees only — no new pollinator entities. Phenotype labels stay in #4.'
+    pr: https://github.com/northern-information/revery-prairie/pull/339
+    notes: 'Scope locked 2026-05-19: two-layer preference (species baseline on FloraSpeciesDef + per-plant `pollinatorPreference` trait from precis-3). Bees use weighted neighbor pick over preference; pollen emission gets a per-plant trait multiplier. Subtle — no UI, no manual entry, no event log. Bees only — no new pollinator entities. Phenotype labels stay in precis-4.'
 
   - id: '8b'
     name: Egregoric flora — mechanical
