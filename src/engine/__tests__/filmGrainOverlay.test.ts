@@ -12,6 +12,11 @@ class FakeOffscreenCanvas {
     return {
       createPattern: (): Record<string, never> => ({}),
       fillRect: (): void => undefined,
+      beginPath: (): void => undefined,
+      moveTo: (): void => undefined,
+      lineTo: (): void => undefined,
+      closePath: (): void => undefined,
+      fill: (): void => undefined,
       set fillStyle(v: unknown) {
         fillStyle = v
       },
@@ -218,6 +223,56 @@ describe('film grain overlay pass', () => {
       expect(entry2).not.toBe(entry1)
       expect(entry2?.charWidth).toBe(20)
       expect(entry2?.charHeight).toBe(32)
+    })
+  })
+
+  describe('non-space masking', () => {
+    it('paints one iso diamond per non-Space tile during bake (regression for bounding-box bleed)', () => {
+      // Replace the OffscreenCanvas stub with a recording one for this test only.
+      const recorded: { fillCount: number } = { fillCount: 0 }
+      class RecordingOffscreenCanvas {
+        width: number
+        height: number
+        constructor(w: number, h: number) {
+          this.width = w
+          this.height = h
+        }
+        getContext(): unknown {
+          return {
+            createPattern: (): Record<string, never> => ({}),
+            fillRect: (): void => undefined,
+            beginPath: (): void => undefined,
+            moveTo: (): void => undefined,
+            lineTo: (): void => undefined,
+            closePath: (): void => undefined,
+            fill: (): void => {
+              recorded.fillCount++
+            },
+            set fillStyle(_v: unknown) {
+              // unused
+            },
+            get fillStyle(): unknown {
+              return ''
+            },
+          }
+        }
+      }
+      const prevOC = (globalThis as unknown as { OffscreenCanvas: unknown }).OffscreenCanvas
+      ;(globalThis as unknown as { OffscreenCanvas: unknown }).OffscreenCanvas = RecordingOffscreenCanvas
+      try {
+        // 4×4 map: 6 Dirt tiles, 10 Space tiles
+        const map: Tile[][] = [
+          [{ type: TileType.Space }, { type: TileType.Space }, { type: TileType.Space }, { type: TileType.Space }],
+          [{ type: TileType.Space }, { type: TileType.Dirt }, { type: TileType.Dirt }, { type: TileType.Space }],
+          [{ type: TileType.Space }, { type: TileType.Dirt }, { type: TileType.Dirt }, { type: TileType.Space }],
+          [{ type: TileType.Dirt }, { type: TileType.Dirt }, { type: TileType.Space }, { type: TileType.Space }],
+        ]
+        const image = makeFakeImage()
+        __testing.getOrBuildCache(map, 4, 4, CHAR_WIDTH, CHAR_HEIGHT, image)
+        expect(recorded.fillCount).toBe(6)
+      } finally {
+        ;(globalThis as unknown as { OffscreenCanvas: unknown }).OffscreenCanvas = prevOC
+      }
     })
   })
 

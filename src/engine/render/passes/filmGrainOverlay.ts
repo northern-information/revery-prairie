@@ -1,4 +1,5 @@
 import { seasonalWash } from '../../tileBg'
+import { TileType } from '../../types'
 import { registerPass } from '../passes'
 
 import type { CharMetrics, GameState, Tile } from '../../types'
@@ -114,8 +115,37 @@ const buildCache = (
   const { canvas, ctx } = createCanvas(width, height)
   const pattern = ctx.createPattern(image, 'repeat')
   if (pattern !== null) {
+    // Paint grain only on non-Space tile diamonds. In zones whose iso
+    // bounding box extends beyond their playable footprint (caves, ruins,
+    // structures), a uniform fill would outline the bounding box against
+    // pure-canvas dark. Diamonds use the same path math as tileBgCache,
+    // minus the lift adjustments — lift offsets are below perceptual
+    // threshold on a noise texture, and skipping them keeps the cache
+    // keyed by map reference alone (not state).
     ctx.fillStyle = pattern
-    ctx.fillRect(0, 0, width, height)
+    const halfW = charWidth / 2
+    const halfH = charHeight / 2
+    for (let y = 0; y < mapHeight; y++) {
+      for (let x = 0; x < mapWidth; x++) {
+        const tile = map[y][x]
+        if (tile.type === TileType.Space) continue
+        const px = (x - y) * charWidth + worldOriginX + halfW
+        const py = (x + y) * halfH + worldOriginY
+        const leftX = px - halfW
+        const rightX = leftX + 2 * charWidth
+        const topY = py
+        const bottomY = topY + charHeight
+        const cx = leftX + charWidth
+        const cy = topY + halfH
+        ctx.beginPath()
+        ctx.moveTo(cx, topY - FILM_GRAIN_OVERLAP)
+        ctx.lineTo(rightX + FILM_GRAIN_OVERLAP, cy)
+        ctx.lineTo(cx, bottomY + FILM_GRAIN_OVERLAP)
+        ctx.lineTo(leftX - FILM_GRAIN_OVERLAP, cy)
+        ctx.closePath()
+        ctx.fill()
+      }
+    }
   }
   const entry: FilmGrainCacheEntry = { canvas, charWidth, charHeight, worldOriginX, worldOriginY }
   cacheByMap.set(map, entry)

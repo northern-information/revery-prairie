@@ -1,10 +1,13 @@
 id: film-grain-overlay
 name: 'Film grain overlay'
 priority: low
-layer: engine
+layer: integration
 source_files:
   - src/engine/render/passes/filmGrainOverlay.ts
   - src/engine/render/passes/index.ts
+  - src/styles/index.css
+  - src/components/ScanResultModal.tsx
+  - src/components/BootTitleCardOverlay.tsx
 dependencies:
   - renderer
   - seasonal-palette-wash
@@ -65,14 +68,19 @@ behaviors:
       sized to the current map's iso bounding box (matching
       `tileBgCache`'s `computeWorldDimensions` math so the same
       (dx, dy) translation maps cache pixels to viewport pixels).
-      Baking uses `ctx.createPattern(grainImage, 'repeat')` +
-      `fillRect` to fill the entire offscreen canvas with the grain
-      texture. Subsequent frames reuse the cached canvas without
-      re-baking. The cache is keyed by `state.map` reference via a
-      `WeakMap` so zone transitions naturally invalidate it
-      (overworld and cave use different `Tile[][]` arrays).
-      `charWidth`/`charHeight` changes (font scale toggle) also
-      invalidate the cache entry.
+      Baking iterates the map and paints an iso diamond per non-Space
+      tile using the grain image as a `createPattern('repeat')`
+      fillStyle. Space tiles are skipped — see the
+      `grain-masked-to-non-space-tiles` behavior for the rationale.
+      Subsequent frames reuse the cached canvas without re-baking.
+      The cache is keyed by `state.map` reference via a `WeakMap` so
+      zone transitions naturally invalidate it (overworld and cave
+      use different `Tile[][]` arrays). `charWidth`/`charHeight`
+      changes (font scale toggle) also invalidate the cache entry.
+      Lift / platform / water-sink offsets are intentionally not
+      applied — they are below perceptual threshold on a noise
+      texture, and skipping them keeps the cache keyed by map
+      reference alone (not state).
     inputs:
       - 'first draw after image load'
       - 'subsequent frames in the same zone with same dimensions'
@@ -97,6 +105,61 @@ behaviors:
       - 'frame with camera at (camera.x, camera.y)'
     outputs:
       - 'drawImage called with sx/sy derived from camera, sw/sh from viewport, dx/dy from on-screen viewport origin'
+    state_changes: []
+    determinism: deterministic
+
+  - id: grain-masked-to-non-space-tiles
+    description: >
+      Grain is painted only on tiles whose type is NOT `TileType.Space`.
+      In zones whose iso bounding box extends beyond their playable
+      footprint (caves, ruins, structures), painting grain uniformly
+      across the entire bounding box would outline the box against
+      pure-canvas dark and create a visible "frame" effect that does
+      not match anything in the underlying simulation. The mask is
+      applied at bake time by iterating `map[y][x]` and skipping
+      Space tiles in the diamond-painting loop. The mask uses the
+      same iso diamond geometry as `tileBgCache.paintTileBg` (without
+      lift) so the painted grain area aligns visually with the
+      painted tile backgrounds.
+    inputs:
+      - 'a map with a mix of Space and non-Space tiles'
+    outputs:
+      - 'cached canvas has grain only at non-Space tile positions; Space tile positions remain fully transparent'
+    state_changes: []
+    determinism: deterministic
+
+  - id: grain-applied-to-scan-result-modal
+    description: >
+      The gene-sequencing scan result modal
+      (`src/components/ScanResultModal.tsx`) applies the
+      `film-grain-overlay` CSS utility class on its inner content
+      panel so the grain texture overlays the modal at the same
+      ~0.20 opacity as the canvas pass. The utility is defined in
+      `src/styles/index.css` as a `::after` pseudo-element with
+      `background-image: url('/textures/000973910004.jpg')`,
+      `background-repeat: repeat`, `opacity: 0.2`, and
+      `pointer-events: none`. The host element gets `overflow-hidden`
+      so the pseudo-element clips at its border.
+    inputs:
+      - 'a flora specimen is scanned and the ScanResultModal renders'
+    outputs:
+      - 'scan-result-content element carries the film-grain-overlay class'
+    state_changes: []
+    determinism: deterministic
+
+  - id: grain-applied-to-boot-title-card
+    description: >
+      The boot title card overlay
+      (`src/components/BootTitleCardOverlay.tsx`) applies the same
+      `film-grain-overlay` utility on its fullscreen black backdrop.
+      The grain rides the card's existing opacity tween (`alpha`)
+      because the utility's `::after` pseudo-element inherits opacity
+      from its host's `style.opacity` — so as the title card fades
+      in and out, the grain fades with it.
+    inputs:
+      - 'boot title card overlay is rendered (alpha > 0)'
+    outputs:
+      - 'boot-title-card panel carries the film-grain-overlay class'
     state_changes: []
     determinism: deterministic
 
@@ -149,6 +212,10 @@ edge_cases:
   - id: fog-of-war-covers-grain
     description: 'Unexplored fog-of-war tiles should remain visually dark; grain should not "shine through" the fog mask'
     expected: 'because filmGrainOverlayPass is registered before fogMaskPass in passes/index.ts, the fog mask draws on top of grain and covers it in unexplored regions'
+
+  - id: caves-and-ruins-do-not-show-bounding-box
+    description: 'A cave or ruin map whose playable footprint is smaller than its iso bounding box should not visibly outline the bounding box against pure-canvas dark'
+    expected: 'grain is painted only on non-Space tile positions, so the bounding box is not visible — only the playable tile footprint is grained'
 
 failure_conditions:
   - trigger: 'public/textures/000973910004.jpg is missing or returns 404'

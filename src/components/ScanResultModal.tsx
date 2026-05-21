@@ -100,7 +100,7 @@ export const ScanResultModal = ({ species, identity, onDismiss }: ScanResultModa
     >
       <div
         data-testid="scan-result-content"
-        className="border-border flex flex-col items-center gap-4 border bg-black p-8 font-mono"
+        className="film-grain-overlay border-border flex flex-col items-center gap-4 overflow-hidden border bg-black p-8 font-mono"
         onClick={e => {
           e.stopPropagation()
         }}

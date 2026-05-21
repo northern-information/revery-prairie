@@ -150,3 +150,21 @@ body,
   font-family: 'Times New Roman', serif;
   font-style: italic;
 }
+
+/* Film grain overlay for DOM panels that match the canvas grain pass
+   (gene sequencing modal, boot title cards). The host element must be
+   position: relative or fixed. Pointer events pass through. Opacity is
+   tuned to the same coarse range as FILM_GRAIN_ALPHA in
+   src/engine/render/passes/filmGrainOverlay.ts. */
+.film-grain-overlay {
+  position: relative;
+}
+.film-grain-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('/textures/000973910004.jpg');
+  background-repeat: repeat;
+  opacity: 0.2;
+  pointer-events: none;
+}

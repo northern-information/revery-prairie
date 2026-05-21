@@ -51,7 +51,7 @@ export const BootTitleCardOverlay = ({ state }: { state: GameState }): React.Rea
   return (
     <div
       data-panel="boot-title-card"
-      className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black"
+      className="film-grain-overlay pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-black"
       style={{ opacity: alpha }}
     >
       <p className="font-serif text-6xl italic" style={{ color: '#d8a860' }}>
