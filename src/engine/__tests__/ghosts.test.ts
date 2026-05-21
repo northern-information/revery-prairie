@@ -3,6 +3,7 @@ import { ComponentType } from '../ecs/types'
 import { tickCharacterBehaviors } from '../entities'
 import { advanceDialog, interactWithCharacter, tickDialogTransition } from '../interaction'
 import { getBlockedPositions, movePlayer } from '../movement'
+import { spawnOak } from '../oaks'
 import { posKey } from '../position'
 import { createGameState } from '../state'
 import { TileType } from '../types'
@@ -204,6 +205,138 @@ describe('tickCharacterBehaviors', () => {
     expect(posAfter).toBeDefined()
     expect(posAfter?.x).toBe(origX)
     expect(posAfter?.y).toBe(origY)
+  })
+})
+
+describe('ghosts are non-corporeal (phase through entity blockers)', () => {
+  it('ghost drifts out of an oak that grew around it', () => {
+    const state = makeState()
+    destroyAllCharacterEntities(state)
+
+    const cx = state.player.x + 8
+    const cy = state.player.y + 8
+    const eid = createCharacterTestEntity(state, 'ghost-1', cx, cy, { behavior: DRIFT_BEHAVIOR })
+    spawnOak(state, cx, cy, 0)
+
+    try {
+      vi.spyOn(Math, 'random').mockReturnValue(0)
+
+      const startKey = posKey(cx, cy)
+      let moved = false
+      for (let i = 0; i < 5; i++) {
+        tickCharacterBehaviors(state)
+        const pos = state.world.getComponent(eid, ComponentType.Position)
+        if (pos && posKey(pos.x, pos.y) !== startKey) {
+          moved = true
+          break
+        }
+      }
+      expect(moved).toBe(true)
+    } finally {
+      vi.restoreAllMocks()
+    }
+  })
+
+  it('ghost can drift onto a tile occupied by the player', () => {
+    const state = makeState()
+    destroyAllCharacterEntities(state)
+
+    const gx = state.player.x + 1
+    const gy = state.player.y
+    const eid = createCharacterTestEntity(state, 'ghost-1', gx, gy, { behavior: DRIFT_BEHAVIOR })
+
+    // Wall off every neighbor with Space except the player's tile (gx-1, gy)
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue
+        const nx = gx + dx
+        const ny = gy + dy
+        if (nx === state.player.x && ny === state.player.y) continue
+        state.map[ny][nx] = { type: TileType.Space }
+      }
+    }
+
+    try {
+      vi.spyOn(Math, 'random').mockReturnValue(0)
+      tickCharacterBehaviors(state)
+      const pos = state.world.getComponent(eid, ComponentType.Position)
+      expect(pos).toBeDefined()
+      expect(pos?.x).toBe(state.player.x)
+      expect(pos?.y).toBe(state.player.y)
+    } finally {
+      vi.restoreAllMocks()
+    }
+  })
+
+  it('ghost can drift onto a tile occupied by another ghost', () => {
+    const state = makeState()
+    destroyAllCharacterEntities(state)
+
+    const ax = state.player.x + 4
+    const ay = state.player.y + 4
+    const bx = ax + 1
+    const by = ay
+    const eidA = createCharacterTestEntity(state, 'ghost-1', ax, ay, { behavior: DRIFT_BEHAVIOR })
+    createCharacterTestEntity(state, 'ghost-2', bx, by, { behavior: DRIFT_BEHAVIOR })
+
+    // Wall off every A-neighbor with Space except B's tile
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue
+        const nx = ax + dx
+        const ny = ay + dy
+        if (nx === bx && ny === by) continue
+        state.map[ny][nx] = { type: TileType.Space }
+      }
+    }
+
+    try {
+      vi.spyOn(Math, 'random').mockReturnValue(0)
+      // Freeze ghost-2 in dialog so only ghost-1 drifts this tick
+      state.activeDialog = {
+        characterId: 'ghost-2',
+        lineIndex: 0,
+        typingIndex: 0,
+        typingDone: false,
+        transitioning: false,
+        transitionStartTime: 0,
+      }
+      tickCharacterBehaviors(state)
+      const posA = state.world.getComponent(eidA, ComponentType.Position)
+      expect(posA?.x).toBe(bx)
+      expect(posA?.y).toBe(by)
+    } finally {
+      vi.restoreAllMocks()
+    }
+  })
+
+  it('ghost still blocked by impassable terrain (regression guard)', () => {
+    const state = makeState()
+    destroyAllCharacterEntities(state)
+
+    const gx = state.player.x + 6
+    const gy = state.player.y + 6
+    const eid = createCharacterTestEntity(state, 'ghost-1', gx, gy, { behavior: DRIFT_BEHAVIOR })
+
+    // Surround with Space — no walkable neighbor exists
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue
+        state.map[gy + dy][gx + dx] = { type: TileType.Space }
+      }
+    }
+
+    try {
+      vi.spyOn(Math, 'random').mockReturnValue(0)
+      for (let i = 0; i < 50; i++) {
+        tickCharacterBehaviors(state)
+      }
+      const pos = state.world.getComponent(eid, ComponentType.Position)
+      expect(pos?.x).toBe(gx)
+      expect(pos?.y).toBe(gy)
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 })
 

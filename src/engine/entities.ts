@@ -9,7 +9,6 @@ import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, 
 import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
 import { spawnBeeOrMonarch } from './monarch'
-import { getBlockedPositions } from './movement'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 import { FloraSpecies, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
@@ -236,22 +235,16 @@ export const tickBees = (state: GameState, zone?: Zone): Position[] => {
   return deaths
 }
 
-const tickDrift = (
-  state: GameState,
-  eid: Entity,
-  definitionId: string,
-  behavior: DriftBehavior,
-  blocked: Set<string>
-): void => {
+// Ghosts are non-corporeal — drift only checks terrain walkability and
+// craters. Entity blockers (oaks, angels, other ghosts, characters, the
+// player) are intentionally ignored so a ghost enclosed by an oak canopy
+// or surrounded by other entities can still drift out.
+const tickDrift = (state: GameState, eid: Entity, definitionId: string, behavior: DriftBehavior): void => {
   if (behavior.freezeOnDialog && state.activeDialog?.characterId === definitionId) return
   if (Math.random() > behavior.moveChance) return
 
   const pos = state.world.getComponent(eid, ComponentType.Position)
   if (!pos) return
-
-  // Remove self from blocked set so we don't self-block
-  const selfKey = posKey(pos.x, pos.y)
-  blocked.delete(selfKey)
 
   const candidates: Position[] = []
   for (const d of ORDINAL) {
@@ -260,25 +253,18 @@ const tickDrift = (
     if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
     if (!isWalkableTile(state.map[ny][nx].type)) continue
     if (state.craters.has(posKey(nx, ny))) continue
-    if (blocked.has(posKey(nx, ny))) continue
     candidates.push({ x: nx, y: ny })
   }
 
   if (candidates.length > 0) {
     const target = candidates[Math.floor(Math.random() * candidates.length)]
-    blocked.add(posKey(target.x, target.y))
     state.world.moveEntity(eid, target.x, target.y, GHOST_TICK_MS)
-  } else {
-    // Re-add self to blocked set since we didn't move
-    blocked.add(selfKey)
   }
 }
 
 export const tickCharacterBehaviors = (state: GameState, zone?: Zone): void => {
   const z = zone ?? state.currentZone
   if (state.deepTime?.active) return
-  const blocked = getBlockedPositions(state, z)
-  blocked.add(posKey(state.player.x, state.player.y))
 
   const matchesZone = (eid: number): boolean =>
     z === state.currentZone
@@ -296,7 +282,7 @@ export const tickCharacterBehaviors = (state: GameState, zone?: Zone): void => {
     if (!identity) continue
 
     if (behavior.type === 'drift') {
-      tickDrift(state, eid, identity.definitionId, behavior, blocked)
+      tickDrift(state, eid, identity.definitionId, behavior)
     }
   }
 }
