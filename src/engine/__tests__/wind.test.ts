@@ -36,20 +36,70 @@ describe('WIND_SCREEN_VECTORS', () => {
     }
   })
 
-  it('cardinal directions have magnitude √2, ordinals have magnitude 1', () => {
-    const cardinals = [WindDirection.N, WindDirection.S, WindDirection.E, WindDirection.W]
-    const ordinals = [WindDirection.NE, WindDirection.SW, WindDirection.NW, WindDirection.SE]
-
-    for (const dir of cardinals) {
+  it('all eight directions have magnitude √2 in the rotated frame', () => {
+    // Under the rotated cardinal frame (precis-thinktank-v5 round 1) the
+    // diamond is the world: cardinals point at the diamond's tips on screen
+    // (axis-aligned screen vectors at magnitude √2) and ordinals align with
+    // the storage axes (diagonal screen vectors at magnitude √2 split across
+    // both components). All eight values share the same magnitude so
+    // windSpeed × (sx, sy) produces equivalent drift across all directions.
+    for (const dir of Object.values(WindDirection)) {
       const { sx, sy } = WIND_SCREEN_VECTORS[dir]
       const mag = Math.sqrt(sx * sx + sy * sy)
       expect(mag).toBeCloseTo(Math.SQRT2, 5)
     }
-    for (const dir of ordinals) {
-      const { sx, sy } = WIND_SCREEN_VECTORS[dir]
-      const mag = Math.sqrt(sx * sx + sy * sy)
-      expect(mag).toBeCloseTo(1, 5)
-    }
+  })
+})
+
+// Golden fixture for the rotated cardinal frame (precis-thinktank-v5 round 1).
+// Pins each cardinal's (sx, sy) so the old frame cannot be reintroduced by
+// accident.
+describe('WIND_SCREEN_VECTORS rotated frame', () => {
+  it('N points from the diamond top tip (screen-down drift)', () => {
+    expect(WIND_SCREEN_VECTORS[WindDirection.N]).toEqual({ sx: 0, sy: Math.SQRT2 })
+  })
+  it('S points from the diamond bottom tip (screen-up drift)', () => {
+    expect(WIND_SCREEN_VECTORS[WindDirection.S]).toEqual({ sx: 0, sy: -Math.SQRT2 })
+  })
+  it('E points from the diamond right tip (screen-left drift)', () => {
+    expect(WIND_SCREEN_VECTORS[WindDirection.E]).toEqual({ sx: -Math.SQRT2, sy: 0 })
+  })
+  it('W points from the diamond left tip (screen-right drift)', () => {
+    expect(WIND_SCREEN_VECTORS[WindDirection.W]).toEqual({ sx: Math.SQRT2, sy: 0 })
+  })
+  it('NE points from the upper-right edge (storage -x direction)', () => {
+    expect(WIND_SCREEN_VECTORS[WindDirection.NE]).toEqual({ sx: -1, sy: -1 })
+  })
+  it('SE points from the lower-right edge (storage -y direction)', () => {
+    expect(WIND_SCREEN_VECTORS[WindDirection.SE]).toEqual({ sx: 1, sy: -1 })
+  })
+  it('SW points from the lower-left edge (storage +x direction)', () => {
+    expect(WIND_SCREEN_VECTORS[WindDirection.SW]).toEqual({ sx: 1, sy: 1 })
+  })
+  it('NW points from the upper-left edge (storage +y direction)', () => {
+    expect(WIND_SCREEN_VECTORS[WindDirection.NW]).toEqual({ sx: -1, sy: 1 })
+  })
+})
+
+// Golden fixture for the genesis polar metric in the rotated frame
+// (precis-thinktank-v5 round 1). Pins topDist = (x - SB) + (y - SB) so future
+// edits cannot regress to the old storage-y semantics.
+describe('genesis polar metric — rotated frame', () => {
+  // Synthetic 100x100 sim with SPACE_BORDER = 5, playable side = 90.
+  const SB = 5
+  const topDist = (x: number, y: number): number => (x - SB) + (y - SB)
+
+  it('topDist at the diamond top tip is 0', () => {
+    expect(topDist(5, 5)).toBe(0)
+  })
+  it('topDist at the diamond bottom tip is 2 × (playable side − 1)', () => {
+    expect(topDist(94, 94)).toBe(178)
+  })
+  it('topDist at the diamond left tip equals the right tip', () => {
+    // Left tip (5, 94): (5-5) + (94-5) = 89
+    // Right tip (94, 5): (94-5) + (5-5) = 89
+    expect(topDist(5, 94)).toBe(89)
+    expect(topDist(94, 5)).toBe(89)
   })
 })
 

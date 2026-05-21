@@ -1,7 +1,7 @@
 import { RAIN_FRONT_FRINGE, RAIN_FRONT_WIDTH, WATER_DRAIN_RATE, WATER_MAX, WATER_RAIN_FILL } from '../constants'
 import { posKey } from '../position'
 import { createGameState } from '../state'
-import { isInRainFront, tickTileWater } from '../tileWater'
+import { isInRainFront, tickTileWater, windToFrontAxis } from '../tileWater'
 import { Sky, TileType, WindDirection, Zone } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -80,7 +80,10 @@ describe('tileWater', () => {
       // Position rain front so player.x+1 lands in the core zone (not the
       // fringe). With RAIN_FRONT_FRINGE=8 the core starts at offset 8, so
       // place the front 12 tiles behind the test tile to land solidly in core.
-      state.weather.windDirection = WindDirection.E
+      // SW maps to { axis: 'x', sign: 1 } in the rotated cardinal frame
+      // (precis-thinktank-v5 round 1), matching what the tests below assume:
+      // a front advancing along +x. Swapped from the old WindDirection.E.
+      state.weather.windDirection = WindDirection.SW
       state.rainFrontOffset = state.player.x + 1 - 12
     })
 
@@ -184,7 +187,10 @@ describe('tileWater', () => {
 
     beforeEach(() => {
       state = createTestState()
-      state.weather.windDirection = WindDirection.E
+      // SW maps to { axis: 'x', sign: 1 } in the rotated cardinal frame
+      // (precis-thinktank-v5 round 1), matching what the tests below assume:
+      // a front advancing along +x. Swapped from the old WindDirection.E.
+      state.weather.windDirection = WindDirection.SW
       state.rainFrontOffset = 0
     })
 
@@ -239,5 +245,36 @@ describe('tileWater', () => {
       }
       expect(foundHitWithReducedAlpha).toBe(true)
     })
+  })
+})
+
+// Golden fixture for the rotated cardinal frame (precis-thinktank-v5 round 1).
+// Pins each cardinal's (axis, sign) return so the old frame cannot be
+// reintroduced by accident. Cardinals sweep along iso diagonals (u = x + y,
+// v = x - y); ordinals sweep along storage axes.
+describe('windToFrontAxis rotated frame', () => {
+  it('N → axis u, sign -1 (front enters at the diamond top tip)', () => {
+    expect(windToFrontAxis(WindDirection.N)).toEqual({ axis: 'u', sign: -1 })
+  })
+  it('S → axis u, sign +1 (front enters at the diamond bottom tip)', () => {
+    expect(windToFrontAxis(WindDirection.S)).toEqual({ axis: 'u', sign: 1 })
+  })
+  it('E → axis v, sign -1 (front enters at the diamond right tip)', () => {
+    expect(windToFrontAxis(WindDirection.E)).toEqual({ axis: 'v', sign: -1 })
+  })
+  it('W → axis v, sign +1 (front enters at the diamond left tip)', () => {
+    expect(windToFrontAxis(WindDirection.W)).toEqual({ axis: 'v', sign: 1 })
+  })
+  it('NE → axis x, sign -1 (front enters from storage +x edge)', () => {
+    expect(windToFrontAxis(WindDirection.NE)).toEqual({ axis: 'x', sign: -1 })
+  })
+  it('SE → axis y, sign -1 (front enters from storage +y edge)', () => {
+    expect(windToFrontAxis(WindDirection.SE)).toEqual({ axis: 'y', sign: -1 })
+  })
+  it('SW → axis x, sign +1 (front enters from storage -x edge)', () => {
+    expect(windToFrontAxis(WindDirection.SW)).toEqual({ axis: 'x', sign: 1 })
+  })
+  it('NW → axis y, sign +1 (front enters from storage -y edge)', () => {
+    expect(windToFrontAxis(WindDirection.NW)).toEqual({ axis: 'y', sign: 1 })
   })
 })
