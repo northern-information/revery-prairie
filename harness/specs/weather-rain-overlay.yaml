@@ -15,7 +15,7 @@ dependencies:
 behaviors:
   - id: viewport-rain-overlay
     description: >
-      when state.rainIntensity > 0 and currentZone is overworld, the
+      when state.precipitationIntensity > 0 and currentZone is overworld, the
       renderer draws animated rain characters within the rain front
       band. uses the same RAIN_CHARS, RAIN_COLORS, RAIN_SPEED, and
       tileHash-based animation as Gron's rain aura overlay. density is
@@ -24,13 +24,13 @@ behaviors:
       drawn after all tile and entity rendering but before the cursor
       highlight pass. skips the player tile and any tile already
       covered by a rain aura or revery rain effect. rain alpha is
-      modulated by state.rainIntensity (0.0-1.0) so rain fades in and
+      modulated by state.precipitationIntensity (0.0-1.0) so rain fades in and
       out gradually rather than appearing/disappearing instantly.
     inputs:
-      - 'state.rainIntensity > 0'
+      - 'state.precipitationIntensity > 0'
       - 'state.currentZone is overworld'
     outputs:
-      - 'animated rain characters rendered with alpha = rainIntensity'
+      - 'animated rain characters rendered with alpha = precipitationIntensity'
     state_changes: []
     determinism: deterministic
 
@@ -57,7 +57,7 @@ behaviors:
       tiles within the fringe zone are rendered with reduced alpha
       proportional to their distance from the front core. tiles at the
       outer edge of the fringe have lower alpha, tiles near the core
-      have full alpha. this alpha is multiplied with state.rainIntensity
+      have full alpha. this alpha is multiplied with state.precipitationIntensity
       so both effects compose. creates a visual thinning of rain at the
       front's edges.
     inputs:
@@ -124,7 +124,7 @@ edge_cases:
     description: 'the blotchy edge pattern does not flicker between frames because tileHash is deterministic per position'
     expected: 'same tiles are included/excluded on consecutive frames for the same front position'
   - id: rain-intensity-clamps
-    description: 'rainIntensity never exceeds 1.0 or drops below 0.0'
+    description: 'precipitationIntensity never exceeds 1.0 or drops below 0.0'
     expected: 'clamped to [0.0, 1.0] after every tick'
 
 failure_conditions:
