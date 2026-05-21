@@ -1,0 +1,142 @@
+plan:
+  id: steward-star-genesis
+  title: 'Steward star genesis polish — fixed N→S descent, UI-pink palette, camera follow, impact shake'
+  created: '2026-05-21'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: steward-color-constants
+    title: 'Add STEWARD_STAR_HEAD_COLOR, STEWARD_STAR_TRAIL_COLORS, STEWARD_EXPLOSION_COLORS to constants.ts (5-step pink ramps mirroring the existing shooting-star and explosion ramps)'
+    spec_id: player-spawn
+    spec_sections:
+      - steward-star-color
+      - steward-impact-color
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: steward-fixed-direction-and-shake
+    title: 'triggerPlayerSpawnShower: pass fixed { dx: 1, dy: 1 } to the forPlayerSpawn star (decoupled from shower radiant). tickShootingStars: on steward-star impact set state.screenShakeUntil = time + SATELLITE_SHAKE_DURATION_MS and create the explosion TimedEffect with kind ''stewardImpact'' instead of ''explosion'''
+    spec_id: player-spawn
+    spec_sections:
+      - steward-star-fixed-direction
+      - emerge-on-impact
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/celestial.ts
+      - src/engine/ecs/types.ts
+    depends_on:
+      - steward-color-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: shower-shooting-stars-spec-sync
+    title: 'No code change here — confirms shooting-stars spec wording matches behavior: non-steward shower stars still use the shower radiant; the steward star uses its fixed direction. Used by the harness to re-check the player-spawn-shower-trigger behavior wording against celestial.ts after the fixed-direction change'
+    spec_id: shooting-stars
+    spec_sections:
+      - player-spawn-shower-trigger
+    context_files:
+      - src/engine/celestial.ts
+    output_files: []
+    depends_on:
+      - steward-fixed-direction-and-shake
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: steward-star-render-pink
+    title: 'Renderer: when populating shooting-star pixmaps, detect ShootingStarData.forPlayerSpawn and substitute STEWARD_STAR_HEAD_COLOR / STEWARD_STAR_TRAIL_COLORS for the head and trail. Ambient and shower stars unchanged.'
+    spec_id: player-spawn
+    spec_sections:
+      - steward-star-color
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - steward-color-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: steward-impact-render-pink
+    title: 'Renderer: explosion render pass branches on TimedEffect.kind — kind ''stewardImpact'' reads STEWARD_EXPLOSION_COLORS, all other kinds keep EXPLOSION_COLORS. Reuse EXPLOSION_CHARS, EXPLOSION_RADIUS, EXPLOSION_DURATION_MS unchanged.'
+    spec_id: player-spawn
+    spec_sections:
+      - steward-impact-color
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - steward-color-constants
+      - steward-fixed-direction-and-shake
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: camera-follow-steward-star
+    title: 'camera.ts: when playerSpawn.visible === false AND playerSpawn.meteorEntityId references a live shooting-star entity, center the camera on the star Position instead of state.player. Preserve the right-inset and small-map branches.'
+    spec_id: player-spawn
+    spec_sections:
+      - camera-follow-steward-star
+    context_files:
+      - src/engine/camera.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/camera.ts
+    depends_on:
+      - steward-fixed-direction-and-shake
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: tests-steward-star-genesis
+    title: 'Extend src/engine/__tests__/playerSpawn.test.ts with regression coverage: steward star velocity is { 1, 1 } regardless of pickRadiantDirection result; non-steward shower stars use the shower radiant unchanged; screenShakeUntil set on steward-star impact; explosion TimedEffect on the impact tile has kind ''stewardImpact''; camera follows star Position while playerSpawn.visible is false and falls back to state.player tracking when the entity is destroyed.'
+    spec_id: player-spawn
+    spec_sections:
+      - steward-star-fixed-direction
+      - steward-impact-color
+      - emerge-on-impact
+      - camera-follow-steward-star
+      - steward-star-direction-independent-of-shower
+      - camera-follow-fallback-on-missing-star
+    context_files:
+      - src/engine/__tests__/playerSpawn.test.ts
+      - src/engine/celestial.ts
+      - src/engine/camera.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/playerSpawn.test.ts
+    depends_on:
+      - steward-fixed-direction-and-shake
+      - camera-follow-steward-star
+      - steward-impact-render-pink
+    verification:
+      - npx vitest run src/engine/__tests__/playerSpawn.test.ts
+    repair: retry
+    tags: [test]

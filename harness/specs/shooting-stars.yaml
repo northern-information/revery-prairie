@@ -98,13 +98,14 @@ behaviors:
       shower immediately and pre-targets one of its stars at playerPos
       so the star lands within ~2000ms of the trigger. the shower
       otherwise behaves like a normal shower (8-12 stars, 4s spawn window,
-      random radiant direction). the player-targeted star uses the same
-      radiant direction as the rest of the shower so the steward visually
-      arrives from the same heading as their meteor swarm. the
-      player-targeted star is flagged forPlayerSpawn so it produces no
-      meteorite item on landing. the remaining stars target tiles via
-      findShowerTargets and behave normally (drop meteorites). this is the
-      only path that initiates the first shower of the game; it
+      random radiant direction). the player-targeted (steward) star uses
+      a FIXED direction { dx: +1, dy: +1 } — the iso "straight down the
+      screen" axis — independent of the shower's random radiant. see
+      player-spawn spec, steward-star-fixed-direction. the steward star
+      is also flagged forPlayerSpawn so it produces no meteorite item on
+      landing. the remaining stars target tiles via findShowerTargets and
+      use the shower's random radiant unchanged (drop meteorites). this is
+      the only path that initiates the first shower of the game; it
       generalizes to multiplayer — every newly-spawned player triggers
       their own shower with a star aimed at their spawn tile.
     inputs:
