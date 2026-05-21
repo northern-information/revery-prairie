@@ -83,6 +83,9 @@ export interface GameLoopCallbacks {
   // the just-scanned species + identity (the modal renders the latin
   // binomial + gel-band sequence with a ceremonial row-by-row reveal).
   onScanComplete?: (species: FloraSpecies, identity: string) => void
+  // Oak scans commit to the manual rather than the flora-only modal —
+  // the React layer opens the manual with the entry:oak entry highlighted.
+  onOakScanComplete?: (identity: string) => void
   onFrame?: (time: number) => void
 }
 
@@ -732,7 +735,11 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
       const committed = commitScan(state, time)
       state.scanInProgress = null
       if (committed) {
-        callbacks.onScanComplete?.(committed.species, committed.identity)
+        if (committed.kind === 'flora') {
+          callbacks.onScanComplete?.(committed.species, committed.identity)
+        } else {
+          callbacks.onOakScanComplete?.(committed.identity)
+        }
         callbacks.onRefreshUI?.()
       }
     }

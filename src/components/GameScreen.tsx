@@ -97,6 +97,13 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
     },
     [setActiveScreen],
   )
+  // Oak scans skip the flora-only ceremonial modal and open the manual
+  // directly. state.manualHighlightEntryId is already set by commitScan
+  // (to 'entity:oak'), so ManualPanel scrolls to and flashes the entry
+  // on mount.
+  const onOakScanComplete = useCallback(() => {
+    setActiveScreen('manual')
+  }, [setActiveScreen])
 
   return (
     <>
@@ -106,6 +113,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
         activeScreen={activeScreen}
         setActiveScreen={setActiveScreen}
         onScanComplete={onScanComplete}
+        onOakScanComplete={onOakScanComplete}
         metricsRef={metricsRef}
       />
       {activeScreen === 'scan-result' && scanResult && (

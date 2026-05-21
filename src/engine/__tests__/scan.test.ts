@@ -202,8 +202,11 @@ describe('commitScan', () => {
     }
     const result = commitScan(state, 1500)
     expect(result).not.toBeNull()
-    expect(result?.species).toBe(FloraSpecies.Wildflower)
-    expect(result?.identity).toHaveLength(64)
+    expect(result?.kind).toBe('flora')
+    if (result?.kind === 'flora') {
+      expect(result.species).toBe(FloraSpecies.Wildflower)
+      expect(result.identity).toHaveLength(64)
+    }
     expect(state.manualHighlightEntryId).toBe('flora:wildflower')
   })
 

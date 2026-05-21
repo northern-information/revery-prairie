@@ -227,9 +227,11 @@ describe('oak sequencing (hold-to-scan)', () => {
       startTime: 0,
     }
     const result = commitScan(state, 1500)
-    // Oak commits return null so the game loop doesn't open the flora
-    // gel-electrophoresis modal — oaks open the manual via highlightId.
-    expect(result).toBeNull()
+    // Oak commits return { kind: 'oak', identity } so the game loop
+    // dispatches onOakScanComplete — the React layer opens the manual
+    // (oaks skip the flora-only gel-electrophoresis modal).
+    expect(result).not.toBeNull()
+    expect(result?.kind).toBe('oak')
     expect(state.manualDiscoveries.has('entity:oak')).toBe(true)
     expect(state.oakSpecimens).toHaveLength(1)
     expect(state.manualHighlightEntryId).toBe('entity:oak')
