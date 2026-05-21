@@ -1485,9 +1485,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const lifecycle = tile.type === TileType.Flora ? state.floraLifecycle.get(tileKey) : undefined
         const speciesGlyph = lifecycle ? FLORA_SPECIES[lifecycle.species].glyph : TILE_CHARS[tile.type]
         char = entranceGlyphMap.get(tileKey) ?? speciesGlyph
+        // Hot-pink with alpha-driven fade. Reserves white pixels for trail-
+        // independent glyphs so the film grain pass can't camouflage the
+        // motion trail, and keeps the trail visually unified with the cursor
+        // and active path (both user-action surfaces — see CLAUDE.md color
+        // doctrine).
         const opacity = trailMap.get(tileKey) ?? 0
-        const brightness = String(Math.round(opacity * 255))
-        color = `rgb(${brightness}, ${brightness}, ${brightness})`
+        color = `rgba(255, 105, 180, ${String(opacity)})`
       } else {
         // Mask hidden chamber tiles as CaveWall until revealed
         if (!state.caveRevealed && state.caveHiddenPositions.has(tileKey)) {

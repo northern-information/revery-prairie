@@ -106,12 +106,12 @@ const placeFlora = (state: GameState, x: number, y: number, species: FloraSpecie
 const TRAIL_TIME = 0
 const RENDER_TIME = 10 // well within TRAIL_DURATION_MS so the trail is still active
 
-// Trail tiles render with grayscale fillStyle (rgb(b, b, b) — three equal channels).
+// Trail tiles render with hot-pink rgba (`rgba(255, 105, 180, opacity)`).
 // Use this to isolate trail draws from regular tile draws (which use chromatic
 // species colors like #50C878), so assertions don't get false positives from
 // other flora tiles elsewhere in the viewport.
-const TRAIL_GRAYSCALE_RE = /^rgb\((\d+), \1, \1\)$/
-const isTrailDraw = (c: FillTextCall): boolean => TRAIL_GRAYSCALE_RE.test(c.fillStyle)
+const TRAIL_PINK_RE = /^rgba\(255, 105, 180, [\d.]+\)$/
+const isTrailDraw = (c: FillTextCall): boolean => TRAIL_PINK_RE.test(c.fillStyle)
 
 describe('renderer trail flora glyph', () => {
   it('renders the wildflower glyph (*) for a trail tile sitting on a wildflower', () => {
