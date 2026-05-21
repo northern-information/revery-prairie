@@ -638,6 +638,23 @@ export const Sky = {
 
 export type Sky = (typeof Sky)[keyof typeof Sky]
 
+// Wind direction in the rotated cardinal frame. The diamond is the world
+// (precis-thinktank-v5 round 1) — iso is not a viewing layer applied to a
+// flat grid; iso is the world's shape. Cardinals point at the diamond's
+// tips on screen; ordinals align with the storage axes.
+//
+//   N  → top tip of the diamond on screen (storage direction: (-x, -y))
+//   E  → right tip of the diamond on screen (storage direction: (+x, -y))
+//   S  → bottom tip of the diamond on screen (storage direction: (+x, +y))
+//   W  → left tip of the diamond on screen (storage direction: (-x, +y))
+//   NE → down storage-+x edge (right-upper edge of the diamond on screen)
+//   SE → down storage-+y edge (left-upper edge of the diamond on screen)
+//   SW → up storage-+x edge (right-lower edge of the diamond on screen)
+//   NW → up storage-+y edge (left-lower edge of the diamond on screen)
+//
+// This file is the canonical source of truth for the rotated frame. The
+// compass points at the world the steward inhabits, not at the grid the
+// storage uses. No coordinate translation lives anywhere in the game.
 export const WindDirection = {
   N: 'N',
   NE: 'NE',
