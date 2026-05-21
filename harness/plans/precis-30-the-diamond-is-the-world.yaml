@@ -1,0 +1,287 @@
+plan:
+  id: precis-30-the-diamond-is-the-world
+  title: The diamond is the world
+  created: 2026-05-21
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine + dashboard status ---
+  # Flip precis-status.yaml feature 30 to in-progress so the dashboard
+  # reflects work in flight. Spec/plan links land alongside.
+
+  - id: doctrine-update
+    title: Flip precis-status.yaml feature 30 to in-progress with spec/plan links populated
+    spec_id: precis-30-the-diamond-is-the-world
+    spec_sections:
+      - status-yaml-flipped
+    context_files:
+      - docs/precis-status.yaml
+    output_files:
+      - docs/precis-status.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Type + canonical doctrine comment ---
+  # Add the doctrine block above WindDirection in types.ts. Enum keys
+  # are unchanged; the comment names the new semantics. This is the
+  # single canonical reference downstream code authors will read.
+
+  - id: types-doctrine-comment
+    title: Add a doctrine block comment above the WindDirection enum in types.ts naming the diamond-tip / storage-axis semantics
+    spec_id: precis-30-the-diamond-is-the-world
+    spec_sections:
+      - wind-direction-comment-block-added
+    context_files:
+      - src/engine/types.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on:
+      - doctrine-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - types
+
+  # --- Tier 2: Wind vector table rotation ---
+  # The (sx, sy) table in WIND_SCREEN_VECTORS rotates. Comments
+  # describing the old "blows X" semantics are rewritten to name the
+  # diamond tip / edge each cardinal points at. This is the load-
+  # bearing change — every downstream consumer of WIND_SCREEN_VECTORS
+  # (tickWind, getWindAt, fog, pollen) automatically picks up the new
+  # frame because they read the table by key.
+
+  - id: wind-screen-vectors-rotate
+    title: Rotate WIND_SCREEN_VECTORS table 45° to align with diamond tips; rewrite the comment block to describe the new mapping
+    spec_id: precis-30-the-diamond-is-the-world
+    spec_sections:
+      - wind-screen-vectors-rotated
+      - wind-screen-vectors-comments-rewritten
+    context_files:
+      - src/engine/weather/wind.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/weather/wind.ts
+    depends_on:
+      - types-doctrine-comment
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - weather
+
+  # --- Tier 3: Rain front axis widening ---
+  # windToFrontAxis widens its return type to include 'u' and 'v'
+  # diagonal axes for the new cardinal sweeps. isInRainFront's coord/
+  # mapSize derivation handles all four variants. effects.ts's
+  # duplicate rain-front math is rewritten to delegate to a shared
+  # helper.
+
+  - id: wind-to-front-axis-widen
+    title: Widen windToFrontAxis return type to 'x' | 'y' | 'u' | 'v'; rewrite mapping for the rotated frame
+    spec_id: precis-30-the-diamond-is-the-world
+    spec_sections:
+      - wind-to-front-axis-supports-diagonals
+    context_files:
+      - src/engine/tileWater.ts
+      - src/engine/types.ts
+      - src/engine/weather/wind.ts
+    output_files:
+      - src/engine/tileWater.ts
+    depends_on:
+      - wind-screen-vectors-rotate
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: is-in-rain-front-diagonal
+    title: Extend isInRainFront to handle 'u' and 'v' axis variants; extract a shared rainFrontCoord helper
+    spec_id: precis-30-the-diamond-is-the-world
+    spec_sections:
+      - is-in-rain-front-handles-diagonals
+      - effects-rain-aura-handles-diagonals
+    context_files:
+      - src/engine/tileWater.ts
+      - src/engine/effects.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/tileWater.ts
+      - src/engine/effects.ts
+    depends_on:
+      - wind-to-front-axis-widen
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: pollen-bias-comments
+    title: Rewrite comments in effects.ts to reference diamond-tip / diamond-edge semantics instead of raw compass cardinals
+    spec_id: precis-30-the-diamond-is-the-world
+    spec_sections:
+      - pollen-bias-comment-rewritten
+    context_files:
+      - src/engine/effects.ts
+    output_files:
+      - src/engine/effects.ts
+    depends_on:
+      - is-in-rain-front-diagonal
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - comments
+
+  # --- Tier 4: Genesis polar metric + edge noise ---
+  # Four topDist/bottomDist sites in genesis.ts switch to the rotated
+  # u = (x − SB) + (y − SB) metric. glacialDepth rescales to keep the
+  # visual band roughly equivalent. Edge noise arrays grow to the
+  # v = x − y span; lookups reindex. Single PR touching one file.
+
+  - id: genesis-polar-metric
+    title: Rewrite four topDist/bottomDist sites in genesis.ts to use rotated polar metric (x+y); rescale glacialDepth; reindex glacial edge noise to v = x − y
+    spec_id: precis-30-the-diamond-is-the-world
+    spec_sections:
+      - genesis-polar-distance-rotated
+      - glacial-edge-noise-reindexed
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - doctrine-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - genesis
+
+  # --- Tier 5: Test updates + golden frame fixtures ---
+  # Existing magnitude assertions in wind.test.ts flip (all eight at
+  # √2 now). Existing windToFrontAxis assertions update to the new
+  # mapping. Three new describe blocks fixture the rotated frame
+  # against regression — two in wind.test.ts (WIND_SCREEN_VECTORS,
+  # genesis polar metric) and one in tileWater.test.ts
+  # (windToFrontAxis). cursorTileInfo.test.ts audit follows.
+
+  - id: existing-tests-update
+    title: Update wind.test.ts and tileWater.test.ts assertions to the rotated frame; audit cursorTileInfo.test.ts for cardinal references
+    spec_id: precis-30-the-diamond-is-the-world
+    spec_sections:
+      - existing-tests-updated
+    context_files:
+      - src/engine/__tests__/wind.test.ts
+      - src/engine/__tests__/tileWater.test.ts
+      - src/engine/__tests__/cursorTileInfo.test.ts
+      - src/engine/weather/wind.ts
+      - src/engine/tileWater.ts
+    output_files:
+      - src/engine/__tests__/wind.test.ts
+      - src/engine/__tests__/tileWater.test.ts
+      - src/engine/__tests__/cursorTileInfo.test.ts
+    depends_on:
+      - wind-screen-vectors-rotate
+      - is-in-rain-front-diagonal
+    verification:
+      - npx vitest run src/engine/__tests__/wind.test.ts
+      - npx vitest run src/engine/__tests__/tileWater.test.ts
+      - npx vitest run src/engine/__tests__/cursorTileInfo.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: golden-frame-tests
+    title: Add three rotated-frame describe blocks (WIND_SCREEN_VECTORS, windToFrontAxis, genesis polar metric) to wind.test.ts and tileWater.test.ts
+    spec_id: precis-30-the-diamond-is-the-world
+    spec_sections:
+      - golden-frame-tests-added
+    context_files:
+      - src/engine/__tests__/wind.test.ts
+      - src/engine/__tests__/tileWater.test.ts
+      - src/engine/weather/wind.ts
+      - src/engine/tileWater.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/__tests__/wind.test.ts
+      - src/engine/__tests__/tileWater.test.ts
+    depends_on:
+      - existing-tests-update
+      - genesis-polar-metric
+    verification:
+      - npx vitest run src/engine/__tests__/wind.test.ts -t "rotated frame"
+      - npx vitest run src/engine/__tests__/tileWater.test.ts -t "rotated frame"
+    repair: retry
+    tags:
+      - test
+
+  # --- Tier 6: Docs audit + rewrite ---
+  # Three engineering docs update to the new frame. Source audit
+  # confirms no user-facing copy strings need rotation under the
+  # new semantics.
+
+  - id: docs-rewrite
+    title: Rewrite weather.md, genesis.md, rendering.md to describe the rotated frame; audit src/components/** and src/engine/manual.ts for cardinal references
+    spec_id: precis-30-the-diamond-is-the-world
+    spec_sections:
+      - audit-cardinal-references-in-src-and-docs
+    context_files:
+      - docs/claude/weather.md
+      - docs/claude/genesis.md
+      - docs/claude/rendering.md
+      - src/engine/weather/wind.ts
+      - src/engine/tileWater.ts
+      - src/engine/genesis.ts
+      - src/engine/projection.ts
+    output_files:
+      - docs/claude/weather.md
+      - docs/claude/genesis.md
+      - docs/claude/rendering.md
+    depends_on:
+      - wind-screen-vectors-rotate
+      - genesis-polar-metric
+    verification: []
+    repair: retry
+    tags:
+      - docs
+
+  # --- Tier 7: Final verification ---
+  # Single repo-wide sweep that confirms the failure-condition greps
+  # stay silent (anti-translation-layer grep, doctrine doc-mention
+  # grep, golden fixtures) and the full test + lint + typecheck pipe
+  # passes.
+
+  - id: final-sweep
+    title: Run global verification suite and confirm failure-condition triggers stay silent
+    spec_id: precis-30-the-diamond-is-the-world
+    spec_sections:
+      - wind-screen-vectors-rotated
+      - wind-to-front-axis-supports-diagonals
+      - genesis-polar-distance-rotated
+      - glacial-edge-noise-reindexed
+      - audit-cardinal-references-in-src-and-docs
+    context_files: []
+    output_files: []
+    depends_on:
+      - golden-frame-tests
+      - pollen-bias-comments
+      - docs-rewrite
+    verification:
+      - npm run typecheck
+      - npm run test
+      - npm run lint
+    repair: retry
+    tags:
+      - verification

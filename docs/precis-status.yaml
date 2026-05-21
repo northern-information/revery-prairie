@@ -686,7 +686,7 @@ features:
       low-color, no chrome. Pure render; no new state fields, no new
       events. Continuous readouts, no emphasis change near bookmarks,
       no transition narration, no event language.
-    depends_on: []
+    depends_on: ['30']
     status: todo
     spec: null
     plan: null
@@ -712,6 +712,18 @@ features:
       planning — the Round 1 loop surfaced on the device.
       Open at spec: exact weathervane arrow glyph and exact five
       wind-speed labels.
+
+
+      v5 thinktank round 1 (2026-05-21). Amendment: ships under the
+      rotated cardinal frame established by #30 (the diamond is the
+      world). Wind-speed labels lock as "still / breeze / brisk /
+      gusty / gale". Arrow glyph and letter are derived from the
+      rotated cardinals directly — the vane reads what the steward
+      can see, no translation layer. Now depends on #30. Remaining
+      open at spec: threshold values for the five wind-speed labels
+      along [0, MAX_WIND_SPEED] (Boon: even fifths default; narrower
+      "still" and "gale" bands an option); uppercase vs. lowercase
+      for the cardinal letter (Astrid: defer).
 
   - id: '29'
     name: Diegetic survey
@@ -745,3 +757,56 @@ features:
       with no central doc. Calla flagged that #15 (visible wear) now
       has a frame from this round: an instrument-register indicator,
       not a HUD chrome bar.
+
+  - id: '30'
+    name: The diamond is the world
+    summary: >
+      Rotate the cardinal frame 45° to align with the iso diamond,
+      at both the label level and the iteration level. Label layer:
+      rewrite the (sx, sy) table in WIND_SCREEN_VECTORS
+      (src/engine/weather/wind.ts), windToFrontAxis
+      (src/engine/tileWater.ts), and the pollen-bias mapping
+      (src/engine/effects.ts) so each WindDirection key denotes a
+      diamond-tip direction (N = top tip, E = right, S = bottom, W =
+      left; NE/SE/SW/NW align with the storage axes themselves).
+      Iteration layer: rewrite the four topDist/bottomDist sites in
+      src/engine/genesis.ts (1451, 1563, 1594, 1983) to measure
+      polar distance along the rotated frame — u = x + y from the
+      top pole, 2·(height − 2·SPACE_BORDER) − u from the bottom pole
+      — and reindex the glacial edge noise (genesis.ts:1438) from x
+      to the perpendicular coordinate v = x − y. Includes tests
+      (wind.test.ts, tileWater.test.ts, cursorTileInfo.test.ts) and
+      a visual check that icecaps emerge from the diamond's top and
+      bottom points. Audit pass: any in-game text or label that
+      references a cardinal reads naturally under the new semantics.
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v5 thinktank round 1 (2026-05-21). The line the room locked:
+      "the diamond is the world." Iso is not a viewing layer applied
+      to a flat grid; iso is the world's shape. World (x, y) storage
+      indices are internal storage, not a coordinate frame the game
+      exposes. The compass points at the world the steward inhabits,
+      not at the grid the storage uses. No coordinate translation
+      lives anywhere in the game after this ships — the display
+      layer does not translate between two frames because there is
+      only one frame. Boon enumerated the migration sites; Astrid
+      named the existing glacier code (genesis.ts:1444 "Glaciers
+      advance from top and bottom") as already-broken under the old
+      frame — the comment described the design intent and the code
+      walked a different geometry. Calla connected the rotation to
+      icecaps as a concrete pre-existing intent, not a future one:
+      after #30, icecaps actually arrive from where the steward
+      would point at them. Delta delivered the framing: "the
+      compass points at the world, not at the storage." Open at
+      spec: a single golden test fixturing each cardinal's (sx, sy)
+      and each pole's iteration metric so future code cannot author
+      the old frame by accident; whether the glacial edge noise
+      needs more lattice cells under the rotated index (the
+      perpendicular coordinate v = x − y spans roughly 2·width
+      instead of width); any user-facing text strings that name a
+      cardinal under the old semantics (probably zero today; the
+      value is the constraint going forward).
