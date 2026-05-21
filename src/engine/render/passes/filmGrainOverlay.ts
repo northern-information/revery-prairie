@@ -1,5 +1,5 @@
 import { seasonalWash } from '../../tileBg'
-import { TileType } from '../../types'
+import { flushDirtyTiles, getOrBuildCache as getOrBuildBgCache } from '../../tileBgCache'
 import { registerPass } from '../passes'
 
 import type { CharMetrics, GameState, Tile } from '../../types'
@@ -23,9 +23,6 @@ import type { RenderPass } from '../passes'
 
 /** Base alpha when no seasonal wash is active. Tune by eye. */
 const FILM_GRAIN_ALPHA = 0.2
-
-/** Padding around the iso bounding box (matches tileBgCache convention). */
-const FILM_GRAIN_OVERLAP = 2
 
 /** Asset URL — copy the JPG to public/textures/. */
 const FILM_GRAIN_TEXTURE_URL = '/textures/000973910004.jpg'
@@ -62,6 +59,7 @@ interface FilmGrainCacheEntry {
   charHeight: number
   worldOriginX: number
   worldOriginY: number
+  bgCanvasRef: AnyCanvas
 }
 
 const cacheByMap = new WeakMap<Tile[][], FilmGrainCacheEntry>()
@@ -81,90 +79,65 @@ const createCanvas = (width: number, height: number): { canvas: AnyCanvas; ctx: 
   return { canvas, ctx }
 }
 
-// Mirrors tileBgCache.computeWorldDimensions exactly so the same (dx, dy)
-// translation maps cache pixels to viewport pixels.
-const computeWorldDimensions = (
-  mapWidth: number,
-  mapHeight: number,
-  charWidth: number,
-  charHeight: number
-): { width: number; height: number; worldOriginX: number; worldOriginY: number } => {
-  const halfW = charWidth / 2
-  const halfH = charHeight / 2
-  const worldOriginX = (mapHeight - 1) * charWidth + halfW + FILM_GRAIN_OVERLAP
-  const worldOriginY = FILM_GRAIN_OVERLAP
-  const width = (mapWidth - 1) * charWidth + worldOriginX + halfW + charWidth + FILM_GRAIN_OVERLAP
-  const height = (mapWidth + mapHeight - 2) * halfH + worldOriginY + charHeight + FILM_GRAIN_OVERLAP
-  return { width: Math.ceil(width), height: Math.ceil(height), worldOriginX, worldOriginY }
-}
-
 const buildCache = (
+  state: GameState,
   map: Tile[][],
-  mapWidth: number,
-  mapHeight: number,
   charWidth: number,
   charHeight: number,
   image: HTMLImageElement
 ): FilmGrainCacheEntry => {
-  const { width, height, worldOriginX, worldOriginY } = computeWorldDimensions(
-    mapWidth,
-    mapHeight,
-    charWidth,
-    charHeight
-  )
+  // Use the tile-bg cache as both a geometry source AND a per-pixel
+  // alpha mask. This pins the grain to exactly the pixels the bg-cache
+  // paints — same lift, same water sink, same iso geometry. No
+  // independent diamond math, no alignment drift, no bounding-box
+  // bleed on Space tiles.
+  flushDirtyTiles(state, map)
+  const bgCache = getOrBuildBgCache(state, map, charWidth, charHeight)
+  const width = bgCache.canvas.width
+  const height = bgCache.canvas.height
   const { canvas, ctx } = createCanvas(width, height)
   const pattern = ctx.createPattern(image, 'repeat')
   if (pattern !== null) {
-    // Paint grain only on non-Space tile diamonds. In zones whose iso
-    // bounding box extends beyond their playable footprint (caves, ruins,
-    // structures), a uniform fill would outline the bounding box against
-    // pure-canvas dark. Diamonds use the same path math as tileBgCache,
-    // minus the lift adjustments — lift offsets are below perceptual
-    // threshold on a noise texture, and skipping them keeps the cache
-    // keyed by map reference alone (not state).
     ctx.fillStyle = pattern
-    const halfW = charWidth / 2
-    const halfH = charHeight / 2
-    for (let y = 0; y < mapHeight; y++) {
-      for (let x = 0; x < mapWidth; x++) {
-        const tile = map[y][x]
-        if (tile.type === TileType.Space) continue
-        const px = (x - y) * charWidth + worldOriginX + halfW
-        const py = (x + y) * halfH + worldOriginY
-        const leftX = px - halfW
-        const rightX = leftX + 2 * charWidth
-        const topY = py
-        const bottomY = topY + charHeight
-        const cx = leftX + charWidth
-        const cy = topY + halfH
-        ctx.beginPath()
-        ctx.moveTo(cx, topY - FILM_GRAIN_OVERLAP)
-        ctx.lineTo(rightX + FILM_GRAIN_OVERLAP, cy)
-        ctx.lineTo(cx, bottomY + FILM_GRAIN_OVERLAP)
-        ctx.lineTo(leftX - FILM_GRAIN_OVERLAP, cy)
-        ctx.closePath()
-        ctx.fill()
-      }
-    }
+    ctx.fillRect(0, 0, width, height)
+    // Mask: keep grain only where the bg-cache has painted.
+    ctx.globalCompositeOperation = 'destination-in'
+    ctx.drawImage(bgCache.canvas, 0, 0)
+    ctx.globalCompositeOperation = 'source-over'
   }
-  const entry: FilmGrainCacheEntry = { canvas, charWidth, charHeight, worldOriginX, worldOriginY }
+  const entry: FilmGrainCacheEntry = {
+    canvas,
+    charWidth,
+    charHeight,
+    worldOriginX: bgCache.worldOriginX,
+    worldOriginY: bgCache.worldOriginY,
+    bgCanvasRef: bgCache.canvas,
+  }
   cacheByMap.set(map, entry)
   return entry
 }
 
 const getOrBuildCache = (
+  state: GameState,
   map: Tile[][],
-  mapWidth: number,
-  mapHeight: number,
   charWidth: number,
   charHeight: number,
   image: HTMLImageElement
 ): FilmGrainCacheEntry => {
   const existing = cacheByMap.get(map)
-  if (existing?.charWidth === charWidth && existing.charHeight === charHeight) {
+  // Invalidate when font scale changes OR when the bg-cache canvas
+  // reference changes (the bg-cache invalidates via cacheContract on
+  // elevation / map mutations; a fresh canvas means our masked grain
+  // is stale).
+  const bgCache = getOrBuildBgCache(state, map, charWidth, charHeight)
+  if (
+    existing?.charWidth === charWidth &&
+    existing.charHeight === charHeight &&
+    existing.bgCanvasRef === bgCache.canvas
+  ) {
     return existing
   }
-  return buildCache(map, mapWidth, mapHeight, charWidth, charHeight, image)
+  return buildCache(state, map, charWidth, charHeight, image)
 }
 
 // ─── pass ─────────────────────────────────────────────────────────────────────
@@ -177,7 +150,7 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   if (mapWidth <= 0 || mapHeight <= 0) return
   const { charWidth, charHeight } = metrics
 
-  const cache = getOrBuildCache(map, mapWidth, mapHeight, charWidth, charHeight, grainImage)
+  const cache = getOrBuildCache(state, map, charWidth, charHeight, grainImage)
 
   const halfH = charHeight / 2
   const halfW = charWidth / 2
@@ -220,19 +193,10 @@ export const __testing = {
   },
   getCacheEntry: (map: Tile[][]): FilmGrainCacheEntry | undefined => cacheByMap.get(map),
   getOrBuildCache: (
+    state: GameState,
     map: Tile[][],
-    mapWidth: number,
-    mapHeight: number,
     charWidth: number,
     charHeight: number,
     image: HTMLImageElement
-  ): FilmGrainCacheEntry => getOrBuildCache(map, mapWidth, mapHeight, charWidth, charHeight, image),
-  buildCacheNow: (
-    map: Tile[][],
-    mapWidth: number,
-    mapHeight: number,
-    charWidth: number,
-    charHeight: number,
-    image: HTMLImageElement
-  ): FilmGrainCacheEntry => buildCache(map, mapWidth, mapHeight, charWidth, charHeight, image),
+  ): FilmGrainCacheEntry => getOrBuildCache(state, map, charWidth, charHeight, image),
 }
