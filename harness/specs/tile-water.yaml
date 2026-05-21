@@ -32,7 +32,7 @@ behaviors:
 
   - id: tile-water-rain-fill
     description: >
-      When state.rainIntensity > 0 and the tile is within the rain
+      When state.precipitationIntensity > 0 and the tile is within the rain
       front (including blotchy fringe), or the tile is within a rain
       aura, tileWater for that tile increases by WATER_RAIN_FILL per
       tick, clamped to WATER_MAX. The rain front has blotchy edges —
@@ -41,7 +41,7 @@ behaviors:
       renderer's visual boundary exactly. Applies to all dirt and
       clover tiles.
     inputs:
-      - 'tick fires while state.rainIntensity > 0 and tile is in rain front (core or fringe), or tile is in rain aura radius'
+      - 'tick fires while state.precipitationIntensity > 0 and tile is in rain front (core or fringe), or tile is in rain aura radius'
     outputs:
       - 'tileWater value increases'
     state_changes:

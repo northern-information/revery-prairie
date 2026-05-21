@@ -32,7 +32,7 @@ behaviors:
         effect: 'advances to the current rAF timestamp in one step, not clamped to MAX_FRAME_DELTA_MS per frame'
       - field: 'entry.lastTick (for every tick system)'
         effect: 'set to current rAF time on the single catch-up frame'
-      - field: 'rainIntensity'
+      - field: 'precipitationIntensity'
         effect: 'converges to the target intensity in one tick because dt equals the real elapsed time'
     determinism: time-based
 

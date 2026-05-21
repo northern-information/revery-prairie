@@ -201,7 +201,7 @@ edge_cases:
   - id: existing-rain-front-tests
     description: >
       Tests in src/engine/__tests__/weather.test.ts that set
-      state.rainIntensity = 1 and assert tile rendering.
+      state.precipitationIntensity = 1 and assert tile rendering.
     expected: >
       Unaffected — the seasonal wash is independent of precipitation.
       No existing rain-related test asserts on raw bg pixel colors.
