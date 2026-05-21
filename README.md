@@ -1,4 +1,4 @@
-# revery prairie
+# Revery Prairie
 
 ```txt
 To make a prairie it takes a clover and one bee,
@@ -10,24 +10,22 @@ If bees are few.
 — Emily Dickinson
 ```
 
-a browser-based game about tending a prairie. ASCII glyphs rendered isometric on canvas.
+## How This Is Built
 
-each new game begins with a geological genesis sequence — a billion years of planetary history compressed into 25 seconds. magma cools, oceans form, life emerges, glaciers advance and recede, wildfires sweep the plains, civilizations rise and fall. the soil you tend is the sum of all these forces.
+Revery Prairie is hand-crafted by Tyler Etters and others along with Claude (Anthropic) as a coding partner. Design, voice, and decisions are ours. Boilerplate, refactors, and a lot of the test scaffolding are often Claude's. The workflow is documented openly in `CLAUDE.md` and `docs/claude/`. We're transparent about it because it's true and because the workflow is part of the project.
 
-prairies can be tended alone or shared with friends. visit `/p/new` to plant a prairie hosted on a Cloudflare Worker; share the resulting `/p/{id}` URL and other stewards walk the same land.
-
-## setup
+## Setup
 
 ```zsh
 npm install
 npm run dev
 ```
 
-node version is pinned to an exact patch in `.node-version` and `.nvmrc` — both must stay in sync. see `CLAUDE.md` for details.
+Node version is pinned to an exact patch in `.node-version` and `.nvmrc` — both must stay in sync. See `CLAUDE.md` for details.
 
-## deploy
+## Deploy
 
-multiplayer ships as a single Cloudflare Worker that serves both the React SPA and the `/api/*` endpoints from one origin (no CORS, no second deploy URL).
+Multiplayer ships as a single Cloudflare Worker that serves both the React SPA and the `/api/*` endpoints from one origin (no CORS, no second deploy URL).
 
 ```zsh
 cd worker && npx wrangler login   # first time only, opens browser
@@ -35,35 +33,35 @@ cd ..                             # back to repo root
 npm run deploy                    # vite build + wrangler deploy
 ```
 
-worker URL is printed by wrangler on success — share that origin with friends to play together. see CLAUDE.md `multiplayer` section for the architecture and wire protocol.
+Worker URL is printed by wrangler on success — share that origin with friends to play together. See the `multiplayer` section of `CLAUDE.md` for the architecture and wire protocol.
 
-## how development works
+## How Development Works
 
-all game features flow through a spec-driven harness. the human decides what to build and gates every transition. the AI investigates, drafts, codes, and verifies.
+All game features flow through a spec-driven harness. The human decides what to build and gates every transition. The AI investigates, drafts, codes, and verifies.
 
-### roles
+### Roles
 
-**human:**
+**Human:**
 
-- describes what to build, change, or fix
-- reviews and approves specs before planning begins
-- reviews and approves plans before execution begins
-- approves or rejects each pipeline transition — nothing auto-advances
-- playtests in the browser (the AI cannot)
-- updates CLAUDE.md when game systems change
+- Describes what to build, change, or fix
+- Reviews and approves specs before planning begins
+- Reviews and approves plans before execution begins
+- Approves or rejects each pipeline transition — nothing auto-advances
+- Playtests in the browser (the AI cannot)
+- Updates `CLAUDE.md` when game systems change
 
 **AI:**
 
-- investigates the codebase to understand the problem
-- drafts specs and plans from the human's description
-- runs `npm run spec:validate` and fixes errors
-- writes code and tests during plan execution
-- runs verification commands (`build`, `test`, `lint`) and repairs failures
-- detects spec-code drift via `/maintain-harness`
+- Investigates the codebase to understand the problem
+- Drafts specs and plans from the human's description
+- Runs `npm run spec:validate` and fixes errors
+- Writes code and tests during plan execution
+- Runs verification commands (`build`, `test`, `lint`) and repairs failures
+- Detects spec-code drift via `/maintain-harness`
 
-### entry points
+### Entry Points
 
-slash commands start the pipeline. each is conversational — the AI gathers requirements, then drives spec → plan → execute with human approval at each gate.
+Slash commands start the pipeline. Each is conversational — the AI gathers requirements, then drives spec → plan → execute with human approval at each gate.
 
 - `/new-feature <description>` — add a new feature
 - `/change-request <description>` — modify existing behavior
@@ -71,41 +69,55 @@ slash commands start the pipeline. each is conversational — the AI gathers req
 - `/maintain-harness` — check for spec-code drift
 - `/maintain-manual` — audit prairie manual for gaps
 
-### the pipeline
+### The Pipeline
 
-1. **spec** — AI drafts a YAML spec in `harness/specs/{id}.yaml`. human reviews and approves.
-2. **validate** — AI runs `npm run spec:validate`, fixes errors, repeats until clean.
-3. **plan** — AI drafts a YAML plan in `harness/plans/{id}.yaml`. human reviews and approves.
-4. **execute** — AI runs `npm run harness:run --plan harness/plans/{id}.yaml`. verification runs after each task; failures trigger repair.
-5. **maintain** — AI runs `/maintain-harness` to detect drift. human decides which updates to accept.
+1. **Spec** — AI drafts a YAML spec in `harness/specs/{id}.yaml`. Human reviews and approves.
+2. **Validate** — AI runs `npm run spec:validate`, fixes errors, repeats until clean.
+3. **Plan** — AI drafts a YAML plan in `harness/plans/{id}.yaml`. Human reviews and approves.
+4. **Execute** — AI runs `npm run harness:run --plan harness/plans/{id}.yaml`. Verification runs after each task; failures trigger repair.
+5. **Maintain** — AI runs `/maintain-harness` to detect drift. Human decides which updates to accept.
 
-### key directories
+### Key Directories
 
 - `harness/specs/` — feature specs (YAML)
 - `harness/plans/` — execution plans (YAML)
 - `harness/src/` — harness tooling
 - `.claude/skills/` — slash command definitions
 
-### sequencing the precis
+### Sequencing the Precis
 
-the long-running precis rollout (13 features, from "delete the four player-cast spells" through the Revery, controlled burn, genetics, egregoric flora, and failure-state biomes) is sequenced separately from any single harness spec:
+The long-running precis rollout (24 features and counting, from "delete the four player-cast spells" through the Revery, controlled burn, genetics, egregoric flora, and failure-state biomes) is sequenced separately from any single harness spec:
 
 - `docs/precis-thinktank-v3.md` — locked doctrine: vocabulary, cosmology, time, genetics decision, the sequence + dependency graph
+- `docs/precis-thinktank-v4.md` — additive doctrine on top of v3: heat-death cosmology, wear as a universal mechanic, tenure handoff, lineage multiplayer
 - `docs/precis-status.yaml` — running state: each feature's status, spec/plan/pr links, notes
-- `npm run backlog` — terminal kanban (TODO / NEXT / IN PROGRESS / SHIPPED) rendered from the YAML. live-reloads when you edit it
+- `npm run backlog` — terminal kanban (TODO / NEXT / IN PROGRESS / SHIPPED) rendered from the YAML. Live-reloads when you edit it
 
-start each feature by checking the dashboard's NEXT column, then run `/new-feature` (or `/change-request` / `/bug-report`) and reference v3 for doctrine.
+Start each feature by checking the dashboard's NEXT column, then run `/new-feature` (or `/change-request` / `/bug-report`) and reference v3 + v4 for doctrine.
 
-## commands
+## Commands
 
-| command              | description                              |
-| -------------------- | ---------------------------------------- |
-| `npm run dev`        | start dev server                         |
-| `npm run build`      | type-check + production build            |
-| `npm run lint`       | eslint                                   |
-| `npm run format`     | prettier                                 |
-| `npm run test`       | run tests                                |
-| `npm run test:watch` | run tests in watch mode                  |
-| `npm run preview`    | preview production build                 |
-| `npm run deploy`     | build + ship to Cloudflare (multiplayer) |
-| `npm run backlog`    | terminal kanban for the backlog          |
+| Command                   | Description                              |
+| ------------------------- | ---------------------------------------- |
+| `npm run dev`             | Start dev server                         |
+| `npm run build`           | Type-check + production build            |
+| `npm run typecheck`       | Type-check only, no build                |
+| `npm run lint`            | ESLint (strict, type-checked)            |
+| `npm run format`          | Prettier write                           |
+| `npm run format:check`    | Prettier check                           |
+| `npm run test`            | Run tests once                           |
+| `npm run test:watch`      | Run tests in watch mode                  |
+| `npm run test:engine`     | Engine tests only                        |
+| `npm run test:components` | Component tests only                     |
+| `npm run test:harness`    | Harness tests only                       |
+| `npm run verify`          | Type-check + lint + test                 |
+| `npm run preview`         | Preview production build                 |
+| `npm run deploy`          | Build + ship to Cloudflare (multiplayer) |
+| `npm run spec:validate`   | Validate harness specs                   |
+| `npm run harness:run`     | Execute a harness plan                   |
+| `npm run harness:check`   | Detect spec-code drift                   |
+| `npm run backlog`         | Terminal kanban for the precis backlog   |
+
+## License
+
+AGPL-3.0. See `LICENSE`. You're free to read, fork, modify, and host this code. If you run a modified version as a public service, you must publish your changes.
