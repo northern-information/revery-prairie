@@ -1,15 +1,21 @@
 import { spawnAngel, tickAngelBeeAura, tickAngelCloverAura, tickAngelDrift, tickAngelLifespan } from './angels'
+import { tickPollination } from './beePollination'
 import { spawnShootingStar, tickMeteorShower, tickShootingStars, triggerPlayerSpawnShower } from './celestial'
 import { tickCloverGrowth, tickCloverHives } from './clover'
 import { tickEgregoreLifecycle } from './egregore/lifecycle'
 import { tickEgregoreSpread } from './egregore/spread'
 import { tickFloraLifecycle } from './floraLifecycle'
+import { tickSpeciesSpread } from './flora/spread'
+import { TALLGRASS_SPREAD_CONFIG } from './flora/type/tallGrass/spread'
+import { WILDFLOWER_SPREAD_CONFIG } from './flora/type/wildflower/spread'
+import { tickFloraWaves } from './floraWaves'
 import {
   ANGEL_BEE_SPAWN_INTERVAL_MS,
   ANGEL_CLOVER_GROW_INTERVAL_MS,
   ANGEL_DRIFT_TICK_MS,
   ANGEL_SPAWN_INTERVAL_MS,
   BEE_TICK_MS,
+  CEREMONY_WAVE_TICK_MS,
   CLOVER_GROWTH_TICK_MS,
   CLOVER_HIVE_TICK_MS,
   CLOVER_LIFECYCLE_TICK_MS,
@@ -467,6 +473,51 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       priority: 50,
       fn: state => {
         tickCloverGrowth(state)
+      },
+    },
+    {
+      // Precis #17 — wildflower autonomous spread (pollinator-gated).
+      // Same cadence as clover; the per-tick selectors differ.
+      id: 'wildflower-spread',
+      intervalMs: CLOVER_GROWTH_TICK_MS,
+      zone: 'overworld',
+      priority: 50,
+      fn: state => {
+        tickSpeciesSpread(state, Date.now(), WILDFLOWER_SPREAD_CONFIG)
+      },
+    },
+    {
+      // Precis #17 — tall grass autonomous spread (rhizome, slowest rate).
+      id: 'tallgrass-spread',
+      intervalMs: CLOVER_GROWTH_TICK_MS,
+      zone: 'overworld',
+      priority: 50,
+      fn: state => {
+        tickSpeciesSpread(state, Date.now(), TALLGRASS_SPREAD_CONFIG)
+      },
+    },
+    {
+      // Precis #17 — ceremony wave advance. Bee+clover combine
+      // (recipes.ts) enqueues a WaveEmission; this tick walks the wave
+      // outward in CEREMONY_WAVE_TICK_MS steps until it completes.
+      id: 'flora-waves',
+      intervalMs: CEREMONY_WAVE_TICK_MS,
+      zone: 'overworld',
+      priority: 54,
+      fn: state => {
+        tickFloraWaves(state, Date.now())
+      },
+    },
+    {
+      // Precis #17 — bee-mediated pollination. Reads bee/monarch
+      // positions after their movement tick has run; primes tiles for
+      // cross-pollination on the next spread.
+      id: 'bee-pollination',
+      intervalMs: BEE_TICK_MS,
+      zone: 'overworld',
+      priority: 53,
+      fn: state => {
+        tickPollination(state)
       },
     },
     {

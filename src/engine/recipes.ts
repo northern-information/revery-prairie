@@ -3,6 +3,7 @@ import { sha256Sync } from './crypto'
 import { FLORA_SPECIES } from './flora/species'
 import { createFloraLifecycleEntry } from './floraLifecycleEntry'
 import { generateRuntimeIdentity, generateTraitBag } from './genetics'
+import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { isInBounds, posKey } from './position'
@@ -107,6 +108,7 @@ export const RECIPES: Recipe[] = [
       state.activeWaves.push(wave)
 
       spawnBeeOrMonarch(state, cx, cy)
+      recordDiscovery(state, 'event:ceremony-cast')
       return true
     },
   },

@@ -117,16 +117,15 @@ const advanceWave = (state: GameState, wave: WaveEmission, time: number): number
       const key = posKey(x, y)
       const { identity, traits } = applyParentLineage(wave.seedIdentity, binomial, key, time)
       setMapTile(state, x, y, { type: TileType.Flora })
-      state.floraLifecycle.set(
-        key,
-        createFloraLifecycleEntry({
-          time: 0,
-          hasLight: true,
-          species: FloraSpecies.Clover,
-          identity,
-          traits,
-        }),
-      )
+      const entry = createFloraLifecycleEntry({
+        time: 0,
+        hasLight: true,
+        species: FloraSpecies.Clover,
+        identity,
+        traits,
+      })
+      entry.parentPrefix = wave.seedIdentity.slice(0, 8)
+      state.floraLifecycle.set(key, entry)
       painted++
       if (d === r) leadingTiles.push({ x, y })
     }

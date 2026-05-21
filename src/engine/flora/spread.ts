@@ -180,6 +180,7 @@ export const commitFloraPreviews = (
     let identity: string
     let traits: TraitBag
     let crossDonorPrefix: string | undefined
+    const parentPrefix = parentIdentity?.slice(0, 8)
 
     if (parent?.primedPollen) {
       // Crossed offspring: identity encodes both parents' prefixes,
@@ -212,6 +213,7 @@ export const commitFloraPreviews = (
       traits,
     })
     if (crossDonorPrefix !== undefined) entry.crossDonorPrefix = crossDonorPrefix
+    if (parentPrefix !== undefined) entry.parentPrefix = parentPrefix
     state.floraLifecycle.set(key, entry)
     committed = true
   }

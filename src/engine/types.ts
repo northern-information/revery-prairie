@@ -538,6 +538,13 @@ export interface FloraLifecycleState {
   // cross time so the family-tree overlay can draw a second dashed
   // edge to the donor's lineage prefix index.
   crossDonorPrefix?: string
+  // Precis #17 — set on flora tiles that sprouted via the spread engine
+  // (or the ceremony wave). Records the first 8 hex chars of the parent
+  // (mother) lineage at sprout time so the family-tree overlay can
+  // draw a solid edge to the parent without having to reverse the SHA
+  // derivation. Genesis-placed flora and orphaned previews leave this
+  // undefined.
+  parentPrefix?: string
 }
 
 // Precis #17 — bee-mediated pollination. A single load carried by a
