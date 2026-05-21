@@ -93,7 +93,7 @@ describe('checkCombine', () => {
 })
 
 describe('combineFromBackpack', () => {
-  it('returns true and plants clover on dirt tiles in 3x3 area', () => {
+  it('returns true and seeds a single clover at the player position (precis-17 ceremony)', () => {
     const state = createTestState()
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
@@ -105,11 +105,9 @@ describe('combineFromBackpack', () => {
 
     const px = state.player.x
     const py = state.player.y
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        expect(state.map[py + dy][px + dx].type).toBe(TileType.Flora)
-      }
-    }
+    expect(state.map[py][px].type).toBe(TileType.Flora)
+    // Neighbors are not painted immediately — the wave handles them.
+    expect(state.activeWaves).toHaveLength(1)
   })
 
   it('returns false when standing on sand', () => {
@@ -124,7 +122,7 @@ describe('combineFromBackpack', () => {
     expect(containerHasItem(state.backpack, 'clover')).toBe(true)
   })
 
-  it('does not plant clover on sand tiles', () => {
+  it('does not paint neighbors immediately — only the seed tile changes', () => {
     const state = createTestState()
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
@@ -137,8 +135,13 @@ describe('combineFromBackpack', () => {
 
     combineFromBackpack(state, 'bee', 'clover')
 
+    // Sand is unchanged by the ceremony seed (only the player tile is
+    // converted). The wave will skip sand later too.
     expect(state.map[py][px - 1].type).toBe(TileType.Sand)
-    expect(state.map[py + 1][px].type).toBe(TileType.Flora)
+    // Adjacent dirt is NOT painted at execute time — the wave hasn't
+    // ticked yet. This is the new ceremony semantic.
+    expect(state.map[py + 1][px].type).toBe(TileType.Dirt)
+    expect(state.map[py][px].type).toBe(TileType.Flora)
   })
 
   it('removes one bee and one clover from backpack', () => {
@@ -192,7 +195,7 @@ describe('combineFromBackpack', () => {
     expect(containerHasItem(state.backpack, 'clover')).toBe(true)
   })
 
-  it('plants clover on cratered dirt and preserves the crater entries', () => {
+  it('seeds clover on cratered dirt and preserves the crater entries', () => {
     const state = createTestState()
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
@@ -201,25 +204,16 @@ describe('combineFromBackpack', () => {
     const px = state.player.x
     const py = state.player.y
 
-    // Mark the 3x3 around the player as cratered dirt
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        state.craters.add(posKey(px + dx, py + dy))
-      }
-    }
+    state.craters.add(posKey(px, py))
 
     const result = combineFromBackpack(state, 'bee', 'clover')
     expect(result).toBe(true)
 
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        expect(state.map[py + dy][px + dx].type).toBe(TileType.Flora)
-        expect(state.craters.has(posKey(px + dx, py + dy))).toBe(true)
-      }
-    }
+    expect(state.map[py][px].type).toBe(TileType.Flora)
+    expect(state.craters.has(posKey(px, py))).toBe(true)
   })
 
-  it('converts cratered dirt in a mixed 3x3 area to clover (sand untouched)', () => {
+  it('does not paint sand-adjacent tiles at execute time (wave handles them)', () => {
     const state = createTestState()
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
@@ -228,20 +222,14 @@ describe('combineFromBackpack', () => {
     const px = state.player.x
     const py = state.player.y
 
-    // Two cratered dirt tiles and one sand tile
     state.craters.add(posKey(px, py))
-    state.craters.add(posKey(px, py - 1))
     state.map[py][px + 1] = { type: TileType.Sand }
 
     const result = combineFromBackpack(state, 'bee', 'clover')
     expect(result).toBe(true)
 
     expect(state.map[py][px].type).toBe(TileType.Flora)
-    expect(state.map[py - 1][px].type).toBe(TileType.Flora)
-    // Sand is unchanged
     expect(state.map[py][px + 1].type).toBe(TileType.Sand)
-    // Crater entries persist beneath the new clover
     expect(state.craters.has(posKey(px, py))).toBe(true)
-    expect(state.craters.has(posKey(px, py - 1))).toBe(true)
   })
 })

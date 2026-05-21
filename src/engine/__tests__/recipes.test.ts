@@ -75,7 +75,12 @@ describe('combineIcon', () => {
 describe('prairie recipe execute', () => {
   const prairieRecipe = RECIPES[0]
 
-  it('plants clover in 3x3 area on dirt', () => {
+  // Precis #17 — bee+clover is a ceremonial radial wave, not a 3x3
+  // stamp. execute() places ONE clover at the player position and
+  // enqueues a WaveEmission; the radial expansion happens over
+  // subsequent tickFloraWaves calls.
+
+  it('places a single clover seed at the player position on dirt', () => {
     const state = createTestState()
     const px = state.player.x
     const py = state.player.y
@@ -84,12 +89,42 @@ describe('prairie recipe execute', () => {
 
     const result = prairieRecipe.execute(state)
     expect(result).toBe(true)
+    expect(state.map[py][px].type).toBe(TileType.Flora)
+  })
 
+  it('does not immediately paint neighboring tiles (wave handles them later)', () => {
+    const state = createTestState()
+    const px = state.player.x
+    const py = state.player.y
+
+    clearAroundPlayer(state, 1)
+
+    prairieRecipe.execute(state)
+
+    // Exactly one Flora tile in the immediate 3x3 — the player tile.
+    let floraCount = 0
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        expect(state.map[py + dy][px + dx].type).toBe(TileType.Flora)
+        if (state.map[py + dy][px + dx].type === TileType.Flora) floraCount++
       }
     }
+    expect(floraCount).toBe(1)
+  })
+
+  it('enqueues exactly one WaveEmission centered at the player', () => {
+    const state = createTestState()
+    const px = state.player.x
+    const py = state.player.y
+
+    clearAroundPlayer(state, 1)
+    expect(state.activeWaves).toHaveLength(0)
+
+    prairieRecipe.execute(state)
+    expect(state.activeWaves).toHaveLength(1)
+    expect(state.activeWaves[0].cx).toBe(px)
+    expect(state.activeWaves[0].cy).toBe(py)
+    expect(state.activeWaves[0].currentRadius).toBe(0)
+    expect(state.activeWaves[0].seedIdentity.length).toBeGreaterThan(0)
   })
 
   it('spawns a bee at the player position', () => {
@@ -115,6 +150,7 @@ describe('prairie recipe execute', () => {
     const result = prairieRecipe.execute(state)
     expect(result).toBe(false)
     expect(getBeeEntities(state)).toHaveLength(0)
+    expect(state.activeWaves).toHaveLength(0)
   })
 
   it('returns false when standing on space', () => {
@@ -124,32 +160,7 @@ describe('prairie recipe execute', () => {
     const result = prairieRecipe.execute(state)
     expect(result).toBe(false)
     expect(getBeeEntities(state)).toHaveLength(0)
-  })
-
-  it('does not overwrite sand tiles in the 3x3 area', () => {
-    const state = createTestState()
-    const px = state.player.x
-    const py = state.player.y
-
-    clearAroundPlayer(state, 1)
-    state.map[py - 1][px - 1] = { type: TileType.Sand }
-
-    prairieRecipe.execute(state)
-    expect(state.map[py - 1][px - 1].type).toBe(TileType.Sand)
-    expect(state.map[py][px].type).toBe(TileType.Flora)
-  })
-
-  it('does not overwrite CaveEntrance tiles in the 3x3 area', () => {
-    const state = createTestState()
-    const px = state.player.x
-    const py = state.player.y
-
-    clearAroundPlayer(state, 1)
-    state.map[py - 1][px] = { type: TileType.CaveEntrance }
-
-    prairieRecipe.execute(state)
-    expect(state.map[py - 1][px].type).toBe(TileType.CaveEntrance)
-    expect(state.map[py][px].type).toBe(TileType.Flora)
+    expect(state.activeWaves).toHaveLength(0)
   })
 })
 
@@ -158,72 +169,48 @@ describe('prairie recipe preview', () => {
   const preview = prairieRecipe?.preview
   if (!preview) throw new Error('prairie recipe must have a preview function')
 
-  it('returns tiles for valid dirt positions', () => {
+  // Precis #17 — preview shows the single seed tile at the player;
+  // the radial wave isn't previewed because it unfolds over several
+  // seconds.
+
+  it('returns the single seed tile at the player on dirt', () => {
     const state = createTestState()
     clearAroundPlayer(state, 1)
 
     const tiles = preview(state)
-    expect(tiles).toHaveLength(9)
-    for (const tile of tiles) {
-      expect(tile.char).toBe('#')
-      expect(tile.color).toBe('#ff69b4')
-    }
+    expect(tiles).toHaveLength(1)
+    expect(tiles[0].pos.x).toBe(state.player.x)
+    expect(tiles[0].pos.y).toBe(state.player.y)
+    expect(tiles[0].char).toBe('#')
+    expect(tiles[0].color).toBe('#ff69b4')
   })
 
-  it('returns tiles for clover positions', () => {
+  it('returns the seed tile when player stands on existing clover', () => {
     const state = createTestState()
     const px = state.player.x
     const py = state.player.y
 
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        state.map[py + dy][px + dx] = { type: TileType.Flora }
-      }
-    }
+    state.map[py][px] = { type: TileType.Flora }
 
     const tiles = preview(state)
-    expect(tiles).toHaveLength(9)
+    expect(tiles).toHaveLength(1)
+    expect(tiles[0].pos.x).toBe(px)
+    expect(tiles[0].pos.y).toBe(py)
   })
 
-  it('skips sand tiles', () => {
+  it('returns empty when player stands on sand', () => {
     const state = createTestState()
-    const px = state.player.x
-    const py = state.player.y
-
-    clearAroundPlayer(state, 1)
-    state.map[py - 1][px - 1] = { type: TileType.Sand }
+    state.map[state.player.y][state.player.x] = { type: TileType.Sand }
 
     const tiles = preview(state)
-    expect(tiles).toHaveLength(8)
-    const skippedPos = tiles.find(t => t.pos.x === px - 1 && t.pos.y === py - 1)
-    expect(skippedPos).toBeUndefined()
+    expect(tiles).toHaveLength(0)
   })
 
-  it('skips CaveEntrance tiles', () => {
+  it('returns empty when player stands on space', () => {
     const state = createTestState()
-    const px = state.player.x
-    const py = state.player.y
-
-    clearAroundPlayer(state, 1)
-    state.map[py - 1][px] = { type: TileType.CaveEntrance }
+    state.map[state.player.y][state.player.x] = { type: TileType.Space }
 
     const tiles = preview(state)
-    expect(tiles).toHaveLength(8)
-    const skippedPos = tiles.find(t => t.pos.x === px && t.pos.y === py - 1)
-    expect(skippedPos).toBeUndefined()
-  })
-
-  it('skips space tiles', () => {
-    const state = createTestState()
-    const px = state.player.x
-    const py = state.player.y
-
-    clearAroundPlayer(state, 1)
-    state.map[py][px + 1] = { type: TileType.Space }
-
-    const tiles = preview(state)
-    expect(tiles).toHaveLength(8)
-    const skippedPos = tiles.find(t => t.pos.x === px + 1 && t.pos.y === py)
-    expect(skippedPos).toBeUndefined()
+    expect(tiles).toHaveLength(0)
   })
 })
