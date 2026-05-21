@@ -1,5 +1,6 @@
 import { generateBoltPath } from './boltPath'
 import { FLORA_SPECIES } from './flora/species'
+import { deleteGrowthPreviewKey } from './floraGrowthPreviews'
 import { addSoilHealth } from './floraLifecycle'
 import { createFloraLifecycleEntry } from './floraLifecycleEntry'
 import { generateRuntimeIdentity, generateTraitBag } from './genetics'
@@ -221,7 +222,7 @@ export const spreadWildfire = (
         stage: FloraStage.BurntRecovering,
       }),
     )
-    state.floraGrowthPreviews.delete(key)
+    deleteGrowthPreviewKey(state, key)
     addSoilHealth(state, key, SOIL_HEALTH_BURN_BONUS)
 
     // Enqueue neighbors

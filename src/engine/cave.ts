@@ -1,5 +1,6 @@
 import { TILE_COLORS } from './constants'
 import { transitionCoyoteToZone } from './coyote'
+import { clearAllGrowthPreviews } from './floraGrowthPreviews'
 import { recordDiscovery } from './manual'
 import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition, tileHash } from './position'
@@ -209,7 +210,7 @@ export const enterCave = (state: GameState): void => {
   state.facingEntityPos = null
   state.activeDialog = null
   state.trail = []
-  state.floraGrowthPreviews = new Set<string>()
+  clearAllGrowthPreviews(state)
   clearMovementTweens(state)
 
   // Clear selection and unit commands
@@ -240,7 +241,7 @@ export const exitCave = (state: GameState): void => {
   state.facingEntityPos = null
   state.activeDialog = null
   state.trail = []
-  state.floraGrowthPreviews = new Set<string>()
+  clearAllGrowthPreviews(state)
   clearMovementTweens(state)
 
   // Clear selection and unit commands

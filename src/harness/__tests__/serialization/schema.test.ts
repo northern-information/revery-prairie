@@ -53,6 +53,8 @@ const EXPECTED_FIELDS = [
   'lightning',
   'floraGrowthPreviews',
   'floraLifecycle',
+  'activeWaves',
+  'overlayMode',
   'egregorePositions',
   'egregoreLifecycle',
   'lastEgregoreSpreadYear',

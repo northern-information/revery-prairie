@@ -21,7 +21,18 @@ import { generateEgregoreGenome } from './genetics/egregore'
 import { isWalkableTile, posKey } from './position'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
 import { buildWaterProximity } from './tileWater'
-import { CoyoteMode, EgregoreActivityStage, MainQuestPhase, MoabState, Season, Sky, TileType, Zone } from './types'
+import { createEmptyFloraGrowthPreviews } from './floraGrowthPreviews'
+import {
+  CoyoteMode,
+  EgregoreActivityStage,
+  MainQuestPhase,
+  MoabState,
+  OverlayMode,
+  Season,
+  Sky,
+  TileType,
+  Zone,
+} from './types'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
 
@@ -207,8 +218,10 @@ export const createGameState = (
     },
     lastSatelliteSpawnTime: 0,
     screenShakeUntil: 0,
-    floraGrowthPreviews: new Set<string>(),
+    floraGrowthPreviews: createEmptyFloraGrowthPreviews(),
     floraLifecycle: initialFloraLifecycle,
+    activeWaves: [],
+    overlayMode: OverlayMode.Default,
     egregorePositions: initialEgregorePositions,
     egregoreLifecycle: new Map(),
     lastEgregoreSpreadYear: -1,

@@ -330,8 +330,21 @@ export interface GameState {
   caveBreakableWallPositions: Position[]
   giftsReceived: Set<string>
   world: World
-  floraGrowthPreviews: Set<string>
+  // Precis #17 — per-species growth-preview queues. Each species owns
+  // its own pending-preview Set so wildflower previews don't commit as
+  // clover tiles and vice versa. Use helpers in floraGrowthPreviews.ts
+  // — addGrowthPreview, hasAnyGrowthPreview, clearAllGrowthPreviews,
+  // getGrowthPreviewSet — rather than touching the Map directly from
+  // call sites that don't care about species.
+  floraGrowthPreviews: Map<FloraSpecies, Set<string>>
   floraLifecycle: Map<string, FloraLifecycleState>
+  // Precis #17 — active ceremony waves awaiting tickFloraWaves.
+  // Plain JSON-serializable. No Entity refs — the wave is bound to a
+  // seedIdentity (lineage source) rather than the bee that cast it.
+  activeWaves: WaveEmission[]
+  // Precis #17 — current overlay rendering mode. Cycled by the [1]/[2]/[3]
+  // keybinds in useKeyboard.ts. Default at game start: OverlayMode.Default.
+  overlayMode: OverlayMode
   // Egregoric flora tile positions (precis #8a). Genesis places ~3
   // inert TileType.Egregore tiles biased near craters; this list lets
   // the manual entry generator and the sidebar identify them without
@@ -514,7 +527,57 @@ export interface FloraLifecycleState {
   // through createFloraLifecycleEntry in floraLifecycle.ts.
   identity: string
   traits: TraitBag
+  // Precis #17 — bee-mediated pollination. When a bee/monarch with a
+  // matching-species pollen load (different identity) enters this tile,
+  // the tile is "primed" for a cross. On the next autonomous spread,
+  // the child's traits are computed via crossTraitBags(this.traits,
+  // primedPollen.traits, rng) and primedPollen is cleared. Father =
+  // pollen load, mother = this tile. Most-recent matching load wins.
+  primedPollen?: PollenLoad
+  // Precis #17 — set on flora tiles that sprouted from a primed cross.
+  // Records the first 8 hex chars of the donor (father) lineage at
+  // cross time so the family-tree overlay can draw a second dashed
+  // edge to the donor's lineage prefix index.
+  crossDonorPrefix?: string
 }
+
+// Precis #17 — bee-mediated pollination. A single load carried by a
+// bee/monarch in its PollenBag component (registered in ecs/types.ts).
+// Cross-species mixing is allowed in the bag; the cross-prime rule only
+// fires when a load's species matches the visited tile's species.
+export interface PollenLoad {
+  identity: string
+  traits: TraitBag
+  species: FloraSpecies
+}
+
+// Precis #17 — ceremony wave. Emitted by the bee+clover combine and
+// advanced by tickFloraWaves in src/engine/floraWaves.ts. The wave
+// paints valid Dirt tiles in a cellNoise-jittered annulus expanding
+// from (cx, cy) until currentRadius > maxRadius with zero new tiles
+// painted in a tick. seedIdentity is the ceremony-event identity all
+// painted tiles inherit as their lineage parent.
+export interface WaveEmission {
+  seedIdentity: string
+  cx: number
+  cy: number
+  currentRadius: number
+  maxRadius: number
+  lastTickTime: number
+}
+
+// Precis #17 — overlay view mode cycled by the [1]/[2]/[3] keybinds.
+// Default: standard rendering. FamilyTree: lineage overlay (gated by
+// per-species sequencing). RootMycelium: reserved for a future precis;
+// the [3] keybind currently shows a "not yet" toast and does not
+// change mode.
+export const OverlayMode = {
+  Default: 'default',
+  FamilyTree: 'familyTree',
+  RootMycelium: 'rootMycelium',
+} as const
+
+export type OverlayMode = (typeof OverlayMode)[keyof typeof OverlayMode]
 
 // --- Precis #8b — Egregoric flora (mechanical biome) ---
 

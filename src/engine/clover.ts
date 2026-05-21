@@ -9,6 +9,7 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { FLORA_SPECIES } from './flora/species'
+import { getGrowthPreviewSet, hasGrowthPreviewsFor } from './floraGrowthPreviews'
 import { createFloraLifecycleEntry } from './floraLifecycleEntry'
 import { generateRuntimeIdentity, generateTraitBag } from './genetics'
 import { recordDiscovery } from './manual'
@@ -231,13 +232,17 @@ export const selectSpiralGrowth = (patch: CloverPatch, candidates: Position[]): 
 // --- Main growth tick ---
 
 export const tickCloverGrowth = (state: GameState): void => {
+  // Precis #17 — floraGrowthPreviews is per-species now; clover reads
+  // and writes only its own Set.
+  const cloverPreviews = getGrowthPreviewSet(state, FloraSpecies.Clover)
+
   // Seasonal dormancy (precis #2): clover does not grow in winter. Clear
   // any stale previews from the previous (non-winter) tick so the renderer
   // doesn't display blinking preview glyphs over a frozen prairie, then
   // bail out before any new growth is computed.
   if (state.weather.season === Season.Winter) {
-    if (state.floraGrowthPreviews.size > 0) {
-      state.floraGrowthPreviews = new Set<string>()
+    if (cloverPreviews.size > 0) {
+      cloverPreviews.clear()
     }
     return
   }
@@ -245,7 +250,7 @@ export const tickCloverGrowth = (state: GameState): void => {
   // Phase 1: convert previous previews to actual clover tiles. Clover is
   // the only species that spreads via the growth-preview system; every
   // tile placed here is species=clover.
-  for (const key of state.floraGrowthPreviews) {
+  for (const key of cloverPreviews) {
     const [xStr, yStr] = key.split(',')
     const x = Number(xStr)
     const y = Number(yStr)
@@ -267,8 +272,8 @@ export const tickCloverGrowth = (state: GameState): void => {
     }
   }
 
-  const grewClover = state.floraGrowthPreviews.size > 0
-  state.floraGrowthPreviews = new Set<string>()
+  const grewClover = hasGrowthPreviewsFor(state, FloraSpecies.Clover)
+  cloverPreviews.clear()
 
   // Phase 2: detect patches and compute new previews
   const patches = floodFillCloverPatches(state)
@@ -292,7 +297,7 @@ export const tickCloverGrowth = (state: GameState): void => {
     const selected = selectSpiralGrowth(patch, candidates)
 
     for (const pos of selected) {
-      state.floraGrowthPreviews.add(posKey(pos.x, pos.y))
+      cloverPreviews.add(posKey(pos.x, pos.y))
     }
   }
 

@@ -8,6 +8,7 @@ import {
   tickCloverHives,
 } from '../clover'
 import { ComponentType } from '../ecs/types'
+import { getGrowthPreviewSet } from '../floraGrowthPreviews'
 import { posKey } from '../position'
 import { FloraSpecies, TileType } from '../types'
 
@@ -240,7 +241,7 @@ describe('tickCloverGrowth', () => {
     placeCloverTile(state, 50, 50)
 
     // Manually set a preview to simulate previous tick
-    state.floraGrowthPreviews = new Set([posKey(51, 50)])
+    getGrowthPreviewSet(state, FloraSpecies.Clover).add(posKey(51, 50))
 
     createBeeEntity(state, 50, 50)
     tickCloverGrowth(state)
@@ -255,7 +256,7 @@ describe('tickCloverGrowth', () => {
     placeCloverTile(state, 50, 50)
 
     tickCloverGrowth(state)
-    expect(state.floraGrowthPreviews.size).toBe(0)
+    expect(getGrowthPreviewSet(state, FloraSpecies.Clover).size).toBe(0)
   })
 
   it('does not grow onto sand or space', () => {
@@ -271,10 +272,10 @@ describe('tickCloverGrowth', () => {
 
     for (let i = 0; i < 20; i++) {
       resetSpiralState()
-      state.floraGrowthPreviews = new Set()
+      getGrowthPreviewSet(state, FloraSpecies.Clover).clear()
       tickCloverGrowth(state)
     }
-    expect(state.floraGrowthPreviews.size).toBe(0)
+    expect(getGrowthPreviewSet(state, FloraSpecies.Clover).size).toBe(0)
   })
 
   it('records discovery on first growth', () => {
@@ -282,7 +283,7 @@ describe('tickCloverGrowth', () => {
     clearArea(state, 50, 50, 5)
     placeCloverTile(state, 50, 50)
 
-    state.floraGrowthPreviews = new Set([posKey(51, 50)])
+    getGrowthPreviewSet(state, FloraSpecies.Clover).add(posKey(51, 50))
     createBeeEntity(state, 50, 50)
     tickCloverGrowth(state)
 

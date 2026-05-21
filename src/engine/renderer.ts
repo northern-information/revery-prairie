@@ -81,6 +81,7 @@ import {
   WILDFIRE_DURATION_MS,
 } from './constants'
 import { ComponentType } from './ecs/types'
+import { hasAnyGrowthPreview } from './floraGrowthPreviews'
 import { GENESIS_EPOCHS } from './genesis'
 import { renderGenesis } from './genesisRenderer'
 import { getDefinition } from './items'
@@ -1461,7 +1462,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[tile.type]
           color = TILE_COLORS[tile.type]
         }
-      } else if (state.floraGrowthPreviews.has(tileKey)) {
+      } else if (hasAnyGrowthPreview(state, tileKey)) {
         const h = tileHash(mx, my)
         const phase = (h >> 8) % CLOVER_PREVIEW_COLORS.length
         const colorIndex = (phase + Math.floor(time * CLOVER_PREVIEW_BLINK_SPEED)) % CLOVER_PREVIEW_COLORS.length
@@ -1684,7 +1685,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // conversion) use the Clover profile so they sway in sync with live clover —
       // without this they snap to the displaced position the frame they convert.
       if (!highlight) {
-        const swayTileType = state.floraGrowthPreviews.has(tileKey) ? TileType.Flora : map[my]?.[mx]?.type
+        const swayTileType = hasAnyGrowthPreview(state, tileKey) ? TileType.Flora : map[my]?.[mx]?.type
         const floraProfile = swayTileType ? getFloraMovement(swayTileType) : undefined
         if (floraProfile) {
           const lifecycleStage = state.floraLifecycle.get(tileKey)?.stage

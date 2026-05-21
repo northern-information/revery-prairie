@@ -1,5 +1,5 @@
 import type { FloraGenome } from '../genetics'
-import type { CharacterBehavior, MovementTween, Position, Zone } from '../types'
+import type { CharacterBehavior, MovementTween, PollenLoad, Position, Zone } from '../types'
 
 export type Entity = number
 
@@ -28,6 +28,10 @@ export const ComponentType = {
   SatelliteData: 'satelliteData',
   MonarchState: 'monarchState',
   PickupExemption: 'pickupExemption',
+  // Precis #17 — pollen carried by a bee or monarch. Cross-species
+  // mixing is allowed in the bag. Bag is emptied when the entity
+  // enters Chebyshev-1 of any beehive. See src/engine/pollination.ts.
+  PollenBag: 'pollenBag',
 } as const
 
 export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType]
@@ -39,7 +43,15 @@ export interface ComponentDataMap {
   [ComponentType.Renderable]: { char: string; color: string; zIndex: number }
   [ComponentType.Behavior]: CharacterBehavior
   [ComponentType.TimedEffect]: {
-    kind: 'explosion' | 'pickupBloom' | 'crumble' | 'lightning' | 'wildfire' | 'satelliteImpact' | 'stewardImpact'
+    kind:
+      | 'explosion'
+      | 'pickupBloom'
+      | 'crumble'
+      | 'lightning'
+      | 'wildfire'
+      | 'satelliteImpact'
+      | 'stewardImpact'
+      | 'pollenBurst'
     startTime: number
   }
   [ComponentType.Pickupable]: { definitionId: string }
@@ -90,4 +102,5 @@ export interface ComponentDataMap {
     lastPollinateTime: number
   }
   [ComponentType.PickupExemption]: Record<string, never>
+  [ComponentType.PollenBag]: { loads: PollenLoad[] }
 }

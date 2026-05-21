@@ -157,6 +157,11 @@ export const COMPONENT_META: ComponentMeta[] = [
     label: 'PickupExemption',
     fields: [],
   },
+  {
+    type: ComponentType.PollenBag,
+    label: 'PollenBag',
+    fields: [],
+  },
 ]
 
 // --- Default values per component ---
@@ -216,6 +221,8 @@ const componentDefaults = (type: ComponentType, now: number, zone: Zone): Record
       return { plantedTime: now, identity: '' }
     case ComponentType.PickupExemption:
       return {}
+    case ComponentType.PollenBag:
+      return { loads: [] }
     default:
       return {}
   }
