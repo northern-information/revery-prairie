@@ -13,14 +13,28 @@ npm run backlog
 - `←` `→` — move between columns
 - `↑` `↓` — move within a column
 - `enter` / `space` — expand the detail pane (shows `notes` if present)
+- `m` — move the selected card to a different status (opens a confirm prompt that writes the YAML and opens a draft PR)
 - `r` — reload `docs/precis-status.yaml`
 - `q` — quit
 
 The TUI also watches the YAML file and reloads on save automatically (debounced 120 ms).
 
-## Editing
+## Moving a card
 
-The dashboard is read-only. To change status, edit `docs/precis-status.yaml`:
+Press `m` on a selected card to open the move picker. Choose a target status (`todo`, `in-progress`, or `shipped`), press `enter`, then confirm with `y`. The TUI will:
+
+1. Fetch `origin/main` and create a worktree under `.claude/worktrees/` branched from `origin/main`.
+2. Rewrite just the matching `status:` line in `docs/precis-status.yaml` (preserving comments, blank lines, and field order).
+3. Commit, push, and open a draft PR via `gh`.
+4. Show the PR URL. Press `o` to open it in the browser, or `enter` to dismiss.
+
+`next` is a derived column — it isn't a writable status. Moving from `next` writes whichever underlying status you pick.
+
+Requires `gh` (`brew install gh`) authenticated via `gh auth login`.
+
+## Editing by hand
+
+You can still edit `docs/precis-status.yaml` directly:
 
 ```yaml
 - id: '0'
