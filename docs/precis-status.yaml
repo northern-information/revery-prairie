@@ -207,10 +207,10 @@ features:
       [2] family-tree overlay (lineage edges, gated by full
       sequencing), [3] reserved for future root/mycelium view.
     depends_on: []
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-17-autonomous-flora-spread.yaml
     plan: harness/plans/precis-17-autonomous-flora-spread.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/375
     notes: >
       v4 thinktank round 4 (2026-05-19). Touchstone: Emily Dickinson — "To
       make a prairie it takes a clover and a bee, and revery. The revery
