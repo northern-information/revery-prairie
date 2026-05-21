@@ -158,6 +158,34 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: genesis-camera-centered-on-canvas
+    description: >
+      The genesis camera centers the prairie on the full canvas — it
+      does not subtract rightInsetTiles from the visible width the way
+      updateCamera does for gameplay. During genesis there is no right
+      sidebar; the only DOM overlays are the bottom-center GenesisBottomBar
+      year readout (pointer-events-none, fixed bottom-52, w-64) and the
+      eventual boot title card. Both float over the canvas without
+      reserving a side gutter, so anchoring the camera as if a sidebar
+      existed would shift the prairie left and leave a starfield band
+      on the right. The genesis cameraX uses (viewportWidth) as the
+      effective visible width, anchored on the player spawn (one tile
+      west of map center, matching createGameState). cameraY math is
+      unchanged. At the genesis-to-game handoff the gameplay camera
+      reintroduces the rightInsetTiles inset; the resulting one-time
+      shift is hidden by the boot title card overlay (per the
+      sidebar-and-action-bar-reveal behavior).
+    inputs:
+      - 'state.genesis is non-null on a render frame'
+      - 'viewportWidth and viewportHeight from the genesis-font tile counts'
+      - 'sim.width and sim.height (147 each)'
+    outputs:
+      - 'cameraX = clamp(playerX - floor(viewportWidth / 2), 0, sim.width - viewportWidth), negative-centered if sim.width < viewportWidth'
+      - 'cameraY = clamp(playerY - floor(viewportHeight / 2), 0, sim.height - viewportHeight), negative-centered if sim.height < viewportHeight'
+      - 'no rightInsetTiles term applied to genesis camera math'
+    state_changes: []
+    determinism: deterministic
+
   - id: fast-forward-skip-still-shows-title-card
     description: >
       A left-click on the canvas, or Escape/Space/Enter, during genesis
@@ -194,6 +222,14 @@ edge_cases:
       title card finishes. The cleanup timer is wall-clock based, so
       the title card still clears on schedule regardless of resize.
     expected: 'title card clears at startTime + total duration regardless of resize events'
+
+  - id: resize-during-genesis-recenters
+    description: >
+      Browser window resizes while genesis is playing. On the next
+      frame, the genesis renderer recomputes viewportWidth /
+      viewportHeight from the new canvas dimensions and recenters the
+      prairie on the new viewport. No rightInsetTiles term participates.
+    expected: 'prairie stays centered on the canvas after resize'
 
   - id: title-card-during-multiplayer-join
     description: >

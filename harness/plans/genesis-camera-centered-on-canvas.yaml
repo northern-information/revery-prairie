@@ -1,0 +1,114 @@
+plan:
+  id: genesis-camera-centered-on-canvas
+  title: 'Center the genesis camera on the full canvas (no sidebar inset)'
+  created: 2026-05-21
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: drop-right-inset-from-genesis-camera
+    title: 'Remove rightInsetTiles term from the genesis camera math'
+    spec_id: genesis-transition
+    spec_sections:
+      - genesis-camera-centered-on-canvas
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/renderer.ts
+      - src/engine/camera.ts
+      - src/components/GameCanvas.tsx
+      - src/components/GenesisBottomBar.tsx
+    output_files:
+      - src/engine/genesisRenderer.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+      - npm run lint
+    repair: retry
+    tags: [engine]
+    notes: >
+      In `renderGenesis` (genesisRenderer.ts ~lines 499-519), remove the
+      SIDEBAR_WIDTH_PX / rightInsetTiles block. The genesis camera should
+      use the full viewportWidth as its visible width. Concretely:
+
+      Before:
+        const SIDEBAR_WIDTH_PX = 192
+        const rightInsetTiles = Math.ceil(SIDEBAR_WIDTH_PX / charWidth)
+        const visibleWidth = viewportWidth - rightInsetTiles
+        const playerX = Math.floor(sim.width / 2) - 1
+        ...
+        const cameraX =
+          sim.width < visibleWidth
+            ? -Math.floor((visibleWidth - sim.width) / 2)
+            : Math.max(0, Math.min(playerX - Math.floor(visibleWidth / 2), sim.width - visibleWidth))
+
+      After:
+        const playerX = Math.floor(sim.width / 2) - 1
+        ...
+        const cameraX =
+          sim.width < viewportWidth
+            ? -Math.floor((viewportWidth - sim.width) / 2)
+            : Math.max(0, Math.min(playerX - Math.floor(viewportWidth / 2), sim.width - viewportWidth))
+
+      cameraY math is unchanged. Drop the now-unused SIDEBAR_WIDTH_PX
+      local and the leading code comment about matching updateCamera —
+      replace it with a brief comment that the genesis camera centers on
+      the full canvas because no sidebar exists during genesis, and that
+      the resulting one-tile shift at the genesis-to-game handoff is
+      hidden by the boot title card overlay.
+
+      Do not touch updateCamera in camera.ts — the gameplay camera still
+      uses rightInsetTiles. Do not touch GameCanvas.tsx — it still sets
+      state.rightInsetTiles for gameplay.
+
+  - id: add-genesis-camera-centering-test
+    title: 'Add a regression test for the centered genesis camera'
+    spec_id: genesis-transition
+    spec_sections:
+      - genesis-camera-centered-on-canvas
+    context_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/__tests__/genesisTransition.test.ts
+    depends_on:
+      - drop-right-inset-from-genesis-camera
+    verification:
+      - npx vitest run src/engine/__tests__/genesisTransition.test.ts
+    repair: retry
+    tags: [test, engine]
+    notes: >
+      Add a new describe block "genesis camera centering" to
+      genesisTransition.test.ts. Because `renderGenesis` does not export
+      its camera math, the test should either:
+
+        (a) re-derive the camera the same way the spec defines it
+            (playerX = floor(sim.width/2) - 1, cameraX clamped against
+            sim.width - viewportWidth) and assert that for a viewportWidth
+            wider than sim.width, the negative-centered offset equals
+            -floor((viewportWidth - sim.width) / 2) with NO rightInsetTiles
+            term, OR
+        (b) extract the camera computation into a small exported helper
+            in genesisRenderer.ts (e.g. `computeGenesisCamera(sim, vw, vh)`)
+            and test it directly.
+
+      Prefer (b) — extract the helper so the test can pin the contract
+      without re-deriving the formula. Keep the helper file-local to
+      genesisRenderer.ts (export it explicitly). Two test cases:
+
+        1) viewportWidth is much larger than sim.width (e.g. 300 tiles
+           on a 147-tile prairie): cameraX is -floor((300 - 147) / 2);
+           verify it does NOT include any rightInsetTiles-style offset
+           (e.g. cameraX > -100, since a sidebar inset would push the
+           result more negative).
+
+        2) viewportWidth is smaller than sim.width (the player-anchored
+           branch): cameraX equals playerX - floor(viewportWidth / 2),
+           clamped to [0, sim.width - viewportWidth].
+
+      No mocking required — the helper is pure. Follow the existing
+      `vi.spyOn(Math, 'random')` / `vi.restoreAllMocks()` pattern only
+      if randomness is needed for sim setup (likely not — pass a small
+      synthetic sim with width/height set explicitly).
