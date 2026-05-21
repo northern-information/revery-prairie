@@ -103,7 +103,11 @@ const makeRecordingCtx = (): {
     },
     createPattern: vi.fn((): CanvasPattern => ({}) as unknown as CanvasPattern),
     fillRect: vi.fn(),
-    drawImage: vi.fn((_img: unknown, dx: number, dy: number) => {
+    canvas: { width: 1024, height: 1024 } as HTMLCanvasElement,
+    drawImage: vi.fn((_img: unknown, ...args: number[]) => {
+      // Source-clipped form: drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh)
+      const dx = args.length >= 8 ? args[4] : args[0]
+      const dy = args.length >= 8 ? args[5] : args[1]
       calls.push({
         kind: 'drawImage',
         globalAlpha: state.globalAlpha,

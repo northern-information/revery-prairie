@@ -163,9 +163,25 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   const washIntensity = typeof seasonalPhase === 'number' ? seasonalWash(seasonalPhase).intensity : 0
   const alpha = FILM_GRAIN_ALPHA * (1 - washIntensity)
 
+  // Source-clip to the visible viewport. Without this, drawImage composites
+  // the entire world-sized grain canvas every frame (~1200x2400px on a
+  // 147x147 map) even when most of it is off-screen — a measurable
+  // per-frame cost. The math mirrors prairieHalo.ts: a source pixel at
+  // (sx, sy) lands at (sx + dx, sy + dy) on the main canvas, so we
+  // intersect the cache's pixel rect with the on-screen rect.
+  const canvasW = ctx.canvas.width
+  const canvasH = ctx.canvas.height
+  const sx = Math.max(0, Math.floor(-dx))
+  const sy = Math.max(0, Math.floor(-dy))
+  const sxEnd = Math.min(cache.canvas.width, Math.ceil(canvasW - dx))
+  const syEnd = Math.min(cache.canvas.height, Math.ceil(canvasH - dy))
+  if (sx >= sxEnd || sy >= syEnd) return
+  const sw = sxEnd - sx
+  const sh = syEnd - sy
+
   const savedAlpha = ctx.globalAlpha
   ctx.globalAlpha = savedAlpha * alpha
-  ctx.drawImage(cache.canvas, dx, dy)
+  ctx.drawImage(cache.canvas, sx, sy, sw, sh, sx + dx, sy + dy, sw, sh)
   ctx.globalAlpha = savedAlpha
 }
 
