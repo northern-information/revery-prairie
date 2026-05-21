@@ -162,6 +162,9 @@ export const createBeeEntity = (state: GameState, x: number, y: number, zone?: Z
   state.world.addComponent(e, ComponentType.EntityTag, 'bee')
   state.world.addComponent(e, ComponentType.EntityZone, { zone: zone ?? state.currentZone })
   state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
+  // Precis #17 — bees carry an empty PollenBag at creation. Tests that
+  // exercise bee-mediated pollination read this component directly.
+  state.world.addComponent(e, ComponentType.PollenBag, { loads: [] })
   return e
 }
 
