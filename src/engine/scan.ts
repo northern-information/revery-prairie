@@ -94,28 +94,28 @@ export const selectScanTarget = (state: GameState): ScanTarget | null => {
   return null
 }
 
+export type ScanCommitResult =
+  | { kind: 'flora'; species: FloraSpecies; identity: string }
+  | { kind: 'oak'; identity: string }
+
 // Called when a hold-to-scan release fires after >= SCAN_DURATION_MS elapsed.
 // Re-evaluates the target (the plant or player may have moved during the
 // hold), and if the target is still valid:
-//   - records flora:${species} discovery
-//   - appends a ScannedSpecimen to state.scannedSpecimens[species] unless
-//     a specimen with the same identity is already in the array
+//   - records flora:${species} or entity:oak discovery
+//   - appends a ScannedSpecimen to state.scannedSpecimens[species] / state.oakSpecimens
+//     unless a specimen with the same identity is already in the array
 //     (scanning the same plant twice is a no-op for the card stack)
 //   - spawns a pickup bloom at the scanned tile
 //   - sets state.manualHighlightEntryId so the manual scrolls to and
 //     highlights the entry on next render
 //
-// Returns the committed { species, identity } on success for a FLORA scan so
-// the caller can drive the gel-electrophoresis scan-result modal. Returns
-// null on abort (no scanInProgress, or selectScanTarget returns null / the
-// target kind drifted / the flora species changed) OR on a successful OAK
-// commit — oaks route through the manual entry via manualHighlightEntryId
-// instead of the flora modal, so the caller has nothing to display.
-// The function itself does not open any UI surface.
-export const commitScan = (
-  state: GameState,
-  time: number,
-): { species: FloraSpecies; identity: string } | null => {
+// Returns a discriminated ScanCommitResult on success so the caller can
+// dispatch — flora opens the ceremonial gel-electrophoresis modal, oaks
+// open the manual (the modal is flora-only). Returns null on abort
+// (no scanInProgress, or selectScanTarget returns null / the target kind
+// drifted / the flora species changed). The function itself does not
+// open any UI surface — the caller is responsible.
+export const commitScan = (state: GameState, time: number): ScanCommitResult | null => {
   const progress = state.scanInProgress
   if (!progress) return null
 
@@ -144,13 +144,13 @@ export const commitScan = (
 
     spawnPickupBloom(state, target.position.x, target.position.y, time)
     state.manualHighlightEntryId = `flora:${target.species}`
-    return { species: target.species, identity: target.identity }
+    return { kind: 'flora', species: target.species, identity: target.identity }
   }
 
   // Oak commit. Records entity:oak discovery and appends to oakSpecimens
-  // (deduped on per-tree identity), just like flora. Returns null so the
-  // game loop does not trigger the flora-specific scan-result modal —
-  // oaks open the manual directly via manualHighlightEntryId.
+  // (deduped on per-tree identity). Returns kind: 'oak' so the caller can
+  // open the manual to the oak entry — oaks do not get the flora-only
+  // gel-electrophoresis modal.
   recordDiscovery(state, 'entity:oak')
   const alreadyScanned = state.oakSpecimens.some(s => s.identity === target.identity)
   if (!alreadyScanned) {
@@ -162,5 +162,5 @@ export const commitScan = (
   }
   spawnPickupBloom(state, target.position.x, target.position.y, time)
   state.manualHighlightEntryId = 'entity:oak'
-  return null
+  return { kind: 'oak', identity: target.identity }
 }

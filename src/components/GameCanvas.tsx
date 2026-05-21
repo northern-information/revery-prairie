@@ -25,6 +25,7 @@ interface GameCanvasProps {
   activeScreen: PermacomputerScreen
   setActiveScreen: (screen: PermacomputerScreen) => void
   onScanComplete: (species: FloraSpecies, identity: string) => void
+  onOakScanComplete: (identity: string) => void
   metricsRef: React.RefObject<CharMetrics | null>
 }
 
@@ -34,6 +35,7 @@ export const GameCanvas = ({
   activeScreen,
   setActiveScreen,
   onScanComplete,
+  onOakScanComplete,
   metricsRef,
 }: GameCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -45,6 +47,8 @@ export const GameCanvas = ({
   activeScreenRef.current = activeScreen
   const onScanCompleteRef = useRef(onScanComplete)
   onScanCompleteRef.current = onScanComplete
+  const onOakScanCompleteRef = useRef(onOakScanComplete)
+  onOakScanCompleteRef.current = onOakScanComplete
 
   useMouse({ canvasRef, state, metricsRef, activeScreen, setActiveScreen, refreshUI })
 
@@ -96,6 +100,9 @@ export const GameCanvas = ({
       },
       onScanComplete: (species, identity) => {
         onScanCompleteRef.current(species, identity)
+      },
+      onOakScanComplete: identity => {
+        onOakScanCompleteRef.current(identity)
       },
       onFrame: time => {
         if (metricsRef.current) {
