@@ -1,0 +1,638 @@
+plan:
+  id: precis-17-autonomous-flora-spread
+  title: Autonomous flora spread + bee+clover ceremony + bee-mediated genetics
+  created: 2026-05-21
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine + status alignment ---
+
+  - id: doctrine-status-update
+    title: Flip docs/precis-status.yaml feature 17 to in-progress with spec+plan paths. Add a docs/claude/flora.md section on autonomous spread and ceremony wave (factual additions, no lore). Add a docs/claude/genetics.md note that crossTraitBags is wired by precis-17.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - doctrine-and-status-aligned
+    context_files:
+      - docs/precis-status.yaml
+      - docs/claude/flora.md
+      - docs/claude/genetics.md
+      - docs/precis-thinktank-v4.md
+    output_files:
+      - docs/precis-status.yaml
+      - docs/claude/flora.md
+      - docs/claude/genetics.md
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Type-level changes (need to land before engine code can typecheck) ---
+
+  - id: types-and-state-shape
+    title: Update src/engine/types.ts — add OverlayMode const-object, WaveEmission interface, PollenLoad type, FloraLifecycleState.primedPollen + crossDonorPrefix optional fields, effect kind 'pollenBurst', state.activeWaves, state.overlayMode. Change state.floraGrowthPreviews shape from Set<string> to Map<FloraSpecies, Set<string>>. Update src/engine/ecs/types.ts to register ComponentType.PollenBag.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - overlay-mode-state
+      - per-species-growth-preview-queues
+      - pollen-bag-component
+      - lineage-fallback-for-primed-cross
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/genetics/index.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - types
+
+  - id: state-initializer-update
+    title: Update src/engine/state.ts to initialize state.activeWaves = [], state.overlayMode = OverlayMode.Default, state.floraGrowthPreviews = new Map() (Map<FloraSpecies, Set<string>>). Update src/harness/__tests__/serialization/schema.test.ts EXPECTED_FIELDS to include activeWaves and overlayMode.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - overlay-mode-state
+      - ceremony-wave-enqueues
+      - per-species-growth-preview-queues
+    context_files:
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - types-and-state-shape
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - engine
+      - state
+
+  - id: constants-update
+    title: Update src/engine/constants.ts with WILDFLOWER_BASE_GROWTH_CHANCE, WILDFLOWER_MAX_GROWTH_PER_TICK, TALLGRASS_BASE_GROWTH_CHANCE, TALLGRASS_MAX_GROWTH_PER_TICK, CEREMONY_WAVE_RADIUS, CEREMONY_WAVE_TICK_MS, POLLEN_BAG_CAPACITY, POLLEN_BURST_DURATION_MS. Initial values are playtest-tunable — start with clover-derived ratios (wildflower 0.6x clover, tallgrass 0.3x clover).
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - wildflower-spread-added
+      - tallgrass-spread-added
+      - ceremony-wave-enqueues
+      - ceremony-wave-tick
+      - pollen-bag-component
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on:
+      - types-and-state-shape
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - constants
+
+  # --- Tier 2: Spread engine + per-species configs ---
+
+  - id: spread-engine-module
+    title: Create src/engine/flora/spread.ts with floodFillFloraPatches, commitFloraPreviews, applyParentLineage, tickSpeciesSpread. Engine is species-agnostic — accepts a SpeciesSpreadConfig. commitFloraPreviews implements lineage propagation (parent identity prefix → child identity) and primedPollen consumption (crossTraitBags fallback). No clover/wildflower/tallgrass-specific code in this file.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - spread-engine-module
+      - lineage-propagation-via-identity-prefix
+      - lineage-fallback-for-primed-cross
+    context_files:
+      - src/engine/clover.ts
+      - src/engine/genetics/index.ts
+      - src/engine/floraLifecycleEntry.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/flora/spread.ts
+    depends_on:
+      - types-and-state-shape
+      - constants-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - flora
+
+  - id: spread-config-interface
+    title: Create src/engine/flora/spreadConfig.ts with the SpeciesSpreadConfig interface — { species, selectGrowthTargets, requiresPollinatorAdjacency, baseGrowthChance, winterDormant, discoveryEventOnGrowth }. Export the interface only; per-species constants live in each species' own file.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - species-spread-config-interface
+    context_files:
+      - src/engine/flora/spread.ts
+    output_files:
+      - src/engine/flora/spreadConfig.ts
+    depends_on:
+      - spread-engine-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - flora
+
+  - id: clover-spread-extracted
+    title: Extract clover's spread logic from src/engine/clover.ts to src/engine/flora/clover/spread.ts. Move computeGrowthFront, selectSpiralGrowth, getPatchSeed, getOrCreateSpiralState, angleDifference. Export CLOVER_SPREAD_CONFIG. Update src/engine/clover.ts — tickCloverGrowth becomes a thin wrapper over tickSpeciesSpread(state, time, CLOVER_SPREAD_CONFIG). Remove the in-line identity generation at the old commit site (now handled by commitFloraPreviews). Keep beehive/honey logic in clover.ts (clover-specific).
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - clover-spread-extracted
+    context_files:
+      - src/engine/clover.ts
+      - src/engine/flora/spread.ts
+      - src/engine/flora/spreadConfig.ts
+    output_files:
+      - src/engine/flora/clover/spread.ts
+      - src/engine/clover.ts
+    depends_on:
+      - spread-engine-module
+      - spread-config-interface
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/clover.test.ts
+    repair: retry
+    tags:
+      - engine
+      - flora
+      - refactor
+
+  - id: wildflower-spread-added
+    title: Create src/engine/flora/wildflower/spread.ts. Export WILDFLOWER_SPREAD_CONFIG with a pollinator-biased selectGrowthTargets (filter Dirt neighbors by Chebyshev distance ≤ 3 to any bee or monarch entity). requiresPollinatorAdjacency true, winterDormant true.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - wildflower-spread-added
+    context_files:
+      - src/engine/flora/spread.ts
+      - src/engine/flora/spreadConfig.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/flora/wildflower/spread.ts
+    depends_on:
+      - spread-engine-module
+      - spread-config-interface
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - flora
+
+  - id: tallgrass-spread-added
+    title: Create src/engine/flora/tallgrass/spread.ts. Export TALLGRASS_SPREAD_CONFIG with a uniform rhizome selectGrowthTargets (Dirt neighbors, no pollinator filter). requiresPollinatorAdjacency false, winterDormant true.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - tallgrass-spread-added
+    context_files:
+      - src/engine/flora/spread.ts
+      - src/engine/flora/spreadConfig.ts
+    output_files:
+      - src/engine/flora/tallgrass/spread.ts
+    depends_on:
+      - spread-engine-module
+      - spread-config-interface
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - flora
+
+  # --- Tier 3: Ceremony wave ---
+
+  - id: ceremony-wave-module
+    title: Create src/engine/floraWaves.ts with tickFloraWaves. Reads state.activeWaves, advances currentRadius per CEREMONY_WAVE_TICK_MS, paints valid tiles at the annulus (Dirt only, jittered via cellNoise), schedules pollenBurst TimedEffects, removes completed waves. Painted tiles route through applyParentLineage with the wave's seedIdentity.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - ceremony-wave-tick
+    context_files:
+      - src/engine/flora/spread.ts
+      - src/engine/effects.ts
+      - src/engine/types.ts
+      - src/engine/render/passes/
+    output_files:
+      - src/engine/floraWaves.ts
+    depends_on:
+      - spread-engine-module
+      - constants-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - ceremony
+
+  - id: recipes-ceremony-update
+    title: Replace the 3x3 stamp in src/engine/recipes.ts bee+clover combine with ceremony enqueue. Generate a seedIdentity, place one clover tile at the player position carrying that identity, enqueue a WaveEmission, preserve spawnBeeOrMonarch call. Standing-on-water validation preserved.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - ceremony-wave-enqueues
+    context_files:
+      - src/engine/recipes.ts
+      - src/engine/floraWaves.ts
+      - src/engine/genetics/index.ts
+    output_files:
+      - src/engine/recipes.ts
+    depends_on:
+      - ceremony-wave-module
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/recipes.test.ts
+      - npx vitest run src/engine/__tests__/combine.test.ts
+    repair: retry
+    tags:
+      - engine
+      - ceremony
+
+  - id: pollen-burst-effect-kind
+    title: Register 'pollenBurst' as a new TimedEffect kind in src/engine/effects.ts. Add to getTileEffects so the effect surface knows about it. Render handled by the floraWave render pass (next task) or the effects render pass — choose the same pattern existing effects (rain, glint) use.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - ceremony-wave-tick
+      - ceremony-wave-render-pass
+    context_files:
+      - src/engine/effects.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/effects.ts
+      - src/engine/types.ts
+    depends_on:
+      - types-and-state-shape
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - effects
+
+  - id: ceremony-wave-render-pass
+    title: Create src/engine/render/passes/floraWave.ts. For each wave in state.activeWaves, render a faint hot-pink ring at the current annulus with organic per-direction characters (cellNoise-seeded). Register the pass in the slot system per existing pattern (rendering.md).
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - ceremony-wave-render-pass
+    context_files:
+      - src/engine/render/passes/
+      - src/engine/floraWaves.ts
+      - docs/claude/rendering.md
+    output_files:
+      - src/engine/render/passes/floraWave.ts
+    depends_on:
+      - ceremony-wave-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - render
+
+  # --- Tier 4: Bee-mediated pollination ---
+
+  - id: pollination-module
+    title: Create src/engine/pollination.ts. Export tickPollination(state, time). For each bee/monarch entity, read the tile they're on; if it's Flora, run the pickup rule (LIFO PollenBag updates) and the prime rule (set tile.primedPollen if matching-species different-identity load exists). If the entity is within Chebyshev 1 of any beehive, empty the bag. Records discoveries.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - pollen-pickup-on-flora-entry
+      - pollen-prime-on-cross-species-visit
+      - pollen-bag-empty-at-hive
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+      - src/engine/monarch.ts
+    output_files:
+      - src/engine/pollination.ts
+    depends_on:
+      - types-and-state-shape
+      - constants-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - pollination
+
+  - id: monarch-bee-add-pollen-bag
+    title: Update src/engine/monarch.ts spawnBee and spawnMonarch to add an empty ComponentType.PollenBag component on creation. Other bee spawn sites in the codebase (angels.ts angel-released bees, entities.ts dropped-from-inventory) all route through spawnBee or spawnBeeOrMonarch so they're covered automatically.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - pollen-bag-component
+    context_files:
+      - src/engine/monarch.ts
+    output_files:
+      - src/engine/monarch.ts
+    depends_on:
+      - types-and-state-shape
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/monarch.test.ts
+    repair: retry
+    tags:
+      - engine
+      - pollination
+
+  # --- Tier 5: Overlay view modes ---
+
+  - id: lineage-overlay-render-pass
+    title: Create src/engine/render/passes/lineageOverlay.ts. Renders only when state.overlayMode === FamilyTree. Builds a per-species reverse index Map<identityPrefix8, posKey> lazily. For each Flora tile of a sequenced species, draws a faint hot-pink line to its parent (looked up via the index). For tiles with crossDonorPrefix set, draws a second dashed edge to the donor's lineage.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - lineage-overlay-render-pass
+    context_files:
+      - src/engine/render/passes/
+      - src/engine/types.ts
+      - docs/claude/rendering.md
+    output_files:
+      - src/engine/render/passes/lineageOverlay.ts
+    depends_on:
+      - types-and-state-shape
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - render
+
+  - id: keyboard-overlay-binds
+    title: Update src/hooks/useKeyboard.ts. Add three new bindings — '1' sets state.overlayMode = OverlayMode.Default, '2' sets OverlayMode.FamilyTree, '3' is a no-op placeholder for the future root/mycelium view (logs DEV-only debug and shows a brief on-screen toast 'Root view coming soon'). First '2' press records event:lineage-overlay-toggled.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - overlay-mode-keybinds
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - types-and-state-shape
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - frontend
+      - keyboard
+
+  # --- Tier 6: Manual entries ---
+
+  - id: manual-entries-added
+    title: Update src/engine/manual.ts MANUAL_LORE with four new entries — event:flora-spread, event:ceremony-cast, event:cross-pollinated, event:lineage-overlay-toggled. Each has { lore: 'TODO' } placeholder body. No lore text is authored (per CLAUDE.md). Wire recordDiscovery calls at the trigger sites — tickSpeciesSpread (first cross-species spread), recipes.ts (ceremony cast), tickPollination (first cross prime per session), useKeyboard (first FamilyTree toggle).
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - manual-entries-added
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/flora/spread.ts
+      - src/engine/recipes.ts
+      - src/engine/pollination.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - clover-spread-extracted
+      - recipes-ceremony-update
+      - pollination-module
+      - keyboard-overlay-binds
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/manual.test.ts
+    repair: retry
+    tags:
+      - engine
+      - manual
+
+  # --- Tier 7: Game loop wiring ---
+
+  - id: game-loop-spread-sweep
+    title: Update src/engine/gameLoop.ts. Replace the existing tickCloverGrowth scheduled tick with a per-species sweep that calls tickSpeciesSpread three times (clover, wildflower, tallgrass) per scheduled interval. Add a new scheduled tick for tickFloraWaves (every CEREMONY_WAVE_TICK_MS). Add tickPollination to the bee/monarch movement schedule (or wire as a single-pass call after movement updates).
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - clover-spread-extracted
+      - wildflower-spread-added
+      - tallgrass-spread-added
+      - ceremony-wave-tick
+      - pollen-pickup-on-flora-entry
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/flora/spread.ts
+      - src/engine/flora/clover/spread.ts
+      - src/engine/flora/wildflower/spread.ts
+      - src/engine/flora/tallgrass/spread.ts
+      - src/engine/floraWaves.ts
+      - src/engine/pollination.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - clover-spread-extracted
+      - wildflower-spread-added
+      - tallgrass-spread-added
+      - ceremony-wave-module
+      - pollination-module
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/gameLoop.test.ts
+    repair: retry
+    tags:
+      - engine
+      - game-loop
+
+  # --- Tier 8: Tests ---
+
+  - id: spread-engine-tests
+    title: Create src/engine/__tests__/precis-17-spread-engine.test.ts. Tests for floodFillFloraPatches (multi-species), applyParentLineage (prefix preserved), commitFloraPreviews (lineage propagated; primedPollen consumed and crossTraitBags called), per-species preview Set isolation, orphaned-preview fallback.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - spread-engine-module
+      - lineage-propagation-via-identity-prefix
+      - lineage-fallback-for-primed-cross
+      - per-species-growth-preview-queues
+    context_files:
+      - src/engine/flora/spread.ts
+      - src/engine/flora/clover/spread.ts
+    output_files:
+      - src/engine/__tests__/precis-17-spread-engine.test.ts
+    depends_on:
+      - spread-engine-module
+      - clover-spread-extracted
+    verification:
+      - npx vitest run src/engine/__tests__/precis-17-spread-engine.test.ts
+    repair: retry
+    tags:
+      - tests
+
+  - id: clover-spread-parity-tests
+    title: Create src/engine/__tests__/precis-17-clover-spread.test.ts. Asserts clover spread behavior is preserved through the extraction — spiral growth, bee-count gating, winter dormancy. If existing src/engine/__tests__/clover.test.ts already covers this, this file only adds new assertions about lineage propagation (parent identity prefix preserved).
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - clover-spread-extracted
+      - lineage-propagation-via-identity-prefix
+    context_files:
+      - src/engine/flora/clover/spread.ts
+      - src/engine/__tests__/clover.test.ts
+    output_files:
+      - src/engine/__tests__/precis-17-clover-spread.test.ts
+    depends_on:
+      - clover-spread-extracted
+      - spread-engine-tests
+    verification:
+      - npx vitest run src/engine/__tests__/precis-17-clover-spread.test.ts
+    repair: retry
+    tags:
+      - tests
+
+  - id: wildflower-spread-tests
+    title: Create src/engine/__tests__/precis-17-wildflower-spread.test.ts. Tests pollinator-adjacency gating (no bee/monarch → no spread), substrate rules, winter dormancy, basic growth on a primed scenario.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - wildflower-spread-added
+    context_files:
+      - src/engine/flora/wildflower/spread.ts
+    output_files:
+      - src/engine/__tests__/precis-17-wildflower-spread.test.ts
+    depends_on:
+      - wildflower-spread-added
+    verification:
+      - npx vitest run src/engine/__tests__/precis-17-wildflower-spread.test.ts
+    repair: retry
+    tags:
+      - tests
+
+  - id: tallgrass-spread-tests
+    title: Create src/engine/__tests__/precis-17-tallgrass-spread.test.ts. Tests pollinator-independent spread, slowest rate, substrate rules, winter dormancy.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - tallgrass-spread-added
+    context_files:
+      - src/engine/flora/tallgrass/spread.ts
+    output_files:
+      - src/engine/__tests__/precis-17-tallgrass-spread.test.ts
+    depends_on:
+      - tallgrass-spread-added
+    verification:
+      - npx vitest run src/engine/__tests__/precis-17-tallgrass-spread.test.ts
+    repair: retry
+    tags:
+      - tests
+
+  - id: ceremony-wave-tests
+    title: Create src/engine/__tests__/precis-17-ceremony-wave.test.ts. Tests wave enqueue on combine, annulus advance, terrain culling (water, walls, sand, space), boundary jitter measurable via cellNoise variance, pollen burst spawn, wave removal on completion.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - ceremony-wave-enqueues
+      - ceremony-wave-tick
+    context_files:
+      - src/engine/floraWaves.ts
+      - src/engine/recipes.ts
+    output_files:
+      - src/engine/__tests__/precis-17-ceremony-wave.test.ts
+    depends_on:
+      - recipes-ceremony-update
+      - ceremony-wave-module
+    verification:
+      - npx vitest run src/engine/__tests__/precis-17-ceremony-wave.test.ts
+    repair: retry
+    tags:
+      - tests
+
+  - id: pollination-tests
+    title: Create src/engine/__tests__/precis-17-pollination.test.ts. Tests PollenBag added on bee/monarch creation, pickup rule (LIFO eviction at capacity), prime rule (most-recent matching load wins), hive-adjacency empties bag, cross-species mixing allowed in bag, no-op on same-identity revisit, crossTraitBags fires on next spread from primed parent.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - pollen-bag-component
+      - pollen-pickup-on-flora-entry
+      - pollen-prime-on-cross-species-visit
+      - pollen-bag-empty-at-hive
+      - lineage-fallback-for-primed-cross
+    context_files:
+      - src/engine/pollination.ts
+      - src/engine/monarch.ts
+      - src/engine/flora/spread.ts
+    output_files:
+      - src/engine/__tests__/precis-17-pollination.test.ts
+    depends_on:
+      - pollination-module
+      - monarch-bee-add-pollen-bag
+      - spread-engine-module
+    verification:
+      - npx vitest run src/engine/__tests__/precis-17-pollination.test.ts
+    repair: retry
+    tags:
+      - tests
+
+  - id: lineage-overlay-tests
+    title: Create src/engine/__tests__/precis-17-lineage-overlay.test.ts. Tests overlayMode keybinds (1, 2, 3), overlay renders only when FamilyTree, no edges drawn for unsequenced species, parent edges drawn for sequenced species, dashed second edge drawn for crossed tiles (crossDonorPrefix set), '3' keybind is a no-op, first '2' press records the discovery.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - overlay-mode-state
+      - overlay-mode-keybinds
+      - lineage-overlay-render-pass
+    context_files:
+      - src/engine/render/passes/lineageOverlay.ts
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/engine/__tests__/precis-17-lineage-overlay.test.ts
+    depends_on:
+      - lineage-overlay-render-pass
+      - keyboard-overlay-binds
+    verification:
+      - npx vitest run src/engine/__tests__/precis-17-lineage-overlay.test.ts
+    repair: retry
+    tags:
+      - tests
+
+  - id: spread-perf-test
+    title: Create src/engine/__tests__/precis-17-spread-perf.test.ts. Fixture seeds 5000 Flora tiles + 50 bees + 5 hives. Runs 200 ticks of lifecycle + spread + pollination. Comment records the baseline cost of the current tickFloraLifecycle + tickCloverGrowth under the same fixture (record before setting threshold; cite commit ref). Assert wall-clock under 1.5x baseline.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections:
+      - perf-gate-recorded
+    context_files:
+      - src/engine/floraLifecycle.ts
+      - src/engine/flora/spread.ts
+      - src/engine/pollination.ts
+    output_files:
+      - src/engine/__tests__/precis-17-spread-perf.test.ts
+    depends_on:
+      - game-loop-spread-sweep
+      - clover-spread-extracted
+      - wildflower-spread-added
+      - tallgrass-spread-added
+      - pollination-module
+    verification:
+      - npx vitest run src/engine/__tests__/precis-17-spread-perf.test.ts
+    repair: retry
+    tags:
+      - tests
+      - perf
+
+  # --- Tier 9: Final verification ---
+
+  - id: final-verify
+    title: Run npm run verify (typecheck + lint + test). Manual playtest in worktree (npm run dev) — recover bee+clover from a ruin, combine, watch the ceremony wave, walk away. Confirm wildflower + tallgrass spread autonomously. Sequence each species via the manual; press [2] to see the family tree overlay. Watch a bee carry pollen between two clover patches and confirm the cross sprouts.
+    spec_id: precis-17-autonomous-flora-spread
+    spec_sections: []
+    context_files: []
+    output_files: []
+    depends_on:
+      - spread-engine-tests
+      - clover-spread-parity-tests
+      - wildflower-spread-tests
+      - tallgrass-spread-tests
+      - ceremony-wave-tests
+      - pollination-tests
+      - lineage-overlay-tests
+      - spread-perf-test
+      - manual-entries-added
+      - game-loop-spread-sweep
+    verification:
+      - npm run verify
+    repair: retry
+    tags:
+      - verify
