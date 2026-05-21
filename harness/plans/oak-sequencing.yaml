@@ -1,0 +1,77 @@
+plan:
+  id: oak-sequencing
+  title: Oak sequencing — attach TraitBag to OakData via identity-derived generateTraitBag
+  created: 2026-05-21
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/oaks.test.ts
+
+tasks:
+  # --- Tier 1: Widen the OakData component type ---
+
+  - id: widen-oak-data-component
+    title: Add required traits TraitBag field to ComponentDataMap[OakData] in src/engine/ecs/types.ts. Import TraitBag from ../genetics. No new ComponentType — the existing OakData grows.
+    spec_id: oak-sequencing
+    spec_sections:
+      - oak-data-carries-trait-bag
+    context_files:
+      - src/engine/ecs/types.ts
+      - src/engine/genetics/index.ts
+    output_files:
+      - src/engine/ecs/types.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - ecs
+
+  # --- Tier 2: Wire spawnOak to generate the TraitBag ---
+
+  - id: spawn-oak-wires-trait-bag
+    title: In src/engine/oaks.ts spawnOak, after computing identity via generateOakIdentity, derive traits via generateTraitBag(identity) and attach to the OakData component alongside plantedTime and identity. Import generateTraitBag from ./genetics. No new spawnOak parameters.
+    spec_id: oak-sequencing
+    spec_sections:
+      - spawn-oak-generates-trait-bag
+    context_files:
+      - src/engine/oaks.ts
+      - src/engine/genetics/index.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/oaks.ts
+    depends_on:
+      - widen-oak-data-component
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - oaks
+
+  # --- Tier 3: Tests covering determinism, divergence, and bounds ---
+
+  - id: oak-trait-bag-tests
+    title: Add tests to src/engine/__tests__/oaks.test.ts (pattern TraitBag) covering — same stewardName + same anchor produces identical traits across two GameStates; different anchors produce different traits; phenotype axes are finite numbers in [0, 1]; recessives.length in [0, 2] with every entry finite in [0, 1]. Reuse the existing test helpers in src/engine/__tests__/helpers.ts.
+    spec_id: oak-sequencing
+    spec_sections:
+      - same-anchor-same-genome
+      - different-anchor-different-genome
+      - genesis-seeded-oaks-deterministic-across-runs
+    context_files:
+      - src/engine/oaks.ts
+      - src/engine/__tests__/oaks.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/genetics/index.ts
+    output_files:
+      - src/engine/__tests__/oaks.test.ts
+    depends_on:
+      - spawn-oak-wires-trait-bag
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/oaks.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test

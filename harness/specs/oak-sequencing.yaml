@@ -1,0 +1,154 @@
+id: oak-sequencing
+name: 'Oak sequencing (TraitBag on OakData)'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/ecs/types.ts
+  - src/engine/oaks.ts
+  - src/engine/genesis.ts
+  - src/engine/__tests__/oaks.test.ts
+  - src/engine/__tests__/helpers.ts
+dependencies:
+  - precis-3-genetics-v1
+  - white-oak-landmarks
+
+behaviors:
+  - id: oak-data-carries-trait-bag
+    description: >
+      The OakData component shape in src/engine/ecs/types.ts gains a
+      required `traits: TraitBag` field alongside the existing
+      `plantedTime: number` and `identity: string` fields. TraitBag is
+      imported from src/engine/genetics. No new ComponentType is added —
+      the existing OakData component grows. Every OakData component
+      attached to an entity must carry all three fields; the type system
+      forbids construction without `traits`.
+    inputs:
+      - 'codebase after this feature lands'
+    outputs:
+      - 'ComponentDataMap[ComponentType.OakData] has required traits: TraitBag'
+      - 'src/engine/ecs/types.ts imports TraitBag from ../genetics'
+    state_changes:
+      - field: world entities with ComponentType.OakData
+        effect: 'each OakData component carries identity + plantedTime + traits'
+    determinism: deterministic
+
+  - id: spawn-oak-generates-trait-bag
+    description: >
+      spawnOak in src/engine/oaks.ts continues to call
+      generateOakIdentity(stewardName, anchorX, anchorY) for the identity
+      string, then calls generateTraitBag(identity) from
+      src/engine/genetics to derive a deterministic TraitBag, and attaches
+      both to the OakData component. The identity-derived TraitBag means
+      the same steward name + anchor coords always produce the same oak
+      genome — preserving the existing "same steward name produces the
+      same world" determinism contract. No new spawnOak parameters; the
+      trait derivation is internal to the function.
+    inputs:
+      - 'spawnOak(state, anchorX, anchorY, time) is called'
+    outputs:
+      - 'a new entity with OakData carrying identity + plantedTime + traits'
+    state_changes:
+      - field: world (new entity)
+        effect: 'OakData attached with identity, plantedTime, and traits derived from identity'
+    determinism: deterministic
+
+  - id: genesis-seeded-oaks-deterministic-across-runs
+    description: >
+      seedOaks in src/engine/oaks.ts (called from genesis.ts during the
+      handoff) places OAK_GENESIS_COUNT oaks. Each placed oak's TraitBag
+      is fully derived from its identity via generateTraitBag, which is
+      itself derived from `${stewardName}:oak:${anchorX},${anchorY}` via
+      sha256Sync. Two GameStates seeded with the same stewardName produce
+      the same set of oaks at the same anchors with the same identities
+      and the same TraitBags. The novelty/recessive distribution is
+      identical across runs of the same name.
+    inputs:
+      - 'two GameStates initialized with the same stewardName, both run through seedOaks'
+    outputs:
+      - 'matching oak entity counts'
+      - 'matching identity strings per anchor position'
+      - 'matching TraitBag.bloomTiming, coldTolerance, droughtResponse, pollinatorPreference, and recessives per anchor'
+    state_changes: []
+    determinism: deterministic
+
+  - id: schema-test-allows-no-new-gamestate-field
+    description: >
+      No new top-level GameState field is added by this feature. The
+      TraitBag rides on the existing OakData ECS component, not on
+      GameState directly. As a result, EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts does not need
+      to grow, and the schema test continues to pass unchanged.
+    inputs:
+      - 'codebase after this feature lands'
+    outputs:
+      - 'EXPECTED_FIELDS in schema.test.ts is unchanged'
+      - 'schema.test.ts still passes'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: same-anchor-same-genome
+    description: >
+      Two oaks spawned in different test runs at the same (anchorX,
+      anchorY) under the same stewardName produce identical TraitBags
+      (same four phenotype axes, same recessive count, same recessive
+      values).
+    expected: >
+      Test constructs two minimal GameStates with the same steward name,
+      spawns one oak at (anchorX, anchorY) in each, then deep-equals the
+      OakData.traits between the two.
+
+  - id: different-anchor-different-genome
+    description: >
+      Two oaks spawned at different (anchorX, anchorY) anchors under the
+      same stewardName produce different identity hashes and therefore
+      different TraitBags. With overwhelming probability at least one of
+      the four phenotype axes differs.
+    expected: >
+      Test spawns two oaks at (10, 10) and (20, 20) under the same
+      stewardName and asserts traits objects are not deep-equal.
+
+  - id: existing-oak-tests-still-pass
+    description: >
+      The existing src/engine/__tests__/oaks.test.ts suite (footprint
+      validation, spawn occupancy, scan commit, genesis seed count) must
+      remain green. The new traits field must not break any existing
+      assertion. The scan-commit test in particular continues to push
+      a ScannedSpecimen with the oak identity to state.oakSpecimens.
+    expected: >
+      `npx vitest run src/engine/__tests__/oaks.test.ts` exits 0 with
+      every existing case passing alongside the new genome cases.
+
+  - id: oak-data-without-traits-is-a-type-error
+    description: >
+      If any call site constructs an OakData object literal without the
+      traits field (e.g. {plantedTime, identity}), TypeScript reports
+      that the required `traits` property is missing. There is no
+      runtime fallback.
+    expected: >
+      Type-check fails for any OakData object literal missing `traits`.
+
+failure_conditions:
+  - trigger: 'spawnOak produces an oak whose traits differ between two runs with the same stewardName + anchor'
+    expected: >
+      A test in oaks.test.ts spawns the same oak twice (in two separate
+      GameStates with the same stewardName) and deep-equals
+      OakData.traits between them. If they diverge, determinism is
+      broken and the PR cannot ship.
+
+  - trigger: 'generateTraitBag output is NaN or out-of-range for an oak identity'
+    expected: >
+      A test in oaks.test.ts spawns an oak and asserts that every
+      phenotype axis of OakData.traits is a finite number in [0, 1] and
+      that traits.recessives.length is in [0, 2] with every element
+      finite and in [0, 1].
+
+  - trigger: 'an OakData component is found in the ECS world without a traits field'
+    expected: >
+      Type-check fails at the construction site. There is no runtime
+      world scan needed — the type system enforces presence.
+
+verification:
+  test_file: src/engine/__tests__/oaks.test.ts
+  test_pattern: 'TraitBag'
+  command: 'npx vitest run src/engine/__tests__/oaks.test.ts'

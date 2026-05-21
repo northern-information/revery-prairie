@@ -1,6 +1,7 @@
 import { SPACE_BORDER } from './constants'
 import { sha256Sync } from './crypto'
 import { ComponentType } from './ecs/types'
+import { generateTraitBag } from './genetics'
 import { isInBounds, isWalkableTile, posKey } from './position'
 import { Season, TileType, Zone } from './types'
 
@@ -92,9 +93,11 @@ export const spawnOak = (state: GameState, anchorX: number, anchorY: number, tim
   state.world.addComponent(eid, ComponentType.MultiPosition, {
     positions: getOakBodyPositions(anchorX, anchorY),
   })
+  const identity = generateOakIdentity(state.stewardName, anchorX, anchorY)
   state.world.addComponent(eid, ComponentType.OakData, {
     plantedTime: time,
-    identity: generateOakIdentity(state.stewardName, anchorX, anchorY),
+    identity,
+    traits: generateTraitBag(identity),
   })
   state.world.addComponent(eid, ComponentType.EntityTag, 'oak')
   state.world.addComponent(eid, ComponentType.EntityZone, { zone: Zone.Overworld })

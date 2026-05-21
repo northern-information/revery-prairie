@@ -1,4 +1,4 @@
-import type { FloraGenome } from '../genetics'
+import type { FloraGenome, TraitBag } from '../genetics'
 import type { CharacterBehavior, MovementTween, PollenLoad, Position, Zone } from '../types'
 
 export type Entity = number
@@ -88,6 +88,7 @@ export interface ComponentDataMap {
   [ComponentType.OakData]: {
     plantedTime: number
     identity: string
+    traits: TraitBag
   }
   [ComponentType.SatelliteData]: {
     length: number
