@@ -50,7 +50,7 @@ behaviors:
   - id: rain-front-sweep
     description: >
       Global rain in the overworld is modeled as a moving front, not
-      a uniform fill. When state.rainIntensity > 0, tickTileWater
+      a uniform fill. When state.precipitationIntensity > 0, tickTileWater
       advances state.rainFrontOffset by RAIN_FRONT_SPEED each tick.
       isInRainFront(state, x, y) maps the wind direction to a sweep
       axis (windToFrontAxis) and tests whether the tile is inside
@@ -67,7 +67,7 @@ behaviors:
       RAIN_FRONT_WIDTH - RAIN_FRONT_FRINGE) to avoid probabilistic
       fringe exclusion.
     inputs:
-      - 'state.rainIntensity > 0'
+      - 'state.precipitationIntensity > 0'
       - 'state.weather.windDirection'
     outputs:
       - 'isInRainFront returns { hit, edgeAlpha } per tile'
