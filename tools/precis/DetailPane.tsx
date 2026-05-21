@@ -28,7 +28,6 @@ export const DetailPane = ({ feature, all, expanded }: DetailPaneProps) => {
     <Box flexDirection="column" borderStyle="round" borderColor="white" paddingX={1}>
       <Box>
         <Text bold>{`#${feature.id} ${feature.name}`}</Text>
-        <Text dimColor>{` (${feature.size})`}</Text>
       </Box>
       <Text>{feature.summary}</Text>
       <Box marginTop={1}>

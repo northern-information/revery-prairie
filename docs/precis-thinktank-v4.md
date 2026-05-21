@@ -57,6 +57,15 @@ The doctrine also names, descriptively, two tonal registers the cosmology suppor
 - **Bee+clover becomes the seeding ceremony.** Large radial wave (~7-9 tile radius, ~100-250 tiles per cast after terrain filtering), slow animation, **the bee binds to the patch as its pollinator for the patch's life** — one bee per patch, ever. Bee and clover are **recovered from ruins, not gifted by NPCs.** Folded into `#17`'s scope.
 - **Meteorites are not a resource.** They are placeable cosmological punctuation — the player's vocabulary for marking places as having consequence. Place them, connect them with faint golden lines, close shapes into hallowed ground. The unstable-meteorite 1-in-7 explode mechanic (`entities.ts:113`) is deleted in the same spec. Tracked as `#18`.
 
+**Locked in round 9:**
+
+- **The diegetic test.** Every UI surface or behavior change is one of three things: an _inscription_ (authored, bounded — title cards, manual pages, predecessor records), an _instrument_ (observed, current-state — minimap, weathervane, almanac, sidebar), or a _voice_ (narrating, persistent — activity log, genesis commentary, consumer-electronics chrome). Inscriptions and instruments pass. Voices do not ship. The test is portable and retroactive — it explains Round 0's correctness and forward-constrains every future UI decision.
+- **The bottom bar is the permacomputer.** Not UI. A diegetic device the steward carries. All bottom-bar surfaces (minimap, backpack, item info, the new ambient instruments) are functions of one device. Future additions must pass the diegetic test.
+- **Permacomputing (permacomputing.net) is named as source doctrine.** The 10 principles are the reference frame for the permacomputer's visual and behavioral decisions. The visual register is calm-tech / exposed-seam — monospace, low-color, ASCII-first, no chrome — not military-collapse HUD.
+- **Consumer-electronics gestures are voices in the visual domain and are banned.** Boot animations, progress bars, splash screens, loading prefixes, percentage indicators, motion-as-performed-effort. The seam is enough.
+- **Genesis is a reverse deep-time projection, not a narrated prologue.** The permacomputer back-derives the world from the seed of the steward's name; the screen exposes the seams of the derivation. All 14 epoch commentary strings, including _"A steward is called…"_, are deleted. The year counter is retained as `~13.8B years ago` style — approximated, never precise, monospace, no ornamentation.
+- **The `size` field is removed from `docs/precis-status.yaml` entirely, retroactively.** Sizing was a vestige of human estimation; in the current authorship environment it is not load-bearing. Historical sizes remain in git history only.
+
 **Open in v4:**
 
 - Whether visible wear shows a continuous indicator (alpha decay across the item's lifetime) or a single late-threshold marker (a small affordance only when the item is near broken). Tyler said "visible wear" — round 1 below assumes continuous alpha decay as the default, with a documented escape hatch if playtesting argues otherwise.
@@ -497,6 +506,116 @@ _Tyler: "this is all great. so now we open up cosmic horror in new ways. found f
 - For `#25`: which fauna types ship in the first cut? (Astrid: at least one with an analog to a native creature — _wrong bee_ — and at least one with no analog. Spec author chooses.)
 - For the `#8b` amendment: should metabolic consumption be visible at the moment it happens, or only via camera footage? (Calla: only via camera. Otherwise the player learns by happenstance, which violates the noticing-is-the-game principle. _The camera is how horror is learned._)
 - For `#24`: do we author specific "last-frame-of-the-last-camera" moments as templates, or let them emerge from procedural generation? (Boon: lean procedural with template hints. Authoring specific moments risks the same brittleness the activity log had.)
+
+---
+
+## Round 9: the permacomputer and what it does not narrate
+
+_Tyler: "the genesis sequence is impressive, but the year and narration of epochs seems antithetical to our recent decisions. no god view, etc. what do you all think? can we drop them? — and what do we think of adding a day/time/weather/wind affordance to the bottom UI? my thought is the bottom UI is an interface of the permacomputer, and this is information that would be readily available."_
+
+### What permacomputer actually means
+
+> **Delta:** Before anyone speaks about either item, the room needs to admit something it has been carrying around without naming. _Permacomputer is not a portmanteau._ It is a reference. **Permacomputing** is an existing practice — small-scale, low-energy, repair-oriented, anti-extractive computing. Its principles, as published at permacomputing.net, are: _care for all hardware, especially the chips; observe first; not doing; expose the seams; build on solid ground; integrate biological and renewable resources_, and others in the same register. **Every one of those principles is already in the prairie's doctrine under a different name.** Tending is care for the chips. _The world communicates by being looked at_ is observe first. _The world is annotated by your history_ is expose the seams. The prairie has been a permacomputing artifact the whole time; round 9 names it. **The permacomputer is not science-fiction. The permacomputer is the cosmology's only honest device.**
+
+> **Astrid:** And once that is named, both of Tyler's questions become a single question. _Does this surface obey permacomputing principles, or does it obey commodity-tech principles?_ The italic gold prose on the genesis screen obeys commodity-tech principles — it adds chrome, it narrates with confidence the cosmology should not have, it hides the seams it should be exposing. A stats-bar in the visual register of a power-armor HUD would do the same thing differently. **Neither belongs.** Both items in this round are the same item from two angles. We are deciding what the permacomputer is allowed to look like.
+
+> **Calla:** My framing on the first pass — _the permacomputer is booting_ — was wrong-shaped, and I want to name why so we don't carry the mistake forward. Booting is a commodity-tech gesture. Press to start. Splash screen. Loading bar. _Permacomputers don't boot._ They are tended. They are already on, or they are off because no one tended them. The right verb is not boot; the right verb is **observe.** When the steward types their name and the genesis screen begins, the permacomputer is not starting up. It is _looking at the world the name-seed implies_, and showing us what it sees.
+
+### The genesis screen as reverse deep-time projection
+
+> **Boon:** Tyler's reframe is the key that unlocks `#27`. _Reverse deep-time projection._ This is how astrophysics and historical geology actually work in 2026. Nobody witnessed the big bang. We back-derive it — from cosmic microwave background, from redshift, from isotope decay, from plate motion vectors, from sediment cores. The cosmos as we know it is _inferred_ from the present, not _narrated_ from the beginning. **The permacomputer doesn't precede the big bang.** The permacomputer reads the prairie-as-it-is and back-derives the conditions that produced it. What the player watches during genesis is _the permacomputer's extrapolation made visible._ That framing solves Tyler's temporal paradox cleanly because it is true to how the underlying science works _and_ true to how the underlying code works — `nameToSeed → mulberry32 → 14 stages of derivation`. The screen exposes the seams of that derivation. Permacomputing principle #5, applied at world-build time.
+
+> **Astrid:** And once that is the framing, the commentary cannot survive. A reverse projection has no narrator. It has _readings._ It has _gradients._ It has _inferred conditions._ It does not have _"Plates collide and ranges rise…"_ in confident italic prose. That sentence is the voice of a god who lived through the colliding. The permacomputer never lived through anything. The permacomputer _observes the prairie now and infers what must have been._ All fourteen commentary strings are voices. They go.
+
+> **Delta:** Including the last one. _A steward is called_ is the most beautiful of them and it is still a voice — a polite, invitation-shaped voice, but a voice. The cosmology delivers the invitation through the name-prompt itself; the genesis screen does not need to also speak it. **The seed becomes a world, and the world becomes the prairie the steward walks into.** No subtitle is required.
+
+> **Calla:** The Round 0 test applied to genesis. _Tests asserting commentary text are deleted, not rewritten._ Same rule. No replacement caption layer. No "but for accessibility" carve-out. Permacomputing exposes the seams; accessibility lands as a separate concern with its own diegetic-compatible answer (alt text, screen-reader text on the canvas itself, etc.) and does not require us to put a voice back on screen.
+
+### The year counter as exposed seam, not caption
+
+> **Boon:** The year counter is the only artifact on the genesis screen that survives a permacomputing audit. It is data. It is the permacomputer reporting where in its derivation it currently is. _13.8 billion years ago. 4.5 billion years ago. 100,000 years ago. Now._ That is a readout, not a narration. The visual treatment in `GenesisBottomBar.tsx` — italic gold, generous size, theatrical — is the problem; the data is not. **Recast it in the permacomputer's typographic register.** Monospace. No font ornamentation. No commentary line above it. A single line of cardinal digits, exposed-seam aesthetic.
+
+> **Astrid:** And the year is not precise. The permacomputer is honest about that. _Approximately 13.8 billion years ago._ A tilde, an abbreviated unit, never a false-confidence decimal. _~13.8B years ago. ~4.5B. ~100K. ~now._ That is the register of a geologist citing isotope-dated bounds, not the register of a consumer device pretending to know what it cannot. **And — this needs naming — consumer-electronics gestures are voices in the visual domain.** Boot animations are voices. Progress bars are voices. _Loading…_ is a voice. _0% → 100%_ is a voice. Splash screens are voices. They narrate the device's state to a user who is already looking at the device. The permacomputer does not do this. The year ticks because the computation is advancing; it does not announce that it is advancing.
+
+> **Delta:** _No boot animation when we do not need one._ The hardest discipline in this whole round, and Tyler named it in one sentence. The temptation when redesigning a screen is to fill its emptiness with motion that feels like effort. The permacomputer does not need to perform effort. _It is observing. The seam is enough._
+
+> **Calla:** Strong vote to keep the year, recast as Astrid and Boon describe. The year is an instrument readout. The commentary was a voice. We keep the readout. We delete the voice.
+
+### What the device shows during play
+
+> **Calla:** The second item earns its place under exactly this framing — with one correction to my earlier framing that matters. **The stats bar has been gone for a long time.** Its plumbing survived — `state.wind`, `state.weather.season`, `state.weather.sky`, `state.precipitationIntensity`, `state.seasonalPhase` and its gregorian projection all still exist in `src/engine/types.ts`. The affordance does not. The bottom-bar center slot is not "the slot freed by `#14`"; it has been empty far longer than that. **We are not reviving the stats bar.** We are introducing a new permacomputing-register instrument that happens to read existing state. The distinction is doctrinally important — a stats bar is a commodity-game gesture; what we are adding is a thing in the world.
+
+> **Boon:** Data is there, no engine work. New component in `src/components/`, placed between Minimap and ItemInfo in the existing bottom-bar flex layout (`GameScreen.tsx:225-247`). Pure render. No new state fields. No new event types. Reads what the world already exposes.
+
+> **Astrid:** And the discipline that makes it a permacomputing instrument rather than a stats panel is the same Round 0 discipline applied to a new surface. **Current state only. No history. No transitions narrated. No events.** _It is now spring. The wind is from the west, gentle. The sky is clear._ Three readings of the present. The player who wants to know what changed looks at the world. The permacomputer is a barometer, not a journal.
+
+> **Delta:** The 1850s farmstead is the right reference, not the power-armor HUD. _Weathervane. Barometer. Almanac. Calendar._ Those are the instruments a steward would actually have, and they are all _observe-first_ devices. They do not push. They do not alert. They sit there and the steward reads them. **The permacomputer is what happens when those four instruments are one device, made from materials that respect their function.**
+
+### The weathervane and the qualitative wind
+
+> **Calla:** Wind direction reads fastest as a rotating arrow. _Weathervane._ The instrument has a name and the name does the work; the player learns it in one glance. Numeric direction (N / NE / E / …) requires reading; an arrow requires looking. _Observe first._ For speed, qualitative is the right register — five labels, monosyllabic where possible, **legible to a 19th-century farmer.** Numeric m/s is a commodity-tech gesture. We don't need the precision; we need the gesture.
+
+> **Boon:** `state.wind.smoothSpeed` maps to those labels with five thresholds. Direction is `state.wind.direction` (`WindDirection` is already 8-cardinal). The arrow glyph rotates in 45° increments — eight orientations, one component, no new state. The qualitative label sits beside it. Cost: negligible.
+
+### The almanac and the bookmarked year
+
+> **Delta:** Tyler's instinct on the calendar is the part of this round I want to dwell on. Strictly continuous — _no transition narration_, no _Spring has arrived_ caption — but **bookmarked at the solstices and equinoxes, with a countdown to the next bookmark.** This is exactly the right call and I want to name why. A countdown is not a forecast. A countdown is _the permacomputer reading the world's trajectory and reporting where the trajectory currently is._ A sundial projects the hour; a planted seed projects its bloom date; an almanac projects the equinox. **Projection is observation made temporal.** The countdown is not a voice. It is a current-state fact derived from `state.seasonalPhase`, reported the way a barometer reports a coming storm — by showing where the needle is now, not by telling the steward what to do about it.
+
+> **Astrid:** _Twenty-three days to the solstice._ That sentence is an instrument speaking. _The solstice is coming, prepare your fields._ That sentence is a god speaking. The first one ships. The second one we recognize and refuse.
+
+> **Calla:** This also gives the player something the prairie has been quietly missing — _structural rhythm._ A player who plants a slow-growing wildflower and sees _38 days to the equinox_ on the permacomputer can plan around the equinox. Right now, seasonal planning is something the player has to either count manually or guess. The countdown does not tell the player what to plant; it tells the player where in the year they are. **It rewards attention with planning.** That is the loop we built for in Round 1 — _the walk back to check is the gameplay_ — surfaced on the device the steward is carrying.
+
+> **Boon:** Implementation: project `state.seasonalPhase` forward to the next of {0.0, 0.25, 0.5, 0.75} in the annual cycle, derive a day count from the phase delta and the annual day length, render `{N} days to {bookmark}` where `bookmark` is one of spring-equinox, summer-solstice, autumn-equinox, winter-solstice. Pure derived value, no new state. No emphasis change near the bookmark — continuous, the day-counter does the work.
+
+### The title card as inscription, not voice
+
+> **Astrid:** The boot title card needs its own line because it is the exception that helps define the rule. The title card is an inscription, not a voice. **Inscriptions and instruments can coexist; voices cannot.** An inscription has an author and a boundary — it begins, it is read, it ends. A voice has neither — it persists, it narrates, it speaks over the world. The genesis commentary was a voice. The activity log was a voice. The title card is an inscription. It earns its place because it has a beginning and an end, it is reverent, it functions as a chapter mark, and it echoes the existing structural title cards. **It stays.** And the diegetic test, formally, has two passes now: instrument, or inscription, or voice. The first two ship; the third does not.
+
+### The audit ahead
+
+> **Calla:** Naming the diegetic test cuts across more than the two items in this round. Several upcoming items on the board have UI implications that the test will weigh on. **`#15` wear** — visible wear is locked, but the question of _what visible looks like_ now has a frame: an instrument-register indicator, not a HUD chrome bar. **`#16` the tenure ends** — the handoff has a surface; the test asks whether that surface is inscription (a final manual page, perhaps) or voice (a closing narration, refused). **`#19` soil depletion** and **`#20` NPC mortality** — both will need ways for the steward to notice without being told. **`#23` the camera** — found footage is by definition inscription-shaped; it has an author and a boundary. **`#24` seeded predecessors** — predecessor records are inscription. The test passes them. But we should verify, not assume.
+
+> **Delta:** And there are existing surfaces the test should be applied to before they collect more layers. The sidebar (already mostly observational). The manual (already inscription). The minimap (instrument). The command panel — _that one I am less sure of._ The boot title card passes. The harvest/cut interactions were already deleted, but if vestiges of their explanations live anywhere, those would be voices. **The audit is a round, not a sentence.** It earns its own spec.
+
+> **Astrid:** And going forward, every new UI surface or behavior change cites the test in its spec. _Is this an inscription, an instrument, or a voice?_ One line in the spec answers it. Voices do not ship.
+
+### The unifying principle
+
+> **Delta:** Both items in this round are the permacomputer learning what kind of object it is. **Phase one: the permacomputer back-derives the world from the seed of the steward's name and exposes the seams of its derivation.** **Phase two: the permacomputer reads the world it derived and reports current readings to the steward.** Same device. Same principles. Different temporal modes. The voice was the bug — in both screens. We delete the voice. We never let it back in. _The permacomputer does not narrate. The permacomputer observes._
+
+> **Astrid:** And the diegetic test, named for the first time in this round, is the rule that prevents recurrence. _Is this an inscription, an instrument, or a voice?_ Inscriptions and instruments pass. Voices do not. Consumer-electronics gestures are voices in the visual domain. The test is portable. It will retroactively explain Round 0's correctness and forward-constrain every future UI decision. **It is doctrine.**
+
+### Consensus
+
+- **Genesis epoch commentary is deleted in full.** All 14 `commentary` strings in `GENESIS_EPOCHS` (`src/engine/genesis.ts`), including the final _"A steward is called…"_, and the italic gold `<p>` line in `GenesisBottomBar.tsx`. The visuals carry the meaning. The name-prompt carries the invitation.
+- **Genesis is reframed doctrinally as a reverse deep-time projection.** The permacomputer back-derives the world from the seed of the steward's name; the screen exposes the seams of the derivation. Replaces "geological simulation" framing in `docs/claude/genesis.md`.
+- **The year counter is retained, recast in the permacomputer's typographic register.** Approximated, never precise. Format: `~13.8B years ago` → `~4.5B` → `~100K` → `~now`. Tilde, abbreviated unit, no decimal precision-theatre. Monospace, no ornamentation, no caption above it.
+- **Consumer-electronics visual gestures are voices and are banned.** No boot animations, progress bars, splash screens, loading prefixes, percentage indicators, or any motion-as-performed-effort. The seam is enough.
+- **Tests asserting commentary strings are deleted, not rewritten.** Same rule as `#14`.
+- **The bottom-bar center slot becomes the permacomputer's ambient instruments — a new affordance, not a revival of the stats bar.** Stats bar has been gone for a long time; its plumbing survived; we are introducing a thing in the world.
+- **Panel placement: between Minimap and ItemInfo.** Locked.
+- **Instruments: weathervane (rotating arrow glyph, 8-cardinal), qualitative wind speed (five labels legible to a 19th-century farmer), current sky, current season, almanac.** Almanac is strictly continuous with bookmarked equinoxes and solstices and a countdown to the next bookmark. No transition narration. No event language. No emphasis change near the bookmark.
+- **The bottom bar is named, doctrinally, as the permacomputer.** All bottom-bar surfaces are functions of one device. Future additions pass the diegetic test.
+- **The diegetic test is locked.** _Is this an inscription, an instrument, or a voice?_ Inscriptions and instruments pass. Voices do not. Consumer-electronics gestures are voices in the visual domain. Goes under **Locked in v4**.
+- **The boot title card stays, named as the canonical inscription.**
+- **Permacomputing (permacomputing.net) is named as the source doctrine for the permacomputer.** The 10 principles are the reference frame for any future visual or behavioral decision about the device. The visual register is calm-tech / exposed-seam, not military-collapse HUD.
+- **A diegetic survey of existing UI surfaces and upcoming backlog items is tracked as `#29`.** Items likely affected: `#15`, `#16`, `#19`, `#20`, `#23`, `#24`. Existing surfaces to audit: command panel, sidebar, manual, minimap, item info, dev panel, scan progress bar.
+- **Meta-amendment to thinktank convention: the `size` field is removed from `docs/precis-status.yaml` entirely, retroactively.** All 29 existing entries have the field stripped; the locked field order updates to omit it. Sizing was a vestige of human estimation and is no longer load-bearing. Historical sizes remain in git history.
+
+### Tracked as
+
+- **`#27 Strip genesis epoch commentary; reframe as reverse deep-time projection`** — No deps. Removes all 14 `commentary` strings from `GENESIS_EPOCHS`, deletes the italic gold `<p>` from `GenesisBottomBar.tsx`, recasts the year counter as `~13.8B years ago` style (tilde, abbreviated unit, monospace, no ornamentation, no consumer-electronics gestures), drops or rewrites any tests that assert commentary text, updates `docs/claude/genesis.md` to the reverse-projection framing.
+- **`#28 Permacomputer ambient instruments (bottom-bar center)`** — No deps; data already on `state`. New component in `src/components/` placed between Minimap and ItemInfo, rendering weathervane (arrow glyph rotating with `state.wind.direction`), qualitative wind speed (five-label mapping over `state.wind.smoothSpeed`), current sky glyph, current season label, and almanac line with countdown to the next equinox or solstice derived from `state.seasonalPhase`. Calm-tech / exposed-seam visual register. Continuous readouts, no emphasis change near bookmarks. Permacomputing principles are the reference, not power-armor HUD.
+- **`#29 Diegetic survey`** — No deps. Audits existing UI surfaces and upcoming backlog items (`#15`, `#16`, `#19`, `#20`, `#23`, `#24`) against the diegetic test. Produces a written survey doc and individual amendments to affected items as needed. Meta-task; output is a survey plus targeted item amendments. May produce follow-up specs for any current surface that fails.
+- **Amendment to v4 top-matter:** diegetic test locked; bottom bar is the permacomputer; permacomputing.net named as source doctrine; consumer-electronics gestures banned.
+- **Amendment to thinktank convention:** `size` field deleted from `docs/precis-status.yaml` across all entries, retroactively.
+
+### Open questions deferred to specs
+
+- For `#27`: does the genesis screen acquire any new exposed-seam affordance now that it has lost captions — a faint hash readout, a tile-count counter, a seed-bytes display? (Astrid: only if the spec author finds one that earns its place. Default to nothing.)
+- For `#28`: exact glyph for the weathervane arrow and the exact five qualitative labels. (Calla: short, monosyllabic where possible, recognizable to a 19th-century farmer. Suggested starting set, spec author to refine: _calm, light, fresh, brisk, gale._)
+- For `#29`: format of the survey output — a markdown doc under `docs/`, or amendments distributed across affected item notes? (Delta: lean toward a doc that links to amendments. Easier to read in one pass.)
+- For the broader doctrine: does the `size`-field removal need a backlog-TUI fix? Likely yes if `npm run backlog` reads the field. Folded into the same change set as the YAML mass-edit.
 
 ---
 
