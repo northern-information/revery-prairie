@@ -171,3 +171,15 @@ body,
   opacity: 0.2;
   pointer-events: none;
 }
+
+/* Strong variant for pure-black backgrounds (boot title card) where
+   the 0.2 alpha disappears into the black. */
+.film-grain-overlay-strong::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('/textures/000973910004.jpg');
+  background-repeat: repeat;
+  opacity: 0.4;
+  pointer-events: none;
+}

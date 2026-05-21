@@ -190,17 +190,9 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   const washIntensity = typeof seasonalPhase === 'number' ? seasonalWash(seasonalPhase).intensity : 0
   const alpha = FILM_GRAIN_ALPHA * (1 - washIntensity)
 
-  // 'multiply' so grain can only darken the destination, never brighten
-  // it. With plain alpha-blend the JPG's bright speckles overlapped
-  // visually with white tile-glyph features (trail, fresh footsteps,
-  // edge highlights), camouflaging them. Multiply preserves the
-  // darkening-dust intent without adding bright pixels.
   const savedAlpha = ctx.globalAlpha
-  const savedOp = ctx.globalCompositeOperation
   ctx.globalAlpha = savedAlpha * alpha
-  ctx.globalCompositeOperation = 'multiply'
   ctx.drawImage(cache.canvas, dx, dy)
-  ctx.globalCompositeOperation = savedOp
   ctx.globalAlpha = savedAlpha
 }
 

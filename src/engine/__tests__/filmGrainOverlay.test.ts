@@ -182,18 +182,6 @@ describe('film grain overlay pass', () => {
       expect(ctx.globalAlpha).toBeCloseTo(0.5, 6)
     })
 
-    it('uses multiply composite op so grain can only darken (regression for trail camouflage)', () => {
-      __testing.setGrainImage(makeFakeImage())
-      __testing.setGrainReady(true)
-      const state = createTestState()
-      state.map = makeFlatMap(state.mapWidth, state.mapHeight)
-
-      const { ctx, calls } = makeRecordingCtx()
-      filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
-      expect(calls[0].globalCompositeOperation).toBe('multiply')
-      // restored after draw
-      expect(ctx.globalCompositeOperation).toBe('source-over')
-    })
   })
 
   describe('cache invalidation', () => {
