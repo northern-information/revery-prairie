@@ -1,0 +1,703 @@
+id: precis-17-autonomous-flora-spread
+name: 'Precis #17 — Autonomous flora spread + bee+clover ceremony + bee-mediated genetics'
+priority: high
+layer: integration
+source_files:
+  - docs/precis-thinktank-v4.md
+  - docs/precis-status.yaml
+  - CLAUDE.md
+  - src/engine/clover.ts
+  - src/engine/genetics/index.ts
+  - src/engine/types.ts
+  - src/engine/recipes.ts
+  - src/engine/monarch.ts
+  - src/engine/floraLifecycleEntry.ts
+  - src/engine/floraLifecycle.ts
+  - src/engine/gameLoop.ts
+  - src/engine/constants.ts
+  - src/engine/effects.ts
+  - src/engine/state.ts
+  - src/engine/ecs/types.ts
+  - src/engine/render/passes/
+  - src/engine/manual.ts
+  - src/hooks/useKeyboard.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+  - docs/claude/flora.md
+  - docs/claude/genetics.md
+dependencies:
+  - precis-1-multi-species-flora
+  - precis-2-phenological-seasons
+  - precis-3-genetics-v1
+  - precis-5-ruin-recovery
+  - precis-6-naturalists-manual
+
+behaviors:
+  # --- Tier 0: Doctrine + status alignment ---
+
+  - id: doctrine-and-status-aligned
+    description: >
+      docs/precis-status.yaml is updated to mark feature 17 as in-progress
+      with spec: harness/specs/precis-17-autonomous-flora-spread.yaml and
+      plan: harness/plans/precis-17-autonomous-flora-spread.yaml. The
+      Dickinson touchstone ('to make a prairie it takes a clover and a
+      bee, and revery') from v4 round 4 is preserved verbatim in the
+      notes field. docs/claude/flora.md gains a section on autonomous
+      spread, ceremony wave, lineage, and bee-mediated pollination.
+      docs/claude/genetics.md gains a note that crossTraitBags is now
+      wired via #17 (was previously unwired per docs/claude/genetics.md
+      and the comment at src/engine/genetics/index.ts:6-7).
+    inputs:
+      - 'codebase after #17 lands'
+    outputs:
+      - 'docs/precis-status.yaml has feature 17 in-progress with spec+plan'
+      - 'docs/claude/flora.md documents autonomous spread + ceremony'
+      - 'docs/claude/genetics.md notes crossTraitBags is wired by #17'
+    state_changes: []
+    determinism: deterministic
+
+  # --- Tier 1: Species-agnostic spread engine ---
+
+  - id: spread-engine-module
+    description: >
+      A new module src/engine/flora/spread.ts is created. It exports
+      floodFillFloraPatches(state: GameState, species: FloraSpecies):
+      FloraPatch[] (generic patch detection given a species predicate),
+      commitFloraPreviews(state: GameState, species: FloraSpecies, time:
+      number): boolean (phase-1 commit walking the per-species preview
+      set, setting tiles, generating identities with parent-lineage
+      propagation and consuming primedPollen to call crossTraitBags),
+      applyParentLineage(parentIdentity: string | undefined, binomial:
+      string, childKey: string, time: number): { identity: string;
+      traits: TraitBag } (helper returning a child identity seeded from
+      the parent's first 8 hex chars, with traits generated via
+      generateTraitBag(childIdentity) for non-primed paths), and
+      tickSpeciesSpread(state: GameState, time: number, config:
+      SpeciesSpreadConfig): void (the engine, parameterized by species
+      config). No species-specific behavior lives in this module.
+    inputs:
+      - 'codebase after #17 lands'
+    outputs:
+      - 'src/engine/flora/spread.ts exists and exports the four engine functions'
+      - 'no FloraSpecies values are hardcoded in spread.ts except via the config arg'
+    state_changes: []
+    determinism: deterministic
+
+  - id: species-spread-config-interface
+    description: >
+      A new module src/engine/flora/spreadConfig.ts is created. It
+      exports the SpeciesSpreadConfig interface — { species: FloraSpecies;
+      selectGrowthTargets: (state: GameState, patches: FloraPatch[]) =>
+      Map<string, Position[]>; requiresPollinatorAdjacency: boolean;
+      baseGrowthChance: number; winterDormant: boolean;
+      discoveryEventOnGrowth: string }. Three implementations ship under
+      src/engine/flora/clover/spread.ts, src/engine/flora/wildflower/
+      spread.ts, and src/engine/flora/tallgrass/spread.ts. Each module
+      exports a single SpeciesSpreadConfig constant
+      (CLOVER_SPREAD_CONFIG, WILDFLOWER_SPREAD_CONFIG,
+      TALLGRASS_SPREAD_CONFIG). Species modules must not import from
+      each other — wildflower/spread.ts has no import of
+      src/engine/clover.ts or flora/clover/spread.ts. The shared engine
+      is the only common substrate.
+    inputs:
+      - 'codebase after #17 lands'
+    outputs:
+      - 'SpeciesSpreadConfig interface exported from spreadConfig.ts'
+      - 'three config constants exported from per-species modules'
+      - 'no cross-species imports between flora/clover, flora/wildflower, flora/tallgrass'
+    state_changes: []
+    determinism: deterministic
+
+  # --- Tier 2: Per-species spread behaviors ---
+
+  - id: clover-spread-extracted
+    description: >
+      Clover's spread logic is extracted from src/engine/clover.ts to
+      src/engine/flora/clover/spread.ts. The spiral growth selector
+      (currently clover.ts:185-229 — getOrCreateSpiralState,
+      selectSpiralGrowth, getPatchSeed, angleDifference) and growth
+      front computation (clover.ts:141-167 — computeGrowthFront) move
+      into the per-species module. The exported
+      CLOVER_SPREAD_CONFIG has requiresPollinatorAdjacency: true,
+      baseGrowthChance: CLOVER_BASE_GROWTH_CHANCE (unchanged),
+      winterDormant: true, discoveryEventOnGrowth:
+      'event:clover-growth' (unchanged), and selectGrowthTargets calls
+      the moved spiral selector with the bee-count gate. The existing
+      tickCloverGrowth function in clover.ts becomes a thin re-export
+      that delegates to tickSpeciesSpread(state, time,
+      CLOVER_SPREAD_CONFIG) so existing call sites (gameLoop.ts) and
+      tests do not need to change names. The clover identity-generation
+      site (clover.ts:256) is removed — identity generation moves into
+      commitFloraPreviews via applyParentLineage.
+    inputs:
+      - 'codebase after #17 lands'
+    outputs:
+      - 'src/engine/flora/clover/spread.ts owns the spiral selector'
+      - 'src/engine/clover.ts no longer exports computeGrowthFront or selectSpiralGrowth'
+      - 'tickCloverGrowth in clover.ts is a thin wrapper over tickSpeciesSpread'
+      - 'CLOVER_SPREAD_CONFIG is the only clover-spread surface other modules see'
+    state_changes:
+      - field: 'spread call graph'
+        effect: 'gameLoop.ts calls tickSpeciesSpread with CLOVER_SPREAD_CONFIG instead of tickCloverGrowth directly (optional — both forms valid)'
+    determinism: deterministic
+
+  - id: wildflower-spread-added
+    description: >
+      A new src/engine/flora/wildflower/spread.ts ships
+      WILDFLOWER_SPREAD_CONFIG. requiresPollinatorAdjacency: true,
+      baseGrowthChance: WILDFLOWER_BASE_GROWTH_CHANCE (new constant),
+      winterDormant: true, discoveryEventOnGrowth:
+      'event:wildflower-growth' (new). selectGrowthTargets uses a
+      pollinator-biased selector — for each patch, it computes the set
+      of Dirt neighbors of patch tiles, then filters to neighbors whose
+      Chebyshev distance to any bee or monarch entity is <= 3. Among
+      filtered candidates, each one rolls baseGrowthChance per tick to
+      be selected. Cap per patch per tick:
+      WILDFLOWER_MAX_GROWTH_PER_TICK (new constant). No spiral logic —
+      wildflower spreads radially toward pollinators, not along a
+      rotating front.
+    inputs:
+      - 'codebase after #17 lands'
+    outputs:
+      - 'src/engine/flora/wildflower/spread.ts ships WILDFLOWER_SPREAD_CONFIG'
+      - 'wildflower spread halts when no bee/monarch is within Chebyshev-3 of any wildflower tile'
+    state_changes:
+      - field: floraGrowthPreviews[Wildflower]
+        effect: 'new tiles queued per tick when conditions met'
+    determinism: probabilistic
+
+  - id: tallgrass-spread-added
+    description: >
+      A new src/engine/flora/tallgrass/spread.ts ships
+      TALLGRASS_SPREAD_CONFIG. requiresPollinatorAdjacency: false,
+      baseGrowthChance: TALLGRASS_BASE_GROWTH_CHANCE (new constant,
+      smaller than clover and wildflower — slowest spread),
+      winterDormant: true, discoveryEventOnGrowth:
+      'event:tallgrass-growth' (new). selectGrowthTargets uses a
+      uniform rhizome selector — for each patch, it computes Dirt
+      neighbors, each rolls baseGrowthChance, no pollinator filter, no
+      spiral. Cap per patch per tick: TALLGRASS_MAX_GROWTH_PER_TICK
+      (new constant).
+    inputs:
+      - 'codebase after #17 lands'
+    outputs:
+      - 'src/engine/flora/tallgrass/spread.ts ships TALLGRASS_SPREAD_CONFIG'
+      - 'tall grass spreads independent of bees and seasons-except-winter'
+    state_changes:
+      - field: floraGrowthPreviews[TallGrass]
+        effect: 'new tiles queued per tick when conditions met'
+    determinism: probabilistic
+
+  # --- Tier 3: Lineage propagation through spread ---
+
+  - id: lineage-propagation-via-identity-prefix
+    description: >
+      applyParentLineage(parentIdentity, binomial, childKey, time) in
+      flora/spread.ts produces the child's identity by calling
+      generateRuntimeIdentity(`${binomial}:spread:${parentIdentity?.
+      slice(0, 8) ?? 'genesis'}`, childKey, time). The shared 8-hex
+      prefix in the SHA input means descendants of the same ancestor
+      share family-resemblance regions in the identity-derived hex
+      grid (per docs/claude/genetics.md line 5: the hex grid is
+      identity-derived). Traits are generated fresh from the child
+      identity via generateTraitBag(childIdentity) — there is no
+      separate mutation function. Drift is implicit in the hash.
+      commitFloraPreviews reads each preview tile's parent (the
+      adjacent same-species flora tile of lowest posKey, deterministic
+      tie-break) and passes its identity to applyParentLineage. When
+      no parent can be determined (edge case: orphaned preview), the
+      seed falls back to 'genesis' literal as documented.
+    inputs:
+      - 'a flora tile spreads to a neighboring Dirt tile via commitFloraPreviews'
+    outputs:
+      - 'the child identity starts with sha256(`${binomial}:spread:${parent8hex}`) prefix structure'
+      - 'a descendant N generations away shares the original ancestor 8-hex prefix in its identity-derivation lineage (verifiable by inspection)'
+    state_changes:
+      - field: floraLifecycle[childKey].identity
+        effect: 'child identity is seeded from parent prefix, not regenerated freshly'
+    determinism: deterministic
+
+  - id: lineage-fallback-for-primed-cross
+    description: >
+      When a preview tile commits and its parent has primedPollen set,
+      commitFloraPreviews additionally suffixes the seed with
+      `:crossed:${primedPollen.identity.slice(0, 8)}` and calls
+      crossTraitBags(parent.traits, primedPollen.traits, rng) for the
+      child's traits instead of generateTraitBag. The rng is a
+      mulberry32 PRNG seeded from the first 8 hex chars of the child
+      identity (matching the pattern used elsewhere). The parent's
+      primedPollen is set to undefined after the spread — one cross
+      per priming. If the same parent is re-primed by another bee
+      later, the next spread can cross again.
+    inputs:
+      - 'a flora tile with primedPollen set has a child sprout'
+    outputs:
+      - 'the child identity has the :crossed: marker in its derivation seed'
+      - 'the child traits are crossTraitBags(parent.traits, primedPollen.traits, rng)'
+      - 'parent.primedPollen is undefined after the spread'
+    state_changes:
+      - field: floraLifecycle[parentKey].primedPollen
+        effect: 'cleared to undefined after the cross fires'
+      - field: floraLifecycle[childKey].traits
+        effect: 'computed via crossTraitBags rather than generateTraitBag'
+    determinism: deterministic
+
+  # --- Tier 4: Per-species growth-preview shape change ---
+
+  - id: per-species-growth-preview-queues
+    description: >
+      state.floraGrowthPreviews changes shape from Set<string> to
+      Map<FloraSpecies, Set<string>>. Each species owns its own preview
+      queue so wildflower previews do not commit as clover tiles, and
+      vice versa. Migration: any legacy save load that finds
+      floraGrowthPreviews as a Set<string> treats the entries as
+      clover previews (the previous implicit semantic) and rewrites to
+      a Map keyed by FloraSpecies.Clover. All read sites in
+      tickCloverGrowth (the wrapper in clover.ts), the renderer
+      (state.floraGrowthPreviews.has(...) in the growth-preview render
+      pass), and the winter-clear path are updated to query the
+      per-species Set via state.floraGrowthPreviews.get(species).
+    inputs:
+      - 'codebase after #17 lands'
+    outputs:
+      - 'state.floraGrowthPreviews is Map<FloraSpecies, Set<string>>'
+      - 'each species reads/writes only its own keyed Set'
+      - 'legacy Set<string> loads are migrated to a Clover-keyed Map'
+    state_changes:
+      - field: state.floraGrowthPreviews
+        effect: 'shape change from Set<string> to Map<FloraSpecies, Set<string>>'
+    determinism: deterministic
+
+  # --- Tier 5: Ceremony wave ---
+
+  - id: ceremony-wave-enqueues
+    description: >
+      src/engine/recipes.ts bee+clover combine no longer stamps a 3x3
+      patch. Instead, execute() generates a seedIdentity for the
+      ceremony event (sha256Sync of `ceremony:${binomial}:${posKey}:
+      ${Date.now()}`), creates a single clover tile at the player's
+      position whose floraLifecycle entry's identity is the
+      seedIdentity (so it propagates to descendants), and enqueues a
+      WaveEmission into state.activeWaves: { seedIdentity, cx, cy,
+      currentRadius: 1, maxRadius: CEREMONY_WAVE_RADIUS,
+      lastTickTime: Date.now() }. The existing call to
+      spawnBeeOrMonarch(state, player.x, player.y) is preserved
+      (ceremony spawns a bee, but the bee is unbound — no BoundPatch
+      component, no patch identity). The existing standingOn /
+      standingOnWater validation is preserved.
+    inputs:
+      - 'the player executes a bee+clover combine'
+    outputs:
+      - 'state.activeWaves gains one WaveEmission entry'
+      - 'a single clover tile exists at the player position with seedIdentity'
+      - 'a normal (unbound) bee is spawned at the player position'
+    state_changes:
+      - field: state.activeWaves
+        effect: 'appended one WaveEmission'
+      - field: state.floraLifecycle[playerKey]
+        effect: 'new clover entry with ceremony seedIdentity'
+    determinism: probabilistic
+
+  - id: ceremony-wave-tick
+    description: >
+      A new module src/engine/floraWaves.ts exports tickFloraWaves(state:
+      GameState, time: number): void. It iterates state.activeWaves; for
+      each wave, if time - lastTickTime >= CEREMONY_WAVE_TICK_MS,
+      advance currentRadius by 1. For every tile at the new annulus
+      (Chebyshev distance == currentRadius from cx, cy), apply a per-
+      direction jitter from cellNoise(x, y) so the boundary is
+      irregular (some tiles in the annulus are skipped, some at radius
+      +1 / -1 are included — net effect: organic boundary, ~150 tiles
+      painted in dirt at radius 8). For each painted tile that is Dirt,
+      set tile to Flora with species=Clover and identity propagated
+      from the wave's seedIdentity via applyParentLineage. Skip Water/
+      Sand/CaveWall/RuinWall/Space/non-Dirt. Skip tiles already Flora.
+      Also schedule 2-4 pollenBurst TimedEffect entities per tick at
+      random points on the leading annulus. When currentRadius >
+      maxRadius AND zero new tiles painted this tick, remove the wave
+      from state.activeWaves.
+    inputs:
+      - 'one or more WaveEmissions in state.activeWaves'
+    outputs:
+      - 'wave paints ~150 tiles in open dirt by completion'
+      - 'wave boundary is jittered (not a perfect Chebyshev disc)'
+      - 'wave skips water, walls, sand, space, and existing flora'
+      - 'pollen bursts emit 2-4 per tick during the wave'
+      - 'wave removed from state.activeWaves when complete'
+    state_changes:
+      - field: state.activeWaves
+        effect: 'currentRadius advanced; entry removed when complete'
+      - field: state.floraLifecycle
+        effect: 'new clover entries with seedIdentity-derived lineage'
+      - field: TimedEffect entities
+        effect: 'pollenBurst entities spawned'
+    determinism: probabilistic
+
+  - id: ceremony-wave-render-pass
+    description: >
+      A new render pass src/engine/render/passes/floraWave.ts is
+      registered. For each active wave, draw a faint hot-pink ring at
+      the current annulus (#ff69b4 — the reserved action color, this
+      is a user-initiated action). Use an organic per-direction
+      character set (`,`, `%`, `*`) seeded by cellNoise so the ring
+      reads as vine/spiral rather than a clean circle. Pollen bursts
+      are rendered as sparse golden `*` glyphs fading over
+      POLLEN_BURST_DURATION_MS (~600ms) via the existing TimedEffect
+      pipeline — register the pollenBurst kind in effects.ts.
+    inputs:
+      - 'one or more WaveEmissions in state.activeWaves'
+    outputs:
+      - 'a faint hot-pink ring overlay renders at each wave annulus'
+      - 'pollen burst glyphs render and fade per the TimedEffect duration'
+    state_changes: []
+    determinism: deterministic
+
+  # --- Tier 6: Bee-mediated pollination ---
+
+  - id: pollen-bag-component
+    description: >
+      A new ECS component ComponentType.PollenBag is registered in
+      src/engine/ecs/types.ts with shape { loads: PollenLoad[] }, where
+      PollenLoad is { identity: string; traits: TraitBag; species:
+      FloraSpecies }. Bee and monarch creation sites in
+      src/engine/monarch.ts (spawnBee, spawnMonarch) add an empty
+      PollenBag component on creation. Capacity is
+      POLLEN_BAG_CAPACITY (new constant, default 4). LIFO eviction
+      when full — oldest load drops, newest pushes. Cross-species
+      mixing is allowed in the bag (a single bag may contain clover
+      and wildflower loads simultaneously).
+    inputs:
+      - 'a bee or monarch is created via spawnBee or spawnMonarch'
+    outputs:
+      - 'the entity has a PollenBag component with empty loads array'
+    state_changes:
+      - field: 'ECS components on bee/monarch entities'
+        effect: 'PollenBag added on creation'
+    determinism: deterministic
+
+  - id: pollen-pickup-on-flora-entry
+    description: >
+      A new module src/engine/pollination.ts exports tickPollination(
+      state: GameState): void. Called from the bee/monarch movement
+      tick after their position updates. For each bee/monarch entity
+      at a Flora tile, read the tile's floraLifecycle entry. If the
+      bag's most recent load does not match (tile species, tile
+      identity), push a new PollenLoad onto the bag (LIFO eviction at
+      capacity). Same (species, identity) → no-op (already carrying).
+      Cross-species mixing allowed.
+    inputs:
+      - 'a bee or monarch enters or remains on a Flora tile'
+    outputs:
+      - 'the bee/monarch PollenBag gains a load reflecting the visited tile'
+      - 'the bag capacity is respected (LIFO eviction)'
+    state_changes:
+      - field: 'PollenBag.loads on the bee/monarch entity'
+        effect: 'append or evict-and-append per LIFO rule'
+    determinism: deterministic
+
+  - id: pollen-prime-on-cross-species-visit
+    description: >
+      In the same tickPollination pass, when a bee/monarch enters a
+      Flora tile of species S, if its PollenBag.loads contains at
+      least one load of species S whose identity differs from the
+      visited tile's identity, the visited tile's floraLifecycle entry
+      has primedPollen set to the most recent matching load. If
+      multiple matching loads exist, the most recently pushed wins
+      (highest index in the loads array). Father = the pollen load.
+      Mother = the visited tile. Priming overwrites any existing
+      primedPollen on the tile (a more recent bee visit re-primes).
+      Records discovery event:cross-pollinated on first priming per
+      session.
+    inputs:
+      - 'a bee/monarch with matching-species pollen of different identity enters a Flora tile'
+    outputs:
+      - 'the visited tile floraLifecycle.primedPollen is set to the matching load'
+      - 'event:cross-pollinated is recorded on first priming'
+    state_changes:
+      - field: state.floraLifecycle[visitedKey].primedPollen
+        effect: 'set to the matching PollenLoad'
+    determinism: deterministic
+
+  - id: pollen-bag-empty-at-hive
+    description: >
+      Also in tickPollination, when a bee/monarch enters a tile within
+      Chebyshev distance 1 of any beehive entity (queried via
+      world.query with ComponentType.EntityTag and filtering for
+      tag === 'beehive'), set PollenBag.loads = []. Models the bee
+      depositing pollen at the hive. The doctrine: 'they carry it
+      until they go back to the hive.'
+    inputs:
+      - 'a bee/monarch enters a tile adjacent to a beehive'
+    outputs:
+      - 'the entity PollenBag.loads becomes empty'
+    state_changes:
+      - field: 'PollenBag.loads on the bee/monarch entity'
+        effect: 'cleared to []'
+    determinism: deterministic
+
+  # --- Tier 7: Overlay view modes ---
+
+  - id: overlay-mode-state
+    description: >
+      A new field state.overlayMode: OverlayMode is added.
+      OverlayMode is a const-object union: { Default: 'default',
+      FamilyTree: 'familyTree', RootMycelium: 'rootMycelium' } as const.
+      Default value at game start: OverlayMode.Default. State is
+      serialized in GameState and added to EXPECTED_FIELDS.
+    inputs:
+      - 'codebase after #17 lands'
+    outputs:
+      - 'state.overlayMode exists with default OverlayMode.Default'
+      - 'OverlayMode const exported from types.ts'
+    state_changes:
+      - field: state.overlayMode
+        effect: 'new field, default Default'
+    determinism: deterministic
+
+  - id: overlay-mode-keybinds
+    description: >
+      src/hooks/useKeyboard.ts gains three new keybinds — '1' sets
+      state.overlayMode = OverlayMode.Default, '2' sets it to
+      OverlayMode.FamilyTree, '3' is wired but currently a no-op
+      placeholder for the future root/mycelium overlay (logs a short
+      'not yet' console.debug in DEV; renders a brief on-screen
+       toast — defer to existing toast/effect infrastructure if
+      present, else use a TimedEffect of kind 'toastMessage' with text
+      'Root view coming soon'). First '2' press records
+      event:lineage-overlay-toggled. All three digit keys are
+      currently unbound in useKeyboard.ts (verified).
+    inputs:
+      - 'the player presses 1, 2, or 3'
+    outputs:
+      - "'1' sets overlayMode to Default"
+      - "'2' sets overlayMode to FamilyTree and records the discovery"
+      - "'3' shows a 'not yet' toast and does not change overlayMode"
+    state_changes:
+      - field: state.overlayMode
+        effect: 'updated on 1 or 2'
+    determinism: deterministic
+
+  - id: lineage-overlay-render-pass
+    description: >
+      A new render pass src/engine/render/passes/lineageOverlay.ts is
+      registered. It only draws when state.overlayMode ===
+      OverlayMode.FamilyTree. For each Flora tile of a species the
+      player has fully sequenced (per the existing #6 sequencing /
+      discovery state — read state.discoveredSpecies or the relevant
+      field), draw a faint hot-pink line from the tile to its parent
+      tile. Parentage is reconstructed from the identity-prefix chain
+      via a per-species reverse index Map<identityPrefix8, posKey>
+      built lazily when the overlay activates and dirty-marked on
+      flora changes. Direct parents only — one edge per tile (or two
+      for crossed tiles). Crossed tiles (identifiable by the
+      ':crossed:' marker in their identity-derivation seed history —
+      see lineage-fallback-for-primed-cross — though the marker
+      itself is not stored, the cross is detectable by the presence
+      of a secondary 8-hex token in the parent prefix metadata) render
+      a second dashed edge to the pollen donor's lineage. To keep the
+      data tractable, the floraLifecycle entry stores an optional
+      crossDonorPrefix?: string (the first 8 hex chars of the pollen
+      donor's identity at cross time) — added in the same spec.
+    inputs:
+      - 'state.overlayMode === FamilyTree AND at least one species is fully sequenced'
+    outputs:
+      - 'a faint hot-pink edge from every fully-sequenced flora tile to its direct parent (when parent exists in the index)'
+      - 'a dashed second edge from every crossed tile to its donor lineage'
+      - 'no edges drawn when overlayMode is Default or RootMycelium'
+      - 'no edges drawn for unsequenced species'
+    state_changes: []
+    determinism: deterministic
+
+  # --- Tier 8: Manual entries ---
+
+  - id: manual-entries-added
+    description: >
+      MANUAL_LORE in src/engine/manual.ts gains four new entries:
+      'event:flora-spread', 'event:ceremony-cast',
+      'event:cross-pollinated', and 'event:lineage-overlay-toggled'.
+      Each entry uses { lore: 'TODO' } as the placeholder body. Lore
+      text itself is human-written only and is not authored in this
+      spec (per CLAUDE.md). The existing recordDiscovery
+      infrastructure surfaces these to the player on first occurrence.
+      'event:flora-spread' is recorded by tickSpeciesSpread on the
+      first successful spread per session (the existing event was
+      'event:clover-growth' — the new event is broader and fires for
+      all three species; the per-species events from
+      discoveryEventOnGrowth remain).
+    inputs:
+      - 'a discovery trigger fires for one of the four new events'
+    outputs:
+      - 'MANUAL_LORE has four new entries with TODO placeholders'
+      - 'the player sees the manual entry surfaced on first trigger'
+    state_changes:
+      - field: state.discoveredManualEntries (or equivalent)
+        effect: 'the new entry id added on first trigger'
+    determinism: deterministic
+
+  # --- Tier 9: Perf gate ---
+
+  - id: perf-gate-recorded
+    description: >
+      A new test src/engine/__tests__/precis-17-spread-perf.test.ts
+      seeds a fixture of 5000 Flora tiles spread across overworld and
+      cave + 50 bee entities + 5 beehive entities. It runs 200
+      lifecycle + spread + pollination ticks. Before the assertion
+      threshold is set, a separate run measures the baseline cost
+      of the existing tickFloraLifecycle + tickCloverGrowth on the
+      same fixture (commented as a recorded baseline with a commit
+      reference). The assertion threshold is then set to 1.5x that
+      baseline. The test fails if the new spread + pollination
+      pipeline exceeds the budget.
+    inputs:
+      - '5000 Flora tiles + 50 bees + 5 hives'
+    outputs:
+      - 'test runs 200 ticks and asserts wall-clock under 1.5x baseline'
+      - 'baseline is documented in a comment with a commit ref'
+    state_changes: []
+    determinism: probabilistic
+
+edge_cases:
+  - id: orphaned-preview-falls-back-to-genesis
+    description: >
+      A preview tile whose parent cannot be found (e.g. the parent
+      died and was decomposed in the same tick the preview was
+      committed) falls back to seed prefix 'genesis' rather than
+      throwing. The resulting child identity is not lineage-connected,
+      but it is well-formed.
+    expected: >
+      commitFloraPreviews handles missing parents gracefully and the
+      child identity is sha256(`${binomial}:spread:genesis`, childKey,
+      time). A test pins this.
+
+  - id: pollen-bag-capacity-overflow
+    description: >
+      A bee with POLLEN_BAG_CAPACITY loads visits a new Flora tile of
+      a different (species, identity). The oldest load is evicted
+      (LIFO from the back — index 0 dropped, new load pushed at end).
+      Capacity is preserved.
+    expected: >
+      A test fills a bag to capacity, lands on a new tile, asserts
+      that bag.loads.length === capacity and the oldest load is gone.
+
+  - id: same-species-same-identity-revisit
+    description: >
+      A bee at a Flora tile whose (species, identity) matches its
+      most recent load does nothing — no push, no prime. The bag's
+      ordering is preserved.
+    expected: >
+      tickPollination is a no-op for matched re-entries. A test
+      revisits a tile and asserts bag.loads is byte-identical.
+
+  - id: hive-adjacency-distance-1
+    description: >
+      A bee one tile away from a beehive (Chebyshev distance 1)
+      empties its bag. A bee two tiles away does not. Beehive
+      entities are detected via world.query with EntityTag === 'beehive'.
+    expected: >
+      A test places a beehive at (5, 5), bee at (6, 6) — bag
+      empties. Bee at (7, 7) — bag retained.
+
+  - id: cross-fires-then-primedpollen-cleared
+    description: >
+      A parent tile with primedPollen sprouts a child via spread; the
+      child traits are crossTraitBags(...) and parent.primedPollen is
+      undefined. The same parent can be re-primed by another bee
+      visit later, and the next spread can cross again.
+    expected: >
+      A test seeds a primed parent, runs a spread tick, asserts
+      child.traits matches crossTraitBags output and
+      parent.primedPollen === undefined. Then re-primes and re-tests.
+
+  - id: ceremony-wave-on-water
+    description: >
+      A ceremony cast on a tile adjacent to water has wave annuli
+      that overlap pond/river tiles. Those tiles are skipped — no
+      Flora placement, no lineage. The annulus continues around
+      water.
+    expected: >
+      A test places a 3-tile pond next to the player, casts the
+      ceremony, asserts no Flora tiles in the pond key set after
+      the wave completes.
+
+  - id: cross-species-pollen-bag-mixing
+    description: >
+      A bee visits clover then wildflower then tall grass. Bag has
+      three loads, one of each species. Visiting a clover tile of
+      different identity primes that tile via the clover load.
+      Visiting a wildflower tile of different identity primes via
+      the wildflower load. The non-matching loads are unused.
+    expected: >
+      A test exercises this exact sequence and asserts each
+      cross-species visit primes only when species matches.
+
+  - id: lineage-overlay-with-no-sequenced-species
+    description: >
+      If state.overlayMode === FamilyTree but the player has not yet
+      sequenced any species, the overlay renders nothing (no edges).
+      The mode is set but invisible.
+    expected: >
+      A test mounts the render with overlayMode = FamilyTree and
+      empty discoveredSpecies, asserts zero lineage edges drawn.
+
+  - id: winter-halts-all-three-species
+    description: >
+      In Season.Winter, all three species' tickSpeciesSpread bails
+      early; floraGrowthPreviews for each species is cleared on
+      first winter tick.
+    expected: >
+      A test sets weather.season to Winter, primes each species'
+      preview Set, runs all three configs, asserts each preview Set
+      is empty.
+
+failure_conditions:
+  - trigger: 'wildflower/spread.ts or tallgrass/spread.ts imports from src/engine/clover.ts or flora/clover/'
+    expected: >
+      An eslint rule (or an arch lint rule per existing patterns —
+      see CLAUDE.md "engine code must not import from React") fails
+      the build. Species modules must isolate. A test in the harness
+      arch suite asserts the import graph has no cross-species
+      edges.
+
+  - trigger: 'crossTraitBags is called with mismatched species (e.g. clover trait bag and wildflower trait bag)'
+    expected: >
+      tickPollination's prime logic gates on (species match AND
+      identity differs) before calling crossTraitBags. A test seeds
+      a bee with cross-species loads, primes a tile, runs spread,
+      asserts the cross is refused or only fires within matching
+      species. (Note: crossTraitBags itself has no species awareness
+      — the gate lives in the pollination layer.)
+
+  - trigger: 'a spread child is generated without lineage propagation (identity does not derive from a parent prefix)'
+    expected: >
+      A property test seeds 100 spread events from a known parent
+      and asserts every child identity is derivable from the
+      parent's first 8 hex chars. If any child has a fresh
+      identity, the test fails.
+
+  - trigger: 'state.activeWaves accumulates indefinitely (memory leak)'
+    expected: >
+      A test casts 10 ceremonies in succession, runs ticks until
+      all waves complete (currentRadius > maxRadius and zero new
+      tiles painted), and asserts state.activeWaves.length === 0.
+
+  - trigger: 'overlayMode 3 keybind accidentally activates root view'
+    expected: >
+      A test presses '3' and asserts state.overlayMode is unchanged
+      (Default). The placeholder toast must show but the mode does
+      not change.
+
+  - trigger: 'crossDonorPrefix not set on crossed children'
+    expected: >
+      A test seeds a primed parent, runs a spread tick, and asserts
+      the child's floraLifecycle entry has crossDonorPrefix ===
+      primedPollen.identity.slice(0, 8) at commit time.
+
+  - trigger: 'pollen bag does not empty at beehive adjacency'
+    expected: >
+      A test places a beehive, walks a pollen-full bee adjacent, and
+      asserts bag.loads is empty after one tickPollination call. If
+      not, the hive-return invariant is broken.
+
+verification:
+  test_file: src/engine/__tests__/precis-17-spread-engine.test.ts
+  test_pattern: 'tickSpeciesSpread'
+  command: npx vitest run src/engine/__tests__/precis-17-spread-engine.test.ts

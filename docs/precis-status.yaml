@@ -187,32 +187,64 @@ features:
       of the idea.
 
   - id: '17'
-    name: Autonomous flora spread + bee+clover ceremony
+    name: Autonomous flora spread + bee+clover ceremony + bee-mediated genetics
     summary: >
-      All three flora species spread on their own. Clover via stolons (slow,
-      adjacent, dirt-only, season-gated). Wildflower via pollinators (gated on
-      #7). Tall grass via rhizomes. Genetic traits (#3) propagate through
-      spread, so a patch carries the lineage of its seed. Bee+clover combine
-      is rewritten as a slow radial wave (~7-9 tile radius, ~100-250 tiles per
-      cast) and the bee binds to the patch as its pollinator for the patch's
-      life. One bee per patch, ever.
+      All three flora species spread on their own via a species-agnostic
+      engine. Clover via stolons (existing spiral, extracted out of
+      clover.ts into flora/clover/). Wildflower via pollinators
+      (Chebyshev-3 bee/monarch gating). Tall grass via rhizomes
+      (pollinator-independent). Genetic traits (#3) propagate via
+      parent-identity-prefix seeding so family resemblance is visible
+      in the manual hex grid. Bee+clover combine is rewritten as a slow
+      ceremonial radial wave (~150 tiles per cast, organic/jittered
+      boundary via cellNoise, pollen bursts). Bees gain a PollenBag
+      component (capacity 4, LIFO eviction, cross-species mixing
+      allowed); visiting a flora tile picks up pollen, visiting a
+      same-species-different-identity tile primes that tile for cross
+      via crossTraitBags on next spread (father = pollen, mother =
+      visited tile). Pollen is retained until the bee returns to a
+      hive (Chebyshev-1). Number-key overlay system — [1] default,
+      [2] family-tree overlay (lineage edges, gated by full
+      sequencing), [3] reserved for future root/mycelium view.
     depends_on: []
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/precis-17-autonomous-flora-spread.yaml
+    plan: harness/plans/precis-17-autonomous-flora-spread.yaml
     pr: null
     notes: >
       v4 thinktank round 4 (2026-05-19). Touchstone: Emily Dickinson — "To
       make a prairie it takes a clover and a bee, and revery. The revery
-      alone will do, if bees are few." Stewardship-time growth is slow and
-      autonomous; Revery-time growth is the massive jump (#4). The player's
-      hand is a punctuation, not the engine. Bee+clover materials are
-      recovered from ruins (precis-5, shipped), not gifted by NPCs — Moab
-      has no gift field per src/engine/characters.ts. Open: patch identity
-      and merging behavior when spread fronts touch; per-species spread
-      rates; perf gate on flora lifecycle tick (~5000 active tiles target).
-      Splittable into substrate-spec + ceremony-spec if the spec author
-      prefers.
+      alone will do, if bees are few." Stewardship-time growth is slow
+      and autonomous; Revery-time growth is the massive jump (#4). The
+      player's hand is a punctuation, not the engine. Bee+clover
+      materials are recovered from ruins (precis-5, shipped via
+      RuinRole.Bee / RuinRole.Clover at ruins.ts:1069-1075).
+
+      Planning corrections (2026-05-21):
+       - No persisted patch substrate. Prairies are mixed mosaics;
+         patches merge naturally; bees hop between species. Lineage
+         flows through identity-hash prefixing, not a Map<patchId>.
+       - Bee-binding dropped. Per-ceremony "one bee per patch ever"
+         translated as: the bee item is consumed and a normal bee
+         spawns. Existing beehive mechanics keep bees local.
+       - Genetics (#3) wired via bee-mediated pollination — PollenBag
+         component, father = pollen / mother = visited tile, crossTraitBags
+         fires on next spread from a primed parent.
+       - Pollen retained until hive return (Chebyshev-1 to any
+         beehive). Cross-species mixing allowed in the bag.
+       - Family-tree visualization moved into a number-key overlay
+         system. [1] off, [2] family-tree, [3] reserved for a future
+         root/mycelium view (placeholder no-op now to lock the
+         keybind layout).
+       - Sidebar surfaces dropped — Sidebar.tsx is orphaned dead code;
+         cursor-info-panel system is not in the running app.
+       - Per-species code isolated: flora/clover/spread.ts,
+         flora/wildflower/spread.ts, flora/tallgrass/spread.ts each
+         own their config and behavior; no cross-species imports.
+         Shared engine in flora/spread.ts.
+       - Perf gate: 1.5x measured baseline of existing
+         tickFloraLifecycle + tickCloverGrowth under the 5000-tile
+         fixture, not a guessed ms number.
 
   - id: '14'
     name: Delete the activity event log
