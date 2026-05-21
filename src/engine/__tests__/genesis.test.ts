@@ -324,23 +324,23 @@ describe('tickGenesis', () => {
 
 describe('formatYearsAgo', () => {
   it('returns "~13.8B years ago" at the cosmic origin (year 0)', () => {
-    expect(formatYearsAgo(0)).toBe('~13.8B years ago')
+    expect(formatYearsAgo(0)).toBe('~13.8B years ago...')
   })
 
   it('returns "~9.3B years ago" mid-billions (4.5B into genesis)', () => {
-    expect(formatYearsAgo(4_500_000_000)).toBe('~9.3B years ago')
+    expect(formatYearsAgo(4_500_000_000)).toBe('~9.3B years ago...')
   })
 
   it('drops the trailing .0 at the M-to-B band edge (exactly 1B years ago)', () => {
-    expect(formatYearsAgo(12_800_000_000)).toBe('~1B years ago')
+    expect(formatYearsAgo(12_800_000_000)).toBe('~1B years ago...')
   })
 
   it('returns "~100M years ago" in the millions band', () => {
-    expect(formatYearsAgo(13_700_000_000)).toBe('~100M years ago')
+    expect(formatYearsAgo(13_700_000_000)).toBe('~100M years ago...')
   })
 
   it('returns "~100K years ago" in the thousands band', () => {
-    expect(formatYearsAgo(13_799_900_000)).toBe('~100K years ago')
+    expect(formatYearsAgo(13_799_900_000)).toBe('~100K years ago...')
   })
 
   it('returns "~now" when fewer than 1000 years remain', () => {
@@ -357,22 +357,22 @@ describe('formatYearsAgo', () => {
 
   it('promotes 999M years ago to ~1B rather than rendering ~1000M', () => {
     // 999_000_000 years ago = year 12_801_000_000 — appears mid-riseOfCivilizations.
-    expect(formatYearsAgo(GENESIS_END_YEAR - 999_000_000)).toBe('~1B years ago')
+    expect(formatYearsAgo(GENESIS_END_YEAR - 999_000_000)).toBe('~1B years ago...')
   })
 
   it('renders 25M years ago as ~25M, not ~0M', () => {
     // 25_000_000 years ago — appears mid-presentDay under the lerp.
-    expect(formatYearsAgo(GENESIS_END_YEAR - 25_000_000)).toBe('~25M years ago')
+    expect(formatYearsAgo(GENESIS_END_YEAR - 25_000_000)).toBe('~25M years ago...')
   })
 
   it('renders 999_500 years ago as ~1M, not ~0M', () => {
     // 999_500 years ago — appears late-presentDay; round-up should
     // promote it across the M boundary instead of zeroing out.
-    expect(formatYearsAgo(GENESIS_END_YEAR - 999_500)).toBe('~1M years ago')
+    expect(formatYearsAgo(GENESIS_END_YEAR - 999_500)).toBe('~1M years ago...')
   })
 
   it('renders 950M years ago as ~1B (rounds across the M-to-B boundary)', () => {
-    expect(formatYearsAgo(GENESIS_END_YEAR - 950_000_000)).toBe('~1B years ago')
+    expect(formatYearsAgo(GENESIS_END_YEAR - 950_000_000)).toBe('~1B years ago...')
   })
 })
 

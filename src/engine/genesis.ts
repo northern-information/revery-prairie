@@ -3672,11 +3672,11 @@ export const getGenesisYear = (sim: GenesisSimState, epochs: GenesisEpoch[]): nu
  *
  *  Bands —
  *    yearsAgo < 1_000              → "~now"
- *    rounds to >= 1B (100M step)   → "~N.NB years ago" (trailing .0
+ *    rounds to >= 1B (100M step)   → "~N.NB years ago..." (trailing .0
  *                                     dropped, geology-citation
  *                                     register)
- *    rounds to >= 1M (1M step)     → "~NM years ago"
- *    otherwise (1K step)           → "~NK years ago"
+ *    rounds to >= 1M (1M step)     → "~NM years ago..."
+ *    otherwise (1K step)           → "~NK years ago..."
  */
 export const formatYearsAgo = (year: number): string => {
   const yearsAgo = GENESIS_END_YEAR - year
@@ -3687,16 +3687,16 @@ export const formatYearsAgo = (year: number): string => {
   if (tenthsOfB >= 10) {
     const value = tenthsOfB / 10
     const formatted = value % 1 === 0 ? String(Math.round(value)) : value.toFixed(1)
-    return `~${formatted}B years ago`
+    return `~${formatted}B years ago...`
   }
 
   // Round to the 1M step; if that lands at >= 1M, render in the M band.
   const m = Math.round(yearsAgo / 1_000_000)
-  if (m >= 1) return `~${String(m)}M years ago`
+  if (m >= 1) return `~${String(m)}M years ago...`
 
   // K band — round to the 1K step.
   const k = Math.round(yearsAgo / 1_000)
-  return `~${String(k)}K years ago`
+  return `~${String(k)}K years ago...`
 }
 
 /** Format a year as a comma-separated integer string (e.g. 13_800_000_000 →

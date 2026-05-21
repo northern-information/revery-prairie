@@ -84,31 +84,44 @@ behaviors:
 
   - id: bottom-bar-stripped-and-reformatted
     description: >
-      src/components/GenesisBottomBar.tsx is rewritten. The
-      italic gold commentary `<p>` (text-lg italic at
-      #d8a860) is deleted along with the commentary fade
-      lifecycle (FADE_IN, FADE_OUT, commentaryAlpha). The
-      "Years Since Genesis" subtitle `<p>` is deleted. The
-      remaining year readout is reformatted via a new
-      `formatYearsAgo` exported from genesis.ts that converts a
-      year-since-cosmic-formation value into a tilde-prefixed,
-      abbreviated, single-decimal-max string suffixed with
-      " years ago" — except the terminal case which reads
-      "~now" with no suffix. Examples: 0 → "~13.8B years ago",
-      4_500_000_000 → "~9.3B years ago", 13_700_000_000 →
-      "~100M years ago", 13_799_999_000 → "~now". The font
-      remains monospace (font-mono). No caption above. No
-      ornamentation, no boot animation, no progress bar, no
-      percentage indicator. The render-loop useEffect stays —
-      the year readout still ticks every frame off the same rAF
-      clock so the lerp reads as alive.
+      src/components/GenesisBottomBar.tsx is rewritten to mirror
+      the ScanProgressBar's bordered-card shape (precis #6
+      sequencing widget). The italic gold commentary `<p>`
+      (text-lg italic at #d8a860) is deleted along with the
+      commentary fade lifecycle (FADE_IN, FADE_OUT,
+      commentaryAlpha). The "Years Since Genesis" subtitle `<p>`
+      is deleted. The new component renders a bordered card with
+      `bg-black/80`, rounded corners, `border-border` border,
+      `px-3 py-2`, `font-mono text-xs`, `tabular-nums`, sized
+      `w-64` and positioned `bottom-52 left-1/2 -translate-x-1/2
+      z-10` to sit centered above the bottom edge (matching the
+      Sequencing widget's geometry exactly). The card contains
+      two stacked elements: (1) a label-line `<div>` with the
+      tilde-prefixed year (via formatYearsAgo) in gold (#d8a860);
+      (2) a fill-bar `<div>` underneath — `h-2 w-full`, bordered,
+      `bg-black/50` track, with a `width: <pct>%` inner fill
+      using `backgroundColor: #d8a860` (gold) and the same
+      `transition-[width] duration-75 ease-linear` animation as
+      ScanProgressBar. The fill represents overall derivation
+      progress, computed as
+      `(sim.epochIndex + getEpochProgress(sim, GENESIS_EPOCHS)) /
+      GENESIS_EPOCHS.length`, clamped to [0, 1] and rounded to
+      integer percent. The render-loop useEffect stays — both the
+      year readout and the fill bar tick every frame off the
+      same rAF clock so the lerp reads as alive. The progress
+      bar is doctrinally diegetic — it mirrors the existing
+      Sequencing widget's "deriving" affordance, not a
+      consumer-electronics loading bar.
     inputs:
       - 'codebase after precis-27 lands'
     outputs:
-      - "GenesisBottomBar renders exactly one <p> element"
-      - "no italic <p> in GenesisBottomBar.tsx"
+      - "GenesisBottomBar has no <p> elements"
+      - "no italic styling in GenesisBottomBar.tsx"
       - "no 'Years Since Genesis' text in GenesisBottomBar.tsx"
-      - "the rendered year readout matches /^~(\\d+(\\.\\d)?[BMK] years ago|now)$/"
+      - "the rendered year readout matches /^~(\\d+(\\.\\d)?[BMK] years ago\\.\\.\\.|now)$/"
+      - "the card is positioned `bottom-52 left-1/2 -translate-x-1/2` (same as ScanProgressBar)"
+      - "the fill bar's backgroundColor is #d8a860 (gold), not the pink token used by ScanProgressBar"
+      - "the fill width tracks overall epoch progress, monotonically increasing through genesis"
     state_changes: []
     determinism: time-based
 
@@ -124,13 +137,13 @@ behaviors:
       displayed integer always lies in [1, 999] for M and K
       bands, and is at least 1.0 in the B band. Bands —
       yearsAgo < 1_000 → "~now"; if rounding to the 100M step
-      yields >= 10 tenths (i.e. >= 1.0B) → "~N.NB years ago"
+      yields >= 10 tenths (i.e. >= 1.0B) → "~N.NB years ago..."
       with one decimal, trailing ".0" dropped (e.g.
       13_800_000_000 → "~13.8B", 1_000_000_000 → "~1B");
       else if rounding to the 1M step yields >= 1 →
-      "~NM years ago" (e.g. 100_000_000 → "~100M",
+      "~NM years ago..." (e.g. 100_000_000 → "~100M",
       25_000_000 → "~25M", 999_500 → "~1M");
-      else round to the 1K step → "~NK years ago" (e.g.
+      else round to the 1K step → "~NK years ago..." (e.g.
       100_000 → "~100K"). The existing formatYear export
       (year.toLocaleString) is retained — its only remaining
       caller is the deep-time gameplay year display in
@@ -139,17 +152,17 @@ behaviors:
     inputs:
       - 'formatYearsAgo(year: number) called with a year in [0, GENESIS_END_YEAR]'
     outputs:
-      - 'formatYearsAgo(0) === "~13.8B years ago"'
-      - 'formatYearsAgo(4_500_000_000) === "~9.3B years ago"'
-      - 'formatYearsAgo(12_800_000_000) === "~1B years ago"  # M-to-B band edge; trailing .0 dropped'
-      - 'formatYearsAgo(13_700_000_000) === "~100M years ago"'
-      - 'formatYearsAgo(13_799_900_000) === "~100K years ago"'
+      - 'formatYearsAgo(0) === "~13.8B years ago..."'
+      - 'formatYearsAgo(4_500_000_000) === "~9.3B years ago..."'
+      - 'formatYearsAgo(12_800_000_000) === "~1B years ago..."  # M-to-B band edge; trailing .0 dropped'
+      - 'formatYearsAgo(13_700_000_000) === "~100M years ago..."'
+      - 'formatYearsAgo(13_799_900_000) === "~100K years ago..."'
       - 'formatYearsAgo(13_799_999_500) === "~now"'
       - 'formatYearsAgo(GENESIS_END_YEAR) === "~now"'
-      - 'formatYearsAgo(GENESIS_END_YEAR - 999_000_000) === "~1B years ago"  # promotes across the M-to-B boundary'
-      - 'formatYearsAgo(GENESIS_END_YEAR - 25_000_000) === "~25M years ago"  # does not collapse to "~0M"'
-      - 'formatYearsAgo(GENESIS_END_YEAR - 999_500) === "~1M years ago"  # promotes across the K-to-M boundary'
-      - 'formatYearsAgo(GENESIS_END_YEAR - 950_000_000) === "~1B years ago"  # rounds up across M-to-B'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 999_000_000) === "~1B years ago..."  # promotes across the M-to-B boundary'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 25_000_000) === "~25M years ago..."  # does not collapse to "~0M"'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 999_500) === "~1M years ago..."  # promotes across the K-to-M boundary'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 950_000_000) === "~1B years ago..."  # rounds up across M-to-B'
     state_changes: []
     determinism: deterministic
 
@@ -368,25 +381,27 @@ edge_cases:
       year readout in its honest register).
     expected: >
       No new component, prop, or state field is added to
-      surface seed bytes / hash / tile counts. The bar contains
-      one <p>; the screen has no new HUD elements.
+      surface seed bytes / hash / tile counts. The bar renders
+      the bordered card (year label + gold fill bar tracking
+      epoch progress) and nothing else; the screen has no new
+      HUD elements.
 
 failure_conditions:
   - trigger: "grep -nE \"['\\\"]Simulating birth of cosmos|['\\\"]Dust coalesces|['\\\"]Plates collide|['\\\"]A kingdom of lava|['\\\"]The crust cools|['\\\"]Oceans gather|['\\\"]Primordial life|['\\\"]The sky falls|['\\\"]Life grows back|['\\\"]Glaciers advance|['\\\"]An extinction event|['\\\"]Glaciers melt|['\\\"]Civilizations emerge|['\\\"]Empires crumble|['\\\"]A steward is called\" -r src/ returns any hits"
     expected: 'CI fails — commentary strings persist somewhere in src/'
   - trigger: "grep for 'getGenesisCommentary\\|onGenesisEpochStart\\|onEpochStart\\|narratedEpochCount' in src/ returns any hits"
     expected: 'CI fails — the narration callback, accessor, or count guard still exists'
-  - trigger: 'GenesisBottomBar.tsx renders more than one <p> element'
-    expected: 'CI fails — the commentary line or "Years Since Genesis" subtitle was not removed'
+  - trigger: 'GenesisBottomBar.tsx renders any <p> element, any text matching "Years Since Genesis", or any italic styling'
+    expected: 'CI fails — the deleted commentary line or "Years Since Genesis" subtitle is back'
   - trigger: 'GenesisBottomBar.tsx renders a year string that contains a comma, a digit sequence longer than 4 chars, or no tilde prefix'
     expected: 'CI fails — the year readout is still in the toLocaleString register'
-  - trigger: "formatYearsAgo(0) does not equal '~13.8B years ago' OR formatYearsAgo(GENESIS_END_YEAR) does not equal '~now'"
+  - trigger: "formatYearsAgo(0) does not equal '~13.8B years ago...' OR formatYearsAgo(GENESIS_END_YEAR) does not equal '~now'"
     expected: 'CI fails — the reverse-projection mapping is off'
   - trigger: "grep for 'commentary\\|narrate\\|prologue\\|cutscene' in docs/claude/genesis.md returns any hits"
     expected: 'CI fails — the doc still describes genesis as a narrated event'
   - trigger: 'npm run spec:validate exits non-zero'
     expected: 'CI fails — spec or plan files reference deleted symbols'
-  - trigger: 'A new HUD element (hash readout, seed bytes, tile counter, progress bar, loading prefix, percentage indicator, splash screen) is added during genesis'
+  - trigger: 'A new HUD element (hash readout, seed bytes, tile counter, loading prefix percentage text like "63% loaded", splash screen, boot animation) is added during genesis. The bordered-card year readout + gold fill bar described in bottom-bar-stripped-and-reformatted is permitted — it mirrors the ScanProgressBar diegetic affordance, not a consumer-electronics loading bar.'
     expected: 'CI fails — the diegetic test bans consumer-electronics gestures per precis-thinktank-v4 round 9'
 
 verification:
