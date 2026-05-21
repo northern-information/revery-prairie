@@ -2,6 +2,8 @@ import { useKeyboard } from '../useKeyboard'
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { MockedFunction } from 'vitest'
+
 import { createTestState } from '@/engine/__tests__/helpers'
 import { dropItem } from '@/engine/entities'
 import { commitScan, selectScanTarget } from '@/engine/scan'
@@ -115,7 +117,7 @@ const fireKeyUp = (key: string) => {
 // --- setup ---
 
 let state: GameState
-let refreshUI: ReturnType<typeof vi.fn>
+let refreshUI: MockedFunction<() => void>
 let itemInfoRef: React.RefObject<ItemInfoHandle | null>
 let isDraggingRef: React.RefObject<boolean>
 
@@ -423,7 +425,7 @@ describe('useKeyboard', () => {
       })
 
       expect(dropItem).toHaveBeenCalledWith(state, 'bee', expect.any(Number))
-      expect((itemInfoRef.current as unknown as { clear: ReturnType<typeof vi.fn> }).clear).toHaveBeenCalled()
+      expect((itemInfoRef.current as unknown as { clear: MockedFunction<() => void> }).clear).toHaveBeenCalled()
       expect(updateFacingEntity).toHaveBeenCalledWith(state)
       expect(refreshUI).toHaveBeenCalled()
     })

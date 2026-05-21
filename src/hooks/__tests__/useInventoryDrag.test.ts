@@ -2,6 +2,8 @@ import { useInventoryDrag } from '../useInventoryDrag'
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { MockedFunction } from 'vitest'
+
 import { createTestState } from '@/engine/__tests__/helpers'
 import { computePlacementPreview, executeCombine } from '@/engine/drag'
 import { moveItem, transferItem } from '@/engine/inventory'
@@ -51,7 +53,7 @@ const defaultPlacement: PlacementPreview = {
 // --- setup ---
 
 let state: GameState
-let onDrop: ReturnType<typeof vi.fn>
+let onDrop: MockedFunction<() => void>
 
 const backpackContainers = () => [{ id: state.backpack.id, container: state.backpack }]
 
