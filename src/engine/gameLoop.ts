@@ -126,12 +126,12 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           if (!state.genesis) return
           if (state.genesis.epochIndex >= GENESIS_EPOCHS.length) return
 
-          const done = tickGenesis(state.genesis, GENESIS_EPOCHS, time, state.onGenesisEpochStart ?? undefined)
+          const done = tickGenesis(state.genesis, GENESIS_EPOCHS, time)
           if (done) {
             completeGenesis(state)
             callbacks.onRefreshUI?.()
           } else if (time - lastRefresh >= 100) {
-            // Throttled refresh — keeps year counter and progress bar ticking
+            // Throttled refresh — keeps the year readout ticking under the lerp
             lastRefresh = time
             callbacks.onRefreshUI?.()
           }

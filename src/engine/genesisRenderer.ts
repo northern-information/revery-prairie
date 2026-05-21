@@ -49,9 +49,9 @@ const STAR_COLORS = ['#333', '#555', '#777', '#999', '#bbb', '#999', '#777', '#5
 const STAR_DENSITY = 12
 const TWINKLE_SPEED = 0.0015
 
-// Bright cosmic palette for the first two epochs — "birth of cosmos"
-// and "dust coalesces" — when the simulated universe is forming and
-// the sky should feel alive and dense across the full screen.
+// Bright cosmic palette for the first two epochs (CosmicFormation +
+// LandAccretion) — when the simulated universe is forming and the sky
+// should feel alive and dense across the full screen.
 const COSMIC_STAR_CHARS = ['.', '*', '+', '·']
 const COSMIC_STAR_COLORS = ['#FFFFFF', '#DDDDFF', '#FFDDDD', '#FFFFDD', '#AAAACC']
 const COSMIC_STAR_DENSITY = 5
@@ -74,12 +74,13 @@ const paintFullCanvasStarfield = (
   simHeight: number,
   time: number
 ): void => {
-  // During cosmic epochs, paint bright stars across the FULL canvas
-  // including over the sim grid, so the "birth of cosmos" reads as
-  // sky-wide rather than confined to the prairie's diamond. The sim's
-  // own renderTile still paints rock-mass/dust on top inside its
-  // bounds. During later epochs, paint dim stars only outside the sim
-  // grid so we don't double-up with the sim's space-border stars.
+  // During cosmic epochs (CosmicFormation + LandAccretion), paint
+  // bright stars across the FULL canvas including over the sim grid,
+  // so the early-universe palette reads as sky-wide rather than
+  // confined to the prairie's diamond. The sim's own renderTile still
+  // paints rock-mass/dust on top inside its bounds. During later
+  // epochs, paint dim stars only outside the sim grid so we don't
+  // double-up with the sim's space-border stars.
   const isCosmic = COSMIC_EPOCHS.has(epochId)
   const chars = isCosmic ? COSMIC_STAR_CHARS : STAR_CHARS
   const colors = isCosmic ? COSMIC_STAR_COLORS : STAR_COLORS

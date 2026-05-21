@@ -15,7 +15,14 @@ import {
 import { screenToTile } from '@/engine/coordinates'
 import { ComponentType } from '@/engine/ecs/types'
 import { getTileEffects } from '@/engine/effects'
-import { formatYear, GENESIS_END_YEAR, GENESIS_EPOCHS, getEpochProgress, getGenesisYear } from '@/engine/genesis'
+import {
+  formatYear,
+  formatYearsAgo,
+  GENESIS_END_YEAR,
+  GENESIS_EPOCHS,
+  getEpochProgress,
+  getGenesisYear,
+} from '@/engine/genesis'
 import { getDefinition } from '@/engine/items'
 import { isInBounds, posKey } from '@/engine/position'
 import { getLastVisibleSet } from '@/engine/renderer'
@@ -178,7 +185,7 @@ export const Sidebar = ({ state, itemInfoRef, metricsRef }: SidebarProps) => {
                 <tr>
                   <td className="text-muted py-0.5">Year</td>
                   <td className="py-0.5 text-right">
-                    {formatYear(getGenesisYear(state.genesis, GENESIS_EPOCHS, performance.now()))}
+                    {formatYearsAgo(getGenesisYear(state.genesis, GENESIS_EPOCHS))}
                   </td>
                 </tr>
                 <tr>

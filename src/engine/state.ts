@@ -302,7 +302,6 @@ export const createGameState = (
     scanInProgress: null,
     manualHighlightEntryId: null,
     onPlayerMoved: null,
-    onGenesisEpochStart: null,
     onGenesisComplete: null,
   }
 

@@ -7,7 +7,6 @@ import {
   getEgregoreLatinPierce,
   getEgregoreManualBody,
 } from './egregore'
-import { GENESIS_EPOCHS } from './genesis'
 import { KEYBINDINGS } from './input'
 import { ITEM_DEFINITIONS } from './items'
 import { recipeKey, RECIPES } from './recipes'
@@ -323,50 +322,6 @@ const buildControlEntries = (): ManualEntry[] =>
     sourceKind: 'manual-only' as const,
   }))
 
-// --- Genesis entry ---
-//
-// Special case: genesis has its own builder because its lore body interpolates
-// GENESIS_EPOCHS at runtime (the epoch list rewrites itself when epochs are
-// added or reordered). Every other entry pulls static lore from MANUAL_LORE.
-
-const buildGenesisEntry = (): ManualEntry => {
-  const epochList = GENESIS_EPOCHS.map(e => e.commentary.replace(/\.\.\.$/, '')).join(', ')
-  return {
-    id: 'event:genesis',
-    name: 'Genesis',
-    category: ManualCategory.Zone,
-    glyph: '~',
-    glyphColor: '#FF4500',
-    lore:
-      MANUAL_LORE['event:genesis']?.lore ??
-      `Before the prairie was a prairie, it was magma — and before that, void. ` +
-        `A billion years of geological history flash before you each time a new world is born: ${epochList}. ` +
-        `Every patch of soil remembers what happened to it. Volcanic hotspots left minerals behind. ` +
-        `Glaciers scraped the highlands bare. Rivers carved alluvial deltas rich with sediment. ` +
-        `Ancient civilizations rose and fell, their aqueducts buried deep beneath the dirt. ` +
-        `The soil health you see today is the sum of all these forces.`,
-    hints: MANUAL_LORE['event:genesis']?.hints ?? [
-      {
-        prompt: 'How it works',
-        answer: `Genesis runs between the name prompt and gameplay. It simulates ${String(GENESIS_EPOCHS.length)} geological epochs in ~${String(Math.round((GENESIS_EPOCHS.length * 2000) / 1000))} seconds.`,
-      },
-      { prompt: 'Skip', answer: 'Press any key during the genesis sequence to skip ahead.' },
-      { prompt: 'Determinism', answer: 'The same steward name always produces the same world.' },
-      {
-        prompt: 'Soil',
-        answer:
-          'Volcanic regions, river deltas, and civilization ruins have richer soil. Glacial paths and barren highlands have poorer soil.',
-      },
-      {
-        prompt: 'Ruins',
-        answer: 'Civilization ruins are buried underground. Their aqueducts once connected great cities.',
-      },
-    ],
-    unlockKey: 'always',
-    sourceKind: 'event',
-  }
-}
-
 // --- Manual-only entries (zones, events, ghosts) ---
 //
 // Skeletons hold structural metadata only — id, glyph, color, unlock key,
@@ -653,7 +608,6 @@ export const MANUAL_ENTRIES: Record<string, ManualEntry> = Object.fromEntries(
     ...buildWorldEntityEntries(),
     ...buildControlEntries(),
     ...buildManualOnlyEntries(),
-    buildGenesisEntry(),
   ].map(entry => [entry.id, entry])
 )
 

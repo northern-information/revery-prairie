@@ -118,18 +118,24 @@ behaviors:
       that takes a year-since-cosmic-formation number (the same
       domain getGenesisYear has always produced) and returns the
       display string. Conversion rule — yearsAgo = GENESIS_END_YEAR
-      - input. Formatting bands — yearsAgo < 1000 → "~now";
-      yearsAgo < 1_000_000 → "~Nk years ago" rounded to the
-      nearest 100_000 (e.g. 100_000 → "~100K", 900_000 →
-      "~900K"); yearsAgo < 1_000_000_000 → "~NM years ago"
-      rounded to the nearest 100_000_000 with no decimal (e.g.
-      100_000_000 → "~100M", 800_000_000 → "~800M");
-      yearsAgo >= 1_000_000_000 → "~N.NB years ago" with one
-      decimal place; trailing ".0" is dropped (e.g.
-      13_800_000_000 → "~13.8B", 1_000_000_000 → "~1B",
-      4_500_000_000 → "~4.5B"). The existing formatYear export
-      (year.toLocaleString) is deleted — no callers remain
-      after the bar is rewritten.
+      - input. Banding is rounded-value-driven so that values near
+      a band boundary promote to the next band rather than
+      overflowing the band's natural integer range — the
+      displayed integer always lies in [1, 999] for M and K
+      bands, and is at least 1.0 in the B band. Bands —
+      yearsAgo < 1_000 → "~now"; if rounding to the 100M step
+      yields >= 10 tenths (i.e. >= 1.0B) → "~N.NB years ago"
+      with one decimal, trailing ".0" dropped (e.g.
+      13_800_000_000 → "~13.8B", 1_000_000_000 → "~1B");
+      else if rounding to the 1M step yields >= 1 →
+      "~NM years ago" (e.g. 100_000_000 → "~100M",
+      25_000_000 → "~25M", 999_500 → "~1M");
+      else round to the 1K step → "~NK years ago" (e.g.
+      100_000 → "~100K"). The existing formatYear export
+      (year.toLocaleString) is retained — its only remaining
+      caller is the deep-time gameplay year display in
+      Sidebar.tsx, which is forward-projecting and unrelated to
+      the reverse-projection genesis readout.
     inputs:
       - 'formatYearsAgo(year: number) called with a year in [0, GENESIS_END_YEAR]'
     outputs:
@@ -140,6 +146,10 @@ behaviors:
       - 'formatYearsAgo(13_799_900_000) === "~100K years ago"'
       - 'formatYearsAgo(13_799_999_500) === "~now"'
       - 'formatYearsAgo(GENESIS_END_YEAR) === "~now"'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 999_000_000) === "~1B years ago"  # promotes across the M-to-B boundary'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 25_000_000) === "~25M years ago"  # does not collapse to "~0M"'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 999_500) === "~1M years ago"  # promotes across the K-to-M boundary'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 950_000_000) === "~1B years ago"  # rounds up across M-to-B'
     state_changes: []
     determinism: deterministic
 

@@ -22,7 +22,7 @@ const overlayAlpha = (elapsed: number): number => {
 
 // DOM overlay for the boot title card. Sits above the canvas and any
 // DOM overlays (genesis bottom bar at z-10) via z-50 so the black
-// cover hides the commentary line during the title-card hold.
+// cover hides the year readout during the title-card hold.
 export const BootTitleCardOverlay = ({ state }: { state: GameState }): React.ReactElement | null => {
   const [, force] = useState(0)
   const rafRef = useRef<number | null>(null)
