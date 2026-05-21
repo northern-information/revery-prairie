@@ -644,9 +644,9 @@ features:
       from the seed of the steward's name and exposes the seams of
       its derivation; the screen is not a narrated prologue.
     depends_on: []
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/precis-27-strip-genesis-commentary.yaml
+    plan: harness/plans/precis-27-strip-genesis-commentary.yaml
     pr: null
     notes: >
       v4 thinktank round 9 (2026-05-21). The commentary was god-view

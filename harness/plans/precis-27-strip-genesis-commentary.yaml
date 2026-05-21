@@ -1,0 +1,289 @@
+plan:
+  id: precis-27-strip-genesis-commentary
+  title: Strip genesis epoch commentary; reframe as reverse deep-time projection
+  created: 2026-05-21
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine + dashboard status ---
+  # Flip precis-status.yaml feature 27 to in-progress so the dashboard
+  # reflects work in flight. Plan/spec links land alongside.
+
+  - id: doctrine-update
+    title: Flip precis-status.yaml feature 27 to in-progress with spec/plan links populated
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - docs-reframed
+    context_files:
+      - docs/precis-status.yaml
+    output_files:
+      - docs/precis-status.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Engine type + GameState shape ---
+  # Deleting GameState.onGenesisEpochStart and GenesisEpoch.commentary
+  # first lets typecheck surface every dependent site at once.
+
+  - id: gamestate-shape
+    title: Remove onGenesisEpochStart from GameState; remove commentary + narratedEpochCount fields from GenesisEpoch / GenesisSimState interfaces
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - epoch-narration-callback-removed
+      - commentary-strings-deleted
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/genesisTypes.ts
+    depends_on:
+      - doctrine-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: schema-allowlist
+    title: Remove onGenesisEpochStart from EXPECTED_FIELDS in the serialization schema test
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - schema-allowlist-updated
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - gamestate-shape
+    verification:
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - test
+      - harness
+
+  # --- Tier 2: Engine deletions ---
+  # Drop the 14 commentary strings, delete getGenesisCommentary, delete
+  # the onEpochStart parameter on tickGenesis, delete the rolling
+  # sub-counter, delete formatYear, add formatYearsAgo. All in
+  # src/engine/genesis.ts so the engine churn is one diff.
+
+  - id: genesis-engine-rewrite
+    title: Delete commentary + narration callback + rolling sub-counter + formatYear from genesis.ts; add formatYearsAgo with banded format
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - commentary-strings-deleted
+      - epoch-narration-callback-removed
+      - year-format-reverse-projection
+      - get-genesis-year-precision-honest
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/genesis.ts
+      - src/engine/gameLoop.ts
+    depends_on:
+      - gamestate-shape
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: usegameengine-comment
+    title: Rewrite useGameEngine.ts comment to drop the onGenesisEpochStart rationale; keep the layout-effect deferral reason for the title-card swap
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - epoch-narration-callback-removed
+    context_files:
+      - src/hooks/useGameEngine.ts
+    output_files:
+      - src/hooks/useGameEngine.ts
+    depends_on:
+      - genesis-engine-rewrite
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - hooks
+
+  - id: manual-entry-delete
+    title: Delete buildGenesisEntry and remove its registration from MANUAL_ENTRIES; remove MANUAL_LORE['event:genesis'] if present
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - genesis-manual-entry-deleted
+    context_files:
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - genesis-engine-rewrite
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - manual
+
+  - id: stale-comments-scrub
+    title: Rewrite stale comments in genesisRenderer.ts, renderer.ts, and render/passes/index.ts that reference the deleted commentary system
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - stale-comments-scrubbed
+    context_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/renderer.ts
+      - src/engine/render/passes/index.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+      - src/engine/renderer.ts
+      - src/engine/render/passes/index.ts
+    depends_on:
+      - genesis-engine-rewrite
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - comments
+
+  # --- Tier 3: Component rewrites ---
+  # The bottom bar consumes the new formatYearsAgo; the boot title card
+  # only needs a comment rewrite.
+
+  - id: bottom-bar-rewrite
+    title: Strip italic commentary <p> + Years Since Genesis subtitle + fade lifecycle from GenesisBottomBar.tsx; render exactly one <p> using formatYearsAgo
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - bottom-bar-stripped-and-reformatted
+    context_files:
+      - src/components/GenesisBottomBar.tsx
+      - src/engine/genesis.ts
+    output_files:
+      - src/components/GenesisBottomBar.tsx
+    depends_on:
+      - genesis-engine-rewrite
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  - id: boot-cover-comment
+    title: Rewrite the BootTitleCardOverlay.tsx comment to say it covers the year readout, not the commentary line
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - title-card-cover-repurposed
+    context_files:
+      - src/components/BootTitleCardOverlay.tsx
+    output_files:
+      - src/components/BootTitleCardOverlay.tsx
+    depends_on:
+      - bottom-bar-rewrite
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  # --- Tier 4: Test pruning + new format test ---
+
+  - id: tests-prune
+    title: Drop the three commentary describe blocks in genesis.test.ts and the commentary assertion in Sidebar.test.tsx
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - tests-pruned-or-rewritten
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/components/__tests__/Sidebar.test.tsx
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on:
+      - manual-entry-delete
+      - bottom-bar-rewrite
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+      - npx vitest run src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags:
+      - test
+
+  - id: tests-add-formatyearsago
+    title: Add a formatYearsAgo describe block to genesis.test.ts asserting the seven boundary mappings
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - year-format-reverse-projection
+      - tests-pruned-or-rewritten
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - tests-prune
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts -t formatYearsAgo
+    repair: retry
+    tags:
+      - test
+
+  # --- Tier 5: Docs ---
+
+  - id: docs-rewrite
+    title: Rewrite docs/claude/genesis.md to the reverse deep-time projection framing; drop commentary/narrate/prologue/cutscene vocabulary
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - docs-reframed
+    context_files:
+      - docs/claude/genesis.md
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - docs/claude/genesis.md
+    depends_on:
+      - genesis-engine-rewrite
+    verification: []
+    repair: retry
+    tags:
+      - docs
+
+  # --- Tier 6: Final verification ---
+  # Single repo-wide sweep that confirms the failure-condition greps stay
+  # silent. No code edits — this task just runs the global checks.
+
+  - id: final-sweep
+    title: Run the global verification suite and grep failure-condition triggers
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - commentary-strings-deleted
+      - epoch-narration-callback-removed
+      - bottom-bar-stripped-and-reformatted
+      - docs-reframed
+    context_files: []
+    output_files: []
+    depends_on:
+      - tests-add-formatyearsago
+      - docs-rewrite
+      - boot-cover-comment
+      - schema-allowlist
+      - usegameengine-comment
+      - stale-comments-scrub
+    verification:
+      - npm run typecheck
+      - npm run test
+      - npm run lint
+    repair: retry
+    tags:
+      - verification
