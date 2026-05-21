@@ -152,6 +152,29 @@ const paintFullCanvasStarfield = (
 const tierAtSim = (sim: GenesisSimState, mx: number, my: number): number =>
   getElevationTier(sim.elevation.get(posKey(mx, my)))
 
+/** Genesis camera math. Centers the prairie on the full canvas with no
+ *  sidebar inset (no right sidebar exists during genesis). Anchors on the
+ *  player's eventual spawn position (one tile west of map center). The
+ *  boot title card hides any shift at the genesis-to-game handoff. */
+export const computeGenesisCamera = (
+  simWidth: number,
+  simHeight: number,
+  viewportWidth: number,
+  viewportHeight: number
+): { cameraX: number; cameraY: number } => {
+  const playerX = Math.floor(simWidth / 2) - 1
+  const playerY = Math.floor(simHeight / 2)
+  const cameraX =
+    simWidth < viewportWidth
+      ? -Math.floor((viewportWidth - simWidth) / 2)
+      : Math.max(0, Math.min(playerX - Math.floor(viewportWidth / 2), simWidth - viewportWidth))
+  const cameraY =
+    simHeight < viewportHeight
+      ? -Math.floor((viewportHeight - simHeight) / 2)
+      : Math.max(0, Math.min(playerY - Math.floor(viewportHeight / 2), simHeight - viewportHeight))
+  return { cameraX, cameraY }
+}
+
 /** Pure read: returns the current tweened lift (in pixels, negative = up)
  *  for a land tile. If the tile has an active tween record, eases from
  *  its stored fromLift toward getTierLift(toTier) over
@@ -496,27 +519,11 @@ export const renderGenesis = (
   // (matches the includeLowland gate in computeSurfaceBg).
   const includeLowlandWater = LOWLAND_WATER_EPOCHS.has(epoch.id)
 
-  // Camera: use identical math to updateCamera() in camera.ts so the
-  // genesis-to-game transition is pixel-perfect (no rounding drift).
-  // Anchor on the player's eventual spawn position (one tile west of
-  // Gron, who sits at the exact map center) — see createGameState. This
-  // matches what updateCamera will use for state.camera once the game
-  // renderer takes over, so the camera does not shift one tile at the
-  // handoff.
-  const SIDEBAR_WIDTH_PX = 192
-  const rightInsetTiles = Math.ceil(SIDEBAR_WIDTH_PX / charWidth)
-  const visibleWidth = viewportWidth - rightInsetTiles
-  const playerX = Math.floor(sim.width / 2) - 1
-  const playerY = Math.floor(sim.height / 2)
-
-  const cameraX =
-    sim.width < visibleWidth
-      ? -Math.floor((visibleWidth - sim.width) / 2)
-      : Math.max(0, Math.min(playerX - Math.floor(visibleWidth / 2), sim.width - visibleWidth))
-  const cameraY =
-    sim.height < viewportHeight
-      ? -Math.floor((viewportHeight - sim.height) / 2)
-      : Math.max(0, Math.min(playerY - Math.floor(viewportHeight / 2), sim.height - viewportHeight))
+  // Genesis camera centers the prairie on the full canvas — no
+  // rightInsetTiles term, because no right sidebar exists during genesis.
+  // The one-tile shift at the genesis-to-game handoff (when gameplay
+  // re-introduces the sidebar inset) is hidden by the boot title card.
+  const { cameraX, cameraY } = computeGenesisCamera(sim.width, sim.height, viewportWidth, viewportHeight)
 
   // Starfield over canvas tiles that fall outside the sim grid — the
   // sim renders its own space tiles, so we skip those here to avoid
