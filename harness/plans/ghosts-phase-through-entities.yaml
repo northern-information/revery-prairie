@@ -1,0 +1,105 @@
+plan:
+  id: ghosts-phase-through-entities
+  title: 'Make ghosts non-corporeal — drift ignores entity blockers, only terrain stops them'
+  created: '2026-05-21'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: ghost-drift-ignores-entity-blockers
+    title: 'tickDrift computes its own terrain-only blocked set for ghosts, ignoring entity blockers'
+    spec_id: ghosts
+    spec_sections:
+      - ghost-drift
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/movement.ts
+      - src/engine/position.ts
+      - src/engine/types.ts
+      - src/engine/oaks.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/ghosts.test.ts
+    repair: retry
+    tags: [engine]
+    notes: >
+      Today tickCharacterBehaviors calls getBlockedPositions(state, z) once and
+      passes the resulting set to tickDrift via the `blocked` parameter. That
+      set includes every entity blocker (oaks, angels, other ghosts, the
+      player, characters).
+
+      Change: in tickDrift, do not consume the entity-derived `blocked` set.
+      Instead, treat ghosts as non-corporeal — only terrain walkability
+      (isWalkableTile) and craters constrain their candidate neighbors.
+      Two viable shapes:
+
+      (a) Stop adding ghost positions to the shared `blocked` set inside
+          tickDrift, and add a guard that skips the `blocked.has(...)` check
+          for drift-behavior entities. Keep the function signature.
+      (b) Cleaner: compute a per-call terrain-only set inside tickDrift
+          (or accept it as a new parameter). Drop the self-add / self-remove
+          dance entirely since collisions with other ghosts no longer matter.
+
+      Prefer (b). Update tickCharacterBehaviors so it no longer mutates the
+      shared `blocked` set on behalf of drift entities.
+
+      Do not touch getBlockedPositions or movePlayer — ghosts retain their
+      Blocking component so the player and the A* pathfinder still treat
+      them as walls (matches existing ghost-blocks-player behavior).
+
+  - id: ghost-phase-regression-tests
+    title: 'Add regression tests proving ghosts drift through oaks, angels, characters, and the player'
+    spec_id: ghosts
+    spec_sections:
+      - ghost-drift
+    context_files:
+      - src/engine/__tests__/ghosts.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/entities.ts
+      - src/engine/oaks.ts
+      - src/engine/angels.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/__tests__/ghosts.test.ts
+    depends_on: [ghost-drift-ignores-entity-blockers]
+    verification:
+      - npx vitest run src/engine/__tests__/ghosts.test.ts
+    repair: retry
+    tags: [engine, test]
+    notes: >
+      Add at least three regression tests inside ghosts.test.ts:
+
+      1. Ghost enclosed by an oak's 5x5 body can still drift out. Setup:
+         clearAroundPlayer; place a ghost at a known position; spawn an
+         oak whose body fully surrounds the ghost (use spawnOak with an
+         anchor matching the ghost position). Spy on Math.random to force
+         movement and a specific neighbor pick. Tick tickCharacterBehaviors
+         and assert the ghost position changed to the expected oak body
+         tile. Use vi.spyOn(Math, 'random') + vi.restoreAllMocks() in a
+         finally block, per CLAUDE.md testing rules.
+
+      2. Ghost drifts onto the player's tile. Setup: clearAroundPlayer;
+         move a ghost adjacent to the player. Force Math.random toward
+         the player tile. After tick, assert the ghost's position equals
+         the player's position. This proves the player is not in the
+         ghost's terrain-only blocked set.
+
+      3. Ghost drifts onto a tile occupied by another ghost. Setup:
+         clearAroundPlayer; destroy default ghosts; create two ghost
+         entities adjacent to each other. Force Math.random so ghost A
+         picks ghost B's tile. Assert ghost A moved to that tile (both
+         ghosts may share a tile after the tick).
+
+      Also add a test that ghosts are still blocked by terrain — pin a
+      ghost against TileType.Space or a cave wall, force Math.random
+      toward the wall, assert position unchanged. This guards the
+      narrowness of the change.
+
+      Prepare terrain with clearAroundPlayer() and reset entity arrays
+      where needed. Do not rely on random tile picks landing on valid
+      tiles.

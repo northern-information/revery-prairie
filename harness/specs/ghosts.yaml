@@ -48,18 +48,18 @@ behaviors:
       moves the character with a low probability per tick (speed 0.15,
       slower than bees). each ghost picks a random 8-directional
       neighbor (cardinal + diagonal, via ORDINAL) and moves there
-      only if the tile is walkable and not blocked. uses the same
-      blocked-position set as player movement (getBlockedPositions
-      + player position) so any future blocking entities are
-      automatically respected. the ghost removes itself from the
-      blocked set before checking candidates and re-adds its new
-      position after moving.
+      only if the tile is walkable terrain. ghosts are non-corporeal:
+      they ignore every entity-level blocker — oak body tiles, angel
+      body tiles, other ghosts, characters (Gron, Moab, coyote), and
+      the player. only terrain walkability (isWalkableTile) and
+      craters constrain ghost drift. multiple ghosts may occupy the
+      same tile, and a ghost may drift onto the player's tile.
     inputs:
       - 'GameState with ghost ECS entities in state.world'
     outputs: []
     state_changes:
       - field: 'world (ghost entity Position component)'
-        effect: 'moved to adjacent walkable tile via state.world.moveEntity, or unchanged if no valid neighbor or random check fails'
+        effect: 'moved to adjacent walkable-terrain tile via state.world.moveEntity, or unchanged if no valid neighbor or random check fails'
     determinism: probabilistic
 
   - id: ghost-blocks-player
@@ -121,9 +121,12 @@ edge_cases:
   - id: ghost-drift-at-coastline
     description: 'Ghost adjacent to sand/space border has fewer valid neighbors but never enters Space. Ghosts spawn on non-Sand tiles but can drift onto Sand since isWalkableTile includes Sand.'
     expected: 'Ghost stays on dirt/sand/clover tiles, never moves to Space or cave walls'
-  - id: ghost-drift-blocked-by-entities
-    description: 'Ghost surrounded by other blocking entities has no valid move'
-    expected: 'Ghost stays in place, no error'
+  - id: ghost-phases-through-entities
+    description: 'Ghost completely enclosed by entity blockers (oak canopy, ring of angels, ring of characters) still drifts freely. Non-corporeality means entity blockers never prevent movement; only impassable terrain does.'
+    expected: 'Ghost can move to any adjacent walkable-terrain tile regardless of entity occupancy. If completely walled in by terrain (e.g. inside a cave wall ring), it stays in place with no error.'
+  - id: ghost-phases-through-oak
+    description: 'Ghost drifts onto a tile that is part of an oak 5x5 body. Oak presence does not block ghost movement.'
+    expected: 'Ghost position updates to the oak body tile; renders on top of (or under, depending on render order) the oak canopy.'
   - id: ghost-dialog-complete-cycle
     description: 'Player advances through all 3 dialog lines and dialog closes'
     expected: 'activeDialog set to null after advancing past final line'
@@ -138,9 +141,11 @@ failure_conditions:
   - trigger: 'Ghost moves onto a Space tile'
     expected: 'Ghost position unchanged, Space tile never entered'
   - trigger: 'Player walks onto a ghost tile'
-    expected: 'movePlayer returns false, player position unchanged'
+    expected: 'movePlayer returns false, player position unchanged (ghost still has Blocking component for player and pathfinder; only ghost drift ignores entity blockers)'
   - trigger: 'Pathfinding routes through a ghost tile'
     expected: 'A* treats ghost tiles as blocked, routes around them'
+  - trigger: 'Ghost is enclosed in an oak 5x5 body after seedOaks runs'
+    expected: 'Ghost continues to drift through oak body tiles and out of the canopy on subsequent ticks; never becomes permanently stuck'
   - trigger: 'Fewer than 3 valid spawn positions exist'
     expected: 'Graceful handling — spawn as many as possible without crashing'
 
