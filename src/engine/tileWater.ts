@@ -41,27 +41,66 @@ const collectRainAuras = (state: GameState, zone: ZoneType): RainAura[] => {
   return auras
 }
 
-// Wind direction → rain front sweep axis. The front moves perpendicular-ish
-// to how real weather fronts sweep across the prairie.
-// Returns { axis, sign } where axis is 'x' or 'y' and sign is direction.
-export const windToFrontAxis = (dir: WindDirection): { axis: 'x' | 'y'; sign: 1 | -1 } => {
+// Wind direction → rain front sweep axis in the rotated cardinal frame
+// (precis-thinktank-v5 round 1). Under the rotated frame, cardinals (N/E/S/W)
+// point at the diamond's tips on screen, so their fronts sweep along the
+// iso-diagonal coordinates u = x + y (the diamond's vertical screen axis) and
+// v = x - y (the diamond's horizontal screen axis). Ordinals (NE/SE/SW/NW)
+// align with the storage axes, so their fronts sweep along x or y.
+//
+// sign indicates the direction the leading edge advances over time —
+// positive means coord increases as rainFrontOffset grows.
+export type RainFrontAxis = 'x' | 'y' | 'u' | 'v'
+
+export const windToFrontAxis = (dir: WindDirection): { axis: RainFrontAxis; sign: 1 | -1 } => {
   switch (dir) {
     case WindDirection.N:
-      return { axis: 'y', sign: -1 }
+      // Wind from top tip; rain enters at u=max and advances toward u=0
+      return { axis: 'u', sign: -1 }
     case WindDirection.S:
-      return { axis: 'y', sign: 1 }
+      return { axis: 'u', sign: 1 }
     case WindDirection.E:
-      return { axis: 'x', sign: 1 }
+      // Wind from right tip; rain enters at v=max and advances toward v=min
+      return { axis: 'v', sign: -1 }
     case WindDirection.W:
-      return { axis: 'x', sign: -1 }
+      return { axis: 'v', sign: 1 }
     case WindDirection.NE:
-      return { axis: 'x', sign: 1 }
-    case WindDirection.NW:
+      // Wind from upper-right edge (storage -x); rain advances along -x
       return { axis: 'x', sign: -1 }
-    case WindDirection.SE:
-      return { axis: 'x', sign: 1 }
     case WindDirection.SW:
-      return { axis: 'x', sign: -1 }
+      return { axis: 'x', sign: 1 }
+    case WindDirection.SE:
+      // Wind from lower-right edge (storage -y); rain advances along -y
+      return { axis: 'y', sign: -1 }
+    case WindDirection.NW:
+      return { axis: 'y', sign: 1 }
+  }
+}
+
+// Pure helper. Resolves a tile (x, y) into the front coordinate and the
+// map extent along the given axis. The v axis is biased by mapHeight so
+// coord is non-negative across the playable region, letting the modulo
+// wrap math operate on positive values.
+export const rainFrontCoord = (
+  axis: RainFrontAxis,
+  x: number,
+  y: number,
+  mapWidth: number,
+  mapHeight: number,
+): { coord: number; mapSize: number } => {
+  switch (axis) {
+    case 'x':
+      return { coord: x, mapSize: mapWidth }
+    case 'y':
+      return { coord: y, mapSize: mapHeight }
+    case 'u':
+      // Diamond's vertical screen axis: u spans [0, mapWidth + mapHeight - 2]
+      return { coord: x + y, mapSize: mapWidth + mapHeight }
+    case 'v':
+      // Diamond's horizontal screen axis: v = x - y is signed; bias by
+      // mapHeight so coord lands in [1, mapWidth + mapHeight - 1] across the
+      // playable region.
+      return { coord: x - y + mapHeight, mapSize: mapWidth + mapHeight }
   }
 }
 
@@ -70,8 +109,7 @@ export const windToFrontAxis = (dir: WindDirection): { axis: 'x' | 'y'; sign: 1 
 // Fringe uses tileHash noise so the boundary is organic, not a straight line.
 export const isInRainFront = (state: GameState, x: number, y: number): { hit: boolean; edgeAlpha: number } => {
   const { axis, sign } = windToFrontAxis(state.weather.windDirection)
-  const mapSize = axis === 'x' ? state.overworldMapWidth : state.overworldMapHeight
-  const coord = axis === 'x' ? x : y
+  const { coord, mapSize } = rainFrontCoord(axis, x, y, state.overworldMapWidth, state.overworldMapHeight)
 
   // Front position wraps around the map
   const frontPos = (state.rainFrontOffset * sign + mapSize) % mapSize
