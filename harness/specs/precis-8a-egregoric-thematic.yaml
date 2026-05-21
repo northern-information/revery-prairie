@@ -51,25 +51,31 @@ behaviors:
 
   - id: egregore-glyph-registry
     description: >
-      src/engine/egregore.ts exports an EGREGORE_GLYPHS array of
-      5 to 12 single-character glyphs drawn from the kreativekorp
-      Voynich Unicode font's Private Use Area mapping
-      (U+F120..U+F15F). The allowlist is curated so every code
-      point has a visible glyph in the bundled voynich.ttf — no
-      tile may render as the missing-glyph box. Each glyph is
-      selected deterministically per tile by hashing the tile
-      position. Stable across reloads for the same steward name
-      (genesis seed). Varies across tiles — different positions
-      pick different glyphs. The comment block above the array
-      documents the PUA range and notes that the prior
+      src/engine/egregore.ts exports EGREGORE_GLYPHS as a locked
+      8-glyph allowlist drawn from the kreativekorp Voynich
+      Unicode font's Private Use Area. The exact code points are:
+      U+F166, U+F174, U+F182, U+F1B4, U+F12A, U+F1A1, U+F1B1,
+      U+F1FD — chosen via the visual specimen sheet at
+      docs/voynich-specimen.html and reproduced as a regression
+      asset there. This 8-glyph set is the shared visual alphabet
+      for all "not-of-this-Earth" content: egregore tiles in 8a,
+      egregoric flora species in 8b, and any future egregoric
+      entities. Glyph selection per tile/entity is deterministic
+      via tileHash (or equivalent identity hash). Stable across
+      reloads for the same steward name. The four cmap-mapped
+      but visually-empty PUA slots (U+F120, U+F1A0, U+F220,
+      U+F2A0) are listed in a blocklist constant and must never
+      be added to the allowlist. The comment block above
+      EGREGORE_GLYPHS documents the PUA source and the prior
       Latin-Extended-E + visible-fallback design is retired.
     inputs:
-      - 'an egregore tile at a specific position, Voynich font bundled in the build'
+      - 'an egregoric content site at a specific position/identity, Voynich font bundled in the build'
     outputs:
-      - 'every EGREGORE_GLYPHS code point is in U+F120..U+F15F'
-      - 'every EGREGORE_GLYPHS code point has a visible glyph in the bundled voynich.ttf'
-      - 'the renderer draws the same Voynich glyph at that position across reloads'
-      - 'different egregore positions render different glyphs from the allowlist'
+      - 'EGREGORE_GLYPHS contains exactly these 8 code points: U+F166, U+F174, U+F182, U+F1B4, U+F12A, U+F1A1, U+F1B1, U+F1FD'
+      - 'EGREGORE_GLYPHS contains no code point in the empty-PUA blocklist (U+F120, U+F1A0, U+F220, U+F2A0)'
+      - 'every EGREGORE_GLYPHS code point has a non-empty glyph in the bundled voynich.ttf (verified by reading the loca table)'
+      - 'the renderer draws the same Voynich glyph at the same identity across reloads'
+      - 'different identities draw different glyphs from the allowlist'
     state_changes: []
     determinism: deterministic
 
@@ -99,22 +105,28 @@ behaviors:
   - id: eva-tokens-rendered-as-voynich
     description: >
       The EVA_TOKENS allowlist in src/engine/egregore.ts is
-      composed of strings made of PUA code points
-      (U+F120..U+F15F) rather than Latin letters. The body text
+      composed of strings made of code points drawn from the
+      kreativekorp Voynich PUA range (U+F121..U+F2FF, excluding
+      the empty-PUA blocklist U+F120, U+F1A0, U+F220, U+F2A0).
+      Bodies may use the broader font coverage, not just the 8
+      curated glyphs in EGREGORE_GLYPHS — EGREGORE_GLYPHS is the
+      tile-rendered alphabet; EVA_TOKENS body text can recruit
+      more of the font's range for visual variety. The body text
       returned by getEgregoreManualBody therefore renders as
-      actual Voynich glyphs in the Voynich typeface — the player
-      never sees Latin letters like "qokeey chedy" as the body.
-      Word-spacing and length distribution are preserved so the
-      visual texture still reads as a Voynich manuscript page.
-      LATIN_PIERCE_WORDS remains unchanged in content and
-      placement: roughly 1 tile in 5 still embeds one ASCII
-      English pierce word that renders in the default font.
-      Pierce words are a deliberate cosmology surface (v3 doctrine,
-      late-game ritual) and are preserved by this spec.
+      actual Voynich glyphs — the player never sees Latin letters
+      like "qokeey chedy" as the body. Word-spacing and length
+      distribution are preserved so the visual texture still
+      reads as a Voynich manuscript page. LATIN_PIERCE_WORDS
+      remains unchanged in content and placement: roughly 1 tile
+      in 5 still embeds one ASCII English pierce word that
+      renders in the default font. Pierce words are a deliberate
+      cosmology surface (v3 doctrine, late-game ritual) and are
+      preserved by this spec.
     inputs:
       - 'ManualPanel renders an egregore entry body'
     outputs:
-      - 'every EVA_TOKENS entry consists solely of code points in U+F120..U+F15F'
+      - 'every EVA_TOKENS character is in U+F121..U+F2FF and is not in the empty-PUA blocklist'
+      - 'every EVA_TOKENS character has a non-empty glyph in the bundled voynich.ttf'
       - 'getEgregoreManualBody output renders as Voynich glyphs when the font is loaded'
       - 'LATIN_PIERCE_WORDS is unchanged and still appears in roughly 1/5 of entries as ASCII'
     state_changes: []
@@ -510,10 +522,12 @@ failure_conditions:
     expected: 'CI fails — egregores are not-of-this-Earth and have no name. The header is the glyph alone.'
   - trigger: "The Voynich font file is missing from the bundled assets at the time `npm run build` runs, or the @font-face declaration is absent from src/styles/index.css"
     expected: 'CI fails — the Voynich font is now a load-required asset; missing it is a build-time failure, not a runtime degraded mode.'
-  - trigger: "EGREGORE_GLYPHS contains any code point outside U+F120..U+F15F"
-    expected: 'CI fails — the glyph range is locked to the kreativekorp PUA mapping'
-  - trigger: "EVA_TOKENS contains any code point outside U+F120..U+F15F"
-    expected: 'CI fails — EVA token bodies must render as Voynich glyphs, not Latin letters'
+  - trigger: "EGREGORE_GLYPHS deviates from the locked 8-code-point set (U+F166, U+F174, U+F182, U+F1B4, U+F12A, U+F1A1, U+F1B1, U+F1FD) without an explicit spec update"
+    expected: 'CI fails — the 8-glyph alphabet is locked across all egregoric content'
+  - trigger: "EGREGORE_GLYPHS contains any of U+F120, U+F1A0, U+F220, U+F2A0"
+    expected: 'CI fails — these PUA slots are mapped in the font cmap but render as empty glyphs'
+  - trigger: "EVA_TOKENS contains any code point outside U+F121..U+F2FF, or any code point in the empty-PUA blocklist"
+    expected: 'CI fails — EVA token bodies must render as Voynich glyphs, not Latin letters or empty boxes'
   - trigger: "selectScanTarget does not return an egregore variant for an on-tile or cardinally-adjacent TileType.Egregore"
     expected: 'CI fails — egregore F-hold scan plumbing is incomplete'
   - trigger: "state.egregoreSpecimens is missing from EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts"
