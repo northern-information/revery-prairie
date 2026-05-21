@@ -405,9 +405,30 @@ export interface GameState {
   rainFrontOffset: number
   precipitationIntensity: number
   // Fractional position in the annual cycle, [0, 1). Advances only in the
-  // overworld; 0.0/1.0 = deep winter, 0.25 = mid-spring, 0.5 = summer peak,
-  // 0.75 = mid-autumn. Drives seasonal temperature bias and dormancy.
+  // overworld; phase 0 = spring equinox (March 20, game start),
+  // 0.25 = summer solstice, 0.5 = autumn equinox, 0.75 = winter solstice.
+  // Drives seasonal temperature bias and dormancy.
   seasonalPhase: number
+  // Gregorian month/day projection of seasonalPhase, anchored at the spring
+  // equinox (day-of-year 79). Recomputed in tickWeather; single writer.
+  currentDate: { month: number; day: number }
+  // Precis #9b — Torchbearer behavior pass.
+  // burnLineDraft: tiles the player is editing. Persists across save/load.
+  //   Consumed at the Winter → Spring transition.
+  // lockedBurnLine: the line Moab walks this Spring. Set at thaw from
+  //   burnLineDraft; cleared at Spring → Summer.
+  // burnLineIndex: Moab's progress along lockedBurnLine. null when idle.
+  // burnDrawMode: input mode toggle ([b] key). When true, mouse clicks
+  //   chain burn-line waypoints instead of movement.
+  // lastSeenSeason: the previous tick's weather.season. Drives transition
+  //   detection (Winter → Spring lock, Spring → Summer cleanup).
+  // moabState: see MoabState. Tracks Moab's role in the burn cycle.
+  burnLineDraft: Position[] | null
+  lockedBurnLine: Position[] | null
+  burnLineIndex: number | null
+  burnDrawMode: boolean
+  lastSeenSeason: Season
+  moabState: MoabState
   wind: WindState
   pollen: PollenParticle[]
   pollenTrailDepth: number
@@ -561,6 +582,23 @@ export const Season = {
 } as const
 
 export type Season = (typeof Season)[keyof typeof Season]
+
+// Precis #9b — Moab the Torchbearer's lifecycle states. 'idle' is the
+// default (Moab in cave, not active). 'walking' is set during Spring
+// when he is pacing lockedBurnLine and igniting tiles. 'refusing' is
+// the one-tick window after a catastrophic-edge check fails. 'dismissed'
+// is set when the player completes the dismiss dialog mid-walk.
+// 'returning' is set after walk completion, dismissal, or refusal —
+// Moab is pathfinding back to the cave.
+export const MoabState = {
+  Idle: 'idle',
+  Walking: 'walking',
+  Refusing: 'refusing',
+  Dismissed: 'dismissed',
+  Returning: 'returning',
+} as const
+
+export type MoabState = (typeof MoabState)[keyof typeof MoabState]
 
 export interface Weather {
   sky: Sky

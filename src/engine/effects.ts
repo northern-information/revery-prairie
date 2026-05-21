@@ -112,5 +112,17 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
     }
   }
 
+  // Precis #9b — burn line membership. Draft is the player's current
+  // edit; locked is what Moab will walk (or is walking) this Spring.
+  if (zone === Zone.Overworld) {
+    const key = posKey(x, y)
+    if (state.burnLineDraft?.some(p => posKey(p.x, p.y) === key)) {
+      seen.add('burn line (draft)')
+    }
+    if (state.lockedBurnLine?.some(p => posKey(p.x, p.y) === key)) {
+      seen.add('burn line (locked)')
+    }
+  }
+
   return [...seen]
 }

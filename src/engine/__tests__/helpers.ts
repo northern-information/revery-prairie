@@ -93,7 +93,10 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   // (precis #2)
   state.weather.season = Season.Spring
   state.weather.temperatureF = 65
-  state.seasonalPhase = 0.25
+  // Phase 0.125 = mid-spring (halfway between spring equinox at 0.0 and
+  // summer solstice at 0.25). With mid-range temp, deriveSeason returns
+  // Spring. Don't use 0.25 here — that's now the summer-solstice anchor.
+  state.seasonalPhase = 0.125
   // Mark the spawn ceremony as already completed — tests that don't exercise
   // it should see a visible, movable player even when running the game loop.
   state.playerSpawn = {

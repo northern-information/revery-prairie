@@ -1,5 +1,5 @@
 import { containerHasItem } from './inventory'
-import { MainQuestPhase, Season } from './types'
+import { MainQuestPhase, MoabState, Season } from './types'
 
 import type { CharacterDefinition, GameState } from './types'
 
@@ -152,7 +152,31 @@ const MOAB_DIALOG_SPRING: string[] = [
 
 const MOAB_DIALOG_DEFAULT: string[] = ['...', 'The other clover. We do not grow that.']
 
+// Precis #9b — registers used while Moab is mid-cycle. moabState
+// overrides season-routing when he is Walking, Refusing, or Dismissed.
+const MOAB_DIALOG_WALKING: string[] = [
+  'The line is where the winter put it.',
+  'Walk with me.',
+  'The other clover. We do not grow that.',
+]
+
+const MOAB_DIALOG_REFUSING: string[] = [
+  'No.',
+  'Not this line. Not this thaw.',
+  'The other clover. We do not grow that.',
+]
+
+const MOAB_DIALOG_DISMISSED: string[] = [
+  '...',
+  'The line stays where the winter put it.',
+  'The other clover. We do not grow that.',
+]
+
 const getMoabDialog = (state: GameState): string[] => {
+  // Precis #9b — moabState overrides seasonal routing during the cycle.
+  if (state.moabState === MoabState.Walking) return MOAB_DIALOG_WALKING
+  if (state.moabState === MoabState.Refusing) return MOAB_DIALOG_REFUSING
+  if (state.moabState === MoabState.Dismissed) return MOAB_DIALOG_DISMISSED
   switch (state.weather.season) {
     case Season.Winter:
       return MOAB_DIALOG_WINTER

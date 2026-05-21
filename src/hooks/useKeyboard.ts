@@ -113,7 +113,8 @@ export const useKeyboard = ({
       // race the modal's dismiss logic.
       if (activeScreen === 'scan-result') return
 
-      // Escape: close dialog, then screen, then open system
+      // Escape: close dialog, then screen, then exit burnDrawMode,
+      // then open system
       if (e.key === 'Escape') {
         if (state.activeDialog) {
           state.activeDialog = null
@@ -128,7 +129,24 @@ export const useKeyboard = ({
           setActiveScreen(null)
           return
         }
+        if (state.burnDrawMode) {
+          state.burnDrawMode = false
+          refreshUI()
+          return
+        }
         setActiveScreen('system')
+        return
+      }
+
+      // [b] — toggle burn-line draw mode (precis #9b). Overworld only.
+      // Blocked while a dialog or screen is open. Does not clear the
+      // existing burnLineDraft on toggle off — exit/re-enter is free.
+      if ((e.key === 'b' || e.key === 'B') && !e.repeat) {
+        if (state.activeDialog) return
+        if (activeScreen !== null) return
+        if (state.currentZone !== Zone.Overworld) return
+        state.burnDrawMode = !state.burnDrawMode
+        refreshUI()
         return
       }
 

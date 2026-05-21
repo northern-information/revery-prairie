@@ -9,7 +9,7 @@ import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { selectUnit } from './selection'
 import { invalidateMapCache } from './tileBgCache'
-import { CoyoteMode, MainQuestPhase, TileType, Zone } from './types'
+import { CoyoteMode, MainQuestPhase, MoabState, TileType, Zone } from './types'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
@@ -209,6 +209,14 @@ export const advanceDialog = (
   if (characterId === 'gron' && state.pendingSavedBees) {
     releaseSavedBees(state)
     state.pendingSavedBees = false
+  }
+
+  // Precis #9b — completing dialog with Moab while he is walking the
+  // line dismisses him. moabState flips to 'dismissed'; the torchbearer
+  // tick converts that to 'returning' next pass and Moab pathfinds back
+  // to the cave. lockedBurnLine stays in state until Spring → Summer.
+  if (characterId === 'moab' && state.moabState === MoabState.Walking) {
+    state.moabState = MoabState.Dismissed
   }
 
   // Give initial gift when completing the initial dialog

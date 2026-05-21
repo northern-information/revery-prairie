@@ -27,9 +27,12 @@ const WIND_MAX = 30
 const HUMIDITY_MIN = 30
 const HUMIDITY_MAX = 95
 
-// Seasonal mean targets used as a soft attractor each tick. Numbers chosen to
-// place 0.0/1.0 at deep-winter (20°F), 0.5 at summer peak (75°F), with spring
-// and autumn passing through 55°F on the way up/down.
+// Seasonal mean targets used as a soft attractor each tick. With phase 0
+// anchored to the spring equinox, the seasonalLerp sinusoid places:
+// phase 0 → midpoint (~47.5°F, equinox crossing),
+// phase 0.25 → summer peak (75°F),
+// phase 0.5 → midpoint (~47.5°F, autumn-equinox crossing),
+// phase 0.75 → winter trough (20°F).
 const SEASONAL_TEMP_WINTER = 20
 const SEASONAL_TEMP_SUMMER = 75
 
@@ -45,8 +48,8 @@ const SEASONAL_WIND_SUMMER = 14
 const SEASONAL_BIAS_STRENGTH = 0.05
 
 // Season-classification thresholds. <38°F always reads as winter and >78°F as
-// summer no matter the phase; in between, the phase resolves whether we're on
-// the way up (spring) or down (autumn).
+// summer no matter the phase; in between, the phase quadrant resolves which
+// of the four seasons the calendar is in.
 const WINTER_TEMP_THRESHOLD = 38
 const SUMMER_TEMP_THRESHOLD = 78
 
@@ -55,15 +58,16 @@ const SNOW_HUMIDITY_THRESHOLD = 75
 
 const randBetween = (min: number, max: number): number => Math.floor(Math.random() * (max - min + 1)) + min
 
-// Seasonal phase wraps every SEASONAL_PHASE_PERIOD_MS. The phase peaks at 0.5
-// (summer) and bottoms at 0 and 1 (deep winter). We use a cosine on the phase
-// to derive the seasonal mean for any continuous variable.
+// Seasonal phase wraps every SEASONAL_PHASE_PERIOD_MS. Phase 0 is the spring
+// equinox (game start); the year peaks at 0.25 (summer solstice) and troughs
+// at 0.75 (winter solstice). We use a sine on the phase so the equinox
+// crossings (phase 0 and 0.5) sit at the midpoint of [winter, summer].
 const seasonalLerp = (phase: number, winterValue: number, summerValue: number): number => {
-  // cos(2π·phase) is +1 at phase 0 (winter), -1 at phase 0.5 (summer). Map
-  // that to [winter, summer] by treating +1 as winter and -1 as summer.
-  const cos = Math.cos(2 * Math.PI * phase)
-  const winterWeight = (cos + 1) / 2 // 1 at phase 0, 0 at phase 0.5
-  return winterValue * winterWeight + summerValue * (1 - winterWeight)
+  // sin(2π·phase) is 0 at phase 0 (spring equinox), +1 at 0.25 (summer
+  // solstice), 0 at 0.5 (autumn equinox), -1 at 0.75 (winter solstice).
+  const sin = Math.sin(2 * Math.PI * phase)
+  const summerWeight = (sin + 1) / 2 // 0.5 at equinoxes, 1 at summer, 0 at winter
+  return winterValue * (1 - summerWeight) + summerValue * summerWeight
 }
 
 export const seasonalMeanTemperature = (phase: number): number =>
@@ -74,15 +78,45 @@ const seasonalMeanHumidity = (phase: number): number =>
 
 const seasonalMeanWind = (phase: number): number => seasonalLerp(phase, SEASONAL_WIND_WINTER, SEASONAL_WIND_SUMMER)
 
-// Pure classifier. Below WINTER_TEMP_THRESHOLD is unambiguously winter; above
-// SUMMER_TEMP_THRESHOLD is unambiguously summer. In the mid-range, the phase
-// disambiguates: phases in [0, 0.5) are warming (spring), phases in [0.5, 1)
-// are cooling (autumn).
+// Pure classifier. Temperature extremes always win — <38°F is unambiguously
+// winter, >78°F is unambiguously summer. In the mid-range, the phase quadrant
+// resolves the calendar season:
+//   [0.00, 0.25) → Spring (post-equinox, warming toward summer)
+//   [0.25, 0.50) → Summer (post-solstice, cooling toward autumn)
+//   [0.50, 0.75) → Autumn (post-equinox, cooling toward winter)
+//   [0.75, 1.00) → Winter (post-solstice, warming toward spring)
 export const deriveSeason = (temperatureF: number, seasonalPhase: number): Season => {
   if (temperatureF < WINTER_TEMP_THRESHOLD) return Season.Winter
   if (temperatureF > SUMMER_TEMP_THRESHOLD) return Season.Summer
   const normalized = ((seasonalPhase % 1) + 1) % 1
-  return normalized < 0.5 ? Season.Spring : Season.Autumn
+  if (normalized < 0.25) return Season.Spring
+  if (normalized < 0.5) return Season.Summer
+  if (normalized < 0.75) return Season.Autumn
+  return Season.Winter
+}
+
+// Pure: maps seasonalPhase ∈ [0, 1) to a Gregorian { month, day } anchored at
+// the spring equinox (March 20, day-of-year 79) on a fixed 365-day calendar.
+// Leap days are intentionally ignored — "things may have drifted" in the
+// game's far-future setting.
+// March 20 = day-of-year 79 in 1-indexed Gregorian convention. The cumulative
+// table below is 0-indexed (Jan 1 = day 0), so the anchor offset is 78.
+const SPRING_EQUINOX_DAY_OF_YEAR = 78
+const DAYS_PER_YEAR = 365
+const MONTH_CUM_DAYS = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
+const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+export const phaseToDate = (phase: number): { month: number; day: number } => {
+  const normalized = ((phase % 1) + 1) % 1
+  const dayOfYear = (Math.floor(normalized * DAYS_PER_YEAR) + SPRING_EQUINOX_DAY_OF_YEAR) % DAYS_PER_YEAR
+  let month = 11
+  for (let i = 0; i < 12; i++) {
+    if (dayOfYear < MONTH_CUM_DAYS[i] + MONTH_LENGTHS[i]) {
+      month = i
+      break
+    }
+  }
+  return { month: month + 1, day: dayOfYear - MONTH_CUM_DAYS[month] + 1 }
 }
 
 const pickSky = (humidity: number, season: Season): Sky => {
@@ -95,9 +129,10 @@ const pickSky = (humidity: number, season: Season): Sky => {
 }
 
 export const generateWeather = (): Weather => {
-  // Initial weather is generated at game start, when seasonalPhase = 0 (deep
-  // winter). We still seed values within the operational range and let
-  // deriveSeason classify them so the first tick is internally consistent.
+  // Initial weather is generated at game start, when seasonalPhase = 0 (spring
+  // equinox). Temperature is seeded near the equinox-crossing mean (~47.5°F)
+  // and deriveSeason classifies it — falls in mid-range temp + phase quadrant
+  // [0, 0.25), so the first tick reads as Spring.
   const humidity = randBetween(HUMIDITY_MIN, HUMIDITY_MAX)
   const temperatureF = Math.round(seasonalMeanTemperature(0) + randBetween(-5, 5))
   const season = deriveSeason(temperatureF, 0)
@@ -128,6 +163,11 @@ export const tickWeather = (state: GameState, dt: number): void => {
     const advance = dt / SEASONAL_PHASE_PERIOD_MS
     state.seasonalPhase = (state.seasonalPhase + advance) % 1
   }
+
+  // Cached Gregorian projection of seasonalPhase. Recomputed every tick (even
+  // in cave/ruin zones where the phase is frozen) so reads from any zone are
+  // consistent. tickWeather is the single writer of state.currentDate.
+  state.currentDate = phaseToDate(state.seasonalPhase)
 
   const phase = state.seasonalPhase
   const tempMean = seasonalMeanTemperature(phase)

@@ -1,0 +1,476 @@
+id: precis-9b-torchbearer-behavior
+name: 'Precis #9b — Torchbearer behavior pass (controlled burn)'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/torchbearer.ts
+  - src/engine/characters.ts
+  - src/engine/gameLoop.ts
+  - src/engine/interaction.ts
+  - src/engine/renderer.ts
+  - src/hooks/useMouse.ts
+  - src/hooks/useKeyboard.ts
+  - src/components/Sidebar.tsx
+  - src/engine/manual.ts
+  - src/engine/__tests__/torchbearer.test.ts
+dependencies:
+  - precis-9a-torchbearer-voice
+  - precis-2-phenological-seasons
+  - precis-8b-egregoric-mechanical
+  - moab-colde
+
+# Doctrine context (docs/precis-thinktank-v3.md):
+#   "Torchbearer NPC ignites burns at thaw. Their arrival IS the seasonal
+#   signal. Player walks the line with them. Stewardship is accompaniment.
+#   Calibrated Dark Souls bumper: advise, mostly obey, refuse only at
+#   catastrophic edge. Botched burns produce ash prairie (#10). Player
+#   may dismiss the Torchbearer at the line."
+#
+# Scoping decisions locked with the user:
+#   - Arrival: auto every Winter → Spring transition. No player trigger.
+#   - Line drawing window: any time. Whatever line exists at the moment
+#     of Winter → Spring transition gets locked and walked.
+#   - Edge scope: all four edges land in 9b — player dismissal, Moab's
+#     catastrophic refusal, Flora → BurntFlora burn result, Egregore
+#     tiles also burn.
+#
+# Defaults baked into this spec (flagged for review):
+#   D1. Draw-mode UX: a new key `b` toggles burn-draw mode. While
+#       drawing, left-click sets the line origin; shift+click chains
+#       waypoints. ESC exits the mode without clearing the draft.
+#       Alternative (click-and-drag) was considered and rejected for
+#       conflict with click-to-move. Existing path/waypoint vocabulary
+#       transfers cleanly to burn-line drafting.
+#   D2. Egregore tile burn result: Egregore → Dirt (not BurntFlora).
+#       Rationale: BurntFlora signals charred native flora; egregores
+#       aren't native, so they don't leave a charred-flora signature.
+#       The burn UN-makes the egregore claim and the ground reverts.
+#   D3. Locked-line persistence: lockedBurnLine clears at Spring →
+#       Summer regardless of whether it was walked, dismissed, or
+#       refused. Player redraws next winter. The v3 wording "the line
+#       stays where the winter put it" is poetic — refers to the
+#       commitment within the year, not multi-year persistence.
+#   D4. Refusal weather thresholds: wind > 20 mph AND humidity < 30%
+#       triggers Moab's catastrophic-weather refusal. Conservative
+#       defaults; can be re-tuned via a balance follow-up.
+#   D5. Moab's pacing cadence: 500ms per tile (matches ghost drift
+#       cadence in the existing engine).
+#   D6. Refusal positions: line touching a character entity (Gron,
+#       Coyote, ghosts), the cave entrance, or any ruin entrance
+#       triggers refusal.
+
+behaviors:
+  - id: burn-line-draft-state
+    description: >
+      GameState gains two nullable Position[] fields: burnLineDraft
+      (what the player is editing, persists until cleared or until
+      the Winter → Spring transition consumes it) and lockedBurnLine
+      (what Moab is committed to walking this Spring). A nullable
+      burnLineIndex tracks Moab's progress along lockedBurnLine.
+      Initialized to null on createGameState.
+    inputs:
+      - 'createGameState returns a fresh state'
+    outputs:
+      - 'state.burnLineDraft === null'
+      - 'state.lockedBurnLine === null'
+      - 'state.burnLineIndex === null'
+    state_changes:
+      - field: burnLineDraft
+        effect: 'initialized to null'
+      - field: lockedBurnLine
+        effect: 'initialized to null'
+      - field: burnLineIndex
+        effect: 'initialized to null'
+    determinism: deterministic
+
+  - id: burn-draw-mode-toggle
+    description: >
+      A new state field state.burnDrawMode: boolean (default false)
+      controls whether mouse input chains burn-line waypoints
+      vs movement waypoints. Pressing the [b] key in the overworld,
+      with no dialog/menu/panel open and no modifier held, toggles
+      burnDrawMode. ESC exits burnDrawMode without clearing
+      burnLineDraft. Movement keys (WASD) work normally regardless
+      of mode — only mouse semantics change.
+    inputs:
+      - 'Player presses [b] in overworld'
+      - 'Player presses ESC while burnDrawMode === true'
+    outputs:
+      - 'burnDrawMode toggles'
+      - 'burnLineDraft is NOT cleared by mode exit'
+    state_changes:
+      - field: burnDrawMode
+        effect: 'toggled by [b]; set to false by ESC'
+    determinism: deterministic
+
+  - id: burn-line-click-chain
+    description: >
+      While state.burnDrawMode === true, left-click on a walkable
+      overworld tile sets burnLineDraft to [clickedTile] (resets the
+      line origin). Shift+left-click appends the clicked tile to
+      burnLineDraft, validated against contiguity (each new tile must
+      be 4-neighbor adjacent to the previous tile in the draft).
+      Invalid clicks (non-walkable, non-overworld, non-contiguous on
+      shift) are ignored. Click during burnDrawMode never triggers
+      movement.
+    inputs:
+      - 'left-click on walkable overworld tile with burnDrawMode true'
+      - 'shift+left-click on 4-neighbor of last draft tile'
+      - 'click on non-walkable / non-overworld / non-adjacent tile'
+    outputs:
+      - 'origin click resets burnLineDraft to [tile]'
+      - 'shift+click appends tile if adjacent; otherwise no-op'
+    state_changes:
+      - field: burnLineDraft
+        effect: 'origin click: set to single-element array; shift+click: appended if valid'
+    determinism: deterministic
+
+  - id: winter-spring-transition-lock
+    description: >
+      A new state.lastSeenSeason field tracks the previous tick's
+      season. Each weather tick, the transition Winter → Spring is
+      detected (lastSeenSeason === Winter AND weather.season ===
+      Spring). On detection, burnLineDraft is consumed:
+      lockedBurnLine := burnLineDraft, burnLineDraft := null. If
+      burnLineDraft was null/empty, lockedBurnLine remains null and
+      Moab does not emerge that year. The transition fires exactly
+      once per Winter → Spring per year.
+    inputs:
+      - 'tickWeather runs with lastSeenSeason === Winter and weather.season === Spring'
+    outputs:
+      - 'lockedBurnLine === previous burnLineDraft (if non-empty)'
+      - 'burnLineDraft === null'
+    state_changes:
+      - field: lockedBurnLine
+        effect: 'set from burnLineDraft at thaw'
+      - field: burnLineDraft
+        effect: 'cleared at thaw'
+      - field: lastSeenSeason
+        effect: 'updated to current weather.season every tick'
+    determinism: deterministic
+
+  - id: moab-emerges-on-spring
+    description: >
+      Immediately after the Winter → Spring transition, if
+      lockedBurnLine is non-null AND Moab is not refusing (see
+      refusal behavior), Moab's ECS entity transitions from
+      EntityZone.Cave to EntityZone.Overworld. His Position is set
+      to the overworld tile of the cave entrance (state.caveEntrance).
+      A new field state.moabState transitions to 'walking'. He begins
+      pacing toward lockedBurnLine[0] via pathfinding, then along the
+      line.
+    inputs:
+      - 'Winter → Spring transition with non-null lockedBurnLine and no refusal'
+    outputs:
+      - 'Moab ECS entity zone === Overworld'
+      - 'Moab Position === state.caveEntrance'
+      - "state.moabState === 'walking'"
+    state_changes:
+      - field: world
+        effect: 'Moab EntityZone component switched to Overworld'
+      - field: moabState
+        effect: "set to 'walking'"
+      - field: burnLineIndex
+        effect: 'set to 0'
+    determinism: deterministic
+
+  - id: moab-paces-locked-line
+    description: >
+      A new tickTorchbearer runs in the gameLoop overworld zone with
+      intervalMs === MOAB_PACE_MS (500ms, matching ghost drift). When
+      moabState === 'walking' and burnLineIndex is non-null, Moab
+      advances one tile toward lockedBurnLine[burnLineIndex]. If
+      adjacent or already on the target tile, he steps onto it and
+      ignites it (see tile-burn-rules), then increments
+      burnLineIndex. If burnLineIndex >= lockedBurnLine.length, the
+      walk completes — moabState transitions to 'returning' and Moab
+      pathfinds back to the cave entrance.
+    inputs:
+      - "tickTorchbearer fires every 500ms with moabState === 'walking'"
+    outputs:
+      - 'Moab Position advances one tile toward the next line target'
+      - 'Tiles ignited along the way per tile-burn-rules'
+      - "moabState transitions to 'returning' when line is complete"
+    state_changes:
+      - field: world
+        effect: 'Moab Position component updated each tick'
+      - field: burnLineIndex
+        effect: 'incremented after each tile reached'
+      - field: map
+        effect: 'tiles mutated per tile-burn-rules'
+      - field: moabState
+        effect: "transitions 'walking' → 'returning' at line end"
+    determinism: deterministic
+
+  - id: tile-burn-rules
+    description: >
+      When Moab steps onto a tile during 'walking', the tile is
+      mutated according to its type. Mutations go through
+      setMapTile so cache invalidation is correct. TileType.Flora →
+      TileType.BurntFlora (clears the FloraLifecycle entry).
+      TileType.Egregore → TileType.Dirt (clears the
+      EgregoreActivityState entry and any genome data). All other
+      tile types are no-ops on burn (Dirt, BurntFlora, Sand —
+      space/cave/ruin tiles are unreachable by line construction).
+    inputs:
+      - 'Moab steps onto a tile of each TileType during walking'
+    outputs:
+      - 'Flora → BurntFlora; floraLifecycle.delete(posKey)'
+      - 'Egregore → Dirt; egregoreLifecycle.delete(posKey)'
+      - 'Dirt/Sand/BurntFlora: unchanged'
+    state_changes:
+      - field: map
+        effect: 'tile mutated when Flora or Egregore'
+      - field: floraLifecycle
+        effect: 'entry deleted on Flora burn'
+      - field: egregoreLifecycle
+        effect: 'entry deleted on Egregore burn'
+    determinism: deterministic
+
+  - id: refusal-catastrophic-edge
+    description: >
+      Before moab-emerges-on-spring sets moabState to 'walking', the
+      lockedBurnLine is validated for catastrophic conditions. Refuse
+      if (1) any line tile coincides with a character entity position
+      (Gron, Coyote, ghosts), (2) any line tile coincides with the
+      cave entrance or any ruin entrance, OR (3) state.weather has
+      windSpeed > 20 AND humidity < 30. On refusal, moabState
+      transitions to 'refusing' for one tick (long enough for the
+      dialog system to display the refusal register), then
+      'returning'. lockedBurnLine stays in state until Spring →
+      Summer cleanup.
+    inputs:
+      - 'Winter → Spring transition with non-null lockedBurnLine'
+      - 'Any of: line touches character/cave/ruin OR wind > 20 AND humidity < 30'
+    outputs:
+      - "moabState === 'refusing' for one tick"
+      - 'Tiles along lockedBurnLine are NOT mutated'
+      - 'lockedBurnLine remains in state for the cursor info panel'
+    state_changes:
+      - field: moabState
+        effect: "set to 'refusing' on catastrophic check; → 'returning' next tick"
+      - field: burnLineIndex
+        effect: 'stays null on refusal'
+    determinism: deterministic
+
+  - id: player-dismiss-at-line
+    description: >
+      Player presses [e] facing Moab while moabState === 'walking'.
+      The existing interactWithCharacter system opens dialog. When
+      that dialog completes (player advances past the last line),
+      moabState transitions to 'dismissed' then 'returning'. Moab
+      stops pacing and pathfinds back to the cave entrance.
+      lockedBurnLine stays in state (cursor info panel can still
+      report the unburnt remainder); per D3 it clears at Spring →
+      Summer.
+    inputs:
+      - "Player facing Moab, [e] pressed, moabState === 'walking'"
+      - 'Player completes the dismiss dialog'
+    outputs:
+      - 'Dialog opens with Moab walking register'
+      - "On dialog complete: moabState === 'dismissed' → 'returning'"
+      - 'Moab does not advance burnLineIndex while dialog is open'
+    state_changes:
+      - field: activeDialog
+        effect: "opens with characterId === 'moab' during walking"
+      - field: moabState
+        effect: "'walking' → 'dismissed' → 'returning' on dialog complete"
+    determinism: deterministic
+
+  - id: spring-summer-cleanup
+    description: >
+      On Spring → Summer transition (lastSeenSeason === Spring AND
+      weather.season === Summer), regardless of whether Moab finished
+      walking, was dismissed, or refused: Moab's EntityZone returns
+      to Cave with Position === state.caveNpcSpot. moabState
+      transitions to 'idle'. lockedBurnLine and burnLineIndex are
+      cleared. If Moab was still 'walking' or 'returning' at the
+      transition, the remaining tiles are left unburnt — the season
+      simply ends.
+    inputs:
+      - 'tickWeather detects Spring → Summer transition'
+    outputs:
+      - 'Moab EntityZone === Cave, Position === caveNpcSpot'
+      - "moabState === 'idle'"
+      - 'lockedBurnLine === null'
+      - 'burnLineIndex === null'
+    state_changes:
+      - field: world
+        effect: 'Moab EntityZone → Cave; Position → caveNpcSpot'
+      - field: moabState
+        effect: "set to 'idle'"
+      - field: lockedBurnLine
+        effect: 'cleared'
+      - field: burnLineIndex
+        effect: 'cleared'
+    determinism: deterministic
+
+  - id: moab-dialog-walking-register
+    description: >
+      precis-9a's getMoabDialog gains awareness of moabState. When
+      moabState === 'walking', returns the walking-the-line register
+      (different from the Spring register that fires while Moab is
+      in the cave). When moabState === 'refusing', returns the
+      refusal register. Both registers obey folk-Coldë voice rules
+      (no contractions, statement form, no editorial affect) and
+      end with the locked precis-8a egregore refusal line.
+    inputs:
+      - "getCharacterDialog(state, 'moab') with moabState 'walking'"
+      - "getCharacterDialog(state, 'moab') with moabState 'refusing'"
+    outputs:
+      - 'walking register returned for walking'
+      - 'refusal register returned for refusing'
+      - "Every register's last line === 'The other clover. We do not grow that.'"
+    state_changes: []
+    determinism: deterministic
+
+  - id: renderer-draws-burn-line
+    description: >
+      A new render pass under src/engine/render/passes/ draws the
+      burn line as a faint overlay on the relevant tiles.
+      burnLineDraft renders in a paler shade; lockedBurnLine
+      renders in a more saturated shade. The overlay does not
+      depend on hot pink (reserved for user actions cursor /
+      preview per CLAUDE.md). Suggested palette: muted amber
+      for draft, deeper amber for locked. burnLineIndex marks
+      Moab's progress — tiles already walked render unhighlighted
+      (they have already mutated and need no overlay).
+    inputs:
+      - 'burnLineDraft / lockedBurnLine populated'
+      - 'render frame'
+    outputs:
+      - 'tiles in burnLineDraft show a draft overlay'
+      - 'tiles in lockedBurnLine[burnLineIndex:] show a locked overlay'
+    state_changes: []
+    determinism: deterministic
+
+  - id: manual-event-entries
+    description: >
+      Two new manual-only entries: event:torchbearer-walk recorded
+      via recordDiscovery the first time Moab completes walking a
+      line; event:torchbearer-refused recorded the first time he
+      refuses. Both entries enter MANUAL_ONLY_ENTRIES with
+      `{ lore: 'TODO' }` placeholders pending human authoring (per
+      manual.ts lore rule).
+    inputs:
+      - 'Moab completes walking lockedBurnLine'
+      - 'Moab refuses a lockedBurnLine'
+    outputs:
+      - 'event:torchbearer-walk in manualDiscoveries on first complete walk'
+      - 'event:torchbearer-refused in manualDiscoveries on first refusal'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'event keys added on first occurrence'
+    determinism: deterministic
+
+edge_cases:
+  - id: no-line-drawn-spring-arrives
+    description: >
+      Winter → Spring transition fires while burnLineDraft is null
+      or empty.
+    expected: >
+      lockedBurnLine stays null. Moab does not emerge. moabState
+      stays 'idle'. The year passes without a controlled burn.
+
+  - id: player-draws-during-spring
+    description: >
+      Player enters burnDrawMode and draws a line while
+      weather.season === Spring (after thaw, before next winter).
+    expected: >
+      Drawing is allowed (burnDrawMode works in any season). The
+      line populates burnLineDraft. It will be consumed by the NEXT
+      Winter → Spring transition. lockedBurnLine is unaffected this
+      year.
+
+  - id: line-includes-egregore-mid-winter-placed
+    description: >
+      Player draws a line through dirt during Autumn. By the time
+      thaw arrives, precis-8b egregore spread has placed an Egregore
+      tile on one of the drafted positions.
+    expected: >
+      tile-burn-rules handles this: Moab steps onto the Egregore
+      tile and mutates it to Dirt. No refusal — Egregore is not in
+      the catastrophic-edge set.
+
+  - id: moab-blocked-mid-walk
+    description: >
+      A character entity moves onto a tile in lockedBurnLine ahead
+      of Moab (ghost drift). Moab pathfinds toward the next line
+      tile and the path is blocked.
+    expected: >
+      Moab waits at his current position. burnLineIndex does not
+      advance. If the block clears within the Spring window, he
+      resumes. If not, Spring → Summer cleanup ends the walk early.
+
+  - id: cave-entrance-relocated
+    description: >
+      Defensive — the cave entrance position is determined at
+      genesis and does not move. Test against state.caveEntrance
+      read at refusal-check time, not a cached value.
+    expected: >
+      Refusal check reads state.caveEntrance each time; relocations
+      (impossible in current code) would be honored.
+
+  - id: player-in-cave-during-burn
+    description: >
+      Player enters the cave during the burn. Moab keeps pacing
+      tiles in the overworld; the player sees no visual
+      confirmation until exiting the cave.
+    expected: >
+      tickTorchbearer runs in zone === 'overworld' only. While the
+      player is in the cave, Moab's pacing pauses (matches existing
+      bee/ghost/weather suppression in cave). When the player
+      surfaces, pacing resumes from burnLineIndex. Tiles already
+      burnt remain burnt.
+
+  - id: rapid-season-skips-via-dev-panel
+    description: >
+      Player uses the dev panel Force Season dropdown (precis-9a) to
+      flip Winter → Spring → Summer in seconds.
+    expected: >
+      The transition detector fires on the Winter → Spring and
+      Spring → Summer state changes. Moab emerges and returns within
+      the same observable window. lockedBurnLine clears at Summer.
+      Useful for testing; no special case needed in the code.
+
+  - id: dismiss-during-refusal
+    description: >
+      Player approaches and dismisses Moab while he is in the
+      'refusing' state (one-tick window).
+    expected: >
+      Refusal one-tick window is short enough that the player
+      cannot reliably interact during it. If they do, dialog opens
+      with the refusal register and completes normally; moabState
+      → 'returning' as it would anyway.
+
+failure_conditions:
+  - trigger: 'lockedBurnLine[burnLineIndex] becomes unreachable (terrain mutation mid-walk)'
+    expected: >
+      tickTorchbearer's pathfind returns null. Moab stays in place
+      and burnLineIndex does not advance. Spring → Summer cleanup
+      ends the walk; the unreached portion remains unburnt.
+
+  - trigger: 'Player presses [b] outside the overworld (in cave/ruin)'
+    expected: >
+      Burn draw mode does not toggle. The B key is overworld-only.
+
+  - trigger: 'createGameState constructed without weather (test harness shortcut)'
+    expected: >
+      tickTorchbearer reads state.weather.season directly. A state
+      missing weather would throw on first tick — surfaced loudly,
+      not silently coerced.
+
+  - trigger: 'Save/load with mid-walk Moab'
+    expected: >
+      Serialization includes moabState, burnLineIndex,
+      lockedBurnLine, burnLineDraft, lastSeenSeason. EXPECTED_FIELDS
+      in src/harness/__tests__/serialization/schema.test.ts must be
+      updated for all new fields (see "new GameState field" rule in
+      CLAUDE.md).
+
+verification:
+  test_file: src/engine/__tests__/torchbearer.test.ts
+  test_pattern: 'torchbearer|burn line|moab walk|moab refuse|moab dismiss'
+  command: 'npx vitest run src/engine/__tests__/torchbearer.test.ts'

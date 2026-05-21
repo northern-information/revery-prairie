@@ -461,15 +461,17 @@ export const paintRect = (state: GameState, x1: number, y1: number, x2: number, 
 // Sets both temperatureF and seasonalPhase to a coherent pair so the
 // override survives weather ticks. deriveSeason classifies <38°F as
 // Winter regardless of phase and >78°F as Summer; mid-range temperatures
-// resolve to Spring (phase < 0.5) or Autumn (phase >= 0.5). The seasonal
-// drift in tickWeather pulls temperatureF toward the mean for the
-// current phase — setting both keeps the classification stable.
+// resolve by phase quadrant: [0, 0.25) Spring, [0.25, 0.5) Summer,
+// [0.5, 0.75) Autumn, [0.75, 1) Winter. Phases land mid-quadrant so
+// small tick drift does not flip the classification. The seasonal drift
+// in tickWeather pulls temperatureF toward the mean for the current
+// phase — setting both keeps the classification stable.
 
 export const SEASON_OVERRIDE_VALUES: Record<Season, { temperatureF: number; seasonalPhase: number }> = {
-  [Season.Winter]: { temperatureF: 30, seasonalPhase: 0 },
-  [Season.Spring]: { temperatureF: 55, seasonalPhase: 0.25 },
-  [Season.Summer]: { temperatureF: 85, seasonalPhase: 0.5 },
-  [Season.Autumn]: { temperatureF: 55, seasonalPhase: 0.75 },
+  [Season.Spring]: { temperatureF: 55, seasonalPhase: 0.125 },
+  [Season.Summer]: { temperatureF: 85, seasonalPhase: 0.375 },
+  [Season.Autumn]: { temperatureF: 55, seasonalPhase: 0.625 },
+  [Season.Winter]: { temperatureF: 30, seasonalPhase: 0.875 },
 }
 
 export const forceSeason = (state: GameState, season: Season): void => {

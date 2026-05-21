@@ -1,0 +1,406 @@
+plan:
+  id: phase-spring-equinox
+  title: 'Re-anchor seasonalPhase 0 to the spring equinox and add state.currentDate'
+  created: 2026-05-20
+  # Semantic shift, not a feature add. Old phase 0 = winter solstice → new
+  # phase 0 = spring equinox. seasonalLerp (cos → sin), deriveSeason (binary
+  # spring/autumn → four-quadrant), and SEASON_WASH_ANCHORS (rotated forward
+  # 0.25) all move together. The new currentDate field is a thin cached
+  # projection of seasonalPhase, computed in tickWeather.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 1: type + state surface ---
+
+  - id: add-current-date-type
+    title: >
+      In src/engine/types.ts: add `currentDate: { month: number; day: number }`
+      to the GameState interface. Place it adjacent to seasonalPhase (around
+      line 397) so the calendar projection sits next to its source. Update
+      the inline comment above seasonalPhase to reflect the new semantics:
+      phase 0 = spring equinox (March 20), 0.25 = summer solstice, 0.5 =
+      autumn equinox, 0.75 = winter solstice. Do not add a Date type alias —
+      the inline shape is fine and matches the rest of the file's idiom.
+    spec_id: precis-2-phenological-seasons
+    spec_sections:
+      - hidden-annual-clock
+      - current-date-from-phase
+    context_files:
+      - src/engine/types.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on: []
+    verification: []
+    repair: retry
+    tags:
+      - engine
+      - types
+
+  - id: initialize-current-date
+    title: >
+      In src/engine/state.ts: initialize `currentDate: { month: 3, day: 20 }`
+      in createGameState alongside `seasonalPhase: 0` (around line 252).
+      The two fields are paired — both anchor to the spring equinox.
+    spec_id: precis-2-phenological-seasons
+    spec_sections:
+      - current-date-from-phase
+    context_files:
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - add-current-date-type
+    verification:
+      - 'grep -n "currentDate" src/engine/state.ts'
+    repair: retry
+    tags:
+      - engine
+      - state
+
+  - id: schema-allowlist-current-date
+    title: >
+      In src/harness/__tests__/serialization/schema.test.ts: add
+      `'currentDate'` to EXPECTED_FIELDS. Place it adjacent to
+      `'seasonalPhase'` (currently line 102) so the two anchored fields
+      stay together. The schema test will fail until this is done.
+    spec_id: precis-2-phenological-seasons
+    spec_sections:
+      - schema-allowlist-updated
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - add-current-date-type
+    verification:
+      - 'grep -n "currentDate" src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags:
+      - tests
+      - schema
+
+  # --- Tier 2: shift the phase mechanics ---
+
+  - id: re-anchor-seasonal-lerp
+    title: >
+      In src/engine/weather/index.ts: replace the cosine-based seasonalLerp
+      (currently `(cos(2π·phase) + 1) / 2` as winterWeight) with a sine-based
+      formulation: `summerWeight = (sin(2π·phase) + 1) / 2`, returning
+      `winterValue * (1 - summerWeight) + summerValue * summerWeight`. This
+      shifts the cardinal anchors: phase 0 now sits at the midpoint
+      (~47.5°F for temp), phase 0.25 at the summer peak, phase 0.5 at the
+      autumn-equinox midpoint, phase 0.75 at the winter trough. Update the
+      block comment above the function to describe the spring-equinox
+      anchor and reference the new mapping. Update the generateWeather
+      block comment (currently says "seasonalPhase = 0 (deep winter)") to
+      "seasonalPhase = 0 (spring equinox)".
+    spec_id: precis-2-phenological-seasons
+    spec_sections:
+      - weather-tempers-toward-seasonal-mean
+      - weather-generation
+    context_files:
+      - src/engine/weather/index.ts
+    output_files:
+      - src/engine/weather/index.ts
+    depends_on: []
+    verification:
+      - 'grep -n "Math.sin" src/engine/weather/index.ts'
+    repair: retry
+    tags:
+      - engine
+      - weather
+
+  - id: re-anchor-derive-season
+    title: >
+      In src/engine/weather/index.ts: replace the binary mid-range season
+      classifier with a four-quadrant phase classifier. Keep the temperature
+      extremes as before (<38°F = Winter, >78°F = Summer). For mid-range
+      temps, branch on the normalized phase quadrant:
+      [0.00, 0.25) → Season.Spring, [0.25, 0.50) → Season.Summer,
+      [0.50, 0.75) → Season.Autumn, [0.75, 1.00) → Season.Winter. Update
+      the block comment above the function to document the new mapping.
+    spec_id: precis-2-phenological-seasons
+    spec_sections:
+      - season-derived-from-temperature
+    context_files:
+      - src/engine/weather/index.ts
+    output_files:
+      - src/engine/weather/index.ts
+    depends_on:
+      - re-anchor-seasonal-lerp
+    verification: []
+    repair: retry
+    tags:
+      - engine
+      - weather
+
+  - id: phase-to-date-helper
+    title: >
+      In src/engine/weather/index.ts: add a pure helper
+      `phaseToDate(phase: number): { month: number; day: number }`. Use a
+      fixed non-leap 365-day year with the spring equinox at day-of-year
+      79 (March 20): `dayOfYear = (Math.floor(phase * 365) + 79) % 365`,
+      then convert to month/day via a fixed cumulative-days table for a
+      non-leap year (Jan 31, Feb 28, Mar 31, …). Export the helper so
+      tests can call it directly. Exact astronomical alignment is not
+      required — leap days are intentionally ignored.
+    spec_id: precis-2-phenological-seasons
+    spec_sections:
+      - current-date-from-phase
+    context_files:
+      - src/engine/weather/index.ts
+    output_files:
+      - src/engine/weather/index.ts
+    depends_on:
+      - re-anchor-seasonal-lerp
+    verification:
+      - 'grep -n "phaseToDate" src/engine/weather/index.ts'
+    repair: retry
+    tags:
+      - engine
+      - weather
+
+  - id: tick-weather-updates-current-date
+    title: >
+      In src/engine/weather/index.ts: in tickWeather, after the
+      seasonalPhase advance (around line 129) and before the deriveSeason
+      call, assign `state.currentDate = phaseToDate(state.seasonalPhase)`.
+      Single writer for state.currentDate is tickWeather; no other module
+      writes this field. The assignment must happen unconditionally each
+      tick — even in Cave/Ruin zones the date stays in sync with the
+      (paused) seasonalPhase, so reading state.currentDate from any zone
+      returns a consistent value.
+    spec_id: precis-2-phenological-seasons
+    spec_sections:
+      - current-date-from-phase
+    context_files:
+      - src/engine/weather/index.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/weather/index.ts
+    depends_on:
+      - phase-to-date-helper
+      - initialize-current-date
+    verification: []
+    repair: retry
+    tags:
+      - engine
+      - weather
+
+  # --- Tier 3: rotate the palette wash anchors ---
+
+  - id: rotate-wash-anchors
+    title: >
+      In src/engine/tileBg.ts: rebuild the SEASON_WASH_ANCHORS table so
+      phase 0 applies no wash (prairie reads in its natural underlying
+      palette at game start), and the other three cardinal anchors
+      shift to match the new phase semantics. New anchors:
+      phase 0.00 → spring equinox (#F4D58A @ 0.00 — zero-intensity),
+      phase 0.25 → summer solstice (#F4D58A @ 0.05),
+      phase 0.50 → autumn equinox (#C8865A @ 0.18),
+      phase 0.75 → winter solstice (#B8BCC0 @ 0.40).
+      The zero-intensity phase 0 anchor is the key user-facing
+      requirement — game start must not apply any visible wash, so the
+      first moments read as the natural prairie (and winter-coded
+      systems like egregore Active stage stay gated off by season
+      classification, not by visual). Phase 0 and phase 0.25 share
+      the gold target so the 0 → 0.25 leg only changes intensity (0
+      → 0.05), giving a smooth fade-in rather than a hue shift. The
+      0.75 → 0.00 wrap fades from heavy winter grey down to no wash.
+      Update the block comment above the table to describe the new
+      anchors (currently calls phase 0 "deep winter"). The
+      seasonalWash function itself does not need to change — the lerp
+      is anchor-agnostic and handles intensity 0 cleanly.
+    spec_id: seasonal-palette-wash
+    spec_sections:
+      - per-season-wash-table
+      - continuous-wash-interpolation
+    context_files:
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/tileBg.ts
+    depends_on: []
+    verification: []
+    repair: retry
+    tags:
+      - engine
+      - render
+
+  # --- Tier 4: sidebar + docs ---
+
+  - id: sidebar-date-row
+    title: >
+      In src/components/Sidebar.tsx: add a 'Date' row to the Weather panel
+      immediately after the existing Season row (around line 575), before
+      the Sky row. The cell value is `${MONTH_NAMES[weather.currentDate.month - 1]} ${weather.currentDate.day}`
+      (e.g. 'March 20'). Define `MONTH_NAMES` as a local
+      `as const` array of full English month names. Title Case label
+      ('Date'), Title Case month name. Do not touch the duplicate
+      lowercase 'Season' row at lines 586-588 — pre-existing bug, out
+      of scope.
+    spec_id: precis-2-phenological-seasons
+    spec_sections:
+      - sidebar-date-row
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - initialize-current-date
+    verification:
+      - 'grep -n "Date" src/components/Sidebar.tsx | grep -i "date"'
+    repair: retry
+    tags:
+      - components
+      - sidebar
+
+  - id: update-weather-doc
+    title: >
+      In docs/claude/weather.md: replace the line that calls phase 0 "deep
+      winter" with text describing the spring-equinox anchor: phase 0 =
+      spring equinox (March 20, game start), 0.25 = summer solstice, 0.5
+      = autumn equinox, 0.75 = winter solstice. Update the deriveSeason
+      paragraph to describe the four-quadrant phase classifier instead of
+      "rising toward or falling from summer". Sentence-case prose.
+    spec_id: precis-2-phenological-seasons
+    spec_sections:
+      - hidden-annual-clock
+      - season-derived-from-temperature
+    context_files:
+      - docs/claude/weather.md
+    output_files:
+      - docs/claude/weather.md
+    depends_on: []
+    verification: []
+    repair: retry
+    tags:
+      - docs
+
+  # --- Tier 5: tests ---
+
+  - id: update-test-helpers
+    title: >
+      In src/engine/__tests__/helpers.ts: update `state.seasonalPhase = 0.25`
+      at line 90 to whatever value the helper was trying to express in the
+      old semantics. Read the surrounding context first — if the helper
+      was trying to put the engine in mid-spring conditions, use phase 0.0
+      (spring equinox) or 0.125 (mid-spring); if it was meant to be
+      "warm/summer", use 0.25 (summer solstice). Add an inline comment
+      naming the cardinal anchor the value corresponds to so the intent
+      survives the next migration.
+    spec_id: precis-2-phenological-seasons
+    spec_sections:
+      - existing-spring-only-tests
+    context_files:
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/helpers.ts
+    depends_on:
+      - re-anchor-seasonal-lerp
+    verification: []
+    repair: retry
+    tags:
+      - tests
+
+  - id: update-weather-tests
+    title: >
+      In src/engine/__tests__/weather.test.ts: walk every test that asserts
+      on a specific seasonalPhase or season. Tests that assumed
+      `phase 0 → deep winter` need their phase value rotated (the same
+      assertion at phase 0.75 now). Tests that assumed `phase 0.25 →
+      spring` need rotation to 0.0 or 0.125. Re-read each test's intent
+      from the surrounding comments; do not blindly add 0.75 to every
+      number. For deriveSeason tests in particular, update inputs to
+      reflect the four-quadrant classifier. Add inline comments naming
+      the cardinal anchor each pinned phase represents.
+    spec_id: precis-2-phenological-seasons
+    spec_sections:
+      - weather-tempers-toward-seasonal-mean
+      - season-derived-from-temperature
+      - phase-zero-on-game-start
+      - phase-wraps-to-equinox
+    context_files:
+      - src/engine/__tests__/weather.test.ts
+      - src/engine/weather/index.ts
+    output_files:
+      - src/engine/__tests__/weather.test.ts
+    depends_on:
+      - re-anchor-seasonal-lerp
+      - re-anchor-derive-season
+    verification: []
+    repair: retry
+    tags:
+      - tests
+      - weather
+
+  - id: add-phase-to-date-tests
+    title: >
+      Add a new `describe('phaseToDate')` block to
+      src/engine/__tests__/weather.test.ts covering: phase 0 returns
+      { month: 3, day: 20 }; phase 0.25, 0.5, 0.75 return dates within
+      ±1 day of June 21, September 22, December 21 respectively
+      (integer rounding tolerance); phase wrap (0.9999 and 1.0)
+      both return March-20-ish dates; phaseToDate is pure and
+      stateless. Also add a `describe('current-date sync')` test that
+      seeds a state, ticks weather forward by 1 game-year worth of dt
+      via tickWeather, and asserts state.currentDate returned to
+      { month: 3, day: 20 }. Mock Math.random with `vi.spyOn(Math,
+      'random')` + `vi.restoreAllMocks()` in finally per the testing
+      doc.
+    spec_id: precis-2-phenological-seasons
+    spec_sections:
+      - current-date-from-phase
+      - phase-zero-on-game-start
+      - phase-wraps-to-equinox
+    context_files:
+      - src/engine/__tests__/weather.test.ts
+      - src/engine/weather/index.ts
+      - docs/claude/testing.md
+    output_files:
+      - src/engine/__tests__/weather.test.ts
+    depends_on:
+      - tick-weather-updates-current-date
+      - update-weather-tests
+    verification: []
+    repair: retry
+    tags:
+      - tests
+      - regression
+
+  - id: add-wash-anchor-rotation-test
+    title: >
+      Add or update the seasonal-wash test block in
+      src/engine/__tests__/weather.test.ts so it asserts
+      seasonalWash(0).intensity === 0 (spring equinox — no wash at
+      game start),
+      seasonalWash(0.25) returns #F4D58A @ 0.05 (summer),
+      seasonalWash(0.5) returns #C8865A @ 0.18 (autumn),
+      seasonalWash(0.75) returns #B8BCC0 @ 0.40 (winter). The
+      zero-intensity assertion at phase 0 is the user-visible
+      contract: any non-zero intensity here means the prairie picks
+      up a tint at game start. Also assert seasonalWash(0.0) and
+      seasonalWash(0.25) share the same target hex (both gold)
+      so the spring leg only fades intensity. If a pre-existing test
+      already pins these anchors at the old phase positions, rotate
+      it; do not duplicate.
+    spec_id: seasonal-palette-wash
+    spec_sections:
+      - per-season-wash-table
+      - continuous-wash-interpolation
+    context_files:
+      - src/engine/__tests__/weather.test.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/__tests__/weather.test.ts
+    depends_on:
+      - rotate-wash-anchors
+    verification: []
+    repair: retry
+    tags:
+      - tests
+      - regression
