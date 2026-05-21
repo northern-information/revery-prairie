@@ -342,7 +342,7 @@ export const EARTH_SCAN_COLOR_HIGH = '#33CC33' // green — thriving
 
 export const PLAYER_CHAR = '@'
 export const PLAYER_COLOR = '#FFFFFF'
-export const TRAIL_DURATION_MS = 1000
+export const TRAIL_DURATION_MS = 2000
 export const TRAIL_MAX_LENGTH = 20
 
 // movement tween (smooth tile-to-tile interpolation)

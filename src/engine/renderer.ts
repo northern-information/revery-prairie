@@ -1669,9 +1669,18 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // per v3 doctrine. ACTION_COLOR (hot pink, reserved for user-
       // action affordances per CLAUDE.md) is also exempt so path dots,
       // cursor highlights, and combine previews keep their identity
-      // through every season.
+      // through every season. Non-hex colors (rgba/rgb — used by the
+      // alpha-fading motion trail) are exempt too because
+      // applySeasonalWash assumes hex input and corrupts rgba strings
+      // into NaN; without this guard the trail rendered as an invalid
+      // color and disappeared.
       const tileForWash = map[my]?.[mx]
-      if (washForFrame && tileForWash?.type !== TileType.Egregore && color !== ACTION_COLOR) {
+      if (
+        washForFrame &&
+        tileForWash?.type !== TileType.Egregore &&
+        color !== ACTION_COLOR &&
+        color.startsWith('#')
+      ) {
         color = applySeasonalWash(color, washForFrame.target, washForFrame.intensity)
       }
 
