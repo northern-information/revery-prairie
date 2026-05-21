@@ -1,33 +1,29 @@
 # Voynich font (egregoric typeface)
 
-Per precis #8a (Egregoric flora — thematic) the renderer applies a `font-family: 'Voynich'` to `TileType.Egregore` tiles. The font file is intentionally **not committed** to the repository — `npm run fetch-font` downloads it on demand.
+Per precis #8a (Egregoric flora — thematic) the renderer applies `font-family: 'Voynich'` to all not-of-this-Earth content: `TileType.Egregore` tiles, egregore manual entry bodies, the Egregore manual category tab label, and (8b+) egregoric flora/entities.
 
-## Why not committed
+`voynich.ttf` is **committed** to this directory as a required build asset. The file is the kreativekorp Voynich Unicode font (CC0, ~215 KiB).
 
-The kreativekorp Voynich Unicode font is CC0, but the repo policy is to avoid committing binary font assets. `public/fonts/voynich.ttf` is gitignored.
-
-## Installing the font
+## Refreshing the font
 
 ```sh
 npm run fetch-font
 ```
 
-This downloads `VoynichUnicode.ttf` from `https://raw.githubusercontent.com/kreativekorp/voynich-unicode/master/Voynich/` into `public/fonts/voynich.ttf`. The script:
+This re-downloads `VoynichUnicode.ttf` from `https://raw.githubusercontent.com/kreativekorp/voynich-unicode/master/Voynich/` and overwrites `public/fonts/voynich.ttf`. Use this only when bumping to a newer upstream release; the file is part of the repository in normal operation.
+
+The script:
 
 - Aborts if the fetched payload is suspiciously small (less than 1 KiB).
 - Exits non-zero on network failure.
-- Accepts `--skip-if-present` for use in setup automations.
+- Accepts `--skip-if-present` (legacy; no longer used in normal workflows).
 
-## Important: installing the font does not change current rendering
+## What the font supports
 
-`EGREGORE_GLYPHS` in `src/engine/egregore.ts` uses code points from Latin Extended-E (`U+AB10..U+AB1F`). The kreativekorp font maps Voynich glyphs at `U+F120..U+F15F` (BMP Private Use Area) — a completely different range. So even with the font installed, the OS fallback renders the egregore tiles as Latin-ish characters (`Ħ`, `H`, etc.).
+`voynich.ttf` maps ~377 visible glyphs into the BMP Private Use Area, primarily `U+F121..U+F2FF`. Four PUA slots (`U+F120`, `U+F1A0`, `U+F220`, `U+F2A0`) are mapped in the cmap but render as zero-length glyphs — these live in `EMPTY_PUA_BLOCKLIST` in `src/engine/egregore.ts` and must not appear in `EGREGORE_GLYPHS` or `EVA_TOKENS`.
 
-This is intentional: visible foreign-looking glyphs are preferable to a row of missing-glyph boxes when the cosmology font isn't installed. The fetch script is in place if a future doctrine change wants real Voynich script — that would require swapping `EGREGORE_GLYPHS` to PUA code points at the same time.
+See `docs/voynich-specimen.html` for a visual catalog of all supported glyphs and the locked `EGREGORE_GLYPHS` 8-glyph alphabet.
 
-## Why the fallback is acceptable
+## Why a load failure is a bug, not a feature
 
-Per v3 doctrine:
-
-> The medium failing on the player's machine is itself the cosmology. Do not patch; document.
-
-The Voynich font is an enrichment, not a requirement.
+The earlier doctrine ("the medium failing is the cosmology") is retired. Egregoric content now relies on the font's PUA glyphs — without it, every egregore tile renders as an empty box. Asset-level failures are fixed at the asset/build layer, not absorbed into the renderer.

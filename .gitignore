@@ -13,4 +13,3 @@ coverage
 *.log
 harness/logs/
 public/music/*.mp3
-public/fonts/voynich.ttf

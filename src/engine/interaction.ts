@@ -65,6 +65,12 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
   if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Flora) {
     return true
   }
+  // Egregore tiles are F-hold scan targets (precis-8a egregore-glyph-scan-fix).
+  // The cursor highlights them and the facing entity reticle locks on, same
+  // affordance as flora.
+  if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Egregore) {
+    return true
+  }
   return false
 }
 

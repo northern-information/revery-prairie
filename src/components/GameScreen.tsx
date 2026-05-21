@@ -24,8 +24,8 @@ import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
 import { canCast } from '@/engine/hexagram'
 import { advanceDialog } from '@/engine/interaction'
 import { advanceReveryToClosing } from '@/engine/revery'
+import type { ScanCommitResult } from '@/engine/scan'
 import { ReveryPhase } from '@/engine/types'
-import type { FloraSpecies } from '@/engine/types'
 import { useGameEngine } from '@/hooks/useGameEngine'
 import { useKeyboard } from '@/hooks/useKeyboard'
 import { useMusic } from '@/hooks/useMusic'
@@ -87,23 +87,28 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
     isDraggingRef,
   })
 
-  // Precis #6 — scan-result modal. Populated when the game loop fires
-  // onScanComplete; cleared when the player dismisses the modal.
-  const [scanResult, setScanResult] = useState<{ species: FloraSpecies; identity: string } | null>(null)
+  // Precis #6/#8a — scan-result modal. Populated when the game loop
+  // fires onScanComplete; cleared when the player dismisses the modal.
+  // Holds the full discriminated result so the modal can render the
+  // right gel variant (flora gold vs egregore purple).
+  const [scanResult, setScanResult] = useState<ScanCommitResult | null>(null)
   const onScanComplete = useCallback(
-    (species: FloraSpecies, identity: string) => {
-      setScanResult({ species, identity })
+    (result: ScanCommitResult) => {
+      if (result.kind === 'oak') {
+        // Oak scans skip the gel modal and open the manual directly.
+        // state.manualHighlightEntryId is already set by commitScan (to
+        // 'entity:oak'), so ManualPanel scrolls to and flashes the entry
+        // on mount.
+        setActiveScreen('manual')
+        return
+      }
+      // Flora and egregore both open the gel modal; ScanResultModal
+      // reads the discriminator to pick the right palette/geometry.
+      setScanResult(result)
       setActiveScreen('scan-result')
     },
     [setActiveScreen],
   )
-  // Oak scans skip the flora-only ceremonial modal and open the manual
-  // directly. state.manualHighlightEntryId is already set by commitScan
-  // (to 'entity:oak'), so ManualPanel scrolls to and flashes the entry
-  // on mount.
-  const onOakScanComplete = useCallback(() => {
-    setActiveScreen('manual')
-  }, [setActiveScreen])
 
   return (
     <>
@@ -113,13 +118,11 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
         activeScreen={activeScreen}
         setActiveScreen={setActiveScreen}
         onScanComplete={onScanComplete}
-        onOakScanComplete={onOakScanComplete}
         metricsRef={metricsRef}
       />
       {activeScreen === 'scan-result' && scanResult && (
         <ScanResultModal
-          species={scanResult.species}
-          identity={scanResult.identity}
+          result={scanResult}
           onDismiss={() => {
             setActiveScreen(null)
             setScanResult(null)

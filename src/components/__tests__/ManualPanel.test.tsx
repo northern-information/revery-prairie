@@ -124,12 +124,9 @@ describe('ManualPanel', () => {
     expect(screen.getAllByText('Shooting Star').length).toBeGreaterThan(0)
   })
 
-  // Regression guard for egregore-font-fix: the Egregore category label was
-  // previously hardcoded as four U+0AB10..U+0AB13 code points, which drifted
-  // from EGREGORE_GLYPHS (U+0AB10, AB12, AB15, AB18, AB1A). The two
-  // allowlists must agree by construction — the label must be composed
-  // only of code points present in EGREGORE_GLYPHS so that any future
-  // change to the glyph allowlist updates the header automatically.
+  // The Egregore category label is derived from EGREGORE_GLYPHS so the
+  // tab label and the per-tile glyphs draw from the same source of truth.
+  // Changing EGREGORE_GLYPHS must update the tab automatically.
   it('Egregore category label is composed only of code points in EGREGORE_GLYPHS', () => {
     const label = CATEGORY_LABELS[ManualCategory.Egregore]
     expect(label.length).toBeGreaterThan(0)
@@ -137,6 +134,38 @@ describe('ManualPanel', () => {
     for (const ch of label) {
       expect(allowed, `label code point ${JSON.stringify(ch)} is not in EGREGORE_GLYPHS`).toContain(ch)
     }
+  })
+
+  // Egregore manual entries have no name line — the cosmology has no
+  // readable name. ManualPanel renders only the glyph in the header,
+  // distinguished from non-egregore entries which render glyph + name.
+  it('renders egregore entry header as glyph only, with no EVA name line', () => {
+    const state = createTestState()
+    state.egregorePositions = [{ x: 5, y: 7 }]
+    state.manualDiscoveries.add('egregore:5,7')
+    state.manualState.activeCategory = ManualCategory.Egregore
+    const { container } = render(<ManualPanel state={state} />)
+    // The header for each entry card is the first div.flex inside the
+    // entry div. For egregore entries it should contain exactly one
+    // child span — the glyph. Non-egregore entries have two children
+    // (glyph + name).
+    const headers = container.querySelectorAll('div.mb-4 > div.flex')
+    expect(headers.length).toBeGreaterThan(0)
+    let foundEgregoreHeader = false
+    for (const header of headers) {
+      const spans = header.querySelectorAll(':scope > span')
+      // Skip non-egregore entries (they have 2 children: glyph + name).
+      if (spans.length !== 1) continue
+      const onlyChild = spans[0]
+      const style = onlyChild.getAttribute('style') ?? ''
+      // The lone child must be the Voynich-styled glyph.
+      if (style.includes('Voynich')) {
+        foundEgregoreHeader = true
+        // Egregore glyphs are single PUA code points.
+        expect(onlyChild.textContent?.length).toBe(1)
+      }
+    }
+    expect(foundEgregoreHeader).toBe(true)
   })
 
   describe('flora entries — scan-to-discover (precis #6)', () => {

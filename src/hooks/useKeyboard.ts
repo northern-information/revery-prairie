@@ -313,19 +313,26 @@ export const useKeyboard = ({
         if (state.scanInProgress) return
         const target = selectScanTarget(state)
         if (!target) return
-        state.scanInProgress =
-          target.kind === 'flora'
-            ? {
-                kind: 'flora',
-                target: target.position,
-                species: target.species,
-                startTime: performance.now(),
-              }
-            : {
-                kind: 'oak',
-                target: target.position,
-                startTime: performance.now(),
-              }
+        if (target.kind === 'flora') {
+          state.scanInProgress = {
+            kind: 'flora',
+            target: target.position,
+            species: target.species,
+            startTime: performance.now(),
+          }
+        } else if (target.kind === 'egregore') {
+          state.scanInProgress = {
+            kind: 'egregore',
+            target: target.position,
+            startTime: performance.now(),
+          }
+        } else {
+          state.scanInProgress = {
+            kind: 'oak',
+            target: target.position,
+            startTime: performance.now(),
+          }
+        }
         refreshUI()
         return
       }

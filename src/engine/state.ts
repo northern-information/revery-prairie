@@ -297,6 +297,7 @@ export const createGameState = (
     remotePlayers: new Map(),
     scannedSpecimens: new Map(),
     oakSpecimens: [],
+    egregoreSpecimens: [],
     scanInProgress: null,
     manualHighlightEntryId: null,
     onPlayerMoved: null,

@@ -13,72 +13,88 @@
 // allowlists. The result is *Voynich script with occasional Latin* — a
 // medium-is-the-message effect, not prose.
 
+import { sha256Sync } from './crypto'
 import { tileHash } from './position'
 
 // --- EGREGORE_GLYPHS -------------------------------------------------------
 //
-// Five code points from the Latin Extended-E block (U+AB10..U+AB1F).
-// There is no official Voynich Unicode block; the kreativekorp Voynich
-// Unicode font maps its glyphs in the BMP Private Use Area (U+F120..U+F15F).
-// We deliberately render these tiles using Latin Extended-E code points
-// instead so that — even when the Voynich font is not loaded — most
-// default OS UI fonts substitute a visible Latin-ish glyph (Ħ, H, etc.)
-// rather than the bare missing-glyph indicator (□). The rendered character
-// is not what matters; the *visual texture* of "not-Earth script" is.
+// The locked 8-glyph alphabet for all not-of-this-Earth content: egregore
+// tiles in 8a, egregoric flora species in 8b, and any future egregoric
+// entities. Code points are drawn from the kreativekorp Voynich Unicode
+// font's Private Use Area (U+F121..U+F2FF). The font is bundled as a
+// required asset; see public/fonts/voynich.ttf and the @font-face
+// declaration in src/styles/index.css.
 //
-// If the Voynich font is loaded the renderer still applies font-family
-// 'Voynich' to these tiles, but the typeface does not map this range,
-// so the OS fallback wins. Treat this as intentional: the doctrine
-// "the medium failing is the cosmology" is preserved, but we prefer
-// visible glyphs to empty boxes when the medium fails.
+// Picks were made visually via docs/voynich-specimen.html. The render
+// order is meaningful — `tileHash % EGREGORE_GLYPHS.length` indexes
+// into this array. Reordering changes which tiles render which glyph
+// for an existing save; if a future change reorders, it is a content
+// change, not a refactor.
+//
+// The four PUA slots U+F120, U+F1A0, U+F220, U+F2A0 are mapped in the
+// font cmap but render as zero-length glyphs. They live in
+// EMPTY_PUA_BLOCKLIST below and must never appear in EGREGORE_GLYPHS or
+// EVA_TOKENS. See harness/specs/precis-8a-egregoric-thematic.yaml
+// (behavior `egregore-glyph-registry`) for the locked-content contract.
 export const EGREGORE_GLYPHS = [
-  '\u{0AB10}',
-  '\u{0AB12}',
-  '\u{0AB15}',
-  '\u{0AB18}',
-  '\u{0AB1A}',
+  '\u{F166}',
+  '\u{F174}',
+  '\u{F182}',
+  '\u{F1B4}',
+  '\u{F12A}',
+  '\u{F1A1}',
+  '\u{F1B1}',
+  '\u{F1FD}',
 ] as const
+
+// Code points the kreativekorp Voynich cmap claims to support but whose
+// glyph data is zero-length. Treated as a hard blocklist for all
+// egregoric content. If a future change to the font adds glyph data for
+// any of these, drop them from this list AND the matching failure
+// condition in the spec.
+export const EMPTY_PUA_BLOCKLIST = ['\u{F120}', '\u{F1A0}', '\u{F220}', '\u{F2A0}'] as const
 
 // --- EVA tokens ------------------------------------------------------------
 //
-// EVA (European Voynich Alphabet) is the standard Latin transliteration of
-// the Voynich manuscript script. We treat these tokens as raw glyph strings
-// to be rendered in the Voynich typeface — the @font-face declaration in
-// src/styles/index.css maps Latin letters to Voynich glyphs for the
-// `font-family: 'Voynich'` typeface. (Or the typeface ships with EVA →
-// Voynich glyph mappings directly; either way the player sees Voynich,
-// the source contains EVA.)
+// Body text for procedurally-generated egregore manual entries. Each
+// token is a string of Voynich glyphs (code points in U+F121..U+F2FF,
+// none from EMPTY_PUA_BLOCKLIST). Rendered in the Voynich typeface —
+// the player sees actual Voynich script, never Latin letters. Token
+// lengths vary 3–7 to give the body the visual rhythm of a manuscript
+// page.
 //
-// Tokens chosen for visual variety; no semantic intent.
+// EVA_TOKENS is a wider pool than EGREGORE_GLYPHS because bodies can
+// recruit more of the font's expressive range; the 8-glyph tile alphabet
+// is the cosmology's "letterhead," the body uses the whole script.
 const EVA_TOKENS = [
-  'qokeey',
-  'chedy',
-  'qokedy',
-  'shedy',
-  'qokar',
-  'okeey',
-  'cheey',
-  'qol',
-  'sheey',
-  'okal',
-  'dar',
-  'qokal',
-  'chol',
-  'shol',
-  'aiin',
-  'daiin',
-  'qokaiin',
-  'or',
-  'oraiin',
-  'cheor',
-  'qotedy',
-  'qotchedy',
-  'kchedy',
-  'lchedy',
-  'pchedy',
-  'tchedy',
-  'okechy',
-  'okeody',
+  '\u{F121}\u{F129}\u{F130}\u{F137}',
+  '\u{F13E}\u{F146}\u{F14D}\u{F154}\u{F15B}',
+  '\u{F163}\u{F16A}\u{F171}\u{F178}',
+  '\u{F17F}\u{F188}\u{F18F}\u{F196}\u{F19D}\u{F1A5}',
+  '\u{F1AC}\u{F1B3}\u{F1BA}\u{F1C1}\u{F1C8}',
+  '\u{F1CF}\u{F1D6}\u{F1FD}',
+  '\u{F226}\u{F22F}\u{F237}\u{F23E}\u{F246}\u{F24D}\u{F254}',
+  '\u{F25B}\u{F263}\u{F26A}\u{F271}',
+  '\u{F278}\u{F27F}\u{F29C}\u{F2A6}\u{F2AD}',
+  '\u{F2B4}\u{F2BB}\u{F2C2}\u{F2C9}\u{F2D0}\u{F2D7}',
+  '\u{F2DE}\u{F2E5}\u{F2EC}\u{F2F3}',
+  '\u{F2FA}\u{F122}\u{F12A}\u{F131}\u{F138}',
+  '\u{F13F}\u{F147}\u{F14E}\u{F155}',
+  '\u{F15C}\u{F164}\u{F16B}\u{F172}\u{F179}\u{F182}',
+  '\u{F189}\u{F190}\u{F197}',
+  '\u{F19E}\u{F1A6}\u{F1AD}\u{F1B4}\u{F1BB}',
+  '\u{F1C2}\u{F1C9}\u{F1D0}\u{F1D7}',
+  '\u{F1FE}\u{F228}\u{F231}\u{F238}\u{F23F}\u{F247}',
+  '\u{F24E}\u{F255}\u{F25C}\u{F264}\u{F26B}',
+  '\u{F272}\u{F279}\u{F295}\u{F29E}',
+  '\u{F2A7}\u{F2AE}\u{F2B5}\u{F2BC}\u{F2C3}\u{F2CA}\u{F2D1}',
+  '\u{F2D8}\u{F2DF}\u{F2E6}\u{F2ED}\u{F2F4}',
+  '\u{F2FB}\u{F123}\u{F12B}',
+  '\u{F132}\u{F139}\u{F141}\u{F148}\u{F14F}\u{F156}',
+  '\u{F15D}\u{F165}\u{F16C}\u{F173}',
+  '\u{F17A}\u{F183}\u{F18A}\u{F191}\u{F198}',
+  '\u{F19F}\u{F1A7}\u{F1AE}\u{F1B5}\u{F1BC}\u{F1C3}',
+  '\u{F1CA}\u{F1D1}\u{F1D8}\u{F1FF}',
 ] as const
 
 // --- Latin pierces ---------------------------------------------------------
@@ -115,6 +131,19 @@ const PIERCE_RATE_BUCKET = 5
 // uncorrelated stream — glyph, body tokens, and pierce decision should
 // not lock together.
 const reseed = (h: number, salt: number): number => Math.imul((h ^ salt) + 0x6d2b79f5, 0x85ebca6b) >>> 0
+
+/**
+ * A 64-character hex identity for an egregore tile, derived from the
+ * tile position via SHA256. Matches the shape of flora/oak identities so
+ * GelBandView's hashToHexGrid can render an egregore scan with the same
+ * 8x8 hex grid mapping as a flora scan — only palette and column
+ * geometry differ. The "egregore:" namespace prefix keeps the identity
+ * uncorrelated with the per-tile glyph/body hashes (which use tileHash
+ * directly) so the gel reads as an independent signal, not a function
+ * of the tile's visible glyph.
+ */
+export const getEgregoreTileIdentity = (x: number, y: number): string =>
+  sha256Sync(`egregore:${String(x)},${String(y)}`)
 
 /**
  * The single Voynich glyph this egregore tile renders as. Stable across
@@ -166,19 +195,6 @@ export const getEgregoreLatinPierce = (x: number, y: number): string | null => {
   if (!hasPierce) return null
   const pick = reseed(h, 0x101) % LATIN_PIERCE_WORDS.length
   return LATIN_PIERCE_WORDS[pick]
-}
-
-/**
- * A short EVA binomial-line string used as the manual entry's display name
- * (no English binomial — egregores have none per doctrine). Two short
- * tokens, stable per-position. Distinct from the body so the binomial line
- * reads as a name, not a sentence fragment.
- */
-export const getEgregoreBinomial = (x: number, y: number): string => {
-  const h = tileHash(x, y)
-  const a = EVA_TOKENS[reseed(h, 0x200) % EVA_TOKENS.length]
-  const b = EVA_TOKENS[reseed(h, 0x201) % EVA_TOKENS.length]
-  return `${a} ${b}`
 }
 
 // --- Incompatibility footnote (precis #8b) ---------------------------------

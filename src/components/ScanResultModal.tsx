@@ -2,14 +2,13 @@ import { useEffect, useState } from 'react'
 
 import { GelBandView } from './GelBandView'
 
-import { HEX_GRID_SIZE } from '@/engine/genetics'
 import { FLORA_SPECIES } from '@/engine/flora/species'
+import { HEX_GRID_SIZE } from '@/engine/genetics'
 
-import type { FloraSpecies } from '@/engine/types'
+import type { ScanCommitResult } from '@/engine/scan'
 
 interface ScanResultModalProps {
-  species: FloraSpecies
-  identity: string
+  result: ScanCommitResult
   onDismiss: () => void
 }
 
@@ -32,9 +31,13 @@ const prefersReducedMotion = (): boolean => {
 //   3. fullyRevealed flag flips; dismissal becomes active
 //
 // prefers-reduced-motion collapses the reveal to an instant render.
-export const ScanResultModal = ({ species, identity, onDismiss }: ScanResultModalProps) => {
+export const ScanResultModal = ({ result, onDismiss }: ScanResultModalProps) => {
   const reducedMotion = prefersReducedMotion()
-  const def = FLORA_SPECIES[species]
+  // Flora scans show a Latin binomial heading; egregore scans show no
+  // heading (the cosmology has no readable name).
+  const def = result.kind === 'flora' ? FLORA_SPECIES[result.species] : null
+  const identity = result.identity
+  const variant = result.kind === 'egregore' ? 'egregore' : 'flora'
 
   const [binomialVisible, setBinomialVisible] = useState(reducedMotion)
   const [revealedCells, setRevealedCells] = useState(reducedMotion ? TOTAL_CELLS : 0)
@@ -105,25 +108,28 @@ export const ScanResultModal = ({ species, identity, onDismiss }: ScanResultModa
           e.stopPropagation()
         }}
       >
-        <div
-          data-testid="scan-result-heading"
-          data-revealed={binomialVisible}
-          className="flex flex-col items-center gap-1 transition-opacity duration-[400ms]"
-          style={{ opacity: binomialVisible ? 1 : 0 }}
-        >
-          <h2 data-testid="scan-result-common-name" className="text-text text-2xl">
-            {def.displayName}
-          </h2>
-          <p data-testid="scan-result-binomial" className="text-dim text-xs italic">
-            {def.latinBinomial}
-          </p>
-        </div>
+        {def && (
+          <div
+            data-testid="scan-result-heading"
+            data-revealed={binomialVisible}
+            className="flex flex-col items-center gap-1 transition-opacity duration-[400ms]"
+            style={{ opacity: binomialVisible ? 1 : 0 }}
+          >
+            <h2 data-testid="scan-result-common-name" className="text-text text-2xl">
+              {def.displayName}
+            </h2>
+            <p data-testid="scan-result-binomial" className="text-dim text-xs italic">
+              {def.latinBinomial}
+            </p>
+          </div>
+        )}
         <div
           data-testid="scan-result-gel"
+          data-variant={variant}
           data-revealed-cells={revealedCells}
           data-fully-revealed={fullyRevealed}
         >
-          <GelBandView identity={identity} revealedCells={revealedCells} />
+          <GelBandView identity={identity} variant={variant} revealedCells={revealedCells} />
         </div>
         <p
           data-testid="scan-result-hint"

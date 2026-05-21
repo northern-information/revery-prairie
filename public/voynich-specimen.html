@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Voynich glyph specimen — Revery Prairie</title>
+<style>
+  @font-face {
+    font-family: 'Voynich';
+    src: url('/fonts/voynich.ttf') format('truetype');
+    font-display: block;
+  }
+  :root {
+    --bg: #0e0e10;
+    --fg: #d8d6cf;
+    --dim: #6e6c66;
+    --violet: #b080d0;
+    --grid-bg: #15151a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: ui-monospace, 'JetBrains Mono', monospace;
+    margin: 0;
+    padding: 24px 32px 64px;
+    line-height: 1.5;
+  }
+  h1 { font-weight: 500; font-size: 18px; margin: 0 0 4px; }
+  h2 { font-weight: 500; font-size: 14px; margin: 32px 0 12px; color: var(--violet); }
+  p { color: var(--dim); margin: 0 0 24px; font-size: 12px; max-width: 720px; }
+  code { color: var(--fg); }
+  .legend {
+    display: flex; gap: 16px; font-size: 11px; color: var(--dim);
+    margin-bottom: 24px;
+  }
+  .legend .swatch {
+    display: inline-block; width: 14px; height: 14px;
+    vertical-align: middle; margin-right: 6px; border-radius: 2px;
+  }
+  .sw-locked { background: rgba(176,128,208,0.45); border: 1px solid var(--violet); }
+  .sw-empty { background: #2a0e0e; border: 1px solid #5a2020; }
+
+  /* Locked row */
+  .locked-row {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+    max-width: 760px;
+    margin-bottom: 8px;
+  }
+  .lcell {
+    background: var(--grid-bg);
+    padding: 18px 8px 10px;
+    text-align: center;
+    border-radius: 4px;
+    border: 1px solid var(--violet);
+    position: relative;
+  }
+  .lcell .g {
+    font-family: 'Voynich', serif;
+    font-size: 56px;
+    line-height: 1;
+    color: var(--violet);
+    display: block;
+    margin-bottom: 8px;
+  }
+  .lcell .hex { font-size: 10px; color: var(--dim); display: block; }
+  .lcell .idx {
+    position: absolute; top: 4px; left: 6px;
+    font-size: 9px; color: var(--dim);
+  }
+
+  /* Full grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 2px;
+    margin-top: 8px;
+  }
+  .cell {
+    background: var(--grid-bg);
+    padding: 6px 2px 2px;
+    text-align: center;
+    aspect-ratio: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    border: 1px solid transparent;
+    position: relative;
+  }
+  .cell .g {
+    font-family: 'Voynich', serif;
+    font-size: 24px;
+    line-height: 1;
+    color: var(--fg);
+  }
+  .cell .hex {
+    font-size: 7px; color: var(--dim);
+    margin-top: 2px;
+  }
+  .cell.in-locked { background: rgba(176,128,208,0.22); border-color: var(--violet); }
+  .cell.in-locked .g { color: var(--violet); }
+  .cell.empty { background: #2a0e0e; border-color: #5a2020; }
+  .cell.empty::after {
+    content: 'EMPTY';
+    position: absolute; bottom: 2px;
+    font-family: ui-monospace, monospace;
+    font-size: 7px; color: #c66;
+  }
+  .cell.empty .hex { display: none; }
+
+  footer {
+    margin-top: 32px; color: var(--dim); font-size: 11px;
+    border-top: 1px solid #2a2a2e; padding-top: 16px;
+  }
+</style>
+</head>
+<body>
+<h1>Voynich glyph specimen — Revery Prairie</h1>
+<p>
+  The shared 8-glyph alphabet (<code>EGREGORE_GLYPHS</code>) used by all
+  not-of-this-Earth content in the prairie: egregore tiles (8a), egregoric
+  flora species (8b), and any future egregoric entities. Glyphs render via
+  the kreativekorp Voynich Unicode font (CC0). The index labels [0]..[7]
+  show the array position the renderer selects via <code>tileHash % 8</code>.
+</p>
+
+<h2>Locked alphabet (EGREGORE_GLYPHS)</h2>
+<div class="locked-row"><div class="lcell" data-cp="U+F166"><span class="g">&#xF166;</span><span class="hex">U+F166</span><span class="idx">[0]</span></div><div class="lcell" data-cp="U+F174"><span class="g">&#xF174;</span><span class="hex">U+F174</span><span class="idx">[1]</span></div><div class="lcell" data-cp="U+F182"><span class="g">&#xF182;</span><span class="hex">U+F182</span><span class="idx">[2]</span></div><div class="lcell" data-cp="U+F1B4"><span class="g">&#xF1B4;</span><span class="hex">U+F1B4</span><span class="idx">[3]</span></div><div class="lcell" data-cp="U+F12A"><span class="g">&#xF12A;</span><span class="hex">U+F12A</span><span class="idx">[4]</span></div><div class="lcell" data-cp="U+F1A1"><span class="g">&#xF1A1;</span><span class="hex">U+F1A1</span><span class="idx">[5]</span></div><div class="lcell" data-cp="U+F1B1"><span class="g">&#xF1B1;</span><span class="hex">U+F1B1</span><span class="idx">[6]</span></div><div class="lcell" data-cp="U+F1FD"><span class="g">&#xF1FD;</span><span class="hex">U+F1FD</span><span class="idx">[7]</span></div></div>
+
+<p>
+  Below is the full PUA coverage of the bundled font — 381 code points the
+  cmap claims to support. Four of them (U+F120, U+F1A0, U+F220, U+F2A0 —
+  round-number "section header" slots) are mapped but render empty
+  (zero-length glyph data) and live in the <code>EMPTY_PUA_BLOCKLIST</code>
+  constant. The locked alphabet is highlighted in violet for reference;
+  EVA_TOKENS body text may use any non-empty glyph in this range, not just
+  the eight in the locked set.
+</p>
+<div class="legend">
+  <span><span class="swatch sw-locked"></span>Locked alphabet</span>
+  <span><span class="swatch sw-empty"></span>Empty (blocked)</span>
+</div>
+
+<h2>Full PUA map (381 code points)</h2>
+<div class="grid">
+<div class="cell empty" data-cp="U+F120"><span class="g">&#xF120;</span><span class="hex">F120</span></div>
+<div class="cell plain" data-cp="U+F121"><span class="g">&#xF121;</span><span class="hex">F121</span></div>
+<div class="cell plain" data-cp="U+F122"><span class="g">&#xF122;</span><span class="hex">F122</span></div>
+<div class="cell plain" data-cp="U+F123"><span class="g">&#xF123;</span><span class="hex">F123</span></div>
+<div class="cell plain" data-cp="U+F124"><span class="g">&#xF124;</span><span class="hex">F124</span></div>
+<div class="cell plain" data-cp="U+F125"><span class="g">&#xF125;</span><span class="hex">F125</span></div>
+<div class="cell plain" data-cp="U+F127"><span class="g">&#xF127;</span><span class="hex">F127</span></div>
+<div class="cell plain" data-cp="U+F128"><span class="g">&#xF128;</span><span class="hex">F128</span></div>
+<div class="cell plain" data-cp="U+F129"><span class="g">&#xF129;</span><span class="hex">F129</span></div>
+<div class="cell in-locked" data-cp="U+F12A"><span class="g">&#xF12A;</span><span class="hex">F12A</span></div>
+<div class="cell plain" data-cp="U+F12B"><span class="g">&#xF12B;</span><span class="hex">F12B</span></div>
+<div class="cell plain" data-cp="U+F12C"><span class="g">&#xF12C;</span><span class="hex">F12C</span></div>
+<div class="cell plain" data-cp="U+F12D"><span class="g">&#xF12D;</span><span class="hex">F12D</span></div>
+<div class="cell plain" data-cp="U+F12E"><span class="g">&#xF12E;</span><span class="hex">F12E</span></div>
+<div class="cell plain" data-cp="U+F12F"><span class="g">&#xF12F;</span><span class="hex">F12F</span></div>
+<div class="cell plain" data-cp="U+F130"><span class="g">&#xF130;</span><span class="hex">F130</span></div>
+<div class="cell plain" data-cp="U+F131"><span class="g">&#xF131;</span><span class="hex">F131</span></div>
+<div class="cell plain" data-cp="U+F132"><span class="g">&#xF132;</span><span class="hex">F132</span></div>
+<div class="cell plain" data-cp="U+F133"><span class="g">&#xF133;</span><span class="hex">F133</span></div>
+<div class="cell plain" data-cp="U+F134"><span class="g">&#xF134;</span><span class="hex">F134</span></div>
+<div class="cell plain" data-cp="U+F135"><span class="g">&#xF135;</span><span class="hex">F135</span></div>
+<div class="cell plain" data-cp="U+F136"><span class="g">&#xF136;</span><span class="hex">F136</span></div>
+<div class="cell plain" data-cp="U+F137"><span class="g">&#xF137;</span><span class="hex">F137</span></div>
+<div class="cell plain" data-cp="U+F138"><span class="g">&#xF138;</span><span class="hex">F138</span></div>
+<div class="cell plain" data-cp="U+F139"><span class="g">&#xF139;</span><span class="hex">F139</span></div>
+<div class="cell plain" data-cp="U+F13A"><span class="g">&#xF13A;</span><span class="hex">F13A</span></div>
+<div class="cell plain" data-cp="U+F13B"><span class="g">&#xF13B;</span><span class="hex">F13B</span></div>
+<div class="cell plain" data-cp="U+F13C"><span class="g">&#xF13C;</span><span class="hex">F13C</span></div>
+<div class="cell plain" data-cp="U+F13D"><span class="g">&#xF13D;</span><span class="hex">F13D</span></div>
+<div class="cell plain" data-cp="U+F13E"><span class="g">&#xF13E;</span><span class="hex">F13E</span></div>
+<div class="cell plain" data-cp="U+F13F"><span class="g">&#xF13F;</span><span class="hex">F13F</span></div>
+<div class="cell plain" data-cp="U+F141"><span class="g">&#xF141;</span><span class="hex">F141</span></div>
+<div class="cell plain" data-cp="U+F142"><span class="g">&#xF142;</span><span class="hex">F142</span></div>
+<div class="cell plain" data-cp="U+F143"><span class="g">&#xF143;</span><span class="hex">F143</span></div>
+<div class="cell plain" data-cp="U+F144"><span class="g">&#xF144;</span><span class="hex">F144</span></div>
+<div class="cell plain" data-cp="U+F145"><span class="g">&#xF145;</span><span class="hex">F145</span></div>
+<div class="cell plain" data-cp="U+F146"><span class="g">&#xF146;</span><span class="hex">F146</span></div>
+<div class="cell plain" data-cp="U+F147"><span class="g">&#xF147;</span><span class="hex">F147</span></div>
+<div class="cell plain" data-cp="U+F148"><span class="g">&#xF148;</span><span class="hex">F148</span></div>
+<div class="cell plain" data-cp="U+F149"><span class="g">&#xF149;</span><span class="hex">F149</span></div>
+<div class="cell plain" data-cp="U+F14A"><span class="g">&#xF14A;</span><span class="hex">F14A</span></div>
+<div class="cell plain" data-cp="U+F14B"><span class="g">&#xF14B;</span><span class="hex">F14B</span></div>
+<div class="cell plain" data-cp="U+F14C"><span class="g">&#xF14C;</span><span class="hex">F14C</span></div>
+<div class="cell plain" data-cp="U+F14D"><span class="g">&#xF14D;</span><span class="hex">F14D</span></div>
+<div class="cell plain" data-cp="U+F14E"><span class="g">&#xF14E;</span><span class="hex">F14E</span></div>
+<div class="cell plain" data-cp="U+F14F"><span class="g">&#xF14F;</span><span class="hex">F14F</span></div>
+<div class="cell plain" data-cp="U+F150"><span class="g">&#xF150;</span><span class="hex">F150</span></div>
+<div class="cell plain" data-cp="U+F151"><span class="g">&#xF151;</span><span class="hex">F151</span></div>
+<div class="cell plain" data-cp="U+F152"><span class="g">&#xF152;</span><span class="hex">F152</span></div>
+<div class="cell plain" data-cp="U+F153"><span class="g">&#xF153;</span><span class="hex">F153</span></div>
+<div class="cell plain" data-cp="U+F154"><span class="g">&#xF154;</span><span class="hex">F154</span></div>
+<div class="cell plain" data-cp="U+F155"><span class="g">&#xF155;</span><span class="hex">F155</span></div>
+<div class="cell plain" data-cp="U+F156"><span class="g">&#xF156;</span><span class="hex">F156</span></div>
+<div class="cell plain" data-cp="U+F157"><span class="g">&#xF157;</span><span class="hex">F157</span></div>
+<div class="cell plain" data-cp="U+F158"><span class="g">&#xF158;</span><span class="hex">F158</span></div>
+<div class="cell plain" data-cp="U+F159"><span class="g">&#xF159;</span><span class="hex">F159</span></div>
+<div class="cell plain" data-cp="U+F15A"><span class="g">&#xF15A;</span><span class="hex">F15A</span></div>
+<div class="cell plain" data-cp="U+F15B"><span class="g">&#xF15B;</span><span class="hex">F15B</span></div>
+<div class="cell plain" data-cp="U+F15C"><span class="g">&#xF15C;</span><span class="hex">F15C</span></div>
+<div class="cell plain" data-cp="U+F15D"><span class="g">&#xF15D;</span><span class="hex">F15D</span></div>
+<div class="cell plain" data-cp="U+F15E"><span class="g">&#xF15E;</span><span class="hex">F15E</span></div>
+<div class="cell plain" data-cp="U+F15F"><span class="g">&#xF15F;</span><span class="hex">F15F</span></div>
+<div class="cell plain" data-cp="U+F161"><span class="g">&#xF161;</span><span class="hex">F161</span></div>
+<div class="cell plain" data-cp="U+F162"><span class="g">&#xF162;</span><span class="hex">F162</span></div>
+<div class="cell plain" data-cp="U+F163"><span class="g">&#xF163;</span><span class="hex">F163</span></div>
+<div class="cell plain" data-cp="U+F164"><span class="g">&#xF164;</span><span class="hex">F164</span></div>
+<div class="cell plain" data-cp="U+F165"><span class="g">&#xF165;</span><span class="hex">F165</span></div>
+<div class="cell in-locked" data-cp="U+F166"><span class="g">&#xF166;</span><span class="hex">F166</span></div>
+<div class="cell plain" data-cp="U+F167"><span class="g">&#xF167;</span><span class="hex">F167</span></div>
+<div class="cell plain" data-cp="U+F168"><span class="g">&#xF168;</span><span class="hex">F168</span></div>
+<div class="cell plain" data-cp="U+F169"><span class="g">&#xF169;</span><span class="hex">F169</span></div>
+<div class="cell plain" data-cp="U+F16A"><span class="g">&#xF16A;</span><span class="hex">F16A</span></div>
+<div class="cell plain" data-cp="U+F16B"><span class="g">&#xF16B;</span><span class="hex">F16B</span></div>
+<div class="cell plain" data-cp="U+F16C"><span class="g">&#xF16C;</span><span class="hex">F16C</span></div>
+<div class="cell plain" data-cp="U+F16D"><span class="g">&#xF16D;</span><span class="hex">F16D</span></div>
+<div class="cell plain" data-cp="U+F16E"><span class="g">&#xF16E;</span><span class="hex">F16E</span></div>
+<div class="cell plain" data-cp="U+F16F"><span class="g">&#xF16F;</span><span class="hex">F16F</span></div>
+<div class="cell plain" data-cp="U+F170"><span class="g">&#xF170;</span><span class="hex">F170</span></div>
+<div class="cell plain" data-cp="U+F171"><span class="g">&#xF171;</span><span class="hex">F171</span></div>
+<div class="cell plain" data-cp="U+F172"><span class="g">&#xF172;</span><span class="hex">F172</span></div>
+<div class="cell plain" data-cp="U+F173"><span class="g">&#xF173;</span><span class="hex">F173</span></div>
+<div class="cell in-locked" data-cp="U+F174"><span class="g">&#xF174;</span><span class="hex">F174</span></div>
+<div class="cell plain" data-cp="U+F175"><span class="g">&#xF175;</span><span class="hex">F175</span></div>
+<div class="cell plain" data-cp="U+F176"><span class="g">&#xF176;</span><span class="hex">F176</span></div>
+<div class="cell plain" data-cp="U+F177"><span class="g">&#xF177;</span><span class="hex">F177</span></div>
+<div class="cell plain" data-cp="U+F178"><span class="g">&#xF178;</span><span class="hex">F178</span></div>
+<div class="cell plain" data-cp="U+F179"><span class="g">&#xF179;</span><span class="hex">F179</span></div>
+<div class="cell plain" data-cp="U+F17A"><span class="g">&#xF17A;</span><span class="hex">F17A</span></div>
+<div class="cell plain" data-cp="U+F17B"><span class="g">&#xF17B;</span><span class="hex">F17B</span></div>
+<div class="cell plain" data-cp="U+F17C"><span class="g">&#xF17C;</span><span class="hex">F17C</span></div>
+<div class="cell plain" data-cp="U+F17D"><span class="g">&#xF17D;</span><span class="hex">F17D</span></div>
+<div class="cell plain" data-cp="U+F17E"><span class="g">&#xF17E;</span><span class="hex">F17E</span></div>
+<div class="cell plain" data-cp="U+F17F"><span class="g">&#xF17F;</span><span class="hex">F17F</span></div>
+<div class="cell in-locked" data-cp="U+F182"><span class="g">&#xF182;</span><span class="hex">F182</span></div>
+<div class="cell plain" data-cp="U+F183"><span class="g">&#xF183;</span><span class="hex">F183</span></div>
+<div class="cell plain" data-cp="U+F184"><span class="g">&#xF184;</span><span class="hex">F184</span></div>
+<div class="cell plain" data-cp="U+F185"><span class="g">&#xF185;</span><span class="hex">F185</span></div>
+<div class="cell plain" data-cp="U+F186"><span class="g">&#xF186;</span><span class="hex">F186</span></div>
+<div class="cell plain" data-cp="U+F187"><span class="g">&#xF187;</span><span class="hex">F187</span></div>
+<div class="cell plain" data-cp="U+F188"><span class="g">&#xF188;</span><span class="hex">F188</span></div>
+<div class="cell plain" data-cp="U+F189"><span class="g">&#xF189;</span><span class="hex">F189</span></div>
+<div class="cell plain" data-cp="U+F18A"><span class="g">&#xF18A;</span><span class="hex">F18A</span></div>
+<div class="cell plain" data-cp="U+F18B"><span class="g">&#xF18B;</span><span class="hex">F18B</span></div>
+<div class="cell plain" data-cp="U+F18C"><span class="g">&#xF18C;</span><span class="hex">F18C</span></div>
+<div class="cell plain" data-cp="U+F18D"><span class="g">&#xF18D;</span><span class="hex">F18D</span></div>
+<div class="cell plain" data-cp="U+F18E"><span class="g">&#xF18E;</span><span class="hex">F18E</span></div>
+<div class="cell plain" data-cp="U+F18F"><span class="g">&#xF18F;</span><span class="hex">F18F</span></div>
+<div class="cell plain" data-cp="U+F190"><span class="g">&#xF190;</span><span class="hex">F190</span></div>
+<div class="cell plain" data-cp="U+F191"><span class="g">&#xF191;</span><span class="hex">F191</span></div>
+<div class="cell plain" data-cp="U+F192"><span class="g">&#xF192;</span><span class="hex">F192</span></div>
+<div class="cell plain" data-cp="U+F193"><span class="g">&#xF193;</span><span class="hex">F193</span></div>
+<div class="cell plain" data-cp="U+F194"><span class="g">&#xF194;</span><span class="hex">F194</span></div>
+<div class="cell plain" data-cp="U+F195"><span class="g">&#xF195;</span><span class="hex">F195</span></div>
+<div class="cell plain" data-cp="U+F196"><span class="g">&#xF196;</span><span class="hex">F196</span></div>
+<div class="cell plain" data-cp="U+F197"><span class="g">&#xF197;</span><span class="hex">F197</span></div>
+<div class="cell plain" data-cp="U+F198"><span class="g">&#xF198;</span><span class="hex">F198</span></div>
+<div class="cell plain" data-cp="U+F199"><span class="g">&#xF199;</span><span class="hex">F199</span></div>
+<div class="cell plain" data-cp="U+F19A"><span class="g">&#xF19A;</span><span class="hex">F19A</span></div>
+<div class="cell plain" data-cp="U+F19B"><span class="g">&#xF19B;</span><span class="hex">F19B</span></div>
+<div class="cell plain" data-cp="U+F19C"><span class="g">&#xF19C;</span><span class="hex">F19C</span></div>
+<div class="cell plain" data-cp="U+F19D"><span class="g">&#xF19D;</span><span class="hex">F19D</span></div>
+<div class="cell plain" data-cp="U+F19E"><span class="g">&#xF19E;</span><span class="hex">F19E</span></div>
+<div class="cell plain" data-cp="U+F19F"><span class="g">&#xF19F;</span><span class="hex">F19F</span></div>
+<div class="cell empty" data-cp="U+F1A0"><span class="g">&#xF1A0;</span><span class="hex">F1A0</span></div>
+<div class="cell in-locked" data-cp="U+F1A1"><span class="g">&#xF1A1;</span><span class="hex">F1A1</span></div>
+<div class="cell plain" data-cp="U+F1A2"><span class="g">&#xF1A2;</span><span class="hex">F1A2</span></div>
+<div class="cell plain" data-cp="U+F1A3"><span class="g">&#xF1A3;</span><span class="hex">F1A3</span></div>
+<div class="cell plain" data-cp="U+F1A4"><span class="g">&#xF1A4;</span><span class="hex">F1A4</span></div>
+<div class="cell plain" data-cp="U+F1A5"><span class="g">&#xF1A5;</span><span class="hex">F1A5</span></div>
+<div class="cell plain" data-cp="U+F1A6"><span class="g">&#xF1A6;</span><span class="hex">F1A6</span></div>
+<div class="cell plain" data-cp="U+F1A7"><span class="g">&#xF1A7;</span><span class="hex">F1A7</span></div>
+<div class="cell plain" data-cp="U+F1A8"><span class="g">&#xF1A8;</span><span class="hex">F1A8</span></div>
+<div class="cell plain" data-cp="U+F1A9"><span class="g">&#xF1A9;</span><span class="hex">F1A9</span></div>
+<div class="cell plain" data-cp="U+F1AA"><span class="g">&#xF1AA;</span><span class="hex">F1AA</span></div>
+<div class="cell plain" data-cp="U+F1AB"><span class="g">&#xF1AB;</span><span class="hex">F1AB</span></div>
+<div class="cell plain" data-cp="U+F1AC"><span class="g">&#xF1AC;</span><span class="hex">F1AC</span></div>
+<div class="cell plain" data-cp="U+F1AD"><span class="g">&#xF1AD;</span><span class="hex">F1AD</span></div>
+<div class="cell plain" data-cp="U+F1AE"><span class="g">&#xF1AE;</span><span class="hex">F1AE</span></div>
+<div class="cell plain" data-cp="U+F1AF"><span class="g">&#xF1AF;</span><span class="hex">F1AF</span></div>
+<div class="cell plain" data-cp="U+F1B0"><span class="g">&#xF1B0;</span><span class="hex">F1B0</span></div>
+<div class="cell in-locked" data-cp="U+F1B1"><span class="g">&#xF1B1;</span><span class="hex">F1B1</span></div>
+<div class="cell plain" data-cp="U+F1B2"><span class="g">&#xF1B2;</span><span class="hex">F1B2</span></div>
+<div class="cell plain" data-cp="U+F1B3"><span class="g">&#xF1B3;</span><span class="hex">F1B3</span></div>
+<div class="cell in-locked" data-cp="U+F1B4"><span class="g">&#xF1B4;</span><span class="hex">F1B4</span></div>
+<div class="cell plain" data-cp="U+F1B5"><span class="g">&#xF1B5;</span><span class="hex">F1B5</span></div>
+<div class="cell plain" data-cp="U+F1B6"><span class="g">&#xF1B6;</span><span class="hex">F1B6</span></div>
+<div class="cell plain" data-cp="U+F1B7"><span class="g">&#xF1B7;</span><span class="hex">F1B7</span></div>
+<div class="cell plain" data-cp="U+F1B8"><span class="g">&#xF1B8;</span><span class="hex">F1B8</span></div>
+<div class="cell plain" data-cp="U+F1B9"><span class="g">&#xF1B9;</span><span class="hex">F1B9</span></div>
+<div class="cell plain" data-cp="U+F1BA"><span class="g">&#xF1BA;</span><span class="hex">F1BA</span></div>
+<div class="cell plain" data-cp="U+F1BB"><span class="g">&#xF1BB;</span><span class="hex">F1BB</span></div>
+<div class="cell plain" data-cp="U+F1BC"><span class="g">&#xF1BC;</span><span class="hex">F1BC</span></div>
+<div class="cell plain" data-cp="U+F1BD"><span class="g">&#xF1BD;</span><span class="hex">F1BD</span></div>
+<div class="cell plain" data-cp="U+F1BE"><span class="g">&#xF1BE;</span><span class="hex">F1BE</span></div>
+<div class="cell plain" data-cp="U+F1BF"><span class="g">&#xF1BF;</span><span class="hex">F1BF</span></div>
+<div class="cell plain" data-cp="U+F1C0"><span class="g">&#xF1C0;</span><span class="hex">F1C0</span></div>
+<div class="cell plain" data-cp="U+F1C1"><span class="g">&#xF1C1;</span><span class="hex">F1C1</span></div>
+<div class="cell plain" data-cp="U+F1C2"><span class="g">&#xF1C2;</span><span class="hex">F1C2</span></div>
+<div class="cell plain" data-cp="U+F1C3"><span class="g">&#xF1C3;</span><span class="hex">F1C3</span></div>
+<div class="cell plain" data-cp="U+F1C4"><span class="g">&#xF1C4;</span><span class="hex">F1C4</span></div>
+<div class="cell plain" data-cp="U+F1C5"><span class="g">&#xF1C5;</span><span class="hex">F1C5</span></div>
+<div class="cell plain" data-cp="U+F1C6"><span class="g">&#xF1C6;</span><span class="hex">F1C6</span></div>
+<div class="cell plain" data-cp="U+F1C7"><span class="g">&#xF1C7;</span><span class="hex">F1C7</span></div>
+<div class="cell plain" data-cp="U+F1C8"><span class="g">&#xF1C8;</span><span class="hex">F1C8</span></div>
+<div class="cell plain" data-cp="U+F1C9"><span class="g">&#xF1C9;</span><span class="hex">F1C9</span></div>
+<div class="cell plain" data-cp="U+F1CA"><span class="g">&#xF1CA;</span><span class="hex">F1CA</span></div>
+<div class="cell plain" data-cp="U+F1CB"><span class="g">&#xF1CB;</span><span class="hex">F1CB</span></div>
+<div class="cell plain" data-cp="U+F1CC"><span class="g">&#xF1CC;</span><span class="hex">F1CC</span></div>
+<div class="cell plain" data-cp="U+F1CD"><span class="g">&#xF1CD;</span><span class="hex">F1CD</span></div>
+<div class="cell plain" data-cp="U+F1CE"><span class="g">&#xF1CE;</span><span class="hex">F1CE</span></div>
+<div class="cell plain" data-cp="U+F1CF"><span class="g">&#xF1CF;</span><span class="hex">F1CF</span></div>
+<div class="cell plain" data-cp="U+F1D0"><span class="g">&#xF1D0;</span><span class="hex">F1D0</span></div>
+<div class="cell plain" data-cp="U+F1D1"><span class="g">&#xF1D1;</span><span class="hex">F1D1</span></div>
+<div class="cell plain" data-cp="U+F1D2"><span class="g">&#xF1D2;</span><span class="hex">F1D2</span></div>
+<div class="cell plain" data-cp="U+F1D3"><span class="g">&#xF1D3;</span><span class="hex">F1D3</span></div>
+<div class="cell plain" data-cp="U+F1D4"><span class="g">&#xF1D4;</span><span class="hex">F1D4</span></div>
+<div class="cell plain" data-cp="U+F1D5"><span class="g">&#xF1D5;</span><span class="hex">F1D5</span></div>
+<div class="cell plain" data-cp="U+F1D6"><span class="g">&#xF1D6;</span><span class="hex">F1D6</span></div>
+<div class="cell plain" data-cp="U+F1D7"><span class="g">&#xF1D7;</span><span class="hex">F1D7</span></div>
+<div class="cell plain" data-cp="U+F1D8"><span class="g">&#xF1D8;</span><span class="hex">F1D8</span></div>
+<div class="cell plain" data-cp="U+F1F9"><span class="g">&#xF1F9;</span><span class="hex">F1F9</span></div>
+<div class="cell plain" data-cp="U+F1FA"><span class="g">&#xF1FA;</span><span class="hex">F1FA</span></div>
+<div class="cell plain" data-cp="U+F1FB"><span class="g">&#xF1FB;</span><span class="hex">F1FB</span></div>
+<div class="cell plain" data-cp="U+F1FC"><span class="g">&#xF1FC;</span><span class="hex">F1FC</span></div>
+<div class="cell in-locked" data-cp="U+F1FD"><span class="g">&#xF1FD;</span><span class="hex">F1FD</span></div>
+<div class="cell plain" data-cp="U+F1FE"><span class="g">&#xF1FE;</span><span class="hex">F1FE</span></div>
+<div class="cell plain" data-cp="U+F1FF"><span class="g">&#xF1FF;</span><span class="hex">F1FF</span></div>
+<div class="cell empty" data-cp="U+F220"><span class="g">&#xF220;</span><span class="hex">F220</span></div>
+<div class="cell plain" data-cp="U+F221"><span class="g">&#xF221;</span><span class="hex">F221</span></div>
+<div class="cell plain" data-cp="U+F223"><span class="g">&#xF223;</span><span class="hex">F223</span></div>
+<div class="cell plain" data-cp="U+F224"><span class="g">&#xF224;</span><span class="hex">F224</span></div>
+<div class="cell plain" data-cp="U+F225"><span class="g">&#xF225;</span><span class="hex">F225</span></div>
+<div class="cell plain" data-cp="U+F226"><span class="g">&#xF226;</span><span class="hex">F226</span></div>
+<div class="cell plain" data-cp="U+F228"><span class="g">&#xF228;</span><span class="hex">F228</span></div>
+<div class="cell plain" data-cp="U+F22A"><span class="g">&#xF22A;</span><span class="hex">F22A</span></div>
+<div class="cell plain" data-cp="U+F22B"><span class="g">&#xF22B;</span><span class="hex">F22B</span></div>
+<div class="cell plain" data-cp="U+F22C"><span class="g">&#xF22C;</span><span class="hex">F22C</span></div>
+<div class="cell plain" data-cp="U+F22D"><span class="g">&#xF22D;</span><span class="hex">F22D</span></div>
+<div class="cell plain" data-cp="U+F22E"><span class="g">&#xF22E;</span><span class="hex">F22E</span></div>
+<div class="cell plain" data-cp="U+F22F"><span class="g">&#xF22F;</span><span class="hex">F22F</span></div>
+<div class="cell plain" data-cp="U+F231"><span class="g">&#xF231;</span><span class="hex">F231</span></div>
+<div class="cell plain" data-cp="U+F232"><span class="g">&#xF232;</span><span class="hex">F232</span></div>
+<div class="cell plain" data-cp="U+F233"><span class="g">&#xF233;</span><span class="hex">F233</span></div>
+<div class="cell plain" data-cp="U+F234"><span class="g">&#xF234;</span><span class="hex">F234</span></div>
+<div class="cell plain" data-cp="U+F235"><span class="g">&#xF235;</span><span class="hex">F235</span></div>
+<div class="cell plain" data-cp="U+F236"><span class="g">&#xF236;</span><span class="hex">F236</span></div>
+<div class="cell plain" data-cp="U+F237"><span class="g">&#xF237;</span><span class="hex">F237</span></div>
+<div class="cell plain" data-cp="U+F238"><span class="g">&#xF238;</span><span class="hex">F238</span></div>
+<div class="cell plain" data-cp="U+F239"><span class="g">&#xF239;</span><span class="hex">F239</span></div>
+<div class="cell plain" data-cp="U+F23A"><span class="g">&#xF23A;</span><span class="hex">F23A</span></div>
+<div class="cell plain" data-cp="U+F23B"><span class="g">&#xF23B;</span><span class="hex">F23B</span></div>
+<div class="cell plain" data-cp="U+F23C"><span class="g">&#xF23C;</span><span class="hex">F23C</span></div>
+<div class="cell plain" data-cp="U+F23D"><span class="g">&#xF23D;</span><span class="hex">F23D</span></div>
+<div class="cell plain" data-cp="U+F23E"><span class="g">&#xF23E;</span><span class="hex">F23E</span></div>
+<div class="cell plain" data-cp="U+F23F"><span class="g">&#xF23F;</span><span class="hex">F23F</span></div>
+<div class="cell plain" data-cp="U+F241"><span class="g">&#xF241;</span><span class="hex">F241</span></div>
+<div class="cell plain" data-cp="U+F242"><span class="g">&#xF242;</span><span class="hex">F242</span></div>
+<div class="cell plain" data-cp="U+F243"><span class="g">&#xF243;</span><span class="hex">F243</span></div>
+<div class="cell plain" data-cp="U+F244"><span class="g">&#xF244;</span><span class="hex">F244</span></div>
+<div class="cell plain" data-cp="U+F245"><span class="g">&#xF245;</span><span class="hex">F245</span></div>
+<div class="cell plain" data-cp="U+F246"><span class="g">&#xF246;</span><span class="hex">F246</span></div>
+<div class="cell plain" data-cp="U+F247"><span class="g">&#xF247;</span><span class="hex">F247</span></div>
+<div class="cell plain" data-cp="U+F248"><span class="g">&#xF248;</span><span class="hex">F248</span></div>
+<div class="cell plain" data-cp="U+F249"><span class="g">&#xF249;</span><span class="hex">F249</span></div>
+<div class="cell plain" data-cp="U+F24A"><span class="g">&#xF24A;</span><span class="hex">F24A</span></div>
+<div class="cell plain" data-cp="U+F24B"><span class="g">&#xF24B;</span><span class="hex">F24B</span></div>
+<div class="cell plain" data-cp="U+F24C"><span class="g">&#xF24C;</span><span class="hex">F24C</span></div>
+<div class="cell plain" data-cp="U+F24D"><span class="g">&#xF24D;</span><span class="hex">F24D</span></div>
+<div class="cell plain" data-cp="U+F24E"><span class="g">&#xF24E;</span><span class="hex">F24E</span></div>
+<div class="cell plain" data-cp="U+F24F"><span class="g">&#xF24F;</span><span class="hex">F24F</span></div>
+<div class="cell plain" data-cp="U+F250"><span class="g">&#xF250;</span><span class="hex">F250</span></div>
+<div class="cell plain" data-cp="U+F251"><span class="g">&#xF251;</span><span class="hex">F251</span></div>
+<div class="cell plain" data-cp="U+F252"><span class="g">&#xF252;</span><span class="hex">F252</span></div>
+<div class="cell plain" data-cp="U+F253"><span class="g">&#xF253;</span><span class="hex">F253</span></div>
+<div class="cell plain" data-cp="U+F254"><span class="g">&#xF254;</span><span class="hex">F254</span></div>
+<div class="cell plain" data-cp="U+F255"><span class="g">&#xF255;</span><span class="hex">F255</span></div>
+<div class="cell plain" data-cp="U+F256"><span class="g">&#xF256;</span><span class="hex">F256</span></div>
+<div class="cell plain" data-cp="U+F257"><span class="g">&#xF257;</span><span class="hex">F257</span></div>
+<div class="cell plain" data-cp="U+F258"><span class="g">&#xF258;</span><span class="hex">F258</span></div>
+<div class="cell plain" data-cp="U+F259"><span class="g">&#xF259;</span><span class="hex">F259</span></div>
+<div class="cell plain" data-cp="U+F25A"><span class="g">&#xF25A;</span><span class="hex">F25A</span></div>
+<div class="cell plain" data-cp="U+F25B"><span class="g">&#xF25B;</span><span class="hex">F25B</span></div>
+<div class="cell plain" data-cp="U+F25C"><span class="g">&#xF25C;</span><span class="hex">F25C</span></div>
+<div class="cell plain" data-cp="U+F25D"><span class="g">&#xF25D;</span><span class="hex">F25D</span></div>
+<div class="cell plain" data-cp="U+F25E"><span class="g">&#xF25E;</span><span class="hex">F25E</span></div>
+<div class="cell plain" data-cp="U+F25F"><span class="g">&#xF25F;</span><span class="hex">F25F</span></div>
+<div class="cell plain" data-cp="U+F261"><span class="g">&#xF261;</span><span class="hex">F261</span></div>
+<div class="cell plain" data-cp="U+F262"><span class="g">&#xF262;</span><span class="hex">F262</span></div>
+<div class="cell plain" data-cp="U+F263"><span class="g">&#xF263;</span><span class="hex">F263</span></div>
+<div class="cell plain" data-cp="U+F264"><span class="g">&#xF264;</span><span class="hex">F264</span></div>
+<div class="cell plain" data-cp="U+F265"><span class="g">&#xF265;</span><span class="hex">F265</span></div>
+<div class="cell plain" data-cp="U+F266"><span class="g">&#xF266;</span><span class="hex">F266</span></div>
+<div class="cell plain" data-cp="U+F267"><span class="g">&#xF267;</span><span class="hex">F267</span></div>
+<div class="cell plain" data-cp="U+F268"><span class="g">&#xF268;</span><span class="hex">F268</span></div>
+<div class="cell plain" data-cp="U+F269"><span class="g">&#xF269;</span><span class="hex">F269</span></div>
+<div class="cell plain" data-cp="U+F26A"><span class="g">&#xF26A;</span><span class="hex">F26A</span></div>
+<div class="cell plain" data-cp="U+F26B"><span class="g">&#xF26B;</span><span class="hex">F26B</span></div>
+<div class="cell plain" data-cp="U+F26C"><span class="g">&#xF26C;</span><span class="hex">F26C</span></div>
+<div class="cell plain" data-cp="U+F26D"><span class="g">&#xF26D;</span><span class="hex">F26D</span></div>
+<div class="cell plain" data-cp="U+F26E"><span class="g">&#xF26E;</span><span class="hex">F26E</span></div>
+<div class="cell plain" data-cp="U+F26F"><span class="g">&#xF26F;</span><span class="hex">F26F</span></div>
+<div class="cell plain" data-cp="U+F270"><span class="g">&#xF270;</span><span class="hex">F270</span></div>
+<div class="cell plain" data-cp="U+F271"><span class="g">&#xF271;</span><span class="hex">F271</span></div>
+<div class="cell plain" data-cp="U+F272"><span class="g">&#xF272;</span><span class="hex">F272</span></div>
+<div class="cell plain" data-cp="U+F273"><span class="g">&#xF273;</span><span class="hex">F273</span></div>
+<div class="cell plain" data-cp="U+F274"><span class="g">&#xF274;</span><span class="hex">F274</span></div>
+<div class="cell plain" data-cp="U+F275"><span class="g">&#xF275;</span><span class="hex">F275</span></div>
+<div class="cell plain" data-cp="U+F276"><span class="g">&#xF276;</span><span class="hex">F276</span></div>
+<div class="cell plain" data-cp="U+F277"><span class="g">&#xF277;</span><span class="hex">F277</span></div>
+<div class="cell plain" data-cp="U+F278"><span class="g">&#xF278;</span><span class="hex">F278</span></div>
+<div class="cell plain" data-cp="U+F279"><span class="g">&#xF279;</span><span class="hex">F279</span></div>
+<div class="cell plain" data-cp="U+F27A"><span class="g">&#xF27A;</span><span class="hex">F27A</span></div>
+<div class="cell plain" data-cp="U+F27B"><span class="g">&#xF27B;</span><span class="hex">F27B</span></div>
+<div class="cell plain" data-cp="U+F27C"><span class="g">&#xF27C;</span><span class="hex">F27C</span></div>
+<div class="cell plain" data-cp="U+F27D"><span class="g">&#xF27D;</span><span class="hex">F27D</span></div>
+<div class="cell plain" data-cp="U+F27E"><span class="g">&#xF27E;</span><span class="hex">F27E</span></div>
+<div class="cell plain" data-cp="U+F27F"><span class="g">&#xF27F;</span><span class="hex">F27F</span></div>
+<div class="cell plain" data-cp="U+F295"><span class="g">&#xF295;</span><span class="hex">F295</span></div>
+<div class="cell plain" data-cp="U+F296"><span class="g">&#xF296;</span><span class="hex">F296</span></div>
+<div class="cell plain" data-cp="U+F297"><span class="g">&#xF297;</span><span class="hex">F297</span></div>
+<div class="cell plain" data-cp="U+F299"><span class="g">&#xF299;</span><span class="hex">F299</span></div>
+<div class="cell plain" data-cp="U+F29A"><span class="g">&#xF29A;</span><span class="hex">F29A</span></div>
+<div class="cell plain" data-cp="U+F29B"><span class="g">&#xF29B;</span><span class="hex">F29B</span></div>
+<div class="cell plain" data-cp="U+F29C"><span class="g">&#xF29C;</span><span class="hex">F29C</span></div>
+<div class="cell plain" data-cp="U+F29E"><span class="g">&#xF29E;</span><span class="hex">F29E</span></div>
+<div class="cell empty" data-cp="U+F2A0"><span class="g">&#xF2A0;</span><span class="hex">F2A0</span></div>
+<div class="cell plain" data-cp="U+F2A1"><span class="g">&#xF2A1;</span><span class="hex">F2A1</span></div>
+<div class="cell plain" data-cp="U+F2A2"><span class="g">&#xF2A2;</span><span class="hex">F2A2</span></div>
+<div class="cell plain" data-cp="U+F2A3"><span class="g">&#xF2A3;</span><span class="hex">F2A3</span></div>
+<div class="cell plain" data-cp="U+F2A4"><span class="g">&#xF2A4;</span><span class="hex">F2A4</span></div>
+<div class="cell plain" data-cp="U+F2A5"><span class="g">&#xF2A5;</span><span class="hex">F2A5</span></div>
+<div class="cell plain" data-cp="U+F2A6"><span class="g">&#xF2A6;</span><span class="hex">F2A6</span></div>
+<div class="cell plain" data-cp="U+F2A7"><span class="g">&#xF2A7;</span><span class="hex">F2A7</span></div>
+<div class="cell plain" data-cp="U+F2A8"><span class="g">&#xF2A8;</span><span class="hex">F2A8</span></div>
+<div class="cell plain" data-cp="U+F2A9"><span class="g">&#xF2A9;</span><span class="hex">F2A9</span></div>
+<div class="cell plain" data-cp="U+F2AA"><span class="g">&#xF2AA;</span><span class="hex">F2AA</span></div>
+<div class="cell plain" data-cp="U+F2AB"><span class="g">&#xF2AB;</span><span class="hex">F2AB</span></div>
+<div class="cell plain" data-cp="U+F2AC"><span class="g">&#xF2AC;</span><span class="hex">F2AC</span></div>
+<div class="cell plain" data-cp="U+F2AD"><span class="g">&#xF2AD;</span><span class="hex">F2AD</span></div>
+<div class="cell plain" data-cp="U+F2AE"><span class="g">&#xF2AE;</span><span class="hex">F2AE</span></div>
+<div class="cell plain" data-cp="U+F2AF"><span class="g">&#xF2AF;</span><span class="hex">F2AF</span></div>
+<div class="cell plain" data-cp="U+F2B0"><span class="g">&#xF2B0;</span><span class="hex">F2B0</span></div>
+<div class="cell plain" data-cp="U+F2B1"><span class="g">&#xF2B1;</span><span class="hex">F2B1</span></div>
+<div class="cell plain" data-cp="U+F2B2"><span class="g">&#xF2B2;</span><span class="hex">F2B2</span></div>
+<div class="cell plain" data-cp="U+F2B3"><span class="g">&#xF2B3;</span><span class="hex">F2B3</span></div>
+<div class="cell plain" data-cp="U+F2B4"><span class="g">&#xF2B4;</span><span class="hex">F2B4</span></div>
+<div class="cell plain" data-cp="U+F2B5"><span class="g">&#xF2B5;</span><span class="hex">F2B5</span></div>
+<div class="cell plain" data-cp="U+F2B6"><span class="g">&#xF2B6;</span><span class="hex">F2B6</span></div>
+<div class="cell plain" data-cp="U+F2B7"><span class="g">&#xF2B7;</span><span class="hex">F2B7</span></div>
+<div class="cell plain" data-cp="U+F2B8"><span class="g">&#xF2B8;</span><span class="hex">F2B8</span></div>
+<div class="cell plain" data-cp="U+F2B9"><span class="g">&#xF2B9;</span><span class="hex">F2B9</span></div>
+<div class="cell plain" data-cp="U+F2BA"><span class="g">&#xF2BA;</span><span class="hex">F2BA</span></div>
+<div class="cell plain" data-cp="U+F2BB"><span class="g">&#xF2BB;</span><span class="hex">F2BB</span></div>
+<div class="cell plain" data-cp="U+F2BC"><span class="g">&#xF2BC;</span><span class="hex">F2BC</span></div>
+<div class="cell plain" data-cp="U+F2BD"><span class="g">&#xF2BD;</span><span class="hex">F2BD</span></div>
+<div class="cell plain" data-cp="U+F2BE"><span class="g">&#xF2BE;</span><span class="hex">F2BE</span></div>
+<div class="cell plain" data-cp="U+F2BF"><span class="g">&#xF2BF;</span><span class="hex">F2BF</span></div>
+<div class="cell plain" data-cp="U+F2C0"><span class="g">&#xF2C0;</span><span class="hex">F2C0</span></div>
+<div class="cell plain" data-cp="U+F2C1"><span class="g">&#xF2C1;</span><span class="hex">F2C1</span></div>
+<div class="cell plain" data-cp="U+F2C2"><span class="g">&#xF2C2;</span><span class="hex">F2C2</span></div>
+<div class="cell plain" data-cp="U+F2C3"><span class="g">&#xF2C3;</span><span class="hex">F2C3</span></div>
+<div class="cell plain" data-cp="U+F2C4"><span class="g">&#xF2C4;</span><span class="hex">F2C4</span></div>
+<div class="cell plain" data-cp="U+F2C5"><span class="g">&#xF2C5;</span><span class="hex">F2C5</span></div>
+<div class="cell plain" data-cp="U+F2C6"><span class="g">&#xF2C6;</span><span class="hex">F2C6</span></div>
+<div class="cell plain" data-cp="U+F2C7"><span class="g">&#xF2C7;</span><span class="hex">F2C7</span></div>
+<div class="cell plain" data-cp="U+F2C8"><span class="g">&#xF2C8;</span><span class="hex">F2C8</span></div>
+<div class="cell plain" data-cp="U+F2C9"><span class="g">&#xF2C9;</span><span class="hex">F2C9</span></div>
+<div class="cell plain" data-cp="U+F2CA"><span class="g">&#xF2CA;</span><span class="hex">F2CA</span></div>
+<div class="cell plain" data-cp="U+F2CB"><span class="g">&#xF2CB;</span><span class="hex">F2CB</span></div>
+<div class="cell plain" data-cp="U+F2CC"><span class="g">&#xF2CC;</span><span class="hex">F2CC</span></div>
+<div class="cell plain" data-cp="U+F2CD"><span class="g">&#xF2CD;</span><span class="hex">F2CD</span></div>
+<div class="cell plain" data-cp="U+F2CE"><span class="g">&#xF2CE;</span><span class="hex">F2CE</span></div>
+<div class="cell plain" data-cp="U+F2CF"><span class="g">&#xF2CF;</span><span class="hex">F2CF</span></div>
+<div class="cell plain" data-cp="U+F2D0"><span class="g">&#xF2D0;</span><span class="hex">F2D0</span></div>
+<div class="cell plain" data-cp="U+F2D1"><span class="g">&#xF2D1;</span><span class="hex">F2D1</span></div>
+<div class="cell plain" data-cp="U+F2D2"><span class="g">&#xF2D2;</span><span class="hex">F2D2</span></div>
+<div class="cell plain" data-cp="U+F2D3"><span class="g">&#xF2D3;</span><span class="hex">F2D3</span></div>
+<div class="cell plain" data-cp="U+F2D4"><span class="g">&#xF2D4;</span><span class="hex">F2D4</span></div>
+<div class="cell plain" data-cp="U+F2D5"><span class="g">&#xF2D5;</span><span class="hex">F2D5</span></div>
+<div class="cell plain" data-cp="U+F2D6"><span class="g">&#xF2D6;</span><span class="hex">F2D6</span></div>
+<div class="cell plain" data-cp="U+F2D7"><span class="g">&#xF2D7;</span><span class="hex">F2D7</span></div>
+<div class="cell plain" data-cp="U+F2D8"><span class="g">&#xF2D8;</span><span class="hex">F2D8</span></div>
+<div class="cell plain" data-cp="U+F2D9"><span class="g">&#xF2D9;</span><span class="hex">F2D9</span></div>
+<div class="cell plain" data-cp="U+F2DA"><span class="g">&#xF2DA;</span><span class="hex">F2DA</span></div>
+<div class="cell plain" data-cp="U+F2DB"><span class="g">&#xF2DB;</span><span class="hex">F2DB</span></div>
+<div class="cell plain" data-cp="U+F2DC"><span class="g">&#xF2DC;</span><span class="hex">F2DC</span></div>
+<div class="cell plain" data-cp="U+F2DD"><span class="g">&#xF2DD;</span><span class="hex">F2DD</span></div>
+<div class="cell plain" data-cp="U+F2DE"><span class="g">&#xF2DE;</span><span class="hex">F2DE</span></div>
+<div class="cell plain" data-cp="U+F2DF"><span class="g">&#xF2DF;</span><span class="hex">F2DF</span></div>
+<div class="cell plain" data-cp="U+F2E0"><span class="g">&#xF2E0;</span><span class="hex">F2E0</span></div>
+<div class="cell plain" data-cp="U+F2E1"><span class="g">&#xF2E1;</span><span class="hex">F2E1</span></div>
+<div class="cell plain" data-cp="U+F2E2"><span class="g">&#xF2E2;</span><span class="hex">F2E2</span></div>
+<div class="cell plain" data-cp="U+F2E3"><span class="g">&#xF2E3;</span><span class="hex">F2E3</span></div>
+<div class="cell plain" data-cp="U+F2E4"><span class="g">&#xF2E4;</span><span class="hex">F2E4</span></div>
+<div class="cell plain" data-cp="U+F2E5"><span class="g">&#xF2E5;</span><span class="hex">F2E5</span></div>
+<div class="cell plain" data-cp="U+F2E6"><span class="g">&#xF2E6;</span><span class="hex">F2E6</span></div>
+<div class="cell plain" data-cp="U+F2E7"><span class="g">&#xF2E7;</span><span class="hex">F2E7</span></div>
+<div class="cell plain" data-cp="U+F2E8"><span class="g">&#xF2E8;</span><span class="hex">F2E8</span></div>
+<div class="cell plain" data-cp="U+F2E9"><span class="g">&#xF2E9;</span><span class="hex">F2E9</span></div>
+<div class="cell plain" data-cp="U+F2EA"><span class="g">&#xF2EA;</span><span class="hex">F2EA</span></div>
+<div class="cell plain" data-cp="U+F2EB"><span class="g">&#xF2EB;</span><span class="hex">F2EB</span></div>
+<div class="cell plain" data-cp="U+F2EC"><span class="g">&#xF2EC;</span><span class="hex">F2EC</span></div>
+<div class="cell plain" data-cp="U+F2ED"><span class="g">&#xF2ED;</span><span class="hex">F2ED</span></div>
+<div class="cell plain" data-cp="U+F2EE"><span class="g">&#xF2EE;</span><span class="hex">F2EE</span></div>
+<div class="cell plain" data-cp="U+F2EF"><span class="g">&#xF2EF;</span><span class="hex">F2EF</span></div>
+<div class="cell plain" data-cp="U+F2F0"><span class="g">&#xF2F0;</span><span class="hex">F2F0</span></div>
+<div class="cell plain" data-cp="U+F2F1"><span class="g">&#xF2F1;</span><span class="hex">F2F1</span></div>
+<div class="cell plain" data-cp="U+F2F2"><span class="g">&#xF2F2;</span><span class="hex">F2F2</span></div>
+<div class="cell plain" data-cp="U+F2F3"><span class="g">&#xF2F3;</span><span class="hex">F2F3</span></div>
+<div class="cell plain" data-cp="U+F2F4"><span class="g">&#xF2F4;</span><span class="hex">F2F4</span></div>
+<div class="cell plain" data-cp="U+F2F5"><span class="g">&#xF2F5;</span><span class="hex">F2F5</span></div>
+<div class="cell plain" data-cp="U+F2F6"><span class="g">&#xF2F6;</span><span class="hex">F2F6</span></div>
+<div class="cell plain" data-cp="U+F2F7"><span class="g">&#xF2F7;</span><span class="hex">F2F7</span></div>
+<div class="cell plain" data-cp="U+F2F8"><span class="g">&#xF2F8;</span><span class="hex">F2F8</span></div>
+<div class="cell plain" data-cp="U+F2F9"><span class="g">&#xF2F9;</span><span class="hex">F2F9</span></div>
+<div class="cell plain" data-cp="U+F2FA"><span class="g">&#xF2FA;</span><span class="hex">F2FA</span></div>
+<div class="cell plain" data-cp="U+F2FB"><span class="g">&#xF2FB;</span><span class="hex">F2FB</span></div>
+<div class="cell plain" data-cp="U+F2FC"><span class="g">&#xF2FC;</span><span class="hex">F2FC</span></div>
+<div class="cell plain" data-cp="U+F2FD"><span class="g">&#xF2FD;</span><span class="hex">F2FD</span></div>
+<div class="cell plain" data-cp="U+F2FE"><span class="g">&#xF2FE;</span><span class="hex">F2FE</span></div>
+<div class="cell plain" data-cp="U+F2FF"><span class="g">&#xF2FF;</span><span class="hex">F2FF</span></div>
+</div>
+
+<footer>
+  Font: <code>voynich.ttf</code> — kreativekorp/voynich-unicode (CC0).
+  Source of truth for <code>EGREGORE_GLYPHS</code>:
+  <code>harness/specs/precis-8a-egregoric-thematic.yaml</code>
+  (behavior <code>egregore-glyph-registry</code>).
+  Regenerate this page from <code>tools/build-voynich-specimen.mjs</code>.
+</footer>
+</body>
+</html>

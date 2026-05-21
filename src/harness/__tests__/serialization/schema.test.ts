@@ -140,6 +140,7 @@ const EXPECTED_FIELDS = [
   'remotePlayers',
   'scannedSpecimens',
   'oakSpecimens',
+  'egregoreSpecimens',
   'scanInProgress',
   'manualHighlightEntryId',
   'onPlayerMoved',

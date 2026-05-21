@@ -5,7 +5,8 @@ import { updateCursorState } from '@/engine/cursor'
 import { createGameLoop } from '@/engine/gameLoop'
 import { measureChar, render } from '@/engine/renderer'
 import { useMouse } from '@/hooks/useMouse'
-import type { CharMetrics, FloraSpecies, GameState } from '@/engine/types'
+import type { ScanCommitResult } from '@/engine/scan'
+import type { CharMetrics, GameState } from '@/engine/types'
 import type { PermacomputerScreen } from '@/hooks/useKeyboard'
 
 const SIDEBAR_WIDTH_PX = 192 // matches Sidebar w-48
@@ -24,8 +25,7 @@ interface GameCanvasProps {
   refreshUI: () => void
   activeScreen: PermacomputerScreen
   setActiveScreen: (screen: PermacomputerScreen) => void
-  onScanComplete: (species: FloraSpecies, identity: string) => void
-  onOakScanComplete: (identity: string) => void
+  onScanComplete: (result: ScanCommitResult) => void
   metricsRef: React.RefObject<CharMetrics | null>
 }
 
@@ -35,7 +35,6 @@ export const GameCanvas = ({
   activeScreen,
   setActiveScreen,
   onScanComplete,
-  onOakScanComplete,
   metricsRef,
 }: GameCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -47,8 +46,6 @@ export const GameCanvas = ({
   activeScreenRef.current = activeScreen
   const onScanCompleteRef = useRef(onScanComplete)
   onScanCompleteRef.current = onScanComplete
-  const onOakScanCompleteRef = useRef(onOakScanComplete)
-  onOakScanCompleteRef.current = onOakScanComplete
 
   useMouse({ canvasRef, state, metricsRef, activeScreen, setActiveScreen, refreshUI })
 
@@ -98,11 +95,8 @@ export const GameCanvas = ({
           setActiveScreenRef.current(null)
         }
       },
-      onScanComplete: (species, identity) => {
-        onScanCompleteRef.current(species, identity)
-      },
-      onOakScanComplete: identity => {
-        onOakScanCompleteRef.current(identity)
+      onScanComplete: result => {
+        onScanCompleteRef.current(result)
       },
       onFrame: time => {
         if (metricsRef.current) {
