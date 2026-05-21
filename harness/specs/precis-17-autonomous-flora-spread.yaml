@@ -28,7 +28,7 @@ dependencies:
   - precis-1-multi-species-flora
   - precis-2-phenological-seasons
   - precis-3-genetics-v1
-  - precis-5-ruin-recovery
+  - precis-5-ruin-recovery-flora
   - precis-6-naturalists-manual
 
 behaviors:
@@ -638,6 +638,35 @@ edge_cases:
       A test mounts the render with overlayMode = FamilyTree and
       empty discoveredSpecies, asserts zero lineage edges drawn.
 
+  - id: spread-rate-statistical-bounds
+    description: >
+      Per-species spread is probabilistic (each candidate Dirt
+      neighbor rolls baseGrowthChance per tick). Across many ticks,
+      the empirical spread rate must stay within reasonable bounds of
+      the configured rate. With seeded Math.random the test is
+      deterministic, but the rate distribution still needs verifying.
+      Run 10 patches of clover on a clearing for 500 ticks each with
+      a controlled seed; expected total new tiles is within ±25% of
+      (10 patches × 500 ticks × avg-candidates × baseGrowthChance ×
+      maxGrowthPerTickCap). Similar bounds apply to wildflower
+      (pollinator-gated) and tallgrass (slowest).
+    expected: >
+      Empirical spread totals stay within ±25% of the analytic
+      expectation. A statistical bounds test exercises each species
+      with a seeded RNG and asserts the bounds.
+
+  - id: pollen-prime-priority-ordering
+    description: >
+      When a bee's PollenBag holds multiple loads of species S and it
+      enters a Flora tile of species S whose identity differs from
+      all of them, the most recently pushed matching load wins as
+      the primedPollen (highest index in the loads array). Ordering
+      is deterministic.
+    expected: >
+      A test seeds a bag with two clover loads in known order, lands
+      the bee on a different-identity clover tile, asserts
+      primedPollen === loads[loads.length - 1] of matching species.
+
   - id: winter-halts-all-three-species
     description: >
       In Season.Winter, all three species' tickSpeciesSpread bails
@@ -698,6 +727,6 @@ failure_conditions:
       not, the hive-return invariant is broken.
 
 verification:
-  test_file: src/engine/__tests__/precis-17-spread-engine.test.ts
-  test_pattern: 'tickSpeciesSpread'
-  command: npx vitest run src/engine/__tests__/precis-17-spread-engine.test.ts
+  test_file: src/engine/__tests__/clover.test.ts
+  test_pattern: 'tickCloverGrowth'
+  command: npx vitest run src/engine/__tests__/clover.test.ts -t tickCloverGrowth
