@@ -45,21 +45,6 @@ tasks:
     repair: retry
     tags: [engine]
 
-  - id: shower-shooting-stars-spec-sync
-    title: 'No code change here — confirms shooting-stars spec wording matches behavior: non-steward shower stars still use the shower radiant; the steward star uses its fixed direction. Used by the harness to re-check the player-spawn-shower-trigger behavior wording against celestial.ts after the fixed-direction change'
-    spec_id: shooting-stars
-    spec_sections:
-      - player-spawn-shower-trigger
-    context_files:
-      - src/engine/celestial.ts
-    output_files: []
-    depends_on:
-      - steward-fixed-direction-and-shake
-    verification:
-      - npx tsc -b --noEmit
-    repair: retry
-    tags: [engine]
-
   - id: steward-star-render-pink
     title: 'Renderer: when populating shooting-star pixmaps, detect ShootingStarData.forPlayerSpawn and substitute STEWARD_STAR_HEAD_COLOR / STEWARD_STAR_TRAIL_COLORS for the head and trail. Ambient and shower stars unchanged.'
     spec_id: player-spawn
