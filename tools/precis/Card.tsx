@@ -24,9 +24,6 @@ export const Card = ({ feature, selected, column }: CardProps) => {
           {label}
         </Text>
       </Box>
-      <Text inverse={selected} dimColor={!selected}>
-        {` ${feature.size}`}
-      </Text>
     </Box>
   )
 }

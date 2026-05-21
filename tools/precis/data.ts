@@ -3,13 +3,11 @@ import { parse } from 'yaml'
 
 export type Status = 'todo' | 'in-progress' | 'shipped'
 export type DerivedStatus = Status | 'next'
-export type Size = 'XS' | 'S' | 'S/M' | 'M' | 'M/L' | 'L'
 
 export interface Feature {
   id: string
   name: string
   summary: string
-  size: Size
   depends_on: string[]
   status: Status
   spec: string | null

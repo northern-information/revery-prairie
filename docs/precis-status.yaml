@@ -4,13 +4,15 @@
 #
 # Status values: todo | in-progress | shipped
 # The dashboard derives a fourth bucket — `next` — for any `todo` whose deps are all `shipped`.
-# Field order is locked. Keep it diff-friendly.
+# Field order is locked: id, name, summary, depends_on, status, spec, plan, pr, notes.
+# (The `size` field was removed in v4 round 9 — sizing is not load-bearing in the current
+# authorship environment. Historical sizes remain in git history.)
+# Keep it diff-friendly.
 
 features:
   - id: '0'
     name: Reclaim Revery
     summary: Delete the four player-cast spells and the action bar entirely (state, UI, keybinds, drag targets).
-    size: M
     depends_on: []
     status: shipped
     spec: harness/specs/precis-0-reclaim-revery.yaml
@@ -21,7 +23,6 @@ features:
   - id: '1'
     name: Multi-species Flora
     summary: Clover → Flora; add wildflower (Echinacea purpurea) and tall grass (Andropogon gerardii) under a shared registry. Harvest [f] and cut [x] mechanics deleted.
-    size: L
     depends_on: ['0']
     status: shipped
     spec: harness/specs/precis-1-multi-species-flora.yaml
@@ -32,7 +33,6 @@ features:
   - id: '8a'
     name: Egregoric flora — thematic
     summary: One inert TileType.Egregore, Voynich manual entries with Latin pierces, NPC refusal lines, invasive-lint guard. Foreshadowing pass.
-    size: XS
     depends_on: ['0']
     status: shipped
     spec: harness/specs/precis-8a-egregoric-thematic.yaml
@@ -43,7 +43,6 @@ features:
   - id: '2'
     name: Phenological seasons
     summary: Annual phase clock + temperature-derived season, FloraStage.Dormant, snow render pass, winter palette wash. rainIntensity → precipitationIntensity rename.
-    size: M
     depends_on: ['1']
     status: shipped
     spec: harness/specs/precis-2-phenological-seasons.yaml
@@ -54,7 +53,6 @@ features:
   - id: '3'
     name: Genetics v1
     summary: SHA256 identity layer + trait-bag inheritance (option C). Not a breed-spike port. 8x8 hex grid derivation included (renderer ships in #6).
-    size: M
     depends_on: ['1', '2']
     status: shipped
     spec: harness/specs/precis-3-genetics-v1.yaml
@@ -65,7 +63,6 @@ features:
   - id: '4'
     name: The Revery (long-form phase)
     summary: Omen-triggered entry, observation UX, end-of-Revery summary (bilingual ASCII + Voynich).
-    size: L
     depends_on: ['1', '2', '3', '8a']
     status: shipped
     spec: harness/specs/precis-4-the-revery.yaml
@@ -76,7 +73,6 @@ features:
   - id: '5'
     name: Ruin → first non-clover species
     summary: Starter ruins bumped 3 → 5; new Wildflower and TallGrass roles deliver seed items via DormantGarden vault. Bee+Clover/Coyote main-quest ruins preserved.
-    size: S
     depends_on: ['1']
     status: shipped
     spec: harness/specs/precis-5-ruin-recovery-flora.yaml
@@ -87,7 +83,6 @@ features:
   - id: '6'
     name: Naturalist's manual
     summary: Hold-to-scan flora with the permacomputer. Scanned species unlock in the manual with their 8x8 hex grid rendered above the lore. Phenotype labels are deferred to #4.
-    size: S
     depends_on: ['3']
     status: shipped
     spec: harness/specs/precis-6-naturalists-manual.yaml
@@ -98,7 +93,6 @@ features:
   - id: '7'
     name: Pollinator routes & preference
     summary: Pollinators favor certain species and route through the prairie.
-    size: S
     depends_on: ['1', '3']
     status: shipped
     spec: harness/specs/precis-7-pollinator-routes.yaml
@@ -109,7 +103,6 @@ features:
   - id: '8b'
     name: Egregoric flora — mechanical
     summary: Parallel species set, invisible pollinator, winter-phased spread, "no compatible regions" crossbreeding.
-    size: M/L
     depends_on: ['1', '2', '3', '4', '7']
     status: shipped
     spec: harness/specs/precis-8b-egregoric-mechanical.yaml
@@ -120,7 +113,6 @@ features:
   - id: '9a'
     name: Torchbearer voice pass
     summary: Moab gains a `drip torchbearer` title and a season-routed dialog dispatcher (Winter / Spring / Summer-or-Autumn). Folk-Coldë rules enforced programmatically; refusal lines locked to the precis-8a egregore allowlist. Voice only — behavior defers to 9b.
-    size: S
     depends_on: ['2']
     status: shipped
     spec: harness/specs/precis-9a-torchbearer-voice.yaml
@@ -131,7 +123,6 @@ features:
   - id: '9b'
     name: Controlled burn — walk the line
     summary: Click to draw a line, then walk it together with Moab. Burn ignition along the path, player refusal, Moab refusal, ash-prairie outcome. Behavior pass following 9a's voice pass.
-    size: M
     depends_on: ['9a']
     status: shipped
     spec: harness/specs/precis-9b-torchbearer-behavior.yaml
@@ -142,7 +133,6 @@ features:
   - id: '10'
     name: Failure-state biomes
     summary: Ash, fungal, Far Garden conversion as Revery outcomes.
-    size: M
     depends_on: ['4', '8b', '9b']
     status: todo
     spec: null
@@ -153,7 +143,6 @@ features:
   - id: '11'
     name: Seed taxonomy + drop-to-plant
     summary: Genetics-bearing seeds (FloraGenome via state.seedGenomes side-table) and drop-on-dirt planting. Vault-spawn genomes deterministic from (steward, ruin, slot).
-    size: M
     depends_on: ['3', '5']
     status: shipped
     spec: harness/specs/precis-11-seed-taxonomy.yaml
@@ -164,7 +153,6 @@ features:
   - id: '12'
     name: Crossbreeding UX
     summary: Adjacent → pollinator-mediated crossbreeding.
-    size: M
     depends_on: ['3', '7']
     status: todo
     spec: null
@@ -179,7 +167,6 @@ features:
       current flora identities, not from a 90s timer + stewardName + spawn coords.
       The angel becomes a witness of the ecology as it exists at that moment.
       PMs need to discuss before this is sequenced.
-    size: M/L
     depends_on: ['3']
     status: todo
     spec: null
@@ -209,7 +196,6 @@ features:
       is rewritten as a slow radial wave (~7-9 tile radius, ~100-250 tiles per
       cast) and the bee binds to the patch as its pollinator for the patch's
       life. One bee per patch, ever.
-    size: M
     depends_on: []
     status: todo
     spec: null
@@ -235,7 +221,6 @@ features:
       replacement surface. World-effects (pickup blooms, dialog, recipe
       output, manual discovery) already cover the legibility needs; a
       running ledger of player actions contradicts steward/observer framing.
-    size: S
     depends_on: []
     status: shipped
     spec: harness/specs/delete-event-log.yaml
@@ -256,7 +241,6 @@ features:
       removed — no fanfare, empty grid cell is the eulogy. Mechanic teaches
       impermanence at the item layer as grammar for the steward's own
       Voynich drift in #4. Renewal loops replace stockpile loops.
-    size: M
     depends_on: []
     status: todo
     spec: null
@@ -280,7 +264,6 @@ features:
       a predecessor record the next steward inherits. Multiplayer is
       reframed as lineage — other players are predecessors and successors,
       never coop partners or adversaries.
-    size: L
     depends_on: ['4', '10']
     status: todo
     spec: null
@@ -308,7 +291,6 @@ features:
       Revery's egregore spread (toward or away — design choice deferred to
       spec). The 1-in-7 unstable-meteorite explode mechanic in entities.ts:113
       is deleted in the same spec.
-    size: M
     depends_on: []
     status: todo
     spec: null
@@ -333,7 +315,6 @@ features:
       from rotation, fallow, or nitrogen-fixing crosses (Trifolium repens is
       a nitrogen fixer — the species choice already encoded the mechanic).
       Soil readability already shipped with #6; this adds the consequence.
-    size: S
     depends_on: []
     status: todo
     spec: null
@@ -355,7 +336,6 @@ features:
       the transition. The player cannot prevent NPC death; gaming the
       mechanic erases the lesson. What the player remembers of the NPC after
       is the manual entry they leave.
-    size: M
     depends_on: ['16']
     status: todo
     spec: null
@@ -383,7 +363,6 @@ features:
       a colony, hives grow with patches via the existing CloverPatch
       hiveCount/maxHives system. Gron is the bee-keeper between stewards
       (his pendingSavedBees mechanic in interaction.ts:204 is the channel).
-    size: M
     depends_on: []
     status: todo
     spec: null
@@ -417,7 +396,6 @@ features:
       in three places only — the end-of-Revery summary (#4), per-region /
       per-species threads in the naturalist's manual (#6, shipped), and as
       predecessor lines in the lineage record (#16). Never a running log.
-    size: L
     depends_on: []
     status: todo
     spec: null
@@ -455,7 +433,6 @@ features:
       tubes); loading film into the camera is a recipe. Film cannot be
       overwritten — exposed frames are exposed. When film is exhausted the
       camera is decoration. Wears like other tools (#15).
-    size: M
     depends_on: ['15']
     status: todo
     spec: null
@@ -511,7 +488,6 @@ features:
       multiplayer (#16), seeded predecessors remain as the prairie's
       oldest layer. The player will never know which were people and
       which were procedural; the cosmology says that is exactly right.
-    size: M
     depends_on: ['23']
     status: todo
     spec: null
@@ -562,7 +538,6 @@ features:
       mechanical, visual) is the unspoken seen — what the camera shows
       when it shows egregoric activity. Egregoric fauna is that register
       walking around.
-    size: M/L
     depends_on: ['8b']
     status: todo
     spec: null
@@ -595,7 +570,6 @@ features:
       egregoric at its destination stage. Replaces the implicit
       "spread into empty tiles only" model. The prairie's substance is
       metabolized by the egregore, not merely overtaken.
-    size: XS
     depends_on: ['23']
     status: todo
     spec: null
@@ -621,3 +595,121 @@ features:
       Lint guard reminder: the word "invasive" is banned player-facing
       (CI guard); "metabolic" is the room's word internally, the
       player-facing register continues to favor showing-not-naming.
+
+  - id: '27'
+    name: Strip genesis epoch commentary; reframe as reverse deep-time projection
+    summary: >
+      Delete all 14 commentary strings from GENESIS_EPOCHS in
+      src/engine/genesis.ts (including the final "A steward is called…")
+      and remove the italic gold <p> line from GenesisBottomBar.tsx.
+      Retain the year counter, recast in the permacomputer's
+      typographic register: format ~13.8B years ago → ~4.5B → ~100K →
+      ~now (tilde-prefixed, abbreviated unit, never decimal-precise),
+      monospace, no ornamentation, no caption above it. Drop or
+      rewrite any tests that assert commentary text — no replacement
+      surface. Update docs/claude/genesis.md to the reverse deep-time
+      projection framing: the permacomputer back-derives the world
+      from the seed of the steward's name and exposes the seams of
+      its derivation; the screen is not a narrated prologue.
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 9 (2026-05-21). The commentary was god-view
+      narration of cosmic history; the genesis screen is reframed as
+      the permacomputer back-deriving the world from the name-seed
+      (which is literally what nameToSeed → mulberry32 → 14 epoch
+      mutations does in code). Astrid's lock: a reverse projection
+      has no narrator, only readings and gradients. Tyler's
+      additional discipline: the year is approximated, never precise
+      — "~13.8B years ago" is the language of geology citing
+      isotope-dated bounds, not consumer electronics pretending to
+      know what it cannot. Consumer-electronics gestures (boot
+      animations, progress bars, splash screens, loading prefixes,
+      percentage indicators) are voices in the visual domain and are
+      banned by the diegetic test locked in this round. Open at spec:
+      whether the screen acquires any new exposed-seam affordance
+      (hash readout, tile-count counter, seed-bytes display) — default
+      to nothing unless the spec author finds one that earns its
+      place. Permacomputing (permacomputing.net) is named as the
+      source doctrine; the visual register is calm-tech, not
+      power-armor HUD.
+
+  - id: '28'
+    name: Permacomputer ambient instruments (bottom-bar center)
+    summary: >
+      New component in src/components/ placed between Minimap and
+      ItemInfo in the bottom-bar flex layout (GameScreen.tsx:225-247).
+      Renders four current-state readouts: a weathervane (rotating
+      arrow glyph driven by state.wind.direction, 8-cardinal, 45°
+      increments), qualitative wind speed (five labels legible to a
+      19th-century farmer — suggested starting set "calm / light /
+      fresh / brisk / gale", spec to refine — mapping over
+      state.wind.smoothSpeed), current sky glyph, current season
+      label, and an almanac line with a continuous countdown to the
+      next equinox or solstice (projected from state.seasonalPhase).
+      Calm-tech / exposed-seam visual register — monospace,
+      low-color, no chrome. Pure render; no new state fields, no new
+      events. Continuous readouts, no emphasis change near bookmarks,
+      no transition narration, no event language.
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 9 (2026-05-21). This is a new affordance,
+      not a revival of the stats bar — the stats bar has been gone
+      for a long time, its plumbing (state.wind, state.weather,
+      state.seasonalPhase, state.precipitationIntensity) survived but
+      the affordance did not. The distinction is doctrinal: a stats
+      bar is a commodity-game gesture; the permacomputer's ambient
+      instruments are a thing in the world the steward carries. The
+      reference frame is 1850s farmstead instruments (weathervane,
+      barometer, almanac, calendar) rendered as one device, not
+      Fallout's power-armor HUD — Tyler's HUD reference was about the
+      kind of information available at a glance, not the visual
+      treatment. The almanac countdown is an instrument, not a
+      forecast — it reads the world's trajectory and reports current
+      position the way a barometer reports a coming storm, by showing
+      where the needle is now, not by telling the steward what to do.
+      Calla's argument: this also gives the player structural rhythm
+      ("38 days to the equinox") which rewards attention with
+      planning — the Round 1 loop surfaced on the device.
+      Open at spec: exact weathervane arrow glyph and exact five
+      wind-speed labels.
+
+  - id: '29'
+    name: Diegetic survey
+    summary: >
+      Audit existing UI surfaces and upcoming backlog items against
+      the diegetic test locked in v4 round 9 (inscription /
+      instrument / voice — inscriptions and instruments pass, voices
+      do not). Produces a written survey under docs/ that links to
+      individual amendments on affected items. Items to audit:
+      existing — command panel, sidebar, manual, minimap, item info,
+      dev panel, scan progress bar, boot title card (verify pass);
+      upcoming — #15 (wear visibility), #16 (tenure handoff surface),
+      #19 (soil depletion surface), #20 (NPC mortality surface), #23
+      (camera footage — verify inscription-shape), #24 (predecessor
+      records — verify inscription-shape). May produce follow-up
+      specs for any current surface that fails.
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 9 (2026-05-21). Meta-task; output is a
+      survey doc plus targeted item amendments rather than direct
+      code changes. The diegetic test is portable and retroactive —
+      it explains Round 0's correctness (activity log was a voice)
+      and forward-constrains every future UI decision. Delta's
+      framing: "the audit is a round, not a sentence." Open at spec:
+      format of the output — survey doc with links to amendments
+      (lean) vs. amendments distributed across affected item notes
+      with no central doc. Calla flagged that #15 (visible wear) now
+      has a frame from this round: an instrument-register indicator,
+      not a HUD chrome bar.
