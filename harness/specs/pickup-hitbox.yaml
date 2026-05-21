@@ -5,10 +5,8 @@ layer: engine
 source_files:
   - src/engine/entities.ts
   - src/engine/__tests__/entities.test.ts
-  - src/engine/__tests__/meteoriteChainExplosion.test.ts
 dependencies:
   - universal-pickup-bloom
-  - meteorite-chain-explosion
 
 behaviors:
   - id: ground-item-pickup-3x3
@@ -59,13 +57,16 @@ behaviors:
       Meteorites within Chebyshev distance 1 of the player (the 3x3
       footprint centered on the player, including the player's own tile)
       are eligible for capture. This expands the prior single-tile check
-      so the meteorite hitbox matches ground items and bees. Surviving
-      meteorites with a backpack fit are placed and destroyed.
+      so the meteorite hitbox matches ground items and bees. Meteorites
+      with a backpack fit are placed and destroyed. There is no on-pickup
+      side effect — meteorites always go directly into the backpack when
+      a fit exists; there is no chain explosion, no disintegration, no
+      unstable roll.
     inputs:
       - 'meteorite-tagged entities exist within 3x3 of player'
       - 'pickUpGroundItems(state, time?) is called'
     outputs:
-      - 'each surviving meteorite with a backpack fit is placed and destroyed'
+      - 'each meteorite with a backpack fit is placed and destroyed'
       - 'pickedUp[] contains "meteorite" for each captured meteorite'
     state_changes:
       - field: backpack
@@ -74,65 +75,12 @@ behaviors:
         effect: 'captured meteorite entities destroyed'
     determinism: deterministic
 
-  - id: chain-explosion-3x3
-    description: >
-      Meteorites within Chebyshev distance 1 of the player are eligible
-      for the chain-explosion roll, matching the pickup hitbox. Each
-      eligible meteorite (with fromChain !== true) rolls independently
-      against CHAIN_EXPLOSION_CHANCE. When a roll succeeds, the meteorite
-      is destroyed and spawnChainMeteorites is called with that
-      meteorite's own tile position (not the player position) as the
-      center; chainExplosions is incremented by the spawn count. Chain
-      rolls only fire when the time parameter is provided.
-    inputs:
-      - 'meteorite-tagged entities exist within 3x3 of player'
-      - 'time parameter is provided'
-      - 'meteorite has no ChainSource.fromChain = true'
-    outputs:
-      - 'rolled meteorites either explode (destroyed, chain spawned at their tile) or proceed to pickup phase'
-      - 'chainExplosions reflects total spawned chain meteorites'
-    state_changes:
-      - field: world
-        effect: 'exploded meteorite entities destroyed; chain meteorite entities spawned at their tiles'
-      - field: chainExplosions
-        effect: 'incremented by sum of spawnChainMeteorites returns'
-    determinism: probabilistic
-
 verification:
   test_file: src/engine/__tests__/entities.test.ts
   test_pattern: pickUpGroundItems
-  command: npx vitest run src/engine/__tests__/entities.test.ts src/engine/__tests__/meteoriteChainExplosion.test.ts
+  command: npx vitest run src/engine/__tests__/entities.test.ts
 
 edge_cases:
-  - id: chain-fromchain-skipped
-    description: >
-      Meteorites with ChainSource.fromChain = true are never rolled for
-      chain explosion, regardless of position. This preserves the
-      existing rule that chain-spawned meteorites cannot themselves
-      trigger further chains.
-    expected: 'fromChain meteorites never destroyed by chain roll'
-
-  - id: chain-spawned-not-picked-up-same-tick
-    description: >
-      Meteorite pickup candidates are captured in a snapshot before the
-      chain explosion phase runs. The pickup phase iterates that
-      snapshot, so meteorites spawned by spawnChainMeteorites during this
-      call are never captured on the same tick — even if they land
-      within the player's 3x3 footprint. This matches the prior
-      single-tile behavior where chain spawns landed outside the pickup
-      tile and required a future tick to be acquired. Pre-existing
-      fromChain meteorites (e.g. left over from a previous chain on an
-      earlier tick) are still picked up normally; the skip is based on
-      the snapshot, not on the ChainSource component.
-    expected: 'chain-spawned meteorites from this call remain in the world after pickUpGroundItems returns'
-
-  - id: no-time-no-chain
-    description: >
-      When pickUpGroundItems is called without a time argument (e.g. from
-      test helpers), chain explosions do not roll. Pickup still proceeds
-      on the 3x3 hitbox for ground items and surviving meteorites.
-    expected: 'chainExplosions = 0; pickup phase still runs'
-
   - id: ground-item-bee-still-picked-up
     description: >
       A groundItem-tagged entity whose ItemDrop.definitionId is 'bee'
@@ -162,17 +110,6 @@ edge_cases:
       case exists to mark that pickup-hitbox 3x3 semantics apply only to
       entities in the current zone.
     expected: 'pickUpGroundItems only collects entities in the current zone'
-
-  - id: chain-roll-independence
-    description: >
-      Each eligible meteorite within the 3x3 rolls independently. Over a
-      large number of trials with all meteorites having fromChain !== true,
-      the expected fraction of pickups that produce at least one chain
-      explosion approaches 1 - (1 - CHAIN_EXPLOSION_CHANCE)^N for N
-      meteorites in range. Tests assert via Math.random mocks that
-      forcing the roll above the threshold suppresses all explosions and
-      forcing it below triggers all of them.
-    expected: 'mocked Math.random < threshold => all N explode; >= threshold => none explode'
 
   - id: bloom-single-event
     description: >

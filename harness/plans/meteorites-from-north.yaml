@@ -1,0 +1,142 @@
+plan:
+  id: meteorites-from-north
+  title: 'All meteorites fall from due north; delete unstable-meteorite mechanic'
+  created: '2026-05-21'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: pin-shower-velocity-and-strip-radiant
+    title: 'celestial.ts: pin every shooting-star trajectory to { dx: 1, dy: 1 }, delete pickRadiantDirection / RADIANT_DIRECTIONS / radiant chain-meteorite code'
+    spec_id: shooting-stars
+    spec_sections:
+      - ambient-star-spawning
+      - targeted-star-spawning
+      - meteor-shower-scheduling
+      - player-spawn-shower-trigger
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/celestial.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: remove-radiant-state-fields
+    title: 'Remove meteorShower.radiantDx / radiantDy from types.ts and state.ts init; update EXPECTED_FIELDS in serialization/schema.test.ts'
+    spec_id: shooting-stars
+    spec_sections:
+      - meteor-shower-scheduling
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - pin-shower-velocity-and-strip-radiant
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: delete-unstable-meteorite-mechanic
+    title: 'entities.ts: delete unstable roll + chain/disintegrate sub-roll; strip chainExplosions + disintegrations from PickUpResult; remove ChainSource component everywhere'
+    spec_id: pickup-hitbox
+    spec_sections:
+      - meteorite-pickup-3x3
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/celestial.ts
+      - src/engine/ecs/types.ts
+      - src/engine/devPanel.ts
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/entities.ts
+      - src/engine/celestial.ts
+      - src/engine/ecs/types.ts
+      - src/engine/devPanel.ts
+    depends_on:
+      - pin-shower-velocity-and-strip-radiant
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: remove-chain-explosion-manual-entry
+    title: 'Remove event:chain-explosion from manual.ts MANUAL_ENTRIES; update manual.test.ts'
+    spec_id: shooting-stars
+    spec_sections:
+      - meteor-shower-scheduling
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/__tests__/manual.test.ts
+    output_files:
+      - src/engine/manual.ts
+      - src/engine/__tests__/manual.test.ts
+    depends_on:
+      - delete-unstable-meteorite-mechanic
+    verification:
+      - npx vitest run src/engine/__tests__/manual.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: update-or-delete-impacted-tests
+    title: 'Delete meteoriteChainExplosion.test.ts; update meteorShower.test.ts (drop pickRadiantDirection block, drop radiant assertions); update playerSpawn.test.ts (drop steward-fixed-direction test); tighten shootingStars.test.ts (assert y === 0 spawn); update meteoriteWaterLanding.test.ts (drop spawnChainMeteorites usage); update helpers.ts (drop ChainSource)'
+    spec_id: shooting-stars
+    spec_sections:
+      - ambient-star-spawning
+      - meteor-shower-scheduling
+      - player-spawn-shower-trigger
+    context_files:
+      - src/engine/__tests__/shootingStars.test.ts
+      - src/engine/__tests__/meteorShower.test.ts
+      - src/engine/__tests__/playerSpawn.test.ts
+      - src/engine/__tests__/meteoriteWaterLanding.test.ts
+      - src/engine/__tests__/meteoriteChainExplosion.test.ts
+      - src/engine/__tests__/pickupZoneFilter.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/shootingStars.test.ts
+      - src/engine/__tests__/meteorShower.test.ts
+      - src/engine/__tests__/playerSpawn.test.ts
+      - src/engine/__tests__/meteoriteWaterLanding.test.ts
+      - src/engine/__tests__/meteoriteChainExplosion.test.ts
+      - src/engine/__tests__/pickupZoneFilter.test.ts
+      - src/engine/__tests__/helpers.ts
+    depends_on:
+      - delete-unstable-meteorite-mechanic
+      - remove-radiant-state-fields
+      - remove-chain-explosion-manual-entry
+    verification:
+      - npx vitest run src/engine/__tests__
+    repair: retry
+    tags: [test]
+
+  - id: regression-test-for-north-trajectory
+    title: 'Add tests to shootingStars.test.ts: every spawnShootingStar yields y === 0 + Velocity {1,1}; every shower star (ambient and player-spawn) is Velocity {1,1}'
+    spec_id: shooting-stars
+    spec_sections:
+      - ambient-star-spawning-edge-cases
+      - shower-star-velocity-uniform
+    context_files:
+      - src/engine/__tests__/shootingStars.test.ts
+      - src/engine/__tests__/meteorShower.test.ts
+    output_files:
+      - src/engine/__tests__/shootingStars.test.ts
+      - src/engine/__tests__/meteorShower.test.ts
+    depends_on:
+      - update-or-delete-impacted-tests
+    verification:
+      - npx vitest run src/engine/__tests__/shootingStars.test.ts src/engine/__tests__/meteorShower.test.ts
+    repair: retry
+    tags: [test]

@@ -838,8 +838,6 @@ export interface MeteorShowerState {
   remainingStars: number
   lastSpawnTime: number
   spawnIntervalMs: number
-  radiantDx: number
-  radiantDy: number
 }
 
 export interface PlayerSpawn {

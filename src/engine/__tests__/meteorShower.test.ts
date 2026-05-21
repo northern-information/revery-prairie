@@ -1,4 +1,4 @@
-import { findShowerTargets, pickRadiantDirection, spawnShootingStar, tickMeteorShower } from '../celestial'
+import { findShowerTargets, spawnShootingStar, tickMeteorShower } from '../celestial'
 import {
   METEOR_SHOWER_MAX_INTERVAL_MS,
   METEOR_SHOWER_MIN_INTERVAL_MS,
@@ -151,12 +151,11 @@ describe('meteor shower', () => {
       expect(state.meteorShower.active).toBe(false)
     })
 
-    it('all shower stars share the same radiant direction', () => {
+    it('every shower star descends from due north with velocity { dx: 1, dy: 1 }', () => {
       const state = createTestState()
       state.meteorShower.nextShowerTime = 1000
       tickMeteorShower(state, 1000)
 
-      const { radiantDx, radiantDy } = state.meteorShower
       const interval = state.meteorShower.spawnIntervalMs
       let time = 1000
 
@@ -166,17 +165,15 @@ describe('meteor shower', () => {
         tickMeteorShower(state, time)
       }
 
-      const allStars = state.world.query(ComponentType.ShootingStarData, ComponentType.Velocity)
-      // Check stars spawned after shower started
-      let checked = 0
-      for (const eid of allStars) {
+      const stars = state.world.query(ComponentType.ShootingStarData, ComponentType.Velocity)
+      expect(stars.length).toBeGreaterThan(0)
+      for (const eid of stars) {
         const vel = state.world.getComponent(eid, ComponentType.Velocity)
+        expect(vel).toBeDefined()
         if (!vel) continue
-        if (vel.dx === radiantDx && vel.dy === radiantDy) {
-          checked++
-        }
+        expect(vel.dx).toBe(1)
+        expect(vel.dy).toBe(1)
       }
-      expect(checked).toBeGreaterThan(0)
     })
 
     it('shower stars are targeted (willLand: true, landingTarget set)', () => {
@@ -350,15 +347,4 @@ describe('meteor shower', () => {
     })
   })
 
-  describe('pickRadiantDirection', () => {
-    it('returns a valid direction object', () => {
-      const dir = pickRadiantDirection()
-      expect(dir).toHaveProperty('dx')
-      expect(dir).toHaveProperty('dy')
-      expect(Math.abs(dir.dx)).toBeLessThanOrEqual(1)
-      expect(Math.abs(dir.dy)).toBeLessThanOrEqual(1)
-      // At least one axis must be non-zero
-      expect(Math.abs(dir.dx) + Math.abs(dir.dy)).toBeGreaterThan(0)
-    })
-  })
 })

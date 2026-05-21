@@ -51,12 +51,12 @@ behaviors:
     description: >
       When the player moves within Chebyshev distance 1 of a meteorite
       entity (3x3 footprint around the player, matching the pickup-hitbox
-      spec) and the meteorite survives the chain-explosion roll, a
-      pickupBloom spawns at the player position via the shared helper.
+      spec) and the meteorite is captured, a pickupBloom spawns at the
+      player position via the shared helper.
     inputs:
       - 'player moves to within Chebyshev distance 1 of a meteorite entity'
       - 'time parameter is provided'
-      - 'meteorite survives chain explosion roll'
+      - 'meteorite is captured into the backpack'
     outputs:
       - 'pickupBloom at player position'
     state_changes:

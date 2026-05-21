@@ -117,9 +117,6 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'event:shooting-star': {
     lore: 'Shooting stars appear randomly in the space around the prairie. Most pass harmlessly, but some land as meteorites.',
   },
-  'event:chain-explosion': {
-    lore: 'When a meteorite is picked up, there is a chance it detonates, scattering more meteorites nearby. Chain meteorites cannot trigger further chains.',
-  },
   'event:meteor-shower': {
     lore: 'Occasionally the sky erupts with shooting stars, all streaking from the same direction. Most land as meteorites scattered across the prairie.',
   },
@@ -384,15 +381,6 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     glyph: '*',
     glyphColor: '#FFFFFF',
     unlockKey: 'always',
-    sourceKind: 'event',
-  },
-  {
-    id: 'event:chain-explosion',
-    name: 'Chain Explosion',
-    category: ManualCategory.Celestial,
-    glyph: '+',
-    glyphColor: '#FFD700',
-    unlockKey: 'event:chain-explosion',
     sourceKind: 'event',
   },
   {

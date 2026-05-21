@@ -269,36 +269,26 @@ describe('spawnShootingStar', () => {
     expect(getStarCount(state)).toBe(SHOOTING_STAR_MAX_ACTIVE)
   })
 
-  it('spawned star has valid velocity (not 0,0)', () => {
+  it('every spawned star starts at y === 0 with velocity { dx: 1, dy: 1 }', () => {
     const state = createGameState('Test', 20, 20)
-    // Spawn many to get at least one
+    const xValues = new Set<number>()
     for (let i = 0; i < 1000; i++) {
       destroyAllStars(state)
       spawnShootingStar(state)
       const stars = state.world.query(ComponentType.ShootingStarData)
-      if (stars.length > 0) {
-        const vel = state.world.getComponent(stars[0], ComponentType.Velocity)
-        expect(vel).toBeDefined()
-        expect(vel?.dx !== 0 || vel?.dy !== 0).toBe(true)
-      }
+      if (stars.length === 0) continue
+      const pos = state.world.getComponent(stars[0], ComponentType.Position)
+      const vel = state.world.getComponent(stars[0], ComponentType.Velocity)
+      expect(pos).toBeDefined()
+      expect(vel).toBeDefined()
+      if (!pos || !vel) continue
+      expect(pos.y).toBe(0)
+      expect(vel.dx).toBe(1)
+      expect(vel.dy).toBe(1)
+      xValues.add(pos.x)
     }
-  })
-
-  it('starts in space/off-edge area', () => {
-    const state = createGameState('Test', 20, 20)
-    for (let i = 0; i < 1000; i++) {
-      destroyAllStars(state)
-      spawnShootingStar(state)
-      const stars = state.world.query(ComponentType.ShootingStarData)
-      if (stars.length > 0) {
-        const pos = state.world.getComponent(stars[0], ComponentType.Position)
-        expect(pos).toBeDefined()
-        if (pos) {
-          const onEdge = pos.x === 0 || pos.x === MAP_WIDTH - 1 || pos.y === 0 || pos.y === MAP_HEIGHT - 1
-          expect(onEdge).toBe(true)
-        }
-      }
-    }
+    // x must vary across the top edge — not pinned to a single column.
+    expect(xValues.size).toBeGreaterThan(1)
   })
 })
 

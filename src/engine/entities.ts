@@ -1,4 +1,3 @@
-import { CHAIN_EXPLOSION_CHANCE, spawnChainMeteorites } from './celestial'
 import { BEE_STARVATION_MS, BEE_TICK_MS, GHOST_TICK_MS } from './constants'
 import { ComponentType } from './ecs/types'
 import { AURA_RADIUS, spawnPickupBloom } from './effects'
@@ -42,8 +41,6 @@ export const createCharacterEntity = (
 
 export interface PickUpResult {
   pickedUp: string[]
-  chainExplosions: number
-  disintegrations: number
 }
 
 // Scan the 3x3 Chebyshev footprint centered on (cx, cy) and return all
@@ -111,40 +108,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     }
   }
 
-  // Snapshot meteorite candidates BEFORE the chain phase mutates the world.
-  // The pickup phase iterates this snapshot so chain-spawned meteorites that
-  // happen to land within the player's 3x3 footprint are not captured on the
-  // same tick — they must be picked up on a later tick, matching the prior
-  // single-tile semantic where chain spawns landed outside the pickup tile.
-  const meteoriteCandidates = scanTagged3x3(state, px, py, 'meteorite')
-
-  // Unstable meteorite: 1-in-7 roll flags as unstable, then an
-  // independent 50/50 sub-roll picks explode vs disintegrate.
-  // On either outcome the original meteorite is consumed
-  // (removed, not picked up). Chain center is the meteorite's
-  // own tile, not the player's.
-  let chainExplosions = 0
-  let disintegrations = 0
-  if (time !== undefined) {
-    for (const eid of meteoriteCandidates) {
-      const chain = state.world.getComponent(eid, ComponentType.ChainSource)
-      if (chain?.fromChain) continue
-      if (Math.random() >= CHAIN_EXPLOSION_CHANCE) continue
-      const mpos = state.world.getComponent(eid, ComponentType.Position)
-      if (!mpos) continue
-      const center = { x: mpos.x, y: mpos.y }
-      state.world.destroyEntity(eid)
-      if (Math.random() < 0.5) {
-        chainExplosions += spawnChainMeteorites(state, center, time)
-      } else {
-        disintegrations += 1
-      }
-    }
-  }
-
-  for (const eid of meteoriteCandidates) {
-    // Skip entities the chain phase already destroyed.
-    if (state.world.getComponent(eid, ComponentType.Position) === undefined) continue
+  for (const eid of scanTagged3x3(state, px, py, 'meteorite')) {
     const fit = findFitPosition(state.backpack, 'meteorite')
     if (fit) {
       placeItem(state.backpack, 'meteorite', fit.gridX, fit.gridY)
@@ -158,7 +122,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     spawnPickupBloom(state, px, py, time)
   }
 
-  return { pickedUp, chainExplosions, disintegrations }
+  return { pickedUp }
 }
 
 // Precis #7 — bee food is any Flora tile whose species has nonzero

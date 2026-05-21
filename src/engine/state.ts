@@ -200,8 +200,6 @@ export const createGameState = (
       remainingStars: 0,
       lastSpawnTime: 0,
       spawnIntervalMs: 0,
-      radiantDx: 0,
-      radiantDy: 0,
     },
     playerSpawn: {
       // visible defaults to true so headless tests/setups (no gameloop) work.

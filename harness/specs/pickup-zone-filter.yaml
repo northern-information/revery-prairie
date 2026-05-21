@@ -37,21 +37,20 @@ behaviors:
 
   - id: meteorite-pickup-current-zone-only
     description: >
-      The meteorite branch of pickUpGroundItems (capture and chain
-      explosion roll) considers only meteorite-tagged entities that
-      belong to the player's current zone. Meteorites tagged
-      Zone.Overworld do not interact with a player standing at
-      overlapping coordinates inside Zone.Ruin or Zone.Cave, and vice
-      versa.
+      The meteorite branch of pickUpGroundItems considers only
+      meteorite-tagged entities that belong to the player's current
+      zone. Meteorites tagged Zone.Overworld do not interact with a
+      player standing at overlapping coordinates inside Zone.Ruin or
+      Zone.Cave, and vice versa.
     inputs:
       - 'meteorite-tagged entities exist within 3x3 of player'
       - 'pickUpGroundItems(state, time?) is called'
     outputs:
-      - 'only same-zone meteorites can be captured or trigger a chain roll'
+      - 'only same-zone meteorites can be captured'
       - 'cross-zone meteorites are untouched'
     state_changes:
       - field: world
-        effect: 'only same-zone meteorites destroyed; chain spawns occur only when a same-zone meteorite rolls into explosion'
+        effect: 'only same-zone meteorites destroyed'
     determinism: deterministic
 
   - id: scan-tagged-3x3-zone-filtered
@@ -83,11 +82,11 @@ edge_cases:
   - id: overworld-meteorite-not-pickupable-from-ruin
     description: >
       A meteorite spawned in the overworld (tagged Zone.Overworld) at
-      coordinates (x, y) is not captured or rolled for chain explosion
-      when the player stands at (x, y) inside a ruin.
+      coordinates (x, y) is not captured when the player stands at
+      (x, y) inside a ruin.
     expected: >
-      backpack does not contain meteorite; chainExplosions is 0; the
-      meteorite entity is still alive in the ECS.
+      backpack does not contain meteorite; the meteorite entity is
+      still alive in the ECS.
 
   - id: ruin-to-ruin-isolation
     description: >
@@ -128,8 +127,8 @@ failure_conditions:
       Zone.Overworld exists at (x, y); pickUpGroundItems(state, time) is
       called.
     expected: >
-      no meteorite is captured; chainExplosions is 0; the meteorite is
-      still alive in the world.
+      no meteorite is captured; the meteorite is still alive in the
+      world.
   - trigger: >
       A future contributor reintroduces a raw state.world.spatial.at
       call in the pickup pipeline without a zone filter.

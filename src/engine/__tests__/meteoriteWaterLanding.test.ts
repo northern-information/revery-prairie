@@ -1,4 +1,4 @@
-import { findShowerTargets, spawnChainMeteorites, tickShootingStars } from '../celestial'
+import { findShowerTargets, tickShootingStars } from '../celestial'
 import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { posKey } from '../position'
@@ -200,69 +200,6 @@ describe('meteorite water landing', () => {
 
       const explosions = getExplosionEntities(state)
       expect(explosions).toHaveLength(1)
-    })
-  })
-
-  describe('chain spawning', () => {
-    it('skips water tiles when spawning chain meteorites', () => {
-      const state = createGameState('Test', 20, 20)
-      destroyAllMeteorites(state)
-      const cx = state.player.x
-      const cy = state.player.y
-      // Clear area to dirt
-      for (let dy = -5; dy <= 5; dy++) {
-        for (let dx = -5; dx <= 5; dx++) {
-          const ny = cy + dy
-          const nx = cx + dx
-          if (ny >= 0 && ny < state.mapHeight && nx >= 0 && nx < state.mapWidth) {
-            state.map[ny][nx] = { type: TileType.Dirt }
-          }
-        }
-      }
-      // Mark all tiles in chain radius as ponds
-      for (let dy = -3; dy <= 3; dy++) {
-        for (let dx = -3; dx <= 3; dx++) {
-          if (dx === 0 && dy === 0) continue
-          state.ponds.add(posKey(cx + dx, cy + dy))
-        }
-      }
-
-      const spawned = spawnChainMeteorites(state, { x: cx, y: cy }, 1000)
-
-      expect(spawned).toBe(0)
-      expect(getMeteoriteEntities(state)).toHaveLength(0)
-    })
-
-    it('spawns chain meteorites on non-water tiles only', () => {
-      const state = createGameState('Test', 20, 20)
-      destroyAllMeteorites(state)
-      const cx = state.player.x
-      const cy = state.player.y
-      // Clear area to dirt
-      for (let dy = -5; dy <= 5; dy++) {
-        for (let dx = -5; dx <= 5; dx++) {
-          const ny = cy + dy
-          const nx = cx + dx
-          if (ny >= 0 && ny < state.mapHeight && nx >= 0 && nx < state.mapWidth) {
-            state.map[ny][nx] = { type: TileType.Dirt }
-          }
-        }
-      }
-      // Mark some tiles as water
-      state.ponds.add(posKey(cx + 1, cy))
-      state.rivers.add(posKey(cx - 1, cy))
-
-      spawnChainMeteorites(state, { x: cx, y: cy }, 1000)
-
-      for (const eid of getMeteoriteEntities(state)) {
-        const pos = state.world.getComponent(eid, ComponentType.Position)
-        expect(pos).toBeDefined()
-        if (pos) {
-          const key = posKey(pos.x, pos.y)
-          expect(state.ponds.has(key)).toBe(false)
-          expect(state.rivers.has(key)).toBe(false)
-        }
-      }
     })
   })
 
