@@ -26,18 +26,21 @@ const MAX_PHASE_DT_MS = 100
 
 // ─── iso screen vectors ───────────────────────────────────────────────────────
 
-// Canonical source of truth. Maps wind FROM direction to iso screen drift vector.
-// Derived from iso projection: sx = dwx - dwy, sy = dwx + dwy (where dw is blow-to world dir).
-// Cardinals map to diagonal screen vectors (magnitude √2); ordinals map to axis-aligned (magnitude 1).
+// Canonical source of truth in the rotated cardinal frame (precis-thinktank-v5
+// round 1). Maps wind FROM direction to screen drift vector. New cardinals
+// point at the diamond's tips on screen and project to axis-aligned screen
+// vectors; new ordinals point at the diamond's edges (the storage axes) and
+// project to diagonal screen vectors. All eight values have magnitude √2 so
+// that windSpeed * (sx, sy) produces equivalent drift across all directions.
 export const WIND_SCREEN_VECTORS: Record<WindDirectionType, { sx: number; sy: number }> = {
-  [WindDirection.N]: { sx: -1, sy: 1 }, // blows south
-  [WindDirection.S]: { sx: 1, sy: -1 }, // blows north
-  [WindDirection.E]: { sx: -1, sy: -1 }, // blows west
-  [WindDirection.W]: { sx: 1, sy: 1 }, // blows east
-  [WindDirection.NE]: { sx: -1, sy: 0 }, // blows SW
-  [WindDirection.SW]: { sx: 1, sy: 0 }, // blows NE
-  [WindDirection.NW]: { sx: 0, sy: 1 }, // blows SE
-  [WindDirection.SE]: { sx: 0, sy: -1 }, // blows NW
+  [WindDirection.N]: { sx: 0, sy: Math.SQRT2 }, // from top tip; blows straight down screen
+  [WindDirection.S]: { sx: 0, sy: -Math.SQRT2 }, // from bottom tip; blows straight up screen
+  [WindDirection.E]: { sx: -Math.SQRT2, sy: 0 }, // from right tip; blows left across screen
+  [WindDirection.W]: { sx: Math.SQRT2, sy: 0 }, // from left tip; blows right across screen
+  [WindDirection.NE]: { sx: -1, sy: -1 }, // from upper-right edge (storage -x); blows lower-left
+  [WindDirection.SE]: { sx: 1, sy: -1 }, // from lower-right edge (storage -y); blows upper-left
+  [WindDirection.SW]: { sx: 1, sy: 1 }, // from lower-left edge (storage +x); blows upper-right
+  [WindDirection.NW]: { sx: -1, sy: 1 }, // from upper-left edge (storage +y); blows lower-right
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
