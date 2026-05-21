@@ -18,7 +18,6 @@ export const ComponentType = {
 
   CharacterIdentity: 'characterIdentity',
   ItemDrop: 'itemDrop',
-  ChainSource: 'chainSource',
   LightningData: 'lightningData',
   EntityTag: 'entityTag',
   EntityZone: 'entityZone',
@@ -68,7 +67,6 @@ export interface ComponentDataMap {
 
   [ComponentType.CharacterIdentity]: { definitionId: string }
   [ComponentType.ItemDrop]: { definitionId: string; glinting?: boolean; genome?: FloraGenome }
-  [ComponentType.ChainSource]: { fromChain: boolean }
   [ComponentType.LightningData]: {
     path: { x: number; y: number }[]
     branch: { x: number; y: number }[] | null

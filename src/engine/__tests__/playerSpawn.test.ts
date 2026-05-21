@@ -100,15 +100,10 @@ describe('player spawn ceremony', () => {
       destroyAllStars(state)
       clearAroundTile(state, state.player)
       // Place a forPlayerSpawn star one tick away from the player, moving onto the player tile.
-      const eid = spawnShootingStarAtTarget(
-        state,
-        state.player,
-        { dx: 1, dy: 0 },
-        {
-          forPlayerSpawn: true,
-          backtrackTiles: 1,
-        }
-      )
+      const eid = spawnShootingStarAtTarget(state, state.player, {
+        forPlayerSpawn: true,
+        backtrackTiles: 1,
+      })
       state.playerSpawn.meteorEntityId = eid
       state.playerSpawn.spawnPos = { ...state.player }
       state.playerSpawn.triggeredAt = 100
@@ -132,12 +127,10 @@ describe('player spawn ceremony', () => {
       const state = createGameState('Test', 40, 30)
       destroyAllStars(state)
       clearAroundTile(state, state.player)
-      const eid = spawnShootingStarAtTarget(
-        state,
-        state.player,
-        { dx: 1, dy: 1 },
-        { forPlayerSpawn: true, backtrackTiles: 1 }
-      )
+      const eid = spawnShootingStarAtTarget(state, state.player, {
+        forPlayerSpawn: true,
+        backtrackTiles: 1,
+      })
       state.playerSpawn.meteorEntityId = eid
       state.playerSpawn.spawnPos = { ...state.player }
       state.playerSpawn.triggeredAt = 100
@@ -156,12 +149,10 @@ describe('player spawn ceremony', () => {
       const state = createGameState('Test', 40, 30)
       destroyAllStars(state)
       clearAroundTile(state, state.player)
-      const eid = spawnShootingStarAtTarget(
-        state,
-        state.player,
-        { dx: 1, dy: 1 },
-        { forPlayerSpawn: true, backtrackTiles: 1 }
-      )
+      const eid = spawnShootingStarAtTarget(state, state.player, {
+        forPlayerSpawn: true,
+        backtrackTiles: 1,
+      })
       state.playerSpawn.meteorEntityId = eid
       state.playerSpawn.spawnPos = { ...state.player }
       state.playerSpawn.triggeredAt = 100
@@ -179,13 +170,7 @@ describe('player spawn ceremony', () => {
       vi.restoreAllMocks()
     })
 
-    it('always uses fixed { dx: 1, dy: 1 } regardless of shower radiant', () => {
-      // Force pickRadiantDirection to land on a NON-{1,1} entry. The
-      // RADIANT_DIRECTIONS list places {1,1} at index 0; Math.random()=0.99
-      // picks the last entry { dx: 0, dy: -1 }. Both axes therefore differ
-      // from the steward star's heading, proving decoupling.
-      vi.spyOn(Math, 'random').mockReturnValue(0.99)
-
+    it('steward star descends with velocity { dx: 1, dy: 1 }', () => {
       const state = createGameState('Test', 40, 30)
       destroyAllStars(state)
       triggerPlayerSpawnShower(state, state.player, 100)
@@ -196,8 +181,6 @@ describe('player spawn ceremony', () => {
       const vel = state.world.getComponent(eid, ComponentType.Velocity)
       expect(vel?.dx).toBe(1)
       expect(vel?.dy).toBe(1)
-      // And the shower itself picked a different radiant.
-      expect(state.meteorShower.radiantDx === 1 && state.meteorShower.radiantDy === 1).toBe(false)
     })
   })
 

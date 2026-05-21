@@ -133,15 +133,12 @@ export const clearAroundPlayer = (state: GameState, radius = 2): void => {
 /**
  * Creates a meteorite ECS entity at the given position.
  */
-export const createMeteoriteEntity = (state: GameState, x: number, y: number, fromChain = false): Entity => {
+export const createMeteoriteEntity = (state: GameState, x: number, y: number): Entity => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.Pickupable, { definitionId: 'meteorite' })
   state.world.addComponent(e, ComponentType.EntityTag, 'meteorite')
   state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
-  if (fromChain) {
-    state.world.addComponent(e, ComponentType.ChainSource, { fromChain: true })
-  }
   return e
 }
 

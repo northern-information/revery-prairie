@@ -130,15 +130,17 @@ behaviors:
 
   - id: steward-star-fixed-direction
     description: >
-      the steward's spawn-targeted star always descends along the
-      iso "straight down the screen" axis — world velocity
-      { dx: +1, dy: +1 }. this is independent of the shower radiant
-      that governs the rest of the spawn shower (see shooting-stars
-      spec, player-spawn-shower-trigger). triggerPlayerSpawnShower
-      passes this fixed direction to spawnShootingStarAtTarget for
-      the forPlayerSpawn star only; non-steward stars in the same
-      shower continue to use the shower's random radiant. rationale —
-      with iso projection screenPx = (worldX - worldY) * cw and
+      the steward's spawn-targeted star descends along the iso
+      "straight down the screen" axis — world velocity
+      { dx: +1, dy: +1 }. all shooting stars (ambient, shower,
+      steward) now share this velocity; see the shooting-stars spec
+      for the engine-wide constraint. the steward star is the
+      user-arrival case of the same rule and is retained as a
+      named behavior because it has additional contract — the
+      off-map start position derived from backtrackTiles, and the
+      camera-follow / UI-pink palette interactions documented in
+      adjacent behaviors. rationale — with iso projection
+      screenPx = (worldX - worldY) * cw and
       screenPy = (worldX + worldY) * halfH, dx === dy keeps screen X
       constant while screen Y advances, so the star reads as falling
       straight down regardless of where on the map the player spawns.
@@ -185,13 +187,13 @@ behaviors:
       STEWARD_EXPLOSION_COLORS (a 5-step pink-to-dark-pink ramp
       mirroring EXPLOSION_COLORS' gold ramp). EXPLOSION_CHARS and
       EXPLOSION_RADIUS/EXPLOSION_DURATION_MS are reused — only the
-      colors differ. chain explosions and satellite explosions
+      colors differ. Satellite explosions and meteor-strike explosions
       continue to use EXPLOSION_COLORS unchanged.
     inputs:
       - 'render frame with an explosion entity of kind stewardImpact present'
     outputs:
       - 'steward impact explosion drawn with UI-pink palette'
-      - 'satellite and chain explosions unchanged (gold palette)'
+      - 'satellite and meteor-strike explosions unchanged (gold palette)'
     state_changes: []
     determinism: deterministic
 
@@ -280,12 +282,12 @@ edge_cases:
       the next tick.
     expected: 'guard on playerSpawn.triggeredAt !== 0 prevents a second shower trigger'
 
-  - id: steward-star-direction-independent-of-shower
+  - id: all-shower-stars-share-steward-heading
     description: >
-      pickRadiantDirection picks any of the 8 RADIANT_DIRECTIONS for
-      the surrounding shower's other stars, including directions that
-      do not match the steward star's fixed { 1, 1 } heading.
-    expected: 'steward star always uses { dx: 1, dy: 1 } regardless of the radiant the shower selected; other shower stars continue to use the random shower radiant'
+      every shooting star in the spawn shower — the steward star and
+      its sibling targeted stars — uses world velocity { dx: 1, dy: 1 }.
+      there is no radiant selection.
+    expected: 'every spawned shower star has Velocity { dx: 1, dy: 1 }; no star uses any other velocity'
 
   - id: steward-star-near-map-edge
     description: >

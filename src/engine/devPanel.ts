@@ -115,7 +115,6 @@ export const COMPONENT_META: ComponentMeta[] = [
     label: 'ItemDrop',
     fields: [str('definitionId'), bool('glinting')],
   },
-  { type: ComponentType.ChainSource, label: 'ChainSource', fields: [bool('fromChain')] },
   { type: ComponentType.LightningData, label: 'LightningData', fields: [] },
   { type: ComponentType.EntityTag, label: 'EntityTag', fields: [str('value')] },
   {
@@ -195,8 +194,6 @@ const componentDefaults = (type: ComponentType, now: number, zone: Zone): Record
       return { definitionId: 'gron' }
     case ComponentType.ItemDrop:
       return { definitionId: 'coin' }
-    case ComponentType.ChainSource:
-      return { fromChain: false }
     case ComponentType.LightningData:
       return { path: [], branch: null }
     case ComponentType.EntityTag:

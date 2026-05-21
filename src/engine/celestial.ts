@@ -22,15 +22,17 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
-import { isInBounds, isWalkableTile, posKey } from './position'
+import { isInBounds, posKey } from './position'
 import { TileType, Zone } from './types'
 import { spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
 
-const CHAIN_EXPLOSION_CHANCE = 1 / 7
-const CHAIN_EXPLOSION_RADIUS = 3
-const CHAIN_EXPLOSION_COUNT = 3
+// All shooting stars descend along the iso "straight down the screen"
+// axis. With screenPx = (worldX - worldY) * cw, dx === dy keeps screen X
+// constant while screen Y advances — the star reads as falling from due
+// north on screen, regardless of its on-map start tile.
+const NORTH_VELOCITY = { dx: 1, dy: 1 } as const
 
 const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
   if (state.player.x === x && state.player.y === y) return true
@@ -54,49 +56,6 @@ export const countOverworldMeteorites = (state: GameState): number => {
   return count
 }
 
-export const spawnChainMeteorites = (state: GameState, origin: Position, time: number): number => {
-  const candidates: Position[] = []
-  for (let dy = -CHAIN_EXPLOSION_RADIUS; dy <= CHAIN_EXPLOSION_RADIUS; dy++) {
-    for (let dx = -CHAIN_EXPLOSION_RADIUS; dx <= CHAIN_EXPLOSION_RADIUS; dx++) {
-      if (dx === 0 && dy === 0) continue
-      const x = origin.x + dx
-      const y = origin.y + dy
-      if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) continue
-      if (!isWalkableTile(state.map[y][x].type)) continue
-      if (isTileOccupied(state, x, y)) continue
-      if (isWaterTile(state, x, y)) continue
-      candidates.push({ x, y })
-    }
-  }
-
-  // Shuffle and take up to CHAIN_EXPLOSION_COUNT
-  for (let i = candidates.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[candidates[i], candidates[j]] = [candidates[j], candidates[i]]
-  }
-
-  const spawned = Math.min(CHAIN_EXPLOSION_COUNT, candidates.length)
-  if (spawned > 0) recordDiscovery(state, 'event:chain-explosion')
-  for (let i = 0; i < spawned; i++) {
-    const pos = candidates[i]
-    const me = state.world.createEntity()
-    state.world.addComponent(me, ComponentType.Position, { x: pos.x, y: pos.y })
-    state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
-    state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
-    state.world.addComponent(me, ComponentType.ChainSource, { fromChain: true })
-    state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
-    const e = state.world.createEntity()
-    state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
-    state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
-    state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
-    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
-  }
-
-  return spawned
-}
-
-export { CHAIN_EXPLOSION_CHANCE }
-
 export const spawnShootingStar = (state: GameState): void => {
   if (state.deepTime?.active) return
   if (state.meteorShower.active) return
@@ -104,47 +63,8 @@ export const spawnShootingStar = (state: GameState): void => {
   if (countOverworldMeteorites(state) >= METEORITE_GROUND_MAX) return
   if (Math.random() >= SHOOTING_STAR_SPAWN_CHANCE) return
 
-  // Pick a random edge: 0=top, 1=bottom, 2=left, 3=right
-  const edge = Math.floor(Math.random() * 4)
-  let x: number
-  let y: number
-  let dx: number
-  let dy: number
-
-  if (edge === 0) {
-    // top edge — move downward
-    x = Math.floor(Math.random() * MAP_WIDTH)
-    y = 0
-    dx = Math.random() < 0.5 ? -1 : 1
-    dy = 1
-  } else if (edge === 1) {
-    // bottom edge — move upward
-    x = Math.floor(Math.random() * MAP_WIDTH)
-    y = MAP_HEIGHT - 1
-    dx = Math.random() < 0.5 ? -1 : 1
-    dy = -1
-  } else if (edge === 2) {
-    // left edge — move rightward
-    x = 0
-    y = Math.floor(Math.random() * MAP_HEIGHT)
-    dx = 1
-    dy = Math.random() < 0.5 ? -1 : 1
-  } else {
-    // right edge — move leftward
-    x = MAP_WIDTH - 1
-    y = Math.floor(Math.random() * MAP_HEIGHT)
-    dx = -1
-    dy = Math.random() < 0.5 ? -1 : 1
-  }
-
-  // Occasional cardinal direction (drop one axis)
-  if (Math.random() < 0.3) {
-    if (Math.random() < 0.5) dx = 0
-    else dy = 0
-  }
-
-  // Ensure we don't get a stationary star
-  if (dx === 0 && dy === 0) dy = 1
+  const x = Math.floor(Math.random() * MAP_WIDTH)
+  const y = 0
 
   const length =
     SHOOTING_STAR_MIN_LENGTH + Math.floor(Math.random() * (SHOOTING_STAR_MAX_LENGTH - SHOOTING_STAR_MIN_LENGTH + 1))
@@ -152,7 +72,7 @@ export const spawnShootingStar = (state: GameState): void => {
 
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
-  state.world.addComponent(e, ComponentType.Velocity, { dx, dy })
+  state.world.addComponent(e, ComponentType.Velocity, { dx: NORTH_VELOCITY.dx, dy: NORTH_VELOCITY.dy })
   state.world.addComponent(e, ComponentType.ShootingStarData, {
     length,
     age: 0,
@@ -166,13 +86,11 @@ export const spawnShootingStar = (state: GameState): void => {
 export const spawnShootingStarAtTarget = (
   state: GameState,
   target: Position,
-  direction?: { dx: number; dy: number },
   opts?: { forPlayerSpawn?: boolean; backtrackTiles?: number }
 ): number => {
-  const dx = direction?.dx ?? (Math.random() < 0.5 ? 1 : -1)
-  const dy = direction?.dy ?? (Math.random() < 0.5 ? 1 : -1)
+  const dx = NORTH_VELOCITY.dx
+  const dy = NORTH_VELOCITY.dy
 
-  // Starting position: either trace back to off-map (default), or back N tiles
   let sx = target.x
   let sy = target.y
   if (opts?.backtrackTiles !== undefined) {
@@ -310,20 +228,6 @@ export const tickShootingStars = (state: GameState, time: number): void => {
 
 // --- Meteor Showers ---
 
-const RADIANT_DIRECTIONS: { dx: number; dy: number }[] = [
-  { dx: 1, dy: 1 },
-  { dx: 1, dy: -1 },
-  { dx: -1, dy: 1 },
-  { dx: -1, dy: -1 },
-  { dx: 1, dy: 0 },
-  { dx: -1, dy: 0 },
-  { dx: 0, dy: 1 },
-  { dx: 0, dy: -1 },
-]
-
-export const pickRadiantDirection = (): { dx: number; dy: number } =>
-  RADIANT_DIRECTIONS[Math.floor(Math.random() * RADIANT_DIRECTIONS.length)]
-
 export const findShowerTargets = (state: GameState, count: number): Position[] => {
   const targets: Position[] = []
   const maxAttempts = count * 50
@@ -371,13 +275,10 @@ export const tickMeteorShower = (state: GameState, time: number): void => {
     const count =
       METEOR_SHOWER_STAR_COUNT_MIN +
       Math.floor(Math.random() * (METEOR_SHOWER_STAR_COUNT_MAX - METEOR_SHOWER_STAR_COUNT_MIN + 1))
-    const radiant = pickRadiantDirection()
     shower.active = true
     shower.remainingStars = count
     shower.spawnIntervalMs = METEOR_SHOWER_SPAWN_WINDOW_MS / count
     shower.lastSpawnTime = 0
-    shower.radiantDx = radiant.dx
-    shower.radiantDy = radiant.dy
     recordDiscovery(state, 'event:meteor-shower')
     return
   }
@@ -387,7 +288,7 @@ export const tickMeteorShower = (state: GameState, time: number): void => {
     if (shower.lastSpawnTime === 0 || time - shower.lastSpawnTime >= shower.spawnIntervalMs) {
       const targets = findShowerTargets(state, 1)
       if (targets.length > 0) {
-        spawnShootingStarAtTarget(state, targets[0], { dx: shower.radiantDx, dy: shower.radiantDy })
+        spawnShootingStarAtTarget(state, targets[0])
       }
       shower.remainingStars--
       shower.lastSpawnTime = time
@@ -411,9 +312,6 @@ export const triggerPlayerSpawnShower = (state: GameState, spawnPos: Position, t
   if (state.deepTime?.active) return
   const shower = state.meteorShower
 
-  // Pick a radiant for the rest of the shower (not used for the player star itself).
-  const radiant = pickRadiantDirection()
-
   // If a shower is not already active, start one. If one is active, leave it alone
   // and just append the player-spawn star (multiplayer concurrent-join case).
   if (!shower.active) {
@@ -424,20 +322,12 @@ export const triggerPlayerSpawnShower = (state: GameState, spawnPos: Position, t
     shower.remainingStars = count
     shower.spawnIntervalMs = METEOR_SHOWER_SPAWN_WINDOW_MS / count
     shower.lastSpawnTime = time
-    shower.radiantDx = radiant.dx
-    shower.radiantDy = radiant.dy
     recordDiscovery(state, 'event:meteor-shower')
   }
 
-  // The steward star uses a fixed { dx: 1, dy: 1 } heading independent of
-  // the shower's radiant. With iso projection screenPx = (worldX - worldY)
-  // * cw, dx === dy keeps screen X constant while screen Y advances —
-  // reads as falling straight down the screen from the north corner.
-  // Non-steward shower stars continue to use the shower radiant.
-  const dir = { dx: 1, dy: 1 }
   const backtrack = Math.max(1, Math.round(PLAYER_SPAWN_DESCENT_TARGET_MS / SHOOTING_STAR_TICK_MS))
 
-  const eid = spawnShootingStarAtTarget(state, spawnPos, dir, {
+  const eid = spawnShootingStarAtTarget(state, spawnPos, {
     forPlayerSpawn: true,
     backtrackTiles: backtrack,
   })

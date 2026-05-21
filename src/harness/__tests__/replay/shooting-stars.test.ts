@@ -65,7 +65,7 @@ describe('replay: shooting stars', () => {
   it('shooting stars move each tick', () => {
     const state = createSeededState()
     // Spawn a targeted star so we have one to track
-    spawnShootingStarAtTarget(state, { x: 50, y: 50 }, { dx: -1, dy: 1 })
+    spawnShootingStarAtTarget(state, { x: 50, y: 50 })
 
     const stars = state.world.query(ComponentType.ShootingStarData, ComponentType.Position)
     if (stars.length === 0) return

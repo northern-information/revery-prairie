@@ -57,7 +57,6 @@ describe('manual', () => {
       expect(MANUAL_ENTRIES['zone:overworld']).toBeDefined()
       expect(MANUAL_ENTRIES['zone:cave']).toBeDefined()
       expect(MANUAL_ENTRIES['event:shooting-star']).toBeDefined()
-      expect(MANUAL_ENTRIES['event:chain-explosion']).toBeDefined()
     })
 
     it('every entry has required fields', () => {

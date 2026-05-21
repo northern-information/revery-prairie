@@ -111,7 +111,6 @@ describe('pickup zone filter', () => {
     const result = pickUpGroundItems(state, 5000)
 
     expect(result.pickedUp).not.toContain('meteorite')
-    expect(result.chainExplosions).toBe(0)
     expect(state.world.getComponent(entity, ComponentType.Position)).toBeDefined()
     const ez = state.world.getComponent(entity, ComponentType.EntityZone)
     expect(ez?.zone).toBe(Zone.Overworld)

@@ -12,14 +12,17 @@ dependencies: []
 behaviors:
   - id: ambient-star-spawning
     description: >
-      spawnShootingStar creates ambient shooting stars from map edges
-      at 15% chance per 2000ms tick. max 5 concurrent stars. suppressed
-      during active meteor showers, during deep time (deepTime.active),
-      and when the overworld already contains METEORITE_GROUND_MAX (20)
-      or more meteorite entities on the ground (shooting stars simply
-      do not spawn while at cap — no fizzle, no FIFO removal). picks
-      random edge, generates position and velocity. 30% chance for
-      cardinal-only movement. stars are ECS entities with Position,
+      spawnShootingStar creates ambient shooting stars at 15% chance
+      per 2000ms tick. max 5 concurrent stars. suppressed during active
+      meteor showers, during deep time (deepTime.active), and when the
+      overworld already contains METEORITE_GROUND_MAX (20) or more
+      meteorite entities on the ground (shooting stars simply do not
+      spawn while at cap — no fizzle, no FIFO removal). every ambient
+      star originates from the top edge of the map (y = 0) at a random
+      x in [0, MAP_WIDTH) and moves with a fixed velocity of
+      { dx: 1, dy: 1 } — the iso "straight down the screen from due
+      north" axis. no random edge selection, no cardinal-only block,
+      no velocity variation. stars are ECS entities with Position,
       Velocity, ShootingStarData, EntityTag (shootingStar), EntityZone
       (overworld). each star has random length (3-6 tiles) and 8%
       chance to land.
@@ -53,14 +56,17 @@ behaviors:
   - id: targeted-star-spawning
     description: >
       spawnShootingStarAtTarget creates a star guaranteed to land on
-      a specific position. traces backward from target to find starting
-      edge outside map bounds. sets willLand true and landingTarget.
-      used by meteor showers. an optional forPlayerSpawn flag marks the
-      star as a player-emergence beacon — on landing it suppresses the
-      meteorite ground-item drop and notifies the player-spawn system
-      so the corresponding player becomes visible on impact.
+      a specific position. always uses a velocity of { dx: 1, dy: 1 }
+      (the iso north axis) — callers no longer pass an explicit
+      direction. traces backward from target along that velocity to
+      find a starting position outside map bounds. sets willLand true
+      and landingTarget. used by meteor showers. an optional
+      forPlayerSpawn flag marks the star as a player-emergence
+      beacon — on landing it suppresses the meteorite ground-item drop
+      and notifies the player-spawn system so the corresponding player
+      becomes visible on impact.
     inputs:
-      - 'GameState, target Position, optional direction, optional forPlayerSpawn flag'
+      - 'GameState, target Position, optional forPlayerSpawn flag, optional backtrackTiles'
     outputs: []
     state_changes:
       - field: world
@@ -70,16 +76,18 @@ behaviors:
   - id: meteor-shower-scheduling
     description: >
       tickMeteorShower manages shower state machine. suppressed during
-      deep time (deepTime.active). the very first shower is NOT scheduled
-      by elapsed time — it is initiated by the player-spawn system via
-      triggerPlayerSpawnShower (see player-spawn spec). once that first
-      shower completes, subsequent showers schedule on the existing random
-      interval [120s, 240s]. when time arrives: active=true, pick radiant
-      direction, calculate remainingStars (8-12), spread over 4-second
-      window. each interval tick spawns one targeted star. when
-      remainingStars=0: active=false, schedule next shower.
-      records event:meteor-shower discovery on first shower regardless
-      of trigger source.
+      deep time (deepTime.active). the very first shower is NOT
+      scheduled by elapsed time — it is initiated by the player-spawn
+      system via triggerPlayerSpawnShower (see player-spawn spec).
+      once that first shower completes, subsequent showers schedule on
+      the existing random interval [120s, 240s]. when time arrives:
+      active=true, calculate remainingStars (8-12), spread over
+      4-second window. each interval tick spawns one targeted star
+      with the fixed { dx: 1, dy: 1 } iso-north velocity. when
+      remainingStars=0: active=false, schedule next shower. records
+      event:meteor-shower discovery on first shower regardless of
+      trigger source. there is no radiant — all stars in every shower
+      fall along the same axis.
     inputs:
       - 'tickMeteorShower called with time'
     outputs: []
@@ -97,14 +105,12 @@ behaviors:
       triggerPlayerSpawnShower(state, playerPos, time) starts a meteor
       shower immediately and pre-targets one of its stars at playerPos
       so the star lands within ~2000ms of the trigger. the shower
-      otherwise behaves like a normal shower (8-12 stars, 4s spawn window,
-      random radiant direction). the player-targeted (steward) star uses
-      a FIXED direction { dx: +1, dy: +1 } — the iso "straight down the
-      screen" axis — independent of the shower's random radiant. see
-      player-spawn spec, steward-star-fixed-direction. the steward star
-      is also flagged forPlayerSpawn so it produces no meteorite item on
-      landing. the remaining stars target tiles via findShowerTargets and
-      use the shower's random radiant unchanged (drop meteorites). this is
+      otherwise behaves like a normal shower (8-12 stars, 4s spawn
+      window). every star — including the steward star aimed at the
+      spawning player — uses the fixed { dx: 1, dy: 1 } iso-north
+      velocity. the steward star is flagged forPlayerSpawn so it
+      produces no meteorite item on landing. the remaining stars
+      target tiles via findShowerTargets (drop meteorites). this is
       the only path that initiates the first shower of the game; it
       generalizes to multiplayer — every newly-spawned player triggers
       their own shower with a star aimed at their spawn tile.
@@ -131,29 +137,6 @@ behaviors:
     outputs:
       - 'Position[] of valid landing targets (may be fewer than count)'
     state_changes: []
-    determinism: probabilistic
-
-  - id: chain-meteorite-spawning
-    description: >
-      spawnChainMeteorites(state, origin, time) spawns up to
-      CHAIN_EXPLOSION_COUNT (3) meteorites within a
-      CHAIN_EXPLOSION_RADIUS (3) tile radius of the origin. selects
-      from walkable, non-occupied, non-water tiles (excluding origin).
-      candidates are Fisher-Yates shuffled for fair random selection.
-      spawned meteorites have a ChainSource({ fromChain: true })
-      component that prevents them from triggering further chain
-      explosions. records event:chain-explosion discovery when at
-      least one meteorite is spawned. returns the count of spawned
-      meteorites.
-    inputs:
-      - 'GameState, origin Position, time'
-    outputs:
-      - 'number of meteorites spawned'
-    state_changes:
-      - field: world
-        effect: 'meteorite + explosion ECS entities created at random nearby tiles'
-      - field: manualDiscoveries
-        effect: 'event:chain-explosion recorded when at least one meteorite is spawned'
     determinism: probabilistic
 
 edge_cases:
@@ -186,11 +169,15 @@ edge_cases:
     expected: 'cap counts only overworld-zoned meteorite entities; cave meteorites are ignored'
   - id: meteor-shower-bypasses-cap
     description: 'meteor shower active and 20+ meteorites already on ground'
-    expected: 'shower continues spawning targeted stars — the cap only gates ambient spawnShootingStar, not targeted/chain spawns'
+    expected: 'shower continues spawning targeted stars — the cap only gates ambient spawnShootingStar, not targeted spawns'
+  - id: ambient-star-spawn-position
+    description: 'spawnShootingStar called repeatedly under randomized RNG'
+    expected: 'every spawned star has y === 0 and velocity { dx: 1, dy: 1 }; x varies across [0, MAP_WIDTH)'
+  - id: shower-star-velocity-uniform
+    description: 'a meteor shower spawns its full complement of stars'
+    expected: 'every spawned shower star has velocity { dx: 1, dy: 1 } — no radiant variation between showers or within a shower'
 
 failure_conditions:
-  - trigger: 'Star velocity is (0, 0) — would never move'
-    expected: 'safety check resets to dy=1 if both components zero'
   - trigger: 'Meteor shower scheduled but no valid targets found'
     expected: 'shower spawns 0 stars, transitions to idle, schedules next shower'
 
