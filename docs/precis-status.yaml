@@ -781,8 +781,8 @@ features:
       references a cardinal reads naturally under the new semantics.
     depends_on: []
     status: todo
-    spec: null
-    plan: null
+    spec: harness/specs/precis-30-the-diamond-is-the-world.yaml
+    plan: harness/plans/precis-30-the-diamond-is-the-world.yaml
     pr: null
     notes: >
       v5 thinktank round 1 (2026-05-21). The line the room locked:
