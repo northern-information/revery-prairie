@@ -10,9 +10,10 @@ export { tileBgCompositePass } from './tileBgComposite'
 export { ruinEntranceHaloPass } from './ruinEntranceHalo'
 export { angelGoldAuraPass } from './angelGoldAura'
 export { prairieHaloPass } from './prairieHalo'
+export { filmGrainOverlayPass } from './filmGrainOverlay'
 // fogMask must register last in world-overlay so its mask covers both the
 // cached tile-bg AND every other world-overlay pass (halos, angel aura,
-// prairie halo).
+// prairie halo, film grain).
 // Within a slot, registration order is preserved by the registry.
 export { fogMaskPass } from './fogMask'
 // effect (post-tile overlays)

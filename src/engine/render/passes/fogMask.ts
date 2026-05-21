@@ -1,7 +1,8 @@
 import { BG_COLOR, FOG_EXPLORED_BRIGHTNESS } from '../../constants'
 import { isInBounds, posKey } from '../../position'
-import { getElevationTier, getTierLift } from '../../tileBg'
-import { TileType } from '../../types'
+import { drawCellWalls } from '../../projection'
+import { getElevationTier, getStructurePlatformLift, getTierLift, WATER_SINK_PX } from '../../tileBg'
+import { TileType, Zone } from '../../types'
 import { getLastVisibleSet, getTileVisibility, hasFogOfWar } from '../../visibility'
 import { registerPass } from '../passes'
 
@@ -31,6 +32,26 @@ const isActive = (state: GameState): boolean => hasFogOfWar(state.currentZone)
 const tierAt = (state: GameState, x: number, y: number): number => {
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return 0
   return getElevationTier(state.elevation.get(posKey(x, y)))
+}
+
+// Mirrors the lift math used by tileBgCache.paintTileBg so the wall extent
+// computed here matches the wall extent actually painted into the bg-cache.
+const platformLiftAt = (state: GameState, map: GameState['map'], x: number, y: number): number => {
+  if (state.currentZone !== Zone.Overworld) return 0
+  return getStructurePlatformLift(map[y]?.[x]?.type ?? TileType.Space)
+}
+const waterSinkAt = (state: GameState, x: number, y: number): number => {
+  if (state.currentZone !== Zone.Overworld) return 0
+  const key = posKey(x, y)
+  if (state.rivers.has(key) || state.ponds.has(key)) return WATER_SINK_PX
+  return 0
+}
+const tileLiftAt = (state: GameState, map: GameState['map'], x: number, y: number): number =>
+  getTierLift(tierAt(state, x, y)) + platformLiftAt(state, map, x, y) + waterSinkAt(state, x, y)
+const wallNeighborLiftAt = (state: GameState, map: GameState['map'], x: number, y: number): number => {
+  if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return getTierLift(-1)
+  if (map[y][x].type === TileType.Space) return getTierLift(-1)
+  return tileLiftAt(state, map, x, y)
 }
 
 const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, _time: number): void => {
@@ -65,8 +86,10 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
 
       // Project tile center to canvas. Mirrors viewportToScreen + the lift
       // applied to py in the central tile loop and tileBgCache.tileWorldPos.
+      // Use the FULL lift (tier + platform + water sink) so the mask geometry
+      // matches the bg-cache diamond + wall geometry exactly.
       const px = (vx - vy) * charWidth + originX + halfW
-      const py = (vx + vy) * halfH + originY + getTierLift(tierAt(state, mx, my))
+      const py = (vx + vy) * halfH + originY + tileLiftAt(state, map, mx, my)
       const leftX = px - halfW
       const rightX = leftX + 2 * charWidth
       const topY = py
@@ -90,6 +113,20 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
       ctx.lineTo(leftX - TILE_BG_OVERLAP, cy)
       ctx.closePath()
       ctx.fill()
+
+      // Cover any cube wall extending south or east from this tile. The
+      // wall is part of the bg-cache (and now carries grain on top), so
+      // without masking it the grain would peek through fog wherever a
+      // multi-tier wall sticks out past the upper tile's diamond.
+      const selfLift = tileLiftAt(state, map, mx, my)
+      const southLift = wallNeighborLiftAt(state, map, mx, my + 1)
+      const eastLift = wallNeighborLiftAt(state, map, mx + 1, my)
+      const leftDepth = Math.max(0, southLift - selfLift)
+      const rightDepth = Math.max(0, eastLift - selfLift)
+      if (leftDepth > 0 || rightDepth > 0) {
+        const wallFill = visibility === 'unexplored' ? BG_COLOR : '#000'
+        drawCellWalls(ctx, px, py, charWidth, charHeight, leftDepth, rightDepth, wallFill, wallFill)
+      }
     }
   }
 

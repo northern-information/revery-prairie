@@ -1,5 +1,7 @@
 import { isInBounds, posKey } from './position'
+import { drawCellWalls } from './projection'
 import {
+  darkenColor,
   ELEVATION_TIER_COUNT,
   ELEVATION_TIER_LIFT_PX,
   getCraterBgColor,
@@ -10,6 +12,8 @@ import {
   getTierLift,
   getTileBgColor,
   RUIN_ENTRANCE_LIFT_PX,
+  WALL_LEFT_SHADE,
+  WALL_RIGHT_SHADE,
   WATER_SINK_PX,
 } from './tileBg'
 import { TileType, Zone } from './types'
@@ -141,6 +145,15 @@ const tileWorldPos = (
   return { px, py }
 }
 
+// "Virtual" lift for a wall neighbor — Space tiles and out-of-bounds positions
+// count as one tier below the lowest playable tier (-1), so coastal land
+// produces a cliff face into the void.
+const wallNeighborLiftFromState = (state: GameState, map: Tile[][], x: number, y: number): number => {
+  if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return getTierLift(-1)
+  if (map[y][x].type === TileType.Space) return getTierLift(-1)
+  return liftAtFromState(state, x, y) + waterSinkAtFromState(state, x, y)
+}
+
 const paintTileBg = (entry: CacheEntry, state: GameState, map: Tile[][], x: number, y: number): void => {
   const { ctx, charWidth, charHeight } = entry
   const halfW = charWidth / 2
@@ -164,6 +177,32 @@ const paintTileBg = (entry: CacheEntry, state: GameState, map: Tile[][], x: numb
   ctx.lineTo(leftX - TILE_BG_OVERLAP, cy)
   ctx.closePath()
   ctx.fill()
+
+  // Cube cliff walls: render at tier transitions where this tile sits higher
+  // than its south or east neighbor. Painted here (inside paintTileBg's
+  // iso-painter-order loop) so subsequent lower-neighbor diamonds naturally
+  // mask any wall spillage into their tile area. Prior to this, walls were
+  // drawn in the renderer's central tile loop in raster order, which let
+  // raised tiles' walls clip over the lower neighbor's bg.
+  const selfLift = liftAtFromState(state, x, y) + waterSinkAtFromState(state, x, y)
+  const southLift = wallNeighborLiftFromState(state, map, x, y + 1)
+  const eastLift = wallNeighborLiftFromState(state, map, x + 1, y)
+  const leftDepth = Math.max(0, southLift - selfLift)
+  const rightDepth = Math.max(0, eastLift - selfLift)
+  if (leftDepth > 0 || rightDepth > 0) {
+    const wallBg = getEffectiveBgColor(state, effectiveType, x, y)
+    drawCellWalls(
+      ctx as CanvasRenderingContext2D,
+      px,
+      py,
+      charWidth,
+      charHeight,
+      leftDepth,
+      rightDepth,
+      darkenColor(wallBg, WALL_LEFT_SHADE),
+      darkenColor(wallBg, WALL_RIGHT_SHADE)
+    )
+  }
 }
 
 const fullBuild = (entry: CacheEntry, state: GameState, map: Tile[][]): void => {

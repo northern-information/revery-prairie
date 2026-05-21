@@ -150,3 +150,36 @@ body,
   font-family: 'Times New Roman', serif;
   font-style: italic;
 }
+
+/* Film grain overlay for DOM panels that match the canvas grain pass
+   (gene sequencing modal, boot title cards). The host element must
+   already establish a positioning context (`fixed`, `absolute`,
+   `sticky`, or `relative` — we deliberately do NOT add
+   `position: relative` here because unlayered custom CSS overrides
+   Tailwind utilities in v4, which would silently break hosts that
+   rely on `position: fixed` to fill the viewport. Hosts that need
+   `relative` should declare it via the Tailwind `relative`
+   utility. Pointer events pass through. Opacity is tuned to the
+   same coarse range as FILM_GRAIN_ALPHA in
+   src/engine/render/passes/filmGrainOverlay.ts. */
+.film-grain-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('/textures/000973910004.jpg');
+  background-repeat: repeat;
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+/* Strong variant for pure-black backgrounds (boot title card) where
+   the 0.2 alpha disappears into the black. */
+.film-grain-overlay-strong::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('/textures/000973910004.jpg');
+  background-repeat: repeat;
+  opacity: 0.4;
+  pointer-events: none;
+}

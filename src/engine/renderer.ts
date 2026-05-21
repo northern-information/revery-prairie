@@ -90,7 +90,6 @@ import { isInBounds, posKey, tileHash } from './position'
 import {
   drawCellBackground,
   drawCellHighlight,
-  drawCellWalls,
   viewportToScreen,
   worldDeltaToIsoPx,
   worldToScreen,
@@ -101,13 +100,9 @@ import { getSelectedUnitPositions } from './selection'
 import {
   ANGEL_FLOAT_LIFT_PX,
   applySeasonalWash,
-  darkenColor,
   getStructurePlatformLift,
   getTierLift,
-  getTileBgColor,
   seasonalWash,
-  WALL_LEFT_SHADE,
-  WALL_RIGHT_SHADE,
   WATER_SINK_PX,
 } from './tileBg'
 
@@ -312,16 +307,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     return 0
   }
 
-  // Effective tile lift = tier lift + water sink. Wall pass uses this
-  // so a dirt tile next to water gets a taller wall on the water side.
-  // Out-of-bounds and space tiles fall through to a virtual sub-ground
-  // tier (-1) via wallNeighborTier; water sink is land-only.
-  const tileLiftAt = (mx: number, my: number): number => liftAt(mx, my) + waterSinkAt(mx, my)
-  const wallNeighborLiftAt = (mx: number, my: number): number => {
-    if (mx < 0 || mx >= state.mapWidth || my < 0 || my >= state.mapHeight) return getTierLift(-1)
-    if (map[my][mx].type === TileType.Space) return getTierLift(-1)
-    return tileLiftAt(mx, my)
-  }
 
   const pxWidth = viewportWidth * charWidth
   const pxHeight = viewportHeight * charHeight
@@ -1294,46 +1279,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         continue
       }
 
-      // Cosmetic elevation: walls render at tier transitions where
-      // this tile sits higher than its south or east neighbor. Space
-      // neighbors count as virtual sub-ground tier (-1), so coastal
-      // tiles at tier 0 still produce a cliff face into the void.
-      // Same-tier same-surface neighbors share a flat plateau; the
-      // per-tile cube edge suggestion comes from the bg-cache edge
-      // stroke. Hidden cave chamber tiles use the masked CaveWall
-      // palette so the wall doesn't leak the underlying type.
-      {
-        // Wall depth in lift-space so water sinking participates: a
-        // dirt tile sitting next to a sunken river gets a wall that
-        // reaches down to the water surface, not just the dirt tier
-        // below. Lifts are negative-when-up, so a taller (more
-        // negative) self subtracted from a shorter neighbor yields a
-        // positive depth.
-        const selfLift = tileLiftAt(mx, my)
-        const southLift = wallNeighborLiftAt(mx, my + 1)
-        const eastLift = wallNeighborLiftAt(mx + 1, my)
-        const leftDepth = Math.max(0, southLift - selfLift)
-        const rightDepth = Math.max(0, eastLift - selfLift)
-        if (leftDepth > 0 || rightDepth > 0) {
-          const baseTile = map[my][mx]
-          const wallType =
-            state.currentZone === Zone.Cave && !state.caveRevealed && state.caveHiddenPositions.has(tileKey)
-              ? TileType.CaveWall
-              : baseTile.type
-          const wallBg = getTileBgColor(wallType, mx, my)
-          drawCellWalls(
-            ctx,
-            px,
-            pyLift,
-            charWidth,
-            charHeight,
-            leftDepth,
-            rightDepth,
-            darkenColor(wallBg, WALL_LEFT_SHADE),
-            darkenColor(wallBg, WALL_RIGHT_SHADE)
-          )
-        }
-      }
+      // Cube cliff walls are now baked into tileBgCache (paintTileBg) in
+      // iso painter order, so subsequent lower-neighbor diamonds mask any
+      // wall spillage. Previously drawn here in raster order, which let
+      // raised tiles' walls clip over the lower neighbor's bg.
 
       const shootingStarOnLand = targetedStarMap.get(tileKey)
       const previewTile = previewMap.get(tileKey)
@@ -1485,9 +1434,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         const lifecycle = tile.type === TileType.Flora ? state.floraLifecycle.get(tileKey) : undefined
         const speciesGlyph = lifecycle ? FLORA_SPECIES[lifecycle.species].glyph : TILE_CHARS[tile.type]
         char = entranceGlyphMap.get(tileKey) ?? speciesGlyph
+        // Hot-pink with alpha-driven fade. Reserves white pixels for trail-
+        // independent glyphs so the film grain pass can't camouflage the
+        // motion trail, and keeps the trail visually unified with the cursor
+        // and active path (both user-action surfaces — see CLAUDE.md color
+        // doctrine).
         const opacity = trailMap.get(tileKey) ?? 0
-        const brightness = String(Math.round(opacity * 255))
-        color = `rgb(${brightness}, ${brightness}, ${brightness})`
+        color = `rgba(255, 105, 180, ${String(opacity)})`
       } else {
         // Mask hidden chamber tiles as CaveWall until revealed
         if (!state.caveRevealed && state.caveHiddenPositions.has(tileKey)) {
@@ -1716,9 +1669,18 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // per v3 doctrine. ACTION_COLOR (hot pink, reserved for user-
       // action affordances per CLAUDE.md) is also exempt so path dots,
       // cursor highlights, and combine previews keep their identity
-      // through every season.
+      // through every season. Non-hex colors (rgba/rgb — used by the
+      // alpha-fading motion trail) are exempt too because
+      // applySeasonalWash assumes hex input and corrupts rgba strings
+      // into NaN; without this guard the trail rendered as an invalid
+      // color and disappeared.
       const tileForWash = map[my]?.[mx]
-      if (washForFrame && tileForWash?.type !== TileType.Egregore && color !== ACTION_COLOR) {
+      if (
+        washForFrame &&
+        tileForWash?.type !== TileType.Egregore &&
+        color !== ACTION_COLOR &&
+        color.startsWith('#')
+      ) {
         color = applySeasonalWash(color, washForFrame.target, washForFrame.intensity)
       }
 

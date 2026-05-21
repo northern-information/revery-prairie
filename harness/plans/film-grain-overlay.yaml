@@ -1,0 +1,77 @@
+plan:
+  id: film-grain-overlay
+  title: Add film grain raster overlay to the world canvas
+  created: '2026-05-21'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: implement-film-grain-pass
+    title: Implement filmGrainOverlay pass — image loader, world-sized bake cache, camera-clipped draw, seasonal alpha
+    spec_id: film-grain-overlay
+    spec_sections:
+      - grain-pass-registered-in-world-overlay
+      - grain-image-loads-once-at-module-init
+      - grain-pass-inactive-until-image-loads
+      - grain-baked-once-to-offscreen-canvas
+      - grain-drawn-as-camera-clipped-region
+      - grain-alpha-continuous-seasonal-modulation
+    context_files:
+      - src/engine/render/passes.ts
+      - src/engine/render/passes/pollenOverlay.ts
+      - src/engine/render/passes/prairieHalo.ts
+      - src/engine/tileBg.ts
+      - src/engine/types.ts
+      - src/engine/projection.ts
+    output_files:
+      - src/engine/render/passes/filmGrainOverlay.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npm run lint
+    repair: retry
+    tags:
+      - engine
+
+  - id: register-film-grain-pass-in-barrel
+    title: Re-export filmGrainOverlayPass from passes/index.ts before fogMaskPass
+    spec_id: film-grain-overlay
+    spec_sections:
+      - grain-pass-registered-in-world-overlay
+    context_files:
+      - src/engine/render/passes/index.ts
+      - src/engine/render/passes/filmGrainOverlay.ts
+    output_files:
+      - src/engine/render/passes/index.ts
+    depends_on:
+      - implement-film-grain-pass
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-film-grain-tests
+    title: Unit tests — isActive gating, seasonal alpha curve, cache invalidation on zone change, image-load-failure path
+    spec_id: film-grain-overlay
+    spec_sections:
+      - grain-pass-inactive-until-image-loads
+      - grain-baked-once-to-offscreen-canvas
+      - grain-alpha-continuous-seasonal-modulation
+    context_files:
+      - src/engine/render/passes/filmGrainOverlay.ts
+      - src/engine/render/passes/pollenOverlay.ts
+      - src/engine/__tests__/weather.test.ts
+      - src/engine/tileBg.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/filmGrainOverlay.test.ts
+    depends_on:
+      - implement-film-grain-pass
+    verification:
+      - npx vitest run src/engine/__tests__/filmGrainOverlay.test.ts
+    repair: retry
+    tags:
+      - test
