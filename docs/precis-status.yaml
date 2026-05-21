@@ -810,3 +810,57 @@ features:
       instead of width); any user-facing text strings that name a
       cardinal under the old semantics (probably zero today; the
       value is the constraint going forward).
+
+  - id: '31'
+    name: The unreadable does not announce its source
+    summary: >
+      Doctrinal item, not a code change. Adds two locks to
+      docs/claude/egregores.md under the "never write egregore lore"
+      section: (1) no in-game text refers to Voynich as an external
+      object — the script exists in the prairie because the prairie
+      produced it, the manual does not name a source because the
+      steward cannot name what they cannot read; (2) the EVA-token
+      generator samples phonemes, not transcribed MS 408 text. The
+      first lock is the diegetic constraint that future authors of
+      manual entries, NPC dialog, and predecessor records check
+      against. The second is the wire-layer invariant that keeps
+      direct exposure to a hypothetical Voynich solve at zero. No
+      engine code touched.
+    depends_on: []
+    status: in-progress
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v5 thinktank round 2 (2026-05-21). Seed: Tyler asked what the
+      risk exposure is if the Voynich manuscript ever gets solved.
+      Boon mapped the in-flight worktree state — EGREGORE_GLYPHS
+      moving from Latin Extended-E (U+AB10..U+AB1F) to the Voynich
+      PUA (U+F120..U+F15F), with Latin pierces dropped from tile
+      rendering — and concluded direct exposure is still effectively
+      zero: the substrate now uses the manuscript's script but not
+      its text, because EVA_TOKENS are procedurally sampled
+      phonemes, not folio transcriptions. Astrid named the
+      sharpening: the in-flight swap raises associative exposure
+      (the cultural valence is now literally the manuscript's
+      glyphs, not a Latin neighbor) even as direct exposure stays
+      at zero. Calla connected the glyph swap to Tyler's reason for
+      doing it — the Latin substitutes broke immersion ("goofy /
+      griefing") — and held that the phenomenology of "this script
+      refuses me" is local to the tile regardless of a solve.
+      Delta delivered the framing: "we are not running on Voynich.
+      We are running on the gesture Voynich points at." The
+      gesture (writing that does not yield) is permanent across
+      Linear A / Phaistos / rongorongo; the manuscript is one
+      current carrier. Two locks captured here: the diegetic
+      constraint (no in-game text names Voynich as external) and
+      the wire-layer invariant (phoneme sampling only). Open at
+      spec: whether dev-surface Voynich names (font-family,
+      fetch-voynich-font.mjs, /fonts/voynich.ttf path,
+      docs/claude/egregores.md) are worth renaming for grep
+      hygiene — the room said no urgency, defer; whether the
+      doctrine wants a positive in-world name for the script or
+      keeps it nameless (room leaned nameless). The in-flight
+      glyph-swap worktree should assert the phoneme-sampling
+      invariant in a test alongside the swap, but that work
+      belongs to the worktree, not to #31.
