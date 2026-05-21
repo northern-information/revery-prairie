@@ -121,7 +121,7 @@ describe('water walkable', () => {
       expect(preview.some(p => p.pos.x === px && p.pos.y === py)).toBe(true)
     })
 
-    it('execute leaves water tiles unchanged but converts dirt tiles in the 3x3 stamp', () => {
+    it('execute leaves water tiles unchanged and seeds the player tile (precis-17 ceremony)', () => {
       const state = createTestState()
       clearAroundPlayer(state, 2)
       const px = state.player.x
@@ -133,10 +133,14 @@ describe('water walkable', () => {
       const result = recipe.execute(state)
 
       expect(result).toBe(true)
+      // Water tile unchanged.
       expect(state.map[py][px + 1].type).toBe(TileType.Dirt)
       expect(state.ponds.has(waterKey)).toBe(true)
-      // Adjacent non-water tile was converted to clover
-      expect(state.map[py][px - 1].type).toBe(TileType.Flora)
+      // Player tile is the single seed of the ceremony wave; adjacent
+      // dirt is not painted at execute time (the wave handles it later).
+      expect(state.map[py][px].type).toBe(TileType.Flora)
+      expect(state.map[py][px - 1].type).toBe(TileType.Dirt)
+      expect(state.activeWaves).toHaveLength(1)
     })
 
     it('execute returns false when the player stands on a water tile', () => {

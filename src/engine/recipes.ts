@@ -3,7 +3,6 @@ import { sha256Sync } from './crypto'
 import { FLORA_SPECIES } from './flora/species'
 import { createFloraLifecycleEntry } from './floraLifecycleEntry'
 import { generateRuntimeIdentity, generateTraitBag } from './genetics'
-import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { isInBounds, posKey } from './position'
@@ -108,7 +107,9 @@ export const RECIPES: Recipe[] = [
       state.activeWaves.push(wave)
 
       spawnBeeOrMonarch(state, cx, cy)
-      recordDiscovery(state, 'event:ceremony-cast')
+      // Note: event:ceremony-cast discovery is recorded by the
+      // combine/drag layer (which already imports manual.ts) — keeping
+      // it out of recipes.ts avoids the recipes ↔ manual circular import.
       return true
     },
   },

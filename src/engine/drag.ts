@@ -78,6 +78,8 @@ export const executeCombine = (
 
   if (isStewardSealRecipe(recipe)) {
     triggerStewardSeal(state, time ?? performance.now())
+    // Precis #17 — ceremony cast discovery, mirrored in combine.ts.
+    recordDiscovery(state, 'event:ceremony-cast')
   }
 
   state.discoveredRecipes.add(key)

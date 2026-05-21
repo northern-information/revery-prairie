@@ -29,7 +29,7 @@ import { tickFloraWaves } from '../floraWaves'
 import { tickSpeciesSpread } from '../flora/spread'
 import { setMapTile } from '../map'
 import { posKey } from '../position'
-import { FloraSpecies, TileType } from '../types'
+import { FloraSpecies, TileType, Zone } from '../types'
 
 import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { createBeeEntity, createBeehiveEntity, createTestState } from './helpers'
@@ -87,7 +87,7 @@ describe('precis-17 spread + pollination perf gate', () => {
     const start = performance.now()
     for (let t = 0; t < TICKS; t++) {
       const time = t * 100
-      tickFloraLifecycle(state, time)
+      tickFloraLifecycle(state, Zone.Overworld, time)
       tickSpeciesSpread(state, time, CLOVER_SPREAD_CONFIG)
       tickSpeciesSpread(state, time, WILDFLOWER_SPREAD_CONFIG)
       tickSpeciesSpread(state, time, TALLGRASS_SPREAD_CONFIG)

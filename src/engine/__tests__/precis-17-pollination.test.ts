@@ -125,8 +125,10 @@ describe('PollenBag prime', () => {
     tickPollination(state)
 
     // Move bee to tile B (different identity, same species).
-    state.world.getComponent(bee, ComponentType.Position)!.x = 52
-    state.world.getComponent(bee, ComponentType.Position)!.y = 50
+    const beePos = state.world.getComponent(bee, ComponentType.Position)
+    if (!beePos) throw new Error('bee missing position')
+    beePos.x = 52
+    beePos.y = 50
     placeFloraTileAt(state, 52, 50, FloraSpecies.Clover, 'B')
     tickPollination(state)
 
@@ -158,7 +160,7 @@ describe('PollenBag prime', () => {
   it('does not prime when the bag has only the visited tiles own identity', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
-    const bee = createBeeEntity(state, 50, 50, Zone.Overworld)
+    createBeeEntity(state, 50, 50, Zone.Overworld)
 
     placeFloraTileAt(state, 50, 50, FloraSpecies.Clover, 'A')
     tickPollination(state) // pickup
