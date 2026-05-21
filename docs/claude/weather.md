@@ -35,7 +35,7 @@ cave and ruin zones are exempt from the wash entirely (player is underground).
 
 ## wind direction — the rotated cardinal frame (precis #30)
 
-the diamond is the world (precis-thinktank-v5 round 1). iso is not a viewing layer applied to a flat grid; iso is the world's shape. cardinals (N/E/S/W) point at the diamond's tips on screen — N is the top tip, E the right tip, S the bottom tip, W the left tip. ordinals (NE/SE/SW/NW) align with the storage axes themselves: NE runs down the storage-+x edge (upper-right edge of the diamond on screen), SE runs down storage-+y, SW runs up storage-+x, NW runs up storage-+y.
+the diamond is the world (precis-thinktank-v5 round 1). iso is not a viewing layer applied to a flat grid; iso is the world's shape. cardinals (N/E/S/W) point at one diamond tip each on screen — N is the top tip, E the right tip, S the bottom tip, W the left tip. ordinals (NE/SE/SW/NW) align with the storage axes themselves: NE runs down the storage-+x edge (upper-right edge of the diamond on screen), SE runs down storage-+y, SW runs up storage-+x, NW runs up storage-+y.
 
 `state.weather.windDirection` stores the cardinal the wind blows **from**. the `WIND_SCREEN_VECTORS` table in `src/engine/weather/wind.ts` maps each cardinal to the screen-space drift vector. all eight values have magnitude √2 so `windSpeed × (sx, sy)` produces equivalent drift across all directions. the canonical doctrine block lives above the `WindDirection` enum in `src/engine/types.ts`; downstream code reads it.
 
