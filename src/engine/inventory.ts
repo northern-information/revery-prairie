@@ -1,7 +1,6 @@
 import type { Container, GameState, ItemInstance } from './types'
 
-export const getActiveContainers = (state: GameState): Container[] =>
-  state.openContainer ? [state.backpack, state.openContainer] : [state.backpack]
+export const getActiveContainers = (state: GameState): Container[] => [state.backpack]
 
 export const buildOccupancyGrid = (container: Container, excludeUid?: string): (string | null)[][] => {
   const grid: (string | null)[][] = []

@@ -34,13 +34,7 @@ export const InventoryPanel = ({
   isDraggingRef,
   dragOverlayRef,
 }: InventoryPanelProps) => {
-  const containers = useMemo(() => {
-    const list = [{ id: state.backpack.id, container: state.backpack }]
-    if (state.openContainer) {
-      list.push({ id: state.openContainer.id, container: state.openContainer })
-    }
-    return list
-  }, [state.backpack, state.openContainer])
+  const containers = useMemo(() => [{ id: state.backpack.id, container: state.backpack }], [state.backpack])
 
   const onDrop = useCallback(() => {
     refreshUI()

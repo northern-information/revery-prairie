@@ -262,6 +262,45 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: persistent-manual-ui-state
+    description: >
+      GameState carries a state.manualState record holding the manual
+      panel's filter and reveal UI state across panel open/close. The
+      record has three fields: activeCategory (a ManualCategory | null
+      tab filter; null = ALL), searchQuery (a string typed into the
+      search box; '' = unfiltered), and revealedHints (a Set<string>
+      of hint keys the player has clicked to reveal — typically recipe
+      result keys whose full content is gated behind a click-to-reveal
+      affordance). ManualPanel reads manualState on mount, mirrors its
+      activeCategory and searchQuery into local React state for
+      controlled inputs, and writes back to manualState on user edits
+      so the values persist when the panel is closed and re-opened. The
+      revealedHints set is mutated directly via toggleHint, which adds
+      or removes a key on each click. When the panel opens with a
+      manualHighlightEntryId set (just-scanned species), the handler
+      resets manualState.activeCategory to null and manualState.searchQuery
+      to '' before scrolling — this guarantees the highlighted entry is
+      visible regardless of any prior filter the player had applied.
+      The manualState record appears in EXPECTED_FIELDS in the schema
+      serialization test.
+    inputs:
+      - 'player opens, filters, searches, or reveals hints inside the manual'
+      - 'codebase after this behavior lands'
+    outputs:
+      - 'state.manualState: { activeCategory, searchQuery, revealedHints } exists on GameState'
+      - 'activeCategory and searchQuery values survive panel close/reopen'
+      - 'revealedHints keys persist for the lifetime of the GameState'
+      - 'opening with manualHighlightEntryId clears activeCategory and searchQuery to ensure visibility'
+      - 'manualState is listed in EXPECTED_FIELDS in schema.test.ts'
+    state_changes:
+      - field: manualState
+        effect: 'activeCategory: ManualCategory | null, mutated by setCategory'
+      - field: manualState
+        effect: 'searchQuery: string, mutated by setSearch'
+      - field: manualState
+        effect: 'revealedHints: Set<string>, mutated by toggleHint (add on first click, remove on second)'
+    determinism: deterministic
+
   - id: doctrine-and-status-aligned
     description: >
       docs/claude/manual.md is updated so the "scan-to-discover" section
@@ -386,6 +425,41 @@ edge_cases:
     expected: >
       No new scan begins. state.scanInProgress remains null. The modal
       is unaffected.
+
+  - id: filter-and-search-persist-across-panel-reopen
+    description: >
+      Player opens the manual, selects the "Flora" category, and types
+      "clover" into the search box. They close the panel. They later
+      reopen the panel (no scan in between, so manualHighlightEntryId
+      stays null).
+    expected: >
+      The Flora tab is still active and the search box still contains
+      "clover" on reopen — the panel reads state.manualState into the
+      controlled inputs on mount.
+
+  - id: scan-highlight-clears-active-filter
+    description: >
+      Player has the manual filtered to "Recipes" with searchQuery set
+      to "honey". They close the manual, scan a wildflower outside the
+      currently filtered category, and the manual reopens (or the
+      player reopens it) with manualHighlightEntryId set to that
+      species. The reset effect inside the highlight useEffect clears
+      both activeCategory and searchQuery so the entry is visible.
+    expected: >
+      activeCategory becomes null (ALL), searchQuery becomes '', the
+      scanned entry scrolls into view and flashes. After dismiss, the
+      filter remains cleared (the player must reapply it).
+
+  - id: revealed-hints-toggle-symmetric
+    description: >
+      Player clicks a hint chip on a recipe entry. The hint reveals
+      (revealedHints adds the key). They click it again to hide it.
+      They reopen the manual later.
+    expected: >
+      After the second click the key is removed from revealedHints and
+      the hint hides. State persists across reopen — if the player had
+      stopped after the first click, the hint would still be revealed
+      on reopen.
 
   - id: manual-highlight-survives-modal-dismiss
     description: >

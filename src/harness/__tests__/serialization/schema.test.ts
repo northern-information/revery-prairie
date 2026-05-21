@@ -16,7 +16,6 @@ const EXPECTED_FIELDS = [
   'mapHeight',
   'player',
   'backpack',
-  'openContainer',
   'playerFacing',
   'facingEntityPos',
   'camera',

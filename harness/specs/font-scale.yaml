@@ -1,0 +1,125 @@
+id: font-scale
+name: 'Font Scale: cycle UI text size via Menu, persist on GameState'
+priority: low
+layer: component
+source_files:
+  - src/engine/state.ts
+  - src/engine/types.ts
+  - src/components/Menu.tsx
+  - src/components/GameScreen.tsx
+  - src/harness/__tests__/serialization/schema.test.ts
+
+behaviors:
+  - id: font-scale-state
+    description: >
+      GameState carries a state.fontScale: number field that controls
+      the CSS root font size of the entire UI. The default initial value
+      is 1.25 (the "Medium" preset). The set of valid values is the
+      FONT_SCALES tuple exported from src/components/Menu.tsx —
+      currently [1, 1.25, 1.5] mapped to labels Small / Medium / Large.
+      fontScale appears in EXPECTED_FIELDS in the schema serialization
+      test and survives serialization roundtrips.
+    inputs:
+      - 'codebase after this spec lands'
+    outputs:
+      - 'state.fontScale: number exists on GameState, initial value 1.25'
+      - 'FONT_SCALES = [1, 1.25, 1.5] is the canonical preset list'
+      - 'fontScale appears in EXPECTED_FIELDS in schema.test.ts'
+    state_changes:
+      - field: fontScale
+        effect: 'number; initialized to 1.25 in createGameState'
+    determinism: deterministic
+
+  - id: cycle-font-scale-from-menu
+    description: >
+      The pause Menu renders a TextButton labeled "Font: <label>" where
+      <label> is FONT_SCALE_LABELS[state.fontScale] (Small / Medium /
+      Large, falling back to "Medium" if the value is not in the map).
+      Clicking the button calls the onCycleFontScale handler wired up
+      in GameScreen.tsx. The handler reads the current state.fontScale,
+      finds its index in FONT_SCALES, advances to the next index modulo
+      FONT_SCALES.length (wrapping from Large back to Small), writes
+      the new value to state.fontScale, and immediately applies it to
+      document.documentElement.style.fontSize as a percentage string
+      (e.g. 1.25 -> "125%"). The label on the button updates on the
+      next render.
+    inputs:
+      - 'player clicks the "Font: …" TextButton in the Menu overlay'
+    outputs:
+      - 'state.fontScale advances to the next preset, wrapping at the end'
+      - 'document.documentElement.style.fontSize updates to the new percentage'
+      - 'Menu button label re-renders with the new preset label'
+    state_changes:
+      - field: fontScale
+        effect: 'set to FONT_SCALES[(currentIndex + 1) % FONT_SCALES.length]'
+    determinism: deterministic
+
+  - id: apply-font-scale-on-mount
+    description: >
+      GameScreen.tsx mounts a useEffect keyed on state.fontScale that
+      writes document.documentElement.style.fontSize to the percentage
+      form of fontScale on mount and whenever fontScale changes. The
+      effect cleanup resets the inline style to '' on unmount so the
+      browser falls back to its default size. This means even on a
+      fresh page load, the persisted-then-restored fontScale value is
+      applied before the player interacts with the Menu.
+    inputs:
+      - 'GameScreen mounts'
+      - 'state.fontScale changes between renders'
+    outputs:
+      - 'document.documentElement.style.fontSize is kept in sync with state.fontScale'
+      - 'on GameScreen unmount the inline style is cleared'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: unrecognized-scale-falls-back-to-medium-label
+    description: >
+      If state.fontScale somehow holds a value not in FONT_SCALE_LABELS
+      (e.g. a corrupted save or a future preset), the Menu button
+      label reads "Medium" (the ?? 'Medium' fallback). The numeric
+      value is still applied to the document root font-size; only the
+      human-readable label degrades.
+    expected: >
+      Button displays "Font: Medium" while the document root still uses
+      the actual fontScale percentage. Clicking the button still cycles
+      to the next preset in FONT_SCALES based on its indexOf result —
+      if the value is not in FONT_SCALES, indexOf returns -1 and the
+      next preset becomes FONT_SCALES[0] (Small).
+
+  - id: cycle-wraps-from-large-to-small
+    description: >
+      Player clicks the Font button while state.fontScale === 1.5
+      (Large). The cycle should wrap back to 1 (Small) rather than
+      stop or go out of bounds.
+    expected: >
+      state.fontScale becomes 1, the label updates to "Small", and the
+      document root font-size becomes "100%".
+
+  - id: scale-survives-serialization
+    description: >
+      A GameState with state.fontScale === 1.5 is serialized and
+      deserialized. The restored state preserves the numeric value.
+    expected: >
+      Restored state.fontScale === 1.5. On the next GameScreen mount
+      the useEffect applies 150% to the document root immediately.
+
+failure_conditions:
+  - trigger: 'state.fontScale is set to a value not in FONT_SCALES'
+    expected: >
+      The CSS percentage still applies (any positive number works as a
+      font-size), but the Menu label falls back to "Medium" and the
+      next cycle jumps to Small. There is no runtime validation — the
+      preset list is conventional, not enforced.
+
+  - trigger: 'GameScreen unmounts mid-game'
+    expected: >
+      The useEffect cleanup resets document.documentElement.style.fontSize
+      to '' so the page falls back to the browser default. This matters
+      for hot-reload during development; in production the GameScreen
+      lives for the full session.
+
+verification:
+  test_file: src/components/__tests__/Menu.test.tsx
+  test_pattern: 'font'
+  command: npx vitest run src/components/__tests__/Menu.test.tsx
