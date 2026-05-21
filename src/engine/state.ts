@@ -137,7 +137,6 @@ export const createGameState = (
     mapHeight: MAP_HEIGHT,
     player: { x: playerX, y: playerY },
     backpack,
-    openContainer: null,
     playerFacing: 'down',
     facingEntityPos: null,
     camera: {

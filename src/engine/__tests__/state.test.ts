@@ -50,11 +50,6 @@ describe('createGameState', () => {
     expect(state.giftsReceived.size).toBe(0)
   })
 
-  it('starts with no open containers', () => {
-    const state = createGameState('Willow', 80, 40)
-    expect(state.openContainer).toBeNull()
-  })
-
   it('starts with no bee entities', () => {
     const state = createGameState('Willow', 80, 40)
     const bees = state.world

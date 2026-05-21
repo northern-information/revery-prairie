@@ -158,7 +158,6 @@ describe('executeCombine', () => {
       height: 5,
       items: [],
     }
-    state.openContainer = otherContainer
 
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(otherContainer, 'clover', 0, 0)

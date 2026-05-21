@@ -120,7 +120,7 @@ describe('InventoryPanel', () => {
     expect(panel?.className).not.toMatch(/overflow-(y-)?(auto|scroll)/)
   })
 
-  it('does not render open container when null', () => {
+  it('renders exactly one container grid (the backpack)', () => {
     const state = createGameState('Test', 80, 40)
     render(
       <InventoryPanel

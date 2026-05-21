@@ -277,7 +277,6 @@ export interface GameState {
   mapHeight: number
   player: Position
   backpack: Container
-  openContainer: Container | null
   playerFacing: Direction
   facingEntityPos: Position | null
   camera: Position

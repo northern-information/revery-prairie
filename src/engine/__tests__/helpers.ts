@@ -71,7 +71,6 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   state.glintPatches = []
   state.glintOpacity = new Map()
   state.lastGlintSpawnTime = 0
-  state.openContainer = null
   state.playerFacing = 'down'
   state.facingEntityPos = null
   state.discoveredRecipes = new Set()

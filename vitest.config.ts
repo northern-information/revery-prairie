@@ -7,14 +7,16 @@ const alias = {
 
 // Worker / timeout settings tuned to prevent the `Timeout calling "onTaskUpdate"`
 // flake we hit on CI under load. The engine suite spawns many createGameState
-// calls (~1s each under contention); when vitest's default thread pool spawns
-// more workers than the runner has vCPUs (GitHub-hosted runners = 4), workers
-// stall waiting for CPU and miss the default rpc heartbeat. Capping threads
-// matches CI vCPU count and gives slow tests room without changing semantics.
+// calls (~1s each under contention); on the default threads pool, workers can
+// starve the event loop long enough to miss the inter-process RPC heartbeat
+// even when total CPU is bounded. Switching to the forks pool gives each worker
+// its own process so the heartbeat is independent of test workload. Cap forks
+// at the GitHub-hosted runner vCPU count (4) for the same reason as before.
+const POOL = 'forks' as const
 const POOL_OPTS = {
-  threads: {
-    maxThreads: 4,
-    minThreads: 1,
+  forks: {
+    maxForks: 4,
+    minForks: 1,
   },
 } as const
 
@@ -32,6 +34,7 @@ export default defineConfig({
           name: 'engine',
           environment: 'node',
           globals: true,
+          pool: POOL,
           poolOptions: POOL_OPTS,
           testTimeout: TEST_TIMEOUT_MS,
           hookTimeout: HOOK_TIMEOUT_MS,
@@ -52,6 +55,7 @@ export default defineConfig({
           environment: 'jsdom',
           globals: true,
           setupFiles: ['./src/test/setup.ts'],
+          pool: POOL,
           poolOptions: POOL_OPTS,
           testTimeout: TEST_TIMEOUT_MS,
           hookTimeout: HOOK_TIMEOUT_MS,
