@@ -4,6 +4,7 @@ priority: low
 layer: integration
 source_files:
   - src/engine/render/passes/filmGrainOverlay.ts
+  - src/engine/render/passes/zoneTransitionOverlay.ts
   - src/engine/render/passes/index.ts
   - src/styles/index.css
   - src/components/ScanResultModal.tsx
@@ -147,6 +148,23 @@ behaviors:
       - 'a flora specimen is scanned and the ScanResultModal renders'
     outputs:
       - 'scan-result-content element carries the film-grain-overlay class'
+    state_changes: []
+    determinism: deterministic
+
+  - id: grain-applied-to-zone-transition-overlay
+    description: >
+      The canvas `zoneTransitionOverlay` pass (which renders the
+      ruins↔overworld and cave↔overworld fade cards) draws the grain
+      pattern on top of its `BG_COLOR` fill at ~0.4 alpha
+      (multiplied by the transition's tween alpha). The grain image
+      is sourced from the singleton in `filmGrainOverlay.ts` via the
+      exported `getGrainImage` accessor — no second image load.
+      When grain hasn't loaded yet, the pass falls through cleanly
+      without grain.
+    inputs:
+      - 'a zone transition is in progress (state.zoneTransition is non-null)'
+    outputs:
+      - 'transition card BG includes grain texture matching the canvas world overlay and the boot title card'
     state_changes: []
     determinism: deterministic
 

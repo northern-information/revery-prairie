@@ -6,9 +6,15 @@ import {
 } from '../../constants'
 import { RuinArchetype } from '../../types'
 import { registerPass } from '../passes'
+import { getGrainImage } from './filmGrainOverlay'
 
 import type { CharMetrics, GameState, ZoneTransition } from '../../types'
 import type { RenderPass } from '../passes'
+
+/** Alpha applied to the grain texture on top of the BG_COLOR fill. Matches
+ * the `film-grain-overlay-strong` CSS class used on the boot title card —
+ * pure-black backgrounds need stronger grain to read. */
+const ZONE_TRANSITION_GRAIN_ALPHA = 0.4
 
 const ZONE_LABEL_COLOR = '#d8a860'
 // Title Case per writing-style rule for in-game entry names.
@@ -70,6 +76,23 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   ctx.globalAlpha = alpha
   ctx.fillStyle = BG_COLOR
   ctx.fillRect(0, 0, pxWidth, pxHeight)
+
+  // Film grain on top of the BG fill so the zone transition reads with
+  // the same texture as the world canvas and the boot title card. Falls
+  // through cleanly when the grain image hasn't loaded yet — the
+  // transition still renders, just without grain.
+  const grainImage = getGrainImage()
+  if (grainImage !== null) {
+    const prevFillStyle = ctx.fillStyle
+    const pattern = ctx.createPattern(grainImage, 'repeat')
+    if (pattern !== null) {
+      ctx.globalAlpha = alpha * ZONE_TRANSITION_GRAIN_ALPHA
+      ctx.fillStyle = pattern
+      ctx.fillRect(0, 0, pxWidth, pxHeight)
+      ctx.globalAlpha = alpha
+    }
+    ctx.fillStyle = prevFillStyle
+  }
 
   // Destination zone label — centered, Times New Roman italic, gold.
   // Same triangle-wave alpha as the overlay so the text rides the
