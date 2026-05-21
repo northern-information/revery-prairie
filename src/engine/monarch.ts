@@ -49,6 +49,10 @@ export const spawnMonarch = (state: GameState, x: number, y: number): Entity => 
     waypoint: null,
     lastPollinateTime: 0,
   })
+  // Precis #17 — empty PollenBag at creation. Bee-mediated pollination
+  // (src/engine/beePollination.ts) reads and writes this on movement
+  // ticks.
+  state.world.addComponent(e, ComponentType.PollenBag, { loads: [] })
   return e
 }
 
@@ -59,6 +63,8 @@ export const spawnBee = (state: GameState, x: number, y: number, zone?: Zone): E
   state.world.addComponent(e, ComponentType.EntityTag, 'bee')
   state.world.addComponent(e, ComponentType.EntityZone, zone !== undefined ? { zone } : getCurrentEntityZone(state))
   state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
+  // Precis #17 — empty PollenBag at creation.
+  state.world.addComponent(e, ComponentType.PollenBag, { loads: [] })
   return e
 }
 

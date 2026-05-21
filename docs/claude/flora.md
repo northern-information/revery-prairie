@@ -8,7 +8,31 @@ three flora species share `TileType.Flora`: clover (Trifolium repens, `%` green)
 
 per-species visual identity (glyph, color, displayName, latinBinomial) lives in `FLORA_SPECIES` in `src/engine/flora/species.ts`. the renderer reads glyph + healthy color from this registry via the `species` field on the floraLifecycle entry. wind-sway and pollen registries are keyed by tile type — they're shared across species. pollen emission is biased per plant by `traits.pollinatorPreference` (precis #7): `emitProb *= 0.5 + 0.5 * trait`. high-preference plants emit visibly more pollen than their siblings; winter dormancy still suppresses emission for all species.
 
-genesis seeds clover via the epoch chain. wildflower and tall grass are scattered in `postProcessMultiSpeciesFlora` (6-10 patches each, 2-4 tiles per patch) on walkable dirt after the epoch chain runs. determinism is preserved — same steward name produces the same patch layout via `sim.rng`. wildflower and tall grass do not self-propagate in this PR (no growth-preview system). they persist or die per the shared lifecycle.
+genesis seeds clover via the epoch chain. wildflower and tall grass are scattered in `postProcessMultiSpeciesFlora` (6-10 patches each, 2-4 tiles per patch) on walkable dirt after the epoch chain runs. determinism is preserved — same steward name produces the same patch layout via `sim.rng`. all three species self-propagate at runtime via the precis #17 spread engine.
+
+## autonomous spread (precis #17)
+
+all three species spread on their own via a single species-agnostic engine in `src/engine/flora/spread.ts`. each species ships a `SpeciesSpreadConfig` (`flora/type/<species>/spread.ts`) declaring growth chance, max-per-tick cap, winter dormancy, pollinator-adjacency requirement, and a `selectGrowthTargets(state, patches)` selector. the game loop calls `tickSpeciesSpread(state, time, config)` per species per scheduled interval. species-specific behavior lives only in the configs and selectors; the engine has no species-aware branches.
+
+- **clover** — spiral-front growth (extracted from `clover.ts`). requires a bee within range. winter-dormant. preserves existing rates.
+- **wildflower** — pollinator-biased radial. `Chebyshev ≤ 3` from any bee or monarch filters candidate Dirt neighbors. winter-dormant. ~0.6x clover rate.
+- **tall grass** — uniform rhizome. no pollinator filter. winter-dormant. slowest of the three (~0.3x clover) so it doesn't dominate.
+
+per-species preview queues live in `state.floraGrowthPreviews: Map<FloraSpecies, Set<string>>` — wildflower previews never commit as clover and vice versa. `src/engine/floraGrowthPreviews.ts` owns the helpers; never read or write the map directly.
+
+## lineage propagation
+
+`applyParentLineage(parentIdentity, binomial, childKey, time)` produces the child's identity via `generateRuntimeIdentity(`${binomial}:spread:${parentIdentity?.slice(0, 8) ?? 'genesis'}`, childKey, time)`. the shared 8-hex prefix in the SHA input means descendants share family-resemblance regions in the identity-derived hex grid (per `docs/claude/genetics.md`). traits are generated fresh from the child identity unless the parent had `primedPollen` set, in which case `crossTraitBags(parent, primedPollen, rng)` runs and `crossDonorPrefix` is recorded. drift is implicit in the hash — there's no separate mutation function. orphaned previews (parent died same tick) fall back to a `'genesis'` literal seed.
+
+## ceremony wave (bee+clover combine)
+
+the bee+clover recipe no longer stamps a 3x3 patch. it generates a `seedIdentity`, places one clover tile at the player position carrying that identity, enqueues a `WaveEmission` into `state.activeWaves`, and spawns an unbound bee. `src/engine/floraWaves.ts` advances the wave radius every `CEREMONY_WAVE_TICK_MS`, painting clover tiles along a `cellNoise`-jittered annulus (organic boundary, ~150 tiles by `CEREMONY_WAVE_RADIUS = 8`). children inherit lineage from `seedIdentity`. pollen-burst `TimedEffect`s spawn 2-4 per tick on the leading edge. waves remove themselves from `state.activeWaves` when they paint no new tiles past `maxRadius`.
+
+## bee-mediated pollination
+
+bees and monarchs carry a `PollenBag` ECS component (`POLLEN_BAG_CAPACITY = 4`, LIFO eviction, cross-species mixing allowed). `src/engine/beePollination.ts` runs after movement: visiting a flora tile pushes a `PollenLoad` `{ identity, traits, species }` if it's not already at the top of the bag. if the bag already holds a matching-species load of a different identity, the visited tile's `primedPollen` is set to the most-recent matching load (father = pollen, mother = visited tile). primed tiles cross with their pollen donor on their next spread. bees within `Chebyshev-1` of a beehive deposit their bag (cleared to `[]`).
+
+note: `src/engine/flora/actions/pollinate.ts` (existing) governs visual pollen-particle drift driven by wind — unrelated to bee-mediated genetic crossing. don't conflate the two.
 
 clover-specific behaviors retained per precis #1:
 

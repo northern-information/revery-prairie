@@ -6,6 +6,7 @@ import { combineFromBackpack } from '@/engine/combine'
 import { ComponentType } from '@/engine/ecs/types'
 import { completeGenesis } from '@/engine/genesis'
 import { placeItem } from '@/engine/inventory'
+import { posKey } from '@/engine/position'
 import { worldToScreen } from '@/engine/projection'
 import { createGameState } from '@/engine/state'
 import { Season, Sky, TileType } from '@/engine/types'
@@ -92,15 +93,27 @@ describe('Sidebar', () => {
     expect(screen.getByText('Yes')).toBeInTheDocument()
   })
 
-  it('shows clover count after combining', () => {
+  it('shows clover count after combining (precis-17 ceremony seed is a single tile)', () => {
     const state = createGameState('Test', 20, 20)
     completeGenesis(state)
-    // Ensure 3x3 around player is dirt
+    // Ensure 3x3 around player is dirt — and clear any clover that
+    // genesis may have placed there.
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Dirt }
+        state.floraLifecycle.delete(posKey(state.player.x + dx, state.player.y + dy))
       }
     }
+    // Zero out any leftover clover globally so the sidebar count starts at 0.
+    for (const row of state.map) {
+      for (let x = 0; x < row.length; x++) {
+        if (row[x].type === TileType.Flora) {
+          row[x] = { type: TileType.Dirt }
+        }
+      }
+    }
+    state.floraLifecycle.clear()
+
     stockBackpackForCombine(state)
     combineFromBackpack(state, 'bee', 'clover')
     render(
@@ -112,7 +125,13 @@ describe('Sidebar', () => {
       />
     )
 
-    expect(screen.getByText('9')).toBeInTheDocument()
+    // The ceremony seeds exactly one clover tile at the player position.
+    // Wave-painted tiles arrive on subsequent tickFloraWaves calls,
+    // which this test does not run. Multiple cells render "1" (bees,
+    // wave count, etc.), so scope the assertion to the Clover row's
+    // value cell via its text-clover class.
+    const cloverCell = document.querySelector('td.text-clover.text-right')
+    expect(cloverCell?.textContent).toBe('1')
   })
 
   it('shows bee count after combining', () => {

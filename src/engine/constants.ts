@@ -514,3 +514,32 @@ export const INVENTORY_CELL_SIZE = 28
 // aborts the scan; releasing at or after commits.
 export const SCAN_DURATION_MS = 1500
 
+// Precis #17 — wildflower spread. Pollinator-gated rhizome-style growth via
+// the species-agnostic spread engine. Rates are derived from clover: ~0.6x
+// CLOVER_BASE_GROWTH_CHANCE so wildflower expands slower than clover even
+// when pollinators are abundant. Playtest-tunable.
+export const WILDFLOWER_BASE_GROWTH_CHANCE = 0.03
+export const WILDFLOWER_MAX_GROWTH_PER_TICK = 2
+
+// Precis #17 — tall grass spread. Pollinator-independent rhizome growth.
+// Slowest of the three species — ~0.3x CLOVER_BASE_GROWTH_CHANCE — because
+// it spreads in any conditions and would otherwise dominate the prairie.
+export const TALLGRASS_BASE_GROWTH_CHANCE = 0.015
+export const TALLGRASS_MAX_GROWTH_PER_TICK = 2
+
+// Precis #17 — bee+clover ceremony wave. The combine produces a slow
+// ceremonial radial wave that paints ~150 tiles of clover with jittered
+// boundaries via cellNoise. Single-cast; the wave is removed from
+// state.activeWaves once it stops painting new tiles.
+export const CEREMONY_WAVE_RADIUS = 8
+export const CEREMONY_WAVE_TICK_MS = 250
+
+// Precis #17 — bee pollen bag (PollenBag ECS component). LIFO eviction
+// when full; cross-species mixing allowed. Bees empty their bag when
+// within Chebyshev-1 of a beehive.
+export const POLLEN_BAG_CAPACITY = 4
+
+// Precis #17 — pollen burst TimedEffect. Spawned 2-4 per tick on the
+// leading annulus of an active ceremony wave. Fades over this duration.
+export const POLLEN_BURST_DURATION_MS = 600
+

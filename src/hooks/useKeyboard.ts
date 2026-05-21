@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { dropItem } from '@/engine/entities'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import { keyToScreenAxis, resolveHeldDirection } from '@/engine/heldKeys'
+import { recordDiscovery } from '@/engine/manual'
 import { selectScanTarget } from '@/engine/scan'
 import {
   advanceDialog,
@@ -15,7 +16,7 @@ import {
   unlockRuinDoor,
   updateFacingEntity,
 } from '@/engine/interaction'
-import { DeepTimePhase, Zone } from '@/engine/types'
+import { DeepTimePhase, OverlayMode, Zone } from '@/engine/types'
 import { isInputGated } from '@/engine/zoneTransition'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
@@ -251,6 +252,32 @@ export const useKeyboard = ({
       if (e.key === '`' && import.meta.env.DEV) {
         state.devPanelOpen = !state.devPanelOpen
         refreshUI()
+        return
+      }
+
+      // Precis #17 — overlay view modes. [1] default, [2] family-tree
+      // lineage overlay (records the discovery on first press), [3]
+      // placeholder for the future root/mycelium view (no-op — logs in
+      // DEV but does not change overlayMode; a toast surface isn't in
+      // the codebase yet, so the placeholder UI is deferred until one
+      // lands).
+      if (e.key === '1') {
+        state.overlayMode = OverlayMode.Default
+        refreshUI()
+        return
+      }
+      if (e.key === '2') {
+        state.overlayMode = OverlayMode.FamilyTree
+        recordDiscovery(state, 'event:lineage-overlay-toggled')
+        refreshUI()
+        return
+      }
+      if (e.key === '3') {
+        // Placeholder for the root/mycelium overlay (reserved for a
+        // future precis). Consumed so it doesn't fall through to other
+        // handlers, but overlayMode is not changed. No toast surface
+        // exists in the codebase yet; this becomes a visible "not yet"
+        // hint once one lands.
         return
       }
 

@@ -174,6 +174,15 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   // Events — endgame
   'event:rescue-coyote': { lore: 'TODO' },
   'event:steward-sealed': { lore: 'TODO' },
+  // Events — precis #17 (autonomous flora spread + ceremony + pollination)
+  // Lore is human-authored only; placeholders land here so recordDiscovery
+  // surfaces the entries on first trigger.
+  'event:flora-spread': { lore: 'TODO' },
+  'event:ceremony-cast': { lore: 'TODO' },
+  'event:cross-pollinated': { lore: 'TODO' },
+  'event:lineage-overlay-toggled': { lore: 'TODO' },
+  'event:wildflower-growth': { lore: 'TODO' },
+  'event:tallgrass-growth': { lore: 'TODO' },
 }
 
 // --- Lore lookup for UI components ---
