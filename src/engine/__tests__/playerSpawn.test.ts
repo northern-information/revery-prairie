@@ -1,10 +1,11 @@
+import { updateCamera } from '../camera'
 import { spawnShootingStarAtTarget, tickMeteorShower, tickShootingStars, triggerPlayerSpawnShower } from '../celestial'
-import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
+import { MAP_HEIGHT, MAP_WIDTH, SATELLITE_SHAKE_DURATION_MS } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { completeGenesis } from '../genesis'
 import { createGameState } from '../state'
 import { TileType } from '../types'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { GameState, Position } from '../types'
 
@@ -90,6 +91,10 @@ describe('player spawn ceremony', () => {
   })
 
   describe('emerge on impact', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
     it('flips visible to true and creates an explosion when the spawn star lands', () => {
       const state = createGameState('Test', 40, 30)
       destroyAllStars(state)
@@ -123,20 +128,148 @@ describe('player spawn ceremony', () => {
       expect(explosions.length).toBeGreaterThan(0)
     })
 
-  })
-
-  describe('shower direction matches player meteor', () => {
-    it('player-spawn star uses the shower radiant direction', () => {
+    it('tags the impact explosion with kind stewardImpact (pink palette)', () => {
       const state = createGameState('Test', 40, 30)
       destroyAllStars(state)
+      clearAroundTile(state, state.player)
+      const eid = spawnShootingStarAtTarget(
+        state,
+        state.player,
+        { dx: 1, dy: 1 },
+        { forPlayerSpawn: true, backtrackTiles: 1 }
+      )
+      state.playerSpawn.meteorEntityId = eid
+      state.playerSpawn.spawnPos = { ...state.player }
+      state.playerSpawn.triggeredAt = 100
+      state.playerSpawn.visible = false
 
+      tickShootingStars(state, 200)
+
+      const explosionKinds = state.world
+        .query(ComponentType.TimedEffect, ComponentType.EntityTag)
+        .filter(e => state.world.getComponent(e, ComponentType.EntityTag) === 'explosion')
+        .map(e => state.world.getComponent(e, ComponentType.TimedEffect)?.kind)
+      expect(explosionKinds).toContain('stewardImpact')
+    })
+
+    it('triggers screen shake on steward impact (same duration as a satellite impact)', () => {
+      const state = createGameState('Test', 40, 30)
+      destroyAllStars(state)
+      clearAroundTile(state, state.player)
+      const eid = spawnShootingStarAtTarget(
+        state,
+        state.player,
+        { dx: 1, dy: 1 },
+        { forPlayerSpawn: true, backtrackTiles: 1 }
+      )
+      state.playerSpawn.meteorEntityId = eid
+      state.playerSpawn.spawnPos = { ...state.player }
+      state.playerSpawn.triggeredAt = 100
+      state.playerSpawn.visible = false
+      state.screenShakeUntil = 0
+
+      tickShootingStars(state, 200)
+
+      expect(state.screenShakeUntil).toBe(200 + SATELLITE_SHAKE_DURATION_MS)
+    })
+  })
+
+  describe('steward star direction', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('always uses fixed { dx: 1, dy: 1 } regardless of shower radiant', () => {
+      // Force pickRadiantDirection to land on a NON-{1,1} entry. The
+      // RADIANT_DIRECTIONS list places {1,1} at index 0; Math.random()=0.99
+      // picks the last entry { dx: 0, dy: -1 }. Both axes therefore differ
+      // from the steward star's heading, proving decoupling.
+      vi.spyOn(Math, 'random').mockReturnValue(0.99)
+
+      const state = createGameState('Test', 40, 30)
+      destroyAllStars(state)
       triggerPlayerSpawnShower(state, state.player, 100)
+
       const eid = state.playerSpawn.meteorEntityId
       expect(eid).not.toBeNull()
       if (eid === null) return
       const vel = state.world.getComponent(eid, ComponentType.Velocity)
-      expect(vel?.dx).toBe(state.meteorShower.radiantDx)
-      expect(vel?.dy).toBe(state.meteorShower.radiantDy)
+      expect(vel?.dx).toBe(1)
+      expect(vel?.dy).toBe(1)
+      // And the shower itself picked a different radiant.
+      expect(state.meteorShower.radiantDx === 1 && state.meteorShower.radiantDy === 1).toBe(false)
+    })
+  })
+
+  describe('camera follows the steward star', () => {
+    it('centers the camera on the star Position while playerSpawn.visible is false', () => {
+      const state = createGameState('Test', 40, 30)
+      destroyAllStars(state)
+      // Steward star positioned far from the player; camera should follow it, not the player.
+      const eid = state.world.createEntity()
+      state.world.addComponent(eid, ComponentType.Position, { x: 5, y: 7 })
+      state.world.addComponent(eid, ComponentType.Velocity, { dx: 1, dy: 1 })
+      state.world.addComponent(eid, ComponentType.ShootingStarData, {
+        length: 4,
+        age: 0,
+        willLand: true,
+        landingTarget: { ...state.player },
+        forPlayerSpawn: true,
+      })
+      state.world.addComponent(eid, ComponentType.EntityTag, 'shootingStar')
+      state.playerSpawn.meteorEntityId = eid
+      state.playerSpawn.spawnPos = { ...state.player }
+      state.playerSpawn.visible = false
+      state.playerSpawn.triggeredAt = 50
+
+      updateCamera(state)
+
+      const visibleWidth = state.viewportWidth - state.rightInsetTiles
+      const expectedX = 5 - Math.floor(visibleWidth / 2)
+      const expectedY = 7 - Math.floor(state.viewportHeight / 2)
+      expect(state.camera.x).toBe(expectedX)
+      expect(state.camera.y).toBe(expectedY)
+    })
+
+    it('falls back to player tracking when meteorEntityId references a missing entity', () => {
+      const state = createGameState('Test', 40, 30)
+      destroyAllStars(state)
+      state.playerSpawn.meteorEntityId = 999999
+      state.playerSpawn.spawnPos = { ...state.player }
+      state.playerSpawn.visible = false
+
+      updateCamera(state)
+
+      const visibleWidth = state.viewportWidth - state.rightInsetTiles
+      const expectedX = state.player.x - Math.floor(visibleWidth / 2)
+      const expectedY = state.player.y - Math.floor(state.viewportHeight / 2)
+      expect(state.camera.x).toBe(expectedX)
+      expect(state.camera.y).toBe(expectedY)
+    })
+
+    it('uses standard player tracking once playerSpawn.visible flips to true', () => {
+      const state = createGameState('Test', 40, 30)
+      destroyAllStars(state)
+      // Star entity exists but visible is true — camera ignores the star.
+      const eid = state.world.createEntity()
+      state.world.addComponent(eid, ComponentType.Position, { x: 5, y: 7 })
+      state.world.addComponent(eid, ComponentType.Velocity, { dx: 1, dy: 1 })
+      state.world.addComponent(eid, ComponentType.ShootingStarData, {
+        length: 4,
+        age: 0,
+        willLand: true,
+        landingTarget: { ...state.player },
+        forPlayerSpawn: true,
+      })
+      state.world.addComponent(eid, ComponentType.EntityTag, 'shootingStar')
+      state.playerSpawn.meteorEntityId = eid
+      state.playerSpawn.visible = true
+
+      updateCamera(state)
+
+      const visibleWidth = state.viewportWidth - state.rightInsetTiles
+      const expectedX = state.player.x - Math.floor(visibleWidth / 2)
+      expect(state.camera.x).toBe(expectedX)
     })
   })
 

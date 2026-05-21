@@ -7,6 +7,7 @@ source_files:
   - src/engine/celestial.ts
   - src/engine/gameLoop.ts
   - src/engine/renderer.ts
+  - src/engine/camera.ts
   - src/engine/types.ts
   - src/engine/constants.ts
 dependencies:
@@ -97,29 +98,124 @@ behaviors:
       when the spawn-targeted shooting star lands (matched via
       playerSpawn.meteorEntityId), the star's tickShootingStars
       handler suppresses the meteorite ground-item drop, still spawns
-      the explosion TimedEffect entity, flips playerSpawn.visible to
-      true, and enqueues a log entry reading "steward {stewardName}
-      falls to the prairie" at the impact tile. a pickupBloom is NOT
-      spawned — the explosion alone marks the arrival. immediately
-      afterward the player becomes interactable: the renderer draws
-      the glyph, the cursor recognizes the tile, and movement is
-      accepted.
+      the explosion TimedEffect entity (tagged so the renderer uses
+      the steward pink palette — see steward-impact-color), flips
+      playerSpawn.visible to true, sets state.screenShakeUntil =
+      time + SATELLITE_SHAKE_DURATION_MS so the impact shakes the
+      camera identically to a satellite impact, and enqueues a log
+      entry reading "steward {stewardName} falls to the prairie" at
+      the impact tile. a pickupBloom is NOT spawned — the explosion
+      alone marks the arrival. immediately afterward the player
+      becomes interactable: the renderer draws the glyph, the cursor
+      recognizes the tile, and movement is accepted.
     inputs:
       - 'tickShootingStars resolves a star whose entity id matches playerSpawn.meteorEntityId'
     outputs:
-      - 'explosion entity created at the spawn tile'
+      - 'explosion entity created at the spawn tile, flagged for the steward pink palette'
       - 'no meteorite ground-item entity created'
+      - 'screen shake triggered for SATELLITE_SHAKE_DURATION_MS'
       - '"steward {stewardName} falls to the prairie" log entry queued'
     state_changes:
       - field: playerSpawn.visible
         effect: 'flipped to true'
       - field: playerSpawn.meteorEntityId
         effect: 'cleared to null'
+      - field: screenShakeUntil
+        effect: 'set to time + SATELLITE_SHAKE_DURATION_MS so the renderer shakes the canvas'
       - field: world
-        effect: 'shooting star entity destroyed; explosion entity created'
+        effect: 'shooting star entity destroyed; steward-flagged explosion entity created'
       - field: queuedEvents
         effect: 'arrival log entry appended with stewardName interpolated'
     determinism: time-based
+
+  - id: steward-star-fixed-direction
+    description: >
+      the steward's spawn-targeted star always descends along the
+      iso "straight down the screen" axis — world velocity
+      { dx: +1, dy: +1 }. this is independent of the shower radiant
+      that governs the rest of the spawn shower (see shooting-stars
+      spec, player-spawn-shower-trigger). triggerPlayerSpawnShower
+      passes this fixed direction to spawnShootingStarAtTarget for
+      the forPlayerSpawn star only; non-steward stars in the same
+      shower continue to use the shower's random radiant. rationale —
+      with iso projection screenPx = (worldX - worldY) * cw and
+      screenPy = (worldX + worldY) * halfH, dx === dy keeps screen X
+      constant while screen Y advances, so the star reads as falling
+      straight down regardless of where on the map the player spawns.
+      the steward's star starts off-map at
+      (spawnPos.x - backtrackTiles, spawnPos.y - backtrackTiles) —
+      the iso "north" corner — and descends to the spawn tile.
+    inputs:
+      - 'triggerPlayerSpawnShower called with spawnPos and time'
+    outputs:
+      - 'steward star spawned with velocity { dx: 1, dy: 1 }'
+    state_changes:
+      - field: world
+        effect: 'shooting star ECS entity created with Velocity { dx: 1, dy: 1 } and Position offset (-backtrackTiles, -backtrackTiles) from spawnPos'
+    determinism: deterministic
+
+  - id: steward-star-color
+    description: >
+      the steward's spawn-targeted star renders in the UI-pink
+      palette to mark it as a user-arrival event, not a world entity.
+      head uses STEWARD_STAR_HEAD_COLOR ('#ff69b4'); trail uses
+      STEWARD_STAR_TRAIL_COLORS — a 5-step pink-to-dark-pink gradient
+      analogous to SHOOTING_STAR_TRAIL_COLORS' white-to-gray ramp.
+      detection in renderer.ts uses the ShootingStarData.forPlayerSpawn
+      flag — only the steward star is recolored; ambient and shower
+      stars retain SHOOTING_STAR_HEAD_COLOR / SHOOTING_STAR_TRAIL_COLORS
+      unchanged. this is a documented one-off carve-out from the
+      CLAUDE.md rule reserving UI pink for user actions; only the
+      steward star qualifies because it delivers the player.
+    inputs:
+      - 'render frame with a forPlayerSpawn-flagged shooting star entity present'
+    outputs:
+      - 'steward star head and trail drawn with UI-pink palette'
+      - 'all other shooting stars unchanged (white head, gray trail)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: steward-impact-color
+    description: >
+      the steward star's impact explosion renders in the UI-pink
+      palette instead of the gold EXPLOSION_COLORS used for satellites
+      and ordinary meteor strikes. the explosion TimedEffect created
+      by the forPlayerSpawn star carries kind 'stewardImpact'; the
+      explosion render pass branches on that kind to read
+      STEWARD_EXPLOSION_COLORS (a 5-step pink-to-dark-pink ramp
+      mirroring EXPLOSION_COLORS' gold ramp). EXPLOSION_CHARS and
+      EXPLOSION_RADIUS/EXPLOSION_DURATION_MS are reused — only the
+      colors differ. chain explosions and satellite explosions
+      continue to use EXPLOSION_COLORS unchanged.
+    inputs:
+      - 'render frame with an explosion entity of kind stewardImpact present'
+    outputs:
+      - 'steward impact explosion drawn with UI-pink palette'
+      - 'satellite and chain explosions unchanged (gold palette)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: camera-follow-steward-star
+    description: >
+      while playerSpawn.visible is false and playerSpawn.meteorEntityId
+      is non-null and references a live shooting-star entity,
+      updateCamera centers on the steward star's current Position
+      rather than state.player. on the impact tick the star entity is
+      destroyed and playerSpawn.visible flips to true in the same
+      frame; from the next updateCamera call onward the camera
+      resumes its normal state.player-tracking behavior, with the
+      player tile already centered (because spawnPos === state.player
+      and the star landed there). the camera does not lerp during the
+      descent — it snaps to the star's integer tile each frame, the
+      same as how it follows the player. the right-inset and small-map
+      branches in updateCamera apply unchanged.
+    inputs:
+      - 'updateCamera called while playerSpawn.visible === false and meteorEntityId references a live shooting star'
+    outputs: []
+    state_changes:
+      - field: camera
+        effect: 'centered on the steward star Position component (with viewport half-extent offset) instead of state.player'
+    determinism: deterministic
 
   - id: multiplayer-generic-trigger
     description: >
@@ -183,6 +279,34 @@ edge_cases:
       multiple gameLoop ticks fire before triggeredAt is observed by
       the next tick.
     expected: 'guard on playerSpawn.triggeredAt !== 0 prevents a second shower trigger'
+
+  - id: steward-star-direction-independent-of-shower
+    description: >
+      pickRadiantDirection picks any of the 8 RADIANT_DIRECTIONS for
+      the surrounding shower's other stars, including directions that
+      do not match the steward star's fixed { 1, 1 } heading.
+    expected: 'steward star always uses { dx: 1, dy: 1 } regardless of the radiant the shower selected; other shower stars continue to use the random shower radiant'
+
+  - id: steward-star-near-map-edge
+    description: >
+      hypothetical future spawn tile near the NW corner of the map
+      (small spawnPos.x and spawnPos.y) where backtrackTiles would
+      place the star deep into negative coordinates.
+    expected: 'star still spawns at (spawnPos.x - backtrackTiles, spawnPos.y - backtrackTiles); negative starting positions are valid because tickShootingStars only enforces walkability at the landing tile, not in transit'
+
+  - id: camera-follow-fallback-on-missing-star
+    description: >
+      playerSpawn.visible === false but the steward star entity has
+      been destroyed (off-map fallback path) and meteorEntityId was
+      cleared in the same tick.
+    expected: 'updateCamera falls back to state.player tracking on the same tick the entity is destroyed, because the camera-follow branch requires both visible === false AND a live entity'
+
+  - id: impact-shake-during-deep-time
+    description: >
+      hypothetical race where deep time activates between the steward
+      star spawn and its impact. deep time already drives its own
+      shake via deepTime.shakeUntil.
+    expected: 'steward impact still writes state.screenShakeUntil; renderer composes both shakes via the same shakeActive branch and amplitude (SATELLITE_SHAKE_AMPLITUDE) — no special-case stacking'
 
 failure_conditions:
   - trigger: 'spawn-targeted star is destroyed off-map before reaching its target'

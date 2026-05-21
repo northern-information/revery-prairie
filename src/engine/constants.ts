@@ -117,6 +117,12 @@ export const SHOOTING_STAR_HEAD_CHAR = '*'
 export const SHOOTING_STAR_HEAD_COLOR = '#FFFFFF'
 export const SHOOTING_STAR_TRAIL_COLORS = ['#CCC', '#999', '#666', '#444', '#222']
 
+// Steward (player-spawn) star palette — UI pink carve-out documented in
+// player-spawn spec, steward-star-color. Only the forPlayerSpawn-flagged
+// star uses these. Ambient and shower stars stay on SHOOTING_STAR_*.
+export const STEWARD_STAR_HEAD_COLOR = '#ff69b4'
+export const STEWARD_STAR_TRAIL_COLORS = ['#ff8fc8', '#e85ba0', '#c4488a', '#9b3870', '#702855']
+
 // direction → trail character (keys are "dx,dy" velocity strings)
 export type VelocityKey = '1,1' | '-1,-1' | '1,-1' | '-1,1' | '1,0' | '-1,0' | '0,1' | '0,-1'
 
@@ -155,6 +161,10 @@ export const EXPLOSION_DURATION_MS = 500 // total explosion lifetime
 export const EXPLOSION_RADIUS = 3 // max radius in tiles
 export const EXPLOSION_CHARS = ['*', '+', '.', '\u00b7'] // particles shrink as they fade
 export const EXPLOSION_COLORS = ['#FFD700', '#FFC125', '#DAA520', '#B8860B', '#8B6914'] // gold → dark gold fade
+
+// Steward impact palette — UI pink ramp mirroring EXPLOSION_COLORS' gold ramp.
+// Used only when the explosion TimedEffect carries kind 'stewardImpact'.
+export const STEWARD_EXPLOSION_COLORS = ['#ff69b4', '#e85ba0', '#c4488a', '#9b3870', '#702855']
 
 // satellites
 export const SATELLITE_TICK_MS = 150 // slower than shooting stars (80ms)

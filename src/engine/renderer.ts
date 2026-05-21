@@ -70,6 +70,9 @@ import {
   SHOOTING_STAR_HEAD_COLOR,
   SHOOTING_STAR_TRAIL_CHARS,
   SHOOTING_STAR_TRAIL_COLORS,
+  STEWARD_EXPLOSION_COLORS,
+  STEWARD_STAR_HEAD_COLOR,
+  STEWARD_STAR_TRAIL_COLORS,
   TILE_CHARS,
   TILE_COLORS,
   TRAIL_DURATION_MS,
@@ -655,10 +658,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const data = state.world.getComponent(eid, ComponentType.ShootingStarData)
     if (!pos || !vel || !data) continue
     const map = data.landingTarget ? targetedStarMap : shootingStarMap
+    // Steward (player-spawn) star uses the UI-pink palette as a documented
+    // one-off; ambient and shower stars keep the white/gray palette.
+    const headColor = data.forPlayerSpawn ? STEWARD_STAR_HEAD_COLOR : SHOOTING_STAR_HEAD_COLOR
+    const trailColors = data.forPlayerSpawn ? STEWARD_STAR_TRAIL_COLORS : SHOOTING_STAR_TRAIL_COLORS
     // Head
     map.set(posKey(pos.x, pos.y), {
       char: SHOOTING_STAR_HEAD_CHAR,
-      color: SHOOTING_STAR_HEAD_COLOR,
+      color: headColor,
     })
     // Trail — step backward along negated velocity. projection rotates
     // world deltas by 45° on screen, so pick a table whose glyphs match the
@@ -669,10 +676,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     for (let t = 1; t <= data.length; t++) {
       const tx = pos.x - vel.dx * t
       const ty = pos.y - vel.dy * t
-      const colorIndex = Math.min(t - 1, SHOOTING_STAR_TRAIL_COLORS.length - 1)
+      const colorIndex = Math.min(t - 1, trailColors.length - 1)
       map.set(posKey(tx, ty), {
         char: trailChar,
-        color: SHOOTING_STAR_TRAIL_COLORS[colorIndex],
+        color: trailColors[colorIndex],
       })
     }
   }
@@ -869,9 +876,12 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const progress = Math.min(elapsed / EXPLOSION_DURATION_MS, 1)
     const currentRadius = Math.floor(progress * EXPLOSION_RADIUS)
     const charIndex = Math.min(Math.floor(progress * EXPLOSION_CHARS.length), EXPLOSION_CHARS.length - 1)
-    const colorIndex = Math.min(Math.floor(progress * EXPLOSION_COLORS.length), EXPLOSION_COLORS.length - 1)
+    // Steward (player-spawn) impacts read the pink palette; all other
+    // explosions keep the gold palette.
+    const palette = effect.kind === 'stewardImpact' ? STEWARD_EXPLOSION_COLORS : EXPLOSION_COLORS
+    const colorIndex = Math.min(Math.floor(progress * palette.length), palette.length - 1)
     const char = EXPLOSION_CHARS[charIndex]
-    const color = EXPLOSION_COLORS[colorIndex]
+    const color = palette[colorIndex]
 
     // Generate particles in a ring at the current radius
     if (currentRadius === 0) {
