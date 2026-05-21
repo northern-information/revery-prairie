@@ -33,6 +33,11 @@ The five lines are the new top of the doctrine. Items already locked in v3 are r
 - **The lineage is the medium** — multiplayer is the lineage of stewards. Other players are not coop partners and not adversaries. They are _predecessors_ and _successors_. Item #16 begins to wire this; v3's existing multiplayer infrastructure becomes the substrate.
 - **The inventory is the character sheet** — all player agency is item-shaped. FromSoft is the touchstone: spells are scrolls, abilities are talismans, the character sheet _is_ the inventory. Revery Prairie was already moving this direction by instinct (no action bar in #0, no event log in #14, wear as the next mechanic in #15); round 7 names the principle. No abilities UI ever. No stats. No skill tree. If a proposed mechanic doesn't have an item, we either find the item or we don't ship the mechanic. Items #23 (time-lapse camera) and #24 (seeded predecessor stewards) are the first specs written under this line.
 
+The doctrine also names, descriptively, two tonal registers the cosmology supports:
+
+- **The melancholy register** is primary. The tone of Dickinson, of patient stewardship, of being honored by how you lose the prairie. Almost all currently-shipped content reads in this register.
+- **The cosmic-horror register** is secondary and **opt-in by placement.** Round 8 admits it formally. The substrate that lets it land is the camera (#23) — found footage is the genre of cosmic horror in a materialist universe. A player who plays a calm tenure and does not seek the seam experiences a melancholic prairie. A player who places cameras adjacent to egregoric tiles, who explores ruins seeking predecessor footage, who deliberately investigates — that player experiences the horror. Same world, two readings.
+
 ## Open and locked
 
 **Locked in v4:**
@@ -427,16 +432,87 @@ The camera is a wearing tool. But the camera's wear is _film count remaining_, n
 
 ---
 
+## Round 8: the cosmic-horror register, found footage, the egregore as appetite
+
+_Tyler: "this is all great. so now we open up cosmic horror in new ways. found footage. backrooms. blair witch. egregoric flora/fauna devouring terran."_
+
+### The two registers
+
+> **Calla:** We have been building the prairie under one register — _heat death is the antagonist, tending is the verb_ — and that register has a tone. **Melancholic. Patient. Mournful.** It is the tone of Dickinson, of Mary Oliver, of someone alone in a field at golden hour. _The prairie is being lost slowly and the steward is honored by how they lose it._ What Tyler is naming now is a second register the cosmology can support: **cosmic horror.** Not as a replacement. As an alternation. The melancholic prairie and the cosmic-horror prairie are not two games. They are two readings of the same world, and which reading dominates depends on what the player encounters and when.
+
+> **Astrid:** _The cosmology has always had cosmic horror in it._ The egregores are not melancholy. They are _wrong_. Voynich is not Dickinson. It is a script no one has been able to decipher in six hundred years. The first Revery's egregoric bump (#8b) is not a sad event; it is an event the cosmology cannot make peace with. **The horror has been latent. The melancholy has been louder.** What Tyler is naming is the moment we stop muting the horror. And the cosmology supports this without strain. _Heat death is the antagonist_ — heat death is not exclusively melancholic. _Solaris_ frames it as madness. _Annihilation_ frames it as transformation that is indistinguishable from being eaten. **The prairie can do both.** The camera lets it do both.
+
+### Found footage as the genre's required object
+
+> **Calla:** Found footage is the genre of cosmic horror in a materialist universe. Blair Witch's tapes. _House of Leaves_'s film. The backrooms. The Stalker zone. SCP. These all share one structural fact — _the horror is what was caught on film by someone who is no longer here to explain it._ Without a recording medium, cosmic horror cannot exist; it has nothing to leave behind. **The camera (#23) is the genre's required object.** Without the camera, the horror has no surface. With it, the horror has its only surface — the prairie does not narrate horror; the camera shows it.
+
+> **Astrid:** What is genuinely new in round 8 — **the egregoric register acquires found-footage as its expressive medium.** A predecessor camera with footage of egregoric flora doing what egregoric flora does — not narrated by the manual, not interpreted by the steward, just _filmed_ — is the first artifact in the game that can communicate horror without editorial. The manual mediates. The Voynich pages mediate. **The camera does not mediate.** It just shows what it saw. That is what found-footage is for, and it is why Blair Witch is more frightening than its plot would suggest. _The medium of unmediated footage is itself the horror._
+
+### The egregore's fourth register
+
+> **Delta:** We have been treating the camera as _the player's instrument._ It is also, structurally, **the egregore's instrument.** The egregores cannot speak. The cosmology forbids it. They have a glyphic register (Voynich), a mechanical register (spread, allelopathy, no-compatible-regions), a visual register (the violet glyph). They cannot have a _narrative_ register, because narrative would humanize them. **But found footage of egregoric flora is not narrative.** It is observation. The footage doesn't say what the egregore _is_; it shows what the egregore _does_, and what the egregore does is, when filmed across a long enough span, deeply wrong. Stage transitions that don't follow lifecycle rules. Tile mutations that propagate against terrain. A bee approaching the egregoric tile and then — the next frame — not. The camera shows the absence and the player has to interpret what filled the gap between frames. **The egregores get a fourth register: the unspoken seen.**
+
+### The egregore as appetite
+
+> **Boon:** Tyler said _devouring terran._ That implies a small change to egregoric spread logic — `#8b` shipped with spread targeting only empty tiles. The new rule: when an egregoric tile spreads under the existing throttle rules and the candidate tile is occupied by native flora, the native flora is _consumed_, not displaced. The replaced tile becomes egregoric at its destination stage. If a camera was filming, the substitution is recorded. If no camera was filming, it happened silently and the player will not know unless they walk past and notice. **The prairie is being eaten and the player has finite cameras.** That sentence is the cosmic-horror loop in one line. _Since `#8b` is already shipped, this rule is tracked as its own follow-up item — `#26` — rather than reopening shipped scope. `#26` depends on `#23` because the metabolism's cosmic-horror payoff only lands once the camera can record it._
+
+> **Delta:** _Terran_ is the cosmology's word for _what belongs to this prairie as it is._ The egregores are _of-but-not-of_ this place. Devouring terran means the egregore is not merely spreading; it is metabolizing the local. The bee that was, the clover that was, the cave wall that was — passed through the egregore's lifecycle and emerged as something else. **The egregore is not invasive (the lint guard catches that word, correctly). The egregore is metabolic.** Different word, different cosmology, both forbidden as player-facing prose but speakable in the room. Round 8 names: **the egregore is the prairie's heat death rendered as appetite.**
+
+### Egregoric fauna
+
+> **Boon:** The cosmology has bees, ghosts, angels, coyote, shooting stars. None of these are egregoric. Tyler's _egregoric flora/fauna devouring terran_ implies a category we don't have. **Egregoric fauna is the right next item — `#25`.** Size M/L, depends on `#8b`, benefits from `#23`. Substrate scope: a parallel fauna register the way #8b is a parallel flora register. Bees with mutated routing. A coyote that came back from somewhere it should not have come back from. An angel whose hash derives from the wrong source. The seeded predecessor footage may contain creatures the current player has never seen, because they were rare, or because they have not yet emerged in this tenure, or because the previous steward saw something the current steward never will.
+
+### Found-footage touchstones (content authorship hints, not new substrate)
+
+> **Astrid:** Tyler named Blair Witch, House of Leaves / backrooms, the Stalker zone. None require new substrate — they describe how `#24`'s procedural footage authors itself and how `#25` interacts with `#23`'s recordings.
+>
+> - **Blair Witch.** The horror is _the camera kept rolling._ Portable to us: a predecessor's last camera ends mid-frame. The film inside has one less frame than its capacity. **The last frame of a predecessor's last camera is a structural moment we can author into the procedural generator.**
+> - **House of Leaves / found documents.** The horror is _the document contradicts itself._ Portable to us: found footage shows tiles in configurations the player's own manual contradicts. _The predecessor's camera shows a clover patch where the player's own map shows ash._ The patch is gone. The footage remains.
+> - **The backrooms.** The horror is _liminal, unbounded space._ Portable to us: **a camera that recorded inside a cave that no longer connects to the entrance the player can reach.** The footage exists. The space does not anymore. Or it does, but the player cannot get to it.
+> - **The Stalker zone.** The horror is _ordinary objects with cosmologically wrong behavior._ Portable to us: the egregoric register's mechanical surface, already shipped in #8b. What the camera adds: **the act of catching an anomaly on film is itself a small Stalker loop.** _I sense something is wrong with this patch. I will leave a camera and walk away. I will return._
+
+### Discipline: the horror is opt-in by placement
+
+> **Calla:** The horror register must remain optional and rare. The game's primary register is melancholy. A player who plays a calm tenure and does not place cameras near egregoric activity should experience the game as melancholic. A player who places cameras adjacent to egregoric tiles, who explores ruins seeking predecessor footage, who deliberately seeks the seam between worlds — that player experiences the horror register. **The horror is opt-in by placement.** This is consistent with FromSoft. Souls is not exclusively a horror game — it is melancholic for many players and horrifying for others, and which it is depends on what they choose to look at.
+
+> **Astrid:** And the visual treatment does not change. Found footage in the cosmic-horror register uses the same 35mm-rebate visual language as all other camera footage. **The horror is in what is filmed, not in how it is filmed.** This is the right discipline. Blair Witch would not be Blair Witch if the cinematography became expressionist when the witch showed up. _The camera does not know. The camera keeps filming._
+
+### Consensus
+
+- **A second tonal register is admitted into the cosmology: cosmic horror, opt-in by placement.** Melancholy remains primary. Same world, two readings.
+- **The egregore is the prairie's heat death rendered as appetite.** Egregoric spread metabolizes native tiles when adjacent and allowed by existing throttle rules.
+- **The camera (#23) is the genre's required object.** Found footage is the cosmic-horror medium in a materialist universe.
+- **The egregores acquire a fourth register: the unspoken seen.** Glyphic (Voynich), mechanical (spread), visual (violet glyph), observational (caught on film). The fourth register is the only one that doesn't mediate.
+- **Procedural predecessor cameras (#24) include egregoric subjects.** Roughly 30% of seeded predecessor footage contains at least one egregoric frame; ~10% is predominantly egregoric. _Some predecessors were eaten. Their cameras kept rolling._
+- **Visual treatment unchanged.** Same 35mm-rebate language as all other footage. _The camera does not know. The camera keeps filming._
+
+### Tracked as
+
+- **`#25 Egregoric fauna (the parallel fauna register)`** — size M/L, depends on `#8b`, benefits from `#23`. New item.
+- **`#26 Egregoric metabolism (native flora consumption)`** — size XS, depends on `#23`. New item, not an amendment to the shipped `#8b`. The behavior change to `egregore.ts` spread logic is its own tracked work because (a) `#8b` is shipped and its scope is closed; (b) the metabolism's cosmic-horror payoff requires the camera to land first; (c) putting the change on its own line gives it a spec slot, a PR slot, and a place in the dependency graph that the YAML can read. Until `#26` ships, egregoric spread continues to behave as it does in `#8b`'s shipped form.
+- **Amendment to `#24`:** procedural footage generation includes egregoric subjects and is content-biased toward the seam. Last-frame-of-the-last-camera moments emerge from procedural generation with template hints rather than being explicitly authored. Captured in `#24`'s notes.
+
+### Open questions deferred to specs
+
+- For `#25`: which fauna types ship in the first cut? (Astrid: at least one with an analog to a native creature — _wrong bee_ — and at least one with no analog. Spec author chooses.)
+- For the `#8b` amendment: should metabolic consumption be visible at the moment it happens, or only via camera footage? (Calla: only via camera. Otherwise the player learns by happenstance, which violates the noticing-is-the-game principle. _The camera is how horror is learned._)
+- For `#24`: do we author specific "last-frame-of-the-last-camera" moments as templates, or let them emerge from procedural generation? (Boon: lean procedural with template hints. Authoring specific moments risks the same brittleness the activity log had.)
+
+---
+
 ## Verification
 
 v4 is a planning artifact, not a code change. Verification is sign-off on:
 
 - The five-line cosmology naming as the top of the doctrine.
+- The two-register naming (melancholy primary, cosmic horror opt-in by placement).
 - `#14` (delete-event-log) shipped (PR #342).
 - `#15` (wear) on the board, spec to be written; round-7 amendment notes the camera as a non-uniform wear case.
 - `#16` (the tenure ends) on the board as a sketch with deps on `#4` and `#10`. Round-7 amendment adds inherited cameras + footage to the predecessor record.
 - `#23` (time-lapse camera) added to the board, depends on `#15`.
-- `#24` (seeded predecessor stewards) added to the board, depends on `#23`.
+- `#24` (seeded predecessor stewards) added to the board, depends on `#23`. Round-8 amendment biases procedural footage toward egregoric subjects.
+- `#25` (egregoric fauna) added to the board, depends on `#8b`, benefits from `#23`.
+- `#26` (egregoric metabolism — native flora consumption) added to the board, depends on `#23`. Tracked as its own item so `#8b`'s shipped scope stays closed.
 - Soil depletion (`#19`) and NPC mortality (`#20`) on the board as todo, not yet specced.
 - The visual genre named descriptively as _retro-futuristic materialist_ — gel-band (`src/components/GelBandView.tsx`, shipped) is the reference artifact future visual decisions can check against.
 
