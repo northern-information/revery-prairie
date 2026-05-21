@@ -117,27 +117,55 @@ features:
     pr: https://github.com/northern-information/revery-prairie/pull/344
     notes: 'Scope locked 2026-05-20: parallel species set under TileType.Egregore (no FloraSpecies entry); two species (allelopath, spreader) selected deterministically per position; invisible pollinator (zero PollenParticles); inverse-phased lifecycle (Active in Winter, Dormant otherwise); spread cadence asymmetric — stewardship-winter slow drift (1–2 tiles/year, throttled via lastEgregoreSpreadYear) vs Revery-winter large push (refactor advanceEgregoreFirstRevery → advanceEgregoreInRevery, first Revery places 3 to preserve precis-4 contract, subsequent place 6–9); canCross(a,b)===false for native×egregore pairs; manual footnote (Voynich EVA tokens translating to "no compatible regions") appears once player has any flora:* discovery. Parallel EgregoreGenome interface (allelopathy, spreadVelocity, identity SHA256) separate from TraitBag.'
 
-  - id: '9'
-    name: Controlled burn
-    summary: Torchbearer NPC, player walks the line, voice pass before behavior pass.
+  - id: '9a'
+    name: Controlled burn — Torchbearer voice
+    summary: Moab's title, multi-register seasonal dialog, music stub, manual lore placeholder. Voice pass before behavior pass.
+    size: S
+    depends_on: ['1', '2']
+    status: shipped
+    spec: harness/specs/precis-9a-torchbearer-voice.yaml
+    plan: harness/plans/precis-9a-torchbearer-voice.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/350
+    notes: >
+      Scope locked 2026-05-20: voice pass only. Moab gains title "drip
+      torchbearer", season-routed dialog dispatcher (Winter / Spring /
+      default), music asset stub, MANUAL_LORE['character:moab'] reset to
+      TODO pending human-authored prose. Dev panel gains a Force Season
+      override (sets temperatureF + seasonalPhase to a coherent pair).
+      Walking-the-line, refusal, and ash prairie outcome deferred to 9b.
+
+  - id: '9b'
+    name: Controlled burn — Torchbearer behavior
+    summary: Auto-arrival at thaw, click-to-draw burn line, Moab paces and ignites, refusal at catastrophic edges, dismiss-at-line.
     size: M
-    depends_on: ['1', '2', '3']
-    status: in-progress
-    spec: null
-    plan: null
-    pr: null
-    notes: 'In progress 2026-05-20. Spec pending.'
+    depends_on: ['9a', '8b']
+    status: shipped
+    spec: harness/specs/precis-9b-torchbearer-behavior.yaml
+    plan: harness/plans/precis-9b-torchbearer-behavior.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/353
+    notes: >
+      Scope locked 2026-05-20: all four edges in scope — player dismiss
+      via dialog completion, catastrophic refusal (character / cave /
+      ruin / wind > 20 + humidity < 30), Flora → BurntFlora, Egregore →
+      Dirt. 500ms pacing matches ghost drift. New [b] keybind toggles
+      burn-draw mode; click sets origin, shift+click chains 4-neighbor
+      waypoints. Line drawn any time; whichever line exists at the
+      Winter → Spring transition locks. lockedBurnLine clears every
+      Spring → Summer regardless of whether it was walked, dismissed,
+      or refused — no multi-year persistence. Dialog dispatcher gains
+      walking / refusing / dismissed registers. New burnLine render
+      pass overlays draft (pale amber) and locked (deeper amber).
 
   - id: '10'
     name: Failure-state biomes
     summary: Ash, fungal, Far Garden conversion as Revery outcomes.
     size: M
-    depends_on: ['4', '8b', '9']
+    depends_on: ['4', '8b', '9b']
     status: todo
     spec: null
     plan: null
     pr: null
-    notes: ''
+    notes: 'Unblocked 2026-05-20 by 9b shipping. Flora → BurntFlora wiring landed in 9b; this spec extends to fungal and Far Garden conversion as Revery outcomes.'
 
   - id: '11'
     name: Seed taxonomy + drop-to-plant
