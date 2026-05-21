@@ -16,6 +16,10 @@ each new game begins with a geological genesis sequence — a billion years of p
 
 prairies can be tended alone or shared with friends. visit `/p/new` to plant a prairie hosted on a Cloudflare Worker; share the resulting `/p/{id}` URL and other stewards walk the same land.
 
+## how this is built
+
+revery prairie is hand-crafted by Tyler Etters and others along with Claude (Anthropic) as a coding partner. design, voice, and decisions are ours. boilerplate, refactors, and a lot of the test scaffolding are often Claude's. the workflow is documented openly in `CLAUDE.md` and `docs/claude/`. we're transparent about it because it's true and because the workflow is part of the project.
+
 ## setup
 
 ```zsh
@@ -109,3 +113,7 @@ start each feature by checking the dashboard's NEXT column, then run `/new-featu
 | `npm run preview`    | preview production build                 |
 | `npm run deploy`     | build + ship to Cloudflare (multiplayer) |
 | `npm run backlog`    | terminal kanban for the backlog          |
+
+## license
+
+AGPL-3.0. see `LICENSE`. you're free to read, fork, modify, and host this code. if you run a modified version as a public service, you must publish your changes.
