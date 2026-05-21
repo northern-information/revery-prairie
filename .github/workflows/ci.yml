@@ -71,6 +71,29 @@ jobs:
 
       - run: npx vitest run --project engine
 
+  test-harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - uses: actions/cache@v5
+        id: cache-modules
+        with:
+          path: |
+            node_modules
+            worker/node_modules
+            shared/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+
+      - run: npm ci
+        if: steps.cache-modules.outputs.cache-hit != 'true'
+
+      - run: npx vitest run --project harness
+
   test-ui:
     runs-on: ubuntu-latest
     steps:
