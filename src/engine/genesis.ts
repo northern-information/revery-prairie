@@ -485,7 +485,6 @@ const renderVegetation = (sim: GenesisSimState, x: number, _y: number, h: number
 const cosmicFormation: GenesisEpoch = {
   id: GenesisEpochId.CosmicFormation,
   durationMs: 2000,
-  commentary: 'Simulating birth of cosmos...',
   mutate: sim => {
     // Fill entire grid with space
     for (let y = 0; y < sim.height; y++) {
@@ -511,7 +510,6 @@ const cosmicFormation: GenesisEpoch = {
 const landAccretion: GenesisEpoch = {
   id: GenesisEpochId.LandAccretion,
   durationMs: 2000,
-  commentary: 'Dust coalesces...',
   mutate: () => {
     // No grid mutations — purely visual
   },
@@ -579,7 +577,6 @@ const landAccretion: GenesisEpoch = {
 const tectonicUplift: GenesisEpoch = {
   id: GenesisEpochId.TectonicUplift,
   durationMs: 2000,
-  commentary: 'Plates collide and ranges rise...',
   mutate: sim => {
     if (sim.landMask.size === 0) {
       sim.tectonicAxes = []
@@ -741,7 +738,6 @@ const tectonicUplift: GenesisEpoch = {
 const lavaEra: GenesisEpoch = {
   id: GenesisEpochId.LavaEra,
   durationMs: 2000,
-  commentary: 'A kingdom of lava absolute...',
   mutate: sim => {
     // Generate the land mask using the seeded RNG — this produces the final coastline
     const { landMask, coastlineTiles, grid } = generateLandMask(sim.width, sim.height, sim.rng)
@@ -847,7 +843,6 @@ const lavaEra: GenesisEpoch = {
 const crustCooling: GenesisEpoch = {
   id: GenesisEpochId.CrustCooling,
   durationMs: 2000,
-  commentary: 'The crust cools...',
   mutate: () => {
     // Visual transition only
   },
@@ -914,7 +909,6 @@ const crustCooling: GenesisEpoch = {
 const firstWater: GenesisEpoch = {
   id: GenesisEpochId.FirstWater,
   durationMs: 2000,
-  commentary: 'Oceans gather in the lowlands...',
   mutate: sim => {
     // Mark ancient seabeds — coastline + a band of low-lying inland tiles
     for (const key of sim.coastlineTiles) {
@@ -999,7 +993,6 @@ const firstWater: GenesisEpoch = {
 const emergenceOfLife: GenesisEpoch = {
   id: GenesisEpochId.EmergenceOfLife,
   durationMs: 2000,
-  commentary: 'Primordial life emerges...',
   mutate: sim => {
     // Spread vegetation across all land — denser near water, thinner inland
     for (const key of sim.landMask) {
@@ -1124,7 +1117,6 @@ const createMeteorStreak = (
 const fireSeason: GenesisEpoch = {
   id: GenesisEpochId.FireSeason,
   durationMs: 2000,
-  commentary: 'The sky falls...',
   mutate: sim => {
     const landKeys = [...sim.landMask]
 
@@ -1404,7 +1396,6 @@ const fireSeason: GenesisEpoch = {
 const regrowth: GenesisEpoch = {
   id: GenesisEpochId.Regrowth,
   durationMs: 2000,
-  commentary: 'Life grows back...',
   mutate: sim => {
     // Ash enrichment only — no vegetation regrowth. land stays barren into ice age.
     for (const key of sim.burnScars) {
@@ -1438,7 +1429,6 @@ const regrowth: GenesisEpoch = {
 const iceAge: GenesisEpoch = {
   id: GenesisEpochId.IceAge,
   durationMs: 2000,
-  commentary: 'Glaciers advance, carving the land...',
   mutate: sim => {
     // Snapshot vegetation before glaciers destroy it (for dramatic render)
     for (const [key, value] of sim.vegetationMap) {
@@ -1633,7 +1623,6 @@ const iceAge: GenesisEpoch = {
 const postGlacialDieOff: GenesisEpoch = {
   id: GenesisEpochId.PostGlacialDieOff,
   durationMs: 2000,
-  commentary: 'An extinction event...',
   mutate: sim => {
     // Kill 60-70% of remaining vegetation, weighted by distance from water
     for (const key of sim.landMask) {
@@ -1736,7 +1725,6 @@ const postGlacialDieOff: GenesisEpoch = {
 const warmPeriod: GenesisEpoch = {
   id: GenesisEpochId.WarmPeriod,
   durationMs: 2000,
-  commentary: 'Glaciers melt and life continues...',
   mutate: sim => {
     const landKeys = [...sim.landMask]
 
@@ -2076,7 +2064,6 @@ const warmPeriod: GenesisEpoch = {
 const riseOfCivilizations: GenesisEpoch = {
   id: GenesisEpochId.RiseOfCivilizations,
   durationMs: 2000,
-  commentary: 'Civilizations emerge...',
   mutate: sim => {
     // Starter mode (tutorial): exactly 3 ruins, role-tagged in fixed order
     // (clover, bee, coyote). Complex mode (post-deep-time, future spec)
@@ -2466,7 +2453,6 @@ const riseOfCivilizations: GenesisEpoch = {
 const fallOfCivilizations: GenesisEpoch = {
   id: GenesisEpochId.FallOfCivilizations,
   durationMs: 2000,
-  commentary: 'Empires crumble and sink beneath the land...',
   mutate: sim => {
     // Final soil enrichment from decomposition
     for (const ruin of sim.ruins) {
@@ -3087,7 +3073,6 @@ export const enforceConnectivity = (sim: GenesisSimState): void => {
 const presentDay: GenesisEpoch = {
   id: GenesisEpochId.PresentDay,
   durationMs: 2000,
-  commentary: 'A steward is called...',
   mutate: sim => {
     // Clamp all soil health to [10, 100]
     for (const [key, value] of sim.soilHealth) {
@@ -3286,7 +3271,6 @@ export const createGenesisState = (
     epochSnapshots: [],
     mutationsPrecomputed: false,
     rainSeed: 0,
-    narratedEpochCount: 0,
     ruinGenerationMode,
     tierTweens: new Map(),
     lastObservedTier: new Map(),
@@ -3296,27 +3280,17 @@ export const createGenesisState = (
 export const getGenesisEpochs = (): GenesisEpoch[] => GENESIS_EPOCHS
 
 /** Advance the simulation. Returns true when complete. */
-export const tickGenesis = (
-  sim: GenesisSimState,
-  epochs: GenesisEpoch[],
-  time: number,
-  onEpochStart?: (commentary: string, epochIndex: number) => void
-): boolean => {
+export const tickGenesis = (sim: GenesisSimState, epochs: GenesisEpoch[], time: number): boolean => {
   if (sim.epochIndex >= epochs.length) return true
 
   sim.lastTickTime = time
   const epoch = epochs[sim.epochIndex]
 
-  // First tick of this epoch — run mutate (skipped if pre-computed),
-  // and fire the narration callback once for this epoch index.
+  // First tick of this epoch — run mutate (skipped if pre-computed).
   if (sim.epochStartTime === 0) {
     sim.epochStartTime = time
     if (!sim.mutationsPrecomputed) {
       epoch.mutate(sim)
-    }
-    if (sim.narratedEpochCount === sim.epochIndex) {
-      onEpochStart?.(epoch.commentary, sim.epochIndex)
-      sim.narratedEpochCount++
     }
   }
 
@@ -3334,10 +3308,6 @@ export const tickGenesis = (
     const nextEpoch = epochs[sim.epochIndex]
     if (!sim.mutationsPrecomputed) {
       nextEpoch.mutate(sim)
-    }
-    if (sim.narratedEpochCount === sim.epochIndex) {
-      onEpochStart?.(nextEpoch.commentary, sim.epochIndex)
-      sim.narratedEpochCount++
     }
   }
 
@@ -3604,14 +3574,6 @@ export const completeGenesis = (state: GameState, options: CompleteGenesisOption
     sim.epochIndex = GENESIS_EPOCHS.length
   }
 
-  // Flush narration for any unfired epochs in order so the event log
-  // gets all 14 entries even when genesis is skipped.
-  while (sim.narratedEpochCount < GENESIS_EPOCHS.length) {
-    const epoch = GENESIS_EPOCHS[sim.narratedEpochCount]
-    state.onGenesisEpochStart?.(epoch.commentary, sim.narratedEpochCount)
-    sim.narratedEpochCount++
-  }
-
   if (options.skipTitleCard) {
     // Dev fast-path: hand off immediately, no title card cover.
     finalizeGenesisHandoff(state, performance.now())
@@ -3657,15 +3619,13 @@ export const finalizeGenesisHandoff = (state: GameState, handoffTime: number): v
   state.genesis = null
 }
 
-export const getGenesisCommentary = (sim: GenesisSimState, epochs: GenesisEpoch[]): string => {
-  if (sim.epochIndex >= epochs.length) return ''
-  return epochs[sim.epochIndex].commentary
-}
-
-// Year ranges per epoch — maps geological time across the genesis sequence.
-// Each entry is [startYear, endYear]. The counter lerps between them based on
-// epoch progress, giving a running year from the big bang to present day.
-// Must stay in lockstep with GENESIS_EPOCHS — same length, same order.
+// Year ranges per epoch — maps the simulation to a reverse-projection
+// timeline. Each entry is [startYear, endYear] where 0 is the inferred
+// origin and GENESIS_END_YEAR is gameplay-now. The lerped value is
+// converted by formatYearsAgo into a calm-tech readout: tilde-prefixed,
+// abbreviated unit, rounded into bands so the screen never claims more
+// precision than geology can cite. Must stay in lockstep with
+// GENESIS_EPOCHS — same length, same order.
 const EPOCH_YEAR_RANGES: [number, number][] = [
   [0, 500_000_000], // cosmicFormation
   [500_000_000, 1_000_000_000], // landAccretion
@@ -3687,25 +3647,62 @@ const EPOCH_YEAR_RANGES: [number, number][] = [
 /** The year at which genesis ends and gameplay begins. */
 export const GENESIS_END_YEAR = 13_800_000_000
 
-/** Get the current geological year based on epoch index and progress.
- *  The high-order digits advance with epoch progress. The last 6 digits
- *  roll independently at a slower rate (driven by `time`) to give the
- *  impression of a fast-running clock without jumpy noise. */
-export const getGenesisYear = (sim: GenesisSimState, epochs: GenesisEpoch[], time: number): number => {
+/** Get the current simulation year based on epoch index and progress.
+ *  Returns Math.floor of the lerped value directly — no rolling
+ *  sub-counter, no fabricated low-order digits. formatYearsAgo rounds
+ *  into honest display bands. */
+export const getGenesisYear = (sim: GenesisSimState, epochs: GenesisEpoch[]): number => {
   if (sim.epochIndex >= epochs.length) return GENESIS_END_YEAR
   const progress = getEpochProgress(sim, epochs)
   const [startYear, endYear] = EPOCH_YEAR_RANGES[sim.epochIndex]
-  const rawYear = Math.floor(lerp(startYear, endYear, progress))
-
-  // Truncate last 6 digits, replace with a rolling counter derived from time.
-  // The counter cycles through 0–999999 over ~4 seconds, giving a steady
-  // odometer feel instead of random jumps.
-  const significant = rawYear - (rawYear % 1_000_000)
-  const rolling = Math.floor((time * 250) % 1_000_000)
-  return significant + rolling
+  return Math.floor(lerp(startYear, endYear, progress))
 }
 
-/** Format a year number for display (e.g. 4500000000 → "4,500,000,000"). */
+/** Convert a year in [0, GENESIS_END_YEAR] into a reverse-projection
+ *  readout — tilde-prefixed, abbreviated unit, banded precision. The
+ *  bottom bar reads these values during genesis so the screen reads as
+ *  the permacomputer back-deriving the world from a name seed.
+ *
+ *  Banding is rounded-value-driven so that values near a band boundary
+ *  promote to the next band rather than overflowing the band's
+ *  natural integer range (e.g. 999_500_000 promotes to "~1B" rather
+ *  than rendering "~1000M"; 999_500 promotes to "~1M" rather than
+ *  "~0M"). The displayed integer in each band always lies in [1, 999]
+ *  (M / K bands) or carries one decimal place (B band).
+ *
+ *  Bands —
+ *    yearsAgo < 1_000              → "~now"
+ *    rounds to >= 1B (100M step)   → "~N.NB years ago..." (trailing .0
+ *                                     dropped, geology-citation
+ *                                     register)
+ *    rounds to >= 1M (1M step)     → "~NM years ago..."
+ *    otherwise (1K step)           → "~NK years ago..."
+ */
+export const formatYearsAgo = (year: number): string => {
+  const yearsAgo = GENESIS_END_YEAR - year
+  if (yearsAgo < 1_000) return '~now'
+
+  // Round to the 100M step first; if that lands at >= 1.0B, render in the B band.
+  const tenthsOfB = Math.round(yearsAgo / 100_000_000)
+  if (tenthsOfB >= 10) {
+    const value = tenthsOfB / 10
+    const formatted = value % 1 === 0 ? String(Math.round(value)) : value.toFixed(1)
+    return `~${formatted}B years ago...`
+  }
+
+  // Round to the 1M step; if that lands at >= 1M, render in the M band.
+  const m = Math.round(yearsAgo / 1_000_000)
+  if (m >= 1) return `~${String(m)}M years ago...`
+
+  // K band — round to the 1K step.
+  const k = Math.round(yearsAgo / 1_000)
+  return `~${String(k)}K years ago...`
+}
+
+/** Format a year as a comma-separated integer string (e.g. 13_800_000_000 →
+ *  "13,800,000,000"). Used by the deep-time gameplay year display, which
+ *  is forward-projecting and unrelated to the reverse-projection genesis
+ *  readout. */
 export const formatYear = (year: number): string => year.toLocaleString()
 
 export const getEpochProgress = (sim: GenesisSimState, epochs: GenesisEpoch[]): number => {

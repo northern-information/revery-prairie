@@ -143,7 +143,6 @@ const EXPECTED_FIELDS = [
   'scanInProgress',
   'manualHighlightEntryId',
   'onPlayerMoved',
-  'onGenesisEpochStart',
   'onGenesisComplete',
   'heldKeys',
 ].sort((a, b) => a.localeCompare(b))

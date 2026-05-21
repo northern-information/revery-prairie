@@ -1,11 +1,11 @@
 import { MAP_HEIGHT, MAP_WIDTH, POND_COLOR, RIVER_COLOR, SOIL_HEALTH_MAX } from '../constants'
 import {
-  completeGenesis,
   createGenesisState,
   extractGenesisResult,
+  formatYearsAgo,
+  GENESIS_END_YEAR,
   GENESIS_EPOCHS,
   getEpochProgress,
-  getGenesisCommentary,
   nameToSeed,
   precomputeGenesis,
   runAllMutations,
@@ -322,101 +322,57 @@ describe('tickGenesis', () => {
   })
 })
 
-describe('genesis narration callback', () => {
-  it('fires onEpochStart for epoch 0 on first tick', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    const calls: { commentary: string; index: number }[] = []
-    tickGenesis(sim, GENESIS_EPOCHS, 100, (c, i) => calls.push({ commentary: c, index: i }))
-    expect(calls).toEqual([{ commentary: GENESIS_EPOCHS[0].commentary, index: 0 }])
-    expect(sim.narratedEpochCount).toBe(1)
+describe('formatYearsAgo', () => {
+  it('returns "~13.8B years ago" at the cosmic origin (year 0)', () => {
+    expect(formatYearsAgo(0)).toBe('~13.8B years ago...')
   })
 
-  it('does not re-fire onEpochStart for an epoch on subsequent ticks within it', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    const calls: number[] = []
-    tickGenesis(sim, GENESIS_EPOCHS, 100, (_c, i) => calls.push(i))
-    tickGenesis(sim, GENESIS_EPOCHS, 200, (_c, i) => calls.push(i))
-    tickGenesis(sim, GENESIS_EPOCHS, 300, (_c, i) => calls.push(i))
-    expect(calls).toEqual([0])
-    expect(sim.narratedEpochCount).toBe(1)
+  it('returns "~9.3B years ago" mid-billions (4.5B into genesis)', () => {
+    expect(formatYearsAgo(4_500_000_000)).toBe('~9.3B years ago...')
   })
 
-  it('fires onEpochStart for each subsequent epoch as ticks advance', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    const calls: number[] = []
-    const cb = (_c: string, i: number) => calls.push(i)
-
-    let t = 100
-    tickGenesis(sim, GENESIS_EPOCHS, t, cb)
-    for (let i = 0; i < GENESIS_EPOCHS.length - 1; i++) {
-      t += GENESIS_EPOCHS[i].durationMs + 1
-      tickGenesis(sim, GENESIS_EPOCHS, t, cb)
-    }
-
-    expect(calls).toEqual(Array.from({ length: GENESIS_EPOCHS.length }, (_, i) => i))
-    expect(sim.narratedEpochCount).toBe(GENESIS_EPOCHS.length)
-  })
-})
-
-describe('completeGenesis narration flush', () => {
-  it('flushes all narration entries in order when called before any tick', () => {
-    const state = createGameState('Test', 20, 20)
-    const calls: { commentary: string; index: number }[] = []
-    state.onGenesisEpochStart = (commentary, index) => {
-      calls.push({ commentary, index })
-    }
-    completeGenesis(state)
-
-    expect(calls).toHaveLength(GENESIS_EPOCHS.length)
-    expect(calls.map(c => c.index)).toEqual(Array.from({ length: GENESIS_EPOCHS.length }, (_, i) => i))
-    expect(calls.map(c => c.commentary)).toEqual(GENESIS_EPOCHS.map(e => e.commentary))
+  it('drops the trailing .0 at the M-to-B band edge (exactly 1B years ago)', () => {
+    expect(formatYearsAgo(12_800_000_000)).toBe('~1B years ago...')
   })
 
-  it('flushes only unfired epochs when some have already been narrated live', () => {
-    const state = createGameState('Test', 20, 20)
-    const calls: number[] = []
-    state.onGenesisEpochStart = (_c, i) => calls.push(i)
-
-    // Tick the first 3 epochs live, then skip the rest.
-    if (!state.genesis) throw new Error('expected genesis')
-    let t = 100
-    tickGenesis(state.genesis, GENESIS_EPOCHS, t, state.onGenesisEpochStart)
-    for (let i = 0; i < 2; i++) {
-      t += GENESIS_EPOCHS[i].durationMs + 1
-      tickGenesis(state.genesis, GENESIS_EPOCHS, t, state.onGenesisEpochStart)
-    }
-    expect(calls).toEqual([0, 1, 2])
-
-    completeGenesis(state)
-
-    // Every epoch index appears exactly once, in order.
-    expect(calls).toEqual(Array.from({ length: GENESIS_EPOCHS.length }, (_, i) => i))
+  it('returns "~100M years ago" in the millions band', () => {
+    expect(formatYearsAgo(13_700_000_000)).toBe('~100M years ago...')
   })
 
-  it('is a no-op for narration when called twice', () => {
-    const state = createGameState('Test', 20, 20)
-    const calls: number[] = []
-    state.onGenesisEpochStart = (_c, i) => calls.push(i)
-
-    completeGenesis(state)
-    expect(calls).toHaveLength(GENESIS_EPOCHS.length)
-
-    completeGenesis(state)
-    expect(calls).toHaveLength(GENESIS_EPOCHS.length)
-  })
-})
-
-describe('getGenesisCommentary', () => {
-  it('returns commentary for current epoch', () => {
-    const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
-    const commentary = getGenesisCommentary(sim, GENESIS_EPOCHS)
-    expect(commentary).toBe('Simulating birth of cosmos...')
+  it('returns "~100K years ago" in the thousands band', () => {
+    expect(formatYearsAgo(13_799_900_000)).toBe('~100K years ago...')
   })
 
-  it('returns empty string when complete', () => {
-    const sim = getCachedSim42()
-    const commentary = getGenesisCommentary(sim, GENESIS_EPOCHS)
-    expect(commentary).toBe('')
+  it('returns "~now" when fewer than 1000 years remain', () => {
+    expect(formatYearsAgo(13_799_999_500)).toBe('~now')
+  })
+
+  it('returns "~now" at the end of genesis', () => {
+    expect(formatYearsAgo(GENESIS_END_YEAR)).toBe('~now')
+  })
+
+  // Band-edge cases — these are the values formatYearsAgo can produce
+  // mid-epoch under the continuous lerp, not just at clean band centers.
+  // The promotion rule (round, then bucket) is what keeps these honest.
+
+  it('promotes 999M years ago to ~1B rather than rendering ~1000M', () => {
+    // 999_000_000 years ago = year 12_801_000_000 — appears mid-riseOfCivilizations.
+    expect(formatYearsAgo(GENESIS_END_YEAR - 999_000_000)).toBe('~1B years ago...')
+  })
+
+  it('renders 25M years ago as ~25M, not ~0M', () => {
+    // 25_000_000 years ago — appears mid-presentDay under the lerp.
+    expect(formatYearsAgo(GENESIS_END_YEAR - 25_000_000)).toBe('~25M years ago...')
+  })
+
+  it('renders 999_500 years ago as ~1M, not ~0M', () => {
+    // 999_500 years ago — appears late-presentDay; round-up should
+    // promote it across the M boundary instead of zeroing out.
+    expect(formatYearsAgo(GENESIS_END_YEAR - 999_500)).toBe('~1M years ago...')
+  })
+
+  it('renders 950M years ago as ~1B (rounds across the M-to-B boundary)', () => {
+    expect(formatYearsAgo(GENESIS_END_YEAR - 950_000_000)).toBe('~1B years ago...')
   })
 })
 

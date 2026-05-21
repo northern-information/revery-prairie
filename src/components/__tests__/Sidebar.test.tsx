@@ -342,20 +342,6 @@ describe('Sidebar', () => {
       expect(container.textContent).toContain('Epoch')
     })
 
-    it('does not render epoch commentary text in the sidebar during genesis', () => {
-      const state = createGameState('Test', 80, 40)
-      const { container } = render(
-        <Sidebar
-          state={state}
-          itemInfoRef={defaultInfoRef}
-          metricsRef={createRef()}
-          refreshUI={noop}
-        />
-      )
-
-      // The first epoch's commentary string must not appear in the sidebar.
-      expect(container.textContent).not.toContain('Simulating birth of cosmos')
-    })
   })
 
   describe('boot title card sidebar behavior', () => {

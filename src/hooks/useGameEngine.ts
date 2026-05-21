@@ -86,10 +86,10 @@ export const useGameEngine = (
   if (!gameState) throw new Error('GameState not initialized')
   const state = gameState
 
-  // Defer skipGenesis to a layout effect so the consumer (GameScreen) has
-  // had a chance to wire state.onGenesisEpochStart during its render —
-  // otherwise URL-skip would flush all 14 narration entries to a null
-  // callback and lose them.
+  // Defer skipGenesis to a layout effect so the URL-skip handoff runs
+  // after the first render commit. completeGenesis triggers the title
+  // card and player-spawn ceremony, and routing those through a layout
+  // effect keeps the consumer (GameScreen) mount order stable.
   const skipFiredRef = useRef(false)
   useLayoutEffect(() => {
     if (skipGenesis && state.genesis && !skipFiredRef.current) {

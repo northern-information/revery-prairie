@@ -1,0 +1,410 @@
+id: precis-27-strip-genesis-commentary
+name: 'Precis 27 — Strip genesis epoch commentary; reframe as reverse deep-time projection'
+priority: high
+layer: integration
+source_files:
+  - docs/precis-status.yaml
+  - docs/claude/genesis.md
+  - src/engine/genesisTypes.ts
+  - src/engine/genesis.ts
+  - src/engine/genesisRenderer.ts
+  - src/engine/gameLoop.ts
+  - src/engine/state.ts
+  - src/engine/types.ts
+  - src/engine/manual.ts
+  - src/engine/renderer.ts
+  - src/engine/render/passes/index.ts
+  - src/components/GenesisBottomBar.tsx
+  - src/components/BootTitleCardOverlay.tsx
+  - src/hooks/useGameEngine.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+  - src/engine/__tests__/genesis.test.ts
+  - src/components/__tests__/Sidebar.test.tsx
+dependencies: []
+
+behaviors:
+  - id: commentary-strings-deleted
+    description: >
+      Every GENESIS_EPOCHS entry in src/engine/genesis.ts loses
+      its `commentary` field. All 14 strings ('Simulating birth
+      of cosmos...', 'Dust coalesces...', 'Plates collide and
+      ranges rise...', 'A kingdom of lava absolute...', 'The
+      crust cools...', 'Oceans gather in the lowlands...',
+      'Primordial life emerges...', 'The sky falls...', 'Life
+      grows back...', 'Glaciers advance, carving the land...',
+      'An extinction event...', 'Glaciers melt and life
+      continues...', 'Civilizations emerge...', 'Empires crumble
+      and sink beneath the land...', 'A steward is called...')
+      are removed. The GenesisEpoch interface in
+      src/engine/genesisTypes.ts loses its `commentary: string`
+      field. The getGenesisCommentary export is removed from
+      genesis.ts.
+    inputs:
+      - 'codebase after precis-27 lands'
+    outputs:
+      - "grep for 'commentary' in src/engine/genesis.ts returns zero results"
+      - "grep for 'commentary' in src/engine/genesisTypes.ts returns zero results"
+      - "grep for 'getGenesisCommentary' in src/ returns zero results"
+    state_changes: []
+    determinism: deterministic
+
+  - id: epoch-narration-callback-removed
+    description: >
+      The per-epoch narration callback is removed end to end.
+      tickGenesis loses its `onEpochStart` parameter; the
+      onGenesisEpochStart field is removed from GameState in
+      src/engine/types.ts; createGameState in src/engine/state.ts
+      no longer initialises it; gameLoop.ts no longer passes it
+      to tickGenesis; useGameEngine.ts comment about wiring the
+      callback is rewritten to describe only the title-card
+      reason for the layout-effect deferral. The
+      narratedEpochCount field on GenesisSimState is also
+      deleted — it existed solely to gate the narration callback
+      (tickGenesis "fire once per epoch" guard and
+      completeGenesis "flush remaining epochs" loop). With no
+      callback the field has zero readers, so the field
+      declaration, initialiser, and guard sites are all
+      removed. completeGenesis loses its trailing
+      narration-flush while-loop entirely; runAllMutations is
+      already gated by epochIndex and is unaffected.
+    inputs:
+      - 'codebase after precis-27 lands'
+    outputs:
+      - "grep for 'onGenesisEpochStart' in src/ returns zero hits"
+      - "grep for 'onEpochStart' in src/ returns zero hits"
+      - "grep for 'narratedEpochCount' in src/ returns zero hits"
+      - "tickGenesis signature is (sim, epochs, time) — three args, no callback"
+      - "completeGenesis contains no while loop iterating narratedEpochCount"
+    state_changes:
+      - field: GameState.onGenesisEpochStart
+        effect: 'removed from the GameState type and from createGameState'
+      - field: GenesisSimState.narratedEpochCount
+        effect: 'removed from the GenesisSimState interface and from createGenesisState'
+    determinism: deterministic
+
+  - id: bottom-bar-stripped-and-reformatted
+    description: >
+      src/components/GenesisBottomBar.tsx is rewritten to mirror
+      the ScanProgressBar's bordered-card shape (precis #6
+      sequencing widget). The italic gold commentary `<p>`
+      (text-lg italic at #d8a860) is deleted along with the
+      commentary fade lifecycle (FADE_IN, FADE_OUT,
+      commentaryAlpha). The "Years Since Genesis" subtitle `<p>`
+      is deleted. The new component renders a bordered card with
+      `bg-black/80`, rounded corners, `border-border` border,
+      `px-3 py-2`, `font-mono text-xs`, `tabular-nums`, sized
+      `w-64` and positioned `bottom-52 left-1/2 -translate-x-1/2
+      z-10` to sit centered above the bottom edge (matching the
+      Sequencing widget's geometry exactly). The card contains
+      two stacked elements: (1) a label-line `<div>` with the
+      tilde-prefixed year (via formatYearsAgo) in gold (#d8a860);
+      (2) a fill-bar `<div>` underneath — `h-2 w-full`, bordered,
+      `bg-black/50` track, with a `width: <pct>%` inner fill
+      using `backgroundColor: #d8a860` (gold) and the same
+      `transition-[width] duration-75 ease-linear` animation as
+      ScanProgressBar. The fill represents overall derivation
+      progress, computed as
+      `(sim.epochIndex + getEpochProgress(sim, GENESIS_EPOCHS)) /
+      GENESIS_EPOCHS.length`, clamped to [0, 1] and rounded to
+      integer percent. The render-loop useEffect stays — both the
+      year readout and the fill bar tick every frame off the
+      same rAF clock so the lerp reads as alive. The progress
+      bar is doctrinally diegetic — it mirrors the existing
+      Sequencing widget's "deriving" affordance, not a
+      consumer-electronics loading bar.
+    inputs:
+      - 'codebase after precis-27 lands'
+    outputs:
+      - "GenesisBottomBar has no <p> elements"
+      - "no italic styling in GenesisBottomBar.tsx"
+      - "no 'Years Since Genesis' text in GenesisBottomBar.tsx"
+      - "the rendered year readout matches /^~(\\d+(\\.\\d)?[BMK] years ago\\.\\.\\.|now)$/"
+      - "the card is positioned `bottom-52 left-1/2 -translate-x-1/2` (same as ScanProgressBar)"
+      - "the fill bar's backgroundColor is #d8a860 (gold), not the pink token used by ScanProgressBar"
+      - "the fill width tracks overall epoch progress, monotonically increasing through genesis"
+    state_changes: []
+    determinism: time-based
+
+  - id: year-format-reverse-projection
+    description: >
+      formatYearsAgo is a pure function exported from genesis.ts
+      that takes a year-since-cosmic-formation number (the same
+      domain getGenesisYear has always produced) and returns the
+      display string. Conversion rule — yearsAgo = GENESIS_END_YEAR
+      - input. Banding is rounded-value-driven so that values near
+      a band boundary promote to the next band rather than
+      overflowing the band's natural integer range — the
+      displayed integer always lies in [1, 999] for M and K
+      bands, and is at least 1.0 in the B band. Bands —
+      yearsAgo < 1_000 → "~now"; if rounding to the 100M step
+      yields >= 10 tenths (i.e. >= 1.0B) → "~N.NB years ago..."
+      with one decimal, trailing ".0" dropped (e.g.
+      13_800_000_000 → "~13.8B", 1_000_000_000 → "~1B");
+      else if rounding to the 1M step yields >= 1 →
+      "~NM years ago..." (e.g. 100_000_000 → "~100M",
+      25_000_000 → "~25M", 999_500 → "~1M");
+      else round to the 1K step → "~NK years ago..." (e.g.
+      100_000 → "~100K"). The existing formatYear export
+      (year.toLocaleString) is retained — its only remaining
+      caller is the deep-time gameplay year display in
+      Sidebar.tsx, which is forward-projecting and unrelated to
+      the reverse-projection genesis readout.
+    inputs:
+      - 'formatYearsAgo(year: number) called with a year in [0, GENESIS_END_YEAR]'
+    outputs:
+      - 'formatYearsAgo(0) === "~13.8B years ago..."'
+      - 'formatYearsAgo(4_500_000_000) === "~9.3B years ago..."'
+      - 'formatYearsAgo(12_800_000_000) === "~1B years ago..."  # M-to-B band edge; trailing .0 dropped'
+      - 'formatYearsAgo(13_700_000_000) === "~100M years ago..."'
+      - 'formatYearsAgo(13_799_900_000) === "~100K years ago..."'
+      - 'formatYearsAgo(13_799_999_500) === "~now"'
+      - 'formatYearsAgo(GENESIS_END_YEAR) === "~now"'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 999_000_000) === "~1B years ago..."  # promotes across the M-to-B boundary'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 25_000_000) === "~25M years ago..."  # does not collapse to "~0M"'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 999_500) === "~1M years ago..."  # promotes across the K-to-M boundary'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 950_000_000) === "~1B years ago..."  # rounds up across M-to-B'
+    state_changes: []
+    determinism: deterministic
+
+  - id: get-genesis-year-precision-honest
+    description: >
+      The rolling 6-digit sub-counter inside getGenesisYear is
+      deleted. The function returns Math.floor(lerp(startYear,
+      endYear, progress)) directly. This is the diegetic
+      discipline — the formatter will round the value into the
+      display register, but the underlying number is no longer
+      fabricated to look "alive" at digits the player cannot
+      verify. The bar still ticks every frame because the
+      epoch progress lerps continuously; formatted output
+      naturally steps as the lerped value crosses band
+      boundaries.
+    inputs:
+      - 'getGenesisYear(sim, epochs, time) called'
+    outputs:
+      - 'return value is Math.floor(lerp(startYear, endYear, progress))'
+      - "grep for 'rolling' in src/engine/genesis.ts returns zero hits in the year-related code"
+    state_changes: []
+    determinism: deterministic
+
+  - id: genesis-manual-entry-deleted
+    description: >
+      The Genesis entry in src/engine/manual.ts is removed
+      entirely. buildGenesisEntry is deleted. The MANUAL_ENTRIES
+      registry (or wherever the genesis entry is registered) no
+      longer references it. MANUAL_LORE['event:genesis'] is
+      deleted if present. The screen is now a reverse projection,
+      not a narrated event — there is no manual entry to
+      describe it. Any other manual entries that cross-reference
+      'event:genesis' are updated to drop the reference (this
+      affects only crossRefs strings, not the entry's existence).
+    inputs:
+      - 'manual is browsed after precis-27 lands'
+    outputs:
+      - "grep for 'event:genesis' in src/engine/manual.ts returns zero hits"
+      - "buildGenesisEntry does not exist as an export or local"
+      - "MANUAL_LORE['event:genesis'] is undefined"
+      - 'the manual UI shows no entry titled Genesis'
+    state_changes: []
+    determinism: deterministic
+
+  - id: title-card-cover-repurposed
+    description: >
+      src/components/BootTitleCardOverlay.tsx's comment about
+      "covering the commentary line during the title-card hold"
+      is rewritten to say it covers the year readout during the
+      title-card hold. The cover behaviour and DOM are
+      otherwise unchanged — same bottom-right region, same
+      black opacity, same hold duration. Only the explanatory
+      comment changes.
+    inputs:
+      - 'codebase after precis-27 lands'
+    outputs:
+      - "no comment in BootTitleCardOverlay.tsx mentions 'commentary'"
+      - 'the overlay still hides the bottom-right region during the title-card hold'
+    state_changes: []
+    determinism: deterministic
+
+  - id: tests-pruned-or-rewritten
+    description: >
+      Three test surfaces are touched. (1) In
+      src/engine/__tests__/genesis.test.ts, the entire 'genesis
+      narration callback' describe (lines ~325-358), the
+      entire 'completeGenesis narration flush' describe (lines
+      ~361-407), and the entire 'getGenesisCommentary' describe
+      (lines ~409-421) are removed. The remaining tests in the
+      file (createGenesisState, runAllMutations, etc.) are not
+      touched. (2) A new describe block 'formatYearsAgo' is
+      added to genesis.test.ts that asserts the seven example
+      mappings from the year-format-reverse-projection
+      behaviour (cosmic 0, 4.5B in, 13.7B in, 13.7999B in,
+      GENESIS_END_YEAR, plus 1B and 800M boundary cases).
+      (3) In src/components/__tests__/Sidebar.test.tsx, the
+      'does not render epoch commentary text in the sidebar
+      during genesis' test (lines ~345-358) is deleted — there
+      is no commentary anywhere in the codebase to assert
+      against.
+    inputs:
+      - 'codebase after precis-27 lands'
+    outputs:
+      - "npx vitest run src/engine/__tests__/genesis.test.ts passes"
+      - "npx vitest run src/components/__tests__/Sidebar.test.tsx passes (or the file remains unchanged if no tests reference commentary text after the deletion)"
+      - "grep for 'Simulating birth of cosmos' in src/ returns zero hits"
+      - "grep for 'getGenesisCommentary' in tests returns zero hits"
+    state_changes: []
+    determinism: deterministic
+
+  - id: schema-allowlist-updated
+    description: >
+      src/harness/__tests__/serialization/schema.test.ts has
+      'onGenesisEpochStart' removed from its EXPECTED_FIELDS
+      allowlist. The serialization schema test continues to
+      pass.
+    inputs:
+      - 'serialization schema test run'
+    outputs:
+      - "grep for 'onGenesisEpochStart' in src/harness returns zero hits"
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts passes'
+    state_changes: []
+    determinism: deterministic
+
+  - id: stale-comments-scrubbed
+    description: >
+      Source-file comments that reference the deleted commentary
+      system are rewritten or deleted. Known sites —
+      src/engine/genesisRenderer.ts:52-54 ("Bright cosmic palette
+      for the first two epochs — 'birth of cosmos' and 'dust
+      coalesces'") drops the quoted commentary phrases and
+      describes the same two epochs by id (CosmicFormation +
+      LandAccretion);
+      src/engine/renderer.ts comment about "the commentary pass
+      and the boot title card overlay" is rewritten to describe
+      the genesis bottom bar without invoking "commentary";
+      src/engine/render/passes/index.ts comment about "the
+      genesis commentary bottom-right" is rewritten to say
+      "the genesis bottom-right year readout".
+    inputs:
+      - 'codebase after precis-27 lands'
+    outputs:
+      - "grep for 'commentary' in src/engine/genesisRenderer.ts returns zero hits"
+      - "grep for 'commentary' in src/engine/renderer.ts returns zero hits"
+      - "grep for 'commentary' in src/engine/render/passes/index.ts returns zero hits"
+      - "grep -i 'birth of cosmos\\|dust coalesces' src/ returns zero hits"
+    state_changes: []
+    determinism: deterministic
+
+  - id: docs-reframed
+    description: >
+      docs/claude/genesis.md is rewritten to reframe genesis
+      as a reverse deep-time projection. The doc explicitly
+      describes the screen as the permacomputer back-deriving
+      the world from the steward's name seed (nameToSeed
+      mulberry32 14 epoch mutations) and exposing the seams of
+      that derivation. The doc must not describe genesis as a
+      narrated prologue or as a commentary-driven cutscene. The
+      sentence about "each epoch has id, durationMs, commentary,
+      mutate, renderTile" is updated to drop 'commentary'. The
+      skip mechanism and soil-health sections may be retained
+      structurally but their tone must match the calm-tech /
+      permacomputing register — no "narrate", no "cutscene"
+      vocabulary. docs/precis-status.yaml flips precis 27 to
+      in-progress with spec/plan links during the PR cycle and
+      to shipped after merge.
+    inputs:
+      - 'codebase after precis-27 lands'
+    outputs:
+      - "grep for 'commentary' in docs/claude/genesis.md returns zero hits"
+      - "grep for 'narrate\\|prologue\\|cutscene' in docs/claude/genesis.md returns zero hits"
+      - 'docs/precis-status.yaml feature 27 has status in-progress or shipped with spec/plan populated'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: lerp-cross-band-stepping
+    description: >
+      As the lerp progresses across an epoch the formatted
+      output can flicker if the formatter rounds at a
+      boundary (e.g. 999_500_000 yearsAgo formatted as "~1B"
+      then 999_400_000 as "~999M"). The format rule rounds to
+      stable bands (100K, 100M, 0.1B), so the only flicker
+      possible is at the K↔M and M↔B boundaries. Acceptable —
+      the year monotonically decreases, so each band crossing
+      is one-shot, not oscillating.
+    expected: >
+      No special anti-flicker logic. The boundary transitions
+      are one-way and infrequent (once per genesis run, at
+      most one per band).
+  - id: instant-skip-via-skip-genesis-url-param
+    description: >
+      The ?skipGenesis=true dev path calls completeGenesis()
+      which runs all mutations synchronously and advances
+      narratedEpochCount to GENESIS_EPOCHS.length. Without a
+      narration callback this path still works — it just no
+      longer fires per-epoch callbacks. The title card swap is
+      the only remaining post-genesis effect to coordinate.
+    expected: >
+      ?skipGenesis=true still produces a playable world.
+      narratedEpochCount = GENESIS_EPOCHS.length at the end.
+      Title card swap fires normally.
+  - id: manual-cross-references-to-genesis
+    description: >
+      Other manual entries (zone:cave, item:aqueduct fragments,
+      etc.) may cross-reference 'event:genesis' in their
+      crossRefs arrays. After deletion those references are
+      invalid IDs. The manual cross-ref lookup must tolerate a
+      missing target gracefully (skip the link rather than
+      crash) OR every cross-ref to 'event:genesis' must be
+      pruned from the source data. Default: prune the
+      references — the manual UI shouldn't render dead links.
+    expected: >
+      No manual entry retains a 'event:genesis' crossRef. The
+      manual loads and renders without error.
+  - id: bottom-bar-disappears-at-title-card
+    description: >
+      Once genesis completes (sim.epochIndex >=
+      GENESIS_EPOCHS.length) the bar's getGenesisYear returns
+      GENESIS_END_YEAR which formats to "~now". The bar then
+      continues to render "~now" until the title card overlay
+      covers it and the GenesisBottomBar component returns
+      null at the genesis-to-game handoff. Player perceives a
+      brief "~now" hold under the title card.
+    expected: >
+      Behaviour is unchanged from today — the bar renders
+      "~now" for a frame or two before the title card overlays
+      it, then unmounts at the handoff.
+  - id: no-new-exposed-seam-affordance
+    description: >
+      The spec's "open question" — adding a hash readout, tile
+      counter, or seed-bytes display — is resolved at no.
+      Nothing is added. The screen exposes its seams only
+      through what was already there (the renderer's per-tile
+      mutation animations, the deterministic epoch order, the
+      year readout in its honest register).
+    expected: >
+      No new component, prop, or state field is added to
+      surface seed bytes / hash / tile counts. The bar renders
+      the bordered card (year label + gold fill bar tracking
+      epoch progress) and nothing else; the screen has no new
+      HUD elements.
+
+failure_conditions:
+  - trigger: "grep -nE \"['\\\"]Simulating birth of cosmos|['\\\"]Dust coalesces|['\\\"]Plates collide|['\\\"]A kingdom of lava|['\\\"]The crust cools|['\\\"]Oceans gather|['\\\"]Primordial life|['\\\"]The sky falls|['\\\"]Life grows back|['\\\"]Glaciers advance|['\\\"]An extinction event|['\\\"]Glaciers melt|['\\\"]Civilizations emerge|['\\\"]Empires crumble|['\\\"]A steward is called\" -r src/ returns any hits"
+    expected: 'CI fails — commentary strings persist somewhere in src/'
+  - trigger: "grep for 'getGenesisCommentary\\|onGenesisEpochStart\\|onEpochStart\\|narratedEpochCount' in src/ returns any hits"
+    expected: 'CI fails — the narration callback, accessor, or count guard still exists'
+  - trigger: 'GenesisBottomBar.tsx renders any <p> element, any text matching "Years Since Genesis", or any italic styling'
+    expected: 'CI fails — the deleted commentary line or "Years Since Genesis" subtitle is back'
+  - trigger: 'GenesisBottomBar.tsx renders a year string that contains a comma, a digit sequence longer than 4 chars, or no tilde prefix'
+    expected: 'CI fails — the year readout is still in the toLocaleString register'
+  - trigger: "formatYearsAgo(0) does not equal '~13.8B years ago...' OR formatYearsAgo(GENESIS_END_YEAR) does not equal '~now'"
+    expected: 'CI fails — the reverse-projection mapping is off'
+  - trigger: "grep for 'commentary\\|narrate\\|prologue\\|cutscene' in docs/claude/genesis.md returns any hits"
+    expected: 'CI fails — the doc still describes genesis as a narrated event'
+  - trigger: 'npm run spec:validate exits non-zero'
+    expected: 'CI fails — spec or plan files reference deleted symbols'
+  - trigger: 'A new HUD element (hash readout, seed bytes, tile counter, loading prefix percentage text like "63% loaded", splash screen, boot animation) is added during genesis. The bordered-card year readout + gold fill bar described in bottom-bar-stripped-and-reformatted is permitted — it mirrors the ScanProgressBar diegetic affordance, not a consumer-electronics loading bar.'
+    expected: 'CI fails — the diegetic test bans consumer-electronics gestures per precis-thinktank-v4 round 9'
+
+verification:
+  test_file: src/engine/__tests__/genesis.test.ts
+  test_pattern: 'formatYearsAgo'
+  command: 'npx vitest run src/engine/__tests__/genesis.test.ts -t formatYearsAgo'

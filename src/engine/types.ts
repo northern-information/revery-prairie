@@ -489,7 +489,6 @@ export interface GameState {
   // scrolled to the entry. Outside of scan flow, always null.
   manualHighlightEntryId: string | null
   onPlayerMoved: (() => void) | null
-  onGenesisEpochStart: ((commentary: string, epochIndex: number) => void) | null
   onGenesisComplete: ((handoffTime: number) => void) | null
 }
 

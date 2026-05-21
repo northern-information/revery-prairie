@@ -1,19 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { formatYear, GENESIS_EPOCHS, getEpochProgress, getGenesisCommentary, getGenesisYear } from '@/engine/genesis'
+import { formatYearsAgo, GENESIS_EPOCHS, getEpochProgress, getGenesisYear } from '@/engine/genesis'
 import type { GameState } from '@/engine/types'
 
-// Genesis commentary: large italic gold line + year subtitle in a
-// gameplay-style bottom bar (192px, bg-black/70). Year ticks every
-// frame so the rolling counter reads as alive throughout the fades.
-// Commentary fades in/out tied to epoch progress so each line breathes
-// before the next replaces it.
+// Bottom-center reverse-projection readout for the genesis sequence.
+// Mirrors the ScanProgressBar's bordered-card shape: a label line on
+// top showing the tilde-prefixed year (formatYearsAgo) and a gold fill
+// bar below tracking overall derivation progress from epoch 0 to
+// handoff. The rAF loop keeps both the readout and the bar ticking
+// under the continuous epoch lerp; the formatter rounds the year into
+// honest bands so the display never claims more precision than geology
+// can cite.
 export const GenesisBottomBar = ({ state }: { state: GameState }): React.ReactElement | null => {
   const [, force] = useState(0)
   const rafRef = useRef<number | null>(null)
 
-  // Run a render-loop while genesis is active so the year counter and
-  // commentary fade stay smooth between gameLoop refresh ticks.
   useEffect(() => {
     let alive = true
     const loop = (): void => {
@@ -31,35 +32,26 @@ export const GenesisBottomBar = ({ state }: { state: GameState }): React.ReactEl
   const sim = state.genesis
   if (!sim) return null
 
+  const year = getGenesisYear(sim, GENESIS_EPOCHS)
   const isPastFinalEpoch = sim.epochIndex >= GENESIS_EPOCHS.length
-  const now = performance.now()
-  const progress = isPastFinalEpoch ? 1 : getEpochProgress(sim, GENESIS_EPOCHS)
-  const commentary = isPastFinalEpoch
-    ? GENESIS_EPOCHS[GENESIS_EPOCHS.length - 1].commentary
-    : getGenesisCommentary(sim, GENESIS_EPOCHS)
-  const year = getGenesisYear(sim, GENESIS_EPOCHS, now)
-
-  // Commentary fades in across the first fraction of the epoch and
-  // out across the last fraction; year stays at full opacity always.
-  const FADE_IN = 0.15
-  const FADE_OUT = 0.15
-  const commentaryAlpha =
-    progress < FADE_IN ? progress / FADE_IN : progress > 1 - FADE_OUT ? Math.max(0, (1 - progress) / FADE_OUT) : 1
+  const inEpochProgress = isPastFinalEpoch ? 1 : getEpochProgress(sim, GENESIS_EPOCHS)
+  const overall = (sim.epochIndex + inEpochProgress) / GENESIS_EPOCHS.length
+  const pct = Math.round(Math.max(0, Math.min(1, overall)) * 100)
 
   return (
     <div
       data-panel="genesis-bottom-bar"
-      className="pointer-events-none fixed right-4 bottom-4 z-10 text-right font-serif"
+      className="border-border pointer-events-none fixed bottom-52 left-1/2 z-10 flex w-64 -translate-x-1/2 flex-col gap-1 rounded border bg-black/80 px-3 py-2 font-mono text-xs"
     >
-      <p className="text-lg italic" style={{ color: '#d8a860', opacity: commentaryAlpha }}>
-        {commentary}
-      </p>
-      <p className="font-mono text-xl tabular-nums" style={{ color: '#d8a860' }}>
-        {formatYear(year)}
-      </p>
-      <p className="text-xs italic" style={{ color: '#a68850' }}>
-        Years Since Genesis
-      </p>
+      <div className="tabular-nums" style={{ color: '#d8a860' }}>
+        {formatYearsAgo(year)}
+      </div>
+      <div className="border-border h-2 w-full overflow-hidden border bg-black/50">
+        <div
+          className="h-full transition-[width] duration-75 ease-linear"
+          style={{ width: `${String(pct)}%`, backgroundColor: '#d8a860' }}
+        />
+      </div>
     </div>
   )
 }

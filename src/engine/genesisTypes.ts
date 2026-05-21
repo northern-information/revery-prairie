@@ -30,7 +30,6 @@ export interface GenesisTileRender {
 export interface GenesisEpoch {
   id: GenesisEpochId
   durationMs: number
-  commentary: string
   /** Mutate the simulation grid and accumulate soil/ruin data. Called once at epoch start. */
   mutate: (sim: GenesisSimState) => void
   /** Return char(s) + color for a given tile position at the given progress (0-1). */
@@ -170,10 +169,6 @@ export interface GenesisSimState {
   epochSnapshots: EpochSnapshot[]
   /** Whether all mutations have been pre-computed */
   mutationsPrecomputed: boolean
-  /** Number of epochs that have already fired their narration callback.
-   *  Guards against double-firing when an epoch has been narrated live and
-   *  then completeGenesis flushes remaining epochs. */
-  narratedEpochCount: number
   /** Rain aura tile hash seed — set from GameState.rainSeed so presentDay
    *  rain overlay matches the game renderer exactly. */
   rainSeed: number
