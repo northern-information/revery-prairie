@@ -1,6 +1,7 @@
 import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { createCharacterEntity } from '../entities'
+import { createEmptyFloraGrowthPreviews } from '../floraGrowthPreviews'
 import { completeGenesis, createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } from '../genesis'
 import { isInBounds } from '../position'
 import { createGameState } from '../state'
@@ -81,7 +82,7 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   state.path = null
   state.pathWaypoints = []
   state.pendingAction = null
-  state.floraGrowthPreviews = new Set()
+  state.floraGrowthPreviews = createEmptyFloraGrowthPreviews()
   state.floraLifecycle = new Map()
   state.soilHealth = new Map()
   state.tileWater = new Map()

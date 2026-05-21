@@ -3,6 +3,7 @@ import { transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { createCharacterEntity } from './entities'
 import { FLORA_SPECIES } from './flora/species'
+import { clearAllGrowthPreviews } from './floraGrowthPreviews'
 import { generateGenesisIdentity, generateTraitBag } from './genetics'
 import { nameToSeed } from './genesis'
 import { RuinRole } from './genesisTypes'
@@ -805,7 +806,7 @@ const clearNavigationState = (state: GameState): void => {
   state.facingEntityPos = null
   state.activeDialog = null
   state.trail = []
-  state.floraGrowthPreviews = new Set<string>()
+  clearAllGrowthPreviews(state)
   clearMovementTweens(state)
   deselectAll(state)
   clearAllUnitCommands(state)
