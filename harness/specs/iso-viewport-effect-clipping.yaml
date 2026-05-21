@@ -118,7 +118,7 @@ behaviors:
       including parallelogram corners. Existing `isInRainFront`,
       density, and player tile checks remain in place.
     inputs:
-      - state.rainIntensity > 0, overworld zone
+      - state.precipitationIntensity > 0, overworld zone
       - viewport, time
     outputs:
       - rain glyphs drawn at every visible in-front non-player tile passing the density gate
