@@ -830,7 +830,7 @@ features:
     status: in-progress
     spec: null
     plan: null
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/379
     notes: >
       v5 thinktank round 2 (2026-05-21). Seed: Tyler asked what the
       risk exposure is if the Voynich manuscript ever gets solved.
