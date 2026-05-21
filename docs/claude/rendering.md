@@ -10,3 +10,9 @@ the renderer is organized around two ideas — see `harness/specs/renderer.yaml`
 - **cache contract** (`src/engine/render/cacheContract.ts`) — single source of truth for cached-layer invalidation triggers. mutation sites call into this module rather than poking individual caches. current cached layers: `tileBgCache` (per-map static tile bg + cube edges), `haloCache` (per-map prairie halo at peak intensity, pulse applied at composite via `globalAlpha`). the contract module documents which mutations invalidate which caches.
 
 when adding a new bg-cache, world-overlay, effect, or screen-overlay concern, write a pass — don't edit `renderer.ts`. when adding a new map mutation site, route it through the cache contract. when adding a new cached layer, declare its triggers in `cacheContract.ts` so the next mutation author can find them.
+
+## iso projection is the canonical exposed frame (precis #30)
+
+the diamond is the world (precis-thinktank-v5 round 1). `worldToScreen` in `src/engine/projection.ts` applies the canonical iso projection `(sx, sy) = ((x − y) · charWidth, (x + y) · charHeight / 2)`. world `(x, y)` is internal storage, not a coordinate frame the game exposes. any code that reports a position or a direction to the steward (the minimap, the sidebar cursor, future instruments) reports in the iso frame the steward inhabits, not in storage coords.
+
+cardinals point at the diamond's tips on screen — N is the top tip (storage `(0, 0)` direction), E the right tip, S the bottom tip, W the left tip. ordinals align with the storage axes themselves. see `docs/claude/weather.md` for the doctrinal summary and the `WindDirection` enum doctrine block in `src/engine/types.ts` for the canonical reference. no coordinate translation lives anywhere in the game — the display layer does not translate between two frames because there is only one frame.

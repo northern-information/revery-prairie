@@ -22,6 +22,12 @@ the only HUD element is a bordered card centered above the bottom edge of the sc
 - dev auto-skip: `?skipGenesis=true` URL param
 - tests: use `runAllMutations()` for a synchronous result, or omit `genesisResult` from `createGameState` to fall back to legacy terrain generation.
 
+### the diamond is the world — glaciers from the diamond tips (precis #30)
+
+glaciers advance from the diamond's top and bottom tips on screen — storage `(SPACE_BORDER, SPACE_BORDER)` and `(width − SPACE_BORDER − 1, height − SPACE_BORDER − 1)`. polar distance is measured along the rotated metric `u = (x − SB) + (y − SB)`, not along storage-`y`. the comment at `genesis.ts:1444` ("Glaciers advance from top and bottom") finally describes what the code does. glacial edge noise is keyed by the perpendicular coordinate `v = x − y + height − 1` so the organic lobe pattern runs perpendicular to the advance.
+
+future latitude-banded features (ice caps, polar fauna, equatorial blooms) place themselves where the diamond's geometry says they should: bands stack symmetrically around the diamond's center along the `u` axis, with the diamond tips at `u = 0` (top) and `u = 2 · (playable_side − 1)` (bottom). the doctrine block above the `WindDirection` enum in `src/engine/types.ts` is the canonical reference for the rotated cardinal frame; see `docs/claude/weather.md` for the doctrinal summary.
+
 ## soil health
 
 `soilHealth: Map<string, number>` keyed by posKey. default `SOIL_HEALTH_DEFAULT` (50), max `SOIL_HEALTH_MAX` (100). geologically derived when genesis runs (base 30, accumulated through epochs, clamped [10, 100]). enriched by natural flora death and by wildfire burn recovery.

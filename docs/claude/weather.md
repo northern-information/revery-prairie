@@ -32,3 +32,13 @@ when `weather.season === Winter` on the overworld, the renderer applies two coor
 2. **per-glyph wash**: every tile glyph color passes through `applyWinterWash(color)` in `tileBg.ts` (40% blend toward the same grey) before being assigned to `ctx.fillStyle`. egregore tiles (precis #8a) short-circuit the wash so the violet Voynich script pops against the grey.
 
 cave and ruin zones are exempt from the wash entirely (player is underground).
+
+## wind direction — the rotated cardinal frame (precis #30)
+
+the diamond is the world (precis-thinktank-v5 round 1). iso is not a viewing layer applied to a flat grid; iso is the world's shape. cardinals (N/E/S/W) point at the diamond's tips on screen — N is the top tip, E the right tip, S the bottom tip, W the left tip. ordinals (NE/SE/SW/NW) align with the storage axes themselves: NE runs down the storage-+x edge (upper-right edge of the diamond on screen), SE runs down storage-+y, SW runs up storage-+x, NW runs up storage-+y.
+
+`state.weather.windDirection` stores the cardinal the wind blows **from**. the `WIND_SCREEN_VECTORS` table in `src/engine/weather/wind.ts` maps each cardinal to the screen-space drift vector. all eight values have magnitude √2 so `windSpeed × (sx, sy)` produces equivalent drift across all directions. the canonical doctrine block lives above the `WindDirection` enum in `src/engine/types.ts`; downstream code reads it.
+
+rain fronts sweep across the diamond in the direction the cardinal names. cardinals sweep along the iso-diagonal axes `u = x + y` (diamond's vertical screen axis) and `v = x - y` (diamond's horizontal screen axis); ordinals sweep along storage `x` or `y`. `windToFrontAxis` in `src/engine/tileWater.ts` is the canonical mapping; `rainFrontCoord` is the shared coord helper used by both `isInRainFront` and the rain-aura check in `effects.ts`.
+
+no coordinate translation lives anywhere in the game. the display layer does not translate between two frames because there is only one frame. the compass points at the world the steward inhabits, not at the grid the storage uses.
