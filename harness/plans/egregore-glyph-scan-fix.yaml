@@ -1,0 +1,326 @@
+plan:
+  id: egregore-glyph-scan-fix
+  title: 'Voynich PUA glyphs, drop EVA binomial, F-scan with purple gel'
+  created: '2026-05-21'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/egregore.test.ts src/engine/__tests__/scan.test.ts src/components/__tests__/ManualPanel.test.tsx src/components/__tests__/GelBandView.test.tsx src/harness/__tests__/serialization/schema.test.ts
+
+tasks:
+  # ─── glyph + font (precis-8a-egregoric-thematic and egregore-font-fix supersedes) ───
+
+  - id: remap-egregore-glyphs-to-pua
+    title: 'Rewrite EGREGORE_GLYPHS to use kreativekorp Voynich PUA range (U+F120..U+F15F); update comment block'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-glyph-registry
+    context_files:
+      - src/engine/egregore.ts
+      - public/fonts/voynich.ttf
+    output_files:
+      - src/engine/egregore.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/engine/__tests__/egregore.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: remap-eva-tokens-to-pua
+    title: 'Rewrite EVA_TOKENS so each entry is composed of PUA code points (U+F120..U+F15F); preserve length distribution'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - eva-tokens-rendered-as-voynich
+    context_files:
+      - src/engine/egregore.ts
+    output_files:
+      - src/engine/egregore.ts
+    depends_on:
+      - remap-egregore-glyphs-to-pua
+    verification:
+      - 'npx vitest run src/engine/__tests__/egregore.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: bundle-voynich-font
+    title: 'Make voynich.ttf a required build asset: either commit it under public/fonts/ or wire fetch-font as a prebuild hook'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - voynich-font-bundled-load-required
+    context_files:
+      - package.json
+      - tools/fetch-voynich-font.mjs
+      - public/fonts/README.md
+      - .gitignore
+    output_files:
+      - package.json
+      - public/fonts/README.md
+      - .gitignore
+    depends_on: []
+    verification:
+      - 'node -e "const fs=require(''fs''); if(!fs.existsSync(''public/fonts/voynich.ttf'')) { process.exit(1) }"'
+    repair: retry
+    tags: [tooling]
+
+  - id: pua-allowlist-test
+    title: 'Add unit test: every code point in EGREGORE_GLYPHS and every char in every EVA_TOKENS entry is in U+F120..U+F15F'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-glyph-registry
+      - eva-tokens-rendered-as-voynich
+    context_files:
+      - src/engine/egregore.ts
+      - src/engine/__tests__/egregore.test.ts
+    output_files:
+      - src/engine/__tests__/egregore.test.ts
+    depends_on:
+      - remap-egregore-glyphs-to-pua
+      - remap-eva-tokens-to-pua
+    verification:
+      - 'npx vitest run src/engine/__tests__/egregore.test.ts'
+    repair: retry
+    tags: [engine, test, regression]
+
+  # ─── manual entry (header simplification) ───
+
+  - id: delete-egregore-binomial
+    title: 'Remove getEgregoreBinomial export from src/engine/egregore.ts and drop its call site in src/engine/manual.ts'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-binomial-header-removed
+    context_files:
+      - src/engine/egregore.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/egregore.ts
+      - src/engine/manual.ts
+    depends_on:
+      - remap-eva-tokens-to-pua
+    verification:
+      - 'npx vitest run src/engine/__tests__/egregore.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: manual-panel-glyph-only-header
+    title: 'ManualPanel renders ManualCategory.Egregore entries with the glyph only — no entry.name span'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-binomial-header-removed
+    context_files:
+      - src/components/ManualPanel.tsx
+      - src/engine/manual.ts
+    output_files:
+      - src/components/ManualPanel.tsx
+    depends_on:
+      - delete-egregore-binomial
+    verification:
+      - 'npx vitest run src/components/__tests__/ManualPanel.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: manual-panel-header-regression-test
+    title: 'Regression test: ManualPanel egregore entry header contains the glyph but no EVA name span'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-binomial-header-removed
+    context_files:
+      - src/components/ManualPanel.tsx
+      - src/components/__tests__/ManualPanel.test.tsx
+    output_files:
+      - src/components/__tests__/ManualPanel.test.tsx
+    depends_on:
+      - manual-panel-glyph-only-header
+    verification:
+      - 'npx vitest run src/components/__tests__/ManualPanel.test.tsx'
+    repair: retry
+    tags: [component, test, regression]
+
+  # ─── scan plumbing ───
+
+  - id: add-egregore-specimens-state-field
+    title: 'Add egregoreSpecimens: ScannedSpecimen[] to GameState; initialize in createGameState; add to EXPECTED_FIELDS'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-specimens-state-field
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [engine, state]
+
+  - id: widen-scan-target-with-egregore-variant
+    title: 'Add { kind: "egregore"; position; identity } variant to ScanTarget; teach selectScanTarget to detect TileType.Egregore in priority order'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-is-scan-target
+    context_files:
+      - src/engine/scan.ts
+      - src/engine/egregore.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/scan.ts
+    depends_on:
+      - remap-egregore-glyphs-to-pua
+    verification:
+      - 'npx vitest run src/engine/__tests__/scan.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: add-egregore-tile-identity
+    title: 'Add getEgregoreTileIdentity(x, y): string in src/engine/egregore.ts — deterministic 64-hex identity per tile derived from tileHash with a dedicated salt channel'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-is-scan-target
+    context_files:
+      - src/engine/egregore.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/egregore.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/engine/__tests__/egregore.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: commit-scan-handles-egregore
+    title: 'commitScan processes the egregore variant: dedupe append to egregoreSpecimens, recordDiscovery, manualHighlightEntryId, spawn pickup bloom, return egregore-tagged result'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-scan-opens-manual-entry
+      - egregore-specimens-state-field
+    context_files:
+      - src/engine/scan.ts
+      - src/engine/manual.ts
+      - src/engine/effects.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/scan.ts
+    depends_on:
+      - add-egregore-specimens-state-field
+      - widen-scan-target-with-egregore-variant
+      - add-egregore-tile-identity
+    verification:
+      - 'npx vitest run src/engine/__tests__/scan.test.ts'
+    repair: retry
+    tags: [engine]
+
+  - id: scan-regression-tests
+    title: 'Regression tests in scan.test.ts: on-tile priority, cardinal priority, dedupe on rescan, identity stability, manualHighlightEntryId set'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-is-scan-target
+      - egregore-scan-opens-manual-entry
+      - egregore-specimens-state-field
+    context_files:
+      - src/engine/scan.ts
+      - src/engine/egregore.ts
+      - src/engine/__tests__/scan.test.ts
+    output_files:
+      - src/engine/__tests__/scan.test.ts
+    depends_on:
+      - commit-scan-handles-egregore
+    verification:
+      - 'npx vitest run src/engine/__tests__/scan.test.ts'
+    repair: retry
+    tags: [engine, test, regression]
+
+  # ─── purple gel variant ───
+
+  - id: gel-band-view-variant-prop
+    title: 'Add variant: "flora" | "egregore" prop to GelBandView; extract palette tokens; add per-column hash-derived widths and amplified cellNoise for the egregore variant'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - purple-gel-band-view-variant
+    context_files:
+      - src/components/GelBandView.tsx
+      - src/styles/index.css
+    output_files:
+      - src/components/GelBandView.tsx
+      - src/styles/index.css
+    depends_on: []
+    verification:
+      - 'npx vitest run src/components/__tests__/GelBandView.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: gel-variant-regression-test
+    title: 'Regression tests for GelBandView egregore variant: violet palette tokens applied, per-column widths derived from identity, bounding-box width stable, jitter amplitude exceeds flora variant'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - purple-gel-band-view-variant
+    context_files:
+      - src/components/GelBandView.tsx
+      - src/components/__tests__/GelBandView.test.tsx
+    output_files:
+      - src/components/__tests__/GelBandView.test.tsx
+    depends_on:
+      - gel-band-view-variant-prop
+    verification:
+      - 'npx vitest run src/components/__tests__/GelBandView.test.tsx'
+    repair: retry
+    tags: [component, test, regression]
+
+  - id: wire-egregore-scan-result-modal
+    title: 'When commitScan returns an egregore result, open the scan-result modal with variant="egregore" and the tile identity; close routes through manualHighlightEntryId'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-scan-result-modal
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/engine/scan.ts
+      - src/components/GelBandView.tsx
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - commit-scan-handles-egregore
+      - gel-band-view-variant-prop
+    verification:
+      - 'npx vitest run src/components/__tests__/ManualPanel.test.tsx src/engine/__tests__/scan.test.ts'
+    repair: retry
+    tags: [hook, component]
+
+  # ─── docs ───
+
+  - id: update-egregore-doctrine-docs
+    title: 'Update docs/claude/egregores.md to reflect PUA glyphs, removed EVA binomial, F-scan path, and purple gel variant; supersede prior Latin Extended-E rationale'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - doctrine-and-status-aligned
+    context_files:
+      - docs/claude/egregores.md
+      - src/engine/egregore.ts
+    output_files:
+      - docs/claude/egregores.md
+    depends_on:
+      - remap-egregore-glyphs-to-pua
+      - delete-egregore-binomial
+      - commit-scan-handles-egregore
+      - gel-band-view-variant-prop
+    verification:
+      - 'grep -q "U+F120" docs/claude/egregores.md && grep -q "scan" docs/claude/egregores.md && echo ok'
+    repair: retry
+    tags: [docs]
+
+  - id: claude-md-egregore-rule-addendum
+    title: 'CLAUDE.md: one-line addendum under the egregore content rule noting that egregore tiles are scan targets and state.egregoreSpecimens must be maintained'
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - doctrine-and-status-aligned
+    context_files:
+      - CLAUDE.md
+    output_files:
+      - CLAUDE.md
+    depends_on:
+      - add-egregore-specimens-state-field
+    verification:
+      - 'grep -q "egregoreSpecimens" CLAUDE.md && echo ok'
+    repair: retry
+    tags: [docs]
