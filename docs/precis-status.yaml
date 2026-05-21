@@ -133,10 +133,10 @@ features:
     summary: Click to draw a line, then walk it together with Moab. Burn ignition along the path, player refusal, Moab refusal, ash-prairie outcome. Behavior pass following 9a's voice pass.
     size: M
     depends_on: ['9a']
-    status: todo
-    spec: null
-    plan: null
-    pr: null
+    status: shipped
+    spec: harness/specs/precis-9b-torchbearer-behavior.yaml
+    plan: harness/plans/precis-9b-torchbearer-behavior.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/353
     notes: 'Split from original precis-9 on 2026-05-20 after 9a shipped (#350). Design intent recorded in 9a spec: walking is "click to draw a line, then walk it together" — path drawn before Moab arrives, both traverse on confirm. Burn semantics + ash-prairie outcome land here; the ash biome itself is precis-10.'
 
   - id: '10'
