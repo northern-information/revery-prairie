@@ -185,12 +185,9 @@ const EntryCard = ({
         ) : entry.category === ManualCategory.Control ? (
           <ControlName name={entry.name} />
         ) : entry.category === ManualCategory.Egregore ? (
-          <>
-            <span style={{ color: entry.glyphColor, fontFamily: "'Voynich', monospace" }}>{entry.glyph}</span>
-            <span className="text-text text-sm" style={{ fontFamily: "'Voynich', monospace" }}>
-              {entry.name}
-            </span>
-          </>
+          // Egregore entries have no name line — the cosmology has no
+          // readable name per doctrine. Header is the glyph alone.
+          <span style={{ color: entry.glyphColor, fontFamily: "'Voynich', monospace" }}>{entry.glyph}</span>
         ) : (
           <>
             <span style={{ color: entry.glyphColor }}>{entry.glyph}</span>

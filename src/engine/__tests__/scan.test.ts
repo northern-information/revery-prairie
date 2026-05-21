@@ -226,3 +226,131 @@ describe('commitScan', () => {
     expect(state.manualHighlightEntryId).toBeNull()
   })
 })
+
+// Helper: convert the tile under (x, y) to TileType.Egregore for the
+// purposes of scan tests. Mirrors the pattern in egregore-advance tests.
+const placeEgregore = (
+  state: ReturnType<typeof createTestState>,
+  x: number,
+  y: number,
+): void => {
+  state.map[y][x] = { type: TileType.Egregore }
+}
+
+describe('egregore scan (precis #8a)', () => {
+  it('selectScanTarget returns an egregore variant for an on-tile egregore', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    placeEgregore(state, state.player.x, state.player.y)
+    const target = selectScanTarget(state)
+    expect(target?.kind).toBe('egregore')
+    if (target?.kind === 'egregore') {
+      expect(target.position.x).toBe(state.player.x)
+      expect(target.position.y).toBe(state.player.y)
+      expect(target.identity).toHaveLength(64)
+    }
+  })
+
+  it('selectScanTarget picks egregore in the playerFacing cardinal direction', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    state.playerFacing = 'right'
+    placeEgregore(state, state.player.x + 1, state.player.y)
+    const target = selectScanTarget(state)
+    expect(target?.kind).toBe('egregore')
+    if (target?.kind === 'egregore') {
+      expect(target.position.x).toBe(state.player.x + 1)
+    }
+  })
+
+  it('on-tile flora wins over an adjacent egregore tile', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    placeFlora(state, state.player.x, state.player.y, FloraSpecies.Clover)
+    placeEgregore(state, state.player.x + 1, state.player.y)
+    const target = selectScanTarget(state)
+    expect(target?.kind).toBe('flora')
+  })
+
+  it('commitScan appends to egregoreSpecimens, deduped by identity', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    placeEgregore(state, state.player.x, state.player.y)
+    state.scanInProgress = {
+      kind: 'egregore',
+      target: { x: state.player.x, y: state.player.y },
+      startTime: 0,
+    }
+    expect(state.egregoreSpecimens).toHaveLength(0)
+    const first = commitScan(state, 1500)
+    expect(first?.kind).toBe('egregore')
+    expect(state.egregoreSpecimens).toHaveLength(1)
+
+    // Rescan the same tile — no new specimen, but bloom + highlight fire again.
+    state.scanInProgress = {
+      kind: 'egregore',
+      target: { x: state.player.x, y: state.player.y },
+      startTime: 2000,
+    }
+    state.manualHighlightEntryId = null
+    const second = commitScan(state, 3500)
+    expect(second?.kind).toBe('egregore')
+    expect(state.egregoreSpecimens).toHaveLength(1)
+    expect(state.manualHighlightEntryId).toBe(`egregore:${String(state.player.x)},${String(state.player.y)}`)
+  })
+
+  it('records the egregore:x,y manual discovery key on commit', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    placeEgregore(state, state.player.x, state.player.y)
+    state.manualDiscoveries.clear()
+    state.scanInProgress = {
+      kind: 'egregore',
+      target: { x: state.player.x, y: state.player.y },
+      startTime: 0,
+    }
+    commitScan(state, 1500)
+    const key = `egregore:${String(state.player.x)},${String(state.player.y)}`
+    expect(state.manualDiscoveries.has(key)).toBe(true)
+  })
+
+  it('egregore tile identity is stable across selectScanTarget calls', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    placeEgregore(state, state.player.x, state.player.y)
+    const a = selectScanTarget(state)
+    const b = selectScanTarget(state)
+    expect(a?.kind).toBe('egregore')
+    expect(b?.kind).toBe('egregore')
+    if (a?.kind === 'egregore' && b?.kind === 'egregore') {
+      expect(a.identity).toBe(b.identity)
+    }
+  })
+
+  it('aborts on kind drift — flora hold against egregore target returns null', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    placeEgregore(state, state.player.x, state.player.y)
+    state.scanInProgress = {
+      kind: 'flora',
+      target: { x: state.player.x, y: state.player.y },
+      species: FloraSpecies.Clover,
+      startTime: 0,
+    }
+    expect(commitScan(state, 1500)).toBeNull()
+  })
+
+  it('spawns a pickup bloom at the scanned egregore tile', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    placeEgregore(state, state.player.x, state.player.y)
+    const bloomsBefore = countPickupBlooms(state)
+    state.scanInProgress = {
+      kind: 'egregore',
+      target: { x: state.player.x, y: state.player.y },
+      startTime: 0,
+    }
+    commitScan(state, 1500)
+    expect(countPickupBlooms(state)).toBe(bloomsBefore + 1)
+  })
+})

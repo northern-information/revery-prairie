@@ -66,4 +66,90 @@ describe('GelBandView', () => {
     expect(screen.getByTestId('gel-crop-bl')).toBeTruthy()
     expect(screen.getByTestId('gel-crop-br')).toBeTruthy()
   })
+
+  describe('egregore variant (precis #8a)', () => {
+    it('marks the wrapper with data-variant="egregore"', () => {
+      render(<GelBandView identity={identity} variant="egregore" />)
+      const wrapper = screen.getByTestId('gel-band-view')
+      expect(wrapper.getAttribute('data-variant')).toBe('egregore')
+    })
+
+    it('uses the violet palette tokens, not the gold/bee palette', () => {
+      render(<GelBandView identity={identity} variant="egregore" />)
+      const left = screen.getByTestId('gel-side-label-left')
+      const right = screen.getByTestId('gel-edge-code')
+      // No bee/gold classes on the egregore variant; violet (#B080D0) instead.
+      expect(left.className).not.toContain('text-bee')
+      expect(right.className).not.toContain('text-bee')
+      expect(left.className).toContain('text-[#B080D0]')
+      expect(right.className).toContain('text-[#B080D0]')
+      // Bands themselves should not use bg-bee.
+      const cell = screen.getByTestId('gel-band-cell-0-0')
+      expect(cell.className).not.toContain('bg-bee')
+      expect(cell.className).toContain('bg-[#B080D0]')
+      // Corner crops also follow the violet palette.
+      expect(screen.getByTestId('gel-crop-tl').className).toContain('border-[#B080D0]')
+    })
+
+    it('uses per-column hash-derived widths that vary across columns', () => {
+      const { container } = render(<GelBandView identity={identity} variant="egregore" />)
+      const innerGrid = container.querySelector('.grid')
+      expect(innerGrid).toBeTruthy()
+      const cols = (innerGrid as HTMLElement).style.gridTemplateColumns
+      // gridTemplateColumns is now a list of 8 explicit px values
+      // (instead of "repeat(8, 40px)").
+      const widths = cols
+        .split(' ')
+        .filter(w => w.endsWith('px'))
+        .map(w => parseFloat(w))
+      expect(widths).toHaveLength(HEX_GRID_SIZE)
+      const distinct = new Set(widths.map(w => Math.round(w * 10) / 10))
+      // Per-column hash should produce at least 4 distinct widths over 8 columns
+      // for a high-entropy SHA256 identity.
+      expect(distinct.size).toBeGreaterThanOrEqual(4)
+      // Sum should match TOTAL_SIZE (8 * 40 = 320), within float precision.
+      const sum = widths.reduce((a, b) => a + b, 0)
+      expect(sum).toBeCloseTo(40 * HEX_GRID_SIZE, 1)
+    })
+
+    it('uses uniform column widths for the flora variant (no per-column jitter)', () => {
+      const { container } = render(<GelBandView identity={identity} variant="flora" />)
+      const innerGrid = container.querySelector('.grid')
+      const cols = (innerGrid as HTMLElement).style.gridTemplateColumns
+      // The flora variant uses "repeat(N, NNpx)" template.
+      expect(cols).toContain('repeat(')
+    })
+
+    it('renders deterministically per identity for the egregore variant', () => {
+      const first = render(<GelBandView identity={identity} variant="egregore" />)
+      const firstHTML = first.container.innerHTML
+      first.unmount()
+      const second = render(<GelBandView identity={identity} variant="egregore" />)
+      expect(second.container.innerHTML).toBe(firstHTML)
+    })
+
+    it('amplifies band jitter compared to the flora variant', () => {
+      // Same identity, same cell, different variants — the egregore
+      // variant should produce a wider horizontal offset range. We
+      // sample across all 64 cells and compare the spread of marginLeft.
+      const collectOffsets = (variant: 'flora' | 'egregore') => {
+        const { container, unmount } = render(<GelBandView identity={identity} variant={variant} />)
+        const offsets: number[] = []
+        for (let r = 0; r < HEX_GRID_SIZE; r++) {
+          for (let c = 0; c < HEX_GRID_SIZE; c++) {
+            const cell = container.querySelector<HTMLElement>(
+              `[data-testid="gel-band-cell-${String(r)}-${String(c)}"]`,
+            )
+            if (cell) offsets.push(parseFloat(cell.style.marginLeft))
+          }
+        }
+        unmount()
+        return offsets
+      }
+      const floraOffsets = collectOffsets('flora')
+      const egregoreOffsets = collectOffsets('egregore')
+      const range = (xs: number[]) => Math.max(...xs) - Math.min(...xs)
+      expect(range(egregoreOffsets)).toBeGreaterThan(range(floraOffsets))
+    })
+  })
 })

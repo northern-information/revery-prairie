@@ -46,7 +46,7 @@ import { tickDeepTime } from './deepTime'
 import { ComponentType } from './ecs/types'
 import { pickUpGroundItems, tickBees, tickCharacterBehaviors } from './entities'
 import { tickPollenDrift, tickPollenEmit } from './flora'
-import { commitScan } from './scan'
+import { commitScan, type ScanCommitResult } from './scan'
 import { completeGenesis, finalizeGenesisHandoff, GENESIS_EPOCHS, tickGenesis } from './genesis'
 import { tickGlintZones } from './glintZones'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
@@ -68,7 +68,7 @@ import { tickPrecipitationIntensity, tickWeather } from './weather'
 import { tickWind } from './weather/wind'
 import { tickZoneTransition } from './zoneTransition'
 
-import type { FloraSpecies, GameState } from './types'
+import type { GameState } from './types'
 
 export interface TickSystem {
   id: string
@@ -84,14 +84,12 @@ export interface GameLoopCallbacks {
   onRefreshUI?: () => void
   onBeeDeath?: (worldX: number, worldY: number) => void
   onAutoHidePanel?: () => void
-  // Precis #6 — fires from tick when a held [f] scan reaches 100% and
-  // commits successfully. The React layer opens the ScanResultModal with
-  // the just-scanned species + identity (the modal renders the latin
-  // binomial + gel-band sequence with a ceremonial row-by-row reveal).
-  onScanComplete?: (species: FloraSpecies, identity: string) => void
-  // Oak scans commit to the manual rather than the flora-only modal —
-  // the React layer opens the manual with the entry:oak entry highlighted.
-  onOakScanComplete?: (identity: string) => void
+  // Precis #6 / #8a — fires from tick when a held [f] scan reaches 100% and
+  // commits successfully. The React layer reads the discriminated
+  // ScanCommitResult and routes to the right surface: flora opens the
+  // ceremonial gel modal in gold, egregore in purple, oak opens the
+  // manual to the entity:oak entry (no modal).
+  onScanComplete?: (result: ScanCommitResult) => void
   onFrame?: (time: number) => void
 }
 
@@ -786,11 +784,7 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
       const committed = commitScan(state, time)
       state.scanInProgress = null
       if (committed) {
-        if (committed.kind === 'flora') {
-          callbacks.onScanComplete?.(committed.species, committed.identity)
-        } else {
-          callbacks.onOakScanComplete?.(committed.identity)
-        }
+        callbacks.onScanComplete?.(committed)
         callbacks.onRefreshUI?.()
       }
     }

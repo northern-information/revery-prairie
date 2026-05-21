@@ -7,6 +7,7 @@
 
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
+import { getEgregoreTileIdentity } from './egregore'
 import { recordDiscovery } from './manual'
 import { CARDINAL, isInBounds, posKey } from './position'
 import { TileType } from './types'
@@ -16,6 +17,7 @@ import type { Direction, FloraSpecies, GameState, Position } from './types'
 export type ScanTarget =
   | { kind: 'flora'; position: Position; species: FloraSpecies; identity: string }
   | { kind: 'oak'; position: Position; identity: string }
+  | { kind: 'egregore'; position: Position; identity: string }
 
 // Map a cardinal Direction value to the (dx, dy) delta the player is facing.
 // Returns null for diagonal facings (the on-tile case still wins, but the
@@ -59,23 +61,36 @@ const oakAt = (state: GameState, x: number, y: number): ScanTarget | null => {
   return null
 }
 
+// Returns an egregore ScanTarget if the tile at (x, y) is TileType.Egregore.
+// Identity is derived from the tile position via a dedicated SHA256 channel
+// (see getEgregoreTileIdentity) so the scan-result gel is independent of
+// the glyph/body pickers.
+const egregoreTileAt = (state: GameState, x: number, y: number): ScanTarget | null => {
+  if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return null
+  if (state.map[y][x].type !== TileType.Egregore) return null
+  return { kind: 'egregore', position: { x, y }, identity: getEgregoreTileIdentity(x, y) }
+}
+
 // Selects what the player would scan if they began holding the scan key right
-// now. Flora and oaks share the same priority order:
-//   1. on-tile flora (player standing on a flora tile) — oaks block movement
-//      so they can never be on-tile
+// now. Flora, oaks, and egregore tiles share the same priority order:
+//   1. on-tile (flora or egregore — oaks block movement so never on-tile)
 //   2. cardinal neighbor in playerFacing direction
 //   3. first cardinal neighbor in CARDINAL order (N, S, W, E)
 //   4. null
-// At each step, flora wins over oak when both exist at the same tile (oaks
-// occupy dirt; flora is its own tile type — they cannot coexist).
+// At each step, flora wins over egregore which wins over oak when multiple
+// kinds coexist at the same cursor tile. In practice flora/egregore are
+// distinct tile types and cannot coexist, so the ordering only matters
+// for the (rare) flora-on-an-oak-canopy edge case.
 const scanTargetAt = (state: GameState, x: number, y: number): ScanTarget | null =>
-  floraTileAt(state, x, y) ?? oakAt(state, x, y)
+  floraTileAt(state, x, y) ?? egregoreTileAt(state, x, y) ?? oakAt(state, x, y)
 
 export const selectScanTarget = (state: GameState): ScanTarget | null => {
   const { x: px, y: py } = state.player
 
-  // (1) on-tile flora
-  const onTile = floraTileAt(state, px, py)
+  // (1) on-tile flora or egregore (oaks block movement so they're never
+  // on-tile). Flora wins if both are present at the same tile (they
+  // cannot coexist in practice, but the ordering is explicit).
+  const onTile = floraTileAt(state, px, py) ?? egregoreTileAt(state, px, py)
   if (onTile) return onTile
 
   // (2) cardinal neighbor in playerFacing direction
@@ -94,27 +109,30 @@ export const selectScanTarget = (state: GameState): ScanTarget | null => {
   return null
 }
 
+// Discriminated commit result. Callers (game loop / useKeyboard) use the
+// `kind` field to route to the right UI surface:
+//   - 'flora':    open the gel modal in flora variant (gold palette)
+//   - 'egregore': open the gel modal in egregore variant (purple palette)
+//   - 'oak':      open the manual to the entity:oak entry (no modal)
 export type ScanCommitResult =
-  | { kind: 'flora'; species: FloraSpecies; identity: string }
+  | { kind: 'flora'; species: FloraSpecies; identity: string; position: Position }
+  | { kind: 'egregore'; identity: string; position: Position }
   | { kind: 'oak'; identity: string }
 
 // Called when a hold-to-scan release fires after >= SCAN_DURATION_MS elapsed.
 // Re-evaluates the target (the plant or player may have moved during the
 // hold), and if the target is still valid:
-//   - records flora:${species} or entity:oak discovery
-//   - appends a ScannedSpecimen to state.scannedSpecimens[species] / state.oakSpecimens
-//     unless a specimen with the same identity is already in the array
-//     (scanning the same plant twice is a no-op for the card stack)
+//   - records the appropriate discovery key
+//   - appends a ScannedSpecimen to the matching specimen collection
+//     unless one with the same identity is already there
 //   - spawns a pickup bloom at the scanned tile
 //   - sets state.manualHighlightEntryId so the manual scrolls to and
 //     highlights the entry on next render
 //
 // Returns a discriminated ScanCommitResult on success so the caller can
-// dispatch — flora opens the ceremonial gel-electrophoresis modal, oaks
-// open the manual (the modal is flora-only). Returns null on abort
-// (no scanInProgress, or selectScanTarget returns null / the target kind
-// drifted / the flora species changed). The function itself does not
-// open any UI surface — the caller is responsible.
+// route to the right UI surface — flora and egregore open the gel modal
+// (different variants), oaks open the manual directly. Returns null on
+// abort (no progress, no target, kind drift, species drift).
 export const commitScan = (state: GameState, time: number): ScanCommitResult | null => {
   const progress = state.scanInProgress
   if (!progress) return null
@@ -122,8 +140,8 @@ export const commitScan = (state: GameState, time: number): ScanCommitResult | n
   const target = selectScanTarget(state)
   if (!target) return null
   // The progress kind must match the current target kind. If the player
-  // started a flora scan and the target drifted to an oak (or vice versa),
-  // abort — the in-progress hold is no longer valid.
+  // started a flora scan and the target drifted to an oak/egregore (or
+  // any other mismatch), abort — the in-progress hold is no longer valid.
   if (target.kind !== progress.kind) return null
 
   if (target.kind === 'flora' && progress.kind === 'flora') {
@@ -144,13 +162,42 @@ export const commitScan = (state: GameState, time: number): ScanCommitResult | n
 
     spawnPickupBloom(state, target.position.x, target.position.y, time)
     state.manualHighlightEntryId = `flora:${target.species}`
-    return { kind: 'flora', species: target.species, identity: target.identity }
+    return {
+      kind: 'flora',
+      species: target.species,
+      identity: target.identity,
+      position: { x: target.position.x, y: target.position.y },
+    }
+  }
+
+  if (target.kind === 'egregore' && progress.kind === 'egregore') {
+    // Egregore commit. Records the per-tile manual entry id as the
+    // discovery key (matches getEgregoreManualEntries) and appends to
+    // egregoreSpecimens, deduped on identity (a SHA256 of the position).
+    const entryId = `egregore:${String(target.position.x)},${String(target.position.y)}`
+    recordDiscovery(state, entryId)
+
+    const alreadyScanned = state.egregoreSpecimens.some(s => s.identity === target.identity)
+    if (!alreadyScanned) {
+      state.egregoreSpecimens.push({
+        identity: target.identity,
+        scannedAt: time,
+        position: { x: target.position.x, y: target.position.y },
+      })
+    }
+
+    spawnPickupBloom(state, target.position.x, target.position.y, time)
+    state.manualHighlightEntryId = entryId
+    return {
+      kind: 'egregore',
+      identity: target.identity,
+      position: { x: target.position.x, y: target.position.y },
+    }
   }
 
   // Oak commit. Records entity:oak discovery and appends to oakSpecimens
   // (deduped on per-tree identity). Returns kind: 'oak' so the caller can
-  // open the manual to the oak entry — oaks do not get the flora-only
-  // gel-electrophoresis modal.
+  // open the manual to the oak entry — oaks do not get the gel modal.
   recordDiscovery(state, 'entity:oak')
   const alreadyScanned = state.oakSpecimens.some(s => s.identity === target.identity)
   if (!alreadyScanned) {

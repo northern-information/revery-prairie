@@ -2,9 +2,16 @@ import { ScanResultModal } from '../ScanResultModal'
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { ScanCommitResult } from '@/engine/scan'
 import { FloraSpecies } from '@/engine/types'
 
 const identity = '0e7d7b052690f720498415c0d9c0d36861af3edc5e6d872c2490f2b4a5b8d725'
+const floraResult: ScanCommitResult = {
+  kind: 'flora',
+  species: FloraSpecies.Clover,
+  identity,
+  position: { x: 0, y: 0 },
+}
 
 describe('scan-result modal', () => {
   beforeEach(() => {
@@ -27,20 +34,20 @@ describe('scan-result modal', () => {
   })
 
   it('renders the common name above the latin binomial', () => {
-    render(<ScanResultModal species={FloraSpecies.Clover} identity={identity} onDismiss={() => undefined} />)
+    render(<ScanResultModal result={floraResult} onDismiss={() => undefined} />)
     expect(screen.getByTestId('scan-result-common-name').textContent).toBe('Clover')
     expect(screen.getByTestId('scan-result-binomial').textContent).toBe('Trifolium repens')
   })
 
   it('starts with no cells revealed and binomial hidden', () => {
-    render(<ScanResultModal species={FloraSpecies.Clover} identity={identity} onDismiss={() => undefined} />)
+    render(<ScanResultModal result={floraResult} onDismiss={() => undefined} />)
     const gel = screen.getByTestId('scan-result-gel')
     expect(gel.getAttribute('data-revealed-cells')).toBe('0')
     expect(gel.getAttribute('data-fully-revealed')).toBe('false')
   })
 
   it('reveals cells one at a time in column-major order, then marks fully revealed', () => {
-    render(<ScanResultModal species={FloraSpecies.Clover} identity={identity} onDismiss={() => undefined} />)
+    render(<ScanResultModal result={floraResult} onDismiss={() => undefined} />)
 
     // Advance to just past the binomial fade (400ms) so the cell-reveal
     // scheduler has fired but no cell ticks have yet.
@@ -73,7 +80,7 @@ describe('scan-result modal', () => {
 
   it('ignores key dismiss before fully revealed', () => {
     const onDismiss = vi.fn()
-    render(<ScanResultModal species={FloraSpecies.Clover} identity={identity} onDismiss={onDismiss} />)
+    render(<ScanResultModal result={floraResult} onDismiss={onDismiss} />)
     act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     })
@@ -82,7 +89,7 @@ describe('scan-result modal', () => {
 
   it('dismisses on key after fully revealed', () => {
     const onDismiss = vi.fn()
-    render(<ScanResultModal species={FloraSpecies.Clover} identity={identity} onDismiss={onDismiss} />)
+    render(<ScanResultModal result={floraResult} onDismiss={onDismiss} />)
     act(() => {
       vi.advanceTimersByTime(50 + 400 + 40 * 64)
     })
@@ -94,7 +101,7 @@ describe('scan-result modal', () => {
   })
 
   it('renders the GelBandView with the provided identity', () => {
-    render(<ScanResultModal species={FloraSpecies.Clover} identity={identity} onDismiss={() => undefined} />)
+    render(<ScanResultModal result={floraResult} onDismiss={() => undefined} />)
     expect(screen.getByTestId('gel-band-view')).toBeInTheDocument()
   })
 
@@ -110,7 +117,7 @@ describe('scan-result modal', () => {
       dispatchEvent: vi.fn(),
     }))
     const onDismiss = vi.fn()
-    render(<ScanResultModal species={FloraSpecies.Clover} identity={identity} onDismiss={onDismiss} />)
+    render(<ScanResultModal result={floraResult} onDismiss={onDismiss} />)
     expect(screen.getByTestId('scan-result-heading').getAttribute('data-revealed')).toBe('true')
     expect(screen.getByTestId('scan-result-gel').getAttribute('data-fully-revealed')).toBe('true')
     act(() => {

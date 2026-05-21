@@ -1,7 +1,6 @@
 import { CHARACTER_DEFINITIONS } from './characters'
 import { COIN_GLINTING_COLOR, TILE_CHARS, TILE_COLORS } from './constants'
 import {
-  getEgregoreBinomial,
   getEgregoreGlyph,
   getEgregoreIncompatibilityFootnote,
   getEgregoreLatinPierce,
@@ -660,15 +659,18 @@ export const getEgregoreManualEntries = (state: GameState): ManualEntry[] => {
   const entries: ManualEntry[] = []
   for (const pos of state.egregorePositions) {
     const id = `egregore:${String(pos.x)},${String(pos.y)}`
-    const binomial = getEgregoreBinomial(pos.x, pos.y)
     const body = getEgregoreManualBody(pos.x, pos.y)
     const glyph = getEgregoreGlyph(pos.x, pos.y)
     const lore = showFootnote
       ? `${body}\n${getEgregoreIncompatibilityFootnote(pos.x, pos.y).join(' ')}`
       : body
+    // Egregore entries have no name line — per doctrine the cosmology
+    // has no readable name. ManualPanel hides the name span for
+    // ManualCategory.Egregore entries; this empty string keeps the
+    // ManualEntry shape consistent with other categories.
     entries.push({
       id,
-      name: binomial,
+      name: '',
       category: ManualCategory.Egregore,
       glyph,
       glyphColor: '#B080D0',

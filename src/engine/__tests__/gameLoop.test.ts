@@ -852,10 +852,16 @@ describe('scan auto-commit (precis #6)', () => {
     gameLoop.tick(SCAN_DURATION_MS + 100)
     expect(state.scanInProgress).toBeNull()
     expect(onScanComplete).toHaveBeenCalledOnce()
-    expect(onScanComplete).toHaveBeenCalledWith(FloraSpecies.Clover, expect.any(String))
-    const identityArg: unknown = onScanComplete.mock.calls[0][1]
-    expect(typeof identityArg).toBe('string')
-    expect(identityArg as string).toHaveLength(64)
+    // commitScan returns a discriminated ScanCommitResult; gameLoop
+    // forwards it to onScanComplete so the React layer can route to the
+    // right modal variant (flora gold vs egregore purple).
+    const resultArg: unknown = onScanComplete.mock.calls[0][0]
+    expect(resultArg).toMatchObject({
+      kind: 'flora',
+      species: FloraSpecies.Clover,
+    })
+    const identity = (resultArg as { identity: string }).identity
+    expect(identity).toHaveLength(64)
     expect(state.scannedSpecimens.get(FloraSpecies.Clover)).toHaveLength(1)
   })
 
