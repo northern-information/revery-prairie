@@ -10,6 +10,7 @@ import {
   METEORITE_GROUND_MAX,
   PICKUP_EFFECT_DURATION_MS,
   PLAYER_SPAWN_DESCENT_TARGET_MS,
+  SATELLITE_SHAKE_DURATION_MS,
   SHOOTING_STAR_LAND_CHANCE,
   SHOOTING_STAR_MAX_ACTIVE,
   SHOOTING_STAR_MAX_AGE,
@@ -230,12 +231,16 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           }
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
-          state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
+          state.world.addComponent(e, ComponentType.TimedEffect, {
+            kind: data.forPlayerSpawn ? 'stewardImpact' : 'explosion',
+            startTime: time,
+          })
           state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
           state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
           if (data.forPlayerSpawn && state.playerSpawn.meteorEntityId === eid) {
             state.playerSpawn.visible = true
             state.playerSpawn.meteorEntityId = null
+            state.screenShakeUntil = time + SATELLITE_SHAKE_DURATION_MS
           }
           state.world.destroyEntity(eid)
           continue
@@ -424,10 +429,12 @@ export const triggerPlayerSpawnShower = (state: GameState, spawnPos: Position, t
     recordDiscovery(state, 'event:meteor-shower')
   }
 
-  // Use the shower's radiant direction so the player-spawn star comes in
-  // from the same heading as the rest of the shower. Backtracking N tiles
-  // controls the descent time.
-  const dir = { dx: shower.radiantDx, dy: shower.radiantDy }
+  // The steward star uses a fixed { dx: 1, dy: 1 } heading independent of
+  // the shower's radiant. With iso projection screenPx = (worldX - worldY)
+  // * cw, dx === dy keeps screen X constant while screen Y advances —
+  // reads as falling straight down the screen from the north corner.
+  // Non-steward shower stars continue to use the shower radiant.
+  const dir = { dx: 1, dy: 1 }
   const backtrack = Math.max(1, Math.round(PLAYER_SPAWN_DESCENT_TARGET_MS / SHOOTING_STAR_TICK_MS))
 
   const eid = spawnShootingStarAtTarget(state, spawnPos, dir, {

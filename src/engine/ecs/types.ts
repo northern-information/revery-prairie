@@ -39,7 +39,7 @@ export interface ComponentDataMap {
   [ComponentType.Renderable]: { char: string; color: string; zIndex: number }
   [ComponentType.Behavior]: CharacterBehavior
   [ComponentType.TimedEffect]: {
-    kind: 'explosion' | 'pickupBloom' | 'crumble' | 'lightning' | 'wildfire' | 'satelliteImpact'
+    kind: 'explosion' | 'pickupBloom' | 'crumble' | 'lightning' | 'wildfire' | 'satelliteImpact' | 'stewardImpact'
     startTime: number
   }
   [ComponentType.Pickupable]: { definitionId: string }
