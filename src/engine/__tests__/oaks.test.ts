@@ -268,3 +268,115 @@ describe('oak winter dormancy is gated on season', () => {
     expect(summerCanopy.char).not.toBe(winterCanopy.char)
   })
 })
+
+describe('oak TraitBag sequencing', () => {
+  it('attaches a TraitBag to OakData on spawn', () => {
+    const state = createOakTestState()
+    const eid = spawnOak(state, 20, 20, 1000)
+    const data = state.world.getComponent(eid, ComponentType.OakData)
+    expect(data?.traits).toBeDefined()
+    expect(typeof data?.traits.bloomTiming).toBe('number')
+    expect(typeof data?.traits.coldTolerance).toBe('number')
+    expect(typeof data?.traits.droughtResponse).toBe('number')
+    expect(typeof data?.traits.pollinatorPreference).toBe('number')
+    expect(Array.isArray(data?.traits.recessives)).toBe(true)
+  })
+
+  it('produces identical TraitBags for the same stewardName + anchor across two states', () => {
+    const stateA = createOakTestState()
+    stateA.stewardName = 'alice'
+    const stateB = createOakTestState()
+    stateB.stewardName = 'alice'
+    const eidA = spawnOak(stateA, 25, 25, 1000)
+    const eidB = spawnOak(stateB, 25, 25, 9999)
+    const traitsA = stateA.world.getComponent(eidA, ComponentType.OakData)?.traits
+    const traitsB = stateB.world.getComponent(eidB, ComponentType.OakData)?.traits
+    expect(traitsA).toEqual(traitsB)
+  })
+
+  it('produces different TraitBags for different anchors under the same stewardName', () => {
+    const state = createOakTestState()
+    state.stewardName = 'alice'
+    const eid1 = spawnOak(state, 20, 20, 1000)
+    const eid2 = spawnOak(state, 40, 40, 1000)
+    const t1 = state.world.getComponent(eid1, ComponentType.OakData)?.traits
+    const t2 = state.world.getComponent(eid2, ComponentType.OakData)?.traits
+    expect(t1).not.toEqual(t2)
+  })
+
+  it('keeps every phenotype axis a finite number in [0, 1]', () => {
+    const state = createOakTestState()
+    const eid = spawnOak(state, 30, 30, 1000)
+    const traits = state.world.getComponent(eid, ComponentType.OakData)?.traits
+    expect(traits).toBeDefined()
+    if (!traits) return
+    const axes = [traits.bloomTiming, traits.coldTolerance, traits.droughtResponse, traits.pollinatorPreference]
+    for (const v of axes) {
+      expect(Number.isFinite(v)).toBe(true)
+      expect(v).toBeGreaterThanOrEqual(0)
+      expect(v).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('keeps recessives within length [0, 2] and every entry finite in [0, 1]', () => {
+    const state = createOakTestState()
+    state.stewardName = 'alice'
+    // Spawn several oaks so we exercise different recessive counts via different identities.
+    const anchors: [number, number][] = [
+      [20, 20],
+      [30, 30],
+      [40, 40],
+      [50, 50],
+      [60, 60],
+      [70, 70],
+      [80, 80],
+      [90, 90],
+    ]
+    for (const [ax, ay] of anchors) {
+      const eid = spawnOak(state, ax, ay, 1000)
+      const traits = state.world.getComponent(eid, ComponentType.OakData)?.traits
+      expect(traits).toBeDefined()
+      if (!traits) continue
+      expect(traits.recessives.length).toBeGreaterThanOrEqual(0)
+      expect(traits.recessives.length).toBeLessThanOrEqual(2)
+      for (const r of traits.recessives) {
+        expect(Number.isFinite(r)).toBe(true)
+        expect(r).toBeGreaterThanOrEqual(0)
+        expect(r).toBeLessThanOrEqual(1)
+      }
+    }
+  })
+
+  it('genesis-seeded oaks have matching TraitBags across two runs with the same stewardName', () => {
+    const stateA = createOakTestState()
+    stateA.stewardName = 'alice'
+    stateA.player = { x: 5, y: 5 }
+    const stateB = createOakTestState()
+    stateB.stewardName = 'alice'
+    stateB.player = { x: 5, y: 5 }
+    // seedOaks uses Math.random for anchor selection. Spy on it with a
+    // deterministic sequence and reset the cursor between runs so both
+    // states draw from the same anchor stream.
+    const seq = Array.from({ length: 2000 }, (_, i) => ((i * 9301 + 49297) % 233280) / 233280)
+    let cursor = 0
+    vi.spyOn(Math, 'random').mockImplementation(() => seq[cursor++ % seq.length])
+    cursor = 0
+    seedOaks(stateA, 0)
+    cursor = 0
+    seedOaks(stateB, 0)
+
+    const oaksA = [...stateA.world.query(ComponentType.OakData)]
+      .map(e => stateA.world.getComponent(e, ComponentType.OakData))
+      .filter((d): d is NonNullable<typeof d> => d !== undefined)
+      .map(d => ({ identity: d.identity, traits: d.traits }))
+      .sort((a, b) => a.identity.localeCompare(b.identity))
+    const oaksB = [...stateB.world.query(ComponentType.OakData)]
+      .map(e => stateB.world.getComponent(e, ComponentType.OakData))
+      .filter((d): d is NonNullable<typeof d> => d !== undefined)
+      .map(d => ({ identity: d.identity, traits: d.traits }))
+      .sort((a, b) => a.identity.localeCompare(b.identity))
+
+    expect(oaksA.length).toBeGreaterThan(0)
+    expect(oaksA).toEqual(oaksB)
+  })
+})
