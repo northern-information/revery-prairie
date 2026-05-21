@@ -33,61 +33,91 @@ behaviors:
 
   - id: weather-tick-drift
     description: >
-      tickWeather mutates a Weather object in place. each tick:
-      temperature drifts ±2°F clamped to [35, 72], humidity drifts
-      ±3% clamped to [45, 85], windSpeed drifts ±2 mph clamped to
-      [3, 25]. windDirection has 15% chance to change to a random
-      direction from all 8 wind directions (N, NE, E, SE, S, SW, W,
-      NW). sky has 30% chance to update via pickSky based on current
-      humidity. season is never mutated.
+      tickWeather (precis #2 signature: tickWeather(state, dt))
+      mutates state in place. Phenology drives the calendar — when
+      state.currentZone is Overworld, state.seasonalPhase advances
+      by dt / SEASONAL_PHASE_PERIOD_MS (mod 1); cave/ruin zones
+      freeze the phase. state.currentDate is always rewritten via
+      phaseToDate(state.seasonalPhase) so reads from any zone are
+      consistent. Per-tick atmospheric drift: temperature, humidity,
+      and windSpeed each take a random walk (±2°F, ±3%, ±2 mph)
+      plus a soft pull toward the seasonal mean
+      (seasonalMeanTemperature / Humidity / Wind, weighted by
+      SEASONAL_BIAS_STRENGTH = 0.05) so the year actually arrives
+      over the 20-minute cycle; values clamp to [TEMP_MIN_F,
+      TEMP_MAX_F] = [-5, 95], [HUMIDITY_MIN, HUMIDITY_MAX] =
+      [30, 95], [WIND_MIN, WIND_MAX] = [1, 30]. windDirection has a
+      15% chance (Math.random() > 0.85) to flip to a random one of
+      the 8 WIND_DIRECTIONS. weather.season is reclassified every
+      tick via deriveSeason(weather.temperatureF, state.seasonalPhase)
+      before sky is picked, so winter actually arrives. sky has a
+      30% chance (Math.random() > 0.7) to recalculate via
+      pickSky(weather.humidity, weather.season) — passing the
+      derived season is what lets pickSky choose Snow vs Rain.
     inputs:
-      - 'Weather object'
+      - 'state: GameState'
+      - 'dt: milliseconds since the last tick (typically WEATHER_TICK_MS = 5000)'
     outputs: []
     state_changes:
+      - field: state.seasonalPhase
+        effect: 'advances by dt / SEASONAL_PHASE_PERIOD_MS (mod 1) when state.currentZone === Overworld; frozen otherwise'
+      - field: state.currentDate
+        effect: 'recomputed every tick via phaseToDate(state.seasonalPhase), in every zone'
       - field: weather.temperatureF
-        effect: 'drifts ±2, clamped to [35, 72]'
+        effect: 'random walk ±2 plus SEASONAL_BIAS_STRENGTH pull toward seasonalMeanTemperature(phase); clamped to [TEMP_MIN_F, TEMP_MAX_F]'
       - field: weather.humidity
-        effect: 'drifts ±3, clamped to [45, 85]'
+        effect: 'random walk ±3 plus seasonal-mean pull; clamped to [HUMIDITY_MIN, HUMIDITY_MAX]'
       - field: weather.windSpeed
-        effect: 'drifts ±2, clamped to [3, 25]'
+        effect: 'random walk ±2 plus seasonal-mean pull; clamped to [WIND_MIN, WIND_MAX]'
       - field: weather.windDirection
-        effect: '15% chance to change to random direction from all 8 WIND_DIRECTIONS'
+        effect: '15% chance per tick to flip to a random one of WIND_DIRECTIONS'
+      - field: weather.season
+        effect: 'always reclassified via deriveSeason(weather.temperatureF, state.seasonalPhase) before sky is picked'
       - field: weather.sky
-        effect: '30% chance to recalculate from humidity'
+        effect: '30% chance per tick to recalculate via pickSky(humidity, season)'
     determinism: probabilistic
 
   - id: sky-from-humidity
     description: >
-      pickSky determines sky condition from humidity. humidity >= 75:
-      60% rain, 40% cloudy. humidity 55-74: 50% cloudy, 50% sun.
-      humidity < 55: 80% sun, 20% cloudy.
+      pickSky(humidity, season) determines sky condition from
+      humidity, biased by season. humidity >= 75 picks a
+      precipitation outcome (60%) or cloudy (40%); humidity 55-74
+      splits 50% cloudy / 50% sun; humidity < 55 splits 80% sun /
+      20% cloudy. Season selects the precipitation form — when
+      season is Winter, the precipitation outcome is Sky.Snow;
+      otherwise it is Sky.Rain. Sky.Snow is what later lets the
+      weatherSnowOverlay render pass run and drives
+      tickPrecipitationIntensity the same as Sky.Rain.
     inputs:
       - 'humidity: number'
+      - 'season: Season'
     outputs:
-      - "Sky: 'sun' | 'cloudy' | 'rain'"
+      - "Sky: 'sun' | 'cloudy' | 'rain' | 'snow'"
     state_changes: []
     determinism: probabilistic
 
-  - id: rain-intensity-ramp
+  - id: precipitation-intensity-ramp
     description: >
-      state.rainIntensity is a number in [0.0, 1.0] that ramps up
-      when weather.sky is rain and ramps down when it is not rain.
-      tickRainIntensity is called every frame (rAF) with the elapsed
-      time delta. when sky is rain, intensity increases by
-      dt / RAIN_FADE_DURATION_MS, clamped to 1.0. when sky is not
-      rain, intensity decreases by dt / RAIN_FADE_DURATION_MS, clamped
-      to 0.0. RAIN_FADE_DURATION_MS is 3000 (3 seconds for a full
-      fade in or out). the renderer and tileWater both read
-      rainIntensity — renderer for visual alpha, tileWater for whether
-      to hydrate (hydrates when rainIntensity > 0 and tile is in
-      front).
+      state.precipitationIntensity is a number in [0.0, 1.0] that
+      ramps up when weather.sky is precipitating (Sky.Rain OR
+      Sky.Snow) and ramps down when it is not. tickPrecipitationIntensity
+      (renamed from tickRainIntensity in precis #2) is called every
+      frame with the elapsed time delta. when the target sky is
+      precipitating, intensity moves toward 1 by dt /
+      RAIN_FADE_DURATION_MS; otherwise it moves toward 0 by the
+      same step. RAIN_FADE_DURATION_MS is 3000 (3 seconds for a
+      full fade in or out). Both the rain and snow render passes
+      and tileWater hydration read this single normalized signal
+      — renderer for visual alpha, tileWater for whether to
+      hydrate (hydrates when precipitationIntensity > 0 and tile
+      is in the active precipitation front).
     inputs:
       - 'rAF tick with dt in milliseconds'
       - 'state.weather.sky'
     outputs: []
     state_changes:
-      - field: rainIntensity
-        effect: 'ramps toward 1.0 when raining, toward 0.0 when not raining, by dt/RAIN_FADE_DURATION_MS per frame'
+      - field: state.precipitationIntensity
+        effect: 'ramps toward 1.0 when sky is Rain or Snow, toward 0.0 otherwise, by dt/RAIN_FADE_DURATION_MS per frame'
     determinism: time-based
 
   - id: unit-conversions
@@ -104,29 +134,34 @@ behaviors:
 
 edge_cases:
   - id: temperature-at-bounds
-    description: 'temperature at 35°F or 72°F — drift must not escape range'
-    expected: 'clamped to [35, 72] after drift'
+    description: 'temperature at TEMP_MIN_F (-5°F) or TEMP_MAX_F (95°F) — drift plus seasonal bias must not escape range'
+    expected: 'clamped to [-5, 95] after drift'
   - id: humidity-at-bounds
-    description: 'humidity at 45% or 85% — drift must not escape range'
-    expected: 'clamped to [45, 85] after drift'
+    description: 'humidity at HUMIDITY_MIN (30%) or HUMIDITY_MAX (95%) — drift plus seasonal bias must not escape range'
+    expected: 'clamped to [30, 95] after drift'
   - id: wind-at-bounds
-    description: 'wind at 3 or 25 mph — drift must not escape range'
-    expected: 'clamped to [3, 25] after drift'
-  - id: season-never-changes
-    description: 'season is hardcoded to spring, tickWeather never mutates it'
-    expected: 'weather.season remains spring after any number of ticks'
-  - id: rain-intensity-ramps-not-jumps
-    description: 'when sky changes from rain to sun or vice versa, rainIntensity transitions smoothly over RAIN_FADE_DURATION_MS rather than jumping to 0 or 1'
+    description: 'wind at WIND_MIN (1 mph) or WIND_MAX (30 mph) — drift plus seasonal bias must not escape range'
+    expected: 'clamped to [1, 30] after drift'
+  - id: season-changes-with-phase-and-temperature
+    description: 'weather.season is reclassified every tick via deriveSeason(weather.temperatureF, state.seasonalPhase); over the 20-minute SEASONAL_PHASE_PERIOD_MS cycle the seasonal bias drags temperature toward the seasonal mean and the season label advances Spring → Summer → Autumn → Winter and back'
+    expected: 'weather.season changes value at least once over a full phase cycle in the overworld'
+  - id: seasonal-phase-frozen-in-cave
+    description: 'state.seasonalPhase only advances when state.currentZone is Overworld; in cave/ruin zones the phase is frozen but currentDate is still rewritten from the current phase'
+    expected: 'state.seasonalPhase is unchanged after any number of ticks in a non-overworld zone; state.currentDate is still set'
+  - id: precipitation-intensity-ramps-not-jumps
+    description: 'when sky transitions between precipitating (Rain/Snow) and non-precipitating (Sun/Cloudy), precipitationIntensity transitions smoothly over RAIN_FADE_DURATION_MS rather than jumping to 0 or 1'
     expected: 'intermediate values visible over multiple frames during transition'
-  - id: rain-intensity-starts-at-zero
-    description: 'rainIntensity initializes to 0.0 in createGameState even if initial sky is rain — rain fades in at game start'
-    expected: 'state.rainIntensity is 0.0 at init, ramps up on first frames if raining'
+  - id: precipitation-intensity-starts-at-zero
+    description: 'state.precipitationIntensity initializes to 0.0 in createGameState even if initial sky is Rain or Snow — precipitation fades in at game start'
+    expected: 'state.precipitationIntensity is 0.0 at init, ramps up on first frames if precipitating'
 
 failure_conditions:
-  - trigger: 'Temperature exceeds [35, 72] range after many ticks'
+  - trigger: 'Temperature exceeds [-5, 95] range after many ticks'
     expected: 'Clamping prevents out-of-range values'
-  - trigger: 'Humidity exceeds [45, 85] range after many ticks'
+  - trigger: 'Humidity exceeds [30, 95] range after many ticks'
     expected: 'Clamping prevents out-of-range values'
+  - trigger: 'state.seasonalPhase advances while state.currentZone is Cave or Ruin'
+    expected: 'The phenology gate is broken — phase must only tick in the overworld'
 
 verification:
   test_file: src/engine/__tests__/weather.test.ts
