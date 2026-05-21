@@ -1435,29 +1435,40 @@ const iceAge: GenesisEpoch = {
       sim.preGlacialVegetation.set(key, value)
     }
 
-    // Generate smooth noise for glacier edges (organic lobes, not sawtooth)
+    // Generate smooth noise for glacier edges (organic lobes, not sawtooth).
+    // Under the rotated cardinal frame (precis-thinktank-v5 round 1) glaciers
+    // advance along the u = x + y axis (diamond's vertical screen axis), so
+    // the perpendicular coordinate is v = x - y. Noise arrays index by
+    // (x - y + sim.height - 1), spanning [0, sim.width + sim.height - 2].
+    const vSpan = sim.width + sim.height - 1
     sim.glacialEdgeNoise = {
-      top: smoothNoiseSeeded(sim.width, 7, 12, sim.rng),
-      bottom: smoothNoiseSeeded(sim.width, 7, 12, sim.rng),
+      top: smoothNoiseSeeded(vSpan, 14, 12, sim.rng),
+      bottom: smoothNoiseSeeded(vSpan, 14, 12, sim.rng),
     }
 
-    // Glaciers advance from top and bottom
-    const glacialDepth = Math.floor(sim.height * 0.2)
+    // Glaciers advance from the diamond's top tip (storage (SPACE_BORDER,
+    // SPACE_BORDER)) and bottom tip (storage (max, max)). Polar distance is
+    // measured along u = (x - SB) + (y - SB). The u span across the playable
+    // region is 2 * (playable side - 1), so glacialDepth halves to keep the
+    // visual band roughly equivalent.
+    const playableU = sim.width + sim.height - 2 * SPACE_BORDER
+    const glacialDepth = Math.floor(playableU * 0.1)
 
     for (const key of sim.landMask) {
       const [xStr, yStr] = key.split(',')
       const x = Number(xStr)
       const y = Number(yStr)
-      const topDist = y - SPACE_BORDER
-      const bottomDist = sim.height - SPACE_BORDER - y
+      const topDist = (x - SPACE_BORDER) + (y - SPACE_BORDER)
+      const bottomDist = playableU - 2 - topDist
 
       // Is this tile in the glacial zone?
       const inGlacial = topDist < glacialDepth + 8 || bottomDist < glacialDepth + 8
 
       if (inGlacial) {
-        // Smooth noise edge offsets per column
-        const topNoise = sim.glacialEdgeNoise.top[x] ?? 0
-        const bottomNoise = sim.glacialEdgeNoise.bottom[x] ?? 0
+        // Smooth noise edge offsets keyed by v = x - y + height - 1
+        const vIdx = x - y + sim.height - 1
+        const topNoise = sim.glacialEdgeNoise.top[vIdx] ?? 0
+        const bottomNoise = sim.glacialEdgeNoise.bottom[vIdx] ?? 0
 
         const effectiveTopDepth = glacialDepth + topNoise
         const effectiveBottomDepth = glacialDepth + bottomNoise
@@ -1550,18 +1561,22 @@ const iceAge: GenesisEpoch = {
     const isGlacial = sim.glacialPaths.has(key)
 
     if (isGlacial) {
-      // Glaciers only advance during ice age — no recede until warm period
+      // Glaciers only advance during ice age — no recede until warm period.
+      // Rotated cardinal frame (precis-thinktank-v5 round 1): polar distance
+      // is u = (x - SB) + (y - SB), edge noise keyed by v = x - y + height - 1.
       const advanceProgress = clamp(progress, 0, 1)
 
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
-      const glacialDepth = Math.floor(sim.height * 0.2)
-      const topNoise = sim.glacialEdgeNoise.top[x] ?? 0
-      const bottomNoise = sim.glacialEdgeNoise.bottom[x] ?? 0
+      const playableU = sim.width + sim.height - 2 * SPACE_BORDER
+      const glacialDepth = Math.floor(playableU * 0.1)
+      const vIdx = x - ty + sim.height - 1
+      const topNoise = sim.glacialEdgeNoise.top[vIdx] ?? 0
+      const bottomNoise = sim.glacialEdgeNoise.bottom[vIdx] ?? 0
       const effectiveTopDepth = glacialDepth + topNoise
       const effectiveBottomDepth = glacialDepth + bottomNoise
-      const topDist = ty - SPACE_BORDER
-      const bottomDist = sim.height - SPACE_BORDER - ty
+      const topDist = (x - SPACE_BORDER) + (ty - SPACE_BORDER)
+      const bottomDist = playableU - 2 - topDist
       const minDist = topDist < bottomDist ? topDist : bottomDist
       const effectiveDepth = topDist < bottomDist ? effectiveTopDepth : effectiveBottomDepth
       const coverThreshold = clamp(minDist / effectiveDepth, 0, 1)
@@ -1585,14 +1600,16 @@ const iceAge: GenesisEpoch = {
       return renderDirt(sim, key, h)
     }
 
-    // Lowland water freezes gradually as glaciers advance nearby
+    // Lowland water freezes gradually as glaciers advance nearby.
+    // Rotated cardinal frame: polar distance is u = (x - SB) + (y - SB).
     const lowWater = renderLowlandWater(sim, key, h, time)
     if (lowWater) {
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
-      const glacialDepth = Math.floor(sim.height * 0.2)
-      const topDist = ty - SPACE_BORDER
-      const bottomDist = sim.height - SPACE_BORDER - ty
+      const playableU = sim.width + sim.height - 2 * SPACE_BORDER
+      const glacialDepth = Math.floor(playableU * 0.1)
+      const topDist = (x - SPACE_BORDER) + (ty - SPACE_BORDER)
+      const bottomDist = playableU - 2 - topDist
       const minDist = Math.min(topDist, bottomDist)
       // Water freezes at the same rate as glacier advance but reaches slightly further
       const freezeThreshold = clamp(minDist / (glacialDepth * 1.3), 0, 1)
@@ -1969,19 +1986,24 @@ const warmPeriod: GenesisEpoch = {
     const space = renderSpace(sim, key, h, time)
     if (space) return space
 
-    // Glaciers melt from equator-facing side first — same animation as ice age advance, reversed
+    // Glaciers melt from equator-facing side first — same animation as ice age
+    // advance, reversed. Rotated cardinal frame (precis-thinktank-v5 round 1):
+    // polar distance is u = (x - SB) + (y - SB), edge noise keyed by
+    // v = x - y + height - 1.
     if (sim.glacialPaths.has(key)) {
       const recedeProgress = clamp(progress, 0, 1)
 
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
-      const glacialDepth = Math.floor(sim.height * 0.2)
-      const topNoise = sim.glacialEdgeNoise.top[x] ?? 0
-      const bottomNoise = sim.glacialEdgeNoise.bottom[x] ?? 0
+      const playableU = sim.width + sim.height - 2 * SPACE_BORDER
+      const glacialDepth = Math.floor(playableU * 0.1)
+      const vIdx = x - ty + sim.height - 1
+      const topNoise = sim.glacialEdgeNoise.top[vIdx] ?? 0
+      const bottomNoise = sim.glacialEdgeNoise.bottom[vIdx] ?? 0
       const effectiveTopDepth = glacialDepth + topNoise
       const effectiveBottomDepth = glacialDepth + bottomNoise
-      const topDist = ty - SPACE_BORDER
-      const bottomDist = sim.height - SPACE_BORDER - ty
+      const topDist = (x - SPACE_BORDER) + (ty - SPACE_BORDER)
+      const bottomDist = playableU - 2 - topDist
       const minDist = topDist < bottomDist ? topDist : bottomDist
       const effectiveDepth = topDist < bottomDist ? effectiveTopDepth : effectiveBottomDepth
       // coverThreshold: 0 at pole edge, 1 at deepest reach (equator side)
