@@ -178,8 +178,13 @@ behaviors:
       0.164; winter solstice (intensity 0.4) → 0.12. The wash itself
       is a per-tile color blend inside the central tile-glyph loop and
       cannot reach a raster overlay, so this alpha curve is an
-      explicit approximation. `globalAlpha` is saved before the pass
-      and restored after.
+      explicit approximation. The pass also sets
+      `ctx.globalCompositeOperation = 'multiply'` while drawing so
+      the grain can only darken the destination, never brighten it —
+      without this, the JPG's bright speckles visually camouflage
+      white tile-glyph features like the player motion trail. Both
+      `globalAlpha` and `globalCompositeOperation` are saved before
+      the pass and restored after.
     inputs:
       - 'state.seasonalPhase in [0, 1)'
     outputs:

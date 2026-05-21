@@ -59,6 +59,7 @@ const makeFakeImage = (): HTMLImageElement => {
 interface DrawCall {
   kind: 'drawImage'
   globalAlpha: number
+  globalCompositeOperation: GlobalCompositeOperation
   dx: number
   dy: number
 }
@@ -68,7 +69,11 @@ const makeRecordingCtx = (): {
   calls: DrawCall[]
 } => {
   const calls: DrawCall[] = []
-  const state = { globalAlpha: 1, fillStyle: '#000' as string | CanvasPattern }
+  const state = {
+    globalAlpha: 1,
+    fillStyle: '#000' as string | CanvasPattern,
+    globalCompositeOperation: 'source-over' as GlobalCompositeOperation,
+  }
   const ctx = {
     get globalAlpha() {
       return state.globalAlpha
@@ -82,10 +87,22 @@ const makeRecordingCtx = (): {
     set fillStyle(v: string | CanvasPattern) {
       state.fillStyle = v
     },
+    get globalCompositeOperation() {
+      return state.globalCompositeOperation
+    },
+    set globalCompositeOperation(v: GlobalCompositeOperation) {
+      state.globalCompositeOperation = v
+    },
     createPattern: vi.fn((): CanvasPattern => ({}) as unknown as CanvasPattern),
     fillRect: vi.fn(),
     drawImage: vi.fn((_img: unknown, dx: number, dy: number) => {
-      calls.push({ kind: 'drawImage', globalAlpha: state.globalAlpha, dx, dy })
+      calls.push({
+        kind: 'drawImage',
+        globalAlpha: state.globalAlpha,
+        globalCompositeOperation: state.globalCompositeOperation,
+        dx,
+        dy,
+      })
     }),
   } as unknown as CanvasRenderingContext2D
   return { ctx, calls }
@@ -163,6 +180,19 @@ describe('film grain overlay pass', () => {
       ctx.globalAlpha = 0.5
       filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
       expect(ctx.globalAlpha).toBeCloseTo(0.5, 6)
+    })
+
+    it('uses multiply composite op so grain can only darken (regression for trail camouflage)', () => {
+      __testing.setGrainImage(makeFakeImage())
+      __testing.setGrainReady(true)
+      const state = createTestState()
+      state.map = makeFlatMap(state.mapWidth, state.mapHeight)
+
+      const { ctx, calls } = makeRecordingCtx()
+      filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
+      expect(calls[0].globalCompositeOperation).toBe('multiply')
+      // restored after draw
+      expect(ctx.globalCompositeOperation).toBe('source-over')
     })
   })
 
