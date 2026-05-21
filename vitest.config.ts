@@ -63,6 +63,16 @@ export default defineConfig({
         },
       },
       {
+        resolve: { alias },
+        test: {
+          name: 'tools',
+          environment: 'node',
+          globals: true,
+          ...COMMON,
+          include: ['tools/**/*.test.ts'],
+        },
+      },
+      {
         plugins: [react()],
         resolve: { alias },
         test: {

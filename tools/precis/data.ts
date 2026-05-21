@@ -22,6 +22,9 @@ export interface FeaturesFile {
 
 export const STATUS_COLUMNS: DerivedStatus[] = ['todo', 'next', 'in-progress', 'shipped']
 
+// Statuses that can actually appear in the YAML. `next` is derived from deps, never written.
+export const WRITABLE_STATUSES: Status[] = ['todo', 'in-progress', 'shipped']
+
 export const COLUMN_LABEL: Record<DerivedStatus, string> = {
   todo: 'TODO',
   next: 'NEXT',
@@ -58,6 +61,53 @@ export const groupByColumn = (features: Feature[]): Record<DerivedStatus, Featur
   }
   return groups
 }
+
+// Replace just the `status:` line of the feature with the given id. Preserves
+// comments, blank lines, field order, and all other formatting in the YAML.
+//
+// The YAML uses a stable format: each feature block starts with `  - id: '<id>'`
+// and contains a `    status: <value>` line two-spaces deeper than the list marker.
+// We locate the matching block, then swap that one line.
+//
+// Throws if the id is not found or the block has no status line.
+export const setStatusInYamlText = (raw: string, id: string, newStatus: Status): string => {
+  const lines = raw.split('\n')
+  const idPattern = new RegExp(`^  - id: ['"]?${escapeRegex(id)}['"]?\\s*$`)
+
+  let blockStart = -1
+  for (let i = 0; i < lines.length; i++) {
+    if (idPattern.test(lines[i]!)) {
+      blockStart = i
+      break
+    }
+  }
+  if (blockStart === -1) {
+    throw new Error(`Feature id ${JSON.stringify(id)} not found in YAML`)
+  }
+
+  // Block ends at the next `  - id:` line (any id) or end of file.
+  const nextItemPattern = /^  - id: /
+  let blockEnd = lines.length
+  for (let i = blockStart + 1; i < lines.length; i++) {
+    if (nextItemPattern.test(lines[i]!)) {
+      blockEnd = i
+      break
+    }
+  }
+
+  const statusPattern = /^(\s{4}status:\s*).*$/
+  for (let i = blockStart + 1; i < blockEnd; i++) {
+    const match = statusPattern.exec(lines[i]!)
+    if (match) {
+      lines[i] = `${match[1]}${newStatus}`
+      return lines.join('\n')
+    }
+  }
+
+  throw new Error(`Feature id ${JSON.stringify(id)} has no status line`)
+}
+
+const escapeRegex = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 export const depSummary = (feature: Feature, all: Feature[]): { id: string; status: Status }[] => {
   const byId = new Map(all.map((f) => [f.id, f]))
