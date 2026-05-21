@@ -10,12 +10,6 @@ If bees are few.
 — Emily Dickinson
 ```
 
-A browser-based game about tending a prairie. ASCII glyphs rendered isometric on canvas.
-
-Each new game begins with a geological genesis sequence — a billion years of planetary history compressed into roughly 25 seconds. Magma cools, oceans form, life emerges, glaciers advance and recede, wildfires sweep the plains, civilizations rise and fall. The soil you tend is the sum of all these forces.
-
-Prairies can be tended alone or shared with friends. Visit `/p/new` to plant a prairie hosted on a Cloudflare Worker; share the resulting `/p/{id}` URL and other stewards walk the same land.
-
 ## How This Is Built
 
 Revery Prairie is hand-crafted by Tyler Etters and others along with Claude (Anthropic) as a coding partner. Design, voice, and decisions are ours. Boilerplate, refactors, and a lot of the test scaffolding are often Claude's. The workflow is documented openly in `CLAUDE.md` and `docs/claude/`. We're transparent about it because it's true and because the workflow is part of the project.
