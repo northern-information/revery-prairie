@@ -3704,44 +3704,39 @@ export const getGenesisYear = (sim: GenesisSimState, epochs: GenesisEpoch[]): nu
 }
 
 /** Convert a year in [0, GENESIS_END_YEAR] into a reverse-projection
- *  readout — tilde-prefixed, abbreviated unit, banded precision. The
- *  bottom bar reads these values during genesis so the screen reads as
- *  the permacomputer back-deriving the world from a name seed.
- *
- *  Banding is rounded-value-driven so that values near a band boundary
- *  promote to the next band rather than overflowing the band's
- *  natural integer range (e.g. 999_500_000 promotes to "~1B" rather
- *  than rendering "~1000M"; 999_500 promotes to "~1M" rather than
- *  "~0M"). The displayed integer in each band always lies in [1, 999]
- *  (M / K bands) or carries one decimal place (B band).
+ *  readout — tilde-prefixed, abbreviated unit, fixed-width 3-digit
+ *  numeric portion. The bottom bar reads these values during genesis
+ *  so the screen reads as the permacomputer back-deriving the world
+ *  from a name seed. The width is locked so the readout never shifts
+ *  horizontally as the lerped year crosses band boundaries — the B
+ *  band counts hundred-millions of years (so 13.8B years ago renders
+ *  as "~138B"); M and K bands count millions and thousands.
  *
  *  Bands —
  *    yearsAgo < 1_000              → "~now"
- *    rounds to >= 1B (100M step)   → "~N.NB years ago..." (trailing .0
- *                                     dropped, geology-citation
- *                                     register)
- *    rounds to >= 1M (1M step)     → "~NM years ago..."
- *    otherwise (1K step)           → "~NK years ago..."
+ *    rounds to >= 1B (100M step)   → "~NNNB years ago..."
+ *    rounds to >= 1M (1M step)     → "~NNNM years ago..."
+ *    otherwise (1K step)           → "~NNNK years ago..."
  */
 export const formatYearsAgo = (year: number): string => {
   const yearsAgo = GENESIS_END_YEAR - year
   if (yearsAgo < 1_000) return '~now'
 
+  const pad3 = (n: number): string => String(n).padStart(3, '0')
+
   // Round to the 100M step first; if that lands at >= 1.0B, render in the B band.
   const tenthsOfB = Math.round(yearsAgo / 100_000_000)
   if (tenthsOfB >= 10) {
-    const value = tenthsOfB / 10
-    const formatted = value % 1 === 0 ? String(Math.round(value)) : value.toFixed(1)
-    return `~${formatted}B years ago...`
+    return `~${pad3(tenthsOfB)}B years ago...`
   }
 
   // Round to the 1M step; if that lands at >= 1M, render in the M band.
   const m = Math.round(yearsAgo / 1_000_000)
-  if (m >= 1) return `~${String(m)}M years ago...`
+  if (m >= 1) return `~${pad3(m)}M years ago...`
 
   // K band — round to the 1K step.
   const k = Math.round(yearsAgo / 1_000)
-  return `~${String(k)}K years ago...`
+  return `~${pad3(k)}K years ago...`
 }
 
 /** Format a year as a comma-separated integer string (e.g. 13_800_000_000 →
