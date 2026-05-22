@@ -140,6 +140,21 @@ describe('seasonal dormancy', () => {
     expect(summerTrunk.char).toBe(winterTrunk.char)
     expect(summerTrunk.color).toBe(winterTrunk.color)
   })
+
+  it('uses a uniform `&` canopy glyph and colour across centre, edge, and apex in summer', () => {
+    // Centre canopy: isoRow=-1, isoCol=1 (|isoCol| <= 1)
+    const centre = getOakRenderTile(0, -1, false)
+    // Edge canopy: isoRow=-2, isoCol=-2 (|isoCol| >= |isoRow|-1, |isoRow| <= 3)
+    const edge = getOakRenderTile(-2, 0, false)
+    // Apex: isoRow=-4
+    const apex = getOakRenderTile(-2, -2, false)
+
+    expect(centre.char).toBe('&')
+    expect(edge.char).toBe('&')
+    expect(apex.char).toBe('&')
+    expect(centre.color).toBe(edge.color)
+    expect(apex.color).toBe(edge.color)
+  })
 })
 
 describe('seedOaks', () => {
