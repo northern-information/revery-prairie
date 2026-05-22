@@ -255,6 +255,7 @@ export const createGameState = (
     },
     lastDialogTypingTick: 0,
     glintingCoins: new Set<string>(),
+    coinGlintPopTimes: new Map<string, number>(),
     seedGenomes: new Map(),
     divinedHexagrams: new Set<number>(),
     glintZones: new Set<string>(),

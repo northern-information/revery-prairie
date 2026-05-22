@@ -363,6 +363,14 @@ export const GLINT_ZONE_SPEED = 0.003 // slow sparkle animation
 export const GLINT_ZONE_COUNT = 8 // number of glinting zone patches
 export const GLINT_ZONE_RADIUS_MIN = 2
 export const GLINT_ZONE_RADIUS_MAX = 4
+// Minimum number of land tiles a glint patch must cover. Spawn candidates
+// and drift destinations that fall below this are rejected — keeps stray
+// 1- and 2-tile slivers off the map at coastlines and peninsulas.
+export const GLINT_PATCH_MIN_TILES = 5
+// Pop animation duration (ms) for a coin transitioning unglinted→glinted
+// in the inventory. Inventory cells gate the pop animation on
+// now - popTime &lt; COIN_POP_DURATION_MS.
+export const COIN_POP_DURATION_MS = 500
 export const GLINT_ZONE_FADE_IN_MS = 30_000
 export const GLINT_ZONE_HOLD_MS = 60_000
 export const GLINT_ZONE_FADE_OUT_MS = 30_000

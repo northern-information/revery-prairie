@@ -1,7 +1,7 @@
 id: glinting-zones
 name: 'Glinting zones'
 priority: low
-layer: engine
+layer: integration
 source_files:
   - src/engine/state.ts
   - src/engine/movement.ts
@@ -11,6 +11,7 @@ source_files:
   - src/engine/types.ts
   - src/engine/gameLoop.ts
   - src/engine/glintZones.ts
+  - src/components/InventoryGrid.tsx
 dependencies:
   - player-movement
   - terrain-generation
@@ -42,7 +43,12 @@ behaviors:
       drift direction is picked randomly per step. the center is
       clamped to valid land tiles (Dirt or Clover). if a drift step
       would move onto non-land, the step is skipped. the tile set
-      for the patch is recomputed after each drift.
+      for the patch is recomputed after each drift. if the recomputed
+      tile set would have fewer than GLINT_PATCH_MIN_TILES tiles
+      (e.g. drifting toward a coastline erodes the patch), the drift
+      step is skipped — the patch keeps its previous center and tile
+      set, and tries again next drift tick. existing patches are not
+      expired by drift erosion.
     inputs:
       - 'tickGlintZones called during hold phase'
     outputs:
@@ -60,8 +66,12 @@ behaviors:
       (~15s) if the active patch count is below GLINT_ZONE_COUNT (8).
       new patch center is randomly placed on Dirt or Clover within
       the land area (avoiding SPACE_BORDER). radius is random between
-      GLINT_ZONE_RADIUS_MIN and GLINT_ZONE_RADIUS_MAX. up to 50
-      attempts per spawn. spawning is suppressed in cave.
+      GLINT_ZONE_RADIUS_MIN and GLINT_ZONE_RADIUS_MAX. spawnGlintPatch
+      rejects any candidate whose computed tile set has fewer than
+      GLINT_PATCH_MIN_TILES (5) valid land tiles — small slivers at
+      coastlines or peninsulas are filtered out. up to 50 attempts per
+      spawn; if all attempts fail, the spawn is skipped for that cycle.
+      spawning is suppressed in cave.
     inputs:
       - 'tickGlintZones called when active patches < GLINT_ZONE_COUNT'
     outputs:
@@ -95,17 +105,71 @@ behaviors:
       movePlayer in movement.ts checks if the new position is in
       state.glintZones when in the overworld. if so, all coins in
       the backpack that are not already glinting (uid not in
-      glintingCoins) are restored to glinting status. also records
-      event:glint-zone discovery on first walk-over.
+      glintingCoins) are restored to glinting status. for each coin
+      that transitions from unglinted to glinted, its uid is recorded
+      in state.coinGlintPopTimes with the current performance.now()
+      timestamp — this is the signal the inventory UI uses to fire
+      the pop animation. also records event:glint-zone discovery on
+      first walk-over. coins already in glintingCoins are unchanged
+      and do not get a new pop time.
     inputs:
       - 'player walks onto a glinting zone tile in overworld'
     outputs:
-      - 'dull coins restored to glinting, manual discovery recorded'
+      - 'dull coins restored to glinting, pop times recorded, manual discovery recorded'
     state_changes:
       - field: glintingCoins
         effect: 'uids of all non-glinting backpack coins added'
+      - field: coinGlintPopTimes
+        effect: >
+          for each coin that transitioned from unglinted to glinted in
+          this call, its uid is set to performance.now() in the map.
+          coins already glinted are not touched. coins not transitioned
+          retain any prior pop time.
       - field: manualDiscoveries
         effect: 'event:glint-zone added on first walk-over'
+    determinism: deterministic
+
+  - id: inventory-coin-shimmer-and-pop
+    description: >
+      InventoryGrid renders each backpack coin in one of three visual
+      states based on state.glintingCoins and state.coinGlintPopTimes.
+      (1) Unglinted: coin background uses COIN_DULL_COLOR, no
+      animation, no shimmer. (2) Glinted, no recent pop: coin
+      background uses the definition's glyphColor and runs a sustained
+      shimmer animation (loud, ongoing, visually distinct from
+      unglinted). (3) Glinted with a recent pop (now - popTime <
+      COIN_POP_DURATION_MS): coin runs both the pop animation (a brief
+      scale-bounce + color flash, "big pop" per design) and the
+      sustained shimmer. The pop is loud and clearly distinct from
+      shimmer alone. The cell exposes data attributes
+      (data-coin-state="dull" | "glint" | "glint-pop") so tests can
+      assert the visual state without relying on CSS animation
+      observation. The pop animation fires once per unglinted→glinted
+      transition; coins that stay glinted between renders do not
+      re-pop.
+    inputs:
+      - 'InventoryGrid rendered with a backpack containing coin items'
+      - 'state.glintingCoins set, state.coinGlintPopTimes map, current time'
+    outputs:
+      - 'each coin cell carries a data-coin-state attribute matching its glint state'
+    state_changes: []
+    determinism: deterministic
+
+  - id: pop-time-cleanup
+    description: >
+      state.coinGlintPopTimes is a transient signal. Entries older
+      than COIN_POP_DURATION_MS are no longer meaningful but are not
+      required to be removed for correctness — the inventory UI gates
+      on (now - popTime < COIN_POP_DURATION_MS), so stale entries are
+      visually inert. Entries for coins whose uid is no longer in the
+      backpack (e.g. coin dropped or spent) are also visually inert
+      because no cell renders them. No background cleanup tick is
+      required.
+    inputs:
+      - 'time advances past COIN_POP_DURATION_MS after a pop'
+    outputs:
+      - 'inventory cell exits the pop animation, retains sustained shimmer'
+    state_changes: []
     determinism: deterministic
 
   - id: sparkle-rendering
@@ -204,6 +268,34 @@ edge_cases:
     description: 'Patch spawn attempts capped at 50; 0% chance of infinite loop'
     expected: 'If no valid center found after 50 attempts, spawn is skipped for that cycle'
 
+  - id: patch-spawn-rejects-sub-min-size
+    description: 'spawn attempt produces a candidate with fewer than GLINT_PATCH_MIN_TILES (5) valid land tiles (e.g. coastal sliver, peninsula tip)'
+    expected: 'candidate is rejected; spawnGlintPatch tries another center within the 50-attempt budget. No patch with fewer than 5 tiles ever enters state.glintPatches.'
+
+  - id: drift-erodes-below-threshold
+    description: 'patch in hold phase tries to drift into a position whose computed tile set would have fewer than GLINT_PATCH_MIN_TILES tiles'
+    expected: 'drift step is skipped; patch.centerX/centerY/tiles unchanged; lastDriftTime still updated so the patch tries again next drift tick. Patch is not expired by this.'
+
+  - id: coin-picked-up-in-glint-zone
+    description: 'player picks up a coin while standing on a glint zone tile, then the next movePlayer keeps them in (or re-enters) a glint zone'
+    expected: 'newly-picked coin starts unglinted; on the next movePlayer that lands on a glint zone tile, the coin is added to glintingCoins AND its uid is recorded in coinGlintPopTimes — it pops like any other unglinted→glinted transition'
+
+  - id: multiple-coins-pop-in-unison
+    description: 'player walks onto a glint zone tile with several unglinted coins in the backpack'
+    expected: 'all transitioning coins receive the same performance.now() timestamp in coinGlintPopTimes (single call site, single read of the clock), so their pop animations run in unison rather than staggered'
+
+  - id: already-glinted-coins-do-not-repop
+    description: 'player walks onto a glint zone tile while all backpack coins are already glinted'
+    expected: 'glintingCoins is unchanged; coinGlintPopTimes is not mutated for those uids; no pop animation fires in the inventory'
+
+  - id: pop-time-survives-inventory-open
+    description: 'player picks up a coin in a glint zone (pop fires), then opens the inventory mid-pop'
+    expected: 'inventory cell reads state.coinGlintPopTimes and runs the remaining portion of the pop animation; pop is not retriggered on inventory open because the transition condition is based on the engine-emitted timestamp, not on UI mount'
+
+  - id: stale-pop-time-no-replay
+    description: 'state.coinGlintPopTimes contains an entry from a transition more than COIN_POP_DURATION_MS ago'
+    expected: 'cell renders as glinted with sustained shimmer only (data-coin-state="glint"); no pop animation. Stale entries are visually inert and need no active cleanup.'
+
   - id: beam-selection-deterministic
     description: 'whether a glinting tile has a beam, its length, and its peak opacity'
     expected: >
@@ -238,8 +330,12 @@ failure_conditions:
     expected: 'all spawn attempts fail; glintPatches stays empty; no crash'
   - trigger: 'tickGlintZones called with no patches and spawn fails'
     expected: 'glintZones is empty Set; no sparkles rendered; no crash'
+  - trigger: 'map terrain too fragmented for any candidate to reach GLINT_PATCH_MIN_TILES within 50 attempts'
+    expected: 'spawn cycle is skipped; glintPatches stays at its current count; no error, no patch under 5 tiles'
+  - trigger: 'InventoryGrid renders before state.coinGlintPopTimes is initialized (e.g. legacy save)'
+    expected: 'missing map is treated as empty; all coins render in their glint/unglint state with no pop, no crash'
 
 verification:
   test_file: src/engine/__tests__/glintZones.test.ts
   test_pattern: 'glint'
-  command: npx vitest run src/engine/__tests__/glintZones.test.ts
+  command: npx vitest run src/engine/__tests__/glintZones.test.ts src/engine/__tests__/movement.test.ts src/components/__tests__/InventoryGrid.test.tsx

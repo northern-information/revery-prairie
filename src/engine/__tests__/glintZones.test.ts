@@ -253,6 +253,97 @@ describe('overlapping patches', () => {
   })
 })
 
+describe('minimum patch size', () => {
+  // Rebuild a fully-Space map, then carve a small sliver of dirt so any
+  // candidate centered there can never reach GLINT_PATCH_MIN_TILES.
+  const fillSpace = (): void => {
+    for (let y = 0; y < state.mapHeight; y++) {
+      for (let x = 0; x < state.mapWidth; x++) {
+        state.map[y][x] = { type: TileType.Space }
+      }
+    }
+  }
+
+  it('spawnGlintPatch rejects candidates with fewer than GLINT_PATCH_MIN_TILES land tiles', () => {
+    fillSpace()
+    // Place exactly 3 dirt tiles in a row — too few for any patch.
+    const cx = 80
+    const cy = 50
+    state.map[cy][cx] = { type: TileType.Dirt }
+    state.map[cy][cx - 1] = { type: TileType.Dirt }
+    state.map[cy][cx + 1] = { type: TileType.Dirt }
+
+    // All 50 attempts will land on Space (overwhelmingly) or on the
+    // 3-tile sliver, which fails the min-tile check. Either way no
+    // patch should be returned.
+    const patch = spawnGlintPatch(state, 0)
+    expect(patch).toBeNull()
+  })
+
+  it('every spawned patch has at least GLINT_PATCH_MIN_TILES tiles', () => {
+    // clearArea (the default beforeEach) gives plenty of dirt, so this
+    // exercises the success path. Sample many spawns.
+    for (let i = 0; i < 40; i++) {
+      const patch = spawnGlintPatch(state, i * 1000)
+      if (patch === null) continue
+      expect(patch.tiles.size).toBeGreaterThanOrEqual(5)
+    }
+  })
+
+  it('drift never erodes a patch below GLINT_PATCH_MIN_TILES; patch persists', () => {
+    // Confine land to a 9x9 dirt block so drift toward any side trims
+    // the patch tile count. Construct the patch directly instead of
+    // going through random spawn — we are exercising drift, not spawn.
+    fillSpace()
+    const cx = 80
+    const cy = 50
+    for (let dy = -4; dy <= 4; dy++) {
+      for (let dx = -4; dx <= 4; dx++) {
+        state.map[cy + dy][cx + dx] = { type: TileType.Dirt }
+      }
+    }
+
+    const radius = 2
+    const buildTiles = (): Set<string> => {
+      const out = new Set<string>()
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          if (dx * dx + dy * dy > radius * radius) continue
+          out.add(`${String(cx + dx)},${String(cy + dy)}`)
+        }
+      }
+      return out
+    }
+
+    // Drift only fires in hold phase, so anchor birthTime such that
+    // current sim time sits comfortably in hold for the entire run.
+    let time = GLINT_ZONE_FADE_IN_MS + 1000
+    state.glintPatches = [
+      {
+        centerX: cx,
+        centerY: cy,
+        radius,
+        birthTime: time - GLINT_ZONE_FADE_IN_MS - 500,
+        lastDriftTime: time - GLINT_ZONE_DRIFT_MS - 10,
+        tiles: buildTiles(),
+      },
+    ]
+
+    // Keep the patch's birth time advancing alongside sim time so it
+    // never exits the hold window. We re-anchor birthTime before each
+    // tick — the drift logic only reads `elapsed = time - birthTime`,
+    // so this keeps drift eligible without expiring the patch.
+    for (let i = 0; i < 30; i++) {
+      time += GLINT_ZONE_DRIFT_MS + 1
+      const patch = state.glintPatches[0]
+      patch.birthTime = time - GLINT_ZONE_FADE_IN_MS - 500
+      tickGlintZones(state, time)
+      expect(state.glintPatches.length).toBeGreaterThan(0)
+      expect(state.glintPatches[0].tiles.size).toBeGreaterThanOrEqual(5)
+    }
+  })
+})
+
 describe('drift edge cases', () => {
   it('drift skips non-land tiles — patch near edge does not crash', () => {
     state.glintPatches = []

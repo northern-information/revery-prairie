@@ -1,12 +1,14 @@
 import { useCallback, useRef } from 'react'
 
-import { COIN_DULL_COLOR, INVENTORY_CELL_SIZE } from '@/engine/constants'
+import { COIN_DULL_COLOR, COIN_POP_DURATION_MS, INVENTORY_CELL_SIZE } from '@/engine/constants'
 import { buildOccupancyGrid } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
 import { combineIcon } from '@/engine/recipes'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { DragState } from '@/engine/drag'
 import type { Container } from '@/engine/types'
+
+type CoinState = 'dull' | 'glint' | 'glint-pop'
 
 interface InventoryGridProps {
   container: Container
@@ -18,6 +20,7 @@ interface InventoryGridProps {
   onQuickTransfer?: (uid: string, containerId: string) => void
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
   glintingCoins?: Set<string>
+  coinGlintPopTimes?: Map<string, number>
 }
 
 export const InventoryGrid = ({
@@ -30,6 +33,7 @@ export const InventoryGrid = ({
   onQuickTransfer,
   itemInfoRef,
   glintingCoins,
+  coinGlintPopTimes,
 }: InventoryGridProps) => {
   const gridRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef(container)
@@ -137,19 +141,35 @@ export const InventoryGrid = ({
     }
   }, [itemInfoRef])
 
-  // Build a map of uid -> { definition, instance } for rendering icons
-  const itemMap = new Map<string, { glyph: string; glyphColor: string; topLeftX: number; topLeftY: number }>()
+  // Build a map of uid -> { definition, instance } for rendering icons.
+  // coinState is null for non-coin items and one of dull|glint|glint-pop
+  // for coins. The pop variant is gated on a recent unglinted→glinted
+  // transition recorded by movement.ts in state.coinGlintPopTimes.
+  const now = performance.now()
+  const itemMap = new Map<
+    string,
+    { glyph: string; glyphColor: string; topLeftX: number; topLeftY: number; coinState: CoinState | null }
+  >()
   for (const item of container.items) {
     if (dragState?.sourceContainerId === containerId && dragState.item.uid === item.uid) {
       continue // skip the dragged item
     }
     const def = getDefinition(item.definitionId)
-    const isDimCoin = item.definitionId === 'coin' && glintingCoins && !glintingCoins.has(item.uid)
+    let coinState: CoinState | null = null
+    if (item.definitionId === 'coin') {
+      if (glintingCoins?.has(item.uid) === true) {
+        const popTime = coinGlintPopTimes?.get(item.uid)
+        coinState = popTime !== undefined && now - popTime < COIN_POP_DURATION_MS ? 'glint-pop' : 'glint'
+      } else {
+        coinState = 'dull'
+      }
+    }
     itemMap.set(item.uid, {
       glyph: def.glyph,
-      glyphColor: isDimCoin ? COIN_DULL_COLOR : def.glyphColor,
+      glyphColor: coinState === 'dull' ? COIN_DULL_COLOR : def.glyphColor,
       topLeftX: item.gridX,
       topLeftY: item.gridY,
+      coinState,
     })
   }
 
@@ -186,11 +206,21 @@ export const InventoryGrid = ({
         bgStyle = { backgroundColor: itemInfo.glyphColor }
       }
 
+      // Coin animation classes only on the top-left cell of the coin,
+      // matching where the glyph renders. Cells that are not the
+      // top-left coin cell carry no animation, and non-coin items
+      // carry no data-coin-state.
+      const coinState = isTopLeft && itemInfo ? itemInfo.coinState : null
+      const animationClass =
+        coinState === 'glint-pop' ? ' coin-cell-pop' : coinState === 'glint' ? ' coin-cell-glint' : ''
+      const dataCoinState = coinState ?? undefined
+
       cells.push(
         <div
           key={`${String(x)}-${String(y)}`}
-          className={`border-grid-border flex items-center justify-center border font-mono text-xs ${bgClass}`}
+          className={`border-grid-border flex items-center justify-center border font-mono text-xs ${bgClass}${animationClass}`}
           style={{ width: INVENTORY_CELL_SIZE, height: INVENTORY_CELL_SIZE, ...bgStyle }}
+          data-coin-state={dataCoinState}
         >
           {(isCombineTarget || isCombinePreview) && dragState?.combineTarget ? (
             <span style={{ color: '#000' }}>

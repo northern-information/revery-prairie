@@ -383,6 +383,7 @@ export interface GameState {
   manualState: ManualState
   lastDialogTypingTick: number
   glintingCoins: Set<string>
+  coinGlintPopTimes: Map<string, number>
   seedGenomes: Map<string, FloraGenome>
   divinedHexagrams: Set<number>
   glintZones: Set<string>

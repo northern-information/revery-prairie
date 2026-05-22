@@ -154,6 +154,7 @@ export const InventoryPanel = ({
         onDrop={drop}
         itemInfoRef={itemInfoRef}
         glintingCoins={state.glintingCoins}
+        coinGlintPopTimes={state.coinGlintPopTimes}
       />
     </div>
   )

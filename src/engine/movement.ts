@@ -177,11 +177,16 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   updateCamera(state)
   updateFacingEntity(state)
 
-  // Glinting zone: restore glint to all dull backpack coins
+  // Glinting zone: restore glint to all dull backpack coins. Each
+  // transition records a single shared timestamp in coinGlintPopTimes
+  // so the inventory UI can fire its pop animation; coins that were
+  // already glinted are not touched.
   if (state.currentZone === Zone.Overworld && state.glintZones.has(posKey(nx, ny))) {
+    const popTime = performance.now()
     for (const item of state.backpack.items) {
       if (item.definitionId === 'coin' && !state.glintingCoins.has(item.uid)) {
         state.glintingCoins.add(item.uid)
+        state.coinGlintPopTimes.set(item.uid, popTime)
       }
     }
     recordDiscovery(state, 'event:glint-zone')
