@@ -150,12 +150,22 @@ features:
   - id: '10'
     name: Failure-state biomes
     summary: Ash, fungal, Far Garden conversion as Revery outcomes.
-    depends_on: ['4', '8b', '9b']
+    depends_on: ['4', '8b', '9b', '35']
     status: todo
     spec: null
     plan: null
     pr: null
-    notes: 'Depends on 9b (controlled burn behavior + ash-prairie outcome) rather than the original combined precis-9. The ash biome itself is the conversion target; 9b produces the ash, 10 makes it a persistent failure state.'
+    notes: >
+      Depends on 9b (controlled burn behavior + ash-prairie outcome)
+      rather than the original combined precis-9. The ash biome itself
+      is the conversion target; 9b produces the ash, 10 makes it a
+      persistent failure state.
+
+
+      2026-05-22. The fungal conversion outcome additionally blocks on
+      `#35` (mushrooms, fungus, mycelium), which has not yet been
+      designed. Until the fungal kingdom exists in the cosmology, this
+      item is not ready for dev.
 
   - id: '11'
     name: Seed taxonomy + drop-to-plant
@@ -1098,3 +1108,29 @@ features:
       framing), whether the genesis screen gets any in-game signal
       that it is the previous Revery (lean: doctrine only, no new
       pixels).
+
+  - id: '35'
+    name: Mushrooms, fungus, mycelium
+    summary: >
+      Stub. The cosmology currently has flora (clover, wildflower,
+      tall grass) and a parallel egregoric flora register (`#8b`), but
+      no fungal kingdom — mushrooms, fungus, and mycelium have not
+      been designed yet. Open at design: species set, lifecycle and
+      seasonal rhythm, whether mycelium is a substrate underlying
+      everything or a localized network, interaction with the existing
+      flora registry, visual register (ASCII glyph, palette), and how
+      the kingdom relates to the egregore (`#8b`) and to soil
+      depletion (`#19`). Awaits a future thinktank round.
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      2026-05-22. Stub item created to formally gate `#10`'s "fungal
+      conversion" failure-state biome on a thinktank-shaped design
+      pass for the fungal kingdom. Until the design exists, the
+      fungal outcome in `#10` cannot reach feature-complete and `#10`
+      is not ready for dev. No spec or plan; needs a round to
+      establish what fungus _is_ in this cosmology before a spec can
+      be written.
