@@ -1735,15 +1735,23 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           ctx.fillText(layer.char, px + layer.dx * offsetScale, pyLift + layer.dy * offsetScale)
         }
       } else if (mx === player.x && my === player.y) {
-        // Player tile when playerSpawn.visible is false — preserve the
-        // existing behavior of drawing whatever glyph resolved at the
-        // tween position rather than the iteration position.
-        ctx.fillText(char, playerScreen.px, playerScreen.py + playerLift)
+        // Player tile — draw whatever glyph resolved at the tween
+        // position rather than the iteration position. Egregore tiles
+        // need the Voynich font swap here too; the off-player branch
+        // below would otherwise be skipped and the PUA code point
+        // would fall back to '?' / empty box under the player.
+        if (tile.type === TileType.Egregore) {
+          const prevFont = ctx.font
+          ctx.font = `${String(BASE_FONT_SIZE)}px 'Voynich', monospace`
+          ctx.fillText(char, playerScreen.px, playerScreen.py + playerLift)
+          ctx.font = prevFont
+        } else {
+          ctx.fillText(char, playerScreen.px, playerScreen.py + playerLift)
+        }
       } else if (tile.type === TileType.Egregore) {
-        // Egregore tile — draw with the Voynich typeface for one
-        // call, then restore the default font. Per v3 doctrine the
-        // font fallback (□ / ?) is intended behavior; we do not gate
-        // the draw on font-loaded state.
+        // Egregore tile (off-player) — draw with the Voynich typeface
+        // for one call, then restore the default font. The on-player
+        // branch above applies the same swap at the player position.
         const prevFont = ctx.font
         ctx.font = `${String(BASE_FONT_SIZE)}px 'Voynich', monospace`
         ctx.fillText(char, px, pyLift)
