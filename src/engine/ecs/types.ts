@@ -13,6 +13,7 @@ export const ComponentType = {
   Pickupable: 'pickupable',
   Blocking: 'blocking',
   Aura: 'aura',
+  MusicEmitter: 'musicEmitter',
   ShootingStarData: 'shootingStarData',
   MultiPosition: 'multiPosition',
 
@@ -56,6 +57,7 @@ export interface ComponentDataMap {
   [ComponentType.Pickupable]: { definitionId: string }
   [ComponentType.Blocking]: { blockMovement: boolean }
   [ComponentType.Aura]: { kind: string; radius: number }
+  [ComponentType.MusicEmitter]: { url: string; radius: number }
   [ComponentType.ShootingStarData]: {
     length: number
     age: number

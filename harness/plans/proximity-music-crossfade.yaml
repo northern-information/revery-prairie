@@ -1,0 +1,125 @@
+plan:
+  id: proximity-music-crossfade
+  title: 'Proximity-based music crossfade with reusable MusicEmitter component'
+  created: '2026-05-22'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: music-emitter-component
+    title: 'Add ComponentType.MusicEmitter and its type definition'
+    spec_id: proximity-music-crossfade
+    spec_sections:
+      - music-emitter-component
+    context_files:
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/ecs/types.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: audio-module-proximity-api
+    title: 'Extend audio module with proximityTracks map, updateProximityMusic, and ambient-ducking coordination'
+    spec_id: proximity-music-crossfade
+    spec_sections:
+      - proximity-update-tick
+      - proximity-gain-curve
+      - entry-creates-track
+      - exit-destroys-track
+      - independent-layers
+      - ambient-ducking-coordination
+      - music-toggle-affects-proximity
+      - stop-all-clears-proximity
+    context_files:
+      - src/engine/audio.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/audio.ts
+    depends_on: [music-emitter-component]
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/audio.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: gron-emitter-wiring
+    title: "Add MusicEmitter to Gron's entity at spawn with url=/music/gron.mp3 and radius=AURA_RADIUS.rain"
+    spec_id: proximity-music-crossfade
+    spec_sections:
+      - gron-music-emitter
+    context_files:
+      - src/engine/state.ts
+      - src/engine/entities.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on: [music-emitter-component]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: usemusic-dialog-suppression
+    title: 'Skip startDialogMusic in useMusic when the speaking character has a MusicEmitter; drive updateProximityMusic from the RAF loop'
+    spec_id: proximity-music-crossfade
+    spec_sections:
+      - dialog-suppression
+      - proximity-update-tick
+    context_files:
+      - src/hooks/useMusic.ts
+      - src/hooks/useGameEngine.ts
+      - src/engine/audio.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/hooks/useMusic.ts
+      - src/hooks/useGameEngine.ts
+    depends_on: [audio-module-proximity-api, gron-emitter-wiring]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, react]
+
+  - id: audio-system-spec-followups
+    title: 'Update audio-system spec dependent fields (dialog-music-layer, ambient-ducking-by-proximity, two new edge cases) — already drafted in spec PR; code reconciliation only'
+    spec_id: audio-system
+    spec_sections:
+      - dialog-music-layer
+      - ambient-ducking-by-proximity
+    context_files:
+      - src/engine/audio.ts
+      - src/hooks/useMusic.ts
+    output_files: []
+    depends_on: [usemusic-dialog-suppression]
+    verification:
+      - npx vitest run src/engine/__tests__/audio.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: proximity-music-tests
+    title: 'Author proximityMusic.test.ts covering smoothstep curve, entry/exit, independent layers, ambient ducking, dialog suppression'
+    spec_id: proximity-music-crossfade
+    spec_sections:
+      - proximity-gain-curve
+      - entry-creates-track
+      - exit-destroys-track
+      - independent-layers
+      - ambient-ducking-coordination
+      - dialog-suppression
+    context_files:
+      - src/engine/__tests__/proximityMusic.test.ts
+      - src/engine/__tests__/audio.test.ts
+      - src/engine/audio.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/__tests__/proximityMusic.test.ts
+    depends_on: [usemusic-dialog-suppression]
+    verification:
+      - npx vitest run src/engine/__tests__/proximityMusic.test.ts
+    repair: retry
+    tags: [engine, test]

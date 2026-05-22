@@ -19,7 +19,13 @@ export const createCharacterEntity = (
   state: GameState,
   definitionId: string,
   pos: Position,
-  opts?: { aura?: string; behavior?: CharacterBehavior; zone?: Zone; ruinIndex?: number }
+  opts?: {
+    aura?: string
+    behavior?: CharacterBehavior
+    zone?: Zone
+    ruinIndex?: number
+    music?: { url: string; radius: number }
+  }
 ): Entity => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
@@ -35,6 +41,9 @@ export const createCharacterEntity = (
   }
   if (opts?.behavior) {
     state.world.addComponent(e, ComponentType.Behavior, opts.behavior)
+  }
+  if (opts?.music) {
+    state.world.addComponent(e, ComponentType.MusicEmitter, { url: opts.music.url, radius: opts.music.radius })
   }
   return e
 }
