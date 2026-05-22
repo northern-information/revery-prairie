@@ -27,64 +27,65 @@ tasks:
     tags:
       - docs
 
-  # --- Tier 1: Font CSS plumbing ---
-  # @font-face declaration plus the 40 consumed icon classes added to
-  # src/styles/index.css. Self-hosted from public/fonts/. The fonts
-  # themselves are already in place (woff2 + woff + ttf in
-  # public/fonts/weathericons-regular-webfont.*). This task is pure CSS;
-  # no TypeScript yet.
+  # --- Tier 1: Pure-derivation helpers ---
+  # Implement ambientInstruments.helpers.ts: VANE_ROTATION_DEG,
+  # SEASON_LABEL, WIND_SPEED_LABELS, LUNATIONS_PER_YEAR,
+  # MOON_PHASE_NAMES, windSpeedLabel, moonPhase, moonPhaseLabel,
+  # almanacState. Pure TypeScript module, no React, no styling.
+  # Exports are consumed by the component (Tier 2) and the test
+  # (Tier 4).
 
-  - id: weather-icons-font-css
-    title: Add @font-face and the 40 wi-* icon classes to src/styles/index.css (8 directions + 4 sky + 28 moon)
+  - id: helpers-module
+    title: Implement ambientInstruments.helpers.ts with pure derivation functions and lookup tables
     spec_id: precis-28-permacomputer-instruments
     spec_sections:
-      - weather-icons-font-self-hosted
+      - wind-speed-label-five-fifths-of-max
+      - moon-phase-derived-from-seasonal-phase
+      - moon-phase-label
+      - almanac-radial-timer
+      - season-label-title-case
     context_files:
-      - src/styles/index.css
-      - public/fonts/weathericons-regular-webfont.woff2
-      - public/fonts/weathericons-regular-webfont.woff
-      - public/fonts/weathericons-regular-webfont.ttf
+      - src/components/ambientInstruments.helpers.ts
+      - src/engine/types.ts
+      - src/engine/weather/wind.ts
     output_files:
-      - src/styles/index.css
+      - src/components/ambientInstruments.helpers.ts
     depends_on:
       - doctrine-update
     verification:
       - npx tsc -b --noEmit
     repair: retry
     tags:
-      - styles
+      - helpers
 
-  # --- Tier 2: Pure derivation functions ---
-  # Replace the placeholder AmbientInstruments with the real
-  # implementation. All five readouts (vane, wind-speed label, sky,
-  # season, moon, almanac) compose in a single component.
-  # Pure-derivation helpers (windSpeedLabel, moonPhase, moonGlyphClass,
-  # moonIlluminationPercent, almanacReadout) live as named exports
-  # adjacent to the component so the test file can target them
-  # directly. The component returns a React element tree only — no
-  # hooks beyond render.
+  # --- Tier 2: Component with inline SVG glyphs ---
+  # Implement AmbientInstruments.tsx. All glyphs are inline SVG
+  # components (ArrowGlyph, SunGlyph, CloudGlyph, RainGlyph,
+  # SnowGlyph, MoonGlyph, AlmanacGlyph) defined in the same file
+  # as the parent component. Each glyph uses currentColor stroke
+  # and renders at a uniform GLYPH_SIZE. No font dependencies, no
+  # external icon library. The component reads state.weather.*,
+  # state.wind.smoothSpeed, and state.seasonalPhase only — pure
+  # render, no hooks beyond render.
 
   - id: ambient-instruments-component
-    title: Implement AmbientInstruments.tsx with five readouts and pure-derivation helpers
+    title: Implement AmbientInstruments.tsx with inline SVG glyphs and uniform typography
     spec_id: precis-28-permacomputer-instruments
     spec_sections:
-      - weathervane-renders-rotated-cardinal-icon-and-letter
-      - wind-speed-label-five-fifths-of-max
-      - sky-icon-renders-current-sky
-      - season-label-title-case
-      - moon-phase-derived-from-seasonal-phase
-      - moon-phase-label
+      - weathervane-renders-svg-arrow-and-cardinal-letter
+      - sky-glyph-renders-inline-svg
+      - moon-glyph-renders-inline-svg
       - almanac-radial-timer
+      - uniform-typography-across-rows
       - pure-render-no-state-writes
     context_files:
       - src/components/AmbientInstruments.tsx
+      - src/components/ambientInstruments.helpers.ts
       - src/engine/types.ts
-      - src/engine/weather/wind.ts
-      - src/styles/index.css
     output_files:
       - src/components/AmbientInstruments.tsx
     depends_on:
-      - weather-icons-font-css
+      - helpers-module
     verification:
       - npx tsc -b --noEmit
     repair: retry
@@ -118,29 +119,32 @@ tasks:
 
   # --- Tier 4: Tests ---
   # Replace the it.todo placeholders with full coverage of every
-  # behavior and edge case in the spec. The five pure-derivation
-  # helpers (windSpeedLabel, moonPhase, moonGlyphClass,
-  # moonIlluminationPercent, almanacReadout) get direct table-driven
-  # assertions. The component-render tests use React Testing Library
-  # to confirm the wi-* classes, letter, season label, moon
-  # percentage, and almanac string render correctly for given state
-  # shapes.
+  # behavior and edge case in the spec. Pure helpers
+  # (windSpeedLabel, moonPhase, moonPhaseLabel, almanacState) get
+  # direct table-driven assertions. Component render tests use
+  # React Testing Library to confirm SVG glyph counts, rotation
+  # transforms, text content, and uniform typography classes.
+  # Discipline tests assert the component source contains no hook
+  # mutations and no Weather Icons references.
 
   - id: ambient-instruments-tests
     title: Replace it.todo placeholders with full coverage of AmbientInstruments behaviors and edge cases
     spec_id: precis-28-permacomputer-instruments
     spec_sections:
-      - weathervane-renders-rotated-cardinal-icon-and-letter
+      - weathervane-renders-svg-arrow-and-cardinal-letter
       - wind-speed-label-five-fifths-of-max
-      - sky-icon-renders-current-sky
+      - sky-glyph-renders-inline-svg
       - season-label-title-case
       - moon-phase-derived-from-seasonal-phase
       - moon-phase-label
+      - moon-glyph-renders-inline-svg
       - almanac-radial-timer
+      - uniform-typography-across-rows
       - pure-render-no-state-writes
     context_files:
       - src/components/__tests__/AmbientInstruments.test.tsx
       - src/components/AmbientInstruments.tsx
+      - src/components/ambientInstruments.helpers.ts
       - src/engine/types.ts
       - src/engine/weather/wind.ts
     output_files:

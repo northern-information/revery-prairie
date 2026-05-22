@@ -5,11 +5,8 @@ layer: component
 source_files:
   - src/components/GameScreen.tsx
   - src/components/AmbientInstruments.tsx
+  - src/components/ambientInstruments.helpers.ts
   - src/components/__tests__/AmbientInstruments.test.tsx
-  - src/styles/index.css
-  - public/fonts/weathericons-regular-webfont.woff2
-  - public/fonts/weathericons-regular-webfont.woff
-  - public/fonts/weathericons-regular-webfont.ttf
 dependencies:
   - precis-30-the-diamond-is-the-world
 
@@ -35,26 +32,28 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: weathervane-renders-rotated-cardinal-icon-and-letter
+  - id: weathervane-renders-svg-arrow-and-cardinal-letter
     description: >
-      The weathervane renders one of the eight Weather Icons direction
-      glyphs together with the uppercase rotated-cardinal letter for
-      state.weather.windDirection. The eight WindDirection enum keys map
-      one-to-one to wi-direction-* classes — N → wi-direction-up,
-      NE → wi-direction-up-right, E → wi-direction-right,
-      SE → wi-direction-down-right, S → wi-direction-down,
-      SW → wi-direction-down-left, W → wi-direction-left,
-      NW → wi-direction-up-left. The letter is the enum key itself
-      (uppercase, no translation layer). This mapping reads under the
-      rotated frame locked by precis-30 — the steward looks at the
-      diamond on screen, the icon points the way wind blows from a
-      diamond tip toward its opposite, and the letter labels the
-      same tip. No coordinate translation between storage and screen.
+      The weathervane renders an inline SVG arrow (pointing N by
+      default, rotated via CSS transform per state.weather.windDirection)
+      together with the uppercase rotated-cardinal letter. The eight
+      WindDirection enum keys map one-to-one to rotation degrees via
+      VANE_ROTATION_DEG — N → 0°, NE → 45°, E → 90°, SE → 135°,
+      S → 180°, SW → 225°, W → 270°, NW → 315°. The letter is the
+      enum key itself (uppercase, no translation layer). This mapping
+      reads under the rotated frame locked by precis-30 — the steward
+      looks at the diamond on screen, the arrow points the way wind
+      blows from a diamond tip toward its opposite, and the letter
+      labels the same tip. No coordinate translation between storage
+      and screen. The arrow is a single SVG element shared across all
+      eight directions; rotation is purely visual.
     inputs:
       - 'state.weather.windDirection is one of the eight WindDirection enum keys'
     outputs:
-      - 'an <i> element with className containing both "wi" and the matching wi-direction-* class is rendered'
-      - 'the uppercase cardinal letter (one of "N", "NE", "E", "SE", "S", "SW", "W", "NW") is rendered as text adjacent to the icon'
+      - 'an <svg> element renders the arrow with style="transform: rotate(<deg>deg)"'
+      - 'rotation degrees match VANE_ROTATION_DEG[direction]'
+      - 'the uppercase cardinal letter (one of "N", "NE", "E", "SE", "S", "SW", "W", "NW") is rendered as text in the same row'
+      - 'the arrow uses currentColor stroke for color inheritance from the row'
     state_changes: []
     determinism: deterministic
 
@@ -70,8 +69,8 @@ behaviors:
       compute band width — it does not hard-code 5 — so a future
       MAX_WIND_SPEED retune does not silently desync the labels.
       The function is exported as windSpeedLabel(smoothSpeed: number)
-      from AmbientInstruments.tsx so the test can target the pure
-      derivation.
+      from ambientInstruments.helpers.ts so the test can target the
+      pure derivation directly.
     inputs:
       - 'state.wind.smoothSpeed (number, expected non-negative)'
     outputs:
@@ -86,22 +85,25 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: sky-icon-renders-current-sky
+  - id: sky-glyph-renders-inline-svg
     description: >
-      The sky readout renders a Weather Icons glyph matching
-      state.weather.sky — Sky.Sun → wi-day-sunny, Sky.Cloudy →
-      wi-cloudy, Sky.Rain → wi-rain, Sky.Snow → wi-snow. The
-      mapping is a flat object literal keyed by Sky enum values.
-      Cloudy/rain/snow use Weather Icons' neutral classes (no
-      wi-day-* or wi-night-* prefix). The sun has no neutral
-      glyph in the Weather Icons set — wi-day-sunny is the only
-      sun option and is the unambiguous clear-sky glyph; the
-      single wi-day-* outlier here is acceptable because no
-      diurnal cycle exists in the game today.
+      The sky readout renders a small inline SVG matching
+      state.weather.sky. Four distinct glyph components live in
+      AmbientInstruments.tsx — SunGlyph (radial rays around a
+      central circle), CloudGlyph (single outlined cloud silhouette),
+      RainGlyph (cloud with three rain streaks below), and SnowGlyph
+      (six-pointed snowflake star). A SkyGlyph dispatcher component
+      switches on the Sky enum and returns the matching glyph.
+      All four glyphs use stroke="currentColor" with the same stroke
+      weight as the rest of the widget, rendering as monochrome
+      outlines in the row's text color. No fills (or fills only
+      where the design calls for them, also in currentColor).
     inputs:
       - 'state.weather.sky is one of the four Sky enum values'
     outputs:
-      - 'an <i> element with className containing both "wi" and the matching wi-* class is rendered'
+      - 'an <svg> element renders the sky glyph for the current state.weather.sky'
+      - 'all stroke attributes resolve to currentColor'
+      - 'the glyph matches the GLYPH_SIZE constant (uniform with the other three glyphs)'
     state_changes: []
     determinism: deterministic
 
@@ -112,7 +114,8 @@ behaviors:
       writing rules, season labels are display labels (Title Case),
       not prose. The label is derived directly from the enum value —
       the enum values are lowercase ("spring", etc.) and the
-      component capitalizes the first letter.
+      component capitalizes the first letter via the SEASON_LABEL
+      lookup in ambientInstruments.helpers.ts.
     inputs:
       - 'state.weather.season is one of "spring", "summer", "autumn", "winter"'
     outputs:
@@ -125,49 +128,30 @@ behaviors:
       Moon phase is a pure derivation from state.seasonalPhase —
       no new state field. A real-world year contains ~12.3683
       lunations (365.25 days / 29.530588 days per lunation). The
-      component exports a constant LUNATIONS_PER_YEAR = 12.3683
+      helpers module exports a constant LUNATIONS_PER_YEAR = 12.3683
       and a pure function moonPhase(seasonalPhase: number) →
       number in [0, 1) computed as (seasonalPhase *
-      LUNATIONS_PER_YEAR) % 1. The component also exports a pure
-      function moonGlyphClass(moonPhase: number) → string that
-      buckets the phase into one of the 28 Weather Icons moon
-      glyphs in cycle order: wi-moon-new, wi-moon-waxing-crescent-1
-      through -6, wi-moon-first-quarter, wi-moon-waxing-gibbous-1
-      through -6, wi-moon-full, wi-moon-waning-gibbous-1 through -6,
-      wi-moon-third-quarter, wi-moon-waning-crescent-1 through -6.
-      bucket = floor(moonPhase * 28); the function returns the
-      glyph class at that index. Glyph rendering is via an <i>
-      element with className containing both "wi" and the matching
-      wi-moon-* class. The Weather Icons set contains 28 distinct
-      moon-phase glyph classes — one less than the ~29.5-day
-      lunation. This is the canonical count for the set; the
-      visual cadence is smooth enough that the one-bucket
-      approximation reads as continuous motion across the cycle.
+      LUNATIONS_PER_YEAR) % 1.
     inputs:
       - 'state.seasonalPhase ∈ [0, 1)'
     outputs:
       - 'moonPhase(0) === 0'
       - 'moonPhase(0.5) is approximately (0.5 * 12.3683) % 1 ≈ 0.18415'
-      - 'moonGlyphClass(0) === "wi-moon-new"'
-      - 'moonGlyphClass(0.5) === "wi-moon-full"'
-      - 'moonGlyphClass(0.25) === "wi-moon-first-quarter"'
-      - 'moonGlyphClass(0.75) === "wi-moon-third-quarter"'
-      - 'moonGlyphClass(0.999) === "wi-moon-waning-crescent-6"'
-      - 'every output of moonGlyphClass appears in the wi-moon-* set defined in src/styles/index.css'
+      - 'moonPhase(p) is always in [0, 1) for any p ∈ [0, 1)'
     state_changes: []
     determinism: deterministic
 
   - id: moon-phase-label
     description: >
-      The moon readout displays a Title Case phase name alongside
-      the glyph. The 28 wi-moon-* glyph buckets collapse to eight
-      named phases: New Moon (index 0), Waxing Crescent (1–6),
-      First Quarter (7), Waxing Gibbous (8–13), Full Moon (14),
-      Waning Gibbous (15–20), Third Quarter (21), Waning Crescent
-      (22–27). The pure function moonPhaseLabel(moonPhase: number)
-      → string uses the same bucket math as moonGlyphClass —
-      bucket = floor(phase * 28) — and indexes into a 28-entry
-      MOON_PHASE_LABEL table where the eight name groups repeat.
+      The moon readout displays a Title Case phase name. The
+      continuous moonPhase value collapses to eight named phases
+      via 28-bucket integer division. moonPhaseLabel(phase) maps
+      bucket = floor(phase * 28) into MOON_PHASE_NAME_BY_BUCKET,
+      a 28-entry array where the eight name groups repeat by
+      index range: New Moon (0), Waxing Crescent (1-6), First
+      Quarter (7), Waxing Gibbous (8-13), Full Moon (14), Waning
+      Gibbous (15-20), Third Quarter (21), Waning Crescent (22-27).
+      The eight canonical phase names are listed in MOON_PHASE_NAMES.
       No percentage, no illumination, no prose. The reading is the
       phase name on its own — calm, instrument-shaped.
     inputs:
@@ -181,6 +165,31 @@ behaviors:
       - 'moonPhaseLabel(i/28) === "Waxing Gibbous" for i in [8, 13]'
       - 'moonPhaseLabel(i/28) === "Waning Gibbous" for i in [15, 20]'
       - 'moonPhaseLabel(i/28) === "Waning Crescent" for i in [22, 27]'
+    state_changes: []
+    determinism: deterministic
+
+  - id: moon-glyph-renders-inline-svg
+    description: >
+      The moon readout renders an inline SVG whose shape encodes the
+      current named phase. A MoonGlyph component takes the phase name
+      and looks up a recipe in MOON_VISUAL_RECIPE — a record keyed by
+      phase name with two fields: fill (0, 0.25, 0.5, 0.75, or 1) and
+      side ('right', 'left', or null). New Moon renders as an outline
+      circle. Full Moon renders as a filled circle. Partial phases
+      use an SVG clipPath that masks a filled disc to show only the
+      lit portion (a vertical band on the right for waxing phases,
+      on the left for waning phases). The crescent/gibbous fill
+      proportion comes from the recipe. All strokes and fills use
+      currentColor so the glyph inherits the row's text color.
+    inputs:
+      - 'phase name is one of the eight MOON_PHASE_NAMES values'
+    outputs:
+      - 'New Moon renders an outline circle (no fill)'
+      - 'Full Moon renders a filled circle'
+      - 'crescents render a thin sliver of fill on the appropriate side'
+      - 'gibbous phases render most of the disc filled with a thin sliver of darkness on the appropriate side'
+      - 'quarter phases render exactly half filled'
+      - 'all fill and stroke attributes resolve to currentColor'
     state_changes: []
     determinism: deterministic
 
@@ -218,6 +227,26 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: uniform-typography-across-rows
+    description: >
+      All four rows of the widget share the same typographic
+      treatment. Each row uses the same Tailwind class string —
+      "flex items-center gap-2 font-mono text-xs text-zinc-400
+      font-normal" — so font family, size, color, and weight are
+      identical row-to-row. No row is emphasized, no row is dimmed,
+      no row uses a different color or weight. Glyphs all render
+      at the same GLYPH_SIZE pixel dimensions inside a flex-shrink-0
+      glyph column. The widget reads as a calm-tech instrument
+      panel where every readout sits at the same visual rank.
+    inputs:
+      - 'four rows: vane, sky, moon, almanac'
+    outputs:
+      - 'all four rows have className matching /font-mono.*text-zinc-400.*font-normal/'
+      - 'all four glyphs render at the same GLYPH_SIZE pixel dimensions'
+      - 'no row has a different text color, font weight, or font family from the others'
+    state_changes: []
+    determinism: deterministic
+
   - id: pure-render-no-state-writes
     description: >
       AmbientInstruments is a pure render. It does not declare
@@ -228,45 +257,13 @@ behaviors:
       state.wind.smoothSpeed, state.weather.sky, state.weather.season,
       and state.seasonalPhase only. Moon phase is a pure derivation
       from state.seasonalPhase (see moon-phase-derived-from-seasonal-phase)
-      — no separate state field, no separate read.
+      — no separate state field, no separate read. All glyphs are
+      inline SVGs in the component source; no font files, no CSS
+      classes from external icon libraries.
     inputs:
       - 'a GameState object passed via props'
     outputs:
       - 'a React element tree'
-    state_changes: []
-    determinism: deterministic
-
-  - id: weather-icons-font-self-hosted
-    description: >
-      The Weather Icons font is self-hosted under public/fonts/,
-      mirroring the Voynich font pattern. Three font files exist —
-      weathericons-regular-webfont.woff2 (primary),
-      weathericons-regular-webfont.woff (fallback),
-      weathericons-regular-webfont.ttf (legacy fallback). A single
-      @font-face declaration is added to src/styles/index.css
-      naming the family "weathericons" with all three sources. A
-      base ".wi" class sets font-family: weathericons, sets
-      font-style: normal, and is the only generic class. Per-icon
-      classes (".wi-direction-up", ".wi-cloudy", etc.) each map to
-      one content codepoint via the ::before pseudo-element. The
-      content codepoints come directly from the Weather Icons
-      project's CSS. Only the icons this feature consumes are
-      declared — the eight wi-direction-* classes, the four sky
-      classes (wi-day-sunny, wi-cloudy, wi-rain, wi-snow), and the
-      28 wi-moon-* classes (wi-moon-new, wi-moon-waxing-crescent-1
-      through -6, wi-moon-first-quarter, wi-moon-waxing-gibbous-1
-      through -6, wi-moon-full, wi-moon-waning-gibbous-1 through -6,
-      wi-moon-third-quarter, wi-moon-waning-crescent-1 through -6).
-      Forty consumed classes total. If the font file is missing,
-      the icons render as empty boxes (the default fallback) —
-      the feature degrades gracefully and the letter + label
-      readouts remain legible.
-    inputs:
-      - 'public/fonts/weathericons-regular-webfont.{woff2,woff,ttf} exist'
-      - 'src/styles/index.css declares the @font-face and the consumed icon classes'
-    outputs:
-      - '@font-face block with font-family: "weathericons" referencing /fonts/weathericons-regular-webfont.* exists in src/styles/index.css'
-      - 'each of the twelve consumed classes is declared in src/styles/index.css'
     state_changes: []
     determinism: deterministic
 
@@ -285,25 +282,19 @@ edge_cases:
     expected: 'almanacState returns nextBookmark "Spring Equinox" and progress = (phase - 0.75) / 0.25, a continuous fill across the final quarter of the year'
   - id: seasonal-phase-exactly-on-bookmark
     description: 'seasonalPhase is exactly 0.0, 0.25, 0.5, or 0.75'
-    expected: 'percentage is 0% and the next bookmark is the one after — at 0.0 the next bookmark is Summer Solstice, at 0.25 it is Autumn Equinox, etc.'
+    expected: 'progress is 0 and the next bookmark is the one after — at 0.0 the next bookmark is Summer Solstice, at 0.25 it is Autumn Equinox, etc.'
   - id: genesis-active
     description: 'state.genesis is non-null (genesis sim still running)'
     expected: 'GenesisBottomBar renders instead of the gameplay bottom-bar; AmbientInstruments is not mounted'
-  - id: missing-weather-icons-font
-    description: 'the woff2/woff/ttf files are absent from public/fonts/ at runtime'
-    expected: 'icon glyphs render as empty boxes; letter readouts, season label, wind-speed label, and almanac line remain legible; no console error from the component itself'
   - id: rotated-cardinal-frame-locked
     description: 'the rotated-cardinal frame from precis-30 is the only frame the vane reads'
-    expected: 'AmbientInstruments does not translate state.weather.windDirection through any rotation matrix or remap table — it reads the enum directly. If precis-30''s frame is reverted, this component automatically reverts with it.'
+    expected: 'AmbientInstruments does not translate state.weather.windDirection through any rotation matrix or remap table — it reads the enum directly and uses VANE_ROTATION_DEG for visual rotation only. If precis-30''s frame is reverted, this component automatically reverts with it.'
   - id: moon-phase-completes-multiple-cycles-per-year
     description: 'seasonalPhase advances from 0 to 1 over one in-game year'
     expected: 'moonPhase(seasonalPhase) completes ~12.37 cycles in the same span — for seasonalPhase = 1/LUNATIONS_PER_YEAR the moon is back at new (within bucket-rounding tolerance)'
-  - id: moon-phase-monotonic-within-cycle
-    description: 'seasonalPhase advances by a tiny delta within a single lunation'
-    expected: 'moonGlyphClass output transitions through the 28 classes in cycle order — no backward jumps, no skipped classes beyond bucket granularity'
-  - id: moon-full-coincides-with-half-lunation
+  - id: moon-phase-full-coincides-with-half-lunation
     description: 'moonPhase = 0.5 (midpoint of a single lunation)'
-    expected: 'moonGlyphClass returns "wi-moon-full" and moonPhaseLabel returns "Full Moon"'
+    expected: 'moonPhaseLabel returns "Full Moon"'
 
 failure_conditions:
   - trigger: 'AmbientInstruments declares useState, useEffect, useRef, or any non-render React hook'
@@ -316,16 +307,16 @@ failure_conditions:
     expected: 'spec violated — AmbientInstruments must take the flex-1 slot or the layout must continue to space Minimap and ItemInfo apart'
   - trigger: 'windSpeedLabel hard-codes band width as a numeric literal (5) instead of MAX_WIND_SPEED / 5'
     expected: 'spec violated — the band width must derive from MAX_WIND_SPEED so a future retune does not desync the labels'
-  - trigger: 'the weathervane applies any rotation matrix or remap table between state.weather.windDirection and the wi-direction-* class'
-    expected: 'spec violated — under precis-30 there is no translation layer; the enum reads directly'
-  - trigger: 'the @font-face declaration references the font from outside public/fonts/ (CDN, node_modules, etc.)'
-    expected: 'spec violated — the font is self-hosted at public/fonts/ to mirror the Voynich pattern'
+  - trigger: 'the weathervane applies any rotation matrix or remap table between state.weather.windDirection and the visual rotation'
+    expected: 'spec violated — under precis-30 the enum reads directly; rotation degrees come from VANE_ROTATION_DEG (a pure lookup)'
+  - trigger: 'the widget depends on any external icon font, icon library, or web font for its glyphs'
+    expected: 'spec violated — all glyphs are inline SVGs in the component source; no font files, no CSS classes from external icon libraries'
+  - trigger: 'the widget references the removed Weather Icons font (wi-* classes, weathericons-regular-webfont, @font-face for weathericons)'
+    expected: 'spec violated — the Weather Icons approach was abandoned; SVG glyphs replace the font entirely'
   - trigger: 'AmbientInstruments imports from src/network/, src/engine/movement.ts, or any handler module'
     expected: 'spec violated — the component reads state fields only, no interaction or networking dependencies'
   - trigger: 'moonPhase introduces a new state.moonPhase field or any other state mutation'
     expected: 'spec violated — moon phase is a pure derivation from state.seasonalPhase, no new state allowed'
-  - trigger: 'moonGlyphClass returns a class name not present in the 28-class wi-moon-* set declared in src/styles/index.css'
-    expected: 'spec violated — every returned class must be one of the declared 28 classes'
   - trigger: 'LUNATIONS_PER_YEAR is hard-coded to an integer (12 or 13) instead of the fractional astronomical value (365.25 / 29.530588 ≈ 12.3683)'
     expected: 'spec violated — the lunar period is fractional; integer approximation desynchronizes moon and seasons within a year'
   - trigger: 'the widget renders any "%" character anywhere (e.g. illumination percentage, almanac percentage)'
@@ -334,6 +325,8 @@ failure_conditions:
     expected: 'spec violated — the 28 buckets collapse to exactly eight Title Case names'
   - trigger: 'the almanac surface is text-only (no SVG dial) or the dial has tick marks, numerals, or labels other than the bookmark name'
     expected: 'spec violated — the dial is a ring + filled sector with no embellishment; the only adjacent text is the upcoming bookmark name'
+  - trigger: 'rows have different colors, font weights, or font families'
+    expected: 'spec violated — uniform typography is required; every row uses the same Tailwind class string for font properties'
 
 verification:
   test_file: src/components/__tests__/AmbientInstruments.test.tsx

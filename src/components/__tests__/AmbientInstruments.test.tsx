@@ -5,7 +5,6 @@ import { AmbientInstruments } from '../AmbientInstruments'
 import {
   LUNATIONS_PER_YEAR,
   almanacState,
-  moonGlyphClass,
   moonPhase,
   moonPhaseLabel,
   windSpeedLabel,
@@ -66,7 +65,7 @@ describe('AmbientInstruments — moonPhase', () => {
     expect(LUNATIONS_PER_YEAR).toBeCloseTo(365.25 / 29.530588, 6)
   })
 
-  it('is approximately 0.18415 at seasonalPhase 0.5', () => {
+  it('is approximately the expected fractional value at seasonalPhase 0.5', () => {
     expect(moonPhase(0.5)).toBeCloseTo((0.5 * LUNATIONS_PER_YEAR) % 1, 6)
   })
 
@@ -76,37 +75,6 @@ describe('AmbientInstruments — moonPhase', () => {
       expect(phase).toBeGreaterThanOrEqual(0)
       expect(phase).toBeLessThan(1)
     }
-  })
-})
-
-describe('AmbientInstruments — moonGlyphClass', () => {
-  it('returns wi-moon-new at phase 0', () => {
-    expect(moonGlyphClass(0)).toBe('wi-moon-new')
-  })
-
-  it('returns wi-moon-first-quarter at phase 0.25', () => {
-    expect(moonGlyphClass(0.25)).toBe('wi-moon-first-quarter')
-  })
-
-  it('returns wi-moon-full at phase 0.5', () => {
-    expect(moonGlyphClass(0.5)).toBe('wi-moon-full')
-  })
-
-  it('returns wi-moon-third-quarter at phase 0.75', () => {
-    expect(moonGlyphClass(0.75)).toBe('wi-moon-third-quarter')
-  })
-
-  it('returns wi-moon-waning-crescent-6 at phase 0.999', () => {
-    expect(moonGlyphClass(0.999)).toBe('wi-moon-waning-crescent-6')
-  })
-
-  it('is monotonic through the 28-glyph cycle', () => {
-    const seen: string[] = []
-    for (let i = 0; i < 28; i++) {
-      const glyph = moonGlyphClass(i / 28)
-      seen.push(glyph)
-    }
-    expect(new Set(seen).size).toBe(28)
   })
 })
 
@@ -158,20 +126,32 @@ describe('AmbientInstruments — almanacState', () => {
 })
 
 describe('AmbientInstruments — render', () => {
-  it('renders the weathervane glyph and uppercase letter for state.weather.windDirection', () => {
-    const { container, getByText } = render(<AmbientInstruments state={stubState({ windDirection: WindDirection.NE })} />)
-    expect(container.querySelector('.wi-direction-up-right')).not.toBeNull()
-    expect(getByText('NE')).not.toBeNull()
+  it('renders four rows (vane, sky, moon, almanac)', () => {
+    const { container } = render(<AmbientInstruments state={stubState({})} />)
+    // Four SVG glyphs, one per row
+    const svgs = container.querySelectorAll('svg')
+    expect(svgs.length).toBe(4)
   })
 
-  it('renders the wind-speed label adjacent to the vane', () => {
-    const { getByText } = render(<AmbientInstruments state={stubState({ smoothSpeed: 12 })} />)
-    expect(getByText('brisk')).not.toBeNull()
+  it('renders the cardinal letter and wind-speed label for the vane row', () => {
+    const { getByText } = render(<AmbientInstruments state={stubState({ windDirection: WindDirection.NE, smoothSpeed: 12 })} />)
+    expect(getByText(/NE\s+brisk/)).not.toBeNull()
   })
 
-  it('renders the sky glyph for state.weather.sky', () => {
-    const { container } = render(<AmbientInstruments state={stubState({ sky: Sky.Rain })} />)
-    expect(container.querySelector('.wi-rain')).not.toBeNull()
+  it('rotates the vane arrow SVG by 45° for NE', () => {
+    const { container } = render(<AmbientInstruments state={stubState({ windDirection: WindDirection.NE })} />)
+    const arrowSvg = container.querySelector('svg')
+    expect(arrowSvg).not.toBeNull()
+    const transform = arrowSvg?.getAttribute('style') ?? ''
+    expect(transform).toContain('rotate(45deg)')
+  })
+
+  it('rotates the vane arrow SVG by 270° for W', () => {
+    const { container } = render(<AmbientInstruments state={stubState({ windDirection: WindDirection.W })} />)
+    const arrowSvg = container.querySelector('svg')
+    expect(arrowSvg).not.toBeNull()
+    const transform = arrowSvg?.getAttribute('style') ?? ''
+    expect(transform).toContain('rotate(270deg)')
   })
 
   it('renders the Title Case season label', () => {
@@ -179,21 +159,25 @@ describe('AmbientInstruments — render', () => {
     expect(getByText('Autumn')).not.toBeNull()
   })
 
-  it('renders the moon glyph and Title Case phase label', () => {
-    const { container, getByText } = render(<AmbientInstruments state={stubState({ seasonalPhase: 0 })} />)
-    expect(container.querySelector('.wi-moon-new')).not.toBeNull()
+  it('renders the Title Case moon phase name', () => {
+    const { getByText } = render(<AmbientInstruments state={stubState({ seasonalPhase: 0 })} />)
     expect(getByText('New Moon')).not.toBeNull()
   })
 
-  it('renders the radial almanac timer with the upcoming bookmark name', () => {
-    const { container, getByText } = render(<AmbientInstruments state={stubState({ seasonalPhase: 0.125 })} />)
-    expect(container.querySelector('svg path')).not.toBeNull()
+  it('renders the next bookmark name for the almanac row', () => {
+    const { getByText } = render(<AmbientInstruments state={stubState({ seasonalPhase: 0.125 })} />)
     expect(getByText('Summer Solstice')).not.toBeNull()
   })
 
   it('does not render any percentage text', () => {
     const { container } = render(<AmbientInstruments state={stubState({ seasonalPhase: 0.5 })} />)
     expect(container.textContent).not.toMatch(/%/)
+  })
+
+  it('does not reference Weather Icons CSS classes', () => {
+    const { container } = render(<AmbientInstruments state={stubState({})} />)
+    expect(container.innerHTML).not.toMatch(/\bwi-/)
+    expect(container.innerHTML).not.toMatch(/className="wi /)
   })
 
   it('renders all four bands of the widget for a typical mid-summer afternoon', () => {
@@ -208,8 +192,6 @@ describe('AmbientInstruments — render', () => {
         })}
       />
     )
-    expect(container.querySelector('.wi-direction-down-left')).not.toBeNull()
-    expect(container.querySelector('.wi-cloudy')).not.toBeNull()
     expect(container.textContent).toContain('SW')
     expect(container.textContent).toContain('breeze')
     expect(container.textContent).toContain('Summer')
@@ -227,5 +209,16 @@ describe('AmbientInstruments — discipline', () => {
     expect(source).not.toMatch(/\buseRef\b/)
     expect(source).not.toMatch(/\buseReducer\b/)
     expect(source).not.toMatch(/\buseLayoutEffect\b/)
+  })
+
+  it('uses uniform typography across all four rows (same color, same font weight)', () => {
+    const { container } = render(<AmbientInstruments state={stubState({})} />)
+    const rows = container.querySelectorAll('.font-mono')
+    expect(rows.length).toBe(4)
+    for (const row of Array.from(rows)) {
+      expect(row.className).toContain('text-zinc-400')
+      expect(row.className).toContain('font-normal')
+      expect(row.className).toContain('font-mono')
+    }
   })
 })

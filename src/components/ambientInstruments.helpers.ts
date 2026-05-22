@@ -1,27 +1,21 @@
 import { MAX_WIND_SPEED } from '@/engine/weather/wind'
 import { Season } from '@/engine/types'
-import type { Sky, WindDirection } from '@/engine/types'
+import type { WindDirection } from '@/engine/types'
 
-// Mapping from the rotated cardinal frame (precis-30) to Weather Icons
-// direction glyph classes. Each WindDirection enum key denotes a
-// diamond-tip or diamond-edge on screen; the icon points the same way.
-// No translation layer — the enum key reads directly.
-export const VANE_GLYPH_CLASS: Record<WindDirection, string> = {
-  N: 'wi-direction-up',
-  NE: 'wi-direction-up-right',
-  E: 'wi-direction-right',
-  SE: 'wi-direction-down-right',
-  S: 'wi-direction-down',
-  SW: 'wi-direction-down-left',
-  W: 'wi-direction-left',
-  NW: 'wi-direction-up-left',
-}
-
-export const SKY_GLYPH_CLASS: Record<Sky, string> = {
-  sun: 'wi-day-sunny',
-  cloudy: 'wi-cloudy',
-  rain: 'wi-rain',
-  snow: 'wi-snow',
+// Rotation in degrees from "up" (N) for each rotated cardinal. The
+// base arrow SVG points N; the component applies CSS transform:
+// rotate(...) to produce the other seven directions. No translation
+// layer between state and screen — the enum reads directly under
+// precis-30's rotated frame.
+export const VANE_ROTATION_DEG: Record<WindDirection, number> = {
+  N: 0,
+  NE: 45,
+  E: 90,
+  SE: 135,
+  S: 180,
+  SW: 225,
+  W: 270,
+  NW: 315,
 }
 
 export const SEASON_LABEL: Record<Season, string> = {
@@ -39,17 +33,33 @@ export const WIND_SPEED_LABELS = ['still', 'breeze', 'brisk', 'gusty', 'gale'] a
 // seasonal cycle within a single year.
 export const LUNATIONS_PER_YEAR = 365.25 / 29.530588
 
-// Eight Title Case phase labels covering the lunar cycle. Maps to the
-// 28-bucket MOON_GLYPH_CYCLE below via index ranges:
-//   index 0          → New Moon
-//   index 1-6        → Waxing Crescent
-//   index 7          → First Quarter
-//   index 8-13       → Waxing Gibbous
-//   index 14         → Full Moon
-//   index 15-20      → Waning Gibbous
-//   index 21         → Third Quarter
-//   index 22-27      → Waning Crescent
-export const MOON_PHASE_LABEL = [
+// Eight Title Case phase names spanning the lunar cycle. The
+// 28-bucket finer cycle collapses to these eight named phases via
+// index ranges (see moonPhaseLabel below).
+export const MOON_PHASE_NAMES = [
+  'New Moon',
+  'Waxing Crescent',
+  'First Quarter',
+  'Waxing Gibbous',
+  'Full Moon',
+  'Waning Gibbous',
+  'Third Quarter',
+  'Waning Crescent',
+] as const
+
+export type MoonPhaseName = (typeof MOON_PHASE_NAMES)[number]
+
+// Bucket boundaries (in units of 1/28) that map a moon phase to one
+// of the eight phase names. A bucket index `b` in [0, 28) maps via:
+//   b=0       → New Moon
+//   b in 1-6  → Waxing Crescent
+//   b=7       → First Quarter
+//   b in 8-13 → Waxing Gibbous
+//   b=14      → Full Moon
+//   b in 15-20 → Waning Gibbous
+//   b=21      → Third Quarter
+//   b in 22-27 → Waning Crescent
+const MOON_PHASE_NAME_BY_BUCKET: readonly MoonPhaseName[] = [
   'New Moon',
   'Waxing Crescent',
   'Waxing Crescent',
@@ -80,44 +90,6 @@ export const MOON_PHASE_LABEL = [
   'Waning Crescent',
 ] as const
 
-export const MOON_GLYPH_CYCLE = [
-  'wi-moon-new',
-  'wi-moon-waxing-crescent-1',
-  'wi-moon-waxing-crescent-2',
-  'wi-moon-waxing-crescent-3',
-  'wi-moon-waxing-crescent-4',
-  'wi-moon-waxing-crescent-5',
-  'wi-moon-waxing-crescent-6',
-  'wi-moon-first-quarter',
-  'wi-moon-waxing-gibbous-1',
-  'wi-moon-waxing-gibbous-2',
-  'wi-moon-waxing-gibbous-3',
-  'wi-moon-waxing-gibbous-4',
-  'wi-moon-waxing-gibbous-5',
-  'wi-moon-waxing-gibbous-6',
-  'wi-moon-full',
-  'wi-moon-waning-gibbous-1',
-  'wi-moon-waning-gibbous-2',
-  'wi-moon-waning-gibbous-3',
-  'wi-moon-waning-gibbous-4',
-  'wi-moon-waning-gibbous-5',
-  'wi-moon-waning-gibbous-6',
-  'wi-moon-third-quarter',
-  'wi-moon-waning-crescent-1',
-  'wi-moon-waning-crescent-2',
-  'wi-moon-waning-crescent-3',
-  'wi-moon-waning-crescent-4',
-  'wi-moon-waning-crescent-5',
-  'wi-moon-waning-crescent-6',
-] as const
-
-const ALMANAC_BOOKMARKS = [
-  { phase: 0, name: 'Spring Equinox' },
-  { phase: 0.25, name: 'Summer Solstice' },
-  { phase: 0.5, name: 'Autumn Equinox' },
-  { phase: 0.75, name: 'Winter Solstice' },
-] as const
-
 export const windSpeedLabel = (smoothSpeed: number): (typeof WIND_SPEED_LABELS)[number] => {
   const bandWidth = MAX_WIND_SPEED / WIND_SPEED_LABELS.length
   const index = Math.min(WIND_SPEED_LABELS.length - 1, Math.max(0, Math.floor(smoothSpeed / bandWidth)))
@@ -129,14 +101,12 @@ export const moonPhase = (seasonalPhase: number): number => {
   return raw < 0 ? raw + 1 : raw
 }
 
-export const moonGlyphClass = (phase: number): (typeof MOON_GLYPH_CYCLE)[number] => {
-  const index = Math.min(MOON_GLYPH_CYCLE.length - 1, Math.max(0, Math.floor(phase * MOON_GLYPH_CYCLE.length)))
-  return MOON_GLYPH_CYCLE[index]
-}
-
-export const moonPhaseLabel = (phase: number): (typeof MOON_PHASE_LABEL)[number] => {
-  const index = Math.min(MOON_PHASE_LABEL.length - 1, Math.max(0, Math.floor(phase * MOON_PHASE_LABEL.length)))
-  return MOON_PHASE_LABEL[index]
+export const moonPhaseLabel = (phase: number): MoonPhaseName => {
+  const bucket = Math.min(
+    MOON_PHASE_NAME_BY_BUCKET.length - 1,
+    Math.max(0, Math.floor(phase * MOON_PHASE_NAME_BY_BUCKET.length))
+  )
+  return MOON_PHASE_NAME_BY_BUCKET[bucket]
 }
 
 export interface AlmanacState {
@@ -146,6 +116,13 @@ export interface AlmanacState {
   // The name of the bookmark currently being approached.
   nextBookmark: string
 }
+
+const ALMANAC_BOOKMARKS = [
+  { phase: 0, name: 'Spring Equinox' },
+  { phase: 0.25, name: 'Summer Solstice' },
+  { phase: 0.5, name: 'Autumn Equinox' },
+  { phase: 0.75, name: 'Winter Solstice' },
+] as const
 
 export const almanacState = (seasonalPhase: number): AlmanacState => {
   const quarterIndex = Math.floor(seasonalPhase / 0.25)
