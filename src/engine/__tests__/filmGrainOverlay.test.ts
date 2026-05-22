@@ -1,5 +1,5 @@
-// Engine tests run in a node environment. Stub OffscreenCanvas before importing
-// the pass module so the cache-building path has a working canvas factory.
+// Stub OffscreenCanvas before importing the pass module so the tile-bake
+// path has a working canvas factory in the node test environment.
 class FakeOffscreenCanvas {
   width: number
   height: number
@@ -11,15 +11,8 @@ class FakeOffscreenCanvas {
     let fillStyle: unknown = ''
     let globalCompositeOperation: GlobalCompositeOperation = 'source-over'
     return {
-      createPattern: (): Record<string, never> => ({}),
-      fillRect: (): void => undefined,
       drawImage: (): void => undefined,
-      scale: (): void => undefined,
-      beginPath: (): void => undefined,
-      moveTo: (): void => undefined,
-      lineTo: (): void => undefined,
-      closePath: (): void => undefined,
-      fill: (): void => undefined,
+      fillRect: (): void => undefined,
       set fillStyle(v: unknown) {
         fillStyle = v
       },
@@ -38,39 +31,24 @@ class FakeOffscreenCanvas {
 ;(globalThis as unknown as { OffscreenCanvas: unknown }).OffscreenCanvas = FakeOffscreenCanvas
 
 import { __testing, filmGrainOverlayPass } from '../render/passes/filmGrainOverlay'
-import { TileType } from '../types'
 import { createTestState } from './helpers'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { CharMetrics, Tile } from '../types'
+import type { CharMetrics } from '../types'
 
 const CHAR_WIDTH = 10
 const CHAR_HEIGHT = 16
 const METRICS: CharMetrics = { charWidth: CHAR_WIDTH, charHeight: CHAR_HEIGHT, font: '16px monospace' }
 
-const makeFlatMap = (width: number, height: number, type: TileType = TileType.Dirt): Tile[][] => {
-  // Keep map content trivial; the pass treats every map cell uniformly.
-  const map: Tile[][] = []
-  for (let y = 0; y < height; y++) {
-    const row: Tile[] = []
-    for (let x = 0; x < width; x++) row.push({ type })
-    map.push(row)
-  }
-  return map
-}
-
 const makeFakeImage = (): HTMLImageElement => {
-  // Real Image() in jsdom doesn't load remote URLs; we build a minimal stand-in
-  // that satisfies createPattern's source-image contract for tests.
-  return { width: 64, height: 64 } as unknown as HTMLImageElement
+  return { width: 512, height: 512 } as unknown as HTMLImageElement
 }
 
 interface DrawCall {
   kind: 'drawImage'
   globalAlpha: number
-  globalCompositeOperation: GlobalCompositeOperation
-  dx: number
-  dy: number
+  x: number
+  y: number
 }
 
 const makeRecordingCtx = (): {
@@ -78,11 +56,7 @@ const makeRecordingCtx = (): {
   calls: DrawCall[]
 } => {
   const calls: DrawCall[] = []
-  const state = {
-    globalAlpha: 1,
-    fillStyle: '#000' as string | CanvasPattern,
-    globalCompositeOperation: 'source-over' as GlobalCompositeOperation,
-  }
+  const state = { globalAlpha: 1 }
   const ctx = {
     get globalAlpha() {
       return state.globalAlpha
@@ -90,32 +64,9 @@ const makeRecordingCtx = (): {
     set globalAlpha(v: number) {
       state.globalAlpha = v
     },
-    get fillStyle() {
-      return state.fillStyle
-    },
-    set fillStyle(v: string | CanvasPattern) {
-      state.fillStyle = v
-    },
-    get globalCompositeOperation() {
-      return state.globalCompositeOperation
-    },
-    set globalCompositeOperation(v: GlobalCompositeOperation) {
-      state.globalCompositeOperation = v
-    },
-    createPattern: vi.fn((): CanvasPattern => ({}) as unknown as CanvasPattern),
-    fillRect: vi.fn(),
     canvas: { width: 1024, height: 1024 } as HTMLCanvasElement,
-    drawImage: vi.fn((_img: unknown, ...args: number[]) => {
-      // Source-clipped form: drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh)
-      const dx = args.length >= 8 ? args[4] : args[0]
-      const dy = args.length >= 8 ? args[5] : args[1]
-      calls.push({
-        kind: 'drawImage',
-        globalAlpha: state.globalAlpha,
-        globalCompositeOperation: state.globalCompositeOperation,
-        dx,
-        dy,
-      })
+    drawImage: vi.fn((_img: unknown, x: number, y: number) => {
+      calls.push({ kind: 'drawImage', globalAlpha: state.globalAlpha, x, y })
     }),
   } as unknown as CanvasRenderingContext2D
   return { ctx, calls }
@@ -153,50 +104,54 @@ describe('film grain overlay pass', () => {
   })
 
   describe('draw — seasonal alpha curve', () => {
-    // FILM_GRAIN_ALPHA (0.2) is pre-multiplied into the cache canvas by
-    // buildCache, so the per-frame draw leaves globalAlpha untouched when
-    // the seasonal wash is inactive. Only the winter attenuation (1 -
-    // washIntensity) is applied at draw-time, and only when intensity > 0.
+    // FILM_GRAIN_ALPHA (0.2) is baked into the tile canvas during the
+    // one-shot bake. Per-frame draws leave globalAlpha at its incoming
+    // value when the seasonal wash is inactive; only the winter
+    // attenuation (1 - washIntensity) is applied at draw-time.
 
-    it('leaves globalAlpha untouched at spring equinox (intensity 0, baked alpha is sufficient)', () => {
+    it('leaves globalAlpha untouched at spring equinox (intensity 0)', () => {
       __testing.setGrainImage(makeFakeImage())
       __testing.setGrainReady(true)
       const state = createTestState()
-      state.map = makeFlatMap(state.mapWidth, state.mapHeight)
       state.seasonalPhase = 0.0
 
       const { ctx, calls } = makeRecordingCtx()
       ctx.globalAlpha = 1
       filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
 
-      expect(calls).toHaveLength(1)
-      // Intensity 0 → no globalAlpha mutation; the cache's baked 0.2
-      // alpha carries the full FILM_GRAIN_ALPHA contribution.
-      expect(calls[0].globalAlpha).toBeCloseTo(1, 6)
+      // 1024×1024 canvas / 512 tile → 2×2 grid, with one tile of
+      // overscan on each side for camera-pan continuity → up to 3×3 = 9
+      // tiles. At least 4 must be drawn to cover the canvas.
+      expect(calls.length).toBeGreaterThanOrEqual(4)
+      // All blits inherit the incoming globalAlpha unchanged.
+      for (const c of calls) {
+        expect(c.globalAlpha).toBeCloseTo(1, 6)
+      }
     })
 
     it('applies seasonal attenuation at winter solstice (phase 0.75, intensity 0.4 → 0.6 multiplier)', () => {
       __testing.setGrainImage(makeFakeImage())
       __testing.setGrainReady(true)
       const state = createTestState()
-      state.map = makeFlatMap(state.mapWidth, state.mapHeight)
       state.seasonalPhase = 0.75
 
       const { ctx, calls } = makeRecordingCtx()
       ctx.globalAlpha = 1
       filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
 
-      // Winter solstice: globalAlpha modulated by (1 - 0.4) = 0.6. The
-      // cache's baked 0.2 alpha multiplies through, so effective visual
-      // alpha is still 0.12 — same as the previous draw-time math.
-      expect(calls[0].globalAlpha).toBeCloseTo(0.6, 6)
+      expect(calls.length).toBeGreaterThanOrEqual(4)
+      // Winter: globalAlpha modulated by (1 - 0.4) = 0.6 during blits.
+      // The cache's baked 0.2 alpha multiplies through, so effective
+      // visual alpha is 0.12 — same as the original draw-time math.
+      for (const c of calls) {
+        expect(c.globalAlpha).toBeCloseTo(0.6, 6)
+      }
     })
 
     it('restores globalAlpha after drawing in winter (when the modulation path runs)', () => {
       __testing.setGrainImage(makeFakeImage())
       __testing.setGrainReady(true)
       const state = createTestState()
-      state.map = makeFlatMap(state.mapWidth, state.mapHeight)
       state.seasonalPhase = 0.75
 
       const { ctx } = makeRecordingCtx()
@@ -206,80 +161,27 @@ describe('film grain overlay pass', () => {
     })
   })
 
-  describe('cache invalidation', () => {
-    it('builds a cache entry on the first draw and reuses it on subsequent draws', () => {
-      const image = makeFakeImage()
-      __testing.setGrainImage(image)
-      __testing.setGrainReady(true)
-      const state = createTestState()
-      state.map = makeFlatMap(state.mapWidth, state.mapHeight)
-
-      const { ctx } = makeRecordingCtx()
-      expect(__testing.getCacheEntry(state.map)).toBeUndefined()
-      filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
-      const firstEntry = __testing.getCacheEntry(state.map)
-      expect(firstEntry).toBeDefined()
-      filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
-      expect(__testing.getCacheEntry(state.map)).toBe(firstEntry)
-    })
-
-    it('creates a new cache entry when state.map is swapped (zone change)', () => {
-      const image = makeFakeImage()
-      __testing.setGrainImage(image)
-      __testing.setGrainReady(true)
-      const state = createTestState()
-      const mapA = makeFlatMap(state.mapWidth, state.mapHeight)
-      state.map = mapA
-
-      const { ctx } = makeRecordingCtx()
-      filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
-      const entryA = __testing.getCacheEntry(mapA)
-      expect(entryA).toBeDefined()
-
-      const mapB = makeFlatMap(state.mapWidth, state.mapHeight, TileType.CaveFloor)
-      state.map = mapB
-      filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
-      const entryB = __testing.getCacheEntry(mapB)
-      expect(entryB).toBeDefined()
-      expect(entryB).not.toBe(entryA)
-    })
-
-    it('rebuilds cache when charWidth or charHeight changes (font scale toggle)', () => {
-      const image = makeFakeImage()
-      __testing.setGrainImage(image)
-      __testing.setGrainReady(true)
-      const state = createTestState()
-      state.map = makeFlatMap(state.mapWidth, state.mapHeight)
-
-      const { ctx } = makeRecordingCtx()
-      filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
-      const entry1 = __testing.getCacheEntry(state.map)
-      expect(entry1).toBeDefined()
-
-      const zoomedMetrics: CharMetrics = { charWidth: 20, charHeight: 32, font: '32px monospace' }
-      filmGrainOverlayPass.draw(ctx, state, zoomedMetrics, 0)
-      const entry2 = __testing.getCacheEntry(state.map)
-      expect(entry2).toBeDefined()
-      expect(entry2).not.toBe(entry1)
-      expect(entry2?.charWidth).toBe(20)
-      expect(entry2?.charHeight).toBe(32)
-    })
-  })
-
-  describe('degenerate inputs', () => {
-    it('returns early without crashing when mapWidth or mapHeight is 0', () => {
+  describe('viewport coverage', () => {
+    it('covers the entire canvas with the tile grid (no masked region — grain extends across the Space border)', () => {
       __testing.setGrainImage(makeFakeImage())
       __testing.setGrainReady(true)
       const state = createTestState()
-      state.map = []
-      state.mapWidth = 0
-      state.mapHeight = 0
 
       const { ctx, calls } = makeRecordingCtx()
-      expect(() => {
-        filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
-      }).not.toThrow()
-      expect(calls).toHaveLength(0)
+      filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
+
+      // Tiles must collectively span at least [0, canvasW) × [0, canvasH).
+      const minX = Math.min(...calls.map(c => c.x))
+      const minY = Math.min(...calls.map(c => c.y))
+      const maxX = Math.max(...calls.map(c => c.x))
+      const maxY = Math.max(...calls.map(c => c.y))
+      // Grid origin sits at or below 0, last tile starts at or beyond
+      // the far edge (canvasW - TILE_SIZE), so a full 512×512 blit
+      // there covers the right/bottom edge.
+      expect(minX).toBeLessThanOrEqual(0)
+      expect(minY).toBeLessThanOrEqual(0)
+      expect(maxX + 512).toBeGreaterThanOrEqual(1024)
+      expect(maxY + 512).toBeGreaterThanOrEqual(1024)
     })
   })
 })
