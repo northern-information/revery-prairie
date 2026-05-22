@@ -64,17 +64,16 @@ behaviors:
 
   - id: collapse-barrier-clears-atomically
     description: >
-      When the player faces a RuinDebris tile that belongs to the
-      coyote-role ruin's collapseBarrier and triggers the debris-clear
-      interaction (the same input that handles scattered rubble), every
-      RuinDebris tile in collapseBarrier converts to RuinFloor in the
-      same call — not just the facing tile. This mirrors the cave
-      breakable-wall pattern in breakWall, where caveBreakableWallPositions
-      all flip to CaveFloor together. Scattered debrisPositions outside
-      collapseBarrier still clear one tile at a time. Atomic clearing
-      records 'event:rubble-cleared' once. The clear also spawns a
-      crumble TimedEffect entity whose MultiPosition covers the
-      collapseBarrier tiles (matching the cave wall-break crumble
+      RuinDebris only exists as the coyote-role ruin's collapseBarrier
+      (no scattered/decorative RuinDebris is generated anywhere). When
+      the player faces a RuinDebris tile and triggers the debris-clear
+      interaction, every RuinDebris tile in collapseBarrier converts to
+      RuinFloor in the same call — not just the facing tile. This
+      mirrors the cave breakable-wall pattern in breakWall, where
+      caveBreakableWallPositions all flip to CaveFloor together. Atomic
+      clearing records 'event:rubble-cleared' once. The clear also
+      spawns a crumble TimedEffect entity whose MultiPosition covers
+      the collapseBarrier tiles (matching the cave wall-break crumble
       entity), and spawns a pickupBloom effect at the player position
       (per the pickup bloom convention — every acquisition or
       progression event must bloom). The collapseBarrier field on
@@ -145,24 +144,6 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: scattered-debris-still-clears-one-at-a-time
-    description: >
-      RuinDebris tiles that are NOT part of dormantGarden.collapseBarrier
-      (the scattered debris in dormantGarden.debrisPositions, and any
-      RuinDebris in non-coyote-role ruins) continue to clear exactly
-      one tile per clearRuinDebris call. This preserves the existing
-      contract for general rubble clearing; only the gating
-      collapseBarrier row collapses atomically.
-    inputs:
-      - 'clearRuinDebris runs with the facing tile NOT in dormantGarden.collapseBarrier'
-    outputs:
-      - 'only the single facing tile converts from RuinDebris to RuinFloor'
-      - 'tiles in dormantGarden.collapseBarrier (if any) are unchanged by this call'
-    state_changes:
-      - field: 'map (facing tile only)'
-        effect: 'RuinDebris → RuinFloor'
-    determinism: deterministic
-
   - id: rescued-coyote-still-follows-across-zones
     description: >
       Once the coyote has been rescued (mainQuestPhase advanced past
@@ -206,13 +187,6 @@ edge_cases:
       RuinFloor before the player triggers clearRuinDebris on a
       remaining RuinDebris collapseBarrier tile.
     expected: 'Every collapseBarrier position that is still RuinDebris converts to RuinFloor in this call. Positions already RuinFloor are left as-is (no error, no re-conversion). The crumble TimedEffect MultiPosition covers all collapseBarrier positions regardless of prior state.'
-
-  - id: facing-debris-outside-collapse-barrier-in-coyote-ruin
-    description: >
-      The player is in a coyote-role ruin, faces a scattered debris
-      tile (from dormantGarden.debrisPositions, not collapseBarrier),
-      and triggers clearRuinDebris.
-    expected: 'Only the facing tile converts to RuinFloor. The collapseBarrier row remains intact as RuinDebris until the player faces one of its tiles. No crumble entity is spawned for the scattered clear (matches pre-existing behavior for scattered debris).'
 
   - id: rescue-fires-while-dialog-system-busy
     description: >

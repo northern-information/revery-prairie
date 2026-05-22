@@ -1,0 +1,133 @@
+plan:
+  id: remove-scattered-ruin-rubble
+  title: 'Remove scattered RuinDebris from ruin interiors (keep coyote collapseBarrier)'
+  created: 2026-05-22
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npm run test'
+
+tasks:
+  - id: drop-debris-positions-field
+    title: 'Remove debrisPositions from DormantGardenData'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - dormant-garden-data
+    context_files:
+      - src/engine/types.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine, types]
+
+  - id: remove-scattered-debris-generation
+    title: 'Remove section 8 (scattered RuinDebris at intersections) from generateDormantGarden'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - aqueduct-channels-in-corridors
+      - coyote-collapse-barrier-placement
+    context_files:
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - drop-debris-positions-field
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine, ruins]
+
+  - id: simplify-clear-ruin-debris
+    title: 'Simplify clearRuinDebris to only handle collapseBarrier (every RuinDebris hit is atomic)'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - debris-clear-via-e
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - drop-debris-positions-field
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [engine, interaction]
+
+  - id: update-test-fixtures
+    title: 'Drop debrisPositions from test DormantGardenData fixtures'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - dormant-garden-data
+    context_files:
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/__tests__/ruin-locked-door.test.ts
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+    output_files:
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/__tests__/ruin-locked-door.test.ts
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+    depends_on:
+      - drop-debris-positions-field
+    verification:
+      - 'npm run typecheck'
+    repair: retry
+    tags: [test, engine]
+
+  - id: update-ruin-dormant-garden-test
+    title: 'Flip debrisPositions assertion: ruins must contain no scattered RuinDebris (only the coyote collapseBarrier counts)'
+    spec_id: ruin-dormant-garden
+    spec_sections:
+      - aqueduct-channels-in-corridors
+      - coyote-collapse-barrier-placement
+    context_files:
+      - src/engine/__tests__/ruin-dormant-garden.test.ts
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/ruin-dormant-garden.test.ts
+    depends_on:
+      - remove-scattered-debris-generation
+      - drop-debris-positions-field
+    verification:
+      - 'npx vitest run src/engine/__tests__/ruin-dormant-garden.test.ts'
+    repair: retry
+    tags: [test, engine]
+
+  - id: update-trapped-coyote-test
+    title: 'Delete the scattered-debris describe block; keep collapseBarrier atomic-clear coverage'
+    spec_id: trapped-coyote-stays-put
+    spec_sections:
+      - collapse-barrier-clears-atomically
+    context_files:
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+    depends_on:
+      - simplify-clear-ruin-debris
+    verification:
+      - 'npx vitest run src/engine/__tests__/trapped-coyote-stays-put.test.ts'
+    repair: retry
+    tags: [test, engine]
+
+  - id: global-verify
+    title: 'Full verify suite'
+    spec_id: ruin-dormant-garden
+    spec_sections: []
+    context_files: []
+    output_files: []
+    depends_on:
+      - update-ruin-dormant-garden-test
+      - update-trapped-coyote-test
+      - update-test-fixtures
+    verification:
+      - 'npm run typecheck'
+      - 'npm run lint'
+      - 'npm run test'
+    repair: retry
+    tags: [verify]
