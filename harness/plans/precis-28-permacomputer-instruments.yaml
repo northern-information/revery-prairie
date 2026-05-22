@@ -73,8 +73,8 @@ tasks:
       - sky-icon-renders-current-sky
       - season-label-title-case
       - moon-phase-derived-from-seasonal-phase
-      - moon-illumination-percentage
-      - almanac-percentage-and-next-bookmark
+      - moon-phase-label
+      - almanac-radial-timer
       - pure-render-no-state-writes
     context_files:
       - src/components/AmbientInstruments.tsx
@@ -135,8 +135,8 @@ tasks:
       - sky-icon-renders-current-sky
       - season-label-title-case
       - moon-phase-derived-from-seasonal-phase
-      - moon-illumination-percentage
-      - almanac-percentage-and-next-bookmark
+      - moon-phase-label
+      - almanac-radial-timer
       - pure-render-no-state-writes
     context_files:
       - src/components/__tests__/AmbientInstruments.test.tsx

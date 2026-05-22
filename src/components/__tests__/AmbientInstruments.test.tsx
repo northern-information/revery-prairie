@@ -4,10 +4,10 @@ import { describe, expect, it } from 'vitest'
 import { AmbientInstruments } from '../AmbientInstruments'
 import {
   LUNATIONS_PER_YEAR,
-  almanacReadout,
+  almanacState,
   moonGlyphClass,
-  moonIlluminationPercent,
   moonPhase,
+  moonPhaseLabel,
   windSpeedLabel,
 } from '../ambientInstruments.helpers'
 import { Season, Sky, WindDirection } from '@/engine/types'
@@ -110,33 +110,50 @@ describe('AmbientInstruments — moonGlyphClass', () => {
   })
 })
 
-describe('AmbientInstruments — moonIlluminationPercent', () => {
+describe('AmbientInstruments — moonPhaseLabel', () => {
   it.each([
-    [0, 0],
-    [0.25, 50],
-    [0.5, 100],
-    [0.75, 50],
-  ])('moonIlluminationPercent(%f) === %d', (phase, expected) => {
-    expect(moonIlluminationPercent(phase)).toBe(expected)
+    [0, 'New Moon'],
+    [0.25, 'First Quarter'],
+    [0.5, 'Full Moon'],
+    [0.75, 'Third Quarter'],
+    [0.999, 'Waning Crescent'],
+  ])('moonPhaseLabel(%f) === "%s"', (phase, expected) => {
+    expect(moonPhaseLabel(phase)).toBe(expected)
   })
 
-  it('is near 0 at phase 0.999', () => {
-    expect(moonIlluminationPercent(0.999)).toBeLessThanOrEqual(1)
+  it('returns "Waxing Crescent" for the six waxing-crescent buckets', () => {
+    for (let i = 1; i <= 6; i++) {
+      expect(moonPhaseLabel(i / 28)).toBe('Waxing Crescent')
+    }
+  })
+
+  it('returns "Waning Gibbous" for the six waning-gibbous buckets', () => {
+    for (let i = 15; i <= 20; i++) {
+      expect(moonPhaseLabel(i / 28)).toBe('Waning Gibbous')
+    }
   })
 })
 
-describe('AmbientInstruments — almanacReadout', () => {
+describe('AmbientInstruments — almanacState', () => {
   it.each([
-    [0.0, '0% Summer Solstice'],
-    [0.125, '50% Summer Solstice'],
-    [0.249, '99% Summer Solstice'],
-    [0.25, '0% Autumn Equinox'],
-    [0.5, '0% Winter Solstice'],
-    [0.75, '0% Spring Equinox'],
-    [0.875, '50% Spring Equinox'],
-    [0.999, '99% Spring Equinox'],
-  ])('almanacReadout(%f) === "%s"', (phase, expected) => {
-    expect(almanacReadout(phase)).toBe(expected)
+    [0.0, 0, 'Summer Solstice'],
+    [0.125, 0.5, 'Summer Solstice'],
+    [0.25, 0, 'Autumn Equinox'],
+    [0.5, 0, 'Winter Solstice'],
+    [0.75, 0, 'Spring Equinox'],
+    [0.875, 0.5, 'Spring Equinox'],
+  ])('almanacState(%f) returns progress %f toward "%s"', (phase, expectedProgress, expectedBookmark) => {
+    const { progress, nextBookmark } = almanacState(phase)
+    expect(progress).toBeCloseTo(expectedProgress, 5)
+    expect(nextBookmark).toBe(expectedBookmark)
+  })
+
+  it('progress is always in [0, 1) across the year', () => {
+    for (let p = 0; p < 1; p += 0.05) {
+      const { progress } = almanacState(p)
+      expect(progress).toBeGreaterThanOrEqual(0)
+      expect(progress).toBeLessThan(1)
+    }
   })
 })
 
@@ -162,15 +179,21 @@ describe('AmbientInstruments — render', () => {
     expect(getByText('Autumn')).not.toBeNull()
   })
 
-  it('renders the moon glyph and integer illumination percentage', () => {
+  it('renders the moon glyph and Title Case phase label', () => {
     const { container, getByText } = render(<AmbientInstruments state={stubState({ seasonalPhase: 0 })} />)
     expect(container.querySelector('.wi-moon-new')).not.toBeNull()
-    expect(getByText('0%')).not.toBeNull()
+    expect(getByText('New Moon')).not.toBeNull()
   })
 
-  it('renders the almanac line with percentage and next bookmark', () => {
-    const { getByText } = render(<AmbientInstruments state={stubState({ seasonalPhase: 0.125 })} />)
-    expect(getByText('50% Summer Solstice')).not.toBeNull()
+  it('renders the radial almanac timer with the upcoming bookmark name', () => {
+    const { container, getByText } = render(<AmbientInstruments state={stubState({ seasonalPhase: 0.125 })} />)
+    expect(container.querySelector('svg path')).not.toBeNull()
+    expect(getByText('Summer Solstice')).not.toBeNull()
+  })
+
+  it('does not render any percentage text', () => {
+    const { container } = render(<AmbientInstruments state={stubState({ seasonalPhase: 0.5 })} />)
+    expect(container.textContent).not.toMatch(/%/)
   })
 
   it('renders all four bands of the widget for a typical mid-summer afternoon', () => {

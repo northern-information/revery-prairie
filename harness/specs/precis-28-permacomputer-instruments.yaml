@@ -157,58 +157,64 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: moon-illumination-percentage
+  - id: moon-phase-label
     description: >
-      The moon readout displays integer percentage illumination
-      alongside the glyph. Illumination peaks at full moon (phase
-      0.5) and is zero at new moon (phases 0 and 1.0). The pure
-      function moonIlluminationPercent(moonPhase: number) →
-      number is Math.round((1 - cos(2π * moonPhase)) / 2 * 100).
-      This is the standard astronomical illumination formula —
-      symmetric around full moon, zero at new moon. Rendered
-      format: `<n>%` adjacent to the glyph. No prose, no waxing/
-      waning words — the glyph carries that information visually
-      and the percentage is the instrument readout.
+      The moon readout displays a Title Case phase name alongside
+      the glyph. The 28 wi-moon-* glyph buckets collapse to eight
+      named phases: New Moon (index 0), Waxing Crescent (1–6),
+      First Quarter (7), Waxing Gibbous (8–13), Full Moon (14),
+      Waning Gibbous (15–20), Third Quarter (21), Waning Crescent
+      (22–27). The pure function moonPhaseLabel(moonPhase: number)
+      → string uses the same bucket math as moonGlyphClass —
+      bucket = floor(phase * 28) — and indexes into a 28-entry
+      MOON_PHASE_LABEL table where the eight name groups repeat.
+      No percentage, no illumination, no prose. The reading is the
+      phase name on its own — calm, instrument-shaped.
     inputs:
       - 'moonPhase ∈ [0, 1)'
     outputs:
-      - 'moonIlluminationPercent(0) === 0'
-      - 'moonIlluminationPercent(0.25) === 50'
-      - 'moonIlluminationPercent(0.5) === 100'
-      - 'moonIlluminationPercent(0.75) === 50'
-      - 'moonIlluminationPercent(0.999) approximately equals 0'
+      - 'moonPhaseLabel(0) === "New Moon"'
+      - 'moonPhaseLabel(0.25) === "First Quarter"'
+      - 'moonPhaseLabel(0.5) === "Full Moon"'
+      - 'moonPhaseLabel(0.75) === "Third Quarter"'
+      - 'moonPhaseLabel(i/28) === "Waxing Crescent" for i in [1, 6]'
+      - 'moonPhaseLabel(i/28) === "Waxing Gibbous" for i in [8, 13]'
+      - 'moonPhaseLabel(i/28) === "Waning Gibbous" for i in [15, 20]'
+      - 'moonPhaseLabel(i/28) === "Waning Crescent" for i in [22, 27]'
     state_changes: []
     determinism: deterministic
 
-  - id: almanac-percentage-and-next-bookmark
+  - id: almanac-radial-timer
     description: >
-      The almanac line renders the integer percentage of progress
-      from the current quarter-bookmark to the next, plus the next
-      bookmark's Title Case name. seasonalPhase is in [0, 1).
+      The almanac surface is a small SVG dial (an outer ring plus a
+      filled sector that fills clockwise from 12 o'clock as
+      seasonalPhase advances toward the next quarter-bookmark) and
+      a Title Case bookmark label adjacent to it. No percentage
+      anywhere on the widget. The pure function
+      almanacState(seasonalPhase: number) → { progress: number;
+      nextBookmark: string } returns the fractional progress in
+      [0, 1) toward the upcoming bookmark and the bookmark name.
       Bookmarks sit at 0 (Spring Equinox), 0.25 (Summer Solstice),
       0.5 (Autumn Equinox), 0.75 (Winter Solstice). The current
-      quarter is floor(seasonalPhase / 0.25); progress within it is
-      ((seasonalPhase - quarterStart) / 0.25) clamped to [0, 1).
-      Percentage is Math.floor(progress * 100) — continuous in
-      seasonalPhase, never reaches 100 because progress wraps at the
-      next bookmark to 0. The next bookmark wraps too: at
-      seasonalPhase=0.95 the next bookmark is Spring Equinox (phase
-      0, the start of the next year), not Spring Equinox of this
-      year. Rendered format: `<n>% <Next Bookmark Name>` — a single
-      space separator between percentage and bookmark name (no arrow
-      glyph; the Weather Icons font already owns the arrow vocabulary
-      on the weathervane).
+      quarter is floor(seasonalPhase / 0.25); progress within it
+      is (seasonalPhase - quarterStart) / 0.25. The next bookmark
+      wraps: at seasonalPhase=0.95 the next bookmark is Spring
+      Equinox (phase 0 of the next year), not Spring Equinox of
+      this year. The dial uses an SVG path with one Bezier arc;
+      the sector renders nothing at progress=0 and a full disc at
+      progress→1. Stroke and fill use currentColor so the dial
+      adopts the widget's text color.
     inputs:
       - 'state.seasonalPhase ∈ [0, 1)'
     outputs:
-      - 'almanacReadout(0.0) starts a new quarter — returns "0% Summer Solstice"'
-      - 'almanacReadout(0.125) — halfway through Spring — returns "50% Summer Solstice"'
-      - 'almanacReadout(0.249) — late Spring — returns "99% Summer Solstice"'
-      - 'almanacReadout(0.25) — at Summer Solstice — returns "0% Autumn Equinox"'
-      - 'almanacReadout(0.5) returns "0% Winter Solstice"'
-      - 'almanacReadout(0.75) returns "0% Spring Equinox"'
-      - 'almanacReadout(0.875) returns "50% Spring Equinox"'
-      - 'almanacReadout(0.999) returns "99% Spring Equinox"'
+      - 'almanacState(0.0) === { progress: 0, nextBookmark: "Summer Solstice" }'
+      - 'almanacState(0.125) approximately equals { progress: 0.5, nextBookmark: "Summer Solstice" }'
+      - 'almanacState(0.25) === { progress: 0, nextBookmark: "Autumn Equinox" }'
+      - 'almanacState(0.5) === { progress: 0, nextBookmark: "Winter Solstice" }'
+      - 'almanacState(0.75) === { progress: 0, nextBookmark: "Spring Equinox" }'
+      - 'almanacState(0.875) approximately equals { progress: 0.5, nextBookmark: "Spring Equinox" }'
+      - 'the rendered widget contains an <svg> with a <path> sibling to the bookmark label'
+      - 'the rendered widget contains no "%" character anywhere'
     state_changes: []
     determinism: deterministic
 
@@ -276,7 +282,7 @@ edge_cases:
     expected: 'windSpeedLabel returns "gale" — the function clamps high values to the top band rather than returning undefined or a fifth-from-top default'
   - id: seasonal-phase-wraps-past-final-bookmark
     description: 'seasonalPhase is in [0.75, 1.0) — between Winter Solstice and the next year''s Spring Equinox'
-    expected: 'almanacReadout names "Spring Equinox" as the next bookmark and computes percentage against the 0.75 → 1.0 quarter'
+    expected: 'almanacState returns nextBookmark "Spring Equinox" and progress = (phase - 0.75) / 0.25, a continuous fill across the final quarter of the year'
   - id: seasonal-phase-exactly-on-bookmark
     description: 'seasonalPhase is exactly 0.0, 0.25, 0.5, or 0.75'
     expected: 'percentage is 0% and the next bookmark is the one after — at 0.0 the next bookmark is Summer Solstice, at 0.25 it is Autumn Equinox, etc.'
@@ -297,7 +303,7 @@ edge_cases:
     expected: 'moonGlyphClass output transitions through the 28 classes in cycle order — no backward jumps, no skipped classes beyond bucket granularity'
   - id: moon-full-coincides-with-half-lunation
     description: 'moonPhase = 0.5 (midpoint of a single lunation)'
-    expected: 'moonGlyphClass returns "wi-moon-full" and moonIlluminationPercent returns 100'
+    expected: 'moonGlyphClass returns "wi-moon-full" and moonPhaseLabel returns "Full Moon"'
 
 failure_conditions:
   - trigger: 'AmbientInstruments declares useState, useEffect, useRef, or any non-render React hook'
@@ -322,8 +328,12 @@ failure_conditions:
     expected: 'spec violated — every returned class must be one of the declared 28 classes'
   - trigger: 'LUNATIONS_PER_YEAR is hard-coded to an integer (12 or 13) instead of the fractional astronomical value (365.25 / 29.530588 ≈ 12.3683)'
     expected: 'spec violated — the lunar period is fractional; integer approximation desynchronizes moon and seasons within a year'
-  - trigger: 'moonIlluminationPercent uses a piecewise-linear or triangular approximation instead of the cosine illumination formula'
-    expected: 'spec violated — illumination uses the standard astronomical formula (1 - cos(2π * moonPhase)) / 2 so the curve is correctly bell-shaped around full moon'
+  - trigger: 'the widget renders any "%" character anywhere (e.g. illumination percentage, almanac percentage)'
+    expected: 'spec violated — the widget is percentage-free; phase labels and a radial dial replace numeric progress readouts'
+  - trigger: 'moonPhaseLabel returns a label outside the eight-name set (New Moon / Waxing Crescent / First Quarter / Waxing Gibbous / Full Moon / Waning Gibbous / Third Quarter / Waning Crescent)'
+    expected: 'spec violated — the 28 buckets collapse to exactly eight Title Case names'
+  - trigger: 'the almanac surface is text-only (no SVG dial) or the dial has tick marks, numerals, or labels other than the bookmark name'
+    expected: 'spec violated — the dial is a ring + filled sector with no embellishment; the only adjacent text is the upcoming bookmark name'
 
 verification:
   test_file: src/components/__tests__/AmbientInstruments.test.tsx

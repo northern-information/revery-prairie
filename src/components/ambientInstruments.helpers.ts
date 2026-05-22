@@ -39,6 +39,47 @@ export const WIND_SPEED_LABELS = ['still', 'breeze', 'brisk', 'gusty', 'gale'] a
 // seasonal cycle within a single year.
 export const LUNATIONS_PER_YEAR = 365.25 / 29.530588
 
+// Eight Title Case phase labels covering the lunar cycle. Maps to the
+// 28-bucket MOON_GLYPH_CYCLE below via index ranges:
+//   index 0          → New Moon
+//   index 1-6        → Waxing Crescent
+//   index 7          → First Quarter
+//   index 8-13       → Waxing Gibbous
+//   index 14         → Full Moon
+//   index 15-20      → Waning Gibbous
+//   index 21         → Third Quarter
+//   index 22-27      → Waning Crescent
+export const MOON_PHASE_LABEL = [
+  'New Moon',
+  'Waxing Crescent',
+  'Waxing Crescent',
+  'Waxing Crescent',
+  'Waxing Crescent',
+  'Waxing Crescent',
+  'Waxing Crescent',
+  'First Quarter',
+  'Waxing Gibbous',
+  'Waxing Gibbous',
+  'Waxing Gibbous',
+  'Waxing Gibbous',
+  'Waxing Gibbous',
+  'Waxing Gibbous',
+  'Full Moon',
+  'Waning Gibbous',
+  'Waning Gibbous',
+  'Waning Gibbous',
+  'Waning Gibbous',
+  'Waning Gibbous',
+  'Waning Gibbous',
+  'Third Quarter',
+  'Waning Crescent',
+  'Waning Crescent',
+  'Waning Crescent',
+  'Waning Crescent',
+  'Waning Crescent',
+  'Waning Crescent',
+] as const
+
 export const MOON_GLYPH_CYCLE = [
   'wi-moon-new',
   'wi-moon-waxing-crescent-1',
@@ -93,15 +134,23 @@ export const moonGlyphClass = (phase: number): (typeof MOON_GLYPH_CYCLE)[number]
   return MOON_GLYPH_CYCLE[index]
 }
 
-export const moonIlluminationPercent = (phase: number): number => {
-  return Math.round(((1 - Math.cos(2 * Math.PI * phase)) / 2) * 100)
+export const moonPhaseLabel = (phase: number): (typeof MOON_PHASE_LABEL)[number] => {
+  const index = Math.min(MOON_PHASE_LABEL.length - 1, Math.max(0, Math.floor(phase * MOON_PHASE_LABEL.length)))
+  return MOON_PHASE_LABEL[index]
 }
 
-export const almanacReadout = (seasonalPhase: number): string => {
+export interface AlmanacState {
+  // Progress from the current quarter-bookmark (0) to the next (1).
+  // Drives the radial sector fill.
+  progress: number
+  // The name of the bookmark currently being approached.
+  nextBookmark: string
+}
+
+export const almanacState = (seasonalPhase: number): AlmanacState => {
   const quarterIndex = Math.floor(seasonalPhase / 0.25)
   const quarterStart = quarterIndex * 0.25
   const progress = (seasonalPhase - quarterStart) / 0.25
-  const percent = Math.floor(progress * 100)
   const nextBookmark = ALMANAC_BOOKMARKS[(quarterIndex + 1) % ALMANAC_BOOKMARKS.length]
-  return `${String(percent)}% ${nextBookmark.name}`
+  return { progress, nextBookmark: nextBookmark.name }
 }
