@@ -5,7 +5,7 @@ layer: engine
 source_files:
   - src/engine/audio.ts
   - src/engine/types.ts
-dependencies: []
+dependencies: [proximity-music-crossfade]
 
 behaviors:
   - id: zone-music-mapping
@@ -57,7 +57,12 @@ behaviors:
       fades dialog out and ambient back in. both accept an optional
       fadeMs parameter (default FADE_MS = 300ms). only one dialog
       track exists at a time — calling startDialogMusic again
-      destroys the previous dialog track first.
+      destroys the previous dialog track first. callers (useMusic)
+      must skip startDialogMusic when the opened character also has
+      a MusicEmitter component on its entity — proximity music
+      replaces dialog music entirely in that case (see
+      proximity-music-crossfade spec). dialogTrack is reserved for
+      characters without proximity emitters.
     inputs:
       - 'character dialog opened or closed'
     outputs:
@@ -67,6 +72,26 @@ behaviors:
         effect: 'created on start, destroyed on stop'
       - field: '(module) fadeRafId'
         effect: 'rAF id stored during fade animation'
+    determinism: deterministic
+
+  - id: ambient-ducking-by-proximity
+    description: >
+      while one or more proximity emitter tracks exist (see
+      proximity-music-crossfade), the ambient track gain is set to
+      1 - max(emitterGain) across all active proximity tracks each
+      proximity update tick. when no proximity tracks exist, the
+      ambient gain returns to 1 (or 0 if dialog ducking is active).
+      ambient ducking by proximity and ambient ducking by dialog
+      are mutually exclusive — dialog ducking takes precedence when
+      a dialog track is present, since dialog and proximity are
+      never simultaneously active for the same character.
+    inputs:
+      - 'array of active proximity tracks with current gain values'
+    outputs:
+      - 'ambient track gain set to 1 - max(emitterGain) when no dialog track is present'
+    state_changes:
+      - field: '(module) ambientTrack.gain'
+        effect: 'value driven by proximity update tick'
     determinism: deterministic
 
   - id: music-toggle
@@ -136,6 +161,12 @@ edge_cases:
   - id: toggle-while-dialog-active
     description: 'player toggles music off while dialog music is playing'
     expected: 'both ambient and dialog gains set to 0; toggling back on restores both'
+  - id: toggle-while-proximity-active
+    description: 'player toggles music off while inside one or more proximity emitters'
+    expected: 'all proximity track gains set to 0; ambient gain restored to 1 - max(emitterGain) state when re-enabled'
+  - id: dialog-opens-on-proximity-character
+    description: 'player opens dialog with a character that has a MusicEmitter component on its entity'
+    expected: 'useMusic skips startDialogMusic; proximity track continues uninterrupted at its current gain'
 
 failure_conditions:
   - trigger: 'audio file not found (404 on fetch)'

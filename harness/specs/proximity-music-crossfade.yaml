@@ -1,0 +1,241 @@
+id: proximity-music-crossfade
+name: 'Proximity music crossfade'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/audio.ts
+  - src/engine/types.ts
+  - src/engine/entities.ts
+  - src/engine/state.ts
+  - src/hooks/useMusic.ts
+dependencies: []
+
+behaviors:
+  - id: music-emitter-component
+    description: >
+      a new ECS component ComponentType.MusicEmitter declares that
+      an entity emits music to nearby players. shape is
+      { url: string; radius: number }. url points at an MP3 in
+      public/music/ (matching the existing audio module's URL
+      convention). radius is in tiles, measured as squared Euclidean
+      distance to match the existing rain aura inclusion test in
+      tileWater.ts. emitters are authored at entity-creation sites
+      (state.ts for Gron, future characters). emitters are NOT
+      added implicitly from CharacterEntry.music — that field
+      remains the dialog-music fallback for characters without a
+      proximity emitter.
+    inputs:
+      - 'entity creation call sites in state.ts and elsewhere'
+    outputs:
+      - 'entity has MusicEmitter component queryable via state.world'
+    state_changes:
+      - field: 'state.world (ECS) — MusicEmitter component on entity'
+        effect: 'added at creation time; never mutated after'
+    determinism: deterministic
+
+  - id: gron-music-emitter
+    description: >
+      Gron's entity is created with both an Aura {kind:"rain"} and
+      a MusicEmitter. the emitter's url is the same value as
+      CHARACTERS.gron.music (/music/gron.mp3) and its radius is the
+      rain aura radius (AURA_RADIUS["rain"], currently 6 tiles).
+      this is the reference wiring — future emitter-bearing
+      characters follow the same pattern (declare an emitter at
+      createCharacterEntity, choose a radius).
+    inputs:
+      - 'Gron entity creation in state.ts'
+    outputs:
+      - 'Gron emits /music/gron.mp3 within rain aura radius'
+    state_changes:
+      - field: 'state.world (ECS) — MusicEmitter on Gron entity'
+        effect: 'added at spawn'
+    determinism: deterministic
+
+  - id: proximity-update-tick
+    description: >
+      updateProximityMusic(state) runs once per animation frame
+      from the engine RAF loop (not from useMusic — proximity must
+      respond to movement, not React renders). it queries all
+      MusicEmitter components, computes squared distance from
+      player to each emitter's position, and for each emitter
+      derives a target gain via the smoothstep curve in
+      proximity-gain-curve. emitters whose squared distance
+      exceeds radius² are considered out-of-range and contribute
+      gain 0.
+    inputs:
+      - 'state.player position, MusicEmitter components, current frame time'
+    outputs:
+      - 'per-emitter target gain values for the audio module'
+    state_changes:
+      - field: '(audio module) proximityTracks map'
+        effect: 'gain values updated to match computed targets'
+    determinism: deterministic
+
+  - id: proximity-gain-curve
+    description: >
+      target gain for a single emitter is computed from squared
+      distance d² and squared radius r² as follows. when d² >= r²,
+      target gain = 0. otherwise, t = 1 - sqrt(d²/r²) (linear
+      proximity, where t=1 at the entity tile and t=0 at the
+      boundary) and gain = t * t * (3 - 2 * t) — the standard
+      smoothstep curve. result: silent at the boundary, smooth
+      ramp, gain 1 at the entity tile.
+    inputs:
+      - 'squared distance d² from player to emitter'
+      - 'squared radius r² from MusicEmitter'
+    outputs:
+      - 'target gain in [0, 1]'
+    state_changes: []
+    determinism: deterministic
+
+  - id: entry-creates-track
+    description: >
+      when an emitter transitions from out-of-range to in-range
+      (target gain > 0 and no proximity track exists for the
+      emitter url), the audio module creates a new proximity
+      track and starts playback at gain 0. the smoothstep curve
+      ramps the gain up over subsequent frames as the player
+      approaches. tracks are keyed by emitter url, not by entity
+      id — two emitters with the same url share a track and the
+      higher computed gain wins. start-on-entry is silent because
+      the curve is 0 at the boundary, so there is no audible pop.
+    inputs:
+      - 'emitter url crossing into in-range with no existing track'
+    outputs:
+      - 'new proximity track created at gain 0 and started'
+    state_changes:
+      - field: '(audio module) proximityTracks[url]'
+        effect: 'new Track created and assigned'
+    determinism: deterministic
+
+  - id: exit-destroys-track
+    description: >
+      when all emitters for a given url drop to out-of-range
+      (squared distance > squared radius for every emitter sharing
+      that url), the audio module destroys the proximity track for
+      that url. exit is silent because the curve is 0 at the
+      boundary. destruction releases the buffer source and gain
+      node; the buffer itself stays in bufferCache for re-entry.
+    inputs:
+      - 'all emitters for a url have d² > r²'
+    outputs:
+      - 'proximity track destroyed'
+    state_changes:
+      - field: '(audio module) proximityTracks[url]'
+        effect: 'destroyed and removed from map'
+    determinism: deterministic
+
+  - id: independent-layers
+    description: >
+      proximity tracks for distinct urls are independent — each
+      has its own gain and plays simultaneously. multiple
+      emitters with overlapping radii but different urls produce
+      a layered mix (e.g. Gron and a future character can both
+      play their tracks at once if the player is in both auras).
+    inputs:
+      - 'multiple emitters with distinct urls and overlapping radii'
+    outputs:
+      - 'one proximity track per distinct url, all playing simultaneously'
+    state_changes:
+      - field: '(audio module) proximityTracks'
+        effect: 'multiple entries, one per distinct emitter url'
+    determinism: deterministic
+
+  - id: ambient-ducking-coordination
+    description: >
+      each proximity update tick, after computing per-track
+      target gains, the audio module sets ambient gain to
+      1 - max(proximityGains). this is mutually exclusive with
+      dialog ducking: if dialogTrack is non-null, dialog ducking
+      wins (ambient gain = 0) and proximity ducking is skipped.
+      since proximity replaces dialog for emitter-bearing
+      characters (useMusic suppression), the two ducking modes
+      never collide in practice.
+    inputs:
+      - 'per-frame proximity gains; presence of dialogTrack'
+    outputs:
+      - 'ambient gain reflects 1 - max(proximityGains) when no dialog active'
+    state_changes:
+      - field: '(audio module) ambientTrack.gain'
+        effect: 'value driven by proximity tick or dialog ducking'
+    determinism: deterministic
+
+  - id: dialog-suppression
+    description: >
+      useMusic checks whether the opened dialog character's entity
+      has a MusicEmitter component before calling startDialogMusic.
+      if it does, the dialog-music call is skipped — the proximity
+      track is already playing at the right gain and there is no
+      reason to spin up a duplicate dialog track. on dialog close,
+      stopDialogMusic is only called if it was started.
+    inputs:
+      - 'state.activeDialog.characterId, ECS world lookup for that entity'
+    outputs:
+      - 'startDialogMusic call skipped when character has emitter'
+    state_changes: []
+    determinism: deterministic
+
+  - id: music-toggle-affects-proximity
+    description: >
+      setMusicEnabled(false) sets all proximity track gains to 0
+      alongside ambient and dialog. when re-enabled, the next
+      proximity update tick restores correct gains from the
+      smoothstep computation; out-of-range tracks may be
+      destroyed at that tick.
+    inputs:
+      - 'boolean toggle from ESC menu'
+    outputs:
+      - 'proximity tracks muted or restored'
+    state_changes:
+      - field: '(audio module) proximityTracks[*].gain'
+        effect: 'set to 0 on disable, restored on next tick when enabled'
+    determinism: deterministic
+
+  - id: stop-all-clears-proximity
+    description: >
+      stopAll() destroys every proximity track in addition to
+      ambient and dialog, and clears the proximityTracks map. used
+      on unmount and zone teardown so a stale Gron track does not
+      survive into a zone where Gron is not present.
+    inputs:
+      - 'component unmount or scene change'
+    outputs:
+      - 'all proximity tracks stopped and removed'
+    state_changes:
+      - field: '(audio module) proximityTracks'
+        effect: 'cleared'
+    determinism: deterministic
+
+edge_cases:
+  - id: player-stationary-inside-aura
+    description: 'player stops moving while inside a proximity aura'
+    expected: 'proximity track continues at the gain matching player position; no churn'
+  - id: rapid-boundary-crossing
+    description: 'player oscillates across the boundary on adjacent frames'
+    expected: 'track is created and destroyed each crossing; smoothstep curve gain 0 at boundary keeps both transitions silent'
+  - id: emitter-removed-while-player-inside
+    description: 'an emitter-bearing entity is removed (despawn, deep time) while player is inside its aura'
+    expected: 'the next proximity tick sees no emitter for that url; track is destroyed silently'
+  - id: zone-change-during-active-emitter
+    description: 'player changes zones while inside a proximity aura'
+    expected: 'stopAll on teardown destroys the proximity track; ambient swap proceeds normally'
+  - id: two-emitters-same-url-overlapping
+    description: 'two entities share the same MusicEmitter url and their radii overlap on the player'
+    expected: 'one proximity track plays at gain = max of the two computed gains; not stacked'
+  - id: emitter-music-fails-to-load
+    description: 'MusicEmitter url 404s or fails to decode'
+    expected: 'createTrack rejects; proximity track stays null; subsequent ticks retry on next entry'
+  - id: dialog-opens-while-emitter-out-of-range
+    description: 'player opens dialog with an emitter-bearing character from outside the aura via click-to-interact path that arrives at the character'
+    expected: 'by the time dialog opens, player has walked into the aura; proximity track is playing at gain 1.0; dialog-music is suppressed regardless of original distance'
+
+failure_conditions:
+  - trigger: 'MusicEmitter declared with radius <= 0'
+    expected: 'computed squared radius is 0; emitter is permanently out-of-range; never creates a track'
+  - trigger: 'MusicEmitter url is empty string'
+    expected: 'createTrack fetch fails silently; no track created; no error surfaced to player'
+
+verification:
+  test_file: src/engine/__tests__/proximityMusic.test.ts
+  test_pattern: 'proximityMusic'
+  command: npx vitest run src/engine/__tests__/proximityMusic.test.ts
