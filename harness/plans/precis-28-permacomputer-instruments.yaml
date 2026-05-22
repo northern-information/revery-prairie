@@ -153,29 +153,8 @@ tasks:
     tags:
       - test
 
-  # --- Tier 5: Final sweep ---
-  # Single global verification pass: typecheck + lint + the spec's
-  # vitest command. Confirms the bottom-bar layout still composes
-  # (Minimap left, AmbientInstruments middle, ItemInfo right,
-  # InventoryPanel far right), that strictTypeChecked eslint passes
-  # on the new component, and that every behavior/edge case has a
-  # green test.
-
-  - id: final-sweep
-    title: Run typecheck + lint + AmbientInstruments vitest as the global verification gate
-    spec_id: precis-28-permacomputer-instruments
-    spec_sections:
-      - ambient-instruments-mounted-between-minimap-and-iteminfo
-      - pure-render-no-state-writes
-    context_files: []
-    output_files: []
-    depends_on:
-      - gamescreen-mount
-      - ambient-instruments-tests
-    verification:
-      - npm run typecheck
-      - npm run lint
-      - npx vitest run src/components/__tests__/AmbientInstruments.test.tsx
-    repair: retry
-    tags:
-      - verification
+  # Plan-level global_verification at the top runs typecheck + lint +
+  # the AmbientInstruments vitest as the final gate after all tasks
+  # complete. No explicit final-sweep task is needed; the harness
+  # parser requires every task to write at least one output file, and
+  # a sweep that only runs verification has no outputs.
