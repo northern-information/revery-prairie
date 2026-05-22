@@ -125,4 +125,34 @@ describe('scan-result modal', () => {
     })
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
+
+  // Regression — oaks are flora and must open the same ceremonial modal.
+  // Doctrine: every scan kind shares this modal; no subject bypasses to
+  // the manual or any other panel. PR #377 routed oak scans to the manual
+  // instead; this test guards against that regression.
+  describe('oak scan', () => {
+    const oakResult: ScanCommitResult = {
+      kind: 'oak',
+      identity: 'b3a1c2d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f9',
+    }
+
+    it('renders White Oak above Quercus alba for kind oak', () => {
+      render(<ScanResultModal result={oakResult} onDismiss={() => undefined} />)
+      expect(screen.getByTestId('scan-result-common-name').textContent).toBe('White Oak')
+      expect(screen.getByTestId('scan-result-binomial').textContent).toBe('Quercus alba')
+    })
+
+    it('uses the flora gel variant for oak (gold palette, not egregore purple)', () => {
+      render(<ScanResultModal result={oakResult} onDismiss={() => undefined} />)
+      expect(screen.getByTestId('scan-result-gel').getAttribute('data-variant')).toBe('flora')
+    })
+
+    it('runs the full reveal sequence the same as a flora scan', () => {
+      render(<ScanResultModal result={oakResult} onDismiss={() => undefined} />)
+      act(() => {
+        vi.advanceTimersByTime(50 + 400 + 40 * 64)
+      })
+      expect(screen.getByTestId('scan-result-gel').getAttribute('data-fully-revealed')).toBe('true')
+    })
+  })
 })

@@ -109,11 +109,13 @@ export const selectScanTarget = (state: GameState): ScanTarget | null => {
   return null
 }
 
-// Discriminated commit result. Callers (game loop / useKeyboard) use the
-// `kind` field to route to the right UI surface:
-//   - 'flora':    open the gel modal in flora variant (gold palette)
-//   - 'egregore': open the gel modal in egregore variant (purple palette)
-//   - 'oak':      open the manual to the entity:oak entry (no modal)
+// Discriminated commit result. Callers (game loop / useKeyboard) pass the
+// result to ScanResultModal, which reads `kind` to pick the heading +
+// gel variant. Every kind opens the modal — the scan ceremony is the
+// universal reward for the hold-to-scan core loop.
+//   - 'flora':    gel modal in flora variant (gold palette, binomial heading)
+//   - 'oak':      gel modal in flora variant (gold palette, OAK_SPECIES heading)
+//   - 'egregore': gel modal in egregore variant (purple palette, no heading)
 export type ScanCommitResult =
   | { kind: 'flora'; species: FloraSpecies; identity: string; position: Position }
   | { kind: 'egregore'; identity: string; position: Position }
@@ -129,10 +131,11 @@ export type ScanCommitResult =
 //   - sets state.manualHighlightEntryId so the manual scrolls to and
 //     highlights the entry on next render
 //
-// Returns a discriminated ScanCommitResult on success so the caller can
-// route to the right UI surface — flora and egregore open the gel modal
-// (different variants), oaks open the manual directly. Returns null on
-// abort (no progress, no target, kind drift, species drift).
+// Returns a discriminated ScanCommitResult on success so the caller passes
+// it to ScanResultModal — every kind (flora, oak, egregore) opens that
+// same ceremonial modal. The function itself does not open any UI; the
+// caller does. Returns null on abort (no progress, no target, kind drift,
+// species drift).
 export const commitScan = (state: GameState, time: number): ScanCommitResult | null => {
   const progress = state.scanInProgress
   if (!progress) return null

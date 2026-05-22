@@ -90,20 +90,12 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
   // Precis #6/#8a — scan-result modal. Populated when the game loop
   // fires onScanComplete; cleared when the player dismisses the modal.
   // Holds the full discriminated result so the modal can render the
-  // right gel variant (flora gold vs egregore purple).
+  // right heading + gel variant. Doctrine: every scan kind opens this
+  // modal — no subject (flora, oak, egregore, future) bypasses it. The
+  // ceremony is the universal reward for the hold-to-scan core loop.
   const [scanResult, setScanResult] = useState<ScanCommitResult | null>(null)
   const onScanComplete = useCallback(
     (result: ScanCommitResult) => {
-      if (result.kind === 'oak') {
-        // Oak scans skip the gel modal and open the manual directly.
-        // state.manualHighlightEntryId is already set by commitScan (to
-        // 'entity:oak'), so ManualPanel scrolls to and flashes the entry
-        // on mount.
-        setActiveScreen('manual')
-        return
-      }
-      // Flora and egregore both open the gel modal; ScanResultModal
-      // reads the discriminator to pick the right palette/geometry.
       setScanResult(result)
       setActiveScreen('scan-result')
     },

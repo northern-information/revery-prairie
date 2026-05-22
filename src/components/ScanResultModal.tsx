@@ -4,6 +4,7 @@ import { GelBandView } from './GelBandView'
 
 import { FLORA_SPECIES } from '@/engine/flora/species'
 import { HEX_GRID_SIZE } from '@/engine/genetics'
+import { OAK_SPECIES } from '@/engine/oaks'
 
 import type { ScanCommitResult } from '@/engine/scan'
 
@@ -22,7 +23,10 @@ const prefersReducedMotion = (): boolean => {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-// Ceremonial scan-result modal. Fires when a hold-to-scan commits.
+// Ceremonial scan-result modal. Fires when any hold-to-scan commits — flora,
+// oaks, egregore tiles, and any future scannable subject. The scan ceremony
+// is the universal reward for the core game loop; no scan kind bypasses
+// this modal.
 //
 // Reveal sequence:
 //   1. binomial fades in (BINOMIAL_FADE_MS)
@@ -33,9 +37,15 @@ const prefersReducedMotion = (): boolean => {
 // prefers-reduced-motion collapses the reveal to an instant render.
 export const ScanResultModal = ({ result, onDismiss }: ScanResultModalProps) => {
   const reducedMotion = prefersReducedMotion()
-  // Flora scans show a Latin binomial heading; egregore scans show no
-  // heading (the cosmology has no readable name).
-  const def = result.kind === 'flora' ? FLORA_SPECIES[result.species] : null
+  // Flora and oak scans show a Latin binomial heading; egregore scans show
+  // no heading (the cosmology has no readable name). Oaks reuse the flora
+  // gel variant (gold palette) since they are flora.
+  const def =
+    result.kind === 'flora'
+      ? FLORA_SPECIES[result.species]
+      : result.kind === 'oak'
+        ? OAK_SPECIES
+        : null
   const identity = result.identity
   const variant = result.kind === 'egregore' ? 'egregore' : 'flora'
 

@@ -1,0 +1,142 @@
+plan:
+  id: oak-scan-modal
+  title: Oak scans open the ceremonial gel-electrophoresis modal like flora
+  created: 2026-05-21
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/components/__tests__/ScanResultModal.test.tsx src/engine/__tests__/oaks.test.ts
+
+tasks:
+  # --- Tier 1: Extend the modal heading to oak ---
+
+  - id: extend-modal-heading-to-oak
+    title: >
+      In src/components/ScanResultModal.tsx, extend the `def` resolution so
+      that result.kind === 'oak' resolves to OAK_SPECIES (imported from
+      '@/engine/oaks'). Flora keeps FLORA_SPECIES; egregore keeps null
+      (no heading). The gel `variant` stays as `result.kind === 'egregore'
+      ? 'egregore' : 'flora'` so oak gets the flora (gold) palette. Update
+      the leading comment to reflect that the modal serves every scan kind.
+    spec_id: oak-scan-modal
+    spec_sections:
+      - scan-result-modal-renders-oak-heading
+    context_files:
+      - src/components/ScanResultModal.tsx
+      - src/engine/oaks.ts
+      - src/engine/scan.ts
+    output_files:
+      - src/components/ScanResultModal.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - components
+      - scan
+
+  # --- Tier 2: Route oak scans through the modal ---
+
+  - id: route-oak-scans-through-modal
+    title: >
+      In src/components/GameScreen.tsx, delete the `if (result.kind === 'oak')`
+      branch inside `onScanComplete` so all kinds fall through to
+      setScanResult(result) + setActiveScreen('scan-result'). Update the
+      adjacent comment block to state the doctrine: every scan kind opens
+      this modal; no subject bypasses it.
+    spec_id: oak-scan-modal
+    spec_sections:
+      - every-scan-commit-opens-the-modal
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/components/ScanResultModal.tsx
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on:
+      - extend-modal-heading-to-oak
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - components
+      - scan
+      - oak
+
+  # --- Tier 3: Update stale comments in engine ---
+
+  - id: update-scan-comments
+    title: >
+      In src/engine/scan.ts, update the ScanCommitResult comment block and the
+      commitScan docstring to reflect that all three kinds (flora, oak,
+      egregore) open the ceremonial modal. Behavior is unchanged.
+    spec_id: oak-scan-modal
+    spec_sections:
+      - oak-scan-still-records-manual-discovery
+    context_files:
+      - src/engine/scan.ts
+    output_files:
+      - src/engine/scan.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - scan
+
+  # --- Tier 4: Update stale test comment ---
+
+  - id: update-oak-commit-test-comment
+    title: >
+      In src/engine/__tests__/oaks.test.ts, update the comment on the
+      'commitScan with an oak target' test (currently says "the React layer
+      opens the manual — oaks skip the flora-only gel-electrophoresis modal")
+      so it reflects the new behavior. Assertions on state remain unchanged
+      and the test continues to pass.
+    spec_id: oak-scan-modal
+    spec_sections:
+      - oak-scan-still-records-manual-discovery
+    context_files:
+      - src/engine/__tests__/oaks.test.ts
+    output_files:
+      - src/engine/__tests__/oaks.test.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/oaks.test.ts
+    repair: retry
+    tags:
+      - test
+      - oak
+
+  # --- Tier 5: Regression test ---
+
+  - id: oak-scan-modal-regression-test
+    title: >
+      Add a 'describe oak scan' block to
+      src/components/__tests__/ScanResultModal.test.tsx that renders the
+      modal with `{ kind: 'oak', identity }` and asserts: common-name is
+      'White Oak'; binomial is 'Quercus alba'; gel data-variant is 'flora'
+      (oaks use the gold palette, not egregore purple); the full reveal
+      sequence completes (data-fully-revealed flips to 'true' after the
+      reveal time). This regression guard prevents future PRs from routing
+      oak scans to the manual again.
+    spec_id: oak-scan-modal
+    spec_sections:
+      - every-scan-commit-opens-the-modal
+      - scan-result-modal-renders-oak-heading
+      - oak-identity-renders-stable-gel
+    context_files:
+      - src/components/__tests__/ScanResultModal.test.tsx
+      - src/components/ScanResultModal.tsx
+      - src/components/GelBandView.tsx
+    output_files:
+      - src/components/__tests__/ScanResultModal.test.tsx
+    depends_on:
+      - extend-modal-heading-to-oak
+    verification:
+      - npx vitest run src/components/__tests__/ScanResultModal.test.tsx
+    repair: retry
+    tags:
+      - test
+      - scan
+      - oak

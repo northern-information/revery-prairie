@@ -1,0 +1,152 @@
+id: oak-scan-modal
+name: 'Every scan opens the gel-electrophoresis modal (doctrine)'
+priority: medium
+layer: integration
+source_files:
+  - src/components/ScanResultModal.tsx
+  - src/components/GameScreen.tsx
+  - src/components/__tests__/ScanResultModal.test.tsx
+  - src/engine/__tests__/oaks.test.ts
+dependencies:
+  - white-oak-landmarks
+  - oak-sequencing
+
+behaviors:
+  - id: every-scan-commit-opens-the-modal
+    description: >
+      DOCTRINE — every successful scan commit, regardless of subject kind
+      (flora today; oaks today; any future scannable subject), opens the
+      ceremonial gel-electrophoresis ScanResultModal. The scan ceremony IS
+      the reward for the hold-to-scan core loop. No scan subject is allowed
+      to bypass the modal in favor of opening the manual, opening a panel,
+      or silently logging discovery. New scannable subjects (e.g. critters,
+      future tree species, structures) must route through the same modal.
+      The modal is the universal scan-ceremony surface.
+    inputs:
+      - 'commitScan returns any non-null ScanCommitResult'
+    outputs:
+      - 'ScanResultModal is rendered with the full ScanCommitResult passed as `result`'
+      - 'activeScreen is set to "scan-result" — never directly to "manual" or any other panel'
+    state_changes:
+      - field: GameScreen activeScreen
+        effect: 'set to "scan-result" on every scan commit, never to any other screen'
+    determinism: deterministic
+
+  - id: oak-commit-opens-scan-result-modal
+    description: >
+      When a hold-to-scan commit returns `{ kind: 'oak', identity }`, the
+      React layer opens the same ceremonial gel-electrophoresis ScanResultModal
+      it opens for flora scans — not the manual. The modal renders the oak's
+      common name ('White Oak') and Latin binomial ('Quercus alba') in the
+      heading slot, with the GelBandView derived from the oak identity. The
+      reveal sequence (binomial fade, column-major cell reveal, fullyRevealed
+      flag, press-any-key dismissal) matches the flora flow exactly.
+    inputs:
+      - 'commitScan returns ScanCommitResult of kind oak with a valid identity'
+    outputs:
+      - 'ScanResultModal renders with displayName "White Oak" and latinBinomial "Quercus alba"'
+      - 'GelBandView renders 64 cells derived from the oak identity hash'
+      - 'activeScreen is set to "scan-result"'
+    state_changes:
+      - field: GameScreen activeScreen
+        effect: 'set to "scan-result" on oak scan commit (was: "manual")'
+    determinism: deterministic
+
+  - id: scan-result-modal-renders-oak-heading
+    description: >
+      ScanResultModal takes `result: ScanCommitResult` and reads `result.kind`
+      to resolve the heading and gel variant. For `kind === 'flora'` the
+      heading resolves to FLORA_SPECIES[result.species]. For `kind === 'oak'`
+      the heading resolves to OAK_SPECIES (displayName 'White Oak',
+      latinBinomial 'Quercus alba'). For `kind === 'egregore'` no heading
+      renders (the cosmology has no readable name). The gel variant is
+      'flora' for both flora and oak, 'egregore' for egregore.
+    inputs:
+      - 'caller renders <ScanResultModal result={...} onDismiss={...} /> with result of kind oak'
+    outputs:
+      - 'scan-result-common-name shows "White Oak"'
+      - 'scan-result-binomial shows "Quercus alba" in italic'
+      - 'GelBandView renders with variant="flora" (same palette flora uses)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: oak-scan-still-records-manual-discovery
+    description: >
+      Opening the modal on an oak scan does not regress the existing manual
+      side-effects from commitScan. `state.manualDiscoveries` still contains
+      `entity:oak` after a successful oak scan, `state.oakSpecimens` still has
+      the new specimen appended (deduped on identity), and
+      `state.manualHighlightEntryId` is still set to `entity:oak`. The user
+      sees the modal first; when they dismiss it and later open the manual,
+      the oak entry is still flagged for highlight as before.
+    inputs:
+      - 'commitScan(state, time) called with an oak scanInProgress on a valid oak target'
+    outputs:
+      - 'state.manualDiscoveries includes "entity:oak"'
+      - 'state.oakSpecimens contains the scanned identity'
+      - 'state.manualHighlightEntryId === "entity:oak"'
+    state_changes:
+      - field: state.manualDiscoveries
+        effect: 'unchanged from prior oak-scan behaviour'
+      - field: state.oakSpecimens
+        effect: 'unchanged from prior oak-scan behaviour'
+      - field: state.manualHighlightEntryId
+        effect: 'unchanged from prior oak-scan behaviour'
+    determinism: deterministic
+
+edge_cases:
+  - id: dismissing-oak-modal-clears-active-screen
+    description: >
+      After the oak ScanResultModal is fully revealed, pressing any key (or
+      clicking the backdrop) calls onDismiss. The dismiss handler in GameScreen
+      sets activeScreen back to null and clears the scan-result payload. The
+      next manual open still scrolls to and flashes the oak entry because
+      manualHighlightEntryId persists on state.
+    expected: >
+      After dismissal, activeScreen is null and scanResult is null. Opening
+      the manual afterward shows the oak entry highlighted.
+
+  - id: oak-identity-renders-stable-gel
+    description: >
+      GelBandView derives its 64 cells deterministically from the identity
+      string. Two renders of the modal with the same oak identity produce the
+      same gel pattern. The oak identity (SHA256 of stewardName + anchor)
+      satisfies the same hash-string contract GelBandView already requires of
+      flora identities.
+    expected: >
+      Rendering ScanResultModal with the same identity twice yields identical
+      data-cell-* attributes.
+
+failure_conditions:
+  - trigger: 'a future scan subject is added that opens a panel other than ScanResultModal (e.g. activeScreen set to "manual", "divination", or null on commit)'
+    expected: >
+      Any new ScanCommitResult variant added to src/engine/scan.ts must be
+      routed through the existing scan-result modal path in
+      src/components/GameScreen.tsx (setActiveScreen('scan-result') with a
+      scanResult payload). A reviewer (or future audit) verifies that no
+      new code path inside an onScanComplete-style callback sets
+      activeScreen to anything other than 'scan-result'.
+
+  - trigger: 'oak scan commit opens the manual instead of the ScanResultModal'
+    expected: >
+      A regression test in src/components/__tests__/ScanResultModal.test.tsx
+      (or a new GameScreen integration test) drives an oak scan commit and
+      asserts the scan-result modal is in the document, not the manual. If the
+      manual opens instead, the test fails.
+
+  - trigger: 'ScanResultModal returns null (renders no heading) for kind === "oak"'
+    expected: >
+      The heading conditional in ScanResultModal must include the oak kind
+      alongside flora. Test asserts scan-result-common-name and
+      scan-result-binomial are in the document when result.kind === "oak".
+
+  - trigger: 'oak scan no longer records entity:oak discovery or appends to oakSpecimens'
+    expected: >
+      The existing oak-commit test in src/engine/__tests__/oaks.test.ts still
+      passes — manualDiscoveries.has("entity:oak") is true, oakSpecimens has
+      length 1, manualHighlightEntryId === "entity:oak".
+
+verification:
+  test_file: src/components/__tests__/ScanResultModal.test.tsx
+  test_pattern: 'oak'
+  command: 'npx vitest run src/components/__tests__/ScanResultModal.test.tsx src/engine/__tests__/oaks.test.ts'
