@@ -2,16 +2,14 @@ import {
   EXPLOSION_DURATION_MS,
   MAP_HEIGHT,
   MAP_WIDTH,
-  METEOR_SHOWER_MAX_INTERVAL_MS,
-  METEOR_SHOWER_MIN_INTERVAL_MS,
+  METEOR_SHOWER_ANCHORS,
+  METEOR_SHOWER_JITTER_PHASE,
   METEOR_SHOWER_SPAWN_WINDOW_MS,
   METEOR_SHOWER_STAR_COUNT_MAX,
   METEOR_SHOWER_STAR_COUNT_MIN,
-  METEORITE_GROUND_MAX,
   PICKUP_EFFECT_DURATION_MS,
   PLAYER_SPAWN_DESCENT_TARGET_MS,
   SATELLITE_SHAKE_DURATION_MS,
-  SHOOTING_STAR_LAND_CHANCE,
   SHOOTING_STAR_MAX_ACTIVE,
   SHOOTING_STAR_MAX_AGE,
   SHOOTING_STAR_MAX_LENGTH,
@@ -45,22 +43,10 @@ const isWaterTile = (state: GameState, x: number, y: number): boolean => {
   return state.ponds.has(key) || state.rivers.has(key)
 }
 
-export const countOverworldMeteorites = (state: GameState): number => {
-  let count = 0
-  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.EntityZone)) {
-    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'meteorite') continue
-    const zone = state.world.getComponent(eid, ComponentType.EntityZone)
-    if (zone?.zone !== Zone.Overworld) continue
-    count++
-  }
-  return count
-}
-
 export const spawnShootingStar = (state: GameState): void => {
   if (state.deepTime?.active) return
   if (state.meteorShower.active) return
   if (state.world.query(ComponentType.ShootingStarData).length >= SHOOTING_STAR_MAX_ACTIVE) return
-  if (countOverworldMeteorites(state) >= METEORITE_GROUND_MAX) return
   if (Math.random() >= SHOOTING_STAR_SPAWN_CHANCE) return
 
   const x = Math.floor(Math.random() * MAP_WIDTH)
@@ -68,15 +54,17 @@ export const spawnShootingStar = (state: GameState): void => {
 
   const length =
     SHOOTING_STAR_MIN_LENGTH + Math.floor(Math.random() * (SHOOTING_STAR_MAX_LENGTH - SHOOTING_STAR_MIN_LENGTH + 1))
-  const willLand = Math.random() < SHOOTING_STAR_LAND_CHANCE
 
+  // Ambient stars never land. Landing is reserved for targeted (shower)
+  // stars via spawnShootingStarAtTarget so meteorite density on the ground
+  // is governed exclusively by the four cardinal showers per year.
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.Velocity, { dx: NORTH_VELOCITY.dx, dy: NORTH_VELOCITY.dy })
   state.world.addComponent(e, ComponentType.ShootingStarData, {
     length,
     age: 0,
-    willLand,
+    willLand: false,
     landingTarget: null,
   })
   state.world.addComponent(e, ComponentType.EntityTag, 'shootingStar')
@@ -259,19 +247,52 @@ export const findShowerTargets = (state: GameState, count: number): Position[] =
   return targets
 }
 
+// Cardinal-shower scheduler. Showers fire when state.seasonalPhase crosses
+// one of the four cardinal anchors (spring 0.0, summer 0.25, autumn 0.5,
+// winter 0.75). Spring fires at exactly 0.0 with no jitter so the first
+// spring shower of the run can deterministically serve as the player-spawn
+// ceremony; the other anchors carry ±METEOR_SHOWER_JITTER_PHASE.
+
+const rollAnchorPhase = (anchorIndex: number): number => {
+  const anchor = METEOR_SHOWER_ANCHORS[anchorIndex]
+  if (anchorIndex === 0) return 0.0 // spring fires exactly at 0.0
+  const jitter = (Math.random() * 2 - 1) * METEOR_SHOWER_JITTER_PHASE
+  return anchor + jitter
+}
+
+// Did seasonalPhase cross pendingAnchorPhase since the last tick? Crossing
+// detection is done against the anchor's known position rather than tracking
+// previous-phase explicitly: an anchor is considered crossed when the current
+// phase is in the closed-open window [anchor, anchor + 0.5). With four
+// anchors evenly spaced 0.25 apart, the 0.5 lookahead is wider than any
+// single inter-anchor distance and still bounded so we don't accidentally
+// "cross" the next-next anchor.
+const phaseCrossed = (currentPhase: number, anchorPhase: number): boolean => {
+  // Year wrap: pending = 0.0 (spring of new year). Any phase < 0.5 counts as
+  // having crossed it (we just rolled past 1.0 → 0.0).
+  if (anchorPhase === 0.0) return currentPhase < 0.5
+  // Non-wrap case: phase must be within [anchorPhase, anchorPhase + 0.25).
+  // The window must NOT extend past the next anchor (avoids skipping ahead).
+  return currentPhase >= anchorPhase && currentPhase < anchorPhase + 0.25
+}
+
+// Advance pendingAnchorPhase to the next anchor after the one just fired.
+// After winter (index 3), wrap to spring (index 0) and bump the year counter.
+const advanceToNextAnchor = (state: GameState): void => {
+  const shower = state.meteorShower
+  const nextIndex = (shower.lastFiredAnchorIndex + 1) % METEOR_SHOWER_ANCHORS.length
+  if (nextIndex === 0) shower.lastFiredAnchorYear++
+  shower.pendingAnchorPhase = rollAnchorPhase(nextIndex)
+}
+
 export const tickMeteorShower = (state: GameState, time: number): void => {
   if (state.deepTime?.active) return
   const shower = state.meteorShower
 
-  // The first shower is initiated by triggerPlayerSpawnShower (player-spawn ceremony).
-  // While nextShowerTime is 0 we have not yet had a spawn ceremony — stay idle.
-  if (!shower.active && shower.nextShowerTime === 0) return
-
-  // Idle: waiting for next shower
-  if (!shower.active && time < shower.nextShowerTime) return
-
-  // Start shower
+  // Idle: only start when seasonalPhase has crossed the pending anchor.
   if (!shower.active) {
+    if (!phaseCrossed(state.seasonalPhase, shower.pendingAnchorPhase)) return
+
     const count =
       METEOR_SHOWER_STAR_COUNT_MIN +
       Math.floor(Math.random() * (METEOR_SHOWER_STAR_COUNT_MAX - METEOR_SHOWER_STAR_COUNT_MIN + 1))
@@ -279,11 +300,45 @@ export const tickMeteorShower = (state: GameState, time: number): void => {
     shower.remainingStars = count
     shower.spawnIntervalMs = METEOR_SHOWER_SPAWN_WINDOW_MS / count
     shower.lastSpawnTime = 0
+
+    // Mark which anchor is firing so advanceToNextAnchor knows where to go next.
+    // Derive from the pending phase: spring is the only anchor whose pending
+    // phase is exactly 0.0; for the others we round to the nearest anchor.
+    if (shower.pendingAnchorPhase === 0.0) {
+      shower.lastFiredAnchorIndex = 0
+    } else {
+      let nearest = 0
+      let minDist = Infinity
+      for (let i = 0; i < METEOR_SHOWER_ANCHORS.length; i++) {
+        const d = Math.abs(METEOR_SHOWER_ANCHORS[i] - shower.pendingAnchorPhase)
+        if (d < minDist) {
+          minDist = d
+          nearest = i
+        }
+      }
+      shower.lastFiredAnchorIndex = nearest
+    }
+
+    // Spring-equinox spawn ceremony — only the first spring of the run.
+    if (shower.lastFiredAnchorIndex === 0 && state.playerSpawn.triggeredAt === 0) {
+      const backtrack = Math.max(1, Math.round(PLAYER_SPAWN_DESCENT_TARGET_MS / SHOOTING_STAR_TICK_MS))
+      const eid = spawnShootingStarAtTarget(state, state.player, {
+        forPlayerSpawn: true,
+        backtrackTiles: backtrack,
+      })
+      state.playerSpawn.spawnPos = { x: state.player.x, y: state.player.y }
+      state.playerSpawn.meteorEntityId = eid
+      state.playerSpawn.triggeredAt = time
+      state.playerSpawn.visible = false
+      shower.remainingStars--
+      shower.lastSpawnTime = time
+    }
+
     recordDiscovery(state, 'event:meteor-shower')
     return
   }
 
-  // Active: stagger star spawns
+  // Active: stagger star spawns across the 4-second window.
   if (shower.remainingStars > 0) {
     if (shower.lastSpawnTime === 0 || time - shower.lastSpawnTime >= shower.spawnIntervalMs) {
       const targets = findShowerTargets(state, 1)
@@ -295,45 +350,9 @@ export const tickMeteorShower = (state: GameState, time: number): void => {
     }
   }
 
-  // Complete: schedule next shower
+  // Complete: queue the next cardinal anchor.
   if (shower.remainingStars <= 0) {
     shower.active = false
-    shower.nextShowerTime =
-      time +
-      METEOR_SHOWER_MIN_INTERVAL_MS +
-      Math.random() * (METEOR_SHOWER_MAX_INTERVAL_MS - METEOR_SHOWER_MIN_INTERVAL_MS)
+    advanceToNextAnchor(state)
   }
-}
-
-// Initiates a meteor shower whose first star is aimed at the spawning player.
-// Generic over any player position so multiplayer joins can call this with
-// each new player's spawn tile.
-export const triggerPlayerSpawnShower = (state: GameState, spawnPos: Position, time: number): void => {
-  if (state.deepTime?.active) return
-  const shower = state.meteorShower
-
-  // If a shower is not already active, start one. If one is active, leave it alone
-  // and just append the player-spawn star (multiplayer concurrent-join case).
-  if (!shower.active) {
-    const count =
-      METEOR_SHOWER_STAR_COUNT_MIN +
-      Math.floor(Math.random() * (METEOR_SHOWER_STAR_COUNT_MAX - METEOR_SHOWER_STAR_COUNT_MIN + 1))
-    shower.active = true
-    shower.remainingStars = count
-    shower.spawnIntervalMs = METEOR_SHOWER_SPAWN_WINDOW_MS / count
-    shower.lastSpawnTime = time
-    recordDiscovery(state, 'event:meteor-shower')
-  }
-
-  const backtrack = Math.max(1, Math.round(PLAYER_SPAWN_DESCENT_TARGET_MS / SHOOTING_STAR_TICK_MS))
-
-  const eid = spawnShootingStarAtTarget(state, spawnPos, {
-    forPlayerSpawn: true,
-    backtrackTiles: backtrack,
-  })
-
-  state.playerSpawn.spawnPos = spawnPos
-  state.playerSpawn.meteorEntityId = eid
-  state.playerSpawn.triggeredAt = time
-  state.playerSpawn.visible = false
 }

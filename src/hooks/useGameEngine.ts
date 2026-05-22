@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { triggerPlayerSpawnShower } from '@/engine/celestial'
+import { tickMeteorShower } from '@/engine/celestial'
 import { completeGenesis } from '@/engine/genesis'
 import { createGameState } from '@/engine/state'
 import { collapseFacingToCardinal } from '@/engine/types'
@@ -77,6 +77,9 @@ export const useGameEngine = (
     // engine layer doesn't import celestial.ts (which would form a cycle
     // through manual.ts). Fires synchronously inside completeGenesis so the
     // first gameplay render already sees playerSpawn.visible === false.
+    // The cardinal scheduler in tickMeteorShower fires the spring-equinox
+    // shower (and its steward star) on its first call because
+    // state.seasonalPhase starts at 0.0 and pendingAnchorPhase is 0.0.
     //
     // The skipGenesis dev path bypasses the shower entirely. With the
     // shower, the camera follows the descending steward star (panned up
@@ -85,7 +88,7 @@ export const useGameEngine = (
     gameState.onGenesisComplete = (handoffTime: number) => {
       if (!gameState) return
       if (skipGenesis) return
-      triggerPlayerSpawnShower(gameState, gameState.player, handoffTime)
+      tickMeteorShower(gameState, handoffTime)
     }
     initializedRef.current = true
   }

@@ -867,10 +867,19 @@ export interface ReveryState {
 
 export interface MeteorShowerState {
   active: boolean
-  nextShowerTime: number
   remainingStars: number
   lastSpawnTime: number
   spawnIntervalMs: number
+  // Next anchor (in seasonalPhase coordinates, [0, 1)) where a shower will fire.
+  // Spring is always exactly 0.0; summer/autumn/winter carry jittered values
+  // (anchor ± METEOR_SHOWER_JITTER_PHASE) rolled once per year per anchor.
+  pendingAnchorPhase: number
+  // Index into METEOR_SHOWER_ANCHORS for the last anchor fired this year, or
+  // -1 if none have fired in the current year. Used to derive the next anchor.
+  lastFiredAnchorIndex: number
+  // Count of complete seasonal years since game start. Increments when the
+  // scheduler rolls over from winter (anchor index 3) back to spring.
+  lastFiredAnchorYear: number
 }
 
 export interface PlayerSpawn {
