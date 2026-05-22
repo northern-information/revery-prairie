@@ -465,14 +465,18 @@ describe('genesis-enhancements', () => {
   })
 
   describe('varied glacier edges', () => {
-    it('generates smooth noise for glacier edges', () => {
+    it('generates smooth noise for glacier edges keyed by the v = x − y axis', () => {
       const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, 42)
       // Run through ice age
       for (let i = 0; i <= 9; i++) {
         GENESIS_EPOCHS[i].mutate(sim)
       }
-      expect(sim.glacialEdgeNoise.top.length).toBe(MAP_WIDTH)
-      expect(sim.glacialEdgeNoise.bottom.length).toBe(MAP_WIDTH)
+      // Under the rotated cardinal frame (precis-thinktank-v5 round 1) the
+      // glacier front advances along u = x + y, so the perpendicular noise
+      // axis is v = x - y. Lookups index by (x - y + sim.height - 1),
+      // spanning [0, sim.width + sim.height - 2].
+      expect(sim.glacialEdgeNoise.top.length).toBe(MAP_WIDTH + MAP_HEIGHT - 1)
+      expect(sim.glacialEdgeNoise.bottom.length).toBe(MAP_WIDTH + MAP_HEIGHT - 1)
     })
 
     it('produces varied glacier edges with amplitude > 2', () => {

@@ -305,7 +305,10 @@ describe('cursor tile info', () => {
       clearAroundPlayer(state, 3)
       state.currentZone = Zone.Overworld
       state.weather.sky = Sky.Rain
-      state.weather.windDirection = WindDirection.E
+      // SW maps to { axis: 'x', sign: 1 } in the rotated cardinal frame
+      // (precis-thinktank-v5 round 1). Swapped from the old WindDirection.E
+      // to preserve the test's "front aligned with player.x + 1" intent.
+      state.weather.windDirection = WindDirection.SW
       state.rainFrontOffset = state.player.x + 1
 
       const effects = getTileEffects(state, state.player.x + 1, state.player.y)

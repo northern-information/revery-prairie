@@ -2,7 +2,8 @@ import { RAIN_FRONT_WIDTH } from './constants'
 import { ComponentType } from './ecs/types'
 import { getFloraMovement } from './flora/actions/movement'
 import { posKey } from './position'
-import { Sky, WindDirection, Zone } from './types'
+import { rainFrontCoord, windToFrontAxis } from './tileWater'
+import { Sky, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { GameState } from './types'
@@ -42,21 +43,14 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
     }
   }
 
-  // Weather rain front (overworld only)
+  // Weather rain front (overworld only). Delegates to the rotated-frame
+  // helpers in tileWater.ts (precis-thinktank-v5 round 1) so the rain-aura
+  // boundary is sourced from the same math as isInRainFront.
   if (state.weather.sky === Sky.Rain && zone === Zone.Overworld) {
-    const windDir = state.weather.windDirection
-    const frontAxis = windDir === WindDirection.N || windDir === WindDirection.S ? 'y' : 'x'
-    const frontSign =
-      windDir === WindDirection.N ||
-      windDir === WindDirection.W ||
-      windDir === WindDirection.NW ||
-      windDir === WindDirection.SW
-        ? -1
-        : 1
-    const frontMapSize = frontAxis === 'x' ? state.overworldMapWidth : state.overworldMapHeight
-    const frontPos = (((state.rainFrontOffset * frontSign) % frontMapSize) + frontMapSize) % frontMapSize
-    const coord = frontAxis === 'x' ? x : y
-    const dist = ((coord - frontPos) * frontSign + frontMapSize) % frontMapSize
+    const { axis, sign } = windToFrontAxis(state.weather.windDirection)
+    const { coord, mapSize } = rainFrontCoord(axis, x, y, state.overworldMapWidth, state.overworldMapHeight)
+    const frontPos = (state.rainFrontOffset * sign + mapSize) % mapSize
+    const dist = ((coord - frontPos) * sign + mapSize) % mapSize
     if (dist < RAIN_FRONT_WIDTH) {
       seen.add('rain')
     }

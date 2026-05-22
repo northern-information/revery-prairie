@@ -780,7 +780,7 @@ features:
       bottom points. Audit pass: any in-game text or label that
       references a cardinal reads naturally under the new semantics.
     depends_on: []
-    status: todo
+    status: in-progress
     spec: harness/specs/precis-30-the-diamond-is-the-world.yaml
     plan: harness/plans/precis-30-the-diamond-is-the-world.yaml
     pr: null

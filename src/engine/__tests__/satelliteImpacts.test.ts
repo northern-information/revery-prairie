@@ -31,6 +31,12 @@ const clearArea = (state: GameState, cx: number, cy: number, radius: number) => 
       const y = cy + dy
       if (x >= 0 && x < state.mapWidth && y >= 0 && y < state.mapHeight) {
         state.map[y][x] = { type: TileType.Dirt }
+        // Also clear any pond/river the genesis terrain seeded here. The
+        // rotated cardinal frame (precis-30) reshapes lowland water placement
+        // on small test maps; clear explicitly so the tests stay deterministic.
+        const k = posKey(x, y)
+        state.ponds.delete(k)
+        state.rivers.delete(k)
       }
     }
   }
