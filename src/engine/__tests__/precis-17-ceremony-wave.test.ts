@@ -5,8 +5,9 @@
 //     the player; spawns a bee; places a single seed clover
 //   - tickFloraWaves advances currentRadius across CEREMONY_WAVE_TICK_MS
 //     boundaries; respects map bounds; skips water + walls + sand
-//   - waves remove themselves from state.activeWaves once they pass
-//     maxRadius with zero new tiles painted (no memory leak)
+//   - waves are hard-bounded by maxRadius and remove themselves on the
+//     tick currentRadius exceeds it; no paint past maxRadius even via
+//     the jitter pull-in band (no memory leak, no escape on open dirt)
 //   - painted children inherit parentPrefix from wave.seedIdentity
 
 import { CEREMONY_WAVE_RADIUS, CEREMONY_WAVE_TICK_MS } from '../constants'
@@ -166,26 +167,59 @@ describe('tickFloraWaves advancement', () => {
 })
 
 describe('tickFloraWaves completion (no memory leak)', () => {
-  it('removes the wave from state.activeWaves after it expands past maxRadius with zero new paints', () => {
+  it('removes the wave from state.activeWaves on the tick currentRadius exceeds maxRadius', () => {
     const state = createTestState()
     clearAroundPlayer(state, 20)
     prairieRecipe.execute(state)
 
     vi.spyOn(Math, 'random').mockReturnValue(0.5)
 
-    // Run enough ticks for the wave to outrun the cleared region —
-    // beyond clearAroundPlayer(20) the surrounding terrain is whatever
-    // genesis produced, mostly not Dirt, so painted hits zero quickly.
-    // We use 100 ticks as a generous upper bound. The survivor rule
-    // requires (currentRadius > maxRadius) AND (painted === 0) in the
-    // same tick — both conditions hold once the annulus has scanned
-    // outside the cleared area.
-    for (let i = 0; i < 100; i++) {
+    // Hard cap: termination is gated on currentRadius alone, so the
+    // wave must drop within (CEREMONY_WAVE_RADIUS + 1) ticks. A small
+    // headroom factor keeps the test resilient to any off-by-one.
+    for (let i = 0; i < CEREMONY_WAVE_RADIUS + 3; i++) {
       tickFloraWaves(state, (i + 1) * (CEREMONY_WAVE_TICK_MS + 1))
       if (state.activeWaves.length === 0) break
     }
 
     expect(state.activeWaves).toHaveLength(0)
+  })
+
+  it('never paints a tile past CEREMONY_WAVE_RADIUS on a fully open dirt expanse', () => {
+    // Hard-cap regression: previously the soft `|| painted > 0` grace
+    // let the wave keep advancing past maxRadius as long as paintable
+    // dirt remained. On a 147^2 map with no obstructions that meant
+    // "everything." This test asserts no Flora child painted by the
+    // wave lies beyond CEREMONY_WAVE_RADIUS from the cast origin.
+    const state = createTestState()
+    // Clear well past the wave's reach so paintable dirt always exists
+    // outside the cap — the only thing stopping the wave should be the
+    // cap itself.
+    clearAroundPlayer(state, CEREMONY_WAVE_RADIUS * 2 + 5)
+    prairieRecipe.execute(state)
+    const wave = state.activeWaves[0]
+    const expectedPrefix = wave.seedIdentity.slice(0, 8)
+    const cx = wave.cx
+    const cy = wave.cy
+
+    vi.spyOn(Math, 'random').mockReturnValue(0.5)
+
+    for (let i = 0; i < CEREMONY_WAVE_RADIUS + 3; i++) {
+      tickFloraWaves(state, (i + 1) * (CEREMONY_WAVE_TICK_MS + 1))
+      if (state.activeWaves.length === 0) break
+    }
+
+    expect(state.activeWaves).toHaveLength(0)
+
+    for (const [key, entry] of state.floraLifecycle) {
+      if (entry.parentPrefix !== expectedPrefix) continue
+      if (key === posKey(cx, cy)) continue
+      const [xs, ys] = key.split(',')
+      const x = Number(xs)
+      const y = Number(ys)
+      const d = Math.max(Math.abs(x - cx), Math.abs(y - cy))
+      expect(d).toBeLessThanOrEqual(CEREMONY_WAVE_RADIUS)
+    }
   })
 
   it('does not accumulate multiple waves after running ten ceremonies to completion', () => {
