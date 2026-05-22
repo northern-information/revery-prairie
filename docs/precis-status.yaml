@@ -68,7 +68,24 @@ features:
     spec: harness/specs/precis-4-the-revery.yaml
     plan: harness/plans/precis-4-the-revery.yaml
     pr: https://github.com/northern-information/revery-prairie/pull/341
-    notes: 'Scope locked 2026-05-19: hard input lock, "pass through the winter" duration via year accelerator (mirrors deepTime.ts), bilingual ASCII + Voynich summary, one hedged phenotype label per Revery on most-discovered species (axis cycles by reveryCount), first-Revery 3 → 6 egregoric bump per v3 8a doctrine. Three omen variants: bee on shoulder, distant meteorite, cloud passing the sun. cosmologicalDrift field lands here (0 baseline, no incrementers in this PR). Ongoing per-Revery egregore spread defers to precis-8b.'
+    notes: >
+      Scope locked 2026-05-19: hard input lock, "pass through the winter"
+      duration via year accelerator (mirrors deepTime.ts), bilingual ASCII +
+      Voynich summary, one hedged phenotype label per Revery on
+      most-discovered species (axis cycles by reveryCount), first-Revery 3 →
+      6 egregoric bump per v3 8a doctrine. Three omen variants: bee on
+      shoulder, distant meteorite, cloud passing the sun. cosmologicalDrift
+      field lands here (0 baseline, no incrementers in this PR). Ongoing
+      per-Revery egregore spread defers to precis-8b.
+
+
+      v6 thinktank rounds 1, 4, 5 (2026-05-22). The omen-direct-trigger model
+      is replaced by `#32`'s pressure-contribution model. `detectOmen` keeps
+      returning `OmenKind | null` but the return is consumed by the pressure
+      accumulator, not by `initiateRevery` directly. The summons sequence in
+      `#32` (omen at full volume + Gron teleport + dialog + collapse-in-place)
+      replaces the simple omen-direct path at the solstice deadline. The
+      Revery's enter-from-current-tile behavior is preserved unchanged.
 
   - id: '5'
     name: Ruin → first non-clover species
@@ -314,6 +331,19 @@ features:
       derives from existing state, free). Forecloses adversarial
       multiplayer permanently.
 
+
+      v6 thinktank rounds 3, 4, 5 (2026-05-22). The tenure now has symmetric
+      bookends — the steward begins inside the little house (per `#34`) and
+      ends there (this item). _The steward begins where the steward will
+      end._ The girl is the witness at both bookends. The Kojima-shaped
+      input hijack rejected for the annual summons in Round 4 is reserved
+      here: the final tenure-end Revery is the natural home for the
+      body-betrayal gesture (WASD overridden, sleepwalking-home, screen
+      darkening). Spec author considers whether the route is to the little
+      house (lean) or to a different terminal tile. Predecessor cameras
+      (`#23`, `#24`) may carry the final Revery as documentation if any are
+      placed.
+
   - id: '18'
     name: Meteorites as cosmological punctuation (stone circles, hallowed ground)
     summary: >
@@ -415,6 +445,17 @@ features:
       single counter. Flagged for a future round: coyote.ts:296-317
       dumps overflow items near Gron; mechanistically convenient,
       cosmologically suspicious.
+
+
+      v6 thinktank round 5 (2026-05-22). Gron gains a fifth dialog constant
+      `GRON_DIALOG_SOLSTICE_SUMMONS` for the field-Revery summons mechanic
+      from `#32`. Register matches the round 5 locks: statements not
+      questions, no contractions, no editorial affect, no opinion of the
+      player, music precedes arrival. The girl (per `#33`) and Gron are now
+      an explicit cosmological pair — _the unchanged thing that waits_ (the
+      girl in the little house) and _the unchanged thing that travels_ (Gron
+      arriving at the field summons). Dialog content marked
+      `MANUAL_LORE`-style TODO until human-authored.
 
   - id: '22'
     name: Named regions + chronicle events (the world speaks of itself)
@@ -669,6 +710,17 @@ features:
       source doctrine; the visual register is calm-tech, not
       power-armor HUD.
 
+
+      v6 thinktank round 3 (2026-05-22). Doctrinal reframe: the genesis
+      sequence is now interpretable as the dormancy the steward is just
+      waking from. The permacomputer back-derives the world during the
+      sleep; the steward wakes into what it produced. The reframe lives in
+      doctrine plus a comment in `genesis.ts`; no in-game text change
+      required, no spec rework. The handoff target at end of genesis moves
+      from the open prairie to the interior of the little house (per `#34`);
+      the player's first surface is the girl across the room. _The genesis
+      screen is the dormancy the steward just slept through._
+
   - id: '28'
     name: Permacomputer ambient instruments (bottom-bar center)
     summary: >
@@ -864,3 +916,185 @@ features:
       glyph-swap worktree should assert the phoneme-sampling
       invariant in a test alongside the swap, but that work
       belongs to the worktree, not to #31.
+
+  - id: '32'
+    name: Revery dormancy pressure (forcing function)
+    summary: >
+      Replace the omen-as-direct-trigger model with a
+      `state.player.dormancyPressure` accumulator that climbs across
+      autumn. The three existing omen variants (bee on shoulder,
+      distant meteorite, cloud passing the sun) contribute bounded
+      scalar pressure rather than directly triggering the Revery.
+      Pressure reaches ceiling at the winter solstice frame regardless
+      of inputs. Crossing a threshold schedules the Revery via
+      `initiateRevery`. The summons mechanic is collapse-in-place: the
+      Revery enters from the steward's current tile, accompanied by
+      the highest-contributing omen variant playing at full intensity,
+      followed by Gron teleporting to an adjacent walkable tile to
+      speak one line per `#21` round 5 doctrine. Reuses Gron's
+      existing teleport (`src/engine/interaction.ts:204`,
+      `src/engine/coyote.ts:296-317`) and dialog substrate.
+    depends_on: ['4']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v6 thinktank round 1 (2026-05-22). The current omen lives in
+      `src/engine/omen.ts:28-62` with 5 gates and 3 OR'd predicates;
+      the fragility is structural — three rare predicates over a
+      single autumn can roll zero hits. Round 1 named the fix:
+      pressure accumulator + threshold, with the omens as inputs.
+      _The steward does not enter the Revery; the Revery enters the
+      steward._
+
+
+      v6 thinktank round 4 (2026-05-22) amendments: deadline ceilings
+      at the winter solstice, not the first winter frame, matching
+      Tyler's Round 2 line "before the solstice, to revery." Summons
+      is collapse-in-place with the highest-contributing omen variant
+      at full volume. Reuses `seasonalPhase` machinery from the
+      spring-equinox re-anchoring (PR #351). The Kojima-shaped input
+      hijack is rejected for the annual summons but reserved for the
+      final tenure-end Revery (`#16`). _The prairie sleeps the steward
+      where the steward stands._
+
+
+      v6 thinktank round 5 (2026-05-22) amendments: the summons
+      sequence is omen at full intensity → cloud audio cue (per `#21`
+      round 5 doctrine, "music precedes arrival") → Gron teleports to
+      an adjacent walkable tile → Gron's solstice-summons dialog →
+      `initiateRevery` from the steward's tile. The steward's
+      collapsed tile uses the dormant-flora visual register from `#2`.
+      Engine reuse is near-total; one new dialog constant on Gron's
+      character data (`GRON_DIALOG_SOLSTICE_SUMMONS`).
+
+
+      Open at spec: pressure curve shape (linear vs accelerating
+      across autumn), per-omen contribution weighting, tie-breaking
+      when multiple variants contribute equally, visual and audio
+      treatment of the full-volume summons frame, exact glyph for the
+      collapsed-steward tile, Gron's arrival-tile selection logic,
+      whether Gron remains adjacent for the Revery duration (lean
+      yes), whether the field collapse leaves a persistent mark for
+      predecessor cameras (`#23`, `#24`), and whether the existing
+      `REVERY_COOLDOWN_MS` gate is replaced by the pressure-reset
+      semantics or kept as a redundant guard.
+
+  - id: '33'
+    name: The little house and the girl who waits
+    summary: >
+      The Revery's opt-in surface is a tile-bound location: the little
+      house, open all year, with a girl who invites the steward to
+      Revery with her. Her dialog register matches `#21` round 5 Gron
+      doctrine — statements, no contractions, no editorial affect, no
+      opinion of the steward, dispatched by season. Tyler's canonical
+      late-autumn refrain locks: _you will be back before the
+      solstice, to revery._ Confirming the invitation commits dormancy
+      pressure (`#32`) to threshold; the Revery enters on the next
+      frame. The girl Reveries alongside the steward (default reading)
+      — she goes dormant in a chair across the room while the steward
+      sleeps in the offered bed. No origin and no name for the girl in
+      the spec; the house is its own explanation.
+    depends_on: ['32']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v6 thinktank round 2 (2026-05-22). Resolves Round 1's open
+      question on opt-in object identity. An item would have been
+      transactional; a place with a person is a visit. _She waits._
+      The little house is the only place in the prairie that does not
+      change — the cosmology's one always-open surface. Her prescience
+      is procedural, not supernatural: she knows the steward will
+      return before the solstice because `#32`'s pressure system will
+      force it, and she is the surface the pressure speaks through.
+      _The house is the almanac with a voice._
+
+
+      Engine substrate: the house is a tile or small structure
+      footprint, sibling to the cave's `zoneTransition.ts` system. The
+      girl is a character entity in `src/engine/characters.ts` with
+      seasonal dialog constants matching Moab's existing pattern at
+      `src/engine/characters.ts:98-110`. Interaction is the standard
+      `[f]` key with a confirm option; confirm sets dormancy pressure
+      to threshold and the Revery enters next frame.
+
+
+      v6 thinktank round 5 (2026-05-22) reference: the girl and Gron
+      are now an explicit cosmological pair — _the unchanged thing
+      that waits_ and _the unchanged thing that travels_. The girl's
+      dialog dispatcher may acknowledge this in time but no new lines
+      required for shipping.
+
+
+      Open at spec: the girl's name (lean: nameless until earned), the
+      house's location in the world (lean: findable but not central),
+      visual glyph for the house and the girl, interior as small zone
+      vs overlay over an overworld footprint, whether the steward can
+      enter and decline (lean: yes — walking out without confirm is a
+      quiet visit), whether the girl acknowledges predecessor stewards
+      in any dialog branch (lean: oblique acknowledgment under
+      late-tenure conditions, per `#16`), whether late-tenure handoff
+      changes her dialog at all (lean: same line, the fact is the
+      payload), the following-autumn dialog branch for a steward who
+      Reveried alone in the field via `#32`'s summons. All dialog
+      content is human-authored lore — the round names the register.
+
+  - id: '34'
+    name: The tenure opens in the little house
+    summary: >
+      Spawn the steward inside the little house at tenure start; the
+      girl is the first character met. The genesis sequence (`#27`)
+      handoff routes into the house interior rather than the open
+      prairie. The steward's first action is waking; their first
+      surface is the girl; their first dialog beat sets the game's
+      voice register before the prairie ever speaks. First emergence
+      onto the prairie is a normal walk through the door — no special
+      pan, no fade, no cinematic. The impact comes from the contrast
+      between the enclosed interior the player has been looking at and
+      the full prairie they walk into.
+    depends_on: ['27', '33']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v6 thinktank round 3 (2026-05-22). The cliché of
+      starting-on-awakening is doctrinally earned because the game's
+      whole grammar is sleep-and-wake at every scale. The opening is
+      the first beat of the grammar, not a borrowed trope. _The
+      steward begins where the steward will end, and the little house
+      is the hinge._
+
+
+      Cosmological reframe: the genesis sequence (`#27`) is now
+      interpretable as the dormancy the steward is just waking from.
+      The permacomputer back-derives the world during the sleep; the
+      steward wakes into what it produced. The girl was awake the
+      whole time — she is the unchanged surface. The reframe lives in
+      doctrine plus a comment in `genesis.ts`; no in-game text change.
+
+
+      Engine cost: small once `#33` ships. The genesis handoff in
+      `genesisRenderer.ts` currently ends with the player on the
+      prairie; the handoff target moves to a known interior tile
+      within the house. Camera frames the interior on spawn.
+
+
+      Touches `#16` (the tenure-end handoff also occurs in the little
+      house — symmetric bookends; `#16`'s spec should account for
+      this).
+
+
+      Open at spec: interior implementation (small zone vs overlay
+      over an overworld footprint), spawn-tile placement inside the
+      house, camera-on-spawn behavior, whether the house interior
+      carries any tutorial-shaped affordance (lean: no — dialog and
+      door are the whole onboarding), the girl's first-encounter
+      dialog line (flagged for human authoring), multiplayer spawn
+      semantics in a shared prairie (defers to `#16`'s lineage
+      framing), whether the genesis screen gets any in-game signal
+      that it is the previous Revery (lean: doctrine only, no new
+      pixels).
