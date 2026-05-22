@@ -1,0 +1,181 @@
+plan:
+  id: precis-28-permacomputer-instruments
+  title: Permacomputer ambient instruments (bottom-bar center)
+  created: 2026-05-22
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/components/__tests__/AmbientInstruments.test.tsx
+
+tasks:
+  # --- Tier 0: Doctrine + dashboard status ---
+  # Flip precis-status.yaml feature 28 to in-progress so the dashboard
+  # reflects work in flight. Spec/plan links land alongside.
+
+  - id: doctrine-update
+    title: Flip precis-status.yaml feature 28 to in-progress with spec/plan links populated
+    spec_id: precis-28-permacomputer-instruments
+    spec_sections:
+      - ambient-instruments-mounted-between-minimap-and-iteminfo
+    context_files:
+      - docs/precis-status.yaml
+    output_files:
+      - docs/precis-status.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Font CSS plumbing ---
+  # @font-face declaration plus the 40 consumed icon classes added to
+  # src/styles/index.css. Self-hosted from public/fonts/. The fonts
+  # themselves are already in place (woff2 + woff + ttf in
+  # public/fonts/weathericons-regular-webfont.*). This task is pure CSS;
+  # no TypeScript yet.
+
+  - id: weather-icons-font-css
+    title: Add @font-face and the 40 wi-* icon classes to src/styles/index.css (8 directions + 4 sky + 28 moon)
+    spec_id: precis-28-permacomputer-instruments
+    spec_sections:
+      - weather-icons-font-self-hosted
+    context_files:
+      - src/styles/index.css
+      - public/fonts/weathericons-regular-webfont.woff2
+      - public/fonts/weathericons-regular-webfont.woff
+      - public/fonts/weathericons-regular-webfont.ttf
+    output_files:
+      - src/styles/index.css
+    depends_on:
+      - doctrine-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - styles
+
+  # --- Tier 2: Pure derivation functions ---
+  # Replace the placeholder AmbientInstruments with the real
+  # implementation. All five readouts (vane, wind-speed label, sky,
+  # season, moon, almanac) compose in a single component.
+  # Pure-derivation helpers (windSpeedLabel, moonPhase, moonGlyphClass,
+  # moonIlluminationPercent, almanacReadout) live as named exports
+  # adjacent to the component so the test file can target them
+  # directly. The component returns a React element tree only — no
+  # hooks beyond render.
+
+  - id: ambient-instruments-component
+    title: Implement AmbientInstruments.tsx with five readouts and pure-derivation helpers
+    spec_id: precis-28-permacomputer-instruments
+    spec_sections:
+      - weathervane-renders-rotated-cardinal-icon-and-letter
+      - wind-speed-label-five-fifths-of-max
+      - sky-icon-renders-current-sky
+      - season-label-title-case
+      - moon-phase-derived-from-seasonal-phase
+      - moon-illumination-percentage
+      - almanac-percentage-and-next-bookmark
+      - pure-render-no-state-writes
+    context_files:
+      - src/components/AmbientInstruments.tsx
+      - src/engine/types.ts
+      - src/engine/weather/wind.ts
+      - src/styles/index.css
+    output_files:
+      - src/components/AmbientInstruments.tsx
+    depends_on:
+      - weather-icons-font-css
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  # --- Tier 3: GameScreen wiring ---
+  # Replace the empty `flex-1` spacer div at GameScreen.tsx:234 with
+  # <AmbientInstruments state={state} />. Single-line swap inside the
+  # bottom-bar overlay. Minimap stays left, ItemInfo stays right;
+  # AmbientInstruments takes the middle slot. Genesis branch is not
+  # touched — GenesisBottomBar continues to render unchanged.
+
+  - id: gamescreen-mount
+    title: Replace the flex-1 spacer in GameScreen.tsx with the AmbientInstruments mount
+    spec_id: precis-28-permacomputer-instruments
+    spec_sections:
+      - ambient-instruments-mounted-between-minimap-and-iteminfo
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/components/AmbientInstruments.tsx
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on:
+      - ambient-instruments-component
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  # --- Tier 4: Tests ---
+  # Replace the it.todo placeholders with full coverage of every
+  # behavior and edge case in the spec. The five pure-derivation
+  # helpers (windSpeedLabel, moonPhase, moonGlyphClass,
+  # moonIlluminationPercent, almanacReadout) get direct table-driven
+  # assertions. The component-render tests use React Testing Library
+  # to confirm the wi-* classes, letter, season label, moon
+  # percentage, and almanac string render correctly for given state
+  # shapes.
+
+  - id: ambient-instruments-tests
+    title: Replace it.todo placeholders with full coverage of AmbientInstruments behaviors and edge cases
+    spec_id: precis-28-permacomputer-instruments
+    spec_sections:
+      - weathervane-renders-rotated-cardinal-icon-and-letter
+      - wind-speed-label-five-fifths-of-max
+      - sky-icon-renders-current-sky
+      - season-label-title-case
+      - moon-phase-derived-from-seasonal-phase
+      - moon-illumination-percentage
+      - almanac-percentage-and-next-bookmark
+      - pure-render-no-state-writes
+    context_files:
+      - src/components/__tests__/AmbientInstruments.test.tsx
+      - src/components/AmbientInstruments.tsx
+      - src/engine/types.ts
+      - src/engine/weather/wind.ts
+    output_files:
+      - src/components/__tests__/AmbientInstruments.test.tsx
+    depends_on:
+      - ambient-instruments-component
+    verification:
+      - npx vitest run src/components/__tests__/AmbientInstruments.test.tsx
+    repair: retry
+    tags:
+      - test
+
+  # --- Tier 5: Final sweep ---
+  # Single global verification pass: typecheck + lint + the spec's
+  # vitest command. Confirms the bottom-bar layout still composes
+  # (Minimap left, AmbientInstruments middle, ItemInfo right,
+  # InventoryPanel far right), that strictTypeChecked eslint passes
+  # on the new component, and that every behavior/edge case has a
+  # green test.
+
+  - id: final-sweep
+    title: Run typecheck + lint + AmbientInstruments vitest as the global verification gate
+    spec_id: precis-28-permacomputer-instruments
+    spec_sections:
+      - ambient-instruments-mounted-between-minimap-and-iteminfo
+      - pure-render-no-state-writes
+    context_files: []
+    output_files: []
+    depends_on:
+      - gamescreen-mount
+      - ambient-instruments-tests
+    verification:
+      - npm run typecheck
+      - npm run lint
+      - npx vitest run src/components/__tests__/AmbientInstruments.test.tsx
+    repair: retry
+    tags:
+      - verification
