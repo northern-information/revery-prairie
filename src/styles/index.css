@@ -11,6 +11,74 @@
   font-display: block;
 }
 
+/* Weather Icons (precis #28) — calm-tech glyph set for the permacomputer's
+   ambient instruments: weathervane (8 wi-direction-* arrows for the
+   rotated cardinal frame from precis-30), sky (4 classes), and moon
+   phase (28 classes covering the full lunar cycle). 40 consumed
+   classes total, declared inline below; the rest of the Weather Icons
+   set (~180 unused) is omitted. Self-hosted from public/fonts/
+   mirroring the Voynich pattern. Licensed SIL OFL 1.1. */
+@font-face {
+  font-family: 'weathericons';
+  src:
+    url('/fonts/weathericons-regular-webfont.woff2') format('woff2'),
+    url('/fonts/weathericons-regular-webfont.woff') format('woff'),
+    url('/fonts/weathericons-regular-webfont.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+.wi {
+  display: inline-block;
+  font-family: 'weathericons';
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.wi-direction-up:before { content: '\f058'; }
+.wi-direction-up-right:before { content: '\f057'; }
+.wi-direction-right:before { content: '\f04d'; }
+.wi-direction-down-right:before { content: '\f088'; }
+.wi-direction-down:before { content: '\f044'; }
+.wi-direction-down-left:before { content: '\f043'; }
+.wi-direction-left:before { content: '\f048'; }
+.wi-direction-up-left:before { content: '\f087'; }
+.wi-day-sunny:before { content: '\f00d'; }
+.wi-cloudy:before { content: '\f013'; }
+.wi-rain:before { content: '\f019'; }
+.wi-snow:before { content: '\f01b'; }
+.wi-moon-new:before { content: '\f095'; }
+.wi-moon-waxing-crescent-1:before { content: '\f096'; }
+.wi-moon-waxing-crescent-2:before { content: '\f097'; }
+.wi-moon-waxing-crescent-3:before { content: '\f098'; }
+.wi-moon-waxing-crescent-4:before { content: '\f099'; }
+.wi-moon-waxing-crescent-5:before { content: '\f09a'; }
+.wi-moon-waxing-crescent-6:before { content: '\f09b'; }
+.wi-moon-first-quarter:before { content: '\f09c'; }
+.wi-moon-waxing-gibbous-1:before { content: '\f09d'; }
+.wi-moon-waxing-gibbous-2:before { content: '\f09e'; }
+.wi-moon-waxing-gibbous-3:before { content: '\f09f'; }
+.wi-moon-waxing-gibbous-4:before { content: '\f0a0'; }
+.wi-moon-waxing-gibbous-5:before { content: '\f0a1'; }
+.wi-moon-waxing-gibbous-6:before { content: '\f0a2'; }
+.wi-moon-full:before { content: '\f0a3'; }
+.wi-moon-waning-gibbous-1:before { content: '\f0a4'; }
+.wi-moon-waning-gibbous-2:before { content: '\f0a5'; }
+.wi-moon-waning-gibbous-3:before { content: '\f0a6'; }
+.wi-moon-waning-gibbous-4:before { content: '\f0a7'; }
+.wi-moon-waning-gibbous-5:before { content: '\f0a8'; }
+.wi-moon-waning-gibbous-6:before { content: '\f0a9'; }
+.wi-moon-third-quarter:before { content: '\f0aa'; }
+.wi-moon-waning-crescent-1:before { content: '\f0ab'; }
+.wi-moon-waning-crescent-2:before { content: '\f0ac'; }
+.wi-moon-waning-crescent-3:before { content: '\f0ad'; }
+.wi-moon-waning-crescent-4:before { content: '\f0ae'; }
+.wi-moon-waning-crescent-5:before { content: '\f0af'; }
+.wi-moon-waning-crescent-6:before { content: '\f0b0'; }
+
 @theme {
   --color-dirt: #8b7355;
   --color-clover: #50c878;
