@@ -228,8 +228,9 @@ describe('oak sequencing (hold-to-scan)', () => {
     }
     const result = commitScan(state, 1500)
     // Oak commits return { kind: 'oak', identity } so the game loop
-    // dispatches onOakScanComplete — the React layer opens the manual
-    // (oaks skip the flora-only gel-electrophoresis modal).
+    // dispatches onScanComplete — the React layer opens the ceremonial
+    // gel-electrophoresis modal (the same modal flora uses; every scan
+    // kind shares this ceremony).
     expect(result).not.toBeNull()
     expect(result?.kind).toBe('oak')
     expect(state.manualDiscoveries.has('entity:oak')).toBe(true)
