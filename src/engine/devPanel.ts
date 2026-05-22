@@ -103,6 +103,7 @@ export const COMPONENT_META: ComponentMeta[] = [
   { type: ComponentType.Pickupable, label: 'Pickupable', fields: [str('definitionId')] },
   { type: ComponentType.Blocking, label: 'Blocking', fields: [bool('blockMovement')] },
   { type: ComponentType.Aura, label: 'Aura', fields: [str('kind'), pos('radius')] },
+  { type: ComponentType.MusicEmitter, label: 'MusicEmitter', fields: [str('url'), pos('radius')] },
   {
     type: ComponentType.ShootingStarData,
     label: 'ShootingStarData',
@@ -186,6 +187,8 @@ const componentDefaults = (type: ComponentType, now: number, zone: Zone): Record
       return { blockMovement: true }
     case ComponentType.Aura:
       return { kind: 'rain', radius: 6 }
+    case ComponentType.MusicEmitter:
+      return { url: '/music/gron.mp3', radius: 6 }
     case ComponentType.ShootingStarData:
       return { length: 4, age: 0, willLand: false, landingTarget: null }
     case ComponentType.MultiPosition:

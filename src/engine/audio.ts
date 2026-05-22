@@ -35,6 +35,11 @@ const proximityTracks = new Map<string, Track>()
 // URLs with an in-flight createTrack() promise — prevents duplicate spawn
 // requests on consecutive ticks while the buffer is still loading.
 const proximityPending = new Set<string>()
+// URLs the most recent tick still wants in range. Used by the
+// createTrack().then() callback to decide whether to keep or drop the
+// resolved track — the closure-local targetByUrl is stale by the time
+// the promise resolves.
+const proximityWanted = new Set<string>()
 
 // --- helpers ---
 
@@ -258,6 +263,7 @@ export const stopAll = (): void => {
   for (const track of proximityTracks.values()) destroyTrack(track)
   proximityTracks.clear()
   proximityPending.clear()
+  proximityWanted.clear()
 }
 
 // --- proximity emitters ---
@@ -294,6 +300,11 @@ export const updateProximityMusic = (samples: ProximityEmitterSample[]): void =>
     if (gain > prev) targetByUrl.set(sample.url, gain)
   }
 
+  // Refresh the module-level "wanted" set so in-flight createTrack
+  // callbacks resolved later this tick see the latest desired state.
+  proximityWanted.clear()
+  for (const url of targetByUrl.keys()) proximityWanted.add(url)
+
   // Apply gains to existing tracks; spawn new tracks for URLs not yet
   // playing. When muted, store the intended gain by spawning the track at
   // 0 and let setMusicEnabled restore on toggle.
@@ -308,9 +319,9 @@ export const updateProximityMusic = (samples: ProximityEmitterSample[]): void =>
     void createTrack(url)
       .then(track => {
         proximityPending.delete(url)
-        // If the URL went out of range while loading, drop the track.
-        const stillWanted = targetByUrl.has(url) || proximityTracks.has(url)
-        if (!stillWanted) {
+        // If the URL went out of range during load, drop the track. The
+        // module-level proximityWanted reflects the most recent tick.
+        if (!proximityWanted.has(url)) {
           destroyTrack(track)
           return
         }

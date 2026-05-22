@@ -48,7 +48,7 @@ export default defineConfig({
           globals: true,
           ...COMMON,
           include: ['src/engine/**/*.test.ts', 'src/network/**/*.test.ts'],
-          exclude: ['src/engine/__tests__/audio.test.ts'],
+          exclude: ['src/engine/__tests__/audio.test.ts', 'src/engine/__tests__/proximityMusic.test.ts'],
         },
       },
       {
@@ -86,6 +86,7 @@ export default defineConfig({
             'src/hooks/**/*.test.{ts,tsx}',
             'src/harness/__tests__/boot/**/*.test.tsx',
             'src/engine/__tests__/audio.test.ts',
+            'src/engine/__tests__/proximityMusic.test.ts',
           ],
         },
       },
