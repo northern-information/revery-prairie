@@ -1,5 +1,5 @@
 id: shooting-stars
-name: 'Shooting stars and meteor showers'
+name: 'Shooting stars and cardinal meteor showers'
 priority: medium
 layer: engine
 source_files:
@@ -14,24 +14,28 @@ behaviors:
     description: >
       spawnShootingStar creates ambient shooting stars at 15% chance
       per 2000ms tick. max 5 concurrent stars. suppressed during active
-      meteor showers, during deep time (deepTime.active), and when the
-      overworld already contains METEORITE_GROUND_MAX (20) or more
-      meteorite entities on the ground (shooting stars simply do not
-      spawn while at cap — no fizzle, no FIFO removal). every ambient
-      star originates from the top edge of the map (y = 0) at a random
-      x in [0, MAP_WIDTH) and moves with a fixed velocity of
+      meteor showers and during deep time (deepTime.active). every
+      ambient star originates from the top edge of the map (y = 0) at a
+      random x in [0, MAP_WIDTH) and moves with a fixed velocity of
       { dx: 1, dy: 1 } — the iso "straight down the screen from due
       north" axis. no random edge selection, no cardinal-only block,
       no velocity variation. stars are ECS entities with Position,
       Velocity, ShootingStarData, EntityTag (shootingStar), EntityZone
-      (overworld). each star has random length (3-6 tiles) and 8%
-      chance to land.
+      (overworld). each star has random length (3-6 tiles). ambient
+      stars never land — willLand is always false. the
+      SHOOTING_STAR_LAND_CHANCE constant is removed; landing is now an
+      exclusive property of targeted (shower) stars. ambient stars
+      traverse the map and expire off-edge. the METEORITE_GROUND_MAX
+      cap no longer gates ambient spawning because ambient stars cannot
+      produce meteorites; the cap remains as a defensive ceiling that
+      gates only spawnShootingStarAtTarget when the cardinal scheduler
+      tries to spawn a non-steward shower star above the cap.
     inputs:
       - 'spawnShootingStar called on tick'
     outputs: []
     state_changes:
       - field: world
-        effect: 'shooting star ECS entity created with Position, Velocity, ShootingStarData, EntityTag, EntityZone'
+        effect: 'shooting star ECS entity created with Position, Velocity, ShootingStarData (willLand=false), EntityTag, EntityZone'
     determinism: probabilistic
 
   - id: star-tick-movement
@@ -39,32 +43,36 @@ behaviors:
       tickShootingStars moves each star by its velocity every 80ms
       tick. increments age. stars are removed when off-map (beyond
       length + 1 buffer) or age exceeds SHOOTING_STAR_MAX_AGE (300
-      ticks, ~24 seconds). landing stars convert to meteorite +
-      explosion ECS entities on first walkable tile (Dirt or Clover)
-      that is not a water tile (pond or river). on water tiles, only
-      the explosion entity is created (no meteorite). targeted stars
-      land unconditionally on their target tile (destroyed immediately
-      on arrival regardless of occupancy).
+      ticks, ~24 seconds). only targeted (willLand=true) stars land.
+      they convert to meteorite + explosion ECS entities on first
+      walkable tile (Dirt or Clover) that is not a water tile (pond or
+      river). on water tiles, only the explosion entity is created (no
+      meteorite). targeted stars land unconditionally on their target
+      tile (destroyed immediately on arrival regardless of occupancy).
+      ambient stars (willLand=false) never produce meteorites or
+      explosions — they only render and expire.
     inputs:
       - 'tickShootingStars called with time'
     outputs: []
     state_changes:
       - field: world
-        effect: 'star positions updated, expired stars destroyed, meteorite + explosion entities created on landing'
+        effect: 'star positions updated, expired stars destroyed, meteorite + explosion entities created on targeted-star landing only'
     determinism: time-based
 
   - id: targeted-star-spawning
     description: >
       spawnShootingStarAtTarget creates a star guaranteed to land on
       a specific position. always uses a velocity of { dx: 1, dy: 1 }
-      (the iso north axis) — callers no longer pass an explicit
-      direction. traces backward from target along that velocity to
-      find a starting position outside map bounds. sets willLand true
-      and landingTarget. used by meteor showers. an optional
+      (the iso north axis) — callers do not pass an explicit direction.
+      traces backward from target along that velocity to find a
+      starting position outside map bounds. sets willLand true and
+      landingTarget. used by cardinal meteor showers. an optional
       forPlayerSpawn flag marks the star as a player-emergence
       beacon — on landing it suppresses the meteorite ground-item drop
       and notifies the player-spawn system so the corresponding player
-      becomes visible on impact.
+      becomes visible on impact. only the spring-equinox shower at
+      game start carries a star with this flag (see
+      cardinal-shower-scheduling and the player-spawn spec).
     inputs:
       - 'GameState, target Position, optional forPlayerSpawn flag, optional backtrackTiles'
     outputs: []
@@ -73,56 +81,55 @@ behaviors:
         effect: 'targeted shooting star ECS entity created (with PlayerSpawnTarget tag when forPlayerSpawn is set)'
     determinism: deterministic
 
-  - id: meteor-shower-scheduling
+  - id: cardinal-shower-scheduling
     description: >
-      tickMeteorShower manages shower state machine. suppressed during
-      deep time (deepTime.active). the very first shower is NOT
-      scheduled by elapsed time — it is initiated by the player-spawn
-      system via triggerPlayerSpawnShower (see player-spawn spec).
-      once that first shower completes, subsequent showers schedule on
-      the existing random interval [120s, 240s]. when time arrives:
-      active=true, calculate remainingStars (8-12), spread over
-      4-second window. each interval tick spawns one targeted star
-      with the fixed { dx: 1, dy: 1 } iso-north velocity. when
-      remainingStars=0: active=false, schedule next shower. records
-      event:meteor-shower discovery on first shower regardless of
-      trigger source. there is no radiant — all stars in every shower
-      fall along the same axis.
+      tickMeteorShower manages the shower state machine. suppressed
+      during deep time (deepTime.active). showers are no longer
+      scheduled by elapsed wall-clock time — they fire when
+      state.seasonalPhase crosses each cardinal anchor of the seasonal
+      year (anchors: 0.0 spring equinox, 0.25 summer solstice, 0.5
+      autumn equinox, 0.75 winter solstice). every year fires exactly
+      four showers, one per anchor. no other showers exist between
+      anchors. no interval-based intermittent scheduling, no 120-240s
+      timer, no METEOR_SHOWER_MIN_INTERVAL_MS / METEOR_SHOWER_MAX_INTERVAL_MS.
+      jitter contract — the summer, autumn, and winter anchors each
+      fire at anchor + random(-METEOR_SHOWER_JITTER_PHASE, +METEOR_SHOWER_JITTER_PHASE),
+      with the jitter rolled once per year per anchor when the anchor
+      becomes the next pending one. spring is special: the spring
+      anchor always fires at exactly phase 0.0 with no jitter. this
+      reliability is required because the very first spring shower of
+      a run is the player-spawn ceremony (see player-spawn spec) and
+      must fire deterministically at game start. crossing detection —
+      the scheduler tracks meteorShower.pendingAnchorPhase
+      (next firing phase in [0, 1)) and meteorShower.lastFiredAnchorYear
+      (count of completed year-wraps since game start, derived from
+      seasonalPhase modulo-1 transitions). when seasonalPhase advances
+      past pendingAnchorPhase within the current year, the shower
+      starts. when a shower completes, the scheduler computes the next
+      pending anchor for the current year, or rolls over to the spring
+      anchor of the next year and increments lastFiredAnchorYear after
+      winter completes. when a shower starts: active=true, calculate
+      remainingStars (8-12), spread over a 4-second window. each
+      interval tick spawns one targeted star with the fixed
+      { dx: 1, dy: 1 } iso-north velocity. when remainingStars=0:
+      active=false, advance pending anchor. records
+      event:meteor-shower discovery on the first shower of the run.
+      there is no radiant — all stars in every shower fall along the
+      same axis. the first spring shower of the run (game-start) is
+      also the player-spawn ceremony: one of its stars is pre-targeted
+      at state.player with forPlayerSpawn=true (the steward star);
+      subsequent spring showers carry no forPlayerSpawn star.
     inputs:
       - 'tickMeteorShower called with time'
     outputs: []
     state_changes:
       - field: meteorShower
-        effect: 'state machine transitions between idle and active'
+        effect: 'state machine transitions between idle and active; pendingAnchorPhase and lastFiredAnchorYear advance as anchors are consumed'
       - field: world
-        effect: 'targeted shooting star entities created during active shower'
+        effect: 'targeted shooting star entities created during active shower; the first spring shower of the run carries one forPlayerSpawn star'
       - field: manualDiscoveries
         effect: 'event:meteor-shower recorded on first shower'
-    determinism: probabilistic
-
-  - id: player-spawn-shower-trigger
-    description: >
-      triggerPlayerSpawnShower(state, playerPos, time) starts a meteor
-      shower immediately and pre-targets one of its stars at playerPos
-      so the star lands within ~2000ms of the trigger. the shower
-      otherwise behaves like a normal shower (8-12 stars, 4s spawn
-      window). every star — including the steward star aimed at the
-      spawning player — uses the fixed { dx: 1, dy: 1 } iso-north
-      velocity. the steward star is flagged forPlayerSpawn so it
-      produces no meteorite item on landing. the remaining stars
-      target tiles via findShowerTargets (drop meteorites). this is
-      the only path that initiates the first shower of the game; it
-      generalizes to multiplayer — every newly-spawned player triggers
-      their own shower with a star aimed at their spawn tile.
-    inputs:
-      - 'GameState, player spawn Position, time'
-    outputs: []
-    state_changes:
-      - field: meteorShower
-        effect: 'active=true, remainingStars set, spawn window primed; nextShowerTime advanced past the active window'
-      - field: world
-        effect: 'one targeted player-spawn star created immediately at playerPos with forPlayerSpawn flag; further targeted stars spawn over the 4s window'
-    determinism: probabilistic
+    determinism: time-based
 
   - id: shower-target-selection
     description: >
@@ -152,34 +159,52 @@ edge_cases:
   - id: targeted-star-lands-unconditionally
     description: 'targeted star reaches its landingTarget tile'
     expected: 'star is destroyed and meteorite + explosion created regardless of tile occupancy'
+  - id: ambient-star-never-lands
+    description: 'ambient star traverses the map'
+    expected: 'star has willLand=false and produces no meteorite or explosion entity; it expires off-map or by max age'
   - id: sparse-map-shower
     description: 'very few valid landing tiles for shower targets'
     expected: 'findShowerTargets returns fewer targets, shower spawns fewer stars'
   - id: deep-time-suppression
     description: 'spawnShootingStar or tickMeteorShower called during deep time'
     expected: 'both return early without spawning or scheduling'
-  - id: meteorite-ground-cap-reached
-    description: 'overworld already has METEORITE_GROUND_MAX (20) meteorite entities, spawnShootingStar called'
-    expected: 'returns early, no new star created; player picking up a meteorite drops count below cap and future ticks may resume spawning'
-  - id: meteorite-cap-excludes-backpack
-    description: 'player holds meteorite items in backpack, zero meteorites on overworld ground'
-    expected: 'cap does not apply — only ECS meteorite entities (ground-placed, overworld zone) count toward the 20-entity limit'
-  - id: meteorite-cap-excludes-cave
-    description: 'cave has meteorite entities (hypothetical), overworld ground is empty'
-    expected: 'cap counts only overworld-zoned meteorite entities; cave meteorites are ignored'
-  - id: meteor-shower-bypasses-cap
-    description: 'meteor shower active and 20+ meteorites already on ground'
-    expected: 'shower continues spawning targeted stars — the cap only gates ambient spawnShootingStar, not targeted spawns'
+  - id: spring-anchor-no-jitter
+    description: 'spring anchor (phase 0.0) becomes the pending anchor'
+    expected: 'pendingAnchorPhase is set to exactly 0.0 — no jitter applied to the spring anchor under any circumstances'
+  - id: non-spring-anchor-jitter
+    description: 'summer, autumn, or winter anchor becomes the pending anchor'
+    expected: 'pendingAnchorPhase is set to anchor + random offset in [-METEOR_SHOWER_JITTER_PHASE, +METEOR_SHOWER_JITTER_PHASE]; jitter is rolled once and reused if the shower is interrupted (e.g. by deep time) and resumes the same year'
+  - id: cardinal-shower-fires-once-per-anchor-per-year
+    description: 'seasonalPhase advances past pendingAnchorPhase'
+    expected: 'exactly one shower starts; the same anchor does not re-fire until the seasonalPhase wraps through 1.0 and the next year rolls in'
+  - id: no-intermittent-showers
+    description: 'tickMeteorShower called repeatedly during the interior of a season (e.g. seasonalPhase = 0.12, far from any pending anchor)'
+    expected: 'no shower is queued or started — only crossings of pendingAnchorPhase trigger showers'
+  - id: spring-equinox-spawn-ceremony
+    description: 'game start at seasonalPhase = 0.0 and playerSpawn.triggeredAt is 0'
+    expected: 'the spring-equinox shower fires immediately with one star carrying forPlayerSpawn=true pre-targeted at state.player; player becomes visible on its landing'
+  - id: subsequent-spring-no-steward-star
+    description: 'spring equinox in any year after the first'
+    expected: 'spring shower fires at phase 0.0 with no forPlayerSpawn star; player visibility is unaffected'
+  - id: ambient-bypasses-ground-cap
+    description: 'METEORITE_GROUND_MAX (20) meteorites already on ground, ambient spawn called'
+    expected: 'ambient star spawns normally — the cap no longer gates ambient spawning because ambient stars cannot produce meteorites'
   - id: ambient-star-spawn-position
     description: 'spawnShootingStar called repeatedly under randomized RNG'
     expected: 'every spawned star has y === 0 and velocity { dx: 1, dy: 1 }; x varies across [0, MAP_WIDTH)'
   - id: shower-star-velocity-uniform
     description: 'a meteor shower spawns its full complement of stars'
     expected: 'every spawned shower star has velocity { dx: 1, dy: 1 } — no radiant variation between showers or within a shower'
+  - id: deep-time-skips-pending-anchor
+    description: 'deep time activates before a pending anchor fires; seasonalPhase advances past pendingAnchorPhase during deep time'
+    expected: 'the missed anchor does not re-fire when deep time ends; the scheduler advances pendingAnchorPhase to the next anchor of the current year (or next year, if winter was skipped)'
+  - id: year-wrap-advances-to-spring
+    description: 'winter shower completes; seasonalPhase continues advancing past 1.0 and wraps to 0.0'
+    expected: 'lastFiredAnchorYear increments; pendingAnchorPhase is set to 0.0 (spring) for the new year; the new spring shower is a normal shower (no forPlayerSpawn) because playerSpawn.triggeredAt is non-zero'
 
 failure_conditions:
-  - trigger: 'Meteor shower scheduled but no valid targets found'
-    expected: 'shower spawns 0 stars, transitions to idle, schedules next shower'
+  - trigger: 'Cardinal shower fires but no valid targets found'
+    expected: 'shower spawns 0 stars, transitions to idle, advances pendingAnchorPhase to the next anchor'
 
 verification:
   test_file: src/engine/__tests__/shootingStars.test.ts
