@@ -2142,6 +2142,29 @@ const riseOfCivilizations: GenesisEpoch = {
         continue
       }
 
+      // Reject candidates whose 3x3 footprint (entrance + 8 apron neighbors)
+      // intersects water or Space. The overworld renderer draws ponds/rivers
+      // before tile glyphs, so a footprint inside a water set renders as
+      // water and visually truncates the ruin to one tile or nothing.
+      // fallOfCivilizations may later flood a previously-clean footprint;
+      // a second revalidation pass runs after that epoch.
+      let footprintBlocked = false
+      for (let dy = -1; dy <= 1 && !footprintBlocked; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const fk = posKey(cx + dx, cy + dy)
+          if (sim.ponds.has(fk) || sim.riverPaths.has(fk) || !sim.landMask.has(fk)) {
+            footprintBlocked = true
+            break
+          }
+        }
+      }
+      if (footprintBlocked) {
+        i--
+        failedAttempts++
+        topCandidates.splice(idx, 1)
+        continue
+      }
+
       failedAttempts = 0
       usedKeys.add(pick.key)
       const radius = 3 + Math.floor(sim.rng() * 3)

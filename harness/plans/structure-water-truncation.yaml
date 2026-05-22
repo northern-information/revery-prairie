@@ -1,0 +1,103 @@
+plan:
+  id: structure-water-truncation
+  title: Validate ruin and cave 3x3 footprints against finalized water and space; relocate on conflict
+  created: '2026-05-22'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: regression-test-baseline
+    title: Land the regression test asserting every structure footprint is clear of ponds, rivers, and Space (must fail on main pre-fix, pass post-fix)
+    spec_id: structure-water-truncation
+    spec_sections:
+      - structure-footprint-clear-of-water
+    context_files:
+      - src/engine/__tests__/structure-water-truncation.test.ts
+      - src/engine/state.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/__tests__/structure-water-truncation.test.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/structure-water-truncation.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: ruin-footprint-validation
+    title: In riseOfCivilizations, reject ruin candidates whose 3x3 footprint intersects sim.ponds, sim.riverPaths, or Space; iterate to next topCandidate
+    spec_id: structure-water-truncation
+    spec_sections:
+      - structure-footprint-clear-of-water
+      - relocate-on-conflict
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - regression-test-baseline
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/structure-water-truncation.test.ts -t "ruin entrance footprint"
+    repair: retry
+    tags:
+      - engine
+
+  - id: ruin-final-revalidation
+    title: After fallOfCivilizations consolidates water, drop any sim.ruins whose 3x3 footprint now intersects sim.ponds, sim.riverPaths, or Space (water consolidation can flood a previously-clean footprint)
+    spec_id: structure-water-truncation
+    spec_sections:
+      - structure-footprint-clear-of-water
+      - relocate-on-conflict
+    context_files:
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - ruin-footprint-validation
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/structure-water-truncation.test.ts -t "ruin entrance footprint"
+    repair: retry
+    tags:
+      - engine
+
+  - id: cave-footprint-validation
+    title: In state.ts cave-entrance rejection sample loop, additionally reject positions whose 3x3 footprint contains ponds, rivers, or Space
+    spec_id: structure-water-truncation
+    spec_sections:
+      - structure-footprint-clear-of-water
+      - relocate-on-conflict
+    context_files:
+      - src/engine/state.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - regression-test-baseline
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/structure-water-truncation.test.ts -t "cave entrance footprint"
+    repair: retry
+    tags:
+      - engine
+
+  - id: full-test-suite
+    title: Run the full vitest suite to confirm no regressions in existing genesis, ruin, or cave tests
+    spec_id: structure-water-truncation
+    spec_sections:
+      - structure-footprint-clear-of-water
+    context_files: []
+    output_files: []
+    depends_on:
+      - ruin-final-revalidation
+      - cave-footprint-validation
+    verification:
+      - npm run typecheck
+      - npm run test
+      - npm run lint
+    repair: retry
+    tags:
+      - test

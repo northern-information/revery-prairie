@@ -1,0 +1,94 @@
+id: structure-water-truncation
+name: 'Structures (ruins, caves) never spawn where their footprint would be truncated by water, sand, or space'
+priority: medium
+layer: integration
+source_files:
+  - src/engine/genesis.ts
+  - src/engine/state.ts
+  - src/engine/ruins.ts
+dependencies:
+  - ruin-accessibility-bugs
+
+behaviors:
+  - id: structure-footprint-clear-of-water
+    description: >
+      Every structure placed on the overworld (ruin entrances, cave
+      entrance) has its full 3x3 footprint (the entrance tile plus its
+      8 neighbors) free of water and space when the player starts the
+      game. Specifically, no tile in the footprint may be in
+      state.ponds, state.rivers, or be TileType.Space. The footprint
+      may sit on land tiles that became Sand during the
+      fallOfCivilizations shoreline pass, because RuinApron / CaveApron
+      overwrite Sand. The water-vs-tile renderer precedence in
+      renderer.ts:1449-1460 makes a footprint that intersects ponds or
+      rivers render as water, visually truncating the structure to a
+      single tile (or to nothing if the entrance itself is in water).
+      This behavior eliminates that class of truncation.
+    inputs:
+      - 'createGameState runs (any steward name, any seed)'
+    outputs:
+      - 'For every interior in state.ruinInteriors, the 3x3 footprint centered on entranceOverworld contains no tile in state.ponds, state.rivers, or TileType.Space'
+      - 'The 3x3 footprint centered on state.caveEntranceOverworld contains no tile in state.ponds, state.rivers, or TileType.Space'
+    state_changes:
+      - field: 'state.ruinInteriors[*].entranceOverworld'
+        effect: 'Set to a position whose 3x3 footprint is clear of water and space'
+      - field: 'state.caveEntranceOverworld'
+        effect: 'Set to a position whose 3x3 footprint is clear of water and space'
+    determinism: deterministic
+
+  - id: relocate-on-conflict
+    description: >
+      When a structure's originally selected position has its 3x3
+      footprint blocked by water or space, the placement logic tries
+      nearby candidates rather than dropping the structure. For ruins,
+      the relocation searches the existing topCandidates list
+      (ordered by soil + river/coast score) for a clean alternative,
+      keeping the minimum inter-ruin distance constraint. For the cave
+      entrance, the existing rejection sample loop in state.ts
+      additionally rejects positions whose 3x3 footprint intersects
+      water or space. Only when no relocation is available within the
+      search budget does the structure fall back to skipping (ruin not
+      added) or to the existing fallback position (cave). This keeps
+      the configured structure count stable on typical seeds.
+    inputs:
+      - 'A ruin candidate position has neighbors in sim.ponds, sim.riverPaths, or Space'
+      - 'A cave entrance candidate position has neighbors in sim.ponds, sim.riverPaths, or Space'
+    outputs:
+      - 'Ruin relocates to the next available topCandidate whose footprint is clear, or is skipped if none remain'
+      - 'Cave entrance retries angle/distance until a clean footprint is found, then falls back to the existing fallback only when the retry budget is exhausted'
+    state_changes:
+      - field: 'sim.ruins'
+        effect: 'Only contains ruins whose 3x3 footprint is clear'
+      - field: 'state.caveEntranceOverworld'
+        effect: 'Set to a position whose 3x3 footprint is clear when possible'
+    determinism: deterministic
+
+edge_cases:
+  - id: structure-near-map-edge
+    description: 'Structure candidate within 1 tile of the Space border (some neighbors are Space)'
+    expected: 'Position rejected — Space in footprint counts as a conflict. Logic tries another candidate.'
+  - id: ruin-near-pond
+    description: 'Ruin candidate is in dirt but one or more neighbors are in state.ponds after fallOfCivilizations consolidation'
+    expected: 'Position rejected. The ruin relocates to a different topCandidate whose footprint is clear.'
+  - id: ruin-on-river-tile
+    description: 'Ruin candidate position itself is in state.riverPaths (river bonus made it score high, then fallOfCivilizations kept that polyline)'
+    expected: 'Position rejected. Relocation tries the next candidate.'
+  - id: all-candidates-conflict
+    description: 'Pathological seed where no ruin candidate has a clean footprint within the search budget'
+    expected: 'Skipped ruins are simply absent from sim.ruins. No crash. World remains playable.'
+  - id: cave-fallback-blocked
+    description: 'Cave entrance retry budget exhausted without finding a clean footprint'
+    expected: 'Falls back to existing default position (gronX + minCaveDist, gronY). No crash. Footprint clobbers water in that rare case (acceptable fallback).'
+
+failure_conditions:
+  - trigger: 'createGameState produces a ruin interior whose entranceOverworld tile is in state.ponds or state.rivers'
+    expected: 'No such ruin exists. Placement either relocated the ruin or skipped it.'
+  - trigger: 'createGameState produces a ruin whose 3x3 footprint contains a tile in state.ponds, state.rivers, or TileType.Space'
+    expected: 'No such ruin exists. Footprint is fully clean of water and space.'
+  - trigger: 'createGameState produces a cave entrance whose 3x3 footprint contains a tile in state.ponds, state.rivers, or TileType.Space'
+    expected: 'Cave entrance position has a clean 3x3 footprint (or fell back to the default after exhausting retries).'
+
+verification:
+  test_file: src/engine/__tests__/structure-water-truncation.test.ts
+  test_pattern: 'structure water truncation'
+  command: npx vitest run src/engine/__tests__/structure-water-truncation.test.ts
