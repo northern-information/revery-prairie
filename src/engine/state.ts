@@ -1,5 +1,5 @@
 import { generateCave } from './cave'
-import { registerGhostDefinitions } from './characters'
+import { getCharacterDefinition, registerGhostDefinitions } from './characters'
 import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, WATER_MAX } from './constants'
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
@@ -365,7 +365,9 @@ export const createGameState = (
   if (map[gronY][gronX].type !== TileType.Dirt && map[gronY][gronX].type !== TileType.Flora) {
     map[gronY][gronX] = { type: TileType.Dirt }
   }
-  createCharacterEntity(state, 'gron', { x: gronX, y: gronY }, { aura: 'rain' })
+  const gronDef = getCharacterDefinition('gron')
+  const gronMusic = gronDef.music ? { url: gronDef.music, radius: AURA_RADIUS.rain } : undefined
+  createCharacterEntity(state, 'gron', { x: gronX, y: gronY }, { aura: 'rain', music: gronMusic })
 
   // Initialize tile water for all walkable overworld tiles. Run AFTER
   // placeRuinEntrances and the Gron fallback because both can mutate
