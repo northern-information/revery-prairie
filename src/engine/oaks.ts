@@ -25,7 +25,6 @@ export const OAK_SPECIES = {
 const TRUNK_DARK = '#4A2E18'
 const TRUNK_MID = '#6B4423'
 // Canopy summer
-const CANOPY_DARK = '#3F5A28'
 const CANOPY_MID = '#5A7A3A'
 // Canopy winter — bare branches against muted browns
 const DORMANT_DARK = '#5A4530'
@@ -140,7 +139,7 @@ export const getOakRenderTile = (
   // Crown apex — single tile at the top of the diamond
   if (isoRow === -4) {
     return {
-      char: isDormant ? '`' : '@',
+      char: isDormant ? '`' : '&',
       color: isDormant ? DORMANT_MID : CANOPY_MID,
     }
   }
@@ -159,7 +158,7 @@ export const getOakRenderTile = (
   }
 
   // Summer — packed canopy
-  if (isCentre) return { char: '@', color: CANOPY_DARK }
+  if (isCentre) return { char: '&', color: CANOPY_MID }
   if (isEdge) return { char: '&', color: CANOPY_MID }
   return { char: '#', color: CANOPY_MID }
 }
