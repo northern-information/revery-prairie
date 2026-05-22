@@ -14,6 +14,7 @@ class FakeOffscreenCanvas {
       createPattern: (): Record<string, never> => ({}),
       fillRect: (): void => undefined,
       drawImage: (): void => undefined,
+      scale: (): void => undefined,
       beginPath: (): void => undefined,
       moveTo: (): void => undefined,
       lineTo: (): void => undefined,
