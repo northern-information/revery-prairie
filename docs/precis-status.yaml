@@ -827,7 +827,7 @@ features:
       direct exposure to a hypothetical Voynich solve at zero. No
       engine code touched.
     depends_on: []
-    status: in-progress
+    status: shipped
     spec: null
     plan: null
     pr: https://github.com/northern-information/revery-prairie/pull/379
