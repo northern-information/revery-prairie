@@ -1,0 +1,80 @@
+plan:
+  id: scan-ordinal-fallback
+  title: Widen selectScanTarget search from cardinal-only to ordinal (8-direction) so iso-corner positions can scan multi-tile entities
+  created: 2026-05-22
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/scan.test.ts src/engine/__tests__/oaks.test.ts
+
+tasks:
+  # --- Tier 1: Add the failing regression test first ---
+
+  - id: add-scan-regression-tests
+    title: |
+      Create src/engine/__tests__/scan.test.ts. Cover (a) all four iso-corner positions
+      (Ax±3, Ay±3) of an oak with multiple playerFacing values — each must return a
+      ScanTarget of kind 'oak' with the oak's identity; (b) a flora tile diagonally
+      adjacent to the player returns a flora ScanTarget; (c) on-tile flora still wins
+      over a Chebyshev-1 oak. Use createTestState + clearArea from
+      src/engine/__tests__/helpers.ts. Place oaks via spawnOak; place flora by setting
+      state.map[y][x] = { type: TileType.Flora } and adding a floraLifecycle entry
+      with a clover species + identity string. These tests MUST fail on the current
+      main (the iso-corner cases return null) and pass after the fix lands.
+    spec_id: scan-ordinal-fallback
+    spec_sections:
+      - oak-scannable-from-all-four-iso-corners
+      - flora-scannable-when-diagonally-adjacent
+      - on-tile-flora-still-wins-over-neighbor-oak
+    context_files:
+      - src/engine/scan.ts
+      - src/engine/oaks.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/oaks.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/__tests__/scan.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - test
+      - regression
+
+  # --- Tier 2: Fix the root cause ---
+
+  - id: widen-scan-fallback-to-ordinal
+    title: |
+      In src/engine/scan.ts, (a) extend facingDelta to return the matching (dx, dy)
+      for every Direction value including the four diagonals (upLeft, upRight,
+      downLeft, downRight) — it no longer returns null. Prefer using DIRECTIONS
+      from src/engine/position.ts as the lookup table rather than a separate switch.
+      (b) Replace the `for (const delta of CARDINAL)` fallback loop in
+      selectScanTarget with `for (const delta of ORDINAL)` (import ORDINAL from
+      src/engine/position.ts alongside the existing imports). Keep the on-tile check
+      first, the playerFacing tie-breaker second, and the priority of flora >
+      egregore > oak inside scanTargetAt unchanged. No other behavior changes.
+    spec_id: scan-ordinal-fallback
+    spec_sections:
+      - scan-search-uses-ordinal-fallback
+      - facing-delta-covers-diagonals
+      - existing-scan-priority-preserved
+    context_files:
+      - src/engine/scan.ts
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/scan.ts
+    depends_on:
+      - add-scan-regression-tests
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/scan.test.ts src/engine/__tests__/oaks.test.ts
+    repair: retry
+    tags:
+      - engine
+      - scan
+      - bugfix

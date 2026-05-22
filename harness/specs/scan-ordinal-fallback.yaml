@@ -1,0 +1,128 @@
+id: scan-ordinal-fallback
+name: 'Scan target search widens to ordinal (8-direction) neighbors'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/scan.ts
+  - src/engine/__tests__/oaks.test.ts
+dependencies:
+  - oak-scan-modal
+  - oak-sequencing
+
+behaviors:
+  - id: scan-search-uses-ordinal-fallback
+    description: >
+      selectScanTarget in src/engine/scan.ts searches for a scan target
+      across all 8 ordinal neighbors of the player (the 4 cardinals plus
+      the 4 diagonals), not just the 4 cardinals. The on-tile check
+      remains first. The playerFacing tie-breaker remains second and is
+      now honored for every Direction value — cardinal facings probe a
+      cardinal neighbor, diagonal facings probe a diagonal neighbor.
+      The fallback that scans neighbors in a fixed order iterates the 8
+      ORDINAL deltas exported from src/engine/position.ts. Flora, oaks,
+      and egregore tiles all benefit — any of these kinds adjacent to
+      the player (cardinal OR diagonal) becomes a scan target.
+    inputs:
+      - 'player at (px, py) with any state.playerFacing value'
+      - 'a flora / oak / egregore tile at any tile within Chebyshev distance 1 of (px, py)'
+    outputs:
+      - 'selectScanTarget returns a ScanTarget pointing at that tile/entity'
+    state_changes: []
+    determinism: deterministic
+
+  - id: facing-delta-covers-diagonals
+    description: >
+      The facingDelta helper inside src/engine/scan.ts no longer returns
+      null for diagonal Direction values. It returns the matching (dx,
+      dy) for all 8 Direction values: up/down/left/right yield cardinal
+      deltas, upLeft/upRight/downLeft/downRight yield the matching
+      diagonal deltas. This is used by selectScanTarget's facing
+      tie-breaker so the player's literal facing always probes exactly
+      one tile.
+    inputs:
+      - 'a Direction value'
+    outputs:
+      - 'the (dx, dy) Position that direction points to'
+    state_changes: []
+    determinism: deterministic
+
+  - id: existing-scan-priority-preserved
+    description: >
+      The on-tile check remains first (flora-on-tile and egregore-on-tile
+      still win over any neighbor). The playerFacing tile remains the
+      second-priority check. The kind-tiebreak at the same target tile
+      (flora > egregore > oak) is preserved. The change is strictly
+      additive — every scan that succeeded before still succeeds, with
+      the same target, and previously-null cases at ordinal distance now
+      succeed.
+    inputs:
+      - 'a scan invocation that previously succeeded'
+    outputs:
+      - 'the same ScanTarget kind, position, and identity as before'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: oak-scannable-from-all-four-iso-corners
+    description: >
+      With an oak anchored at (Ax, Ay), the player at any of the four
+      iso-corner positions (Ax-3, Ay-3), (Ax+3, Ay-3), (Ax-3, Ay+3),
+      (Ax+3, Ay+3) — directly above, below, left, or right of the oak
+      in iso screen space — can run selectScanTarget and receive an
+      oak target. These positions are Chebyshev distance 1 from the
+      oak's corner body tile but Manhattan distance 2 (diagonal-adjacent).
+    expected: >
+      Test places an oak and the player at each of the four iso-corner
+      positions with every Direction value for playerFacing, calls
+      selectScanTarget, and asserts the result's kind is 'oak' and its
+      identity matches the spawned oak's identity.
+
+  - id: flora-scannable-when-diagonally-adjacent
+    description: >
+      A single flora tile diagonally adjacent to the player (e.g. at
+      (px+1, py+1)) becomes a valid scan target. Before this change it
+      was ignored.
+    expected: >
+      Test places a clover flora tile diagonally adjacent to the player
+      (no cardinal neighbors carry flora), calls selectScanTarget, and
+      asserts the result is a flora target at the diagonal tile.
+
+  - id: on-tile-flora-still-wins-over-neighbor-oak
+    description: >
+      When the player stands on a flora tile and is also Chebyshev 1
+      from an oak body, the flora on-tile case wins. selectScanTarget
+      returns the flora target, never the oak.
+    expected: >
+      Test sets the tile under the player to flora, spawns an oak
+      adjacent, calls selectScanTarget, and asserts the result is the
+      flora target.
+
+  - id: existing-oak-cardinal-facing-test-still-passes
+    description: >
+      The existing test in src/engine/__tests__/oaks.test.ts that places
+      an oak two tiles east of the player with playerFacing='right' and
+      expects an oak target continues to pass unchanged.
+    expected: >
+      `npx vitest run src/engine/__tests__/oaks.test.ts` exits 0; the
+      'selectScanTarget returns an oak target when the player faces one'
+      case still passes.
+
+failure_conditions:
+  - trigger: 'player stands at an iso-corner position (Ax±3, Ay±3) of an oak and presses [f]'
+    expected: >
+      The keyboard handler in src/hooks/useKeyboard.ts calls
+      selectScanTarget; with this fix in place the result is an oak
+      ScanTarget (not null), so state.scanInProgress is populated and
+      the sequencing flow proceeds. A regression test exercises
+      selectScanTarget directly at all four iso-corner positions and
+      asserts an oak target is returned.
+
+  - trigger: 'a flora tile is diagonally adjacent to the player and no other scan target exists'
+    expected: >
+      selectScanTarget returns a flora ScanTarget at that diagonal tile.
+      Asserted by a regression test in src/engine/__tests__/scan.test.ts.
+
+verification:
+  test_file: src/engine/__tests__/scan.test.ts
+  test_pattern: 'iso-corner|ordinal|diagonal'
+  command: 'npx vitest run src/engine/__tests__/scan.test.ts src/engine/__tests__/oaks.test.ts'
