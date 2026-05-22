@@ -103,6 +103,23 @@ export const createGameState = (
     if (cx < SPACE_BORDER || cx >= MAP_WIDTH - SPACE_BORDER) continue
     if (cy < SPACE_BORDER || cy >= MAP_HEIGHT - SPACE_BORDER) continue
     if (map[cy][cx].type !== TileType.Dirt) continue
+    // Reject candidates whose 3x3 footprint (entrance + 8 apron neighbors)
+    // intersects ponds, rivers, or Space. Renderer draws water before tile
+    // glyphs, so a footprint inside a water set renders as water and visually
+    // truncates the cave to one tile or nothing.
+    let footprintBlocked = false
+    for (let dy = -1; dy <= 1 && !footprintBlocked; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const fx = cx + dx
+        const fy = cy + dy
+        const fk = posKey(fx, fy)
+        if (sim.ponds.has(fk) || sim.riverPaths.has(fk) || map[fy]?.[fx]?.type === TileType.Space) {
+          footprintBlocked = true
+          break
+        }
+      }
+    }
+    if (footprintBlocked) continue
     caveEntranceOverworld = { x: cx, y: cy }
     break
   }

@@ -11,7 +11,7 @@ import { TileType } from '../types'
 // each structure's full 3x3 footprint against the finalized water/space sets
 // and relocates (or skips, as a last resort) when the footprint is blocked.
 
-const FOOTPRINT_OFFSETS: ReadonlyArray<readonly [number, number]> = [
+const FOOTPRINT_OFFSETS: readonly (readonly [number, number])[] = [
   [-1, -1],
   [0, -1],
   [1, -1],
@@ -23,6 +23,8 @@ const FOOTPRINT_OFFSETS: ReadonlyArray<readonly [number, number]> = [
   [1, 1],
 ]
 
+type GameMap = { type: TileType }[][]
+
 const tileTypeAt = (
   map: GameMap,
   x: number,
@@ -33,8 +35,6 @@ const tileTypeAt = (
 // candidate scoring biases ruins toward water, so the truncation only
 // surfaces on certain steward names.
 const STEWARD_NAMES = ['alice', 'bob', 'cleo', 'dora', 'evan', 'fern', 'gus', 'hana']
-
-interface GameMap extends Array<Array<{ type: TileType }>> {}
 
 describe('structure water truncation', () => {
   it.each(STEWARD_NAMES)(
