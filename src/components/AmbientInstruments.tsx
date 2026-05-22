@@ -79,7 +79,7 @@ const CloudGlyph = () => (
     strokeLinejoin="round"
     aria-hidden="true"
   >
-    <path d="M4 12 a2.5 2.5 0 0 1 0 -5 a3.5 3.5 0 0 1 7 0.5 a1.75 1.75 0 0 1 0.5 4.5 Z" />
+    <path d="M4 12 a2 2 0 0 1 0 -4 a3 3 0 0 1 6 0.5 a1.5 1.5 0 0 1 0.5 3.5 Z" />
   </svg>
 )
 
