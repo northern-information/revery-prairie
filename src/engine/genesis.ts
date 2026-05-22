@@ -1440,19 +1440,24 @@ const iceAge: GenesisEpoch = {
     // advance along the u = x + y axis (diamond's vertical screen axis), so
     // the perpendicular coordinate is v = x - y. Noise arrays index by
     // (x - y + sim.height - 1), spanning [0, sim.width + sim.height - 2].
+    // Top and bottom fronts share the same noise array so the two ice ages
+    // advance in mirrored shape; independent draws made one front visibly
+    // outpace the other, which read as a worldgen seam.
     const vSpan = sim.width + sim.height - 1
+    const sharedEdgeNoise = smoothNoiseSeeded(vSpan, 14, 12, sim.rng)
     sim.glacialEdgeNoise = {
-      top: smoothNoiseSeeded(vSpan, 14, 12, sim.rng),
-      bottom: smoothNoiseSeeded(vSpan, 14, 12, sim.rng),
+      top: sharedEdgeNoise,
+      bottom: sharedEdgeNoise,
     }
 
     // Glaciers advance from the diamond's top tip (storage (SPACE_BORDER,
     // SPACE_BORDER)) and bottom tip (storage (max, max)). Polar distance is
     // measured along u = (x - SB) + (y - SB). The u span across the playable
-    // region is 2 * (playable side - 1), so glacialDepth halves to keep the
-    // visual band roughly equivalent.
+    // region is 2 * (playable side - 1); glacialDepth at 0.25 advances each
+    // front ~25% of the u-span in from its tip, restoring a recognisably
+    // "ice age" reach after the precis-30 rotation left 0.1 barely visible.
     const playableU = sim.width + sim.height - 2 * SPACE_BORDER
-    const glacialDepth = Math.floor(playableU * 0.1)
+    const glacialDepth = Math.floor(playableU * 0.25)
 
     for (const key of sim.landMask) {
       const [xStr, yStr] = key.split(',')
@@ -1569,7 +1574,7 @@ const iceAge: GenesisEpoch = {
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
       const playableU = sim.width + sim.height - 2 * SPACE_BORDER
-      const glacialDepth = Math.floor(playableU * 0.1)
+      const glacialDepth = Math.floor(playableU * 0.25)
       const vIdx = x - ty + sim.height - 1
       const topNoise = sim.glacialEdgeNoise.top[vIdx] ?? 0
       const bottomNoise = sim.glacialEdgeNoise.bottom[vIdx] ?? 0
@@ -1607,7 +1612,7 @@ const iceAge: GenesisEpoch = {
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
       const playableU = sim.width + sim.height - 2 * SPACE_BORDER
-      const glacialDepth = Math.floor(playableU * 0.1)
+      const glacialDepth = Math.floor(playableU * 0.25)
       const topDist = (x - SPACE_BORDER) + (ty - SPACE_BORDER)
       const bottomDist = playableU - 2 - topDist
       const minDist = Math.min(topDist, bottomDist)
@@ -1996,7 +2001,7 @@ const warmPeriod: GenesisEpoch = {
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
       const playableU = sim.width + sim.height - 2 * SPACE_BORDER
-      const glacialDepth = Math.floor(playableU * 0.1)
+      const glacialDepth = Math.floor(playableU * 0.25)
       const vIdx = x - ty + sim.height - 1
       const topNoise = sim.glacialEdgeNoise.top[vIdx] ?? 0
       const bottomNoise = sim.glacialEdgeNoise.bottom[vIdx] ?? 0
