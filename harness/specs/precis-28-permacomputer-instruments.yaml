@@ -39,7 +39,7 @@ behaviors:
     description: >
       The weathervane renders one of the eight Weather Icons direction
       glyphs together with the uppercase rotated-cardinal letter for
-      state.wind.direction. The eight WindDirection enum keys map
+      state.weather.windDirection. The eight WindDirection enum keys map
       one-to-one to wi-direction-* classes — N → wi-direction-up,
       NE → wi-direction-up-right, E → wi-direction-right,
       SE → wi-direction-down-right, S → wi-direction-down,
@@ -51,7 +51,7 @@ behaviors:
       diamond tip toward its opposite, and the letter labels the
       same tip. No coordinate translation between storage and screen.
     inputs:
-      - 'state.wind.direction is one of the eight WindDirection enum keys'
+      - 'state.weather.windDirection is one of the eight WindDirection enum keys'
     outputs:
       - 'an <i> element with className containing both "wi" and the matching wi-direction-* class is rendered'
       - 'the uppercase cardinal letter (one of "N", "NE", "E", "SE", "S", "SW", "W", "NW") is rendered as text adjacent to the icon'
@@ -218,7 +218,7 @@ behaviors:
       useState, useEffect, useRef, or any other React hook that
       mutates state. It does not call refreshUI. It does not write
       to state. It does not subscribe to events. It does not
-      register listeners. It reads state.wind.direction,
+      register listeners. It reads state.weather.windDirection,
       state.wind.smoothSpeed, state.weather.sky, state.weather.season,
       and state.seasonalPhase only. Moon phase is a pure derivation
       from state.seasonalPhase (see moon-phase-derived-from-seasonal-phase)
@@ -288,7 +288,7 @@ edge_cases:
     expected: 'icon glyphs render as empty boxes; letter readouts, season label, wind-speed label, and almanac line remain legible; no console error from the component itself'
   - id: rotated-cardinal-frame-locked
     description: 'the rotated-cardinal frame from precis-30 is the only frame the vane reads'
-    expected: 'AmbientInstruments does not translate state.wind.direction through any rotation matrix or remap table — it reads the enum directly. If precis-30''s frame is reverted, this component automatically reverts with it.'
+    expected: 'AmbientInstruments does not translate state.weather.windDirection through any rotation matrix or remap table — it reads the enum directly. If precis-30''s frame is reverted, this component automatically reverts with it.'
   - id: moon-phase-completes-multiple-cycles-per-year
     description: 'seasonalPhase advances from 0 to 1 over one in-game year'
     expected: 'moonPhase(seasonalPhase) completes ~12.37 cycles in the same span — for seasonalPhase = 1/LUNATIONS_PER_YEAR the moon is back at new (within bucket-rounding tolerance)'
@@ -310,7 +310,7 @@ failure_conditions:
     expected: 'spec violated — AmbientInstruments must take the flex-1 slot or the layout must continue to space Minimap and ItemInfo apart'
   - trigger: 'windSpeedLabel hard-codes band width as a numeric literal (5) instead of MAX_WIND_SPEED / 5'
     expected: 'spec violated — the band width must derive from MAX_WIND_SPEED so a future retune does not desync the labels'
-  - trigger: 'the weathervane applies any rotation matrix or remap table between state.wind.direction and the wi-direction-* class'
+  - trigger: 'the weathervane applies any rotation matrix or remap table between state.weather.windDirection and the wi-direction-* class'
     expected: 'spec violated — under precis-30 there is no translation layer; the enum reads directly'
   - trigger: 'the @font-face declaration references the font from outside public/fonts/ (CDN, node_modules, etc.)'
     expected: 'spec violated — the font is self-hosted at public/fonts/ to mirror the Voynich pattern'
