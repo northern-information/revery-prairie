@@ -391,6 +391,15 @@ const LOWLAND_NOISE_CELL = 18
 // the LavaEra elevation floor.
 const LOWLAND_NOISE_AMPLITUDE = 30
 
+// Final-water inland bias — minima within COAST_INLAND_BIAS_RADIUS tiles
+// (Chebyshev) of any coastlineTiles tile receive COAST_INLAND_BIAS_PENALTY
+// added to their sort key. Deeper basins still win the budget allocation,
+// but among similar-depth candidates the interior basins fill first, so the
+// final water bodies cluster toward the diamond's center rather than its
+// edges.
+const COAST_INLAND_BIAS_RADIUS = 8
+const COAST_INLAND_BIAS_PENALTY = 30
+
 const smoothstep = (t: number): number => t * t * (3 - 2 * t)
 
 /**
@@ -1850,9 +1859,12 @@ const warmPeriod: GenesisEpoch = {
       }
     }
 
-    // Elevation-driven pond generation: find local minima, flood upward
-    const waterBudget = Math.floor(sim.landMask.size * 0.05)
-    const minima: { key: string; elev: number }[] = []
+    // Elevation-driven pond generation: find local minima, flood upward.
+    // The 0.18 budget is sized to land near the 15% final-water target
+    // after FallOfCivilizations' softened drought trims residual <10-tile
+    // fragments.
+    const waterBudget = Math.floor(sim.landMask.size * 0.18)
+    const minima: { key: string; elev: number; coastal: boolean }[] = []
 
     for (const key of sim.landMask) {
       if (sim.riverPaths.has(key)) continue
@@ -1869,11 +1881,27 @@ const warmPeriod: GenesisEpoch = {
           break
         }
       }
-      if (isMinimum) minima.push({ key, elev })
+      if (isMinimum) {
+        // Coastal proximity test: Chebyshev within COAST_INLAND_BIAS_RADIUS
+        // of any coastlineTiles tile.
+        let coastal = false
+        for (let dy = -COAST_INLAND_BIAS_RADIUS; dy <= COAST_INLAND_BIAS_RADIUS && !coastal; dy++) {
+          for (let dx = -COAST_INLAND_BIAS_RADIUS; dx <= COAST_INLAND_BIAS_RADIUS && !coastal; dx++) {
+            if (sim.coastlineTiles.has(posKey(x + dx, y + dy))) coastal = true
+          }
+        }
+        minima.push({ key, elev, coastal })
+      }
     }
 
-    // Sort by elevation (lowest first — deepest basins fill first)
-    minima.sort((a, b) => a.elev - b.elev)
+    // Sort by elevation (lowest first — deepest basins fill first), with a
+    // fixed penalty added to coastal minima so interior basins win priority
+    // among similar-depth candidates.
+    minima.sort((a, b) => {
+      const aKey = a.elev + (a.coastal ? COAST_INLAND_BIAS_PENALTY : 0)
+      const bKey = b.elev + (b.coastal ? COAST_INLAND_BIAS_PENALTY : 0)
+      return aKey - bKey
+    })
 
     let totalWaterTiles = 0
     const MAX_POND_SIZE = 200
@@ -2512,7 +2540,9 @@ const fallOfCivilizations: GenesisEpoch = {
       }
     }
 
-    // Drought: consolidate water into 2-5 contiguous bodies
+    // Drought: dry up small fragments only. Substantial bodies survive so
+    // the final terrain carries enough water to read as a prairie wetland
+    // rather than a few token puddles.
     const MIN_WATER_BODY_SIZE = 10
 
     // 1. Unify all water tiles
@@ -2555,13 +2585,10 @@ const fallOfCivilizations: GenesisEpoch = {
       waterComponents.push(component)
     }
 
-    // 3. Sort by size (largest first), filter by minimum
-    waterComponents.sort((a, b) => b.size - a.size)
-    const viable = waterComponents.filter(c => c.size >= MIN_WATER_BODY_SIZE)
-
-    // 4. Keep 1-3 of the largest viable components
-    const targetCount = 1 + Math.floor(sim.rng() * 3)
-    const kept = viable.length >= 1 ? viable.slice(0, targetCount) : waterComponents.slice(0, targetCount)
+    // 3. Keep every component at or above MIN_WATER_BODY_SIZE. The previous
+    // targetCount slice (1-3 of the largest) collapsed the prairie to a few
+    // small puddles; now substantial bodies all survive.
+    const kept = waterComponents.filter(c => c.size >= MIN_WATER_BODY_SIZE)
     const keptTiles = new Set<string>()
     for (const comp of kept) {
       for (const key of comp) keptTiles.add(key)

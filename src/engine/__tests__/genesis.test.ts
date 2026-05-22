@@ -794,14 +794,38 @@ describe('water consolidation', () => {
     return { allWater, components }
   }
 
-  it('water forms 1-3 contiguous bodies after genesis', () => {
+  it('every surviving water body is at least MIN_WATER_BODY_SIZE tiles', () => {
     const sim = getCachedSim42()
     const { components } = findWaterComponents(sim)
     expect(components.length).toBeGreaterThanOrEqual(1)
-    expect(components.length).toBeLessThanOrEqual(3)
     for (const comp of components) {
       expect(comp.size).toBeGreaterThanOrEqual(10)
     }
+  })
+
+  it('final water ratio lands near the 15% inland target', () => {
+    const sim = getCachedSim42()
+    const { allWater } = findWaterComponents(sim)
+    const ratio = allWater.size / sim.landMask.size
+    expect(ratio).toBeGreaterThanOrEqual(0.1)
+    expect(ratio).toBeLessThanOrEqual(0.2)
+  })
+
+  it('final water centroid sits closer to the prairie center than to any edge', () => {
+    const sim = getCachedSim42()
+    const { allWater } = findWaterComponents(sim)
+    let sumX = 0
+    let sumY = 0
+    for (const key of allWater) {
+      const [xStr, yStr] = key.split(',')
+      sumX += Number(xStr)
+      sumY += Number(yStr)
+    }
+    const cx = sumX / allWater.size
+    const cy = sumY / allWater.size
+    const distToCenter = Math.hypot(cx - sim.width / 2, cy - sim.height / 2)
+    const distToNearestEdge = Math.min(cx, cy, sim.width - cx, sim.height - cy)
+    expect(distToCenter).toBeLessThan(distToNearestEdge)
   })
 
   it('no isolated water tiles after genesis', () => {
