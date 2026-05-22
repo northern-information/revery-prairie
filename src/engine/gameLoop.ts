@@ -53,6 +53,7 @@ import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { spawnLightningStrike, tickLightning } from './lightning'
 import { recordDiscovery } from './manual'
 import { detectOmen } from './omen'
+import { tickProximityMusic } from './proximityMusic'
 import { initiateRevery, tickRevery } from './revery'
 import { tickMonarchs } from './monarch'
 import { movePlayer, tickPath } from './movement'
@@ -806,6 +807,11 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
     if (omen) initiateRevery(state, time, omen)
     tickRevery(state, 0, time)
     state.lastSky = state.weather.sky
+
+    // Proximity music: query MusicEmitter components in the player's
+    // zone, compute per-emitter gain, and drive the audio module. Run
+    // last so it observes the latest player position and zone state.
+    tickProximityMusic(state)
   }
 
   const loop = (rawTime: number): void => {

@@ -2,11 +2,25 @@ import { useEffect, useRef } from 'react'
 
 import { setAmbient, setMusicEnabled, startDialogMusic, stopAll, stopDialogMusic, ZONE_MUSIC } from '@/engine/audio'
 import { getCharacterDefinition } from '@/engine/characters'
+import { ComponentType } from '@/engine/ecs/types'
 import type { GameState, Zone } from '@/engine/types'
+
+// Returns true if the named character's entity carries a MusicEmitter.
+// Dialog music is suppressed for such characters — the proximity track
+// is already playing at the right gain and a second dialog track would
+// double the audio.
+const characterHasMusicEmitter = (state: GameState, characterId: string): boolean => {
+  for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.MusicEmitter)) {
+    const ident = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    if (ident?.definitionId === characterId) return true
+  }
+  return false
+}
 
 export const useMusic = (state: GameState): void => {
   const prevZoneRef = useRef<Zone | null>(null)
   const prevCharIdRef = useRef<string | null>(null)
+  const dialogStartedRef = useRef(false)
   const prevEnabledRef = useRef(state.musicEnabled)
 
   useEffect(() => {
@@ -42,11 +56,13 @@ export const useMusic = (state: GameState): void => {
 
       if (charId) {
         const def = getCharacterDefinition(charId)
-        if (def.music) {
+        if (def.music && !characterHasMusicEmitter(state, charId)) {
           startDialogMusic(def.music)
+          dialogStartedRef.current = true
         }
-      } else {
+      } else if (dialogStartedRef.current) {
         stopDialogMusic()
+        dialogStartedRef.current = false
       }
     }
 
