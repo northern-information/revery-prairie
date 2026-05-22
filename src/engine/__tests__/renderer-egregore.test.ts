@@ -92,7 +92,11 @@ beforeEach(() => {
 
 const setupState = (): GameState => {
   const state = createTestState()
-  clearAroundPlayer(state, 6)
+  // Clear large enough to cover the 30x20 viewport so the only egregore
+  // tile in view is the one the test places at the player position.
+  // Without this, incidental egregore tiles seeded by genesis can satisfy
+  // the Voynich-font assertion for the wrong reason.
+  clearAroundPlayer(state, 25)
   state.viewportWidth = 30
   state.viewportHeight = 20
   state.camera = { x: state.player.x - 15, y: state.player.y - 10 }

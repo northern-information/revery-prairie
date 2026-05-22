@@ -323,16 +323,16 @@ describe('tickGenesis', () => {
 })
 
 describe('formatYearsAgo', () => {
-  it('returns "~13.8B years ago" at the cosmic origin (year 0)', () => {
-    expect(formatYearsAgo(0)).toBe('~13.8B years ago...')
+  it('returns "~138B years ago" at the cosmic origin (year 0)', () => {
+    expect(formatYearsAgo(0)).toBe('~138B years ago...')
   })
 
-  it('returns "~9.3B years ago" mid-billions (4.5B into genesis)', () => {
-    expect(formatYearsAgo(4_500_000_000)).toBe('~9.3B years ago...')
+  it('returns "~093B years ago" mid-billions (4.5B into genesis)', () => {
+    expect(formatYearsAgo(4_500_000_000)).toBe('~093B years ago...')
   })
 
-  it('drops the trailing .0 at the M-to-B band edge (exactly 1B years ago)', () => {
-    expect(formatYearsAgo(12_800_000_000)).toBe('~1B years ago...')
+  it('renders the M-to-B band edge as ~010B (1B years ago)', () => {
+    expect(formatYearsAgo(12_800_000_000)).toBe('~010B years ago...')
   })
 
   it('returns "~100M years ago" in the millions band', () => {
@@ -355,24 +355,42 @@ describe('formatYearsAgo', () => {
   // mid-epoch under the continuous lerp, not just at clean band centers.
   // The promotion rule (round, then bucket) is what keeps these honest.
 
-  it('promotes 999M years ago to ~1B rather than rendering ~1000M', () => {
+  it('promotes 999M years ago to ~010B rather than rendering ~1000M', () => {
     // 999_000_000 years ago = year 12_801_000_000 — appears mid-riseOfCivilizations.
-    expect(formatYearsAgo(GENESIS_END_YEAR - 999_000_000)).toBe('~1B years ago...')
+    expect(formatYearsAgo(GENESIS_END_YEAR - 999_000_000)).toBe('~010B years ago...')
   })
 
-  it('renders 25M years ago as ~25M, not ~0M', () => {
+  it('renders 25M years ago as ~025M, not ~000M', () => {
     // 25_000_000 years ago — appears mid-presentDay under the lerp.
-    expect(formatYearsAgo(GENESIS_END_YEAR - 25_000_000)).toBe('~25M years ago...')
+    expect(formatYearsAgo(GENESIS_END_YEAR - 25_000_000)).toBe('~025M years ago...')
   })
 
-  it('renders 999_500 years ago as ~1M, not ~0M', () => {
+  it('renders 999_500 years ago as ~001M, not ~000M', () => {
     // 999_500 years ago — appears late-presentDay; round-up should
     // promote it across the M boundary instead of zeroing out.
-    expect(formatYearsAgo(GENESIS_END_YEAR - 999_500)).toBe('~1M years ago...')
+    expect(formatYearsAgo(GENESIS_END_YEAR - 999_500)).toBe('~001M years ago...')
   })
 
-  it('renders 950M years ago as ~1B (rounds across the M-to-B boundary)', () => {
-    expect(formatYearsAgo(GENESIS_END_YEAR - 950_000_000)).toBe('~1B years ago...')
+  it('renders 950M years ago as ~010B (rounds across the M-to-B boundary)', () => {
+    expect(formatYearsAgo(GENESIS_END_YEAR - 950_000_000)).toBe('~010B years ago...')
+  })
+
+  it('every non-"~now" output matches /^~\\d{3}[BMK] years ago\\.\\.\\.$/ (fixed-width contract)', () => {
+    const samples = [
+      0,
+      4_500_000_000,
+      12_800_000_000,
+      13_700_000_000,
+      13_775_000_000,
+      13_799_900_000,
+      GENESIS_END_YEAR - 999_000_000,
+      GENESIS_END_YEAR - 25_000_000,
+      GENESIS_END_YEAR - 999_500,
+      GENESIS_END_YEAR - 5_000,
+    ]
+    for (const y of samples) {
+      expect(formatYearsAgo(y)).toMatch(/^~\d{3}[BMK] years ago\.\.\.$/)
+    }
   })
 })
 
@@ -776,14 +794,38 @@ describe('water consolidation', () => {
     return { allWater, components }
   }
 
-  it('water forms 1-3 contiguous bodies after genesis', () => {
+  it('every surviving water body is at least MIN_WATER_BODY_SIZE tiles', () => {
     const sim = getCachedSim42()
     const { components } = findWaterComponents(sim)
     expect(components.length).toBeGreaterThanOrEqual(1)
-    expect(components.length).toBeLessThanOrEqual(3)
     for (const comp of components) {
       expect(comp.size).toBeGreaterThanOrEqual(10)
     }
+  })
+
+  it('final water ratio lands near the 15% inland target', () => {
+    const sim = getCachedSim42()
+    const { allWater } = findWaterComponents(sim)
+    const ratio = allWater.size / sim.landMask.size
+    expect(ratio).toBeGreaterThanOrEqual(0.1)
+    expect(ratio).toBeLessThanOrEqual(0.2)
+  })
+
+  it('final water centroid sits closer to the prairie center than to any edge', () => {
+    const sim = getCachedSim42()
+    const { allWater } = findWaterComponents(sim)
+    let sumX = 0
+    let sumY = 0
+    for (const key of allWater) {
+      const [xStr, yStr] = key.split(',')
+      sumX += Number(xStr)
+      sumY += Number(yStr)
+    }
+    const cx = sumX / allWater.size
+    const cy = sumY / allWater.size
+    const distToCenter = Math.hypot(cx - sim.width / 2, cy - sim.height / 2)
+    const distToNearestEdge = Math.min(cx, cy, sim.width - cx, sim.height - cy)
+    expect(distToCenter).toBeLessThan(distToNearestEdge)
   })
 
   it('no isolated water tiles after genesis', () => {

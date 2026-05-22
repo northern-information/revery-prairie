@@ -1,0 +1,81 @@
+plan:
+  id: genesis-tweaks
+  title: Genesis tuning — fixed-width year, deeper mirrored glaciers, 15% inland water, constant star density
+  created: 2026-05-22
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test -- --run src/engine/__tests__/genesis.test.ts
+
+tasks:
+  - id: year-format-three-digit
+    title: Rewrite formatYearsAgo for fixed-width 3-digit numeric portion
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - year-format-reverse-projection
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/__tests__/genesis.test.ts
+    output_files:
+      - src/engine/genesis.ts
+      - src/engine/__tests__/genesis.test.ts
+    depends_on: []
+    verification:
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts -t formatYearsAgo
+    repair: retry
+    tags:
+      - engine
+
+  - id: glacial-depth-and-mirrored-noise
+    title: Bump glacial depth to 0.25 of u-span and mirror bottom noise from top
+    spec_id: precis-30-the-diamond-is-the-world
+    spec_sections:
+      - genesis-polar-distance-rotated
+      - glacial-edge-noise-reindexed
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/__tests__/genesis.test.ts
+    output_files:
+      - src/engine/genesis.ts
+      - src/engine/__tests__/genesis.test.ts
+    depends_on: []
+    verification:
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: inland-water-budget-and-soft-drought
+    title: WarmPeriod water budget to 18%, inland-bias minima sort, soften FallOfCivilizations drought
+    spec_id: genesis-enhancements
+    spec_sections:
+      - final-water-distribution-target
+      - animated-water-systems
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/__tests__/genesis.test.ts
+    output_files:
+      - src/engine/genesis.ts
+      - src/engine/__tests__/genesis.test.ts
+    depends_on: []
+    verification:
+      - npm run test -- --run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: cosmic-star-density-match-gameplay
+    title: Set COSMIC_STAR_DENSITY = 12 to eliminate the cosmic-to-gameplay density step
+    spec_id: genesis-enhancements
+    spec_sections:
+      - cosmic-star-density-matches-gameplay
+    context_files:
+      - src/engine/genesisRenderer.ts
+    output_files:
+      - src/engine/genesisRenderer.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - engine

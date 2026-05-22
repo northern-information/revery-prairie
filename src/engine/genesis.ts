@@ -391,6 +391,15 @@ const LOWLAND_NOISE_CELL = 18
 // the LavaEra elevation floor.
 const LOWLAND_NOISE_AMPLITUDE = 30
 
+// Final-water inland bias — minima within COAST_INLAND_BIAS_RADIUS tiles
+// (Chebyshev) of any coastlineTiles tile receive COAST_INLAND_BIAS_PENALTY
+// added to their sort key. Deeper basins still win the budget allocation,
+// but among similar-depth candidates the interior basins fill first, so the
+// final water bodies cluster toward the diamond's center rather than its
+// edges.
+const COAST_INLAND_BIAS_RADIUS = 8
+const COAST_INLAND_BIAS_PENALTY = 30
+
 const smoothstep = (t: number): number => t * t * (3 - 2 * t)
 
 /**
@@ -1440,19 +1449,24 @@ const iceAge: GenesisEpoch = {
     // advance along the u = x + y axis (diamond's vertical screen axis), so
     // the perpendicular coordinate is v = x - y. Noise arrays index by
     // (x - y + sim.height - 1), spanning [0, sim.width + sim.height - 2].
+    // Top and bottom fronts share the same noise array so the two ice ages
+    // advance in mirrored shape; independent draws made one front visibly
+    // outpace the other, which read as a worldgen seam.
     const vSpan = sim.width + sim.height - 1
+    const sharedEdgeNoise = smoothNoiseSeeded(vSpan, 14, 12, sim.rng)
     sim.glacialEdgeNoise = {
-      top: smoothNoiseSeeded(vSpan, 14, 12, sim.rng),
-      bottom: smoothNoiseSeeded(vSpan, 14, 12, sim.rng),
+      top: sharedEdgeNoise,
+      bottom: sharedEdgeNoise,
     }
 
     // Glaciers advance from the diamond's top tip (storage (SPACE_BORDER,
     // SPACE_BORDER)) and bottom tip (storage (max, max)). Polar distance is
     // measured along u = (x - SB) + (y - SB). The u span across the playable
-    // region is 2 * (playable side - 1), so glacialDepth halves to keep the
-    // visual band roughly equivalent.
+    // region is 2 * (playable side - 1); glacialDepth at 0.25 advances each
+    // front ~25% of the u-span in from its tip, restoring a recognisably
+    // "ice age" reach after the precis-30 rotation left 0.1 barely visible.
     const playableU = sim.width + sim.height - 2 * SPACE_BORDER
-    const glacialDepth = Math.floor(playableU * 0.1)
+    const glacialDepth = Math.floor(playableU * 0.25)
 
     for (const key of sim.landMask) {
       const [xStr, yStr] = key.split(',')
@@ -1569,7 +1583,7 @@ const iceAge: GenesisEpoch = {
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
       const playableU = sim.width + sim.height - 2 * SPACE_BORDER
-      const glacialDepth = Math.floor(playableU * 0.1)
+      const glacialDepth = Math.floor(playableU * 0.25)
       const vIdx = x - ty + sim.height - 1
       const topNoise = sim.glacialEdgeNoise.top[vIdx] ?? 0
       const bottomNoise = sim.glacialEdgeNoise.bottom[vIdx] ?? 0
@@ -1607,7 +1621,7 @@ const iceAge: GenesisEpoch = {
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
       const playableU = sim.width + sim.height - 2 * SPACE_BORDER
-      const glacialDepth = Math.floor(playableU * 0.1)
+      const glacialDepth = Math.floor(playableU * 0.25)
       const topDist = (x - SPACE_BORDER) + (ty - SPACE_BORDER)
       const bottomDist = playableU - 2 - topDist
       const minDist = Math.min(topDist, bottomDist)
@@ -1845,9 +1859,12 @@ const warmPeriod: GenesisEpoch = {
       }
     }
 
-    // Elevation-driven pond generation: find local minima, flood upward
-    const waterBudget = Math.floor(sim.landMask.size * 0.05)
-    const minima: { key: string; elev: number }[] = []
+    // Elevation-driven pond generation: find local minima, flood upward.
+    // The 0.18 budget is sized to land near the 15% final-water target
+    // after FallOfCivilizations' softened drought trims residual <10-tile
+    // fragments.
+    const waterBudget = Math.floor(sim.landMask.size * 0.18)
+    const minima: { key: string; elev: number; coastal: boolean }[] = []
 
     for (const key of sim.landMask) {
       if (sim.riverPaths.has(key)) continue
@@ -1864,11 +1881,27 @@ const warmPeriod: GenesisEpoch = {
           break
         }
       }
-      if (isMinimum) minima.push({ key, elev })
+      if (isMinimum) {
+        // Coastal proximity test: Chebyshev within COAST_INLAND_BIAS_RADIUS
+        // of any coastlineTiles tile.
+        let coastal = false
+        for (let dy = -COAST_INLAND_BIAS_RADIUS; dy <= COAST_INLAND_BIAS_RADIUS && !coastal; dy++) {
+          for (let dx = -COAST_INLAND_BIAS_RADIUS; dx <= COAST_INLAND_BIAS_RADIUS && !coastal; dx++) {
+            if (sim.coastlineTiles.has(posKey(x + dx, y + dy))) coastal = true
+          }
+        }
+        minima.push({ key, elev, coastal })
+      }
     }
 
-    // Sort by elevation (lowest first — deepest basins fill first)
-    minima.sort((a, b) => a.elev - b.elev)
+    // Sort by elevation (lowest first — deepest basins fill first), with a
+    // fixed penalty added to coastal minima so interior basins win priority
+    // among similar-depth candidates.
+    minima.sort((a, b) => {
+      const aKey = a.elev + (a.coastal ? COAST_INLAND_BIAS_PENALTY : 0)
+      const bKey = b.elev + (b.coastal ? COAST_INLAND_BIAS_PENALTY : 0)
+      return aKey - bKey
+    })
 
     let totalWaterTiles = 0
     const MAX_POND_SIZE = 200
@@ -1996,7 +2029,7 @@ const warmPeriod: GenesisEpoch = {
       const [, yStr] = key.split(',')
       const ty = Number(yStr)
       const playableU = sim.width + sim.height - 2 * SPACE_BORDER
-      const glacialDepth = Math.floor(playableU * 0.1)
+      const glacialDepth = Math.floor(playableU * 0.25)
       const vIdx = x - ty + sim.height - 1
       const topNoise = sim.glacialEdgeNoise.top[vIdx] ?? 0
       const bottomNoise = sim.glacialEdgeNoise.bottom[vIdx] ?? 0
@@ -2507,7 +2540,9 @@ const fallOfCivilizations: GenesisEpoch = {
       }
     }
 
-    // Drought: consolidate water into 2-5 contiguous bodies
+    // Drought: dry up small fragments only. Substantial bodies survive so
+    // the final terrain carries enough water to read as a prairie wetland
+    // rather than a few token puddles.
     const MIN_WATER_BODY_SIZE = 10
 
     // 1. Unify all water tiles
@@ -2550,13 +2585,10 @@ const fallOfCivilizations: GenesisEpoch = {
       waterComponents.push(component)
     }
 
-    // 3. Sort by size (largest first), filter by minimum
-    waterComponents.sort((a, b) => b.size - a.size)
-    const viable = waterComponents.filter(c => c.size >= MIN_WATER_BODY_SIZE)
-
-    // 4. Keep 1-3 of the largest viable components
-    const targetCount = 1 + Math.floor(sim.rng() * 3)
-    const kept = viable.length >= 1 ? viable.slice(0, targetCount) : waterComponents.slice(0, targetCount)
+    // 3. Keep every component at or above MIN_WATER_BODY_SIZE. The previous
+    // targetCount slice (1-3 of the largest) collapsed the prairie to a few
+    // small puddles; now substantial bodies all survive.
+    const kept = waterComponents.filter(c => c.size >= MIN_WATER_BODY_SIZE)
     const keptTiles = new Set<string>()
     for (const comp of kept) {
       for (const key of comp) keptTiles.add(key)
@@ -3704,44 +3736,39 @@ export const getGenesisYear = (sim: GenesisSimState, epochs: GenesisEpoch[]): nu
 }
 
 /** Convert a year in [0, GENESIS_END_YEAR] into a reverse-projection
- *  readout — tilde-prefixed, abbreviated unit, banded precision. The
- *  bottom bar reads these values during genesis so the screen reads as
- *  the permacomputer back-deriving the world from a name seed.
- *
- *  Banding is rounded-value-driven so that values near a band boundary
- *  promote to the next band rather than overflowing the band's
- *  natural integer range (e.g. 999_500_000 promotes to "~1B" rather
- *  than rendering "~1000M"; 999_500 promotes to "~1M" rather than
- *  "~0M"). The displayed integer in each band always lies in [1, 999]
- *  (M / K bands) or carries one decimal place (B band).
+ *  readout — tilde-prefixed, abbreviated unit, fixed-width 3-digit
+ *  numeric portion. The bottom bar reads these values during genesis
+ *  so the screen reads as the permacomputer back-deriving the world
+ *  from a name seed. The width is locked so the readout never shifts
+ *  horizontally as the lerped year crosses band boundaries — the B
+ *  band counts hundred-millions of years (so 13.8B years ago renders
+ *  as "~138B"); M and K bands count millions and thousands.
  *
  *  Bands —
  *    yearsAgo < 1_000              → "~now"
- *    rounds to >= 1B (100M step)   → "~N.NB years ago..." (trailing .0
- *                                     dropped, geology-citation
- *                                     register)
- *    rounds to >= 1M (1M step)     → "~NM years ago..."
- *    otherwise (1K step)           → "~NK years ago..."
+ *    rounds to >= 1B (100M step)   → "~NNNB years ago..."
+ *    rounds to >= 1M (1M step)     → "~NNNM years ago..."
+ *    otherwise (1K step)           → "~NNNK years ago..."
  */
 export const formatYearsAgo = (year: number): string => {
   const yearsAgo = GENESIS_END_YEAR - year
   if (yearsAgo < 1_000) return '~now'
 
+  const pad3 = (n: number): string => String(n).padStart(3, '0')
+
   // Round to the 100M step first; if that lands at >= 1.0B, render in the B band.
   const tenthsOfB = Math.round(yearsAgo / 100_000_000)
   if (tenthsOfB >= 10) {
-    const value = tenthsOfB / 10
-    const formatted = value % 1 === 0 ? String(Math.round(value)) : value.toFixed(1)
-    return `~${formatted}B years ago...`
+    return `~${pad3(tenthsOfB)}B years ago...`
   }
 
   // Round to the 1M step; if that lands at >= 1M, render in the M band.
   const m = Math.round(yearsAgo / 1_000_000)
-  if (m >= 1) return `~${String(m)}M years ago...`
+  if (m >= 1) return `~${pad3(m)}M years ago...`
 
   // K band — round to the 1K step.
   const k = Math.round(yearsAgo / 1_000)
-  return `~${String(k)}K years ago...`
+  return `~${pad3(k)}K years ago...`
 }
 
 /** Format a year as a comma-separated integer string (e.g. 13_800_000_000 →

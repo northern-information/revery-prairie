@@ -503,6 +503,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     // inversion stays a single readable char). Oak tiles populate this so
     // the canopy reads as a clump of overlapping branches.
     oakLayers?: OakTileLayer[]
+    // True when the underlying tile is TileType.Egregore — the flush
+    // applies the Voynich font swap so the PUA glyph renders correctly
+    // even though the player-tile branch deferred the entity here. The
+    // off-player egregore branch (renderer.ts ~line 1751) handles the
+    // swap inline; this flag carries the same swap through the deferred
+    // path for the player-on-egregore case.
+    egregoreFont?: boolean
   }
   const deferredEntities: DeferredEntity[] = []
   const deferredFloraGlyphs: { char: string; color: string; px: number; py: number }[] = []
@@ -1615,6 +1622,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // stack glyphs after the base char. Suppressed on highlight so the
         // single inverted glyph reads cleanly against the pink BG.
         const oakLayers = isOakPixel && !highlight ? oakLayerMap.get(tileKey) : undefined
+        // Player standing on an egregore tile — flag so the flush applies
+        // the Voynich font swap. Mirrors the on-player branch below
+        // (around the egregore-font swap at line ~1750) which is unreachable
+        // when isPlayerOwnTile=true.
+        const egregoreFont = isPlayerOwnTile && map[my]?.[mx]?.type === TileType.Egregore
         deferredEntities.push({
           char,
           color: highlight ? BG_COLOR : color,
@@ -1625,6 +1637,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           highlightPy: pyLift + angelLift + tweenDy,
           alpha: 1,
           oakLayers,
+          egregoreFont,
         })
         continue
       }
@@ -1794,7 +1807,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       drawCellHighlight(ctx, e.highlightPx, e.highlightPy, charWidth, charHeight, ACTION_COLOR)
     }
     ctx.fillStyle = e.color
-    ctx.fillText(e.char, e.glyphPx, e.glyphPy)
+    if (e.egregoreFont) {
+      const prevFont = ctx.font
+      ctx.font = `${String(BASE_FONT_SIZE)}px 'Voynich', monospace`
+      ctx.fillText(e.char, e.glyphPx, e.glyphPy)
+      ctx.font = prevFont
+    } else {
+      ctx.fillText(e.char, e.glyphPx, e.glyphPy)
+    }
     // Oak multilayer overlay — stacks branchy glyphs on top of the base
     // char at sub-pixel offsets, same offsetScale as ruin walls. The base
     // char acts as the "trunk silhouette"; the overlays layer canopy depth.
