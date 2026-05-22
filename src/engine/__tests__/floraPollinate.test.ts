@@ -158,6 +158,17 @@ describe('tickPollenEmit', () => {
     const profileWithGate: FloraPollinateProfile = { ...TEST_PROFILE, emitGate: () => false }
     registerFloraPollinate('gated-tile', profileWithGate)
 
+    // Clear the viewport so the only pollinate-eligible tile is the gated
+    // one this test places. Without this, incidental TileType.Flora tiles
+    // seeded by genesis (TEST_PROFILE is registered for Flora in
+    // beforeEach) would emit pollen unrelated to the gated tile.
+    for (let ty = state.camera.y; ty < state.camera.y + state.viewportHeight; ty++) {
+      for (let tx = state.camera.x; tx < state.camera.x + state.viewportWidth; tx++) {
+        const row = state.map[ty]
+        if (row?.[tx]) row[tx] = { type: TileType.Dirt }
+      }
+    }
+
     // Place a gated tile in the viewport
     const row = state.map[state.camera.y]
     if (row) row[state.camera.x] = { type: 'gated-tile' as never }
