@@ -77,8 +77,14 @@ export const useGameEngine = (
     // engine layer doesn't import celestial.ts (which would form a cycle
     // through manual.ts). Fires synchronously inside completeGenesis so the
     // first gameplay render already sees playerSpawn.visible === false.
+    //
+    // The skipGenesis dev path bypasses the shower entirely. With the
+    // shower, the camera follows the descending steward star (panned up
+    // above the prairie); for the dev fast-path we want the first frame
+    // to be centered on the player.
     gameState.onGenesisComplete = (handoffTime: number) => {
       if (!gameState) return
+      if (skipGenesis) return
       triggerPlayerSpawnShower(gameState, gameState.player, handoffTime)
     }
     initializedRef.current = true
