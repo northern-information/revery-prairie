@@ -24,8 +24,14 @@ import type { RenderPass } from '../passes'
 /** Base alpha when no seasonal wash is active. Tune by eye. */
 const FILM_GRAIN_ALPHA = 0.2
 
-/** Asset URL — copy the JPG to public/textures/. */
-const FILM_GRAIN_TEXTURE_URL = '/textures/000973910004.jpg'
+/** Asset URL — copy the JPG to public/textures/.
+ *
+ * 512px crop of the original photograph. The full-resolution
+ * `000973910004.jpg` (4432×2914, ~3.7 MB) stays in place for the CSS
+ * title-card paths (`.film-grain-overlay`, `.film-grain-overlay-strong`)
+ * where it tiles at native resolution. At the world-overlay's 0.2 alpha
+ * behind the bg-cache mask, the 512 crop is visually indistinguishable. */
+const FILM_GRAIN_TEXTURE_URL = '/textures/000973910004-512.jpg'
 
 // ─── singleton image loader ───────────────────────────────────────────────────
 
