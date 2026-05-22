@@ -687,7 +687,7 @@ features:
       events. Continuous readouts, no emphasis change near bookmarks,
       no transition narration, no event language.
     depends_on: ['30']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-28-permacomputer-instruments.yaml
     plan: harness/plans/precis-28-permacomputer-instruments.yaml
     pr: https://github.com/northern-information/revery-prairie/pull/386
