@@ -1,0 +1,179 @@
+plan:
+  id: coin-glint-polish
+  title: 'Coin glint: minimum patch size + inventory pop animation on unglinted→glinted'
+  created: '2026-05-22'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-constants
+    title: 'Add GLINT_PATCH_MIN_TILES and COIN_POP_DURATION_MS constants'
+    spec_id: glinting-zones
+    spec_sections:
+      - patch-spawning
+      - patch-drift
+      - inventory-coin-shimmer-and-pop
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, constants]
+
+  - id: add-pop-times-state-field
+    title: 'Add state.coinGlintPopTimes: Map<string, number> to GameState, createGameState, EXPECTED_FIELDS, and test helpers'
+    spec_id: glinting-zones
+    spec_sections:
+      - coin-reglinting-on-walk
+      - pop-time-cleanup
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/__tests__/helpers.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [engine, state, schema]
+
+  - id: enforce-min-size-on-spawn-and-drift
+    title: 'Reject patch candidates and drift steps that would produce fewer than GLINT_PATCH_MIN_TILES land tiles'
+    spec_id: glinting-zones
+    spec_sections:
+      - patch-spawning
+      - patch-drift
+      - patch-spawn-rejects-sub-min-size
+      - drift-erodes-below-threshold
+    context_files:
+      - src/engine/glintZones.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/glintZones.ts
+    depends_on:
+      - add-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, glint]
+
+  - id: emit-pop-times-on-walk
+    title: 'movePlayer records performance.now() in state.coinGlintPopTimes for each coin transitioning unglinted→glinted; existing glinted coins untouched'
+    spec_id: glinting-zones
+    spec_sections:
+      - coin-reglinting-on-walk
+      - multiple-coins-pop-in-unison
+      - already-glinted-coins-do-not-repop
+    context_files:
+      - src/engine/movement.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/movement.ts
+    depends_on:
+      - add-pop-times-state-field
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, movement]
+
+  - id: glintzones-tests-min-size-and-drift
+    title: 'Add tests in glintZones.test.ts: spawn rejects <5-tile candidates, drift skips erosion-below-threshold, existing patches survive erosion'
+    spec_id: glinting-zones
+    spec_sections:
+      - patch-spawn-rejects-sub-min-size
+      - drift-erodes-below-threshold
+    context_files:
+      - src/engine/__tests__/glintZones.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/glintZones.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/glintZones.test.ts
+    depends_on:
+      - enforce-min-size-on-spawn-and-drift
+    verification:
+      - npx vitest run src/engine/__tests__/glintZones.test.ts
+    repair: retry
+    tags: [engine, test]
+
+  - id: movement-tests-pop-times
+    title: 'Add tests in movement.test.ts: walking onto a glint zone records pop times for newly-glinted coins, leaves already-glinted coins untouched, multiple coins share a single timestamp'
+    spec_id: glinting-zones
+    spec_sections:
+      - coin-reglinting-on-walk
+      - multiple-coins-pop-in-unison
+      - already-glinted-coins-do-not-repop
+      - coin-picked-up-in-glint-zone
+    context_files:
+      - src/engine/__tests__/movement.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/movement.ts
+      - src/engine/items.ts
+    output_files:
+      - src/engine/__tests__/movement.test.ts
+    depends_on:
+      - emit-pop-times-on-walk
+    verification:
+      - npx vitest run src/engine/__tests__/movement.test.ts
+    repair: retry
+    tags: [engine, test]
+
+  - id: inventory-grid-shimmer-and-pop
+    title: 'InventoryGrid coin cells expose data-coin-state and run sustained shimmer + transient pop animations based on state.glintingCoins and state.coinGlintPopTimes'
+    spec_id: glinting-zones
+    spec_sections:
+      - inventory-coin-shimmer-and-pop
+      - pop-time-cleanup
+      - pop-time-survives-inventory-open
+      - stale-pop-time-no-replay
+    context_files:
+      - src/components/InventoryGrid.tsx
+      - src/components/InventoryPanel.tsx
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/styles/index.css
+    output_files:
+      - src/components/InventoryGrid.tsx
+      - src/components/InventoryPanel.tsx
+      - src/styles/index.css
+    depends_on:
+      - add-constants
+      - add-pop-times-state-field
+    verification:
+      - npx tsc -b --noEmit
+      - npm run lint
+    repair: retry
+    tags: [component, inventory, animation]
+
+  - id: inventory-grid-tests
+    title: 'Add src/components/__tests__/InventoryGrid.test.tsx asserting data-coin-state="dull" | "glint" | "glint-pop" across the three states, including stale pop times and missing coinGlintPopTimes'
+    spec_id: glinting-zones
+    spec_sections:
+      - inventory-coin-shimmer-and-pop
+      - stale-pop-time-no-replay
+    context_files:
+      - src/components/InventoryGrid.tsx
+      - src/components/__tests__/InventoryPanel.test.tsx
+      - src/engine/__tests__/helpers.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/components/__tests__/InventoryGrid.test.tsx
+    depends_on:
+      - inventory-grid-shimmer-and-pop
+    verification:
+      - npx vitest run src/components/__tests__/InventoryGrid.test.tsx
+    repair: retry
+    tags: [component, test]

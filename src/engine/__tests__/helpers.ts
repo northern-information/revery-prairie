@@ -67,6 +67,7 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
     state.world.destroyEntity(eid)
   }
   state.glintingCoins = new Set()
+  state.coinGlintPopTimes = new Map()
   state.divinedHexagrams = new Set()
   state.glintZones = new Set()
   state.glintPatches = []

@@ -5,6 +5,7 @@ import {
   GLINT_BEAM_LENGTH_MIN,
   GLINT_BEAM_MAX_OPACITY,
   GLINT_BEAM_TAIL_OPACITY,
+  GLINT_PATCH_MIN_TILES,
   GLINT_ZONE_COUNT,
   GLINT_ZONE_DRIFT_MS,
   GLINT_ZONE_FADE_IN_MS,
@@ -55,7 +56,7 @@ export const spawnGlintPatch = (state: GameState, birthTime: number): GlintPatch
     const radius =
       GLINT_ZONE_RADIUS_MIN + Math.floor(Math.random() * (GLINT_ZONE_RADIUS_MAX - GLINT_ZONE_RADIUS_MIN + 1))
     const tiles = computePatchTiles(map, cx, cy, radius, mapWidth, mapHeight)
-    if (tiles.size === 0) continue
+    if (tiles.size < GLINT_PATCH_MIN_TILES) continue
     return {
       centerX: cx,
       centerY: cy,
@@ -148,9 +149,12 @@ export const tickGlintZones = (state: GameState, time: number): void => {
     ) {
       const tile = state.map[newCy][newCx].type
       if (tile === TileType.Dirt || tile === TileType.Flora) {
-        patch.centerX = newCx
-        patch.centerY = newCy
-        patch.tiles = computePatchTiles(state.map, newCx, newCy, patch.radius, state.mapWidth, state.mapHeight)
+        const candidate = computePatchTiles(state.map, newCx, newCy, patch.radius, state.mapWidth, state.mapHeight)
+        if (candidate.size >= GLINT_PATCH_MIN_TILES) {
+          patch.centerX = newCx
+          patch.centerY = newCy
+          patch.tiles = candidate
+        }
       }
     }
     patch.lastDriftTime = time

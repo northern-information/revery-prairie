@@ -360,4 +360,63 @@ describe('glinting zone walk-through', () => {
     movePlayer(state, 'down')
     expect(state.manualDiscoveries.has('event:glint-zone')).toBe(true)
   })
+
+  it('records a pop time for each coin transitioning from unglinted to glinted', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const a = placeDullCoin(state)
+    expect(state.coinGlintPopTimes.has(a.uid)).toBe(false)
+
+    const targetX = state.player.x
+    const targetY = state.player.y + 1
+    state.glintZones.add(posKey(targetX, targetY))
+
+    const before = performance.now()
+    movePlayer(state, 'down')
+    const after = performance.now()
+
+    expect(state.coinGlintPopTimes.has(a.uid)).toBe(true)
+    const popTime = state.coinGlintPopTimes.get(a.uid)
+    if (popTime === undefined) throw new Error('expected popTime to be set')
+    expect(popTime).toBeGreaterThanOrEqual(before)
+    expect(popTime).toBeLessThanOrEqual(after)
+  })
+
+  it('does not write or overwrite pop times for already-glinting coins', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const placed = placeDullCoin(state)
+    state.glintingCoins.add(placed.uid)
+    // Pre-seed an old pop time to confirm it is not overwritten.
+    state.coinGlintPopTimes.set(placed.uid, 1)
+
+    const targetX = state.player.x
+    const targetY = state.player.y + 1
+    state.glintZones.add(posKey(targetX, targetY))
+
+    movePlayer(state, 'down')
+    expect(state.coinGlintPopTimes.get(placed.uid)).toBe(1)
+  })
+
+  it('records the same pop time for multiple coins transitioning together', () => {
+    const state = createTestState()
+    clearAroundPlayer(state)
+    const a = placeItem(state.backpack, 'coin', 0, 0)
+    const b = placeItem(state.backpack, 'coin', 1, 0)
+    const c = placeItem(state.backpack, 'coin', 2, 0)
+    if (a === null || b === null || c === null) throw new Error('expected coin placements to succeed')
+
+    const targetX = state.player.x
+    const targetY = state.player.y + 1
+    state.glintZones.add(posKey(targetX, targetY))
+
+    movePlayer(state, 'down')
+
+    const popA = state.coinGlintPopTimes.get(a.uid)
+    const popB = state.coinGlintPopTimes.get(b.uid)
+    const popC = state.coinGlintPopTimes.get(c.uid)
+    expect(popA).toBeDefined()
+    expect(popB).toBe(popA)
+    expect(popC).toBe(popA)
+  })
 })

@@ -79,6 +79,7 @@ const EXPECTED_FIELDS = [
   'world',
   'lastDialogTypingTick',
   'glintingCoins',
+  'coinGlintPopTimes',
   'seedGenomes',
   'divinedHexagrams',
   'glintZones',
