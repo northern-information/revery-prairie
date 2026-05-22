@@ -142,7 +142,6 @@ describe('ruin locked door', () => {
           aqueductTiles: new Set<string>(),
           breakPoints: [],
           repairedBreaks: new Set<string>(),
-          debrisPositions: [],
           seedVault: { x: 5, y: 3 },
           seedDecayTimers: new Map(),
           seedDecayAcceleration: 1,

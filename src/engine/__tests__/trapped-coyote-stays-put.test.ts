@@ -120,11 +120,7 @@ describe('trapped coyote stays put on ruin entry', () => {
   })
 })
 
-const installCoyoteRuinWithBarrier = (
-  state: GameState,
-  barrier: { x: number; y: number }[],
-  scatteredDebris: { x: number; y: number }[] = []
-): void => {
+const installCoyoteRuinWithBarrier = (state: GameState, barrier: { x: number; y: number }[]): void => {
   const ruin: CivilizationRuin = {
     position: { x: 0, y: 0 },
     name: 'Test Coyote Ruin',
@@ -153,7 +149,6 @@ const installCoyoteRuinWithBarrier = (
       aqueductTiles: new Set<string>(),
       breakPoints: [],
       repairedBreaks: new Set<string>(),
-      debrisPositions: scatteredDebris,
       seedVault: { x: state.player.x + 3, y: state.player.y },
       seedDecayTimers: new Map<string, number>(),
       seedDecayAcceleration: 1,
@@ -300,34 +295,6 @@ describe('collapse barrier clears atomically', () => {
     for (const bp of barrier) {
       expect(state.map[bp.y][bp.x].type).toBe(TileType.RuinFloor)
     }
-  })
-})
-
-describe('scattered debris in coyote-role ruin still clears one tile at a time', () => {
-  it('clearing scattered debris (not in collapseBarrier) leaves the barrier intact', () => {
-    const state = createTestState()
-    clearAroundPlayer(state, 8)
-    state.playerFacing = 'up'
-    const scatteredX = state.player.x
-    const scatteredY = state.player.y - 1
-    const barrier = [
-      { x: state.player.x - 1, y: state.player.y - 3 },
-      { x: state.player.x, y: state.player.y - 3 },
-      { x: state.player.x + 1, y: state.player.y - 3 },
-    ]
-    state.map[scatteredY][scatteredX] = { type: TileType.RuinDebris }
-    for (const bp of barrier) {
-      state.map[bp.y][bp.x] = { type: TileType.RuinDebris }
-    }
-    installCoyoteRuinWithBarrier(state, barrier, [{ x: scatteredX, y: scatteredY }])
-
-    expect(clearRuinDebris(state)).toBe(true)
-    expect(state.map[scatteredY][scatteredX].type).toBe(TileType.RuinFloor)
-    for (const bp of barrier) {
-      expect(state.map[bp.y][bp.x].type).toBe(TileType.RuinDebris)
-    }
-    // No crumble entity for scattered debris.
-    expect(countCrumbleEntities(state)).toBe(0)
   })
 })
 

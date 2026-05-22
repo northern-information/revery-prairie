@@ -750,7 +750,6 @@ export interface DormantGardenData {
   aqueductTiles: Set<string>
   breakPoints: Position[]
   repairedBreaks: Set<string>
-  debrisPositions: Position[]
   seedVault: Position
   seedDecayTimers: Map<string, number>
   seedDecayAcceleration: number

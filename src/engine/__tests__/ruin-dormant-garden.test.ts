@@ -43,6 +43,54 @@ const makeGardenInterior = (overrides: Partial<CivilizationRuin> = {}) => {
   return generateRuinInterior(ruin, 0, RuinArchetype.DormantGarden, makeRng())
 }
 
+const installCoyoteRuinFixture = (
+  state: ReturnType<typeof createTestState>,
+  barrier: { x: number; y: number }[]
+): void => {
+  state.currentZone = Zone.Ruin
+  state.currentRuinIndex = 0
+  state.civilizationRuins = [
+    {
+      position: { x: 0, y: 0 },
+      name: 'Fixture Coyote Ruin',
+      radius: 3,
+      age: 1000,
+      aqueductPaths: [],
+      buildingFootprints: [],
+      role: RuinRole.Coyote,
+    },
+  ]
+  state.ruinInteriors = [
+    {
+      ruinIndex: 0,
+      archetype: RuinArchetype.DormantGarden,
+      name: 'Fixture Coyote Ruin',
+      map: state.map,
+      mapWidth: state.mapWidth,
+      mapHeight: state.mapHeight,
+      entranceInterior: { x: state.player.x, y: state.player.y + 1 },
+      entranceOverworld: { x: 0, y: 0 },
+      explored: true,
+      cleared: false,
+      dormantGarden: {
+        aqueductTiles: new Set<string>(),
+        breakPoints: [],
+        repairedBreaks: new Set<string>(),
+        seedVault: { x: state.player.x + 3, y: state.player.y },
+        seedDecayTimers: new Map<string, number>(),
+        seedDecayAcceleration: 1,
+        waterFlowing: true,
+        keyPosition: null,
+        tabletPosition: null,
+        doorPositions: [],
+        collapseBarrier: barrier,
+      },
+      fogExplored: new Set<string>(),
+      fogDiscovered: new Set<string>(),
+    },
+  ]
+}
+
 describe('ruin dormant garden', () => {
   describe('generation', () => {
     it('generates dormantGarden data for DormantGarden archetype', () => {
@@ -75,15 +123,19 @@ describe('ruin dormant garden', () => {
       }
     })
 
-    it('places debris tiles', () => {
+    it('places no scattered RuinDebris (only the coyote collapseBarrier produces RuinDebris)', () => {
       const interior = makeGardenInterior()
       const garden = interior.dormantGarden
       expect(garden).toBeTruthy()
       if (!garden) return
-      expect(garden.debrisPositions.length).toBeGreaterThanOrEqual(1)
-      for (const dp of garden.debrisPositions) {
-        expect(interior.map[dp.y][dp.x].type).toBe(TileType.RuinDebris)
+      expect(garden.collapseBarrier).toBeNull()
+      let debrisCount = 0
+      for (let y = 0; y < interior.mapHeight; y++) {
+        for (let x = 0; x < interior.mapWidth; x++) {
+          if (interior.map[y][x].type === TileType.RuinDebris) debrisCount++
+        }
       }
+      expect(debrisCount).toBe(0)
     })
 
     it('places seed decay timers in the vault', () => {
@@ -374,16 +426,23 @@ describe('ruin dormant garden', () => {
       expect(garden.collapseBarrier).toBeNull()
     })
 
-    it('clearRuinDebris converts a facing RuinDebris tile to RuinFloor and records discovery', () => {
+    it('clearRuinDebris collapses the entire barrier when the player faces a barrier tile, and records discovery', () => {
       const state = createTestState()
-      state.currentZone = Zone.Ruin
       const fx = state.player.x
       const fy = state.player.y - 1
-      state.map[fy][fx] = { type: TileType.RuinDebris }
+      const barrier = [
+        { x: fx - 1, y: fy },
+        { x: fx, y: fy },
+        { x: fx + 1, y: fy },
+      ]
+      for (const bp of barrier) state.map[bp.y][bp.x] = { type: TileType.RuinDebris }
+      installCoyoteRuinFixture(state, barrier)
       state.playerFacing = 'up'
 
       expect(clearRuinDebris(state)).toBe(true)
-      expect(state.map[fy][fx].type).toBe(TileType.RuinFloor)
+      for (const bp of barrier) {
+        expect(state.map[bp.y][bp.x].type).toBe(TileType.RuinFloor)
+      }
       expect(state.manualDiscoveries.has('event:rubble-cleared')).toBe(true)
     })
 

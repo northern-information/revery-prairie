@@ -407,24 +407,6 @@ const generateDormantGarden = (
     }
   }
 
-  // ---- 8. Debris at intersections / spine widening ----
-  const debrisCount = 3 + Math.floor(rng() * 3)
-  const debrisPositions: Position[] = []
-  let debrisAttempts = 0
-  while (debrisPositions.length < debrisCount && debrisAttempts < 200) {
-    debrisAttempts++
-    const dx = MARGIN + Math.floor(rng() * (mapWidth - MARGIN * 2))
-    const dy = MARGIN + Math.floor(rng() * (mapHeight - MARGIN * 2))
-    if (map[dy]?.[dx]?.type !== TileType.RuinFloor) continue
-    if (aqueductTiles.has(posKey(dx, dy))) continue
-    if (Math.abs(dx - entranceX) <= 1 && dy >= entranceY - 3) continue
-    // Avoid the door row and the carved landing strip directly south of it
-    // so every door tile remains reachable.
-    if (dx >= vaultX - 1 && dx <= vaultX + vaultW && dy >= doorY - 1 && dy <= doorY + 1) continue
-    map[dy][dx] = { type: TileType.RuinDebris }
-    debrisPositions.push({ x: dx, y: dy })
-  }
-
   // ---- 9. Seed decay timers in the vault ----
   const ageFactor = ruin.age / 6000
   const baseDecay = SEED_DECAY_BASE_MS - ageFactor * (SEED_DECAY_BASE_MS - SEED_DECAY_MIN_MS)
@@ -545,7 +527,6 @@ const generateDormantGarden = (
     aqueductTiles,
     breakPoints,
     repairedBreaks: new Set<string>(),
-    debrisPositions,
     seedVault: vaultCenter,
     seedDecayTimers,
     seedDecayAcceleration: 1,
@@ -601,7 +582,9 @@ const getCriticalPositions = (entranceInterior: Position, dormantGarden: Dormant
     critical.add(posKey(dormantGarden.seedVault.x, dormantGarden.seedVault.y))
     for (const p of dormantGarden.breakPoints) critical.add(posKey(p.x, p.y))
     for (const key of dormantGarden.aqueductTiles) critical.add(key)
-    for (const p of dormantGarden.debrisPositions) critical.add(posKey(p.x, p.y))
+    if (dormantGarden.collapseBarrier) {
+      for (const p of dormantGarden.collapseBarrier) critical.add(posKey(p.x, p.y))
+    }
   }
   return critical
 }

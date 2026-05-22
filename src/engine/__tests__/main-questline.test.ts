@@ -59,7 +59,6 @@ const installCoyoteRuin = (state: GameState): { ruinIndex: number; ruin: Civiliz
       aqueductTiles: new Set<string>(),
       breakPoints: [],
       repairedBreaks: new Set<string>(),
-      debrisPositions: [],
       seedVault: { x: state.player.x + 3, y: state.player.y },
       seedDecayTimers: new Map<string, number>(),
       seedDecayAcceleration: 1,
