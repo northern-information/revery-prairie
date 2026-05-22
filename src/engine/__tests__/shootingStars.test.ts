@@ -1,9 +1,8 @@
-import { countOverworldMeteorites, spawnShootingStar, spawnShootingStarAtTarget, tickShootingStars } from '../celestial'
+import { spawnShootingStar, spawnShootingStarAtTarget, tickShootingStars } from '../celestial'
 import {
   EXPLOSION_DURATION_MS,
   MAP_HEIGHT,
   MAP_WIDTH,
-  METEORITE_GROUND_MAX,
   SHOOTING_STAR_MAX_ACTIVE,
   SHOOTING_STAR_MAX_AGE,
 } from '../constants'
@@ -292,76 +291,39 @@ describe('spawnShootingStar', () => {
   })
 })
 
-describe('meteorite ground cap', () => {
+describe('ambient stars never land', () => {
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('countOverworldMeteorites counts only overworld-zoned meteorite entities', () => {
-    const state = createGameState('Test', 20, 20)
-    destroyAllMeteorites(state)
-    createZonedMeteorite(state, 5, 5, Zone.Overworld)
-    createZonedMeteorite(state, 6, 5, Zone.Overworld)
-    createZonedMeteorite(state, 7, 5, Zone.Cave)
-
-    expect(countOverworldMeteorites(state)).toBe(2)
-  })
-
-  it('spawnShootingStar returns early when at or above METEORITE_GROUND_MAX', () => {
+  it('spawnShootingStar always produces a star with willLand=false', () => {
     const state = createGameState('Test', 20, 20)
     destroyAllStars(state)
-    destroyAllMeteorites(state)
     vi.spyOn(Math, 'random').mockReturnValue(0) // force SPAWN_CHANCE check to pass
-    for (let i = 0; i < METEORITE_GROUND_MAX; i++) {
-      createZonedMeteorite(state, i % state.mapWidth, Math.floor(i / state.mapWidth), Zone.Overworld)
+
+    for (let i = 0; i < 5; i++) spawnShootingStar(state)
+
+    const stars = state.world.query(ComponentType.ShootingStarData)
+    expect(stars.length).toBeGreaterThan(0)
+    for (const eid of stars) {
+      const data = state.world.getComponent(eid, ComponentType.ShootingStarData)
+      expect(data?.willLand).toBe(false)
     }
-
-    for (let i = 0; i < 50; i++) spawnShootingStar(state)
-
-    expect(getStarCount(state)).toBe(0)
   })
 
-  it('resumes spawning after a meteorite is removed from the ground', () => {
+  it('spawnShootingStar is not gated by ground meteorite count', () => {
     const state = createGameState('Test', 20, 20)
     destroyAllStars(state)
     destroyAllMeteorites(state)
     vi.spyOn(Math, 'random').mockReturnValue(0)
-    const meteorites: Entity[] = []
-    for (let i = 0; i < METEORITE_GROUND_MAX; i++) {
-      meteorites.push(createZonedMeteorite(state, i % state.mapWidth, Math.floor(i / state.mapWidth), Zone.Overworld))
-    }
-    spawnShootingStar(state)
-    expect(getStarCount(state)).toBe(0)
 
-    state.world.destroyEntity(meteorites[0])
-    spawnShootingStar(state)
-
-    expect(getStarCount(state)).toBe(1)
-  })
-
-  it('cave-zoned meteorites do not count toward the cap', () => {
-    const state = createGameState('Test', 20, 20)
-    destroyAllStars(state)
-    destroyAllMeteorites(state)
-    vi.spyOn(Math, 'random').mockReturnValue(0)
-    for (let i = 0; i < METEORITE_GROUND_MAX + 5; i++) {
-      createZonedMeteorite(state, i % state.mapWidth, Math.floor(i / state.mapWidth), Zone.Cave)
-    }
-
-    spawnShootingStar(state)
-
-    expect(getStarCount(state)).toBe(1)
-  })
-
-  it('spawnShootingStarAtTarget bypasses the cap (meteor shower continues)', () => {
-    const state = createGameState('Test', 20, 20)
-    destroyAllStars(state)
-    destroyAllMeteorites(state)
-    for (let i = 0; i < METEORITE_GROUND_MAX; i++) {
+    // Pile ground meteorites well past the old cap; ambient spawning must
+    // still proceed because ambient stars no longer drop meteorites.
+    for (let i = 0; i < 50; i++) {
       createZonedMeteorite(state, i % state.mapWidth, Math.floor(i / state.mapWidth), Zone.Overworld)
     }
 
-    spawnShootingStarAtTarget(state, { x: 10, y: 10 })
+    spawnShootingStar(state)
 
     expect(getStarCount(state)).toBe(1)
   })

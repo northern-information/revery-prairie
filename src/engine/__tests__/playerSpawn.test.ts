@@ -1,5 +1,5 @@
 import { updateCamera } from '../camera'
-import { spawnShootingStarAtTarget, tickMeteorShower, tickShootingStars, triggerPlayerSpawnShower } from '../celestial'
+import { spawnShootingStarAtTarget, tickMeteorShower, tickShootingStars } from '../celestial'
 import { MAP_HEIGHT, MAP_WIDTH, SATELLITE_SHAKE_DURATION_MS } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { completeGenesis } from '../genesis'
@@ -33,14 +33,17 @@ const countMeteorites = (state: GameState): number =>
     .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite').length
 
 describe('player spawn ceremony', () => {
-  describe('triggerPlayerSpawnShower', () => {
-    it('initializes playerSpawn with the spawn entity id and timestamp', () => {
+  describe('spring-equinox cardinal shower is the spawn ceremony', () => {
+    it('initializes playerSpawn with the spawn entity id and timestamp on the first tickMeteorShower', () => {
       const state = createGameState('Test', 40, 30)
       destroyAllStars(state)
-      // createGameState defaults visible=true (so headless tests work). The trigger flips it to false.
+      // Fresh state: seasonalPhase=0, pendingAnchorPhase=0, triggeredAt=0.
+      // createGameState defaults visible=true (so headless tests work). The first
+      // tickMeteorShower call fires the spring shower and its steward star.
       expect(state.playerSpawn.visible).toBe(true)
+      expect(state.playerSpawn.triggeredAt).toBe(0)
 
-      triggerPlayerSpawnShower(state, state.player, 100)
+      tickMeteorShower(state, 100)
 
       expect(state.playerSpawn.visible).toBe(false)
       expect(state.playerSpawn.triggeredAt).toBe(100)
@@ -53,7 +56,7 @@ describe('player spawn ceremony', () => {
       destroyAllStars(state)
       expect(state.meteorShower.active).toBe(false)
 
-      triggerPlayerSpawnShower(state, state.player, 100)
+      tickMeteorShower(state, 100)
 
       expect(state.meteorShower.active).toBe(true)
       expect(state.manualDiscoveries.has('event:meteor-shower')).toBe(true)
@@ -63,7 +66,7 @@ describe('player spawn ceremony', () => {
       const state = createGameState('Test', 40, 30)
       destroyAllStars(state)
 
-      triggerPlayerSpawnShower(state, state.player, 100)
+      tickMeteorShower(state, 100)
       const eid = state.playerSpawn.meteorEntityId
       expect(eid).not.toBeNull()
       if (eid === null) return
@@ -74,19 +77,37 @@ describe('player spawn ceremony', () => {
       expect(data?.landingTarget).toEqual(state.player)
     })
 
-    it('accepts an arbitrary spawn position (multiplayer-ready)', () => {
+    it('subsequent spring showers carry no forPlayerSpawn star', () => {
       const state = createGameState('Test', 40, 30)
       destroyAllStars(state)
-      const otherPlayer: Position = { x: state.player.x + 5, y: state.player.y + 3 }
 
-      triggerPlayerSpawnShower(state, otherPlayer, 100)
+      // First spring shower — produces the steward star.
+      tickMeteorShower(state, 100)
+      const firstTriggeredAt = state.playerSpawn.triggeredAt
+      expect(firstTriggeredAt).toBe(100)
 
-      expect(state.playerSpawn.spawnPos).toEqual(otherPlayer)
-      const eid = state.playerSpawn.meteorEntityId
-      expect(eid).not.toBeNull()
-      if (eid === null) return
-      const data = state.world.getComponent(eid, ComponentType.ShootingStarData)
-      expect(data?.landingTarget).toEqual(otherPlayer)
+      // Force the shower to complete, advance through the rest of the year,
+      // and arrive at the next spring equinox.
+      state.meteorShower.remainingStars = 0
+      state.meteorShower.lastSpawnTime = 100
+      tickMeteorShower(state, 200) // queues summer
+      // Skip summer/autumn/winter by setting indices/phase manually.
+      state.meteorShower.lastFiredAnchorIndex = 3
+      state.meteorShower.pendingAnchorPhase = 0.0
+      state.seasonalPhase = 0.0
+      destroyAllStars(state)
+
+      tickMeteorShower(state, 60_000) // second spring
+
+      // The triggeredAt timestamp stays at the first spring's value.
+      expect(state.playerSpawn.triggeredAt).toBe(firstTriggeredAt)
+      // No new steward star — every star produced by the second-year spring
+      // shower must lack the forPlayerSpawn flag.
+      const stars = state.world.query(ComponentType.ShootingStarData)
+      for (const eid of stars) {
+        const data = state.world.getComponent(eid, ComponentType.ShootingStarData)
+        expect(data?.forPlayerSpawn).not.toBe(true)
+      }
     })
   })
 
@@ -173,7 +194,7 @@ describe('player spawn ceremony', () => {
     it('steward star descends with velocity { dx: 1, dy: 1 }', () => {
       const state = createGameState('Test', 40, 30)
       destroyAllStars(state)
-      triggerPlayerSpawnShower(state, state.player, 100)
+      tickMeteorShower(state, 100)
 
       const eid = state.playerSpawn.meteorEntityId
       expect(eid).not.toBeNull()
@@ -300,18 +321,29 @@ describe('player spawn ceremony', () => {
     })
   })
 
-  describe('shower scheduling', () => {
-    it('does not auto-schedule the first shower without a player spawn trigger', () => {
+  describe('cardinal scheduling', () => {
+    it('the spring shower fires immediately when seasonalPhase is at 0.0', () => {
       const state = createGameState('Test', 40, 30)
-      // Fresh state: nextShowerTime starts at 0 (not yet triggered).
-      expect(state.meteorShower.nextShowerTime).toBe(0)
+      // Fresh state: seasonalPhase=0, pendingAnchorPhase=0
+      expect(state.seasonalPhase).toBe(0)
+      expect(state.meteorShower.pendingAnchorPhase).toBe(0)
 
-      // Many minutes elapse without anyone calling triggerPlayerSpawnShower.
-      tickMeteorShower(state, 200_000)
-      tickMeteorShower(state, 400_000)
+      tickMeteorShower(state, 100)
 
+      expect(state.meteorShower.active).toBe(true)
+      expect(state.meteorShower.lastFiredAnchorIndex).toBe(0)
+    })
+
+    it('the spring shower does not fire while seasonalPhase has rolled past 0.0', () => {
+      const state = createGameState('Test', 40, 30)
+      // Mid-summer: phase is past spring but before summer. The scheduler
+      // should not fire any shower until pendingAnchorPhase is crossed.
+      state.seasonalPhase = 0.1
+      state.meteorShower.lastFiredAnchorIndex = 0
+      state.meteorShower.pendingAnchorPhase = 0.25
+
+      tickMeteorShower(state, 1000)
       expect(state.meteorShower.active).toBe(false)
-      expect(state.meteorShower.nextShowerTime).toBe(0)
     })
   })
 
@@ -352,7 +384,7 @@ describe('player spawn ceremony', () => {
       destroyAllStars(state)
       clearAroundTile(state, state.player, 3)
       state.onGenesisComplete = (handoffTime: number) => {
-        triggerPlayerSpawnShower(state, state.player, handoffTime)
+        tickMeteorShower(state, handoffTime)
       }
       expect(state.playerSpawn.visible).toBe(true)
       expect(state.playerSpawn.triggeredAt).toBe(0)
