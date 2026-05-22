@@ -362,17 +362,13 @@ export const unlockRuinDoor = (state: GameState): boolean => {
   return true
 }
 
-/** If the player faces a RuinDebris tile, convert it to RuinFloor.
- *  Mirrors the cave breakable-wall mechanic: single-hit, no item
- *  required. Records 'event:rubble-cleared' on the first clear.
- *  Returns true if cleared.
- *
- *  When the facing tile is part of the current ruin's collapseBarrier
- *  (the 3-tile gating row in coyote-role ruins), every barrier tile
- *  collapses in this call — matches breakWall's atomic cave-wall pattern.
- *  A crumble TimedEffect entity covers all barrier tiles, and a
- *  pickupBloom fires at the player position. Scattered debris (anywhere
- *  outside collapseBarrier) keeps its single-tile clear behavior. */
+/** If the player faces a RuinDebris tile, collapse the entire
+ *  collapseBarrier row. RuinDebris only exists as the 3-tile coyote-role
+ *  collapseBarrier, so every clear is atomic: every barrier tile flips
+ *  from RuinDebris to RuinFloor in this call, mirroring breakWall's
+ *  atomic cave-wall pattern. A crumble TimedEffect covers all barrier
+ *  tiles, a pickupBloom fires at the player position, and
+ *  'event:rubble-cleared' is recorded. Returns true if cleared. */
 export const clearRuinDebris = (state: GameState, time = performance.now()): boolean => {
   if (state.currentZone !== Zone.Ruin) return false
   const d = DIRECTIONS[state.playerFacing]
@@ -383,29 +379,25 @@ export const clearRuinDebris = (state: GameState, time = performance.now()): boo
 
   const interior = state.currentRuinIndex !== null ? state.ruinInteriors[state.currentRuinIndex] : null
   const barrier = interior?.dormantGarden?.collapseBarrier ?? null
-  const inBarrier = barrier?.some(p => p.x === fx && p.y === fy) ?? false
+  if (!barrier) return false
 
-  if (inBarrier && barrier) {
-    for (const bp of barrier) {
-      if (!isInBounds(bp.x, bp.y, state.mapWidth, state.mapHeight)) continue
-      if (state.map[bp.y][bp.x].type === TileType.RuinDebris) {
-        setMapTile(state, bp.x, bp.y, { type: TileType.RuinFloor })
-      }
+  for (const bp of barrier) {
+    if (!isInBounds(bp.x, bp.y, state.mapWidth, state.mapHeight)) continue
+    if (state.map[bp.y][bp.x].type === TileType.RuinDebris) {
+      setMapTile(state, bp.x, bp.y, { type: TileType.RuinFloor })
     }
-    const crumbleEntity = state.world.createEntity()
-    state.world.addComponent(crumbleEntity, ComponentType.MultiPosition, {
-      positions: barrier.map(p => ({ x: p.x, y: p.y })),
-    })
-    state.world.addComponent(crumbleEntity, ComponentType.TimedEffect, {
-      kind: 'crumble',
-      startTime: time,
-    })
-    state.world.addComponent(crumbleEntity, ComponentType.EntityTag, 'crumble')
-    state.world.addComponent(crumbleEntity, ComponentType.EntityZone, getCurrentEntityZone(state))
-    spawnPickupBloom(state, state.player.x, state.player.y, time)
-  } else {
-    setMapTile(state, fx, fy, { type: TileType.RuinFloor })
   }
+  const crumbleEntity = state.world.createEntity()
+  state.world.addComponent(crumbleEntity, ComponentType.MultiPosition, {
+    positions: barrier.map(p => ({ x: p.x, y: p.y })),
+  })
+  state.world.addComponent(crumbleEntity, ComponentType.TimedEffect, {
+    kind: 'crumble',
+    startTime: time,
+  })
+  state.world.addComponent(crumbleEntity, ComponentType.EntityTag, 'crumble')
+  state.world.addComponent(crumbleEntity, ComponentType.EntityZone, getCurrentEntityZone(state))
+  spawnPickupBloom(state, state.player.x, state.player.y, time)
 
   recordDiscovery(state, 'event:rubble-cleared')
   updateFacingEntity(state)

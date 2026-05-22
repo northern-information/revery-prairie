@@ -22,8 +22,8 @@ behaviors:
       DormantGardenData is the only archetype data interface. it stores
       aqueductTiles (Set of posKeys for all channel positions),
       breakPoints (Position[] of broken channel locations), repairedBreaks
-      (Set of posKeys for fixed breaks), debrisPositions (Position[] of
-      clearable rubble), seedVault (Position of vault chamber center),
+      (Set of posKeys for fixed breaks), seedVault (Position of vault
+      chamber center),
       seedDecayTimers (Map of posKey to ms remaining before seed dies),
       seedDecayAcceleration (number multiplier on decay rate, default 1.0),
       waterFlowing (boolean, true when all breaks repaired),
@@ -83,8 +83,8 @@ behaviors:
       door row, the entrance landing, or any aqueduct break point.
       barrier positions are recorded on
       DormantGardenData.collapseBarrier. for non-coyote-role ruins,
-      collapseBarrier is null and no barrier is carved (decorative
-      RuinDebris from the existing scatter step is unaffected). the
+      collapseBarrier is null and no barrier is carved (and no other
+      RuinDebris exists in the ruin). the
       barrier blocks player movement and pathfinding by virtue of
       RuinDebris's existing non-walkable behavior, so the trapped
       coyote spawned past it (see vault-contents-by-role in
@@ -108,12 +108,13 @@ behaviors:
       after corridors are carved, aqueduct channels (RuinAqueduct tiles)
       are laid down the center line of the spine corridor and through
       the seed vault. 2-4 break points along the channel are converted
-      to RuinAqueductBroken. 3-5 RuinDebris tiles are scattered at
-      branch intersections and along the spine where it widens.
+      to RuinAqueductBroken. no scattered RuinDebris is laid down — the
+      only RuinDebris in any ruin interior is the coyote-role
+      collapseBarrier described above.
     inputs:
       - 'corridor layout, seeded rng, aqueductPaths from genesis ruin data'
     outputs:
-      - 'aqueduct channel + break points + debris overlaid on corridors'
+      - 'aqueduct channel + break points overlaid on corridors'
     state_changes: []
     determinism: deterministic
 
@@ -241,40 +242,34 @@ behaviors:
 
   - id: debris-clear-via-e
     description: >
-      pressing [f] while facing any RuinDebris tile clears it. single-hit,
-      no item or revery requirement — mirrors the cave breakable wall
-      mechanic. clicking a RuinDebris tile pathfinds to the closest
-      walkable adjacent tile and triggers the same clear on arrival
-      via state.pendingAction (same pattern as click-to-unlock for
-      doors). RuinDebris is added to isInteractableAt for Ruin zones.
-      the fire-revery-debris-clear path is preserved as a parallel
-      mechanic — both produce the same state transition.
-
-      Atomic collapseBarrier handling: when the facing/clicked tile
-      belongs to dormantGarden.collapseBarrier, every barrier tile
+      pressing [f] while facing a RuinDebris tile clears the entire
+      collapseBarrier. RuinDebris only exists as the 3-tile coyote-role
+      collapseBarrier, so every clear is atomic: every barrier tile
       converts to RuinFloor in the same call (mirroring breakWall on
       cave breakable walls), a crumble TimedEffect entity is spawned
       with MultiPosition covering all barrier tiles, and a pickupBloom
       spawns at the player position (per universal-pickup-bloom
-      convention). Scattered debrisPositions outside collapseBarrier
-      still clear one tile at a time with no crumble entity. See
+      convention). single-hit, no item or revery requirement. clicking
+      a RuinDebris tile pathfinds to the closest walkable adjacent tile
+      and triggers the same clear on arrival via state.pendingAction
+      (same pattern as click-to-unlock for doors). RuinDebris is added
+      to isInteractableAt for Ruin zones. records discovery
+      'event:rubble-cleared' on the first clear of the session. See
       trapped-coyote-stays-put:collapse-barrier-clears-atomically for
-      the full collapseBarrier contract. records discovery
-      'event:rubble-cleared' on the first clear of the session
-      (atomic or single-tile).
+      the full collapseBarrier contract.
     inputs:
       - '[f] pressed while facing a RuinDebris tile in a Ruin zone'
       - 'mouse click on a RuinDebris tile in a Ruin zone'
       - 'optional time parameter for bloom/crumble timestamps'
     outputs:
-      - 'facing tile (or every collapseBarrier tile) becomes RuinFloor'
-      - 'crumble TimedEffect + pickupBloom spawned when the cleared tile is in collapseBarrier'
+      - 'every collapseBarrier tile becomes RuinFloor'
+      - 'crumble TimedEffect + pickupBloom spawned'
       - 'event:rubble-cleared recorded the first time'
     state_changes:
       - field: map
-        effect: 'facing/clicked RuinDebris tile becomes RuinFloor; for collapseBarrier hits, every barrier tile flips together'
+        effect: 'every collapseBarrier tile flips from RuinDebris to RuinFloor together'
       - field: world
-        effect: 'crumble TimedEffect with MultiPosition over the barrier tiles + pickupBloom at player position spawned on atomic collapseBarrier clears'
+        effect: 'crumble TimedEffect with MultiPosition over the barrier tiles + pickupBloom at player position spawned'
       - field: manualDiscoveries
         effect: '"event:rubble-cleared" added on first clear'
     determinism: deterministic
@@ -331,9 +326,9 @@ edge_cases:
     description: 'tiny coyote-role ruin where the 35-60% depth band has no eligible spine column'
     expected: 'fall back to the deepest spine column that does not collide with door/landing/aqueduct breaks; barrier still placed'
 
-  - id: e-on-decorative-debris
-    description: 'player presses [f] facing one of the 3-5 scattered RuinDebris tiles (not the barrier)'
-    expected: 'tile clears to RuinFloor — the [f] mechanic is uniform across all RuinDebris, not gated to barrier tiles'
+  - id: f-on-non-debris-tile-in-ruin
+    description: 'player presses [f] while facing any non-RuinDebris, non-RuinDoorLocked tile inside a ruin (RuinFloor, RuinWall, RuinAqueduct, etc.)'
+    expected: 'no debris-clear effect — clearRuinDebris only fires when the facing tile is RuinDebris (i.e. part of the coyote collapseBarrier)'
 
 failure_conditions:
   - trigger: 'water revery cast with no broken aqueduct tiles in range'
