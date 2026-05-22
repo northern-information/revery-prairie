@@ -109,6 +109,13 @@ const buildCache = (
     // Mask: keep grain only where the bg-cache has painted.
     ctx.globalCompositeOperation = 'destination-in'
     ctx.drawImage(bgCache.canvas, 0, 0)
+    // Pre-multiply FILM_GRAIN_ALPHA into the cache so the per-frame
+    // draw doesn't need to mutate globalAlpha (which forces a non-opaque
+    // composite path even on fully-transparent pixels). The seasonal
+    // wash attenuation stays dynamic — handled in draw().
+    ctx.globalCompositeOperation = 'destination-in'
+    ctx.fillStyle = `rgba(0, 0, 0, ${String(FILM_GRAIN_ALPHA)})`
+    ctx.fillRect(0, 0, width, height)
     ctx.globalCompositeOperation = 'source-over'
   }
   const entry: FilmGrainCacheEntry = {
@@ -165,10 +172,6 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   const dx = (camera.y - camera.x) * charWidth + originX - cache.worldOriginX
   const dy = -(camera.x + camera.y) * halfH + originY - cache.worldOriginY
 
-  const seasonalPhase = state.seasonalPhase
-  const washIntensity = typeof seasonalPhase === 'number' ? seasonalWash(seasonalPhase).intensity : 0
-  const alpha = FILM_GRAIN_ALPHA * (1 - washIntensity)
-
   // Source-clip to the visible viewport. Without this, drawImage composites
   // the entire world-sized grain canvas every frame (~1200x2400px on a
   // 147x147 map) even when most of it is off-screen — a measurable
@@ -185,10 +188,20 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   const sw = sxEnd - sx
   const sh = syEnd - sy
 
-  const savedAlpha = ctx.globalAlpha
-  ctx.globalAlpha = savedAlpha * alpha
+  // FILM_GRAIN_ALPHA is pre-multiplied into the cache (see buildCache).
+  // Per-frame globalAlpha mutation is only needed when the seasonal wash
+  // attenuates the grain — mostly winter. Skipping the mutation entirely
+  // when intensity is 0 lets the composite stay on the fast path.
+  const seasonalPhase = state.seasonalPhase
+  const washIntensity = typeof seasonalPhase === 'number' ? seasonalWash(seasonalPhase).intensity : 0
+  if (washIntensity > 0) {
+    const savedAlpha = ctx.globalAlpha
+    ctx.globalAlpha = savedAlpha * (1 - washIntensity)
+    ctx.drawImage(cache.canvas, sx, sy, sw, sh, sx + dx, sy + dy, sw, sh)
+    ctx.globalAlpha = savedAlpha
+    return
+  }
   ctx.drawImage(cache.canvas, sx, sy, sw, sh, sx + dx, sy + dy, sw, sh)
-  ctx.globalAlpha = savedAlpha
 }
 
 export const filmGrainOverlayPass: RenderPass = {

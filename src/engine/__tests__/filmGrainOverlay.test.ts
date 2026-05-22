@@ -152,7 +152,12 @@ describe('film grain overlay pass', () => {
   })
 
   describe('draw — seasonal alpha curve', () => {
-    it('draws at full FILM_GRAIN_ALPHA at spring equinox (phase 0.0, intensity 0.0)', () => {
+    // FILM_GRAIN_ALPHA (0.2) is pre-multiplied into the cache canvas by
+    // buildCache, so the per-frame draw leaves globalAlpha untouched when
+    // the seasonal wash is inactive. Only the winter attenuation (1 -
+    // washIntensity) is applied at draw-time, and only when intensity > 0.
+
+    it('leaves globalAlpha untouched at spring equinox (intensity 0, baked alpha is sufficient)', () => {
       __testing.setGrainImage(makeFakeImage())
       __testing.setGrainReady(true)
       const state = createTestState()
@@ -160,14 +165,16 @@ describe('film grain overlay pass', () => {
       state.seasonalPhase = 0.0
 
       const { ctx, calls } = makeRecordingCtx()
+      ctx.globalAlpha = 1
       filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
 
       expect(calls).toHaveLength(1)
-      // Spring equinox: washIntensity = 0, alpha = 0.2 * 1 = 0.2
-      expect(calls[0].globalAlpha).toBeCloseTo(0.2, 6)
+      // Intensity 0 → no globalAlpha mutation; the cache's baked 0.2
+      // alpha carries the full FILM_GRAIN_ALPHA contribution.
+      expect(calls[0].globalAlpha).toBeCloseTo(1, 6)
     })
 
-    it('dims to roughly 0.12 at winter solstice (phase 0.75, intensity 0.4)', () => {
+    it('applies seasonal attenuation at winter solstice (phase 0.75, intensity 0.4 → 0.6 multiplier)', () => {
       __testing.setGrainImage(makeFakeImage())
       __testing.setGrainReady(true)
       const state = createTestState()
@@ -175,25 +182,27 @@ describe('film grain overlay pass', () => {
       state.seasonalPhase = 0.75
 
       const { ctx, calls } = makeRecordingCtx()
+      ctx.globalAlpha = 1
       filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
 
-      // Winter solstice anchor intensity is 0.4 → alpha = 0.2 * (1 - 0.4) = 0.12
-      expect(calls[0].globalAlpha).toBeCloseTo(0.12, 6)
+      // Winter solstice: globalAlpha modulated by (1 - 0.4) = 0.6. The
+      // cache's baked 0.2 alpha multiplies through, so effective visual
+      // alpha is still 0.12 — same as the previous draw-time math.
+      expect(calls[0].globalAlpha).toBeCloseTo(0.6, 6)
     })
 
-    it('restores globalAlpha after drawing', () => {
+    it('restores globalAlpha after drawing in winter (when the modulation path runs)', () => {
       __testing.setGrainImage(makeFakeImage())
       __testing.setGrainReady(true)
       const state = createTestState()
       state.map = makeFlatMap(state.mapWidth, state.mapHeight)
-      state.seasonalPhase = 0.0
+      state.seasonalPhase = 0.75
 
       const { ctx } = makeRecordingCtx()
       ctx.globalAlpha = 0.5
       filmGrainOverlayPass.draw(ctx, state, METRICS, 0)
       expect(ctx.globalAlpha).toBeCloseTo(0.5, 6)
     })
-
   })
 
   describe('cache invalidation', () => {
