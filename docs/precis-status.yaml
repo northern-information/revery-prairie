@@ -780,10 +780,10 @@ features:
       bottom points. Audit pass: any in-game text or label that
       references a cardinal reads naturally under the new semantics.
     depends_on: []
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-30-the-diamond-is-the-world.yaml
     plan: harness/plans/precis-30-the-diamond-is-the-world.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/382
     notes: >
       v5 thinktank round 1 (2026-05-21). The line the room locked:
       "the diamond is the world." Iso is not a viewing layer applied
