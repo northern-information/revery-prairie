@@ -354,6 +354,16 @@ features:
       (`#23`, `#24`) may carry the final Revery as documentation if any are
       placed.
 
+
+      v6 thinktank round 6 (2026-05-22). The tenure handoff includes a
+      bed-knot transfer mechanic: the previous steward's final Revery
+      Knot (`#36`) remains on the bed at tenure close — it was never moved
+      to the root cellar (`#37`), because the steward did not wake from
+      that Revery. On the new tenure's open (`#34`), Emily takes the old
+      Knot down and hangs it last in the cellar, in the row of the
+      previous steward's years. The new steward wakes next to a Knot
+      they did not earn. _The cosmology hands the bed forward._
+
   - id: '18'
     name: Meteorites as cosmological punctuation (stone circles, hallowed ground)
     summary: >
@@ -502,6 +512,16 @@ features:
       regions exist. Cascades into #4 (Revery summary becomes the
       headline surface), #6 (per-region/species chronicle threads), and
       #16 (inter-tenure predecessor record).
+
+
+      v6 thinktank round 6 (2026-05-22). Chronicle event sentences
+      additionally surface as Knot-bound text in the root cellar (`#37`).
+      Each Revery Knot (`#36`) hung in the cellar carries that year's
+      chronicle sentences as a hover or interact surface. The cellar
+      becomes the in-prairie reading surface for `#22`; the existing
+      Revery-summary surface (`#4`) and manual surfaces (`#6`) are
+      preserved. _The manual catalogs species; the cellar catalogs
+      winters._
 
   - id: '23'
     name: Time-lapse camera (analog 35mm field instrument)
@@ -991,6 +1011,22 @@ features:
       `REVERY_COOLDOWN_MS` gate is replaced by the pressure-reset
       semantics or kept as a redundant guard.
 
+
+      v6 thinktank round 6 (2026-05-22). The three existing omen variants
+      (bee on shoulder, distant meteorite, cloud passing the sun) are
+      **retired**. They do not survive into this spec. The omen-
+      contribution behavior is rewritten: pressure contributions arrive
+      from the Revery Knot (`#36`) pickup event — Emily ties them, the
+      coyote carries one to the steward each autumn, the pickup
+      contributes a bounded scalar to `dormancyPressure`. Until `#36`
+      ships, the spec's pressure-only ramp from autumn equinox to winter
+      solstice carries autumns alone; the cosmology is internally
+      consistent at each step (a stewardship that has not yet earned
+      recognition). The pressure substrate, threshold trigger, summons
+      sequence, Gron arrival, collapse-in-place, and Closing-phase
+      egregoric commit all remain in scope. _The item is the omen. The
+      omen is the item._
+
   - id: '33'
     name: The little house and the girl who waits
     summary: >
@@ -1051,6 +1087,21 @@ features:
       payload), the following-autumn dialog branch for a steward who
       Reveried alone in the field via `#32`'s summons. All dialog
       content is human-authored lore — the round names the register.
+
+
+      v6 thinktank round 6 (2026-05-22). The girl is named **Emily**.
+      Carries the Dickinson touchstone (the game's namesake line), the
+      Wyeth Christina's-World register, and the Ingalls-Little-House
+      frontier register in one figure. She ties Revery Knots (`#36`)
+      from prairie grass — clover, tall grass, milkweed silk, wildflower
+      stems — in the manner of pan-European frontier harvest-knot
+      traditions. She keeps a small persistent pool of pre-tied Knots in
+      the house; the coyote and Emily are in cahoots, and the coyote
+      carries one Knot to the steward each autumn. The little house
+      gains a root cellar (`#37`) with an alternate bulkhead entrance —
+      a new zone sibling to the cave where Revery Knots accumulate after
+      each Revery. _The unchanged thing that waits is named Emily, and
+      she has been in cahoots with the coyote the whole time._
 
   - id: '34'
     name: The tenure opens in the little house
@@ -1134,3 +1185,121 @@ features:
       is not ready for dev. No spec or plan; needs a round to
       establish what fungus _is_ in this cosmology before a spec can
       be written.
+
+  - id: '36'
+    name: The Revery Knot
+    summary: >
+      Emily, the girl who lives in the little house (`#33`), ties Revery
+      Knots from prairie grass — clover, tall grass, milkweed silk,
+      wildflower stems — in the manner of pan-European frontier
+      harvest-knot traditions (corn dolly, wheat braid, last sheaf). She
+      keeps a small persistent pool of pre-tied Knots in the house. Once
+      per autumn the coyote picks one up at the house and routes to the
+      steward via existing pathfinding; on arrival within Chebyshev-1 of
+      the steward, drops the Knot as a ground item or auto-deposits to
+      the backpack. Pickup contributes a bounded scalar to
+      `dormancyPressure` per `#32`. The current year's Knot rests on the
+      bed in the little house during its working winter; Emily moves it
+      to the root cellar (`#37`) at the Revery's spring.
+    depends_on: ['33']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v6 thinktank round 6 (2026-05-22). The omen variant under `#32`'s
+      pressure model. The three existing omens in `omen.ts:36-58` are
+      retired; the Revery Knot replaces them as the single-variant
+      catalog. _The item is the omen. The omen is the item._
+      Emily and the coyote are in cahoots: Emily hands the autumn's
+      Knot to the coyote, who carries it to the steward, wherever the
+      steward is on the prairie. The trickster register survives because
+      the coyote does not say where the thing came from; the steward
+      learns slowly across tenures, or not.
+
+
+      Name lock: `Revery Knot`. FromSoft-shaped on hover — clear about
+      function (the Revery's signal) in the cosmology's own vocabulary,
+      cryptic about origin until the manual entry surfaces the folk-craft
+      lineage. Inventory tooltip lore TODO per `feedback_no_write_lore`;
+      manual entry lore TODO per `MANUAL_LORE` doctrine.
+
+
+      Engine substrate: new item type `Revery Knot` with inventory glyph
+      TBD; `state.emilyKnotPool` or sibling on Emily's character data
+      holding pre-tied Knots; extension to `state.coyoteCargo` routing
+      from house to steward; the existing `lastOmenKindDetected` field
+      from `#32`'s in-progress spec becomes `lastReveryKnotDeliveredYear`
+      or similar (per-edge per-autumn guarantee).
+
+
+      Open at spec: whether the Knot's appearance varies by autumn's
+      stewardship (species mix, egregore proximity, soil health); whether
+      the Knot is consumed at any point or persists indefinitely on the
+      bed → cellar trajectory; coyote routing strategy when the steward
+      is in the cave or a ruin at the moment of an autumn delivery (lean:
+      coyote waits at the house, delivers on the steward's next overworld
+      arrival). _The prairie wove this year for you. The girl tied it.
+      The coyote brought it. Sleep under it._
+
+  - id: '37'
+    name: The root cellar
+    summary: >
+      The little house (`#33`) gains a root cellar with an alternate
+      bulkhead entrance outside the house. The cellar is its own zone,
+      sibling to the cave (`zoneTransition.ts` substrate). Footprint: a
+      corridor 3 tiles wide, very long, where the existing fog-of-war
+      rendering fades the cellar's far end into unreadability before the
+      steward can walk to it. Hooks line the ceiling at regular
+      intervals along the corridor's length. Revery Knots (`#36`)
+      accumulate one per year, hung by Emily after each Revery completes.
+      The cellar is the prairie's archive of every year the steward has
+      lived through. The cellar is also the in-prairie reading surface
+      for chronicle events from `#22` — hung Knots carry that year's
+      chronicle sentences as a hover or interact surface.
+    depends_on: ['33', '36']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v6 thinktank round 6 (2026-05-22). The Revery is the prairie
+      sleeping; the root cellar is where what survived the harvest
+      sleeps. The cellar is the Revery's architectural cognate. _Above
+      sleeps the present; below sleeps the past._
+
+
+      Load-bearing fact: **very long and very empty**. A long, empty
+      cellar reads as _the architecture predates every steward who has
+      used it_. The cosmology built the cellar for a count of years no
+      lineage has reached. _Heat death is the antagonist; the cellar is
+      heat death rendered as architecture._
+
+
+      Single-player lock: the cellar starts empty. No procedural
+      predecessor Knots, no multiplayer lineage Knots, no pre-population.
+      The first hook the new steward fills is the autumn's first Knot.
+      Multiplayer / procedural predecessor pre-population defers to a
+      future round when those mechanics ship. The single-player
+      cosmological reading is sharper for being unambiguous: _the
+      steward is the first; the cellar's emptiness is honest._
+
+
+      Engine substrate: new zone (sibling to the cave); bulkhead-door
+      tile placed outside the little house at genesis; new tile type for
+      hooks (empty vs Knot-bearing render distinction); new state field
+      `state.reveryKnotsInCellar: ReveryKnotEntry[]` capturing year and
+      per-year flavor data. Emily's hang-after-Revery behavior runs at
+      Closing phase. Knot-bound chronicle text per `#22`'s amendment.
+
+
+      Open at spec: exact cellar length and fog-fade tuning (target the
+      "I can walk for a while and the room still continues" feeling);
+      hook glyph; whether the steward can interact with hung Knots
+      (hover, examine, never remove); whether the cellar's far end has
+      anything the steward cannot reach in normal play but a careful
+      enough steward could — the cosmological-horror register would say
+      yes, and the steward should not know what it is. Defer; the
+      cellar's first ship can be a featureless dimming. _The cellar
+      reads the chronicle. The manual catalogs species; the cellar
+      catalogs winters._
