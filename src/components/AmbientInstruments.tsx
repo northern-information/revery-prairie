@@ -16,7 +16,7 @@ interface AmbientInstrumentsProps {
 
 // All glyphs render at this pixel size in their own square box so
 // the four rows line up visually with the text labels.
-const GLYPH_SIZE = 14
+const GLYPH_SIZE = 22
 
 // Uniform stroke for line-based glyphs (arrow, cloud outline,
 // almanac dial). Uses currentColor for color inheritance.
@@ -236,8 +236,9 @@ const MOON_VISUAL_RECIPE: Record<string, MoonVisualRecipe> = {
 
 // Radial almanac dial: outline ring + filled sector that fills
 // clockwise from 12 o'clock as the year advances toward the next
-// quarter-bookmark.
-const DIAL_RADIUS = 5
+// quarter-bookmark. Radius matches the moon glyph's r=6 so the two
+// circular instruments read at the same visual scale.
+const DIAL_RADIUS = 6
 
 const sectorPath = (progress: number): string => {
   if (progress <= 0) return ''
