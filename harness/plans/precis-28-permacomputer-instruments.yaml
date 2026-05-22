@@ -1,0 +1,164 @@
+plan:
+  id: precis-28-permacomputer-instruments
+  title: Permacomputer ambient instruments (bottom-bar center)
+  created: 2026-05-22
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/components/__tests__/AmbientInstruments.test.tsx
+
+tasks:
+  # --- Tier 0: Doctrine + dashboard status ---
+  # Flip precis-status.yaml feature 28 to in-progress so the dashboard
+  # reflects work in flight. Spec/plan links land alongside.
+
+  - id: doctrine-update
+    title: Flip precis-status.yaml feature 28 to in-progress with spec/plan links populated
+    spec_id: precis-28-permacomputer-instruments
+    spec_sections:
+      - ambient-instruments-mounted-between-minimap-and-iteminfo
+    context_files:
+      - docs/precis-status.yaml
+    output_files:
+      - docs/precis-status.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Pure-derivation helpers ---
+  # Implement ambientInstruments.helpers.ts: VANE_ROTATION_DEG,
+  # SEASON_LABEL, WIND_SPEED_LABELS, LUNATIONS_PER_YEAR,
+  # MOON_PHASE_NAMES, windSpeedLabel, moonPhase, moonPhaseLabel,
+  # almanacState. Pure TypeScript module, no React, no styling.
+  # Exports are consumed by the component (Tier 2) and the test
+  # (Tier 4).
+
+  - id: helpers-module
+    title: Implement ambientInstruments.helpers.ts with pure derivation functions and lookup tables
+    spec_id: precis-28-permacomputer-instruments
+    spec_sections:
+      - wind-speed-label-five-fifths-of-max
+      - moon-phase-derived-from-seasonal-phase
+      - moon-phase-label
+      - almanac-radial-timer
+      - season-label-title-case
+    context_files:
+      - src/components/ambientInstruments.helpers.ts
+      - src/engine/types.ts
+      - src/engine/weather/wind.ts
+    output_files:
+      - src/components/ambientInstruments.helpers.ts
+    depends_on:
+      - doctrine-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - helpers
+
+  # --- Tier 2: Component with inline SVG glyphs ---
+  # Implement AmbientInstruments.tsx. All glyphs are inline SVG
+  # components (ArrowGlyph, SunGlyph, CloudGlyph, RainGlyph,
+  # SnowGlyph, MoonGlyph, AlmanacGlyph) defined in the same file
+  # as the parent component. Each glyph uses currentColor stroke
+  # and renders at a uniform GLYPH_SIZE. No font dependencies, no
+  # external icon library. The component reads state.weather.*,
+  # state.wind.smoothSpeed, and state.seasonalPhase only — pure
+  # render, no hooks beyond render.
+
+  - id: ambient-instruments-component
+    title: Implement AmbientInstruments.tsx with inline SVG glyphs and uniform typography
+    spec_id: precis-28-permacomputer-instruments
+    spec_sections:
+      - weathervane-renders-svg-arrow-and-cardinal-letter
+      - sky-glyph-renders-inline-svg
+      - moon-glyph-renders-inline-svg
+      - almanac-radial-timer
+      - uniform-typography-across-rows
+      - pure-render-no-state-writes
+    context_files:
+      - src/components/AmbientInstruments.tsx
+      - src/components/ambientInstruments.helpers.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/AmbientInstruments.tsx
+    depends_on:
+      - helpers-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  # --- Tier 3: GameScreen wiring ---
+  # Replace the empty `flex-1` spacer div at GameScreen.tsx:234 with
+  # <AmbientInstruments state={state} />. Single-line swap inside the
+  # bottom-bar overlay. Minimap stays left, ItemInfo stays right;
+  # AmbientInstruments takes the middle slot. Genesis branch is not
+  # touched — GenesisBottomBar continues to render unchanged.
+
+  - id: gamescreen-mount
+    title: Replace the flex-1 spacer in GameScreen.tsx with the AmbientInstruments mount
+    spec_id: precis-28-permacomputer-instruments
+    spec_sections:
+      - ambient-instruments-mounted-between-minimap-and-iteminfo
+    context_files:
+      - src/components/GameScreen.tsx
+      - src/components/AmbientInstruments.tsx
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on:
+      - ambient-instruments-component
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  # --- Tier 4: Tests ---
+  # Replace the it.todo placeholders with full coverage of every
+  # behavior and edge case in the spec. Pure helpers
+  # (windSpeedLabel, moonPhase, moonPhaseLabel, almanacState) get
+  # direct table-driven assertions. Component render tests use
+  # React Testing Library to confirm SVG glyph counts, rotation
+  # transforms, text content, and uniform typography classes.
+  # Discipline tests assert the component source contains no hook
+  # mutations and no Weather Icons references.
+
+  - id: ambient-instruments-tests
+    title: Replace it.todo placeholders with full coverage of AmbientInstruments behaviors and edge cases
+    spec_id: precis-28-permacomputer-instruments
+    spec_sections:
+      - weathervane-renders-svg-arrow-and-cardinal-letter
+      - wind-speed-label-five-fifths-of-max
+      - sky-glyph-renders-inline-svg
+      - season-label-title-case
+      - moon-phase-derived-from-seasonal-phase
+      - moon-phase-label
+      - moon-glyph-renders-inline-svg
+      - almanac-radial-timer
+      - uniform-typography-across-rows
+      - pure-render-no-state-writes
+    context_files:
+      - src/components/__tests__/AmbientInstruments.test.tsx
+      - src/components/AmbientInstruments.tsx
+      - src/components/ambientInstruments.helpers.ts
+      - src/engine/types.ts
+      - src/engine/weather/wind.ts
+    output_files:
+      - src/components/__tests__/AmbientInstruments.test.tsx
+    depends_on:
+      - ambient-instruments-component
+    verification:
+      - npx vitest run src/components/__tests__/AmbientInstruments.test.tsx
+    repair: retry
+    tags:
+      - test
+
+  # Plan-level global_verification at the top runs typecheck + lint +
+  # the AmbientInstruments vitest as the final gate after all tasks
+  # complete. No explicit final-sweep task is needed; the harness
+  # parser requires every task to write at least one output file, and
+  # a sweep that only runs verification has no outputs.

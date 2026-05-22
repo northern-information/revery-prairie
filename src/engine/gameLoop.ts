@@ -402,6 +402,12 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           const dt = lastTime > 0 ? time - lastTime : WEATHER_TICK_MS
           lastTime = time
           tickWeather(state, dt)
+          // Refresh DOM consumers (AmbientInstruments) so the seasonal
+          // phase advance, season label, wind direction/speed, and sky
+          // readouts update continuously rather than only when the
+          // player moves. The minimap drives its own RAF loop and is
+          // unaffected.
+          callbacks.onRefreshUI?.()
         }
       })(),
     },

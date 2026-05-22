@@ -687,10 +687,10 @@ features:
       events. Continuous readouts, no emphasis change near bookmarks,
       no transition narration, no event language.
     depends_on: ['30']
-    status: todo
-    spec: null
-    plan: null
-    pr: null
+    status: in-progress
+    spec: harness/specs/precis-28-permacomputer-instruments.yaml
+    plan: harness/plans/precis-28-permacomputer-instruments.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/386
     notes: >
       v4 thinktank round 9 (2026-05-21). This is a new affordance,
       not a revival of the stats bar — the stats bar has been gone
