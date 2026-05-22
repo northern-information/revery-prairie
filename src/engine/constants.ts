@@ -528,10 +528,11 @@ export const TALLGRASS_BASE_GROWTH_CHANCE = 0.015
 export const TALLGRASS_MAX_GROWTH_PER_TICK = 2
 
 // Precis #17 — bee+clover ceremony wave. The combine produces a slow
-// ceremonial radial wave that paints ~150 tiles of clover with jittered
-// boundaries via cellNoise. Single-cast; the wave is removed from
-// state.activeWaves once it stops painting new tiles.
-export const CEREMONY_WAVE_RADIUS = 8
+// ceremonial radial wave that paints clover with jittered boundaries
+// via cellNoise. Single-cast; the wave is hard-bounded at radius 13
+// and is removed from state.activeWaves on the tick currentRadius
+// exceeds maxRadius.
+export const CEREMONY_WAVE_RADIUS = 13
 export const CEREMONY_WAVE_TICK_MS = 250
 
 // Precis #17 — bee pollen bag (PollenBag ECS component). LIFO eviction

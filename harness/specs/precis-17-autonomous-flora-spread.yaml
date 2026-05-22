@@ -306,28 +306,32 @@ behaviors:
       (Chebyshev distance == currentRadius from cx, cy), apply a per-
       direction jitter from cellNoise(x, y) so the boundary is
       irregular (some tiles in the annulus are skipped, some at radius
-      +1 / -1 are included — net effect: organic boundary, ~150 tiles
-      painted in dirt at radius 8). For each painted tile that is Dirt,
-      set tile to Flora with species=Clover and identity propagated
-      from the wave's seedIdentity via applyParentLineage. Skip Water/
-      Sand/CaveWall/RuinWall/Space/non-Dirt. Skip tiles already Flora.
-      Also schedule 2-4 pollenBurst TimedEffect entities per tick at
-      random points on the leading annulus. When currentRadius >
-      maxRadius AND zero new tiles painted this tick, remove the wave
-      from state.activeWaves.
+      +1 / -1 are included — net effect: organic boundary). The wave
+      paints clover within a hard radius cap of CEREMONY_WAVE_RADIUS
+      (13) tiles from (cx, cy); no tile beyond that Chebyshev distance
+      may be painted, regardless of jitter, paint count, or any other
+      condition. For each painted tile that is Dirt, set tile to Flora
+      with species=Clover and identity propagated from the wave's
+      seedIdentity via applyParentLineage. Skip Water/Sand/CaveWall/
+      RuinWall/Space/non-Dirt. Skip tiles already Flora. Also schedule
+      2-4 pollenBurst TimedEffect entities per tick at random points on
+      the leading annulus. Once currentRadius > maxRadius the wave is
+      removed from state.activeWaves on the same tick — the prior
+      "stay alive while still painting" soft grace is removed so the
+      wave cannot escape its hard cap.
     inputs:
       - 'one or more WaveEmissions in state.activeWaves'
     outputs:
-      - 'wave paints ~150 tiles in open dirt by completion'
+      - 'wave paints only tiles within Chebyshev radius 13 of (cx, cy)'
       - 'wave boundary is jittered (not a perfect Chebyshev disc)'
       - 'wave skips water, walls, sand, space, and existing flora'
       - 'pollen bursts emit 2-4 per tick during the wave'
-      - 'wave removed from state.activeWaves when complete'
+      - 'wave removed from state.activeWaves on the tick currentRadius exceeds maxRadius'
     state_changes:
       - field: state.activeWaves
-        effect: 'currentRadius advanced; entry removed when complete'
+        effect: 'currentRadius advanced; entry removed on the tick currentRadius > maxRadius'
       - field: state.floraLifecycle
-        effect: 'new clover entries with seedIdentity-derived lineage'
+        effect: 'new clover entries with seedIdentity-derived lineage, bounded by radius 13'
       - field: TimedEffect entities
         effect: 'pollenBurst entities spawned'
     determinism: probabilistic
@@ -618,6 +622,22 @@ edge_cases:
       ceremony, asserts no Flora tiles in the pond key set after
       the wave completes.
 
+  - id: ceremony-wave-hard-radius-cap
+    description: >
+      A ceremony cast on an open dirt expanse with no obstructions
+      runs to completion. No tile beyond Chebyshev distance
+      CEREMONY_WAVE_RADIUS (13) from the cast origin may be painted
+      Flora by the wave, even though paintable dirt extends well
+      past that distance. The wave terminates rather than continuing
+      to expand.
+    expected: >
+      A test casts a ceremony on a large open dirt map, runs ticks
+      until state.activeWaves is empty, then asserts every Flora
+      tile created by the wave (every floraLifecycle entry whose
+      parentPrefix matches seedIdentity.slice(0, 8)) has Chebyshev
+      distance <= 13 from the cast origin. A second assertion
+      confirms state.activeWaves.length === 0 after termination.
+
   - id: cross-species-pollen-bag-mixing
     description: >
       A bee visits clover then wildflower then tall grass. Bag has
@@ -705,8 +725,10 @@ failure_conditions:
   - trigger: 'state.activeWaves accumulates indefinitely (memory leak)'
     expected: >
       A test casts 10 ceremonies in succession, runs ticks until
-      all waves complete (currentRadius > maxRadius and zero new
-      tiles painted), and asserts state.activeWaves.length === 0.
+      each wave's currentRadius exceeds CEREMONY_WAVE_RADIUS, and
+      asserts state.activeWaves.length === 0. The hard cap guarantees
+      termination even when paintable tiles remain available beyond
+      the cap.
 
   - trigger: 'overlayMode 3 keybind accidentally activates root view'
     expected: >

@@ -111,6 +111,10 @@ const advanceWave = (state: GameState, wave: WaveEmission, time: number): number
       // Skip the interior outright — we only iterate radius and
       // radius-1 candidates (the pull-in band).
       if (d < r - 1 || d > r) continue
+      // Hard radius cap — the jitter pull-in band must not admit
+      // tiles past maxRadius. Without this guard the wave can leak
+      // tiles at radius maxRadius+1 via cellNoise.
+      if (d > wave.maxRadius) continue
       if (!isInThisAnnulus(wave, x, y)) continue
       if (!isPaintableTile(state, x, y)) continue
 
@@ -147,8 +151,10 @@ const advanceWave = (state: GameState, wave: WaveEmission, time: number): number
 
 // One scheduled tick of ceremony-wave advancement across every active
 // wave. Each wave fires no more than once per CEREMONY_WAVE_TICK_MS to
-// give the radial expansion a perceptible cadence. Waves remove
-// themselves once they advance past maxRadius and paint zero new tiles.
+// give the radial expansion a perceptible cadence. Waves are hard-
+// bounded by maxRadius — once currentRadius exceeds it, the wave is
+// dropped on the same tick. The previous "stay alive while still
+// painting" grace allowed unbounded escape on open maps.
 export const tickFloraWaves = (state: GameState, time: number): void => {
   if (state.currentZone !== Zone.Overworld) return
   if (state.activeWaves.length === 0) return
@@ -159,13 +165,9 @@ export const tickFloraWaves = (state: GameState, time: number): void => {
       survivors.push(wave)
       continue
     }
-    const painted = advanceWave(state, wave, time)
+    advanceWave(state, wave, time)
     wave.lastTickTime = time
-    // Keep the wave alive while it's still inside maxRadius. Past
-    // maxRadius, the wave only survives if it painted at least one
-    // tile this tick (gives jittered boundaries a chance to catch up
-    // before the wave retires).
-    if (wave.currentRadius <= wave.maxRadius || painted > 0) {
+    if (wave.currentRadius <= wave.maxRadius) {
       survivors.push(wave)
     }
   }
