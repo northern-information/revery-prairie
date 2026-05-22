@@ -10,12 +10,16 @@ export { tileBgCompositePass } from './tileBgComposite'
 export { ruinEntranceHaloPass } from './ruinEntranceHalo'
 export { angelGoldAuraPass } from './angelGoldAura'
 export { prairieHaloPass } from './prairieHalo'
-export { filmGrainOverlayPass } from './filmGrainOverlay'
-// fogMask must register last in world-overlay so its mask covers both the
-// cached tile-bg AND every other world-overlay pass (halos, angel aura,
-// prairie halo, film grain).
+// fogMask must register before film grain so the grain is uniform across
+// the entire viewport — explored prairie, unexplored fog, and the Space
+// border all carry the same texture. (Previously fog ran last and
+// stripped grain from unexplored areas, making them read as a different
+// shade of black than the Space void.)
 // Within a slot, registration order is preserved by the registry.
 export { fogMaskPass } from './fogMask'
+// Film grain runs last in world-overlay so its tile-grid covers
+// everything below: bg-cache, halos, angel aura, prairie halo, fog mask.
+export { filmGrainOverlayPass } from './filmGrainOverlay'
 // effect (post-tile overlays)
 export { ruinEntrancePatinaPass } from './ruinEntrancePatina'
 export { rainAuraOverlayPass } from './rainAuraOverlay'

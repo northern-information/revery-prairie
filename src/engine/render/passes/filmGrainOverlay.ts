@@ -166,11 +166,6 @@ export const filmGrainOverlayPass: RenderPass = {
 
 registerPass(filmGrainOverlayPass)
 
-// ─── public accessors for sibling passes (zone-transition overlay) ──────────
-
-/** Returns the singleton grain image if loaded, else null. */
-export const getGrainImage = (): HTMLImageElement | null => (grainReady ? grainImage : null)
-
 // ─── test hooks ───────────────────────────────────────────────────────────────
 
 // Exported solely so tests can drive the image-load state machine without

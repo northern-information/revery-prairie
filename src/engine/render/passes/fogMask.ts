@@ -114,10 +114,9 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
       ctx.closePath()
       ctx.fill()
 
-      // Cover any cube wall extending south or east from this tile. The
-      // wall is part of the bg-cache (and now carries grain on top), so
-      // without masking it the grain would peek through fog wherever a
-      // multi-tier wall sticks out past the upper tile's diamond.
+      // Cover any cube wall extending south or east from this tile.
+      // Without masking, multi-tier walls sticking out past the upper
+      // tile's diamond would leak around the fog tile's silhouette.
       const selfLift = tileLiftAt(state, map, mx, my)
       const southLift = wallNeighborLiftAt(state, map, mx, my + 1)
       const eastLift = wallNeighborLiftAt(state, map, mx + 1, my)
