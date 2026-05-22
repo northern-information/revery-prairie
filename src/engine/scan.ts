@@ -9,7 +9,7 @@ import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { getEgregoreTileIdentity } from './egregore'
 import { recordDiscovery } from './manual'
-import { CARDINAL, isInBounds, posKey } from './position'
+import { DIRECTIONS, isInBounds, ORDINAL, posKey } from './position'
 import { TileType } from './types'
 
 import type { Direction, FloraSpecies, GameState, Position } from './types'
@@ -19,23 +19,11 @@ export type ScanTarget =
   | { kind: 'oak'; position: Position; identity: string }
   | { kind: 'egregore'; position: Position; identity: string }
 
-// Map a cardinal Direction value to the (dx, dy) delta the player is facing.
-// Returns null for diagonal facings (the on-tile case still wins, but the
-// "facing direction" tie-breaker only fires for cardinal facings).
-const facingDelta = (facing: Direction): Position | null => {
-  switch (facing) {
-    case 'up':
-      return { x: 0, y: -1 }
-    case 'down':
-      return { x: 0, y: 1 }
-    case 'left':
-      return { x: -1, y: 0 }
-    case 'right':
-      return { x: 1, y: 0 }
-    default:
-      return null
-  }
-}
+// Map a Direction value to the (dx, dy) delta the player is facing. Covers
+// all 8 Directions — cardinals and diagonals alike — so the facing
+// tie-breaker in selectScanTarget probes exactly one tile regardless of
+// how the player got there.
+const facingDelta = (facing: Direction): Position => DIRECTIONS[facing]
 
 const floraTileAt = (state: GameState, x: number, y: number): ScanTarget | null => {
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return null
@@ -45,9 +33,10 @@ const floraTileAt = (state: GameState, x: number, y: number): ScanTarget | null 
   return { kind: 'flora', position: { x, y }, species: entry.species, identity: entry.identity }
 }
 
-// Returns an oak ScanTarget if (x, y) lies within any oak's 3x3 body. The
-// returned position is the trunk anchor (oak center), not the cursor tile —
-// the scan represents the whole tree, not a single tile of its canopy.
+// Returns an oak ScanTarget if (x, y) lies within any oak's body footprint
+// (5x5 around the trunk anchor). The returned position is the trunk anchor,
+// not the cursor tile — the scan represents the whole tree, not a single
+// tile of its canopy.
 const oakAt = (state: GameState, x: number, y: number): ScanTarget | null => {
   for (const eid of state.world.query(ComponentType.OakData, ComponentType.Position, ComponentType.MultiPosition)) {
     const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
@@ -74,9 +63,13 @@ const egregoreTileAt = (state: GameState, x: number, y: number): ScanTarget | nu
 // Selects what the player would scan if they began holding the scan key right
 // now. Flora, oaks, and egregore tiles share the same priority order:
 //   1. on-tile (flora or egregore — oaks block movement so never on-tile)
-//   2. cardinal neighbor in playerFacing direction
-//   3. first cardinal neighbor in CARDINAL order (N, S, W, E)
+//   2. neighbor in playerFacing direction (cardinal or diagonal)
+//   3. first ordinal neighbor (N, S, W, E, NW, NE, SW, SE)
 //   4. null
+// Step 3 walks all 8 ordinals because multi-tile entities like oaks (5x5
+// footprint) have iso-corner positions where the nearest body tile is
+// Chebyshev 1 (diagonal-adjacent) rather than cardinal. A cardinal-only
+// fallback left dead zones at every diagonal-adjacent target tile.
 // At each step, flora wins over egregore which wins over oak when multiple
 // kinds coexist at the same cursor tile. In practice flora/egregore are
 // distinct tile types and cannot coexist, so the ordering only matters
@@ -93,15 +86,13 @@ export const selectScanTarget = (state: GameState): ScanTarget | null => {
   const onTile = floraTileAt(state, px, py) ?? egregoreTileAt(state, px, py)
   if (onTile) return onTile
 
-  // (2) cardinal neighbor in playerFacing direction
+  // (2) neighbor in playerFacing direction
   const facing = facingDelta(state.playerFacing)
-  if (facing) {
-    const facingTarget = scanTargetAt(state, px + facing.x, py + facing.y)
-    if (facingTarget) return facingTarget
-  }
+  const facingTarget = scanTargetAt(state, px + facing.x, py + facing.y)
+  if (facingTarget) return facingTarget
 
-  // (3) first cardinal neighbor in CARDINAL order
-  for (const delta of CARDINAL) {
+  // (3) first ordinal (8-direction) neighbor
+  for (const delta of ORDINAL) {
     const target = scanTargetAt(state, px + delta.x, py + delta.y)
     if (target) return target
   }

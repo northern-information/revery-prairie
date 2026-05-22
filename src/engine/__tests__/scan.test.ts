@@ -1,11 +1,14 @@
 import { commitScan, selectScanTarget } from '../scan'
 import { ComponentType } from '../ecs/types'
+import { spawnOak } from '../oaks'
 import { posKey } from '../position'
 import { FloraSpecies, TileType } from '../types'
 
 import { createTestFloraEntry } from './helpers/createTestFloraEntry'
-import { clearAroundPlayer, createTestState } from './helpers'
+import { clearArea, clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
+
+import type { Direction } from '../types'
 
 const countPickupBlooms = (state: ReturnType<typeof createTestState>): number =>
   state.world
@@ -64,15 +67,28 @@ describe('selectScanTarget', () => {
     expect(target?.identity).toBe(northId)
   })
 
-  it('ignores a diagonal facing (no diagonal flora picked over cardinal)', () => {
+  it('prefers the diagonal tile in playerFacing direction over other neighbors', () => {
     const state = createTestState()
     clearAroundPlayer(state, 2)
     state.playerFacing = 'upRight'
-    // Place flora only to the north — diagonal facing should fall through
-    // to CARDINAL order (N wins).
-    const northId = placeFlora(state, state.player.x, state.player.y - 1, FloraSpecies.Clover)
+    // Place flora to the north and at the NE diagonal. The diagonal
+    // facing tile should win over the cardinal fallback.
+    placeFlora(state, state.player.x, state.player.y - 1, FloraSpecies.TallGrass)
+    const facingId = placeFlora(state, state.player.x + 1, state.player.y - 1, FloraSpecies.Clover)
     const target = selectScanTarget(state)
-    expect(target?.identity).toBe(northId)
+    expect(target?.identity).toBe(facingId)
+    expect(target?.kind === 'flora' && target.species).toBe(FloraSpecies.Clover)
+  })
+
+  it('falls back to ORDINAL order when no flora is on-tile or in the facing direction', () => {
+    const state = createTestState()
+    clearAroundPlayer(state, 2)
+    state.playerFacing = 'left' // west — no flora there
+    // Place flora only at the SE diagonal. Pre-fix the cardinal-only
+    // fallback ignored diagonals and returned null.
+    const seId = placeFlora(state, state.player.x + 1, state.player.y + 1, FloraSpecies.Clover)
+    const target = selectScanTarget(state)
+    expect(target?.identity).toBe(seId)
   })
 
   it('returns null when adjacent tiles are non-flora', () => {
@@ -352,5 +368,56 @@ describe('egregore scan (precis #8a)', () => {
     }
     commitScan(state, 1500)
     expect(countPickupBlooms(state)).toBe(bloomsBefore + 1)
+  })
+})
+
+// Regression — pre-fix the cardinal-only fallback in selectScanTarget left
+// dead zones at every diagonal-adjacent tile. For a 5x5 oak that produced
+// four iso-corner positions (Ax±3, Ay±3) where the player could see the
+// tree on screen but [f] silently did nothing.
+
+const ALL_FACINGS: Direction[] = ['up', 'down', 'left', 'right', 'upLeft', 'upRight', 'downLeft', 'downRight']
+
+describe('selectScanTarget — oak iso-corner positions (Chebyshev-1 diagonal)', () => {
+  const isoCorners = [
+    { name: 'iso-N (Ax-3, Ay-3)', dx: -3, dy: -3 },
+    { name: 'iso-S (Ax+3, Ay+3)', dx: 3, dy: 3 },
+    { name: 'iso-E (Ax+3, Ay-3)', dx: 3, dy: -3 },
+    { name: 'iso-W (Ax-3, Ay+3)', dx: -3, dy: 3 },
+  ]
+
+  for (const corner of isoCorners) {
+    for (const facing of ALL_FACINGS) {
+      it(`returns an oak target at ${corner.name} with playerFacing=${facing}`, () => {
+        const state = createTestState()
+        clearArea(state, state.player.x, state.player.y, 10)
+        const ax = state.player.x + 6
+        const ay = state.player.y + 6
+        spawnOak(state, ax, ay, 0)
+        state.player = { x: ax + corner.dx, y: ay + corner.dy }
+        state.playerFacing = facing
+
+        const target = selectScanTarget(state)
+        expect(target?.kind).toBe('oak')
+        if (target?.kind === 'oak') {
+          expect(target.identity).toHaveLength(64)
+        }
+      })
+    }
+  }
+})
+
+describe('selectScanTarget — on-tile precedence over diagonal scan targets', () => {
+  it('on-tile flora wins over a Chebyshev-1 diagonal oak body tile', () => {
+    const state = createTestState()
+    clearArea(state, state.player.x, state.player.y, 10)
+    const px = state.player.x
+    const py = state.player.y
+    placeFlora(state, px, py, FloraSpecies.Clover)
+    // Oak anchor at (px+3, py+3) — body spans [px+1..px+5] × [py+1..py+5].
+    // The (px+1, py+1) corner tile sits Chebyshev 1 (SE diagonal) from the player.
+    spawnOak(state, px + 3, py + 3, 0)
+    const target = selectScanTarget(state)
+    expect(target?.kind).toBe('flora')
   })
 })
