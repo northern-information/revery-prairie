@@ -112,9 +112,12 @@ behaviors:
     description: >
       Water features animate during genesis. Rivers grow visibly from source to
       coast during warm period (progress-based reveal). Glacier melt produces
-      meltwater pools at glacier edges during late ice age. Small lowland pools
-      form via flood-fill near river deltas. Some water persists as permanent
-      small ponds in the final game terrain (few and small, fitting the biome).
+      meltwater pools at glacier edges during late ice age. Lowland pools form
+      via flood-fill of local minima in WarmPeriod's mutate. The final game
+      terrain carries a meaningful body of water rather than a few token puddles —
+      sizing and post-drought survival are specified by
+      final-water-distribution-target below; this behavior covers only the
+      animation surface.
     inputs:
       - WarmPeriod epoch renders rivers
       - IceAge epoch enters recede phase (progress > 0.6)
@@ -122,7 +125,6 @@ behaviors:
     outputs:
       - Rivers render progressively from source to coast during warm period
       - Meltwater pools appear at glacier edges during recede phase
-      - Small permanent ponds exist in final terrain (1-4 ponds, 2-5 tiles each)
       - Flood-fill lowlands animate near river deltas
     state_changes:
       - field: sim.riverPathsOrdered
@@ -130,10 +132,103 @@ behaviors:
       - field: sim.meltPools
         effect: New field storing glacier meltwater positions
       - field: sim.ponds
-        effect: New field storing permanent small pond positions
+        effect: New field storing permanent pond positions
       - field: sim.grid
         effect: Pond tiles persisted in final terrain
     determinism: probabilistic
+
+  - id: final-water-distribution-target
+    description: >
+      The final post-genesis terrain reaches a target of ~15% of the playable
+      land mask as water (sim.ponds + sim.riverPaths combined), distributed in
+      a small number of moderately-sized inland bodies rather than scattered
+      puddles. Two cooperating changes —
+
+      (1) WarmPeriod water budget. The waterBudget at the pond-generation
+      pass in WarmPeriod.mutate (currently
+      `Math.floor(sim.landMask.size * 0.05)`) increases to
+      `Math.floor(sim.landMask.size * 0.18)`. The 0.18 fraction is sized to
+      land near the 15% target after FallOfCivilizations' softened drought
+      consolidation (below) trims residual small fragments. The 5% figure
+      was sized for the previous drought regime that culled all but 1–3
+      bodies; under the new regime the pre-drought budget can be much
+      closer to the desired post-drought target.
+
+      (2) Inland-weighted pond seeding. When sorting candidate minima for
+      flood-fill seeding, each minimum receives a coastal penalty added to
+      its elevation key — minima within COAST_INLAND_BIAS_RADIUS (8) tiles
+      (Chebyshev distance) of any tile in sim.coastlineTiles get a fixed
+      COAST_INLAND_BIAS_PENALTY (30) added to their sort key, sinking them
+      in priority. Deeper basins still win the budget allocation, but among
+      similar-depth candidates the interior basins fill first. This pushes
+      the resulting water bodies away from the diamond's edges and toward
+      its center, matching the requested "prefer inland, not around the
+      edges of the map" framing. The pond expansion BFS is unchanged — only
+      the seed selection order is biased.
+
+      (3) Softened FallOfCivilizations drought. The drought consolidation
+      pass in FallOfCivilizations.mutate (genesis.ts:2487 onward) no longer
+      keeps only the largest 1–3 connected components and deletes
+      everything else. Instead it removes only connected components below
+      MIN_WATER_BODY_SIZE (currently 10 tiles, retained) — i.e., the
+      "drought" only dries up the smallest fragments and leaves all
+      substantial water bodies intact. The existing
+      `targetCount = 1 + Math.floor(sim.rng() * 3)` size cap and the
+      "keep top targetCount" slice are deleted. All downstream logic
+      (shoreline sand, river-mouth seeding, small-island elimination)
+      continues to operate against whatever water survives, unchanged.
+    inputs:
+      - WarmPeriod.mutate runs (after rivers)
+      - FallOfCivilizations.mutate runs (after WarmPeriod)
+      - sim.coastlineTiles populated earlier in genesis
+      - sim.landMask populated by LavaEra
+      - sim.rng seeded from steward name hash
+    outputs:
+      - 'WarmPeriod waterBudget equals Math.floor(sim.landMask.size * 0.18)'
+      - 'minima sort key for pond seeding adds 30 to (elevation) when the minimum is within Chebyshev distance 8 of any coastlineTiles tile, 0 otherwise'
+      - 'FallOfCivilizations drought removes connected components of size < 10 only; no targetCount-based slice'
+      - 'after FallOfCivilizations, (sim.ponds.size + sim.riverPaths.size) / sim.landMask.size is in [0.10, 0.20] for the production 147x147 prairie under the steward-name seed; expected near 0.15'
+      - 'the centroid of surviving water tiles is closer to the prairie center than to any single edge of the playable region (interior bias confirmed)'
+    state_changes:
+      - field: sim.ponds
+        effect: 'populated with the inland-weighted, expanded pond budget — substantially more total tiles than the prior 5% budget, biased toward the diamond interior'
+      - field: sim.riverPaths
+        effect: 'survives FallOfCivilizations consolidation in full except for connected components < 10 tiles'
+      - field: 'COAST_INLAND_BIAS_RADIUS'
+        effect: 'new module-private constant in genesis.ts, value 8'
+      - field: 'COAST_INLAND_BIAS_PENALTY'
+        effect: 'new module-private constant in genesis.ts, value 30'
+    determinism: deterministic
+
+  - id: cosmic-star-density-matches-gameplay
+    description: >
+      The full-canvas starfield prepass in src/engine/genesisRenderer.ts
+      previously painted stars at two different densities — COSMIC_STAR_DENSITY
+      = 5 during CosmicFormation and LandAccretion (every 5th tile), and
+      STAR_DENSITY = 12 during all later epochs (every 12th tile). The ~2.4×
+      density step at the LandAccretion → CrustCooling boundary read as a
+      visible "pop" — stars appeared to suddenly thin out as dust coalesced,
+      breaking the calm-tech permacomputer framing. COSMIC_STAR_DENSITY is
+      retuned to 12 to match STAR_DENSITY so the starfield density is constant
+      across all 14 epochs. The cosmic-epoch path otherwise remains distinct —
+      it still uses COSMIC_STAR_CHARS (['.', '*', '+', '·']) and
+      COSMIC_STAR_COLORS (the brighter palette) so the early-universe sky
+      still reads as alive against the later-epoch palette (STAR_CHARS,
+      STAR_COLORS), and it still paints across the full canvas including over
+      the sim diamond (vs. later epochs which skip tiles inside the sim grid).
+      Only the density tunable changes.
+    inputs:
+      - 'genesis simulation is in CosmicFormation or LandAccretion epoch'
+      - 'paintFullCanvasStarfield runs each frame'
+    outputs:
+      - 'COSMIC_STAR_DENSITY constant in src/engine/genesisRenderer.ts equals 12'
+      - 'paintFullCanvasStarfield paints a star every 12th tile during cosmic epochs (h % 12 === 0), same cadence as later epochs'
+      - 'COSMIC_STAR_CHARS and COSMIC_STAR_COLORS are unchanged'
+      - 'cosmic epochs still paint over the sim diamond (the !isCosmic skip at line 129 is unchanged)'
+    state_changes:
+      - field: 'COSMIC_STAR_DENSITY'
+        effect: 'value changes from 5 to 12; the constant is retained so the name still communicates the cosmic-epoch density even when it numerically matches gameplay'
+    determinism: time-based
 
 edge_cases:
   - id: small-viewport-fullscreen
@@ -154,14 +249,26 @@ edge_cases:
   - id: genesis-skip-preserves-all-mutations
     description: Pressing any key to skip still runs all epoch mutations synchronously
     expected: All new state fields (meteorites, meltPools, ponds, glacialEdgeNoise) populated correctly on skip
+  - id: water-target-tiny-landmask
+    description: 'A degenerate landMask too small to host 15% inland water (e.g. landMask.size < 50)'
+    expected: 'WarmPeriod still seeds whatever ponds the budget allows; FallOfCivilizations still drops components < 10; final ratio may fall below the 10% lower bound but no error is thrown'
+  - id: water-target-all-coastal-minima
+    description: 'All candidate minima fall within COAST_INLAND_BIAS_RADIUS of coastlineTiles (e.g. very narrow landmass)'
+    expected: 'all minima receive the inland penalty equally, so the sort collapses to elevation order; pond placement still proceeds without exclusion'
 
 failure_conditions:
   - trigger: No land tiles available for meteorite impact
     expected: Fire season falls back to 2-3 random land ignition points (current behavior)
   - trigger: Ruin placement exhausts candidates before reaching 8 ruins
     expected: Placement stops gracefully with however many ruins were placed (minimum 3)
-  - trigger: Flood-fill produces excessively large pond
-    expected: Pond size capped at 5 tiles per pond, 4 ponds maximum
+  - trigger: 'Final water ratio (sim.ponds.size + sim.riverPaths.size) / sim.landMask.size falls outside [0.10, 0.20] for the production 147x147 prairie'
+    expected: 'CI fails — water budget and drought tuning regressed from the 15% inland target'
+  - trigger: 'FallOfCivilizations.mutate still applies a targetCount slice (keeping only the top N largest components)'
+    expected: 'CI fails — drought consolidation was not softened'
+  - trigger: 'pond seeding does not apply the coastline inland bias to the minima sort'
+    expected: 'CI fails — final water bodies will hug the prairie edges instead of forming inland'
+  - trigger: 'COSMIC_STAR_DENSITY constant in src/engine/genesisRenderer.ts is not equal to 12'
+    expected: 'CI fails — cosmic-to-gameplay density step regressed; the "doubled stars" pop returns'
 
 verification:
   test_file: src/engine/__tests__/genesis.test.ts

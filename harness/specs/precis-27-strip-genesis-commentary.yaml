@@ -118,7 +118,7 @@ behaviors:
       - "GenesisBottomBar has no <p> elements"
       - "no italic styling in GenesisBottomBar.tsx"
       - "no 'Years Since Genesis' text in GenesisBottomBar.tsx"
-      - "the rendered year readout matches /^~(\\d+(\\.\\d)?[BMK] years ago\\.\\.\\.|now)$/"
+      - "the rendered year readout matches /^~(\\d{3}[BMK] years ago\\.\\.\\.|now)$/"
       - "the card is positioned `bottom-52 left-1/2 -translate-x-1/2` (same as ScanProgressBar)"
       - "the fill bar's backgroundColor is #d8a860 (gold), not the pink token used by ScanProgressBar"
       - "the fill width tracks overall epoch progress, monotonically increasing through genesis"
@@ -131,38 +131,48 @@ behaviors:
       that takes a year-since-cosmic-formation number (the same
       domain getGenesisYear has always produced) and returns the
       display string. Conversion rule — yearsAgo = GENESIS_END_YEAR
-      - input. Banding is rounded-value-driven so that values near
-      a band boundary promote to the next band rather than
-      overflowing the band's natural integer range — the
-      displayed integer always lies in [1, 999] for M and K
-      bands, and is at least 1.0 in the B band. Bands —
-      yearsAgo < 1_000 → "~now"; if rounding to the 100M step
-      yields >= 10 tenths (i.e. >= 1.0B) → "~N.NB years ago..."
-      with one decimal, trailing ".0" dropped (e.g.
-      13_800_000_000 → "~13.8B", 1_000_000_000 → "~1B");
-      else if rounding to the 1M step yields >= 1 →
-      "~NM years ago..." (e.g. 100_000_000 → "~100M",
-      25_000_000 → "~25M", 999_500 → "~1M");
-      else round to the 1K step → "~NK years ago..." (e.g.
-      100_000 → "~100K"). The existing formatYear export
-      (year.toLocaleString) is retained — its only remaining
-      caller is the deep-time gameplay year display in
-      Sidebar.tsx, which is forward-projecting and unrelated to
-      the reverse-projection genesis readout.
+      - input. The numeric portion is rendered fixed-width at three
+      digits, zero-padded, so the readout never shifts horizontally
+      as the simulation runs and the player's eye is not pulled by
+      the decimal point crossing band boundaries (the GenesisBottomBar
+      readout is the only visible HUD widget during genesis — its
+      width must be stable across the entire 14-epoch run). The B
+      band is now also integer-valued — the previous one-decimal B
+      band ("~13.8B") is replaced with a three-digit
+      hundred-millions-of-years count ("~138B" = 13.8 billion years
+      ago). The display unit letter remains B/M/K, and the band
+      assignment is the same magnitude-driven rule as before. Bands —
+      yearsAgo < 1_000 → "~now"; if rounding to the 100M step yields
+      >= 10 tenths (i.e. >= 1.0B) → "~NNNB years ago..." where NNN is
+      the rounded count of hundred-millions of years, zero-padded to
+      three digits (e.g. 13_800_000_000 → "~138B", 1_000_000_000
+      → "~010B", 5_500_000_000 → "~055B"); else if rounding to the
+      1M step yields >= 1 → "~NNNM years ago..." with NNN
+      zero-padded to three digits (e.g. 100_000_000 → "~100M",
+      25_000_000 → "~025M", 999_500 → "~001M"); else round to the
+      1K step → "~NNNK years ago..." with NNN zero-padded to three
+      digits (e.g. 100_000 → "~100K", 5_000 → "~005K"). All numeric
+      strings produced by formatYearsAgo (excluding "~now") match the
+      regex /^~\\d{3}[BMK] years ago\\.\\.\\.$/. The existing formatYear
+      export (year.toLocaleString) is retained — its only remaining
+      caller is the deep-time gameplay year display in Sidebar.tsx,
+      which is forward-projecting and unrelated to the
+      reverse-projection genesis readout.
     inputs:
       - 'formatYearsAgo(year: number) called with a year in [0, GENESIS_END_YEAR]'
     outputs:
-      - 'formatYearsAgo(0) === "~13.8B years ago..."'
-      - 'formatYearsAgo(4_500_000_000) === "~9.3B years ago..."'
-      - 'formatYearsAgo(12_800_000_000) === "~1B years ago..."  # M-to-B band edge; trailing .0 dropped'
+      - 'formatYearsAgo(0) === "~138B years ago..."'
+      - 'formatYearsAgo(4_500_000_000) === "~093B years ago..."'
+      - 'formatYearsAgo(12_800_000_000) === "~010B years ago..."  # M-to-B band edge'
       - 'formatYearsAgo(13_700_000_000) === "~100M years ago..."'
+      - 'formatYearsAgo(13_775_000_000) === "~025M years ago..."  # 25M years ago, zero-padded'
       - 'formatYearsAgo(13_799_900_000) === "~100K years ago..."'
       - 'formatYearsAgo(13_799_999_500) === "~now"'
       - 'formatYearsAgo(GENESIS_END_YEAR) === "~now"'
-      - 'formatYearsAgo(GENESIS_END_YEAR - 999_000_000) === "~1B years ago..."  # promotes across the M-to-B boundary'
-      - 'formatYearsAgo(GENESIS_END_YEAR - 25_000_000) === "~25M years ago..."  # does not collapse to "~0M"'
-      - 'formatYearsAgo(GENESIS_END_YEAR - 999_500) === "~1M years ago..."  # promotes across the K-to-M boundary'
-      - 'formatYearsAgo(GENESIS_END_YEAR - 950_000_000) === "~1B years ago..."  # rounds up across M-to-B'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 999_000_000) === "~010B years ago..."  # promotes across the M-to-B boundary'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 25_000_000) === "~025M years ago..."  # does not collapse to "~0M"'
+      - 'formatYearsAgo(GENESIS_END_YEAR - 999_500) === "~001M years ago..."  # promotes across the K-to-M boundary'
+      - 'every non-"~now" return value matches /^~\d{3}[BMK] years ago\.\.\.$/'
     state_changes: []
     determinism: deterministic
 
@@ -395,7 +405,7 @@ failure_conditions:
     expected: 'CI fails — the deleted commentary line or "Years Since Genesis" subtitle is back'
   - trigger: 'GenesisBottomBar.tsx renders a year string that contains a comma, a digit sequence longer than 4 chars, or no tilde prefix'
     expected: 'CI fails — the year readout is still in the toLocaleString register'
-  - trigger: "formatYearsAgo(0) does not equal '~13.8B years ago...' OR formatYearsAgo(GENESIS_END_YEAR) does not equal '~now'"
+  - trigger: "formatYearsAgo(0) does not equal '~138B years ago...' OR formatYearsAgo(GENESIS_END_YEAR) does not equal '~now'"
     expected: 'CI fails — the reverse-projection mapping is off'
   - trigger: "grep for 'commentary\\|narrate\\|prologue\\|cutscene' in docs/claude/genesis.md returns any hits"
     expected: 'CI fails — the doc still describes genesis as a narrated event'
