@@ -50,11 +50,13 @@ const STAR_DENSITY = 12
 const TWINKLE_SPEED = 0.0015
 
 // Bright cosmic palette for the first two epochs (CosmicFormation +
-// LandAccretion) — when the simulated universe is forming and the sky
-// should feel alive and dense across the full screen.
+// LandAccretion) — when the simulated universe is forming. The density
+// matches STAR_DENSITY so the cosmic-to-gameplay handoff doesn't read
+// as a visible "pop" when dust coalesces; the brighter chars and
+// colours below still carry the early-universe feel.
 const COSMIC_STAR_CHARS = ['.', '*', '+', '·']
 const COSMIC_STAR_COLORS = ['#FFFFFF', '#DDDDFF', '#FFDDDD', '#FFFFDD', '#AAAACC']
-const COSMIC_STAR_DENSITY = 5
+const COSMIC_STAR_DENSITY = 12
 const COSMIC_EPOCHS: ReadonlySet<GenesisEpochId> = new Set([
   GenesisEpochId.CosmicFormation,
   GenesisEpochId.LandAccretion,
