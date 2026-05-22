@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AmbientInstruments } from './AmbientInstruments'
 import { BootTitleCardOverlay } from './BootTitleCardOverlay'
 import { CantosScreen } from './CantosScreen'
 import { CommandPanel } from './CommandPanel'
@@ -231,7 +232,9 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           <div className="pointer-events-auto">
             <Minimap state={state} />
           </div>
-          <div className="pointer-events-auto flex-1" />
+          <div className="pointer-events-auto flex-1">
+            <AmbientInstruments state={state} />
+          </div>
           <div
             data-panel="item-info"
             className="pointer-events-auto h-full w-48 self-stretch overflow-hidden font-mono text-xs"
