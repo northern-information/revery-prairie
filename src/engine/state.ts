@@ -213,10 +213,17 @@ export const createGameState = (
     world: createWorld(),
     meteorShower: {
       active: false,
-      nextShowerTime: 0,
       remainingStars: 0,
       lastSpawnTime: 0,
       spawnIntervalMs: 0,
+      // Game starts at seasonalPhase = 0.0 (spring equinox). The first
+      // tickMeteorShower call sees pendingAnchorPhase === 0.0 and the
+      // current phase at 0.0, fires the spring shower immediately, and
+      // pre-targets the player tile as the steward star (because
+      // playerSpawn.triggeredAt is 0).
+      pendingAnchorPhase: 0.0,
+      lastFiredAnchorIndex: -1,
+      lastFiredAnchorYear: 0,
     },
     playerSpawn: {
       // visible defaults to true so headless tests/setups (no gameloop) work.

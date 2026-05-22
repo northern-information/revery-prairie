@@ -51,25 +51,35 @@ behaviors:
         effect: 'initialized with visible=false, spawnPos=player position, meteorEntityId=null, triggeredAt=0'
     determinism: deterministic
 
-  - id: trigger-on-game-start
+  - id: spring-equinox-spawn-ceremony
     description: >
-      on the first gameLoop tick after createGameState (or after the
-      genesis crossfade in the genesis path), triggerPlayerSpawnShower
-      is called with the player's position and the current time. this
-      kicks off the first meteor shower of the run with one star
-      pre-targeted at the player. the call is idempotent (guarded by
-      playerSpawn.triggeredAt !== 0). the shower targets the player
-      with a path length chosen so the star lands within ~2000ms.
+      the player-spawn ceremony is folded into the cardinal meteor
+      shower schedule (see shooting-stars spec). the game starts at
+      seasonalPhase = 0.0 (spring equinox), and the spring anchor fires
+      at exactly phase 0.0 with no jitter, so the first spring shower
+      of the run is the spawn ceremony. there is no separate
+      triggerPlayerSpawnShower function — the cardinal scheduler is the
+      single entry point. on the first gameLoop tick after
+      createGameState (or after the genesis crossfade in the genesis
+      path), seasonalPhase is already at 0.0 and the scheduler fires
+      the spring shower immediately, pre-targeting one of its stars at
+      state.player with forPlayerSpawn=true (the steward star). that
+      star lands within ~2000ms of the shower's first spawn tick. the
+      spawn record is initialized in the same tick: triggeredAt is set
+      to the current time and meteorEntityId is set to the steward
+      star's entity id. the initialization is idempotent (guarded by
+      playerSpawn.triggeredAt !== 0); subsequent spring showers do not
+      carry a forPlayerSpawn star.
     inputs:
-      - 'first gameLoop tick where playerSpawn.triggeredAt is 0'
+      - 'first gameLoop tick where playerSpawn.triggeredAt is 0 and seasonalPhase is at the spring-equinox cardinal anchor (0.0)'
     outputs: []
     state_changes:
       - field: playerSpawn.triggeredAt
         effect: 'set to current time'
       - field: playerSpawn.meteorEntityId
-        effect: 'set to the entity id of the spawn-targeted shooting star'
+        effect: 'set to the entity id of the steward shooting star'
       - field: meteorShower
-        effect: 'shower transitions to active immediately (see player-spawn-shower-trigger in shooting-stars spec)'
+        effect: 'spring-equinox shower transitions to active; one of its targeted stars carries forPlayerSpawn=true'
     determinism: time-based
 
   - id: hidden-during-descent
@@ -148,7 +158,7 @@ behaviors:
       (spawnPos.x - backtrackTiles, spawnPos.y - backtrackTiles) —
       the iso "north" corner — and descends to the spawn tile.
     inputs:
-      - 'triggerPlayerSpawnShower called with spawnPos and time'
+      - 'cardinal scheduler fires the spring-equinox shower at game start (playerSpawn.triggeredAt is 0)'
     outputs:
       - 'steward star spawned with velocity { dx: 1, dy: 1 }'
     state_changes:
@@ -219,36 +229,32 @@ behaviors:
         effect: 'centered on the steward star Position component (with viewport half-extent offset) instead of state.player'
     determinism: deterministic
 
-  - id: multiplayer-generic-trigger
+  - id: multiplayer-join-deferred
     description: >
-      triggerPlayerSpawnShower(state, spawnPos, time) is the only entry
-      point for spawn ceremonies. it does not assume the local player.
-      when multiplayer lands, the per-player spawn record (or its
-      ECS-component equivalent) feeds spawnPos into the same call —
-      every joining player gets their own meteor shower with one star
-      aimed at their tile. concurrent showers triggered by overlapping
-      joins are not required to interleave gracefully in this iteration;
-      the trigger may no-op if a shower is already active and record a
-      followup-needed flag for the joining player (out of scope for
-      single-player but documented so the implementation does not
-      foreclose it).
+      with the cardinal scheduler as the only shower entry point, mid-
+      year multiplayer joins can no longer piggy-back on an ad-hoc spawn
+      shower — the next cardinal anchor may be several minutes away.
+      the per-player spawn record is still initialized on join, but the
+      steward-star ceremony is reserved for the first overworld entry
+      of the run (the local player at spring equinox). a separate, per-
+      player visibility mechanism for late joiners is out of scope for
+      this change and will be specified when multiplayer lands. the
+      data shape (per-player spawn record) remains generic so the
+      future mechanism can slot in without renaming fields.
     inputs:
-      - 'GameState, spawn Position for any player, time'
+      - 'multiplayer join event (future)'
     outputs: []
-    state_changes:
-      - field: meteorShower
-        effect: 'active when triggered with no prior shower running'
-      - field: playerSpawn (or per-player equivalent)
-        effect: 'triggeredAt and meteorEntityId set for the spawning player'
-    determinism: time-based
+    state_changes: []
+    determinism: deterministic
 
 edge_cases:
   - id: skip-genesis-still-spawns-via-meteor
     description: >
-      ?skipGenesis=true bypasses the crossfade. the spawn meteor still
-      runs — the trigger fires on the first gameplay tick regardless
-      of whether genesisTransition was active.
-    expected: 'spawn shower starts on first tick; player appears ~2s later'
+      ?skipGenesis=true bypasses the crossfade. the spawn ceremony still
+      runs — the spring-equinox cardinal shower fires on the first
+      gameplay tick (seasonalPhase = 0.0 at game start) regardless of
+      whether genesisTransition was active, and carries the steward star.
+    expected: 'spring cardinal shower fires on first tick with forPlayerSpawn steward star; player appears ~2s later'
 
   - id: spawn-tile-on-water-or-edge
     description: >
@@ -259,13 +265,11 @@ edge_cases:
       no meteorite; explosion only).
     expected: 'spawn ceremony tolerates non-Dirt spawn tiles by skipping the meteorite drop and still emerging the player'
 
-  - id: shower-already-active-when-triggered
+  - id: subsequent-spring-shower-no-steward
     description: >
-      another player joins (multiplayer) while a shower is already
-      active. triggerPlayerSpawnShower should still spawn a single
-      forPlayerSpawn star aimed at the new player without resetting
-      remainingStars on the active shower.
-    expected: 'one targeted spawn star created immediately; active shower state untouched'
+      second or later spring equinox in the run — playerSpawn.triggeredAt
+      is already non-zero.
+    expected: 'spring cardinal shower fires normally at phase 0.0; no star is flagged forPlayerSpawn; existing playerSpawn state is untouched'
 
   - id: deep-time-suppression
     description: >
@@ -317,8 +321,8 @@ failure_conditions:
   - trigger: 'playerSpawn.meteorEntityId references an entity id that no longer exists'
     expected: 'next tick clears meteorEntityId to null and flips visible to true'
 
-  - trigger: 'triggerPlayerSpawnShower called with no valid landing tile (entire map blocked)'
-    expected: 'spawn-targeted star still spawns at spawnPos directly via spawnShootingStarAtTarget; the function never throws'
+  - trigger: 'cardinal scheduler fires spring shower at game start with no valid landing tile (entire map blocked)'
+    expected: 'steward star still spawns at state.player directly via spawnShootingStarAtTarget; the scheduler never throws'
 
 verification:
   test_file: src/engine/__tests__/playerSpawn.test.ts

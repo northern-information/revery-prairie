@@ -11,15 +11,20 @@ dependencies:
   - genesis-transition
 
 behaviors:
-  - id: trigger-runs-in-complete-genesis
+  - id: scheduler-runs-in-complete-genesis
     description: >
-      completeGenesis must call triggerPlayerSpawnShower(state, state.player, handoffTime)
-      synchronously before returning. this guarantees that on the first frame the
-      gameplay renderer takes over from the genesis renderer, playerSpawn.visible is
-      already false and the player glyph is not drawn. without this, the gameloop's
-      player-spawn-trigger system (which is gameplay-phase) fires one tick later than
-      the first gameplay render, producing a one-frame @ flash at the spawn tile
-      before the meteorite descends.
+      completeGenesis must invoke the cardinal-shower scheduler
+      (tickMeteorShower) synchronously before returning, via the
+      state.onGenesisComplete callback. since state.seasonalPhase starts
+      at 0.0 (spring equinox) and meteorShower.pendingAnchorPhase starts
+      at 0.0, the first tickMeteorShower call fires the spring shower and
+      its steward star. this guarantees that on the first frame the
+      gameplay renderer takes over from the genesis renderer,
+      playerSpawn.visible is already false and the player glyph is not
+      drawn. without this synchronous invocation, the gameloop's normal
+      tickMeteorShower (which is gameplay-phase) fires one tick later
+      than the first gameplay render, producing a one-frame @ flash at
+      the spawn tile before the meteorite descends.
     inputs:
       - 'completeGenesis(state) invoked'
     outputs: []
@@ -29,18 +34,20 @@ behaviors:
       - field: playerSpawn.triggeredAt
         effect: 'set to the handoff time'
       - field: playerSpawn.meteorEntityId
-        effect: 'set to the spawn-targeted shooting star entity id'
+        effect: 'set to the steward star entity id'
       - field: meteorShower
-        effect: 'becomes active with one spawn-targeted star (per player-spawn spec)'
+        effect: 'becomes active with steward star spawned in the same tick (per player-spawn and shooting-stars specs)'
     determinism: time-based
 
-  - id: gameloop-trigger-noop-after-complete-genesis
+  - id: gameloop-tick-noop-after-complete-genesis
     description: >
-      the existing player-spawn-trigger gameloop system continues to exist as a
-      fallback for paths that bypass completeGenesis (headless tests, future
-      no-genesis flows). its idempotency guard (playerSpawn.triggeredAt !== 0)
-      ensures it no-ops on the first gameplay tick after completeGenesis has
-      already triggered the spawn.
+      the gameloop's normal tickMeteorShower call continues to fire every
+      frame. on the first gameplay tick after completeGenesis has run,
+      the shower is already active and the steward star has already been
+      spawned, so the scheduler advances the in-flight spawn window
+      without retriggering the ceremony. headless tests that bypass
+      completeGenesis still get the spring shower the first time
+      tickMeteorShower runs in a tick where seasonalPhase is at 0.0.
     inputs:
       - 'gameloop tick after completeGenesis has run'
     outputs: []
@@ -51,9 +58,9 @@ edge_cases:
   - id: skip-genesis-url-param
     description: >
       ?skipGenesis=true causes useGameEngine's useLayoutEffect to call
-      completeGenesis synchronously after createGameState. the spawn trigger
-      fires inside that call, so the first render (any render, in fact) sees
-      visible=false. no flash.
+      completeGenesis synchronously after createGameState. the cardinal
+      scheduler fires inside that call, so the first render (any render,
+      in fact) sees visible=false. no flash.
     expected: 'no @ glyph drawn at the spawn tile on any frame before the meteorite explosion'
 
   - id: headless-test-bypasses-complete-genesis
@@ -61,16 +68,17 @@ edge_cases:
       tests that build a GameState directly without running genesis keep
       playerSpawn.visible=true by default. this is intentional — headless
       tests have no rendering loop and rely on the default to assert
-      pre-trigger state. the gameloop fallback trigger handles the rare
-      case where a headless test then runs the gameloop.
-    expected: 'playerSpawn.visible is true after createGameState; flipped to false on first gameplay tick when gameloop runs'
+      pre-trigger state. when such a test then runs tickMeteorShower with
+      seasonalPhase=0.0 the spring shower fires and the steward star is
+      spawned, flipping visible to false in the same tick.
+    expected: 'playerSpawn.visible is true after createGameState; flipped to false on the first tickMeteorShower call'
 
 failure_conditions:
   - trigger: 'gameplay renderer runs after genesis ends with playerSpawn.visible still true'
     expected: 'cannot happen — completeGenesis flips visible to false before returning, and the genesis tick that calls completeGenesis runs before onFrame in the same RAF callback'
 
   - trigger: 'completeGenesis called twice'
-    expected: 'second call returns early at the existing guard (if (!state.genesis) return); the duplicate triggerPlayerSpawnShower call never runs'
+    expected: 'second call returns early at the existing guard (if (!state.genesis) return); the duplicate tickMeteorShower call never runs'
 
 verification:
   test_file: src/engine/__tests__/playerSpawn.test.ts

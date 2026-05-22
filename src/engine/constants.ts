@@ -107,7 +107,6 @@ export const PATINA_CHARS = ['·', ':', '+', "'", '.']
 export const SHOOTING_STAR_TICK_MS = 80
 export const SHOOTING_STAR_SPAWN_TICK_MS = 2000
 export const SHOOTING_STAR_SPAWN_CHANCE = 0.15 // ~1 every 13s
-export const SHOOTING_STAR_LAND_CHANCE = 0.08 // ~1 in 12 stars lands
 export const SHOOTING_STAR_MAX_AGE = 300
 export const SHOOTING_STAR_MIN_LENGTH = 3
 export const SHOOTING_STAR_MAX_LENGTH = 6
@@ -140,10 +139,17 @@ export const SHOOTING_STAR_TRAIL_CHARS: Record<VelocityKey, string> = {
   '0,-1': '/',
 }
 
-// meteor showers
+// meteor showers — cardinal schedule
+// One shower per cardinal phase per year: spring equinox (0.0),
+// summer solstice (0.25), autumn equinox (0.5), winter solstice (0.75).
+// No intermittent showers between anchors.
 export const METEOR_SHOWER_TICK_MS = 200
-export const METEOR_SHOWER_MIN_INTERVAL_MS = 120_000
-export const METEOR_SHOWER_MAX_INTERVAL_MS = 240_000
+export const METEOR_SHOWER_ANCHORS = [0.0, 0.25, 0.5, 0.75] as const
+// Jitter applied to summer/autumn/winter anchors so showers don't feel
+// metronomic. Spring fires at exactly 0.0 with no jitter because the
+// first spring shower of the run is the player-spawn ceremony.
+// 0.01 of a year ≈ 12s with SEASONAL_PHASE_PERIOD_MS = 20min.
+export const METEOR_SHOWER_JITTER_PHASE = 0.01
 export const METEOR_SHOWER_STAR_COUNT_MIN = 8
 export const METEOR_SHOWER_STAR_COUNT_MAX = 12
 export const METEOR_SHOWER_SPAWN_WINDOW_MS = 4000
@@ -154,7 +160,6 @@ export const PLAYER_SPAWN_DESCENT_TARGET_MS = 2000
 // meteorites
 export const METEORITE_CHAR = '\u2726' // ✦ black four-pointed star
 export const METEORITE_COLOR = '#FFE4B5' // moccasin — warm pale gold
-export const METEORITE_GROUND_MAX = 20
 
 // landing explosion
 export const EXPLOSION_DURATION_MS = 500 // total explosion lifetime

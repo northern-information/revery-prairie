@@ -1,0 +1,220 @@
+plan:
+  id: meteor-cardinal-showers
+  title: 'Cardinal meteor shower schedule: 4/year at solstice/equinox; ambient stars never land; spring=spawn ceremony'
+  created: '2026-05-22'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: constants-and-state-shape
+    title: 'Constants and MeteorShowerState shape: delete interval + land-chance constants, add jitter and cardinal-tracking fields'
+    spec_id: shooting-stars
+    spec_sections:
+      - ambient-star-spawning
+      - cardinal-shower-scheduling
+    context_files:
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization
+    repair: retry
+    tags: [engine]
+    notes: |
+      Constants:
+        - Remove SHOOTING_STAR_LAND_CHANCE (no longer used; ambient stars never land).
+        - Remove METEOR_SHOWER_MIN_INTERVAL_MS and METEOR_SHOWER_MAX_INTERVAL_MS.
+        - Add METEOR_SHOWER_JITTER_PHASE = 0.01 (≈1% of a year ≈ 12s of wall-clock with the 20-min year).
+        - Cardinal anchors live as a tuple: METEOR_SHOWER_ANCHORS = [0.0, 0.25, 0.5, 0.75] as const.
+      MeteorShowerState (src/engine/types.ts) becomes:
+        active: boolean
+        remainingStars: number
+        lastSpawnTime: number      // retained for spacing stars within the 4s window
+        spawnIntervalMs: number    // retained for spacing stars within the 4s window
+        pendingAnchorPhase: number // next firing phase in [0,1); 0 sentinel means "spring of current year, exact"
+        lastFiredAnchorIndex: number // -1 if none fired this year; otherwise 0..3
+        lastFiredAnchorYear: number  // increments at year wrap
+      state.ts initializes pendingAnchorPhase to 0.0 (spring), lastFiredAnchorIndex to -1,
+      lastFiredAnchorYear to 0. Update EXPECTED_FIELDS in schema.test.ts to match the new
+      meteorShower shape (drop nextShowerTime; add the three new fields).
+
+  - id: ambient-stars-never-land
+    title: 'Ambient shooting stars never land: spawnShootingStar always sets willLand=false; remove land-chance branch'
+    spec_id: shooting-stars
+    spec_sections:
+      - ambient-star-spawning
+      - star-tick-movement
+      - ambient-star-never-lands
+      - ambient-bypasses-ground-cap
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/celestial.ts
+    depends_on:
+      - constants-and-state-shape
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+    notes: |
+      In spawnShootingStar:
+        - Delete the willLand = Math.random() < SHOOTING_STAR_LAND_CHANCE branch.
+        - ShootingStarData.willLand is always false for ambient stars.
+        - Remove the METEORITE_GROUND_MAX guard at the top of spawnShootingStar — ambient
+          stars cannot produce meteorites, so the cap no longer needs to gate ambient spawns.
+          Keep the cap inside spawnShootingStarAtTarget for non-steward targeted stars so
+          showers don't pile meteorites above 20.
+      In tickShootingStars: no logic change needed — the existing willLand check already
+      short-circuits non-landing stars.
+
+  - id: cardinal-scheduler
+    title: 'Replace interval-based scheduler with cardinal-phase scheduler; fold player-spawn ceremony into spring shower'
+    spec_id: shooting-stars
+    spec_sections:
+      - cardinal-shower-scheduling
+      - spring-anchor-no-jitter
+      - non-spring-anchor-jitter
+      - cardinal-shower-fires-once-per-anchor-per-year
+      - no-intermittent-showers
+      - spring-equinox-spawn-ceremony
+      - subsequent-spring-no-steward-star
+      - year-wrap-advances-to-spring
+      - deep-time-skips-pending-anchor
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/gameLoop.ts
+      - src/hooks/useGameEngine.ts
+      - src/engine/__tests__/playerSpawn.test.ts
+      - src/engine/__tests__/meteorShower.test.ts
+      - src/harness/__tests__/replay/shooting-stars.test.ts
+    output_files:
+      - src/engine/celestial.ts
+      - src/engine/gameLoop.ts
+      - src/hooks/useGameEngine.ts
+    depends_on:
+      - constants-and-state-shape
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+    notes: |
+      Rewrite tickMeteorShower so it watches state.seasonalPhase rather than wall-clock time:
+        1. Early-return on deepTime.active.
+        2. If active, drive the existing spawn-staggering loop (unchanged behavior) and
+           on completion advance pendingAnchorPhase to the next anchor for the current
+           year — applying jitter for summer/autumn/winter, exact 0.0 for spring.
+           After winter completes, set pendingAnchorPhase to 0.0 and bump lastFiredAnchorYear.
+        3. If idle, fire the shower when seasonalPhase has crossed pendingAnchorPhase
+           in the current year. Crossing detection guard: also fire when phase < previous
+           tick's phase AND pendingAnchorPhase is 0.0 (year-wrap into spring).
+           Steward star: if this is the spring shower AND playerSpawn.triggeredAt === 0,
+           pre-target state.player with forPlayerSpawn=true on the first spawn-window
+           interval and mark playerSpawn.triggeredAt + meteorEntityId so the renderer
+           and camera-follow systems pick it up.
+      Delete triggerPlayerSpawnShower entirely. Remove its import from
+      src/engine/gameLoop.ts and src/hooks/useGameEngine.ts. The gameLoop no longer
+      needs the "first tick" hook for spawn — the cardinal scheduler fires the spring
+      shower on the first tickMeteorShower call because seasonalPhase starts at 0.0.
+
+  - id: ambient-test-update
+    title: 'Update ambient-star tests: willLand=false invariant, no land-chance mocks, no METEORITE_GROUND_MAX gating'
+    spec_id: shooting-stars
+    spec_sections:
+      - ambient-star-spawning
+      - ambient-star-never-lands
+      - ambient-bypasses-ground-cap
+    context_files:
+      - src/engine/__tests__/shootingStars.test.ts
+      - src/engine/__tests__/meteoritePickupEffect.test.ts
+      - src/engine/__tests__/meteoriteWaterLanding.test.ts
+    output_files:
+      - src/engine/__tests__/shootingStars.test.ts
+    depends_on:
+      - ambient-stars-never-land
+    verification:
+      - npx vitest run src/engine/__tests__/shootingStars.test.ts
+    repair: retry
+    tags: [test]
+    notes: |
+      Replace any test that asserts ambient stars land with one that asserts willLand is
+      always false after spawnShootingStar. Drop tests that mocked SHOOTING_STAR_LAND_CHANCE.
+      meteoriteWaterLanding.test.ts and meteoritePickupEffect.test.ts still cover targeted-
+      shower landings; those tests should be re-pointed at spawnShootingStarAtTarget directly
+      rather than relying on ambient landing chance.
+
+  - id: cardinal-scheduler-tests
+    title: 'Cardinal scheduler regression tests: 4/year, spring=exact-0.0, jitter range, no intermittent firing, year wrap'
+    spec_id: shooting-stars
+    spec_sections:
+      - cardinal-shower-scheduling
+      - spring-anchor-no-jitter
+      - non-spring-anchor-jitter
+      - cardinal-shower-fires-once-per-anchor-per-year
+      - no-intermittent-showers
+      - year-wrap-advances-to-spring
+      - deep-time-skips-pending-anchor
+    context_files:
+      - src/engine/__tests__/meteorShower.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/celestial.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/meteorShower.test.ts
+    depends_on:
+      - cardinal-scheduler
+    verification:
+      - npx vitest run src/engine/__tests__/meteorShower.test.ts
+    repair: retry
+    tags: [test]
+    notes: |
+      Cover:
+        - Spring fires at exactly seasonalPhase = 0.0 (no jitter).
+        - Summer/autumn/winter fire at anchor ± METEOR_SHOWER_JITTER_PHASE.
+        - Exactly 4 showers per year wrap.
+        - Phase = 0.12 (interior of spring) triggers no shower.
+        - Year wraps cleanly: after winter completes, the spring anchor of the next year
+          is queued; lastFiredAnchorYear increments.
+        - Deep time activates between anchors → skipped anchor does not re-fire on resume.
+
+  - id: player-spawn-tests
+    title: 'Player-spawn tests: cardinal scheduler is the only entry point; spring shower carries steward star at game start'
+    spec_id: player-spawn
+    spec_sections:
+      - spring-equinox-spawn-ceremony
+      - steward-star-fixed-direction
+      - subsequent-spring-shower-no-steward
+      - skip-genesis-still-spawns-via-meteor
+    context_files:
+      - src/engine/__tests__/playerSpawn.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/celestial.ts
+      - src/harness/__tests__/replay/shooting-stars.test.ts
+    output_files:
+      - src/engine/__tests__/playerSpawn.test.ts
+      - src/harness/__tests__/replay/shooting-stars.test.ts
+    depends_on:
+      - cardinal-scheduler
+    verification:
+      - npx vitest run src/engine/__tests__/playerSpawn.test.ts
+      - npx vitest run src/harness/__tests__/replay/shooting-stars.test.ts
+    repair: retry
+    tags: [test]
+    notes: |
+      Replace direct calls to triggerPlayerSpawnShower with seasonalPhase=0 + tickMeteorShower
+      to assert the steward star is produced via the cardinal scheduler. Add a regression test
+      that the second year's spring shower carries no forPlayerSpawn star.
+      Update the harness replay test (src/harness/__tests__/replay/shooting-stars.test.ts) to
+      drive the scheduler via seasonalPhase instead of the deleted trigger function.
