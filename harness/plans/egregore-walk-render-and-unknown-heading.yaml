@@ -1,0 +1,217 @@
+plan:
+  id: egregore-walk-render-and-unknown-heading
+  title: Egregore tile renders Voynich glyph under player; scan modal shows UNKNOWN heading; reticle stays gold
+  created: 2026-05-22
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__ src/components/__tests__/ScanResultModal.test.tsx src/components/__tests__/GelBandView.test.tsx
+
+tasks:
+  # --- Tier 1: Renderer fix — Voynich font on player tile ---
+
+  - id: renderer-egregore-on-player-tile-font
+    title: >
+      In src/engine/renderer.ts, the non-multilayer fallback branch
+      `else if (mx === player.x && my === player.y)` (around line 1737)
+      draws the resolved tile glyph at the player tween position but
+      never applies the Voynich font swap, so an egregore PUA code
+      point falls back to '?' or empty box. Wrap the fillText call so
+      that when `state.map[my]?.[mx]?.type === TileType.Egregore` the
+      same `ctx.font = "${BASE_FONT_SIZE}px 'Voynich', monospace"`
+      swap-and-restore the off-player egregore branch (around
+      line 1742) already uses is applied. Do not introduce a helper —
+      keep the change local to the two adjacent branches. Update the
+      comment to note both branches apply the font swap.
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-tile-voynich-font-on-player-tile
+      - walk-over-egregore-tile
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/egregore.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - renderer
+      - egregore
+
+  # --- Tier 2: ScanResultModal — UNKNOWN heading for egregore ---
+
+  - id: scan-result-modal-unknown-heading-egregore
+    title: >
+      In src/components/ScanResultModal.tsx, render the heading slot
+      for kind === 'egregore' instead of skipping it. The h2
+      (data-testid="scan-result-common-name") shows the literal
+      string 'UNKNOWN'; the p (data-testid="scan-result-binomial")
+      shows the literal string 'Unknown Unknown'. Both elements
+      render in the Voynich typeface — add `style={{ fontFamily:
+      "'Voynich', monospace" }}` (or equivalent inline style) to the
+      two elements ONLY for the egregore branch; flora/oak headings
+      keep the existing font stack. Keep the existing fade-in
+      transition + binomialVisible gating. The leading comment that
+      claims "egregore scans show no heading" is updated to describe
+      the new UNKNOWN doctrine.
+
+      Implementation hint: introduce a small `heading` local with
+      shape `{ commonName: string; binomial: string; voynich:
+      boolean } | null`. For flora and oak it carries the
+      FLORA_SPECIES / OAK_SPECIES displayName + latinBinomial with
+      voynich=false. For egregore it carries 'UNKNOWN' +
+      'Unknown Unknown' with voynich=true. The JSX renders the
+      heading block when `heading !== null` and applies the Voynich
+      style when `heading.voynich`.
+    spec_id: oak-scan-modal
+    spec_sections:
+      - scan-result-modal-renders-oak-heading
+    context_files:
+      - src/components/ScanResultModal.tsx
+      - src/engine/scan.ts
+      - src/styles/index.css
+    output_files:
+      - src/components/ScanResultModal.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - components
+      - scan
+
+  # --- Tier 2: GelBandView — only band slot goes purple ---
+
+  - id: gel-band-view-egregore-keep-gold-reticle
+    title: >
+      In src/components/GelBandView.tsx, change the egregore variant
+      in the VARIANTS constant so that ONLY the `band` slot uses the
+      violet color. The `border` slot reverts to 'border-bee' and
+      the `text` slot reverts to 'text-bee' — identical to the flora
+      variant. The `band` slot stays at the bracketed
+      'bg-[#B080D0]' Tailwind class. Update the comment block above
+      VARIANTS to document the new doctrine: only the gel bands
+      themselves carry the cosmology color; reticle/side labels
+      stay on gold/bee tokens across all variants so the
+      viewfinder chrome reads consistent.
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - purple-gel-band-view-variant
+    context_files:
+      - src/components/GelBandView.tsx
+      - src/components/__tests__/GelBandView.test.tsx
+    output_files:
+      - src/components/GelBandView.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - components
+      - scan
+
+  # --- Tier 3: Regression tests ---
+
+  - id: test-egregore-on-player-tile-render
+    title: >
+      Add a vitest test in src/engine/__tests__/renderer-egregore.test.ts
+      (new file) that mocks a CanvasRenderingContext2D and asserts the
+      renderer applies the Voynich font when drawing the on-player-tile
+      branch for a TileType.Egregore. Approach: stub `getContext('2d')`
+      to record every `font` assignment + fillText call (mirroring the
+      pattern already in place for other renderer tests if any; if
+      none, build it inline). Set up a minimal GameState via
+      createGameState, force the player onto an egregore tile, invoke
+      the render function with a stubbed canvas, and assert that the
+      sequence of (font, fillText(char)) pairs at the player position
+      contains a font string starting with "${BASE_FONT_SIZE}px
+      'Voynich'". Also assert no fillText at the player position uses
+      the literal '?' string. If a full renderer harness is too
+      complex for this PR, fall back to a focused unit test that
+      exercises only the on-player-tile font-swap helper extracted
+      from renderer.ts — but prefer the integration approach.
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - egregore-tile-voynich-font-on-player-tile
+      - walk-over-egregore-tile
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/state.ts
+      - src/engine/egregore.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/renderer-egregore.test.ts
+    depends_on:
+      - renderer-egregore-on-player-tile-font
+    verification:
+      - npx vitest run src/engine/__tests__/renderer-egregore.test.ts
+    repair: retry
+    tags:
+      - engine
+      - renderer
+      - test
+
+  - id: test-scan-result-modal-unknown-egregore
+    title: >
+      Extend src/components/__tests__/ScanResultModal.test.tsx with a
+      new test that renders ScanResultModal with a ScanCommitResult
+      of kind 'egregore' (with a valid 64-hex identity). Assert
+      that scan-result-common-name has textContent 'UNKNOWN' and
+      scan-result-binomial has textContent 'Unknown Unknown'. Assert
+      both elements have computed/inline fontFamily containing
+      'Voynich'. Also assert scan-result-gel has data-variant
+      "egregore". Keep the existing oak and flora tests intact.
+    spec_id: oak-scan-modal
+    spec_sections:
+      - scan-result-modal-renders-oak-heading
+    context_files:
+      - src/components/__tests__/ScanResultModal.test.tsx
+      - src/components/ScanResultModal.tsx
+      - src/engine/scan.ts
+    output_files:
+      - src/components/__tests__/ScanResultModal.test.tsx
+    depends_on:
+      - scan-result-modal-unknown-heading-egregore
+    verification:
+      - npx vitest run src/components/__tests__/ScanResultModal.test.tsx
+    repair: retry
+    tags:
+      - components
+      - test
+      - scan
+
+  - id: test-gel-band-view-egregore-keeps-gold
+    title: >
+      Extend src/components/__tests__/GelBandView.test.tsx with a
+      regression test that renders GelBandView variant="egregore"
+      and asserts:
+        - gel-crop-tl, -tr, -bl, -br all have className containing
+          'border-bee' (NOT 'border-[#B080D0]')
+        - gel-side-label-left has className containing 'text-bee'
+        - gel-edge-code has className containing 'text-bee'
+        - at least one gel-band-cell-* has className containing
+          'bg-[#B080D0]' (NOT 'bg-bee')
+      Keep the flora variant test that asserts everything is on
+      gold/bee tokens intact.
+    spec_id: precis-8a-egregoric-thematic
+    spec_sections:
+      - purple-gel-band-view-variant
+    context_files:
+      - src/components/__tests__/GelBandView.test.tsx
+      - src/components/GelBandView.tsx
+    output_files:
+      - src/components/__tests__/GelBandView.test.tsx
+    depends_on:
+      - gel-band-view-egregore-keep-gold-reticle
+    verification:
+      - npx vitest run src/components/__tests__/GelBandView.test.tsx
+    repair: retry
+    tags:
+      - components
+      - test
+      - scan
