@@ -132,6 +132,30 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: egregore-tile-voynich-font-on-player-tile
+    description: >
+      The renderer's on-player-tile draw branch (the path that
+      fires when mx === player.x && my === player.y in the non-
+      multilayer fallback) must apply the same Voynich font
+      swap that the off-player egregore branch applies. Today
+      only the off-player branch swaps to 'Voynich' before
+      drawing the resolved char; the on-player branch drops to
+      the default monospace font, which has no glyph for any
+      EGREGORE_GLYPHS PUA code point and falls back to '?' or
+      an empty box. When the player stands on an egregore
+      tile, the rendered glyph must be the same Voynich glyph
+      a non-player observer would see at that position. This
+      is a rendering correctness fix, not a gameplay change —
+      no state mutates, no movement rule changes.
+    inputs:
+      - 'player.x === mx, player.y === my, state.map[my][mx].type === TileType.Egregore'
+    outputs:
+      - 'the canvas draw call at the player tile uses ctx.font with the Voynich family'
+      - "no '?' or empty-box glyph appears at any egregore tile position regardless of player overlap"
+      - 'the glyph drawn is identical (same EGREGORE_GLYPHS entry) whether or not the player is on the tile'
+    state_changes: []
+    determinism: deterministic
+
   - id: egregore-binomial-header-removed
     description: >
       The two-EVA-token "binomial" header line above each egregore
@@ -351,12 +375,16 @@ behaviors:
   - id: purple-gel-band-view-variant
     description: >
       GelBandView accepts a `variant: "flora" | "egregore"` prop
-      that controls palette and column geometry without changing
-      the underlying hashToHexGrid mapping. The egregore variant:
-        - swaps the gold/yellow palette (border-bee, edge-code
-          color, side-label color) for a violet palette tuned to
-          the existing egregore glyph color #B080D0. Palette
-          tokens are extracted alongside the flora gold tokens.
+      that controls the gel band color and column geometry
+      without changing the underlying hashToHexGrid mapping. The
+      egregore variant:
+        - swaps ONLY the gel band color (the `band` palette
+          slot) from gold/bee to violet (#B080D0, the egregore
+          glyph color). The reticle/crop-mark border AND the
+          side-label text color remain on the gold/bee tokens
+          (border-bee, text-bee) so the viewfinder chrome reads
+          consistent across all scan kinds and only the bands
+          themselves carry the cosmology-specific color.
         - replaces the uniform CELL_WIDTH with per-column widths
           derived from the identity hash (each of the 8 columns
           gets a width sampled from a deterministic range that
@@ -371,7 +399,9 @@ behaviors:
     inputs:
       - 'GelBandView renders with variant="egregore" and a 64-hex identity'
     outputs:
-      - 'the rendered DOM uses violet palette tokens (not gold/bee tokens)'
+      - 'the gel band cells (gel-band-cell-* elements) use the violet color (#B080D0)'
+      - 'the reticle/crop-mark borders (gel-crop-tl/tr/bl/br) use the gold/bee border token, same as the flora variant'
+      - 'the side label and edge code (gel-side-label-left, gel-edge-code) use the gold/bee text token, same as the flora variant'
       - 'each of the 8 columns has a distinct width derived from the identity'
       - 'overall component width remains TOTAL_SIZE'
       - 'band horizontal scale and offset jitter amplitude exceeds the flora variant'
@@ -436,11 +466,23 @@ edge_cases:
 
   - id: walk-over-egregore-tile
     description: >
-      Player walks across an egregore tile.
+      Player walks across an egregore tile. The tile renders the
+      same per-position Voynich PUA glyph (from EGREGORE_GLYPHS)
+      it renders when the player is not standing on it — the
+      glyph must be drawn in the 'Voynich' font, never with the
+      default monospace font (which would fall back to '?' or
+      empty box for PUA code points). This applies in both the
+      playerSpawn.visible and !playerSpawn.visible branches of
+      the renderer's on-player-tile draw path. The passive-
+      transmission cosmologicalDrift tracking (v3 layer (a))
+      is deferred to #4; movePlayer still succeeds normally
+      and no gameplay side effect fires.
     expected: >
-      No special effect in this PR. movePlayer succeeds normally.
-      The passive-transmission cosmologicalDrift tracking (v3
-      layer (a)) is deferred to #4.
+      The on-player-tile render path applies the same
+      `ctx.font = "${BASE_FONT_SIZE}px 'Voynich', monospace"`
+      swap that the off-player egregore branch already uses.
+      No '?' glyph appears at the player position on an
+      egregore tile.
 
   - id: egregore-tile-during-wildfire-spread
     description: >
@@ -532,8 +574,12 @@ failure_conditions:
     expected: 'CI fails — egregore F-hold scan plumbing is incomplete'
   - trigger: "state.egregoreSpecimens is missing from EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts"
     expected: 'CI fails — serialization schema test will not exercise the new field'
-  - trigger: "GelBandView renders the egregore variant using the gold/bee palette tokens"
-    expected: 'CI fails — the purple variant did not switch palette tokens'
+  - trigger: "GelBandView renders the egregore variant with gold/bee gel bands (band slot not swapped to violet)"
+    expected: 'CI fails — only the band color must swap for the egregore variant; reticle and side labels must stay gold/bee'
+  - trigger: "GelBandView renders the egregore variant with violet reticle borders or violet side-label text"
+    expected: 'CI fails — reticle (gel-crop-*) and side labels (gel-side-label-left, gel-edge-code) must remain on the gold/bee tokens across both variants'
+  - trigger: "The renderer draws the player-tile branch glyph with the default monospace font when state.map[player.y][player.x].type === TileType.Egregore"
+    expected: 'CI fails — the on-player-tile path must apply the Voynich font swap; a PUA fallback glyph ("?" / empty box) at the player position is a regression'
 
 verification:
   test_file: src/engine/__tests__/genesis.test.ts

@@ -58,15 +58,29 @@ behaviors:
       to resolve the heading and gel variant. For `kind === 'flora'` the
       heading resolves to FLORA_SPECIES[result.species]. For `kind === 'oak'`
       the heading resolves to OAK_SPECIES (displayName 'White Oak',
-      latinBinomial 'Quercus alba'). For `kind === 'egregore'` no heading
-      renders (the cosmology has no readable name). The gel variant is
-      'flora' for both flora and oak, 'egregore' for egregore.
+      latinBinomial 'Quercus alba'). For `kind === 'egregore'` the heading
+      slot renders the same two-line structure flora and oaks use, with
+      literal text:
+        - common-name slot: 'UNKNOWN' (matching the flora h2 size/treatment)
+        - binomial slot: 'Unknown Unknown' (matching the flora italic
+          dim-color subtitle treatment)
+      Both lines render in the 'Voynich' typeface (font-family stack:
+      'Voynich', monospace) so the cosmology reads as illegible without
+      requiring any deterministic per-identity sampling. The prior
+      doctrine ("no heading renders for egregore because the cosmology
+      has no readable name") is retired; the new doctrine is that the
+      name exists but is illegible by virtue of the typeface. The gel
+      variant is 'flora' for both flora and oak, 'egregore' for egregore.
     inputs:
       - 'caller renders <ScanResultModal result={...} onDismiss={...} /> with result of kind oak'
+      - 'caller renders <ScanResultModal result={...} onDismiss={...} /> with result of kind egregore'
     outputs:
-      - 'scan-result-common-name shows "White Oak"'
-      - 'scan-result-binomial shows "Quercus alba" in italic'
-      - 'GelBandView renders with variant="flora" (same palette flora uses)'
+      - 'for kind oak: scan-result-common-name shows "White Oak"'
+      - 'for kind oak: scan-result-binomial shows "Quercus alba" in italic'
+      - 'for kind oak: GelBandView renders with variant="flora" (same palette flora uses)'
+      - 'for kind egregore: scan-result-common-name shows "UNKNOWN" in the Voynich typeface'
+      - 'for kind egregore: scan-result-binomial shows "Unknown Unknown" in italic in the Voynich typeface'
+      - 'for kind egregore: GelBandView renders with variant="egregore"'
     state_changes: []
     determinism: deterministic
 

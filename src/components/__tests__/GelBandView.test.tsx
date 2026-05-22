@@ -74,21 +74,28 @@ describe('GelBandView', () => {
       expect(wrapper.getAttribute('data-variant')).toBe('egregore')
     })
 
-    it('uses the violet palette tokens, not the gold/bee palette', () => {
+    it('uses gold reticle + side labels with only the gel bands going violet', () => {
       render(<GelBandView identity={identity} variant="egregore" />)
+      // Reticle borders and side labels stay on the gold/bee tokens —
+      // the viewfinder chrome is consistent across variants. Only the
+      // gel bands themselves carry the cosmology-specific violet.
       const left = screen.getByTestId('gel-side-label-left')
       const right = screen.getByTestId('gel-edge-code')
-      // No bee/gold classes on the egregore variant; violet (#B080D0) instead.
-      expect(left.className).not.toContain('text-bee')
-      expect(right.className).not.toContain('text-bee')
-      expect(left.className).toContain('text-[#B080D0]')
-      expect(right.className).toContain('text-[#B080D0]')
-      // Bands themselves should not use bg-bee.
+      expect(left.className).toContain('text-bee')
+      expect(right.className).toContain('text-bee')
+      expect(left.className).not.toContain('text-[#B080D0]')
+      expect(right.className).not.toContain('text-[#B080D0]')
+      // Corner crops are gold too.
+      const crops = ['gel-crop-tl', 'gel-crop-tr', 'gel-crop-bl', 'gel-crop-br']
+      for (const id of crops) {
+        const el = screen.getByTestId(id)
+        expect(el.className).toContain('border-bee')
+        expect(el.className).not.toContain('border-[#B080D0]')
+      }
+      // Bands themselves are violet, never gold.
       const cell = screen.getByTestId('gel-band-cell-0-0')
       expect(cell.className).not.toContain('bg-bee')
       expect(cell.className).toContain('bg-[#B080D0]')
-      // Corner crops also follow the violet palette.
-      expect(screen.getByTestId('gel-crop-tl').className).toContain('border-[#B080D0]')
     })
 
     it('uses per-column hash-derived widths that vary across columns', () => {

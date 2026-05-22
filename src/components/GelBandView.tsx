@@ -17,9 +17,11 @@ const ROW_GAP = CELL_WIDTH - CELL_HEIGHT
 const TOTAL_SIZE = CELL_WIDTH * HEX_GRID_SIZE
 const TOTAL_CELLS = HEX_GRID_SIZE * HEX_GRID_SIZE
 
-// Per-variant palette. The flora variant uses the gold/bee tokens
-// (border-bee, text-bee, bg-bee). The egregore variant uses a violet
-// palette tuned to the existing egregore glyph color (#B080D0).
+// Per-variant palette. Both variants share the gold/bee reticle border
+// and side-label text tokens so the viewfinder chrome reads consistent
+// across all scan kinds. Only the gel band color itself varies — gold
+// (bg-bee) for flora/oak, violet (#B080D0, the egregore glyph color)
+// for egregore.
 const VARIANTS = {
   flora: {
     border: 'border-bee',
@@ -32,12 +34,12 @@ const VARIANTS = {
     offsetYRange: 3,
   },
   egregore: {
-    // Tailwind v4 lets these classes work because they're enumerated as
-    // literal strings (no dynamic interpolation). The bg color uses the
-    // egregore glyph color #B080D0; we set it inline via style to avoid
-    // adding new theme tokens for one component.
-    border: 'border-[#B080D0]',
-    text: 'text-[#B080D0]',
+    // Reticle + side labels stay on the gold/bee tokens; only the gel
+    // bands swap to violet. The bg color is the egregore glyph color
+    // (#B080D0) and is set via a bracketed Tailwind class — v4 picks
+    // it up because the class is enumerated literally.
+    border: 'border-bee',
+    text: 'text-bee',
     band: 'bg-[#B080D0]',
     // Amplified jitter: ~1.7x the flora variant for a noisier printout.
     widthMin: 0.65,

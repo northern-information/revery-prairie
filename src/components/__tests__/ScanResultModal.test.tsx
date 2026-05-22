@@ -155,4 +155,48 @@ describe('scan-result modal', () => {
       expect(screen.getByTestId('scan-result-gel').getAttribute('data-fully-revealed')).toBe('true')
     })
   })
+
+  // Egregore scans show an UNKNOWN heading in the Voynich typeface — the
+  // cosmology name exists but is illegible. Replaces the prior doctrine
+  // of suppressing the heading entirely for egregore.
+  describe('egregore scan', () => {
+    const egregoreResult: ScanCommitResult = {
+      kind: 'egregore',
+      identity: 'cafeb4be0f1a2b3c4d5e6f7081928374a5b6c7d8e9f0a1b2c3d4e5f607182931',
+      position: { x: 12, y: 34 },
+    }
+
+    it('renders UNKNOWN above Unknown Unknown for kind egregore', () => {
+      render(<ScanResultModal result={egregoreResult} onDismiss={() => undefined} />)
+      expect(screen.getByTestId('scan-result-common-name').textContent).toBe('UNKNOWN')
+      expect(screen.getByTestId('scan-result-binomial').textContent).toBe('Unknown Unknown')
+    })
+
+    it('applies the Voynich font to both heading lines for egregore', () => {
+      render(<ScanResultModal result={egregoreResult} onDismiss={() => undefined} />)
+      const commonName = screen.getByTestId('scan-result-common-name')
+      const binomial = screen.getByTestId('scan-result-binomial')
+      expect(commonName.style.fontFamily).toContain('Voynich')
+      expect(binomial.style.fontFamily).toContain('Voynich')
+    })
+
+    it('uses the egregore gel variant', () => {
+      render(<ScanResultModal result={egregoreResult} onDismiss={() => undefined} />)
+      expect(screen.getByTestId('scan-result-gel').getAttribute('data-variant')).toBe('egregore')
+    })
+
+    it('does NOT apply the Voynich font to flora or oak headings', () => {
+      const { rerender } = render(<ScanResultModal result={floraResult} onDismiss={() => undefined} />)
+      expect(screen.getByTestId('scan-result-common-name').style.fontFamily).toBe('')
+      expect(screen.getByTestId('scan-result-binomial').style.fontFamily).toBe('')
+
+      const oakResult: ScanCommitResult = {
+        kind: 'oak',
+        identity: 'b3a1c2d4e5f6071829304a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f9',
+      }
+      rerender(<ScanResultModal result={oakResult} onDismiss={() => undefined} />)
+      expect(screen.getByTestId('scan-result-common-name').style.fontFamily).toBe('')
+      expect(screen.getByTestId('scan-result-binomial').style.fontFamily).toBe('')
+    })
+  })
 })
