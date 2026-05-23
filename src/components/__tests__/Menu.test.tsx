@@ -7,8 +7,8 @@ const makeProps = (overrides: Partial<Parameters<typeof Menu>[0]> = {}) => ({
   onNewGame: vi.fn(),
   metric: true,
   onToggleUnits: vi.fn(),
-  musicEnabled: true,
-  onToggleMusic: vi.fn(),
+  audioEnabled: true,
+  onToggleAudio: vi.fn(),
   autoHidePanels: true,
   onToggleAutoHidePanels: vi.fn(),
   fontScale: 1,
@@ -82,25 +82,25 @@ describe('Menu', () => {
     expect(onToggleUnits).toHaveBeenCalledOnce()
   })
 
-  it('shows music: on when musicEnabled is true', () => {
-    render(<Menu {...makeProps({ musicEnabled: true })} />)
+  it('shows audio: on when audioEnabled is true', () => {
+    render(<Menu {...makeProps({ audioEnabled: true })} />)
 
-    expect(screen.getByText('Music: On')).toBeInTheDocument()
+    expect(screen.getByText('Audio: On')).toBeInTheDocument()
   })
 
-  it('shows music: off when musicEnabled is false', () => {
-    render(<Menu {...makeProps({ musicEnabled: false })} />)
+  it('shows audio: off when audioEnabled is false', () => {
+    render(<Menu {...makeProps({ audioEnabled: false })} />)
 
-    expect(screen.getByText('Music: Off')).toBeInTheDocument()
+    expect(screen.getByText('Audio: Off')).toBeInTheDocument()
   })
 
-  it('calls onToggleMusic when music button is clicked', async () => {
-    const onToggleMusic = vi.fn()
-    render(<Menu {...makeProps({ onToggleMusic })} />)
+  it('calls onToggleAudio when audio button is clicked', async () => {
+    const onToggleAudio = vi.fn()
+    render(<Menu {...makeProps({ onToggleAudio })} />)
 
-    await userEvent.click(screen.getByText('Music: On'))
+    await userEvent.click(screen.getByText('Audio: On'))
 
-    expect(onToggleMusic).toHaveBeenCalledOnce()
+    expect(onToggleAudio).toHaveBeenCalledOnce()
   })
 
   it('shows font: small when fontScale is 1', () => {

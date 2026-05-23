@@ -1,4 +1,4 @@
-import { _getState, _reset, setAmbient, setMusicEnabled, startDialogMusic, stopAll, stopDialogMusic } from '../audio'
+import { _getState, _reset, setAmbient, setAudioEnabled, startDialogMusic, stopAll, stopDialogMusic } from '../audio'
 
 import type { Track } from '../audio'
 
@@ -269,14 +269,14 @@ describe('audio manager', () => {
     })
   })
 
-  describe('setMusicEnabled', () => {
+  describe('setAudioEnabled', () => {
     it('mutes both tracks when disabled', async () => {
       setAmbient('/music/overworld.mp3', 0)
       await flush()
       startDialogMusic('/music/gron.mp3', 0)
       await flush()
 
-      setMusicEnabled(false)
+      setAudioEnabled(false)
 
       const { ambientTrack, dialogTrack } = _getState()
       expect(ambientTrack?.gain.gain.value).toBe(0)
@@ -286,15 +286,15 @@ describe('audio manager', () => {
     it('unmutes track when enabled', async () => {
       setAmbient('/music/overworld.mp3', 0)
       await flush()
-      setMusicEnabled(false)
-      setMusicEnabled(true)
+      setAudioEnabled(false)
+      setAudioEnabled(true)
 
       const { ambientTrack } = _getState()
       expect(ambientTrack?.gain.gain.value).toBe(1)
     })
 
     it('tracks URL even when disabled so re-enable works', () => {
-      setMusicEnabled(false)
+      setAudioEnabled(false)
       setAmbient('/music/overworld.mp3')
 
       expect(_getState().ambientUrl).toBe('/music/overworld.mp3')

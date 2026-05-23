@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-import { setAmbient, setMusicEnabled, startDialogMusic, stopAll, stopDialogMusic, ZONE_MUSIC } from '@/engine/audio'
+import { setAmbient, setAudioEnabled, startDialogMusic, stopAll, stopDialogMusic, ZONE_MUSIC } from '@/engine/audio'
 import { getCharacterDefinition } from '@/engine/characters'
 import { ComponentType } from '@/engine/ecs/types'
 import type { GameState, Zone } from '@/engine/types'
@@ -21,24 +21,24 @@ export const useMusic = (state: GameState): void => {
   const prevZoneRef = useRef<Zone | null>(null)
   const prevCharIdRef = useRef<string | null>(null)
   const dialogStartedRef = useRef(false)
-  const prevEnabledRef = useRef(state.musicEnabled)
+  const prevEnabledRef = useRef(state.audioEnabled)
 
   useEffect(() => {
     const zone = state.currentZone
     const charId = state.activeDialog?.characterId ?? null
-    const musicEnabled = state.musicEnabled
+    const audioEnabled = state.audioEnabled
 
     // Handle enable/disable toggle
-    if (musicEnabled !== prevEnabledRef.current) {
-      prevEnabledRef.current = musicEnabled
-      setMusicEnabled(musicEnabled)
-      if (musicEnabled) {
+    if (audioEnabled !== prevEnabledRef.current) {
+      prevEnabledRef.current = audioEnabled
+      setAudioEnabled(audioEnabled)
+      if (audioEnabled) {
         // Restart ambient for current zone
         setAmbient(ZONE_MUSIC[zone])
       }
     }
 
-    if (!musicEnabled) {
+    if (!audioEnabled) {
       prevZoneRef.current = zone
       prevCharIdRef.current = charId
       return

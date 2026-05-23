@@ -19,7 +19,7 @@ import { PermacomputerShell } from './PermacomputerShell'
 import { ReverySummary } from './ReverySummary'
 import { ScanResultModal } from './ScanResultModal'
 
-import { setMusicEnabled, stopAll } from '@/engine/audio'
+import { setAudioEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
 import { canCast } from '@/engine/hexagram'
 import { advanceDialog } from '@/engine/interaction'
@@ -158,10 +158,10 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
                 state.metric = !state.metric
                 refreshUI()
               }}
-              musicEnabled={state.musicEnabled}
-              onToggleMusic={() => {
-                state.musicEnabled = !state.musicEnabled
-                setMusicEnabled(state.musicEnabled)
+              audioEnabled={state.audioEnabled}
+              onToggleAudio={() => {
+                state.audioEnabled = !state.audioEnabled
+                setAudioEnabled(state.audioEnabled)
                 refreshUI()
               }}
               autoHidePanels={state.autoHidePanels}

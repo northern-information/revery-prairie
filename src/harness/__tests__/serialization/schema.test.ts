@@ -73,7 +73,7 @@ const EXPECTED_FIELDS = [
   'sprinting',
   'trail',
   'playerTween',
-  'musicEnabled',
+  'audioEnabled',
   'fontScale',
   'rightInsetTiles',
   'world',

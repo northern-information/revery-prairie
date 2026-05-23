@@ -25,7 +25,7 @@ let ambientTrack: Track | null = null
 let ambientUrl: string | null = null
 let dialogTrack: Track | null = null
 let fadeRafId: number | null = null
-let enabled = true
+let audioEnabled = true
 let pendingResume: (() => void) | null = null
 
 // Proximity tracks: keyed by emitter URL. Multiple emitters that share a
@@ -180,7 +180,7 @@ const fadeBoth = (
 // --- public API ---
 
 export const setAmbient = (url: string, fadeMs: number = FADE_MS): void => {
-  if (!enabled) {
+  if (!audioEnabled) {
     // Track the desired URL even when muted so toggling on works
     ambientUrl = url
     return
@@ -211,7 +211,7 @@ export const setAmbient = (url: string, fadeMs: number = FADE_MS): void => {
 }
 
 export const startDialogMusic = (url: string, fadeMs: number = FADE_MS): void => {
-  if (!enabled) return
+  if (!audioEnabled) return
 
   // Clean up any existing dialog audio
   if (dialogTrack) {
@@ -307,11 +307,11 @@ export const updateProximityMusic = (samples: ProximityEmitterSample[]): void =>
 
   // Apply gains to existing tracks; spawn new tracks for URLs not yet
   // playing. When muted, store the intended gain by spawning the track at
-  // 0 and let setMusicEnabled restore on toggle.
+  // 0 and let setAudioEnabled restore on toggle.
   for (const [url, target] of targetByUrl) {
     const existing = proximityTracks.get(url)
     if (existing) {
-      existing.gain.gain.value = enabled ? target : 0
+      existing.gain.gain.value = audioEnabled ? target : 0
       continue
     }
     if (proximityPending.has(url)) continue
@@ -351,7 +351,7 @@ export const updateProximityMusic = (samples: ProximityEmitterSample[]): void =>
   // Ambient ducking: dialog ducking wins; otherwise ambient gain follows
   // 1 - max(proximityGains). When all proximity tracks are silent or
   // gone, ambient returns to 1.
-  if (!enabled || !ambientTrack) return
+  if (!audioEnabled || !ambientTrack) return
   if (dialogTrack) return
   let maxGain = 0
   for (const gain of targetByUrl.values()) {
@@ -363,8 +363,8 @@ export const updateProximityMusic = (samples: ProximityEmitterSample[]): void =>
   ambientTrack.gain.gain.value = 1 - maxGain
 }
 
-export const setMusicEnabled = (value: boolean): void => {
-  enabled = value
+export const setAudioEnabled = (value: boolean): void => {
+  audioEnabled = value
 
   if (ambientTrack) ambientTrack.gain.gain.value = value ? 1 : 0
   if (dialogTrack) dialogTrack.gain.gain.value = value ? 1 : 0
@@ -381,6 +381,34 @@ export const setMusicEnabled = (value: boolean): void => {
   }
 }
 
+// One-shot SFX. Fire-and-forget: each call creates a fresh non-looping
+// AudioBufferSourceNode at full gain, plays immediately, and disconnects
+// on onended. Overlapping calls play independently. No-op when audio is
+// disabled; buffer fetch errors fail silently (same pattern as ambient).
+export const playSfx = (url: string): void => {
+  if (!audioEnabled) return
+
+  const audioCtx = getContext()
+  void loadBuffer(url)
+    .then(buffer => {
+      if (!audioEnabled) return
+      const source = audioCtx.createBufferSource()
+      source.buffer = buffer
+      source.connect(audioCtx.destination)
+      source.onended = () => {
+        source.disconnect()
+      }
+      try {
+        source.start(0)
+      } catch {
+        // Already started or context issue — safe to ignore
+      }
+    })
+    .catch(() => {
+      // Fetch or decode failure — silent
+    })
+}
+
 // --- test helpers ---
 
 export const _getState = (): {
@@ -388,11 +416,11 @@ export const _getState = (): {
   ambientUrl: string | null
   dialogTrack: Track | null
   fadeRafId: number | null
-  enabled: boolean
+  audioEnabled: boolean
   pendingResume: (() => void) | null
   proximityTracks: Map<string, Track>
   proximityPending: Set<string>
-} => ({ ambientTrack, ambientUrl, dialogTrack, fadeRafId, enabled, pendingResume, proximityTracks, proximityPending })
+} => ({ ambientTrack, ambientUrl, dialogTrack, fadeRafId, audioEnabled, pendingResume, proximityTracks, proximityPending })
 
 export const _computeProximityGain = computeProximityGain
 
@@ -405,5 +433,5 @@ export const _reset = (): void => {
     })
     ctx = null
   }
-  enabled = true
+  audioEnabled = true
 }

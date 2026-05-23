@@ -190,7 +190,7 @@ export const createGameState = (
     cursorScreenPos: null,
     rainSeed,
     metric: true,
-    musicEnabled: true,
+    audioEnabled: true,
     autoHidePanels: true,
     panelOpenMoveCount: 0,
     fontScale: 1.25,

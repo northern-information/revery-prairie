@@ -310,7 +310,7 @@ export interface GameState {
   cursorScreenPos: { x: number; y: number } | null
   rainSeed: number
   metric: boolean
-  musicEnabled: boolean
+  audioEnabled: boolean
   fontScale: number
   heldKeys: Set<ScreenAxisKey>
   currentZone: Zone
