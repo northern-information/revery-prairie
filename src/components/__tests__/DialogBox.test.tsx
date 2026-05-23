@@ -17,13 +17,13 @@ describe('DialogBox', () => {
     expect(dialogRoot.className).not.toMatch(/z-10/)
   })
 
-  it('is centered within the game canvas area (left-0 to right-48)', () => {
+  it('is horizontally and vertically centered within the viewport', () => {
     const { container } = render(<DialogBox characterName="Moab" line="hello" typingIndex={5} typingDone={false} />)
 
     const dialogRoot = container.firstElementChild as HTMLElement
-    // horizontally: left-0 + right-48 + mx-auto centers within game canvas area
+    // horizontally: left-0 + right-0 + mx-auto centers within the full viewport
     expect(dialogRoot.className).toMatch(/left-0/)
-    expect(dialogRoot.className).toMatch(/right-48/)
+    expect(dialogRoot.className).toMatch(/right-0/)
     expect(dialogRoot.className).toMatch(/mx-auto/)
     // vertically: top-1/2 + -translate-y-1/2 centers vertically
     expect(dialogRoot.className).toMatch(/top-1\/2/)

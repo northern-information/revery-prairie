@@ -545,7 +545,7 @@ describe('crater effect semantics', () => {
     createSatelliteEntity(state, { pos: target, landingTarget: target })
     tickSatellites(state, 1000)
 
-    // Tile type is still Dirt (so Sidebar renders the soil row) and soil value is damaged
+    // Tile type is still Dirt and soil value is damaged
     expect(state.map[target.y][target.x].type).toBe(TileType.Dirt)
     expect(state.soilHealth.get(key)).toBe(80 - SATELLITE_SOIL_DAMAGE)
   })

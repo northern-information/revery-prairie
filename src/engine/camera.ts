@@ -17,10 +17,6 @@ const stewardStarFocus = (state: GameState): { x: number; y: number } | null => 
 }
 
 export const updateCamera = (state: GameState): void => {
-  // The rightmost columns are hidden under the sidebar, so center the
-  // player within only the visible portion of the viewport.
-  const visibleWidth = state.viewportWidth - state.rightInsetTiles
-
   // Always center the player at the canvas center. The renderer projects
   // tiles iso, so the orthogonal viewport rectangle becomes a parallelogram
   // on canvas — any orthogonal deadzone lets the player drift off-canvas
@@ -31,10 +27,10 @@ export const updateCamera = (state: GameState): void => {
   const stewardFocus = stewardStarFocus(state)
   const focus = stewardFocus ?? state.player
 
-  if (state.mapWidth < visibleWidth) {
-    state.camera.x = -Math.floor((visibleWidth - state.mapWidth) / 2)
+  if (state.mapWidth < state.viewportWidth) {
+    state.camera.x = -Math.floor((state.viewportWidth - state.mapWidth) / 2)
   } else {
-    state.camera.x = focus.x - Math.floor(visibleWidth / 2)
+    state.camera.x = focus.x - Math.floor(state.viewportWidth / 2)
   }
 
   if (state.mapHeight < state.viewportHeight) {

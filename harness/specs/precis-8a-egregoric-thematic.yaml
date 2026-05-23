@@ -18,7 +18,6 @@ source_files:
   - src/engine/scan.ts
   - src/engine/state.ts
   - src/engine/characters.ts
-  - src/components/Sidebar.tsx
   - src/components/ManualPanel.tsx
   - src/components/ManualPanel.constants.ts
   - src/components/GelBandView.tsx
@@ -277,19 +276,6 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: cursor-info-shows-egregore-as-tile-type
-    description: >
-      The sidebar cursor-info contents row labels egregore tiles
-      using a human-readable label (e.g. "egregore" or the chosen
-      folk-register label — but NOT a Latin binomial; egregores
-      have none). The label does not use the word "invasive".
-    inputs:
-      - 'cursor hovers over an egregore tile'
-    outputs:
-      - 'sidebar contents row shows the egregore label'
-    state_changes: []
-    determinism: deterministic
-
   - id: invasive-lint-guard
     description: >
       A CI lint check verifies that the word 'invasive' does not
@@ -300,7 +286,7 @@ behaviors:
     inputs:
       - 'CI run'
     outputs:
-      - "no occurrence of 'invasive' in player-facing string literals (dialog, manual lore, sidebar labels, etc.)"
+      - "no occurrence of 'invasive' in player-facing string literals (dialog, manual lore, etc.)"
     state_changes: []
     determinism: deterministic
 
@@ -554,7 +540,7 @@ edge_cases:
       egregore-tile scan identities all match byte-for-byte.
 
 failure_conditions:
-  - trigger: "grep for 'invasive' in any player-facing string (dialog arrays, manual lore, sidebar labels, item names) returns at least one match"
+  - trigger: "grep for 'invasive' in any player-facing string (dialog arrays, manual lore, item names) returns at least one match"
     expected: 'CI fails — the no-invasive rule was violated'
   - trigger: "TileType.Egregore is missing from the TileType enum"
     expected: 'CI fails — egregore tile type was not added'

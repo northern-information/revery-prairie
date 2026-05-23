@@ -7,7 +7,6 @@ source_files:
   - src/engine/coordinates.ts
   - src/engine/types.ts
   - src/hooks/useKeyboard.ts
-  - src/components/Sidebar.tsx
   - src/styles/index.css
 dependencies: []
 
@@ -17,7 +16,8 @@ behaviors:
       updateCursorState(state, metrics) converts cursorScreenPos
       (CSS pixel coordinates) to a world tile position via
       screenToTile, storing the result in state.cursorTile. this
-      runs every frame so the sidebar hover info tracks correctly
+      runs every frame so consumer systems (CommandPanel,
+      InventoryPanel, renderer cursor highlight) track correctly
       while the camera moves and while the player is moving via
       WASD or click-to-move. cursorTile is only null when the mouse
       is not over the canvas.
@@ -51,10 +51,10 @@ edge_cases:
     expected: 'cursorTile set to null'
   - id: wasd-active-keeps-cursor
     description: 'player holds a WASD direction key while mouse is over canvas'
-    expected: 'cursorTile continues to track mouse position; sidebar hover info updates live; CSS cursor remains visible'
+    expected: 'cursorTile continues to track mouse position; CSS cursor remains visible'
   - id: active-path-keeps-cursor
     description: 'player is walking a click-to-move path while mouse is over canvas'
-    expected: 'cursorTile continues to track mouse position; sidebar hover info updates live; CSS cursor remains visible'
+    expected: 'cursorTile continues to track mouse position; CSS cursor remains visible'
 
 failure_conditions:
   - trigger: 'cursorScreenPos is null (mouse not over canvas)'

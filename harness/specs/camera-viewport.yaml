@@ -16,35 +16,22 @@ behaviors:
       so the orthogonal viewport center maps to the iso canvas center;
       placing the player at orthogonal center keeps them at canvas
       center on screen (see camera-iso-follow spec). visible width is
-      viewportWidth minus rightInsetTiles (sidebar). no map-edge
-      clamping is applied: the map is surrounded by space tiles, so
-      overscroll past the map edges simply renders more space without
-      trapping the player off-canvas at iso corners. when the map is
-      smaller than the viewport on either axis, that axis centers the
-      map with a negative camera offset. there is no free-pan mode —
-      the camera always follows the player.
+      the full viewportWidth — no right-side panel inset is applied.
+      no map-edge clamping is applied: the map is surrounded by space
+      tiles, so overscroll past the map edges simply renders more space
+      without trapping the player off-canvas at iso corners. when the
+      map is smaller than the viewport on either axis, that axis
+      centers the map with a negative camera offset. there is no
+      free-pan mode — the camera always follows the player.
     inputs:
-      - 'state with player position, viewport dimensions, rightInsetTiles, map dimensions, currentZone'
+      - 'state with player position, viewport dimensions, map dimensions, currentZone'
     outputs:
       - 'state.camera.x and state.camera.y updated'
     state_changes:
       - field: camera.x
-        effect: 'player.x - floor(visibleWidth / 2), or negative-centered if mapWidth < visibleWidth'
+        effect: 'player.x - floor(viewportWidth / 2), or negative-centered if mapWidth < viewportWidth'
       - field: camera.y
         effect: 'player.y - floor(viewportHeight / 2), or negative-centered if mapHeight < viewportHeight'
-    determinism: deterministic
-
-  - id: sidebar-inset
-    description: >
-      the rightInsetTiles value accounts for the sidebar panel
-      width. camera centering uses (viewportWidth - rightInsetTiles)
-      as the effective visible width, so the player stays centered
-      in the visible portion rather than the full canvas.
-    inputs:
-      - 'rightInsetTiles (set when sidebar opens/closes)'
-    outputs:
-      - 'camera offset adjusted for sidebar width'
-    state_changes: []
     determinism: deterministic
 
 edge_cases:
@@ -54,15 +41,10 @@ edge_cases:
   - id: player-at-map-edge
     description: 'player walks to the far edge of the overworld'
     expected: 'camera keeps centering on the player; canvas shows space tiles past the map without trapping the player off-center'
-  - id: sidebar-toggle
-    description: 'inventory panel opens, changing rightInsetTiles'
-    expected: 'camera re-centers on next updateCamera call to account for reduced visible width'
 
 failure_conditions:
   - trigger: 'viewportWidth is 0 (before canvas initialization)'
     expected: 'camera calculations produce 0 offsets; no crash'
-  - trigger: 'rightInsetTiles exceeds viewportWidth'
-    expected: 'visibleWidth goes negative; camera.x calculation still runs without error'
 
 verification:
   test_file: src/engine/__tests__/camera.test.ts

@@ -125,8 +125,8 @@ behaviors:
     description: >
       visible text in the dev panel follows the project casing rules. the
       panel title is "Dev Panel". section labels (preset, archetype, glyph,
-      value, filter placeholder) use sentence case to match the stats
-      sidebar. clickable buttons and drag handles (tab buttons,
+      value, filter placeholder) use sentence case. clickable
+      buttons and drag handles (tab buttons,
       drag-to-place, clear-brush, tile-paint list) render in ALL CAPS to
       match the manual. component checkbox labels and dropdown options are
       unchanged — they remain code-style identifiers and existing label
@@ -172,7 +172,7 @@ edge_cases:
     description: 'painting tiles in the space border region works without restriction'
     expected: 'any tile in bounds can be painted to any type'
   - id: panel-does-not-block-canvas
-    description: 'the panel uses pointer-events-none except on interactive elements, matching sidebar pattern'
+    description: 'the panel uses pointer-events-none except on interactive elements so the canvas remains interactive around it'
     expected: 'canvas clicks outside the panel area still register for movement and interaction'
 
 failure_conditions:

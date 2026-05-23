@@ -227,8 +227,7 @@ behaviors:
     description: >
       getTileEffects in effects.ts checks if the queried tile position
       is in state.glintZones (overworld only). if so, "glinting" is
-      included in the returned effects array. this surfaces in the
-      sidebar effects row when hovering over a glinting zone tile.
+      included in the returned effects array.
     inputs:
       - 'getTileEffects called with a tile position in state.glintZones'
       - 'state.currentZone is overworld'

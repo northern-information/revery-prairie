@@ -7,25 +7,22 @@ source_files:
   - src/engine/renderer.ts
   - src/engine/types.ts
   - src/engine/constants.ts
-  - src/components/Sidebar.tsx
 dependencies:
   - genesis-transition
   - deep-time-endgame
 
 behaviors:
-  - id: sidebar-crossfade
+  - id: deep-time-transition-window
     description: >
-      when deep time transitions from Simulating to Wandering, the
-      sidebar content transitions smoothly from the deep time HUD
-      (year counter, phase label, progress bar) to the gameplay
-      sidebar (weather, coordinates, tile counts). uses a CSS opacity
-      fade-out on deep time content and fade-in on gameplay content
-      over ~1000ms, reusing the same fade-in keyframe from the
-      genesis transition.
+      when deep time transitions from Simulating to Wandering, a
+      deepTimeTransition window is set with startTime and duration
+      to mark the ~1000ms transition period. the window is cleared
+      after the duration elapses. consumers (e.g. the renderer player
+      glyph crossfade) read this field.
     inputs:
       - 'state.deepTime.phase changes from Simulating to Wandering'
     outputs:
-      - 'deep time sidebar fades out, gameplay sidebar fades in over ~1000ms'
+      - 'deepTimeTransition window active for ~1000ms after Wandering phase begins'
     state_changes:
       - field: deepTimeTransition
         effect: 'set to { startTime, duration } when Wandering phase begins, cleared after duration'
@@ -53,7 +50,7 @@ behaviors:
       pop in because characters were destroyed during Burning phase
       and no new characters spawn. bees and ground items that survived
       the simulation are already on the map. the transition is purely
-      visual (sidebar, player glyph) rather than entity-based.
+      visual (player glyph crossfade) rather than entity-based.
     inputs:
       - 'deep time simulation completed'
     outputs:
@@ -78,23 +75,22 @@ edge_cases:
   - id: movement-during-transition
     description: >
       player begins moving immediately when Wandering starts. the
-      sidebar and glyph crossfades continue visually. movement and
+      player glyph crossfade continues visually. movement and
       pathfinding operate normally — the transition is purely visual.
     expected: 'movement processes identically to post-transition gameplay'
 
   - id: deep-time-already-wandering
     description: >
       if the game state is loaded or restored with deepTime already
-      in Wandering phase, no transition fires. the sidebar and
-      player glyph render in their final states immediately.
+      in Wandering phase, no transition fires. the player glyph
+      renders in its final state immediately.
     expected: 'no transition animation, immediate normal rendering'
 
   - id: resize-during-transition
     description: >
-      browser window resizes while the sidebar crossfade is active.
-      the sidebar re-renders at the new dimensions. the fade
-      animation continues uninterrupted.
-    expected: 'sidebar adapts to new viewport size, fade continues'
+      browser window resizes while the deepTimeTransition window is
+      active. the transition window continues uninterrupted.
+    expected: 'transition window remains active across viewport resize'
 
 failure_conditions:
   - trigger: 'deepTimeTransition.startTime is in the future (clock skew)'

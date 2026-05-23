@@ -368,8 +368,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // must NOT translate — the player should slide across stationary
   // tiles. Mirror updateCamera's check exactly so the renderer's offset
   // matches what the camera actually did this frame.
-  const visibleWidth = state.viewportWidth - state.rightInsetTiles
-  const xCameraTracksPlayer = state.mapWidth >= visibleWidth
+  const xCameraTracksPlayer = state.mapWidth >= state.viewportWidth
   const yCameraTracksPlayer = state.mapHeight >= state.viewportHeight
   const tweenDelta = worldDeltaToIsoPx(
     xCameraTracksPlayer ? playerLerpX - player.x : 0,
@@ -1823,8 +1822,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // effect slot: rain aura, weather rain, glint sparkle, glint beam,
   // deep time burning. See src/engine/render/passes/.
   runPassesInSlot('effect', ctx, state, metrics, time)
-
-  // Deep Time year counter moved to Sidebar.tsx
 
   // Restore canvas transform before screen-level overlays. Screen-overlay
   // passes draw in canvas coordinates without the world transform.

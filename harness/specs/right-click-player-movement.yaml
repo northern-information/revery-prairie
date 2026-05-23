@@ -14,7 +14,6 @@ source_files:
   - src/engine/render/passes/index.ts
   - src/hooks/useMouse.ts
   - src/components/GameScreen.tsx
-  - src/components/Sidebar.tsx
   - src/harness/__tests__/serialization/schema.test.ts
 dependencies:
   - player-movement
@@ -140,8 +139,8 @@ behaviors:
       Mouse input never reads or writes either concept. The renderer
       never applies a selection highlight. No pass named 'rts-selection-box'
       or 'move-order-markers' is registered. CommandPanel is not
-      rendered anywhere in the React tree. The cursor info row in
-      Sidebar never annotates an entity as '[selected]'.
+      rendered anywhere in the React tree. No UI annotates an
+      entity as '[selected]'.
     inputs:
       - 'Any game session, any zone, any input'
     outputs:

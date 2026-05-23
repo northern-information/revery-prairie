@@ -229,10 +229,6 @@ edge_cases:
     description: 'The hot-pink cursor inversion (pink fillRect bg + dark text) renders in the central tile-glyph loop, before the world-overlay slot'
     expected: 'grain sits above cursor inversion in the z-order at low alpha; cursor highlight remains crisp and legible under the 0.2 alpha grain wash.'
 
-  - id: ui-sidebar-not-covered
-    description: 'The right sidebar UI inset is outside the world canvas area'
-    expected: 'grain is drawn only across the world canvas (ctx.canvas dimensions); the sidebar UI lives outside the canvas and is unaffected. This is enforced by the canvas boundary itself, not by any sidebar-aware logic in the pass.'
-
   - id: grain-renders-on-top-of-fog
     description: 'Unexplored fog-of-war tiles render the BG_COLOR fog tint via fogMaskPass; grain should appear at the same density there as on revealed tiles'
     expected: 'because filmGrainOverlayPass is registered AFTER fogMaskPass in passes/index.ts, the grain draws on top of fog and renders uniformly across explored and unexplored regions. This is the fog/void uniformity guarantee introduced in PR #389.'

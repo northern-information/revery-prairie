@@ -30,14 +30,14 @@ behaviors:
   - id: drag-cursor-shares-projection-with-canvas
     description: >
       The viewport tile selected by DragCursor for snapping is the same
-      viewport tile that click-to-move and the sidebar hover info use for
-      the same cursor pixel position, because all three call screenToTile
+      viewport tile that click-to-move and updateCursorState use for the
+      same cursor pixel position, because all three call screenToTile
       with identical arguments. Drag-and-drop targeting therefore agrees
       with the visual drag preview.
     inputs:
       - 'cursor is over the canvas at screen pixel (cx, cy)'
     outputs:
-      - 'DragCursor previewed tile == click-to-move target tile == sidebar hover tile'
+      - 'DragCursor previewed tile == click-to-move target tile == state.cursorTile'
     state_changes: []
     determinism: deterministic
 edge_cases:

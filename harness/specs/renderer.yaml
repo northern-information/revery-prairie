@@ -346,19 +346,6 @@ behaviors:
     state_changes: []
     determinism: time-based
 
-  - id: deep-time-year-counter
-    description: >
-      during DeepTimePhase.Simulating, the deep time year counter
-      is rendered in the Sidebar React component (Sidebar.tsx), not
-      in the canvas renderer. the renderer previously owned this
-      but it was moved to the UI layer.
-    inputs:
-      - 'state.deepTime.active is true, phase is Simulating'
-    outputs:
-      - 'year counter displayed in the sidebar UI'
-    state_changes: []
-    determinism: deterministic
-
   - id: rain-aura-overlay
     description: >
       animated rain characters render near entities with rain aura

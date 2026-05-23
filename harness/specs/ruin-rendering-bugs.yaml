@@ -8,7 +8,6 @@ source_files:
   - src/engine/constants.ts
   - src/engine/types.ts
   - src/engine/state.ts
-  - src/components/Sidebar.tsx
   - src/engine/__tests__/ruins.test.ts
 dependencies:
   - ruin-infrastructure
@@ -35,8 +34,7 @@ behaviors:
       a Greek letter on the overworld. Ruin entrances each get a distinct Greek
       letter based on their ruinIndex. This lets players use the symbols as
       landmarks ("delta was near the clover field"). When inside a cave or ruin,
-      the exit entrance tile remains the circle O glyph. The sidebar location
-      row shows the Greek letter next to the zone name when inside a cave or ruin.
+      the exit entrance tile remains the circle O glyph.
     inputs:
       - 'Overworld map with cave entrance and ruin entrances placed'
       - 'RuinInterior array with ruinIndex values'
@@ -44,7 +42,6 @@ behaviors:
       - 'Cave entrance renders as first Greek letter on overworld'
       - 'Each ruin entrance renders as a unique Greek letter on overworld (indexed by ruinIndex)'
       - 'Interior exit tiles remain O glyph'
-      - 'Sidebar location row includes the Greek letter when inside a cave or ruin'
     state_changes: []
     determinism: deterministic
 

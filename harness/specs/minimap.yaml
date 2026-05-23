@@ -5,7 +5,6 @@ layer: component
 source_files:
   - src/components/Minimap.tsx
   - src/components/GameScreen.tsx
-  - src/components/Sidebar.tsx
   - src/engine/projection.ts
 
 behaviors:
@@ -148,28 +147,26 @@ behaviors:
       previous ActionBar position — its container becomes a fixed
       bottom-center element. The lower-right column is empty (no
       content). The minimap, event log, and right column do not
-      overlap. The stats Sidebar (top-right) and ReveriesPanel /
-      ActionBar / CommandPanel are not rendered while this layout is
-      active.
+      overlap. The ReveriesPanel / ActionBar / CommandPanel are not
+      rendered while this layout is active.
     inputs:
       - 'GameScreen rendered with state'
     outputs:
-      - 'Minimap in lower-left, event log in lower-center, no stats sidebar, no action bar'
+      - 'Minimap in lower-left, event log in lower-center, no action bar'
     state_changes: []
     determinism: deterministic
 
-  - id: hide-stats-sidebar
+  - id: sidebar-deleted
     description: >
-      The Sidebar component (stats, cursor tile info, weather,
-      genesis countdown) is no longer rendered from GameScreen. The
-      component file itself is preserved; only its render call in
-      GameScreen is removed. Hiding the sidebar removes the
-      fixed-positioned top-right element from the DOM entirely so
-      the canvas occupies the full viewport width.
+      The Sidebar component has been deleted entirely. No stats
+      sidebar exists in the project — `src/components/Sidebar.tsx`
+      and its tests do not exist on disk. The canvas occupies the
+      full viewport width without a fixed-positioned top-right
+      element.
     inputs:
       - 'GameScreen rendered'
     outputs:
-      - 'No Sidebar component in the rendered tree'
+      - 'No Sidebar source file or render call exists anywhere in the project'
     state_changes: []
     determinism: deterministic
 

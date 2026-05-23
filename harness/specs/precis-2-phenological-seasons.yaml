@@ -17,7 +17,6 @@ source_files:
   - src/engine/tileBg.ts
   - src/engine/flora/species.ts
   - src/engine/render/passes/index.ts
-  - src/components/Sidebar.tsx
   - src/harness/__tests__/serialization/schema.test.ts
 dependencies:
   - precis-1-multi-species-flora
@@ -267,21 +266,6 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: sidebar-season-row
-    description: >
-      The sidebar weather panel gains a 'Season:' row showing the
-      current season name (spring / summer / autumn / winter) in
-      lowercase. The row appears immediately after the existing
-      temperature row, before humidity. The row is hidden in cave
-      and ruin zones (consistent with the rest of the weather
-      panel's overworld-only behavior).
-    inputs:
-      - 'sidebar renders while state.currentZone === Zone.Overworld'
-    outputs:
-      - "sidebar weather table contains a 'Season:' row"
-    state_changes: []
-    determinism: deterministic
-
   - id: current-date-from-phase
     description: >
       A GameState field state.currentDate of shape { month: number,
@@ -309,23 +293,6 @@ behaviors:
     state_changes:
       - field: currentDate
         effect: 'initialized to { month: 3, day: 20 } in createGameState; recomputed each tickWeather from state.seasonalPhase'
-    determinism: deterministic
-
-  - id: sidebar-date-row
-    description: >
-      The sidebar weather panel gains a 'Date:' row showing the
-      current date as 'Month D' (e.g. 'March 20') using full English
-      month names. The row appears immediately after the Season row,
-      before Sky. The row is hidden in cave and ruin zones
-      (consistent with the rest of the weather panel's overworld-only
-      behavior). The duplicate lowercase 'Season' row currently
-      present in src/components/Sidebar.tsx (lines 586-588) is out
-      of scope and untouched.
-    inputs:
-      - 'sidebar renders while state.currentZone === Zone.Overworld'
-    outputs:
-      - "sidebar weather table contains a 'Date:' row formatted as 'Month D'"
-    state_changes: []
     determinism: deterministic
 
   - id: schema-allowlist-updated
@@ -420,8 +387,8 @@ edge_cases:
       on the first tick (mid-range temp seeded by generateWeather()
       lands in the spring quadrant). state.currentDate is
       { month: 3, day: 20 }. The "firmly in spring" start is
-      observable in the sidebar's Season and Date rows immediately
-      on game start.
+      observable in state.weather.season and state.currentDate
+      immediately on game start.
 
   - id: phase-wraps-to-equinox
     description: >

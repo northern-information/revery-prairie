@@ -28,7 +28,7 @@ use the exact patch version (e.g. `24.13.0`), never a range or major-only (`^24`
 two distinct layers — keep them separate:
 
 - **`src/engine/`** — pure TypeScript. no React imports. mutable game state, canvas rendering, input mapping, camera logic. the rendering target is ASCII-on-iso permanently — no sprite swap planned.
-- **`src/components/` + `src/hooks/`** — React UI. overlays (inventory, sidebar) and the canvas bridge.
+- **`src/components/` + `src/hooks/`** — React UI. overlays (inventory, dialog, dev panel, bottom bar) and the canvas bridge.
 
 the canvas runs a `requestAnimationFrame` loop that reads game state by reference. React re-renders on movement and UI interactions via `refreshUI()`.
 
@@ -46,7 +46,6 @@ cursor highlight uses inverted rendering: pink `fillRect` background + dark `BG_
 
 these are the always-on rules. fuller discussion lives in the doc cited at the end of each line.
 
-- **new entity, effect, or tile type** — wire up the sidebar cursor info panel (contents row + effects row + human-readable tile label) at the same time. → `docs/claude/sidebar.md`
 - **new item acquisition path** — call `spawnPickupBloom(state, x, y, time)` from `effects.ts` at the same site. one bloom per acquisition event. → `docs/claude/entities.md`
 - **new flora-creation path** — route through `createFloraLifecycleEntry` and supply `identity` + `traits` (either freshly generated via `generateRuntimeIdentity` + `generateTraitBag`, or pulled from `state.seedGenomes` for seed-planted flora). → `docs/claude/inventory.md`
 - **new `GameState` field** — add it to `EXPECTED_FIELDS` in `src/harness/__tests__/serialization/schema.test.ts`. prefer single-owner write patterns. → `docs/claude/state.md`
@@ -116,7 +115,6 @@ deeper docs live in `docs/claude/`. read on demand for the system you're touchin
 | `map.md` | 147x147 grid layout, tile types, walkability |
 | `egregores.md` | precis #8a — Voynich-rendered "not-of-this-Earth" flora, EVA tokens, pierce words |
 | `input.md` | mouse, click-to-move, cursor, keybindings |
-| `sidebar.md` | cursor info panel rules — contents row, effects row, tile labels |
 | `inventory.md` | spatial inventory, item types, recipes |
 | `manual.md` | in-game encyclopedia, discovery tracking, `MANUAL_LORE` |
 | `entities.md` | bees, ghosts, angels, coyote, shooting stars, ground items, pickup bloom, character gifts |

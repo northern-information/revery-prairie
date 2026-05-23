@@ -172,7 +172,6 @@ export const createGameState = (
     },
     viewportWidth,
     viewportHeight,
-    rightInsetTiles: 0,
     activeDialog: null,
     discoveredRecipes: new Set<string>(),
     previewFn: null,

@@ -312,7 +312,7 @@ describe('genesis camera centering', () => {
   const SIM_WIDTH = 147
   const SIM_HEIGHT = 147
 
-  it('centers the prairie on the full canvas when viewport is wider than the sim (no sidebar inset)', () => {
+  it('centers the prairie on the full canvas when viewport is wider than the sim', () => {
     const viewportWidth = 300
     const viewportHeight = 200
     const { cameraX, cameraY } = computeGenesisCamera(SIM_WIDTH, SIM_HEIGHT, viewportWidth, viewportHeight)
@@ -320,15 +320,6 @@ describe('genesis camera centering', () => {
     // Full-canvas centering: cameraX = -floor((300 - 147) / 2) = -76
     expect(cameraX).toBe(-Math.floor((viewportWidth - SIM_WIDTH) / 2))
     expect(cameraY).toBe(-Math.floor((viewportHeight - SIM_HEIGHT) / 2))
-
-    // Regression guard: a rightInsetTiles-style inset (e.g. ~12 tiles at
-    // 16px char width on a 192px sidebar) would shrink visibleWidth and
-    // produce a LESS negative cameraX, leaving the prairie anchored to
-    // the left of the canvas with a starfield band on the right.
-    // Asserting against that drift catches accidental reintroduction.
-    const SIDEBAR_INSET_TILES = 12
-    const wouldBeCameraXWithInset = -Math.floor((viewportWidth - SIDEBAR_INSET_TILES - SIM_WIDTH) / 2)
-    expect(cameraX).toBeLessThan(wouldBeCameraXWithInset)
   })
 
   it('clamps to player-anchored centering when viewport is smaller than the sim', () => {

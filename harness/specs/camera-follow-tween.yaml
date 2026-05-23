@@ -109,13 +109,12 @@ behaviors:
       compensate for, and applying the offset would make the world
       wobble while the player walks. The renderer mirrors updateCamera's
       check exactly: tweenOffsetX is zero when state.mapWidth <
-      visibleWidth (where visibleWidth = state.viewportWidth -
-      state.rightInsetTiles); tweenOffsetY is zero when state.mapHeight
+      state.viewportWidth; tweenOffsetY is zero when state.mapHeight
       < state.viewportHeight. Each axis is gated independently — a tall
       narrow map could track on x but not y, or vice versa.
     inputs:
       - 'state.mapWidth, state.mapHeight'
-      - 'state.viewportWidth, state.viewportHeight, state.rightInsetTiles'
+      - 'state.viewportWidth, state.viewportHeight'
       - 'state.playerTween active'
     outputs:
       - 'tween world translate is zero on any axis where the camera does not track the player'

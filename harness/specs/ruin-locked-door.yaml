@@ -14,7 +14,6 @@ source_files:
   - src/hooks/useKeyboard.ts
   - src/hooks/useMouse.ts
   - src/engine/manual.ts
-  - src/components/Sidebar.tsx
 dependencies:
   - ruin-infrastructure
 
@@ -166,21 +165,6 @@ behaviors:
       - 'movement, pathfinding, hover preview against RuinDoorLocked tile'
     outputs:
       - 'tile treated as impassable for movement; treated as interactable for clicks'
-    state_changes: []
-    determinism: deterministic
-
-  - id: door-sidebar-labels
-    description: >
-      Sidebar tile-type label map gains a RuinDoorLocked entry
-      ("locked door"). RuinDoorOpen is intentionally not added —
-      its glyph and color mirror RuinFloor, so the existing ruin-floor
-      label is reused. cursor info follows the existing
-      tile-label pattern.
-    inputs:
-      - 'cursor hovering over a door tile in a ruin'
-    outputs:
-      - 'human-readable door label in sidebar contents for locked doors'
-      - 'open doors fall through to the ruin-floor label'
     state_changes: []
     determinism: deterministic
 

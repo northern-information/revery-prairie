@@ -17,7 +17,6 @@ source_files:
   - src/engine/manual.ts
   - src/components/PermacomputerShell.tsx
   - src/components/CoyoteScreen.tsx
-  - src/components/Sidebar.tsx
   - src/hooks/useKeyboard.ts
   - src/hooks/useGameEngine.ts
   - src/engine/viewportBounds.ts
@@ -171,19 +170,6 @@ behaviors:
       - 'GameState with coyote in viewport'
     outputs:
       - 'C character drawn in #D4A054 at coyote position'
-    state_changes: []
-    determinism: deterministic
-
-  - id: coyote-cursor-info
-    description: >
-      hovering the mouse over the coyote tile shows 'Coyote' in the
-      sidebar contents row. the coyote is detected via the standard
-      character entity lookup in the sidebar contents IIFE. there is
-      no mode line in the effects row — the coyote has no mode.
-    inputs:
-      - 'mouse cursor over coyote tile'
-    outputs:
-      - "sidebar contents: 'Coyote'"
     state_changes: []
     determinism: deterministic
 

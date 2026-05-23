@@ -165,7 +165,7 @@ edge_cases:
     expected: 'movePlayer returns false, position unchanged'
   - id: small-map-camera-centering
     description: 'When map dimensions are smaller than viewport (e.g. cave zone), camera centers the map in the viewport using negative offset'
-    expected: 'camera.x = -floor((visibleWidth - mapWidth) / 2) where visibleWidth = viewportWidth - rightInsetTiles. same logic for y axis using viewportHeight directly (no inset).'
+    expected: 'camera.x = -floor((viewportWidth - mapWidth) / 2). same logic for y axis using viewportHeight.'
   - id: deep-time-wandering-allows-movement
     description: 'During deep time Wandering phase, movement is not suppressed'
     expected: 'path and keyboard-move tick systems process movement normally'

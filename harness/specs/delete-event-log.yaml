@@ -4,7 +4,6 @@ priority: high
 layer: component
 source_files:
   - src/components/GameScreen.tsx
-  - src/components/Sidebar.tsx
   - src/components/InventoryPanel.tsx
   - src/components/HexagramPanel.tsx
   - src/components/GameCanvas.tsx
@@ -43,8 +42,8 @@ behaviors:
       was to emit log events; if they have other responsibilities, the
       addEvent line is removed and the rest is preserved. Any prop
       that existed solely to pass the addEvent callback down through
-      component layers (e.g. onPickup-style props on Sidebar,
-      InventoryPanel, HexagramPanel, GameCanvas, DevPanel) is removed.
+      component layers (e.g. onPickup-style props on InventoryPanel,
+      HexagramPanel, GameCanvas, DevPanel) is removed.
       Other matches of the substring "addEvent" — DOM event listeners
       such as `window.addEventListener`, `ws.addEventListener`,
       `canvas.addEventListener`, `el.addEventListener` — are unrelated
@@ -123,7 +122,7 @@ behaviors:
 
   - id: cursor-info-hover-suppression-removed-with-log
     description: >
-      The EventLog previously suppressed sidebar cursor-info by nulling
+      The EventLog previously suppressed cursor info by nulling
       state.cursorScreenPos and state.cursorTile on mouseenter
       (EventLog.tsx:55-58, :83-84). With EventLog removed, this
       suppression code is gone. The remaining suppression call sites
@@ -134,8 +133,8 @@ behaviors:
       - 'mouse moves over the now-empty center slot of the bottom-bar'
       - 'mouse moves over the Backpack widget'
     outputs:
-      - 'cursor info on the world continues to update normally when the mouse is over the empty center slot'
-      - 'cursor info is suppressed when the mouse is over the Backpack widget (existing contract)'
+      - 'cursor state continues to update normally when the mouse is over the empty center slot'
+      - 'cursor state is suppressed when the mouse is over the Backpack widget (existing contract)'
     state_changes: []
     determinism: deterministic
 

@@ -11,8 +11,7 @@ describe('updateCamera', () => {
       state.player.x = 85
       state.player.y = 47
       updateCamera(state)
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      expect(state.camera.x).toBe(85 - Math.floor(visibleWidth / 2))
+      expect(state.camera.x).toBe(85 - Math.floor(state.viewportWidth / 2))
       expect(state.camera.y).toBe(47 - Math.floor(state.viewportHeight / 2))
     })
 
@@ -22,8 +21,7 @@ describe('updateCamera', () => {
       state.player.x = 50
       state.player.y = 12
       updateCamera(state)
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      expect(state.camera.x).toBe(50 - Math.floor(visibleWidth / 2))
+      expect(state.camera.x).toBe(50 - Math.floor(state.viewportWidth / 2))
       expect(state.camera.y).toBe(12 - Math.floor(state.viewportHeight / 2))
     })
 
@@ -33,8 +31,7 @@ describe('updateCamera', () => {
       state.player.x = 50
       state.player.y = 12
       updateCamera(state)
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      expect(state.camera.x).toBe(50 - Math.floor(visibleWidth / 2))
+      expect(state.camera.x).toBe(50 - Math.floor(state.viewportWidth / 2))
       expect(state.camera.y).toBe(12 - Math.floor(state.viewportHeight / 2))
     })
 
@@ -53,11 +50,10 @@ describe('updateCamera', () => {
 
     it('does not clamp to map bounds; camera centers past map edges', () => {
       const state = createGameState('Test', 40, 40)
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
       state.player.x = state.mapWidth - 1
       state.player.y = state.mapHeight - 1
       updateCamera(state)
-      expect(state.camera.x).toBe(state.mapWidth - 1 - Math.floor(visibleWidth / 2))
+      expect(state.camera.x).toBe(state.mapWidth - 1 - Math.floor(state.viewportWidth / 2))
       expect(state.camera.y).toBe(state.mapHeight - 1 - Math.floor(state.viewportHeight / 2))
     })
 
@@ -104,8 +100,7 @@ describe('updateCamera', () => {
       state.player.x = 20
       state.player.y = 12
       updateCamera(state)
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      expect(state.camera.x).toBe(-Math.floor((visibleWidth - 40) / 2))
+      expect(state.camera.x).toBe(-Math.floor((state.viewportWidth - 40) / 2))
       expect(state.camera.y).toBe(-Math.floor((state.viewportHeight - 25) / 2))
     })
 
@@ -113,8 +108,7 @@ describe('updateCamera', () => {
       const state = createGameState('Test', 100, 80)
       state.mapWidth = 40
       state.mapHeight = 25
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      const expectedX = -Math.floor((visibleWidth - 40) / 2)
+      const expectedX = -Math.floor((state.viewportWidth - 40) / 2)
       const expectedY = -Math.floor((state.viewportHeight - 25) / 2)
       const positions = [
         { x: 0, y: 0 },
@@ -136,8 +130,7 @@ describe('updateCamera', () => {
       state.player.x = 20
       state.player.y = 47
       updateCamera(state)
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      expect(state.camera.x).toBe(-Math.floor((visibleWidth - 40) / 2))
+      expect(state.camera.x).toBe(-Math.floor((state.viewportWidth - 40) / 2))
       expect(state.camera.y).toBe(47 - Math.floor(state.viewportHeight / 2))
     })
   })
@@ -145,20 +138,19 @@ describe('updateCamera', () => {
   describe('zone transitions', () => {
     it('recenters across cave/overworld swaps', () => {
       const state = createGameState('Test', 40, 40)
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
 
       state.currentZone = Zone.Cave
       state.player.x = 20
       state.player.y = 12
       updateCamera(state)
-      expect(state.camera.x).toBe(20 - Math.floor(visibleWidth / 2))
+      expect(state.camera.x).toBe(20 - Math.floor(state.viewportWidth / 2))
       expect(state.camera.y).toBe(12 - Math.floor(state.viewportHeight / 2))
 
       state.currentZone = Zone.Overworld
       state.player.x = 85
       state.player.y = 47
       updateCamera(state)
-      expect(state.camera.x).toBe(85 - Math.floor(visibleWidth / 2))
+      expect(state.camera.x).toBe(85 - Math.floor(state.viewportWidth / 2))
       expect(state.camera.y).toBe(47 - Math.floor(state.viewportHeight / 2))
     })
   })

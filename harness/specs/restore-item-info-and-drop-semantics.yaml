@@ -23,9 +23,8 @@ behaviors:
       adjacent to the InventoryPanel (left of the backpack grid)
       so the player sees the name, category, and lore of the item
       currently hovered in the backpack. Prior to PR #324
-      (Inline backpack into bottom bar), ItemInfo lived inside
-      the Sidebar component; that mount was dropped when the
-      Sidebar was removed from GameScreen, orphaning the
+      (Inline backpack into bottom bar), ItemInfo lived in a
+      different mount that was dropped, orphaning the
       itemInfoRef. Re-homing the mount restores the visible
       hover info and re-binds the ref that the X-key drop and
       drag start handlers depend on.

@@ -9,7 +9,6 @@ source_files:
   - src/engine/floraLifecycle.ts
   - src/engine/genesis.ts
   - src/engine/genesisTypes.ts
-  - src/components/Sidebar.tsx
   - src/engine/__tests__/cloverLifecycle.test.ts
   - src/engine/__tests__/tileWater.test.ts
 dependencies:
@@ -95,18 +94,6 @@ behaviors:
         effect: 'min(current + WATER_RAIN_FILL, WATER_MAX) per tick for tiles in aura radius, via tile-water-rain-fill'
     determinism: time-based
 
-  - id: sidebar-shows-water-on-dirt
-    description: >
-      Sidebar tile inspector shows water level for both dirt and clover
-      tiles, reading from state.tileWater. Previously water was only
-      shown on clover.
-    inputs:
-      - 'cursor hovers over a dirt or clover tile'
-    outputs:
-      - 'sidebar displays water row with current/max values'
-    state_changes: []
-    determinism: deterministic
-
 edge_cases:
   - id: tile-converts-dirt-to-clover
     description: >
@@ -118,25 +105,24 @@ edge_cases:
     description: >
       When clover dies or is harvested, the tileWater entry persists.
       The dirt tile retains its water level.
-    expected: 'tileWater entry unchanged, sidebar still shows water for dirt'
+    expected: 'tileWater entry unchanged'
 
   - id: cave-tiles-no-water
     description: >
       Cave floor and cave wall tiles do not have tileWater entries.
       Water ticking skips the cave zone entirely.
-    expected: 'no tileWater entries for cave tiles, no water row in sidebar for cave tiles'
+    expected: 'no tileWater entries for cave tiles'
 
   - id: space-and-sand-no-water
     description: >
-      Space and sand tiles do not have tileWater entries and do not
-      show water in the sidebar.
-    expected: 'no tileWater entries, sidebar returns null for these tile types'
+      Space and sand tiles do not have tileWater entries.
+    expected: 'no tileWater entries for these tile types'
 
   - id: burnt-clover-has-water
     description: >
       Burnt clover tiles retain their tileWater entry from when the
       tile was clover. Water continues to drain and fill on burnt clover.
-    expected: 'tileWater entry persists through fire revery, sidebar shows water'
+    expected: 'tileWater entry persists through fire revery'
 
   - id: fringe-tiles-hydrate-when-included
     description: >

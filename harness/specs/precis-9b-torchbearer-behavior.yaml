@@ -12,7 +12,6 @@ source_files:
   - src/engine/renderer.ts
   - src/hooks/useMouse.ts
   - src/hooks/useKeyboard.ts
-  - src/components/Sidebar.tsx
   - src/engine/manual.ts
   - src/engine/__tests__/torchbearer.test.ts
 dependencies:
@@ -343,6 +342,24 @@ behaviors:
     outputs:
       - 'tiles in burnLineDraft show a draft overlay'
       - 'tiles in lockedBurnLine[burnLineIndex:] show a locked overlay'
+    state_changes: []
+    determinism: deterministic
+
+  - id: burn-line-membership-as-tile-effect
+    description: >
+      getTileEffects in src/engine/effects.ts checks burnLineDraft
+      and lockedBurnLine for the queried tile. Tiles in burnLineDraft
+      append "burn line (draft)" to the effects array; tiles in
+      lockedBurnLine at or after burnLineIndex append
+      "burn line (locked)". Tiles not in either set get neither
+      label. This is the engine-level query consumed by tests; the
+      visual overlay is documented by renderer-draws-burn-line.
+    inputs:
+      - 'getTileEffects called with a tile position in burnLineDraft'
+      - 'getTileEffects called with a tile position in lockedBurnLine at or after burnLineIndex'
+    outputs:
+      - 'effects array includes "burn line (draft)" for draft tiles'
+      - 'effects array includes "burn line (locked)" for locked tiles'
     state_changes: []
     determinism: deterministic
 

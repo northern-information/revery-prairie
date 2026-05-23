@@ -108,9 +108,9 @@ behaviors:
       Same hover-suppression contract as the EventLog overlay:
       while the cursor is over the bottom-bar backpack widget,
       state.cursorScreenPos and state.cursorTile are nulled so the
-      sidebar cursor-info panel does not light up world tiles
+      renderer cursor highlight does not light up world tiles
       under the backpack. On mouseleave the next canvas mousemove
-      restores cursor info. This applies to the backpack widget's
+      restores cursor state. This applies to the backpack widget's
       pointer-events-auto container only — not the bottom-bar
       overlay as a whole (which already has pointer-events-none
       between widgets).

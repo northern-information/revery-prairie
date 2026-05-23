@@ -9,14 +9,11 @@ import type { ScanCommitResult } from '@/engine/scan'
 import type { CharMetrics, GameState } from '@/engine/types'
 import type { PermacomputerScreen } from '@/hooks/useKeyboard'
 
-const SIDEBAR_WIDTH_PX = 192 // matches Sidebar w-48
-
 const resizeState = (state: GameState, charWidth: number, charHeight: number) => {
   const vw = Math.floor(window.innerWidth / charWidth)
   const vh = Math.floor(window.innerHeight / charHeight)
   state.viewportWidth = vw
   state.viewportHeight = vh
-  state.rightInsetTiles = Math.ceil(SIDEBAR_WIDTH_PX / charWidth)
   updateCamera(state)
 }
 
