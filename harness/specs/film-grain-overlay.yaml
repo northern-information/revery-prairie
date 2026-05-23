@@ -4,7 +4,7 @@ priority: low
 layer: integration
 source_files:
   - src/engine/render/passes/filmGrainOverlay.ts
-  - src/engine/render/passes/zoneTransitionOverlay.ts
+  - src/engine/render/passes/fogMask.ts
   - src/engine/render/passes/index.ts
   - src/styles/index.css
   - src/components/ScanResultModal.tsx
@@ -14,47 +14,57 @@ dependencies:
   - seasonal-palette-wash
 
 behaviors:
-  - id: grain-pass-registered-in-world-overlay
+  - id: grain-pass-registered-after-fog-mask
     description: >
-      A new render pass `filmGrainOverlay` is registered in the
+      A render pass `filmGrainOverlayPass` is registered in the
       `world-overlay` slot and exported from
-      `src/engine/render/passes/index.ts`. It must be re-exported BEFORE
-      `fogMaskPass` so the fog-of-war mask covers the grain in
-      unexplored areas (consistent with fog hiding all other
-      world-overlay content). The pass is the first new visual
-      consumer of a raster image asset in the engine; no shared image
-      loader exists yet, so the loader lives at the top of the
-      `filmGrainOverlay.ts` module as a singleton.
+      `src/engine/render/passes/index.ts`. It is re-exported AFTER
+      `fogMaskPass` so the grain renders on top of the fog mask —
+      this produces uniform photographic medium across the entire
+      viewport including fogged-out regions and the Space border
+      (the "fog/void uniformity" property). Order rationale is
+      captured in the comment block above the re-exports in
+      `passes/index.ts`.
     inputs:
       - 'render frame in any zone'
     outputs:
-      - 'film grain pass present in `world-overlay` slot, ordered before `fogMaskPass` in `passes/index.ts`'
+      - 'filmGrainOverlayPass present in `world-overlay` slot, ordered after `fogMaskPass` in `passes/index.ts`'
     state_changes: []
     determinism: deterministic
 
   - id: grain-image-loads-once-at-module-init
     description: >
       The module creates a single `HTMLImageElement` at module
-      initialization with `src = '/textures/000973910004.jpg'`. The
-      module exposes module-private `grainImage` and `grainReady`
-      bindings. `grainReady` is `false` until the `load` event fires,
-      then becomes `true`. The image element is reused for the entire
-      session; no per-zone or per-frame reload.
+      initialization (via `initGrainImage`) with
+      `src = '/textures/000973910004-512.jpg'` — a 512px crop of the
+      source photograph. The full-resolution
+      `/textures/000973910004.jpg` remains in place for the CSS
+      title-card paths (see `grain-applied-to-boot-title-card`); the
+      canvas pass uses the 512 crop because at 0.2 alpha the crops
+      are visually indistinguishable but the smaller file loads
+      faster and tiles cleanly into the cached 512×512 canvas. The
+      module exposes a module-private `grainImage` reference and a
+      `grainReady` boolean that transitions `false → true` once on
+      the `load` event. The image is reused for the entire session;
+      no per-zone or per-frame reload. Init is guarded — calling
+      `initGrainImage` when `grainImage` is already set is a no-op,
+      and SSR / non-DOM environments (where `Image` is undefined)
+      short-circuit.
     inputs:
       - 'module is imported (triggered by the side-effect import in renderer.ts → passes/index.ts)'
     outputs:
-      - 'grainImage is an HTMLImageElement with src pointing to the public textures path'
+      - 'grainImage is an HTMLImageElement with src pointing to /textures/000973910004-512.jpg'
       - 'grainReady transitions from false → true exactly once, on image load success'
     state_changes: []
     determinism: deterministic
 
   - id: grain-pass-inactive-until-image-loads
     description: >
-      `isActive` returns `false` while `grainReady` is `false`. Once
-      the image has loaded, `isActive` returns `true` in every zone
-      (overworld and cave). The grain is part of the static world
-      texture — it applies to every non-UI tile, including cave floor,
-      walls, water, and tiles outside the player's footprint.
+      `isActive` returns `false` while `grainReady` is `false` or
+      `grainImage` is `null`. Once the image has loaded, `isActive`
+      returns `true` in every zone (overworld and cave) — the pass
+      itself has no zone gating; coverage is uniform across the
+      viewport regardless of zone.
     inputs:
       - 'image not yet loaded'
     outputs:
@@ -62,73 +72,102 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: grain-baked-once-to-offscreen-canvas
+  - id: grain-tile-canvas-baked-once-with-premultiplied-alpha
     description: >
-      On the first `draw` call after `grainReady` becomes `true`, the
-      pass bakes the grain into a module-private offscreen canvas
-      whose dimensions and `worldOriginX`/`worldOriginY` are taken
-      directly from the active `tileBgCache` entry — so the same
-      (dx, dy) translation maps grain cache pixels to viewport
-      pixels and grain aligns pixel-perfectly with the tile
-      backgrounds. Baking fills the canvas with the grain image as
-      a `createPattern('repeat')` fillStyle, then composites the
-      `tileBgCache` canvas using `globalCompositeOperation =
-      'destination-in'` so the grain is masked to exactly the
-      pixels the bg-cache has painted. Subsequent frames reuse the
-      cached canvas without re-baking. The cache is keyed by
-      `state.map` reference via a `WeakMap`; it also invalidates
-      when `charWidth`/`charHeight` change OR when the underlying
-      `tileBgCache` canvas reference changes (the cacheContract
-      invalidates the bg-cache on elevation, terrain, and water
-      mutations, so a fresh bg canvas signals a stale grain mask).
+      On the first `draw` call after the image loads, the pass bakes
+      a single 512×512 (`TILE_SIZE`) offscreen canvas via
+      `getOrBuildTile`. The bake step draws the source image at
+      1:1 (matching `TILE_SIZE`), then composites a black rect at
+      `globalCompositeOperation = 'destination-in'` with
+      `rgba(0, 0, 0, FILM_GRAIN_ALPHA)` (FILM_GRAIN_ALPHA = 0.2).
+      This pre-multiplies the base alpha into the tile so per-frame
+      blits don't touch `globalAlpha` in the common (no-wash) case.
+      The cache is keyed by source-image identity; rebuild only
+      happens if `grainImage` is reassigned (effectively never in
+      production, but exposed for tests via `__testing.setGrainImage`).
+      The canvas is created with `OffscreenCanvas` when available,
+      falling back to `document.createElement('canvas')` for SSR /
+      older runtimes.
     inputs:
       - 'first draw after image load'
-      - 'subsequent frames in the same zone with same dimensions'
+      - 'subsequent frames'
     outputs:
-      - 'cached offscreen canvas is created exactly once per (zone, mapWidth, mapHeight) tuple'
-      - 'subsequent frames in the same zone do not re-bake'
+      - 'a single 512×512 tile canvas is created exactly once per source image and reused for every frame'
     state_changes: []
     determinism: deterministic
 
-  - id: grain-drawn-as-camera-clipped-region
+  - id: grain-drawn-as-world-anchored-tile-grid
     description: >
-      Each frame, the pass calls `ctx.drawImage(cache.canvas, dx, dy)`
-      where (dx, dy) is the same iso-projection camera translation
-      used by `tileBgComposite`:
-      `dx = (camera.y - camera.x) * charWidth + originX - cache.worldOriginX`
-      `dy = -(camera.x + camera.y) * (charHeight/2) + originY - cache.worldOriginY`
-      with `originX`/`originY` derived from `viewportWidth` and
-      `viewportHeight`. Because grain is baked at world coordinates,
-      it stays fixed to the land as the camera pans — grain is
-      "printed onto the prairie", not "a lens filter".
+      Each frame, `draw` computes the same iso-projection origin the
+      renderer uses to place world tiles
+      (`originX = (viewportHeight * charWidth) / 2 - halfW`,
+      `originY = ((viewportHeight - viewportWidth) / 4) * charHeight`)
+      and translates by the camera
+      (`dx = (camera.y - camera.x) * charWidth + originX`,
+      `dy = -(camera.x + camera.y) * halfH + originY`).
+      The grid start position is snapped to the nearest multiple of
+      `TILE_SIZE` outside the viewport (`offsetX`, `offsetY`
+      computed from `Math.floor(dx) % TILE_SIZE`, adjusted so a
+      single full row/column of tiles always covers the viewport).
+      Then the pass loops `for (y = offsetY; y < canvasH; y +=
+      TILE_SIZE)` × `for (x = offsetX; x < canvasW; x += TILE_SIZE)`
+      and calls `ctx.drawImage(tile, x, y)` for each grid cell.
+      Because the grid anchors to world coordinates via the camera
+      offset, the grain pans with the prairie ("printed-onto-the-
+      world" semantics) rather than the screen. Performance
+      rationale (in source comments): drawImage-grid keeps the
+      canvas 2D backend on its fast blit path (~0.2 ms/frame)
+      whereas `createPattern` with translation transforms forces
+      the slower pattern-sampling path (~5 ms/frame measured).
     inputs:
-      - 'frame with camera at (camera.x, camera.y)'
+      - 'frame with camera at (camera.x, camera.y), viewport dimensions in metrics, ctx.canvas.width/height'
     outputs:
-      - 'drawImage called with sx/sy derived from camera, sw/sh from viewport, dx/dy from on-screen viewport origin'
+      - 'one ctx.drawImage call per visible tile-grid cell; ~6-12 calls per frame depending on viewport size'
     state_changes: []
     determinism: deterministic
 
-  - id: grain-masked-to-painted-bg-pixels
+  - id: grain-covers-entire-viewport-uniformly
     description: >
-      The grain is masked to exactly the pixels the `tileBgCache`
-      has painted. This is achieved by filling the grain canvas
-      with the JPG pattern and then compositing the bg-cache canvas
-      with `destination-in`. The bg-cache paints all non-Space
-      tiles (with full iso geometry — diamonds + lift + water sink)
-      and leaves Space-tile pixels transparent, so the grain
-      inherits the same mask for free. This means: (a) zones with
-      iso bounding boxes larger than their playable footprint
-      (caves, ruins, structures) don't outline the bounding box
-      against pure-canvas dark, (b) the grain on raised tiles
-      follows the tile up to its lifted position (no misalignment
-      into the cliff face), and (c) tiles with water sink get
-      grain at the sunken level.
+      Grain renders across the entire ctx.canvas — including the
+      Space border, fog-of-war regions, and tiles outside the
+      playable map footprint. The pass does not consult
+      `tileBgCache`, the bg-cache mask, or any tile-type mask. This
+      is intentional: the grain reads as photographic medium across
+      the whole frame, consistent with the CSS
+      `.film-grain-overlay` treatment on the title card and gel
+      scan modals. Caves and ruins whose iso bounding boxes are
+      larger than their playable footprint do not get a
+      bg-cache-shaped grain mask — the grain is uniform.
     inputs:
-      - 'a map with a mix of Space and non-Space tiles'
-      - 'tiles at varied elevation tiers and/or water sink'
+      - 'a map with a mix of Space, fog, and playable tiles'
     outputs:
-      - 'cached canvas has grain only at painted-bg pixels; Space and out-of-bounds areas remain fully transparent'
-      - 'grain on raised tiles renders at the same lifted screen position as the tile bg'
+      - 'grain covers ctx.canvas.width × ctx.canvas.height uniformly; Space and fogged regions get grain at the same density as playable tiles'
+    state_changes: []
+    determinism: deterministic
+
+  - id: grain-seasonal-wash-attenuation
+    description: >
+      The base alpha is pre-multiplied into the tile canvas, so
+      most frames need no `globalAlpha` change. When
+      `seasonalWash(state.seasonalPhase).intensity` is greater than
+      0, the pass attenuates by setting
+      `ctx.globalAlpha = savedAlpha * (1 - washIntensity)` for the
+      duration of the tile-grid loop and restores `savedAlpha`
+      after. With the current SEASON_WASH_ANCHORS table the
+      effective grain alpha curve is: spring equinox (intensity
+      0.0) → 0.20; summer solstice (0.05) → 0.19; autumn equinox
+      (0.18) → 0.164; winter solstice (0.4) → 0.12. When
+      `state.seasonalPhase` is not a number, `washIntensity` is
+      treated as 0 and `globalAlpha` is not touched. The wash
+      itself is a per-tile color blend inside the central
+      tile-glyph loop and cannot reach a raster overlay, so this
+      attenuation is an explicit approximation, documented in the
+      module's top-of-file comment.
+    inputs:
+      - 'state.seasonalPhase in [0, 1) (or undefined)'
+    outputs:
+      - 'globalAlpha is multiplied by (1 - washIntensity) only when washIntensity > 0; otherwise untouched'
+      - 'globalAlpha is restored to the saved value at the end of draw'
     state_changes: []
     determinism: deterministic
 
@@ -142,8 +181,11 @@ behaviors:
       `src/styles/index.css` as a `::after` pseudo-element with
       `background-image: url('/textures/000973910004.jpg')`,
       `background-repeat: repeat`, `opacity: 0.2`, and
-      `pointer-events: none`. The host element gets `overflow-hidden`
-      so the pseudo-element clips at its border.
+      `pointer-events: none`. The host element gets
+      `overflow-hidden` so the pseudo-element clips at its border.
+      Note: the CSS path uses the full-resolution JPG, not the
+      512px crop the canvas pass uses; both paths read as the same
+      grain at typical viewing distances.
     inputs:
       - 'a flora specimen is scanned and the ScanResultModal renders'
     outputs:
@@ -151,61 +193,22 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: grain-applied-to-zone-transition-overlay
-    description: >
-      The canvas `zoneTransitionOverlay` pass (which renders the
-      ruins↔overworld and cave↔overworld fade cards) draws the grain
-      pattern on top of its `BG_COLOR` fill at ~0.4 alpha
-      (multiplied by the transition's tween alpha). The grain image
-      is sourced from the singleton in `filmGrainOverlay.ts` via the
-      exported `getGrainImage` accessor — no second image load.
-      When grain hasn't loaded yet, the pass falls through cleanly
-      without grain.
-    inputs:
-      - 'a zone transition is in progress (state.zoneTransition is non-null)'
-    outputs:
-      - 'transition card BG includes grain texture matching the canvas world overlay and the boot title card'
-    state_changes: []
-    determinism: deterministic
-
   - id: grain-applied-to-boot-title-card
     description: >
       The boot title card overlay
-      (`src/components/BootTitleCardOverlay.tsx`) applies the same
-      `film-grain-overlay` utility on its fullscreen black backdrop.
-      The grain rides the card's existing opacity tween (`alpha`)
-      because the utility's `::after` pseudo-element inherits opacity
-      from its host's `style.opacity` — so as the title card fades
-      in and out, the grain fades with it.
+      (`src/components/BootTitleCardOverlay.tsx`) applies the
+      `film-grain-overlay-strong` CSS utility — a higher-opacity
+      sibling of `film-grain-overlay` defined in
+      `src/styles/index.css:237`. The grain rides the card's
+      existing opacity tween (`alpha`) because the utility's
+      `::after` pseudo-element inherits opacity from its host's
+      `style.opacity`, so as the title card fades in and out, the
+      grain fades with it. The card backdrop is full-screen black
+      with `pointer-events-none` and `fixed inset-0 z-50`.
     inputs:
       - 'boot title card overlay is rendered (alpha > 0)'
     outputs:
-      - 'boot-title-card panel carries the film-grain-overlay class'
-    state_changes: []
-    determinism: deterministic
-
-  - id: grain-alpha-continuous-seasonal-modulation
-    description: >
-      The pass draws at `globalAlpha = FILM_GRAIN_ALPHA * (1 -
-      washIntensity)`, where `FILM_GRAIN_ALPHA` is a module-private
-      constant (default 0.2) and `washIntensity` is the `.intensity`
-      field returned by `seasonalWash(state.seasonalPhase)`
-      from `src/engine/tileBg.ts`. This honors "grain sits under the
-      seasonal palette wash" continuously across the year, not as a
-      winter-only binary. Concretely, with the current
-      SEASON_WASH_ANCHORS table the effective grain alpha curve is:
-      spring equinox (intensity 0.0) → 0.20; summer solstice
-      (intensity 0.05) → 0.19; autumn equinox (intensity 0.18) →
-      0.164; winter solstice (intensity 0.4) → 0.12. The wash itself
-      is a per-tile color blend inside the central tile-glyph loop and
-      cannot reach a raster overlay, so this alpha curve is an
-      explicit approximation. `globalAlpha` is saved before the pass
-      and restored after.
-    inputs:
-      - 'state.seasonalPhase in [0, 1)'
-    outputs:
-      - 'globalAlpha set to FILM_GRAIN_ALPHA * (1 - seasonalWash(seasonalPhase).intensity)'
-      - 'globalAlpha is restored to the saved value at the end of draw'
+      - 'boot-title-card panel carries the film-grain-overlay-strong class'
     state_changes: []
     determinism: deterministic
 
@@ -214,39 +217,43 @@ edge_cases:
     description: 'The image fails to load (404, network error, decode failure)'
     expected: 'grainReady stays false; isActive returns false forever; renderer continues without grain; one console warning is logged on the error event, no further logging'
 
-  - id: zone-change-rebakes-cache
-    description: 'Player transitions from overworld to cave (or back); cave map dimensions differ from overworld'
-    expected: 'the cached offscreen canvas is invalidated and re-baked on the next draw with the new zone dimensions; no stale-size canvas is reused across zones'
+  - id: zone-change-does-not-rebuild-tile
+    description: 'Player transitions from overworld to cave (or back)'
+    expected: 'the cached tile canvas is NOT rebuilt — it is keyed by source-image identity, not by zone or map dimensions. The world-anchored grid adapts automatically because (camera.x, camera.y) changes drive offsetX/offsetY.'
 
   - id: viewport-resize-during-session
-    description: 'Window resize changes viewportWidth/viewportHeight while zone and mapWidth/mapHeight are unchanged'
-    expected: 'the cached world-sized canvas is NOT re-baked (it is keyed by world dimensions, not viewport). The visible slice computed from camera + viewport adapts naturally to the new viewport size'
+    description: 'Window resize changes viewportWidth / viewportHeight or ctx.canvas.width / height'
+    expected: 'the cached tile canvas is NOT rebuilt. The tile-grid loop bounds (canvasW, canvasH) read directly from ctx.canvas so the grid adapts naturally to the new viewport size.'
 
   - id: cursor-inversion-not-affected
-    description: 'The hot-pink cursor inversion (pink fillRect bg + dark text) renders in the central tile-glyph loop, after the world-overlay slot'
-    expected: 'grain sits below cursor inversion in the z-order; cursor highlight remains crisp and is not visually muddied by grain'
+    description: 'The hot-pink cursor inversion (pink fillRect bg + dark text) renders in the central tile-glyph loop, before the world-overlay slot'
+    expected: 'grain sits above cursor inversion in the z-order at low alpha; cursor highlight remains crisp and legible under the 0.2 alpha grain wash.'
 
   - id: ui-sidebar-not-covered
-    description: 'The right sidebar UI inset (rightInsetTiles) is outside the world canvas area'
-    expected: 'grain is drawn only across the world viewport area; the sidebar UI is unaffected. This is naturally enforced because the destination rect uses viewport dims, which exclude the sidebar inset'
+    description: 'The right sidebar UI inset is outside the world canvas area'
+    expected: 'grain is drawn only across the world canvas (ctx.canvas dimensions); the sidebar UI lives outside the canvas and is unaffected. This is enforced by the canvas boundary itself, not by any sidebar-aware logic in the pass.'
 
-  - id: fog-of-war-covers-grain
-    description: 'Unexplored fog-of-war tiles should remain visually dark; grain should not "shine through" the fog mask'
-    expected: 'because filmGrainOverlayPass is registered before fogMaskPass in passes/index.ts, the fog mask draws on top of grain and covers it in unexplored regions'
+  - id: grain-renders-on-top-of-fog
+    description: 'Unexplored fog-of-war tiles render the BG_COLOR fog tint via fogMaskPass; grain should appear at the same density there as on revealed tiles'
+    expected: 'because filmGrainOverlayPass is registered AFTER fogMaskPass in passes/index.ts, the grain draws on top of fog and renders uniformly across explored and unexplored regions. This is the fog/void uniformity guarantee introduced in PR #389.'
 
-  - id: caves-and-ruins-do-not-show-bounding-box
-    description: 'A cave or ruin map whose playable footprint is smaller than its iso bounding box should not visibly outline the bounding box against pure-canvas dark'
-    expected: 'grain is painted only on non-Space tile positions, so the bounding box is not visible — only the playable tile footprint is grained'
+  - id: grain-renders-on-top-of-space-border
+    description: 'A cave or ruin map whose playable footprint is smaller than its iso bounding box leaves Space tiles around the playable area; the Space border outside the playable map is also expected to receive grain'
+    expected: 'grain covers ctx.canvas.width × ctx.canvas.height uniformly — Space tiles and the out-of-map Space border receive grain at the same density as playable tiles. No bg-cache masking. This is intentional per PR #389 ("fog/void uniformity").'
+
+  - id: camera-pan-keeps-grain-world-anchored
+    description: 'Camera moves between frames'
+    expected: 'offsetX / offsetY shift in lockstep with the camera so the grain pattern visually moves with the prairie; no per-frame stutter or screen-locked aliasing.'
 
 failure_conditions:
-  - trigger: 'public/textures/000973910004.jpg is missing or returns 404'
-    expected: 'image load fails, grainReady stays false, pass is permanently inactive, no crash, one warning logged'
+  - trigger: 'public/textures/000973910004-512.jpg is missing or returns 404'
+    expected: 'image load fails, grainReady stays false, pass is permanently inactive, no crash, one warning logged with the texture URL'
 
-  - trigger: 'state.mapWidth or state.mapHeight is 0 (degenerate zone)'
-    expected: 'draw returns early before baking; no zero-sized canvas is created; no crash'
+  - trigger: 'OffscreenCanvas is unavailable and document is also unavailable (SSR with no DOM polyfill)'
+    expected: 'createCanvas falls back to document.createElement; if both are absent, the bake throws at module init only when initGrainImage detects no Image global it returns early without setting grainImage'
 
-  - trigger: 'state.weather or state.seasonalPhase is undefined'
-    expected: 'alpha defaults to FILM_GRAIN_ALPHA with washIntensity treated as 0; no crash'
+  - trigger: 'state.seasonalPhase is undefined or a non-number'
+    expected: 'washIntensity is treated as 0; globalAlpha is not touched; grain renders at the base FILM_GRAIN_ALPHA pre-multiplied into the tile'
 
 verification:
   test_file: src/engine/__tests__/filmGrainOverlay.test.ts
